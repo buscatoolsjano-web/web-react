@@ -803,3 +803,41 @@ recuperación de contraseña.
 | 5 | ¿Apruebo el diseño y arranco a programar? | — |
 
 **No hay una sola línea de código de Fase 3 escrita.** Espero tu aprobación.
+
+---
+
+## Apéndice — decisiones tomadas al implementar (2026-09-08)
+
+Tras tu aprobación se resolvió así:
+
+| Punto | Decisión | Dónde quedó |
+|---|---|---|
+| Búsqueda | **Opción 3 aprobada.** Creada `public.search_products()`, no en `app`: PostgREST sólo expone `public`, así que una función en `app` no sería invocable con `supabase.rpc()` | `phase3_create_search_products_rpc` |
+| Paginación de la búsqueda | `count(*) OVER ()` → `total_count` en cada fila. Permite "1–50 de N" también durante la búsqueda fuzzy | idem |
+| Orden por score | `row_number()` con orden **total** `(score DESC, name, id)` → `rank_position`, reconstruido en el cliente por `ordenarPorRelevancia()` | `lib/relevancia.ts` |
+| `is_filterable` | **Ejecutado**: `carcasa`, `longitud`, `eslinga`, `ergonomia` pasaron a true | `phase3_mark_legacy_filter_attributes_filterable` |
+| `applies_to_category_id` | **NO ejecutado.** La evidencia mostró que la columna no alcanza | [ATTRIBUTE_CATEGORY_RELATION.md](database/ATTRIBUTE_CATEGORY_RELATION.md) |
+| URL del detalle | `#/catalogo/:sku`, resuelto siempre con la empresa activa | `app/routes.tsx` |
+| Recuperación de contraseña | Fuera de alcance, documentado en la UI y en el código | `LoginPage.tsx` |
+
+### Desvío de la estructura propuesta
+
+El diseño proponía `src/features/catalog/`. Se usó **`src/modules/catalogo/`**,
+que es la estructura que la Fase 1 ya había creado (con `services/`,
+`hooks/`, `pages/`, `components/`, `types/` por módulo) y la que reconoce
+la regla de ESLint que prohíbe importar el cliente Supabase fuera de la
+capa de servicios. Auth y empresa quedaron en `src/features/`, que es
+donde van las capas transversales.
+
+### `position` es palabra reservada en Postgres
+
+El primer `CREATE FUNCTION` falló con `syntax error at or near "position"`.
+La columna de salida se llama `rank_position`.
+
+### Un dato del diseño que resultó estar mal
+
+La sección C.3 decía que la opción 1 (`textSearch`) no necesitaba objetos
+nuevos porque `search_vector` ya existía. Es correcto, y además la columna
+resultó ser **GENERATED STORED** con pesos A/A/B/C: se mantiene sola en
+cada INSERT y UPDATE, sin trigger. La RPC la aprovecha para la parte de
+full-text y usa trigram sólo para tolerar errores de tipeo.

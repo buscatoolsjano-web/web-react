@@ -1,6 +1,6 @@
 # Estado de la migración — BUSCATOOLS
 
-Última actualización: **2026-09-08** · Fase actual: **2B Etapa 1 CERRADA** — Core + Catálogo + Stock + Precios · 121/121 pruebas
+Última actualización: **2026-09-08** · Fase actual: **3 — Catálogo en React** · implementado, pendiente de pruebas RLS con usuarios reales
 
 **En línea:** https://buscatoolsjano-web.github.io/web-react/
 
@@ -13,9 +13,9 @@
 | Módulo | Estado | Legacy analizado | Schema DB | React UI | Funcional | Responsive | RLS | Tests | Aprobado |
 |---|---|---|---|---|---|---|---|---|---|
 | **Infraestructura (Fase 1)** | **OK** | OK | N/A | OK | OK | OK | N/A | OK | ⏳ |
-| Auth / usuarios / permisos | **OK** | OK | **Creado** | — | — | — | **Probado** | 51 | ⏳ |
-| Multiempresa | **OK** | OK | **Creado** | — | — | — | **Probado** | 14 | ⏳ |
-| Catálogo | WIP | OK | **Creado** | — | — | — | **Probado** | 20 | ⏳ |
+| Auth / usuarios / permisos | **OK** | OK | **Creado** | **Hecho** | **Hecho** | **Hecho** | **Probado** | 51 | ⏳ |
+| Multiempresa | **OK** | OK | **Creado** | **Hecho** | **Hecho** | **Hecho** | **Probado** | 14 | ⏳ |
+| Catálogo | **WIP** | OK | **Creado** | **Hecho** | **Hecho** | **Hecho** | **Probado** | 73 | ⏳ |
 | Ventas | — | OK | Diseñado | — | — | — | — | — | — |
 | Clientes | — | OK | Diseñado | — | — | — | — | — | — |
 | Compras | — | OK | Diseñado | — | — | — | — | — | — |
@@ -35,7 +35,7 @@
 | 2 | Diseño del schema Supabase | **PROPUESTA ENTREGADA** — pendiente de aprobación |
 | 2B-1 | Core + Catálogo + Stock + Precios | **CERRADA** — 15 tablas, **121/121 PASS** |
 | 2.5 | Auth + multiempresa + RLS por rol | **OK** — 7 usuarios, 8 membresías, roles internos y externos probados |
-| 3 | Catálogo | — |
+| 3 | Catálogo | **EN CURSO** — Auth + empresa + catálogo implementados; 73/73 pruebas, 9 bloqueadas por credenciales |
 | 4 | Ventas + Clientes | — |
 | 5 | Compras | — |
 | 6 | Mantenimiento | — |
@@ -132,7 +132,11 @@ usuarios externos. Ambos habrían llegado a producción.
 
 ## Próximo paso
 
-**Etapa 1 CERRADA.** Nada pendiente.
+**Etapa 1 CERRADA.** **Fase 3 implementada** — ver [PHASE_3_CATALOG_DESIGN.md](docs/PHASE_3_CATALOG_DESIGN.md) y [PHASE_3_TEST_RESULTS.md](docs/PHASE_3_TEST_RESULTS.md).
+
+Pendiente de tu decisión: la relación N:N atributo↔categoría
+([evidencia](docs/database/ATTRIBUTE_CATEGORY_RELATION.md)) y las credenciales
+de prueba para cerrar las 9 pruebas de RLS desde el navegador.
 
 Próximo: **Etapa 2 (Ventas)** — no empieza sin tu aprobación.
 Tampoco se cargan los 21.772 productos todavía.
