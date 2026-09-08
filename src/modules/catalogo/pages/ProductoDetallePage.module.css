@@ -1,0 +1,153 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 900px;
+  min-width: 0;
+}
+
+.volver {
+  align-self: flex-start;
+  color: var(--primary);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.volver:hover {
+  text-decoration: underline;
+}
+
+.encabezado {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sku {
+  font-size: var(--text-sm);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.meta {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+}
+
+.badges {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-1);
+}
+
+.badge,
+.badgeAviso {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.badge {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.badgeAviso {
+  background: var(--warning-light);
+  color: var(--warning-text);
+}
+
+.destacados {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+@media (min-width: 601px) {
+  .destacados {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.dato {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.datoEtiqueta {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.descripcion {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.seccion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.seccionTitulo {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.ficha {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 769px) {
+  .ficha {
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--space-5);
+  }
+}
+
+.fichaItem {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.fichaEtiqueta {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+}
+
+.fichaValor {
+  margin: 0;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  text-align: right;
+}

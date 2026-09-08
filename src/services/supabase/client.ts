@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { getEnv } from '@/lib/env'
+import type { Database } from '@/types/database.types'
 
 /**
  * ÚNICA instancia del cliente Supabase de toda la aplicación.
@@ -11,13 +12,13 @@ import { getEnv } from '@/lib/env'
  *  3. Cero service_role en el frontend.
  *  4. La sesión la maneja el SDK — nunca localStorage a mano.
  *
- * FASE 1: sin tipos de base de datos todavía. En Fase 2, cuando exista el
- * schema, se genera src/types/database.types.ts y este cliente pasa a ser
- * createClient<Database>(...), con lo que todas las queries quedan tipadas.
+ * FASE 3: el cliente está tipado con el schema real. Cualquier columna que
+ * no exista, o cualquier tabla mal escrita, ahora falla en `npm run
+ * typecheck` en vez de devolver un 400 en runtime.
  */
 const env = getEnv()
 
-export const supabase = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY, {
+export const supabase = createClient<Database>(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,

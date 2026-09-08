@@ -1,0 +1,39 @@
+.precio {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sinDato {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.stock {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stockVirtual {
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+}
+
+.stockVirtual::before {
+  content: '/ ';
+}
+
+.disponible {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--success-light);
+  color: var(--success);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}

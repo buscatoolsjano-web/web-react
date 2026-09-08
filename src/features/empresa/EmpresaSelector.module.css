@@ -1,0 +1,48 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.select {
+  font-size: var(--text-sm);
+  padding: var(--space-1) var(--space-2);
+  min-height: 36px;
+  border: 1px solid var(--topnav-text-soft);
+  border-radius: var(--radius-sm);
+  background: var(--topnav-hover);
+  color: var(--topnav-text);
+  max-width: 220px;
+}
+
+.select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.unica {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--topnav-text);
+}
+
+.rol {
+  font-size: var(--text-xs);
+  color: var(--topnav-text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 768px) {
+  .select,
+  .unica {
+    max-width: 140px;
+  }
+
+  /* En pantallas chicas el nombre de la empresa alcanza; el rol se ve en
+     el detalle de la sesión. */
+  .rol {
+    display: none;
+  }
+}

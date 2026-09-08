@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useAuth } from '@/features/auth/useAuth'
+import { EmpresaSelector } from '@/features/empresa/EmpresaSelector'
 import { cx } from '@/utils/cx'
 import styles from './AppLayout.module.css'
 
@@ -14,10 +16,12 @@ import styles from './AppLayout.module.css'
  * permiso NO se renderizan. No se ocultan con CSS — ese fue el error del
  * legacy, donde los permisos eran `el.style.display = 'none'`.
  */
-const NAV = [{ to: '/', label: 'Dashboard', end: true }] as const
+const NAV = [
+  { to: '/', label: 'Dashboard', end: true },
+  { to: '/catalogo', label: 'Catálogo', end: false },
+] as const
 
 const PROXIMAMENTE = [
-  'Catálogo',
   'Ventas',
   'Clientes',
   'Compras',
@@ -30,6 +34,7 @@ const PROXIMAMENTE = [
 
 export function AppLayout() {
   const isMobile = useIsMobile()
+  const { user, session, salir } = useAuth()
   const [drawerAbierto, setDrawerAbierto] = useState(false)
 
   // Al cruzar el breakpoint, cerrar el drawer.
@@ -70,7 +75,17 @@ export function AppLayout() {
         </button>
         <span className={styles.brand}>BUSCATOOLS</span>
         <span className={styles.headerSpacer} />
-        <span className={styles.headerMeta}>v0.1.0 · Fase 1</span>
+        {session && (
+          <div className={styles.sesion}>
+            <EmpresaSelector />
+            <span className={styles.email} title={user?.email ?? ''}>
+              {user?.email}
+            </span>
+            <button type="button" className={styles.salir} onClick={() => void salir()}>
+              Salir
+            </button>
+          </div>
+        )}
       </header>
 
       <div className={styles.body}>
