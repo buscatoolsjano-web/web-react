@@ -3,13 +3,30 @@
 --  Core + Catálogo + Stock + Precios
 --
 --  ####################################################################
---  ##                  DRAFT — NOT EXECUTED                          ##
---  ##  Pendiente de aprobación. Nada de esto se ejecutó contra        ##
---  ##  uaxcfufvapzulqvynanp, cuyo schema public sigue VACÍO.          ##
+--  ##                     EJECUTADO — 2026-09-08                     ##
+--  ##  Aplicado en uaxcfufvapzulqvynanp en 8 migraciones. Este        ##
+--  ##  archivo es la referencia consolidada e incluye las             ##
+--  ##  correcciones que surgieron durante la ejecución y las pruebas. ##
+--  ##  Verificación: STAGE_1_SCHEMA_VERIFICATION.md                   ##
+--  ##  Resultados:   STAGE_1_TEST_RESULTS.md  (72/72 PASS)            ##
 --  ####################################################################
 --
 --  15 tablas. Ventas, Compras, Mantenimiento, WhatsApp, Emails, IA y
 --  auditoría NO se crean en esta etapa.
+--
+--  CORRECCIONES YA INCORPORADAS (ver STAGE_1_TEST_RESULTS.md):
+--   1. app.apply_stock_reservation: el delta negativo del RELEASE violaba
+--      chk_reserved_non_negative porque PostgreSQL evalúa los CHECK sobre
+--      la fila propuesta antes de resolver el ON CONFLICT. Ahora el alta
+--      hace upsert y la baja un UPDATE directo.
+--   2. pg_trgm y unaccent viven en `extensions`, no en `public` (advisor
+--      de Supabase), y los índices GIN califican extensions.gin_trgm_ops.
+--   3. `extensions` agregado al search_path de authenticated/anon/
+--      service_role: sin eso el operador % de similitud no se resuelve.
+--   4. REVOKE UPDATE/DELETE sobre stock_movements y UPDATE sobre
+--      stock_reservations, para que el intento falle con error explícito
+--      en vez de "0 filas afectadas".
+--   5. Las 25 marcas del seed son las REALES del catálogo legacy.
 --
 --  Orden de ejecución: los 8 bloques, en orden. Cada bloque es una
 --  migración independiente y re-ejecutable.
@@ -20,8 +37,14 @@
 -- BLOQUE 1 — Extensiones y schema de funciones
 -- =====================================================================
 
-CREATE EXTENSION IF NOT EXISTS pg_trgm;    -- búsqueda tolerante a tipeos
-CREATE EXTENSION IF NOT EXISTS unaccent;   -- "balanceadór" = "balanceador"
+CREATE EXTENSION IF NOT EXISTS pg_trgm  WITH SCHEMA extensions;  -- tolerante a tipeos
+CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA extensions;  -- ignora acentos
+
+-- Sin esto el operador % de similitud no se resuelve desde la API, que se
+-- conecta como authenticated con search_path = "$user", public.
+ALTER ROLE authenticated SET search_path = "$user", public, extensions;
+ALTER ROLE anon          SET search_path = "$user", public, extensions;
+ALTER ROLE service_role  SET search_path = "$user", public, extensions;
 -- pgvector: NO se instala. Ver ADR / sección R.
 
 CREATE SCHEMA IF NOT EXISTS app;
@@ -71,7 +94,7 @@ CREATE TABLE profiles (
   updated_at timestamptz NOT NULL DEFAULT now(),
   deleted_at timestamptz
 );
-CREATE INDEX idx_profiles_name_trgm ON profiles USING gin (full_name gin_trgm_ops);
+CREATE INDEX idx_profiles_name_trgm ON profiles USING gin (full_name extensions.gin_trgm_ops);
 
 
 -- =====================================================================
@@ -109,8 +132,8 @@ CREATE UNIQUE INDEX idx_customers_taxid ON customers (company_id, tax_id)
   WHERE tax_id IS NOT NULL AND deleted_at IS NULL;
 CREATE UNIQUE INDEX idx_customers_legacy ON customers (company_id, legacy_ref)
   WHERE legacy_ref IS NOT NULL;
-CREATE INDEX idx_customers_legal_trgm ON customers USING gin (legal_name gin_trgm_ops);
-CREATE INDEX idx_customers_trade_trgm ON customers USING gin (trade_name gin_trgm_ops);
+CREATE INDEX idx_customers_legal_trgm ON customers USING gin (legal_name extensions.gin_trgm_ops);
+CREATE INDEX idx_customers_trade_trgm ON customers USING gin (trade_name extensions.gin_trgm_ops);
 CREATE INDEX idx_customers_domains    ON customers USING gin (email_domains);
 CREATE INDEX idx_customers_seller     ON customers (company_id, salesperson_id);
 
@@ -228,8 +251,8 @@ CREATE INDEX idx_products_brand     ON products (company_id, brand_id);
 CREATE INDEX idx_products_category  ON products (company_id, category_id);
 CREATE INDEX idx_products_search    ON products USING gin (search_vector);
 CREATE INDEX idx_products_attrs     ON products USING gin (attributes);
-CREATE INDEX idx_products_sku_trgm  ON products USING gin (sku  gin_trgm_ops);
-CREATE INDEX idx_products_name_trgm ON products USING gin (name gin_trgm_ops);
+CREATE INDEX idx_products_sku_trgm  ON products USING gin (sku  extensions.gin_trgm_ops);
+CREATE INDEX idx_products_name_trgm ON products USING gin (name extensions.gin_trgm_ops);
 CREATE INDEX idx_products_review    ON products (company_id) WHERE needs_review;
 
 
@@ -494,20 +517,29 @@ CREATE TRIGGER trg_stock_apply AFTER INSERT ON stock_movements
 CREATE OR REPLACE FUNCTION app.apply_stock_reservation()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public, pg_temp AS $$
-DECLARE v_delta numeric(14,3);
 BEGIN
-  IF TG_OP = 'INSERT' THEN v_delta :=  NEW.quantity;
-  ELSE                     v_delta := -OLD.quantity;
+  -- El upsert sólo tiene sentido en el ALTA: la fila de saldo puede no
+  -- existir todavía. En la BAJA la fila existe por definición.
+  --
+  -- No se puede usar un único INSERT ... ON CONFLICT con delta negativo:
+  -- PostgreSQL evalúa los CHECK sobre la fila PROPUESTA antes de resolver
+  -- el conflicto, así que reserved = -20 viola chk_reserved_non_negative
+  -- aunque el resultado del UPDATE fuese 0. (Bug encontrado por la prueba S5.)
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO stock_balances (company_id, product_id, warehouse_id, reserved)
+    VALUES (NEW.company_id, NEW.product_id, NEW.warehouse_id, NEW.quantity)
+    ON CONFLICT (product_id, warehouse_id) DO UPDATE
+      SET reserved   = stock_balances.reserved + EXCLUDED.reserved,
+          updated_at = now();
+    RETURN NEW;
+  ELSE
+    UPDATE stock_balances
+       SET reserved   = reserved - OLD.quantity,
+           updated_at = now()
+     WHERE product_id = OLD.product_id
+       AND warehouse_id = OLD.warehouse_id;
+    RETURN OLD;
   END IF;
-
-  INSERT INTO stock_balances (company_id, product_id, warehouse_id, reserved)
-  VALUES (coalesce(NEW.company_id,   OLD.company_id),
-          coalesce(NEW.product_id,   OLD.product_id),
-          coalesce(NEW.warehouse_id, OLD.warehouse_id), v_delta)
-  ON CONFLICT (product_id, warehouse_id) DO UPDATE
-    SET reserved   = stock_balances.reserved + EXCLUDED.reserved,
-        updated_at = now();
-  RETURN coalesce(NEW, OLD);
 END;
 $$;
 CREATE TRIGGER trg_reservation_apply
@@ -652,7 +684,10 @@ CREATE POLICY stockmov_insert ON stock_movements FOR INSERT TO authenticated
 CREATE POLICY stockbal_select ON stock_balances FOR SELECT TO authenticated
   USING (company_id = ANY(app.current_company_ids()) AND app.is_internal(company_id));
 -- SIN políticas de escritura. El trigger es SECURITY DEFINER y no las necesita.
-REVOKE INSERT, UPDATE, DELETE ON stock_balances FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE ON stock_balances     FROM authenticated;
+-- Append-only real: sin REVOKE, el intento devolvería "0 filas" en silencio.
+REVOKE UPDATE, DELETE          ON stock_movements    FROM authenticated;
+REVOKE UPDATE                  ON stock_reservations FROM authenticated;
 
 -- ── stock_reservations ───────────────────────────────────────────────
 CREATE POLICY reservations_select ON stock_reservations FOR SELECT TO authenticated
@@ -762,8 +797,7 @@ FROM companies c
 CROSS JOIN (VALUES ('SPEEDRILL'),('APEX'),('FIAM'),('TOHNICHI'),
   ('INGERSOLL RAND'),('TECNA'),('FEIN'),('TORERO'),('CHICAGO PNEUMATIC'),
   ('DUROFIX'),('ESTIC'),('SAIPOR'),('URYU'),('YOKOTA'),('RR'),('GEDORE'),
-  ('ATLAS COPCO'),('DESOUTTER'),('CLECO'),('STANLEY'),('BOSCH'),('MAKITA'),
-  ('METABO'),('DEWALT'),('MILWAUKEE')) AS m(name)
+  ('BR'),('RIVIT'),('TO'),('GE'),('NA'),('KI'),('KOKEN'),('SI'),('MI')) AS m(name)
 WHERE c.slug = 'buscatools'
 ON CONFLICT (company_id, name) DO NOTHING;
 

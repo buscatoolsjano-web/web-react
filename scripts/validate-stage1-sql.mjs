@@ -107,7 +107,14 @@ console.log('\n9. SEGURIDAD')
 // Los chequeos de secretos corren sobre el CÓDIGO, no sobre los comentarios:
 // mencionar 'service_role' en un comentario explicativo no es usarlo.
 const codigo = sql.split('\n').map((l) => l.replace(/--.*$/, '')).join('\n')
-;/service_role/i.test(codigo) ? fail('menciona service_role') : ok('sin service_role')
+// `service_role` como NOMBRE DE ROL en un ALTER ROLE es legítimo (fijar su
+// search_path). Lo que nunca debe aparecer es la CLAVE service_role.
+const usoIndebidoServiceRole = codigo
+  .split('\n')
+  .filter((l) => /service_role/i.test(l) && !/^\s*ALTER ROLE\s+service_role\b/i.test(l))
+;usoIndebidoServiceRole.length > 0
+  ? fail('usa service_role fuera de un ALTER ROLE', usoIndebidoServiceRole[0]?.trim().slice(0, 60))
+  : ok('sin uso indebido de service_role')
 ;/hnyngsejohkmlaccpkux/.test(codigo) ? fail('referencia al Supabase legacy') : ok('sin referencias al Supabase legacy')
 ;/erp_store|bterp_|sk-ant-/.test(codigo) ? fail('referencias legacy') : ok('sin tablas ni tokens del legacy')
 ;/CREATE EXTENSION[^;]*vector/i.test(sql) ? fail('instala pgvector') : ok('no instala pgvector')

@@ -30,3 +30,7 @@ yarn-error.log*
 coverage
 .vite
 .eslintcache
+
+# artefactos temporales de los scripts de seed
+.tmp-*.json
+muestra.json

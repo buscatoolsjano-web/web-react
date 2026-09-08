@@ -1,6 +1,6 @@
 # Estado de la migración — BUSCATOOLS
 
-Última actualización: **2026-09-08** · Fase actual: **2 — Diseño del modelo de datos (propuesta entregada)**
+Última actualización: **2026-09-08** · Fase actual: **2B Etapa 1 — Core + Catálogo + Stock + Precios (ejecutada y probada)**
 
 **En línea:** https://buscatoolsjano-web.github.io/web-react/
 
@@ -13,9 +13,9 @@
 | Módulo | Estado | Legacy analizado | Schema DB | React UI | Funcional | Responsive | RLS | Tests | Aprobado |
 |---|---|---|---|---|---|---|---|---|---|
 | **Infraestructura (Fase 1)** | **OK** | OK | N/A | OK | OK | OK | N/A | OK | ⏳ |
-| Auth / usuarios / permisos | — | OK | Diseñado | — | — | — | — | — | — |
-| Multiempresa | — | OK | Diseñado | — | — | — | — | — | — |
-| Catálogo | — | OK | Diseñado | — | — | — | — | — | — |
+| Auth / usuarios / permisos | WIP | OK | **Creado** | — | — | — | — | — | — |
+| Multiempresa | WIP | OK | **Creado** | — | — | — | — | — | — |
+| Catálogo | WIP | OK | **Creado** | — | — | — | — | — | — |
 | Ventas | — | OK | Diseñado | — | — | — | — | — | — |
 | Clientes | — | OK | Diseñado | — | — | — | — | — | — |
 | Compras | — | OK | Diseñado | — | — | — | — | — | — |
@@ -33,7 +33,8 @@
 | 0 | Auditoría del legacy | **OK** |
 | 1 | Base React + CI/CD | **OK** — pendiente de aprobación |
 | 2 | Diseño del schema Supabase | **PROPUESTA ENTREGADA** — pendiente de aprobación |
-| 2.5 | Auth + multiempresa + roles + RLS | — |
+| 2B-1 | Core + Catálogo + Stock + Precios | **OK** — 15 tablas, 72/72 pruebas |
+| 2.5 | Auth externo (cliente/distribuidor) + resto de RLS | Pendiente: 5 pruebas |
 | 3 | Catálogo | — |
 | 4 | Ventas + Clientes | — |
 | 5 | Compras | — |
@@ -96,14 +97,30 @@ Core + Catálogo + Stock + Precios: **15 tablas**. **Nada ejecutado.**
 | Documento | Contenido |
 |---|---|
 | [`PHASE_2B_STAGE_1.md`](docs/database/PHASE_2B_STAGE_1.md) | Revisión de simplificación, tablas, orden, dataset y 41 casos de prueba |
-| [`STAGE_1_SCHEMA.sql`](docs/database/STAGE_1_SCHEMA.sql) | DDL + RLS + triggers + seeds — **DRAFT, NOT EXECUTED** |
+| [`STAGE_1_SCHEMA.sql`](docs/database/STAGE_1_SCHEMA.sql) | DDL + RLS + triggers + seeds *(desde entonces: **ejecutado**)* |
 | [`scripts/sample-products.mjs`](scripts/sample-products.mjs) | Muestreo estratificado: 216 productos representativos |
 
 Datos medidos en la auditoría del repo legacy real: 21.772 productos ·
 988 clientes · 142 proveedores · 55 campos de producto · 378 productos con
 stock · 5.456 sin marca · 12.588 en la categoría `otros`.
 
+## Fase 2B · Etapa 1 — ejecutada (2026-09-08)
+
+15 tablas creadas y probadas en uaxcfufvapzulqvynanp. **72/72 pruebas PASS.**
+
+| Documento | Contenido |
+|---|---|
+| [STAGE_1_PRE_EXECUTION_STATE.md](docs/database/STAGE_1_PRE_EXECUTION_STATE.md) | Estado previo + validación estática |
+| [STAGE_1_SCHEMA_VERIFICATION.md](docs/database/STAGE_1_SCHEMA_VERIFICATION.md) | Objetos creados, grants, RLS |
+| [STAGE_1_TEST_RESULTS.md](docs/database/STAGE_1_TEST_RESULTS.md) | 72 pruebas + 6 problemas corregidos |
+| [STAGE_1_SCHEMA.sql](docs/database/STAGE_1_SCHEMA.sql) | Referencia consolidada (ejecutada) |
+
+Datos: 216 productos reales · 372 precios en 3 listas · 53 movimientos de
+stock · 3 clientes de prueba · 5 usuarios con membresía. Base 10 MB → 13 MB.
+
 ## Próximo paso
 
-**Fase 2B** — implementación del schema. No empieza sin tu aprobación
-explícita del diseño.
+**Etapa 1 pendiente de cierre:** faltan 5 pruebas de RLS que necesitan un
+usuario con rol `customer` y otro con rol `distributor` en Supabase Auth.
+
+Después, **Etapa 2 (Ventas)** — no empieza sin tu aprobación.
