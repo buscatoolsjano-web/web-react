@@ -1,0 +1,181 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   SHELL — mobile-first.
+   Base = celular (sidebar como drawer). A partir de --bp-mobile se asciende
+   a la grilla de escritorio. Nunca al revés. Ver ADR-008.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* ── Header ──────────────────────────────────────────────────────────── */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  padding-left: max(var(--space-4), env(safe-area-inset-left));
+  padding-right: max(var(--space-4), env(safe-area-inset-right));
+  background: var(--topnav-bg);
+  color: var(--topnav-text);
+  flex: none;
+}
+
+.burger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-left: calc(var(--space-2) * -1);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--topnav-text);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.burger:hover {
+  background: var(--topnav-hover);
+}
+
+.brand {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-size: var(--text-base);
+}
+
+.headerSpacer {
+  flex: 1;
+}
+
+.headerMeta {
+  font-size: var(--text-xs);
+  color: var(--topnav-text-soft);
+  white-space: nowrap;
+}
+
+/* ── Sidebar: drawer en mobile ───────────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-drawer);
+  background: rgba(0, 0, 0, 0.45);
+  border: none;
+  padding: 0;
+}
+
+.sidebar {
+  position: fixed;
+  z-index: calc(var(--z-drawer) + 1);
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(var(--sidebar-w), 82vw);
+  padding: var(--space-4);
+  padding-left: max(var(--space-4), env(safe-area-inset-left));
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  overflow-y: auto;
+  transform: translateX(-100%);
+  transition: transform 0.2s ease;
+}
+
+.sidebarOpen {
+  transform: translateX(0);
+}
+
+.sidebarTitle {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-3);
+}
+
+.sidebarTitleSpaced {
+  margin-top: var(--space-5);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  display: block;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+  min-height: 44px;
+}
+
+.navItem:hover {
+  background: var(--surface-alt);
+  color: var(--text);
+}
+
+.navItemActive {
+  background: var(--primary-light);
+  color: var(--primary-text);
+  font-weight: 600;
+}
+
+.navItemDisabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.navItemDisabled:hover {
+  background: transparent;
+  color: var(--text-soft);
+}
+
+/* ── Contenido ───────────────────────────────────────────────────────── */
+.main {
+  flex: 1;
+  /* clave: permite que los hijos scrolleen sin empujar el body */
+  min-width: 0;
+  padding: var(--space-4);
+  padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
+}
+
+/* ── Desktop / tablet ────────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  .body {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    flex: 1;
+  }
+
+  .burger {
+    display: none;
+  }
+
+  .overlay {
+    display: none;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: var(--header-h);
+    height: calc(100dvh - var(--header-h));
+    width: auto;
+    transform: none;
+    transition: none;
+  }
+
+  .main {
+    padding: var(--space-5);
+  }
+}

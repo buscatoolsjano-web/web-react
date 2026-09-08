@@ -1,0 +1,53 @@
+.box {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: var(--text-sm);
+}
+
+.ok {
+  border-color: var(--success);
+  background: var(--success-light);
+}
+
+.error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.pending {
+  color: var(--text-soft);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex: none;
+}
+
+.dotOk {
+  background: var(--success);
+}
+
+.dotError {
+  background: var(--danger);
+}
+
+.dotPending {
+  background: var(--text-muted);
+}
+
+.title {
+  font-weight: 600;
+}
+
+.detail {
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,50 @@
+/// <reference types="vitest/config" />
+import { defineConfig, loadEnv } from 'vite'
+import react from '@vitejs/plugin-react'
+import { fileURLToPath, URL } from 'node:url'
+
+// El repo hoy es buscatoolsjano-web/web-react → GitHub Pages sirve en /web-react/.
+// En CI se pisa con el nombre REAL del repo (github.event.repository.name), así
+// renombrar el repo no rompe el deploy en silencio. Ver ADR-001.
+const DEFAULT_BASE = '/web-react/'
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  const base = mode === 'production' ? (env.VITE_BASE_PATH ?? DEFAULT_BASE) : '/'
+
+  return {
+    base,
+    plugins: [react()],
+    resolve: {
+      alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    },
+    server: { port: 5173, strictPort: true },
+    build: {
+      outDir: 'dist',
+      sourcemap: mode !== 'production',
+      target: 'es2022',
+      rollupOptions: {
+        output: {
+          // Vite 8 (Rolldown) sólo acepta la forma de función.
+          // Separar los vendors permite que el navegador los cachee entre
+          // deploys: cambiar código de la app no invalida React ni Supabase.
+          manualChunks(id: string) {
+            if (!id.includes('node_modules')) return undefined
+            if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom)[\\/]/.test(id))
+              return 'vendor-react'
+            if (/[\\/]node_modules[\\/](@tanstack|@supabase)[\\/]/.test(id)) return 'vendor-data'
+            return undefined
+          },
+        },
+      },
+      chunkSizeWarningLimit: 600,
+    },
+    test: {
+      // Los tests de Fase 1 son de lógica pura (sin DOM). Cuando haya tests de
+      // componentes se agrega jsdom + @testing-library/react. Ver README › Testing.
+      environment: 'node',
+      globals: true,
+      include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    },
+  }
+})

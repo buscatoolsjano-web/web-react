@@ -1,0 +1,32 @@
+# dependencias
+node_modules
+.pnp
+.pnp.js
+
+# build
+dist
+dist-ssr
+*.local
+
+# entorno — NUNCA commitear
+.env
+.env.local
+.env.*.local
+
+# editor / SO
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# test / cache
+coverage
+.vite
+.eslintcache
