@@ -17,6 +17,11 @@ persona, nadie revierta una decisión sin conocer el motivo original.
 | [007](ADR-007-storage.md) | Archivos y Supabase Storage | Aceptada · aplica en Fase 3 |
 | [008](ADR-008-estilos-responsive.md) | Estilos, tokens y responsive | Aceptada |
 | [009](ADR-009-migracion-datos.md) | Qué datos se migran y cuáles no | Criterios aceptados |
+| [010](ADR-010-database-model.md) | Modelo de datos relacional y multiempresa | **Propuesta — Fase 2** |
+| [011](ADR-011-id-strategy.md) | Estrategia de identificadores | **Propuesta — Fase 2** |
+| [012](ADR-012-audit.md) | Auditoría y trazabilidad | **Propuesta — Fase 2** |
+| [013](ADR-013-product-attributes.md) | Atributos de producto: columnas vs JSONB | **Propuesta — Fase 2** |
+| [014](ADR-014-stock.md) | Arquitectura de stock | **Propuesta — Fase 2** |
 
 ## Cómo agregar una ADR
 
@@ -31,7 +36,7 @@ persona, nadie revierta una decisión sin conocer el motivo original.
 
 | Tema | Cuándo |
 |---|---|
-| Schema relacional completo | Fase 2 |
+| ~~Schema relacional completo~~ | **Propuesto: ADR-010 a 014 + docs/database/** |
 | Políticas RLS por rol | Fase 2.5 |
 | Estrategia de PWA y service worker | Fase 8 |
 | Hosting definitivo y dominio `app.buscatools.com` | Antes de abrir a usuarios externos |

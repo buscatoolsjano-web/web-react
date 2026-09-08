@@ -1,6 +1,6 @@
 # Estado de la migración — BUSCATOOLS
 
-Última actualización: **2026-09-08** · Fase actual: **1 — Base React (completada y desplegada)**
+Última actualización: **2026-09-08** · Fase actual: **2 — Diseño del modelo de datos (propuesta entregada)**
 
 **En línea:** https://buscatoolsjano-web.github.io/web-react/
 
@@ -13,15 +13,15 @@
 | Módulo | Estado | Legacy analizado | Schema DB | React UI | Funcional | Responsive | RLS | Tests | Aprobado |
 |---|---|---|---|---|---|---|---|---|---|
 | **Infraestructura (Fase 1)** | **OK** | OK | N/A | OK | OK | OK | N/A | OK | ⏳ |
-| Auth / usuarios / permisos | — | OK | — | — | — | — | — | — | — |
-| Multiempresa | — | OK | — | — | — | — | — | — | — |
-| Catálogo | — | OK | — | — | — | — | — | — | — |
-| Ventas | — | OK | — | — | — | — | — | — | — |
-| Clientes | — | OK | — | — | — | — | — | — | — |
-| Compras | — | OK | — | — | — | — | — | — | — |
-| Mantenimiento | — | OK | — | — | — | — | — | — | — |
-| WhatsApp | — | OK | — | — | — | — | — | — | — |
-| Emails | — | OK | — | — | — | — | — | — | — |
+| Auth / usuarios / permisos | — | OK | Diseñado | — | — | — | — | — | — |
+| Multiempresa | — | OK | Diseñado | — | — | — | — | — | — |
+| Catálogo | — | OK | Diseñado | — | — | — | — | — | — |
+| Ventas | — | OK | Diseñado | — | — | — | — | — | — |
+| Clientes | — | OK | Diseñado | — | — | — | — | — | — |
+| Compras | — | OK | Diseñado | — | — | — | — | — | — |
+| Mantenimiento | — | OK | Diseñado | — | — | — | — | — | — |
+| WhatsApp | — | OK | Diseñado | — | — | — | — | — | — |
+| Emails | — | OK | Diseñado | — | — | — | — | — | — |
 | Informes / CRM | — | Parcial | — | — | — | — | — | — | — |
 | Dashboard | — | Parcial | — | — | — | — | — | — | — |
 | IA | — | Parcial | — | — | — | — | — | — | — |
@@ -32,7 +32,7 @@
 |---|---|---|
 | 0 | Auditoría del legacy | **OK** |
 | 1 | Base React + CI/CD | **OK** — pendiente de aprobación |
-| 2 | Diseño del schema Supabase | — |
+| 2 | Diseño del schema Supabase | **PROPUESTA ENTREGADA** — pendiente de aprobación |
 | 2.5 | Auth + multiempresa + roles + RLS | — |
 | 3 | Catálogo | — |
 | 4 | Ventas + Clientes | — |
@@ -70,7 +70,29 @@ Cifras medidas en la auditoría:
 | Secciones | 19 |
 | Claves de localStorage | 67 (33 sincronizadas a `erp_store`) |
 
+## Fase 2 — entregado (2026-09-08)
+
+Diseño completo del modelo de datos. **Nada ejecutado**: el proyecto
+`uaxcfufvapzulqvynanp` sigue con el schema `public` vacío, `auth.users` en
+0 filas y `storage.buckets` en 0.
+
+| Documento | Contenido |
+|---|---|
+| [`PHASE_2_SCHEMA_DESIGN.md`](docs/database/PHASE_2_SCHEMA_DESIGN.md) | Documento principal, secciones A–Z |
+| [`ERD_CORE`](docs/database/ERD_CORE.md) · [`ERD_CATALOG`](docs/database/ERD_CATALOG.md) · [`ERD_SALES`](docs/database/ERD_SALES.md) · [`ERD_PURCHASES`](docs/database/ERD_PURCHASES.md) · [`ERD_MAINTENANCE`](docs/database/ERD_MAINTENANCE.md) · [`ERD_COMMUNICATIONS`](docs/database/ERD_COMMUNICATIONS.md) | Diagramas ER en Mermaid |
+| [`DATA_DICTIONARY.md`](docs/database/DATA_DICTIONARY.md) | Diccionario de datos |
+| [`RLS_MATRIX.md`](docs/database/RLS_MATRIX.md) | Matriz de permisos por tabla y rol |
+| [`MIGRATION_PLAN.md`](docs/database/MIGRATION_PLAN.md) | Plan de migración + dataset de prueba |
+| [`DRAFT_SCHEMA.sql`](docs/database/DRAFT_SCHEMA.sql) | DDL propuesto — **DRAFT, NOT EXECUTED** |
+| ADR-010 a ADR-014 | Decisiones estructurales |
+
+**Propuesta:** 38 tablas en 7 dominios.
+
+Datos medidos en la auditoría del repo legacy real: 21.772 productos ·
+988 clientes · 142 proveedores · 55 campos de producto · 378 productos con
+stock · 5.456 sin marca · 12.588 en la categoría `otros`.
+
 ## Próximo paso
 
-**Fase 2** — diseñar el schema relacional. No empieza sin aprobación
-explícita de la Fase 1.
+**Fase 2B** — implementación del schema. No empieza sin tu aprobación
+explícita del diseño.
