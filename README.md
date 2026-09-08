@@ -13,7 +13,7 @@ Vite + Supabase.
 |---|---|---|
 | Repo | `buscatoolsjano-web/Buscatools` | `buscatoolsjano-web/web-react` |
 | Supabase | `hnyngsejohkmlaccpkux` | `uaxcfufvapzulqvynanp` |
-| URL | `…github.io/Buscatools/` | `…github.io/web-react/` |
+| URL | `…github.io/Buscatools/` | https://buscatoolsjano-web.github.io/web-react/ |
 
 Los dos sistemas están **completamente aislados**: repos distintos,
 proyectos de Supabase distintos, sin datos compartidos.
@@ -134,6 +134,13 @@ publica en GitHub Pages.
 
 `VITE_BASE_PATH` se calcula con el **nombre real del repo**
 (`github.event.repository.name`): renombrarlo no rompe el deploy.
+
+**⚠ Pendiente de configuración:** el repositorio todavía tiene Pages en
+`build_type: legacy` (Source: *Deploy from a branch*, `main /`). Hoy el sitio
+sirve el artefacto del workflow igual, pero mientras la opción siga en
+"branch" un build legacy puede volver a publicar la raíz del repo en vez del
+`dist/`. Hay que cambiarlo a **Source: GitHub Actions** (requiere permiso de
+administrador sobre el repo).
 
 Requiere, una sola vez:
 

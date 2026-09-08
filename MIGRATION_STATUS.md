@@ -1,6 +1,8 @@
 # Estado de la migración — BUSCATOOLS
 
-Última actualización: **2026-09-08** · Fase actual: **1 — Base React (completada)**
+Última actualización: **2026-09-08** · Fase actual: **1 — Base React (completada y desplegada)**
+
+**En línea:** https://buscatoolsjano-web.github.io/web-react/
 
 ## Leyenda
 
