@@ -15,7 +15,7 @@ espejados en una tabla `erp_store (key, value)`. Consecuencias medidas:
 
 ## Decisión
 
-Modelo relacional normalizado: **38 tablas en 7 dominios**, con FKs reales,
+Modelo relacional normalizado: **51 tablas en 7 dominios**, con FKs reales,
 y `company_id uuid NOT NULL` en toda tabla de negocio.
 
 **El aislamiento por empresa lo hace RLS, no el código de la aplicación**,

@@ -86,7 +86,18 @@ Diseño completo del modelo de datos. **Nada ejecutado**: el proyecto
 | [`DRAFT_SCHEMA.sql`](docs/database/DRAFT_SCHEMA.sql) | DDL propuesto — **DRAFT, NOT EXECUTED** |
 | ADR-010 a ADR-014 | Decisiones estructurales |
 
-**Propuesta:** 38 tablas en 7 dominios.
+**Propuesta:** 51 tablas en 7 dominios (58 en el borrador original, menos 7
+eliminadas en la revisión de simplificación).
+
+## Fase 2B · Etapa 1 — propuesta entregada (2026-09-08)
+
+Core + Catálogo + Stock + Precios: **15 tablas**. **Nada ejecutado.**
+
+| Documento | Contenido |
+|---|---|
+| [`PHASE_2B_STAGE_1.md`](docs/database/PHASE_2B_STAGE_1.md) | Revisión de simplificación, tablas, orden, dataset y 41 casos de prueba |
+| [`STAGE_1_SCHEMA.sql`](docs/database/STAGE_1_SCHEMA.sql) | DDL + RLS + triggers + seeds — **DRAFT, NOT EXECUTED** |
+| [`scripts/sample-products.mjs`](scripts/sample-products.mjs) | Muestreo estratificado: 216 productos representativos |
 
 Datos medidos en la auditoría del repo legacy real: 21.772 productos ·
 988 clientes · 142 proveedores · 55 campos de producto · 378 productos con

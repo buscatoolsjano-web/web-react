@@ -12,6 +12,13 @@
 --
 --  Referencias: PHASE_2_SCHEMA_DESIGN.md · DATA_DICTIONARY.md
 --  PostgreSQL 17.6 (Supabase)
+--
+--  ⚠ SUPERSEDIDO PARCIALMENTE. Este archivo son las 58 tablas de la
+--  propuesta original y se conserva como registro. La revisión de
+--  simplificación (PHASE_2B_STAGE_1.md § 1) eliminó 7 tablas:
+--    roles, permissions, role_permissions, membership_permissions,
+--    customer_sales_reps, wa_message_files, wa_conversation_assignments
+--  El DDL vigente y ejecutable es STAGE_1_SCHEMA.sql.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -1151,7 +1158,7 @@ CREATE TABLE email_attachments (
 -- =====================================================================
 --  PENDIENTE PARA FASE 2B (no incluido acá a propósito)
 --
---  · ALTER TABLE ... ENABLE ROW LEVEL SECURITY  en las 38 tablas
+--  · ALTER TABLE ... ENABLE ROW LEVEL SECURITY  en todas las tablas
 --  · Las políticas CREATE POLICY según RLS_MATRIX.md
 --  · Triggers de auditoría con lista blanca de campos
 --  · Secuencias de doc_number por empresa y tipo de documento

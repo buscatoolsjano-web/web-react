@@ -55,8 +55,19 @@ migra.**
 
 ### Forma de la propuesta
 
-**38 tablas** en 7 dominios. Ninguna tabla de negocio sin `company_id`
+**51 tablas** en 7 dominios. Ninguna tabla de negocio sin `company_id`
 ni sin RLS.
+
+> **Corrección (2026-09-08).** Este documento decía originalmente "38
+> tablas"; el DDL tiene 58. La revisión de simplificación en
+> [`PHASE_2B_STAGE_1.md`](PHASE_2B_STAGE_1.md#1-revisión-de-simplificación)
+> elimina 7 con evidencia del legacy y deja el total en **51**.
+> Las tablas eliminadas —`roles`, `permissions`, `role_permissions`,
+> `membership_permissions`, `customer_sales_reps`, `wa_message_files`,
+> `wa_conversation_assignments`— siguen apareciendo en
+> [`DRAFT_SCHEMA.sql`](DRAFT_SCHEMA.sql), que quedó como registro de la
+> propuesta original. El DDL vigente es
+> [`STAGE_1_SCHEMA.sql`](STAGE_1_SCHEMA.sql).
 
 | Dominio | Tablas |
 |---|---|
