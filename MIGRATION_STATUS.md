@@ -1,6 +1,6 @@
 # Estado de la migración — BUSCATOOLS
 
-Última actualización: **2026-09-08** · Fase actual: **2B Etapa 1 — Core + Catálogo + Stock + Precios (ejecutada y probada)**
+Última actualización: **2026-09-08** · Fase actual: **2B Etapa 1 CERRADA** — Core + Catálogo + Stock + Precios · 121/121 pruebas
 
 **En línea:** https://buscatoolsjano-web.github.io/web-react/
 
@@ -13,9 +13,9 @@
 | Módulo | Estado | Legacy analizado | Schema DB | React UI | Funcional | Responsive | RLS | Tests | Aprobado |
 |---|---|---|---|---|---|---|---|---|---|
 | **Infraestructura (Fase 1)** | **OK** | OK | N/A | OK | OK | OK | N/A | OK | ⏳ |
-| Auth / usuarios / permisos | WIP | OK | **Creado** | — | — | — | — | — | — |
-| Multiempresa | WIP | OK | **Creado** | — | — | — | — | — | — |
-| Catálogo | WIP | OK | **Creado** | — | — | — | — | — | — |
+| Auth / usuarios / permisos | **OK** | OK | **Creado** | — | — | — | **Probado** | 51 | ⏳ |
+| Multiempresa | **OK** | OK | **Creado** | — | — | — | **Probado** | 14 | ⏳ |
+| Catálogo | WIP | OK | **Creado** | — | — | — | **Probado** | 20 | ⏳ |
 | Ventas | — | OK | Diseñado | — | — | — | — | — | — |
 | Clientes | — | OK | Diseñado | — | — | — | — | — | — |
 | Compras | — | OK | Diseñado | — | — | — | — | — | — |
@@ -33,8 +33,8 @@
 | 0 | Auditoría del legacy | **OK** |
 | 1 | Base React + CI/CD | **OK** — pendiente de aprobación |
 | 2 | Diseño del schema Supabase | **PROPUESTA ENTREGADA** — pendiente de aprobación |
-| 2B-1 | Core + Catálogo + Stock + Precios | **OK** — 15 tablas, 72/72 pruebas |
-| 2.5 | Auth externo (cliente/distribuidor) + resto de RLS | Pendiente: 5 pruebas |
+| 2B-1 | Core + Catálogo + Stock + Precios | **CERRADA** — 15 tablas, **121/121 PASS** |
+| 2.5 | Auth + multiempresa + RLS por rol | **OK** — 7 usuarios, 8 membresías, roles internos y externos probados |
 | 3 | Catálogo | — |
 | 4 | Ventas + Clientes | — |
 | 5 | Compras | — |
@@ -106,21 +106,33 @@ stock · 5.456 sin marca · 12.588 en la categoría `otros`.
 
 ## Fase 2B · Etapa 1 — ejecutada (2026-09-08)
 
-15 tablas creadas y probadas en uaxcfufvapzulqvynanp. **72/72 pruebas PASS.**
+15 tablas creadas y probadas en uaxcfufvapzulqvynanp.
+
+# TOTAL TESTS: 121 · PASS: 121 · FAIL: 0
 
 | Documento | Contenido |
 |---|---|
 | [STAGE_1_PRE_EXECUTION_STATE.md](docs/database/STAGE_1_PRE_EXECUTION_STATE.md) | Estado previo + validación estática |
 | [STAGE_1_SCHEMA_VERIFICATION.md](docs/database/STAGE_1_SCHEMA_VERIFICATION.md) | Objetos creados, grants, RLS |
-| [STAGE_1_TEST_RESULTS.md](docs/database/STAGE_1_TEST_RESULTS.md) | 72 pruebas + 6 problemas corregidos |
+| [STAGE_1_TEST_RESULTS.md](docs/database/STAGE_1_TEST_RESULTS.md) | 121 pruebas + 8 problemas corregidos |
 | [STAGE_1_SCHEMA.sql](docs/database/STAGE_1_SCHEMA.sql) | Referencia consolidada (ejecutada) |
 
-Datos: 216 productos reales · 372 precios en 3 listas · 53 movimientos de
-stock · 3 clientes de prueba · 5 usuarios con membresía. Base 10 MB → 13 MB.
+Datos: **219 productos** (216 Buscatools + 3 Torquetools) · 375 precios ·
+53 movimientos de stock · 3 clientes · **7 usuarios, 7 profiles, 8 membresías**.
+Base 10.203 kB → 13 MB.
+
+Multiempresa verificado en vivo: **Jano tiene un solo profile y dos
+membresías** — admin en Buscatools, salesperson en Torquetools. Ser admin
+en una empresa no le da permisos en la otra, y poner el company_id de la
+otra empresa en un INSERT no eleva sus permisos.
+
+Ocho problemas encontrados y corregidos, dos de ellos críticos: el RELEASE
+de reservas estaba roto y la vista de disponibilidad no servía a los
+usuarios externos. Ambos habrían llegado a producción.
 
 ## Próximo paso
 
-**Etapa 1 pendiente de cierre:** faltan 5 pruebas de RLS que necesitan un
-usuario con rol `customer` y otro con rol `distributor` en Supabase Auth.
+**Etapa 1 CERRADA.** Nada pendiente.
 
-Después, **Etapa 2 (Ventas)** — no empieza sin tu aprobación.
+Próximo: **Etapa 2 (Ventas)** — no empieza sin tu aprobación.
+Tampoco se cargan los 21.772 productos todavía.

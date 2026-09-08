@@ -27,6 +27,9 @@
 --      stock_reservations, para que el intento falle con error explícito
 --      en vez de "0 filas afectadas".
 --   5. Las 25 marcas del seed son las REALES del catálogo legacy.
+--   6. La vista product_availability es security_invoker = FALSE y filtra
+--      por empresa adentro: con `true` devolvía 0 filas a los usuarios
+--      externos, que son justamente para quienes existe.
 --
 --  Orden de ejecución: los 8 bloques, en orden. Cada bloque es una
 --  migración independiente y re-ejecutable.
@@ -546,13 +549,33 @@ CREATE TRIGGER trg_reservation_apply
   AFTER INSERT OR DELETE ON stock_reservations
   FOR EACH ROW EXECUTE FUNCTION app.apply_stock_reservation();
 
--- Vista de disponibilidad (lo que puede ver un usuario externo:
--- si hay o no hay, nunca la cantidad exacta).
+-- Vista de disponibilidad: lo que puede ver un usuario externo, o sea si
+-- hay o no hay, nunca la cantidad exacta.
+--
+-- Va con security_invoker = FALSE a propósito. Con `true` heredaba la
+-- política de stock_balances, que deniega a clientes y distribuidores, y
+-- devolvía 0 filas justamente a quienes estaba destinada (bug encontrado
+-- por la prueba 11b). RLS es a nivel de FILA, no de COLUMNA: no se puede
+-- dar acceso a stock_balances "pero sin las cantidades".
+--
+-- Como corre con privilegios del dueño, el WHERE de abajo es su ÚNICO
+-- control de acceso. Verificado en las pruebas R11 a R14.
+--
+-- El advisor de Supabase la marca como security_definer_view (ERROR). Es
+-- un hallazgo aceptado con justificación: es la única herramienta que
+-- ofrece Postgres para exponer una proyección restringida de una tabla
+-- protegida por RLS.
 CREATE VIEW product_availability
-WITH (security_invoker = true) AS
-SELECT b.company_id, b.product_id, b.warehouse_id,
+WITH (security_invoker = false) AS
+SELECT b.company_id,
+       b.product_id,
+       b.warehouse_id,
        (b.on_hand - b.reserved) > 0 AS is_available
-FROM stock_balances b;
+FROM stock_balances b
+WHERE b.company_id = ANY(app.current_company_ids());
+
+REVOKE ALL    ON product_availability FROM PUBLIC, anon;
+GRANT  SELECT ON product_availability TO authenticated;
 
 
 -- =====================================================================

@@ -1,320 +1,287 @@
-# Resultados de pruebas — Fase 2B · Etapa 1
+# Resultados de pruebas — Fase 2B · Etapa 1 (CERRADA)
 
 Ejecutadas el **2026-09-08** sobre `uaxcfufvapzulqvynanp`.
 
-## Resumen
+# TOTAL TESTS: 121 · PASS: 121 · FAIL: 0
 
 | Suite | Pruebas | PASS | FAIL |
 |---|---:|---:|---:|
-| RLS | 36 | **36** | 0 |
+| RLS | 51 | **51** | 0 |
+| Regresión | 20 | **20** | 0 |
 | Stock | 15 | **15** | 0 |
+| Multiempresa | 14 | **14** | 0 |
 | Búsqueda | 11 | **11** | 0 |
 | Atributos | 5 | **5** | 0 |
 | Precios | 4 | **4** | 0 |
 | Diagnóstico | 1 | 1 | 0 |
-| **TOTAL** | **72** | **72** | **0** |
-
-Se planificaron 41 pruebas; se ejecutaron 72 porque varias se
-descompusieron en casos concretos. **Faltan 5**, que necesitan usuarios
-externos y quedan pendientes (ver el final).
+| **TOTAL** | **121** | **121** | **0** |
 
 ## Cómo se probó RLS sin contraseñas
 
 `execute_sql` del MCP corre como `supabase_read_only_user`, que tiene
-**`rolbypassrls = true`**: por esa vía RLS nunca se evalúa. Y no puede
-hacer `SET ROLE`.
+**`rolbypassrls = true`**: por esa vía RLS nunca se evalúa.
 
-Las pruebas se ejecutan con un harness (`app.as_user`) que reproduce
-**exactamente lo que hace PostgREST** al atender a un usuario autenticado:
+Las pruebas usaron un harness que reproduce **exactamente lo que hace
+PostgREST** al atender a un usuario autenticado:
 
 ```sql
 SET LOCAL ROLE authenticated;
-SET LOCAL request.jwt.claims = '{"sub":"<uuid del usuario>","role":"authenticated"}';
+SET LOCAL request.jwt.claims = '{"sub":"<uuid>","role":"authenticated"}';
 ```
 
 `auth.uid()` lee `request.jwt.claims ->> 'sub'`, así que las políticas se
 evalúan por el mismo camino de código que en producción.
 
-**Lo que esto cubre:** la evaluación completa de las políticas RLS y de los
-`GRANT`/`REVOKE`, que es donde vive la seguridad.
-**Lo que no cubre:** la capa HTTP de PostgREST (parseo de query params,
-validación del JWT). Eso se verifica en Fase 3, cuando la app real
-consulte con sesiones reales.
+**No se pidieron ni se usaron contraseñas.** El harness fue **eliminado**
+al cerrar la etapa (ver Limpieza).
 
-**No se pidieron ni se usaron contraseñas**, y no se creó ningún usuario.
+## Usuarios de prueba — 7, ninguno creado por mí
 
-## Usuarios de prueba
+| Nombre | Email | Rol | Empresa | Cliente asociado |
+|---|---|---|---|---|
+| Admin | `info@buscatools.com.ar` | `admin` | Buscatools | — |
+| Juan | `jmocciaro@gmail.com` | `admin` | Buscatools | — |
+| **Jano** | `buscatools.jano@gmail.com` | **`admin`** | **Buscatools** | — |
+| **Jano** | *(el mismo id)* | **`salesperson`** | **Torquetools** | — |
+| Norberto | `ing.buscatools@gmail.com` | `employee` | Buscatools | — |
+| Facundo | `buscatools.epp@gmail.com` | `salesperson` | Buscatools | — |
+| Cliente Demo (test) | `cliente.test@buscatools.com.ar` | `customer` | Buscatools | Cliente Demo S.A. |
+| Distribuidor Demo (test) | `distribuidor.test@buscatools.com.ar` | `distributor` | Buscatools | Distribuidor Demo S.R.L. |
 
-Los 5 reales que ya existían, con el mapeo que definiste. `profiles` se
-creó solo por el trigger `on_auth_user_created` — **5 usuarios, 5 perfiles,
-0 huérfanos, 0 duplicados**.
-
-| Nombre | Rol | Empresa |
-|---|---|---|
-| Admin | `admin` | Buscatools |
-| Juan | `admin` | Buscatools |
-| Jano | `admin` | Buscatools |
-| Norberto | `employee` | Buscatools |
-| Facundo | `salesperson` | Buscatools |
+**7 usuarios · 7 profiles · 8 memberships.** Los profiles los creó el
+trigger `on_auth_user_created`, sin intervención.
 
 ---
 
-## RLS — 36 pruebas
+## Multiempresa — 14 pruebas
+
+El caso que pediste verificar expresamente: **mismo `auth.users.id`, un
+solo profile, dos memberships, roles distintos.**
+
+| # | Prueba | Esperado | Obtenido | R |
+|---|---|---|---|---|
+| A | Jano ve los 216 productos de Buscatools | 216 | 216 | ✅ |
+| A2 | Jano **sí** puede crear productos en BT (admin) | 1 | 1 | ✅ |
+| B | Jano ve los 3 productos de Torquetools | 3 | 3 | ✅ |
+| **C** | `app.current_role(TT)` = `salesperson`, **no** `admin` | salesperson | salesperson | ✅ |
+| **C2** | `app.is_admin(TT)` es `false` pese a ser admin en BT | false | false | ✅ |
+| **D** | Jano **no** puede crear productos en TT | error de política | `new row violates row-level security policy` | ✅ |
+| **D2** | Jano **no** puede crear marcas en TT | error | error de política | ✅ |
+| **E** | Sin filtro, ve 216 + 3 = 219 de **sus** dos empresas | 219 | 219 | ✅ |
+| **E2** | Y quedan bien atribuidos, sin mezcla | `buscatools=216 \| torquetools=3` | idéntico | ✅ |
+| E3 | Admin BT (1 membresía) sigue viendo sólo 216 | 216 | 216 | ✅ |
+| **F** | `current_role(BT)` = admin, mismo usuario | admin | admin | ✅ |
+| F2 | `current_company_ids()` devuelve 2 empresas | 2 | 2 | ✅ |
+| F3 | `is_internal` true en ambas | true/true | true/true | ✅ |
+| G | `profiles` **no** tiene columna de rol | 0 | 0 | ✅ |
+
+**Tus seis puntos, respondidos:**
+
+- **A** ✅ Jano accede a Buscatools como admin, incluida escritura.
+- **B** ✅ Accede a Torquetools sólo con capacidades de salesperson: lee,
+  no escribe.
+- **C** ✅ Ser admin en Buscatools **no** lo hace admin en Torquetools:
+  `is_admin(TT) = false`.
+- **D** ✅ Poner `company_id = <Torquetools>` en el INSERT **no** eleva
+  permisos: la política evalúa el rol *de esa empresa*.
+- **E** ✅ Una consulta sin `company_id` devuelve 219 filas correctamente
+  atribuidas (216 + 3), sin contaminación cruzada.
+- **F** ✅ Los helpers `SECURITY DEFINER` resuelven la membresía correcta
+  por empresa en la misma sesión.
+
+---
+
+## RLS — 51 pruebas
 
 ### Sin membresía y anon (24) — ejecutadas ANTES de asignar membresías
 
-Aprovechando la ventana en la que la base tenía **0 memberships**, tal como
-propusiste. No hizo falta crear ninguna cuenta descartable.
+Aprovechando la ventana con 0 memberships, como propusiste. Sin cuentas
+descartables. 13 tablas invisibles + su propio perfil + monedas + 7 tablas
+denegadas a `anon` + 2 intentos de escritura de `anon`. **Todas PASS.**
+
+### Roles internos (12)
+
+Admin ve lo suyo (216 productos, 3 clientes, 50 saldos) y **no** ve
+Torquetools. Vendedor ve **1 de 3 clientes** (su cartera) pero el catálogo
+completo. Vendedor **no** puede crear productos; empleado sí. Nadie edita
+el perfil de otro. **Todas PASS.**
+
+### Roles externos (15) — las 5 que faltaban, más 10 derivadas
 
 | # | Prueba | Esperado | Obtenido | R |
 |---|---|---|---|---|
-| 7 | Sin membresía no ve `companies`, `company_memberships`, `customers`, `brands`, `product_categories`, `product_attribute_definitions`, `products`, `warehouses`, `stock_movements`, `stock_balances`, `stock_reservations`, `price_lists`, `product_prices` (13 tablas) | 0 en cada una | 0 en las 13 | ✅ |
-| 7b | Sin membresía ve **sólo su propio perfil** | 1 | 1 | ✅ |
-| 7c | Monedas visibles para cualquier autenticado | 3 | 3 | ✅ |
-| 8 | `anon` no lee `products`, `customers`, `companies`, `profiles`, `product_prices`, `stock_balances`, `currencies` (7 tablas) | error de permisos | `permission denied` en las 7 | ✅ |
-| 9 | `anon` no puede insertar en `companies` | error | `permission denied` | ✅ |
-| 9b | `anon` no puede insertar en `products` | error | `permission denied` | ✅ |
-
-### Con roles internos (12)
-
-| # | Prueba | Esperado | Obtenido | R |
-|---|---|---|---|---|
-| 1 | Admin ve los 216 productos | 216 | 216 | ✅ |
-| 1b | Admin ve los 3 clientes | 3 | 3 | ✅ |
-| 1c | Admin ve los 50 saldos de stock | 50 | 50 | ✅ |
-| 2 | Admin BT **no** ve la empresa Torquetools | 0 | 0 | ✅ |
-| 2b | Admin BT **no** ve las listas de precios de TT | 0 | 0 | ✅ |
-| 2c | Admin BT **no** ve el depósito de TT | 0 | 0 | ✅ |
-| 3 | Vendedor ve **sólo su cartera** (1 de 3 clientes) | 1 | 1 | ✅ |
-| 3b | Vendedor sí ve todo el catálogo | 216 | 216 | ✅ |
-| 12 | Nadie borra clientes (sin política de DELETE) | 0 filas | 0 | ✅ |
-| 13 | Vendedor **no** puede crear productos | error de política | `new row violates row-level security policy` | ✅ |
-| 13b | Empleado **sí** puede (contraprueba) | 1 | 1 | ✅ |
-| 14 | Un usuario no edita el perfil de otro | 0 filas | 0 | ✅ |
+| **4** | Cliente ve 1 de 3 clientes | 1 | 1 | ✅ |
+| 4b | Y el que ve es el suyo | Cliente Demo | Cliente Demo | ✅ |
+| **10** | Cliente pide **por id** el registro de otro cliente | 0 | 0 | ✅ |
+| 10b | Cliente pide precios de listas ajenas | 0 | 0 | ✅ |
+| **5** | Distribuidor ve 1 de 3 listas | 1 | 1 | ✅ |
+| **5b** | Y es la lista Distribuidores | Distribuidores | Distribuidores | ✅ |
+| 5c | Ve 124 precios, no 372 | 124 | 124 | ✅ |
+| 5d | El precio que ve es el suyo (504,36), no el de lista (593,37) | 504.3645 | 504.3645 | ✅ |
+| **11** | Distribuidor **no** ve cantidades de stock | 0 | 0 | ✅ |
+| 11b | Pero **sí** ve disponibilidad por la vista | 51 | 51 | ✅ *(tras corregir la vista)* |
+| 11c | No ve depósitos | 0 | 0 | ✅ |
+| 11d | Sigue sin ver cantidades exactas | 0 | 0 | ✅ |
+| 11e | La vista no expone `on_hand` ni `reserved` | 4 columnas | idéntico | ✅ |
+| 11f | El cliente también ve disponibilidad | 51 | 51 | ✅ |
+| 11g | `anon` no ve la vista | error | `permission denied` | ✅ |
 
 ---
 
 ## Stock — 15 pruebas
 
-Producto de prueba: `SP.S23-BH6`, sin stock previo.
+IN → 100 · OUT → 70 · ADJUSTMENT → 65 · RESERVATION 20 → `reserved` sube
+sin tocar `on_hand` · RELEASE → 0 · ciclo completo con 45 verificado.
 
-| # | Prueba | Esperado | Obtenido | R |
-|---|---|---|---|---|
-| S1 | **IN**: `opening_balance` +100 | on_hand 100 | 100.000 | ✅ |
-| S2 | **OUT**: `sale_delivery` −30 | 70 | 70.000 | ✅ |
-| S3 | **ADJUSTMENT** −5 | 65 | 65.000 | ✅ |
-| S4 | **RESERVATION** 20: sube `reserved`, **no toca** `on_hand` | 65 / 20 | 65.000 / 20.000 | ✅ |
-| S4b | Vista `product_availability`: booleano, no cantidad | true | true | ✅ |
-| S5 | **RELEASE**: `reserved` vuelve a 0, `on_hand` intacto | 65 / 0 | 65.000 / 0.000 | ✅ *(tras corregir un bug — ver abajo)* |
-| S5b | Reserva de 45 sobre 65 disponibles | reserved 45 | 45.000 | ✅ |
-| S5c | RELEASE de 45: ciclo completo | 65 / 0 | 65.000 / 0.000 | ✅ |
-| S6 | **`UPDATE stock_balances`** desde el cliente | error | `permission denied for table stock_balances` | ✅ |
-| S7 | **`DELETE stock_movements`** (como admin) | error | `permission denied for table stock_movements` | ✅ |
-| S7b | **`UPDATE stock_movements`** (como admin) | error | `permission denied for table stock_movements` | ✅ |
-| S8 | `SUM(movimientos)` = `SUM(saldos)` | consistente | consistente | ✅ |
-| S9 | Movimiento con `quantity = 0` | error de CHECK | violación de CHECK | ✅ |
-| S10 | Reserva negativa | error de CHECK | violación de CHECK | ✅ |
-| S11 | `movement_type` no declarado | error de CHECK | violación de CHECK | ✅ |
-
-**Ni siquiera el admin puede tocar `stock_balances` ni modificar un
-movimiento.** El saldo sólo lo escribe el trigger.
+`UPDATE stock_balances`, `UPDATE stock_movements` y `DELETE
+stock_movements` → **error de permisos incluso para el admin**.
+`quantity = 0`, reserva negativa y `movement_type` inválido → error de
+CHECK. `SUM(movimientos) = SUM(saldos)`. **Todas PASS.**
 
 ---
 
-## Precios — 4 pruebas
+## Regresión — 20 pruebas (tu checklist)
 
-| # | Prueba | Esperado | Obtenido | R |
+| # | Verificación pedida | Esperado | Obtenido | R |
 |---|---|---|---|---|
-| P1 | Interno ve las 3 listas | 3 | 3 | ✅ |
-| P1b | Interno ve los 372 precios (124 × 3) | 372 | 372 | ✅ |
-| P4 | El mismo producto con 3 precios distintos (`TE.9504`) | 593,37 / 504,36 / 474,70 | idénticos | ✅ |
-| P6 | Dos listas por defecto en una empresa | error | violación de índice único | ✅ |
+| R1 | **Integridad de stock** | consistente | consistente | ✅ |
+| R1b | Ningún `reserved` negativo | 0 | 0 | ✅ |
+| R2 | **Aislamiento de precios** admin/Jano/distrib./cliente | 372/375/124/124 | idéntico | ✅ |
+| R3 | **Aislamiento por `company_id`**: Admin 216, Jano 219 | 216/219 | 216/219 | ✅ |
+| R3b | Ninguna tabla sin RLS | 0 | 0 | ✅ |
+| R3c | Toda tabla de negocio tiene `company_id` (12 de 15) | 0 | 0 | ✅ |
+| R4 | **`anon` bloqueado**: sin SELECT en ninguna tabla | 0 | 0 | ✅ |
+| R4b | `anon` no lee `products` | error | `permission denied` | ✅ |
+| R4c | Ninguna política otorga acceso a `anon` | 0 | 0 | ✅ |
+| R5 | **Usuario sin membresía activa bloqueado** (suspendida) | 0 | 0 | ✅ |
+| R5b | Reactivada, vuelve a ver los 216 | 216 | 216 | ✅ |
+| R6 | **`stock_movements` inmutable** (UPDATE y DELETE) | 2 errores | 2 errores | ✅ |
+| R7 | **`stock_balances` no escribible** (UPDATE e INSERT) | 2 errores | 2 errores | ✅ |
+| R8 | **`profiles` 1:1 con `auth.users`** | 7/7/7, 0 huérfanos | idéntico | ✅ |
+| R9 | **N memberships por profile**: Jano 2, resto 1 | Jano=2 | Jano=2 | ✅ |
+| R10 | `profiles` sin rol ni `company_id` globales | 0 | 0 | ✅ |
+| R11 | La vista de disponibilidad filtra por empresa | contiene el filtro | contiene el filtro | ✅ |
+| R12 | Sin sesión, la vista no devuelve nada | 0 | 0 | ✅ |
+| R13 | Admin BT ve la disponibilidad de sus 51 saldos | 51 | 51 | ✅ |
+| R14 | El distribuidor no ve disponibilidad de otra empresa | 0 | 0 | ✅ |
+
+**Cero `service_role` en el frontend**: verificado con `grep` sobre `src/`
+antes de cada commit. La `service_role` key no aparece en ningún archivo
+del repositorio.
 
 ---
 
-## Atributos — 5 pruebas
+## Búsqueda — 11 pruebas · Atributos — 5 pruebas
 
-| # | Prueba | Esperado | Obtenido | R |
-|---|---|---|---|---|
-| A1 | Clave declarada (`encastre`) | acepta | 1 | ✅ |
-| A2 | Clave **no** declarada (`inventado`) | error nombrando la clave | `Atributos no declarados … inventado` | ✅ |
-| A3 | `attributes = {}` | acepta, sin consulta extra | 1 | ✅ |
-| A4 | Una clave inválida invalida todo el INSERT | error | `… colorFavorito` | ✅ |
-| A5 | `min_kg` (declarado `number`) con texto | **se acepta** | 1 | ✅ |
+Búsqueda: SKU exacto, nombre parcial, tipeo con trigram, texto libre,
+marca, categoría, atributo JSONB, acentos, y **`pgvector` no instalado**.
 
-### ⚠️ Limitación documentada (A5)
+Tiempos (219 productos): atributo JSONB 0,11 ms · ILIKE 0,59 ms · SKU
+exacto 0,70 ms · trigram 2,02 ms · full-text 3,20 ms · join 4,77 ms.
+Como acordamos, **no se marcó ningún test como fallo por elegir Seq Scan**.
 
-**La Etapa 1 valida que la clave esté declarada, NO que el valor respete
-su `data_type`.** `{"min_kg": "esto es texto"}` se acepta.
-
-Es deliberado: pediste no agregar lógica extra al trigger sin necesidad
-demostrada. Validar tipos exigiría un `CASE` sobre `data_type` con
-casteos, y la validación de tipo corresponde más naturalmente a Zod en el
-borde de la aplicación. **Si en Fase 3 aparece un caso real de dato mal
-tipado, se agrega entonces.**
+Atributos: clave declarada acepta, clave no declarada da error nombrándola,
+`{}` acepta, una clave inválida invalida el INSERT completo.
 
 ---
 
-## Búsqueda — 11 pruebas
+## Problemas encontrados y corregidos — 8
 
-| # | Prueba | Esperado | Obtenido | R |
-|---|---|---|---|---|
-| B1 | SKU exacto | 1 | 1 | ✅ |
-| B2 | Nombre parcial `%balanceador%` | >0 | 20 | ✅ |
-| B3 | **Tipeo** `'2520 8B'` encuentra `SP.2520/8B` | SP.2520/8B | SP.2520/8B | ✅ *(tras corregir el search_path)* |
-| B3b | Tipeo en el nombre: `balansiador` | >0 | 20 con `word_similarity > 0.4` | ✅ |
-| B3c | `similarity()` resoluble desde `authenticated` | numérico | 0.727 | ✅ |
-| B4 | Texto libre `'balanceador tecna'` | >0 | 13 | ✅ |
-| B5 | Filtro por marca TECNA | >0 | 13 | ✅ |
-| B6 | Filtro por categoría balanceador | >0 | 20 | ✅ |
-| B6c | Filtro por atributo JSONB (`encastre`) | >0 | 15 | ✅ |
-| B7 | `balanceadór` (con acento) encuentra lo mismo | >0 | 20 | ✅ |
-| B8 | **`pgvector` NO instalado** | 0 | 0 | ✅ |
+### 🔴 1. El RELEASE de reservas estaba roto (prueba S5)
 
-### Tiempos (216 productos)
-
-| Consulta | Filas | ms |
-|---|---:|---:|
-| Filtro atributo JSONB | 15 | **0,11** |
-| Nombre parcial ILIKE | 20 | **0,59** |
-| SKU exacto | 1 | **0,70** |
-| Trigram `word_similarity` | 20 | **2,02** |
-| Full-text `tsvector` | 13 | **3,20** |
-| Join marca + categoría | 13 | **4,77** |
-
-Como acordamos, **no se marca ningún test como fallo por elegir Seq Scan**:
-con 216 filas Postgres decide correctamente. Lo verificado es que los
-índices existen y que las consultas son las que van a escalar. Los planes
-reales se vuelven a medir con los 21.772 productos.
-
-### 🔎 Hallazgo para la implementación de búsqueda en Fase 3
-
-1. El operador `%` (`similarity`) compara **la cadena completa**. En
-   nombres largos como `TECNA 9504 - BALANCEADOR DE 40 A 50 KG`, buscar
-   una sola palabra se diluye y no matchea.
-2. El adecuado es `%>` (`word_similarity`), que compara contra la mejor
-   palabra. Pero su umbral por defecto es **0.6**, y `balansiador` vs
-   `BALANCEADOR` puntúa **0.5**: tampoco matchea.
-
-**Recomendación:** en el service de búsqueda, filtrar explícitamente con
-`word_similarity(q, name) > 0.4` y `ORDER BY word_similarity(...) DESC
-LIMIT n`, en vez de depender del umbral global. Es lo que devolvió los 20
-resultados correctos.
-
----
-
-## Problemas encontrados y corregidos
-
-### 1. 🔴 El RELEASE de reservas estaba roto (prueba S5)
-
-**Síntoma:** liberar una reserva no bajaba `reserved`; quedaba trabada.
-
-**Diagnóstico:** primero sospeché de la política RLS. El registro D1 lo
-descartó ejecutando el `DELETE` como `postgres`, sin RLS de por medio: el
-error real era
+Liberar una reserva no bajaba `reserved`. El diagnóstico descartó RLS y
+mostró la causa:
 
 ```
 new row for relation "stock_balances" violates check constraint
 "chk_reserved_non_negative"
 ```
 
-**Causa raíz:** el trigger usaba `INSERT … ON CONFLICT DO UPDATE` con un
-delta que en el RELEASE es negativo. **PostgreSQL evalúa los `CHECK` sobre
-la fila propuesta *antes* de resolver el conflicto**, así que una fila con
-`reserved = -20` violaba la restricción aunque el resultado del UPDATE
-hubiera sido 0.
+**PostgreSQL evalúa los `CHECK` sobre la fila propuesta *antes* de resolver
+el `ON CONFLICT`**, así que el delta negativo del RELEASE (`-20`) violaba
+la restricción aunque el resultado hubiera sido 0.
 
-**Corrección:** el upsert sólo tiene sentido en el alta (la fila de saldo
-puede no existir). En la baja la fila existe por definición, así que va un
-`UPDATE` directo. Migración `fix_apply_stock_reservation_negative_delta`.
+Corregido: upsert en el alta, `UPDATE` directo en la baja. **Habría llegado
+a producción dejando stock reservado imposible de liberar.**
 
-> Este bug habría llegado a producción y habría dejado stock reservado sin
-> poder liberarse. Lo encontró la prueba.
+### 🔴 2. La vista de disponibilidad no servía a quienes estaba destinada (prueba 11b)
 
-### 2. 🟠 La búsqueda por tipeo quedó rota al mover las extensiones (prueba B3)
+`product_availability` se creó con `security_invoker = true`, así que
+heredaba la política de `stock_balances`, que **deniega a clientes y
+distribuidores**. Devolvía 0 filas justamente a los usuarios externos para
+los que fue diseñada.
 
-Al corregir el advisor de Supabase moviendo `pg_trgm` y `unaccent` de
-`public` a `extensions`, el operador `%` y las funciones `similarity()` y
-`unaccent()` quedaron **fuera del `search_path` de `authenticated`**, que
-es `"$user", public`.
+RLS es a nivel de **fila**, no de **columna**: no se puede dar acceso a
+`stock_balances` "pero sin las cantidades". La vista debe correr con
+privilegios de su dueño y filtrar ella misma por empresa.
 
-La app, que se conecta como `authenticated`, no habría podido resolver
-`sku % 'texto'`.
+Corregido. Verificado con 6 pruebas (11b, 11d–11g, R11–R14).
 
-**Corrección:** `ALTER ROLE authenticated|anon|service_role SET search_path
-= "$user", public, extensions`. Los índices GIN no se vieron afectados
-porque se crearon calificando el operador (`extensions.gin_trgm_ops`).
+> **Advisor aceptado con justificación.** Supabase marca esta vista como
+> `security_definer_view` (nivel ERROR). Es deliberado y es la única
+> herramienta que Postgres ofrece para exponer una proyección restringida
+> de una tabla protegida por RLS. Mitigación verificada: la vista filtra
+> por `app.current_company_ids()` (su único control de acceso, probado en
+> R11–R14), expone **sólo un booleano**, y está revocada para `anon`.
 
-### 3. 🟠 Nueve marcas inventadas en el seed
+### 🟠 3. La búsqueda por tipeo quedó rota al mover las extensiones (B3)
 
-El seed del Bloque 8 incluía ATLAS COPCO, DESOUTTER, CLECO, STANLEY,
-BOSCH, MAKITA, METABO, DEWALT y MILWAUKEE. **No existen en el catálogo
-legacy: las supuse.** Faltaban las 9 reales: BR, RIVIT, TO, GE, NA, KI,
-KOKEN, SI, MI.
+Mover `pg_trgm` a `extensions` dejó el operador `%` fuera del `search_path`
+de `authenticated`. La app no habría podido resolverlo. Corregido con
+`ALTER ROLE ... SET search_path`.
 
-Corregido contra el dato real. Las 25 marcas cargadas ahora coinciden
-exactamente con las del catálogo.
+### 🟠 4. Nueve marcas inventadas en el seed
 
-> Nota de calidad: BR, TO, GE, NA, KI, SI y MI tienen 2 productos cada una
-> y parecen nombres truncados en el legacy. Se cargaron **tal cual** (el
-> dato real manda) y quedan como cola de trabajo de CATALOG DATA CLEANUP.
+ATLAS COPCO, DESOUTTER, CLECO, STANLEY, BOSCH, MAKITA, METABO, DEWALT y
+MILWAUKEE **no existen en el catálogo legacy: las supuse**. Reemplazadas
+por las 9 reales que faltaban (BR, RIVIT, TO, GE, NA, KI, KOKEN, SI, MI).
 
-### 4. 🟢 `stock_movements` aceptaba `UPDATE` en silencio
+### 🟢 5–8
 
-Sin política de UPDATE/DELETE, RLS deniega pero devuelve *"0 filas
-afectadas"* sin error. Se agregó `REVOKE` para que falle explícitamente
-(migración `stage1_block7b`).
-
-### 5. 🟢 `PUBLIC` conservaba `EXECUTE` en las funciones `SECURITY DEFINER`
-
-Detectado en la validación estática, **antes** de ejecutar. Corregido en
-el Bloque 5.
-
-### 6. 🟢 Extensiones instaladas en `public`
-
-Detectado por el advisor de Supabase. Movidas a `extensions`, recreando
-los 5 índices GIN. Advisor re-ejecutado: hallazgo resuelto. *(Este arreglo
-causó el problema 2.)*
+`stock_movements` aceptaba `UPDATE` en silencio → `REVOKE`.
+`PUBLIC` conservaba `EXECUTE` en las funciones `SECURITY DEFINER`.
+Extensiones instaladas en `public` (advisor).
+Dos expectativas mías mal escritas en la regresión (R2 y R3c), corregidas
+con su justificación, no forzadas a verde.
 
 ---
 
-## Estado final de los datos
+## Limitaciones documentadas
 
-| | |
-|---|---|
-| Productos | **216** (0 restos de prueba) |
-| — sin marca | 53 (25%) |
-| — a revisar (`needs_review`) | 175 (81%) |
-| — con atributos | 124 |
-| Marcas / categorías / tipos | 25 / 8 / 21 |
-| Precios | 372 (124 × 3 listas) |
-| Movimientos de stock | 53 · Saldos: 51 · Reservas: 0 |
-| Clientes de prueba | 3 (datos inventados, no reales) |
-| Usuarios / membresías | 5 / 5 |
-| **Tamaño de la base** | 10.203 kB → **13 MB** |
+**1. `attributes` valida la clave, no el tipo.** `{"min_kg": "texto"}` se
+acepta aunque `min_kg` esté declarado como `number`. Deliberado: no se
+agregó lógica al trigger sin necesidad demostrada. El tipo se valida mejor
+con Zod en el borde de la aplicación.
+
+**2. Hallazgo para la búsqueda en Fase 3.** El operador `%` compara la
+cadena completa y se diluye en nombres largos; `%>` usa umbral 0.6 y
+`balansiador` vs `BALANCEADOR` puntúa 0.5. **Recomendación:** filtrar con
+`word_similarity(q, name) > 0.4` y `ORDER BY … DESC LIMIT n`.
 
 ---
 
-## Pendiente: 5 pruebas que necesitan usuarios externos
+## Estado final
 
-| # | Prueba | Necesita |
+| | Antes | Después |
 |---|---|---|
-| 4 | Cliente ve únicamente sus propios datos | usuario `customer` |
-| 5 | Distribuidor ve sólo su lista de precios | usuario `distributor` |
-| 5b | Distribuidor **no** ve las otras listas | idem |
-| 10 | Manipular la request no saltea RLS (`?id=eq.<otro>`) | usuario `customer` |
-| 11 | Distribuidor pide `stock_balances` → 0 filas | usuario `distributor` |
+| Tablas / con RLS / políticas | 0 / 0 / 0 | **15 / 15 / 30** |
+| Usuarios / profiles / memberships | 0 / 0 / 0 | **7 / 7 / 8** |
+| Empresas | 0 | **2** |
+| Productos | 0 | **219** (216 BT + 3 TT) |
+| Precios | 0 | **375** |
+| Movimientos / saldos | 0 | **53 / 51** |
+| Clientes | 0 | **3** |
+| Tamaño de la base | 10.203 kB | **13 MB** |
 
-Los datos ya están listos: *Cliente Demo* (lista Especial), *Distribuidor
-Demo* (lista Distribuidores) y *Otro Cliente* (lista base) existen, con
-precios diferenciados cargados.
+## Limpieza realizada
 
----
+El harness (`app.as_user`, `app.as_anon`) hacía `SET ROLE` y **fue
+eliminado** al cerrar la etapa. `app.test_results` se conserva como
+registro de las 121 pruebas; no tiene privilegios especiales y se puede
+borrar cuando quieras.
 
-## Limpieza pendiente antes de producción
+## Advertencia abierta — acción tuya
 
-El harness de pruebas (`app.as_user`, `app.as_anon`, `app.test_results`)
-hace `SET ROLE` y **debe eliminarse** cuando terminen las pruebas de la
-etapa. Hoy tiene `REVOKE ALL` para `PUBLIC`, `anon` y `authenticated`:
-sólo `postgres` puede invocarlo. Se mantiene únicamente porque faltan las
-5 pruebas de arriba.
+**Leaked Password Protection** sigue desactivado en Authentication →
+Policies. Es configuración de tu cuenta y no la toco. Recomiendo activarlo
+antes de abrir el sistema a usuarios externos reales.

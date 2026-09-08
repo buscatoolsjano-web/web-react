@@ -1,4 +1,4 @@
-# Verificación del schema — Fase 2B · Etapa 1
+# Verificación del schema — Fase 2B · Etapa 1 (CERRADA)
 
 Ejecutado el **2026-09-08**, entre las 18:52 y las 19:00 UTC, sobre
 `uaxcfufvapzulqvynanp`. Estado previo en
@@ -179,6 +179,43 @@ El advisor reporta una sola advertencia pendiente:
 Es un ajuste del proyecto, en **Authentication → Policies**. No lo toco:
 es configuración de la cuenta y la decisión es tuya. Recomiendo activarlo
 antes de que existan usuarios reales.
+
+## Estado final de los usuarios y datos (cierre de la etapa)
+
+| | |
+|---|---|
+| Usuarios en auth.users | **7** |
+| Profiles | **7** (1:1, 0 huérfanos, 0 duplicados) |
+| Memberships | **8** — Jano tiene 2 (admin en Buscatools, salesperson en Torquetools) |
+| Empresas | **2** |
+| Productos | **219** (216 Buscatools + 3 Torquetools) |
+| Precios | **375** |
+| Movimientos / saldos de stock | **53 / 51** |
+| Clientes | **3** |
+| Vistas | **1** (product_availability) |
+| Tamaño de la base | 10.203 kB → **13 MB** |
+
+Pruebas: **121 ejecutadas, 121 PASS, 0 FAIL** (ver STAGE_1_TEST_RESULTS.md).
+
+### Correcciones posteriores a la verificación inicial
+
+| # | Corrección | Migración |
+|---|---|---|
+| 1 | Trigger de reservas: el delta negativo del RELEASE violaba el CHECK | fix_apply_stock_reservation_negative_delta |
+| 2 | Vista product_availability: era security_invoker y devolvía 0 filas a los externos | fix_product_availability_view_for_external_roles |
+| 3 | extensions agregado al search_path de authenticated/anon/service_role | fix_search_path_include_extensions |
+| 4 | Las 25 marcas del seed pasaron a ser las reales del catálogo | fix_brands_use_real_catalog_values |
+| 5 | REVOKE UPDATE/DELETE en stock_movements | stage1_block7b |
+| 6 | Harness de pruebas eliminado (hacía SET ROLE) | cleanup_test_harness |
+
+### Advisor de seguridad — estado final
+
+| Hallazgo | Nivel | Estado |
+|---|---|---|
+| extension_in_public | WARN | ✅ Resuelto (movidas a extensions) |
+| function_search_path_mutable | WARN | ✅ Resuelto (harness eliminado) |
+| security_definer_view (product_availability) | ERROR | ⚠️ **Aceptado con justificación**: es la única forma en Postgres de exponer una proyección restringida de una tabla con RLS. Filtra por app.current_company_ids(), expone sólo un booleano y está revocada para anon. Verificado en R11–R14 |
+| auth_leaked_password_protection | WARN | 🔲 **Pendiente**: ajuste del Dashboard, decisión tuya |
 
 ## Estado de los usuarios de Auth
 
