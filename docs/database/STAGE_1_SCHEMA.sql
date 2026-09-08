@@ -397,6 +397,14 @@ SET search_path = public, pg_temp AS $$
   );
 $$;
 
+-- Postgres otorga EXECUTE a PUBLIC por defecto en toda función. En
+-- funciones SECURITY DEFINER eso es riesgoso: cualquier rol podría
+-- invocarlas. Se revoca y se otorga sólo a `authenticated`, que es quien
+-- las necesita porque las políticas RLS se evalúan como el usuario que
+-- consulta.
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA app FROM PUBLIC, anon;
+GRANT  EXECUTE ON ALL FUNCTIONS IN SCHEMA app TO authenticated;
+
 
 -- =====================================================================
 -- BLOQUE 6 — Triggers
