@@ -57,6 +57,19 @@ export function PanelFacetas({
   const atributos = facetas?.atributos ?? []
   const marcas = facetas?.marcas ?? []
 
+  // Sin categoría elegida se muestran SÓLO las categorías. Los 14
+  // desplegables del catálogo entero ocupaban cinco líneas y empujaban los
+  // resultados hacia abajo, que es justo lo que veníamos a evitar.
+  //
+  // La excepción son los filtros ya activos: un link compartido puede traer
+  // una marca o un atributo sin categoría, y entonces la fila tiene que
+  // estar para poder editarlo.
+  const hayFiltroDeAtributo =
+    filtros.marca !== null ||
+    Object.keys(filtros.atributos).length > 0 ||
+    Object.keys(filtros.rangos).length > 0
+  const verDesplegables = hayCategoria || hayFiltroDeAtributo
+
   return (
     <div className={styles.barra} aria-busy={cargando}>
       {/* ── Fila 1 · categorías ─────────────────────────────────────────── */}
@@ -90,7 +103,7 @@ export function PanelFacetas({
       )}
 
       {/* ── Fila 3 · marca y atributos, como desplegables ───────────────── */}
-      {(marcas.length > 0 || atributos.length > 0) && (
+      {verDesplegables && (marcas.length > 0 || atributos.length > 0) && (
         <div className={styles.filaDesplegables}>
           <span className={styles.rotulo}>Filtrar por</span>
 
