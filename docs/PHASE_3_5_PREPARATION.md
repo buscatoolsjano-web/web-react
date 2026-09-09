@@ -92,10 +92,19 @@ CREATE POLICY pac_write ON product_attribute_categories
   USING (app.is_admin(company_id))
   WITH CHECK (
     app.is_admin(company_id)
-    AND EXISTS (SELECT 1 FROM product_attribute_definitions d
-                 WHERE d.id = attribute_definition_id AND d.company_id = company_id)
-    AND EXISTS (SELECT 1 FROM product_categories c
-                 WHERE c.id = category_id AND c.company_id = company_id)
+    -- La referencia externa va CALIFICADA con el nombre de la tabla.
+    -- Sin calificar, Postgres la resuelve contra el subquery y la
+    -- condición se vuelve una tautología (ver el recuadro de abajo).
+    AND EXISTS (
+      SELECT 1 FROM product_attribute_definitions d
+      WHERE d.id = product_attribute_categories.attribute_definition_id
+        AND d.company_id = product_attribute_categories.company_id
+    )
+    AND EXISTS (
+      SELECT 1 FROM product_categories c
+      WHERE c.id = product_attribute_categories.category_id
+        AND c.company_id = product_attribute_categories.company_id
+    )
   );
 ```
 
