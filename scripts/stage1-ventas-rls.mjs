@@ -62,6 +62,10 @@ const main = async () => {
     .insert({ company_id: ajena.id, legal_name: 'ZZ Cliente de empresa ajena' }).select('id').single()
 
   const hechos = { pedidos: [], entregas: [], facturas: [], pagos: [] }
+  // Estado previo: la limpieza compara contra esto, no contra cero. Con el
+  // histórico migrado hay 166 pedidos legítimos que no son fixtures.
+  const { count: pedidosPrevios } = await sb.from('sales_orders')
+    .select('*', { count: 'exact', head: true })
   const nuevoPedido = async (companyId, customerId, numero, productId = prod.id) => {
     const { data } = await sb.from('sales_orders').insert({
       company_id: companyId, number: numero, customer_id: customerId,
@@ -217,9 +221,9 @@ const main = async () => {
     await s.from('companies').delete().eq('id', ajena.id)
     const { count: pedidos } = await s.from('sales_orders').select('*', { count: 'exact', head: true })
     const { count: empresas } = await s.from('companies').select('*', { count: 'exact', head: true })
-    pedidos === 0 && empresas === 2
-      ? PASS('sin residuos', `sales_orders=0  companies=${empresas}`)
-      : FAIL('quedaron residuos', `sales_orders=${pedidos}  companies=${empresas}`)
+    pedidos === pedidosPrevios && empresas === 2
+      ? PASS('sin residuos', `sales_orders vuelve a ${pedidosPrevios}  companies=${empresas}`)
+      : FAIL('quedaron residuos', `sales_orders=${pedidos} (previos ${pedidosPrevios})  companies=${empresas}`)
   }
 
   console.log(`\n${'═'.repeat(74)}\n  RESULTADO: ${fallos} fallo(s)\n${'═'.repeat(74)}`)
