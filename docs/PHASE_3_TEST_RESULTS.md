@@ -238,12 +238,61 @@ terminar siendo la de otra persona. Si la primera fila hubiera sido la del
 ocultado el stock. Corregido en `a3ebf53` con el filtro explícito por
 `user_id`.
 
+### 9.4 Al cambiar de empresa quedaban los datos de la anterior
+
+Es el requisito que pediste explícitamente: *"NO quiero que durante ningún
+instante se rendericen datos cacheados de la empresa anterior."*
+
+Se midió muestreando el DOM cada pocos milisegundos al cambiar de
+Buscatools a Torquetools:
+
+| ms | Filas en la tabla | Paginador |
+|---:|---:|---|
+| 0 | **50** ← Buscatools | Cargando… |
+| 30 | **50** | Cargando… |
+| 80 | **50** | Cargando… |
+| 150 | **50** | Cargando… |
+| 300 | 3 ← Torquetools | 1–3 de 3 |
+
+Entre 150 y 300 ms se veían las 50 filas de Buscatools.
+
+`removeQueries` funcionaba bien; el problema era el `placeholderData` que
+había puesto para suavizar el paginado. TanStack Query entrega los datos
+de la consulta previa **aunque la clave de caché haya cambiado**, así que
+anulaba el borrado.
+
+Corregido en `6a25e20`: sólo conserva la página previa si la consulta
+anterior era de la misma empresa, comparando la posición 1 de la clave.
+Dentro de una empresa el paginado sigue siendo suave; al cambiar de
+empresa la tabla pasa al estado de carga.
+
+**Verificado después del fix**, midiendo la transición inversa
+(Torquetools → Buscatools):
+
+| ms | Filas | Primer SKU | Encabezado |
+|---:|---:|---|---|
+| 0 | **0** | — | Buscatools · admin |
+| 30 | **0** | — | Buscatools · admin |
+| 150 | **0** | — | Buscatools · admin |
+| 300 | **0** | — | Buscatools · admin |
+| 600 | 50 | PRO11733 | Buscatools · admin |
+
+**Cero fotogramas con filas de la empresa anterior.** La tabla cae al
+estado de carga en el mismo instante del cambio.
+
+### Una falsa alarma, verificada antes de reportarla
+
+En la misma medición el subtítulo parecía quedarse en "Buscatools · admin".
+Era un error de mi medición: la expresión regular leía el texto del
+`<select>` de empresas, que contiene todas las opciones, en vez del
+subtítulo. Comprobado con un selector puntual, el subtítulo sí cambiaba a
+"Torquetools · salesperson · Lista base", con SKU `TT-001`.
+
 ---
 
 ## 10. Pendiente
 
-**`distribuidor.test@buscatools.com.ar`** (R7) y el cambio de empresa en
-vivo (R3a/R3b) quedan por correr.
+**`distribuidor.test@buscatools.com.ar`** (R7) queda por correr.
 
 Estas 9 pruebas necesitan iniciar sesión de verdad con cada usuario, y no
 hay forma de obtener un JWT sin la contraseña (crear sesiones con
