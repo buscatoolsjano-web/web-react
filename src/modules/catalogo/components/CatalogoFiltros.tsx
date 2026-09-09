@@ -1,4 +1,4 @@
-import { filtrarAtributosDeCategoria } from '../services/facetas'
+import { filtrarAtributosDeCategoria } from '../lib/atributosPorCategoria'
 import type {
   CategoriaResumen,
   DefinicionAtributo,

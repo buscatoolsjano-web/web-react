@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { filtrarAtributosDeCategoria } from './facetas'
+import { filtrarAtributosDeCategoria } from './atributosPorCategoria'
 import type { DefinicionAtributo } from '../types'
 
 const def = (key: string, filtrable = true): DefinicionAtributo => ({
