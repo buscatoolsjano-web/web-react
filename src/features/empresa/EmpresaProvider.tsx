@@ -47,7 +47,7 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
     error,
   } = useQuery({
     queryKey: ['empresa', 'membresias', userId],
-    queryFn: listarMembresias,
+    queryFn: () => listarMembresias(userId!),
     enabled: userId !== null,
     staleTime: 5 * 60_000,
   })
