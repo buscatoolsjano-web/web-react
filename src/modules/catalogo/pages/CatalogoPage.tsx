@@ -35,8 +35,24 @@ export function CatalogoPage() {
   const [textoInput, setTextoInput] = useState(filtros.q)
   const textoDiferido = useDebounce(textoInput, 300)
 
+  // La URL es la fuente de verdad, así que el input tiene que seguirla
+  // cuando cambia POR FUERA: al abrir un link con ?q=, o al usar los
+  // botones atrás/adelante del navegador. Sin esto el input se quedaba con
+  // su valor inicial y el efecto de abajo pisaba la URL con ese valor
+  // viejo, borrando la búsqueda.
+  //
+  // Se ajusta durante el render (patrón oficial de React para estado
+  // derivado) y no en un useEffect, que provocaría un render en cascada.
+  const [qUrlPrevia, setQUrlPrevia] = useState(filtros.q)
+  if (qUrlPrevia !== filtros.q) {
+    setQUrlPrevia(filtros.q)
+    // Se compara contra el texto recortado: si el cambio lo originó este
+    // mismo input, no hay que pisar lo que la persona está tipeando.
+    if (filtros.q !== textoInput.trim()) setTextoInput(filtros.q)
+  }
+
   useEffect(() => {
-    if (textoDiferido !== filtros.q) actualizar({ q: textoDiferido })
+    if (textoDiferido.trim() !== filtros.q) actualizar({ q: textoDiferido })
   }, [textoDiferido, filtros.q, actualizar])
 
   const { listas, porDefecto, puedeElegir } = useListasDePrecios(companyId)
