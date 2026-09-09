@@ -782,3 +782,43 @@ using (
 --
 -- secuencia interna de borradores
 --   Posible, sin caso de uso hoy. El UUID alcanza para identificar un borrador.
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- 12 · APLICADO EN STAGE 1 — diferencias con lo escrito arriba
+-- ────────────────────────────────────────────────────────────────────────────
+--
+-- Migraciones aplicadas, en orden:
+--   phase4_stage1_funciones_y_cliente
+--   phase4_stage1_cotizaciones_y_oc
+--   phase4_stage1_pedidos_y_entregas
+--   phase4_stage1_facturas_pagos_adjuntos_auditoria
+--   phase4_stage1_rls
+--   phase4_stage1_seed_secuencias
+--   phase4_stage1_exponer_numeracion_en_public
+--   phase4_stage1_numeracion_permiso_ajustado
+--   phase4_stage1_reponer_secuencias_tras_pruebas
+--   phase4_stage1_touch_updated_at
+--   phase4_fijar_search_path_helpers_facetas
+--
+-- Tres cambios respecto de lo diseñado, los tres por algo que apareció al
+-- ejecutar:
+--
+-- 1. next_document_number vive en `public`, no en `app`.
+--    PostgREST sólo expone `public`: en `app` las 40 llamadas concurrentes
+--    fallaron con PGRST202. Mismo caso que app.search_products en la Fase 3.
+--
+-- 2. next_document_number valida el permiso sobre la empresa.
+--    Sin eso, cualquier usuario autenticado podía consumir números de una
+--    empresa ajena y desordenarle la numeración. El chequeo sólo aplica
+--    cuando hay JWT (auth.uid() no nulo): los scripts administrativos corren
+--    con la Secret y sin JWT, y necesitan numerar durante una migración.
+--    Como la función está revocada para anon y public, el único llamador sin
+--    JWT posible es service_role.
+--
+-- 3. Trigger app.touch_updated_at() en las ocho tablas con updated_at.
+--    Faltaba: la columna se habría quedado con la fecha de creación para
+--    siempre. NO es auditoría — sólo pone updated_at = now() y no escribe en
+--    sales_audit; verificado.
+--
+-- Lo que NO cambió: ninguna tabla de más, ninguna policy relajada, y
+-- document_sequences sigue sin fila para `invoice`.
