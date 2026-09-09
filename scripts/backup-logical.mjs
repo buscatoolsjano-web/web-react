@@ -13,7 +13,7 @@
  * función usando la API con la clave administrativa.
  *
  * SEGURIDAD
- *   · La clave se lee de SUPABASE_SERVICE_ROLE_KEY y NUNCA se imprime.
+ *   · La clave se lee de SUPABASE_SECRET_KEY y NUNCA se imprime.
  *   · El archivo se escribe FUERA del repositorio.
  *   · No se muestran datos por consola: sólo recuentos y tamaños.
  *
@@ -41,9 +41,9 @@ if (/web-react[\\/](?!.*\.\.)/.test(SALIDA.replace(/\\/g, '/')) && !SALIDA.inclu
 
 const PROYECTO = 'uaxcfufvapzulqvynanp'
 const URL = process.env.SUPABASE_URL ?? `https://${PROYECTO}.supabase.co`
-const CLAVE = process.env.SUPABASE_SERVICE_ROLE_KEY
+const CLAVE = process.env.SUPABASE_SECRET_KEY
 if (!CLAVE) {
-  console.error('Falta SUPABASE_SERVICE_ROLE_KEY en el entorno.')
+  console.error('Falta SUPABASE_SECRET_KEY en el entorno.')
   process.exit(1)
 }
 const sb = createClient(URL, CLAVE, { auth: { persistSession: false } })

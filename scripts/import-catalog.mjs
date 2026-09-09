@@ -15,7 +15,7 @@
  * SEGURIDAD
  * ---------
  * Necesita privilegio de escritura, así que usa la clave service_role.
- *   · Se lee de la variable de entorno SUPABASE_SERVICE_ROLE_KEY.
+ *   · Se lee de la variable de entorno SUPABASE_SECRET_KEY.
  *   · NUNCA se imprime, ni entera ni parcial.
  *   · NUNCA va en el repo, en src/, en el bundle ni en GitHub Pages.
  *   · Este script corre a mano, desde un entorno administrativo.
@@ -26,7 +26,7 @@
  *   node scripts/import-catalog.mjs --file <json> --dry-run
  *
  *   # importación real
- *   SUPABASE_SERVICE_ROLE_KEY=... node scripts/import-catalog.mjs \
+ *   SUPABASE_SECRET_KEY=... node scripts/import-catalog.mjs \
  *     --file <json> --execute [--batch 500] [--desde 0] [--precios <politica>]
  *
  * POLÍTICA DE PRECIOS (--precios)
@@ -151,10 +151,10 @@ async function traerTodo(sb, tabla, select, filtro = (q) => q, orden = 'id', pag
 // ── Conexión ─────────────────────────────────────────────────
 function conectar() {
   const url = process.env.SUPABASE_URL ?? 'https://uaxcfufvapzulqvynanp.supabase.co'
-  const clave = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const clave = process.env.SUPABASE_SECRET_KEY
   if (!clave) {
     console.error(
-      'Falta SUPABASE_SERVICE_ROLE_KEY en el entorno.\n' +
+      'Falta SUPABASE_SECRET_KEY en el entorno.\n' +
         'Se pasa por variable de entorno y NO se commitea. Este script corre\n' +
         'a mano, fuera del frontend.',
     )
@@ -386,7 +386,7 @@ async function main() {
   if (!EJECUTAR) {
     seccion('SIMULACRO TERMINADO — no se escribió nada')
     log('  Para ejecutar de verdad:')
-    log('    SUPABASE_SERVICE_ROLE_KEY=... node scripts/import-catalog.mjs --file <json> --execute')
+    log('    SUPABASE_SECRET_KEY=... node scripts/import-catalog.mjs --file <json> --execute')
     return
   }
 

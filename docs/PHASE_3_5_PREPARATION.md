@@ -338,7 +338,7 @@ Escribe el avance en `import-catalog.state.json` tras cada lote. Si falla,
 
 ### service_role
 
-- Se lee de `SUPABASE_SERVICE_ROLE_KEY`, variable de entorno.
+- Se lee de `SUPABASE_SECRET_KEY`, variable de entorno.
 - **Nunca se imprime**, ni truncada.
 - No está en el repo, ni en `src/`, ni en el bundle, ni en Pages.
 - El script corre a mano, fuera del frontend.

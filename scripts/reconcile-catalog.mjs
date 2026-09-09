@@ -6,7 +6,7 @@
  *
  * Sólo LEE. No escribe nada en ninguna de las dos puntas.
  *
- *   SUPABASE_SERVICE_ROLE_KEY=... node scripts/reconcile-catalog.mjs \
+ *   SUPABASE_SECRET_KEY=... node scripts/reconcile-catalog.mjs \
  *     --file <productos-data.json> [--precios markup-legacy] [--csv salida.csv]
  *
  * La clave se lee del entorno y NUNCA se imprime.
@@ -60,9 +60,9 @@ function esperada(metrica, legacy, nuevo, motivo) {
 }
 
 function conectar() {
-  const clave = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const clave = process.env.SUPABASE_SECRET_KEY
   if (!clave) {
-    console.error('Falta SUPABASE_SERVICE_ROLE_KEY en el entorno.')
+    console.error('Falta SUPABASE_SECRET_KEY en el entorno.')
     process.exit(1)
   }
   return createClient(

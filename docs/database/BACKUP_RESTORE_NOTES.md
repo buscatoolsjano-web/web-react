@@ -191,7 +191,7 @@ procedimiento por `legacy_ref` y `source_type = 'migration'` en
 ## Lo que el archivo no debe contener
 
 `scripts/backup-logical.mjs` no escribe claves: lee
-`SUPABASE_SERVICE_ROLE_KEY` del entorno, nunca la imprime y nunca la
+`SUPABASE_SECRET_KEY` del entorno, nunca la imprime y nunca la
 incluye en la salida. El archivo se escribe **fuera del repositorio** y el
 script rechaza rutas que apunten adentro.
 
