@@ -1,0 +1,183 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.volver {
+  align-self: flex-start;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.volver:hover {
+  color: var(--primary);
+}
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.identidad {
+  min-width: 0;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  align-items: center;
+}
+
+.historico {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.subtitulo {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+.importe {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.importeValor {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.importeEtiqueta {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.bloque {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+.h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.datos {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+.dato {
+  min-width: 0;
+}
+
+.datoEtiqueta {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.datoValor {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+/* Un dato que falta se muestra como faltante, no como vacío: la diferencia
+   entre "no lo sabemos" y "no hay nada" importa en el histórico. */
+.falta {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.notas {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  white-space: pre-wrap;
+}
+
+.enlace {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.enlace:hover {
+  text-decoration: underline;
+}
+
+.totales {
+  margin: var(--space-3) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-end;
+  font-size: var(--text-sm);
+}
+
+.totales > div {
+  display: grid;
+  grid-template-columns: auto minmax(8rem, auto);
+  gap: var(--space-4);
+}
+
+.totales dt {
+  color: var(--text-soft);
+}
+
+.totales dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.totalFinal {
+  font-weight: 700;
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.nota {
+  color: var(--text-soft);
+}
+
+.error {
+  padding: var(--space-4);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  background: var(--surface);
+}

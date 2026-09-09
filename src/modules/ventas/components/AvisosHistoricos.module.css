@@ -1,0 +1,29 @@
+.caja {
+  border: 1px solid var(--warning);
+  border-left-width: 4px;
+  background: var(--warning-light);
+  color: var(--warning-text);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+}
+
+.titulo {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.lista {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sospecha {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}

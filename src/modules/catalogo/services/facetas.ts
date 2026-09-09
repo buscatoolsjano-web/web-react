@@ -164,12 +164,16 @@ interface RespuestaFacetas {
  * que un externo no puede inferir por ellos productos que no puede leer.
  */
 export async function obtenerFacetas(plan: PlanDeConsulta): Promise<Facetas> {
+  // Los parámetros ausentes se OMITEN en vez de mandarse en null: los tipos
+  // generados los marcan opcionales porque tienen DEFAULT NULL en la función,
+  // y con `exactOptionalPropertyTypes` pasar un undefined explícito no es lo
+  // mismo que no pasar la clave. El resultado en la base es idéntico.
   const { data, error } = await supabase.rpc('catalog_facets', {
     p_company: plan.companyId,
-    p_query: plan.texto,
-    p_category: plan.categoria,
-    p_brand: plan.marca,
-    p_type: plan.subtipos,
+    ...(plan.texto !== null && { p_query: plan.texto }),
+    ...(plan.categoria !== null && { p_category: plan.categoria }),
+    ...(plan.marca !== null && { p_brand: plan.marca }),
+    ...(plan.subtipos !== null && { p_type: plan.subtipos }),
     p_attrs: plan.atributos,
     p_ranges: plan.rangos,
   })

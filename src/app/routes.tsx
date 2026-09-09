@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ComponentType, type ReactNode } from 'react'
-import type { RouteObject } from 'react-router-dom'
+import { Navigate, type RouteObject } from 'react-router-dom'
 import { AppLayout } from '@/layouts/AppLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
@@ -71,6 +71,30 @@ const ProductoDetallePage = lazyConRecarga(() =>
     default: m.ProductoDetallePage,
   })),
 )
+const CotizacionesPage = lazyConRecarga(() =>
+  import('@/modules/ventas/pages/CotizacionesPage').then((m) => ({ default: m.CotizacionesPage })),
+)
+const CotizacionDetallePage = lazyConRecarga(() =>
+  import('@/modules/ventas/pages/CotizacionDetallePage').then((m) => ({
+    default: m.CotizacionDetallePage,
+  })),
+)
+const PedidosPage = lazyConRecarga(() =>
+  import('@/modules/ventas/pages/PedidosPage').then((m) => ({ default: m.PedidosPage })),
+)
+const PedidoDetallePage = lazyConRecarga(() =>
+  import('@/modules/ventas/pages/PedidoDetallePage').then((m) => ({
+    default: m.PedidoDetallePage,
+  })),
+)
+const EntregasPage = lazyConRecarga(() =>
+  import('@/modules/ventas/pages/EntregasPage').then((m) => ({ default: m.EntregasPage })),
+)
+const EntregaDetallePage = lazyConRecarga(() =>
+  import('@/modules/ventas/pages/EntregaDetallePage').then((m) => ({
+    default: m.EntregaDetallePage,
+  })),
+)
 const LoginPage = lazyConRecarga(() =>
   import('@/features/auth/pages/LoginPage').then((m) => ({ default: m.LoginPage })),
 )
@@ -106,6 +130,17 @@ export const routes: RouteObject[] = [
       // (#/producto/<sku>). Es único por empresa, así que la empresa activa
       // resuelve la ambigüedad.
       { path: 'catalogo/:sku', element: privada(<ProductoDetallePage />) },
+
+      // Ventas. `#/ventas` no tiene pantalla propia: un tablero de Ventas
+      // sería una idea nueva y esto es una migración, así que redirige a la
+      // primera subsección, igual que el legacy al entrar a la sección.
+      { path: 'ventas', element: <Navigate to="/ventas/cotizaciones" replace /> },
+      { path: 'ventas/cotizaciones', element: privada(<CotizacionesPage />) },
+      { path: 'ventas/cotizaciones/:id', element: privada(<CotizacionDetallePage />) },
+      { path: 'ventas/pedidos', element: privada(<PedidosPage />) },
+      { path: 'ventas/pedidos/:id', element: privada(<PedidoDetallePage />) },
+      { path: 'ventas/entregas', element: privada(<EntregasPage />) },
+      { path: 'ventas/entregas/:id', element: privada(<EntregaDetallePage />) },
     ],
   },
   {

@@ -197,13 +197,15 @@ export async function consultarProductos(
 ): Promise<PaginaDeProductos> {
   const { data: ranking, error: errorRpc } = await supabase.rpc('search_products', {
     p_company: plan.companyId,
-    p_query: plan.texto,
+    // Ver la nota en facetas.ts: los ausentes se omiten, no se mandan en
+    // null. Todos tienen DEFAULT NULL en la función.
+    ...(plan.texto !== null && { p_query: plan.texto }),
     p_limit: plan.limite,
     p_offset: plan.desplazamiento,
-    p_category: plan.categoria,
-    p_brand: plan.marca,
+    ...(plan.categoria !== null && { p_category: plan.categoria }),
+    ...(plan.marca !== null && { p_brand: plan.marca }),
     p_attrs: plan.atributos,
-    p_type: plan.subtipos,
+    ...(plan.subtipos !== null && { p_type: plan.subtipos }),
     p_ranges: plan.rangos,
     p_orden: plan.orden,
   })

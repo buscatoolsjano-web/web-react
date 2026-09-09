@@ -46,10 +46,13 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 600,
     },
     test: {
-      // Los tests de Fase 1 son de lógica pura (sin DOM). Cuando haya tests de
-      // componentes se agrega jsdom + @testing-library/react. Ver README › Testing.
+      // jsdom sólo donde hace falta: los tests de lógica pura —que son la
+      // mayoría— corren en node, que arranca bastante más rápido. Un test de
+      // componente lo pide con `// @vitest-environment jsdom` en su primera
+      // línea.
       environment: 'node',
       globals: true,
+      setupFiles: ['src/test/setup.ts'],
       include: ['src/**/*.{test,spec}.{ts,tsx}'],
     },
   }

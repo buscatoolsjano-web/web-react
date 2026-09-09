@@ -1,0 +1,87 @@
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.tabla thead th {
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.num {
+  width: 3rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.sku {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.sinProducto {
+  color: var(--warning-text);
+  cursor: help;
+}
+
+.nombre {
+  display: block;
+}
+
+.descripcion {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+}
+
+.derecha {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.capitulo td {
+  background: var(--surface-alt);
+  font-weight: 700;
+}
+
+.vacio,
+.nota {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+.vacio {
+  padding: var(--space-5);
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}

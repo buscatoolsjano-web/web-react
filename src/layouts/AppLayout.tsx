@@ -19,10 +19,14 @@ import styles from './AppLayout.module.css'
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/catalogo', label: 'Catálogo', end: false },
+  // Ventas entra por sus tres subsecciones, igual que en el legacy: la
+  // sección sola nunca tuvo pantalla propia.
+  { to: '/ventas/cotizaciones', label: 'Cotizaciones', end: false },
+  { to: '/ventas/pedidos', label: 'Pedidos', end: false },
+  { to: '/ventas/entregas', label: 'Notas de entrega', end: false },
 ] as const
 
 const PROXIMAMENTE = [
-  'Ventas',
   'Clientes',
   'Compras',
   'Mantenimiento',

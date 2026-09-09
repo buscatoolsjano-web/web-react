@@ -1,0 +1,42 @@
+.chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  /* El borde hace que el chip siga siendo distinguible en alto contraste y
+     al imprimir en blanco y negro, donde el fondo se pierde. */
+  border: 1px solid transparent;
+}
+
+.neutro {
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  border-color: var(--border);
+}
+
+.info {
+  background: var(--primary-light);
+  color: var(--primary-text);
+  border-color: var(--primary-light);
+}
+
+.ok {
+  background: var(--success-light);
+  color: var(--success);
+  border-color: var(--success-light);
+}
+
+.alerta {
+  background: var(--warning-light);
+  color: var(--warning-text);
+  border-color: var(--warning-light);
+}
+
+.error {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
