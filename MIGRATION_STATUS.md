@@ -1,6 +1,6 @@
 # Estado de la migración — BUSCATOOLS
 
-Última actualización: **2026-09-09** · Fase actual: **3 — Catálogo en React** · implementado, pendiente de pruebas RLS con usuarios reales
+Última actualización: **2026-09-09** · Fase actual: **3 — Catálogo en React** · implementado y probado con sesiones reales · **116/116**
 
 **En línea:** https://buscatoolsjano-web.github.io/web-react/
 
@@ -22,7 +22,7 @@
 | **Infraestructura (Fase 1)** | **OK** | OK | N/A | OK | OK | OK | N/A | OK | ⏳ |
 | Auth / usuarios / permisos | **OK** | OK | **Creado** | **Hecho** | **Hecho** | **Hecho** | **Probado** | 51 | ⏳ |
 | Multiempresa | **OK** | OK | **Creado** | **Hecho** | **Hecho** | **Hecho** | **Probado** | 14 | ⏳ |
-| Catálogo | **WIP** | OK | **Creado** | **Hecho** | **Hecho** | **Hecho** | **Probado** | 73 | ⏳ |
+| Catálogo | **OK** | OK | **Creado** | **Hecho** | **Hecho** | **Hecho** | **Probado** | 116 | ⏳ |
 | Ventas | — | OK | Diseñado | — | — | — | — | — | — |
 | Clientes | — | OK | Diseñado | — | — | — | — | — | — |
 | Compras | — | OK | Diseñado | — | — | — | — | — | — |
@@ -42,7 +42,7 @@
 | 2 | Diseño del schema Supabase | **PROPUESTA ENTREGADA** — pendiente de aprobación |
 | 2B-1 | Core + Catálogo + Stock + Precios | **CERRADA** — 15 tablas, **121/121 PASS** |
 | 2.5 | Auth + multiempresa + RLS por rol | **OK** — 7 usuarios, 8 membresías, roles internos y externos probados |
-| 3 | Catálogo | **EN CURSO** — Auth + empresa + catálogo implementados; 73/73 pruebas, 9 bloqueadas por credenciales |
+| 3 | Catálogo | **ENTREGADA** — 116/116 pruebas · 6 bugs encontrados y corregidos · pendiente de aprobación |
 | 4 | Ventas + Clientes | — |
 | 5 | Compras | — |
 | 6 | Mantenimiento | — |
@@ -147,3 +147,32 @@ de prueba para cerrar las 9 pruebas de RLS desde el navegador.
 
 Próximo: **Etapa 2 (Ventas)** — no empieza sin tu aprobación.
 Tampoco se cargan los 21.772 productos todavía.
+
+## Fase 3 · Catálogo — entregada (2026-09-09)
+
+# TOTAL TESTS: 116 · PASS: 116 · FAIL: 0
+
+Auth real con Supabase Auth, empresa activa desde membresías reales y
+catálogo con paginado y búsqueda server-side. Probado en producción con
+**5 roles** y sesiones reales.
+
+| Documento | Contenido |
+|---|---|
+| [PHASE_3_CATALOG_DESIGN.md](docs/PHASE_3_CATALOG_DESIGN.md) | Diseño, secciones A–J |
+| [PHASE_3_TEST_RESULTS.md](docs/PHASE_3_TEST_RESULTS.md) | Las 116 pruebas y los 6 bugs |
+| [PHASE_3_RLS_CHECKLIST.md](docs/PHASE_3_RLS_CHECKLIST.md) | Guion de pruebas por rol |
+| [SHARED_ORIGIN_RISK.md](docs/security/SHARED_ORIGIN_RISK.md) | **Riesgo de seguridad abierto** |
+| [ATTRIBUTE_CATEGORY_RELATION.md](docs/database/ATTRIBUTE_CATEGORY_RELATION.md) | Evidencia de la relación N:N — **sin ejecutar** |
+
+**Seis bugs encontrados, todos corregidos.** Ninguno los detectaron los 48
+tests unitarios: los seis aparecieron probando con sesión real contra el
+deploy.
+
+| Métrica | Legacy | React |
+|---|---|---|
+| Bytes de datos en la primera carga | **15,7 MB** | **28,2 KB** — 570× menos |
+| Requests bloqueantes | 1 XHR síncrono | 0 |
+| Productos en memoria | 21.772 | 50 |
+| Bundle inicial (gzip) | — | 183 KB |
+| El precio lo decide | `pu * 3` en JavaScript | RLS en PostgreSQL |
+| El costo viaja al navegador | Sí, oculto con CSS | **La columna no existe** |

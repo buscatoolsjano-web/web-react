@@ -238,6 +238,34 @@ terminar siendo la de otra persona. Si la primera fila hubiera sido la del
 ocultado el stock. Corregido en `a3ebf53` con el filtro explícito por
 `user_id`.
 
+### 9.5 La empresa elegida sobrevivía al cambio de usuario
+
+Al cerrar sesión quedaba `bt-empresa-activa` en `localStorage`: la
+preferencia del usuario que se iba. No es explotable —se valida contra las
+membresías del nuevo usuario y se descarta si no coincide— pero es un
+residuo de otra sesión.
+
+Corregido en `c2cffec`: se limpia en el botón "Salir" **y** en el evento
+`SIGNED_OUT`, que cubre además el cierre desde otra pestaña y el token
+vencido.
+
+### 9.6 El catálogo consultaba dos veces y podía mostrar un precio ajeno
+
+Visto en la red: `products` salía **dos veces** por carga.
+
+La primera consulta se disparaba con `priceListId` en `null`, porque
+`price_lists` todavía no había respondido — tardó **1.420 ms**. Sin ese
+filtro, el embed de `product_prices` devuelve **todas** las listas
+visibles y `product_prices[0]` toma una cualquiera.
+
+Para un usuario externo da igual: RLS le deja ver una sola. **Pero un
+usuario interno ve tres**, así que durante ese segundo y medio podía
+mostrarse un precio que no era el de la lista elegida.
+
+Corregido en `c41f366`: la consulta espera a que se resuelva la lista.
+Desaparece la request duplicada y desaparece la ventana del precio
+equivocado.
+
 ### 9.4 Al cambiar de empresa quedaban los datos de la anterior
 
 Es el requisito que pediste explícitamente: *"NO quiero que durante ningún
@@ -288,11 +316,117 @@ Era un error de mi medición: la expresión regular leía el texto del
 subtítulo. Comprobado con un selector puntual, el subtítulo sí cambiaba a
 "Torquetools · salesperson · Lista base", con SKU `TT-001`.
 
+### `distribuidor.test@buscatools.com.ar` — distributor · 10/10 PASS
+
+| # | Objetivo | Evidencia |
+|---|---|---|
+| 1 | Sólo ve "Distribuidores" | ✅ `price_lists` → 1 fila |
+| 2 | NO ve "Especial Cliente Demo" | ✅ `false` |
+| 3 | NO ve listas internas | ✅ `false` |
+| 4 | Precio de distribuidor | ✅ CP.CP9911 = **46,0275** |
+| 5 | No obtiene otro precio manipulando la request | ✅ forzar Lista base → 0 filas · forzar Especial Demo → 0 filas · 1 sola lista distinta entre 124 precios |
+| 6 | No ve cantidades de stock | ✅ `stock_balances` → **0 filas** |
+| 7 | Sí ve disponibilidad | ✅ `product_availability` → booleano |
+| 8 | Logout / login / restore | ✅ F5 sobre `#/catalogo/PRO11733` mantuvo sesión y ruta |
+| 9 | Navegación y refresh | ✅ listado → detalle → F5, sin redirección al login |
+| 10 | Sin datos de un usuario anterior | ✅ 1 membresía, 1 empresa visible |
+
+### `cliente.test@buscatools.com.ar` — caso inverso · 6/6 PASS
+
+| Objetivo | Evidencia |
+|---|---|
+| Sólo "Especial Cliente Demo" | ✅ 1 fila |
+| NO "Distribuidores" | ✅ `false` |
+| NO listas internas | ✅ `false` |
+| Su precio correcto | ✅ CP.CP9911 = **43,32** |
+| Sin cantidades de stock | ✅ 0 filas |
+| Disponibilidad permitida | ✅ 3 filas con booleano |
+
+### Aislamiento de precios: el mismo SKU visto por tres roles
+
+| CP.CP9911 | Lista | Precio |
+|---|---|---:|
+| `cliente.test` | Especial Cliente Demo | US$ 43,32 |
+| `distribuidor.test` | Distribuidores | US$ 46,03 |
+| Jano (interno) | Lista base | US$ 54,15 |
+
+Ninguno puede leer el precio de otro: forzar el `price_list_id` ajeno
+devuelve **0 filas**, no el importe.
+
+---
+
+## 9-bis. Cambio de usuario: ni un fotograma con datos residuales
+
+Se instaló un grabador que muestrea el DOM y el almacenamiento cada 40 ms
+y **sobrevive al logout y al login** (ninguno de los dos recarga la
+página). Transición `distribuidor.test` → logout → `cliente.test`:
+
+| ms | Claves `bt-*` | Sesión | Encabezado | Filas | SKU |
+|---:|---|---|---|---:|---|
+| 42 | `bt-auth`, `bt-empresa-activa` | distribuidor.test | Buscatools · distributor · **Distribuidores** | 50 | PRO11733 |
+| 807 | **(vacío)** | — | — | **0** | — |
+| 1121 | (vacío) | — | login | 0 | — |
+| 22563 | `bt-auth` | cliente.test | — | **0** | — |
+| 22891 | `bt-auth` | cliente.test | Buscatools · customer | **0** | — |
+| 23167 | `bt-auth` | cliente.test | Buscatools · customer · **Especial Cliente Demo** | **0** | — |
+| 23577 | `bt-auth` | cliente.test | Buscatools · customer · Especial Cliente Demo | 50 | PRO11733 |
+
+**Fotogramas con residuo: 0.** La tabla permanece en 0 filas durante los
+22 segundos entre sesiones. El encabezado se arma progresivamente
+(empresa, después lista) pero **en ningún momento muestra la lista, el rol
+ni la membresía del usuario anterior**.
+
+La transición Jano → logout → distribuidor dio el mismo resultado: tras el
+logout, `claves: ""`, `email: null`, `filas: 0`, `opciones: ""`.
+
+---
+
+## 9-ter. Revisión de red
+
+Requests que hace el catálogo al cargar, con sesión de rol externo:
+
+| # | Recurso | `select` |
+|---|---|---|
+| 1 | `company_memberships` | `company_id, role, customer_id, companies(name,slug)` |
+| 2 | `price_lists` | `id, name, currency_code, is_default` |
+| 3 | `brands` | `id, name` |
+| 4 | `product_categories` | `id, name, slug, needs_review, position` |
+| 5 | `product_attribute_definitions` | `key, label, unit, data_type, is_filterable, position` |
+| 6 | `products` | sin ninguna columna de costo |
+| 7 | `product_availability` | `product_id, is_available` |
+
+| Comprobación | Resultado |
+|---|---|
+| ¿Alguna request trae costos? | **No.** `products` **no tiene columna de costo**: ni con `select=*`. No se filtra el costo — no existe en la Etapa 1 |
+| ¿Alguna trae listas no autorizadas? | **No.** 1 sola lista distinta entre los 124 precios visibles |
+| ¿Se pide `stock_balances` para externos? | **No.** El recurso no aparece en la red |
+| ¿Responde `product_availability`? | **Sí**, con el booleano |
+
+### Bytes medidos
+
+| Recurso | Bytes | Filas |
+|---|---:|---:|
+| `products` (página de 50) | 21.405 | 50 |
+| `product_availability` | 1.615 | 21 |
+| `product_attribute_definitions` | 2.933 | 26 |
+| `brands` | 1.604 | 25 |
+| `product_categories` | 1.016 | 8 |
+| `company_memberships` | 183 | 1 |
+| `price_lists` | 119 | 1 |
+| **Total primera carga** | **28.875 (28,2 KB)** | |
+| Cambiar de página | 23.020 | |
+
+Contra los **15,7 MB** del `productos-data.json` del legacy: **570 veces
+menos**.
+
 ---
 
 ## 10. Pendiente
 
-**`distribuidor.test@buscatools.com.ar`** (R7) queda por correr.
+Nada de las pruebas de RLS. Queda abierta la decisión sobre la tabla N:N
+de atributos ([evidencia](database/ATTRIBUTE_CATEGORY_RELATION.md)) y el
+riesgo de origen compartido
+([SHARED_ORIGIN_RISK.md](security/SHARED_ORIGIN_RISK.md)).
 
 Estas 9 pruebas necesitan iniciar sesión de verdad con cada usuario, y no
 hay forma de obtener un JWT sin la contraseña (crear sesiones con
