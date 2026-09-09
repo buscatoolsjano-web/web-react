@@ -1,12 +1,58 @@
-/* eslint-disable react-refresh/only-export-components --
-   Este archivo es el manifiesto de rutas, no un módulo de componentes: su
-   export principal es `routes`. Los `lazy()` viven acá a propósito, que es
-   el patrón estándar de React Router para el code splitting por módulo. */
-import { lazy, Suspense, type ReactNode } from 'react'
+import { lazy, Suspense, type ComponentType, type ReactNode } from 'react'
 import type { RouteObject } from 'react-router-dom'
 import { AppLayout } from '@/layouts/AppLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
+import { ErrorPage } from '@/app/ErrorPage'
+
+const CLAVE_RECARGA = 'bt-chunk-recargado'
+
+/**
+ * `lazy()` que sobrevive a un deploy.
+ *
+ * Vite le pone un hash al nombre de cada chunk. Si alguien tiene la app
+ * abierta cuando se publica una versión nueva, los archivos del build
+ * viejo dejan de existir: al navegar a una ruta que todavía no cargó, el
+ * import dinámico falla con un 404 y React Router muestra un stack trace.
+ *
+ * Pasó de verdad probando en producción: con la app abierta se desplegó
+ * una versión y el botón "Salir" tiró
+ * "Failed to fetch dynamically imported module".
+ *
+ * La solución estándar es recargar UNA vez —así el navegador pide el
+ * index.html nuevo con los hashes nuevos— y sólo una, para que un fallo
+ * real de red no deje la página en un bucle de recargas.
+ */
+function lazyConRecarga(importar: () => Promise<{ default: ComponentType }>) {
+  return lazy(async () => {
+    try {
+      const modulo = await importar()
+      // Cargó bien: se limpia la marca para que un futuro deploy vuelva a
+      // tener su reintento disponible.
+      try {
+        sessionStorage.removeItem(CLAVE_RECARGA)
+      } catch {
+        /* storage bloqueado: no cambia nada */
+      }
+      return modulo
+    } catch (error) {
+      let yaSeIntento = true
+      try {
+        yaSeIntento = sessionStorage.getItem(CLAVE_RECARGA) !== null
+        if (!yaSeIntento) sessionStorage.setItem(CLAVE_RECARGA, '1')
+      } catch {
+        /* sin storage no se puede saber; se prefiere no recargar en bucle */
+      }
+
+      if (yaSeIntento) throw error
+
+      window.location.reload()
+      // La página se está recargando: esta promesa no tiene que resolver
+      // nunca, o React pintaría un error a medio camino.
+      return new Promise<never>(() => {})
+    }
+  })
+}
 
 /**
  * Code splitting por módulo.
@@ -14,21 +60,21 @@ import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
  * Cada módulo entra con su propio chunk: nadie descarga Compras para mirar
  * el Catálogo.
  */
-const DashboardPage = lazy(() =>
+const DashboardPage = lazyConRecarga(() =>
   import('@/modules/dashboard/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
 )
-const CatalogoPage = lazy(() =>
+const CatalogoPage = lazyConRecarga(() =>
   import('@/modules/catalogo/pages/CatalogoPage').then((m) => ({ default: m.CatalogoPage })),
 )
-const ProductoDetallePage = lazy(() =>
+const ProductoDetallePage = lazyConRecarga(() =>
   import('@/modules/catalogo/pages/ProductoDetallePage').then((m) => ({
     default: m.ProductoDetallePage,
   })),
 )
-const LoginPage = lazy(() =>
+const LoginPage = lazyConRecarga(() =>
   import('@/features/auth/pages/LoginPage').then((m) => ({ default: m.LoginPage })),
 )
-const NotFoundPage = lazy(() =>
+const NotFoundPage = lazyConRecarga(() =>
   import('@/app/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 )
 
@@ -51,6 +97,7 @@ export const routes: RouteObject[] = [
   {
     path: '/',
     element: <AppLayout />,
+    errorElement: <ErrorPage />,
     children: [
       { index: true, element: privada(<DashboardPage />) },
       { path: 'catalogo', element: privada(<CatalogoPage />) },
@@ -64,7 +111,8 @@ export const routes: RouteObject[] = [
   {
     path: '/auth',
     element: <AuthLayout />,
+    errorElement: <ErrorPage />,
     children: [{ path: 'login', element: conSuspense(<LoginPage />) }],
   },
-  { path: '*', element: conSuspense(<NotFoundPage />) },
+  { path: '*', element: conSuspense(<NotFoundPage />), errorElement: <ErrorPage /> },
 ]
