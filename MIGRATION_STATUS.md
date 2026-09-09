@@ -1,6 +1,6 @@
 # Estado de la migración — BUSCATOOLS
 
-Última actualización: **2026-09-09** · Fase actual: **3 — Catálogo en React** · implementado y probado con sesiones reales · **116/116**
+Última actualización: **2026-09-09** · Fase actual: **3.5 CERRADA** — catálogo completo, 21.772 productos
 
 **En línea:** https://buscatoolsjano-web.github.io/web-react/
 
@@ -176,3 +176,42 @@ deploy.
 | Bundle inicial (gzip) | — | 183 KB |
 | El precio lo decide | `pu * 3` en JavaScript | RLS en PostgreSQL |
 | El costo viaja al navegador | Sí, oculto con CSS | **La columna no existe** |
+
+## Fase 3.5 · Catálogo completo — entregada (2026-09-09)
+
+# 21.772 PRODUCTOS · RECONCILIACIÓN CON TODOS LOS DELTAS EN CERO
+
+| | Legacy | Nuevo | Δ |
+|---|---:|---:|---:|
+| Productos | 21.772 | 21.772 | **0** |
+| Por marca (25) y por categoría (8) | — | — | **0** |
+| Sin marca | 5.456 | 5.456 | **0** |
+| En `otros` | 12.588 | 12.588 | **0** |
+| Precios | 12.254 | 12.254 | **0** |
+| Aperturas de stock | 378 | 378 | **0** |
+| Suma de stock | 29.799 | 29.799 | **0** |
+| `needs_review` | 12.593 | 12.593 | **0** |
+
+Precios por procedencia: 131 explícitos · 12.123 markup legacy ·
+9 anomalías excluidas · 9.509 sin precio.
+
+**Rendimiento medido con volumen real** (ningún índice por intuición):
+
+| Consulta | Antes | Después | |
+|---|---:|---:|---|
+| Listado del catálogo | 565,90 ms | **1,65 ms** | 343× |
+| Filtro por marca | 89,33 ms | **0,35 ms** | 255× |
+| Búsqueda fuzzy | 294,97 ms | **46,18 ms** | 6,4× |
+| SKU exacto | — | 1,55 ms | |
+| Atributo JSONB | — | 3,28 ms | |
+
+**Seis bugs encontrados y corregidos**, ninguno detectable con tests
+unitarios. Base: 13 MB → 80 MB.
+
+Documentos: [PHASE_3_5_PREPARATION.md](docs/PHASE_3_5_PREPARATION.md) ·
+[CATALOG_DATA_CLEANUP.md](docs/database/CATALOG_DATA_CLEANUP.md) ·
+[BACKUP_RESTORE_NOTES.md](docs/database/BACKUP_RESTORE_NOTES.md)
+
+**Precios externos:** customer y distributor tienen precio en 124 de 21.772
+productos; el resto muestra "Consultar". Es el estado real y la política
+comercial definitiva es una decisión aparte.
