@@ -102,7 +102,37 @@ CREATE POLICY pac_write ON product_attribute_categories
 El `WITH CHECK` cierra el agujero que trae toda tabla puente en un sistema
 multiempresa: **vincular un atributo de Buscatools con una categoría de
 Torquetools**. Las dos subconsultas fuerzan que las tres partes sean de la
-misma empresa. Verificado: 0 inconsistencias.
+misma empresa.
+
+> ### ⚠️ La primera versión de esta política no funcionaba
+>
+> Estaba escrita como `d.company_id = company_id` dentro del subquery.
+> Postgres resuelve un `company_id` sin calificar contra la tabla del
+> **propio subquery**, no contra la fila que se inserta, así que quedaba
+> `d.company_id = d.company_id`: una tautología. **El guardia no bloqueaba
+> nada.**
+>
+> Y la verificación que hice entonces —«0 inconsistencias»— **era
+> insuficiente**: contaba filas cruzadas en los datos existentes, o sea
+> comprobaba **estado**. No comprobaba **enforcement**: si la política
+> impedía crear una fila cruzada. Como los 70 pares se habían insertado
+> correctamente por construcción, el conteo daba cero igual con la política
+> rota.
+>
+> **Corregido** calificando la referencia externa con el nombre de la
+> tabla: `d.company_id = product_attribute_categories.company_id`.
+>
+> **Verificado ahora con las dos pruebas que hacían falta**, usando el JWT
+> real de Jano (admin en Buscatools, salesperson en Torquetools):
+>
+> | Prueba | Intento | Resultado |
+> |---|---|---|
+> | **Negativa** | atributo de Buscatools + categoría de **Torquetools** | **DENEGADO** (`insufficient_privilege`) |
+> | **Positiva** | atributo de Buscatools + categoría de Buscatools | **PERMITIDO** |
+>
+> La lección aplica a toda RLS: **contar filas malas no prueba que la
+> política las impida.** Hace falta intentar la escritura prohibida y ver
+> que falle, y la permitida y ver que pase.
 
 ### Migración de datos
 
@@ -573,3 +603,21 @@ Toda diferencia se explica o se corrige. Ninguna se acepta sin motivo.
 Con eso ejecuto las etapas G a Q completas.
 
 **No importé nada. Me detengo acá.**
+
+---
+
+## Backup lógico — decisión final
+
+El proyecto está en el plan Free, así que no hay snapshot ni PITR del panel.
+Se aprobó el **backup lógico reconstruible** de
+[`scripts/backup-logical.mjs`](../scripts/backup-logical.mjs).
+
+**No es un `pg_dump`** y no se describe como tal. Qué cubre, qué no, y —lo
+más importante— el **remapeo de identidades** que hace falta para restaurar
+en otro proyecto, están en
+[`BACKUP_RESTORE_NOTES.md`](database/BACKUP_RESTORE_NOTES.md).
+
+El punto que corregí: recrear los usuarios en otro proyecto les asigna
+**UUID nuevos**, así que los ids del backup dejan de servir. Hay 7 columnas
+en 6 tablas que dependen de esos ids, con **19 valores poblados hoy**. El
+remapeo se hace por email, que es la identidad estable.
