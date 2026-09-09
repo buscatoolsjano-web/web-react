@@ -219,9 +219,12 @@ fijo**. Alícuotas efectivas reales:
 iva=false 25 documentos
 ```
 
-El 10,5 % es real. Los valores intermedios (18,9 %, 15,8 %) son **promedios
-ponderados**: documentos con líneas a distinta alícuota. Eso decide el diseño:
-**el impuesto va por línea, no por documento.**
+El 10,5 % es real. **Lo de los promedios ponderados era una hipótesis mía y
+resultó falsa**: verifiqué que las líneas del legacy no tienen ningún campo de
+impuesto, que `base` es exactamente la suma de las líneas en los 22 casos y
+que `total = base + ivaAmount` cierra. El `ivaAmount` anómalo vino así del
+sistema anterior y no se explica desde las líneas. Ver
+[`PHASE_4_SALES_FINAL.md`](PHASE_4_SALES_FINAL.md), corrección previa.
 
 Dos datos más que simplifican: **`dtoGlobal` es 0 en los 636 documentos** (el
 descuento global no se usa nunca; sólo 109 de 2.185 líneas tienen descuento) y
