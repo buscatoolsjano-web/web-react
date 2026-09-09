@@ -28,11 +28,21 @@ const OCULTAS = new Set([
  * Si mañana se quiere otro orden, se cambia `position` en
  * `product_attribute_definitions`, que es dato y no código.
  */
+export interface Destacado {
+  key: string
+  valor: string
+  /** Texto ya listo para mostrar: incluye la unidad si el atributo tiene. */
+  texto: string
+}
+
 export function atributosDestacados(
   atributos: Record<string, unknown>,
   cuantos: number,
-): { key: string; valor: string }[] {
-  const salida: { key: string; valor: string }[] = []
+  /** clave → unidad, de las definiciones. Un valor suelto como "1" no dice
+   *  nada; "1 kg" sí. */
+  unidades: ReadonlyMap<string, string | null> = new Map(),
+): Destacado[] {
+  const salida: Destacado[] = []
 
   for (const [key, bruto] of Object.entries(atributos)) {
     if (salida.length >= cuantos) break
@@ -43,7 +53,8 @@ export function atributosDestacados(
     // no mostrar nada.
     if (valor === null || valor === '' || valor === '-') continue
 
-    salida.push({ key, valor })
+    const unidad = unidades.get(key)
+    salida.push({ key, valor, texto: unidad ? `${valor} ${unidad}` : valor })
   }
 
   return salida

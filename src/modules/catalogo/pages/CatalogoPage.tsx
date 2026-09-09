@@ -73,6 +73,13 @@ export function CatalogoPage() {
   // sólo las 3 que tienen balanceadores.
   const { data: facetas, isFetching: facetasCargando } = useFacetas(companyId, filtros)
 
+  // Un valor suelto como "1" en una card no dice nada; "1 kg" sí. Las
+  // unidades salen de las facetas, que ya vienen con label y unidad.
+  const unidades = useMemo(
+    () => new Map((facetas?.atributos ?? []).map((a) => [a.key, a.unidad] as const)),
+    [facetas],
+  )
+
   const { data, isPending, isFetching, error } = useProductos(filtros, listaEfectiva?.id ?? null, !listasCargando)
   const productos = useMemo(() => data?.productos ?? [], [data])
   const total = data?.total ?? 0
@@ -198,6 +205,7 @@ export function CatalogoPage() {
                 renderCard={(p) => (
                   <TarjetaProducto
                     producto={p}
+                    unidades={unidades}
                     esInterno={esInterno}
                     moneda={listaEfectiva?.moneda ?? null}
                     disponible={disponibilidad?.get(p.id) ?? false}
@@ -227,12 +235,14 @@ export function CatalogoPage() {
  */
 function TarjetaProducto({
   producto,
+  unidades,
   esInterno,
   moneda,
   disponible,
   onAbrir,
 }: {
   producto: ProductoListado
+  unidades: ReadonlyMap<string, string | null>
   esInterno: boolean
   moneda: string | null
   disponible: boolean
@@ -241,7 +251,7 @@ function TarjetaProducto({
   // Uno o dos atributos, no quince. Cuáles salen de los datos del propio
   // producto en el orden en que vienen: no hay una lista de casos por
   // categoría en el código.
-  const destacados = atributosDestacados(producto.atributos, 2)
+  const destacados = atributosDestacados(producto.atributos, 2, unidades)
 
   return (
     <button type="button" className={styles.card} onClick={onAbrir}>
@@ -262,7 +272,7 @@ function TarjetaProducto({
           <div className={styles.cardAtributos}>
             {destacados.map((d) => (
               <span key={d.key} className={styles.cardAtributo}>
-                {d.valor}
+                {d.texto}
               </span>
             ))}
           </div>
