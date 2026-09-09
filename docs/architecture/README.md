@@ -22,6 +22,7 @@ persona, nadie revierta una decisión sin conocer el motivo original.
 | [012](ADR-012-audit.md) | Auditoría y trazabilidad | **Propuesta — Fase 2** |
 | [013](ADR-013-product-attributes.md) | Atributos de producto: columnas vs JSONB | **Propuesta — Fase 2** |
 | [014](ADR-014-stock.md) | Arquitectura de stock | **Propuesta — Fase 2** |
+| [019](ADR-019-tests-sin-entorno.md) | Los tests de lógica pura no dependen de `.env` | **Aceptado — Fase 3.5** |
 
 ## Cómo agregar una ADR
 

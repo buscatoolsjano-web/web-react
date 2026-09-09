@@ -32,7 +32,14 @@ jobs:
       # no llega a producción.
       - run: npm run lint
       - run: npm run typecheck
+      # La suite normal. En CI este paso NO recibe los secrets, así que ya
+      # actúa como aislada — pero eso era implícito y por eso el bug pasó
+      # desapercibido en local. Ver ADR-019.
       - run: npm test
+
+      # Y la suite aislada explícita: corre ignorando cualquier .env, así
+      # falla igual si alguien la ejecuta en una máquina que sí lo tiene.
+      - run: npm run test:isolated
 
       - run: npm run build
         env:

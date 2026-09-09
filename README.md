@@ -85,8 +85,26 @@ Fase 1 testea **lógica pura**, no cada `div`: validación de entorno,
 derivación tabla→card, utilidades. 18 tests.
 
 Los tests corren en entorno `node` porque todavía no hay componentes que
-justifiquen un DOM. Cuando los haya (Fase 3), se suman `jsdom` y
+justifiquen un DOM. Cuando los haya, se suman `jsdom` y
 `@testing-library/react`.
+
+### Antes de cualquier push
+
+```bash
+npm run test:isolated
+```
+
+Corre la suite **ignorando `.env`**. Es obligatorio, y no es un capricho:
+un test que importaba sin querer un módulo de `services/` arrastró el
+cliente de Supabase, que valida el entorno al importarse. En local pasaba
+—hay `.env`— y en CI se cayó el deploy.
+
+`npm test` con un `.env` presente **no prueba** que la suite sea
+independiente del entorno.
+
+La regla que se sigue de ahí: **la lógica pura va en `modules/<x>/lib/`,
+nunca en `services/`.** Si un test necesita `.env`, la función está en el
+lugar equivocado. Ver [ADR-019](docs/architecture/ADR-019-tests-sin-entorno.md).
 
 ## Variables de entorno
 
