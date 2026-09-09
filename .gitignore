@@ -34,3 +34,6 @@ coverage
 # artefactos temporales de los scripts de seed
 .tmp-*.json
 muestra.json
+
+# Estado del importador de catálogo (Fase 3.5)
+import-catalog.state.json
