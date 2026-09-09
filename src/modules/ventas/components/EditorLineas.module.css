@@ -1,0 +1,161 @@
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  /* Sin esto las columnas bailan mientras se escribe. */
+  min-width: 46rem;
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--space-1) var(--space-2);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.tabla thead th {
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  padding: var(--space-2);
+}
+
+.tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.num {
+  width: 2.5rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.texto,
+.sku,
+.numero,
+.select {
+  width: 100%;
+  font: inherit;
+  /* 16px en mobile evita el zoom de iOS; en desktop el heredado alcanza. */
+  min-height: 40px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+}
+
+@media (max-width: 767px) {
+  .texto,
+  .sku,
+  .numero,
+  .select {
+    font-size: 16px;
+  }
+}
+
+.texto:hover,
+.sku:hover,
+.numero:hover,
+.select:hover {
+  border-color: var(--border);
+}
+
+.texto:focus-visible,
+.sku:focus-visible,
+.numero:focus-visible,
+.select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+  background: var(--surface);
+}
+
+.texto[readonly],
+.sku[readonly],
+.numero[readonly],
+.select:disabled {
+  background: transparent;
+  color: var(--text);
+  cursor: default;
+}
+
+/* Un SKU que viene del catálogo no se edita: cambiarlo desincronizaría el
+   snapshot del product_id. */
+.sku[readonly] {
+  color: var(--text-soft);
+}
+
+.sku,
+.numero {
+  font-variant-numeric: tabular-nums;
+}
+
+.numero {
+  text-align: right;
+  min-width: 5rem;
+}
+
+.select {
+  min-width: 8rem;
+}
+
+.derecha {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.capitulo td {
+  background: var(--surface-alt);
+  font-weight: 700;
+}
+
+.acciones {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.icono {
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-soft);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+
+.icono:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.icono:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.icono:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.vacio {
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--text-soft);
+}

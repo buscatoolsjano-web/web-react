@@ -32,3 +32,27 @@
   color: var(--danger);
   background: var(--surface);
 }
+
+.nuevo {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.nuevo:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.nuevo:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}

@@ -124,6 +124,11 @@ export interface DocumentoDetalle {
   vendedor: string | null
   serie: string | null
   notas: string | null
+  formaPago: string | null
+  /** Sólo cotizaciones. */
+  validaHasta: string | null
+  descuentoPct: number | null
+  percepcionPct: number | null
   subtotal: number | null
   impuesto: number | null
   total: number | null

@@ -1,0 +1,136 @@
+.panel {
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.etiqueta {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-soft);
+}
+
+.cerrar {
+  border: none;
+  background: none;
+  color: var(--text-soft);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.input {
+  /* 16px: menos que eso y iOS hace zoom al enfocar. */
+  font-size: 16px;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 22rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fila {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(6rem, auto) 1fr auto auto;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+  text-align: left;
+  padding: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.fila:hover {
+  border-color: var(--primary);
+}
+
+.fila:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+@media (max-width: 640px) {
+  .fila {
+    grid-template-columns: 1fr auto;
+  }
+  .nombre,
+  .marca {
+    grid-column: 1 / -1;
+  }
+}
+
+.sku {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.marca,
+.precio {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.precio {
+  font-variant-numeric: tabular-nums;
+}
+
+.sinPrecio,
+.otraMoneda {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.nota {
+  margin: 0;
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}

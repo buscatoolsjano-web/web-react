@@ -74,6 +74,11 @@ const ProductoDetallePage = lazyConRecarga(() =>
 const CotizacionesPage = lazyConRecarga(() =>
   import('@/modules/ventas/pages/CotizacionesPage').then((m) => ({ default: m.CotizacionesPage })),
 )
+const CotizacionNuevaPage = lazyConRecarga(() =>
+  import('@/modules/ventas/pages/CotizacionNuevaPage').then((m) => ({
+    default: m.CotizacionNuevaPage,
+  })),
+)
 const CotizacionDetallePage = lazyConRecarga(() =>
   import('@/modules/ventas/pages/CotizacionDetallePage').then((m) => ({
     default: m.CotizacionDetallePage,
@@ -136,6 +141,8 @@ export const routes: RouteObject[] = [
       // primera subsección, igual que el legacy al entrar a la sección.
       { path: 'ventas', element: <Navigate to="/ventas/cotizaciones" replace /> },
       { path: 'ventas/cotizaciones', element: privada(<CotizacionesPage />) },
+      // `nueva` antes que `:id`: si no, React Router la tomaría como un id.
+      { path: 'ventas/cotizaciones/nueva', element: privada(<CotizacionNuevaPage />) },
       { path: 'ventas/cotizaciones/:id', element: privada(<CotizacionDetallePage />) },
       { path: 'ventas/pedidos', element: privada(<PedidosPage />) },
       { path: 'ventas/pedidos/:id', element: privada(<PedidoDetallePage />) },

@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { FiltrosDocumentos } from '../components/FiltrosDocumentos'
 import { ListadoDocumentos } from '../components/ListadoDocumentos'
 import { Paginador } from '../components/Paginador'
@@ -11,6 +13,8 @@ export interface ListadoPageProps {
   titulo: string
   /** Encabezado de la columna «Origen»; `null` en cotizaciones, que no tienen. */
   etiquetaOrigen: string | null
+  /** Ruta de alta. Sin ella no se muestra el botón: todavía no se puede crear. */
+  rutaNuevo?: string
 }
 
 /**
@@ -19,9 +23,13 @@ export interface ListadoPageProps {
  * Todo pasa por el servidor: filtros, orden, página y el total exacto. Con
  * 636 documentos el legacy los traía todos para mostrar diez.
  */
-export function ListadoPage({ tipo, titulo, etiquetaOrigen }: ListadoPageProps) {
+export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo }: ListadoPageProps) {
   const { filtros, aplicar, limpiar, hayFiltros } = useFiltrosVentas()
   const { data, isPending, isFetching, error } = useDocumentos(tipo, filtros)
+  const { activa } = useEmpresa()
+  // El botón se muestra a quien puede escribir. Lo que IMPIDE crear no es
+  // esconder el botón: es RLS, que rechaza el insert de un rol externo.
+  const puedeCrear = rutaNuevo !== undefined && (activa?.esInterno ?? false)
 
   const ordenar = (columna: OrdenVentas) => {
     // Click en la columna activa invierte; en otra, empieza descendente.
@@ -47,6 +55,11 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen }: ListadoPageProps) 
                 }`}
           </p>
         </div>
+        {puedeCrear ? (
+          <Link to={rutaNuevo} className={styles.nuevo}>
+            + Nueva
+          </Link>
+        ) : null}
       </header>
 
       <FiltrosDocumentos

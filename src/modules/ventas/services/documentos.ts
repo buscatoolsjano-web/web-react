@@ -216,10 +216,18 @@ function columnasDetalle(tipo: TipoDocumento): string {
   const origen = c.fkOrigen ? `, origen:${c.fkOrigen.tabla}!${c.fkOrigen.columna} ( id, number )` : ''
   const vendedor = c.tieneVendedor ? ', vendedor:profiles!salesperson_id ( full_name )' : ''
   const segundo = tipo === 'pedido' ? ', fulfillment_status' : ''
+  // Cada documento tiene los suyos: sólo la cotización lleva descuento
+  // global, percepción y validez; la entrega no tiene forma de pago.
+  const propios =
+    tipo === 'cotizacion'
+      ? ', payment_terms, valid_until, discount_pct, perception_pct'
+      : tipo === 'pedido'
+        ? ', payment_terms'
+        : ''
   return `
     id, number, original_number, suspected_normalized_number, ${c.campoFecha},
     title, currency_code, exchange_rate, subtotal, tax_amount, total,
-    ${c.campoEstado}${segundo}, needs_review, review_reason, number_outlier,
+    ${c.campoEstado}${segundo}${propios}, needs_review, review_reason, number_outlier,
     series_code, imported_at, notes,
     customers!customer_id ( id, legal_name, trade_name ),
     contacto:customer_contacts!contact_id ( full_name )${vendedor}${origen}
@@ -291,6 +299,10 @@ export async function obtenerDocumento(
     tax_amount: number | string | null
     exchange_rate: number | string | null
     notes: string | null
+    payment_terms?: string | null
+    valid_until?: string | null
+    discount_pct?: number | string | null
+    perception_pct?: number | string | null
     contacto: { full_name: string | null } | null
   }
 
@@ -320,6 +332,10 @@ export async function obtenerDocumento(
     vendedor: f.vendedor?.full_name ?? null,
     serie: f.series_code,
     notas: f.notes,
+    formaPago: f.payment_terms ?? null,
+    validaHasta: f.valid_until ?? null,
+    descuentoPct: aNumero(f.discount_pct),
+    percepcionPct: aNumero(f.perception_pct),
     subtotal: aNumero(f.subtotal),
     impuesto: aNumero(f.tax_amount),
     total: aNumero(f.total),

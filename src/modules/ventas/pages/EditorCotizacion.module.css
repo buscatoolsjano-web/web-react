@@ -1,0 +1,113 @@
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.espacio {
+  flex: 1 1 auto;
+}
+
+.boton,
+.primario {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.boton:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.primario {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.primario:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.primario:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.boton:focus-visible,
+.primario:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.neto {
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.selector {
+  margin-top: var(--space-3);
+}
+
+.aviso {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.error {
+  font-size: var(--text-sm);
+  color: var(--danger);
+}
+
+.barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  /* En mobile queda al alcance del pulgar sin tener que volver arriba. */
+  position: sticky;
+  bottom: var(--space-2);
+  box-shadow: var(--shadow);
+}
+
+.estados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.candado {
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+}
+
+.guardando {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

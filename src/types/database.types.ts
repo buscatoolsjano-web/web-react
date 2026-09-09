@@ -2688,6 +2688,7 @@ export type Database = {
           created_by: string | null
           currency_code: string | null
           customer_id: string
+          discount_pct: number | null
           exchange_rate: number | null
           external_id: string | null
           external_source: string | null
@@ -2700,6 +2701,7 @@ export type Database = {
           number_outlier: boolean
           original_number: string | null
           payment_terms: string | null
+          perception_pct: number | null
           quote_date: string
           review_reason: string | null
           salesperson_id: string | null
@@ -2723,6 +2725,7 @@ export type Database = {
           created_by?: string | null
           currency_code?: string | null
           customer_id: string
+          discount_pct?: number | null
           exchange_rate?: number | null
           external_id?: string | null
           external_source?: string | null
@@ -2735,6 +2738,7 @@ export type Database = {
           number_outlier?: boolean
           original_number?: string | null
           payment_terms?: string | null
+          perception_pct?: number | null
           quote_date: string
           review_reason?: string | null
           salesperson_id?: string | null
@@ -2758,6 +2762,7 @@ export type Database = {
           created_by?: string | null
           currency_code?: string | null
           customer_id?: string
+          discount_pct?: number | null
           exchange_rate?: number | null
           external_id?: string | null
           external_source?: string | null
@@ -2770,6 +2775,7 @@ export type Database = {
           number_outlier?: boolean
           original_number?: string | null
           payment_terms?: string | null
+          perception_pct?: number | null
           quote_date?: string
           review_reason?: string | null
           salesperson_id?: string | null
@@ -3134,6 +3140,17 @@ export type Database = {
       next_document_number: {
         Args: { p_company: string; p_doc_type: string; p_series?: string }
         Returns: string
+      }
+      registrar_evento_venta: {
+        Args: {
+          p_action: string
+          p_diff?: Json
+          p_entity_id: string
+          p_entity_type: string
+          p_from_status?: string
+          p_to_status?: string
+        }
+        Returns: number
       }
       search_products: {
         Args: {

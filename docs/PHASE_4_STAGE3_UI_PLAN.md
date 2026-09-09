@@ -437,3 +437,120 @@ Referencia: el piso de red medido es **~190 ms**. Sin medir no se optimiza nada.
 | 10 | **26 pedidos sin entrega, 21 dudosos** | mostrar «pendiente = todo» sería afirmar algo no demostrado | `NO_CONSTA_ENTREGA` |
 | 11 | `sales_invoices` y `payments` vacías | el panel de relacionados queda a medias | se muestran las secciones vacías, no se ocultan |
 | 12 | **alcance** | el legacy tiene 45.345 líneas y Ventas toca clientes, catálogo, stock y facturación | Clientes y Compras quedan fuera; selector básico de cliente |
+
+---
+
+# Entrega 3 — crear y editar cotizaciones
+
+Aplicado. Decisión G.1 opción A ya estaba; acá se suma lo que la edición
+necesita.
+
+## Lo que se decidió y por qué
+
+### Los totales los calcula el servidor
+
+Un trigger (`app.recalcular_totales_cotizacion`) recalcula `subtotal`,
+`tax_amount` y `total` en cada cambio, a partir de las líneas. **El navegador
+no puede imponer un total**: mandar `total: 1` desde el cliente se ignora, y hay
+un test que lo comprueba.
+
+La cuenta, en este orden:
+
+```
+neto de línea = cantidad × precio × (1 − dto_línea/100)
+subtotal      = Σ neto × (1 − dto_global/100)
+IVA           = Σ (neto × (1 − dto_global/100) × tasa_línea/100)
+percepción    = subtotal × percepción/100
+tax_amount    = IVA + percepción
+total         = subtotal + tax_amount
+```
+
+Los capítulos son títulos: no suman. Y los **288 documentos históricos no se
+recalculan nunca** — el trigger sale de entrada si `imported_at` no es nulo.
+
+`lib/totales.ts` repite la misma cuenta **sólo para previsualizar** mientras se
+escribe, y sus tests usan los números que devolvió la base.
+
+### Dos columnas nuevas en `sales_quotes`
+
+| columna | por qué |
+|---|---|
+| `discount_pct` | el editor legacy tiene «% Dto.» global |
+| `perception_pct` | el legacy tiene «Sujeto a Percep. IIBB 2,5 %» |
+
+La percepción se guarda como **alícuota**, no como booleano: fijar 2,5 en el
+código sería la misma suposición que descartamos con el IVA del 21 %. El botón
+de la interfaz propone 2,5 y el número se puede cambiar.
+
+### Qué estado permite editar
+
+| estado | |
+|---|---|
+| `draft` | se edita todo |
+| `sent` | se edita, y **el cambio de precio, cantidad o descuento queda en `sales_audit`** |
+| `accepted` · `rejected` · `expired` | **congelado**, con dos triggers que lo rechazan |
+
+El bloqueo es del servidor, no de la interfaz: intentar cambiar el total o
+tocar una línea de una cotización aceptada devuelve `restrict_violation`
+aunque se llame a PostgREST directamente.
+
+La lista de columnas bloqueadas es corta a propósito —`series_code`, `notes` y
+los campos de revisión quedan afuera— para que un backfill o una anotación
+posterior no choquen contra el candado.
+
+### Auditoría
+
+`sales_audit` **no tiene policy de INSERT**. La única puerta es
+`public.registrar_evento_venta()`, `SECURITY DEFINER`, que valida la acción
+contra una lista cerrada (`created`, `updated_sensitive_fields`, `sent`,
+`approved`, `rejected`, `cancelled`) y saca la empresa **del documento**, no
+del cliente.
+
+Un evento por acción de negocio. Verificado: dos `UPDATE` técnicos seguidos
+sobre `notes` no generan ninguna fila.
+
+### Sin autosave, sin borrador global
+
+Cada campo se guarda **al salir del control y sólo si cambió**. No hay
+temporizadores: no hay writes duplicados, no hay bucles, y no se reescribe
+nada más que la fila tocada.
+
+En el alta el documento se arma en memoria y se escribe al guardar, así que
+**un borrador abandonado no se come un número de la serie**. No hay
+`cotizacionBorrador` global: dos cotizaciones abiertas no se pisan, y hay un
+test que edita las dos y comprueba que cada una conserva lo suyo.
+
+### Numeración
+
+`next_document_number()`, siempre. **30 llamadas en paralelo** desde una sesión
+real: 30 números, todos distintos, sin huecos y sin errores.
+
+### El selector de productos
+
+Contra `search_products`, con debounce de 300 ms y 20 filas como máximo. Sugiere
+el precio de la lista por defecto **sólo si está en la moneda del documento**:
+convertir de USD a ARS sin un tipo de cambio confirmado sería inventar el
+precio.
+
+## Bugs encontrados
+
+1. **`permission denied for schema app`.** El trigger llamaba a
+   `app.totales_cotizacion()` con el nombre calificado, y eso se resuelve con
+   los permisos de quien dispara el trigger: ni `authenticated` ni
+   `service_role` tienen `USAGE` sobre `app`. Se resolvió con `SECURITY
+   DEFINER` en la función del trigger, **no** abriendo el schema: dar `USAGE`
+   sobre `app` para que ande un cálculo de totales sería regalar el acceso a
+   `current_company_ids()` y a todos los helpers de RLS.
+2. **Los totales llegaban un `UPDATE` tarde.** La función leía el descuento y
+   la percepción de la tabla, pero el trigger es `BEFORE UPDATE`: la fila
+   todavía tenía los valores viejos. Ahora entran por parámetro desde `NEW`.
+3. **Reordenar líneas fallaba contra `unique (quote_id, line_no)`.** El
+   intercambio en dos pasos choca en el primero. Se pasa por un número libre y
+   alto — no negativo, porque también hay `check (line_no > 0)`.
+4. **El `CHECK` de `tax_treatment` de `delivery_lines` no era el de
+   `sales_order_lines`.** Tenía `vat_27`, que no existe en las otras dos, y le
+   faltaba `vat_0`, que sí. Corregido: las tres tablas aceptan lo mismo.
+5. **Un componente arrastraba el cliente de Supabase.** `EditorLineas`
+   importaba `TRATAMIENTOS` desde `services/`, y ese módulo lee las variables
+   de entorno al importarse. Lo agarró `npm run test:isolated`, que existe
+   justamente para eso. Los tratamientos pasaron a `lib/tratamientos.ts`.
