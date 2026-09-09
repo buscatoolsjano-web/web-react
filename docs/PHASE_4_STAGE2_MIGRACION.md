@@ -100,6 +100,10 @@ está migrada. Lo único que falta es el `order_line_id` en esas líneas de
 entrega, que se podría poner por coincidencia exacta de SKU sin ambigüedad.
 **No lo hice**: pediste documentarlo, no enlazarlo. Es una decisión tuya.
 
+> **Resuelto en Stage 2.5** — las 7 líneas dieron `7/7 UNIQUE_MATCH` por la
+> regla general, sin usar la posición del array.
+> Ver [`PHASE_4_STAGE25_CONSOLIDACION.md`](PHASE_4_STAGE25_CONSOLIDACION.md).
+
 ### Una limitación que vale para las 182 entregas, no sólo para estas 4
 
 **Ninguna línea de entrega histórica tiene `order_line_id`.** El legacy nunca
@@ -109,6 +113,10 @@ por posición sería inventarla.
 Consecuencia práctica: para los pedidos históricos **no se puede derivar la
 cantidad pendiente por línea**. Para los pedidos nuevos sí, porque el modelo lo
 exige desde el principio.
+
+> **Levantada en parte en Stage 2.5**: se reconstruyeron 484 de 505 enlaces
+> (95,8 %) con evidencia inequívoca, y **131 de los 166 pedidos** pasaron a
+> tener pendiente por línea confiable.
 
 ---
 
@@ -130,9 +138,12 @@ Las secuencias **no se movieron** por los outliers: siguen en `quote=2541`,
 | `RT-ML…` | **4** | RT-ML2025000058 – RT-ML2025000061 |
 
 La secuencia sembrada cubre sólo la serie `RT0`. Los cuatro `RT-ML` son otra
-numeración —por el prefijo, probablemente de MercadoLibre— y **no** los
-absorbe. Si esa serie sigue en uso, necesita su propio `doc_type`. Pendiente de
-tu decisión.
+numeración y **no** los absorbe.
+
+> **Ampliado en Stage 2.5**: las dos series están **vivas a la vez** (últimos
+> remitos de ambas, esta semana). La propuesta es `series_code` en
+> `document_sequences`, **no** un `doc_type` artificial. Ver
+> [`PHASE_4_STAGE25_CONSOLIDACION.md`](PHASE_4_STAGE25_CONSOLIDACION.md).
 
 ---
 
