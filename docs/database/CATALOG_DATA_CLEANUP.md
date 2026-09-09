@@ -202,13 +202,27 @@ Si en el futuro se agrega validación de tipo, hay que arreglar esto
 | `costo` | 237 | Costo de compra → **Compras (Fase 5)** |
 | `fob_eur` | 6 | Valor FOB → Compras |
 | `_importOrigen` | 12.592 | Metadato. Único valor: `STEL Order API (products)` |
-| `_apexPageCatalog`, `_apexFamilyTitle` | 3.807 | Metadatos del catálogo APEX. `_apexFamilyTitle` tiene 334 valores distintos y **podría servir para recategorizar** los productos APEX |
+| `_apexPageCatalog`, `_apexFamilyTitle` | 3.807 | Metadatos del catálogo APEX. Ver la corrección al pie |
 | `s` | 21.772 | Cadena de búsqueda precalculada. La reemplaza `search_vector` |
 
-**`_apexFamilyTitle` merece atención.** 334 títulos de familia sobre 3.807
-productos APEX, con nombres como `Bit Holders 1/4" Hex Drive`. Es
-exactamente el tipo de dato que ayudaría a sacar productos de `otros` — con
-revisión humana, no automáticamente.
+### Corrección — `_apexFamilyTitle` NO sirve para vaciar `otros`
+
+Una versión anterior de este documento decía que `_apexFamilyTitle` «es
+exactamente el tipo de dato que ayudaría a sacar productos de `otros`». **Es
+falso**, y se corrige acá.
+
+Medido sobre el JSON legacy: de los 3.807 productos con `_apexFamilyTitle`,
+**3.557 ya están en la categoría `punta`** y **0 están en `otros`**. Los 250
+restantes tienen el campo vacío. La familia APEX no toca ni un solo producto
+de `otros`.
+
+Sigue siendo un dato útil —334 familias como `Bit Holders 1/4" Hex Drive`
+podrían dar un tercer nivel dentro de `punta`— pero para el problema de
+`otros` no aporta nada.
+
+**Y no hay otra fuente.** Los 12.588 de `otros` no tienen subtipo, ni
+atributos, ni serie: sólo marca. Ver
+[`../PHASE_3_6_DESIGN.md`](../PHASE_3_6_DESIGN.md) §A2.
 
 ---
 
