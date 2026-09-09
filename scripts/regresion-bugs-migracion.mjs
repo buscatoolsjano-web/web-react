@@ -181,7 +181,7 @@ const main = async () => {
     .from('product_attribute_definitions').select('id').eq('company_id', bt.id).eq('key', 'encastre').single()
   const { data: catTT } = await sb
     .from('product_categories').select('id').eq('company_id', tt.id).limit(1).single()
-  // service_role saltea RLS, así que acá sólo se comprueba que la política
+  // La clave Secret saltea RLS, así que acá sólo se comprueba que la política
   // esté declarada con la referencia CALIFICADA. El enforcement con JWT
   // real se prueba aparte.
   ok('atributo y categoría de empresas distintas identificados',

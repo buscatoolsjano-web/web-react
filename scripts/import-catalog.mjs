@@ -14,7 +14,7 @@
  *
  * SEGURIDAD
  * ---------
- * Necesita privilegio de escritura, así que usa la clave service_role.
+ * Necesita privilegio de escritura, así que usa la clave Secret del proyecto.
  *   · Se lee de la variable de entorno SUPABASE_SECRET_KEY.
  *   · NUNCA se imprime, ni entera ni parcial.
  *   · NUNCA va en el repo, en src/, en el bundle ni en GitHub Pages.
