@@ -1,0 +1,58 @@
+════════════════════════════════════════════════════════════════════════════
+  COSTE DE RLS EN EL LISTADO — 3 repeticiones, se informa la mediana
+  2026-09-09T16:46:18.275Z
+════════════════════════════════════════════════════════════════════════════
+
+  admin · Buscatools (interno)
+  ------------------------------------------------------------------------
+    listado sin count                 mediana    204 ms   [200–215]
+    count exact solo                  mediana    981 ms   [929–986]
+    listado + count exact             mediana    949 ms   [902–952]   total=21772
+    search_products (RPC)             mediana   1246 ms   [1238–1255]   filas=50
+    facetas sin filtros               mediana   2596 ms   [2418–2655]   total=21772
+    facetas con categoría             mediana   1671 ms   [1649–1767]   total=376
+    facetas categoría grande (punta)  mediana   2184 ms   [2179–2378]   subtipos=21
+    facetas + búsqueda                mediana   1164 ms   [1132–1404]   total=592
+    facetas 4 filtros combinados      mediana   1852 ms   [1845–1854]   total=41
+
+  salesperson · Torquetools (interno)
+  ------------------------------------------------------------------------
+    listado sin count                 mediana    203 ms   [196–229]
+    count exact solo                  mediana    200 ms   [197–283]
+    listado + count exact             mediana    239 ms   [208–269]   total=3
+    search_products (RPC)             mediana    199 ms   [193–1182]   filas=0
+    facetas sin filtros               mediana    202 ms   [191–262]   total=3
+    facetas con categoría             mediana    202 ms   [191–205]   total=3
+    facetas categoría grande (punta)  mediana    197 ms   [193–198]   subtipos=0
+    facetas + búsqueda                mediana    201 ms   [194–201]   total=0
+    facetas 4 filtros combinados      mediana    223 ms   [197–447]   total=0
+
+  distributor · Buscatools (externo)
+  ------------------------------------------------------------------------
+    listado sin count                 mediana    203 ms   [201–211]
+    count exact solo                  mediana   6036 ms   [6026–6052]  ← >= 4 s
+    listado + count exact             mediana   5850 ms   [5805–5866]   total=21772  ← >= 4 s
+    search_products (RPC)             mediana   6319 ms   [6198–6501]   filas=50  ← >= 4 s
+    facetas sin filtros               mediana   7440 ms   [7418–7444]   total=21772  ← >= 4 s
+    facetas con categoría             mediana   7009 ms   [6740–7186]   total=376  ← >= 4 s
+    facetas categoría grande (punta)  mediana   7561 ms   [7389–7747]   subtipos=21  ← >= 4 s
+    facetas + búsqueda                mediana   8104 ms   [6136–8309]   total=592  ← canceling statement due to statement timeout
+    facetas 4 filtros combinados      mediana   7525 ms   [7012–8257]   total=—  ← canceling statement due to statement timeout
+
+  customer · Buscatools (externo)
+  ------------------------------------------------------------------------
+    listado sin count                 mediana    275 ms   [229–379]
+    count exact solo                  mediana   6114 ms   [6092–6882]  ← >= 4 s
+    listado + count exact             mediana   5832 ms   [5832–5928]   total=21772  ← >= 4 s
+    search_products (RPC)             mediana   6488 ms   [6281–6642]   filas=50  ← >= 4 s
+    facetas sin filtros               mediana   8252 ms   [7889–8756]   total=21772  ← canceling statement due to statement timeout
+    facetas con categoría             mediana   8238 ms   [6974–8254]   total=—  ← canceling statement due to statement timeout
+    facetas categoría grande (punta)  mediana   7350 ms   [7337–7521]   subtipos=21  ← >= 4 s
+    facetas + búsqueda                mediana   6157 ms   [6139–6388]   total=592  ← >= 4 s
+    facetas 4 filtros combinados      mediana   6942 ms   [6900–6990]   total=41  ← >= 4 s
+
+  anon (sin sesión)
+  ------------------------------------------------------------------------
+    listado + count exact             mediana    366 ms   [195–446]   filas=0 (RLS debe bloquear)  ← permission denied for table products
+
+════════════════════════════════════════════════════════════════════════════

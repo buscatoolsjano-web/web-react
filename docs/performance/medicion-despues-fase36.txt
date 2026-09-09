@@ -1,0 +1,58 @@
+════════════════════════════════════════════════════════════════════════════
+  COSTE DE RLS EN EL LISTADO — 3 repeticiones, se informa la mediana
+  2026-09-09T17:03:14.342Z
+════════════════════════════════════════════════════════════════════════════
+
+  admin · Buscatools (interno)
+  ------------------------------------------------------------------------
+    listado sin count                 mediana    228 ms   [204–661]
+    count exact solo                  mediana    268 ms   [221–275]
+    listado + count exact             mediana    278 ms   [217–295]   total=21772
+    search_products (RPC)             mediana    530 ms   [496–772]   filas=50
+    facetas sin filtros               mediana    423 ms   [416–431]   total=21772
+    facetas con categoría             mediana    298 ms   [283–302]   total=376
+    facetas categoría grande (punta)  mediana    366 ms   [364–379]   subtipos=21
+    facetas + búsqueda                mediana    316 ms   [314–323]   total=592
+    facetas 4 filtros combinados      mediana    962 ms   [961–964]   total=41
+
+  salesperson · Torquetools (interno)
+  ------------------------------------------------------------------------
+    listado sin count                 mediana    202 ms   [195–244]
+    count exact solo                  mediana    192 ms   [188–261]
+    listado + count exact             mediana    268 ms   [204–283]   total=3
+    search_products (RPC)             mediana    199 ms   [197–200]   filas=0
+    facetas sin filtros               mediana    200 ms   [196–210]   total=3
+    facetas con categoría             mediana    220 ms   [214–268]   total=3
+    facetas categoría grande (punta)  mediana    203 ms   [197–212]   subtipos=0
+    facetas + búsqueda                mediana    196 ms   [194–198]   total=0
+    facetas 4 filtros combinados      mediana    202 ms   [191–213]   total=0
+
+  distributor · Buscatools (externo)
+  ------------------------------------------------------------------------
+    listado sin count                 mediana    208 ms   [188–233]
+    count exact solo                  mediana    230 ms   [223–279]
+    listado + count exact             mediana    277 ms   [216–279]   total=21772
+    search_products (RPC)             mediana    503 ms   [502–507]   filas=50
+    facetas sin filtros               mediana    425 ms   [417–433]   total=21772
+    facetas con categoría             mediana    285 ms   [277–295]   total=376
+    facetas categoría grande (punta)  mediana    373 ms   [371–395]   subtipos=21
+    facetas + búsqueda                mediana    319 ms   [317–333]   total=592
+    facetas 4 filtros combinados      mediana    992 ms   [958–1058]   total=41
+
+  customer · Buscatools (externo)
+  ------------------------------------------------------------------------
+    listado sin count                 mediana    194 ms   [189–206]
+    count exact solo                  mediana    280 ms   [214–282]
+    listado + count exact             mediana    265 ms   [215–283]   total=21772
+    search_products (RPC)             mediana    504 ms   [504–538]   filas=50
+    facetas sin filtros               mediana    422 ms   [421–580]   total=21772
+    facetas con categoría             mediana    284 ms   [281–284]   total=376
+    facetas categoría grande (punta)  mediana    375 ms   [373–379]   subtipos=21
+    facetas + búsqueda                mediana    330 ms   [328–346]   total=592
+    facetas 4 filtros combinados      mediana    957 ms   [951–967]   total=41
+
+  anon (sin sesión)
+  ------------------------------------------------------------------------
+    listado + count exact             mediana    219 ms   [187–240]   filas=0 (RLS debe bloquear)  ← permission denied for table products
+
+════════════════════════════════════════════════════════════════════════════

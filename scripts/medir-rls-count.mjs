@@ -97,6 +97,37 @@ async function medirRol(etiqueta, email, password, slug) {
   }))
   linea('search_products (RPC)', rpc, 'filas=' + (rpc.muestra?.data?.length ?? '—'))
 
+  // ── Facetas ────────────────────────────────────────────────────────────
+  const cats = await sb.from('product_categories').select('id, slug').eq('company_id', cid)
+  const idDe = (s) => cats.data?.find((c) => c.slug === s)?.id ?? null
+  const facetas = (extra = {}) => sb.rpc('catalog_facets', {
+    p_company: cid, p_query: null, p_category: null,
+    p_brand: null, p_type: null, p_attrs: null, ...extra,
+  })
+
+  const sinFiltros = await medir(() => facetas())
+  linea('facetas sin filtros', sinFiltros,
+    'total=' + (sinFiltros.muestra?.data?.total ?? '—'))
+
+  const conCat = await medir(() => facetas({ p_category: idDe('balanceador') }))
+  linea('facetas con categoría', conCat,
+    'total=' + (conCat.muestra?.data?.total ?? '—'))
+
+  const conPunta = await medir(() => facetas({ p_category: idDe('punta') }))
+  linea('facetas categoría grande (punta)', conPunta,
+    'subtipos=' + (conPunta.muestra?.data?.product_types?.length ?? '—'))
+
+  const conBusqueda = await medir(() => facetas({ p_query: 'punta torx' }))
+  linea('facetas + búsqueda', conBusqueda,
+    'total=' + (conBusqueda.muestra?.data?.total ?? '—'))
+
+  const combinado = await medir(() => facetas({
+    p_category: idDe('punta'), p_type: ['Torx'],
+    p_attrs: { encastre: ['1/4 HEX'], largo: ['25'] },
+  }))
+  linea('facetas 4 filtros combinados', combinado,
+    'total=' + (combinado.muestra?.data?.total ?? '—'))
+
   await sb.auth.signOut()
 }
 
