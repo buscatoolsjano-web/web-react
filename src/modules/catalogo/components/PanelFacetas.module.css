@@ -1,69 +1,64 @@
-.panel {
+.barra {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+  padding: var(--space-3);
+  min-width: 0;
 }
 
-.panel[aria-busy='true'] {
+.barra[aria-busy='true'] {
   /* Las opciones anteriores siguen visibles mientras llegan las nuevas, para
      que los conteos no parpadeen en cada click. Sólo se atenúan. */
-  opacity: 0.7;
+  opacity: 0.75;
 }
 
-.grupo {
-  border: 0;
-  margin: 0;
-  padding: 0;
+.fila,
+.filaDesplegables {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: var(--space-2);
   min-width: 0;
 }
 
-.etiqueta {
+.filaDesplegables {
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
+}
+
+.rotulo {
+  flex: none;
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-soft);
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  padding: 0;
 }
 
-.subtitulo {
-  margin: 0;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  border-top: 1px solid var(--border);
-  padding-top: var(--space-3);
-}
-
-.unidad {
-  text-transform: none;
-  font-weight: 400;
-}
-
-/* ── Chips ─────────────────────────────────────────────────────────────── */
+/* ── Chips en fila ─────────────────────────────────────────────────────── */
 
 .chips {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-2);
+  min-width: 0;
+  /* Scroll horizontal en vez de envolver en cinco líneas: en 390 px las 8
+     categorías ocupaban media pantalla. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
 }
 
 .chip,
 .chipActivo {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  /* 44 px de alto mínimo: es el objetivo táctil que nos fijamos y que ya
-     habíamos incumplido una vez en la cabecera. */
+  /* 44 px de alto mínimo: el objetivo táctil que nos fijamos. */
   min-height: 44px;
   padding: 0 var(--space-3);
   border-radius: 999px;
@@ -71,6 +66,7 @@
   background: var(--surface);
   color: var(--text);
   font-size: var(--text-sm);
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -91,30 +87,75 @@
   opacity: 0.75;
 }
 
-/* ── Filtros activos ───────────────────────────────────────────────────── */
+/* ── Desplegables ──────────────────────────────────────────────────────── */
 
-.activos {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--border);
+.desplegable {
+  position: relative;
+  min-width: 0;
 }
 
-.chipActivoQuitar {
+.botonDesplegable,
+.botonDesplegableActivo {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-2);
   min-height: 44px;
+  max-width: 260px;
   padding: 0 var(--space-3);
-  border-radius: 999px;
-  border: 1px solid var(--accent, #d9600a);
-  background: color-mix(in srgb, var(--accent, #d9600a) 12%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
   color: var(--text);
   font-size: var(--text-sm);
   cursor: pointer;
 }
 
-/* ── Listas ────────────────────────────────────────────────────────────── */
+.botonDesplegableActivo {
+  border-color: var(--accent, #d9600a);
+  background: color-mix(in srgb, var(--accent, #d9600a) 10%, transparent);
+}
+
+.botonTitulo {
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.botonValor {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flecha {
+  color: var(--text-soft);
+  font-size: 0.7em;
+}
+
+.panelFlotante {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 240px;
+  max-width: 320px;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Cerca del borde derecho el panel se alinea a la derecha para no salirse. */
+.desplegable:nth-last-child(-n + 2) .panelFlotante {
+  left: auto;
+  right: 0;
+}
 
 .lista {
   list-style: none;
@@ -142,6 +183,12 @@
   white-space: nowrap;
 }
 
+.vacio {
+  padding: var(--space-2);
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+}
+
 .buscadorFaceta,
 .numero {
   min-height: 44px;
@@ -154,7 +201,7 @@
   min-width: 0;
 }
 
-.verMas {
+.quitarTodo {
   align-self: flex-start;
   min-height: 44px;
   padding: 0 var(--space-2);
@@ -183,7 +230,35 @@
   color: var(--text-soft);
 }
 
-/* ── Limpiar ───────────────────────────────────────────────────────────── */
+.ayuda {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+}
+
+/* ── Filtros aplicados ─────────────────────────────────────────────────── */
+
+.activos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
+}
+
+.chipActivoQuitar {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: 999px;
+  border: 1px solid var(--accent, #d9600a);
+  background: color-mix(in srgb, var(--accent, #d9600a) 12%, transparent);
+  color: var(--text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
 
 .limpiar {
   min-height: 44px;
@@ -198,4 +273,23 @@
 
 .limpiar:hover {
   border-color: var(--text-soft);
+}
+
+@media (max-width: 768px) {
+  .filaDesplegables {
+    /* En mobile los desplegables también scrollean de costado en vez de
+       apilarse: la barra queda de dos o tres líneas como mucho. */
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .botonDesplegable,
+  .botonDesplegableActivo {
+    flex: none;
+  }
+
+  .panelFlotante {
+    max-width: min(320px, calc(100vw - 2 * var(--space-4)));
+  }
 }

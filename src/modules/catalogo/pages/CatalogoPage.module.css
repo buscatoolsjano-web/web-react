@@ -78,21 +78,12 @@
   white-space: nowrap;
 }
 
+/* Una sola columna: los filtros son una barra horizontal arriba, no una
+   columna lateral. Los resultados usan todo el ancho. */
 .cuerpo {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
-  min-width: 0;
-}
-
-@media (min-width: 1024px) {
-  .cuerpo {
-    grid-template-columns: 260px 1fr;
-    align-items: start;
-  }
-}
-
-.lateral {
   min-width: 0;
 }
 

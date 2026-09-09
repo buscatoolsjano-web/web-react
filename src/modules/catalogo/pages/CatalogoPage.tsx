@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
 import { StatusMessage } from '@/components/ui/StatusMessage'
-import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { PanelFacetas } from '../components/PanelFacetas'
@@ -21,7 +20,6 @@ import styles from './CatalogoPage.module.css'
 
 export function CatalogoPage() {
   const navigate = useNavigate()
-  const isMobile = useIsMobile()
   const { activa } = useEmpresa()
   const { filtros, actualizar, limpiar } = useFiltrosCatalogo()
 
@@ -101,7 +99,6 @@ export function CatalogoPage() {
     [esInterno, listaEfectiva, disponibilidad],
   )
 
-  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
   const activos = contarFiltrosActivos(filtros)
 
   if (!activa) {
@@ -162,34 +159,20 @@ export function CatalogoPage() {
           </select>
         </label>
 
-        {isMobile && (
-          <button
-            type="button"
-            className={styles.botonFiltros}
-            onClick={() => setFiltrosAbiertos((v) => !v)}
-            aria-expanded={filtrosAbiertos}
-          >
-            Filtros{activos > 0 && ` (${activos})`}
-          </button>
-        )}
       </div>
 
-      <div className={styles.cuerpo}>
-        {(!isMobile || filtrosAbiertos) && (
-          <aside className={styles.lateral}>
-            <PanelFacetas
-              filtros={filtros}
-              facetas={facetas}
-              cargando={facetasCargando}
-              onCambiar={actualizar}
-              onLimpiar={() => {
-                limpiar()
-                setTextoInput('')
-              }}
-            />
-          </aside>
-        )}
+      <PanelFacetas
+        filtros={filtros}
+        facetas={facetas}
+        cargando={facetasCargando}
+        onCambiar={actualizar}
+        onLimpiar={() => {
+          limpiar()
+          setTextoInput('')
+        }}
+      />
 
+      <div className={styles.cuerpo}>
         <section className={styles.resultados}>
           {error && (
             <StatusMessage
