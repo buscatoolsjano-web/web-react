@@ -27,6 +27,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    // El mismo setup que la suite normal. Sin esto los tests de componentes
+    // se quedan sin los matchers de jest-dom y fallan sólo acá.
+    setupFiles: ['src/test/setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
 })
