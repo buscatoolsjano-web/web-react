@@ -46,7 +46,7 @@ export default tseslint.config(
   },
   // Config de Node
   {
-    files: ['vite.config.ts', 'eslint.config.js'],
+    files: ['vite.config.ts', 'vitest.aislado.config.ts', 'eslint.config.js'],
     languageOptions: { globals: globals.node },
   },
 )
