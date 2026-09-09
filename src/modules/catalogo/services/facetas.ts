@@ -68,23 +68,60 @@ export async function listarDefinicionesDeAtributos(
 }
 
 /**
+ * Qué atributos aplican a cada categoría.
+ *
+ * Sale de `product_attribute_categories`, la relación N:N. Son 70 filas
+ * derivadas de los productos reales: cada par existe porque hay al menos un
+ * producto de esa categoría con esa clave cargada.
+ *
+ * Devuelve un Map categoryId → claves.
+ */
+export async function listarAtributosPorCategoria(
+  companyId: string,
+): Promise<Map<string, Set<string>>> {
+  const { data, error } = await supabase
+    .from('product_attribute_categories')
+    .select('category_id, product_attribute_definitions ( key )')
+    .eq('company_id', companyId)
+
+  if (error) {
+    throw new Error(`No se pudieron leer los atributos por categoría: ${error.message}`)
+  }
+
+  const mapa = new Map<string, Set<string>>()
+  for (const fila of data ?? []) {
+    const clave = fila.product_attribute_definitions?.key
+    if (!clave) continue
+    const set = mapa.get(fila.category_id) ?? new Set<string>()
+    set.add(clave)
+    mapa.set(fila.category_id, set)
+  }
+  return mapa
+}
+
+/**
  * Atributos que se ofrecen como filtro para una categoría.
  *
- * LIMITACIÓN CONOCIDA: hoy devuelve todos los filtrables, sin importar la
- * categoría. `applies_to_category_id` está en NULL en las 26 filas y, según
- * la evidencia de docs/database/ATTRIBUTE_CATEGORY_RELATION.md, esa columna
- * no alcanza: 8 de los 11 atributos filtrables aplican a varias categorías,
- * y la jerarquía de categorías es plana. La relación correcta es N:N y está
- * propuesta, pendiente de aprobación.
+ * Sin categoría elegida se muestran todos los filtrables: no hay forma de
+ * saber cuáles aplican. Con categoría, sólo los suyos — que es la diferencia
+ * entre ofrecer 15 filtros o los 3 que sirven.
  *
- * Cuando exista `product_attribute_categories`, se cambia SOLO esta función
- * y el resto del catálogo no se entera.
+ * Si la categoría no tiene ninguna relación cargada, se cae a mostrarlos
+ * todos en vez de no mostrar ninguno: es preferible un filtro de más que una
+ * pantalla sin filtros.
  */
 export function filtrarAtributosDeCategoria(
   definiciones: readonly DefinicionAtributo[],
-  _categoriaId: string | null,
+  categoriaId: string | null,
+  porCategoria?: Map<string, Set<string>>,
 ): DefinicionAtributo[] {
-  return definiciones.filter((d) => d.filtrable)
+  const filtrables = definiciones.filter((d) => d.filtrable)
+  if (!categoriaId || !porCategoria) return filtrables
+
+  const permitidas = porCategoria.get(categoriaId)
+  if (!permitidas || permitidas.size === 0) return filtrables
+
+  return filtrables.filter((d) => permitidas.has(d.key))
 }
 
 /**

@@ -14,6 +14,7 @@ import {
   useDefinicionesDeAtributos,
   useListasDePrecios,
   useMarcas,
+  useAtributosPorCategoria,
 } from '../hooks/useCatalogoFacetas'
 import { useDisponibilidad, useProductos } from '../hooks/useProductos'
 import { useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
@@ -69,6 +70,7 @@ export function CatalogoPage() {
   const { data: marcas = [] } = useMarcas(companyId)
   const { data: categorias = [] } = useCategorias(companyId)
   const { data: definiciones = [] } = useDefinicionesDeAtributos(companyId)
+  const { data: atributosPorCategoria } = useAtributosPorCategoria(companyId)
 
   const { data, isPending, isFetching, error } = useProductos(filtros, listaEfectiva?.id ?? null, !listasCargando)
   const productos = useMemo(() => data?.productos ?? [], [data])
@@ -177,6 +179,7 @@ export function CatalogoPage() {
               marcas={marcas}
               categorias={categorias}
               definiciones={definiciones}
+              atributosPorCategoria={atributosPorCategoria}
               onCambiar={actualizar}
               onLimpiar={() => {
                 limpiar()

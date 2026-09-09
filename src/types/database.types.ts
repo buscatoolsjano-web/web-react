@@ -361,6 +361,42 @@ export type Database = {
           },
         ]
       }
+      product_attribute_categories: {
+        Row: {
+          attribute_definition_id: string
+          category_id: string
+          company_id: string
+          created_at: string
+        }
+        Insert: {
+          attribute_definition_id: string
+          category_id: string
+          company_id: string
+          created_at?: string
+        }
+        Update: {
+          attribute_definition_id?: string
+          category_id?: string
+          company_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'product_attribute_categories_attribute_definition_id_fkey'
+            columns: ['attribute_definition_id']
+            isOneToOne: false
+            referencedRelation: 'product_attribute_definitions'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'product_attribute_categories_category_id_fkey'
+            columns: ['category_id']
+            isOneToOne: false
+            referencedRelation: 'product_categories'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       product_categories: {
         Row: {
           company_id: string

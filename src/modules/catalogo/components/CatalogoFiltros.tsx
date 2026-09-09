@@ -12,6 +12,7 @@ export interface CatalogoFiltrosProps {
   marcas: readonly MarcaResumen[]
   categorias: readonly CategoriaResumen[]
   definiciones: readonly DefinicionAtributo[]
+  atributosPorCategoria?: Map<string, Set<string>> | undefined
   onCambiar: (cambios: Partial<FiltrosCatalogo>) => void
   onLimpiar: () => void
 }
@@ -28,10 +29,15 @@ export function CatalogoFiltros({
   marcas,
   categorias,
   definiciones,
+  atributosPorCategoria,
   onCambiar,
   onLimpiar,
 }: CatalogoFiltrosProps) {
-  const dinamicos = filtrarAtributosDeCategoria(definiciones, filtros.categoria)
+  const dinamicos = filtrarAtributosDeCategoria(
+    definiciones,
+    filtros.categoria,
+    atributosPorCategoria,
+  )
 
   return (
     <div className={styles.panel}>

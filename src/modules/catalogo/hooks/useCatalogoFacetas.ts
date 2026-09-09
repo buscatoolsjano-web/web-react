@@ -5,6 +5,7 @@ import {
   listarDefinicionesDeAtributos,
   listarListasDePrecios,
   listarMarcas,
+  listarAtributosPorCategoria,
 } from '../services/facetas'
 import type { ListaDePrecios } from '../types'
 
@@ -77,4 +78,16 @@ export function useListasDePrecios(companyId: string | null): EstadoListasDePrec
     puedeElegir: listas.length > 1,
     cargando: companyId !== null && isPending,
   }
+}
+
+/**
+ * Relación atributo → categorías (70 filas). Cambia muy poco: staleTime largo.
+ */
+export function useAtributosPorCategoria(companyId: string | null) {
+  return useQuery({
+    queryKey: ['catalogo', companyId, 'atributosPorCategoria'],
+    queryFn: () => listarAtributosPorCategoria(companyId!),
+    enabled: companyId !== null,
+    staleTime: CINCO_MINUTOS,
+  })
 }
