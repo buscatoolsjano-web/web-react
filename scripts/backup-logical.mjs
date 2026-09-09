@@ -48,13 +48,31 @@ if (!CLAVE) {
 }
 const sb = createClient(URL, CLAVE, { auth: { persistSession: false } })
 
-/** Orden de restauración: respeta las dependencias de FK. */
+/**
+ * Orden de restauración (respeta las FK) y clave de paginación.
+ *
+ * La clave de orden tiene que ser ÚNICA para que el orden sea TOTAL. Sin
+ * eso, `.range()` devuelve páginas que se solapan y saltean filas. No
+ * todas las tablas tienen `id`: `currencies` va por `code`, y las de PK
+ * compuesta necesitan las dos columnas.
+ */
 const TABLAS = [
-  'currencies', 'companies', 'profiles', 'warehouses', 'price_lists',
-  'customers', 'company_memberships', 'product_categories', 'brands',
-  'product_attribute_definitions', 'product_attribute_categories',
-  'products', 'product_prices', 'stock_movements', 'stock_balances',
-  'stock_reservations',
+  ['currencies', ['code']],
+  ['companies', ['id']],
+  ['profiles', ['id']],
+  ['warehouses', ['id']],
+  ['price_lists', ['id']],
+  ['customers', ['id']],
+  ['company_memberships', ['id']],
+  ['product_categories', ['id']],
+  ['brands', ['id']],
+  ['product_attribute_definitions', ['id']],
+  ['product_attribute_categories', ['attribute_definition_id', 'category_id']],
+  ['products', ['id']],
+  ['product_prices', ['id']],
+  ['stock_movements', ['id']],
+  ['stock_balances', ['product_id', 'warehouse_id']],
+  ['stock_reservations', ['id']],
 ]
 
 /** Literal SQL de un valor. Nunca se imprime por consola. */
@@ -73,10 +91,12 @@ function lit(v) {
   return `'${String(v).replace(/'/g, "''")}'`
 }
 
-async function traerTodo(tabla, pagina = 1000) {
+async function traerTodo(tabla, orden = ['id'], pagina = 1000) {
   const filas = []
   for (let desde = 0; ; desde += pagina) {
-    const { data, error } = await sb.from(tabla).select('*').range(desde, desde + pagina - 1)
+    let q = sb.from(tabla).select('*')
+    for (const col of orden) q = q.order(col, { ascending: true })
+    const { data, error } = await q.range(desde, desde + pagina - 1)
     if (error) throw new Error(`${tabla}: ${error.message}`)
     filas.push(...(data ?? []))
     if (!data || data.length < pagina) break
@@ -128,8 +148,8 @@ async function main() {
   ]
 
   const resumen = []
-  for (const tabla of TABLAS) {
-    const filas = await traerTodo(tabla)
+  for (const [tabla, orden] of TABLAS) {
+    const filas = await traerTodo(tabla, orden)
     resumen.push({ tabla, filas: filas.length })
     partes.push(`\n-- ${tabla}: ${filas.length} filas`)
     if (filas.length === 0) continue

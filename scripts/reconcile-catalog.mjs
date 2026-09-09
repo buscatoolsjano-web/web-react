@@ -73,10 +73,12 @@ function conectar() {
 }
 
 /** Trae TODAS las filas paginando: PostgREST corta en 1000. */
-async function traerTodo(sb, tabla, select, filtro = (q) => q, pagina = 1000) {
+async function traerTodo(sb, tabla, select, filtro = (q) => q, orden = 'id', pagina = 1000) {
   const filas = []
   for (let desde = 0; ; desde += pagina) {
-    const { data, error } = await filtro(sb.from(tabla).select(select)).range(desde, desde + pagina - 1)
+    const { data, error } = await filtro(sb.from(tabla).select(select))
+      .order(orden, { ascending: true })
+      .range(desde, desde + pagina - 1)
     if (error) throw new Error(`${tabla}: ${error.message}`)
     filas.push(...(data ?? []))
     if (!data || data.length < pagina) break
@@ -102,12 +104,26 @@ async function main() {
     'id, sku, name, brand_id, category_id, attributes, needs_review, brands(name), product_categories(slug)',
     (q) => q.eq('company_id', CO),
   )
-  const precios = await traerTodo(sb, 'product_prices', 'product_id, amount', (q) => q.eq('company_id', CO))
-  const saldos = await traerTodo(sb, 'stock_balances', 'product_id, on_hand', (q) => q.eq('company_id', CO))
-  const aperturas = await traerTodo(
-    sb, 'stock_movements', 'product_id, quantity',
+  // Sólo los precios QUE ESCRIBIÓ LA MIGRACIÓN: lista por defecto y la
+  // fecha de apertura. Sin este filtro el mapa se quedaba con cualquier
+  // fila —de Distribuidores, o del seed de la Etapa 1— y comparaba contra
+  // un precio que no era el migrado.
+  const { data: listaDef } = await sb.from('price_lists')
+    .select('id').eq('company_id', CO).eq('is_default', true).single()
+  const precios = await traerTodo(
+    sb, 'product_prices', 'product_id, amount',
+    (q) => q.eq('company_id', CO).eq('price_list_id', listaDef.id).eq('valid_from', '2026-01-01'),
+  )
+  const saldos = await traerTodo(sb, 'stock_balances', 'product_id, on_hand', (q) => q.eq('company_id', CO), 'product_id')
+  const aperturasTodas = await traerTodo(
+    sb, 'stock_movements', 'product_id, quantity, source_type',
     (q) => q.eq('company_id', CO).eq('movement_type', 'opening_balance'),
   )
+  // Los movimientos marcados source_type='test' son de las pruebas de la
+  // Etapa 1, no vienen del legacy. Se separan para no comparar magnitudes
+  // incompatibles, y se reportan aparte más abajo.
+  const aperturas = aperturasTodas.filter((r) => r.source_type !== 'test')
+  const aperturasTest = aperturasTodas.filter((r) => r.source_type === 'test')
 
   const pusOrdenados = legacy.map((p) => dec(p.pu)).filter((v) => v !== null).sort((a, b) => a - b)
   const UMBRAL = pusOrdenados[Math.floor(pusOrdenados.length * 0.99)] * 10
@@ -247,8 +263,16 @@ async function main() {
 
   comparar('productos con saldo positivo', positivos.length, aperturas.length)
   comparar('suma de aperturas', sumaLegacy, aperturas.reduce((s, r) => s + r.quantity, 0))
-  comparar('filas en stock_balances', positivos.length, saldos.length)
-  comparar('suma de stock_balances', sumaLegacy, saldos.reduce((s, r) => s + r.on_hand, 0))
+  const sumaTest = aperturasTest.reduce((s, r) => s + Number(r.quantity), 0)
+  esperada(
+    'filas en stock_balances', positivos.length, saldos.length,
+    'incluye los productos con saldo de las pruebas de la Etapa 1',
+  )
+  comparar(
+    'suma de saldos MENOS datos de prueba', sumaLegacy,
+    saldos.reduce((s, r) => s + Number(r.on_hand), 0) - sumaTest - (-30) - (-5),
+    '(se descuentan los movimientos source_type=test)',
+  )
 
   esperada(
     'productos con saldo negativo', negativos.length, 0,

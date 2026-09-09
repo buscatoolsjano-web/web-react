@@ -119,6 +119,35 @@ const dec = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 const log = (...a) => console.log(...a)
 const seccion = (t) => log(`\n${'═'.repeat(64)}\n${t}\n${'═'.repeat(64)}`)
 
+/**
+ * Trae TODAS las filas paginando, con orden ESTABLE.
+ *
+ * Dos trampas, y las dos muerden en silencio:
+ *
+ * 1. PostgREST devuelve como máximo 1000 filas por request y no avisa. Un
+ *    `select()` sin paginar sobre 21.772 productos devuelve 1000.
+ *
+ * 2. Paginar con `.range()` SIN `ORDER BY` no sirve: sin un orden total,
+ *    Postgres puede devolver las filas en cualquier orden en cada página,
+ *    así que las páginas se solapan y se saltean registros. Medido acá:
+ *    21.772 filas devueltas pero sólo 16.998 SKU distintos. El mapa
+ *    SKU→id quedaba incompleto y ~4.774 productos se quedaban sin precio.
+ *
+ * `orden` tiene que ser una columna ÚNICA para que el orden sea total.
+ */
+async function traerTodo(sb, tabla, select, filtro = (q) => q, orden = 'id', pagina = 1000) {
+  const filas = []
+  for (let desde = 0; ; desde += pagina) {
+    const { data, error } = await filtro(sb.from(tabla).select(select))
+      .order(orden, { ascending: true })
+      .range(desde, desde + pagina - 1)
+    if (error) throw new Error(`${tabla}: ${error.message}`)
+    filas.push(...(data ?? []))
+    if (!data || data.length < pagina) break
+  }
+  return filas
+}
+
 // ── Conexión ─────────────────────────────────────────────────
 function conectar() {
   const url = process.env.SUPABASE_URL ?? 'https://uaxcfufvapzulqvynanp.supabase.co'
@@ -422,9 +451,8 @@ async function main() {
 
   // 4. Precios
   if (POLITICA_PRECIOS !== 'ninguno' && listaBaseId) {
-    const { data: idsProd } = await sb
-      .from('products').select('id, sku').eq('company_id', ctx.companyId)
-    const idPorSku = new Map((idsProd ?? []).map((p) => [p.sku, p.id]))
+    const idsProd = await traerTodo(sb, 'products', 'id, sku', (q) => q.eq('company_id', ctx.companyId))
+    const idPorSku = new Map(idsProd.map((p) => [p.sku, p.id]))
 
     const precios = []
     for (const v of validos) {
@@ -462,9 +490,8 @@ async function main() {
   // 5. Stock inicial: UN movimiento de apertura por producto con saldo.
   //    stock_balances lo mantiene el trigger; nunca se escribe a mano.
   if (depositoId) {
-    const { data: idsProd } = await sb
-      .from('products').select('id, sku').eq('company_id', ctx.companyId)
-    const idPorSku = new Map((idsProd ?? []).map((p) => [p.sku, p.id]))
+    const idsProd = await traerTodo(sb, 'products', 'id, sku', (q) => q.eq('company_id', ctx.companyId))
+    const idPorSku = new Map(idsProd.map((p) => [p.sku, p.id]))
 
     const movimientos = validos
       .filter((v) => v.stock !== null)
@@ -479,17 +506,37 @@ async function main() {
       }))
       .filter((m) => m.product_id)
 
-    for (let i = 0; i < movimientos.length; i += LOTE) {
-      const { error } = await sb
-        .from('stock_movements')
-        .upsert(movimientos.slice(i, i + LOTE), {
-          onConflict: 'company_id,product_id,warehouse_id',
-          ignoreDuplicates: true,
-        })
+    // NO se puede usar upsert con onConflict acá.
+    //
+    // El índice de idempotencia es PARCIAL:
+    //   UNIQUE (company_id, product_id, warehouse_id)
+    //     WHERE movement_type = 'opening_balance'
+    //
+    // Postgres exige repetir el predicado en la cláusula
+    // `ON CONFLICT (cols) WHERE ...` para poder inferir un índice parcial,
+    // y `onConflict` de supabase-js sólo acepta la lista de columnas. Sin
+    // el predicado, Postgres responde "there is no unique or exclusion
+    // constraint matching the ON CONFLICT specification".
+    //
+    // Se resuelve leyendo qué aperturas ya existen e insertando sólo las
+    // que faltan. Idempotente por construcción, y el índice parcial queda
+    // como red de seguridad por si dos ejecuciones corrieran a la vez.
+    const yaAbiertos = new Set(
+      (
+        await traerTodo(sb, 'stock_movements', 'product_id', (q) =>
+          q.eq('company_id', ctx.companyId).eq('movement_type', 'opening_balance'),
+        )
+      ).map((r) => r.product_id),
+    )
+    const faltantes = movimientos.filter((m) => !yaAbiertos.has(m.product_id))
+    log(`  Aperturas ya existentes: ${yaAbiertos.size} · a insertar: ${faltantes.length}`)
+
+    for (let i = 0; i < faltantes.length; i += LOTE) {
+      const { error } = await sb.from('stock_movements').insert(faltantes.slice(i, i + LOTE))
       if (error) throw new Error(`Movimientos lote ${i}: ${error.message}`)
-      stats.movimientos += Math.min(LOTE, movimientos.length - i)
+      stats.movimientos += Math.min(LOTE, faltantes.length - i)
     }
-    log(`  Movimientos     ${stats.movimientos} de apertura`)
+    log(`  Movimientos     ${stats.movimientos} de apertura insertados`)
   }
 
   // ── Informe ───────────────────────────────────────────────
