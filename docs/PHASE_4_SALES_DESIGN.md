@@ -1,5 +1,18 @@
 # Fase 4 — Ventas · diseño
 
+> **Corregido por el inventario real.** Tres afirmaciones de este documento
+> resultaron falsas al medirlas contra los datos, y quedan corregidas en
+> [`PHASE_4_SALES_MODEL.md` §8](PHASE_4_SALES_MODEL.md):
+>
+> 1. El tipo de cambio **no** estaba resuelto: lo tienen 2 documentos de 636.
+> 2. `erp_contactos` **sí** sincroniza — 87 registros en el servidor.
+> 3. `moneda` y `_moneda` **no** discrepan: `_moneda` es la etiqueta de
+>    display («USD $ - Dolar estadounidense»), no otro código.
+>
+> El inventario y el modelo final están en
+> [`PHASE_4_SALES_MODEL.md`](PHASE_4_SALES_MODEL.md). Este documento se
+> conserva por el análisis del legacy, que sigue siendo válido.
+
 **Nada implementado.** Ninguna tabla creada, ningún dato migrado, ninguna UI.
 Entrega A–P para aprobación.
 
