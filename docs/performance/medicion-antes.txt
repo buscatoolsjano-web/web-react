@@ -1,0 +1,80 @@
+════════════════════════════════════════════════════════════════════════════
+  COSTE DE RLS EN EL LISTADO — 5 repeticiones, se informa la mediana
+  2026-09-09T16:11:04.481Z
+════════════════════════════════════════════════════════════════════════════
+
+  admin · Buscatools (interno)
+  ------------------------------------------------------------------------
+    listado sin count                 mediana    216 ms   [188–504]
+    count exact solo                  mediana   1000 ms   [984–2334]
+    listado + count exact             mediana    949 ms   [898–1050]   total=21772
+    search_products (RPC)             mediana   1277 ms   [1231–1504]   filas=50
+
+  salesperson · Torquetools (interno)
+  ------------------------------------------------------------------------
+    listado sin count                 mediana    215 ms   [199–218]
+    count exact solo                  mediana    254 ms   [210–315]
+    listado + count exact             mediana    227 ms   [201–287]   total=3
+    search_products (RPC)             mediana    211 ms   [194–224]   filas=0
+
+  distributor · Buscatools (externo)
+  ------------------------------------------------------------------------
+    listado sin count                 mediana    220 ms   [208–237]
+    count exact solo                  mediana   7631 ms   [6219–8349]  ← >= 4 s
+    listado + count exact             mediana   6088 ms   [5757–6362]   total=21772  ← >= 4 s
+    search_products (RPC)             mediana   6221 ms   [6190–6445]   filas=50  ← >= 4 s
+
+  customer · Buscatools (externo)
+  ------------------------------------------------------------------------
+    listado sin count                 mediana    206 ms   [202–219]
+    count exact solo                  mediana   6196 ms   [6087–6279]  ← >= 4 s
+    listado + count exact             mediana   5834 ms   [5781–6115]   total=21772  ← >= 4 s
+    search_products (RPC)             mediana   6202 ms   [6187–6388]   filas=50  ← >= 4 s
+
+  anon (sin sesión)
+  ------------------------------------------------------------------------
+    listado + count exact             mediana    199 ms   [195–445]   filas=0 (RLS debe bloquear)  ← permission denied for table products
+
+════════════════════════════════════════════════════════════════════════════
+
+════════════════════════════════════════════════════════════════════════════
+  PLANES (EXPLAIN ANALYZE, BUFFERS) — capturados con supabase_read_only_user
+  reproduciendo el qual de la policy, porque no se puede SET ROLE authenticated
+════════════════════════════════════════════════════════════════════════════
+
+A. PISO — count sin la condición de rol
+   Aggregate (actual time=89.285..89.290)
+     Buffers: shared hit=210
+     -> Index Only Scan using idx_products_listado  (rows=21772)
+        Heap Fetches: 0
+   Execution Time: 89.447 ms
+
+B. POLICY ACTUAL con is_internal() EXPANDIDA a su cuerpo
+   (el mejor caso posible: el real es peor porque SECURITY DEFINER no se inlinea)
+   Aggregate (actual time=503.049..503.055)
+     Buffers: shared hit=47473
+     -> Seq Scan on products  (rows=21772)
+        SubPlan 1
+          -> Limit (actual time=0.002..0.003 rows=1 loops=21772)   <-- 21772 EJECUCIONES
+             Buffers: shared hit=43544
+   Execution Time: 503.234 ms
+
+C. PROPUESTA — pertenencia a un array calculado una vez (caso externo, array vacío)
+   Aggregate (actual time=7.998..8.003)
+     Buffers: shared hit=210
+     -> Index Only Scan using idx_products_listado  (rows=21772)
+        Heap Fetches: 0
+   Execution Time: 8.137 ms
+
+D. PROPUESTA — caso interno (el array contiene la empresa)
+   Aggregate (actual time=26.702..26.707)
+     Buffers: shared hit=3929
+     -> Seq Scan on products  (rows=21772)
+   Execution Time: 26.887 ms
+
+────────────────────────────────────────────────────────────────────────────
+  ESCALADO POR FILAS (cliente real, mediana de 3) — confirma coste POR FILA
+────────────────────────────────────────────────────────────────────────────
+  admin (interno)          3807 filas -> 438 ms      21772 filas -> 987 ms
+  distributor (externo)    3807 filas -> 1519 ms     21772 filas -> 6083 ms
+  (descontando ~250 ms de ida y vuelta: 34 us/fila interno, 268 us/fila externo)
