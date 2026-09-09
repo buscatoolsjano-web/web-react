@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { Session } from '@supabase/supabase-js'
 import { cerrarSesion, obtenerSesion, suscribirCambiosDeSesion } from '@/services/auth/session'
 import { AuthContext, type AuthContextValue } from './authContext'
+import { olvidarEmpresaPreferida } from '@/features/empresa/preferencia'
 
 
 /**
@@ -36,7 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Al cerrar sesión, la caché se vacía entera. Si no, volver atrás
       // con el navegador muestra los datos del usuario anterior.
-      if (evento === 'SIGNED_OUT') queryClient.clear()
+      // Cubre también el cierre desde otra pestaña y el token vencido, no
+      // sólo el botón "Salir".
+      if (evento === 'SIGNED_OUT') {
+        queryClient.clear()
+        olvidarEmpresaPreferida()
+      }
     })
 
     return () => {
@@ -53,6 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       salir: async () => {
         await cerrarSesion()
         queryClient.clear()
+        // La empresa elegida es del usuario que se va: no tiene por qué
+        // sobrevivir al cambio de sesión en este navegador.
+        olvidarEmpresaPreferida()
       },
     }),
     [session, cargando, queryClient],

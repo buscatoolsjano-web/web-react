@@ -3,27 +3,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { listarMembresias, type Membresia } from '@/services/empresa/memberships'
 import { useAuth } from '@/features/auth/useAuth'
 import { EmpresaContext, type EmpresaContextValue } from './empresaContext'
+import { guardarEmpresaPreferida, leerEmpresaPreferida } from './preferencia'
 
-const CLAVE_PREFERENCIA = 'bt-empresa-activa'
 
 
-function leerPreferencia(): string | null {
-  try {
-    return localStorage.getItem(CLAVE_PREFERENCIA)
-  } catch {
-    // Modo privado o storage bloqueado: no es un error, simplemente no hay
-    // preferencia guardada.
-    return null
-  }
-}
 
-function guardarPreferencia(companyId: string): void {
-  try {
-    localStorage.setItem(CLAVE_PREFERENCIA, companyId)
-  } catch {
-    /* sin persistencia; la sesión sigue funcionando igual */
-  }
-}
 
 /**
  * Empresa activa del usuario.
@@ -37,7 +21,7 @@ function guardarPreferencia(companyId: string): void {
 export function EmpresaProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth()
   const queryClient = useQueryClient()
-  const [elegida, setElegida] = useState<string | null>(() => leerPreferencia())
+  const [elegida, setElegida] = useState<string | null>(() => leerEmpresaPreferida())
 
   const userId = session?.user.id ?? null
 
@@ -75,7 +59,7 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
       queryClient.removeQueries({ queryKey: ['catalogo'] })
 
       setElegida(companyId)
-      guardarPreferencia(companyId)
+      guardarEmpresaPreferida(companyId)
     },
     [activa, queryClient],
   )
