@@ -68,32 +68,44 @@ export function clasificarFaceta(
 /**
  * ¿Vale la pena dibujar la faceta de subcategoría?
  *
- * No, en dos casos, y ninguno se decide nombrando categorías:
+ * No, en tres casos, y ninguno se decide nombrando categorías:
  *
- *  - no hay ningún subtipo (`otros`, 12.588 productos sin `product_type`);
- *  - hay uno solo y repite el nombre de la categoría (`balanceador` →
- *    «Balanceador», `llave-dinamometrica` → «Llave dinamométrica»). Un único
- *    hijo con el nombre del padre no divide nada.
+ *  1. No hay ningún subtipo. Es `otros`: 12.588 productos con
+ *     `product_type` vacío, el 57,8 % del catálogo.
+ *
+ *  2. No se eligió categoría y tampoco hay subtipos activos. Sin categoría
+ *     la faceta trae los 40 subtipos del catálogo entero, una pared de chips
+ *     que empuja todo lo demás fuera de la pantalla. Se muestra recién
+ *     cuando hay un contexto donde significan algo — igual que en la web
+ *     anterior. La excepción de "subtipos activos" existe para que un link
+ *     compartido con `?tipo=Gatillo` y sin categoría siga siendo editable.
+ *
+ *  3. Hay un solo subtipo Y cubre TODOS los resultados. Elegirlo devolvería
+ *     exactamente lo mismo que ya se está viendo: no divide nada. Es el caso
+ *     de `balanceador` → «Balanceador» (376 de 376) y de
+ *     `llave-dinamometrica` → «Llave dinamométrica» (2 de 2).
+ *
+ *     La regla mira los CONTEOS y no los nombres. Comparar nombres fallaba:
+ *     la categoría se llama «Balanceadores» y el subtipo «Balanceador», así
+ *     que en plural contra singular no coincidían y la faceta se dibujaba
+ *     igual. El conteo no tiene ese problema, y además cubre casos donde el
+ *     nombre no se parece en nada.
  */
 export function mostrarFacetaSubtipo(
   subtipos: readonly OpcionFaceta[],
-  nombreCategoria: string | null,
+  total: number,
+  hayCategoriaElegida: boolean,
+  subtiposElegidos: readonly string[] = [],
 ): boolean {
   if (subtipos.length === 0) return false
-  if (subtipos.length > 1) return true
-  if (nombreCategoria === null) return true
-  const unico = subtipos[0]
-  if (!unico) return false
-  return !mismoTexto(unico.valor, nombreCategoria)
-}
-
-/**
- * Compara ignorando mayúsculas y acentos.
- *
- * Se usa localeCompare con sensitivity 'base' en vez de una regex sobre
- * marcas combinantes: hace lo mismo y no deja caracteres invisibles en el
- * código fuente.
- */
-function mismoTexto(a: string, b: string): boolean {
-  return a.trim().localeCompare(b.trim(), 'es', { sensitivity: 'base' }) === 0
+  // Si hay un subtipo elegido la faceta se muestra SIEMPRE, o no habría
+  // forma de quitarlo: al filtrar por él pasa a cubrir el 100 % de los
+  // resultados y la regla de abajo lo escondería, dejándolo trabado.
+  if (subtiposElegidos.length > 0) return true
+  if (!hayCategoriaElegida) return false
+  if (subtipos.length === 1) {
+    const unico = subtipos[0]
+    if (unico && unico.cantidad >= total) return false
+  }
+  return true
 }

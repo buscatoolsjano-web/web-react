@@ -58,50 +58,51 @@ describe('clasificarFaceta', () => {
 })
 
 describe('mostrarFacetaSubtipo', () => {
+  const op = (valor: string, cantidad: number) => ({ valor, etiqueta: valor, cantidad })
+
   it('F15 · no se dibuja si no hay ningún subtipo', () => {
     // `otros`: 12.588 productos sin product_type.
-    expect(mostrarFacetaSubtipo([], 'Otros')).toBe(false)
+    expect(mostrarFacetaSubtipo([], 12588, true)).toBe(false)
   })
 
-  it('F9 · no se dibuja si el único subtipo repite el nombre de la categoría', () => {
-    // `balanceador` → «Balanceador»: un solo hijo con el nombre del padre no
-    // divide nada.
-    expect(
-      mostrarFacetaSubtipo([{ valor: 'Balanceador', etiqueta: 'Balanceador', cantidad: 376 }],
-        'Balanceador'),
-    ).toBe(false)
+  it('no se dibuja sin categoría elegida: serían los 40 subtipos del catálogo', () => {
+    const cuarenta = Array.from({ length: 40 }, (_, i) => op('T' + i, 10))
+    expect(mostrarFacetaSubtipo(cuarenta, 21772, false)).toBe(false)
   })
 
-  it('ignora acentos y mayúsculas al comparar', () => {
-    expect(
-      mostrarFacetaSubtipo(
-        [{ valor: 'Llave dinamométrica', etiqueta: 'Llave dinamométrica', cantidad: 2 }],
-        'Llave dinamometrica',
-      ),
-    ).toBe(false)
+  it('pero sí se dibuja sin categoría si ya hay subtipos elegidos', () => {
+    // Para que un link compartido con ?tipo=Gatillo y sin categoría se pueda
+    // seguir editando.
+    expect(mostrarFacetaSubtipo([op('Gatillo', 40)], 40, false, ['Gatillo'])).toBe(true)
   })
 
-  it('sí se dibuja si el único subtipo NO es el nombre de la categoría', () => {
-    // `llave-de-impacto` → «Gatillo».
-    expect(
-      mostrarFacetaSubtipo([{ valor: 'Gatillo', etiqueta: 'Gatillo', cantidad: 7 }],
-        'Llave de impacto'),
-    ).toBe(true)
+  it('F9 · no se dibuja si un único subtipo cubre TODOS los resultados', () => {
+    // `balanceador` → «Balanceador», 376 de 376: elegirlo devolvería
+    // exactamente lo mismo que ya se ve.
+    expect(mostrarFacetaSubtipo([op('Balanceador', 376)], 376, true)).toBe(false)
+  })
+
+  it('la regla es por CONTEO y no por nombre', () => {
+    // La categoría se llama «Balanceadores» y el subtipo «Balanceador»:
+    // comparar nombres fallaba por el plural. El conteo no.
+    expect(mostrarFacetaSubtipo([op('Llave dinamométrica', 2)], 2, true)).toBe(false)
+    expect(mostrarFacetaSubtipo([op('Cualquier cosa', 7)], 7, true)).toBe(false)
+  })
+
+  it('un subtipo elegido nunca se esconde, o quedaría trabado', () => {
+    // Al filtrar por Gatillo, Gatillo pasa a cubrir el 100 % del resultado.
+    // Si la regla del conteo lo escondiera, no habría forma de quitarlo.
+    expect(mostrarFacetaSubtipo([op('Gatillo', 40)], 40, true, ['Gatillo'])).toBe(true)
+  })
+
+  it('sí se dibuja si el único subtipo NO cubre todo', () => {
+    // Quedan productos sin subtipo, así que elegirlo sí acota.
+    expect(mostrarFacetaSubtipo([op('Gatillo', 29)], 129, true)).toBe(true)
   })
 
   it('F2 · se dibuja cuando hay varios subtipos', () => {
     expect(
-      mostrarFacetaSubtipo(
-        [
-          { valor: 'Embocadura', etiqueta: 'Embocadura', cantidad: 4279 },
-          { valor: 'Torx', etiqueta: 'Torx', cantidad: 463 },
-        ],
-        'Punta',
-      ),
+      mostrarFacetaSubtipo([op('Embocadura', 4279), op('Torx', 463)], 8623, true),
     ).toBe(true)
-  })
-
-  it('sin categoría elegida, se dibuja igual', () => {
-    expect(mostrarFacetaSubtipo([{ valor: 'Torx', etiqueta: 'Torx', cantidad: 1 }], null)).toBe(true)
   })
 })

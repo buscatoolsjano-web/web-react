@@ -39,8 +39,6 @@ export function PanelFacetas({
   onCambiar,
   onLimpiar,
 }: PanelFacetasProps) {
-  const categoriaActiva = facetas?.categorias.find((c) => c.valor === filtros.categoria)
-
   const hayFiltros =
     filtros.categoria !== null ||
     filtros.marca !== null ||
@@ -69,7 +67,12 @@ export function PanelFacetas({
         }
       />
 
-      {mostrarFacetaSubtipo(facetas?.subtipos ?? [], categoriaActiva?.etiqueta ?? null) && (
+      {mostrarFacetaSubtipo(
+        facetas?.subtipos ?? [],
+        facetas?.total ?? 0,
+        filtros.categoria !== null,
+        filtros.subtipos,
+      ) && (
         <FacetaChips
           titulo="Subcategoría"
           opciones={facetas?.subtipos ?? []}
