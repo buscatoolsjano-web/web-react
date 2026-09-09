@@ -126,9 +126,124 @@ Sin scroll horizontal en 390, 430, 768 y 1440 px.
 Detalle del bundle inicial: `vendor-react` 87,66 KB · `vendor-data`
 67,02 KB · `index` 25,43 KB · CSS 2,19 KB · runtime 0,36 KB.
 
-## 8. Bloqueado: RLS por rol desde el navegador
+## 8. RLS por rol, con sesión real en producción
 
-**No ejecutado. Faltan credenciales.**
+Ejecutadas el 2026-09-09 sobre
+`https://buscatoolsjano-web.github.io/web-react/`, con login real. La
+evidencia se tomó de las respuestas del servidor, no de la pantalla: en el
+legacy el dato **llegaba** y se escondía con CSS, así que lo que hay que
+comprobar es que **no llega**.
+
+### `cliente.test@buscatools.com.ar` — customer · 9/9 PASS
+
+| # | Caso | Evidencia |
+|---|---|---|
+| R6a | Columna **Disponibilidad**, no Stock | ✅ |
+| R6b | Sin selector de listas | ✅ subtítulo fijo "Especial Cliente Demo" |
+| R6c | Stock en el embed de products | ✅ `stock_balances: []` **aunque se pida explícitamente** |
+| R6d | `price_lists` | ✅ **1 fila**: Especial Cliente Demo |
+| R6e | `stock_balances` directo | ✅ **0 filas** (HTTP 200: RLS filtró, no falló) |
+| R8a | Forzar `price_list_id` de "Lista base" | ✅ **0 filas** |
+| R8b | Forzar el de "Distribuidores" | ✅ **0 filas** |
+| R8c | `products` de una empresa ajena | ✅ **0 filas** |
+| F2/F3 | Typo "balanciador" | ✅ 20 balanceadores · "1–20 de 20" · **1.929 bytes** |
+
+De los **124 precios** que este usuario puede leer en total hay **un solo
+`price_list_id` distinto**. No es que la interfaz filtre: el servidor no
+manda otra cosa.
+
+**La RPC no es una puerta lateral.** `search_products` recibe `p_company`
+como parámetro, así que se le pasó el id de Torquetools —empresa ajena a
+este usuario— y devolvió **0 resultados**. El `SECURITY INVOKER` sostiene.
+
+### `buscatools.jano@gmail.com` — admin + salesperson
+
+| # | Caso | Evidencia |
+|---|---|---|
+| R2 | Membresías propias | ✅ **exactamente 2**: Buscatools→admin, Torquetools→salesperson |
+| R2a | Productos en Buscatools | ✅ **216** (`content-range: 0-0/216`) |
+| R2b | Stock con cantidades reales | ✅ `on_hand=16, reserved=0` |
+| R2c | `price_lists` en Buscatools | ✅ **3**: Lista base, Distribuidores, Especial Cliente Demo |
+| R3 | Torquetools | ✅ **3 productos**, **1 lista** |
+
+**Aislamiento de precios, mismo SKU, lado a lado:**
+
+| SKU | cliente.test (Especial Cliente Demo) | Jano (Lista base) |
+|---|---:|---:|
+| CP.CP9911 | US$ 43,32 | US$ 54,15 |
+| CP.CP9947 | US$ 164,28 | US$ 205,35 |
+| CP.CP9958 | US$ 351,21 | US$ 439,01 |
+
+Ninguno de los dos puede leer el precio del otro.
+
+---
+
+## 9. Tres bugs encontrados probando en el navegador
+
+Ninguno lo detectaron los 48 tests unitarios. Los tres aparecieron sólo
+con sesión real contra el deploy.
+
+### 9.1 El buscador se perdía al llegar desde un link
+
+Entrar a `#/catalogo?q=balanciador` **borraba el parámetro** y mostraba el
+catálogo sin filtrar.
+
+El input mantiene estado local para poder aplicar debounce, pero se
+inicializaba una sola vez. Cuando la URL cambiaba por fuera —un link
+compartido, o los botones atrás/adelante— el input seguía con su valor
+anterior y el efecto de debounce pisaba la URL con ese valor viejo.
+
+Rompía dos cosas que el diseño prometía: compartir un filtro por link y
+que atrás/adelante recorran los filtros. Corregido en `525e5d7`.
+
+### 9.2 La app se rompía al navegar después de un deploy
+
+Con la app abierta se publicó una versión y el botón "Salir" tiró:
+
+```
+Failed to fetch dynamically imported module:
+  .../assets/LoginPage-BoHNNOGv.js
+```
+
+Vite hashea el nombre de cada chunk; al desplegar, los del build anterior
+dejan de existir. Cualquier ruta todavía no cargada falla con un 404.
+**Le pasa a cualquier usuario con la pestaña abierta durante un deploy**,
+no sólo a quien esté probando.
+
+Corregido en `f281bb5` con `lazyConRecarga()`: ante un import fallido
+recarga una vez —y sólo una, para que un corte de red no deje la página en
+bucle—. Se agregó además `errorElement` con una pantalla propia; antes
+React Router mostraba su stack trace de desarrollo con un "Hey developer".
+
+### 9.3 El selector de empresa mostraba membresías de otros usuarios
+
+A Jano el desplegable le listaba **8 entradas** en vez de sus 2: eran las
+8 membresías de todo el sistema.
+
+La política de `company_memberships` es
+
+```sql
+(user_id = auth.uid()) OR app.is_admin(company_id)
+```
+
+y es **correcta** — un admin necesita ver las membresías de su empresa
+para administrar usuarios. El error era del servicio, que asumía que RLS
+ya devolvía sólo las propias.
+
+**No es un agujero de seguridad**: RLS sigue gobernando qué datos se leen
+y pedir el `company_id` de una empresa ajena devuelve cero filas. Pero sí
+es un error de identidad en la interfaz: la membresía activa podía
+terminar siendo la de otra persona. Si la primera fila hubiera sido la del
+`customer`, a Jano lo habría tratado como cliente externo y le habría
+ocultado el stock. Corregido en `a3ebf53` con el filtro explícito por
+`user_id`.
+
+---
+
+## 10. Pendiente
+
+**`distribuidor.test@buscatools.com.ar`** (R7) y el cambio de empresa en
+vivo (R3a/R3b) quedan por correr.
 
 Estas 9 pruebas necesitan iniciar sesión de verdad con cada usuario, y no
 hay forma de obtener un JWT sin la contraseña (crear sesiones con

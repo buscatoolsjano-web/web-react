@@ -38,9 +38,20 @@ export function useProductos(filtros: FiltrosCatalogo, priceListId: string | nul
     },
     enabled: companyId !== null,
     // Mantener la página anterior visible mientras carga la siguiente evita
-    // que la tabla salte a "vacío" y vuelva. Es la misma empresa y la misma
-    // lista, así que no hay riesgo de mezclar datos de otro contexto.
-    placeholderData: (previa) => previa,
+    // que la tabla salte a "vacío" y vuelva al paginar o filtrar.
+    //
+    // PERO SÓLO DENTRO DE LA MISMA EMPRESA. `placeholderData` recibe los
+    // datos de la consulta previa aunque la clave haya cambiado, así que
+    // sin este control anulaba el removeQueries del cambio de empresa:
+    // medido en producción, las 50 filas de Buscatools seguían en pantalla
+    // entre 150 y 300 ms bajo el cartel de Torquetools.
+    //
+    // La clave es ['catalogo', companyId, 'productos', ...]; comparar la
+    // posición 1 alcanza para saber si es la misma empresa.
+    placeholderData: (previa, consultaPrevia) => {
+      const empresaPrevia = consultaPrevia?.queryKey[1]
+      return empresaPrevia === companyId ? previa : undefined
+    },
     staleTime: 30_000,
   })
 }
