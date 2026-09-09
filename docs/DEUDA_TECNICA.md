@@ -56,3 +56,21 @@ navegador que teclee `http://` hace un salto en claro antes del redirect.
 
 No es configurable en GitHub Pages. Se resolvería poniendo un CDN delante, lo
 que es un cambio de infraestructura mayor que el problema.
+
+---
+
+## 4. Backlog de seguridad del legacy
+
+Salió al auditar Ventas (Fase 4). **Nada de esto afecta a la base nueva** ni
+bloquea la Fase 4, pero conviene resolverlo.
+
+| ítem | estado | prioridad |
+|---|---|---|
+| `SUPA_APP_TOKEN` hardcodeado en el `app.js` público, y es el header que autoriza escribir en `erp_store` | **en uso** | **alta** |
+| JSON de service account de Firebase en `Downloads` (no abiertos) | presentes | **alta** |
+| `erp_openai_key` en localStorage | no está en el equipo auditado; puede estar en otro | media |
+
+El token del legacy debe considerarse **comprometido por diseño**: `app.js` es
+público, así que cualquiera lo lee.
+
+Detalle en [`PHASE_4_SALES_MODEL.md`](PHASE_4_SALES_MODEL.md) §R6.
