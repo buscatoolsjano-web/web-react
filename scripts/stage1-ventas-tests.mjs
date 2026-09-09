@@ -55,6 +55,16 @@ const main = async () => {
 
   const creados = { customers: [], quotes: [], pos: [], orders: [], deliveries: [], invoices: [], payments: [] }
 
+  // Estado PREVIO. La limpieza compara contra esto, nunca contra cero: desde
+  // Stage 2 hay 636 documentos históricos legítimos que no son fixtures.
+  const TABLAS_LIMPIEZA = ['sales_quotes', 'sales_orders', 'deliveries',
+    'sales_invoices', 'payments', 'customers']
+  const previos = {}
+  for (const t of TABLAS_LIMPIEZA) {
+    const { count } = await sb.from(t).select('*', { count: 'exact', head: true })
+    previos[t] = count
+  }
+
   // ── Clientes de prueba ───────────────────────────────────────────────────
   const { data: cliA } = await sb.from('customers').insert({
     company_id: BT, legal_name: 'ZZ TEST Cliente A', trade_name: 'ZZ-A', status: 'active',
@@ -379,16 +389,16 @@ const main = async () => {
     await sbc.from('customers').delete().in('id', creados.customers)
 
     const quedan = {}
-    for (const t of ['sales_quotes','sales_orders','deliveries','sales_invoices','payments','customers']) {
+    for (const t of TABLAS_LIMPIEZA) {
       const { count } = await sbc.from(t).select('*', { count: 'exact', head: true })
       quedan[t] = count
     }
     console.log('  filas que quedan: ' + Object.entries(quedan).map(([k, v]) => `${k}=${v}`).join('  '))
-    const limpio = quedan.sales_quotes === 0 && quedan.sales_orders === 0 &&
-      quedan.deliveries === 0 && quedan.sales_invoices === 0 &&
-      quedan.payments === 0 && quedan.customers === 3
-    limpio ? PASS('todos los fixtures eliminados; customers vuelve a sus 3 filas de prueba')
-           : FAIL('quedaron fixtures sin borrar')
+    const sobran = TABLAS_LIMPIEZA.filter((t) => quedan[t] !== previos[t])
+    sobran.length === 0
+      ? PASS('todos los fixtures eliminados; cada tabla vuelve a su estado previo')
+      : FAIL('quedaron fixtures sin borrar',
+          sobran.map((t) => `${t}=${quedan[t]} (previo ${previos[t]})`).join('  '))
   }
 
   console.log(`\n${'═'.repeat(74)}\n  RESULTADO: ${fallos} fallo(s)\n${'═'.repeat(74)}`)

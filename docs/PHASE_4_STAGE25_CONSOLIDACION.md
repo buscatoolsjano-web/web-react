@@ -337,12 +337,22 @@ cambio de series:
 Los dos scripts recalculan la clasificación entera cada vez y sólo escriben lo
 que difiere; la clasificación siguió dando 484 / 14 / 7.
 
-## Bug encontrado y corregido
+## Bugs encontrados y corregidos
 
-**200 `update` en paralelo hacían fallar el `fetch`.** La primera corrida murió
-a mitad de camino con `TypeError: fetch failed`. Se bajó el lote a 25 con
-reintento exponencial. No hubo daño: como el script es idempotente, la segunda
-corrida completó las 308 que faltaban y la tercera confirmó 0.
+1. **200 `update` en paralelo hacían fallar el `fetch`.** La primera corrida
+   murió a mitad de camino con `TypeError: fetch failed`. Se bajó el lote a 25
+   con reintento exponencial. No hubo daño: como el script es idempotente, la
+   segunda corrida completó las 308 que faltaban y la tercera confirmó 0.
+2. **`.gitignore` tenía `.env.rls` sin comodín.** El archivo real quedó guardado
+   como `.env.rls.txt` y **no estaba siendo ignorado**: aparecía como `??` en
+   `git status`, a un `git add -A` de distancia de commitear dos contraseñas.
+   Corregido a `.env.rls*` y verificado con `git check-ignore`.
+3. **La limpieza de `stage1-ventas-tests.mjs` comparaba contra cero.** Esperaba
+   `sales_quotes = 0`, `sales_orders = 0`, `deliveries = 0` y `customers = 3`,
+   que era cierto en Stage 1 y dejó de serlo con los 636 documentos históricos:
+   daba un FAIL con los fixtures perfectamente borrados. Ahora captura el estado
+   previo y compara contra él, igual que hace la suite de RLS. Es el mismo bug
+   que ya habíamos corregido en la suite de RLS, en el otro script.
 
 ## Nuevos motivos de revisión
 
@@ -395,21 +405,64 @@ por la otra serie es un intento real de cruce:
 | el intento de `RT-ML` **no** movió el contador de `RT` | 1424 → 1425 |
 | contador restaurado | 1424 |
 
-### Estado
+### Resultado con JWT reales — **110 checks, 110 PASS, 0 FAIL**
 
-Las pruebas que no dependen de una sesión —anon sobre las 21 tablas, la
-numeración, las series— dan **PASS**. Las de los cuatro roles con sesión
-necesitan `BT_PW_JANO` y `BT_PW_TEST`, que **no están en este entorno**.
+| bloque | checks | fallos |
+|---|---:|---:|
+| ADMIN · Buscatools | 10 | **0** |
+| SALESPERSON · Torquetools | 8 | **0** |
+| DISTRIBUTOR · Buscatools | 31 | **0** |
+| CUSTOMER · Buscatools | 31 | **0** |
+| ANON (sin sesión) | 23 | **0** |
+| Series de documento | 6 | **0** |
+| Limpieza | 1 | **0** |
+| **total** | **110** | **0** |
 
-`.env.rls` ya está en `.gitignore`. Con el archivo puesto:
+**Ningún acceso inesperado. Ninguna policy necesita cambio.**
+
+Jano multiempresa quedó probado en las dos direcciones: como ADMIN de Buscatools
+ve también Torquetools, y como SALESPERSON de Torquetools ve también Buscatools
+—y ninguno de los dos alcanza la tercera empresa, a la que no pertenece nadie.
+
+### Secretos en los logs
+
+La salida capturada se escaneó contra el valor real de `BT_PW_JANO`,
+`BT_PW_TEST`, `SUPABASE_SECRET_KEY` y `VITE_SUPABASE_ANON_KEY`, más los
+patrones `eyJ…` (JWT) y `sb_secret_…` / `sb_publishable_…`:
+
+**0 coincidencias en los seis.** Las contraseñas sólo se pasan a
+`signInWithPassword`; no se imprimen, no se loguean, no se commitean y no llegan
+al frontend.
+
+### Cómo correrlo
 
 ```bash
 set -a; source .env; source .env.migration; source .env.rls; set +a
 node scripts/stage1-ventas-rls.mjs
 ```
 
-Las contraseñas no se imprimen, no se loguean, no se commitean y no llegan al
-frontend: el script sólo las pasa a `signInWithPassword`.
+`.gitignore` cubre `.env.rls*` — el comodín importa: el archivo puede terminar
+guardado como `.env.rls.txt` y `.env.rls` a secas no lo agarraba.
+
+## Constraints e integridad
+
+`scripts/stage1-ventas-tests.mjs`, con el histórico cargado: **32 checks, 0
+fallos** — numeración concurrente, flujo completo, los 14 intentos que deben
+fallar, y la auditoría que no se dispara sola.
+
+Integridad de los 484 enlaces, **después** de correr las dos suites:
+
+| comprobación | |
+|---|---:|
+| `delivery_lines` con `order_line_id` | **484** |
+| FK rota | **0** |
+| enlace que cruza de empresa | **0** |
+| enlace a una línea de OTRO pedido | **0** |
+| enlace a un pedido de OTRO cliente | **0** |
+| `product_id` distinto | **0** |
+| `sku_snapshot` distinto | **0** |
+| huella md5 de los 636 documentos | **`8091b916…`** sin cambios |
+| `document_sequences` · `stock_movements` · `sales_audit` | 6 · 381 · **0** |
 
 No se cambió ninguna policy. Lo único que cambió en una función
 `SECURITY DEFINER` es la firma de `next_document_number`, con el mismo control
@@ -446,3 +499,18 @@ demostrado.
 
 `ENTREGADO > PEDIDO` (los 2 `OVERDELIVERED`) debe **mostrarse como
 inconsistencia histórica**, no ocultarse ni corregirse.
+
+---
+
+## PHASE 4 — STAGE 2.5 = CLOSED
+
+| criterio | estado |
+|---|---|
+| series schema | **PASS** — `(company_id, doc_type, series_code)`, 636 documentos con serie, RT-ML soportada y no emitible |
+| backfill `order_line_id` | **PASS** — 484 de 505 (95,8 %), 0 anomalías de integridad |
+| RLS con JWT real | **PASS** — 110 checks, 0 fallos, 5 roles |
+| constraints | **PASS** — 32 checks, 0 fallos |
+| idempotencia | **PASS** — segunda corrida de los dos scripts: 0 cambios |
+| CI | **PASS** |
+
+Cerrado el 2026-09-09.

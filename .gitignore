@@ -42,4 +42,4 @@ import-catalog.state.json
 .env.migration
 
 # Contraseñas de las cuentas de prueba de RLS. Nunca se commitea.
-.env.rls
+.env.rls*
