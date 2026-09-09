@@ -12,7 +12,21 @@ import type { FiltrosCatalogo, PaginaDeProductos, ProductoDetalle } from '../typ
  * listado normal. En los dos casos el servidor devuelve como máximo
  * `porPagina` filas: nunca se descarga el catálogo entero.
  */
-export function useProductos(filtros: FiltrosCatalogo, priceListId: string | null) {
+export function useProductos(
+  filtros: FiltrosCatalogo,
+  priceListId: string | null,
+  /**
+   * Si ya se sabe qué lista de precios corresponde.
+   *
+   * Sin esto la consulta salía dos veces: la primera con priceListId en
+   * null —porque price_lists todavía no había respondido, y tarda ~1,4 s—
+   * y otra al llegar la lista. Además de la request de más, sin filtro de
+   * lista el embed devuelve TODAS las visibles, y `product_prices[0]` toma
+   * una cualquiera: un usuario interno, que ve tres listas, podía ver
+   * durante ese rato un precio que no es el de la lista elegida.
+   */
+  listaResuelta: boolean,
+) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
   const esInterno = activa?.esInterno ?? false
@@ -36,7 +50,7 @@ export function useProductos(filtros: FiltrosCatalogo, priceListId: string | nul
         ? buscarProductos(plan, texto, priceListId, esInterno)
         : listarProductos(plan, priceListId, esInterno)
     },
-    enabled: companyId !== null,
+    enabled: companyId !== null && listaResuelta,
     // Mantener la página anterior visible mientras carga la siguiente evita
     // que la tabla salte a "vacío" y vuelva al paginar o filtrar.
     //
@@ -75,7 +89,11 @@ export function useDisponibilidad(productIds: readonly string[]) {
   })
 }
 
-export function useProducto(sku: string | undefined, priceListId: string | null) {
+export function useProducto(
+  sku: string | undefined,
+  priceListId: string | null,
+  listaResuelta: boolean,
+) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
   const esInterno = activa?.esInterno ?? false
@@ -83,7 +101,7 @@ export function useProducto(sku: string | undefined, priceListId: string | null)
   return useQuery<ProductoDetalle | null>({
     queryKey: ['catalogo', companyId, 'producto', sku, priceListId, esInterno],
     queryFn: () => obtenerProductoPorSku(companyId!, sku!, priceListId, esInterno),
-    enabled: companyId !== null && !!sku,
+    enabled: companyId !== null && !!sku && listaResuelta,
     staleTime: 30_000,
   })
 }

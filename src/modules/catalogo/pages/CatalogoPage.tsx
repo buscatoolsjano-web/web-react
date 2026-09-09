@@ -55,7 +55,7 @@ export function CatalogoPage() {
     if (textoDiferido.trim() !== filtros.q) actualizar({ q: textoDiferido })
   }, [textoDiferido, filtros.q, actualizar])
 
-  const { listas, porDefecto, puedeElegir } = useListasDePrecios(companyId)
+  const { listas, porDefecto, puedeElegir, cargando: listasCargando } = useListasDePrecios(companyId)
   const [listaElegida, setListaElegida] = useState<string | null>(null)
 
   // La lista efectiva sale de lo que RLS dejó ver. Un externo recibe una
@@ -70,7 +70,7 @@ export function CatalogoPage() {
   const { data: categorias = [] } = useCategorias(companyId)
   const { data: definiciones = [] } = useDefinicionesDeAtributos(companyId)
 
-  const { data, isPending, isFetching, error } = useProductos(filtros, listaEfectiva?.id ?? null)
+  const { data, isPending, isFetching, error } = useProductos(filtros, listaEfectiva?.id ?? null, !listasCargando)
   const productos = useMemo(() => data?.productos ?? [], [data])
   const total = data?.total ?? 0
 

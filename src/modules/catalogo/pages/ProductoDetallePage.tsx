@@ -24,9 +24,9 @@ export function ProductoDetallePage() {
   const companyId = activa?.companyId ?? null
   const esInterno = activa?.esInterno ?? false
 
-  const { porDefecto } = useListasDePrecios(companyId)
+  const { porDefecto, cargando: listasCargando } = useListasDePrecios(companyId)
   const { data: definiciones = [] } = useDefinicionesDeAtributos(companyId)
-  const { data: producto, isPending, error } = useProducto(sku, porDefecto?.id ?? null)
+  const { data: producto, isPending, error } = useProducto(sku, porDefecto?.id ?? null, !listasCargando)
   const { data: disponibilidad } = useDisponibilidad(producto ? [producto.id] : [])
 
   if (isPending) return <StatusMessage tono="pending" titulo="Cargando producto…" />
