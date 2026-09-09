@@ -170,7 +170,17 @@ create table sales_quotes (
   approved_at     timestamptz,
   needs_review    boolean not null default false,
   review_reason   text,
-  legacy_ref      text,
+  -- El número ORIGINAL del legacy, tal como aparece. Nunca se reemplaza ni se
+  -- corrige: es lo que hace trazable el documento contra el sistema viejo.
+  -- Para los documentos migrados, `number` guarda este mismo valor.
+  original_number text,
+  -- Dato AUXILIAR de revisión, nunca de uso. Los 9 "PDV11xxx" parecen el
+  -- número correcto con un 1 de más: siete de los ocho huecos de la serie los
+  -- llena exactamente uno de ellos. Se deja la sospecha registrada para que
+  -- una persona decida, sin tocar el número real.
+  --   original_number             = 'PDV11157'
+  --   suspected_normalized_number = 'PDV1157'
+  suspected_normalized_number text,
   number_outlier  boolean not null default false,
   created_by      uuid references profiles(id) default auth.uid(),
   created_at      timestamptz not null default now(),
@@ -381,8 +391,18 @@ create table sales_orders (
   notes               text,
   needs_review        boolean not null default false,
   review_reason       text,
-  legacy_ref          text,
-  number_outlier      boolean not null default false,
+  -- El número ORIGINAL del legacy, tal como aparece. Nunca se reemplaza ni se
+  -- corrige: es lo que hace trazable el documento contra el sistema viejo.
+  -- Para los documentos migrados, `number` guarda este mismo valor.
+  original_number text,
+  -- Dato AUXILIAR de revisión, nunca de uso. Los 9 "PDV11xxx" parecen el
+  -- número correcto con un 1 de más: siete de los ocho huecos de la serie los
+  -- llena exactamente uno de ellos. Se deja la sospecha registrada para que
+  -- una persona decida, sin tocar el número real.
+  --   original_number             = 'PDV11157'
+  --   suspected_normalized_number = 'PDV1157'
+  suspected_normalized_number text,
+  number_outlier  boolean not null default false,
   created_by          uuid references profiles(id) default auth.uid(),
   created_at          timestamptz not null default now(),
   updated_by          uuid references profiles(id),
@@ -453,7 +473,18 @@ create table deliveries (
   notes               text,
   needs_review        boolean not null default false,
   review_reason       text,
-  legacy_ref          text,
+  -- El número ORIGINAL del legacy, tal como aparece. Nunca se reemplaza ni se
+  -- corrige: es lo que hace trazable el documento contra el sistema viejo.
+  -- Para los documentos migrados, `number` guarda este mismo valor.
+  original_number text,
+  -- Dato AUXILIAR de revisión, nunca de uso. Los 9 "PDV11xxx" parecen el
+  -- número correcto con un 1 de más: siete de los ocho huecos de la serie los
+  -- llena exactamente uno de ellos. Se deja la sospecha registrada para que
+  -- una persona decida, sin tocar el número real.
+  --   original_number             = 'PDV11157'
+  --   suspected_normalized_number = 'PDV1157'
+  suspected_normalized_number text,
+  number_outlier  boolean not null default false,
   created_by          uuid references profiles(id) default auth.uid(),
   created_at          timestamptz not null default now(),
   updated_by          uuid references profiles(id),
@@ -523,7 +554,18 @@ create table sales_invoices (
                   check (status in ('draft','issued','paid','cancelled')),
   notes           text,
   needs_review    boolean not null default false,
-  legacy_ref      text,
+  -- El número ORIGINAL del legacy, tal como aparece. Nunca se reemplaza ni se
+  -- corrige: es lo que hace trazable el documento contra el sistema viejo.
+  -- Para los documentos migrados, `number` guarda este mismo valor.
+  original_number text,
+  -- Dato AUXILIAR de revisión, nunca de uso. Los 9 "PDV11xxx" parecen el
+  -- número correcto con un 1 de más: siete de los ocho huecos de la serie los
+  -- llena exactamente uno de ellos. Se deja la sospecha registrada para que
+  -- una persona decida, sin tocar el número real.
+  --   original_number             = 'PDV11157'
+  --   suspected_normalized_number = 'PDV1157'
+  suspected_normalized_number text,
+  number_outlier  boolean not null default false,
   created_by      uuid references profiles(id) default auth.uid(),
   created_at      timestamptz not null default now(),
   updated_by      uuid references profiles(id),

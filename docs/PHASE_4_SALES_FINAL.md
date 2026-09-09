@@ -262,12 +262,25 @@ error de tipeo que puso un dígito de más.
 
 Sólo el hueco **1307** queda sin explicar.
 
-**Qué propongo**, respetando tu decisión de no inventar nada: migrar los 9 con
-su número histórico literal y `number_outlier = true`, **sin renumerarlos**.
-La secuencia arranca en 1316, que sigue siendo correcto. Los dos pares
-duplicados (1239 y 1284) se marcan además `needs_review`, porque puede que
-sean el mismo pedido cargado dos veces — o dos pedidos distintos del mismo
-día. No lo puedo decidir yo.
+**Qué se hace** (decisión tuya, ya incorporada al SQL): **el número original no
+se toca nunca**. Los documentos numerados llevan tres columnas:
+
+```sql
+original_number             text   -- 'PDV11157'  ← tal como está en el legacy
+suspected_normalized_number text   -- 'PDV1157'   ← sólo una sospecha, nunca se usa
+number_outlier              boolean
+```
+
+La sospecha queda **registrada como dato auxiliar de revisión**, no aplicada.
+Una persona decide; el sistema no corrige nada solo. Los 9 van además con
+`needs_review = true`, y los dos pares duplicados (1239 y 1284) también,
+porque puede que sean el mismo pedido cargado dos veces — o dos pedidos
+distintos del mismo día. No lo puedo decidir yo.
+
+La secuencia arranca en **1316** igual: los 9 no la afectan.
+
+Además `original_number` reemplaza a `legacy_ref` en los cuatro documentos
+numerados, porque guardaban lo mismo. `legacy_ref` sigue donde no hay número.
 
 ---
 
