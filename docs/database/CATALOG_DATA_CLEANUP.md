@@ -224,3 +224,42 @@ revisión humana, no automáticamente.
 4. **Recuperar marcas** desde el texto del nombre.
 5. Imágenes: conseguir las que faltan pesa más que migrar las que hay.
 6. Los casos puntuales (9 + 5 + 26 productos) en cualquier momento.
+
+---
+
+## 10. `encastre` sin normalizar — bloquea el filtro por atributo
+
+Detectado al validar los filtros dinámicos con el catálogo completo. La
+clave `encastre` —la más usada, presente en 8.422 productos y en 6
+categorías— tiene **35 variantes** del mismo concepto:
+
+```
+-              1 1/2 SQ      1 SQ          1-1/2 SQ
+1/2            1/2 Cuadrado  1/2 HEX       1/2 SQ
+1/4            1/4 Cuadrado  1/4 Hex       1/4 HEX
+1/4 HEX BIT    1/4 HEX con anillo          1/4 HEX QC
+1/4 HEX QC con bola          1/4 QC        1/4 SQ
+3/4  3/4 HEX  3/4 QC  3/4 SQ   3/8  3/8 Cuadrado  3/8 HEX
+3/8 QC   3/8 QC ERGO-DRIVE    3/8 SQ
+5/16 HEX  5/8 HEX  5/8 SQ  7/16 HEX  7/16 SQ  9/32 HEX
+Cabezal hexagonal
+```
+
+Hay `1/4 Hex` y `1/4 HEX` (sólo cambia la mayúscula), y un valor `-` que
+significa "sin dato".
+
+**Por qué importa ahora:** el filtro por atributo hace coincidencia exacta
+(`attributes @> '{"encastre":"1/4"}'`). Quien filtre por `1/4` **no
+encuentra** los `1/4 HEX`, que son 882 productos. El filtro funciona, pero
+los datos lo vuelven poco útil.
+
+Medido: `punta + encastre "1/4 HEX"` → 882 resultados; `punta + encastre
+"1/4"` → 0.
+
+**Qué haría:** normalizar a un vocabulario cerrado —separando medida
+(`1/4`) de tipo (`HEX`, `SQ`, `QC`)— y guardarlos como dos atributos. Es
+una decisión de negocio, no una limpieza mecánica: hay que definir qué
+distinciones importan comercialmente.
+
+Conviene revisar lo mismo en las otras claves de texto libre: `medida`
+(258 valores distintos) y `largo` (176).

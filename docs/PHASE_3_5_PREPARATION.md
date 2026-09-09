@@ -1,7 +1,9 @@
 # Fase 3.5 — Preparación para la carga completa
 
-**Nada importado todavía.** La base sigue con 219 productos.
-Fecha: 2026-09-09 · Dataset auditado: `productos-data.json`, 15.658.378 bytes.
+**Fase 3.5 CERRADA.** 21.772 productos importados y reconciliados. El cierre
+está al final del documento; lo de arriba es la preparación tal como se
+aprobó, conservada como registro.
+Fecha: 2026-09-09 · Dataset: `productos-data.json`, 15.658.378 bytes.
 
 ---
 
@@ -630,3 +632,81 @@ El punto que corregí: recrear los usuarios en otro proyecto les asigna
 **UUID nuevos**, así que los ids del backup dejan de servir. Hay 7 columnas
 en 6 tablas que dependen de esos ids, con **19 valores poblados hoy**. El
 remapeo se hace por email, que es la identidad estable.
+
+---
+
+# CIERRE DE FASE 3.5 — 2026-09-09
+
+## Resultado
+
+| Bloque | Pruebas | PASS | FAIL |
+|---|---:|---:|---:|
+| Unitarias (Vitest) | 61 | 61 | 0 |
+| Suite aislada (sin `.env`) | 61 | 61 | 0 |
+| Calidad: lint · typecheck · build | 3 | 3 | 0 |
+| Verificaciones del backup | 10 | 10 | 0 |
+| Reconciliación legacy ↔ nuevo | 48 | 48 | 0 |
+| Idempotencia (2ª corrida) | 11 | 11 | 0 |
+| Regresión de los bugs de migración | 9 | 9 | 0 |
+| Rendimiento SQL medido | 6 | 6 | 0 |
+| RLS a escala | 7 | 7 | 0 |
+| Acceso anónimo | 11 | 11 | 0 |
+| Multiempresa (A · B · C · D) | 11 | 11 | 0 |
+| Mobile (6 anchos + funcional) | 18 | 18 | 0 |
+| Regresión N:N (5 categorías) | 5 | 5 | 0 |
+| **TOTAL** | **200** | **200** | **0** |
+
+## Datos finales
+
+| | |
+|---|---:|
+| Productos Buscatools | **21.772** |
+| Productos totales (con Torquetools) | 21.775 |
+| Precios migrados | **12.254** |
+| Precios totales | 12.505 |
+| Aperturas de stock | 379 (378 del legacy + 1 de prueba de Etapa 1) |
+| Suma de stock | 29.864 (29.799 del legacy + 65 de prueba) |
+| `needs_review` | **12.593** |
+| Marcas | 26 |
+| Pares atributo↔categoría | 70 |
+| Índices en `products` | 11 |
+| **Tamaño de la base** | **13 MB → 83 MB** |
+
+## Bugs encontrados: 10 · corregidos: 10
+
+| # | Bug | Cómo se encontró |
+|---|---|---|
+| 1 | Paginación sin `ORDER BY` — 5.123 productos sin precio, en silencio | Reconciliación |
+| 2 | `ON CONFLICT` contra un índice parcial | Importación |
+| 3 | El reconciliador leía cualquier precio | Reconciliación |
+| 4 | Política N:N con tautología: el guardia multiempresa no bloqueaba | Volcado del esquema |
+| 5 | El seed cargó `pu` (costo) como precio de venta | Reconciliación |
+| 6 | La prueba de regresión dejó un saldo huérfano | Verificación de la propia prueba |
+| 7 | Los tests volvieron a depender de `.env` | **CI** |
+| 8 | Tres controles del header por debajo de 44 px | Mobile a escala |
+| 9 | La búsqueda contaba sin aplicar los filtros | Mobile a escala |
+| 10 | El arreglo del buscador de Fase 3 estaba incompleto | Mobile a escala |
+
+Cuatro de los diez (7, 8, 9, 10) aparecieron **después** de haber declarado
+la fase lista. Los tres últimos salieron de probar en un viewport real, que
+es justamente lo que no se había podido hacer antes.
+
+## Lo que NO se verificó
+
+**Carga lazy de imágenes.** El catálogo no muestra imágenes: no se
+implementó `ProductGallery` ni imagen en las cards. `imgs` estaba fuera de
+alcance en esta fase, pero el diseño listaba el componente. Medir "0 de 0
+imágenes lazy" habría sido una trampa, no una prueba.
+
+## Hallazgo de datos: `encastre` sin normalizar
+
+Al verificar el filtro por atributo aparecieron **35 variantes** del mismo
+concepto:
+
+```
+1/4 · 1/4 Cuadrado · 1/4 Hex · 1/4 HEX · 1/4 HEX BIT ·
+1/4 HEX con anillo · 1/4 HEX QC · 1/4 HEX QC con bola · 1/4 QC · 1/4 SQ · -
+```
+
+El filtro por atributo hace coincidencia exacta, así que quien filtre por
+`1/4` no encuentra los `1/4 HEX`. Va al informe de limpieza.
