@@ -1,8 +1,15 @@
 # Estado de la migración — BUSCATOOLS
 
-Última actualización: **2026-09-08** · Fase actual: **3 — Catálogo en React** · implementado, pendiente de pruebas RLS con usuarios reales
+Última actualización: **2026-09-09** · Fase actual: **3 — Catálogo en React** · implementado, pendiente de pruebas RLS con usuarios reales
 
 **En línea:** https://buscatoolsjano-web.github.io/web-react/
+
+> **🔴 RIESGO DE SEGURIDAD ABIERTO — prioridad ALTA.** El legacy y React
+> comparten origen (`buscatoolsjano-web.github.io`) y por lo tanto
+> `localStorage`: el legacy puede leer `bt-auth`, el token de sesión de
+> Supabase. **Mover React a `app.buscatools.com` es requisito antes de
+> abrir el sistema a distribuidores, clientes o usuarios externos.**
+> Ver [SHARED_ORIGIN_RISK.md](docs/security/SHARED_ORIGIN_RISK.md).
 
 ## Leyenda
 
