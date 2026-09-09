@@ -22,6 +22,8 @@ export interface CabeceraCotizacionProps {
   editable: boolean
   /** `true` en el alta: la moneda todavía se puede elegir. */
   monedaEditable: boolean
+  /** El pedido no tiene fecha de validez; la cotización sí. */
+  mostrarValidez?: boolean
   onCambiar: (campo: CampoCabecera, valor: string) => void
 }
 
@@ -35,6 +37,7 @@ export function CabeceraCotizacion({
   valores,
   editable,
   monedaEditable,
+  mostrarValidez = true,
   onCambiar,
 }: CabeceraCotizacionProps) {
   const clientes = useClientes()
@@ -96,7 +99,7 @@ export function CabeceraCotizacion({
       </div>
 
       {campo('fecha', 'Fecha', { type: 'date' })}
-      {campo('validaHasta', 'Válida hasta', { type: 'date' })}
+      {mostrarValidez ? campo('validaHasta', 'Válida hasta', { type: 'date' }) : null}
 
       <div className={styles.campo}>
         <label className={styles.etiqueta} htmlFor={`${id}-moneda`}>

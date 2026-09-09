@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
@@ -14,6 +14,7 @@ import { formatearFecha, formatearImporte } from '../lib/formato'
 import { lineaCapitulo, lineaDeProducto, lineaLibre } from '../lib/lineaNueva'
 import { tasaDe } from '../lib/tratamientos'
 import { useDocumento, useRelacionados } from '../hooks/useDocumentos'
+import { esSensible, registrarEvento } from '../services/auditoria'
 import {
   actualizarCabecera,
   actualizarLinea,
@@ -21,12 +22,11 @@ import {
   cambiarEstado,
   editabilidad,
   eliminarLinea,
-  esSensible,
   intercambiarOrden,
   ordenarLineas,
-  registrarEvento,
   type LineaNueva,
 } from '../services/cotizaciones'
+import { convertirCotizacionEnPedido } from '../services/pedidos'
 import type { DocumentoDetalle, LineaDocumento } from '../types'
 import styles from './DetallePage.module.css'
 import editor from './EditorCotizacion.module.css'
@@ -75,6 +75,7 @@ function aValores(d: DocumentoDetalle): ValoresCabecera {
  */
 export function CotizacionDetallePage() {
   const { id } = useParams<{ id: string }>()
+  const navegar = useNavigate()
   const { activa } = useEmpresa()
   const queryClient = useQueryClient()
   const { data: doc, isPending, error } = useDocumento('cotizacion', id)
@@ -100,7 +101,26 @@ export function CotizacionDetallePage() {
     onError: (e: Error) => setUltimoError(e.message),
   })
 
+  /**
+   * Cotización → pedido.
+   *
+   * El botón se deshabilita si ya hay un pedido, pero lo que IMPIDE el
+   * duplicado es un índice único sobre `(company_id, quote_id)`: dos pestañas
+   * apretando a la vez sólo crean uno, y la segunda recibe el error.
+   */
+  const convertir = useMutation({
+    mutationFn: () => convertirCotizacionEnPedido(activa!.companyId, id!),
+    onSuccess: (pedidoId) => {
+      setUltimoError(null)
+      void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
+      void navegar(`/ventas/pedidos/${pedidoId}`)
+    },
+    onError: (e: Error) => setUltimoError(e.message),
+  })
+
   const lineas = useMemo(() => (doc ? ordenarLineas(doc.lineas) : []), [doc])
+  // La cotización ya tiene pedido si el panel de relacionados encontró uno.
+  const yaTienePedido = (relacionados.data?.pedidos.length ?? 0) > 0
 
   if (isPending) return <p className={styles.nota}>Cargando…</p>
 
@@ -383,6 +403,21 @@ export function CotizacionDetallePage() {
         <span className={editor.espacio} />
 
         <div className={editor.estados}>
+          {esInterno && doc.estado !== 'rejected' ? (
+            <button
+              type="button"
+              className={editor.primario}
+              disabled={yaTienePedido || convertir.isPending}
+              onClick={() => convertir.mutate()}
+              title={yaTienePedido ? 'Esta cotización ya tiene un pedido' : undefined}
+            >
+              {convertir.isPending
+                ? 'Generando…'
+                : yaTienePedido
+                  ? 'Ya tiene pedido'
+                  : '→ Generar pedido'}
+            </button>
+          ) : null}
           {doc.estado === 'draft' ? (
             <button type="button" className={editor.boton} onClick={() => transicion('sent')}>
               Marcar como enviada

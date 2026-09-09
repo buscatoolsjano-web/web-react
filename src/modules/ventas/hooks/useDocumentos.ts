@@ -3,6 +3,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { listarClientes } from '../services/clientes'
 import { listarDocumentos, monedasUsadas, obtenerDocumento } from '../services/documentos'
 import { documentosRelacionados, evidenciaDeEntrega } from '../services/relacionados'
+import { disponibilidadDeProductos } from '../services/stock'
 import { calcularPendientes, type ResultadoPendientes } from '../lib/pendientes'
 import type {
   DocumentoDetalle,
@@ -79,6 +80,26 @@ export function useMonedas(tipo: TipoDocumento) {
     queryFn: () => monedasUsadas(tipo, companyId!),
     enabled: companyId !== null,
     staleTime: 5 * 60_000,
+  })
+}
+
+/**
+ * Disponibilidad de los productos del pedido.
+ *
+ * Sólo para roles internos: `stock_balances` no es legible por un externo, y
+ * eso lo decide RLS, no este hook.
+ */
+export function useDisponibilidad(productIds: readonly string[]) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const esInterno = activa?.esInterno ?? false
+  const ids = [...productIds].sort()
+
+  return useQuery({
+    queryKey: ['ventas', companyId, 'stock', ids],
+    queryFn: () => disponibilidadDeProductos(companyId!, ids),
+    enabled: companyId !== null && esInterno && ids.length > 0,
+    staleTime: 30_000,
   })
 }
 

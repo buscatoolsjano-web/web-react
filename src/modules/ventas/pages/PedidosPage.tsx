@@ -1,5 +1,12 @@
 import { ListadoPage } from './ListadoPage'
 
 export function PedidosPage() {
-  return <ListadoPage tipo="pedido" titulo="Pedidos" etiquetaOrigen="Cotización" />
+  return (
+    <ListadoPage
+      tipo="pedido"
+      titulo="Pedidos"
+      etiquetaOrigen="Cotización"
+      rutaNuevo="/ventas/pedidos/nuevo"
+    />
+  )
 }

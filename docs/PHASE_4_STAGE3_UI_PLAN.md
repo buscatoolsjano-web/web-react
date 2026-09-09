@@ -554,3 +554,74 @@ precio.
    importaba `TRATAMIENTOS` desde `services/`, y ese módulo lee las variables
    de entorno al importarse. Lo agarró `npm run test:isolated`, que existe
    justamente para eso. Los tratamientos pasaron a `lib/tratamientos.ts`.
+
+---
+
+# Entrega 4 — pedidos y conversión desde cotización
+
+## Cambios de esquema
+
+| | por qué |
+|---|---|
+| `sales_orders.discount_pct`, `perception_pct` | el editor legacy del pedido tiene el mismo «% Dto.» global y el mismo check de percepción que el de la cotización (`ped-iibb` en `app.js`). Sin ellas, convertir una cotización con descuento global daría un pedido por otro importe |
+| `origin` gana el valor **`quote`** | el modelo suponía que la cotización siempre llegaba con la OC del cliente (`quote_po`). El flujo real convierte la cotización sola, y `direct` significa venta **sin** cotización: reusarlo sería guardar un dato falso |
+| **`unique (company_id, quote_id)`** parcial | ver abajo |
+| triggers de totales y de bloqueo | los mismos dos de la cotización, con `quantity_ordered` |
+
+### Un pedido por cotización — con evidencia
+
+No es una suposición: de los 132 pedidos históricos que tienen cotización,
+hay **132 cotizaciones distintas**. Ninguna generó dos pedidos.
+
+El botón se deshabilita cuando ya existe el pedido, pero **lo que impide el
+duplicado es el índice**: dos pestañas convirtiendo la misma cotización a la
+vez dejan **un** pedido, y la segunda recibe `23505`. Está probado.
+
+Si algún día hace falta partir una cotización en dos pedidos, se levanta con
+un `DROP INDEX`.
+
+## Qué se puede editar
+
+| estado | |
+|---|---|
+| `draft` | se edita todo |
+| `confirmed` **sin entregas** | se edita; el cambio de precio queda en `sales_audit` |
+| `confirmed` **con entregas** | **las líneas se congelan** |
+| `cancelled` | congelado |
+
+Lo de las entregas no es una preferencia: cambiar la cantidad pedida de una
+línea que ya tiene entregas mueve el pendiente de un documento que el cliente
+ya firmó — el mismo dato que Stage 2.5 tuvo que reconstruir para 505 líneas.
+Lo impone un trigger, no la pantalla.
+
+## Conversión
+
+Copia los snapshots tal como están —producto, SKU, nombre, cantidad, precio,
+descuento de línea, tratamiento y alícuota, incluidos los capítulos— y enlaza
+por `quote_id`. **La cotización original no se toca**: no cambia de estado, no
+se marca, no se modifica.
+
+El vínculo es una clave foránea, no el texto del número: el legacy guardaba
+`fromCotizacion: 'COTI02520'` como string y por eso Stage 2 tuvo que
+reconstruir 132 relaciones.
+
+## Stock
+
+El detalle muestra, por línea con producto: **en stock · reservado · libre ·
+faltante**. Es sólo lectura, y está verificado con un test:
+`stock_movements` y `stock_reservations` quedan **exactamente igual** después
+de crear, editar y confirmar un pedido. No se inventó ninguna automatización.
+
+Un producto sin fila en `stock_balances` muestra «sin movimientos
+registrados», no un cero: no es lo mismo no tener stock que no saber.
+
+## Mobile
+
+La auditoría del CSS encontró dos cosas y las dos se corrigieron: los campos
+de la tabla de líneas estaban en **40 px** y los botones de subir/bajar/borrar
+en **32 px**. En desktop está bien —es una tabla densa— pero con el dedo no.
+Ahora suben a 44 px por debajo de 768 px.
+
+Las cinco tablas del módulo scrollean **dentro de su propia caja**
+(`overflow-x: auto`), así que la página nunca scrollea en horizontal, y todos
+los inputs pasan a 16 px en mobile para que iOS no haga zoom al enfocar.

@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabase/client'
 import type { TablesUpdate } from '@/types/database.types'
+import { registrarEvento, type Editabilidad } from './auditoria'
 import type { LineaDocumento } from '../types'
 
 export type CambiosCabecera = TablesUpdate<'sales_quotes'>
@@ -193,56 +194,20 @@ export async function cambiarEstado(
   await registrarEvento('sales_quote', quoteId, accion, desde, hasta, null)
 }
 
-/**
- * Auditoría.
- *
- * `sales_audit` no tiene policy de INSERT: la única puerta es esta función
- * `SECURITY DEFINER`. Se llama por ACCIÓN DE NEGOCIO —crear, enviar,
- * aprobar, rechazar, cancelar, o cambiar un precio de un documento ya
- * enviado— y nunca por un guardado técnico.
- */
-export async function registrarEvento(
-  tipo: 'sales_quote' | 'sales_order' | 'delivery',
-  id: string,
-  accion: 'created' | 'updated_sensitive_fields' | 'sent' | 'approved' | 'rejected' | 'cancelled',
-  desde: string | null,
-  hasta: string | null,
-  diff: Record<string, { from: string | number | null; to: string | number | null }> | null,
-): Promise<void> {
-  const { error } = await supabase.rpc('registrar_evento_venta', {
-    p_entity_type: tipo,
-    p_entity_id: id,
-    p_action: accion,
-    ...(desde !== null && { p_from_status: desde }),
-    ...(hasta !== null && { p_to_status: hasta }),
-    ...(diff !== null && { p_diff: diff }),
-  })
-  // Un fallo de auditoría no puede tumbar la operación de negocio que ya se
-  // hizo, pero tampoco se traga en silencio.
-  if (error) console.error('No se pudo registrar el evento de auditoría:', error.message)
-}
-
-/** Campos cuyo cambio, en un documento ya enviado, se audita. */
-const SENSIBLES = new Set(['unit_price', 'quantity', 'discount_pct', 'perception_pct'])
-
-export function esSensible(campo: string): boolean {
-  return SENSIBLES.has(campo)
-}
-
-/** Qué se puede hacer con una cotización según su estado. */
-export interface Editabilidad {
-  editable: boolean
-  motivo: string | null
-}
-
 export function editabilidad(estado: string, esInterno: boolean): Editabilidad {
-  if (!esInterno) return { editable: false, motivo: 'Sólo el equipo interno edita cotizaciones.' }
-  if (estado === 'draft') return { editable: true, motivo: null }
+  if (!esInterno)
+    return { editable: false, motivo: 'Sólo el equipo interno edita cotizaciones.', audita: false }
+  if (estado === 'draft') return { editable: true, motivo: null, audita: false }
   if (estado === 'sent')
-    return { editable: true, motivo: 'Ya fue enviada: los cambios de precio quedan registrados.' }
+    return {
+      editable: true,
+      motivo: 'Ya fue enviada: los cambios de precio quedan registrados.',
+      audita: true,
+    }
   return {
     editable: false,
     motivo: 'La cotización está cerrada y no se puede modificar.',
+    audita: false,
   }
 }
 

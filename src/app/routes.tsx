@@ -87,6 +87,9 @@ const CotizacionDetallePage = lazyConRecarga(() =>
 const PedidosPage = lazyConRecarga(() =>
   import('@/modules/ventas/pages/PedidosPage').then((m) => ({ default: m.PedidosPage })),
 )
+const PedidoNuevoPage = lazyConRecarga(() =>
+  import('@/modules/ventas/pages/PedidoNuevoPage').then((m) => ({ default: m.PedidoNuevoPage })),
+)
 const PedidoDetallePage = lazyConRecarga(() =>
   import('@/modules/ventas/pages/PedidoDetallePage').then((m) => ({
     default: m.PedidoDetallePage,
@@ -145,6 +148,7 @@ export const routes: RouteObject[] = [
       { path: 'ventas/cotizaciones/nueva', element: privada(<CotizacionNuevaPage />) },
       { path: 'ventas/cotizaciones/:id', element: privada(<CotizacionDetallePage />) },
       { path: 'ventas/pedidos', element: privada(<PedidosPage />) },
+      { path: 'ventas/pedidos/nuevo', element: privada(<PedidoNuevoPage />) },
       { path: 'ventas/pedidos/:id', element: privada(<PedidoDetallePage />) },
       { path: 'ventas/entregas', element: privada(<EntregasPage />) },
       { path: 'ventas/entregas/:id', element: privada(<EntregaDetallePage />) },

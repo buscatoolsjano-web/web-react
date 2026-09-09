@@ -2397,6 +2397,7 @@ export type Database = {
           created_by: string | null
           currency_code: string | null
           customer_id: string
+          discount_pct: number | null
           exchange_rate: number | null
           external_id: string | null
           external_source: string | null
@@ -2414,6 +2415,7 @@ export type Database = {
           original_number: string | null
           payment_status: string
           payment_terms: string | null
+          perception_pct: number | null
           po_id: string | null
           quote_id: string | null
           review_reason: string | null
@@ -2438,6 +2440,7 @@ export type Database = {
           created_by?: string | null
           currency_code?: string | null
           customer_id: string
+          discount_pct?: number | null
           exchange_rate?: number | null
           external_id?: string | null
           external_source?: string | null
@@ -2455,6 +2458,7 @@ export type Database = {
           original_number?: string | null
           payment_status?: string
           payment_terms?: string | null
+          perception_pct?: number | null
           po_id?: string | null
           quote_id?: string | null
           review_reason?: string | null
@@ -2479,6 +2483,7 @@ export type Database = {
           created_by?: string | null
           currency_code?: string | null
           customer_id?: string
+          discount_pct?: number | null
           exchange_rate?: number | null
           external_id?: string | null
           external_source?: string | null
@@ -2496,6 +2501,7 @@ export type Database = {
           original_number?: string | null
           payment_status?: string
           payment_terms?: string | null
+          perception_pct?: number | null
           po_id?: string | null
           quote_id?: string | null
           review_reason?: string | null

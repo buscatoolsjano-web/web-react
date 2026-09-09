@@ -57,12 +57,15 @@
   color: var(--text);
 }
 
+/* En mobile los controles suben a 44px: 40 alcanza con mouse, no con el dedo.
+   Y 16px de fuente porque menos que eso hace que iOS haga zoom al enfocar. */
 @media (max-width: 767px) {
   .texto,
   .sku,
   .numero,
   .select {
     font-size: 16px;
+    min-height: 44px;
   }
 }
 
@@ -152,6 +155,15 @@
 .icono:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 1px;
+}
+
+/* Subir, bajar y borrar son los botones más chicos de toda la pantalla: en
+   mobile pasan a 44px o son imposibles de acertar. */
+@media (max-width: 767px) {
+  .icono {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 .vacio {
