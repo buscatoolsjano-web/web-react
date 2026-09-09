@@ -176,11 +176,17 @@ export async function buscarProductos(
 ): Promise<PaginaDeProductos> {
   const porPagina = plan.rango.hasta - plan.rango.desde + 1
 
+  // Los filtros van DENTRO de la RPC. Si se aplicaran sólo en la segunda
+  // consulta, `total_count` contaría el conjunto sin filtrar: medido en
+  // producción, el paginador decía "1–50 de 407" mostrando 48 filas.
   const { data: ranking, error: errorRpc } = await supabase.rpc('search_products', {
     p_company: plan.companyId,
     p_query: texto,
     p_limit: porPagina,
     p_offset: plan.rango.desde,
+    p_category: plan.eq['category_id'] ?? null,
+    p_brand: plan.eq['brand_id'] ?? null,
+    p_attrs: Object.keys(plan.atributos).length > 0 ? plan.atributos : null,
   })
 
   if (errorRpc) throw new Error(`La búsqueda falló: ${errorRpc.message}`)
@@ -200,10 +206,8 @@ export async function buscarProductos(
     .eq('company_id', plan.companyId)
     .in('id', ids)
 
-  // Los filtros de marca/categoría/atributos siguen aplicando sobre el
-  // resultado de la búsqueda: buscar y filtrar se combinan.
-  for (const [col, val] of Object.entries(plan.eq)) q = q.eq(col, val)
-  if (Object.keys(plan.atributos).length > 0) q = q.contains('attributes', plan.atributos)
+  // Los filtros ya los aplicó la RPC; no hace falta repetirlos acá. Sólo
+  // se acota el precio a la lista vigente.
   if (priceListId) q = q.eq('product_prices.price_list_id', priceListId)
 
   const { data, error } = await q

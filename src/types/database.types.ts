@@ -835,9 +835,12 @@ export type Database = {
       search_products: {
         Args: {
           p_company: string
+          p_query: string
           p_limit?: number
           p_offset?: number
-          p_query: string
+          p_category?: string | null
+          p_brand?: string | null
+          p_attrs?: Json | null
         }
         Returns: {
           id: string
