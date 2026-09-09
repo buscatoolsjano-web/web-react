@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { CabeceraCotizacion, type CampoCabecera, type ValoresCabecera } from '../components/CabeceraCotizacion'
 import { ChipEstado } from '../components/ChipEstado'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
+import { ModalEntregaParcial } from '../components/ModalEntregaParcial'
 import { PanelPendientes } from '../components/PanelPendientes'
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelStock } from '../components/PanelStock'
@@ -22,6 +23,7 @@ import {
   useRelacionados,
 } from '../hooks/useDocumentos'
 import { esSensible, registrarEvento } from '../services/auditoria'
+import { crearEntregaDesdePedido, lineasParaEntregar } from '../services/entregas'
 import { ordenarLineas, type LineaNueva } from '../services/cotizaciones'
 import {
   actualizarCabeceraPedido,
@@ -92,6 +94,7 @@ function aValores(d: DocumentoDetalle): ValoresCabecera {
  */
 export function PedidoDetallePage() {
   const { id } = useParams<{ id: string }>()
+  const navegar = useNavigate()
   const { activa } = useEmpresa()
   const queryClient = useQueryClient()
   const { data: doc, isPending, error } = useDocumento('pedido', id)
@@ -101,6 +104,8 @@ export function PedidoDetallePage() {
   const [modoEdicion, setModoEdicion] = useState(false)
   const [buscando, setBuscando] = useState(false)
   const [ultimoError, setUltimoError] = useState<string | null>(null)
+  const [generando, setGenerando] = useState(false)
+  const [errorRemito, setErrorRemito] = useState<string | null>(null)
 
   const esInterno = activa?.esInterno ?? false
   const lineas = useMemo(() => (doc ? ordenarLineas(doc.lineas) : []), [doc])
@@ -122,6 +127,33 @@ export function PedidoDetallePage() {
       void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
     },
     onError: (e: Error) => setUltimoError(e.message),
+  })
+
+  // Los pendientes se piden sólo cuando el modal está abierto: es una consulta
+  // de tres pasos y no hace falta tenerla lista todo el tiempo.
+  const paraEntregar = useQuery({
+    queryKey: ['ventas', activa?.companyId, 'para-entregar', id],
+    queryFn: () => lineasParaEntregar(activa!.companyId, id!),
+    enabled: generando && !!activa && !!id,
+    staleTime: 0,
+  })
+
+  const crearRemito = useMutation({
+    mutationFn: ({ cantidades, fecha }: { cantidades: Map<string, number>; fecha: string }) =>
+      crearEntregaDesdePedido(
+        activa!.companyId,
+        id!,
+        cantidades,
+        paraEntregar.data ?? [],
+        fecha,
+      ),
+    onSuccess: (entregaId) => {
+      setGenerando(false)
+      setErrorRemito(null)
+      void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
+      void navegar(`/ventas/entregas/${entregaId}`)
+    },
+    onError: (e: Error) => setErrorRemito(e.message),
   })
 
   if (isPending) return <p className={styles.nota}>Cargando…</p>
@@ -430,6 +462,18 @@ export function PedidoDetallePage() {
         <span className={editor.espacio} />
 
         <div className={editor.estados}>
+          {esInterno && doc.estado === 'confirmed' ? (
+            <button
+              type="button"
+              className={editor.primario}
+              onClick={() => {
+                setErrorRemito(null)
+                setGenerando(true)
+              }}
+            >
+              → Nota de entrega
+            </button>
+          ) : null}
           {doc.estado === 'draft' ? (
             <button
               type="button"
@@ -461,6 +505,17 @@ export function PedidoDetallePage() {
           idActual={doc.id}
         />
       </section>
+
+      {generando ? (
+        <ModalEntregaParcial
+          lineas={paraEntregar.data ?? []}
+          cargando={paraEntregar.isPending}
+          guardando={crearRemito.isPending}
+          error={errorRemito}
+          onCerrar={() => setGenerando(false)}
+          onConfirmar={(cantidades, fecha) => crearRemito.mutate({ cantidades, fecha })}
+        />
+      ) : null}
     </div>
   )
 }

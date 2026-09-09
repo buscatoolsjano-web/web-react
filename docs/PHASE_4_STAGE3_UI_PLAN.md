@@ -625,3 +625,73 @@ Ahora suben a 44 px por debajo de 768 px.
 Las cinco tablas del módulo scrollean **dentro de su propia caja**
 (`overflow-x: auto`), así que la página nunca scrollea en horizontal, y todos
 los inputs pasan a 16 px en mobile para que iOS no haga zoom al enfocar.
+
+---
+
+# Entrega 5 — remitos, parciales y stock
+
+## Qué hacía el legacy (revisado antes de decidir)
+
+`generarNotaEntregaDesdePedido` (app.js 22064) y `applyStockDeductions` (22009):
+
+| | legacy | acá |
+|---|---|---|
+| sobreentrega | **la recortaba en silencio** con `Math.min(qty, pendiente)` | se **rechaza** y se explica |
+| control de stock | **ninguno**: descontaba y dejaba el saldo negativo | **igual, pero avisando**: se muestra el faltante y se deja emitir |
+| relación con el pedido | `entregado[idx]`, un array por índice | `delivery_line.order_line_id` |
+| kits | expandía componentes | **no se migra**: hay 0 productos con `is_kit` y 0 líneas con componentes. Sin evidencia no se implementa |
+
+El recorte silencioso es lo único que cambié a propósito: entregar una
+cantidad distinta de la que se pidió sin decir nada es peor que rechazar.
+
+## Confirmar es una sola operación del servidor
+
+`public.confirmar_entrega(delivery)` hace todo dentro de una transacción, con
+la fila del remito bloqueada (`for update`): movimientos de stock, liberación
+de reservas, estado del remito, estado de cumplimiento del pedido y auditoría.
+
+**Es idempotente.** Si el remito ya está despachado devuelve
+`{ya_confirmada: true}` y no toca nada. Probado con las tres formas de romperlo:
+
+| | |
+|---|---|
+| confirmar dos veces seguidas | **un** movimiento |
+| dos pestañas confirmando a la vez | **una** actúa, **un** movimiento |
+| reintento tras refrescar | **un** movimiento |
+
+## Stock y reservas
+
+El movimiento va con **cantidad negativa** porque el trigger existente
+(`app.apply_stock_movement`) suma lo que recibe. No se creó ningún sistema
+paralelo: `stock_movements` → trigger → `stock_balances`, como estaba.
+
+Las reservas se consumen **borrando la fila** y, si sobra cantidad,
+insertando el resto: el trigger de reservas sólo entiende INSERT y DELETE.
+
+## Estado de cumplimiento
+
+Se **deriva** de las cantidades reales: `pending` · `partially_delivered` ·
+`delivered`. Nadie lo escribe a mano.
+
+## Bugs encontrados
+
+1. **Un remito en borrador contaba como entregado.** `derivar_cumplimiento`
+   sumaba todas las entregas no canceladas, así que un pedido de 100 con 70
+   despachadas y 30 en borrador quedaba `delivered`. Son dos preguntas
+   distintas: *¿cuánto queda por entregar?* cuenta también los borradores —o
+   el modal ofrecería dos veces las mismas unidades— y *¿el pedido está
+   entregado?* cuenta sólo lo despachado. Lo agarró el test del caso
+   100 → 30 → 40 → 30.
+2. **`app.apply_stock_reservation` tenía una trampa en UPDATE**: restaba
+   `OLD.quantity` y nunca sumaba `NEW.quantity`, así que cambiar la cantidad
+   de una reserva dejaba el saldo reservado mal para siempre. Hoy nadie hace
+   UPDATE, pero el trigger no podía quedar así.
+3. **`setState` dentro de un `useEffect`** en el modal de parciales. Se pasó
+   al patrón de ajuste durante el render.
+
+## Mobile
+
+El modal ocupa la pantalla completa por debajo de 640 px —una caja centrada
+con márgenes desperdicia espacio justo donde no sobra—, su tabla scrollea
+dentro de su propia caja y todos los controles son de 44 px con fuente de
+16 px.

@@ -3143,6 +3143,7 @@ export type Database = {
         }
         Returns: Json
       }
+      confirmar_entrega: { Args: { p_delivery: string }; Returns: Json }
       next_document_number: {
         Args: { p_company: string; p_doc_type: string; p_series?: string }
         Returns: string
