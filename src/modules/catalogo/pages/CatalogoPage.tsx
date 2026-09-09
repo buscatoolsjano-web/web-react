@@ -19,6 +19,7 @@ import {
 import { useDisponibilidad, useProductos } from '../hooks/useProductos'
 import { useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
 import { contarFiltrosActivos } from '../lib/planDeConsulta'
+import { debePropagarBusqueda } from '../lib/busquedaDiferida'
 import { OPCIONES_POR_PAGINA, type ProductoListado } from '../types'
 import styles from './CatalogoPage.module.css'
 
@@ -52,9 +53,15 @@ export function CatalogoPage() {
     if (filtros.q !== textoInput.trim()) setTextoInput(filtros.q)
   }
 
+  // La condición está en una función pura y testeada: sincronizar sólo el
+  // input no alcanzaba. Cuando la URL cambia por fuera, el valor diferido
+  // se queda 300 ms con el anterior, y propagarlo en esa ventana pisaba la
+  // URL con el valor viejo y borraba la búsqueda. Ver busquedaDiferida.ts.
   useEffect(() => {
-    if (textoDiferido.trim() !== filtros.q) actualizar({ q: textoDiferido })
-  }, [textoDiferido, filtros.q, actualizar])
+    if (debePropagarBusqueda(textoInput, textoDiferido, filtros.q)) {
+      actualizar({ q: textoDiferido })
+    }
+  }, [textoInput, textoDiferido, filtros.q, actualizar])
 
   const { listas, porDefecto, puedeElegir, cargando: listasCargando } = useListasDePrecios(companyId)
   const [listaElegida, setListaElegida] = useState<string | null>(null)
