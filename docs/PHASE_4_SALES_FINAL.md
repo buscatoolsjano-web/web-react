@@ -233,7 +233,7 @@ Valores iniciales:
 | `quote` | `COTI` | 5 | **2541** |
 | `sales_order` | `PDV` | 5 | **1316** |
 | `delivery` | `RT` | 10 | **1424** |
-| `invoice` | — | — | **pendiente** (I1) |
+| `invoice` | — | — | **sin fila, a propósito**: el número lo asigna STEL |
 
 ### Los «outliers» no eran outliers — eran un `1` de más
 
@@ -492,34 +492,121 @@ se filtran en silencio.
 
 ---
 
-## I. Decisiones bloqueadas por la otra PC
+## I. Facturación — desbloqueado, con STEL como fuente fiscal
 
-**I1 · Numeración de facturas.** No sé el prefijo, ni el padding, ni el último
-número. `document_sequences` para `invoice` queda **sin fila** hasta tener el
-dato. Crear la secuencia adivinando arrancaría la numeración fiscal en un
-número equivocado.
+Busqué facturas en los dos navegadores de este equipo y no hay ninguna. Eso
+NO significa que el negocio no facture: significa que **no se factura desde el
+ERP legacy**. `erp_facturas` existe en el Chrome real pero vale `[]`, y
+`creadoPor` dice **`STEL Order`** en 62 documentos. La facturación vive
+afuera.
 
-**I2 · Estructura real de facturas, recibos y notas de crédito.** Del código
-del legacy sé los campos —`ref, fromNE, fromPedido, cliente, fecha, items,
-base, ivaAmount, total, estado` para factura; `facturaRef, cliente, monto,
-fecha, formaPago` para recibo— pero **no vi un solo registro**. El modelo de
-§E está hecho sobre el código, no sobre los datos. Puede faltar algo.
+Así que el diseño deja de esperar ese dato.
 
-**I3 · Cuántas facturas y cobranzas hay.** Sin esto, la migración de esas
-tablas no se puede planificar ni reconciliar.
+### Identidad interna ≠ numeración fiscal
 
-**I4 · Notas de crédito.** `credit_notes` **no está** en las 14 tablas, a
-propósito: sé que existen en el legacy y no tengo ni su cantidad ni su forma.
-Cuando aparezcan, es una tabla más con la misma estructura que
-`payment_allocations` para asignarlas a facturas.
+Son dos cosas distintas y el modelo las separa:
 
-**I5 · Si esa PC tiene documentos que el servidor no tiene.** El equipo que
-audité estaba **exactamente sincronizado** con el servidor. La otra puede no
-estarlo, y entonces habría cotizaciones o pedidos que hoy no están en los 636.
+| | |
+|---|---|
+| `id` (uuid) | **identidad interna**. Siempre existe, desde el borrador. Es lo que referencian las líneas, los pagos y la trazabilidad |
+| `number` | **el número FISCAL**, y por eso es **nullable**: un borrador o una solicitud de facturación todavía no tiene uno |
 
-**Qué necesito de vos:** desde qué equipo/navegador se emiten las facturas.
-Con eso hago el mismo procedimiento read-only —listar claves, contar, validar,
-exportar, checksum, guardar fuera del repo, no borrar nada— y cierro I1–I5.
+Tres orígenes posibles, sin privilegiar ninguno:
+
+```sql
+external_source text check (external_source in ('stel','web','import'))
+external_id     text        -- id del documento en el sistema externo
+external_number text        -- número fiscal tal como lo asignó ese sistema
+external_status text        -- su estado, sin traducir
+synced_at       timestamptz
+```
+
+Cuando el número viene de afuera, `number` es copia de `external_number`. Se
+duplica **a propósito**: así toda consulta y todo índice usan `number` igual
+que en los otros documentos. Y un CHECK impide que se desincronicen:
+
+```sql
+constraint chk_invoice_numero_externo
+  check (external_number is null or number is not distinct from external_number)
+```
+
+Los índices son **parciales**, porque el número puede faltar y dos borradores
+sin número no colisionan:
+
+```sql
+create unique index uq_invoice_number   on sales_invoices (company_id, number)
+  where number is not null;
+create unique index uq_invoice_external on sales_invoices (company_id, external_source, external_id)
+  where external_id is not null;
+```
+
+> Un índice parcial **no se puede inferir desde `ON CONFLICT`**. El
+> sincronizador lee e inserta, no hace upsert. Es el mismo caso que el índice
+> de apertura de stock de la Fase 3.5.
+
+### No se crea la secuencia fiscal de `invoice`
+
+Y no por falta de datos: **es una decisión**. Si STEL asigna el número,
+inventar una secuencia nuestra sería crear una **segunda numeración fiscal
+compitiendo con la real**. `document_sequences` tiene fila para `quote`,
+`sales_order` y `delivery`, y **ninguna** para `invoice`.
+
+Una secuencia **interna no fiscal** —para identificar borradores o solicitudes
+de facturación— es posible, pero no se crea sin un caso de uso: el UUID ya
+identifica un borrador.
+
+### Cobranzas
+
+`payments` y `payment_allocations` existen **por necesidad funcional**, no
+porque haya histórico. Se alimentan de STEL, de carga manual, de la web o de
+una integración bancaria futura.
+
+Llevan `external_source` (con `'bank'` además de los tres), `external_id` y
+`synced_at` — pero **no `external_number`**: un pago no tiene numeración
+fiscal, así que ese campo no se duplica por simetría.
+
+### Notas de crédito — no se crean
+
+El legacy las tiene (`erp_notas_credito`) pero no apareció ni un registro, así
+que no conozco su forma ni su numeración. Crearlas hoy sería inventar una
+tabla sobre una suposición.
+
+Cuando STEL las exponga, entran con la forma que ya está probada acá:
+`credit_notes` + `credit_note_allocations`, igual que
+`payment_allocations`. **No hay que rediseñar nada para sumarlas.**
+
+### Estrategia de integración con STEL
+
+```
+Pedido / Entrega
+       ↓
+Condición o solicitud de facturación        ← la decide el ERP
+       ↓
+STEL  (o, más adelante, una función web)    ← asigna el número fiscal
+       ↓
+sales_invoices   external_source='stel', external_id, external_number, synced_at
+       ↓
+payments / payment_allocations
+```
+
+La base nueva es **la capa de consulta y trazabilidad**; STEL sigue siendo la
+fuente fiscal. Un índice acompaña esa relación:
+
+```sql
+create index idx_invoices_sync on sales_invoices (company_id, external_source, synced_at)
+  where external_source is not null;
+```
+
+para encontrar qué falta sincronizar sin recorrer la tabla entera.
+
+### Estado del histórico financiero
+
+**`HISTÓRICO DE FACTURAS LOCALES: NO DISPONIBLE / NO ENCONTRADO`** — que no
+es lo mismo que «no existen». Muy probablemente estén en STEL.
+
+En consecuencia: no se reconstruyen desde pedidos ni remitos, no se inventa
+numeración, y la migración histórica de facturas queda como **tarea separada**
+que no bloquea nada.
 
 ---
 
@@ -527,7 +614,7 @@ exportar, checksum, guardar fuera del repo, no borrar nada— y cierro I1–I5.
 
 | | decisión | estado |
 |---|---|---|
-| R1 | facturas y cobranzas | **bloqueado** — falta identificar la PC |
+| R1 | facturas y cobranzas | **resuelto**: no se facturaba desde el ERP. STEL es la fuente fiscal |
 | R2 | empresa `gas` | resuelto: `NEEDS_REVIEW_COMPANY`, fuera del inventario |
 | R3 | ARS sin TC | resuelto: `exchange_rate = NULL`, sin convertir |
 | R4 | sin moneda | resuelto: `currency_code = NULL` + `needs_review` + reporte |

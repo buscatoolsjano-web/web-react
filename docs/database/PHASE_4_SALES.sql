@@ -85,11 +85,17 @@ revoke all on function app.next_document_number(uuid, text) from public, anon;
 grant execute on function app.next_document_number(uuid, text) to authenticated;
 
 -- Valores iniciales: máximo real + 1, NO el conteo de registros — hay huecos.
--- `invoice` queda deliberadamente SIN FILA: no conocemos la serie fiscal.
--- Crearla adivinando arrancaría la numeración en un número equivocado.
 --   quote        COTI  máx real 2540
 --   sales_order  PDV   máx real 1315 (los 9 "PDV11xxx" son un 1 de más, no otra serie)
 --   delivery     RT    máx real 1423
+--
+-- 'invoice' NO LLEVA FILA, y no es por falta de datos: es una decisión. Si el
+-- número fiscal lo asigna STEL, inventar acá una secuencia paralela sería
+-- crear una SEGUNDA numeración fiscal compitiendo con la real. El número de
+-- la factura viene de afuera; ver sales_invoices.
+--
+-- Una secuencia INTERNA no fiscal —para identificar borradores o solicitudes
+-- de facturación— es posible, pero no se crea sin un caso de uso concreto.
 
 
 -- ────────────────────────────────────────────────────────────────────────────
@@ -535,12 +541,30 @@ alter table products add column is_serialized boolean not null default false;
 -- 7 · Factura y cobranza
 -- ────────────────────────────────────────────────────────────────────────────
 
+-- ── Factura ────────────────────────────────────────────────────────────────
+-- IDENTIDAD INTERNA y NUMERACIÓN FISCAL son dos cosas distintas:
+--
+--   id      · UUID, siempre presente. Es lo que referencian las líneas, los
+--             pagos y la trazabilidad. Existe desde el borrador.
+--   number  · el número FISCAL, y por eso es NULLABLE: un borrador o una
+--             solicitud de facturación todavía no tiene uno.
+--
+-- El número puede venir de tres orígenes y el modelo no privilegia ninguno:
+-- STEL, una función futura de la web, o una importación histórica. Cuando
+-- viene de afuera, 'number' es copia de 'external_number': se duplica a
+-- propósito para que toda consulta y todo índice usen 'number' igual que en
+-- los demás documentos, y el CHECK impide que se desincronicen.
 create table sales_invoices (
   id              uuid primary key default gen_random_uuid(),
   company_id      uuid not null references companies(id) on delete cascade,
-  number          text not null,
-  external_number text,
-  external_source text,
+  number          text,
+  -- Procedencia. Sólo estos cinco campos: no se duplica el documento externo
+  -- entero, sólo lo que hace falta para identificarlo y reconciliarlo.
+  external_source text check (external_source in ('stel','web','import')),
+  external_id     text,          -- id del documento en el sistema externo
+  external_number text,          -- número fiscal tal como lo asignó ese sistema
+  external_status text,          -- su estado, sin traducir
+  synced_at       timestamptz,
   customer_id     uuid not null references customers(id),
   order_id        uuid references sales_orders(id),
   invoice_date    date not null,
@@ -554,24 +578,36 @@ create table sales_invoices (
                   check (status in ('draft','issued','paid','cancelled')),
   notes           text,
   needs_review    boolean not null default false,
-  -- El número ORIGINAL del legacy, tal como aparece. Nunca se reemplaza ni se
-  -- corrige: es lo que hace trazable el documento contra el sistema viejo.
-  -- Para los documentos migrados, `number` guarda este mismo valor.
+  -- Para una importación histórica futura: el número tal como venía en su
+  -- sistema de origen. No hay facturas legacy que migrar hoy, así que no se
+  -- agregan acá las columnas de sospecha de numeración que sí llevan los
+  -- documentos que sí tienen histórico.
   original_number text,
-  -- Dato AUXILIAR de revisión, nunca de uso. Los 9 "PDV11xxx" parecen el
-  -- número correcto con un 1 de más: siete de los ocho huecos de la serie los
-  -- llena exactamente uno de ellos. Se deja la sospecha registrada para que
-  -- una persona decida, sin tocar el número real.
-  --   original_number             = 'PDV11157'
-  --   suspected_normalized_number = 'PDV1157'
-  suspected_normalized_number text,
-  number_outlier  boolean not null default false,
   created_by      uuid references profiles(id) default auth.uid(),
   created_at      timestamptz not null default now(),
   updated_by      uuid references profiles(id),
   updated_at      timestamptz not null default now(),
-  unique (company_id, number)
+  -- Si el número vino de afuera, el nuestro tiene que ser ese y no otro.
+  constraint chk_invoice_numero_externo
+    check (external_number is null or number is not distinct from external_number)
 );
+
+-- Índices únicos PARCIALES: el número fiscal puede faltar (borradores), y dos
+-- facturas sin número no colisionan entre sí.
+-- OJO: un índice parcial NO se puede inferir desde ON CONFLICT. El importador
+-- y el sincronizador leen e insertan, no hacen upsert. Mismo caso que el
+-- índice de apertura de stock en la Fase 3.5.
+create unique index uq_invoice_number
+  on sales_invoices (company_id, number) where number is not null;
+
+create unique index uq_invoice_external
+  on sales_invoices (company_id, external_source, external_id)
+  where external_id is not null;
+
+-- Para encontrar lo que falta sincronizar contra el sistema externo.
+create index idx_invoices_sync
+  on sales_invoices (company_id, external_source, synced_at)
+  where external_source is not null;
 
 create table sales_invoice_lines (
   id                uuid primary key default gen_random_uuid(),
@@ -592,9 +628,16 @@ create table sales_invoice_lines (
   tax_rate_snapshot numeric(6,3) not null default 21
 );
 
+-- Los pagos existen por necesidad funcional, no porque haya histórico local.
+-- Se alimentan de STEL, de carga manual, de la web o de una integración
+-- bancaria futura. Misma procedencia que la factura, pero SIN external_number:
+-- un pago no tiene numeración fiscal, así que ese campo no se duplica.
 create table payments (
   id            uuid primary key default gen_random_uuid(),
   company_id    uuid not null references companies(id) on delete cascade,
+  external_source text check (external_source in ('stel','web','import','bank')),
+  external_id     text,
+  synced_at       timestamptz,
   customer_id   uuid not null references customers(id),
   payment_date  date not null,
   amount        numeric(18,4) not null check (amount > 0),
@@ -606,6 +649,9 @@ create table payments (
   created_by    uuid references profiles(id) default auth.uid(),
   created_at    timestamptz not null default now()
 );
+
+create unique index uq_payment_external
+  on payments (company_id, external_source, external_id) where external_id is not null;
 
 -- La pieza que el legacy no tiene. Sin ella, un cheque que paga tres facturas
 -- no se puede representar.
@@ -713,3 +759,26 @@ using (
       and o.company_id = sales_order_lines.company_id
   )
 );
+
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- 11 · Lo que NO se crea, y por qué
+-- ────────────────────────────────────────────────────────────────────────────
+--
+-- credit_notes / credit_note_allocations
+--   El legacy las tiene (erp_notas_credito) pero no apareció ni un registro en
+--   los dos navegadores auditados, así que no conozco su forma ni su
+--   numeración. Crearlas hoy sería inventar una tabla sobre una suposición.
+--
+--   Cuando STEL las exponga o el flujo las necesite, entran con la misma forma
+--   que ya está probada acá:
+--     credit_notes            (id, company_id, number, external_*, customer_id,
+--                              invoice_id, date, currency_code, total, status)
+--     credit_note_allocations (id, company_id, credit_note_id, invoice_id, amount)
+--   igual que payment_allocations. No hay que rediseñar nada para sumarlas.
+--
+-- secuencia fiscal de invoice
+--   Ver la nota en document_sequences.
+--
+-- secuencia interna de borradores
+--   Posible, sin caso de uso hoy. El UUID alcanza para identificar un borrador.
