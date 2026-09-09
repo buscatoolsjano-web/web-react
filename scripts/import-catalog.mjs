@@ -176,9 +176,26 @@ function normalizar(p, ctx) {
   if (pu !== null && pu > ctx.umbralAnomalo) avisos.push('pu anómalo')
   // (el stock negativo ya se agregó arriba)
 
+  // Procedencia del precio. Vive SÓLO en el reporte de migración: no se
+  // agrega ninguna columna al schema para esto, y el frontend nunca la ve.
+  //
+  //   explicit_price → precio_venta real del legacy
+  //   markup_legacy  → materializado como pu * 3
+  //   anomaly        → pu desproporcionado, excluido a propósito
+  //   no_price       → no hay dato utilizable
+  let fuentePrecio = 'no_price'
+  if (pv !== null && pv > 0) fuentePrecio = 'explicit_price'
+  else if (pu !== null && pu > ctx.umbralAnomalo) fuentePrecio = 'anomaly'
+  else if (pu !== null && pu > 0) fuentePrecio = 'markup_legacy'
+
   return {
     ok: true,
     avisos,
+    fuentePrecio,
+    // `pu` se conserva SÓLO en memoria, para calcular el precio. Nunca se
+    // escribe en products, attributes, product_prices ni ninguna tabla del
+    // catálogo: es el COSTO y pertenece a Compras.
+    puSoloParaCalculo: pu,
     producto: {
       company_id: ctx.companyId,
       sku,
@@ -307,13 +324,34 @@ async function main() {
   const conStock = validos.filter((v) => v.stock !== null).length
   const sumaStock = validos.reduce((s, v) => s + (v.stock ?? 0), 0)
 
-  seccion('PRECIOS Y STOCK PREVISTOS')
-  log(`  precio_venta explícito ${String(conPvExplicito).padStart(6)}`)
-  log(`  con pu > 0 utilizable  ${String(conCosto).padStart(6)}  (sólo con --precios markup-legacy)`)
-  let aInsertarPrecios = conPvExplicito
-  if (POLITICA_PRECIOS === 'markup-legacy') aInsertarPrecios += conCosto
+  seccion('PRECIOS — PROCEDENCIA')
+  const porFuente = {}
+  for (const v of validos) porFuente[v.fuentePrecio] = (porFuente[v.fuentePrecio] ?? 0) + 1
+  for (const f of ['explicit_price', 'markup_legacy', 'anomaly', 'no_price']) {
+    log(`  ${f.padEnd(16)} ${String(porFuente[f] ?? 0).padStart(6)}`)
+  }
+  let aInsertarPrecios = porFuente['explicit_price'] ?? 0
+  if (POLITICA_PRECIOS === 'markup-legacy') aInsertarPrecios += porFuente['markup_legacy'] ?? 0
   if (POLITICA_PRECIOS === 'ninguno') aInsertarPrecios = 0
-  log(`  → filas en product_prices ${String(aInsertarPrecios).padStart(4)}`)
+  log(`\n  → filas en product_prices ${String(aInsertarPrecios).padStart(4)}`)
+  log(`  (anomaly y no_price nunca generan precio)`)
+
+  seccion('NEEDS_REVIEW — DESGLOSE')
+  const porMotivo = new Map()
+  for (const v of validos) {
+    for (const a of v.avisos) {
+      if (!porMotivo.has(a)) porMotivo.set(a, [])
+      porMotivo.get(a).push(v.producto.sku)
+    }
+  }
+  log('  Un producto puede tener más de un motivo, así que la suma de')
+  log('  motivos es mayor que la cantidad de productos marcados.\n')
+  for (const [m, skus] of [...porMotivo.entries()].sort((a, b) => b[1].length - a[1].length)) {
+    log(`  ${String(skus.length).padStart(6)}  ${m}`)
+    if (skus.length <= 12) log(`          ${skus.join(', ')}`)
+  }
+  log(`\n  Productos marcados (distintos): ${conAvisos}`)
+
   log(`\n  Movimientos de apertura ${String(conStock).padStart(5)}  (suma ${sumaStock})`)
 
   if (!EJECUTAR) {
@@ -392,9 +430,14 @@ async function main() {
     for (const v of validos) {
       const pid = idPorSku.get(v.producto.sku)
       if (!pid) continue
-      let monto = v.precioVenta
-      if (monto === null && POLITICA_PRECIOS === 'markup-legacy') {
-        if (v.costo !== null && v.costo > 0 && v.costo <= umbralAnomalo) monto = v.costo * 3
+      // Se respeta exactamente la clasificación calculada en normalizar():
+      // `anomaly` y `no_price` NUNCA generan precio, sin importar la política.
+      let monto = null
+      if (v.fuentePrecio === 'explicit_price') {
+        monto = v.precioVenta
+      } else if (v.fuentePrecio === 'markup_legacy' && POLITICA_PRECIOS === 'markup-legacy') {
+        // El COSTO se usa acá y sólo acá. No se guarda en ninguna tabla.
+        monto = v.puSoloParaCalculo * 3
       }
       if (monto === null) continue
       precios.push({

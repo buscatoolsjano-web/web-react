@@ -37,3 +37,6 @@ muestra.json
 
 # Estado del importador de catálogo (Fase 3.5)
 import-catalog.state.json
+
+# Clave administrativa de migración (service_role). NUNCA se commitea.
+.env.migration
