@@ -61,3 +61,28 @@ Netlify, `app.buscatools.com`):
 | `BrowserRouter` + `404.html` | Doble navegación, parpadeo, rompe los deep links de push |
 | `MemoryRouter` | Sin URLs compartibles ni navegación del browser. Inaceptable |
 | Esperar a mover el hosting | Bloquearía toda la migración por una decisión de infraestructura |
+
+---
+
+## Actualización — 2026-09-09: dominio propio
+
+La aplicación pasó a **`https://app.buscatools.com`**, un dominio propio
+servido por GitHub Pages. Consecuencias:
+
+- **`base` pasa de `/web-react/` a `/`.** Los assets se sirven desde la
+  raíz. `VITE_BASE_PATH` queda como escape hatch, ya no se inyecta en CI.
+- **Las URLs pierden el prefijo del repositorio**:
+  `https://app.buscatools.com/#/catalogo`.
+- **`createHashRouter` SE MANTIENE.** GitHub Pages sigue sin reescritura de
+  rutas, así que un `BrowserRouter` rompería el refresh en rutas profundas.
+  El `#` sigue siendo necesario hasta cambiar de hosting.
+
+El motivo del cambio de dominio no fue estético: **el legacy y React
+compartían origen y por lo tanto `localStorage`**, así que el legacy podía
+leer `bt-auth`, el token de sesión de Supabase. Separar el origen es lo
+único que lo impide, y es una garantía del navegador, no una convención.
+Ver [SHARED_ORIGIN_RISK.md](../security/SHARED_ORIGIN_RISK.md).
+
+La migración a `createBrowserRouter` sigue pendiente y sin fecha: requiere
+un hosting con reescrituras. `src/app/router.tsx` sigue siendo el único
+archivo que habría que tocar.

@@ -3,10 +3,16 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
 
-// El repo hoy es buscatoolsjano-web/web-react → GitHub Pages sirve en /web-react/.
-// En CI se pisa con el nombre REAL del repo (github.event.repository.name), así
-// renombrar el repo no rompe el deploy en silencio. Ver ADR-001.
-const DEFAULT_BASE = '/web-react/'
+// La aplicación vive en https://app.buscatools.com, un dominio propio, así que
+// se sirve desde la RAÍZ. Antes era /web-react/ porque GitHub Pages publicaba
+// bajo el nombre del repositorio.
+//
+// El cambio de dominio no es cosmético: separar el origen del legacy es lo que
+// impide que éste lea `bt-auth`. Ver docs/security/SHARED_ORIGIN_RISK.md.
+//
+// `VITE_BASE_PATH` queda como escape hatch por si alguna vez hay que volver a
+// publicar bajo un subdirectorio.
+const DEFAULT_BASE = '/'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')

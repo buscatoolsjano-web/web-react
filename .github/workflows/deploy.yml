@@ -43,9 +43,10 @@ jobs:
 
       - run: npm run build
         env:
-          # Nombre REAL del repo, no asumido. Si se renombra el repositorio,
-          # el deploy sigue funcionando sin tocar vite.config.ts.
-          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          # La app se sirve desde la RAÍZ de app.buscatools.com. Ya no se
+          # inyecta VITE_BASE_PATH: el default de vite.config.ts es '/'.
+          # Si alguna vez hubiera que publicar bajo un subdirectorio, se
+          # vuelve a definir acá y nada más.
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
