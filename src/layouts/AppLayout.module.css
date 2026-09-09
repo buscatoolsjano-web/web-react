@@ -32,8 +32,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  /* 44x44: área táctil mínima. Medido en 390px, antes eran 40x39. */
+  width: 44px;
+  height: 44px;
   margin-left: calc(var(--space-2) * -1);
   border: none;
   border-radius: var(--radius-sm);
@@ -199,7 +200,8 @@
 }
 
 .salir {
-  min-height: 36px;
+  /* 44px: área táctil mínima en celular. Antes 36. */
+  min-height: 44px;
   padding: var(--space-1) var(--space-3);
   border: 1px solid var(--topnav-text-soft);
   border-radius: var(--radius-sm);
