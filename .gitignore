@@ -40,3 +40,6 @@ import-catalog.state.json
 
 # Clave administrativa de migración (service_role). NUNCA se commitea.
 .env.migration
+
+# Contraseñas de las cuentas de prueba de RLS. Nunca se commitea.
+.env.rls

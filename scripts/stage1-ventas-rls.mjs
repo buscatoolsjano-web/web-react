@@ -9,8 +9,11 @@
  * cliente de la misma empresa. Se intenta por listado, por id exacto, por
  * número de documento y filtrando por el customer_id ajeno.
  *
- *   set -a; source .env; source .env.migration; set +a
- *   BT_PW_JANO=… BT_PW_TEST=… node scripts/stage1-ventas-rls.mjs
+ * Las contraseñas de las cuentas de prueba van en `.env.rls`, que está en
+ * .gitignore. Nunca se imprimen, ni se loguean, ni llegan al frontend.
+ *
+ *   set -a; source .env; source .env.migration; source .env.rls; set +a
+ *   node scripts/stage1-ventas-rls.mjs
  */
 import { createClient } from '@supabase/supabase-js'
 
@@ -61,10 +64,12 @@ const main = async () => {
   const { data: cliAjeno } = await sb.from('customers')
     .insert({ company_id: ajena.id, legal_name: 'ZZ Cliente de empresa ajena' }).select('id').single()
 
-  const hechos = { pedidos: [], entregas: [], facturas: [], pagos: [] }
+  const hechos = { pedidos: [], entregas: [], facturas: [], pagos: [], series: [] }
   // Estado previo: la limpieza compara contra esto, no contra cero. Con el
   // histórico migrado hay 166 pedidos legítimos que no son fixtures.
   const { count: pedidosPrevios } = await sb.from('sales_orders')
+    .select('*', { count: 'exact', head: true })
+  const { count: entregasPrevias } = await sb.from('deliveries')
     .select('*', { count: 'exact', head: true })
   const nuevoPedido = async (companyId, customerId, numero, productId = prod.id) => {
     const { data } = await sb.from('sales_orders').insert({
@@ -72,9 +77,26 @@ const main = async () => {
       order_date: '2026-09-09', currency_code: 'USD', commercial_status: 'confirmed',
     }).select('id, number').single()
     hechos.pedidos.push(data.id)
-    await sb.from('sales_order_lines').insert({
+    const { data: linea } = await sb.from('sales_order_lines').insert({
       company_id: companyId, order_id: data.id, line_no: 1, product_id: productId,
       quantity_ordered: 10, unit_price: 5,
+    }).select('id').single()
+    data.lineaId = linea.id
+    return data
+  }
+
+  // Una entrega por pedido, con la línea enlazada al order_line_id. Sin esto
+  // no se puede intentar leer delivery_lines ajenas POR order_line_id, que es
+  // el vector que introdujo el backfill de Stage 2.5.
+  const nuevaEntrega = async (companyId, pedido, customerId, numero, serie, warehouseId, productId) => {
+    const { data } = await sb.from('deliveries').insert({
+      company_id: companyId, number: numero, series_code: serie, order_id: pedido.id,
+      customer_id: customerId, delivery_date: '2026-09-09', status: 'delivered',
+    }).select('id, number, series_code').single()
+    hechos.entregas.push(data.id)
+    await sb.from('delivery_lines').insert({
+      company_id: companyId, delivery_id: data.id, order_line_id: pedido.lineaId,
+      product_id: productId, quantity: 4, warehouse_id: warehouseId,
     })
     return data
   }
@@ -89,6 +111,11 @@ const main = async () => {
   const pedDistri = await nuevoPedido(BT, DISTRI, 'ZZ-RLS-DIS')
   const pedTT = await nuevoPedido(TT, cliTT.id, 'ZZ-RLS-TT', prodTT.id)
   const pedAjeno = await nuevoPedido(ajena.id, cliAjeno.id, 'ZZ-RLS-AJE')
+
+  // Las dos series de `delivery` conviven en la MISMA empresa: es justo lo que
+  // hay que probar, que la serie no sea un atajo de autorización.
+  const entCliente = await nuevaEntrega(BT, pedCliente, CLIENTE, 'ZZ-RT-CLI', 'RT', wh.id, prod.id)
+  const entDistri = await nuevaEntrega(BT, pedDistri, DISTRI, 'ZZ-RTML-DIS', 'RT-ML', wh.id, prod.id)
 
   // Factura y pago del cliente, para probar el resto de las tablas.
   const { data: facCliente } = await sb.from('sales_invoices').insert({
@@ -115,10 +142,12 @@ const main = async () => {
         pw: process.env.BT_PW_JANO, propia: TT, interno: true, tambienVe: BT },
       { rol: 'DISTRIBUTOR · Buscatools', email: 'distribuidor.test@buscatools.com.ar',
         pw: process.env.BT_PW_TEST, propia: BT, interno: false,
-        suCliente: DISTRI, otroCliente: CLIENTE, suPedido: pedDistri, ajenoPedido: pedCliente },
+        suCliente: DISTRI, otroCliente: CLIENTE, suPedido: pedDistri, ajenoPedido: pedCliente,
+        suEntrega: entDistri, ajenaEntrega: entCliente, suSerie: 'RT-ML', otraSerie: 'RT' },
       { rol: 'CUSTOMER · Buscatools', email: 'cliente.test@buscatools.com.ar',
         pw: process.env.BT_PW_TEST, propia: BT, interno: false,
-        suCliente: CLIENTE, otroCliente: DISTRI, suPedido: pedCliente, ajenoPedido: pedDistri },
+        suCliente: CLIENTE, otroCliente: DISTRI, suPedido: pedCliente, ajenoPedido: pedDistri,
+        suEntrega: entCliente, ajenaEntrega: entDistri, suSerie: 'RT', otraSerie: 'RT-ML' },
     ]
 
     for (const e of escenarios) {
@@ -136,6 +165,14 @@ const main = async () => {
           c.from('payments').select('id').limit(5))
         await permitido('interno ve equivalencias y discrepancias', () =>
           c.from('customer_product_aliases').select('id').limit(5), 0)
+        await permitido('interno ve entregas de su empresa', () =>
+          c.from('deliveries').select('id').eq('company_id', e.propia).limit(5), 0)
+        if (e.propia === BT) {
+          await permitido('interno ve la serie RT', () =>
+            c.from('deliveries').select('id').eq('company_id', BT).eq('series_code', 'RT').limit(3))
+          await permitido('interno ve TAMBIÉN la serie RT-ML', () =>
+            c.from('deliveries').select('id').eq('company_id', BT).eq('series_code', 'RT-ML').limit(3))
+        }
       } else {
         // ── El caso central ────────────────────────────────────────────────
         await permitido('ve SU propio pedido', () =>
@@ -157,6 +194,33 @@ const main = async () => {
           c.from('sales_order_lines').select('id').eq('order_id', e.ajenoPedido.id))
         await rechazado('NO lee la factura de otro cliente', () =>
           c.from('sales_invoices').select('id').eq('customer_id', e.otroCliente))
+
+        // ── Entregas ──────────────────────────────────────────────────────
+        await permitido('ve SU propia entrega', () =>
+          c.from('deliveries').select('id').eq('id', e.suEntrega.id))
+        await rechazado('NO lee la entrega de otro cliente (por id exacto)', () =>
+          c.from('deliveries').select('id, number').eq('id', e.ajenaEntrega.id))
+        await rechazado('NO encuentra la entrega ajena por NÚMERO', () =>
+          c.from('deliveries').select('id').eq('number', e.ajenaEntrega.number))
+        await rechazado('NO lee líneas de la entrega ajena (por delivery_id)', () =>
+          c.from('delivery_lines').select('id').eq('delivery_id', e.ajenaEntrega.id))
+        // El vector nuevo de Stage 2.5: la FK a la línea del pedido.
+        await rechazado('NO lee líneas de entrega por el order_line_id ajeno', () =>
+          c.from('delivery_lines').select('id').eq('order_line_id', e.ajenoPedido.lineaId))
+        await rechazado('NO lee la línea del pedido ajeno por su id exacto', () =>
+          c.from('sales_order_lines').select('id').eq('id', e.ajenoPedido.lineaId))
+
+        // ── Series: identidad documental, NUNCA autorización ──────────────
+        await permitido('ve su entrega filtrando por SU serie', () =>
+          c.from('deliveries').select('id').eq('series_code', e.suSerie))
+        await rechazado('cambiar series_code NO da acceso a la serie ajena', () =>
+          c.from('deliveries').select('id, number').eq('series_code', e.otraSerie))
+        await rechazado('serie ajena + company propia sigue rechazado', () =>
+          c.from('deliveries').select('id').eq('company_id', e.propia).eq('series_code', e.otraSerie))
+        await rechazado('externo NO puede reetiquetar la serie de su entrega', () =>
+          c.from('deliveries').update({ series_code: e.otraSerie }).eq('id', e.suEntrega.id).select('id'))
+        await rechazado('externo NO puede numerar pidiendo una serie', () =>
+          c.rpc('next_document_number', { p_company: e.propia, p_doc_type: 'delivery', p_series: 'RT' }))
 
         // ── Tablas prohibidas para externos ───────────────────────────────
         await rechazado('externo NO lee pagos', () => c.from('payments').select('id').limit(3))
@@ -208,22 +272,66 @@ const main = async () => {
     }
     await rechazado('anon NO puede numerar', () =>
       a.rpc('next_document_number', { p_company: BT, p_doc_type: 'quote' }))
+    await rechazado('anon NO puede numerar pidiendo una serie', () =>
+      a.rpc('next_document_number', { p_company: BT, p_doc_type: 'delivery', p_series: 'RT' }))
+
+    // ── Series: consistencia del contador, sin sesión de por medio ────────
+    seccion('SERIES DE DOCUMENTO')
+    const s0 = admin()
+    const { data: secs } = await s0.from('document_sequences')
+      .select('company_id, doc_type, series_code, is_default').eq('company_id', BT)
+    const porDefecto = secs.filter((x) => x.doc_type === 'delivery' && x.is_default)
+    porDefecto.length === 1 && porDefecto[0].series_code === 'RT'
+      ? PASS('delivery tiene UNA serie por defecto', porDefecto[0].series_code)
+      : FAIL('serie por defecto de delivery', JSON.stringify(porDefecto))
+    secs.some((x) => x.series_code === 'RT-ML')
+      ? FAIL('RT-ML tiene secuencia activa', 'no debería estar sembrada todavía')
+      : PASS('RT-ML NO tiene secuencia activa', 'el schema la soporta, la web no la emite')
+
+    const antes = (await s0.from('document_sequences').select('next_number')
+      .eq('company_id', BT).eq('doc_type', 'delivery').eq('series_code', 'RT').single()).data.next_number
+    const { data: nRT } = await s0.rpc('next_document_number',
+      { p_company: BT, p_doc_type: 'delivery' })
+    const { error: eML } = await s0.rpc('next_document_number',
+      { p_company: BT, p_doc_type: 'delivery', p_series: 'RT-ML' })
+    const despues = (await s0.from('document_sequences').select('next_number')
+      .eq('company_id', BT).eq('doc_type', 'delivery').eq('series_code', 'RT').single()).data.next_number
+    nRT?.startsWith('RT0') ? PASS('la llamada sin serie usa la serie por defecto', nRT)
+                           : FAIL('la llamada sin serie', String(nRT))
+    eML ? PASS('pedir RT-ML es rechazado', eML.code ?? eML.message.slice(0, 40))
+        : FAIL('pedir RT-ML', 'emitió un número sin secuencia sembrada')
+    despues === antes + 1
+      ? PASS('el intento de RT-ML NO movió el contador de RT', `${antes} → ${despues}`)
+      : FAIL('el contador de RT se movió de más', `${antes} → ${despues}`)
+    await s0.from('document_sequences').update({ next_number: antes })
+      .eq('company_id', BT).eq('doc_type', 'delivery').eq('series_code', 'RT')
+    const restaurado = (await s0.from('document_sequences').select('next_number')
+      .eq('company_id', BT).eq('doc_type', 'delivery').eq('series_code', 'RT').single()).data.next_number
+    restaurado === antes ? PASS('contador restaurado', String(restaurado))
+                         : FAIL('contador NO restaurado', String(restaurado))
   } finally {
     seccion('LIMPIEZA')
     const s = admin()
     await s.from('payment_allocations').delete().in('payment_id', hechos.pagos)
     await s.from('payments').delete().in('id', hechos.pagos)
     await s.from('sales_invoices').delete().in('id', hechos.facturas)
+    await s.from('delivery_lines').delete().in('delivery_id', hechos.entregas)
+    await s.from('deliveries').delete().in('id', hechos.entregas)
     await s.from('sales_order_lines').delete().in('order_id', hechos.pedidos)
     await s.from('sales_orders').delete().in('id', hechos.pedidos)
     await s.from('customers').delete().eq('id', cliAjeno.id)
     await s.from('customers').delete().eq('id', cliTT.id)
     await s.from('companies').delete().eq('id', ajena.id)
     const { count: pedidos } = await s.from('sales_orders').select('*', { count: 'exact', head: true })
+    const { count: entregas } = await s.from('deliveries').select('*', { count: 'exact', head: true })
     const { count: empresas } = await s.from('companies').select('*', { count: 'exact', head: true })
-    pedidos === pedidosPrevios && empresas === 2
-      ? PASS('sin residuos', `sales_orders vuelve a ${pedidosPrevios}  companies=${empresas}`)
-      : FAIL('quedaron residuos', `sales_orders=${pedidos} (previos ${pedidosPrevios})  companies=${empresas}`)
+    const { count: secuencias } = await s.from('document_sequences').select('*', { count: 'exact', head: true })
+    pedidos === pedidosPrevios && entregas === entregasPrevias && empresas === 2 && secuencias === 6
+      ? PASS('sin residuos',
+          `sales_orders=${pedidos}  deliveries=${entregas}  companies=${empresas}  document_sequences=${secuencias}`)
+      : FAIL('quedaron residuos',
+          `sales_orders=${pedidos} (previos ${pedidosPrevios})  deliveries=${entregas} ` +
+          `(previas ${entregasPrevias})  companies=${empresas}  document_sequences=${secuencias}`)
   }
 
   console.log(`\n${'═'.repeat(74)}\n  RESULTADO: ${fallos} fallo(s)\n${'═'.repeat(74)}`)

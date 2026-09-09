@@ -822,3 +822,95 @@ using (
 --
 -- Lo que NO cambió: ninguna tabla de más, ninguna policy relajada, y
 -- document_sequences sigue sin fila para `invoice`.
+
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- 13 · APLICADO EN STAGE 2.5 — series de documento
+--   migración: phase4_stage25_series_code
+-- ────────────────────────────────────────────────────────────────────────────
+--
+-- Un tipo de documento puede tener MÁS DE UNA serie a la vez. Está demostrado
+-- con datos: `delivery` se emite hoy como RT… (178, última 2026-09-08) y como
+-- RT-ML… (4, última 2026-09-07), en paralelo. Ninguna reemplazó a la otra.
+--
+-- El tipo sigue siendo UNO. Lo que se multiplica es la serie, así que no se
+-- crean tipos artificiales tipo `delivery_ml`.
+
+alter table document_sequences add column series_code text not null default '';
+alter table document_sequences add column is_default boolean not null default false;
+
+-- Las 6 filas existentes son la serie principal de su tipo: COTI, PDV, RT.
+update document_sequences set series_code = prefix, is_default = true;
+
+alter table document_sequences drop constraint document_sequences_pkey;
+alter table document_sequences add primary key (company_id, doc_type, series_code);
+
+-- Una sola serie por defecto por tipo y empresa.
+create unique index uq_document_sequences_default
+  on document_sequences (company_id, doc_type) where is_default;
+
+-- La serie viaja con el documento: sin esto no se sabe de qué contador salió
+-- cada número. NULL = serie no registrada.
+alter table sales_quotes add column series_code text;
+alter table sales_orders add column series_code text;
+alter table deliveries   add column series_code text;
+
+-- `sales_invoices` NO lleva la columna, y no es simetría negativa: su número
+-- puede venir de STEL, donde la "serie" sería el punto de venta. No hay
+-- todavía ni una factura ni el formato real confirmado, así que la columna no
+-- tendría ni un uso ni un valor. `external_number` ya guarda el número
+-- completo tal como lo emita el sistema fiscal.
+
+-- El overload hay que eliminarlo: con las dos firmas vivas, una llamada de dos
+-- argumentos queda ambigua y PostgREST devuelve PGRST203 (ya nos pasó con
+-- catalog_facets en la Fase 3.6).
+drop function if exists public.next_document_number(uuid, text);
+
+create or replace function public.next_document_number(
+  p_company uuid, p_doc_type text, p_series text default '')
+returns text
+language plpgsql
+security definer
+set search_path to 'public', 'pg_temp'
+as $$
+declare
+  v_prefix text; v_padding int; v_num bigint;
+begin
+  if auth.uid() is not null
+     and (p_company is null or p_company <> all (app.current_writer_company_ids())) then
+    raise exception 'Sin permiso para numerar documentos de esa empresa'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  -- p_series = '' significa "la serie por defecto de este tipo", no "la serie
+  -- cuyo código es la cadena vacía". Es lo que mantiene compatibles las
+  -- llamadas de dos argumentos Y lo que garantiza que pedir un número sin
+  -- especificar serie nunca toque el contador de una serie secundaria.
+  update document_sequences
+     set next_number = next_number + 1
+   where company_id = p_company and doc_type = p_doc_type
+     and case when coalesce(p_series, '') = '' then is_default
+              else series_code = p_series end
+  returning prefix, padding, next_number - 1
+       into v_prefix, v_padding, v_num;
+
+  if not found then
+    raise exception 'No hay secuencia para % / % / %', p_company, p_doc_type,
+      coalesce(nullif(p_series, ''), '(por defecto)')
+      using errcode = 'no_data_found';
+  end if;
+
+  return v_prefix || lpad(v_num::text, v_padding, '0');
+end $$;
+
+revoke all on function public.next_document_number(uuid, text, text) from public, anon;
+grant execute on function public.next_document_number(uuid, text, text) to authenticated;
+
+-- RT-ML NO SE SIEMBRA. El schema la soporta y el histórico la conserva, pero
+-- la web nueva no puede emitirla: pedirla devuelve no_data_found. No se sabe
+-- qué significa ML, qué significa el 2025 embebido (los cuatro documentos son
+-- de 2026, así que no es el año del documento), ni cuál sería el próximo
+-- número. Sembrar un contador sin su regla es inventarlo.
+--
+-- `series_code` es IDENTIDAD DOCUMENTAL, nunca autorización: no aparece en
+-- ninguna policy. El aislamiento sigue siendo por company_id y por customer.

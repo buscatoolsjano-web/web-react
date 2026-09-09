@@ -5,7 +5,7 @@ y la reconstrucción de **`delivery_lines.order_line_id`**.
 
 ---
 
-## A · Series de remito — propuesta, NO aplicada
+## A · Series de documento — **APLICADO**
 
 ### Lo que dice el dato
 
@@ -46,45 +46,101 @@ La PK `(company_id, doc_type)` admite **una sola** serie por tipo de documento.
 Hoy `delivery` es `RT` con padding 10, `next_number = 1424`. No hay dónde poner
 un segundo contador sin inventar un `doc_type` falso.
 
-### Cambio mínimo propuesto
+### Cambio aplicado — migración `phase4_stage25_series_code`
 
-Coincide con tu preferencia conceptual, y evita `delivery_ml`: el tipo de
-documento sigue siendo **uno solo**, lo que se multiplica es la serie.
+El tipo de documento sigue siendo **uno solo**; lo que se multiplica es la
+serie. No se creó ningún `delivery_ml`.
 
 ```sql
 alter table document_sequences add column series_code text not null default '';
+alter table document_sequences add column is_default  boolean not null default false;
+update document_sequences set series_code = prefix, is_default = true;   -- COTI, PDV, RT
 alter table document_sequences drop constraint document_sequences_pkey;
 alter table document_sequences add primary key (company_id, doc_type, series_code);
+create unique index uq_document_sequences_default
+  on document_sequences (company_id, doc_type) where is_default;
 
--- la serie viaja con el documento, para saber de cuál salió cada número
-alter table deliveries add column series_code text;
+alter table sales_quotes add column series_code text;
+alter table sales_orders add column series_code text;
+alter table deliveries   add column series_code text;
 
+drop function if exists public.next_document_number(uuid, text);
 create or replace function public.next_document_number(
-  p_company uuid, p_doc_type text, p_series text default '')
-...
-  update document_sequences
-     set next_number = next_number + 1
+  p_company uuid, p_doc_type text, p_series text default '') ...
    where company_id = p_company and doc_type = p_doc_type
-     and series_code = p_series
+     and case when coalesce(p_series,'') = '' then is_default
+              else series_code = p_series end
 ```
 
-**Impacto medido, no estimado:**
+#### Una columna más que el mínimo: `is_default`
 
-| | |
+`p_series = ''` tiene que significar **"la serie por defecto de este tipo"**, no
+*"la serie cuyo código es la cadena vacía"*. Sin `is_default`, una vez que las
+filas existentes pasan a llamarse `COTI` / `PDV` / `RT`, una llamada de dos
+argumentos no encuentra ninguna fila y la compatibilidad se rompe.
+
+Y hace algo más, que es exactamente tu punto 6: **garantiza que pedir un número
+sin especificar serie nunca toque el contador de una serie secundaria.** El
+índice único parcial impide que haya dos series por defecto para el mismo tipo.
+
+No es simetría: sin esta columna el cambio no funciona.
+
+#### Por qué `sales_invoices` NO la lleva
+
+Su número puede venir de STEL, donde la "serie" sería el **punto de venta**. No
+hay todavía ni una factura ni el formato real confirmado, así que la columna no
+tendría ni un uso ni un valor — sería exactamente la simetría vacía que pediste
+evitar. `external_number` ya guarda el número completo tal como lo emita el
+sistema fiscal. Cuando llegue la primera factura real vamos a saber si el punto
+de venta es la serie, y ahí se agrega con fundamento.
+
+#### El overload había que eliminarlo
+
+Con las dos firmas vivas, una llamada de dos argumentos queda **ambigua** y
+PostgREST devuelve `PGRST203` — el mismo error que nos costó `catalog_facets` en
+la Fase 3.6. Por eso `drop function ... (uuid, text)` antes de crear la de tres.
+
+### Comportamiento verificado con llamadas reales
+
+| intento | resultado |
 |---|---|
-| filas existentes | 6, todas pasan a `series_code = ''` por el `default`. Ninguna se mueve |
-| llamadas desde la UI | **0** — todavía no hay UI de Ventas |
-| llamadas en el repo | 3, todas en `scripts/stage1-ventas-rls.mjs` |
-| firma vieja | sigue funcionando: `p_series` tiene `default ''` |
-| documentos históricos | **no se tocan**: `original_number` y `number` quedan literales |
+| `next_document_number(c, 'delivery')` — firma vieja de 2 argumentos | **`RT0000001424`** · usa la serie por defecto |
+| `next_document_number(c, 'delivery', 'RT')` — serie explícita | **`RT0000001425`** |
+| `next_document_number(c, 'delivery', 'RT-ML')` | **rechazado** `no_data_found` |
+| contador de `RT` después del intento de `RT-ML` | **no se movió** |
+| `next_document_number(c, 'quote')` | **`COTI02541`** |
 
-### Qué NO se hace ahora
+Las secuencias quedaron restauradas en `RT=1424`, `COTI=2541`, `PDV=1316`.
 
-- **No se crea la secuencia `RT-ML`.** No hay confirmación de que la serie siga
-  emitiéndose desde este sistema, y sembrar un contador sin saber su regla
-  (¿el `2025` se recalcula? ¿es fijo?) es inventarla.
-- **No se aplica el cambio de esquema.** Queda propuesto, con el impacto arriba.
-- Los cuatro `RT-ML2025000058…61` conservan su `original_number` exacto.
+### RT-ML: soportada, conservada, NO emitida
+
+- **El schema la soporta**: `series_code = 'RT-ML'` es un valor válido.
+- **El histórico la conserva**: los cuatro documentos la llevan, y su
+  `original_number` quedó **exactamente** como estaba.
+- **La web nueva NO la emite**: no hay fila en `document_sequences`, así que
+  pedirla devuelve `no_data_found`. Es un rechazo verificado, no una omisión.
+
+Hasta decisión de negocio: no sabemos qué significa `ML`, qué significa el
+`2025` embebido (los cuatro documentos son de **2026**, así que no es el año del
+documento), si es parte fija, campaña o canal, cuál sería el próximo número, ni
+quién debería poder emitirla.
+
+### Series en los documentos históricos
+
+`scripts/backfill-series-code.mjs`, reconociendo la serie por el prefijo del
+número original y **sólo** si es una de las series conocidas de ese tipo:
+
+| tabla | serie | documentos |
+|---|---|---:|
+| `sales_quotes` | `COTI` | 288 |
+| `sales_orders` | `PDV` | 166 |
+| `deliveries` | `RT` | 178 |
+| `deliveries` | **`RT-ML`** | **4** |
+| | **total** | **636** |
+
+Cero documentos sin serie reconocida. Los 9 `PDV11xxx` quedan en `PDV`: son la
+misma serie con un número raro, no otra serie. Ningún `original_number` ni
+`number` se tocó.
 
 ---
 
@@ -243,6 +299,12 @@ Instantánea completa antes y después:
 | `sales_audit` / `sales_invoices` / `payments` | 0 / 0 / 0 | **0 / 0 / 0** |
 | `delivery_lines` con `order_line_id` | 0 | **484** |
 | entregas con `needs_review` | 81 | 95 |
+| documentos con `series_code` | — | **636** |
+| `document_sequences` | 6 | **6** |
+
+La huella se volvió a medir **después** del cambio de series y sigue dando
+`8091b916…`: agregar `series_code` no tocó ni un número, ni un total, ni una
+moneda.
 
 **Lo único que cambió es lo autorizado**: `order_line_id` en 484 líneas y el
 `review_reason` de 16 entregas. Ni un número, ni una cantidad, ni un total, ni
@@ -259,9 +321,21 @@ un cliente.
 
 ## Idempotencia
 
-Segunda corrida completa con `--apply`: **0 filas actualizadas, 0 entregas
-marcadas**, y las mismas 484 / 14 / 7. La clasificación se recalcula entera cada
-vez y sólo escribe lo que difiere.
+Segunda corrida completa con `--apply`, de los dos scripts, **después** del
+cambio de series:
+
+| | |
+|---|---:|
+| `backfill-order-line-id.mjs` · filas actualizadas | **0** |
+| `backfill-order-line-id.mjs` · entregas marcadas | **0** |
+| `backfill-series-code.mjs` · documentos actualizados | **0** |
+| secuencias | **6** — ninguna duplicada |
+| dos series por defecto para el mismo tipo | **0** |
+| documentos duplicados por `(company_id, original_number)` | **0** |
+| documentos sin `series_code` | **0** |
+
+Los dos scripts recalculan la clasificación entera cada vez y sólo escriben lo
+que difiere; la clasificación siguió dando 484 / 14 / 7.
 
 ## Bug encontrado y corregido
 
@@ -282,15 +356,93 @@ Se **agregan** a los motivos existentes, nunca los reemplazan.
 
 ## RLS
 
-Se verificó que la política de `delivery_lines` y `deliveries` sigue en pie (RLS
-habilitada, 2 policies cada una, sin cambios) y que ningún enlace cruza empresa
-ni pedido — que es el único vector nuevo que introduce el backfill.
+`scripts/stage1-ventas-rls.mjs` se amplió con los dos vectores nuevos.
 
-**La regresión con JWT reales de los 5 roles no se pudo correr**: necesita
-`BT_PW_JANO` y `BT_PW_TEST` en el entorno, y no están. El comando es:
+### Entregas y el `order_line_id` — el vector que introdujo el backfill
+
+Para cada rol externo, con intento real:
+
+- ve **su** entrega, y **no** la de otro cliente por id exacto
+- **no** la encuentra por número de documento
+- **no** lee `delivery_lines` de la entrega ajena por `delivery_id`
+- **no** lee `delivery_lines` filtrando por el **`order_line_id` ajeno**
+- **no** lee la `sales_order_line` ajena por su id exacto
+
+### Series + RLS — `series_code` no es autorización
+
+Las dos series se montan en la **misma empresa**, y cada rol externo es dueño de
+una distinta (el cliente tiene `RT`, el distribuidor `RT-ML`), así que filtrar
+por la otra serie es un intento real de cruce:
+
+- ve sus documentos filtrando por **su** serie
+- cambiar `series_code` **no** da acceso a la serie ajena
+- serie ajena **+** su propia `company_id` sigue rechazado
+- **no** puede reetiquetar la serie de su propia entrega
+- **no** puede numerar pidiendo una serie
+- un interno de Buscatools ve **las dos** series de su empresa
+
+`series_code` no aparece en ninguna policy: el aislamiento sigue siendo por
+`company_id` y por customer.
+
+### Series: consistencia del contador
+
+| | |
+|---|---|
+| `delivery` tiene **una sola** serie por defecto | `RT` |
+| `RT-ML` **no** tiene secuencia activa | el schema la soporta, la web no la emite |
+| la llamada sin serie usa la serie por defecto | `RT0000001424` |
+| pedir `RT-ML` es rechazado | `P0002` |
+| el intento de `RT-ML` **no** movió el contador de `RT` | 1424 → 1425 |
+| contador restaurado | 1424 |
+
+### Estado
+
+Las pruebas que no dependen de una sesión —anon sobre las 21 tablas, la
+numeración, las series— dan **PASS**. Las de los cuatro roles con sesión
+necesitan `BT_PW_JANO` y `BT_PW_TEST`, que **no están en este entorno**.
+
+`.env.rls` ya está en `.gitignore`. Con el archivo puesto:
 
 ```bash
-BT_PW_JANO=… BT_PW_TEST=… node scripts/stage1-ventas-rls.mjs
+set -a; source .env; source .env.migration; source .env.rls; set +a
+node scripts/stage1-ventas-rls.mjs
 ```
 
-No se cambió ninguna policy, ninguna función `SECURITY DEFINER` y ningún `grant`.
+Las contraseñas no se imprimen, no se loguean, no se commitean y no llegan al
+frontend: el script sólo las pasa a `signInWithPassword`.
+
+No se cambió ninguna policy. Lo único que cambió en una función
+`SECURITY DEFINER` es la firma de `next_document_number`, con el mismo control
+de permiso por empresa que ya tenía.
+
+---
+
+## Regla para la UI histórica — anotada, no implementada
+
+Queda escrita acá para cuando empiece la UI. **No se programó nada.**
+
+Cuando `order_line_id` y las entregas permiten reconstruir, mostrar por línea:
+
+```
+Pedido      Entregado      Pendiente
+```
+
+Cuando **no** hay evidencia suficiente, mostrar algo equivalente a
+*«Entrega histórica no reconstruida»* o *«No consta detalle completo de
+entrega»*, y **no calcular un pendiente falso**.
+
+### Los tres estados no son dos
+
+| estado | qué significa | cuándo |
+|---|---|---|
+| `ENTREGADO` / `PENDIENTE` | hay evidencia por línea | 131 pedidos |
+| `NO CONSTA ENTREGA` | **no sabemos** si hubo entrega | 21 pedidos |
+| `DETALLE NO RECONSTRUIDO` | hay entrega, pero no se sabe a qué línea | 14 pedidos |
+
+`NO CONSTA ENTREGA` **no es** `NO ENTREGADO`. Para esos 21 pedidos hay un remito
+huérfano del mismo cliente que podría ser la entrega que falta; mostrar
+«Pendiente = cantidad pedida» sería afirmar que no se entregó, y eso no está
+demostrado.
+
+`ENTREGADO > PEDIDO` (los 2 `OVERDELIVERED`) debe **mostrarse como
+inconsistencia histórica**, no ocultarse ni corregirse.
