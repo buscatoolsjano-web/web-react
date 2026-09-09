@@ -14,15 +14,18 @@ function filtros(over: Partial<FiltrosCatalogo> = {}): FiltrosCatalogo {
 }
 
 describe('construirPlanDeConsulta', () => {
-  it('U1 · traduce filtros, rango y orden', () => {
+  it('U1 · traduce filtros, paginación y orden', () => {
     const plan = construirPlanDeConsulta(
       filtros({ marca: 'm-1', categoria: 'c-1', serie: 'S9', pagina: 3, porPagina: 25 }),
       EMPRESA,
     )
 
-    expect(plan.eq).toEqual({ brand_id: 'm-1', category_id: 'c-1', series: 'S9' })
-    expect(plan.rango).toEqual({ desde: 50, hasta: 74 })
-    expect(plan.orden).toEqual({ columna: 'name', ascendente: true })
+    expect(plan.marca).toBe('m-1')
+    expect(plan.categoria).toBe('c-1')
+    expect(plan.serie).toBe('S9')
+    expect(plan.limite).toBe(25)
+    expect(plan.desplazamiento).toBe(50)
+    expect(plan.orden).toBe('nombre')
   })
 
   it('U2 · SIEMPRE lleva companyId, y sin empresa activa falla en vez de consultar', () => {
@@ -33,25 +36,60 @@ describe('construirPlanDeConsulta', () => {
   })
 
   it('acota porPagina para que nadie pida el catálogo entero por la URL', () => {
-    const plan = construirPlanDeConsulta(filtros({ porPagina: 5000 }), EMPRESA)
-    expect(plan.rango.hasta - plan.rango.desde + 1).toBe(MAX_POR_PAGINA)
+    expect(construirPlanDeConsulta(filtros({ porPagina: 5000 }), EMPRESA).limite).toBe(
+      MAX_POR_PAGINA,
+    )
   })
 
   it('normaliza páginas inválidas a la primera', () => {
-    expect(construirPlanDeConsulta(filtros({ pagina: 0 }), EMPRESA).rango.desde).toBe(0)
-    expect(construirPlanDeConsulta(filtros({ pagina: -3 }), EMPRESA).rango.desde).toBe(0)
+    expect(construirPlanDeConsulta(filtros({ pagina: 0 }), EMPRESA).desplazamiento).toBe(0)
+    expect(construirPlanDeConsulta(filtros({ pagina: -3 }), EMPRESA).desplazamiento).toBe(0)
   })
 
-  it('descarta atributos vacíos: `attributes @> {"k":""}` no matchearía nunca', () => {
+  it('descarta atributos vacíos: un valor vacío no coincide con ningún producto', () => {
     const plan = construirPlanDeConsulta(
-      filtros({ atributos: { encastre: '1/2', medida: '' } }),
+      filtros({ atributos: { encastre: ['1/2'], medida: [''], largo: [] } }),
       EMPRESA,
     )
-    expect(plan.atributos).toEqual({ encastre: '1/2' })
+    expect(plan.atributos).toEqual({ encastre: ['1/2'] })
+  })
+
+  it('conserva la multiselección: OR dentro de la clave', () => {
+    const plan = construirPlanDeConsulta(
+      filtros({ atributos: { encastre: ['1/4 HEX', '3/8 SQ'] } }),
+      EMPRESA,
+    )
+    expect(plan.atributos).toEqual({ encastre: ['1/4 HEX', '3/8 SQ'] })
+  })
+
+  it('pasa los subtipos como array, o null si no hay ninguno', () => {
+    expect(construirPlanDeConsulta(filtros(), EMPRESA).subtipos).toBeNull()
+    expect(
+      construirPlanDeConsulta(filtros({ subtipos: ['Torx', 'Allen'] }), EMPRESA).subtipos,
+    ).toEqual(['Torx', 'Allen'])
+  })
+
+  it('descarta un rango sin ningún extremo, y conserva los que sí filtran', () => {
+    const plan = construirPlanDeConsulta(
+      filtros({
+        rangos: {
+          largo: { min: 25, max: 50 },
+          max_kg: { min: null, max: null },
+          torq_min: { min: null, max: 80 },
+        },
+      }),
+      EMPRESA,
+    )
+    expect(plan.rangos).toEqual({ largo: { min: 25, max: 50 }, torq_min: { max: 80 } })
   })
 
   it('ordena por sku cuando se lo piden', () => {
-    expect(construirPlanDeConsulta(filtros({ orden: 'sku' }), EMPRESA).orden.columna).toBe('sku')
+    expect(construirPlanDeConsulta(filtros({ orden: 'sku' }), EMPRESA).orden).toBe('sku')
+  })
+
+  it('sólo manda texto de búsqueda si tiene al menos dos caracteres', () => {
+    expect(construirPlanDeConsulta(filtros({ q: ' a ' }), EMPRESA).texto).toBeNull()
+    expect(construirPlanDeConsulta(filtros({ q: '  punta ' }), EMPRESA).texto).toBe('punta')
   })
 })
 
@@ -68,8 +106,26 @@ describe('contarFiltrosActivos', () => {
     expect(contarFiltrosActivos(filtros())).toBe(0)
     expect(
       contarFiltrosActivos(
-        filtros({ marca: 'm', categoria: 'c', atributos: { encastre: '1/2', largo: '' } }),
+        filtros({ marca: 'm', categoria: 'c', atributos: { encastre: ['1/2'], largo: [] } }),
       ),
     ).toBe(3)
+  })
+
+  it('cuenta cada valor elegido de una multiselección', () => {
+    expect(
+      contarFiltrosActivos(filtros({ atributos: { encastre: ['1/4 HEX', '3/8 SQ'] } })),
+    ).toBe(2)
+  })
+
+  it('cuenta subtipos y rangos', () => {
+    expect(
+      contarFiltrosActivos(
+        filtros({ subtipos: ['Torx'], rangos: { largo: { min: 25, max: null } } }),
+      ),
+    ).toBe(2)
+  })
+
+  it('no cuenta un rango sin extremos', () => {
+    expect(contarFiltrosActivos(filtros({ rangos: { largo: { min: null, max: null } } }))).toBe(0)
   })
 })

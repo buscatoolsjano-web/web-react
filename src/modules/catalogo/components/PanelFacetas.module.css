@@ -1,0 +1,201 @@
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.panel[aria-busy='true'] {
+  /* Las opciones anteriores siguen visibles mientras llegan las nuevas, para
+     que los conteos no parpadeen en cada click. Sólo se atenúan. */
+  opacity: 0.7;
+}
+
+.grupo {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.etiqueta {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0;
+}
+
+.subtitulo {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+}
+
+.unidad {
+  text-transform: none;
+  font-weight: 400;
+}
+
+/* ── Chips ─────────────────────────────────────────────────────────────── */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip,
+.chipActivo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* 44 px de alto mínimo: es el objetivo táctil que nos fijamos y que ya
+     habíamos incumplido una vez en la cabecera. */
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--text-soft);
+}
+
+.chipActivo {
+  background: var(--accent, #d9600a);
+  border-color: var(--accent, #d9600a);
+  color: #fff;
+  font-weight: 600;
+}
+
+.cuenta {
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+/* ── Filtros activos ───────────────────────────────────────────────────── */
+
+.activos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.chipActivoQuitar {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: 999px;
+  border: 1px solid var(--accent, #d9600a);
+  background: color-mix(in srgb, var(--accent, #d9600a) 12%, transparent);
+  color: var(--text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+/* ── Listas ────────────────────────────────────────────────────────────── */
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* Toda la fila es clickeable, no sólo la casilla. */
+  min-height: 44px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.opcionTexto {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.buscadorFaceta,
+.numero {
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.verMas {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  background: none;
+  border: 0;
+  color: var(--accent, #d9600a);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ── Rango ─────────────────────────────────────────────────────────────── */
+
+.rango {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.rango .numero {
+  flex: 1;
+  min-width: 0;
+}
+
+.guion {
+  color: var(--text-soft);
+}
+
+/* ── Limpiar ───────────────────────────────────────────────────────────── */
+
+.limpiar {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.limpiar:hover {
+  border-color: var(--text-soft);
+}

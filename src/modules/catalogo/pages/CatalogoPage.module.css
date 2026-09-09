@@ -148,3 +148,41 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
+
+/* ── Card mobile con imagen ────────────────────────────────────────────── */
+
+.card {
+  /* La imagen a la izquierda y el texto a la derecha: es la forma que mejor
+     aprovecha 390 px de ancho sin que el nombre quede en una columna de
+     cuatro palabras. */
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.cardImagen {
+  width: 88px;
+}
+
+.cardTexto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.cardAtributos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.cardAtributo {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  background: var(--surface-soft, #f4f4f5);
+  border-radius: var(--radius);
+  padding: 1px var(--space-2);
+  white-space: nowrap;
+}

@@ -3,6 +3,7 @@ import { StatusMessage } from '@/components/ui/StatusMessage'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { DisponibilidadBadge, PrecioCelda, StockCelda } from '../components/Celdas'
 import { ListaAtributos } from '../components/ListaAtributos'
+import { ProductGallery } from '../components/ProductGallery'
 import { useDefinicionesDeAtributos, useListasDePrecios } from '../hooks/useCatalogoFacetas'
 import { useDisponibilidad, useProducto } from '../hooks/useProductos'
 import { formatearCantidad } from '../lib/formato'
@@ -78,7 +79,10 @@ export function ProductoDetallePage() {
         </div>
       </header>
 
-      <div className={styles.destacados}>
+      <div className={styles.principal}>
+        <ProductGallery imagenes={producto.imagenes} nombre={producto.nombre} />
+
+        <div className={styles.destacados}>
         <div className={styles.dato}>
           <span className={styles.datoEtiqueta}>Precio</span>
           <PrecioCelda monto={producto.precio} moneda={porDefecto?.moneda ?? null} />
@@ -92,6 +96,7 @@ export function ProductoDetallePage() {
           ) : (
             <DisponibilidadBadge disponible={disponibilidad?.get(producto.id) ?? false} />
           )}
+        </div>
         </div>
       </div>
 

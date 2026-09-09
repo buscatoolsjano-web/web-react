@@ -1,0 +1,32 @@
+/* Caja de proporción fija: el alto queda reservado ANTES de que la imagen
+   cargue, así el listado no salta cuando van llegando (CLS = 0). */
+.caja {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--surface-soft, #f4f4f5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.img {
+  width: 100%;
+  height: 100%;
+  /* `contain` y no `cover`: son fotos de producto sobre fondo claro y
+     recortarlas esconde justamente la punta o el encastre. */
+  object-fit: contain;
+  display: block;
+}
+
+.vacia {
+  border: 1px dashed var(--border);
+}
+
+.icono {
+  font-size: 1.5rem;
+  color: var(--text-soft);
+  opacity: 0.5;
+}

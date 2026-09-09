@@ -438,6 +438,65 @@ export type Database = {
           },
         ]
       }
+      product_images: {
+        Row: {
+          alt_text: string | null
+          bytes: number | null
+          checked_at: string | null
+          company_id: string
+          created_at: string
+          http_status: number | null
+          id: string
+          is_primary: boolean
+          kind: string
+          position: number
+          product_id: string
+          source_url: string | null
+          storage_path: string | null
+          thumb_url: string | null
+        }
+        Insert: {
+          alt_text?: string | null
+          bytes?: number | null
+          checked_at?: string | null
+          company_id: string
+          created_at?: string
+          http_status?: number | null
+          id?: string
+          is_primary?: boolean
+          kind?: string
+          position?: number
+          product_id: string
+          source_url?: string | null
+          storage_path?: string | null
+          thumb_url?: string | null
+        }
+        Update: {
+          alt_text?: string | null
+          bytes?: number | null
+          checked_at?: string | null
+          company_id?: string
+          created_at?: string
+          http_status?: number | null
+          id?: string
+          is_primary?: boolean
+          kind?: string
+          position?: number
+          product_id?: string
+          source_url?: string | null
+          storage_path?: string | null
+          thumb_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'product_images_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       product_prices: {
         Row: {
           amount: number
@@ -832,15 +891,23 @@ export type Database = {
       }
     }
     Functions: {
+      /**
+       * Listado Y búsqueda del catálogo. Con p_query null hace de listado,
+       * ordenado por nombre o SKU. Una sola definición de qué productos
+       * entran, compartida con catalog_facets.
+       */
       search_products: {
         Args: {
           p_company: string
-          p_query: string
+          p_query?: string | null
           p_limit?: number
           p_offset?: number
           p_category?: string | null
           p_brand?: string | null
           p_attrs?: Json | null
+          p_type?: string[] | null
+          p_ranges?: Json | null
+          p_orden?: string
         }
         Returns: {
           id: string
@@ -848,6 +915,22 @@ export type Database = {
           score: number
           total_count: number
         }[]
+      }
+      /**
+       * Opciones disponibles de cada filtro. Cada faceta se calcula con
+       * todos los filtros activos MENOS el suyo.
+       */
+      catalog_facets: {
+        Args: {
+          p_company: string
+          p_query?: string | null
+          p_category?: string | null
+          p_brand?: string | null
+          p_type?: string[] | null
+          p_attrs?: Json | null
+          p_ranges?: Json | null
+        }
+        Returns: Json
       }
     }
     Enums: Record<never, never>

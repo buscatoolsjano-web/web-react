@@ -1,16 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { construirPlanDeConsulta, hayBusqueda } from '../lib/planDeConsulta'
-import { buscarProductos, listarProductos, obtenerProductoPorSku } from '../services/productos'
+import { consultarProductos, obtenerProductoPorSku } from '../services/productos'
 import { obtenerDisponibilidad } from '../services/disponibilidad'
 import type { FiltrosCatalogo, PaginaDeProductos, ProductoDetalle } from '../types'
 
 /**
  * Una página del catálogo.
  *
- * Según haya texto de búsqueda o no, usa la RPC (fuzzy + ranking) o el
- * listado normal. En los dos casos el servidor devuelve como máximo
- * `porPagina` filas: nunca se descarga el catálogo entero.
+ * Listado y búsqueda van por el MISMO camino desde la Fase 3.6: una sola
+ * definición de qué productos entran, dentro de `search_products`. El
+ * servidor devuelve como máximo `porPagina` filas: nunca se descarga el
+ * catálogo entero.
  */
 export function useProductos(
   filtros: FiltrosCatalogo,
@@ -44,12 +45,12 @@ export function useProductos(
       priceListId,
       esInterno,
     ],
-    queryFn: () => {
-      const plan = construirPlanDeConsulta(filtros, companyId!)
-      return buscando
-        ? buscarProductos(plan, texto, priceListId, esInterno)
-        : listarProductos(plan, priceListId, esInterno)
-    },
+    queryFn: () =>
+      consultarProductos(
+        construirPlanDeConsulta(filtros, companyId!),
+        priceListId,
+        esInterno,
+      ),
     enabled: companyId !== null && listaResuelta,
     // Mantener la página anterior visible mientras carga la siguiente evita
     // que la tabla salte a "vacío" y vuelva al paginar o filtrar.

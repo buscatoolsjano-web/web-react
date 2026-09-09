@@ -5,21 +5,17 @@ import { StatusMessage } from '@/components/ui/StatusMessage'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { CatalogoFiltros } from '../components/CatalogoFiltros'
+import { PanelFacetas } from '../components/PanelFacetas'
+import { ImagenProducto } from '../components/ImagenProducto'
 import { Paginador } from '../components/Paginador'
 import { PrecioCelda, DisponibilidadBadge, StockCelda } from '../components/Celdas'
 import { construirColumnas } from '../components/columnas'
-import {
-  useCategorias,
-  useDefinicionesDeAtributos,
-  useListasDePrecios,
-  useMarcas,
-  useAtributosPorCategoria,
-} from '../hooks/useCatalogoFacetas'
+import { useFacetas, useListasDePrecios } from '../hooks/useCatalogoFacetas'
 import { useDisponibilidad, useProductos } from '../hooks/useProductos'
 import { useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
 import { contarFiltrosActivos } from '../lib/planDeConsulta'
 import { debePropagarBusqueda } from '../lib/busquedaDiferida'
+import { atributosDestacados } from '../lib/destacados'
 import { OPCIONES_POR_PAGINA, type ProductoListado } from '../types'
 import styles from './CatalogoPage.module.css'
 
@@ -74,10 +70,10 @@ export function CatalogoPage() {
     [listas, listaElegida, porDefecto],
   )
 
-  const { data: marcas = [] } = useMarcas(companyId)
-  const { data: categorias = [] } = useCategorias(companyId)
-  const { data: definiciones = [] } = useDefinicionesDeAtributos(companyId)
-  const { data: atributosPorCategoria } = useAtributosPorCategoria(companyId)
+  // Las opciones de cada filtro salen del servidor y dependen de los filtros
+  // activos: sin categoría elegida se ven las 25 marcas, con Balanceadores
+  // sólo las 3 que tienen balanceadores.
+  const { data: facetas, isFetching: facetasCargando } = useFacetas(companyId, filtros)
 
   const { data, isPending, isFetching, error } = useProductos(filtros, listaEfectiva?.id ?? null, !listasCargando)
   const productos = useMemo(() => data?.productos ?? [], [data])
@@ -181,12 +177,10 @@ export function CatalogoPage() {
       <div className={styles.cuerpo}>
         {(!isMobile || filtrosAbiertos) && (
           <aside className={styles.lateral}>
-            <CatalogoFiltros
+            <PanelFacetas
               filtros={filtros}
-              marcas={marcas}
-              categorias={categorias}
-              definiciones={definiciones}
-              atributosPorCategoria={atributosPorCategoria}
+              facetas={facetas}
+              cargando={facetasCargando}
               onCambiar={actualizar}
               onLimpiar={() => {
                 limpiar()
@@ -261,23 +255,42 @@ function TarjetaProducto({
   disponible: boolean
   onAbrir: () => void
 }) {
+  // Uno o dos atributos, no quince. Cuáles salen de los datos del propio
+  // producto en el orden en que vienen: no hay una lista de casos por
+  // categoría en el código.
+  const destacados = atributosDestacados(producto.atributos, 2)
+
   return (
     <button type="button" className={styles.card} onClick={onAbrir}>
-      <div className={styles.cardFila}>
-        <code className={styles.cardSku}>{producto.sku}</code>
-        <PrecioCelda monto={producto.precio} moneda={moneda} />
+      <div className={styles.cardImagen}>
+        <ImagenProducto imagen={producto.imagen} alt="" tamano="thumb" />
       </div>
-      <div className={styles.cardNombre}>{producto.nombre}</div>
-      <div className={styles.cardMeta}>
-        <span>{producto.marca?.nombre ?? 'Sin marca'}</span>
-        {producto.categoria && <span>· {producto.categoria.nombre}</span>}
-      </div>
-      <div className={styles.cardFila}>
-        {esInterno ? (
-          <StockCelda stock={producto.stock} />
-        ) : (
-          <DisponibilidadBadge disponible={disponible} />
+      <div className={styles.cardTexto}>
+        <div className={styles.cardFila}>
+          <code className={styles.cardSku}>{producto.sku}</code>
+          <PrecioCelda monto={producto.precio} moneda={moneda} />
+        </div>
+        <div className={styles.cardNombre}>{producto.nombre}</div>
+        <div className={styles.cardMeta}>
+          <span>{producto.marca?.nombre ?? 'Sin marca'}</span>
+          {producto.tipo && <span>· {producto.tipo}</span>}
+        </div>
+        {destacados.length > 0 && (
+          <div className={styles.cardAtributos}>
+            {destacados.map((d) => (
+              <span key={d.key} className={styles.cardAtributo}>
+                {d.valor}
+              </span>
+            ))}
+          </div>
         )}
+        <div className={styles.cardFila}>
+          {esInterno ? (
+            <StockCelda stock={producto.stock} />
+          ) : (
+            <DisponibilidadBadge disponible={disponible} />
+          )}
+        </div>
       </div>
     </button>
   )

@@ -134,3 +134,65 @@ export async function listarListasDePrecios(companyId: string): Promise<ListaDeP
 export function listaPorDefecto(listas: readonly ListaDePrecios[]): ListaDePrecios | null {
   return listas.find((l) => l.esPorDefecto) ?? listas[0] ?? null
 }
+
+// ── Facetas dependientes (Fase 3.6) ────────────────────────────────────────
+
+import type { PlanDeConsulta } from '../lib/planDeConsulta'
+import { clasificarFaceta } from '../lib/clasificarFaceta'
+import type { Facetas } from '../types'
+
+/** Forma cruda que devuelve `public.catalog_facets`. */
+interface RespuestaFacetas {
+  total: number
+  brands: { id: string; name: string; count: number }[]
+  categories: { id: string; slug: string; name: string; count: number }[]
+  product_types: { value: string; count: number }[]
+  attributes: Record<
+    string,
+    { label: string; unit: string | null; values: { value: string; count: number }[] }
+  >
+}
+
+/**
+ * Opciones disponibles para cada filtro, dado el contexto de filtros actual.
+ *
+ * Cada faceta se calcula en el servidor con TODOS los filtros activos MENOS
+ * el suyo, para que se pueda cambiar de opción sin limpiar primero. Nunca
+ * devuelve un valor con conteo 0: si no está en la lista, no existe.
+ *
+ * La RPC es SECURITY INVOKER: los conteos salen de lo que RLS deja ver, así
+ * que un externo no puede inferir por ellos productos que no puede leer.
+ */
+export async function obtenerFacetas(plan: PlanDeConsulta): Promise<Facetas> {
+  const { data, error } = await supabase.rpc('catalog_facets', {
+    p_company: plan.companyId,
+    p_query: plan.texto,
+    p_category: plan.categoria,
+    p_brand: plan.marca,
+    p_type: plan.subtipos,
+    p_attrs: plan.atributos,
+    p_ranges: plan.rangos,
+  })
+
+  if (error) throw new Error(`No se pudieron leer los filtros: ${error.message}`)
+
+  const r = (data ?? {
+    total: 0, brands: [], categories: [], product_types: [], attributes: {},
+  }) as RespuestaFacetas
+
+  return {
+    total: Number(r.total ?? 0),
+    marcas: (r.brands ?? []).map((b) => ({
+      valor: b.id, etiqueta: b.name, cantidad: b.count,
+    })),
+    categorias: (r.categories ?? []).map((c) => ({
+      valor: c.id, etiqueta: c.name, cantidad: c.count,
+    })),
+    subtipos: (r.product_types ?? []).map((t) => ({
+      valor: t.value, etiqueta: t.value, cantidad: t.count,
+    })),
+    atributos: Object.entries(r.attributes ?? {}).map(([key, a]) =>
+      clasificarFaceta(key, a.label, a.unit, a.values),
+    ),
+  }
+}

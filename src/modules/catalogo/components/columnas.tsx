@@ -1,5 +1,6 @@
 import type { Column } from '@/components/tables/types'
 import { DisponibilidadBadge, PrecioCelda, StockCelda } from './Celdas'
+import { ImagenProducto } from './ImagenProducto'
 import type { ProductoListado } from '../types'
 
 export interface OpcionesColumnas {
@@ -23,6 +24,17 @@ export function construirColumnas({
   disponibilidad,
 }: OpcionesColumnas): Column<ProductoListado>[] {
   const columnas: Column<ProductoListado>[] = [
+    {
+      key: 'imagen',
+      header: '',
+      width: '64px',
+      mobile: 'hide',
+      render: (p) => (
+        <div style={{ width: 48 }}>
+          <ImagenProducto imagen={p.imagen} alt="" tamano="thumb" />
+        </div>
+      ),
+    },
     {
       key: 'sku',
       header: 'SKU',

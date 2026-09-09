@@ -95,3 +95,16 @@ create index if not exists idx_products_categoria_facetas
 --   · SECURITY INVOKER: RLS decide el universo, la función no filtra por empresa
 --   · cada faceta se calcula con todos los filtros MENOS el suyo (p_excepto)
 --   · attrs_match es IMMUTABLE PARALLEL SAFE y se cortocircuita sin filtros
+
+-- ── Segunda tanda (UI) ──────────────────────────────────────────────────────
+--   phase36_limpiar_product_type_guion          8 filas '-' -> NULL
+--   phase36_product_images                      tabla + RLS + índices
+--   phase36_search_products_unificado           listado y búsqueda en una RPC
+--   phase36_drop_catalog_facets_sobrecarga_vieja
+--   phase36_catalog_facets_mismo_umbral_fuzzy   plpgsql + set_config
+--
+-- NOTA IMPORTANTE sobre el umbral fuzzy: el operador <% compara contra
+-- pg_trgm.word_similarity_threshold, que por defecto es 0.6. Las DOS
+-- funciones tienen que bajarlo a 0.4 con set_config, o describen conjuntos
+-- distintos: medido, la misma búsqueda daba 1.550 en search_products y 599
+-- en catalog_facets. Por eso catalog_facets es plpgsql y no sql.

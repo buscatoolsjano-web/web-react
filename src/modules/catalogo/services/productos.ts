@@ -1,7 +1,12 @@
 import { supabase } from '@/services/supabase/client'
 import type { PlanDeConsulta } from '../lib/planDeConsulta'
 import { ordenarPorRelevancia, type PosicionDeRelevancia } from '../lib/relevancia'
-import type { PaginaDeProductos, ProductoDetalle, ProductoListado } from '../types'
+import type {
+  ImagenProducto,
+  PaginaDeProductos,
+  ProductoDetalle,
+  ProductoListado,
+} from '../types'
 
 /**
  * Columnas del listado.
@@ -18,7 +23,8 @@ const COLUMNAS_LISTADO = `
   id, sku, name, series, product_type, attributes, is_kit, needs_review,
   brands ( id, name ),
   product_categories ( id, name ),
-  product_prices ( amount, price_list_id )
+  product_prices ( amount, price_list_id ),
+  product_images ( source_url, thumb_url, kind, position, is_primary )
 ` as const
 
 const COLUMNAS_LISTADO_INTERNO = `
@@ -32,7 +38,8 @@ const COLUMNAS_DETALLE = `
   weight_g, volume_cm3,
   brands ( id, name ),
   product_categories ( id, name ),
-  product_prices ( amount, price_list_id )
+  product_prices ( amount, price_list_id ),
+  product_images ( source_url, thumb_url, kind, position, is_primary )
 ` as const
 
 const COLUMNAS_DETALLE_INTERNO = `
@@ -53,7 +60,16 @@ interface FilaProducto {
   brands: { id: string; name: string } | null
   product_categories: { id: string; name: string } | null
   product_prices: { amount: number; price_list_id: string }[] | null
+  product_images: FilaImagen[] | null
   stock_balances?: { on_hand: number; reserved: number }[] | null
+}
+
+interface FilaImagen {
+  source_url: string | null
+  thumb_url: string | null
+  kind: string
+  position: number
+  is_primary: boolean
 }
 
 interface FilaProductoDetalle extends FilaProducto {
@@ -64,6 +80,30 @@ interface FilaProductoDetalle extends FilaProducto {
   ncm_code: string | null
   weight_g: number | null
   volume_cm3: number | null
+}
+
+const CLASES_IMAGEN = new Set(['product_image', 'shared_diagram', 'technical_diagram', 'unknown'])
+
+function mapearImagen(f: FilaImagen): ImagenProducto | null {
+  if (!f.source_url) return null
+  return {
+    url: f.source_url,
+    // thumb_url sólo viene poblada si la verificación offline la encontró
+    // con HTTP 200. Nunca se deriva reescribiendo el nombre del archivo:
+    // medido, el 51 % de las de WordPress no tiene miniatura y el 100 % de
+    // las de apexbits tampoco.
+    thumbUrl: f.thumb_url,
+    kind: (CLASES_IMAGEN.has(f.kind) ? f.kind : 'unknown') as ImagenProducto['kind'],
+    posicion: f.position,
+    esPrincipal: f.is_primary,
+  }
+}
+
+function mapearImagenes(filas: FilaImagen[] | null): ImagenProducto[] {
+  return (filas ?? [])
+    .map(mapearImagen)
+    .filter((i): i is ImagenProducto => i !== null)
+    .sort((a, b) => a.posicion - b.posicion)
 }
 
 function atributosDe(v: unknown): Record<string, unknown> {
@@ -113,12 +153,18 @@ function mapearListado(f: FilaProducto): ProductoListado {
     precio,
     stock: agregarStock(f.stock_balances),
     disponible: null,
+    // Sólo una FOTO puede ser principal. Un producto cuya única imagen sea
+    // un diagrama de catálogo compartido queda sin imagen y muestra el
+    // placeholder: 3.544 productos están en ese caso, y fingir que tienen
+    // foto sería peor que no mostrar nada.
+    imagen: mapearImagenes(f.product_images).find((i) => i.esPrincipal) ?? null,
   }
 }
 
 function mapearDetalle(f: FilaProductoDetalle): ProductoDetalle {
   return {
     ...mapearListado(f),
+    imagenes: mapearImagenes(f.product_images),
     modelo: f.model_code,
     descripcion: f.description,
     descripcionLarga: f.description_long,
@@ -129,67 +175,40 @@ function mapearDetalle(f: FilaProductoDetalle): ProductoDetalle {
   }
 }
 
-/** Listado paginado sin búsqueda de texto. */
-export async function listarProductos(
-  plan: PlanDeConsulta,
-  priceListId: string | null,
-  esInterno: boolean,
-): Promise<PaginaDeProductos> {
-  let q = supabase
-    .from('products')
-    .select(esInterno ? COLUMNAS_LISTADO_INTERNO : COLUMNAS_LISTADO, { count: 'exact' })
-    .eq('company_id', plan.companyId)
-    .is('deleted_at', null)
-    .eq('status', 'active')
-
-  for (const [col, val] of Object.entries(plan.eq)) q = q.eq(col, val)
-  if (Object.keys(plan.atributos).length > 0) q = q.contains('attributes', plan.atributos)
-
-  // Filtro sobre el recurso embebido: acota QUÉ precio se trae, no qué
-  // productos. Sin `!inner`, un producto sin precio igual aparece — hace
-  // falta, porque 92 de 219 no tienen precio.
-  if (priceListId) q = q.eq('product_prices.price_list_id', priceListId)
-
-  const { data, error, count } = await q
-    .order(plan.orden.columna, { ascending: plan.orden.ascendente })
-    .range(plan.rango.desde, plan.rango.hasta)
-
-  if (error) throw new Error(`No se pudo leer el catálogo: ${error.message}`)
-
-  const filas = (data ?? []) as unknown as FilaProducto[]
-  return { productos: filas.map(mapearListado), total: count ?? 0 }
-}
-
 /**
- * Búsqueda server-side: full-text + fuzzy, ordenada por relevancia.
+ * Consulta del catálogo: listado y búsqueda, por el mismo camino.
  *
- * Son dos pasos porque la RPC devuelve sólo ids y score. Los datos vienen
- * de la MISMA consulta que el listado, así que no existe una segunda
- * definición de qué columnas ve cada rol — que es donde suelen aparecer las
+ * Desde la Fase 3.6 hay UNA sola definición de qué productos entran, dentro
+ * de `search_products`. Antes el listado armaba su propia cadena de
+ * PostgREST y la búsqueda usaba la RPC; mantener las dos en paralelo con
+ * multiselección y rangos era pedir que el total del paginador y el de las
+ * facetas se desincronizaran. Ya pasó una vez: el paginador decía
+ * "1–50 de 407" mostrando 48 filas, porque el conteo no aplicaba los filtros.
+ *
+ * Son dos pasos porque la RPC devuelve sólo ids y score. Las columnas salen
+ * de la MISMA consulta en los dos casos, así que no existe una segunda
+ * definición de qué ve cada rol — que es donde suelen aparecer las
  * filtraciones.
  */
-export async function buscarProductos(
+export async function consultarProductos(
   plan: PlanDeConsulta,
-  texto: string,
   priceListId: string | null,
   esInterno: boolean,
 ): Promise<PaginaDeProductos> {
-  const porPagina = plan.rango.hasta - plan.rango.desde + 1
-
-  // Los filtros van DENTRO de la RPC. Si se aplicaran sólo en la segunda
-  // consulta, `total_count` contaría el conjunto sin filtrar: medido en
-  // producción, el paginador decía "1–50 de 407" mostrando 48 filas.
   const { data: ranking, error: errorRpc } = await supabase.rpc('search_products', {
     p_company: plan.companyId,
-    p_query: texto,
-    p_limit: porPagina,
-    p_offset: plan.rango.desde,
-    p_category: plan.eq['category_id'] ?? null,
-    p_brand: plan.eq['brand_id'] ?? null,
-    p_attrs: Object.keys(plan.atributos).length > 0 ? plan.atributos : null,
+    p_query: plan.texto,
+    p_limit: plan.limite,
+    p_offset: plan.desplazamiento,
+    p_category: plan.categoria,
+    p_brand: plan.marca,
+    p_attrs: plan.atributos,
+    p_type: plan.subtipos,
+    p_ranges: plan.rangos,
+    p_orden: plan.orden,
   })
 
-  if (errorRpc) throw new Error(`La búsqueda falló: ${errorRpc.message}`)
+  if (errorRpc) throw new Error(`No se pudo leer el catálogo: ${errorRpc.message}`)
 
   const filasRanking = (ranking ?? []) as PosicionDeRelevancia[] &
     { total_count: number }[]
@@ -205,9 +224,12 @@ export async function buscarProductos(
     .select(esInterno ? COLUMNAS_LISTADO_INTERNO : COLUMNAS_LISTADO)
     .eq('company_id', plan.companyId)
     .in('id', ids)
+    // Del listado sólo se trae la imagen PRINCIPAL: la segunda no se muestra
+    // y bajarla sería peso puro. En el detalle sí vienen todas.
+    .eq('product_images.is_primary', true)
 
-  // Los filtros ya los aplicó la RPC; no hace falta repetirlos acá. Sólo
-  // se acota el precio a la lista vigente.
+  // Los filtros ya los aplicó la RPC; no hace falta repetirlos acá. Sólo se
+  // acota el precio a la lista vigente.
   if (priceListId) q = q.eq('product_prices.price_list_id', priceListId)
 
   const { data, error } = await q
@@ -215,8 +237,9 @@ export async function buscarProductos(
 
   const filas = (data ?? []) as unknown as FilaProducto[]
 
-  // `.in()` NO conserva el orden de los ids. Sin esto, el ranking por score
-  // que calculó Postgres se pierde y los resultados salen en orden arbitrario.
+  // `.in()` NO conserva el orden de los ids. Sin esto se pierde el orden que
+  // calculó Postgres —relevancia si hay búsqueda, nombre o SKU si no— y las
+  // filas salen en orden arbitrario.
   const ordenadas = ordenarPorRelevancia(filas, filasRanking)
 
   return { productos: ordenadas.map(mapearListado), total }
@@ -244,7 +267,9 @@ export async function obtenerProductoPorSku(
 
   if (priceListId) q = q.eq('product_prices.price_list_id', priceListId)
 
-  const { data, error } = await q.maybeSingle()
+  const { data, error } = await q
+    .order('position', { referencedTable: 'product_images', ascending: true })
+    .maybeSingle()
   if (error) throw new Error(`No se pudo leer el producto: ${error.message}`)
   if (!data) return null
 

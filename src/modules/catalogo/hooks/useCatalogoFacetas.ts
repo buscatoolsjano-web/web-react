@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
+import { construirPlanDeConsulta } from '../lib/planDeConsulta'
 import {
+  obtenerFacetas,
   listaPorDefecto,
   listarCategorias,
   listarDefinicionesDeAtributos,
@@ -7,7 +9,7 @@ import {
   listarMarcas,
   listarAtributosPorCategoria,
 } from '../services/facetas'
-import type { ListaDePrecios } from '../types'
+import type { Facetas, FiltrosCatalogo, ListaDePrecios } from '../types'
 
 /**
  * Datos de apoyo del catálogo: marcas, categorías, atributos y listas.
@@ -89,5 +91,30 @@ export function useAtributosPorCategoria(companyId: string | null) {
     queryFn: () => listarAtributosPorCategoria(companyId!),
     enabled: companyId !== null,
     staleTime: CINCO_MINUTOS,
+  })
+}
+
+/**
+ * Opciones disponibles para cada filtro, dado el contexto actual.
+ *
+ * Depende de los filtros, así que la clave de caché los incluye. Sigue
+ * llevando `companyId` primero: al cambiar de empresa, TanStack Query no
+ * puede confundir una entrada con otra.
+ *
+ * `placeholderData` mantiene visibles las opciones anteriores mientras
+ * llegan las nuevas, para que los conteos no parpadeen en cada click —
+ * PERO SÓLO DENTRO DE LA MISMA EMPRESA, porque si no anularía el
+ * removeQueries del cambio de empresa y se verían facetas de la anterior.
+ */
+export function useFacetas(companyId: string | null, filtros: FiltrosCatalogo) {
+  return useQuery<Facetas>({
+    queryKey: ['catalogo', companyId, 'facetas', { ...filtros, pagina: 1, porPagina: 0 }],
+    queryFn: () => obtenerFacetas(construirPlanDeConsulta(filtros, companyId!)),
+    enabled: companyId !== null,
+    placeholderData: (previa, consultaPrevia) => {
+      const empresaPrevia = consultaPrevia?.queryKey[1]
+      return empresaPrevia === companyId ? previa : undefined
+    },
+    staleTime: 30_000,
   })
 }
