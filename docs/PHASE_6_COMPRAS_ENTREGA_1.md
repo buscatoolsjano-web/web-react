@@ -245,6 +245,8 @@ lo que pudo haber crecido por esta entrega.
 - 0 proveedores, 0 pedidos, 0 recepciones, 0 facturas, 0 filas de auditoría:
   la base quedó como estaba, más el schema.
 
+- Commit `5424809`, push a `main`, workflow «Deploy to GitHub Pages» **success**.
+
 No hay cambios de frontend en esta entrega, así que no hay nada visual que revisar.
 
 ---
