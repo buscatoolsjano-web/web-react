@@ -67,6 +67,38 @@ cotizado por SKU y cliente. **No se migra como fuente maestra**: el precio que
 vale es el que figura en cada cotización. La pestaña se reconstruye derivándola
 de `sales_quote_lines` / `sales_order_lines` cuando le toque su entrega.
 
+### `database.types.ts` está parcheado a mano
+
+Las seis columnas que la Fase 5 agregó a `customers` —`emails`, `industry`,
+`needs_review`, `review_reason`, `imported_at`, `legacy_source`— y la función
+`resolver_revision_cliente` se agregaron **a mano** al archivo generado:
+regenerarlo necesita un access token de Supabase que no está en esta máquina.
+
+Cuando el token esté disponible:
+
+1. regenerar con `npx supabase gen types typescript --project-id uaxcfufvapzulqvynanp`
+2. comparar el diff
+3. verificar que coincida con las columnas reales
+4. correr la regresión completa
+
+**No bloquea Clientes.** El archivo compila y refleja el schema real.
+
+### `salesperson` puede crear un cliente que después no ve
+
+`customers_insert` incluye a `salesperson`, pero `customers_select` sólo le
+muestra los que tienen `salesperson_id = auth.uid()`. Los 1.010 clientes lo
+tienen en `NULL`, así que hoy un salesperson **no ve ningún cliente**, y si
+crea uno sin asignarse, tampoco lo verá.
+
+No se tocó: ampliar un permiso es una decisión. Las opciones son que el alta le
+asigne el vendedor, que la policy cambie, o que el rol no cree clientes.
+
+### `customer_addresses` no tiene un tipo «otra»
+
+El CHECK acepta `billing`, `shipping` y `both`. La UI usa esos tres. Si hace
+falta un cuarto valor, es un `alter` de una línea — pero es un cambio de
+modelo, no una simetría.
+
 ### Clientes potenciales
 
 `NOT_MIGRATED_BY_DESIGN`. En el legacy es un placeholder; construirlo sería un

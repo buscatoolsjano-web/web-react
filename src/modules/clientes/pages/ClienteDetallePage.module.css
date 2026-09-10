@@ -195,3 +195,83 @@
   color: var(--danger);
   background: var(--surface);
 }
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.secundario,
+.peligro {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.secundario {
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.secundario:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.peligro {
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+
+.secundario:disabled,
+.peligro:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.secundario:focus-visible,
+.peligro:focus-visible,
+.resolver:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* El aviso de baja no es un error: es el estado del cliente. */
+.avisoBaja {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+}
+
+.motivos li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.resolver {
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.resolver:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

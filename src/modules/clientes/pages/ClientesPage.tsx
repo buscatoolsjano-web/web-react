@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { permisosDe } from '../lib/permisos'
 import { FiltrosClientes } from '../components/FiltrosClientes'
 import { ListadoClientes } from '../components/ListadoClientes'
 import { Paginador } from '../components/Paginador'
@@ -14,15 +16,18 @@ import styles from './ClientesPage.module.css'
 /**
  * El maestro de clientes.
  *
- * Entrega 1: sólo lectura. No hay botón de «Nuevo cliente» porque todavía no
- * se puede crear uno — y esconder un botón nunca fue lo que impide escribir:
- * eso lo hace RLS.
+ * Todo pasa por el servidor: filtros, orden, página y el total exacto. El
+ * legacy tenía los 988 en memoria y filtraba con `_clientes_applyFilters`
+ * sobre el array entero para mostrar 25.
  */
 export function ClientesPage() {
   const { filtros, aplicar, limpiar, hayFiltros } = useFiltrosClientes()
   const { data, isPending, isFetching, error } = useClientes(filtros)
   const { activa } = useEmpresa()
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
+  // El botón se le muestra a quien puede crear. Lo que IMPIDE crear no es
+  // esconderlo: es la policy `customers_insert`.
+  const permisos = permisosDe(activa)
 
   const ordenar = (columna: OrdenClientes) => {
     // Click en la columna activa invierte; en otra, empieza ascendente — un
@@ -105,6 +110,11 @@ export function ClientesPage() {
             >
               Limpiar selección
             </button>
+          ) : null}
+          {permisos.crearCliente ? (
+            <Link to="/clientes/nuevo" className={styles.nuevo}>
+              + Nuevo cliente
+            </Link>
           ) : null}
         </div>
       </header>

@@ -181,6 +181,9 @@ export async function rubrosUsados(companyId: string): Promise<string[]> {
     .select('industry')
     .eq('company_id', companyId)
     .not('industry', 'is', null)
+    // El rubro de un cliente dado de baja no tiene por qué seguir ofreciéndose
+    // como opción del filtro.
+    .is('deleted_at', null)
     .limit(1000)
   if (error) throw new Error(`No se pudieron leer los rubros: ${error.message}`)
   const vistos = new Set<string>()
@@ -366,7 +369,7 @@ export async function relacionadosDeCliente(
   const [dir, alias, oc] = await Promise.all([
     supabase
       .from('customer_addresses')
-      .select('id, kind, is_default, street, city, state, postal_code, country_code')
+      .select('id, kind, is_default, street, city, state, postal_code, country_code, notes')
       .eq('company_id', companyId)
       .eq('customer_id', clienteId)
       .order('is_default', { ascending: false })
@@ -396,7 +399,14 @@ export async function relacionadosDeCliente(
   return {
     direcciones: (dir.data ?? []).map((d) => ({
       id: d.id,
-      etiqueta: d.kind?.trim() || null,
+      tipo: d.kind,
+      calle: d.street ?? '',
+      ciudad: d.city,
+      provincia: d.state,
+      codigoPostal: d.postal_code,
+      pais: d.country_code,
+      notas: d.notes,
+      esPrincipal: d.is_default,
       texto: [d.street, d.city, d.state, d.postal_code, d.country_code]
         .map((p) => (p ?? '').trim())
         .filter((p) => p !== '')

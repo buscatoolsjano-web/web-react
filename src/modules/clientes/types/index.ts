@@ -71,7 +71,17 @@ export interface ContactoCliente {
 
 export interface DireccionCliente {
   id: string
-  etiqueta: string | null
+  /** `shipping` | `billing` | `both`, tal como los acepta el CHECK. */
+  tipo: string
+  calle: string
+  ciudad: string | null
+  provincia: string | null
+  codigoPostal: string | null
+  /** Código de dos letras: `country_code`. */
+  pais: string | null
+  notas: string | null
+  esPrincipal: boolean
+  /** La dirección en una línea, para mostrarla sin armarla en cada lugar. */
   texto: string
 }
 

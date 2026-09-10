@@ -914,3 +914,35 @@ grant execute on function public.next_document_number(uuid, text, text) to authe
 --
 -- `series_code` es IDENTIDAD DOCUMENTAL, nunca autorización: no aparece en
 -- ninguna policy. El aislamiento sigue siendo por company_id y por customer.
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Fase 5 · Clientes · entrega 3 — alta, edición, baja lógica y revisión
+-- Migración aplicada: fase5_clientes_edicion
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- 1 · `customers_select` deja de filtrar `deleted_at is null` para todos.
+--     Antes, dar de baja a un cliente lo hacía desaparecer también de sus
+--     documentos históricos —el embed volvía null y el remito quedaba «Sin
+--     cliente»— y no había forma de mostrarlo como inactivo. Ahora la baja la
+--     ven los roles internos; para el cliente externo el filtro sigue en pie.
+--
+-- 2 · `uq_customers_cuit_norm`: el CUIT informado no se repite, comparándolo
+--     por sus dígitos. El índice anterior miraba el texto literal y no veía
+--     que «30-50328441-0» y «30503284410» son el mismo. Sólo alcanza a los
+--     valores de once dígitos: el histórico trae 21 `tax_id` que no son un
+--     CUIT y ésos quedan como están.
+--
+-- 3 · `app.revisar_motivos_cliente()`: la marca de revisión no se borra
+--     editando cualquier cosa. Un motivo se cae solo cuando el dato que
+--     faltaba aparece (CUIT, referencia); el resto lo resuelve una persona.
+--     Lo que la aplicación escriba en `needs_review` / `review_reason` se
+--     ignora: el trigger los recalcula.
+--
+-- 4 · `public.resolver_revision_cliente(uuid, text[])`: la resolución
+--     explícita, para admin y employee. Sin lista, se dan por revisados
+--     todos; con lista, sólo ésos.
+--
+-- No hay policy de DELETE sobre `customers`: desde la aplicación un cliente no
+-- se borra nunca. El intento no da error, simplemente no alcanza ninguna fila.
+-- `app.proteger_borrado_cliente()` sigue rechazando el borrado físico de un
+-- cliente con documentos incluso para la clave de servicio.

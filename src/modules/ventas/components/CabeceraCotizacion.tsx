@@ -1,5 +1,5 @@
 import { useId } from 'react'
-import { useClientes } from '../hooks/useDocumentos'
+import { BuscadorCliente } from './BuscadorCliente'
 import styles from './CabeceraCotizacion.module.css'
 
 export interface ValoresCabecera {
@@ -40,7 +40,6 @@ export function CabeceraCotizacion({
   mostrarValidez = true,
   onCambiar,
 }: CabeceraCotizacionProps) {
-  const clientes = useClientes()
   const id = useId()
 
   const campo = (
@@ -66,23 +65,14 @@ export function CabeceraCotizacion({
   return (
     <div className={styles.grilla}>
       <div className={`${styles.campo} ${styles.ancho}`}>
-        <label className={styles.etiqueta} htmlFor={`${id}-cliente`}>
-          Cliente
-        </label>
-        <select
-          id={`${id}-cliente`}
-          className={styles.control}
-          value={valores.customerId ?? ''}
-          disabled={!editable}
-          onChange={(e) => onCambiar('customerId', e.target.value)}
-        >
-          <option value="">Elegí un cliente…</option>
-          {(clientes.data ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.nombre}
-            </option>
-          ))}
-        </select>
+        {/* El buscador tiene su propio input con su `aria-label`, así que acá
+            va un rótulo y no un `<label for>` que apuntaría a nada. */}
+        <span className={styles.etiqueta}>Cliente</span>
+        <BuscadorCliente
+          valor={valores.customerId || null}
+          editable={editable}
+          onElegir={(elegido) => onCambiar('customerId', elegido ?? '')}
+        />
       </div>
 
       <div className={`${styles.campo} ${styles.ancho}`}>

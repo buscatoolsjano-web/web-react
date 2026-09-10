@@ -3172,6 +3172,13 @@ export type Database = {
         Args: { p_company: string; p_doc_type: string; p_series?: string }
         Returns: string
       }
+      resolver_revision_cliente: {
+        Args: {
+          p_customer: string
+          p_motivos?: string[] | null
+        }
+        Returns: Json
+      }
       registrar_evento_venta: {
         Args: {
           p_action: string

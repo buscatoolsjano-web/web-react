@@ -106,6 +106,9 @@ const EntregaDetallePage = lazyConRecarga(() =>
 const ClientesPage = lazyConRecarga(() =>
   import('@/modules/clientes/pages/ClientesPage').then((m) => ({ default: m.ClientesPage })),
 )
+const ClienteNuevoPage = lazyConRecarga(() =>
+  import('@/modules/clientes/pages/ClienteNuevoPage').then((m) => ({ default: m.ClienteNuevoPage })),
+)
 const ClienteDetallePage = lazyConRecarga(() =>
   import('@/modules/clientes/pages/ClienteDetallePage').then((m) => ({
     default: m.ClienteDetallePage,
@@ -165,6 +168,8 @@ export const routes: RouteObject[] = [
       // la referencia es un dato del cliente —heredado, editable y que 19 de
       // los 1.010 no tienen—, no su identidad.
       { path: 'clientes', element: privada(<ClientesPage />) },
+      // `nuevo` antes que `:id`: si no, React Router lo tomaría como un id.
+      { path: 'clientes/nuevo', element: privada(<ClienteNuevoPage />) },
       { path: 'clientes/:id', element: privada(<ClienteDetallePage />) },
     ],
   },

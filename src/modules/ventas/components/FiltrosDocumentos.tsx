@@ -69,6 +69,9 @@ export function FiltrosDocumentos({
         {(clientes.data ?? []).map((c) => (
           <option key={c.id} value={c.id}>
             {c.nombre}
+            {/* Un cliente dado de baja sigue en el filtro: sus documentos
+                históricos existen y hay que poder buscarlos por él. */}
+            {c.dadoDeBaja ? ' (dado de baja)' : ''}
           </option>
         ))}
       </select>
