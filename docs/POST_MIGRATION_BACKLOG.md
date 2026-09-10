@@ -233,3 +233,68 @@ De las siete acciones de lote del legacy se migró **exportar**. Eliminar y
 duplicar en lote son operaciones masivas peligrosas sobre documentos
 comerciales y no se agregaron «por comodidad»; imprimir en lote necesita
 resolver antes cómo se concatenan varias hojas.
+
+---
+
+## Compras (Fase 6)
+
+### Pagos a proveedor
+
+`supplier_payments`, asignaciones y tesorería quedan **fuera de la primera
+pasada**. El legacy no tiene un módulo real de pagos: sólo un `estado: 'pagada'`
+en la factura, y en el perfil real **no hay ninguna factura de proveedor**, así
+que tampoco hay estado histórico que preservar.
+
+### Compras ↔ Ventas: `procurement_allocations`
+
+Prioritaria, pero **segunda pasada**. Tiene que ser **N:N a nivel de línea**
+—`purchase_order_line_id`, `sales_order_line_id`, `quantity_allocated`— porque
+una compra puede abastecer varios pedidos de venta y un pedido de venta puede
+necesitar varias compras.
+
+El legacy **no guarda esa relación** y no se reconstruye por intuición: nada de
+unir por fecha parecida, mismo SKU, mismo cliente ni cantidades parecidas. Y
+ahora sabemos que además no habría con qué: hay un solo pedido de compra, de
+prueba.
+
+El schema de Compras se diseña para no impedirlo: **no** lleva una FK
+simplista `purchase_orders.sales_order_id`.
+
+### Tolerancia de recepción
+
+La primera versión **bloquea** recibir más de lo pendiente. Queda para evaluar
+una política de tolerancia:
+
+- por porcentaje o por cantidad
+- por proveedor o por producto
+- con autorización de admin
+
+**No implementarla ahora.**
+
+### Cancelar una recepción confirmada
+
+No se puede en la primera versión: habría que revertir el movimiento de stock y
+eso es una decisión propia (¿movimiento inverso?, ¿anulación?, ¿quién puede?).
+
+### Recibos de proveedor, tickets y libro de facturas recibidas
+
+`NOT_MIGRATED_BY_DESIGN` · `LEGACY_PLACEHOLDER`. En el legacy las tres
+subsecciones muestran «🚧 Próximamente».
+
+### Importador de PDF de Compras
+
+No se construye: el legacy no tiene uno. El que existe lee la **OC del
+cliente** y pertenece a Ventas (ver «Importar OC con IA»).
+
+### Los 22 emails dentro de las notas de proveedores
+
+18 de los 142 proveedores tienen al menos un email escrito dentro de `notas`,
+y 43 notas parecen fichas de contacto completas. **No se extraen
+automáticamente**: una regex puede encontrar algo que no sea el email principal.
+Si alguna vez se quieren como contactos, con revisión humana.
+
+### El pedido de compra `PC00001`
+
+Único documento de Compras del legacy: sin proveedor, una línea a precio 0,
+nunca recibido ni facturado. Clasificado `TEST` / `NON_PRODUCTION`, **no se
+migra**. Queda en el backup del 2026-09-10 (`sha256 81a02598…`).
