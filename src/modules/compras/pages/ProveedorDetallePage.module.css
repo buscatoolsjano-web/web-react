@@ -328,3 +328,95 @@
   color: var(--warning-text);
   font-size: var(--text-sm);
 }
+
+/* Controles que viven dentro de una lista de datos: el depósito, la fecha y
+   el remito de una recepción en borrador. */
+.selectDato,
+.areaDato {
+  /* 16px: menos que eso y iOS hace zoom al enfocar. */
+  font-size: 16px;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+  min-width: 0;
+  max-width: 22rem;
+}
+
+.areaDato {
+  min-height: 4rem;
+  resize: vertical;
+  font-family: inherit;
+  max-width: none;
+}
+
+.selectDato:focus-visible,
+.areaDato:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.selectDato:disabled,
+.areaDato:disabled {
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  cursor: default;
+}
+
+/* La tabla de líneas de una recepción confirmada, en modo lectura. */
+.scrollLineas {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.tablaLineas {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  min-width: 30rem;
+}
+
+.tablaLineas th,
+.tablaLineas td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.tablaLineas thead th {
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.tablaLineas tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.derecha {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Un enlace que se ve como el botón principal: «Recibir mercadería» lleva a
+   otra pantalla, así que es un link, no un button. */
+a.primario {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}

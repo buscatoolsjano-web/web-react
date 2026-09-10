@@ -244,3 +244,123 @@ export interface UltimoPrecioCompra {
   fecha: string
   proveedor: string
 }
+
+// ── Recepciones (notas de entrada de proveedor) ────────────────────────────
+
+/** Los dos del CHECK de `goods_receipts.status`. No hay más. */
+export type EstadoRecepcionDoc = 'draft' | 'confirmed'
+
+export interface RecepcionListado {
+  id: string
+  numero: string
+  fecha: string
+  proveedorId: string
+  proveedor: string
+  pedidoId: string | null
+  pedidoNumero: string | null
+  depositoId: string
+  deposito: string
+  estado: EstadoRecepcionDoc
+  lineas: number
+  /** Suma de las cantidades de sus líneas. */
+  unidades: number
+  autor: string | null
+}
+
+export interface PaginaDeRecepciones {
+  filas: RecepcionListado[]
+  total: number
+}
+
+export type OrdenRecepciones = 'fecha' | 'numero' | 'proveedor' | 'pedido'
+
+export interface FiltrosRecepciones {
+  /** Número de recepción, exacto o parcial. */
+  q: string
+  proveedorId: string | null
+  pedidoId: string | null
+  estado: string
+  depositoId: string | null
+  desde: string
+  hasta: string
+  pagina: number
+  porPagina: number
+  orden: OrdenRecepciones
+  direccion: DireccionOrden
+}
+
+export const FILTROS_RECEPCIONES_INICIALES: FiltrosRecepciones = {
+  q: '',
+  proveedorId: null,
+  pedidoId: null,
+  estado: '',
+  depositoId: null,
+  desde: '',
+  hasta: '',
+  pagina: 1,
+  porPagina: 25,
+  orden: 'fecha',
+  direccion: 'desc',
+}
+
+/**
+ * Una línea del pedido, con su cuenta de recepción.
+ *
+ * Sale de `public.pendiente_de_pedido()`. `enBorrador` **no está reservado**:
+ * es lo que otras recepciones en borrador ya anotaron sobre esta misma línea.
+ * Se muestra para que quien recibe lo sepa antes de confirmar, no para
+ * bloquear nada.
+ */
+export interface PendienteDeLinea {
+  purchaseOrderLineId: string
+  numeroLinea: number
+  /** `null` en una línea libre: no está en el catálogo y no mueve stock. */
+  productId: string | null
+  sku: string | null
+  descripcion: string | null
+  pedido: number
+  recibido: number
+  enBorrador: number
+  pendiente: number
+  /** Los números de las recepciones en borrador que tocan esta línea. */
+  borradores: string[]
+  /** Lo que hay hoy en el depósito elegido. Sólo si la línea tiene producto. */
+  stockActual: number | null
+}
+
+/** Una línea de la recepción, tal como está guardada. */
+export interface LineaRecepcion {
+  id: string
+  purchaseOrderLineId: string | null
+  productId: string | null
+  sku: string | null
+  descripcion: string | null
+  cantidad: number
+}
+
+export interface RecepcionDetalle {
+  id: string
+  numero: string
+  serie: string
+  estado: EstadoRecepcionDoc
+  fecha: string
+  proveedorId: string
+  proveedor: string
+  pedidoId: string | null
+  pedidoNumero: string | null
+  depositoId: string
+  deposito: string
+  documentoProveedor: string | null
+  notas: string | null
+  autor: string | null
+  confirmadaEn: string | null
+  confirmadaPor: string | null
+  creadoEn: string
+}
+
+export interface Deposito {
+  id: string
+  codigo: string
+  nombre: string
+  esPorDefecto: boolean
+}

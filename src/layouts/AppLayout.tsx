@@ -35,6 +35,7 @@ const NAV = [
   // Compras usan `app.current_writer_company_ids()`.
   { to: '/compras/proveedores', label: 'Proveedores', end: false, roles: ESCRIBEN_COMPRAS },
   { to: '/compras/pedidos', label: 'Pedidos de compra', end: false, roles: ESCRIBEN_COMPRAS },
+  { to: '/compras/recepciones', label: 'Notas de entrada', end: false, roles: ESCRIBEN_COMPRAS },
 ] as const
 
 const PROXIMAMENTE = [

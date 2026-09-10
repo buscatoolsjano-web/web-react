@@ -1494,3 +1494,782 @@ where not exists (select 1 from purchase_orders   o where o.id = a.entity_id)
 -- interno a propósito y abrirlo entero para esto sería aflojar de más.
 -- La función sólo calcula valores a partir de NEW y tiene `search_path` fijo.
 alter function app.normalizar_linea_compra() security definer;
+
+
+-- --------------------------------------------------------------------------
+-- Migración aplicada: fase6_recepciones_reglas_y_concurrencia
+-- versión 20260910150610 · entrega 4
+-- --------------------------------------------------------------------------
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Fase 6 · Compras · entrega 4 — recepciones: coherencia, congelado y carrera
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- ── 1 · Una línea libre se puede recibir, pero no genera stock ─────────────
+--
+-- `goods_receipt_lines.product_id` era NOT NULL, así que una línea libre del
+-- pedido —un flete, un servicio, algo que no está en el catálogo— NO SE PODÍA
+-- RECIBIR. Y `app.derivar_receipt_status()` cuenta todas las líneas que no son
+-- capítulo: un pedido con una línea de flete no podía llegar nunca a
+-- `received`.
+--
+-- Ahora se puede recibir documentalmente y **no mueve stock**: no hay producto
+-- de catálogo al que sumarle nada, y `stock_movements.product_id` es NOT NULL
+-- justamente porque un movimiento sin producto no significa nada.
+alter table public.goods_receipt_lines alter column product_id drop not null;
+
+-- Y no se puede inventar un producto donde el pedido no tenía ninguno, ni
+-- perderlo donde sí lo tenía: el producto de la recepción es el de la línea
+-- del pedido. Lo comprueba `app.validar_linea_recepcion()`.
+
+-- ── 2 · Coherencia de la cabecera ─────────────────────────────────────────
+--
+-- Faltaba todo esto: nada impedía recibir en el depósito de OTRA empresa, ni
+-- contra un pedido de otra empresa, ni contra un pedido de otro proveedor, ni
+-- contra un pedido en borrador o cancelado.
+
+create or replace function app.validar_recepcion()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_dep record; v_po record;
+begin
+  select company_id, is_active into v_dep from warehouses where id = new.warehouse_id;
+  if v_dep is null then
+    raise exception 'El depósito no existe' using errcode = 'foreign_key_violation';
+  end if;
+  if v_dep.company_id <> new.company_id then
+    raise exception 'El depósito es de otra empresa' using errcode = 'check_violation';
+  end if;
+  if not v_dep.is_active then
+    raise exception 'El depósito está inactivo' using errcode = 'check_violation';
+  end if;
+
+  if new.purchase_order_id is not null then
+    select company_id, supplier_id, status, number into v_po
+      from purchase_orders where id = new.purchase_order_id;
+    if v_po is null then
+      raise exception 'El pedido no existe' using errcode = 'foreign_key_violation';
+    end if;
+    if v_po.company_id <> new.company_id then
+      raise exception 'El pedido es de otra empresa' using errcode = 'check_violation';
+    end if;
+    if v_po.supplier_id <> new.supplier_id then
+      raise exception 'El pedido % es de otro proveedor', v_po.number
+        using errcode = 'check_violation';
+    end if;
+    -- Sólo se recibe contra un pedido confirmado. Un borrador todavía no se
+    -- mandó; uno cancelado ya no espera nada.
+    if v_po.status <> 'confirmed' then
+      raise exception 'El pedido % no está confirmado: no se puede recibir contra él',
+        v_po.number using errcode = 'restrict_violation';
+    end if;
+  end if;
+
+  return new;
+end $$;
+
+drop trigger if exists trg_gr_validar on public.goods_receipts;
+create trigger trg_gr_validar
+  before insert or update on public.goods_receipts
+  for each row execute function app.validar_recepcion();
+
+-- ── 3 · Coherencia de la línea ────────────────────────────────────────────
+
+create or replace function app.validar_linea_recepcion()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_r record; v_l record;
+begin
+  select company_id, purchase_order_id, status into v_r
+    from goods_receipts where id = new.goods_receipt_id;
+
+  if new.company_id <> v_r.company_id then
+    raise exception 'La línea es de otra empresa que la recepción'
+      using errcode = 'check_violation';
+  end if;
+
+  if new.purchase_order_line_id is null then
+    -- Una recepción contra un pedido recibe LO DEL PEDIDO. Recibir algo que
+    -- nadie pidió no es una recepción: es un ajuste de stock, y eso ya existe.
+    if v_r.purchase_order_id is not null then
+      raise exception 'La línea tiene que apuntar a una línea del pedido'
+        using errcode = 'check_violation';
+    end if;
+    return new;
+  end if;
+
+  select purchase_order_id, product_id, line_type, line_no into v_l
+    from purchase_order_lines where id = new.purchase_order_line_id;
+
+  if v_r.purchase_order_id is null or v_l.purchase_order_id <> v_r.purchase_order_id then
+    raise exception 'Esa línea no es del pedido de esta recepción'
+      using errcode = 'check_violation';
+  end if;
+  if v_l.line_type = 'chapter' then
+    raise exception 'Un capítulo no se recibe' using errcode = 'check_violation';
+  end if;
+  -- El producto no se elige: es el de la línea del pedido. Ni se inventa donde
+  -- no había, ni se cambia por otro.
+  if new.product_id is distinct from v_l.product_id then
+    raise exception 'La línea % del pedido es de otro producto', v_l.line_no
+      using errcode = 'check_violation';
+  end if;
+
+  return new;
+end $$;
+
+drop trigger if exists trg_grl_validar on public.goods_receipt_lines;
+create trigger trg_grl_validar
+  before insert or update on public.goods_receipt_lines
+  for each row execute function app.validar_linea_recepcion();
+
+-- ── 4 · Una recepción confirmada está congelada ───────────────────────────
+--
+-- No se edita, no se vuelve a borrador, no se borra. La reversión de una
+-- recepción confirmada sería un contramovimiento explícito de stock, y eso NO
+-- está en v1.
+
+create or replace function app.proteger_recepcion_confirmada()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if tg_op = 'DELETE' then
+    if old.status = 'confirmed' then
+      raise exception 'La recepción % está confirmada: movió stock y no se borra', old.number
+        using errcode = 'restrict_violation';
+    end if;
+    return old;
+  end if;
+
+  if old.status = 'confirmed' then
+    raise exception 'La recepción % está confirmada: no se modifica', old.number
+      using errcode = 'restrict_violation';
+  end if;
+  if new.number is distinct from old.number or new.series_code is distinct from old.series_code then
+    raise exception 'El número de la recepción no se cambia' using errcode = 'restrict_violation';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_gr_congelar on public.goods_receipts;
+create trigger trg_gr_congelar
+  before update or delete on public.goods_receipts
+  for each row execute function app.proteger_recepcion_confirmada();
+
+create or replace function app.proteger_lineas_recepcion()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_estado text; v_numero text;
+begin
+  select status, number into v_estado, v_numero
+    from goods_receipts where id = coalesce(new.goods_receipt_id, old.goods_receipt_id);
+
+  -- Si la recepción ya no existe, esto es el CASCADE de su borrado: no hay
+  -- nada que proteger.
+  if v_estado is null then return coalesce(new, old); end if;
+
+  if v_estado = 'confirmed' then
+    raise exception 'La recepción % está confirmada: sus líneas no se tocan', v_numero
+      using errcode = 'restrict_violation';
+  end if;
+  return coalesce(new, old);
+end $$;
+
+drop trigger if exists trg_grl_congelar on public.goods_receipt_lines;
+create trigger trg_grl_congelar
+  before insert or update or delete on public.goods_receipt_lines
+  for each row execute function app.proteger_lineas_recepcion();
+
+-- ── 5 · Autor y auditoría del alta ────────────────────────────────────────
+
+create or replace function app.sellar_autor_recepcion()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if tg_op = 'INSERT' then
+    new.created_by := auth.uid();
+    new.updated_by := auth.uid();
+  else
+    new.created_by := old.created_by;
+    new.updated_by := coalesce(auth.uid(), old.updated_by);
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_gr_autor on public.goods_receipts;
+create trigger trg_gr_autor
+  before insert or update on public.goods_receipts
+  for each row execute function app.sellar_autor_recepcion();
+
+create or replace function app.auditar_recepcion()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  insert into purchases_audit (company_id, entity_type, entity_id, action,
+                               from_status, to_status, diff, actor_id)
+  values (new.company_id, 'goods_receipt', new.id, 'create', null, new.status,
+          case when new.purchase_order_id is null then null
+               else jsonb_build_object('pedido', new.purchase_order_id) end,
+          auth.uid());
+  return new;
+end $$;
+
+drop trigger if exists trg_gr_auditar on public.goods_receipts;
+create trigger trg_gr_auditar
+  after insert on public.goods_receipts
+  for each row execute function app.auditar_recepcion();
+
+-- ── 6 · Lo pendiente de un pedido, con lo que hay en borradores ───────────
+--
+-- Los borradores NO reservan nada. Se midió cómo quedó la entrega 1 y es así:
+-- `confirmar_recepcion` calcula lo pendiente contando SÓLO las recepciones
+-- confirmadas. Dos borradores de 70 sobre una línea de 100 pueden convivir, y
+-- el segundo que intente confirmar falla porque para entonces quedan 30.
+--
+-- No se agrega un sistema de reservas —ya hay uno, `stock_reservations`, y es
+-- de Ventas; usarlo acá sería inventarle un segundo significado—. Lo que sí se
+-- hace es DECIRLO: esta función devuelve, además de lo pendiente, cuánto de
+-- eso ya está comprometido en borradores y en cuáles. La pantalla lo muestra,
+-- y quien recibe decide con el dato a la vista en vez de enterarse al
+-- confirmar.
+--
+-- La contracara es que un borrador abandonado no bloquea mercadería. Es
+-- deliberado: un papel olvidado no puede dejar stock inmovilizado para
+-- siempre.
+
+create or replace function public.pendiente_de_pedido(
+  p_order uuid,
+  p_excluir_recepcion uuid default null
+)
+returns table (
+  purchase_order_line_id uuid,
+  line_no int,
+  product_id uuid,
+  sku text,
+  descripcion text,
+  pedido numeric,
+  recibido numeric,
+  en_borrador numeric,
+  pendiente numeric,
+  borradores text[]
+)
+language sql
+stable
+security invoker
+set search_path = public, pg_temp
+as $$
+  select l.id, l.line_no, l.product_id, l.sku_snapshot, l.name_snapshot,
+         l.quantity,
+         coalesce(c.recibido, 0),
+         coalesce(b.en_borrador, 0),
+         l.quantity - coalesce(c.recibido, 0),
+         coalesce(b.numeros, array[]::text[])
+    from purchase_order_lines l
+    left join lateral (
+      select sum(rl.quantity) recibido
+        from goods_receipt_lines rl
+        join goods_receipts r on r.id = rl.goods_receipt_id
+       where rl.purchase_order_line_id = l.id and r.status = 'confirmed'
+    ) c on true
+    left join lateral (
+      select sum(rl.quantity) en_borrador, array_agg(r.number order by r.number) numeros
+        from goods_receipt_lines rl
+        join goods_receipts r on r.id = rl.goods_receipt_id
+       where rl.purchase_order_line_id = l.id and r.status = 'draft'
+         and (p_excluir_recepcion is null or r.id <> p_excluir_recepcion)
+    ) b on true
+   where l.purchase_order_id = p_order
+     and l.line_type <> 'chapter'
+     and l.quantity > 0
+   order by l.line_no;
+$$;
+
+revoke execute on function public.pendiente_de_pedido(uuid, uuid) from public, anon;
+grant execute on function public.pendiente_de_pedido(uuid, uuid) to authenticated;
+
+-- ── 7 · Confirmar: dos agujeros tapados ───────────────────────────────────
+--
+-- Lo que ya estaba bien y no se toca: el `for update` sobre la recepción, la
+-- idempotencia por estado, el rechazo de la sobre-recepción sin recortar, el
+-- índice único que hace imposible duplicar el movimiento, y que todo pasa en
+-- una sola transacción.
+--
+-- Lo que estaba mal:
+--
+--   1. **Dos recepciones DISTINTAS sobre la misma línea.** El `for update`
+--      bloqueaba la recepción, que es una fila distinta en cada transacción.
+--      Dos confirmaciones simultáneas leían las dos «quedan 30», las dos
+--      pasaban la validación y entraban 40. Ahora se bloquean las LÍNEAS DEL
+--      PEDIDO con `for update` antes de calcular, así la segunda espera a la
+--      primera y recalcula sobre lo que quedó de verdad.
+--
+--   2. **Las líneas sin producto.** Ahora que se pueden recibir, el insert de
+--      movimientos las tiene que saltear: un movimiento de stock sin producto
+--      no significa nada.
+
+create or replace function public.confirmar_recepcion(p_receipt uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_r          goods_receipts;
+  v_rol        text;
+  v_linea      record;
+  v_pendiente  numeric;
+  v_movs       int := 0;
+  v_lineas     int := 0;
+  v_estado_po  text;
+begin
+  select * into v_r from goods_receipts where id = p_receipt for update;
+  if not found then
+    raise exception 'La recepción no existe' using errcode = 'no_data_found';
+  end if;
+
+  -- Idempotencia: doble click, refresh o dos pestañas no suman stock dos veces.
+  if v_r.status = 'confirmed' then
+    return jsonb_build_object(
+      'receipt_id', p_receipt, 'ya_estaba', true,
+      'movimientos', (select count(*) from stock_movements
+                       where source_type = 'goods_receipt' and source_id = p_receipt),
+      'receipt_status_pedido', (select receipt_status from purchase_orders where id = v_r.purchase_order_id));
+  end if;
+
+  v_rol := app."current_role"(v_r.company_id);
+  if v_rol is null or v_rol not in ('admin', 'employee') then
+    raise exception 'Sin permiso para confirmar recepciones en esta empresa'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  if not exists (select 1 from goods_receipt_lines where goods_receipt_id = p_receipt) then
+    raise exception 'La recepción no tiene líneas' using errcode = 'restrict_violation';
+  end if;
+
+  -- EL BLOQUEO QUE FALTABA. Se toman las líneas del pedido que toca esta
+  -- recepción, en orden de id para que dos transacciones no se traben entre
+  -- sí. Desde acá hasta el commit, nadie más puede confirmar contra estas
+  -- líneas: la segunda espera y después recalcula.
+  perform 1
+    from purchase_order_lines l
+   where l.id in (select rl.purchase_order_line_id
+                    from goods_receipt_lines rl
+                   where rl.goods_receipt_id = p_receipt
+                     and rl.purchase_order_line_id is not null)
+   order by l.id
+     for update;
+
+  -- Sobre-recepción: se RECHAZA. No se recorta en silencio ni queda stock sin
+  -- explicación.
+  for v_linea in
+    select rl.id, rl.quantity, rl.product_id, rl.purchase_order_line_id,
+           l.quantity pedida, l.line_no
+      from goods_receipt_lines rl
+      left join purchase_order_lines l on l.id = rl.purchase_order_line_id
+     where rl.goods_receipt_id = p_receipt
+  loop
+    v_lineas := v_lineas + 1;
+    if v_linea.purchase_order_line_id is not null then
+      select v_linea.pedida - coalesce(sum(rl2.quantity), 0)
+        into v_pendiente
+        from goods_receipt_lines rl2
+        join goods_receipts r2 on r2.id = rl2.goods_receipt_id
+       where rl2.purchase_order_line_id = v_linea.purchase_order_line_id
+         and r2.status = 'confirmed';
+
+      if v_linea.quantity > v_pendiente then
+        raise exception
+          'Línea %: se intenta recibir % y quedan % pendientes', v_linea.line_no,
+          v_linea.quantity, v_pendiente
+          using errcode = 'check_violation';
+      end if;
+    end if;
+  end loop;
+
+  -- El movimiento de stock. El índice único sobre (source_type, source_id,
+  -- product_id, warehouse_id) hace imposible duplicarlo.
+  --
+  -- Las líneas SIN producto no mueven nada: se recibieron documentalmente.
+  insert into stock_movements (company_id, product_id, warehouse_id, movement_type,
+                               quantity, source_type, source_id, notes, created_by)
+  select v_r.company_id, rl.product_id, v_r.warehouse_id, 'purchase_receipt',
+         sum(rl.quantity), 'goods_receipt', p_receipt,
+         'Recepción ' || v_r.number, auth.uid()
+    from goods_receipt_lines rl
+   where rl.goods_receipt_id = p_receipt
+     and rl.product_id is not null
+   group by rl.product_id;
+  get diagnostics v_movs = row_count;
+
+  update goods_receipts
+     set status = 'confirmed', confirmed_at = now(), confirmed_by = auth.uid()
+   where id = p_receipt;
+
+  if v_r.purchase_order_id is not null then
+    v_estado_po := app.derivar_receipt_status(v_r.purchase_order_id);
+    perform registrar_evento_compra('purchase_order', v_r.purchase_order_id,
+      'receive', null, v_estado_po,
+      jsonb_build_object('recepcion', v_r.number));
+  end if;
+
+  perform registrar_evento_compra('goods_receipt', p_receipt, 'confirm',
+    'draft', 'confirmed', jsonb_build_object('lineas', v_lineas));
+
+  -- Un solo evento de stock por recepción, no uno por línea: la auditoría es
+  -- para leerla, y veinte filas «entró un producto» no dicen más que una que
+  -- diga «entraron veinte».
+  if v_movs > 0 then
+    perform registrar_evento_compra('goods_receipt', p_receipt, 'stock_applied',
+      null, null, jsonb_build_object('movimientos', v_movs, 'deposito', v_r.warehouse_id));
+  end if;
+
+  return jsonb_build_object(
+    'receipt_id', p_receipt, 'ya_estaba', false,
+    'movimientos', v_movs, 'receipt_status_pedido', v_estado_po);
+end $$;
+
+-- ── 8 · Índice para el listado ────────────────────────────────────────────
+create index if not exists idx_gr_fecha
+  on public.goods_receipts (company_id, receipt_date desc, number desc);
+
+
+-- --------------------------------------------------------------------------
+-- Migración aplicada: fase6_recepcion_confirmada_borrado_de_mantenimiento
+-- versión 20260910150734 · entrega 4
+-- --------------------------------------------------------------------------
+
+-- Una recepción confirmada no se toca. Pero las suites tienen que poder
+-- limpiar lo que crean.
+--
+-- La versión anterior de la guarda bloqueaba el DELETE de una recepción
+-- confirmada para TODO el mundo, incluida la clave de servicio. Correcto en
+-- producción y un problema en mantenimiento: las suites confirman recepciones
+-- de prueba, y sin poder borrarlas quedaban proveedores y pedidos colgados que
+-- tampoco se podían borrar por las FK. La suite de la entrega 1 dejó doce
+-- proveedores atrás y así se descubrió.
+--
+-- La salida es explícita y angosta: **sólo el DELETE**, y sólo desde una
+-- sesión que corre como `service_role` y sin `auth.uid()`. Eso es un script de
+-- mantenimiento con la clave secreta; nunca un navegador. Desde la aplicación
+-- —admin incluido— una recepción confirmada sigue sin poder borrarse ni
+-- modificarse.
+--
+-- Sigue sin haber reversión: deshacer una recepción confirmada es un
+-- contramovimiento explícito de stock, y eso no está en v1.
+create or replace function app.proteger_recepcion_confirmada()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_mantenimiento boolean;
+begin
+  v_mantenimiento := auth.uid() is null and current_user = 'service_role';
+
+  if tg_op = 'DELETE' then
+    if old.status = 'confirmed' and not v_mantenimiento then
+      raise exception 'La recepción % está confirmada: movió stock y no se borra', old.number
+        using errcode = 'restrict_violation';
+    end if;
+    return old;
+  end if;
+
+  -- El UPDATE no tiene salida: una recepción confirmada no se modifica nunca,
+  -- ni siquiera desde un script.
+  if old.status = 'confirmed' then
+    raise exception 'La recepción % está confirmada: no se modifica', old.number
+      using errcode = 'restrict_violation';
+  end if;
+  if new.number is distinct from old.number or new.series_code is distinct from old.series_code then
+    raise exception 'El número de la recepción no se cambia' using errcode = 'restrict_violation';
+  end if;
+  return new;
+end $$;
+
+create or replace function app.proteger_lineas_recepcion()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_estado text; v_numero text; v_mantenimiento boolean;
+begin
+  select status, number into v_estado, v_numero
+    from goods_receipts where id = coalesce(new.goods_receipt_id, old.goods_receipt_id);
+
+  -- Si la recepción ya no existe, esto es el CASCADE de su borrado: no hay
+  -- nada que proteger.
+  if v_estado is null then return coalesce(new, old); end if;
+
+  v_mantenimiento := auth.uid() is null and current_user = 'service_role';
+
+  if v_estado = 'confirmed' and not (tg_op = 'DELETE' and v_mantenimiento) then
+    raise exception 'La recepción % está confirmada: sus líneas no se tocan', v_numero
+      using errcode = 'restrict_violation';
+  end if;
+  return coalesce(new, old);
+end $$;
+
+
+-- --------------------------------------------------------------------------
+-- Migración aplicada: fase6_recepcion_mantenimiento_por_rol_del_jwt
+-- versión 20260910150830 · entrega 4
+-- --------------------------------------------------------------------------
+
+-- La salida de mantenimiento no funcionaba: `current_user` dentro de una
+-- función SECURITY DEFINER es el DUEÑO de la función (postgres), no quien la
+-- llamó. La condición nunca era cierta y ni siquiera un script podía borrar
+-- una recepción de prueba.
+--
+-- Se mira el rol del JWT de la request, que sí es el de quien llama:
+-- `auth.role()`. Con la clave secreta es `service_role`; desde el navegador es
+-- `authenticated` o `anon`, nunca `service_role`.
+--
+-- Sigue siendo sólo para el DELETE. Una recepción confirmada no se modifica
+-- nunca, ni desde un script.
+create or replace function app.proteger_recepcion_confirmada()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_mantenimiento boolean;
+begin
+  v_mantenimiento := auth.uid() is null and coalesce(auth.role(), '') = 'service_role';
+
+  if tg_op = 'DELETE' then
+    if old.status = 'confirmed' and not v_mantenimiento then
+      raise exception 'La recepción % está confirmada: movió stock y no se borra', old.number
+        using errcode = 'restrict_violation';
+    end if;
+    return old;
+  end if;
+
+  if old.status = 'confirmed' then
+    raise exception 'La recepción % está confirmada: no se modifica', old.number
+      using errcode = 'restrict_violation';
+  end if;
+  if new.number is distinct from old.number or new.series_code is distinct from old.series_code then
+    raise exception 'El número de la recepción no se cambia' using errcode = 'restrict_violation';
+  end if;
+  return new;
+end $$;
+
+create or replace function app.proteger_lineas_recepcion()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_estado text; v_numero text; v_mantenimiento boolean;
+begin
+  select status, number into v_estado, v_numero
+    from goods_receipts where id = coalesce(new.goods_receipt_id, old.goods_receipt_id);
+
+  if v_estado is null then return coalesce(new, old); end if;
+
+  v_mantenimiento := auth.uid() is null and coalesce(auth.role(), '') = 'service_role';
+
+  if v_estado = 'confirmed' and not (tg_op = 'DELETE' and v_mantenimiento) then
+    raise exception 'La recepción % está confirmada: sus líneas no se tocan', v_numero
+      using errcode = 'restrict_violation';
+  end if;
+  return coalesce(new, old);
+end $$;
+
+
+-- --------------------------------------------------------------------------
+-- Migración aplicada: fase6_confirmar_recepcion_permiso_antes_que_idempotencia
+-- versión 20260910152848 · entrega 4
+-- --------------------------------------------------------------------------
+
+-- Un externo podía preguntarle a `confirmar_recepcion` por una recepción
+-- confirmada y recibir una respuesta.
+--
+-- La comprobación de permisos estaba DESPUÉS del atajo de idempotencia. Sobre
+-- una recepción ya confirmada, la función devolvía el JSON —cuántos
+-- movimientos tiene, en qué estado quedó el pedido— sin mirar quién
+-- preguntaba. No confirmaba nada, pero contaba cosas: la RPC es SECURITY
+-- DEFINER, así que RLS no la cubre.
+--
+-- Lo encontró el test de la entrega 4 y el orden correcto es el obvio: primero
+-- se mira si esta persona puede tocar esta recepción, después todo lo demás.
+-- De paso, el depósito en null ahora se rechaza con su propio mensaje en vez
+-- de caer en «el depósito no existe».
+create or replace function public.confirmar_recepcion(p_receipt uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_r          goods_receipts;
+  v_rol        text;
+  v_linea      record;
+  v_pendiente  numeric;
+  v_movs       int := 0;
+  v_lineas     int := 0;
+  v_estado_po  text;
+begin
+  select * into v_r from goods_receipts where id = p_receipt for update;
+  if not found then
+    raise exception 'La recepción no existe' using errcode = 'no_data_found';
+  end if;
+
+  -- EL PERMISO VA PRIMERO. Antes estaba después del atajo de idempotencia y
+  -- un externo podía sacarle información a una recepción ya confirmada.
+  v_rol := app."current_role"(v_r.company_id);
+  if v_rol is null or v_rol not in ('admin', 'employee') then
+    raise exception 'Sin permiso para confirmar recepciones en esta empresa'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  -- Idempotencia: doble click, refresh o dos pestañas no suman stock dos veces.
+  if v_r.status = 'confirmed' then
+    return jsonb_build_object(
+      'receipt_id', p_receipt, 'ya_estaba', true,
+      'movimientos', (select count(*) from stock_movements
+                       where source_type = 'goods_receipt' and source_id = p_receipt),
+      'receipt_status_pedido', (select receipt_status from purchase_orders where id = v_r.purchase_order_id));
+  end if;
+
+  if not exists (select 1 from goods_receipt_lines where goods_receipt_id = p_receipt) then
+    raise exception 'La recepción no tiene líneas' using errcode = 'restrict_violation';
+  end if;
+
+  -- Las líneas del pedido, bloqueadas: desde acá hasta el commit nadie más
+  -- puede confirmar contra ellas. La segunda espera y recalcula.
+  perform 1
+    from purchase_order_lines l
+   where l.id in (select rl.purchase_order_line_id
+                    from goods_receipt_lines rl
+                   where rl.goods_receipt_id = p_receipt
+                     and rl.purchase_order_line_id is not null)
+   order by l.id
+     for update;
+
+  -- Sobre-recepción: se RECHAZA. No se recorta en silencio.
+  for v_linea in
+    select rl.id, rl.quantity, rl.product_id, rl.purchase_order_line_id,
+           l.quantity pedida, l.line_no
+      from goods_receipt_lines rl
+      left join purchase_order_lines l on l.id = rl.purchase_order_line_id
+     where rl.goods_receipt_id = p_receipt
+  loop
+    v_lineas := v_lineas + 1;
+    if v_linea.purchase_order_line_id is not null then
+      select v_linea.pedida - coalesce(sum(rl2.quantity), 0)
+        into v_pendiente
+        from goods_receipt_lines rl2
+        join goods_receipts r2 on r2.id = rl2.goods_receipt_id
+       where rl2.purchase_order_line_id = v_linea.purchase_order_line_id
+         and r2.status = 'confirmed';
+
+      if v_linea.quantity > v_pendiente then
+        raise exception
+          'Línea %: se intenta recibir % y quedan % pendientes', v_linea.line_no,
+          v_linea.quantity, v_pendiente
+          using errcode = 'check_violation';
+      end if;
+    end if;
+  end loop;
+
+  -- Las líneas SIN producto no mueven nada: se recibieron documentalmente.
+  insert into stock_movements (company_id, product_id, warehouse_id, movement_type,
+                               quantity, source_type, source_id, notes, created_by)
+  select v_r.company_id, rl.product_id, v_r.warehouse_id, 'purchase_receipt',
+         sum(rl.quantity), 'goods_receipt', p_receipt,
+         'Recepción ' || v_r.number, auth.uid()
+    from goods_receipt_lines rl
+   where rl.goods_receipt_id = p_receipt
+     and rl.product_id is not null
+   group by rl.product_id;
+  get diagnostics v_movs = row_count;
+
+  update goods_receipts
+     set status = 'confirmed', confirmed_at = now(), confirmed_by = auth.uid()
+   where id = p_receipt;
+
+  if v_r.purchase_order_id is not null then
+    v_estado_po := app.derivar_receipt_status(v_r.purchase_order_id);
+    perform registrar_evento_compra('purchase_order', v_r.purchase_order_id,
+      'receive', null, v_estado_po,
+      jsonb_build_object('recepcion', v_r.number));
+  end if;
+
+  perform registrar_evento_compra('goods_receipt', p_receipt, 'confirm',
+    'draft', 'confirmed', jsonb_build_object('lineas', v_lineas));
+
+  -- Un solo evento de stock por recepción, no uno por línea.
+  if v_movs > 0 then
+    perform registrar_evento_compra('goods_receipt', p_receipt, 'stock_applied',
+      null, null, jsonb_build_object('movimientos', v_movs, 'deposito', v_r.warehouse_id));
+  end if;
+
+  return jsonb_build_object(
+    'receipt_id', p_receipt, 'ya_estaba', false,
+    'movimientos', v_movs, 'receipt_status_pedido', v_estado_po);
+end $$;
+
+-- El depósito en null tiene su propio mensaje.
+create or replace function app.validar_recepcion()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_dep record; v_po record;
+begin
+  if new.warehouse_id is null then
+    raise exception 'El depósito es obligatorio' using errcode = 'not_null_violation';
+  end if;
+
+  select company_id, is_active into v_dep from warehouses where id = new.warehouse_id;
+  if v_dep is null then
+    raise exception 'El depósito no existe' using errcode = 'foreign_key_violation';
+  end if;
+  if v_dep.company_id <> new.company_id then
+    raise exception 'El depósito es de otra empresa' using errcode = 'check_violation';
+  end if;
+  if not v_dep.is_active then
+    raise exception 'El depósito está inactivo' using errcode = 'check_violation';
+  end if;
+
+  if new.purchase_order_id is not null then
+    select company_id, supplier_id, status, number into v_po
+      from purchase_orders where id = new.purchase_order_id;
+    if v_po is null then
+      raise exception 'El pedido no existe' using errcode = 'foreign_key_violation';
+    end if;
+    if v_po.company_id <> new.company_id then
+      raise exception 'El pedido es de otra empresa' using errcode = 'check_violation';
+    end if;
+    if v_po.supplier_id <> new.supplier_id then
+      raise exception 'El pedido % es de otro proveedor', v_po.number
+        using errcode = 'check_violation';
+    end if;
+    if v_po.status <> 'confirmed' then
+      raise exception 'El pedido % no está confirmado: no se puede recibir contra él',
+        v_po.number using errcode = 'restrict_violation';
+    end if;
+  end if;
+
+  return new;
+end $$;

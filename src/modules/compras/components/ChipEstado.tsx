@@ -27,3 +27,18 @@ export function ChipRecepcion({ estado }: ChipEstadoProps) {
     : styles.pendiente
   return <span className={clase}>{etiquetaDeRecepcion(estado)}</span>
 }
+
+/**
+ * El estado de la recepción: `draft` o `confirmed`, los dos del CHECK.
+ *
+ * No hay más, y no se agregan por simetría con otros documentos. Una
+ * recepción confirmada movió stock y no vuelve atrás: revertirla sería un
+ * contramovimiento explícito, y eso no está en v1.
+ */
+export function ChipRecepcionDoc({ estado }: ChipEstadoProps) {
+  return estado === 'confirmed' ? (
+    <span className={styles.recibido}>Confirmada</span>
+  ) : (
+    <span className={styles.borrador}>Borrador</span>
+  )
+}

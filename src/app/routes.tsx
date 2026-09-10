@@ -138,6 +138,19 @@ const PedidoCompraDetallePage = lazyConRecarga(() =>
     default: m.PedidoDetallePage,
   })),
 )
+const RecepcionesPage = lazyConRecarga(() =>
+  import('@/modules/compras/pages/RecepcionesPage').then((m) => ({ default: m.RecepcionesPage })),
+)
+const RecepcionNuevaPage = lazyConRecarga(() =>
+  import('@/modules/compras/pages/RecepcionNuevaPage').then((m) => ({
+    default: m.RecepcionNuevaPage,
+  })),
+)
+const RecepcionDetallePage = lazyConRecarga(() =>
+  import('@/modules/compras/pages/RecepcionDetallePage').then((m) => ({
+    default: m.RecepcionDetallePage,
+  })),
+)
 const LoginPage = lazyConRecarga(() =>
   import('@/features/auth/pages/LoginPage').then((m) => ({ default: m.LoginPage })),
 )
@@ -208,6 +221,10 @@ export const routes: RouteObject[] = [
       // `nuevo` antes que `:id`: si no, React Router lo tomaría como un id.
       { path: 'compras/pedidos/nuevo', element: privada(<PedidoCompraNuevoPage />) },
       { path: 'compras/pedidos/:id', element: privada(<PedidoCompraDetallePage />) },
+      { path: 'compras/recepciones', element: privada(<RecepcionesPage />) },
+      // `nueva` antes que `:id`: si no, React Router la tomaría como un id.
+      { path: 'compras/recepciones/nueva', element: privada(<RecepcionNuevaPage />) },
+      { path: 'compras/recepciones/:id', element: privada(<RecepcionDetallePage />) },
     ],
   },
   {

@@ -399,3 +399,41 @@ escritura venga de un script con la clave de servicio. Pasó con
 `app.normalizar_linea_compra()` y se arregló poniendo ese trigger en SECURITY
 DEFINER. Si aparece otro caso, la solución es la misma: SECURITY DEFINER en el
 trigger, no abrir el esquema.
+
+### Los borradores de recepción no reservan
+
+Medido y dejado así a propósito: `confirmar_recepcion()` cuenta lo pendiente
+mirando **sólo las recepciones confirmadas**. Dos borradores de 70 sobre una
+línea de 100 conviven, y el segundo que intente confirmar falla. La contracara
+es que un borrador abandonado no inmoviliza mercadería.
+
+No se agregó un sistema de reservas: ya existe `stock_reservations` y es de
+Ventas; usarlo acá sería darle un segundo significado. Lo que sí se hace es
+mostrar cuánto hay anotado en borradores y en cuáles, para que quien recibe lo
+sepa antes de confirmar.
+
+Si algún día se quiere reservar de verdad, hay que decidir primero qué pasa con
+un borrador olvidado: vencimiento, liberación manual, o las dos cosas.
+
+### Revertir una recepción confirmada
+
+No existe y no está en v1. Una recepción confirmada movió stock y queda
+congelada: no se edita, no vuelve a borrador y no se borra desde la aplicación.
+Deshacerla sería un **contramovimiento explícito** de stock, con su propio
+documento y su propia auditoría. Cuando haga falta, es una decisión aparte.
+
+### La salida de mantenimiento del borrado de recepciones
+
+`app.proteger_recepcion_confirmada()` deja borrar una recepción confirmada sólo
+cuando el JWT dice `service_role` y no hay `auth.uid()`, o sea desde un script
+con la clave secreta. Existe para que las suites puedan limpiar lo que crean.
+Desde la aplicación —admin incluido— no hay ningún camino.
+
+### Las recepciones no están valorizadas
+
+`goods_receipt_lines` tiene cantidad y snapshots, **ninguna columna de precio**.
+El costo está en `purchase_order_lines.unit_price` y se llega por
+`purchase_order_line_id`. No se copió a la recepción para no duplicar un dato
+que ya existe. Si alguna vez hace falta valorizar la entrada —para un costo
+promedio ponderado, por ejemplo—, es una decisión de contabilidad de stock, no
+una copia del legacy.

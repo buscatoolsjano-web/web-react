@@ -1,0 +1,185 @@
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.secundario {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.secundario:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.secundario:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* La tabla scrollea dentro de su caja: el body de la página nunca scrollea
+   en horizontal. */
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  /* Nueve columnas: sin esto bailan mientras se escribe. */
+  min-width: 52rem;
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--space-2);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.tabla thead th {
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.num {
+  width: 2.5rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.descripcion {
+  max-width: 18rem;
+}
+
+.derecha {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.numero,
+.numeroMal {
+  width: 100%;
+  min-width: 5rem;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-height: 40px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.numeroMal {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* En mobile los controles suben a 44px y 16px de fuente: 40 alcanza con
+   mouse, no con el dedo, y menos de 16px hace que iOS haga zoom al enfocar. */
+@media (max-width: 767px) {
+  .numero,
+  .numeroMal {
+    font-size: 16px;
+    min-height: 44px;
+  }
+}
+
+.numero:focus-visible,
+.numeroMal:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+}
+
+/* Una línea ya completa se ve, apagada: sirve para saber que llegó todo. */
+.completa td {
+  opacity: 0.6;
+}
+
+.completo {
+  font-size: var(--text-xs);
+  color: var(--success);
+}
+
+/* Lo anotado en otros borradores. Es un aviso, no una reserva. */
+.borrador {
+  color: var(--warning-text);
+  cursor: help;
+}
+
+.sinStock {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.problemas {
+  margin: 0;
+  padding: var(--space-3) var(--space-4) var(--space-3) var(--space-6);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  background: var(--surface);
+  font-size: var(--text-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aviso {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
+  background: var(--warning-bg, var(--surface));
+  color: var(--warning-text);
+  font-size: var(--text-sm);
+}
+
+.vacio {
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--text-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}

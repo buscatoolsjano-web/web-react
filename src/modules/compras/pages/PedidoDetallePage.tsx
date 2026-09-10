@@ -267,6 +267,17 @@ export function PedidoDetallePage() {
               )
             ) : null}
 
+            {/* Recibir mercadería. Sólo desde un pedido confirmado y mientras
+                quede algo por recibir: un pedido ya recibido del todo no
+                necesita otra nota de entrada. */}
+            {escribe &&
+            pedido.estado === 'confirmed' &&
+            pedido.estadoRecepcion !== 'received' ? (
+              <Link to={`/compras/recepciones/nueva?pedido=${pedido.id}`} className={styles.primario}>
+                Recibir mercadería
+              </Link>
+            ) : null}
+
             {escribe ? (
               <button
                 type="button"

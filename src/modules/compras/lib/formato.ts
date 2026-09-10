@@ -146,3 +146,19 @@ const ACCIONES: Record<string, string> = {
 export function etiquetaDeAccion(accion: string): string {
   return ACCIONES[accion] ?? accion
 }
+
+/**
+ * Una cantidad.
+ *
+ * Sin decimales cuando es entera —«30», no «30,00»— porque las cantidades de
+ * una recepción casi siempre lo son y los ceros de más ensucian una grilla de
+ * nueve columnas. Con decimales cuando los tiene, hasta cuatro, que es la
+ * escala de `quantity` en la base.
+ */
+export function formatearNumero(n: number | null): string {
+  if (n === null || !Number.isFinite(n)) return '—'
+  return new Intl.NumberFormat('es-AR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+  }).format(n)
+}

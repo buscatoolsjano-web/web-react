@@ -6,6 +6,7 @@ import {
   formatearFecha,
   formatearFechaHora,
   formatearImporte,
+  formatearNumero,
   nombreDePais,
   nombreVisible,
   rangoVisible,
@@ -134,5 +135,24 @@ describe('formatearImporte', () => {
   it('sin importe, raya', () => {
     expect(formatearImporte(null, 'USD')).toBe('—')
     expect(formatearImporte(Number.NaN, 'USD')).toBe('—')
+  })
+})
+
+describe('formatearNumero', () => {
+  it('una cantidad entera va sin decimales', () => {
+    // «30», no «30,00»: en una grilla de nueve columnas los ceros ensucian.
+    expect(formatearNumero(30)).toBe('30')
+    expect(formatearNumero(0)).toBe('0')
+    expect(formatearNumero(1000)).toBe('1.000')
+  })
+
+  it('y una con decimales los muestra', () => {
+    expect(formatearNumero(2.5)).toBe('2,5')
+    expect(formatearNumero(0.125)).toBe('0,125')
+  })
+
+  it('sin cantidad, raya', () => {
+    expect(formatearNumero(null)).toBe('—')
+    expect(formatearNumero(Number.NaN)).toBe('—')
   })
 })

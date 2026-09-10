@@ -1346,7 +1346,7 @@ export type Database = {
           goods_receipt_id: string
           id: string
           name_snapshot: string | null
-          product_id: string
+          product_id: string | null
           purchase_order_line_id: string | null
           quantity: number
           sku_snapshot: string | null
@@ -1357,7 +1357,7 @@ export type Database = {
           goods_receipt_id: string
           id?: string
           name_snapshot?: string | null
-          product_id: string
+          product_id: string | null
           purchase_order_line_id?: string | null
           quantity: number
           sku_snapshot?: string | null
@@ -1368,7 +1368,7 @@ export type Database = {
           goods_receipt_id?: string
           id?: string
           name_snapshot?: string | null
-          product_id?: string
+          product_id?: string | null
           purchase_order_line_id?: string | null
           quantity?: number
           sku_snapshot?: string | null
@@ -3909,6 +3909,21 @@ export type Database = {
       confirmar_entrega: { Args: { p_delivery: string }; Returns: Json }
       confirmar_recepcion: { Args: { p_receipt: string }; Returns: Json }
       duplicar_pedido_compra: { Args: { p_order: string }; Returns: string }
+      pendiente_de_pedido: {
+        Args: { p_order: string; p_excluir_recepcion?: string | null }
+        Returns: {
+          purchase_order_line_id: string
+          line_no: number
+          product_id: string | null
+          sku: string | null
+          descripcion: string | null
+          pedido: number
+          recibido: number
+          en_borrador: number
+          pendiente: number
+          borradores: string[]
+        }[]
+      }
       ultimo_precio_compra: {
         Args: {
           p_company: string
