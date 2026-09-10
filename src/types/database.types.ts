@@ -3172,6 +3172,46 @@ export type Database = {
         Args: { p_company: string; p_doc_type: string; p_series?: string }
         Returns: string
       }
+      precios_historicos_cliente: {
+        Args: {
+          p_customer: string
+          p_product?: string | null
+          p_limit?: number | null
+          p_offset?: number | null
+        }
+        Returns: {
+          tipo: string
+          documento_id: string
+          numero: string
+          fecha: string | null
+          product_id: string | null
+          sku: string | null
+          nombre: string | null
+          cantidad: number | null
+          precio: number | null
+          descuento_pct: number | null
+          moneda: string | null
+          total_filas: number
+        }[]
+      }
+      ultimo_precio_cliente: {
+        Args: {
+          p_customer: string
+          p_product?: string | null
+        }
+        Returns: {
+          product_id: string | null
+          sku: string | null
+          nombre: string | null
+          moneda: string | null
+          ultimo_precio: number | null
+          ultima_fecha: string | null
+          ultimo_documento: string | null
+          ultimo_tipo: string
+          precio_anterior: number | null
+          veces: number
+        }[]
+      }
       resolver_revision_cliente: {
         Args: {
           p_customer: string

@@ -87,10 +87,74 @@ export interface DireccionCliente {
 
 export interface AliasDeProducto {
   id: string
-  /** Cómo lo llama el cliente. */
-  textoCliente: string
+  /** El código con el que el cliente pide el producto, si lo usa. */
+  codigoCliente: string | null
+  /** El texto tal cual viene en su orden de compra. */
+  descripcionCliente: string | null
+  /** La forma normalizada con la que se compara. Es la clave única. */
+  clave: string
+  /**
+   * NOT NULL en la tabla: una equivalencia sin producto no equivale a nada.
+   * Es la diferencia con el legacy, que guardaba un SKU suelto en un texto.
+   */
+  productId: string
   sku: string | null
   nombreProducto: string | null
+  marca: string | null
+  /** `suggested` | `confirmed` | `rejected`, los tres del CHECK. */
+  estado: string
+  /** `manual` | `import` | `ai` | `legacy`. */
+  origen: string | null
+  vecesUsado: number
+  /**
+   * `true` si la confirmó una persona. Las 14 que trajo la migración están
+   * en `confirmed` pero sin nadie detrás: las dio por buenas un script, no
+   * alguien que mirara la orden de compra al lado del producto.
+   */
+  confirmadoPorPersona: boolean
+  creadoEn: string
+  actualizadoEn: string
+}
+
+export interface ProductoBuscado {
+  id: string
+  sku: string
+  nombre: string
+  marca: string | null
+}
+
+/** Una línea del historial de precios. Sale de un documento, no de un caché. */
+export interface PrecioHistorico {
+  tipo: 'cotizacion' | 'pedido'
+  documentoId: string
+  numero: string
+  fecha: string | null
+  productId: string | null
+  sku: string | null
+  nombre: string | null
+  cantidad: number | null
+  precio: number | null
+  descuentoPct: number | null
+  moneda: string | null
+}
+
+export interface PagRecordDePrecios {
+  filas: PrecioHistorico[]
+  total: number
+}
+
+/** El último precio de un producto **en una moneda**. Nunca uno global. */
+export interface UltimoPrecio {
+  productId: string | null
+  sku: string | null
+  nombre: string | null
+  moneda: string | null
+  ultimoPrecio: number | null
+  ultimaFecha: string | null
+  ultimoDocumento: string | null
+  ultimoTipo: 'cotizacion' | 'pedido'
+  precioAnterior: number | null
+  veces: number
 }
 
 export interface CandidatoDeOc {
@@ -153,6 +217,5 @@ export interface ClienteDetalle {
 
 export interface RelacionadosCliente {
   direcciones: DireccionCliente[]
-  alias: AliasDeProducto[]
   candidatosDeOc: CandidatoDeOc[]
 }

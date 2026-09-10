@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import { ListaDeTextos } from './ListaDeTextos'
+import { opcionesDeRubro } from '../lib/rubros'
 import {
   validarCliente,
   type DatosCliente,
@@ -100,7 +101,27 @@ export function FormularioCliente({
         {texto('nombreComercial', 'Nombre comercial')}
         {texto('cuit', 'CUIT', { inputMode: 'numeric', placeholder: '30-50328441-0' })}
         {texto('telefono', 'Teléfono')}
-        {texto('rubro', 'Rubro')}
+
+        <div className={styles.campo}>
+          <label className={styles.etiqueta} htmlFor={`${id}-rubro`}>
+            Rubro
+          </label>
+          {/* Un `input` con `datalist` y no un `select`: los cuatro rubros del
+              legacy son una sugerencia, no una lista cerrada. `industry` es
+              texto libre y no hay tabla de rubros. */}
+          <input
+            id={`${id}-rubro`}
+            className={styles.control}
+            list={`${id}-rubros`}
+            value={datos.rubro}
+            onChange={(e) => cambiar('rubro', e.target.value)}
+          />
+          <datalist id={`${id}-rubros`}>
+            {opcionesDeRubro(valores.rubro).map((r) => (
+              <option key={r} value={r} />
+            ))}
+          </datalist>
+        </div>
 
         <div className={styles.campo}>
           <label className={styles.etiqueta} htmlFor={`${id}-tipo`}>

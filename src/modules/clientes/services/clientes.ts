@@ -358,15 +358,19 @@ export async function documentosDeCliente(
 /**
  * Lo demás que cuelga del cliente.
  *
- * Direcciones, alias de producto y candidatos de orden de compra. Las tres
- * tablas existen y tienen `customer_id`; la de direcciones está vacía hasta
- * que la edición las cargue.
+ * Direcciones y candidatos de orden de compra. Las dos tablas existen y
+ * tienen `customer_id`; la de direcciones está vacía hasta que alguien las
+ * cargue desde la ficha.
+ *
+ * Los alias de producto salían de acá y ahora tienen su propia pestaña y su
+ * propio servicio: dejaron de ser «algo relacionado» para ser la memoria de
+ * productos, que se edita.
  */
 export async function relacionadosDeCliente(
   companyId: string,
   clienteId: string,
 ): Promise<RelacionadosCliente> {
-  const [dir, alias, oc] = await Promise.all([
+  const [dir, oc] = await Promise.all([
     supabase
       .from('customer_addresses')
       .select('id, kind, is_default, street, city, state, postal_code, country_code, notes')
@@ -374,15 +378,6 @@ export async function relacionadosDeCliente(
       .eq('customer_id', clienteId)
       .order('is_default', { ascending: false })
       .order('kind', { ascending: true }),
-    supabase
-      .from('customer_product_aliases')
-      .select(
-        'id, customer_code, customer_description, times_used, product:products!product_id ( sku, name )',
-      )
-      .eq('company_id', companyId)
-      .eq('customer_id', clienteId)
-      .order('times_used', { ascending: false })
-      .limit(200),
     supabase
       .from('customer_po_candidates')
       .select('id, candidate, source_type, doc_count, status, created_at')
@@ -393,7 +388,6 @@ export async function relacionadosDeCliente(
   ])
 
   if (dir.error) throw new Error(`No se pudieron leer las direcciones: ${dir.error.message}`)
-  if (alias.error) throw new Error(`No se pudieron leer los alias: ${alias.error.message}`)
   if (oc.error) throw new Error(`No se pudieron leer las OC: ${oc.error.message}`)
 
   return {
@@ -411,24 +405,6 @@ export async function relacionadosDeCliente(
         .map((p) => (p ?? '').trim())
         .filter((p) => p !== '')
         .join(', '),
-    })),
-    alias: (
-      (alias.data ?? []) as unknown as {
-        id: string
-        customer_code: string | null
-        customer_description: string | null
-        product: { sku: string | null; name: string | null } | null
-      }[]
-    ).map((a) => ({
-      id: a.id,
-      // El legacy guardaba «cómo lo llama el cliente» en un solo texto. Acá
-      // son dos columnas: su código y su descripción. Se muestran las dos.
-      textoCliente: [a.customer_code, a.customer_description]
-        .map((p) => (p ?? '').trim())
-        .filter((p) => p !== '')
-        .join(' · '),
-      sku: a.product?.sku ?? null,
-      nombreProducto: a.product?.name ?? null,
     })),
     candidatosDeOc: (oc.data ?? []).map((c) => ({
       id: c.id,

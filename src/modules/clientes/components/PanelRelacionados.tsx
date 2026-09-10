@@ -8,51 +8,26 @@ export interface PanelRelacionadosProps {
 }
 
 /**
- * Lo que cuelga del cliente y no son documentos, contactos ni direcciones.
+ * Los candidatos de orden de compra que detectó la migración leyendo los
+ * documentos. Ninguna OC se crea sola a partir de ellos.
  *
- * Las dos cosas ya existen en la base con su `customer_id`:
- *
- * - **alias de producto**: cómo llama el cliente a cada SKU. La pantalla
- *   completa es la entrega 4; acá se ven en modo lectura.
- * - **candidatos de orden de compra**: los que detectó la migración leyendo
- *   los documentos. Ninguna OC se crea sola a partir de ellos.
- *
- * Las direcciones tienen su propia pestaña desde que se pueden cargar.
+ * Las direcciones y los alias de producto salían de acá y hoy tienen cada uno
+ * su pestaña, porque se editan.
  */
 export function PanelRelacionados({ datos, cargando }: PanelRelacionadosProps) {
   if (cargando) return <p className={styles.nota}>Cargando…</p>
   if (!datos) return null
 
-  const vacio = datos.alias.length === 0 && datos.candidatosDeOc.length === 0
-
-  if (vacio) {
+  if (datos.candidatosDeOc.length === 0) {
     return (
       <p className={styles.nota}>
-        Este cliente no tiene alias de producto ni candidatos de orden de compra.
+        Este cliente no tiene candidatos de orden de compra detectados.
       </p>
     )
   }
 
   return (
     <div className={styles.wrap}>
-      <section className={styles.seccion}>
-        <h3 className={styles.h3}>Alias de producto ({datos.alias.length})</h3>
-        {datos.alias.length === 0 ? (
-          <p className={styles.nota}>Sin alias registrados.</p>
-        ) : (
-          <ul className={styles.lista}>
-            {datos.alias.map((a) => (
-              <li key={a.id}>
-                <span className={styles.etiqueta}>{a.textoCliente || '—'}</span>
-                <span>
-                  {a.sku ? `${a.sku}${a.nombreProducto ? ` · ${a.nombreProducto}` : ''}` : 'sin producto asociado'}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
       <section className={styles.seccion}>
         <h3 className={styles.h3}>
           Candidatos de orden de compra ({datos.candidatosDeOc.length})

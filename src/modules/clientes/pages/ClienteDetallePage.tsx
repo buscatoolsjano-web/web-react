@@ -5,6 +5,8 @@ import { EditorContactos } from '../components/EditorContactos'
 import { EditorDirecciones } from '../components/EditorDirecciones'
 import { FormularioCliente } from '../components/FormularioCliente'
 import { PanelHistorial } from '../components/PanelHistorial'
+import { PanelMemoria } from '../components/PanelMemoria'
+import { PanelPrecios } from '../components/PanelPrecios'
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { explicarMotivo } from '../lib/motivos'
 import { formatearCuit, formatearFecha, nombreVisible } from '../lib/formato'
@@ -19,12 +21,21 @@ import {
 import type { ClienteDetalle } from '../types'
 import styles from './ClienteDetallePage.module.css'
 
-type Pestana = 'informacion' | 'contactos' | 'direcciones' | 'historial' | 'relacionados'
+type Pestana =
+  | 'informacion'
+  | 'contactos'
+  | 'direcciones'
+  | 'memoria'
+  | 'precios'
+  | 'historial'
+  | 'relacionados'
 
 const PESTANAS: { clave: Pestana; etiqueta: string }[] = [
   { clave: 'informacion', etiqueta: 'Información' },
   { clave: 'contactos', etiqueta: 'Contactos' },
   { clave: 'direcciones', etiqueta: 'Direcciones' },
+  { clave: 'memoria', etiqueta: 'Memoria de productos' },
+  { clave: 'precios', etiqueta: 'Precios' },
   { clave: 'historial', etiqueta: 'Historial' },
   { clave: 'relacionados', etiqueta: 'Relacionados' },
 ]
@@ -62,11 +73,14 @@ function aFormulario(c: ClienteDetalle): DatosCliente {
 /**
  * La ficha del cliente.
  *
- * El legacy tenía cinco pestañas; acá están las que se pueden mostrar con lo
- * que hay migrado, más Direcciones, que ahora se cargan a mano. **Memoria de
- * precios** no está: el legacy la guardaba en `localStorage` y lo que vale es
- * el precio de cada cotización, así que se deriva de `sales_quote_lines`
- * cuando le toque su entrega, no de una copia paralela.
+ * El legacy tenía cinco pestañas: Información, Contactos, Memoria de
+ * productos, Precios e Historial. Están las cinco, más Direcciones —que en el
+ * legacy no existían estructuradas— y Relacionados.
+ *
+ * **Precios** no es la pestaña del legacy: aquélla leía un caché en
+ * `localStorage` que se escribía al guardar cada cotización y no guardaba la
+ * moneda. Ésta deriva todo de las líneas de cotizaciones y pedidos, del lado
+ * del servidor y separado por moneda.
  */
 export function ClienteDetallePage() {
   const { id } = useParams<{ id: string }>()
@@ -352,6 +366,15 @@ export function ClienteDetallePage() {
             puedeEditar={permisos.editarDirecciones && !cliente.dadoDeBaja}
           />
         ) : null}
+
+        {pestana === 'memoria' ? (
+          <PanelMemoria
+            clienteId={cliente.id}
+            puedeEditar={permisos.editarMemoria && !cliente.dadoDeBaja}
+          />
+        ) : null}
+
+        {pestana === 'precios' ? <PanelPrecios clienteId={cliente.id} /> : null}
 
         {pestana === 'historial' ? (
           <PanelHistorial

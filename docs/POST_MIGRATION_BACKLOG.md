@@ -53,20 +53,46 @@ Desde la entrega 3 se cargan a mano desde la ficha, con cuatro tipos
 —entrega, facturación, ambas y otra—. El selector de dirección de envío de
 Ventas no tiene de dónde elegir hasta que alguien las cargue.
 
-### Rubros y catálogos
+### Rubros y catálogos — auditado en la entrega 4
 
-El legacy configura cuatro rubros con sus catálogos (`loadRubrosConfig`), pero
-en los datos reales hay **un** rubro cargado: Grupo Mirgor → «Gomería /
-Neumáticos». Los otros tres parches traían `rubro: ""`. Antes de migrar una
-taxonomía —`industries`, `customer_industries`— hay que ver qué funcionalidad
-tiene de verdad. Hoy `customers.industry` es una columna de texto y alcanza.
+`RUBROS_SEED` son cuatro nombres, cada uno con marcas y una plantilla de mail.
+La versión editable (`buscatools_rubros_config`) y los PDFs por marca
+(`buscatools_catalogo_links`) viven en `localStorage` y **no existen en el
+perfil real**: lo que hay es el seed, que es código.
 
-### Memoria de precios del cliente
+Y sirven para **componer un mail** con catálogos adjuntos (`app.js:37354`), no
+para segmentar clientes. **No hay relación cliente ↔ catálogo**: es cliente →
+rubro → marcas → PDFs de marca, los mismos para todos.
 
-El legacy guarda en `localStorage` (`BTERP_PRICE_MEMORY`) el último precio
-cotizado por SKU y cliente. **No se migra como fuente maestra**: el precio que
-vale es el que figura en cada cotización. La pestaña se reconstruye derivándola
-de `sales_quote_lines` / `sales_order_lines` cuando le toque su entrega.
+Así que el rubro quedó como `customers.industry`, texto nullable, y de los
+rubros se migró lo único que la ficha legacy hace con ellos: ofrecer los cuatro
+nombres al cargarlo. **No se creó `industries`.** La configuración de rubros se
+define cuando exista el envío de mails, no antes.
+
+### Memoria de precios del cliente — resuelto en la entrega 4
+
+`bterp_price_memory` era un caché en `localStorage` por nombre de cliente y
+SKU, **sin moneda**, con nueve registros: las nueve líneas de COTI02530 (Grupo
+Mirgor). Se verificó que la cotización está migrada entera, con precio y con
+moneda. **No se migró y no se creó ninguna tabla**: los precios se derivan de
+`sales_quote_lines` / `sales_order_lines` con dos funciones SQL.
+
+Salvedad: el contenido del caché no está en el backup —vive en el navegador del
+perfil legacy—, así que lo verificado es que el documento que cacheaba está
+completo, no un cotejo valor por valor.
+
+### `customer_product_aliases.times_used` no se incrementa solo
+
+La columna existe y está en 0 en las 14 equivalencias migradas. Se va a llenar
+cuando la importación de órdenes de compra use los alias para reconocer
+productos — que es la función que hoy no está migrada (ver «Importar OC con
+IA»).
+
+### La equivalencia de «gmra s a u»
+
+De las 15 equivalencias del legacy se migraron 14. La restante pertenece a un
+cliente que no existe ni en el maestro de 988 ni en el histórico de ventas. El
+producto (`SP.2520/8B`) sí existe. No se inventa el cliente.
 
 ### `database.types.ts` está parcheado a mano
 
@@ -140,7 +166,6 @@ es una función nueva, no una migración.
   CUIT asignado por ese motivo, 7 sólo en contactos y 3 reclamados por más de
   una ficha del legacy. Se trabajan a mano desde `#/clientes` con el filtro de
   revisión; el CSV los exporta con su motivo.
-- **1 equivalencia** (`gmra s a u`) cuyo cliente no está en el histórico.
 - **Serie `RT-ML`**: existe, es concurrente con `RT` y tiene contador propio,
   pero no sabemos qué significa `ML`, qué significa el `2025` embebido (los
   cuatro documentos son de 2026) ni cuál sería el próximo número. El schema la

@@ -19,6 +19,7 @@ describe('permisosDe', () => {
       darDeBaja: true,
       editarContactos: true,
       editarDirecciones: true,
+      editarMemoria: true,
       resolverRevision: true,
     })
   })
@@ -35,6 +36,7 @@ describe('permisosDe', () => {
     // `app.current_writer_company_ids()`, que es admin y employee.
     expect(p.editarContactos).toBe(false)
     expect(p.editarDirecciones).toBe(false)
+    expect(p.editarMemoria).toBe(false)
     expect(p.resolverRevision).toBe(false)
   })
 

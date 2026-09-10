@@ -975,3 +975,31 @@ grant execute on function public.next_document_number(uuid, text, text) to authe
 -- 8 · Torquetools estrena su propia serie `CLI` arrancando en 1, igual que ya
 --     tenía COTI, PDV y RT. Sin ella, `next_document_number` fallaba y en esa
 --     empresa no se podía dar de alta ningún cliente.
+
+-- ── Fase 5 · Clientes · entrega 4 ──────────────────────────────────────────
+-- Migraciones: fase5_memoria_y_precios, fase5_ultimo_precio_sin_truncar
+--
+--  9 · `aliases_select` y `aliases_write` pasan a exigir un EXISTS sobre
+--      `customers`: si podés leer al cliente, podés leer su memoria de
+--      productos. Antes cualquier rol interno leía la de todos, y un
+--      salesperson sólo ve los clientes de su cartera. RESTRINGE, no amplía.
+--
+-- 10 · `precios_historicos_cliente(p_customer, p_product, p_limit, p_offset)`
+--      y `ultimo_precio_cliente(p_customer, p_product)`. SECURITY INVOKER: las
+--      policies de sales_quotes / sales_orders se aplican al que llama, y
+--      además exigen poder leer al cliente.
+--
+--      NO hay tabla de memoria de precios y no se creó ninguna. El legacy
+--      tenía `bterp_price_memory` en localStorage —un caché por nombre de
+--      cliente y SKU, sin moneda— con nueve registros que son las nueve
+--      líneas de COTI02530. Todo eso está en `sales_quote_lines`.
+--
+--      `ultimo_precio_cliente` devuelve una fila por producto Y POR MONEDA. El
+--      producto se identifica por `product_id` y, si no resolvió, por su SKU:
+--      una de las nueve líneas de esa cotización no tiene producto y sin ese
+--      respaldo desaparecería.
+--
+--      `p_limit => null` en la primera significa «todas». Con el tope fijo de
+--      500 que tenía al principio, el último precio de un producto cotizado
+--      más atrás de la fila 500 no aparecía —85 de 380 en Grupo Mirgor— y sin
+--      avisar.

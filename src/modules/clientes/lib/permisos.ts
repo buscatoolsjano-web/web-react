@@ -14,6 +14,8 @@ import type { Membresia } from '@/services/empresa/memberships'
  *                                            que tiene asignados.
  *   `contacts_write` / `addresses_write`     `app.current_writer_company_ids()`,
  *                                            que es admin y employee.
+ *   `aliases_write`                          la misma función, más poder leer
+ *                                            al cliente.
  *   `resolver_revision_cliente`              admin y employee.
  *
  * No hay policy de DELETE sobre `customers`: desde la aplicación un cliente no
@@ -29,6 +31,7 @@ export interface PermisosClientes {
   darDeBaja: boolean
   editarContactos: boolean
   editarDirecciones: boolean
+  editarMemoria: boolean
   resolverRevision: boolean
 }
 
@@ -43,6 +46,7 @@ export function permisosDe(membresia: Membresia | null): PermisosClientes {
     darDeBaja: escribeCliente,
     editarContactos: escribeTodo,
     editarDirecciones: escribeTodo,
+    editarMemoria: escribeTodo,
     resolverRevision: escribeTodo,
   }
 }
