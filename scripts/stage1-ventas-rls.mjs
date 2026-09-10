@@ -71,6 +71,10 @@ const main = async () => {
     .select('*', { count: 'exact', head: true })
   const { count: entregasPrevias } = await sb.from('deliveries')
     .select('*', { count: 'exact', head: true })
+  // Tampoco contra un número fijo: cada sección que se migra puede agregar su
+  // propia serie —Clientes sumó la CLI— y eso no es un residuo de esta suite.
+  const { count: secuenciasPrevias } = await sb.from('document_sequences')
+    .select('*', { count: 'exact', head: true })
   const nuevoPedido = async (companyId, customerId, numero, productId = prod.id) => {
     const { data } = await sb.from('sales_orders').insert({
       company_id: companyId, number: numero, customer_id: customerId,
@@ -326,12 +330,13 @@ const main = async () => {
     const { count: entregas } = await s.from('deliveries').select('*', { count: 'exact', head: true })
     const { count: empresas } = await s.from('companies').select('*', { count: 'exact', head: true })
     const { count: secuencias } = await s.from('document_sequences').select('*', { count: 'exact', head: true })
-    pedidos === pedidosPrevios && entregas === entregasPrevias && empresas === 2 && secuencias === 6
+    pedidos === pedidosPrevios && entregas === entregasPrevias && empresas === 2
+      && secuencias === secuenciasPrevias
       ? PASS('sin residuos',
           `sales_orders=${pedidos}  deliveries=${entregas}  companies=${empresas}  document_sequences=${secuencias}`)
       : FAIL('quedaron residuos',
           `sales_orders=${pedidos} (previos ${pedidosPrevios})  deliveries=${entregas} ` +
-          `(previas ${entregasPrevias})  companies=${empresas}  document_sequences=${secuencias}`)
+          `(previas ${entregasPrevias})  companies=${empresas}  document_sequences=${secuencias} (previas ${secuenciasPrevias})`)
   }
 
   console.log(`\n${'═'.repeat(74)}\n  RESULTADO: ${fallos} fallo(s)\n${'═'.repeat(74)}`)

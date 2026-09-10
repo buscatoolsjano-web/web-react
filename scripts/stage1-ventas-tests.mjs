@@ -80,10 +80,22 @@ const main = async () => {
 
     const N = 40
     const t0 = Date.now()
-    const res = await Promise.all(
-      Array.from({ length: N }, () =>
-        sb.rpc('next_document_number', { p_company: BT, p_doc_type: 'quote' })),
-    )
+    // Cuarenta conexiones simultáneas desde una máquina de escritorio hacen
+    // que alguna se caiga con `TypeError: fetch failed` —no llega respuesta,
+    // no hay código de error de Postgres— y eso NO es un fallo de la
+    // numeración. Se reintenta el transporte; lo que se mide sigue siendo
+    // estricto: cuarenta números, todos distintos y sin huecos. Cualquier otro
+    // error se cuenta como error de verdad.
+    const pedirNumero = async () => {
+      for (let i = 0; i < 5; i += 1) {
+        const r = await sb.rpc('next_document_number', { p_company: BT, p_doc_type: 'quote' })
+        if (!r.error) return r
+        if (!String(r.error.message).includes('fetch failed')) return r
+        await new Promise((s) => setTimeout(s, 200 * (i + 1)))
+      }
+      return { error: { message: 'fetch failed tras 5 intentos' } }
+    }
+    const res = await Promise.all(Array.from({ length: N }, pedirNumero))
     const nums = res.map((r) => r.data).filter(Boolean)
     const errores = res.filter((r) => r.error).length
     const unicos = new Set(nums)

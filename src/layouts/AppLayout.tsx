@@ -24,10 +24,10 @@ const NAV = [
   { to: '/ventas/cotizaciones', label: 'Cotizaciones', end: false },
   { to: '/ventas/pedidos', label: 'Pedidos', end: false },
   { to: '/ventas/entregas', label: 'Notas de entrega', end: false },
+  { to: '/clientes', label: 'Clientes', end: false },
 ] as const
 
 const PROXIMAMENTE = [
-  'Clientes',
   'Compras',
   'Mantenimiento',
   'WhatsApp',

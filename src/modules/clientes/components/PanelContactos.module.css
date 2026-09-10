@@ -1,0 +1,84 @@
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+
+.item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  background: var(--surface-alt);
+  min-width: 0;
+}
+
+.cabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.nombre {
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.principal {
+  font-size: var(--text-xs);
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+}
+
+.cargo {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-top: 2px;
+}
+
+.datos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.enlace,
+.dato {
+  overflow-wrap: anywhere;
+}
+
+.enlace {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.enlace:hover {
+  text-decoration: underline;
+}
+
+.dato {
+  color: var(--text-soft);
+}
+
+.notas {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  white-space: pre-wrap;
+}
+
+.nota {
+  color: var(--text-soft);
+  margin: 0;
+}

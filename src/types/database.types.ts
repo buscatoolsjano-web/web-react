@@ -4,8 +4,14 @@
  * NO editar a mano. Se regenera con:
  *   npx supabase gen types typescript --project-id uaxcfufvapzulqvynanp
  *
- * Refleja el schema completo: catálogo, stock y las tablas de Ventas de la
- * Fase 4 (incluido el precio por línea de entrega de Stage 3).
+ * Refleja el schema completo: catálogo, stock, las tablas de Ventas de la
+ * Fase 4 (incluido el precio por línea de entrega de Stage 3) y las columnas
+ * que la Fase 5 agregó a `customers`: emails, industry, needs_review,
+ * review_reason, imported_at y legacy_source.
+ *
+ * Esas seis se agregaron A MANO porque generar el archivo necesita un access
+ * token de Supabase que no está en esta máquina. Cuando se pueda regenerar,
+ * el resultado tiene que ser idéntico.
  */
 export type Json =
   | string
@@ -845,13 +851,19 @@ export type Database = {
           deleted_at: string | null
           discount_pct: number
           email_domains: string[]
+          emails: string[] | null
           id: string
+          imported_at: string | null
+          industry: string | null
           legacy_name: string | null
           legacy_ref: string | null
+          legacy_source: string | null
           legal_name: string
+          needs_review: boolean
           notes: string | null
           payment_terms: string | null
           phone: string | null
+          review_reason: string | null
           salesperson_id: string | null
           status: string
           tax_id: string | null
@@ -869,13 +881,19 @@ export type Database = {
           deleted_at?: string | null
           discount_pct?: number
           email_domains?: string[]
+          emails?: string[] | null
           id?: string
+          imported_at?: string | null
+          industry?: string | null
           legacy_name?: string | null
           legacy_ref?: string | null
+          legacy_source?: string | null
           legal_name: string
+          needs_review?: boolean
           notes?: string | null
           payment_terms?: string | null
           phone?: string | null
+          review_reason?: string | null
           salesperson_id?: string | null
           status?: string
           tax_id?: string | null
@@ -893,13 +911,19 @@ export type Database = {
           deleted_at?: string | null
           discount_pct?: number
           email_domains?: string[]
+          emails?: string[] | null
           id?: string
+          imported_at?: string | null
+          industry?: string | null
           legacy_name?: string | null
           legacy_ref?: string | null
+          legacy_source?: string | null
           legal_name?: string
+          needs_review?: boolean
           notes?: string | null
           payment_terms?: string | null
           phone?: string | null
+          review_reason?: string | null
           salesperson_id?: string | null
           status?: string
           tax_id?: string | null

@@ -47,8 +47,30 @@ la pena reconstruir algo del histórico a partir de otra fuente.
 
 ### Direcciones de cliente
 
-`customer_addresses` está vacía. El selector de dirección de envío no tiene de
-dónde elegir hasta que se cargue el módulo de Clientes.
+`customer_addresses` está vacía y **sigue vacía después de migrar Clientes**:
+el legacy no guardaba direcciones estructuradas y no se deduce una a partir de
+un texto libre o de un dominio. El selector de dirección de envío no tiene de
+dónde elegir hasta que la edición (entrega 3) las cargue a mano.
+
+### Rubros y catálogos
+
+El legacy configura cuatro rubros con sus catálogos (`loadRubrosConfig`), pero
+en los datos reales hay **un** rubro cargado: Grupo Mirgor → «Gomería /
+Neumáticos». Los otros tres parches traían `rubro: ""`. Antes de migrar una
+taxonomía —`industries`, `customer_industries`— hay que ver qué funcionalidad
+tiene de verdad. Hoy `customers.industry` es una columna de texto y alcanza.
+
+### Memoria de precios del cliente
+
+El legacy guarda en `localStorage` (`BTERP_PRICE_MEMORY`) el último precio
+cotizado por SKU y cliente. **No se migra como fuente maestra**: el precio que
+vale es el que figura en cada cotización. La pestaña se reconstruye derivándola
+de `sales_quote_lines` / `sales_order_lines` cuando le toque su entrega.
+
+### Clientes potenciales
+
+`NOT_MIGRATED_BY_DESIGN`. En el legacy es un placeholder; construirlo sería un
+CRM de leads, no la migración de un maestro de clientes.
 
 ---
 
@@ -83,8 +105,15 @@ es una función nueva, no una migración.
 
 ## Datos históricos pendientes de decisión
 
-- **13 clientes nombrados sólo en contactos** (y sus 32 contactos) no se
-  migraron: el alcance aprobado eran los del histórico de ventas.
+- **Los clientes nombrados sólo en contactos**: resuelto en la Fase 5. Con el
+  maestro completo migrado quedaron 7 —Selplast, Herrajes Roma, Alutek,
+  ECOWAY, Mafersa, CIAL DNB y MACSI—; los siete tenían nombre y dominio propio,
+  así que se crearon marcados `SOLO_EN_CONTACTOS` y sus 8 contactos quedaron
+  enganchados. Falta que alguien confirme quiénes son.
+- **40 clientes con `needs_review`**: 31 por CUIT repetido en el legacy, 27 sin
+  CUIT asignado por ese motivo, 7 sólo en contactos y 3 reclamados por más de
+  una ficha del legacy. Se trabajan a mano desde `#/clientes` con el filtro de
+  revisión; el CSV los exporta con su motivo.
 - **1 equivalencia** (`gmra s a u`) cuyo cliente no está en el histórico.
 - **Serie `RT-ML`**: existe, es concurrente con `RT` y tiene contador propio,
   pero no sabemos qué significa `ML`, qué significa el `2025` embebido (los
