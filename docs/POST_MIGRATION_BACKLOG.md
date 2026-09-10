@@ -312,3 +312,40 @@ El advisor de performance marca 125 FKs sin índice de cobertura en toda la base
 y `currency_code`, que nunca se usan como filtro. Se agregó sólo el que sí está
 en un camino de consulta real (`idx_sil_order_line`). Revisar el resto cuando haya
 volumen y plan de ejecución reales, no antes.
+
+### Los 19 proveedores con un email escrito dentro de las notas
+
+22 apariciones, 21 direcciones distintas, en 19 de los 142 proveedores. **No se
+extrajeron automáticamente**: una regex puede encontrar algo que no sea el
+email principal. Quedaron marcados con `needs_review = true` y
+`review_reason = 'LEGACY_EMAIL_EN_NOTAS'`, y se filtran desde el listado de
+proveedores con «Sólo los marcados para revisión». Revisión humana: mirar la
+nota y, si corresponde, cargar el email en su campo y dar por revisado.
+
+(La entrega 0 decía 18 proveedores y 22 direcciones. Son 19 proveedores, 22
+apariciones y 21 direcciones distintas.)
+
+### `suppliers.country_code`
+
+Se sembró una vez en la migración desde el último segmento de la dirección
+legacy —142 de 142 exactos, con una regla estricta de dos letras mayúsculas— y
+desde entonces es un campo editable más: **no se vuelve a derivar de
+`address_text`**. Si algún día se quiere estructurar el resto de la dirección
+(calle, localidad, provincia, CP), eso NO se puede parsear del legacy sin
+adivinar: hay que cargarlo a mano o pedirlo al proveedor.
+
+### `database.types.ts`
+
+Las ocho tablas de Compras ya no están escritas a mano: las genera
+`scripts/fase6-generar-tipos-compras.mjs` desde el esquema OpenAPI de
+PostgREST. Lo que sigue a mano son las seis columnas que la Fase 5 agregó a
+`customers` y sus funciones, verificadas con `scripts/fase5-verificar-tipos.mjs`.
+Regenerar el archivo entero con `npx supabase gen types` sigue necesitando un
+access token que no está en esta máquina.
+
+### El employee de prueba
+
+`scripts/fase6-proveedores-tests.mjs` crea un usuario `employee` temporal y lo
+borra al terminar, porque no hay credenciales del employee real. Si alguna vez
+se guarda una contraseña de prueba para ese rol, el script puede dejar de crear
+usuarios.

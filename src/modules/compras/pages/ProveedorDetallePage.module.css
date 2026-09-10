@@ -1,0 +1,277 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.volver {
+  align-self: flex-start;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.volver:hover {
+  color: var(--primary);
+}
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.identidad {
+  min-width: 0;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.subtitulo {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  align-items: center;
+}
+
+.historico {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.chipBaja {
+  font-size: var(--text-xs);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+}
+
+/* El aviso de revisión no se puede cerrar: es el que explica por qué un dato
+   está vacío o por qué hay dos clientes parecidos. */
+.revision {
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
+  background: var(--warning-bg, var(--surface));
+  color: var(--warning-text);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.motivos {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pestanas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.pestana,
+.pestanaActiva {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.pestanaActiva {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.pestana:hover {
+  color: var(--text);
+}
+
+.pestana:focus-visible,
+.pestanaActiva:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.bloque {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+.datos {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.dato {
+  min-width: 0;
+}
+
+.datoEtiqueta {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.datoValor {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+/* Un dato que falta se muestra como faltante, no como vacío: la diferencia
+   entre «no lo sabemos» y «no hay nada» importa en el histórico. */
+.falta {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.chipsLista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.enlace {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.enlace:hover {
+  text-decoration: underline;
+}
+
+.notas {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  white-space: pre-wrap;
+}
+
+.nota {
+  color: var(--text-soft);
+}
+
+.error {
+  padding: var(--space-4);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  background: var(--surface);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.secundario,
+.peligro {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.secundario {
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.secundario:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.peligro {
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+
+.secundario:disabled,
+.peligro:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.secundario:focus-visible,
+.peligro:focus-visible,
+.resolver:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* El aviso de baja no es un error: es el estado del cliente. */
+.avisoBaja {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+}
+
+.motivos li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.resolver {
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.resolver:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

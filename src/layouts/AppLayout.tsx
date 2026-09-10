@@ -2,9 +2,13 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useAuth } from '@/features/auth/useAuth'
+import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { EmpresaSelector } from '@/features/empresa/EmpresaSelector'
 import { cx } from '@/utils/cx'
 import styles from './AppLayout.module.css'
+
+/** Los roles que escriben en Compras. Es el conjunto de la RLS de la sección. */
+const ESCRIBEN_COMPRAS = ['admin', 'employee'] as const
 
 /**
  * Navegación provisoria de FASE 1.
@@ -25,10 +29,14 @@ const NAV = [
   { to: '/ventas/pedidos', label: 'Pedidos', end: false },
   { to: '/ventas/entregas', label: 'Notas de entrega', end: false },
   { to: '/clientes', label: 'Clientes', end: false },
+  // Compras. Sólo admin y employee: `roles` filtra el enlace para no ofrecerle
+  // a un vendedor una pantalla que RLS le va a devolver vacía. Ocultar el
+  // enlace es una cortesía, no el control de acceso: las ocho tablas de
+  // Compras usan `app.current_writer_company_ids()`.
+  { to: '/compras/proveedores', label: 'Proveedores', end: false, roles: ESCRIBEN_COMPRAS },
 ] as const
 
 const PROXIMAMENTE = [
-  'Compras',
   'Mantenimiento',
   'WhatsApp',
   'Emails',
@@ -39,7 +47,14 @@ const PROXIMAMENTE = [
 export function AppLayout() {
   const isMobile = useIsMobile()
   const { user, session, salir } = useAuth()
+  const { activa } = useEmpresa()
   const [drawerAbierto, setDrawerAbierto] = useState(false)
+
+  // Un ítem sin `roles` lo ve cualquiera; uno con `roles`, sólo esos.
+  const rol = activa?.rol ?? ''
+  const navVisible = NAV.filter(
+    (item) => !('roles' in item) || (item.roles as readonly string[]).includes(rol),
+  )
 
   // Al cruzar el breakpoint, cerrar el drawer.
   //
@@ -108,7 +123,7 @@ export function AppLayout() {
         >
           <p className={styles.sidebarTitle}>Módulos</p>
           <nav className={styles.nav}>
-            {NAV.map((item) => (
+            {navVisible.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}

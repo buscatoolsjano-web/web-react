@@ -907,3 +907,108 @@ revoke execute on function public.resolver_revision_cliente(uuid, text[]) from a
 create index if not exists idx_sil_order_line
   on public.supplier_invoice_lines (purchase_order_line_id)
   where purchase_order_line_id is not null;
+
+
+-- --------------------------------------------------------------------------
+-- Migración aplicada: fase6_proveedores_pais_y_adjuntos
+-- versión 20260910125441 · entrega 2
+-- --------------------------------------------------------------------------
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Fase 6 · Compras · entrega 2 — lo que le faltaba al schema para proveedores
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- 1 · País del proveedor
+--
+-- `suppliers` no tenía NINGÚN campo estructurado de dirección, sólo
+-- `address_text`. Se agrega uno solo: el país.
+--
+-- No es intuición y no es parsear la dirección: en el maestro legacy los 142
+-- registros terminan en un código de dos letras —o SON un código de dos
+-- letras y nada más—, 142 de 142, sin una sola excepción. AR 136, ES 2, IT 2,
+-- UY 1, US 1.
+--
+-- `address_text` se guarda ENTERO y sin tocar, con el país incluido. Esta
+-- columna se siembra una vez en la migración y después es un campo más que se
+-- edita a mano: nunca se vuelve a derivar de la dirección, así que las dos
+-- cosas no pueden pelearse.
+--
+-- Calle, localidad, provincia y CP NO se separan. Ahí sí habría que adivinar.
+alter table public.suppliers add column if not exists country_code text;
+
+alter table public.suppliers drop constraint if exists suppliers_country_code_check;
+alter table public.suppliers add constraint suppliers_country_code_check
+  check (country_code is null or country_code ~ '^[A-Z]{2}$');
+
+comment on column public.suppliers.country_code is
+  'Código de país de dos letras. Se sembró desde el último segmento de la dirección legacy (142/142 exactos) y desde entonces se edita a mano; no se deriva de address_text.';
+
+-- 2 · Los adjuntos de Compras no son de Ventas
+--
+-- `attachments_select` dejaba leer a `app.current_internal_company_ids()`, que
+-- incluye salesperson y technician. Con Ventas estaba bien. Pero la entrega 1
+-- habilitó `supplier`, `purchase_order`, `goods_receipt` y `supplier_invoice`
+-- en el CHECK de `entity_type`, y Compras es admin + employee: un salesperson
+-- podía leer la fila del adjunto de un proveedor que no puede ni ver —nombre
+-- de archivo, tamaño y ruta— y, con esa fila, la policy del bucket le dejaba
+-- firmar la URL y bajarse el archivo.
+--
+-- Se parte la condición por tipo de entidad. Ventas queda exactamente igual.
+alter policy attachments_select on public.attachments
+using (
+  case
+    when entity_type in ('supplier', 'purchase_order', 'goods_receipt', 'supplier_invoice')
+      then company_id in (select unnest(app.current_writer_company_ids()))
+    else company_id in (select unnest(app.current_internal_company_ids()))
+  end
+);
+
+
+-- --------------------------------------------------------------------------
+-- Migración aplicada: fase6_proteger_borrado_proveedor
+-- versión 20260910131825 · entrega 2
+-- --------------------------------------------------------------------------
+
+-- Un proveedor con documentos no se borra: se da de baja.
+--
+-- La policy de `suppliers` es `FOR ALL`, así que también autoriza DELETE. En
+-- la entrega 1 di por sentado que no —los clientes no tienen policy de DELETE—
+-- y el test de la entrega 2 lo desmintió: un admin borró un proveedor de una
+-- fila.
+--
+-- No se le saca el DELETE a la policy: partirla en cuatro por esto sería
+-- rehacer algo probado. Se pone la misma guarda que tiene Clientes,
+-- `app.proteger_borrado_cliente()`, que además protege contra el borrado por
+-- la clave de servicio —un trigger corre igual— cosa que una policy no hace.
+--
+-- Los adjuntos cuentan: un proveedor con una lista de precios subida ya tiene
+-- historia, aunque todavía no tenga un pedido.
+create or replace function app.proteger_borrado_proveedor()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_docs int;
+begin
+  select (select count(*) from purchase_orders   where supplier_id = old.id)
+       + (select count(*) from goods_receipts    where supplier_id = old.id)
+       + (select count(*) from supplier_invoices where supplier_id = old.id)
+       + (select count(*) from attachments
+           where entity_type = 'supplier' and entity_id = old.id)
+    into v_docs;
+
+  if v_docs > 0 then
+    raise exception
+      'El proveedor % tiene % documento(s) o adjunto(s): se da de baja, no se borra',
+      old.legal_name, v_docs
+      using errcode = 'restrict_violation';
+  end if;
+
+  return old;
+end $$;
+
+drop trigger if exists trg_suppliers_no_borrar on public.suppliers;
+create trigger trg_suppliers_no_borrar
+  before delete on public.suppliers
+  for each row execute function app.proteger_borrado_proveedor();

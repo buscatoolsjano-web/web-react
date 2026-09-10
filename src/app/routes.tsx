@@ -114,6 +114,19 @@ const ClienteDetallePage = lazyConRecarga(() =>
     default: m.ClienteDetallePage,
   })),
 )
+const ProveedoresPage = lazyConRecarga(() =>
+  import('@/modules/compras/pages/ProveedoresPage').then((m) => ({ default: m.ProveedoresPage })),
+)
+const ProveedorNuevoPage = lazyConRecarga(() =>
+  import('@/modules/compras/pages/ProveedorNuevoPage').then((m) => ({
+    default: m.ProveedorNuevoPage,
+  })),
+)
+const ProveedorDetallePage = lazyConRecarga(() =>
+  import('@/modules/compras/pages/ProveedorDetallePage').then((m) => ({
+    default: m.ProveedorDetallePage,
+  })),
+)
 const LoginPage = lazyConRecarga(() =>
   import('@/features/auth/pages/LoginPage').then((m) => ({ default: m.LoginPage })),
 )
@@ -171,6 +184,15 @@ export const routes: RouteObject[] = [
       // `nuevo` antes que `:id`: si no, React Router lo tomaría como un id.
       { path: 'clientes/nuevo', element: privada(<ClienteNuevoPage />) },
       { path: 'clientes/:id', element: privada(<ClienteDetallePage />) },
+
+      // Compras. Igual que Ventas, la sección sola no tiene pantalla propia:
+      // hoy la única subsección es el maestro de proveedores, y el circuito
+      // —pedidos, recepciones, facturas— todavía no tiene UI.
+      { path: 'compras', element: <Navigate to="/compras/proveedores" replace /> },
+      { path: 'compras/proveedores', element: privada(<ProveedoresPage />) },
+      // `nuevo` antes que `:id`: si no, React Router lo tomaría como un id.
+      { path: 'compras/proveedores/nuevo', element: privada(<ProveedorNuevoPage />) },
+      { path: 'compras/proveedores/:id', element: privada(<ProveedorDetallePage />) },
     ],
   },
   {

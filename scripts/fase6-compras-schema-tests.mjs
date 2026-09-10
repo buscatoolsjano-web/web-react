@@ -53,6 +53,11 @@ const main = async () => {
   const { data: seqAntes } = await s.from('document_sequences')
     .select('doc_type, next_number').eq('company_id', BT)
     .in('doc_type', ['supplier', 'purchase_order', 'goods_receipt', 'supplier_invoice'])
+  // Cuántos proveedores hay ANTES. La entrega 2 migró los 142 del legacy:
+  // dar por sentado que la tabla está vacía fue el mismo error que cometió
+  // esta suite con document_sequences en la Fase 5.
+  const { count: provAntes } = await s.from('suppliers')
+    .select('*', { count: 'exact', head: true })
   const { count: movAntes } = await s.from('stock_movements')
     .select('*', { count: 'exact', head: true })
   const { data: balAntes } = await s.from('stock_balances').select('product_id, warehouse_id')
@@ -524,7 +529,7 @@ const main = async () => {
       .select('*', { count: 'exact', head: true })
     cmp('los movimientos de stock vuelven a su número', movAntes, movDespues)
     cmp('y los saldos también', balacesPrevios.size, balDespues)
-    cmp('no quedó ningún proveedor', 0, provDespues)
+    cmp('los proveedores vuelven a su número', provAntes, provDespues)
     console.log(`    series repuestas: ${(seqAntes ?? []).map((x) => x.doc_type + '=' + x.next_number).join(' · ')}`)
 
     console.log('\n' + '='.repeat(74))
