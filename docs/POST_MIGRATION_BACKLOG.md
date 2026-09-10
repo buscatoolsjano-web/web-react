@@ -298,3 +298,17 @@ Si alguna vez se quieren como contactos, con revisión humana.
 Único documento de Compras del legacy: sin proveedor, una línea a precio 0,
 nunca recibido ni facturado. Clasificado `TEST` / `NON_PRODUCTION`, **no se
 migra**. Queda en el backup del 2026-09-10 (`sha256 81a02598…`).
+
+### Protección de contraseñas filtradas (Auth)
+
+El advisor de Supabase marca `auth_leaked_password_protection` como deshabilitado.
+Es una opción de configuración de Auth, no de la base. Nada de lo migrado depende
+de ella. Habilitarla cuando se revise la configuración de Auth completa.
+
+### Índices de cobertura sobre FKs poco usadas
+
+El advisor de performance marca 125 FKs sin índice de cobertura en toda la base,
+39 de ellas en las tablas de Compras. Casi todas son `created_by`, `updated_by`
+y `currency_code`, que nunca se usan como filtro. Se agregó sólo el que sí está
+en un camino de consulta real (`idx_sil_order_line`). Revisar el resto cuando haya
+volumen y plan de ejecución reales, no antes.
