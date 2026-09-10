@@ -480,3 +480,47 @@ que hay que mantener sincronizado.
 Si alguna vez hace falta un circuito de aprobación de diferencias —alguien que
 las revise, las apruebe o las rechace, con su propio historial—, ahí sí una
 tabla tendría algo propio que guardar. Hoy no lo tiene.
+
+### Stock negativo en Mantenimiento
+
+`confirmar_consumo_mantenimiento()` descuenta el repuesto aunque el saldo quede
+en negativo, y eso es **deliberado**: la reparación ya ocurrió físicamente y
+negarse a registrarla haría que el sistema mienta sobre una herramienta que ya
+tiene el repuesto puesto. El faltante se ve en el saldo, que es donde tiene que
+verse.
+
+`stock_balances` tampoco tiene hoy ninguna restricción de no-negatividad sobre
+`on_hand` —sólo `reserved >= 0`—, así que esto es consistente con el resto.
+
+Si alguna vez hace falta una política —avisar, pedir confirmación, o exigir un
+ajuste previo— es una decisión de operación, no técnica, y afecta también a
+Ventas.
+
+### La RLS de `delivery_serials`
+
+Encontrado auditando para la Fase 7. Su policy de lectura compara la línea de
+entrega con **su propia** empresa en vez de con las del usuario, así que es
+efectivamente `true` para cualquier fila bien formada:
+
+```sql
+EXISTS (SELECT 1 FROM delivery_lines dl
+         WHERE dl.id = delivery_serials.delivery_line_id
+           AND dl.company_id = delivery_serials.company_id)
+```
+
+Con `authenticated` teniendo `SELECT`, cualquier usuario logueado vería los
+seriales de todas las empresas. **Hoy la tabla tiene 0 filas**, así que no
+filtra nada, pero filtraría en cuanto Ventas empiece a registrar seriales.
+
+El arreglo es una línea —`company_id in (select unnest(app.current_internal_company_ids()))`—
+y no se aplicó porque es de otro módulo.
+
+### `revoke execute … from anon` no siempre alcanza
+
+Postgres otorga `EXECUTE` a **PUBLIC** al crear una función, y `anon` hereda de
+PUBLIC. Revocarle sólo a `anon` deja la función abierta. Hay que hacer
+`revoke execute … from public, anon` y después `grant … to authenticated`.
+
+Pasó en la entrega 1 de Mantenimiento y lo agarró el advisor de Supabase. En
+Compras el advisor no marca esas RPC, así que ahí el revoke sí tomó — pero
+conviene revisarlo la próxima vez que se toquen esas migraciones.
