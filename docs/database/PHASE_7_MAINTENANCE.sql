@@ -1263,3 +1263,40 @@ begin
 
   return new;
 end $$;
+
+-- ===========================================================================
+-- fix_rls_delivery_serials_select  (Fase 7 · fix de seguridad previo)
+-- ===========================================================================
+
+-- ===========================================================================
+-- FIX DE SEGURIDAD · delivery_serials.serials_select
+-- ===========================================================================
+--
+-- La policy anterior era:
+--
+--   EXISTS (SELECT 1 FROM delivery_lines dl
+--            WHERE dl.id = delivery_serials.delivery_line_id
+--              AND dl.company_id = delivery_serials.company_id)
+--
+-- Compara la línea de entrega con la empresa DE LA PROPIA FILA, nunca con las
+-- del usuario autenticado. Para cualquier fila bien formada es equivalente a
+-- `true`, así que con `authenticated` teniendo SELECT cualquier usuario
+-- logueado vería los seriales de todas las empresas.
+--
+-- La nueva usa el patrón ya probado en el resto del proyecto, el mismo que
+-- tiene `deliveries_select`: la empresa tiene que ser una de las del usuario,
+-- y además o es interno de esa empresa, o es el cliente dueño del serial.
+-- `delivery_serials` ya trae `customer_id` propio, así que no hace falta ir a
+-- buscarlo por la cadena.
+--
+-- Sin cambios de schema, sin tocar datos y sin funciones nuevas.
+
+drop policy if exists serials_select on delivery_serials;
+
+create policy serials_select on delivery_serials for select using (
+  company_id in (select unnest(app.current_company_ids()))
+  and (
+    company_id in (select unnest(app.current_internal_company_ids()))
+    or customer_id in (select unnest(app.current_customer_ids()))
+  )
+);

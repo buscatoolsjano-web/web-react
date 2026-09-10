@@ -496,7 +496,7 @@ Si alguna vez hace falta una política —avisar, pedir confirmación, o exigir 
 ajuste previo— es una decisión de operación, no técnica, y afecta también a
 Ventas.
 
-### La RLS de `delivery_serials`
+### La RLS de `delivery_serials` — CORREGIDA
 
 Encontrado auditando para la Fase 7. Su policy de lectura compara la línea de
 entrega con **su propia** empresa en vez de con las del usuario, así que es
@@ -512,8 +512,8 @@ Con `authenticated` teniendo `SELECT`, cualquier usuario logueado vería los
 seriales de todas las empresas. **Hoy la tabla tiene 0 filas**, así que no
 filtra nada, pero filtraría en cuanto Ventas empiece a registrar seriales.
 
-El arreglo es una línea —`company_id in (select unnest(app.current_internal_company_ids()))`—
-y no se aplicó porque es de otro módulo.
+**Corregido** en la migración `fix_rls_delivery_serials_select`, con el mismo
+patrón que `deliveries_select`. Ver `PHASE_7_FIX_RLS_DELIVERY_SERIALS.md`.
 
 ### `revoke execute … from anon` no siempre alcanza
 
@@ -524,3 +524,50 @@ PUBLIC. Revocarle sólo a `anon` deja la función abierta. Hay que hacer
 Pasó en la entrega 1 de Mantenimiento y lo agarró el advisor de Supabase. En
 Compras el advisor no marca esas RPC, así que ahí el revoke sí tomó — pero
 conviene revisarlo la próxima vez que se toquen esas migraciones.
+
+### POLITICA_STOCK_NEGATIVO_MANTENIMIENTO
+
+Decisión tomada y sin cambios por ahora: `confirmar_consumo_mantenimiento()`
+descuenta el repuesto **aunque el saldo quede negativo**. La reparación ya
+ocurrió físicamente; negarse a registrarla haría que el sistema mienta sobre
+una herramienta que ya tiene el repuesto puesto.
+
+Si alguna vez hace falta una política —avisar, pedir confirmación, exigir un
+ajuste previo— es una decisión de operación y afecta también a Ventas.
+
+### Torque sin unidad ni instrumento
+
+`maintenance_orders` guarda LCI, nominal, LCS y las mediciones, pero **no** la
+unidad (se asume Nm) ni el instrumento con que se midió. **El legacy tampoco los
+tiene**, así que no se inventaron.
+
+Para un informe de calibración que el cliente firma normalmente hacen falta los
+dos. Es funcionalidad **nueva**.
+
+### Impuestos en la cotización de mantenimiento
+
+`maintenance_quote_lines` calcula `cantidad × precio` y nada más: sin impuestos
+y sin descuentos, como el legacy. Si en algún momento la reparación se factura
+o se integra con Ventas, hay que diseñarlo — como mejora, no como migración.
+
+### Seis policies más con el bug de la comparación consigo misma
+
+El barrido que encontró el problema de `delivery_serials` encontró **seis
+policies idénticas**, y éstas **sí tienen datos reales**:
+
+`delivery_lines` · `sales_quote_lines` · `sales_order_lines` ·
+`sales_invoice_lines` · `customer_purchase_order_lines` · `product_images`
+
+Todas con la forma:
+
+```sql
+EXISTS (SELECT 1 FROM <padre> p
+         WHERE p.id = <hija>.<fk> AND p.company_id = <hija>.company_id)
+```
+
+que compara la fila con su propia empresa y es equivalente a `true`.
+
+**No se corrigieron** porque el arreglo cambia lo que ve un `customer`: hoy ve
+todas las líneas de todas las cotizaciones, y con la policy corregida vería
+sólo las de sus propios documentos. Es lo correcto, pero es un cambio de
+comportamiento en módulos cerrados y necesita aprobación explícita.
