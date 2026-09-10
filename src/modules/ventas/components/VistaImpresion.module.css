@@ -1,0 +1,340 @@
+/* La hoja se ve igual en pantalla y en papel: es el mismo árbol de React con
+   una hoja @media print, no un HTML aparte escrito en un iframe. Por eso
+   fuerza fondo blanco y texto negro incluso en tema oscuro — el papel no
+   tiene tema. */
+.hoja {
+  background: #fff;
+  color: #111;
+  color-scheme: light;
+  padding: 14mm 12mm;
+  font-size: 11px;
+  line-height: 1.45;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+.a4 {
+  width: 210mm;
+  min-height: 297mm;
+}
+
+.carta {
+  width: 216mm;
+  min-height: 279mm;
+}
+
+/* En pantalla chica la hoja se escala para que entre sin scroll horizontal:
+   el ancho es en milímetros porque tiene que salir bien en papel, pero mirarla
+   en un teléfono no debería obligar a arrastrar. */
+@media (max-width: 800px) {
+  .hoja {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: var(--space-4);
+    font-size: 12px;
+  }
+}
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8mm;
+  border-bottom: 2px solid #f37021;
+  padding-bottom: 5mm;
+  margin-bottom: 6mm;
+}
+
+.marca {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.empresa {
+  margin-top: 2mm;
+  font-size: 10px;
+  color: #444;
+}
+
+.identidad {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tipoDoc {
+  display: inline-block;
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 2mm 4mm;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.numero {
+  margin-top: 2mm;
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.fecha {
+  font-size: 10px;
+  color: #444;
+}
+
+.datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(38mm, 1fr));
+  gap: 3mm 6mm;
+  margin-bottom: 6mm;
+  padding-bottom: 4mm;
+  border-bottom: 1px solid #ddd;
+}
+
+.etiqueta {
+  display: block;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #777;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.tabla th {
+  background: #f2f2f2;
+  text-align: left;
+  padding: 2mm;
+  border-bottom: 1px solid #bbb;
+  font-size: 8.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tabla td {
+  padding: 2mm;
+  border-bottom: 1px solid #eee;
+  vertical-align: top;
+}
+
+.col1 {
+  width: 8mm;
+  color: #999;
+  text-align: right;
+}
+
+.sku {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.desc {
+  color: #666;
+  font-size: 9px;
+  margin-top: 1mm;
+}
+
+.num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.capitulo td {
+  background: #f8f8f8;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 9.5px;
+}
+
+.totales {
+  margin: 5mm 0 0 auto;
+  width: 70mm;
+  font-size: 11px;
+}
+
+.totales > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 1.5mm 0;
+}
+
+.granTotal {
+  border-top: 2px solid #111;
+  margin-top: 1.5mm;
+  padding-top: 2mm !important;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.observaciones {
+  margin-top: 6mm;
+  padding-top: 3mm;
+  border-top: 1px solid #ddd;
+}
+
+.observaciones p {
+  margin: 1mm 0 0;
+  white-space: pre-wrap;
+  font-size: 10px;
+}
+
+.pie {
+  margin-top: 8mm;
+  padding-top: 3mm;
+  border-top: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  gap: 4mm;
+  font-size: 9px;
+  color: #777;
+}
+
+.historico {
+  font-style: italic;
+}
+
+/* ── Ticket 80 mm ─────────────────────────────────────────────────────── */
+
+.ticket {
+  width: 80mm;
+  min-height: 0;
+  padding: 6mm 5mm;
+  font-family: 'Courier New', 'Lucida Console', monospace;
+  font-size: 11px;
+}
+
+.tHeader {
+  text-align: center;
+  padding-bottom: 3mm;
+  border-bottom: 2px dashed #000;
+}
+
+.tLogo {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  font-family: Arial, sans-serif;
+}
+
+.tEmpresa {
+  font-size: 9.5px;
+  margin-top: 1.5mm;
+}
+
+.tTipo,
+.tItemsTitle {
+  text-align: center;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 1.5mm 0;
+  margin: 3mm 0 1.5mm;
+  border-top: 1px dashed #000;
+  border-bottom: 1px dashed #000;
+  font-size: 11px;
+}
+
+.tRef {
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.tData > div,
+.tTotales > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5mm 0;
+}
+
+.tItem {
+  padding: 1.5mm 0;
+  border-bottom: 1px dotted #aaa;
+}
+
+.tItemName {
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.tItemSku {
+  font-size: 9px;
+  color: #555;
+}
+
+.tItemRow {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.8mm;
+}
+
+.tChapter {
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 1.5mm 0;
+  border-top: 1.5px solid #000;
+  border-bottom: 1px dashed #000;
+  margin: 2mm 0;
+}
+
+.tTotales {
+  margin-top: 3mm;
+  padding-top: 2mm;
+  border-top: 2px dashed #000;
+}
+
+.tTotal {
+  font-size: 13px;
+  font-weight: 800;
+  margin-top: 1.5mm;
+  padding-top: 1.5mm;
+  border-top: 1px solid #000;
+}
+
+.tFooter {
+  margin-top: 4mm;
+  padding-top: 2mm;
+  border-top: 2px dashed #000;
+  text-align: center;
+  font-size: 9.5px;
+}
+
+.tThanks {
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+/* ── Impresión ────────────────────────────────────────────────────────── */
+@media print {
+  .hoja {
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    font-size: 11px;
+  }
+
+  .ticket {
+    width: 80mm;
+    padding: 4mm;
+  }
+
+  /* Que una fila no se parta entre dos páginas. */
+  .tabla tr {
+    break-inside: avoid;
+  }
+
+  .totales,
+  .observaciones {
+    break-inside: avoid;
+  }
+}

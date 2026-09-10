@@ -10,6 +10,22 @@ bug crítico.
 
 ## Producto / proceso comercial
 
+### Política de stock negativo
+
+Hoy **se permite**: emitir un remito por más de lo que hay en stock deja el
+saldo en negativo. No es una decisión nueva, es la del sistema anterior
+—`applyStockDeductions` descontaba sin mirar el saldo— y migrar el circuito no
+era el momento de cambiarla. La pantalla avisa cuándo va a pasar.
+
+Queda para evaluar más adelante:
+
+- bloquear
+- pedir autorización
+- permitirlo sólo a ciertos roles
+- permitirlo cuando haya un pedido de compra pendiente de ingreso
+
+**No cambiarlo ahora.**
+
 ### El remito: ¿valorizado o exclusivamente logístico?
 
 Hoy es **valorizado**, por decisión explícita (Fase 4 · Stage 3 · G.1 opción A):
@@ -93,3 +109,47 @@ es una función nueva, no una migración.
   otros dos son tablas anchas. La versión React usa tarjetas en los tres.
 - **Un tablero de Ventas** (`#/ventas` con su propia pantalla) sería una idea
   nueva. Hoy redirige a cotizaciones.
+
+---
+
+## Abierto al cerrar Ventas (entrega 6)
+
+### Adjuntos: los roles externos no ven ninguno
+
+La policy `attachments_select` es **sólo para roles internos**, tal como quedó
+en Stage 1. Un cliente o un distribuidor no ve ningún adjunto, ni siquiera de
+sus propios documentos.
+
+Eso cumple de sobra con «sólo los adjuntos de documentos que pueden leer»,
+pero si en algún momento se quiere que el cliente descargue su propia OC o su
+remito firmado, hay que **ampliar la policy**, y ampliar acceso es una
+decisión, no un detalle de implementación. No se hizo por las dudas.
+
+### `entity_type` no se llama igual en las dos tablas
+
+`attachments` usa `quote` / `order` / `delivery` y `sales_audit` usa
+`sales_quote` / `sales_order` / `delivery`. Viene del schema de Stage 1. Cada
+tabla se respeta como está: unificarlo obliga a migrar datos y no arregla
+nada que hoy moleste.
+
+### Impresión: no genera PDF por su cuenta
+
+Se imprime con el diálogo del navegador, y desde ahí se elige «Guardar como
+PDF». El legacy usaba `html2pdf` para generar el archivo y adjuntarlo a un
+mail. Cuando exista el envío de mail desde la web, hay que decidir si el PDF
+se genera en el cliente o en el servidor.
+
+### Puerta de mantenimiento en el borrado
+
+`service_role` puede borrar un documento **no histórico** aunque esté enviado
+o cancelado. Es la misma clave que corre las migraciones, nunca sale del
+servidor y la aplicación no la usa; existe para que los scripts de prueba
+puedan limpiar lo que crean. Los 636 históricos están protegidos para todos,
+incluida esa puerta, y ningún documento con derivados se borra nunca.
+
+### Selección múltiple: sólo exportar
+
+De las siete acciones de lote del legacy se migró **exportar**. Eliminar y
+duplicar en lote son operaciones masivas peligrosas sobre documentos
+comerciales y no se agregaron «por comodidad»; imprimir en lote necesita
+resolver antes cómo se concatenan varias hojas.

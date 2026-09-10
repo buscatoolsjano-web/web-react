@@ -19,3 +19,38 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* ── Impresión de documentos de Ventas ──────────────────────────────────
+   Mientras el navegador imprime, la aplicación entera se oculta y queda sólo
+   la hoja del documento. Es lo que permite que la vista previa y el papel
+   salgan del MISMO componente, en vez de un HTML aparte escrito en un iframe
+   como hacía el sistema anterior.
+
+   Se usa `visibility` y no `display`: la hoja vive DENTRO del modal, así que
+   esconder a los ancestros con display la escondería a ella también. */
+@media print {
+  body[data-imprimiendo] * {
+    visibility: hidden;
+  }
+
+  body[data-imprimiendo] [data-previa-impresion],
+  body[data-imprimiendo] [data-previa-impresion] * {
+    visibility: visible;
+  }
+
+  body[data-imprimiendo] [data-previa-impresion] {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+    margin: 0;
+    background: #fff;
+  }
+
+  body[data-imprimiendo] [data-no-imprimir],
+  body[data-imprimiendo] [data-no-imprimir] * {
+    visibility: hidden !important;
+  }
+}

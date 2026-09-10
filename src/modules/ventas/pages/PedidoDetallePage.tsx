@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { AccionesDocumento } from '../components/AccionesDocumento'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { CabeceraCotizacion, type CampoCabecera, type ValoresCabecera } from '../components/CabeceraCotizacion'
 import { ChipEstado } from '../components/ChipEstado'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalEntregaParcial } from '../components/ModalEntregaParcial'
 import { PanelPendientes } from '../components/PanelPendientes'
+import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelStock } from '../components/PanelStock'
 import { SelectorProducto } from '../components/SelectorProducto'
@@ -496,6 +498,13 @@ export function PedidoDetallePage() {
           ) : null}
         </div>
       </div>
+
+      <AccionesDocumento doc={doc} />
+
+      <section className={styles.bloque}>
+        <h2 className={styles.h2}>Adjuntos</h2>
+        <PanelAdjuntos tipo="pedido" documentoId={doc.id} />
+      </section>
 
       <section className={styles.bloque}>
         <h2 className={styles.h2}>Relacionados</h2>

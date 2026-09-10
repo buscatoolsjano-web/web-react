@@ -695,3 +695,93 @@ El modal ocupa la pantalla completa por debajo de 640 px —una caja centrada
 con márgenes desperdicia espacio justo donde no sobra—, su tabla scrollea
 dentro de su propia caja y todos los controles son de 44 px con fuente de
 16 px.
+
+---
+
+# Entrega 6 — cierre funcional de Ventas
+
+## Impresión y vista previa
+
+Auditado primero: `buildPrintHTML` (app.js 25221) y `openPrintPreview`
+(25765). Los formatos **son reales**, no placeholders — están en el `<select>`
+de opciones del modal:
+
+| formato | qué cambia |
+|---|---|
+| `valorado` | todo |
+| `sin-valorar` | sin precios ni totales |
+| `sin-impuestos` | sin la línea de impuestos |
+| `pro-forma` | el encabezado dice PRO FORMA |
+| `sin-totales` | precios sí, totales no |
+| `ticket` | 80 mm, monoespaciada, estilo POS |
+
+Los seis se migraron, más las opciones «precios con impuestos incluidos» y
+tamaño de papel A4 / carta.
+
+**Un solo componente para previsualizar e imprimir.** El legacy armaba un
+string de HTML y lo escribía en un `iframe`; la previsualización y el PDF
+salían de caminos parecidos pero no idénticos. Acá hay un árbol de React y una
+hoja `@media print`, y lo que se ve es literalmente lo que sale.
+
+**Dos correcciones sobre el legacy**, las dos por el mismo motivo:
+
+1. «Precios con impuestos» multiplicaba **por 1,21 siempre**. Eso miente en
+   cualquier línea al 10,5 % o exenta. Ahora usa la alícuota **de la línea**.
+2. El encabezado de Buscatools estaba **escrito a mano en el código** y el de
+   las demás empresas se armaba desde una tabla, así que imprimir con otra
+   empresa daba dos encabezados distintos. Ahora los dos salen de `companies`.
+
+### El histórico se imprime como quedó
+
+Los totales salen **tal cual** del documento: nada se recalcula. Es la
+diferencia entre imprimir un documento de enero y «arreglarlo» — y 82 de los
+636 no cierran sus totales.
+
+## CSV
+
+Columnas del legacy más **una corrección**: el legacy escribía la columna
+«Total USD» y volcaba ahí cualquier importe. Hay cuatro monedas en el
+histórico, así que la moneda va en su propia columna.
+
+Exporta **lo que muestran los filtros**, pidiendo páginas de 500 al servidor.
+Con selección, exporta los seleccionados.
+
+## Adjuntos
+
+Bucket **privado** `ventas`, archivo en Storage y sólo metadata en la base —
+el legacy guardaba el archivo entero en `localStorage`, en base64.
+
+Ruta `<company>/<tipo>/<documento>/<uuid>-<archivo>`. Tres policies sobre
+`storage.objects`: leer exige que exista la fila en `attachments` **visible
+para quien pregunta**, así que el permiso vive en un solo lugar; escribir y
+borrar son por empresa y sólo para roles que pueden escribir.
+
+Cada descarga usa una **URL firmada de 5 minutos**. Verificado: sin firmar,
+HTTP 400.
+
+## Duplicar, cancelar, eliminar
+
+Duplicar copia cabecera y líneas con sus snapshots, pide **número nuevo** al
+servidor, nace en borrador y **no copia** el vínculo al documento de origen ni
+la auditoría. Es lo que hacía el legacy, que también borraba `convertidaA`.
+
+Cancelar deja el documento registrado. La cotización no tiene «cancelada»:
+tiene `rejected`, que dice lo mismo.
+
+Eliminar lo decide la base, no el botón: **histórico nunca**, **con derivados
+nunca**, **enviado/confirmado nunca**, **remito que movió stock nunca** —
+borrar el movimiento no devuelve las unidades. Un borrador limpio sí.
+
+## Bugs encontrados
+
+1. **`attachments.entity_type` no acepta `sales_quote`.** Su CHECK usa
+   `quote` / `order` / `delivery`, distinto de `sales_audit`. Se respeta cada
+   tabla como está.
+2. **Borrar un borrador limpio fallaba** con «tuple to be deleted was already
+   modified». El trigger borraba las líneas a mano, eso disparaba el de
+   totales, y ése hace `update` sobre la fila que se está borrando. Las líneas
+   ya tenían `on delete cascade`: sobraba.
+3. **Una cotización rechazada quedaba sin salida**: no se puede volver a
+   borrador ni borrar. Para un documento real está bien, pero dejaba basura de
+   los scripts sin forma de limpiarla. Se abrió una puerta angosta y explícita
+   para `service_role` sobre documentos no históricos.

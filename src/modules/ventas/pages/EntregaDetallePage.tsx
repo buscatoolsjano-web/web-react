@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { AccionesDocumento } from '../components/AccionesDocumento'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { ChipEstado } from '../components/ChipEstado'
+import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { TablaLineas } from '../components/TablaLineas'
 import { presentarEstado } from '../lib/estados'
@@ -192,6 +194,13 @@ export function EntregaDetallePage() {
           <span className={editor.candado}>{permiso.motivo}</span>
         )}
       </div>
+
+      <AccionesDocumento doc={doc} />
+
+      <section className={styles.bloque}>
+        <h2 className={styles.h2}>Adjuntos</h2>
+        <PanelAdjuntos tipo="entrega" documentoId={doc.id} />
+      </section>
 
       <section className={styles.bloque}>
         <h2 className={styles.h2}>Relacionados</h2>

@@ -14,6 +14,10 @@ export interface ListadoDocumentosProps {
   /** Etiqueta de la columna «Origen». Sin origen posible, no se muestra. */
   etiquetaOrigen: string | null
   cargando: boolean
+  /** Ids seleccionados. Sin `onSeleccionar` no se muestran las casillas. */
+  seleccionados?: ReadonlySet<string>
+  onSeleccionar?: (id: string, marcado: boolean) => void
+  onSeleccionarTodos?: (marcado: boolean) => void
 }
 
 const COLUMNAS: { clave: OrdenVentas; etiqueta: string }[] = [
@@ -46,8 +50,13 @@ export function ListadoDocumentos({
   onOrdenar,
   etiquetaOrigen,
   cargando,
+  seleccionados,
+  onSeleccionar,
+  onSeleccionarTodos,
 }: ListadoDocumentosProps) {
   const isMobile = useIsMobile()
+  const haySeleccion = onSeleccionar !== undefined && seleccionados !== undefined
+  const todosMarcados = haySeleccion && filas.length > 0 && filas.every((d) => seleccionados.has(d.id))
 
   if (!cargando && filas.length === 0) {
     return (
@@ -86,6 +95,16 @@ export function ListadoDocumentos({
       <table className={styles.tabla}>
         <thead>
           <tr>
+            {haySeleccion ? (
+              <th scope="col" className={styles.check}>
+                <input
+                  type="checkbox"
+                  checked={todosMarcados}
+                  aria-label="Seleccionar todos los de esta página"
+                  onChange={(e) => onSeleccionarTodos?.(e.target.checked)}
+                />
+              </th>
+            ) : null}
             {COLUMNAS.map((c) => (
               <th
                 key={c.clave}
@@ -114,6 +133,16 @@ export function ListadoDocumentos({
         <tbody>
           {filas.map((d) => (
             <tr key={d.id}>
+              {haySeleccion ? (
+                <td className={styles.check}>
+                  <input
+                    type="checkbox"
+                    checked={seleccionados.has(d.id)}
+                    aria-label={`Seleccionar ${d.numero}`}
+                    onChange={(e) => onSeleccionar(d.id, e.target.checked)}
+                  />
+                </td>
+              ) : null}
               <td>
                 <Link to={`${RUTA_DE[d.tipo]}/${d.id}`} className={styles.enlace}>
                   {d.numero}
