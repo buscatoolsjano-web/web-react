@@ -34,6 +34,7 @@ const NAV = [
   // enlace es una cortesía, no el control de acceso: las ocho tablas de
   // Compras usan `app.current_writer_company_ids()`.
   { to: '/compras/proveedores', label: 'Proveedores', end: false, roles: ESCRIBEN_COMPRAS },
+  { to: '/compras/pedidos', label: 'Pedidos de compra', end: false, roles: ESCRIBEN_COMPRAS },
 ] as const
 
 const PROXIMAMENTE = [

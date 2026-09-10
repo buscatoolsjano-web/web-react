@@ -3908,6 +3908,23 @@ export type Database = {
       }
       confirmar_entrega: { Args: { p_delivery: string }; Returns: Json }
       confirmar_recepcion: { Args: { p_receipt: string }; Returns: Json }
+      duplicar_pedido_compra: { Args: { p_order: string }; Returns: string }
+      ultimo_precio_compra: {
+        Args: {
+          p_company: string
+          p_products: string[]
+          p_currency: string
+          p_supplier?: string | null
+        }
+        Returns: {
+          product_id: string
+          unit_price: number
+          discount_pct: number
+          order_number: string
+          order_date: string
+          supplier_name: string
+        }[]
+      }
       registrar_evento_compra: {
         Args: {
           p_entity_type: string

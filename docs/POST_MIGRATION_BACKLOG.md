@@ -349,3 +349,28 @@ access token que no está en esta máquina.
 borra al terminar, porque no hay credenciales del employee real. Si alguna vez
 se guarda una contraseña de prueba para ese rol, el script puede dejar de crear
 usuarios.
+
+### `ultimo_precio_compra` — decisión mía, revisable
+
+No hay ninguna fuente de costo en el backend: las cuatro listas de precios son
+de venta y `products` no tiene columna de costo. El precio de compra se escribe
+a mano, como corresponde. Además de eso, la entrega 3 agregó
+`public.ultimo_precio_compra()`, que muestra al lado del campo cuánto se pagó
+la última vez por ese producto en esa moneda, en un pedido **confirmado**. Es
+un dato derivado de documentos reales y **nunca autocompleta**. No estaba
+pedido: si se prefiere que no exista, se saca la función y el renglón del
+editor de líneas.
+
+### Reabrir un pedido de compra confirmado
+
+No está previsto: las transiciones son `draft → confirmed`,
+`draft → cancelled` y `confirmed → cancelled`. Un pedido confirmado que hay que
+rehacer se cancela y se duplica. Si alguna vez hace falta reabrir, es una
+decisión propia —qué pasa con la auditoría, con las recepciones en borrador— y
+hay que tomarla explícitamente.
+
+### La relación Compras ↔ Ventas
+
+Sigue sin existir en el schema y **no se reconstruye por intuición**: ni por
+fecha parecida, ni por mismo SKU, ni por cantidades parecidas. Si alguna vez se
+quiere, tiene que ser una FK que alguien cargue a mano.

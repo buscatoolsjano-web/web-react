@@ -101,3 +101,81 @@ export function validarProveedor(
 
   return errores
 }
+
+// ── Pedido de compra ───────────────────────────────────────────────────────
+
+export interface DatosPedidoCompra {
+  proveedorId: string
+  moneda: string
+  tipoCambio: string
+  fecha: string
+  /** ETA. Vacío = no se conoce; se guarda como NULL, no como una fecha inventada. */
+  fechaEstimada: string
+  formaPago: string
+  notas: string
+}
+
+export function pedidoVacio(hoy: string): DatosPedidoCompra {
+  return {
+    proveedorId: '',
+    moneda: '',
+    tipoCambio: '',
+    fecha: hoy,
+    fechaEstimada: '',
+    formaPago: '',
+    notas: '',
+  }
+}
+
+export type CampoPedido = keyof DatosPedidoCompra
+
+export interface ErrorDePedido {
+  campo: CampoPedido
+  mensaje: string
+}
+
+/** Las tres monedas que existen en `currencies`. */
+export const MONEDAS = ['USD', 'ARS', 'EUR'] as const
+
+/**
+ * Qué está mal antes de guardar el pedido.
+ *
+ * El proveedor y la moneda son obligatorios en la base (`NOT NULL` los dos, y
+ * la moneda además es FK a `currencies`). Validarlos acá es para que la
+ * persona lo vea antes de apretar Guardar, no para reemplazar al servidor.
+ *
+ * La ETA puede quedar vacía: **no se conoce** es un dato válido y distinto de
+ * inventar una fecha.
+ */
+export function validarPedido(d: DatosPedidoCompra): ErrorDePedido[] {
+  const errores: ErrorDePedido[] = []
+
+  if (d.proveedorId.trim() === '') {
+    errores.push({ campo: 'proveedorId', mensaje: 'Elegí un proveedor.' })
+  }
+  if (d.moneda.trim() === '') {
+    errores.push({ campo: 'moneda', mensaje: 'La moneda es obligatoria.' })
+  } else if (!(MONEDAS as readonly string[]).includes(d.moneda)) {
+    errores.push({ campo: 'moneda', mensaje: `«${d.moneda}» no es una moneda conocida.` })
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fecha)) {
+    errores.push({ campo: 'fecha', mensaje: 'La fecha del pedido es obligatoria.' })
+  }
+  if (d.fechaEstimada !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(d.fechaEstimada)) {
+    errores.push({ campo: 'fechaEstimada', mensaje: 'La fecha estimada no es una fecha.' })
+  }
+  if (d.fechaEstimada !== '' && d.fecha !== '' && d.fechaEstimada < d.fecha) {
+    errores.push({
+      campo: 'fechaEstimada',
+      mensaje: 'La fecha estimada de llegada es anterior a la del pedido.',
+    })
+  }
+  if (d.tipoCambio.trim() !== '') {
+    const n = Number(d.tipoCambio.replace(',', '.'))
+    if (!Number.isFinite(n) || n <= 0) {
+      errores.push({ campo: 'tipoCambio', mensaje: 'El tipo de cambio tiene que ser mayor que cero.' })
+    }
+  }
+
+  return errores
+}

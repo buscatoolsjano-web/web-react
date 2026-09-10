@@ -6,6 +6,23 @@
  * qué moverse juntos.
  */
 
+/**
+ * Un importe con su moneda al lado.
+ *
+ * La moneda NUNCA es opcional en un listado donde conviven varias: un número
+ * suelto no dice si son dólares o pesos. Por la misma razón no hay ninguna
+ * función que sume importes de monedas distintas; el panel del legacy sumaba
+ * ARS + USD + EUR en un solo total y ese número no significaba nada.
+ */
+export function formatearImporte(monto: number | null, moneda: string | null): string {
+  if (monto === null || !Number.isFinite(monto)) return '—'
+  const numero = new Intl.NumberFormat('es-AR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(monto)
+  return moneda ? `${moneda} ${numero}` : numero
+}
+
 export function formatearFecha(iso: string | null): string {
   if (!iso) return '—'
   const partes = iso.slice(0, 10).split('-')

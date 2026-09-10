@@ -1012,3 +1012,460 @@ drop trigger if exists trg_suppliers_no_borrar on public.suppliers;
 create trigger trg_suppliers_no_borrar
   before delete on public.suppliers
   for each row execute function app.proteger_borrado_proveedor();
+
+
+-- --------------------------------------------------------------------------
+-- Migración aplicada: fase6_pedidos_compra_reglas
+-- versión 20260910134126 · entrega 3
+-- --------------------------------------------------------------------------
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Fase 6 · Compras · entrega 3 — las reglas del pedido de compra
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- El schema de la entrega 1 ya tenía las columnas y los totales. Lo que falta
+-- es lo que NO puede quedar en un botón deshabilitado: qué se puede editar en
+-- cada estado, qué transiciones existen, quién firma cada fila y qué se
+-- audita.
+
+-- ── 1 · updated_at y autor ────────────────────────────────────────────────
+--
+-- `purchase_orders` y sus líneas tienen `updated_at` pero no el trigger que
+-- lo mueve: se había quedado sin el `touch` que sí tienen las tablas de
+-- Ventas. Y `created_by` / `updated_by` no los puede poner el frontend, por
+-- la misma razón por la que `salesperson_id` se asigna en el servidor: no se
+-- confía en que el navegador mande el uuid correcto.
+
+create or replace function app.sellar_autor_compra()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if tg_op = 'INSERT' then
+    new.created_by := auth.uid();
+    new.updated_by := auth.uid();
+  else
+    new.created_by := old.created_by;   -- no se reescribe nunca
+    new.updated_by := coalesce(auth.uid(), old.updated_by);
+    new.updated_at := now();
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_po_autor on public.purchase_orders;
+create trigger trg_po_autor
+  before insert or update on public.purchase_orders
+  for each row execute function app.sellar_autor_compra();
+
+drop trigger if exists trg_pol_touch on public.purchase_order_lines;
+create trigger trg_pol_touch
+  before update on public.purchase_order_lines
+  for each row execute function app.touch_updated_at();
+
+-- ── 2 · Qué se puede editar en cada estado ────────────────────────────────
+--
+-- Reemplaza a `proteger_estado_pedido_compra`, que sólo miraba la
+-- cancelación. La matriz completa:
+--
+--                    draft   confirmed   confirmed+recepción   cancelled
+--   proveedor          sí       no             no                 no
+--   moneda / TC        sí       no             no                 no
+--   fecha del pedido   sí       no             no                 no
+--   número             no       no             no                 no
+--   ETA / cond. pago   sí     sí (auditado)  sí (auditado)        no
+--   notas              sí     sí (auditado)  sí (auditado)        no
+--   líneas             sí     sí (auditado)    NO                 no
+--
+-- Un pedido cancelado está congelado. El número no se edita nunca: lo asigna
+-- `next_document_number` una sola vez.
+
+create or replace function app.proteger_estado_pedido_compra()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_recibidas int;
+begin
+  -- El número y la serie no se tocan, en ningún estado.
+  if new.number is distinct from old.number
+     or new.series_code is distinct from old.series_code then
+    raise exception 'El número del pedido no se cambia: lo asigna la numeración'
+      using errcode = 'restrict_violation';
+  end if;
+
+  -- Un pedido cancelado está congelado.
+  if old.status = 'cancelled' then
+    raise exception 'El pedido % está cancelado: no se modifica', old.number
+      using errcode = 'restrict_violation';
+  end if;
+
+  -- Transiciones válidas: draft → confirmed | cancelled, confirmed → cancelled.
+  -- Reabrir un pedido confirmado no está previsto: se cancela y se duplica.
+  if new.status is distinct from old.status then
+    if not (
+      (old.status = 'draft'     and new.status in ('confirmed', 'cancelled')) or
+      (old.status = 'confirmed' and new.status = 'cancelled')
+    ) then
+      raise exception 'Transición no permitida: % → %', old.status, new.status
+        using errcode = 'restrict_violation';
+    end if;
+  end if;
+
+  if old.status = 'confirmed' then
+    if new.supplier_id  is distinct from old.supplier_id
+       or new.currency_code is distinct from old.currency_code
+       or new.exchange_rate is distinct from old.exchange_rate
+       or new.order_date    is distinct from old.order_date then
+      raise exception
+        'El pedido % está confirmado: no se cambian proveedor, moneda ni fecha', old.number
+        using errcode = 'restrict_violation';
+    end if;
+  end if;
+
+  -- Cancelar con mercadería recibida: nunca. Ya hubo impacto operativo.
+  if new.status = 'cancelled' and old.status <> 'cancelled' then
+    select count(*) into v_recibidas
+      from goods_receipt_lines rl
+      join goods_receipts r on r.id = rl.goods_receipt_id
+      join purchase_order_lines l on l.id = rl.purchase_order_line_id
+     where l.purchase_order_id = new.id and r.status = 'confirmed';
+
+    if v_recibidas > 0 then
+      raise exception 'No se puede cancelar: el pedido ya tiene mercadería recibida'
+        using errcode = 'restrict_violation';
+    end if;
+  end if;
+
+  return new;
+end $$;
+
+-- ── 3 · Las líneas siguen el estado de su pedido ──────────────────────────
+--
+-- Antes sólo miraba la mercadería recibida. Ahora también: un pedido
+-- cancelado no acepta líneas nuevas ni cambios.
+
+create or replace function app.proteger_lineas_pedido_compra()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_order uuid; v_estado text; v_numero text; v_recibidas int;
+begin
+  v_order := coalesce(new.purchase_order_id, old.purchase_order_id);
+
+  select status, number into v_estado, v_numero
+    from purchase_orders where id = v_order;
+
+  if v_estado = 'cancelled' then
+    raise exception 'El pedido % está cancelado: sus líneas no se editan', v_numero
+      using errcode = 'restrict_violation';
+  end if;
+
+  select count(*) into v_recibidas
+    from goods_receipt_lines rl
+    join goods_receipts r on r.id = rl.goods_receipt_id
+    join purchase_order_lines l on l.id = rl.purchase_order_line_id
+   where l.purchase_order_id = v_order and r.status = 'confirmed';
+
+  if v_recibidas > 0 then
+    raise exception 'El pedido ya tiene mercadería recibida: sus líneas no se editan'
+      using errcode = 'restrict_violation';
+  end if;
+
+  return coalesce(new, old);
+end $$;
+
+-- El trigger de líneas no cubría el INSERT: se podían agregar líneas a un
+-- pedido con mercadería ya recibida.
+drop trigger if exists trg_pol_congelar on public.purchase_order_lines;
+create trigger trg_pol_congelar
+  before insert or update or delete on public.purchase_order_lines
+  for each row execute function app.proteger_lineas_pedido_compra();
+
+-- ── 4 · Auditoría: sólo lo que significa algo ─────────────────────────────
+--
+-- NO se audita cada UPDATE técnico. Se auditan:
+--
+--   · el alta                                    → create
+--   · la confirmación                            → confirm
+--   · la cancelación                             → cancel
+--   · un cambio en un pedido YA CONFIRMADO        → update, con el diff
+--
+-- Un pedido en borrador se edita libremente y no deja rastro: todavía no
+-- salió de la empresa. Uno confirmado ya se le mandó al proveedor, y ahí sí
+-- importa quién cambió qué.
+--
+-- `receipt_status` y los totales NO cuentan como cambio sensible: los mueve
+-- la base sola cuando se confirma una recepción, y eso se audita del lado de
+-- la recepción.
+
+create or replace function app.auditar_pedido_compra()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_diff jsonb;
+begin
+  if tg_op = 'INSERT' then
+    insert into purchases_audit (company_id, entity_type, entity_id, action,
+                                 from_status, to_status, actor_id)
+    values (new.company_id, 'purchase_order', new.id, 'create',
+            null, new.status, auth.uid());
+    return new;
+  end if;
+
+  if new.status is distinct from old.status then
+    insert into purchases_audit (company_id, entity_type, entity_id, action,
+                                 from_status, to_status, actor_id)
+    values (new.company_id, 'purchase_order', new.id,
+            case new.status when 'confirmed' then 'confirm'
+                            when 'cancelled' then 'cancel'
+                            else 'status_change' end,
+            old.status, new.status, auth.uid());
+    return new;
+  end if;
+
+  if old.status = 'confirmed' then
+    v_diff := '{}'::jsonb;
+    if new.expected_date is distinct from old.expected_date then
+      v_diff := v_diff || jsonb_build_object('expected_date',
+        jsonb_build_array(old.expected_date, new.expected_date));
+    end if;
+    if new.payment_terms is distinct from old.payment_terms then
+      v_diff := v_diff || jsonb_build_object('payment_terms',
+        jsonb_build_array(old.payment_terms, new.payment_terms));
+    end if;
+    if new.notes is distinct from old.notes then
+      v_diff := v_diff || jsonb_build_object('notes',
+        jsonb_build_array(old.notes, new.notes));
+    end if;
+
+    if v_diff <> '{}'::jsonb then
+      insert into purchases_audit (company_id, entity_type, entity_id, action,
+                                   from_status, to_status, diff, actor_id)
+      values (new.company_id, 'purchase_order', new.id, 'update',
+              old.status, new.status, v_diff, auth.uid());
+    end if;
+  end if;
+
+  return new;
+end $$;
+
+drop trigger if exists trg_po_auditar on public.purchase_orders;
+create trigger trg_po_auditar
+  after insert or update on public.purchase_orders
+  for each row execute function app.auditar_pedido_compra();
+
+-- Un cambio de líneas sobre un pedido confirmado también es sensible.
+create or replace function app.auditar_lineas_pedido_compra()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_order uuid; v_company uuid; v_estado text; v_linea int;
+begin
+  v_order := coalesce(new.purchase_order_id, old.purchase_order_id);
+  select company_id, status into v_company, v_estado
+    from purchase_orders where id = v_order;
+
+  if v_estado is distinct from 'confirmed' then
+    return coalesce(new, old);
+  end if;
+
+  v_linea := coalesce(new.line_no, old.line_no);
+  insert into purchases_audit (company_id, entity_type, entity_id, action,
+                               from_status, to_status, diff, actor_id)
+  values (v_company, 'purchase_order', v_order, 'update', v_estado, v_estado,
+          jsonb_build_object('linea', v_linea, 'operacion', lower(tg_op)),
+          auth.uid());
+
+  return coalesce(new, old);
+end $$;
+
+drop trigger if exists trg_pol_auditar on public.purchase_order_lines;
+create trigger trg_pol_auditar
+  after insert or update or delete on public.purchase_order_lines
+  for each row execute function app.auditar_lineas_pedido_compra();
+
+-- ── 5 · Duplicar un pedido ────────────────────────────────────────────────
+--
+-- uuid nuevo, número nuevo, `draft`, las líneas con sus snapshots. NO copia
+-- recepciones, ni facturas, ni la auditoría del original: el duplicado es un
+-- pedido nuevo, no una copia de su historia.
+--
+-- Va en una sola función porque numerar y copiar tienen que pasar juntos: si
+-- el número se toma y el insert falla, queda un hueco.
+
+create or replace function public.duplicar_pedido_compra(p_order uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_o purchase_orders; v_nuevo uuid; v_numero text;
+begin
+  select * into v_o from purchase_orders where id = p_order;
+  if not found then
+    raise exception 'El pedido % no existe', p_order using errcode = 'no_data_found';
+  end if;
+
+  if v_o.company_id <> all (app.current_writer_company_ids()) then
+    raise exception 'Sin permiso sobre ese pedido' using errcode = 'insufficient_privilege';
+  end if;
+
+  v_numero := public.next_document_number(v_o.company_id, 'purchase_order', v_o.series_code);
+
+  insert into purchase_orders (company_id, supplier_id, number, series_code, status,
+                               currency_code, exchange_rate, order_date, expected_date,
+                               payment_terms, notes)
+  values (v_o.company_id, v_o.supplier_id, v_numero, v_o.series_code, 'draft',
+          v_o.currency_code, v_o.exchange_rate, current_date, v_o.expected_date,
+          v_o.payment_terms, v_o.notes)
+  returning id into v_nuevo;
+
+  insert into purchase_order_lines (company_id, purchase_order_id, line_no, line_type,
+                                    product_id, sku_snapshot, name_snapshot,
+                                    description_snapshot, quantity, unit_price,
+                                    discount_pct, tax_treatment, tax_rate_snapshot)
+  select v_o.company_id, v_nuevo, line_no, line_type, product_id, sku_snapshot,
+         name_snapshot, description_snapshot, quantity, unit_price, discount_pct,
+         tax_treatment, tax_rate_snapshot
+    from purchase_order_lines
+   where purchase_order_id = p_order
+   order by line_no;
+
+  return v_nuevo;
+end $$;
+
+revoke execute on function public.duplicar_pedido_compra(uuid) from public, anon;
+grant execute on function public.duplicar_pedido_compra(uuid) to authenticated;
+
+-- ── 6 · El último precio de compra de un producto ─────────────────────────
+--
+-- No hay ninguna fuente de costo en la base: `price_lists` son las tres
+-- listas de VENTA —Lista base, Distribuidores, Especial Cliente Demo—, y
+-- `products` no tiene columna de costo. Sugerir un precio de venta como
+-- precio de compra sería exactamente el accidente que hay que evitar.
+--
+-- Así que el precio de compra se escribe a mano. Lo único que se ofrece es
+-- un dato REAL: qué se pagó la última vez por ese producto, en esa moneda,
+-- en un pedido confirmado. Si nunca se compró, no devuelve nada. No
+-- autocompleta: es un dato al lado del campo.
+
+create or replace function public.ultimo_precio_compra(
+  p_company uuid,
+  p_products uuid[],
+  p_currency text,
+  p_supplier uuid default null
+)
+returns table (
+  product_id uuid,
+  unit_price numeric,
+  discount_pct numeric,
+  order_number text,
+  order_date date,
+  supplier_name text
+)
+language sql
+stable
+security invoker
+set search_path = public, pg_temp
+as $$
+  select distinct on (l.product_id)
+         l.product_id, l.unit_price, l.discount_pct, o.number, o.order_date, s.legal_name
+    from purchase_order_lines l
+    join purchase_orders o on o.id = l.purchase_order_id
+    join suppliers s on s.id = o.supplier_id
+   where o.company_id = p_company
+     and o.status = 'confirmed'
+     and o.currency_code = p_currency
+     and l.product_id = any (p_products)
+     and l.unit_price is not null
+     and (p_supplier is null or o.supplier_id = p_supplier)
+   order by l.product_id, o.order_date desc, o.created_at desc;
+$$;
+
+revoke execute on function public.ultimo_precio_compra(uuid, uuid[], text, uuid) from public, anon;
+grant execute on function public.ultimo_precio_compra(uuid, uuid[], text, uuid) to authenticated;
+
+-- ── 7 · Índice para el listado ────────────────────────────────────────────
+--
+-- El listado ordena por fecha y filtra por empresa. `idx_po_estado` cubre el
+-- filtro por estado, pero no el orden por defecto.
+create index if not exists idx_po_fecha
+  on public.purchase_orders (company_id, order_date desc, number desc);
+
+
+-- --------------------------------------------------------------------------
+-- Migración aplicada: fase6_alicuota_siempre_del_tratamiento
+-- versión 20260910140432 · entrega 3
+-- --------------------------------------------------------------------------
+
+-- El bug del 1 % del legacy SÍ se podía reproducir.
+--
+-- `app.normalizar_linea_compra()` derivaba la alícuota del tratamiento sólo
+-- cuando venía en null. Mandando `tax_treatment = 'vat_21'` junto con
+-- `tax_rate_snapshot = 1` la línea quedaba con IVA al 1 %: exactamente lo que
+-- hacía el legacy, y exactamente lo que la entrega 1 dijo que no se podía
+-- hacer. El test de la entrega 3 lo desmintió.
+--
+-- La entrega 1 sólo había probado que un TRATAMIENTO inventado se rechaza. El
+-- agujero era el otro: el tratamiento válido con la alícuota escrita a mano.
+--
+-- Ahora la alícuota se deriva SIEMPRE del tratamiento y se pisa lo que venga.
+-- La única excepción es `other`, que existe justamente para las alícuotas que
+-- no están en la lista: ahí `app.tasa_de_tratamiento()` devuelve null y la
+-- escribe quien carga el documento.
+--
+-- Vale para las líneas de pedido y para las de factura de proveedor: las dos
+-- usan este trigger.
+create or replace function app.normalizar_linea_compra()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if new.tax_treatment = 'other' then
+    -- La única alícuota que se escribe a mano. Sin ella la línea no tiene
+    -- impuesto calculable, y el CHECK ya exige que no sea negativa.
+    new.tax_rate_snapshot := new.tax_rate_snapshot;
+  else
+    new.tax_rate_snapshot := app.tasa_de_tratamiento(new.tax_treatment);
+  end if;
+
+  if new.line_type = 'chapter' then
+    new.line_total := 0;
+  else
+    new.line_total := round(
+      coalesce(new.quantity, 0) * coalesce(new.unit_price, 0)
+      * (1 - coalesce(new.discount_pct, 0) / 100), 4);
+  end if;
+
+  return new;
+end $$;
+
+
+-- --------------------------------------------------------------------------
+-- Migración aplicada: fase6_limpiar_auditoria_huerfana_de_pruebas
+-- versión 20260910140758 · entrega 3
+-- --------------------------------------------------------------------------
+
+-- Limpieza de eventos huérfanos que dejaron las corridas de prueba.
+--
+-- La suite de la entrega 3 borraba la auditoría ANTES que las líneas, y
+-- borrar una línea de un pedido confirmado dispara `trg_pol_auditar`, que
+-- escribe un evento nuevo. Resultado: filas apuntando a pedidos y recepciones
+-- que ya no existen.
+--
+-- No hay ningún documento de compra real todavía, así que esto no toca nada
+-- productivo. La suite quedó corregida para borrar la auditoría al final.
+delete from purchases_audit a
+where not exists (select 1 from purchase_orders   o where o.id = a.entity_id)
+  and not exists (select 1 from suppliers         s where s.id = a.entity_id)
+  and not exists (select 1 from goods_receipts    r where r.id = a.entity_id)
+  and not exists (select 1 from supplier_invoices i where i.id = a.entity_id);

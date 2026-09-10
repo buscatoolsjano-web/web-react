@@ -5,7 +5,10 @@ import {
   normalizarPais,
   pareceCuit,
   PROVEEDOR_VACIO,
+  pedidoVacio,
+  validarPedido,
   validarProveedor,
+  type DatosPedidoCompra,
   type DatosProveedor,
 } from './validacion'
 
@@ -119,5 +122,61 @@ describe('validarProveedor', () => {
       direccion: 'Direccion: Av.Saenz Peña 2227 · San Martin · BUENOS AIRES · CP 1651 · AR',
     })
     expect(validarProveedor(datos)).toEqual([])
+  })
+})
+
+// ── Pedido de compra ───────────────────────────────────────────────────────
+
+const pedido = (cambios: Partial<DatosPedidoCompra> = {}): DatosPedidoCompra => ({
+  ...pedidoVacio('2026-09-10'),
+  proveedorId: 'abc',
+  moneda: 'USD',
+  ...cambios,
+})
+
+describe('validarPedido', () => {
+  it('un pedido con proveedor, moneda y fecha es válido', () => {
+    expect(validarPedido(pedido())).toEqual([])
+  })
+
+  it('el proveedor es obligatorio', () => {
+    const e = validarPedido(pedido({ proveedorId: '' }))
+    expect(e.map((x) => x.campo)).toContain('proveedorId')
+  })
+
+  it('la moneda es obligatoria', () => {
+    const e = validarPedido(pedido({ moneda: '' }))
+    expect(e.map((x) => x.campo)).toContain('moneda')
+  })
+
+  it('una moneda inventada se rechaza', () => {
+    const e = validarPedido(pedido({ moneda: 'BTC' }))
+    expect(e.map((x) => x.campo)).toContain('moneda')
+  })
+
+  it('la fecha del pedido es obligatoria', () => {
+    const e = validarPedido(pedido({ fecha: '' }))
+    expect(e.map((x) => x.campo)).toContain('fecha')
+  })
+
+  it('la ETA puede quedar vacía: «no se sabe» es un dato', () => {
+    expect(validarPedido(pedido({ fechaEstimada: '' }))).toEqual([])
+  })
+
+  it('pero una ETA anterior al pedido no tiene sentido', () => {
+    const e = validarPedido(pedido({ fecha: '2026-09-10', fechaEstimada: '2026-09-01' }))
+    expect(e.map((x) => x.campo)).toContain('fechaEstimada')
+  })
+
+  it('una ETA posterior está bien', () => {
+    expect(validarPedido(pedido({ fecha: '2026-09-10', fechaEstimada: '2026-11-01' }))).toEqual([])
+  })
+
+  it('el tipo de cambio es opcional pero tiene que ser positivo', () => {
+    expect(validarPedido(pedido({ tipoCambio: '' }))).toEqual([])
+    expect(validarPedido(pedido({ tipoCambio: '1450,50' }))).toEqual([])
+    expect(validarPedido(pedido({ tipoCambio: '0' })).map((x) => x.campo)).toContain('tipoCambio')
+    expect(validarPedido(pedido({ tipoCambio: '-3' })).map((x) => x.campo)).toContain('tipoCambio')
+    expect(validarPedido(pedido({ tipoCambio: 'mucho' })).map((x) => x.campo)).toContain('tipoCambio')
   })
 })

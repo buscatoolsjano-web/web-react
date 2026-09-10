@@ -106,3 +106,141 @@ export interface EventoDeProveedor {
   fecha: string
   diff: Record<string, unknown> | null
 }
+
+// ── Pedidos de compra ──────────────────────────────────────────────────────
+
+/** `draft` | `confirmed` | `cancelled`, los tres del CHECK. */
+export type EstadoPedido = 'draft' | 'confirmed' | 'cancelled'
+
+/** Derivado por la base. La aplicación nunca lo escribe. */
+export type EstadoRecepcion = 'pending' | 'partially_received' | 'received'
+
+export interface PedidoCompraListado {
+  id: string
+  numero: string
+  fecha: string
+  proveedorId: string
+  proveedor: string
+  moneda: string
+  total: number
+  estado: EstadoPedido
+  estadoRecepcion: EstadoRecepcion
+  /** ETA. `null` = no se conoce; no se inventa una. */
+  fechaEstimada: string | null
+  autor: string | null
+  lineas: number
+}
+
+export interface PaginaDePedidos {
+  filas: PedidoCompraListado[]
+  total: number
+}
+
+export type OrdenPedidos = 'fecha' | 'numero' | 'proveedor' | 'total' | 'eta'
+
+export interface FiltrosPedidos {
+  /** Número de pedido, exacto o parcial. */
+  q: string
+  proveedorId: string | null
+  estado: string
+  estadoRecepcion: string
+  moneda: string
+  /** `order_date` entre estas dos, inclusive. */
+  desde: string
+  hasta: string
+  /** `expected_date` entre estas dos, inclusive. */
+  etaDesde: string
+  etaHasta: string
+  /** Sólo los que no tienen ETA cargada. */
+  sinEta: boolean
+  pagina: number
+  porPagina: number
+  orden: OrdenPedidos
+  direccion: DireccionOrden
+}
+
+export const FILTROS_PEDIDOS_INICIALES: FiltrosPedidos = {
+  q: '',
+  proveedorId: null,
+  estado: '',
+  estadoRecepcion: '',
+  moneda: '',
+  desde: '',
+  hasta: '',
+  etaDesde: '',
+  etaHasta: '',
+  sinEta: false,
+  pagina: 1,
+  porPagina: 25,
+  orden: 'fecha',
+  direccion: 'desc',
+}
+
+/**
+ * Una línea del pedido.
+ *
+ * `id` es un uuid de verdad —el de la base, o uno local mientras se edita—,
+ * nunca la posición en el array. El legacy usaba el índice como identidad y
+ * de ahí salió el `entregado[idx]` que hubo que reconstruir a mano.
+ */
+export interface LineaPedidoCompra {
+  id: string
+  numeroLinea: number
+  /** `product` (del catálogo o libre) o `chapter` (un título que no suma). */
+  tipoLinea: 'product' | 'chapter'
+  /** `null` en una línea libre: se compra algo que no está en el catálogo. */
+  productId: string | null
+  sku: string | null
+  nombre: string | null
+  descripcion: string | null
+  cantidad: number
+  /** Precio de COMPRA. Se escribe a mano: no hay costo en el backend. */
+  precioUnitario: number | null
+  descuentoPct: number
+  tratamientoImpuesto: string
+  /** `null` sólo mientras el tratamiento es `other` y nadie la escribió. */
+  tasaImpuesto: number | null
+  /** Lo que calculó el servidor para esta línea. */
+  netoServidor: number
+}
+
+export interface PedidoCompraDetalle {
+  id: string
+  numero: string
+  serie: string
+  estado: EstadoPedido
+  estadoRecepcion: EstadoRecepcion
+  proveedorId: string
+  proveedor: string
+  proveedorReferencia: string | null
+  moneda: string
+  tipoCambio: number | null
+  fecha: string
+  fechaEstimada: string | null
+  formaPago: string | null
+  notas: string | null
+  subtotal: number
+  impuesto: number
+  total: number
+  autor: string | null
+  creadoEn: string
+  actualizadoEn: string
+  /** `true` si hay al menos una recepción confirmada: las líneas se congelan. */
+  conRecepcion: boolean
+}
+
+/** Lo que hay colgando del pedido. Las dos últimas están vacías hasta la 4. */
+export interface RelacionadosPedido {
+  recepciones: number
+  facturas: number
+}
+
+/** El último precio pagado por un producto, de un pedido confirmado. */
+export interface UltimoPrecioCompra {
+  productId: string
+  precio: number
+  descuentoPct: number
+  numero: string
+  fecha: string
+  proveedor: string
+}

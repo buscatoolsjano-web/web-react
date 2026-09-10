@@ -42,3 +42,26 @@
   font-size: var(--text-sm);
   color: var(--text-soft);
 }
+
+/* El proveedor no es un número: ocupa la misma tarjeta pero con texto. */
+.valorTexto {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.enlace {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.enlace:hover {
+  text-decoration: underline;
+}
+
+.ref {
+  font-weight: 400;
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+}

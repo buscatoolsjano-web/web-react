@@ -1,0 +1,186 @@
+/* La tabla scrollea dentro de su caja: el body de la página nunca scrollea
+   en horizontal. */
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.tabla thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.thBoton {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.thBoton:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.enlace {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.enlaceSuave {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.enlace:hover,
+.enlaceSuave:hover {
+  text-decoration: underline;
+}
+
+.numero {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.derecha {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Un nombre de proveedor largo no tiene que estirar la tabla. El texto
+   completo queda en el `title`. */
+.recorta {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* «Sin fecha estimada» no es un dato vacío: es un dato. Se muestra distinto
+   de una fecha, pero se muestra. */
+.falta {
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.vacio {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--text-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+/* ── Mobile ───────────────────────────────────────────────────────────── */
+
+.tarjetas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tarjeta {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-1) var(--space-2);
+  align-items: baseline;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  min-height: 44px;
+}
+
+.tarjeta:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.tarjetaNumero {
+  font-weight: 700;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tarjetaFecha {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tarjetaProveedor {
+  grid-column: 1 / -1;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.tarjetaTotal {
+  grid-column: 1 / -1;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.tarjetaDato,
+.tarjetaFalta {
+  grid-column: 1 / -1;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+}
+
+.tarjetaFalta {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.tarjetaChips {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}

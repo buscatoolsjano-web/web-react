@@ -275,3 +275,56 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* El botón principal de las pantallas de pedido: crear, guardar, confirmar. */
+.primario {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+}
+
+.primario:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.primario:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.primario:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* La barra de acciones al pie del formulario. */
+.acciones + .acciones,
+.bloque .acciones {
+  margin-top: var(--space-4);
+}
+
+/* Los dos chips de estado del pedido, uno al lado del otro. */
+.chipsEstado {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* El aviso de que hay cambios sin guardar. */
+.sinGuardar {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
+  background: var(--warning-bg, var(--surface));
+  color: var(--warning-text);
+  font-size: var(--text-sm);
+}

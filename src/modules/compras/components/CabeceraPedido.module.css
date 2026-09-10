@@ -1,0 +1,73 @@
+.grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* Las notas ocupan toda la fila: en 220px no entra una frase. */
+.campoAncho {
+  composes: campo;
+  grid-column: 1 / -1;
+}
+
+.etiqueta {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.control,
+.area {
+  /* 16px: menos que eso y iOS hace zoom al enfocar. */
+  font-size: 16px;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+  min-width: 0;
+}
+
+.area {
+  min-height: 5rem;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.control:focus-visible,
+.area:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.control[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.control:disabled,
+.area:disabled {
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  cursor: default;
+}
+
+.ayuda {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.error {
+  font-size: var(--text-xs);
+  color: var(--danger);
+}
