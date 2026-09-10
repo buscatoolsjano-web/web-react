@@ -80,3 +80,46 @@
   outline: 2px solid var(--primary);
   outline-offset: 1px;
 }
+
+/* El botón que pliega los filtros en mobile. Ocho controles ocupaban 408px y
+   empujaban el primer resultado a los 623px en una pantalla de 844. */
+.desplegar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.desplegar:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.desplegar:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+/* Cuántos filtros hay puestos: si están plegados, tiene que verse igual. */
+.contador {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}

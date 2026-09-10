@@ -1,6 +1,11 @@
 import { Link } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
-import { etiquetaDeEstado, nombreDePais, nombreVisible } from '../lib/formato'
+import {
+  ETIQUETA_NOMBRE_COMERCIAL,
+  etiquetaDeEstado,
+  nombreDePais,
+  nombreVisible,
+} from '../lib/formato'
 import type { DireccionOrden, OrdenProveedores, ProveedorListado } from '../types'
 import styles from './ListadoProveedores.module.css'
 
@@ -57,12 +62,14 @@ export function ListadoProveedores({
         {filas.map((p) => (
           <li key={p.id}>
             <Link to={`/compras/proveedores/${p.id}`} className={styles.tarjeta}>
-              <span className={styles.tarjetaNombre}>
-                {nombreVisible(p.razonSocial, p.nombreComercial)}
-              </span>
+              <span className={styles.tarjetaNombre}>{nombreVisible(p.razonSocial)}</span>
               {p.referencia ? <span className={styles.tarjetaRef}>{p.referencia}</span> : null}
+              {/* El «nombre comercial» del legacy es casi siempre una persona
+                  de contacto. Va abajo y etiquetado, nunca como título. */}
               {p.nombreComercial ? (
-                <span className={styles.tarjetaDato}>{p.razonSocial}</span>
+                <span className={styles.tarjetaDato}>
+                  {ETIQUETA_NOMBRE_COMERCIAL}: {p.nombreComercial}
+                </span>
               ) : null}
               <span className={styles.tarjetaDato}>
                 {nombreDePais(p.pais)}
@@ -113,7 +120,7 @@ export function ListadoProveedores({
                 </button>
               </th>
             ))}
-            <th scope="col">Nombre comercial</th>
+            <th scope="col">{ETIQUETA_NOMBRE_COMERCIAL}</th>
             <th scope="col">Teléfono</th>
             <th scope="col">Email</th>
             <th scope="col">Estado</th>

@@ -7,6 +7,7 @@ import { PanelCompras } from '../components/PanelCompras'
 import { PanelHistorial } from '../components/PanelHistorial'
 import { explicarMotivo } from '../lib/motivos'
 import {
+  ETIQUETA_NOMBRE_COMERCIAL,
   etiquetaDeEstado,
   formatearCuit,
   formatearFecha,
@@ -123,13 +124,8 @@ export function ProveedorDetallePage() {
 
       <header className={styles.encabezado}>
         <div className={styles.identidad}>
-          <h1 className={styles.titulo}>
-            {nombreVisible(proveedor.razonSocial, proveedor.nombreComercial)}
-          </h1>
-          <p className={styles.subtitulo}>
-            {proveedor.nombreComercial ? `${proveedor.razonSocial} · ` : ''}
-            {proveedor.referencia ?? 'sin referencia'}
-          </p>
+          <h1 className={styles.titulo}>{nombreVisible(proveedor.razonSocial)}</h1>
+          <p className={styles.subtitulo}>{proveedor.referencia ?? 'sin referencia'}</p>
           <div className={styles.chips}>
             {proveedor.dadoDeBaja ? <span className={styles.chipBaja}>Dado de baja</span> : null}
             {proveedor.esHistorico ? (
@@ -269,8 +265,8 @@ export function ProveedorDetallePage() {
           <>
             <dl className={styles.datos}>
               <Dato etiqueta="Razón social">{proveedor.razonSocial}</Dato>
-              <Dato etiqueta="Nombre comercial">
-                {proveedor.nombreComercial ?? <Falta>sin nombre comercial</Falta>}
+              <Dato etiqueta={ETIQUETA_NOMBRE_COMERCIAL}>
+                {proveedor.nombreComercial ?? <Falta>sin dato</Falta>}
               </Dato>
               <Dato etiqueta="Referencia">
                 {proveedor.referencia ?? <Falta>sin referencia</Falta>}

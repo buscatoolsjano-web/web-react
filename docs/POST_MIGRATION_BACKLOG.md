@@ -374,3 +374,28 @@ hay que tomarla explícitamente.
 Sigue sin existir en el schema y **no se reconstruye por intuición**: ni por
 fecha parecida, ni por mismo SKU, ni por cantidades parecidas. Si alguna vez se
 quiere, tiene que ser una FK que alguien cargue a mano.
+
+### El «nombre comercial» de los proveedores
+
+El campo `nc` del maestro legacy de proveedores guarda, en la mayoría de los
+113 casos con dato, **el nombre de una persona de contacto** y no un nombre
+comercial: «Mauricio Mendez» en DHL Express, «Walter Maldonado» en LAAPSA.
+Unos pocos sí son nombres comerciales («SIPSA - VENTAS»).
+
+El dato se migró tal cual y **no se clasificó**: separar cuáles son personas y
+cuáles empresas sería adivinar. Lo que se hizo es no usarlo nunca como título
+del proveedor —el título es siempre la razón social— y etiquetarlo en pantalla
+como «Nombre comercial o contacto».
+
+Si alguna vez hay contactos de proveedor de verdad (una tabla
+`supplier_contacts`, que hoy no existe por decisión), esos 113 valores son el
+mejor punto de partida, con revisión humana uno por uno.
+
+### `service_role` y el esquema `app`
+
+`authenticated` tiene USAGE sobre `app`; `service_role` **no**. Cualquier
+trigger SECURITY INVOKER que llame a una función de `app` va a fallar cuando la
+escritura venga de un script con la clave de servicio. Pasó con
+`app.normalizar_linea_compra()` y se arregló poniendo ese trigger en SECURITY
+DEFINER. Si aparece otro caso, la solución es la misma: SECURITY DEFINER en el
+trigger, no abrir el esquema.

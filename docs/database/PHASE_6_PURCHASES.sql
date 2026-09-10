@@ -1469,3 +1469,28 @@ where not exists (select 1 from purchase_orders   o where o.id = a.entity_id)
   and not exists (select 1 from suppliers         s where s.id = a.entity_id)
   and not exists (select 1 from goods_receipts    r where r.id = a.entity_id)
   and not exists (select 1 from supplier_invoices i where i.id = a.entity_id);
+
+
+-- --------------------------------------------------------------------------
+-- Migración aplicada: fase6_normalizar_linea_compra_security_definer
+-- versión 20260910142647 · entrega 3 (revisión visual)
+-- --------------------------------------------------------------------------
+
+-- `service_role` no podía insertar líneas de compra.
+--
+-- `app.normalizar_linea_compra()` es un trigger SECURITY INVOKER que llama a
+-- `app.tasa_de_tratamiento()`. `authenticated` tiene USAGE sobre el esquema
+-- `app`, pero `service_role` NO, así que cualquier script que corra con la
+-- clave de servicio se choca con `42501: permission denied for schema app` al
+-- insertar una línea de pedido o de factura de proveedor.
+--
+-- Apareció armando datos de prueba para la revisión visual, no en la suite:
+-- la suite escribe con una sesión `authenticated`, que sí tiene el permiso.
+-- Era un agujero latente desde la entrega 1 que iba a aparecer en la
+-- migración de datos de la entrega 4.
+--
+-- Se arregla poniendo el trigger en SECURITY DEFINER —como ya están los otros
+-- de Compras— y no dándole a `service_role` USAGE sobre `app`: el esquema es
+-- interno a propósito y abrirlo entero para esto sería aflojar de más.
+-- La función sólo calcula valores a partir de NEW y tiene `search_path` fijo.
+alter function app.normalizar_linea_compra() security definer;

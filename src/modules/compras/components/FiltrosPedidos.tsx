@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import { OPCIONES_ESTADO, OPCIONES_RECEPCION } from '../lib/estados'
 import { useMonedasUsadas } from '../hooks/usePedidos'
 import { useProveedores } from '../hooks/useProveedores'
@@ -21,13 +22,38 @@ export interface FiltrosPedidosProps {
  *
  * El filtro de moneda ofrece **las monedas que realmente se usaron**, no las
  * tres de la tabla: un filtro que no devuelve nada no ayuda a nadie.
+ *
+ * En mobile los ocho controles se pliegan detrás de un botón. La revisión
+ * visual a 390px los midió: ocupaban 408px y empujaban el primer resultado a
+ * los 623px, o sea tres cuartos de la pantalla antes de ver un pedido. El
+ * buscador por número queda siempre a la vista porque es el que más se usa, y
+ * el botón dice cuántos filtros hay puestos para que ninguno quede escondido
+ * sin avisar.
  */
+
+/** Cuántos filtros hay activos, sin contar el buscador que está a la vista. */
+function contarActivos(f: Filtros): number {
+  return [
+    f.proveedorId !== null,
+    f.estado !== '',
+    f.estadoRecepcion !== '',
+    f.moneda !== '',
+    f.desde !== '',
+    f.hasta !== '',
+    f.etaDesde !== '',
+    f.etaHasta !== '',
+    f.sinEta,
+  ].filter(Boolean).length
+}
+
 export function FiltrosPedidos({
   filtros,
   hayFiltros,
   onAplicar,
   onLimpiar,
 }: FiltrosPedidosProps) {
+  const isMobile = useIsMobile()
+  const [desplegado, setDesplegado] = useState(false)
   const monedas = useMonedasUsadas()
   // Los proveedores para el desplegable: activos, ordenados, sin paginar.
   const proveedores = useProveedores({
@@ -55,6 +81,10 @@ export function FiltrosPedidos({
     return () => clearTimeout(id)
   }, [texto, filtros.q, onAplicar])
 
+  const activos = contarActivos(filtros)
+  // En escritorio están siempre; en mobile, sólo si se despliegan.
+  const mostrarTodos = !isMobile || desplegado
+
   return (
     <div className={styles.barra}>
       <input
@@ -66,6 +96,20 @@ export function FiltrosPedidos({
         aria-label="Buscar por número"
       />
 
+      {isMobile ? (
+        <button
+          type="button"
+          className={styles.desplegar}
+          aria-expanded={desplegado}
+          onClick={() => setDesplegado((v) => !v)}
+        >
+          {desplegado ? 'Ocultar filtros' : 'Filtros'}
+          {activos > 0 ? <span className={styles.contador}>{activos}</span> : null}
+        </button>
+      ) : null}
+
+      {!mostrarTodos ? null : (
+      <>
       <select
         className={styles.select}
         value={filtros.proveedorId ?? ''}
@@ -172,6 +216,8 @@ export function FiltrosPedidos({
         />
         Sin fecha estimada
       </label>
+      </>
+      )}
 
       {hayFiltros ? (
         <button type="button" className={styles.limpiar} onClick={onLimpiar}>

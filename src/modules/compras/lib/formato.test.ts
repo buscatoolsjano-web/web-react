@@ -5,6 +5,7 @@ import {
   formatearCuit,
   formatearFecha,
   formatearFechaHora,
+  formatearImporte,
   nombreDePais,
   nombreVisible,
   rangoVisible,
@@ -86,17 +87,21 @@ describe('etiquetaDeAccion', () => {
 })
 
 describe('nombreVisible', () => {
-  it('el comercial gana cuando existe', () => {
-    expect(nombreVisible('Pinturerias REX S.A.', 'REX')).toBe('REX')
+  it('un proveedor se titula SIEMPRE con su razón social', () => {
+    // El «nombre comercial» del maestro legacy es casi siempre una persona de
+    // contacto: «Mauricio Mendez» en DHL, «Walter Maldonado» en LAAPSA. Un
+    // contacto no es el proveedor.
+    expect(nombreVisible('Pinturerias REX S.A.')).toBe('Pinturerias REX S.A.')
+    expect(nombreVisible('ABELSON EXPRESS')).toBe('ABELSON EXPRESS')
   })
 
-  it('y si no, la razón social', () => {
-    expect(nombreVisible('Pinturerias REX S.A.', null)).toBe('Pinturerias REX S.A.')
-    expect(nombreVisible('Pinturerias REX S.A.', '   ')).toBe('Pinturerias REX S.A.')
+  it('se recorta', () => {
+    expect(nombreVisible('  DHL Express Argentina  ')).toBe('DHL Express Argentina')
   })
 
-  it('sin ninguno de los dos, algo se muestra', () => {
-    expect(nombreVisible('', null)).toBe('Sin nombre')
+  it('sin razón social, algo se muestra', () => {
+    expect(nombreVisible('')).toBe('Sin nombre')
+    expect(nombreVisible('   ')).toBe('Sin nombre')
   })
 })
 
@@ -110,5 +115,24 @@ describe('rangoVisible y totalDePaginas', () => {
   it('sin resultados no miente', () => {
     expect(rangoVisible(1, 25, 0)).toBe('0 resultados')
     expect(totalDePaginas(0, 25)).toBe(1)
+  })
+})
+
+describe('formatearImporte', () => {
+  it('el importe lleva su moneda al lado', () => {
+    expect(formatearImporte(1460, 'USD')).toBe('USD 1.460,00')
+    expect(formatearImporte(8471.25, 'ARS')).toBe('ARS 8.471,25')
+  })
+
+  it('sin moneda va el número solo, no un guion delante', () => {
+    // Un pedido nuevo empieza sin moneda elegida: «— 0,00» parece un error.
+    expect(formatearImporte(0, '')).toBe('0,00')
+    expect(formatearImporte(0, null)).toBe('0,00')
+    expect(formatearImporte(1460, '—')).toBe('1.460,00')
+  })
+
+  it('sin importe, raya', () => {
+    expect(formatearImporte(null, 'USD')).toBe('—')
+    expect(formatearImporte(Number.NaN, 'USD')).toBe('—')
   })
 })

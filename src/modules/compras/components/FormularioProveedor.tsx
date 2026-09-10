@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { ETIQUETA_NOMBRE_COMERCIAL } from '../lib/formato'
 import { useFormasDePago } from '../hooks/useProveedores'
 import {
   validarProveedor,
@@ -103,7 +104,7 @@ export function FormularioProveedor({
     <form className={styles.form} onSubmit={enviar} noValidate>
       <div className={styles.grilla}>
         {texto('razonSocial', 'Razón social *', { required: true, autoFocus: true })}
-        {texto('nombreComercial', 'Nombre comercial')}
+        {texto('nombreComercial', ETIQUETA_NOMBRE_COMERCIAL)}
         {texto('cuit', 'CUIT', { inputMode: 'numeric', placeholder: '30-50328441-0' })}
         {texto('telefono', 'Teléfono')}
         {texto('email', 'Email', { type: 'email', placeholder: 'ventas@proveedor.com' })}

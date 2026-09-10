@@ -159,7 +159,7 @@ export function FormularioPedido({
 
         <EditorLineas
           lineas={lineas}
-          moneda={moneda || '—'}
+          moneda={moneda}
           editable={editaLineas}
           ultimosPrecios={ultimos.data ?? new Map()}
           onCambiar={cambiarLinea}
@@ -176,7 +176,7 @@ export function FormularioPedido({
         ) : null}
 
         <PanelTotales
-          moneda={moneda || '—'}
+          moneda={moneda}
           servidor={totalesServidor}
           previo={previo}
           sinGuardar={sinGuardar}

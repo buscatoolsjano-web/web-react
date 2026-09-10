@@ -20,7 +20,11 @@ export function formatearImporte(monto: number | null, moneda: string | null): s
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(monto)
-  return moneda ? `${moneda} ${numero}` : numero
+  // Sin moneda va el número solo. Un pedido nuevo empieza sin moneda elegida y
+  // poner un guion delante —«— 0,00»— parece un error de tipeo, no un dato
+  // faltante.
+  const codigo = (moneda ?? '').trim()
+  return codigo === '' || codigo === '—' ? numero : `${codigo} ${numero}`
 }
 
 export function formatearFecha(iso: string | null): string {
@@ -65,10 +69,35 @@ export function totalDePaginas(total: number, porPagina: number): number {
   return Math.max(1, Math.ceil(total / porPagina))
 }
 
-/** El nombre con el que se muestra un proveedor: comercial si lo tiene. */
-export function nombreVisible(razonSocial: string, nombreComercial: string | null): string {
-  return nombreComercial?.trim() || razonSocial.trim() || 'Sin nombre'
+/**
+ * El nombre con el que se muestra un proveedor: **siempre la razón social**.
+ *
+ * En Clientes el título es el nombre comercial cuando existe, y está bien: ahí
+ * `trade_name` es de verdad un nombre comercial. Acá NO. El campo `nc` del
+ * maestro legacy de proveedores guarda, en la enorme mayoría de los 113 casos,
+ * **el nombre de una persona de contacto**: «Mauricio Mendez» en DHL Express,
+ * «Walter Maldonado» en LAAPSA, «Diego H. Garro» en AR FIX. Unos pocos sí son
+ * nombres comerciales («SIPSA - VENTAS»).
+ *
+ * Lo detectó la revisión visual: el listado en mobile titulaba «Alejo Quevedo»
+ * un proveedor que es ABELSON EXPRESS. Un contacto no es el proveedor.
+ *
+ * No se clasifica cuál es cuál —eso sería adivinar— y no se toca el dato: se
+ * migró tal cual y ahí queda. Lo que cambia es qué se muestra como título, y
+ * cómo se etiqueta el otro campo. Ver `ETIQUETA_NOMBRE_COMERCIAL`.
+ */
+export function nombreVisible(razonSocial: string): string {
+  return razonSocial.trim() || 'Sin nombre'
 }
+
+/**
+ * Cómo se llama en pantalla el campo `trade_name` de un proveedor.
+ *
+ * La columna se llama así porque para eso sirve de acá en adelante, pero lo
+ * que trajo la migración es casi siempre un contacto. La etiqueta lo dice en
+ * vez de mentir.
+ */
+export const ETIQUETA_NOMBRE_COMERCIAL = 'Nombre comercial o contacto'
 
 /**
  * Los países que aparecen de verdad en el maestro.

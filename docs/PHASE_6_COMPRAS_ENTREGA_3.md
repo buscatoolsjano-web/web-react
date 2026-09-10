@@ -19,9 +19,10 @@ Migraciones nuevas:
 | 20260910134126 | `fase6_pedidos_compra_reglas` |
 | 20260910140432 | `fase6_alicuota_siempre_del_tratamiento` |
 | 20260910140758 | `fase6_limpiar_auditoria_huerfana_de_pruebas` |
+| 20260910142647 | `fase6_normalizar_linea_compra_security_definer` |
 
-Las dos últimas no estaban en el plan: salieron de tests que fallaron. Están
-en **I**.
+Las tres últimas no estaban en el plan: salieron de un test que falló y de la
+revisión visual. Están en **I**.
 
 ---
 
@@ -150,7 +151,7 @@ de la pantalla son para no ofrecer algo que va a fallar.
 | 13 | RLS | por listado, id, número, proveedor y empresa ajena |
 | 14 | Adjuntos | bucket, fila, URL firmada, y que un externo no la ve |
 
-**Tests unitarios: 380 pasan** (+53), y también con `test:isolated`. Cubren las
+**Tests unitarios: 383 pasan** (+56), y también con `test:isolated`. Cubren las
 cuentas de líneas y totales, la matriz de editabilidad, la validación del
 pedido y el ida y vuelta de los filtros en la URL.
 
@@ -253,34 +254,66 @@ alta. Un borrador todavía no salió de la empresa.
 Un cambio de líneas sobre un pedido confirmado también se audita, con la línea
 y la operación en el `diff`.
 
-## H · Mobile
+## H · Mobile — verificado
 
-**Pendiente de verificación real.** La revisión a 390 / 430 / 768 necesita
-sesión iniciada y no puedo escribir una contraseña en un formulario. El
-servidor de desarrollo está levantado y la hago apenas inicies sesión en el
-panel del navegador.
+Revisado en el navegador a **390 / 430 / 768**, con datos de prueba reales
+(cuatro pedidos en USD, ARS y EUR, con y sin ETA, en los tres estados) que se
+borraron después. **Cero scroll horizontal global en los tres anchos**:
+`document.scrollWidth === window.innerWidth` medido, no estimado.
 
-Lo que sí está hecho y es verificable en el código:
+| pantalla | 390 | 430 | 768 |
+|---|:--:|:--:|:--:|
+| listado de pedidos | tarjetas | tarjetas | tabla |
+| ficha | ✓ | ✓ | ✓ |
+| alta | ✓ | ✓ | ✓ |
+| buscador de proveedor | ✓ superpuesto | ✓ | ✓ |
+| selector de producto | ✓ | ✓ | ✓ |
+| tabla de líneas | scroll propio | scroll propio | scroll propio |
+| totales | ✓ | ✓ | ✓ |
+| ETA y estados | ✓ | ✓ | ✓ |
+| adjuntos | ✓ | ✓ | ✓ |
 
-- El listado es **tabla en escritorio y tarjetas por debajo de 768**: nueve
-  columnas en 390px obligan a scrollear toda la página.
-- La tabla de líneas scrollea **dentro de su propia caja** (`overflow-x:auto`,
-  `min-width:46rem`), nunca el body.
-- Inputs a **16px** —menos que eso y iOS hace zoom— y **44px** de alto mínimo;
-  los botones de subir/bajar/borrar pasan de 32 a 44px por debajo de 768.
-- El buscador de proveedor abre un panel **superpuesto**, no empuja el
-  formulario hacia abajo con cada letra.
-- El panel de totales tiene `min-width: min(20rem, 100%)`: no se desborda en
-  390px.
-- Los nombres de proveedor y las condiciones de pago largas se recortan con
-  elipsis y el texto completo queda en el `title`.
-- Login a 375px: `scrollWidth == innerWidth`, sin scroll horizontal.
+Se probó el circuito entero desde el teléfono, no sólo el aspecto: elegir
+proveedor con el buscador, que se precompletaran la condición de pago y la
+moneda del proveedor, agregar una línea libre, escribir cantidad y precio,
+crear el pedido (**PC00006**, USD 1.636,22, «Creado por: Jano» — el
+`created_by` que sella el servidor), confirmarlo con su confirmación en dos
+pasos y ver las tres pestañas. Todo el rastro se borró después.
 
-No lo doy por bueno hasta verlo.
+Dos cosas se arreglaron **por lo que se vio**, no por lo que decía el código:
+
+**Los filtros comían tres cuartos de la pantalla.** Medido: los ocho controles
+ocupaban 408px y el primer pedido empezaba en el pixel **623** de una pantalla
+de 844. Ahora en mobile se pliegan detrás de un botón «Filtros» con un contador
+de cuántos hay puestos —para que ninguno quede escondido sin avisar—, y el
+buscador por número queda siempre a la vista. El primer resultado pasó de 623 a
+**259**: los cuatro pedidos entran en una pantalla.
+
+**«— 0,00».** Un pedido nuevo empieza sin moneda elegida y los totales se
+mostraban con un guion delante, que parece un error de tipeo. Ahora sin moneda
+va el número solo.
+
+### Y una corrección de la entrega 2
+
+Mirando el listado de proveedores en 390 apareció algo que sólo se ve mirando:
+la tarjeta titulaba **«Alejo Quevedo»** un proveedor que es **ABELSON
+EXPRESS**.
+
+El campo `nc` del maestro legacy de proveedores no es un nombre comercial: en
+la enorme mayoría de los 113 casos es **el nombre de una persona de contacto**.
+«Mauricio Mendez» en DHL Express, «Walter Maldonado» en LAAPSA, «Diego H.
+Garro» en AR FIX. Unos pocos sí son nombres comerciales («SIPSA - VENTAS»).
+La entrega 2 copió de Clientes la regla «el título es el nombre comercial si
+existe», que allá es correcta y acá no.
+
+Arreglado sin tocar un solo dato y sin clasificar nada —cuál es persona y cuál
+empresa sería adivinar—: el título de un proveedor es **siempre su razón
+social**, y el otro campo se muestra etiquetado como **«Nombre comercial o
+contacto»**, en el listado, en la ficha y en el formulario.
 
 ## I · Bugs encontrados
 
-Tres, los tres los encontró un test que falló.
+Cuatro. Tres los encontró un test que falló; el cuarto, la revisión visual.
 
 ### 1 · El bug del 1 % del legacy SÍ se podía reproducir
 
@@ -319,11 +352,30 @@ al final y las doce filas se borraron con una migración.
 Es el mismo error que ya había cometido con los saldos de stock en la entrega
 1: **el orden de la limpieza importa cuando hay triggers**.
 
+### 4 · `service_role` no podía insertar líneas de compra
+
+Apareció armando los datos de prueba para la revisión visual: los pedidos se
+creaban con las líneas vacías y los totales en cero.
+
+`app.normalizar_linea_compra()` es un trigger SECURITY INVOKER que llama a
+`app.tasa_de_tratamiento()`. `authenticated` tiene USAGE sobre el esquema
+`app`, pero **`service_role` no**: cualquier script que corra con la clave de
+servicio se chocaba con `42501: permission denied for schema app` al insertar
+una línea de pedido o de factura de proveedor.
+
+La suite no lo vio porque escribe con una sesión `authenticated`. Era un
+agujero latente desde la entrega 1 que iba a aparecer en la migración de datos
+de la entrega 4.
+
+Corregido poniendo ese trigger en SECURITY DEFINER, como ya estaban los otros
+de Compras. **No** se le dio a `service_role` USAGE sobre `app`: el esquema es
+interno a propósito y abrirlo entero para esto sería aflojar de más.
+
 ## J · Regresión
 
-**14 suites contra la base real: 0 fallos en las 14.**
+**15 suites contra la base real: 0 fallos en las 15.**
 
-7 de Ventas · 5 de Clientes · schema de Compras · Proveedores.
+7 de Ventas · 5 de Clientes · schema de Compras · Proveedores · pedidos de compra.
 
 Invariantes intactos:
 
@@ -338,7 +390,7 @@ Invariantes intactos:
 
 ## K · CI y deploy
 
-- `npm run lint` · `tsc -b` · **380 tests** · `test:isolated` · `npm run build` — verde.
+- `npm run lint` · `tsc -b` · **383 tests** · `test:isolated` · `npm run build` — verde.
 - `database.types.ts`: se agregaron a mano las dos funciones nuevas
   (`duplicar_pedido_compra`, `ultimo_precio_compra`). Las ocho tablas siguen
   generadas por `scripts/fase6-generar-tipos-compras.mjs`.
