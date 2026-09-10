@@ -7,6 +7,7 @@ import type {
   PaginaDeRecepciones,
   PendienteDeLinea,
   RecepcionDetalle,
+  RecepcionListado,
 } from '../types'
 
 /**
@@ -511,4 +512,29 @@ function traducir(mensaje: string, codigo?: string): string {
     return 'No tenés permiso para hacer este cambio. Compras es de administradores y empleados.'
   }
   return mensaje
+}
+
+/**
+ * Exporta **lo que muestran los filtros**, no la tabla entera.
+ *
+ * Pide páginas al servidor de a 1000 en vez de traerse todo al navegador, y
+ * corta en 5000: una exportación más grande que eso es un pedido de informe, no de pantalla.
+ */
+export async function exportarRecepciones(
+  companyId: string,
+  filtros: FiltrosRecepciones,
+): Promise<{ filas: RecepcionListado[]; total: number }> {
+  const TAMANO = 1000
+  const TOPE = 5000
+  const primera = await listarRecepciones(companyId, { ...filtros, pagina: 1, porPagina: TAMANO })
+  const filas = [...primera.filas]
+  const total = primera.total
+  for (let pagina = 2; filas.length < total && filas.length < TOPE; pagina += 1) {
+    const p = await listarRecepciones(companyId, { ...filtros, pagina, porPagina: TAMANO })
+    // Una página vacía corta el bucle: sin esto, un `total` que no coincida
+    // con lo que devuelve el servidor lo dejaría girando para siempre.
+    if (p.filas.length === 0) break
+    filas.push(...p.filas)
+  }
+  return { filas, total }
 }

@@ -565,3 +565,72 @@ function traducir(mensaje: string, codigo?: string): string {
   }
   return mensaje
 }
+
+/** Una factura que toca este pedido, para poder llegar a ella desde la ficha. */
+export interface FacturaDelPedido {
+  id: string
+  numero: string
+  numeroProveedor: string | null
+  fecha: string
+  moneda: string
+  total: number
+  estado: string
+}
+
+/**
+ * Las facturas de proveedor de un pedido.
+ *
+ * Se derivan por las líneas —`invoice_line → purchase_order_line`—, igual que
+ * el conteo: **no hay FK de cabecera** y no se agregó una, porque una factura
+ * puede tocar varias órdenes.
+ */
+export async function facturasDelPedido(
+  companyId: string,
+  pedidoId: string,
+): Promise<FacturaDelPedido[]> {
+  const { data: lineas, error: eL } = await supabase
+    .from('purchase_order_lines')
+    .select('id')
+    .eq('company_id', companyId)
+    .eq('purchase_order_id', pedidoId)
+  if (eL) throw new Error(`No se pudieron leer las líneas: ${eL.message}`)
+
+  const ids = (lineas ?? []).map((l) => l.id)
+  if (ids.length === 0) return []
+
+  const { data: fl, error: eF } = await supabase
+    .from('supplier_invoice_lines')
+    .select('supplier_invoice_id')
+    .eq('company_id', companyId)
+    .in('purchase_order_line_id', ids)
+  if (eF) throw new Error(`No se pudieron leer las facturas: ${eF.message}`)
+
+  const facturaIds = [...new Set((fl ?? []).map((x) => x.supplier_invoice_id))]
+  if (facturaIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('supplier_invoices')
+    .select('id, number, supplier_number, invoice_date, currency_code, total, status')
+    .eq('company_id', companyId)
+    .in('id', facturaIds)
+    .order('number', { ascending: true })
+  if (error) throw new Error(`No se pudieron leer las facturas: ${error.message}`)
+
+  return ((data ?? []) as unknown as {
+    id: string
+    number: string
+    supplier_number: string | null
+    invoice_date: string
+    currency_code: string
+    total: number | string
+    status: string
+  }[]).map((f) => ({
+    id: f.id,
+    numero: f.number,
+    numeroProveedor: f.supplier_number,
+    fecha: f.invoice_date,
+    moneda: f.currency_code,
+    total: Number(f.total) || 0,
+    estado: f.status,
+  }))
+}

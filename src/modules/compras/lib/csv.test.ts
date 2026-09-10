@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { aCsv, celda } from './csv'
-import type { ProveedorListado } from '../types'
+import { aCsv, celda, facturasACsv, pedidosACsv, recepcionesACsv } from './csv'
+import type {
+  FacturaListado,
+  PedidoCompraListado,
+  ProveedorListado,
+  RecepcionListado,
+} from '../types'
 
 const proveedor = (cambios: Partial<ProveedorListado> = {}): ProveedorListado => ({
   id: 'a1',
@@ -63,5 +68,73 @@ describe('aCsv', () => {
 
   it('sin filas, sólo el encabezado', () => {
     expect(aCsv([]).split('\r\n')).toHaveLength(1)
+  })
+})
+
+describe('los tres documentos del circuito', () => {
+  const etiqueta = (e: string) => ({ draft: 'Borrador', confirmed: 'Confirmado', registered: 'Registrada' })[e] ?? e
+  const recepcionEtiqueta = (e: string) => ({ pending: 'Sin recibir', received: 'Recibido' })[e] ?? e
+
+  const unPedido = (c: Partial<PedidoCompraListado> = {}): PedidoCompraListado => ({
+    id: 'p1', numero: 'PC00007', fecha: '2026-09-10', proveedorId: 's1',
+    proveedor: 'Herramientas del Sur S.A.', moneda: 'USD', total: 1234.5,
+    estado: 'confirmed', estadoRecepcion: 'pending', fechaEstimada: null,
+    autor: 'Jano', lineas: 3, ...c,
+  })
+
+  const unaRecepcion = (c: Partial<RecepcionListado> = {}): RecepcionListado => ({
+    id: 'r1', numero: 'NEP00003', fecha: '2026-09-10', proveedorId: 's1',
+    proveedor: 'Herramientas del Sur S.A.', pedidoId: 'p1', pedidoNumero: 'PC00007',
+    depositoId: 'd1', deposito: 'Principal', estado: 'confirmed', lineas: 3,
+    unidades: 52, autor: 'Jano', ...c,
+  })
+
+  const unaFactura = (c: Partial<FacturaListado> = {}): FacturaListado => ({
+    id: 'f1', numero: 'FP00005', numeroProveedor: 'A-0001-00012345', fecha: '2026-09-10',
+    vencimiento: null, proveedorId: 's1', proveedor: 'Herramientas del Sur S.A.',
+    moneda: 'USD', total: 2215.67, estado: 'registered', lineas: 1, recepciones: 1,
+    autor: 'Jano', ...c,
+  })
+
+  it('el importe va con punto decimal y sin miles: una celda tiene que poder sumarse', () => {
+    const csv = pedidosACsv([unPedido({ total: 1234567.5 })], etiqueta, recepcionEtiqueta)
+    expect(csv.split('\r\n')[1]).toContain('1234567.50')
+    expect(csv).not.toContain('1.234.567,50')
+  })
+
+  it('la moneda va en su propia columna: el archivo no suma monedas distintas', () => {
+    const csv = pedidosACsv(
+      [unPedido({ moneda: 'USD', total: 100 }), unPedido({ id: 'p2', moneda: 'ARS', total: 200 })],
+      etiqueta, recepcionEtiqueta,
+    )
+    const filas = csv.split('\r\n')
+    expect(filas[0]).toContain('Moneda')
+    expect(filas[1]).toContain('USD')
+    expect(filas[2]).toContain('ARS')
+  })
+
+  it('un pedido sin ETA deja la celda vacía en vez de inventar una fecha', () => {
+    const csv = pedidosACsv([unPedido({ fechaEstimada: null })], etiqueta, recepcionEtiqueta)
+    expect(csv.split('\r\n')[1]?.split(';')[2]).toBe('')
+  })
+
+  it('las recepciones NO tienen columna de importe: no están valorizadas', () => {
+    const csv = recepcionesACsv([unaRecepcion()])
+    const cabecera = csv.split('\r\n')[0] ?? ''
+    expect(cabecera).not.toMatch(/total|importe|precio/i)
+    expect(cabecera).toContain('Unidades')
+  })
+
+  it('en las facturas el número del proveedor va primero', () => {
+    const csv = facturasACsv([unaFactura()], etiqueta)
+    expect(csv.split('\r\n')[0]?.split(';')[0]).toBe('Numero del proveedor')
+    expect(csv.split('\r\n')[1]?.split(';')[0]).toBe('A-0001-00012345')
+    expect(csv.split('\r\n')[1]?.split(';')[1]).toBe('FP00005')
+  })
+
+  it('un punto y coma dentro de un nombre no parte la fila', () => {
+    const csv = facturasACsv([unaFactura({ proveedor: 'Sur; S.A.' })], etiqueta)
+    expect(csv).toContain('"Sur; S.A."')
+    expect(csv.split('\r\n')).toHaveLength(2)
   })
 })

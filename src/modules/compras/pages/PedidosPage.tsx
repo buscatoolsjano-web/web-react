@@ -1,6 +1,10 @@
 import { Link } from 'react-router-dom'
+import { useMutation } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { permisosDe } from '../lib/permisos'
+import { descargarCsv, pedidosACsv } from '../lib/csv'
+import { etiquetaDeEstadoPedido, etiquetaDeRecepcion } from '../lib/estados'
+import { exportarPedidos } from '../services/pedidos'
 import { FiltrosPedidos } from '../components/FiltrosPedidos'
 import { ListadoPedidos } from '../components/ListadoPedidos'
 import { Paginador } from '../components/Paginador'
@@ -23,6 +27,21 @@ export function PedidosPage() {
   const { data, isPending, isFetching, error } = usePedidos(filtros)
   const { activa } = useEmpresa()
   const permisos = permisosDe(activa)
+
+  /**
+   * Exportar.
+   *
+   * Se lleva **lo que muestran los filtros**, no la página en pantalla ni la
+   * tabla entera: las páginas las pide el servidor.
+   */
+  const exportar = useMutation({
+    mutationFn: () => exportarPedidos(activa!.companyId, filtros),
+    onSuccess: ({ filas }) =>
+      descargarCsv(
+        `pedidos-compra-${new Date().toISOString().slice(0, 10)}.csv`,
+        pedidosACsv(filas, etiquetaDeEstadoPedido, etiquetaDeRecepcion),
+      ),
+  })
 
   const ordenar = (columna: OrdenPedidos) => {
     // Click en la columna activa invierte; en otra, empieza descendente — un
@@ -57,6 +76,14 @@ export function PedidosPage() {
           </p>
         </div>
         <div className={styles.acciones}>
+          <button
+            type="button"
+            className={styles.secundario}
+            disabled={exportar.isPending || total === 0}
+            onClick={() => exportar.mutate()}
+          >
+            {exportar.isPending ? 'Exportando…' : 'Exportar a CSV'}
+          </button>
           {permisos.crearProveedor ? (
             <Link to="/compras/pedidos/nuevo" className={styles.nuevo}>
               + Nuevo pedido

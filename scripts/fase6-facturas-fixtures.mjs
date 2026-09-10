@@ -14,6 +14,7 @@
  *   node scripts/fase6-facturas-fixtures.mjs --limpiar  # borrar
  */
 import { createClient } from '@supabase/supabase-js'
+import fs from 'node:fs'
 
 const BASE = process.env.VITE_SUPABASE_URL
 const PUB = process.env.VITE_SUPABASE_ANON_KEY
@@ -38,6 +39,17 @@ const HOY = new Date().toISOString().slice(0, 10)
 const LIMPIAR = process.argv.includes('--limpiar')
 /** Un uuid que no es de nadie: `.in()` con lista vacía no filtra nada. */
 const NADIE = '00000000-0000-0000-0000-000000000000'
+
+/**
+ * Dónde se guarda el estado de las series antes de crear los fixtures.
+ *
+ * Crear y limpiar son dos corridas distintas, así que el número de dónde
+ * arrancaba cada serie tiene que sobrevivir entre las dos. Sin esto la
+ * limpieza borraba las filas pero dejaba las series corridas, y las suites que
+ * verifican que `supplier` arranca en 146 empezaban a fallar. Pasó.
+ */
+const SERIES = new URL('./.fase6-fixtures-series.json', import.meta.url)
+const TIPOS = ['supplier', 'purchase_order', 'goods_receipt', 'supplier_invoice']
 
 const main = async () => {
   const { data: comps } = await s.from('companies').select('id, slug')
@@ -105,6 +117,19 @@ const main = async () => {
       await s.from('purchases_audit').delete().in('entity_id', entidades)
     }
 
+    let repuestas = 'no había snapshot'
+    try {
+      const previas = JSON.parse(fs.readFileSync(SERIES, 'utf8'))
+      for (const x of previas) {
+        await s.from('document_sequences').update({ next_number: x.next_number })
+          .eq('company_id', BT).eq('doc_type', x.doc_type)
+      }
+      fs.unlinkSync(SERIES)
+      repuestas = previas.map((x) => x.doc_type + '=' + x.next_number).join(' · ')
+    } catch {
+      /* sin snapshot no se toca nada: mejor dejarlas como están que adivinar */
+    }
+
     const q = async (t) => (await s.from(t).select('*', { count: 'exact', head: true })).count
     console.log('Limpieza:')
     console.log(`  facturas ............. ${await q('supplier_invoices')}`)
@@ -115,6 +140,7 @@ const main = async () => {
     console.log(`  movimientos de stock . ${await q('stock_movements')}`)
     console.log(`  saldos ............... ${await q('stock_balances')}`)
     console.log(`  auditoría ............ ${await q('purchases_audit')}`)
+    console.log(`  series repuestas ..... ${repuestas}`)
     return
   }
 
@@ -128,6 +154,10 @@ const main = async () => {
     .select('id').eq('company_id', BT).eq('is_default', true).single()
   const { data: prods } = await c.from('products')
     .select('id, sku, name').eq('company_id', BT).order('sku').limit(2)
+
+  const { data: seqAntes } = await s.from('document_sequences')
+    .select('doc_type, next_number').eq('company_id', BT).in('doc_type', TIPOS)
+  fs.writeFileSync(SERIES, JSON.stringify(seqAntes ?? [], null, 2))
 
   const numero = async (tipo) =>
     (await c.rpc('next_document_number', { p_company: BT, p_doc_type: tipo })).data

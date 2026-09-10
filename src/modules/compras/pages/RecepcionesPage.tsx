@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { permisosDe } from '../lib/permisos'
+import { descargarCsv, recepcionesACsv } from '../lib/csv'
+import { exportarRecepciones } from '../services/recepciones'
 import { ListadoRecepciones } from '../components/ListadoRecepciones'
 import { Paginador } from '../components/Paginador'
 import { useDepositos, useRecepciones } from '../hooks/useRecepciones'
@@ -60,6 +63,24 @@ export function RecepcionesPage() {
     return () => clearTimeout(id)
   }, [texto, filtros.q, aplicar])
 
+  /**
+   * Exportar.
+   *
+   * Se lleva lo que muestran los filtros. **Sin importes**: la recepción no
+   * está valorizada y no se le inventa un precio para llenar una columna.
+   *
+   * Va acá arriba, antes del `return` por permisos: un hook después de un
+   * retorno temprano cambia el orden de los hooks entre renders.
+   */
+  const exportar = useMutation({
+    mutationFn: () => exportarRecepciones(activa!.companyId, filtros),
+    onSuccess: ({ filas }) =>
+      descargarCsv(
+        `recepciones-${new Date().toISOString().slice(0, 10)}.csv`,
+        recepcionesACsv(filas),
+      ),
+  })
+
   const ordenar = (columna: OrdenRecepciones) => {
     aplicar(
       columna === filtros.orden
@@ -81,6 +102,7 @@ export function RecepcionesPage() {
 
   const total = data?.total ?? 0
   const activos = contarActivos(filtros)
+
   const mostrarTodos = !isMobile || desplegado
 
   return (
@@ -91,6 +113,16 @@ export function RecepcionesPage() {
           <p className={styles.subtitulo}>
             {isPending ? 'Cargando…' : `${total} ${total === 1 ? 'recepción' : 'recepciones'}`}
           </p>
+        </div>
+        <div className={styles.acciones}>
+          <button
+            type="button"
+            className={styles.secundario}
+            disabled={exportar.isPending || total === 0}
+            onClick={() => exportar.mutate()}
+          >
+            {exportar.isPending ? 'Exportando…' : 'Exportar a CSV'}
+          </button>
         </div>
       </header>
 

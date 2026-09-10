@@ -323,7 +323,11 @@ export function ProveedorDetallePage() {
         ) : null}
 
         {pestana === 'compras' ? (
-          <PanelCompras datos={compras.data} cargando={compras.isPending} />
+          <PanelCompras
+            proveedorId={proveedor.id}
+            datos={compras.data}
+            cargando={compras.isPending}
+          />
         ) : null}
 
         {pestana === 'adjuntos' ? (

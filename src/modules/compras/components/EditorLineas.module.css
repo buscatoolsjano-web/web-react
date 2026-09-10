@@ -57,9 +57,13 @@
   color: var(--text);
 }
 
-/* En mobile los controles suben a 44px: 40 alcanza con mouse, no con el dedo.
-   Y 16px de fuente porque menos que eso hace que iOS haga zoom al enfocar. */
-@media (max-width: 767px) {
+/* Con el dedo los controles suben a 44px: 40 alcanza con mouse, no con el dedo.
+   Y 16px de fuente porque menos que eso hace que iOS haga zoom al enfocar.
+
+   `pointer: coarse` además del ancho, y no sólo el ancho: un iPad en vertical
+   mide 768 —justo afuera del breakpoint— y es táctil. Medido: a 768 estos
+   campos quedaban en 14px y iOS les hacía zoom. */
+@media (max-width: 767px), (pointer: coarse) {
   .texto,
   .sku,
   .numero,
@@ -159,7 +163,7 @@
 
 /* Subir, bajar y borrar son los botones más chicos de toda la pantalla: en
    mobile pasan a 44px o son imposibles de acertar. */
-@media (max-width: 767px) {
+@media (max-width: 767px), (pointer: coarse) {
   .icono {
     min-width: 44px;
     min-height: 44px;

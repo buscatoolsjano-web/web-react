@@ -1,23 +1,30 @@
+import { Link } from 'react-router-dom'
 import type { ComprasDelProveedor } from '../types'
 import styles from './PanelCompras.module.css'
 
 export interface PanelComprasProps {
+  proveedorId: string
   datos: ComprasDelProveedor | undefined
   cargando: boolean
 }
 
+const DOCUMENTOS = [
+  { clave: 'pedidos', etiqueta: 'Pedidos de compra', ruta: '/compras/pedidos' },
+  { clave: 'recepciones', etiqueta: 'Notas de entrega', ruta: '/compras/recepciones' },
+  { clave: 'facturas', etiqueta: 'Facturas de proveedor', ruta: '/compras/facturas' },
+] as const
+
 /**
- * Compras relacionadas.
+ * Los documentos de compra del proveedor.
  *
- * Los tres números salen de contar contra `purchase_orders`, `goods_receipts`
- * y `supplier_invoices`, que existen desde la entrega 1. Hoy dan cero en los
- * tres y eso es un dato verdadero, no un placeholder: el circuito todavía no
- * tiene pantalla, así que no hay ningún documento cargado.
+ * Cada número es un **enlace al listado filtrado por este proveedor**, no un
+ * cartel: `?prov=<id>` es el mismo filtro que usa la pantalla, así que el link
+ * se comparte y el «atrás» del navegador vuelve acá.
  *
- * Cuando los haya, esta pestaña los cuenta sola. Lo que falta es la pantalla
- * para verlos, y eso es la entrega 3.
+ * La relación es por `supplier_id`, nunca por el nombre: dos proveedores
+ * pueden llamarse parecido y un nombre se edita.
  */
-export function PanelCompras({ datos, cargando }: PanelComprasProps) {
+export function PanelCompras({ proveedorId, datos, cargando }: PanelComprasProps) {
   if (cargando) return <p className={styles.nota}>Cargando…</p>
 
   const total = (datos?.pedidos ?? 0) + (datos?.recepciones ?? 0) + (datos?.facturas ?? 0)
@@ -25,27 +32,35 @@ export function PanelCompras({ datos, cargando }: PanelComprasProps) {
   return (
     <div className={styles.panel}>
       <dl className={styles.numeros}>
-        <div className={styles.numero}>
-          <dt className={styles.etiqueta}>Pedidos de compra</dt>
-          <dd className={styles.valor}>{datos?.pedidos ?? 0}</dd>
-        </div>
-        <div className={styles.numero}>
-          <dt className={styles.etiqueta}>Notas de entrega</dt>
-          <dd className={styles.valor}>{datos?.recepciones ?? 0}</dd>
-        </div>
-        <div className={styles.numero}>
-          <dt className={styles.etiqueta}>Facturas de proveedor</dt>
-          <dd className={styles.valor}>{datos?.facturas ?? 0}</dd>
-        </div>
+        {DOCUMENTOS.map((d) => {
+          const cuantos = datos?.[d.clave] ?? 0
+          return (
+            <div key={d.clave} className={styles.numero}>
+              <dt className={styles.etiqueta}>{d.etiqueta}</dt>
+              <dd className={styles.valor}>
+                {cuantos === 0 ? (
+                  cuantos
+                ) : (
+                  <Link className={styles.enlace} to={`${d.ruta}?prov=${proveedorId}`}>
+                    {cuantos}
+                  </Link>
+                )}
+              </dd>
+            </div>
+          )
+        })}
       </dl>
 
       {total === 0 ? (
         <p className={styles.nota}>
-          Este proveedor todavía no tiene documentos de compra. El circuito —pedido, recepción
-          y factura— existe en la base desde la entrega anterior, pero la pantalla para
-          cargarlos no está hecha: no hay ninguno todavía, en ningún proveedor.
+          Este proveedor todavía no tiene documentos de compra. En cuanto tenga uno, el número
+          lleva al listado filtrado por él.
         </p>
-      ) : null}
+      ) : (
+        <p className={styles.nota}>
+          Cada número abre su listado filtrado por este proveedor.
+        </p>
+      )}
     </div>
   )
 }

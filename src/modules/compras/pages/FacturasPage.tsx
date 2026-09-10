@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { ChipFactura } from '../components/ChipEstado'
 import { Paginador } from '../components/Paginador'
 import { formatearFecha, formatearImporte } from '../lib/formato'
-import { OPCIONES_ESTADO_FACTURA } from '../lib/estados'
+import { OPCIONES_ESTADO_FACTURA, etiquetaDeEstadoFactura } from '../lib/estados'
 import { permisosDe } from '../lib/permisos'
+import { descargarCsv, facturasACsv } from '../lib/csv'
+import { exportarFacturas } from '../services/facturas'
 import { useFacturas, useFiltrosFacturas, useMonedasDeFacturas } from '../hooks/useFacturas'
 import { useProveedores } from '../hooks/useProveedores'
 import { FILTROS_INICIALES, type FiltrosFacturas, type OrdenFacturas } from '../types'
@@ -79,6 +82,21 @@ export function FacturasPage() {
     return () => clearTimeout(id)
   }, [texto, filtros.q, aplicar])
 
+  /**
+   * Exportar.
+   *
+   * Se lleva lo que muestran los filtros. Cada fila lleva **su moneda** en una
+   * columna: el archivo no suma nada, y quien lo abra agrupa por ahí.
+   */
+  const exportar = useMutation({
+    mutationFn: () => exportarFacturas(activa!.companyId, filtros),
+    onSuccess: ({ filas }) =>
+      descargarCsv(
+        `facturas-proveedor-${new Date().toISOString().slice(0, 10)}.csv`,
+        facturasACsv(filas, etiquetaDeEstadoFactura),
+      ),
+  })
+
   const ordenar = (columna: OrdenFacturas) =>
     aplicar(
       columna === filtros.orden
@@ -112,6 +130,14 @@ export function FacturasPage() {
           </p>
         </div>
         <div className={styles.acciones}>
+          <button
+            type="button"
+            className={styles.secundario}
+            disabled={exportar.isPending || total === 0}
+            onClick={() => exportar.mutate()}
+          >
+            {exportar.isPending ? 'Exportando…' : 'Exportar a CSV'}
+          </button>
           {permisos.crearProveedor ? (
             <Link to="/compras/facturas/nueva" className={styles.nuevo}>
               + Nueva factura

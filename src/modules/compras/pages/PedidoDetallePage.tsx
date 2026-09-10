@@ -4,12 +4,15 @@ import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { ChipEstado, ChipRecepcion } from '../components/ChipEstado'
 import { FormularioPedido } from '../components/FormularioPedido'
+import { ModalImpresionCompras } from '../components/ModalImpresionCompras'
 import { PanelAdjuntosCompras } from '../components/PanelAdjuntosCompras'
 import { PanelRelacionadosPedido } from '../components/PanelRelacionadosPedido'
 import { editabilidadDe } from '../lib/estados'
 import { problemasDeLinea } from '../lib/lineas'
 import { formatearFecha, formatearFechaHora, formatearImporte } from '../lib/formato'
 import { permisosDe } from '../lib/permisos'
+import { imprimiblePedido } from '../lib/impresion'
+import { etiquetaDeTratamiento } from '../lib/tratamientos'
 import { CLASES_PEDIDO } from '../services/adjuntosCompras'
 import { validarPedido, type DatosPedidoCompra, type ErrorDePedido } from '../lib/validacion'
 import {
@@ -89,6 +92,7 @@ export function PedidoDetallePage() {
   const [confirmando, setConfirmando] = useState(false)
   const [cancelando, setCancelando] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [imprimiendo, setImprimiendo] = useState(false)
 
   const proveedor = useQuery<ProveedorBuscado | null>({
     queryKey: ['compras', companyId, 'proveedor-breve', pedido?.proveedorId],
@@ -168,6 +172,13 @@ export function PedidoDetallePage() {
         ← Pedidos de compra
       </Link>
 
+      {imprimiendo ? (
+        <ModalImpresionCompras
+          doc={imprimiblePedido(pedido, lineasServidor.data ?? [], etiquetaDeTratamiento)}
+          onCerrar={() => setImprimiendo(false)}
+        />
+      ) : null}
+
       <header className={styles.encabezado}>
         <div className={styles.identidad}>
           <h1 className={styles.titulo}>{pedido.numero}</h1>
@@ -193,6 +204,16 @@ export function PedidoDetallePage() {
                 Editar
               </button>
             ) : null}
+
+            {/* Imprimir: el pedido es lo que se le manda al proveedor. Se
+                arma con los snapshots guardados, nunca con el catálogo de hoy. */}
+            <button
+              type="button"
+              className={styles.secundario}
+              onClick={() => setImprimiendo(true)}
+            >
+              Imprimir
+            </button>
 
             {escribe && puede.confirmar ? (
               confirmando ? (

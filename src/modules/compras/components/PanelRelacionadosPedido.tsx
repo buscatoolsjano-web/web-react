@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { ChipRecepcionDoc } from './ChipEstado'
-import { formatearFecha, formatearNumero } from '../lib/formato'
+import { ChipFactura, ChipRecepcionDoc } from './ChipEstado'
+import { formatearFecha, formatearImporte, formatearNumero } from '../lib/formato'
 import { listarRecepciones } from '../services/recepciones'
+import { facturasDelPedido } from '../services/pedidos'
 import {
   FILTROS_RECEPCIONES_INICIALES,
   type PedidoCompraDetalle,
@@ -20,8 +21,12 @@ export interface PanelRelacionadosPedidoProps {
 /**
  * Lo que cuelga del pedido.
  *
- * El proveedor, las recepciones —de verdad, con su número, su estado y su
- * link— y las facturas de proveedor, que todavía no tienen pantalla.
+ * El proveedor, las recepciones y las facturas de proveedor: los tres de
+ * verdad, con su número, su estado y su link.
+ *
+ * Las facturas **no cuelgan del pedido por una clave en la cabecera**: se
+ * derivan por las líneas —factura → línea de pedido—, que es como está
+ * modelado desde la entrega 1. Una factura puede tocar varias órdenes.
  *
  * **No se muestra ninguna relación con Ventas.** Ese vínculo no existe en el
  * schema y reconstruirlo por fecha parecida, mismo SKU o cantidades parecidas
@@ -49,9 +54,17 @@ export function PanelRelacionadosPedido({
     staleTime: 30_000,
   })
 
+  const facturas = useQuery({
+    queryKey: ['compras', companyId, 'facturas', 'del-pedido', pedido.id],
+    queryFn: () => facturasDelPedido(companyId!, pedido.id),
+    enabled: companyId !== null,
+    staleTime: 30_000,
+  })
+
   if (cargando) return <p className={styles.nota}>Cargando…</p>
 
   const filas = recepciones.data?.filas ?? []
+  const filasFactura = facturas.data ?? []
 
   return (
     <div className={styles.panel}>
@@ -100,12 +113,26 @@ export function PanelRelacionadosPedido({
         </p>
       )}
 
-      {(datos?.facturas ?? 0) === 0 ? (
+      {filasFactura.length > 0 ? (
+        <ul className={styles.lista}>
+          {filasFactura.map((f) => (
+            <li key={f.id} className={styles.item}>
+              <Link to={`/compras/facturas/${f.id}`} className={styles.enlace}>
+                {f.numeroProveedor ?? f.numero}
+              </Link>
+              <span className={styles.meta}>
+                {formatearFecha(f.fecha)} · {formatearImporte(f.total, f.moneda)}
+                {f.numeroProveedor ? ` · ref. ${f.numero}` : ''}
+              </span>
+              <ChipFactura estado={f.estado} />
+            </li>
+          ))}
+        </ul>
+      ) : (
         <p className={styles.nota}>
-          Sin facturas de proveedor. La tabla existe desde la entrega 1 y se cuenta de verdad; lo
-          que falta es la pantalla para cargarlas.
+          Sin facturas de proveedor. Se factura lo recibido, desde «Facturar».
         </p>
-      ) : null}
+      )}
     </div>
   )
 }

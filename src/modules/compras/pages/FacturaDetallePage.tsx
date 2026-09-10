@@ -2,11 +2,13 @@ import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { ChipFactura } from '../components/ChipEstado'
+import { ModalImpresionCompras } from '../components/ModalImpresionCompras'
 import { PanelAdjuntosCompras } from '../components/PanelAdjuntosCompras'
 import { PanelHistorial } from '../components/PanelHistorial'
 import { PanelTotales } from '../components/PanelTotales'
 import { editabilidadDeFactura } from '../lib/estados'
 import { diferenciasConPedido, repartoDeLineas } from '../lib/facturacion'
+import { imprimibleFactura } from '../lib/impresion'
 import { etiquetaDeTratamiento } from '../lib/tratamientos'
 import {
   formatearFecha,
@@ -67,6 +69,7 @@ export function FacturaDetallePage() {
   const [anulando, setAnulando] = useState(false)
   const [borrando, setBorrando] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [imprimiendo, setImprimiendo] = useState(false)
 
   if (isPending) return <p className={styles.nota}>Cargando…</p>
 
@@ -104,6 +107,16 @@ export function FacturaDetallePage() {
         ← Facturas de proveedor
       </Link>
 
+      {imprimiendo ? (
+        <ModalImpresionCompras
+          doc={imprimibleFactura(factura, filas, etiquetaDeTratamiento, [
+            ...(relacionados.data?.recepciones ?? []).map((r) => r.numero),
+            ...(relacionados.data?.pedidos ?? []).map((x) => x.numero),
+          ])}
+          onCerrar={() => setImprimiendo(false)}
+        />
+      ) : null}
+
       <header className={styles.encabezado}>
         <div className={styles.identidad}>
           <h1 className={styles.titulo}>
@@ -126,6 +139,16 @@ export function FacturaDetallePage() {
         </div>
 
         <div className={styles.acciones}>
+          {/* Imprimir: se imprime lo que el proveedor facturó, sin arreglar
+              nada. Si facturó a otro precio que la orden, sale ese precio. */}
+          <button
+            type="button"
+            className={styles.secundario}
+            onClick={() => setImprimiendo(true)}
+          >
+            Imprimir
+          </button>
+
           {escribe && puede.registrar ? (
             registrando ? (
               <>

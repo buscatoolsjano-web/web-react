@@ -64,9 +64,11 @@
 
 .cambiar {
   margin-left: auto;
-  min-height: 32px;
-  padding: 0 var(--space-2);
-  font-size: var(--text-xs);
+  /* 44px: es un botón de verdad —cambia el proveedor del documento— y con 32
+     no se acierta con el dedo. El texto sigue chico; lo que crece es el área. */
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);

@@ -19,7 +19,9 @@
 }
 
 .select {
-  font-size: var(--text-sm);
+  /* 16px y no --text-sm: por debajo de 16 iOS hace zoom al enfocar un control
+     y la página queda corrida. Es el mismo motivo que en el paginador. */
+  font-size: 1rem;
   min-height: 44px;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);

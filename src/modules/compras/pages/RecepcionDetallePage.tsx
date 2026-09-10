@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { ChipRecepcionDoc } from '../components/ChipEstado'
+import { ModalImpresionCompras } from '../components/ModalImpresionCompras'
+import { imprimibleRecepcion } from '../lib/impresion'
 import { GrillaRecepcion } from '../components/GrillaRecepcion'
 import { formatearFecha, formatearFechaHora, formatearNumero } from '../lib/formato'
 import { permisosDe } from '../lib/permisos'
@@ -58,6 +60,7 @@ export function RecepcionDetallePage() {
   const [confirmando, setConfirmando] = useState(false)
   const [borrando, setBorrando] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [imprimiendo, setImprimiendo] = useState(false)
 
   // Lo pendiente del pedido, excluyendo ESTA recepción: si no, sus propias
   // cantidades aparecerían como «en borrador» compitiendo consigo mismas.
@@ -165,6 +168,13 @@ export function RecepcionDetallePage() {
         ← Notas de entrada
       </Link>
 
+      {imprimiendo ? (
+        <ModalImpresionCompras
+          doc={imprimibleRecepcion(recepcion, guardadas)}
+          onCerrar={() => setImprimiendo(false)}
+        />
+      ) : null}
+
       <header className={styles.encabezado}>
         <div className={styles.identidad}>
           <h1 className={styles.titulo}>{recepcion.numero}</h1>
@@ -189,6 +199,16 @@ export function RecepcionDetallePage() {
                 Editar
               </button>
             ) : null}
+
+            {/* Imprimir: documento logístico, sin importes. La recepción no
+                está valorizada y no se le inventa un precio. */}
+            <button
+              type="button"
+              className={styles.secundario}
+              onClick={() => setImprimiendo(true)}
+            >
+              Imprimir
+            </button>
 
             {escribe && esBorrador ? (
               confirmando ? (

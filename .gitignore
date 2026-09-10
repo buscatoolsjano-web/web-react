@@ -43,3 +43,6 @@ import-catalog.state.json
 
 # Contraseñas de las cuentas de prueba de RLS. Nunca se commitea.
 .env.rls*
+
+# El snapshot de las series que dejan los fixtures de revisión entre corridas.
+scripts/.fase6-fixtures-series.json
