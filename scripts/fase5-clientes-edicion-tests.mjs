@@ -240,6 +240,18 @@ const main = async () => {
     if (dir2) { creados.direcciones.push(dir2.id); PASS('entrega y facturación conviven como principales') }
     else FAIL('no se pudo crear la dirección de facturación')
 
+    // Los cuatro valores del CHECK, uno por uno. `other` se agregó al cerrar
+    // la entrega 3 y estrena su propia principal, porque el índice único es
+    // por (company_id, customer_id, kind).
+    for (const kind of ['both', 'other']) {
+      const { data: extra, error: eK } = await c.from('customer_addresses').insert({
+        company_id: BT, customer_id: completo.id, kind,
+        street: `${MARCA} ${kind}`, is_default: true,
+      }).select('id').single()
+      if (eK) FAIL(`el tipo de dirección «${kind}» fue rechazado`, eK.message)
+      else { creados.direcciones.push(extra.id); PASS(`acepta el tipo «${kind}»`) }
+    }
+
     const { error: eTipo } = await c.from('customer_addresses').insert({
       company_id: BT, customer_id: completo.id, kind: 'otra', street: 'X',
     })
@@ -422,6 +434,9 @@ const main = async () => {
     const { error: eAnon } = await anon.from('customers')
       .insert({ company_id: BT, legal_name: `${MARCA} anon` })
     eAnon ? PASS('anónimo no escribe', eAnon.code ?? '') : FAIL('ANÓNIMO ESCRIBIÓ')
+  } catch (e) {
+    FAIL('la suite se cortó por una excepción', e.message)
+    console.error(e)
   } finally {
     // ── Limpieza ─────────────────────────────────────────────────────────
     seccion('LIMPIEZA')

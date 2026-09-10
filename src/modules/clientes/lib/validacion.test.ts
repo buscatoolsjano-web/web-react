@@ -7,6 +7,7 @@ import {
   normalizarDominios,
   normalizarEmails,
   pareceCuit,
+  TIPOS_DE_DIRECCION,
   validarCliente,
   validarContacto,
   validarDireccion,
@@ -142,15 +143,25 @@ describe('validarDireccion', () => {
     expect(validarDireccion(DIRECCION_VACIA)).toHaveLength(1)
   })
 
-  it('acepta los tres tipos que admite el CHECK', () => {
-    for (const tipo of ['shipping', 'billing', 'both']) {
+  it('acepta los cuatro tipos que admite el CHECK', () => {
+    for (const tipo of ['shipping', 'billing', 'both', 'other']) {
       expect(validarDireccion({ ...DIRECCION_VACIA, calle: 'Av. Siempreviva 742', tipo })).toEqual(
         [],
       )
     }
   })
 
+  it('la lista de tipos es exactamente la del CHECK de la tabla', () => {
+    expect(TIPOS_DE_DIRECCION.map((t) => t.valor)).toEqual([
+      'shipping',
+      'billing',
+      'both',
+      'other',
+    ])
+  })
+
   it('rechaza un tipo que la tabla no tiene', () => {
+    // `otra` en castellano NO es un valor del CHECK: el valor es `other`.
     const e = validarDireccion({ ...DIRECCION_VACIA, calle: 'Calle 1', tipo: 'otra' })
     expect(e).toHaveLength(1)
   })

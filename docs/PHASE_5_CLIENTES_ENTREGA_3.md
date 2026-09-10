@@ -7,8 +7,11 @@ Estado: **entregado, pendiente de revisión visual.** No se empezó la entrega 4
 
 ## Cambios de schema
 
-Una sola migración: **`fase5_clientes_edicion`**. Cuatro cosas, todas
-necesarias para que la entrega funcione; ninguna «por simetría».
+Cuatro migraciones: **`fase5_clientes_edicion`** y, en el cierre,
+**`fase5_clientes_direccion_other_y_vendedor`**,
+**`fase5_secuencia_cli_torquetools`** y
+**`fase5_numeracion_cliente_para_vendedor`**. Todo lo que hay acá era necesario
+para que la entrega funcione; nada se agregó «por simetría».
 
 ### 1 · Un cliente dado de baja tiene que seguir siendo legible
 
@@ -65,12 +68,42 @@ SECURITY DEFINER, admin y employee. Sin lista se dan por revisados todos; con
 lista, sólo ésos: confirmar «ya vi que son dos empresas distintas» no tiene por
 qué borrar «no tiene CUIT».
 
-### Lo que NO se cambió
+### 5 · Un cuarto tipo de dirección
 
-**`customer_addresses.kind`** acepta `billing`, `shipping` y `both`. Pediste
-distinguir **entrega, facturación y otra**: las dos primeras están, «otra» no
-existe y **no se agregó**. Agregar un valor al CHECK es cambiar el modelo y
-querías que se reportara antes. Si hace falta, es un `alter` de una línea.
+`customer_addresses.kind` acepta ahora `billing`, `shipping`, `both` y
+**`other`**. Se agregó al cerrar la entrega, autorizado. **No se tocó una sola
+fila**: ampliar un CHECK no reescribe datos. El índice único de la dirección
+principal es por (empresa, cliente, tipo), así que `other` estrena la suya sin
+pelearse con las otras tres.
+
+### 6 · El vendedor que crea un cliente, lo ve
+
+`app.asignar_vendedor_cliente()`, BEFORE INSERT OR UPDATE. Cuando quien
+escribe es `salesperson`, el `salesperson_id` efectivo **lo pone el servidor**:
+es él mismo al insertar, y no cambia al editar. No se confía en lo que mande el
+frontend, entre otras cosas porque mandar el id de otro sería la forma de
+asignarse un cliente ajeno o de esconder uno propio.
+
+Admin y employee siguen eligiendo el vendedor libremente. La clave de servicio
+no entra —no tiene membresía—, así que **los 1.010 clientes migrados conservan
+su `salesperson_id`**: no se reasigna nada hacia atrás ni se inventa un
+vendedor histórico.
+
+### 7 · La otra mitad del mismo problema: tampoco podía numerar
+
+`next_document_number` exigía `app.current_writer_company_ids()` —admin y
+employee— para **cualquier** tipo de documento. Para cotizaciones, pedidos y
+remitos eso coincide exactamente con quién puede crearlos, así que ahí no
+cambia nada. Pero `customers_insert` autoriza también a `salesperson`: podía
+insertar la fila y no podía obtener su referencia, o sea que **el alta le
+fallaba antes de empezar**.
+
+La guarda ahora mira el tipo de documento y exige exactamente los roles que
+autorizan a crearlo. No amplía nada: para `customer` ya podían insertar; lo que
+faltaba era el número.
+
+Y Torquetools estrena su propia serie `CLI` arrancando en 1, igual que ya tenía
+COTI, PDV y RT: sin ella no se podía dar de alta ningún cliente en esa empresa.
 
 ---
 
@@ -120,7 +153,7 @@ Los del modelo. **No se amplió ninguno.**
 |---|---|---|---|
 | **admin** | crear, editar, dar de baja | sí | sí |
 | **employee** | crear, editar, dar de baja | sí | sí |
-| **salesperson** | crear y editar **los suyos** | **no** | **no** |
+| **salesperson** | crear y editar **los suyos**, con el vendedor puesto por el servidor | **no** | **no** |
 | **customer / distributor** | no | no | no |
 | **anon** | nada | nada | nada |
 
@@ -143,16 +176,19 @@ anterior, `deleted_at is null` valía para todos, así que el remito de un
 cliente dado de baja pasaba a decir «Sin cliente». Arreglado en el punto 1 de
 la migración y cubierto por un test.
 
-### 2 · `salesperson` puede crear un cliente que después no ve
+### 2 · `salesperson` creaba un cliente y lo perdía de vista — **resuelto**
 
 `customers_insert` lo autoriza, pero `customers_select` sólo le muestra los que
-tienen `salesperson_id = auth.uid()`. Como los 1.010 clientes tienen ese campo
-en `NULL`, **hoy un salesperson no ve ningún cliente**, y si crea uno sin
-asignarse, tampoco lo verá.
+tienen `salesperson_id = auth.uid()`. Un vendedor podía crear un cliente y no
+verlo nunca más.
 
-**No se tocó**: pediste verificar qué permite el modelo y no ampliar permisos.
-Queda registrado como decisión pendiente: o el alta le asigna el vendedor
-automáticamente, o la policy cambia, o el rol no debería poder crear clientes.
+Resuelto **en el servidor y sin ampliar acceso**: al insertar, el vendedor
+efectivo es el que inserta (punto 6). Y apareció la otra mitad del problema
+—tampoco podía numerar— que estaba escondida detrás de la primera (punto 7).
+
+Lo que **no** se amplió: contactos y direcciones siguen siendo de admin y
+employee. Se revisa en la entrega 5 si el flujo real demuestra que el vendedor
+los necesita.
 
 ### 3 · Un falso PASS en la propia suite
 
@@ -195,11 +231,37 @@ sesión real y limpieza propia. **0 fallos**, 45 comprobaciones:
 | Baja lógica | da de baja sin borrar; el interno lo sigue viendo; **no se ofrece** para un documento nuevo; el DELETE no alcanza ninguna fila |
 | Ventas | renombrar no cambia el `customer_id`; el documento muestra el nombre nuevo porque lo lee por FK; un documento de un cliente dado de baja **lo sigue nombrando**; ni la clave de servicio borra un cliente con documentos (23001) |
 | RLS | el externo no crea clientes, no edita **ni su propia ficha**, no crea contactos ni direcciones, no resuelve revisiones, no ve un cliente dado de baja; anónimo, cero |
+| Direcciones | los cuatro tipos del CHECK, `other` incluido; el inventado, rechazado |
 | Limpieza | 1.010 / 87 / 0 vuelven a su número, 0 fixtures, secuencia CLI repuesta en 1225 |
 
+**El vendedor y su cartera** — `scripts/fase5-clientes-vendedor-tests.mjs`,
+0 fallos. Jano es admin en Buscatools y **salesperson en Torquetools**, así que
+las ocho situaciones se prueban con una sesión real:
+
+| | |
+|---|---|
+| **S1** | el vendedor obtiene referencia del servidor (`CLI00001`), crea el cliente, y el servidor se lo asigna a él. Numerar una cotización le sigue estando vedado (42501) |
+| **S2** | lo lee por id y aparece en su listado |
+| **S3** | lo edita |
+| **S4** | mandando el id de otro vendedor, **el servidor lo ignora y pone el suyo**; editando tampoco puede cambiar de dueño |
+| **S5** | el cliente de otro vendedor: 0 filas por id, 0 al intentar robárselo con un UPDATE, y sigue siendo del otro |
+| **S6** | empresa sin membresía: 0 filas **aun estando asignado a él**; tampoco puede crear ahí (42501) |
+| **S6b** | un cliente con `salesperson_id` NULL no es de nadie: 0 filas |
+| **S7** | como admin en Buscatools ve los 1.010, y **sí** elige el vendedor al crear |
+| **S8** | cliente externo, distribuidor y anónimo: 42501 los tres |
+
+Y una comprobación explícita de que **el histórico no se reasignó solo**: en
+Buscatools sigue habiendo un único cliente con vendedor, el fixture
+«Cliente Demo S.A.» de Stage 1.
+
 **Regresión de Ventas**: las siete suites en verde, 288 / 166 / 182 / 636 y la
-huella `8091b9166350c5bf2c331b1d882ec654` **sin cambios**. Más la suite de
-lectura de Clientes, también en verde.
+huella `8091b9166350c5bf2c331b1d882ec654` **sin cambios** —incluida la suite de
+numeración concurrente, que es la que ejercita `next_document_number`, la
+función que se tocó—. Más las dos suites de Clientes.
+
+Estado final de los datos: **1.010 clientes, 87 contactos, 0 direcciones,
+0 fixtures**, secuencia CLI de Buscatools en 1225 y la de Torquetools repuesta
+en 1.
 
 ---
 

@@ -946,3 +946,32 @@ grant execute on function public.next_document_number(uuid, text, text) to authe
 -- se borra nunca. El intento no da error, simplemente no alcanza ninguna fila.
 -- `app.proteger_borrado_cliente()` sigue rechazando el borrado físico de un
 -- cliente con documentos incluso para la clave de servicio.
+
+-- ── Cierre de la entrega 3 ─────────────────────────────────────────────────
+-- Migraciones: fase5_clientes_direccion_other_y_vendedor,
+--              fase5_secuencia_cli_torquetools,
+--              fase5_numeracion_cliente_para_vendedor
+--
+-- 5 · `customer_addresses.kind` acepta ahora un cuarto valor, `other`, además
+--     de `billing`, `shipping` y `both`. No se tocó una sola fila: ampliar un
+--     CHECK no reescribe datos.
+--
+-- 6 · `app.asignar_vendedor_cliente()` (BEFORE INSERT OR UPDATE en
+--     `customers`): cuando quien escribe es `salesperson`, el `salesperson_id`
+--     efectivo lo pone el servidor —es él mismo al insertar, y no cambia al
+--     editar—. No se confía en lo que mande el frontend: mandar el id de otro
+--     sería la forma de asignarse un cliente ajeno o de esconder uno propio.
+--     Admin y employee siguen eligiendo el vendedor libremente. La clave de
+--     servicio no entra (no tiene membresía), así que los 1.010 clientes
+--     migrados conservan su `salesperson_id`: no se reasigna nada hacia atrás.
+--
+-- 7 · `next_document_number` exigía `app.current_writer_company_ids()` para
+--     CUALQUIER tipo. Para quote / sales_order / delivery eso coincide con
+--     quién puede crearlos, así que ahí no cambia nada; pero `customers_insert`
+--     autoriza también a `salesperson`, que podía insertar la fila y no podía
+--     obtener su referencia. Ahora la guarda mira el tipo de documento y exige
+--     exactamente los roles que autorizan a crearlo. No amplía nada.
+--
+-- 8 · Torquetools estrena su propia serie `CLI` arrancando en 1, igual que ya
+--     tenía COTI, PDV y RT. Sin ella, `next_document_number` fallaba y en esa
+--     empresa no se podía dar de alta ningún cliente.

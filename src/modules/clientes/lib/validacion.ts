@@ -170,15 +170,18 @@ export function validarContacto(datos: DatosContacto): string[] {
 }
 
 /**
- * Los tres tipos de dirección que el modelo admite hoy.
+ * Los cuatro tipos de dirección que admite el CHECK de
+ * `customer_addresses.kind`: `shipping`, `billing`, `both` y `other`.
  *
- * El CHECK de `customer_addresses.kind` acepta `billing`, `shipping` y `both`.
- * No hay un «otra»: agregarlo es cambiar el modelo y no se hace por simetría.
+ * `other` se agregó en el cierre de la entrega 3, autorizado y sin tocar un
+ * solo dato. Sirve para lo que no es ni entrega ni facturación —un depósito,
+ * una planta, una oficina— sin obligar a etiquetarlo mal.
  */
 export const TIPOS_DE_DIRECCION = [
   { valor: 'shipping', etiqueta: 'Entrega' },
   { valor: 'billing', etiqueta: 'Facturación' },
   { valor: 'both', etiqueta: 'Entrega y facturación' },
+  { valor: 'other', etiqueta: 'Otra' },
 ] as const
 
 export interface DatosDireccion {

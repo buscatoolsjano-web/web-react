@@ -47,10 +47,11 @@ la pena reconstruir algo del histórico a partir de otra fuente.
 
 ### Direcciones de cliente
 
-`customer_addresses` está vacía y **sigue vacía después de migrar Clientes**:
-el legacy no guardaba direcciones estructuradas y no se deduce una a partir de
-un texto libre o de un dominio. El selector de dirección de envío no tiene de
-dónde elegir hasta que la edición (entrega 3) las cargue a mano.
+`customer_addresses` está vacía: el legacy no guardaba direcciones
+estructuradas y no se deduce una a partir de un texto libre o de un dominio.
+Desde la entrega 3 se cargan a mano desde la ficha, con cuatro tipos
+—entrega, facturación, ambas y otra—. El selector de dirección de envío de
+Ventas no tiene de dónde elegir hasta que alguien las cargue.
 
 ### Rubros y catálogos
 
@@ -83,21 +84,14 @@ Cuando el token esté disponible:
 
 **No bloquea Clientes.** El archivo compila y refleja el schema real.
 
-### `salesperson` puede crear un cliente que después no ve
+### Contactos y direcciones para el vendedor
 
-`customers_insert` incluye a `salesperson`, pero `customers_select` sólo le
-muestra los que tienen `salesperson_id = auth.uid()`. Los 1.010 clientes lo
-tienen en `NULL`, así que hoy un salesperson **no ve ningún cliente**, y si
-crea uno sin asignarse, tampoco lo verá.
+`contacts_write` y `addresses_write` son de admin y employee. Un vendedor puede
+crear y editar sus clientes, pero no cargarles un contacto ni una dirección,
+así que hoy depende de alguien más para completar la ficha.
 
-No se tocó: ampliar un permiso es una decisión. Las opciones son que el alta le
-asigne el vendedor, que la policy cambie, o que el rol no cree clientes.
-
-### `customer_addresses` no tiene un tipo «otra»
-
-El CHECK acepta `billing`, `shipping` y `both`. La UI usa esos tres. Si hace
-falta un cuarto valor, es un `alter` de una línea — pero es un cambio de
-modelo, no una simetría.
+No se amplió: ampliar un permiso es una decisión, y el legacy no demuestra que
+haga falta. **Se revisa en la entrega 5** si el flujo real lo pide.
 
 ### Clientes potenciales
 
