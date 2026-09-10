@@ -1,7 +1,7 @@
 # Fase 6 · Compras — Entrega 4: recepciones y stock
 
-Estado: **EJECUTADA**, con el punto **I** (mobile real) pendiente de una sesión
-iniciada en el navegador.
+Estado: **COMPLETA**. El punto **I** —la revisión mobile real— se cerró en una
+segunda pasada, que encontró un bug visual y una mejora de UX: están en **J**.
 
 El circuito cierra: pedido confirmado → elegir cantidades pendientes → crear la
 recepción en borrador → confirmarla → el stock sube → el `receipt_status` del
@@ -216,34 +216,86 @@ filas «entró un producto» no dicen más que una que diga «entraron veinte».
 **Editar un borrador no deja rastro** y está probado: dos cambios de notas
 producen un solo evento, el del alta.
 
-## I · Mobile — pendiente
+## I · Mobile — verificado
 
-**No lo pude terminar.** Preparé los datos, empecé la revisión y la sesión del
-navegador venció en el medio; volver a entrar necesita escribir una contraseña
-y eso no lo hago.
+Revisado en el navegador a **390 / 430 / 768** (y 1440 para comprobar que el
+escritorio no cambió), con datos de prueba reales que se borraron después.
 
-Los fixtures se borraron: la base quedó en los invariantes de **K**.
+**Cero scroll horizontal global en los tres anchos**, medido en cada pantalla:
 
-Cuando inicies sesión en el panel del navegador los recreo —son cinco
-segundos— y hago la pasada completa a 390 / 430 / 768 con el mismo método de la
-entrega 3: abrir el pedido, «Recibir mercadería», cantidades, depósito, crear
-el borrador, confirmarlo, ver el estado actualizado, y medir
-`document.scrollWidth === window.innerWidth` en cada ancho.
+| pantalla | 390 | 430 | 768 |
+|---|:--:|:--:|:--:|
+| listado de pedidos | ✓ | ✓ | ✓ |
+| ficha del pedido | ✓ | ✓ | ✓ |
+| recibir mercadería | ✓ | ✓ | ✓ |
+| listado de recepciones | ✓ | ✓ | ✓ |
+| recepción confirmada | ✓ | ✓ | ✓ |
+| listado de proveedores | ✓ | — | — |
 
-Lo que está hecho y es verificable en el código:
+> Una precisión sobre la medición: a 768 la comparación exacta
+> `scrollWidth === innerWidth` da falso —753 contra 768— porque `innerWidth`
+> incluye la barra de scroll vertical. Lo que hay que comparar es contra
+> `clientWidth`, que también da 753. No hay desborde horizontal en ninguna
+> pantalla; además se recorrió el DOM buscando elementos que sobresalieran del
+> ancho útil y no apareció ninguno fuera de las cajas que scrollean a propósito.
 
-- La grilla de nueve columnas scrollea **dentro de su propia caja**
-  (`overflow-x:auto`, `min-width:52rem`); el body nunca scrollea en horizontal.
-- El listado es tabla en escritorio y **tarjetas por debajo de 768**.
-- Los inputs de cantidad pasan a **16px y 44px** por debajo de 768.
-- Los filtros del listado se pliegan en mobile detrás de «Filtros» con
-  contador, igual que en pedidos.
-- Los controles de la cabecera de la recepción tienen `max-width: 22rem`, no se
-  desbordan en 390.
+### Circuito completo, desde el teléfono
+
+Los catorce pasos, a 390:
+
+1. Pedidos de compra → el listado muestra PC00002 con el proveedor largo
+   partido en dos líneas dentro de la tarjeta.
+2. Abrir el pedido → chips «Confirmado» + «Sin recibir», y las cuatro acciones
+   —Editar, Cancelar pedido, **Recibir mercadería**, Duplicar— repartidas en
+   dos filas, ninguna cortada.
+3. «Recibir mercadería» → `#/compras/recepciones/nueva?pedido=…`.
+4. Grilla: **los ocho datos por línea**, visibles sin mover nada.
+5. SKU, descripción, pedido, recibido, **en borrador**, pendiente, a recibir y
+   stock actual: los ocho.
+6. Depósito: hay uno solo activo, así que se muestra como texto con la
+   aclaración «único depósito activo». No hay un desplegable de una sola opción.
+7. Cantidad: se escribe 31 sobre 30 pendientes → ver **G**. Se corrige a 30.
+8. «Crear recepción en borrador» → **NEP00003**.
+9. Se abre la ficha: chip «Borrador», el aviso de que no está reservada, y las
+   tres acciones.
+10. «Confirmar recepción» → confirmación en dos pasos, con el botón que dice
+    **«Sí, confirmar y sumar stock»**.
+11. Aviso visible: **«Confirmada. 1 movimiento de stock.»**, el chip pasa a
+    «Confirmada» y **desaparecen las tres acciones**.
+12. Volver al pedido por el link `PC00002`.
+13. `receipt_status` actualizado: chip **«Recibido en parte»**, y el aviso
+    cambió a «Este pedido ya tiene mercadería recibida: sus líneas están
+    congeladas y no se puede cancelar». «Cancelar pedido» ya no está.
+14. Stock actualizado: **un** movimiento de 30 con `source_type =
+    'goods_receipt'` y el saldo del producto en 30, verificado en la base.
+
+La pestaña «Relacionados» del pedido lista las tres recepciones con su estado.
+
+### Casos visuales
+
+Probados a propósito con datos incómodos:
+
+| caso | resultado |
+|---|---|
+| proveedor largo (`SEMICONDUCTORES Y COMPONENTES SRL - SYS ELECTRONICA`) | parte en dos líneas, no desborda |
+| SKU largo (`FLETE-INTERNACIONAL-PUERTA-A-PUERTA`) | `overflow-wrap: anywhere`, no empuja nada |
+| descripción de cien caracteres | envuelve dentro de la tarjeta |
+| cantidad decimal (2,5) | se muestra `2,5`, no `2,5000` |
+| selector de depósito | uno solo → texto; con varios → `select` de 44px |
+| aviso de otros borradores | «70 en borrador (NEP00001, NEP00002) · **no reservado**» |
+| botones | todos de 44px o más, ninguno cortado |
+| confirmación en dos pasos | los dos botones en línea, ambos alcanzables |
+| chips de estado | Borrador / Confirmada · Confirmado / Recibido en parte |
+| breadcrumb «← PC00002» | 44px de alto |
+| pestañas | Pedido / Adjuntos / Relacionados, envuelven sin cortarse |
+| mensajes de error | ver **G** |
+
+No quedó ningún control cortado ni ninguna acción inaccesible.
 
 ## J · Bugs encontrados
 
-Seis. Cinco los encontró un test que falló; uno, armar los datos de prueba.
+Ocho. Cinco los encontró un test que falló, uno armar los datos de prueba, y
+los dos últimos la revisión mobile.
 
 ### 1 · Dos recepciones distintas sobre la misma línea entraban las dos
 
@@ -305,6 +357,41 @@ que se repitió en las recepciones: un trigger declarado `BEFORE UPDATE OR
 DELETE` deja el INSERT afuera. Los dos triggers nuevos de recepciones se
 declararon desde el principio `BEFORE INSERT OR UPDATE OR DELETE`.
 
+### 7 · La grilla de recepción era una tabla de escritorio comprimida
+
+**BUG VISUAL.** Lo encontró la revisión mobile y está medido, no estimado: en un
+teléfono de 390px la tabla de nueve columnas ocupaba **921px dentro de una caja
+de 325**, o sea **598px de scroll interno**. La columna de descripción quedaba
+en una letra por línea, y para escribir una cantidad había que arrastrar la
+tabla a ciegas perdiendo de vista de qué línea se trataba. No era usable con el
+dedo.
+
+A **768** era peor: ahí el layout ya muestra la barra lateral, así que a la
+grilla le quedaban unos 250px —menos que en un teléfono— y **491px de scroll
+interno**.
+
+Corregido con el cambio mínimo: por debajo de 1024 cada línea es una
+**tarjeta** con los ocho datos apilados y el campo de cantidad de ancho
+completo, con `inputMode="decimal"` para que el teléfono abra el teclado
+numérico. De 1024 para arriba sigue siendo la tabla, y a 1440 entra entera sin
+scroll interno.
+
+El corte es 1024 y **no** el 768 de la app, a propósito: la decisión es de este
+componente por la cantidad de columnas que tiene, no un cambio del breakpoint
+global. Está comentado en el código.
+
+### 8 · El error de sobre-recepción aparecía lejos del campo
+
+**MEJORA UX.** El aviso existía, pero al final de toda la grilla. En una
+recepción de varias líneas, en un teléfono, el mensaje quedaba a una pantalla de
+distancia del campo que lo causó.
+
+Ahora también aparece **dentro de la tarjeta**, debajo del campo, con el borde
+del input en rojo: «Quedan 30 pendientes. Con 31 el servidor lo va a rechazar».
+La lista de abajo quedó igual. La cantidad escrita **no se toca** —sigue siendo
+31— y el botón de crear queda deshabilitado hasta que se corrija.
+
+
 ### Y una aclaración sobre la valorización
 
 Auditado, punto 15: **`goods_receipts` NO está valorizada**. `goods_receipt_lines`
@@ -341,7 +428,8 @@ Al terminar los fixtures, exactamente lo que pediste:
 
 ## L · CI y deploy
 
-- `npm run lint` · `tsc -b` · **393 tests** · `test:isolated` · `npm run build` — verde.
+- `npm run lint` · `tsc -b` · **393 tests** · `test:isolated` · `npm run build` — verde,
+  antes y después de los arreglos de la revisión mobile.
 - `database.types.ts`: `goods_receipt_lines.product_id` pasó a nullable y se
   agregó `pendiente_de_pedido`. Las ocho tablas siguen generadas por
   `scripts/fase6-generar-tipos-compras.mjs`.

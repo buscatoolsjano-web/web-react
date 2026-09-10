@@ -437,3 +437,15 @@ El costo está en `purchase_order_lines.unit_price` y se llega por
 que ya existe. Si alguna vez hace falta valorizar la entrada —para un costo
 promedio ponderado, por ejemplo—, es una decisión de contabilidad de stock, no
 una copia del legacy.
+
+### El corte de 1024 en la grilla de recepción
+
+`GrillaRecepcion` usa tarjetas por debajo de 1024 y tabla desde 1024, en vez
+del breakpoint global de 768. La razón está medida: a 768 el layout ya muestra
+la barra lateral y a esa grilla de nueve columnas le quedan unos 250px de ancho
+útil —menos que en un teléfono—, con 491px de scroll interno.
+
+Es una decisión de ese componente por la cantidad de columnas que tiene. Si
+alguna vez aparece otra grilla igual de ancha, conviene revisar si el
+breakpoint global de 768 alcanza para todas o si hace falta un segundo corte
+con nombre propio.

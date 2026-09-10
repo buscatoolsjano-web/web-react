@@ -1,3 +1,4 @@
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { formatearNumero } from '../lib/formato'
 import type { PendienteDeLinea } from '../types'
 import styles from './GrillaRecepcion.module.css'
@@ -31,6 +32,12 @@ function aNumero(v: string): number {
  *
  * Una línea **sin producto de catálogo** —un flete, un servicio— se puede
  * recibir documentalmente y **no mueve stock**. La fila lo dice.
+ *
+ * Por debajo de 1024 **no es una tabla**: cada línea es una tarjeta con los
+ * datos apilados. La revisión visual midió la tabla en 390px —921px de ancho
+ * dentro de una caja de 325, o sea 598px de scroll interno— y era imposible de
+ * usar con el dedo: para escribir una cantidad había que arrastrar la tabla a
+ * ciegas y se perdía de vista de qué línea se trataba.
  */
 export function GrillaRecepcion({
   lineas,
@@ -39,6 +46,13 @@ export function GrillaRecepcion({
   onCambiar,
   onRecibirTodo,
 }: GrillaRecepcionProps) {
+  // Tarjetas hasta 1023, tabla desde 1024. El corte NO es el de la app
+  // —768— y es a propósito: a 768 el layout ya muestra la barra lateral, así
+  // que a esta grilla de nueve columnas le quedan unos 250px de ancho útil,
+  // menos que en un teléfono. Se midió: 491px de scroll interno para llegar
+  // al campo donde se escribe la cantidad. Es una decisión de ESTE componente
+  // por la cantidad de columnas que tiene, no un cambio del breakpoint global.
+  const angosto = useMediaQuery('(max-width: 1023px)')
   const algoPendiente = lineas.some((l) => l.pendiente > 0)
 
   if (lineas.length === 0) {
@@ -55,6 +69,94 @@ export function GrillaRecepcion({
         </div>
       ) : null}
 
+      {angosto ? (
+        <ul className={styles.tarjetas}>
+          {lineas.map((l) => {
+            const aRecibir = cantidades.get(l.purchaseOrderLineId) ?? 0
+            const excede = aRecibir > l.pendiente
+            const completa = l.pendiente === 0
+            return (
+              <li
+                key={l.purchaseOrderLineId}
+                className={completa ? styles.tarjetaCompleta : styles.tarjeta}
+              >
+                <p className={styles.tarjetaTitulo}>
+                  <span className={styles.tarjetaNum}>{l.numeroLinea}</span>
+                  {l.sku ?? '—'}
+                </p>
+                <p className={styles.tarjetaDescripcion}>
+                  {l.descripcion ?? '—'}
+                  {l.productId === null ? (
+                    <span className={styles.sinStock}>
+                      sin producto de catálogo: no mueve stock
+                    </span>
+                  ) : null}
+                </p>
+
+                <dl className={styles.cifras}>
+                  <div>
+                    <dt>Pedido</dt>
+                    <dd>{formatearNumero(l.pedido)}</dd>
+                  </div>
+                  <div>
+                    <dt>Recibido</dt>
+                    <dd>{formatearNumero(l.recibido)}</dd>
+                  </div>
+                  <div>
+                    <dt>Pendiente</dt>
+                    <dd className={styles.destacado}>{formatearNumero(l.pendiente)}</dd>
+                  </div>
+                  <div>
+                    <dt>Stock actual</dt>
+                    <dd>{l.stockActual === null ? '—' : formatearNumero(l.stockActual)}</dd>
+                  </div>
+                </dl>
+
+                {l.enBorrador > 0 ? (
+                  <p className={styles.enBorrador}>
+                    {formatearNumero(l.enBorrador)} en borrador ({l.borradores.join(', ')}) ·{' '}
+                    <strong>no reservado</strong>
+                  </p>
+                ) : null}
+
+                {completa ? (
+                  <p className={styles.completo}>Esta línea ya llegó completa.</p>
+                ) : (
+                  <>
+                    <label className={styles.campoRecibir}>
+                      <span className={styles.campoEtiqueta}>A recibir</span>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        max={l.pendiente}
+                        inputMode="decimal"
+                        className={excede ? styles.numeroMal : styles.numero}
+                        value={aRecibir === 0 ? '' : aRecibir}
+                        readOnly={!editable}
+                        placeholder="0"
+                        aria-label={`A recibir de la línea ${l.numeroLinea}`}
+                        aria-invalid={excede ? true : undefined}
+                        onChange={(e) => onCambiar(l.purchaseOrderLineId, aNumero(e.target.value))}
+                      />
+                    </label>
+                    {/* El aviso va DENTRO de la tarjeta, al lado del campo. La
+                        lista de abajo queda igual, pero en un teléfono con
+                        varias líneas el mensaje tiene que estar donde está el
+                        error, no al final de todo. */}
+                    {excede ? (
+                      <p className={styles.errorLinea}>
+                        Quedan {formatearNumero(l.pendiente)} pendientes. Con{' '}
+                        {formatearNumero(aRecibir)} el servidor lo va a rechazar.
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      ) : (
       <div className={styles.scroll}>
         <table className={styles.tabla}>
           <thead>
@@ -143,6 +245,7 @@ export function GrillaRecepcion({
           </tbody>
         </table>
       </div>
+      )}
 
       {lineas.some((l) => (cantidades.get(l.purchaseOrderLineId) ?? 0) > l.pendiente) ? (
         <ul className={styles.problemas} role="alert">
