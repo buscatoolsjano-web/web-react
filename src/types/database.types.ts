@@ -3172,6 +3172,40 @@ export type Database = {
         Args: { p_company: string; p_doc_type: string; p_series?: string }
         Returns: string
       }
+      resumen_cliente: {
+        Args: { p_customer: string }
+        Returns: {
+          cotizaciones: number
+          pedidos: number
+          entregas: number
+          ultima_actividad: string | null
+          productos_distintos: number
+          documentos_12m: number
+        }[]
+      }
+      totales_por_moneda_cliente: {
+        Args: { p_customer: string }
+        Returns: {
+          tipo: string
+          moneda: string | null
+          documentos: number
+          importe: number
+          sin_importe: number
+        }[]
+      }
+      actividad_mensual_cliente: {
+        Args: {
+          p_customer: string
+          p_meses?: number | null
+        }
+        Returns: {
+          mes: string
+          tipo: string
+          moneda: string | null
+          documentos: number
+          importe: number
+        }[]
+      }
       precios_historicos_cliente: {
         Args: {
           p_customer: string

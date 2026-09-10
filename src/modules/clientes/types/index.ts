@@ -157,6 +157,49 @@ export interface UltimoPrecio {
   veces: number
 }
 
+/** Los números del panel rápido. Todos salen de documentos reales. */
+export interface ResumenCliente {
+  cotizaciones: number
+  pedidos: number
+  entregas: number
+  /** La fecha del documento más reciente, de cualquiera de los tres tipos. */
+  ultimaActividad: string | null
+  /**
+   * Productos distintos cotizados o pedidos. Se cuentan por `product_id` y,
+   * si la línea no lo resolvió, por su SKU.
+   */
+  productosDistintos: number
+  documentos12m: number
+}
+
+export type TipoDeDocumento = 'cotizacion' | 'pedido' | 'entrega'
+
+/**
+ * Cuánto, por moneda **y** por tipo de documento.
+ *
+ * Nunca hay un total global: el panel del legacy sumaba las cuatro monedas en
+ * un solo importe y ese número no significaba nada.
+ */
+export interface TotalPorMonedaYTipo {
+  tipo: TipoDeDocumento
+  /** `null` = documentos históricos que no dicen en qué moneda están. */
+  moneda: string | null
+  documentos: number
+  importe: number
+  /** Documentos contados que no tienen importe cargado. */
+  sinImporte: number
+}
+
+/** Una barra del gráfico: un mes, un tipo y una moneda. */
+export interface ActividadMensual {
+  /** Primer día del mes, `YYYY-MM-DD`. */
+  mes: string
+  tipo: TipoDeDocumento
+  moneda: string | null
+  documentos: number
+  importe: number
+}
+
 export interface CandidatoDeOc {
   id: string
   archivo: string | null
@@ -167,25 +210,12 @@ export interface CandidatoDeOc {
 /** Un documento del historial del cliente. */
 export interface DocumentoDeCliente {
   id: string
-  tipo: 'cotizacion' | 'pedido' | 'entrega'
+  tipo: TipoDeDocumento
   numero: string
   fecha: string
   estado: string
   moneda: string | null
   total: number | null
-}
-
-/**
- * Un total por moneda.
- *
- * Nunca hay un total global. El panel del legacy sumaba ARS + USD + EUR en un
- * solo número y ese número no significaba nada.
- */
-export interface TotalPorMoneda {
-  /** `null` = los documentos históricos que no dicen en qué moneda están. */
-  moneda: string | null
-  documentos: number
-  total: number
 }
 
 export interface ClienteDetalle {

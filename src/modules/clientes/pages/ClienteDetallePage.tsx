@@ -8,6 +8,7 @@ import { PanelHistorial } from '../components/PanelHistorial'
 import { PanelMemoria } from '../components/PanelMemoria'
 import { PanelPrecios } from '../components/PanelPrecios'
 import { PanelRelacionados } from '../components/PanelRelacionados'
+import { PanelResumen } from '../components/PanelResumen'
 import { explicarMotivo } from '../lib/motivos'
 import { formatearCuit, formatearFecha, nombreVisible } from '../lib/formato'
 import { permisosDe } from '../lib/permisos'
@@ -244,6 +245,8 @@ export function ClienteDetallePage() {
           ) : null}
         </div>
       ) : null}
+
+      <PanelResumen clienteId={cliente.id} />
 
       <nav className={styles.pestanas} aria-label="Secciones de la ficha">
         {PESTANAS.map((p) => (

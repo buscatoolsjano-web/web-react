@@ -124,3 +124,32 @@
   color: var(--text-soft);
   margin: 0;
 }
+
+/* Dentro de cada caja de moneda, una línea por tipo de documento. */
+.linea {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 var(--space-2);
+  font-size: var(--text-sm);
+  margin-top: var(--space-1);
+}
+
+.lineaTipo {
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lineaValor {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.lineaDocs {
+  grid-column: 1 / -1;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

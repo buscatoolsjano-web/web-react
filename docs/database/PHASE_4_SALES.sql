@@ -1003,3 +1003,24 @@ grant execute on function public.next_document_number(uuid, text, text) to authe
 --      500 que tenía al principio, el último precio de un producto cotizado
 --      más atrás de la fila 500 no aparecía —85 de 380 en Grupo Mirgor— y sin
 --      avisar.
+
+-- ── Fase 5 · Clientes · entrega 5 ──────────────────────────────────────────
+-- Migración: fase5_panel_rapido_cliente
+--
+-- 11 · `resumen_cliente(p_customer)` — los seis números del panel rápido:
+--      cotizaciones, pedidos, entregas, última actividad, productos distintos
+--      y documentos de los últimos doce meses. Los productos se cuentan por
+--      `product_id` y, si la línea no lo resolvió, por su SKU.
+--
+-- 12 · `totales_por_moneda_cliente(p_customer)` — importes POR MONEDA y por
+--      tipo de documento, más cuántos documentos no tienen importe. Nunca una
+--      fila que agregue las monedas: eso era el bug del panel legacy. Va del
+--      lado del servidor para que el total no dependa de cuántas filas trajo
+--      la pantalla.
+--
+-- 13 · `actividad_mensual_cliente(p_customer, p_meses)` — una fila por mes,
+--      tipo y moneda para el gráfico de doce meses. Devuelve sólo los meses
+--      con documentos; los vacíos los completa la pantalla.
+--
+-- Las tres son SECURITY INVOKER y arrancan comprobando que el cliente sea
+-- legible: si un vendedor no ve al cliente, no ve sus números.
