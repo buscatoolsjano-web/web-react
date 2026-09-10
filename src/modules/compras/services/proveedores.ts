@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabase/client'
 import { separarMotivos } from '../lib/motivos'
+import { historialDeEntidad } from './auditoria'
 import type {
   ComprasDelProveedor,
   EventoDeProveedor,
@@ -270,41 +271,13 @@ export async function comprasDelProveedor(
 /**
  * El historial del proveedor: `purchases_audit`.
  *
- * La tabla es de sólo lectura desde PostgREST —su única policy es SELECT— y
- * se escribe por `registrar_evento_compra`. Los 142 migrados no tienen
- * eventos: el script de migración no auditó fila por fila, y decir que sí lo
- * hizo sería falsificar el historial.
+ * Los 142 migrados no tienen eventos: el script de migración no auditó fila
+ * por fila, y decir que sí lo hizo sería falsificar el historial.
  */
 export async function historialDeProveedor(
   companyId: string,
   proveedorId: string,
   tope = 100,
 ): Promise<EventoDeProveedor[]> {
-  const { data, error } = await supabase
-    .from('purchases_audit')
-    .select('id, action, from_status, to_status, diff, created_at, actor:profiles!actor_id ( full_name )')
-    .eq('company_id', companyId)
-    .eq('entity_type', 'supplier')
-    .eq('entity_id', proveedorId)
-    .order('created_at', { ascending: false })
-    .limit(tope)
-  if (error) throw new Error(`No se pudo leer el historial: ${error.message}`)
-
-  return ((data ?? []) as unknown as {
-    id: number
-    action: string
-    from_status: string | null
-    to_status: string | null
-    diff: Record<string, unknown> | null
-    created_at: string
-    actor: { full_name: string | null } | null
-  }[]).map((e) => ({
-    id: e.id,
-    accion: e.action,
-    estadoAnterior: e.from_status,
-    estadoNuevo: e.to_status,
-    autor: e.actor?.full_name ?? null,
-    fecha: e.created_at,
-    diff: e.diff,
-  }))
+  return historialDeEntidad(companyId, 'supplier', proveedorId, tope)
 }

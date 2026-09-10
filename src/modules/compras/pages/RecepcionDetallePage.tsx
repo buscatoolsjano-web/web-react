@@ -231,6 +231,20 @@ export function RecepcionDetallePage() {
               )
             ) : null}
 
+            {/* Facturar lo que llegó. Sólo desde una recepción confirmada:
+                facturar lo que todavía no entró no es facturar, es adelantar.
+                La grilla de la factura vuelve a preguntarle al servidor qué
+                queda pendiente, así que si ya está toda facturada la pantalla
+                lo dice sola. */}
+            {escribe && !esBorrador ? (
+              <Link
+                to={`/compras/facturas/nueva?recepcion=${recepcion.id}&proveedor=${recepcion.proveedorId}`}
+                className={styles.primario}
+              >
+                Facturar
+              </Link>
+            ) : null}
+
             {escribe && esBorrador ? (
               borrando ? (
                 <>

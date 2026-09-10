@@ -151,6 +151,19 @@ const RecepcionDetallePage = lazyConRecarga(() =>
     default: m.RecepcionDetallePage,
   })),
 )
+const FacturasPage = lazyConRecarga(() =>
+  import('@/modules/compras/pages/FacturasPage').then((m) => ({ default: m.FacturasPage })),
+)
+const FacturaNuevaPage = lazyConRecarga(() =>
+  import('@/modules/compras/pages/FacturaNuevaPage').then((m) => ({
+    default: m.FacturaNuevaPage,
+  })),
+)
+const FacturaDetallePage = lazyConRecarga(() =>
+  import('@/modules/compras/pages/FacturaDetallePage').then((m) => ({
+    default: m.FacturaDetallePage,
+  })),
+)
 const LoginPage = lazyConRecarga(() =>
   import('@/features/auth/pages/LoginPage').then((m) => ({ default: m.LoginPage })),
 )
@@ -225,6 +238,10 @@ export const routes: RouteObject[] = [
       // `nueva` antes que `:id`: si no, React Router la tomaría como un id.
       { path: 'compras/recepciones/nueva', element: privada(<RecepcionNuevaPage />) },
       { path: 'compras/recepciones/:id', element: privada(<RecepcionDetallePage />) },
+      { path: 'compras/facturas', element: privada(<FacturasPage />) },
+      // La ruta literal va antes que el parametro o React Router la toma por id.
+      { path: 'compras/facturas/nueva', element: privada(<FacturaNuevaPage />) },
+      { path: 'compras/facturas/:id', element: privada(<FacturaDetallePage />) },
     ],
   },
   {

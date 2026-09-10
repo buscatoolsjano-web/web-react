@@ -1,4 +1,8 @@
-import { etiquetaDeEstadoPedido, etiquetaDeRecepcion } from '../lib/estados'
+import {
+  etiquetaDeEstadoFactura,
+  etiquetaDeEstadoPedido,
+  etiquetaDeRecepcion,
+} from '../lib/estados'
 import styles from './ChipEstado.module.css'
 
 export interface ChipEstadoProps {
@@ -41,4 +45,13 @@ export function ChipRecepcionDoc({ estado }: ChipEstadoProps) {
   ) : (
     <span className={styles.borrador}>Borrador</span>
   )
+}
+
+/** El estado de la factura de proveedor: borrador, registrada o anulada. */
+export function ChipFactura({ estado }: ChipEstadoProps) {
+  const clase =
+    estado === 'registered' ? styles.recibido
+    : estado === 'cancelled' ? styles.cancelado
+    : styles.borrador
+  return <span className={clase}>{etiquetaDeEstadoFactura(estado)}</span>
 }

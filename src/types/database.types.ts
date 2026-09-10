@@ -3909,6 +3909,35 @@ export type Database = {
       confirmar_entrega: { Args: { p_delivery: string }; Returns: Json }
       confirmar_recepcion: { Args: { p_receipt: string }; Returns: Json }
       duplicar_pedido_compra: { Args: { p_order: string }; Returns: string }
+      registrar_factura_proveedor: { Args: { p_invoice: string }; Returns: Json }
+      pendiente_de_facturar: {
+        Args: {
+          p_company: string
+          p_receipts?: string[] | null
+          p_supplier?: string | null
+          p_excluir_factura?: string | null
+        }
+        Returns: {
+          goods_receipt_line_id: string
+          goods_receipt_id: string
+          receipt_number: string
+          receipt_date: string
+          purchase_order_line_id: string | null
+          purchase_order_id: string | null
+          order_number: string | null
+          currency_code: string | null
+          product_id: string | null
+          sku: string | null
+          descripcion: string | null
+          recibido: number
+          facturado: number
+          en_borrador: number
+          pendiente: number
+          precio_pedido: number | null
+          tratamiento_pedido: string | null
+          cantidad_pedida: number | null
+        }[]
+      }
       pendiente_de_pedido: {
         Args: { p_order: string; p_excluir_recepcion?: string | null }
         Returns: {

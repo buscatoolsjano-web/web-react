@@ -4,47 +4,57 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { formatearFecha } from '../lib/formato'
 import { formatearBytes } from '../services/adjuntos'
 import {
-  CLASES,
   borrarAdjunto,
   listarAdjuntos,
   subirAdjunto,
   urlDeDescarga,
-} from '../services/adjuntosPedido'
+  type Clase,
+  type EntidadCompras,
+} from '../services/adjuntosCompras'
 import styles from './PanelAdjuntos.module.css'
 
-export interface PanelAdjuntosPedidoProps {
-  pedidoId: string
+export interface PanelAdjuntosComprasProps {
+  entidad: EntidadCompras
+  entidadId: string
+  clases: readonly Clase[]
   puedeEditar: boolean
 }
 
 /**
- * Adjuntos del pedido de compra.
+ * Adjuntos de un documento de Compras.
  *
- * La OC que se le mandó al proveedor, su confirmación, una proforma. Misma
- * tabla y mismo bucket privado que el resto: la RLS es la de Compras —admin y
- * employee—, igual de restrictiva que la del proveedor.
+ * La OC que se le mandó al proveedor, el remito que vino con la mercadería, el
+ * PDF o el XML de la factura. Misma tabla y mismo bucket privado que el resto:
+ * la RLS es la de Compras —admin y employee—, igual de restrictiva que la del
+ * proveedor.
  *
  * Cada descarga usa una URL firmada de cinco minutos. Una URL pública es una
  * URL que se reenvía y queda accesible para siempre.
  */
-export function PanelAdjuntosPedido({ pedidoId, puedeEditar }: PanelAdjuntosPedidoProps) {
+export function PanelAdjuntosCompras({
+  entidad,
+  entidadId,
+  clases,
+  puedeEditar,
+}: PanelAdjuntosComprasProps) {
   const { activa } = useEmpresa()
   const queryClient = useQueryClient()
   const entrada = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
-  const [clase, setClase] = useState<string>('quote_pdf')
+  const [clase, setClase] = useState<string>(clases[0]?.valor ?? 'other')
 
-  const clave = ['compras', activa?.companyId, 'adjuntos-pedido', pedidoId]
+  const clave = ['compras', activa?.companyId, 'adjuntos', entidad, entidadId]
 
   const adjuntos = useQuery({
     queryKey: clave,
-    queryFn: () => listarAdjuntos(activa!.companyId, pedidoId),
+    queryFn: () => listarAdjuntos(activa!.companyId, entidad, entidadId),
     enabled: !!activa,
     staleTime: 30_000,
   })
 
   const subir = useMutation({
-    mutationFn: (archivo: File) => subirAdjunto(activa!.companyId, pedidoId, archivo, clase),
+    mutationFn: (archivo: File) =>
+      subirAdjunto(activa!.companyId, entidad, entidadId, archivo, clase),
     onSuccess: () => {
       setError(null)
       void queryClient.invalidateQueries({ queryKey: clave })
@@ -68,7 +78,7 @@ export function PanelAdjuntosPedido({ pedidoId, puedeEditar }: PanelAdjuntosPedi
   }
 
   const etiquetaDeClase = (v: string | null) =>
-    CLASES.find((c) => c.valor === v)?.etiqueta ?? v ?? '—'
+    clases.find((c) => c.valor === v)?.etiqueta ?? v ?? '—'
 
   if (adjuntos.isPending) return <p className={styles.nota}>Cargando adjuntos…</p>
 
@@ -119,7 +129,7 @@ export function PanelAdjuntosPedido({ pedidoId, puedeEditar }: PanelAdjuntosPedi
             aria-label="Tipo de archivo"
             onChange={(e) => setClase(e.target.value)}
           >
-            {CLASES.map((c) => (
+            {clases.map((c) => (
               <option key={c.valor} value={c.valor}>
                 {c.etiqueta}
               </option>

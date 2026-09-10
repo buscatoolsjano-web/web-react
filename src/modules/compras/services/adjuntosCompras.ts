@@ -1,32 +1,51 @@
 import { supabase } from '@/services/supabase/client'
 
 /**
- * Adjuntos del pedido de compra.
+ * Adjuntos de los documentos de Compras.
  *
  * Misma tabla `attachments` y mismo bucket privado que Ventas y Proveedores.
- * La entrega 1 agregó `purchase_order` al CHECK de `entity_type` y la
- * entrega 2 partió `attachments_select` por tipo de entidad, así que **la RLS
- * de estos adjuntos es igual de restrictiva que la del proveedor**: sólo
- * admin y employee, ni salesperson ni technician.
+ * La entrega 1 agregó `purchase_order`, `goods_receipt` y `supplier_invoice`
+ * al CHECK de `entity_type`, y la entrega 2 partió `attachments_select` por
+ * tipo de entidad, así que **la RLS de estos adjuntos es igual de restrictiva
+ * que la del proveedor**: sólo admin y employee, ni salesperson ni technician.
  *
  * El nombre del bucket es «ventas» por historia, no por alcance: guarda los
  * archivos de la empresa. Renombrarlo obligaría a mover objetos ya subidos.
  */
 
 const BUCKET = 'ventas'
-const ENTIDAD = 'purchase_order'
 
-/** Los valores del CHECK de `attachments.kind` que tienen sentido acá. */
-export const CLASES = [
+/** Los tipos de `attachments.entity_type` que son documentos de Compras. */
+export type EntidadCompras = 'purchase_order' | 'goods_receipt' | 'supplier_invoice'
+
+export interface Clase {
+  valor: string
+  etiqueta: string
+}
+
+/**
+ * Los valores del CHECK de `attachments.kind` que tienen sentido en cada
+ * documento. El CHECK es el mismo para todos —lo que cambia es cómo se llama
+ * cada cosa en cada pantalla—, así que acá sólo se eligen y se etiquetan.
+ */
+export const CLASES_PEDIDO: readonly Clase[] = [
   { valor: 'other', etiqueta: 'Otro' },
   { valor: 'quote_pdf', etiqueta: 'OC enviada / proforma' },
   { valor: 'customer_po', etiqueta: 'Confirmación del proveedor' },
   { valor: 'invoice', etiqueta: 'Factura' },
   { valor: 'receipt', etiqueta: 'Comprobante' },
   { valor: 'photo', etiqueta: 'Foto' },
-] as const
+]
 
-export interface AdjuntoPedido {
+export const CLASES_FACTURA: readonly Clase[] = [
+  { valor: 'invoice', etiqueta: 'Factura del proveedor (PDF / XML)' },
+  { valor: 'remito', etiqueta: 'Remito del proveedor' },
+  { valor: 'receipt', etiqueta: 'Comprobante' },
+  { valor: 'photo', etiqueta: 'Foto' },
+  { valor: 'other', etiqueta: 'Otro' },
+]
+
+export interface AdjuntoCompras {
   id: string
   nombre: string
   bytes: number | null
@@ -40,14 +59,15 @@ export const LIMITE_BYTES = 20 * 1024 * 1024
 
 export async function listarAdjuntos(
   companyId: string,
-  pedidoId: string,
-): Promise<AdjuntoPedido[]> {
+  entidad: EntidadCompras,
+  entidadId: string,
+): Promise<AdjuntoCompras[]> {
   const { data, error } = await supabase
     .from('attachments')
     .select('id, file_name, bytes, kind, storage_path, created_at')
     .eq('company_id', companyId)
-    .eq('entity_type', ENTIDAD)
-    .eq('entity_id', pedidoId)
+    .eq('entity_type', entidad)
+    .eq('entity_id', entidadId)
     .order('created_at', { ascending: false })
   if (error) throw new Error(`No se pudieron leer los adjuntos: ${error.message}`)
 
@@ -65,7 +85,7 @@ export async function listarAdjuntos(
 function rutaSegura(nombre: string): string {
   return nombre
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-zA-Z0-9._-]/g, '-')
     .replace(/-+/g, '-')
     .slice(0, 100)
@@ -79,7 +99,8 @@ function rutaSegura(nombre: string): string {
  */
 export async function subirAdjunto(
   companyId: string,
-  pedidoId: string,
+  entidad: EntidadCompras,
+  entidadId: string,
   archivo: File,
   clase = 'other',
 ): Promise<void> {
@@ -89,7 +110,7 @@ export async function subirAdjunto(
     )
   }
 
-  const ruta = `${companyId}/${ENTIDAD}/${pedidoId}/${crypto.randomUUID()}-${rutaSegura(archivo.name)}`
+  const ruta = `${companyId}/${entidad}/${entidadId}/${crypto.randomUUID()}-${rutaSegura(archivo.name)}`
 
   const { error: eSubida } = await supabase.storage.from(BUCKET).upload(ruta, archivo, {
     contentType: archivo.type || 'application/octet-stream',
@@ -99,8 +120,8 @@ export async function subirAdjunto(
 
   const { error } = await supabase.from('attachments').insert({
     company_id: companyId,
-    entity_type: ENTIDAD,
-    entity_id: pedidoId,
+    entity_type: entidad,
+    entity_id: entidadId,
     storage_path: ruta,
     file_name: archivo.name,
     mime_type: archivo.type || null,

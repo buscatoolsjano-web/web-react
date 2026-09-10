@@ -36,6 +36,7 @@ const NAV = [
   { to: '/compras/proveedores', label: 'Proveedores', end: false, roles: ESCRIBEN_COMPRAS },
   { to: '/compras/pedidos', label: 'Pedidos de compra', end: false, roles: ESCRIBEN_COMPRAS },
   { to: '/compras/recepciones', label: 'Notas de entrada', end: false, roles: ESCRIBEN_COMPRAS },
+  { to: '/compras/facturas', label: 'Facturas de proveedor', end: false, roles: ESCRIBEN_COMPRAS },
 ] as const
 
 const PROXIMAMENTE = [

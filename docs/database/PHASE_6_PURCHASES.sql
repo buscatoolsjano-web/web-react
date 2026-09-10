@@ -2273,3 +2273,853 @@ begin
 
   return new;
 end $$;
+
+
+-- ###########################################################################
+-- ENTREGA 5 — FACTURAS DE PROVEEDOR
+-- ###########################################################################
+
+-- ===========================================================================
+-- fase6_facturas_proveedor_reglas
+-- ===========================================================================
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Fase 6 · Compras · entrega 5 — facturas de proveedor: integridad y estados
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- El schema de la entrega 1 ya tenía todo lo que hace falta y no se le agrega
+-- ni una tabla ni una columna:
+--
+--   · `goods_receipt_line_id` y `purchase_order_line_id` nullables e
+--     independientes en la línea, así que una factura puede cubrir varias
+--     recepciones, varias facturas pueden cubrir un pedido, y una línea puede
+--     no venir de ningún lado (flete, seguro, servicio).
+--   · `number` + `series_code = 'FP'` es la referencia interna; `supplier_number`
+--     es el número REAL del proveedor, con su único parcial por proveedor.
+--   · Los totales ya los calcula el servidor.
+--
+-- Lo que falta es todo lo que impide que entre algo incoherente.
+
+-- ── 1 · Autor y updated_at ────────────────────────────────────────────────
+
+create or replace function app.sellar_autor_factura()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if tg_op = 'INSERT' then
+    new.created_by := auth.uid();
+    new.updated_by := auth.uid();
+  else
+    new.created_by := old.created_by;
+    new.updated_by := coalesce(auth.uid(), old.updated_by);
+    new.updated_at := now();
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_si_autor on public.supplier_invoices;
+create trigger trg_si_autor
+  before insert or update on public.supplier_invoices
+  for each row execute function app.sellar_autor_factura();
+
+drop trigger if exists trg_sil_touch on public.supplier_invoice_lines;
+create trigger trg_sil_touch
+  before update on public.supplier_invoice_lines
+  for each row execute function app.touch_updated_at();
+
+-- ── 2 · Coherencia de la cabecera ─────────────────────────────────────────
+--
+-- El proveedor tiene que ser de la misma empresa. La FK sola no lo garantiza.
+
+create or replace function app.validar_factura_proveedor()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_emp uuid;
+begin
+  select company_id into v_emp from suppliers where id = new.supplier_id;
+  if v_emp is null then
+    raise exception 'El proveedor no existe' using errcode = 'foreign_key_violation';
+  end if;
+  if v_emp <> new.company_id then
+    raise exception 'El proveedor es de otra empresa' using errcode = 'check_violation';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_si_validar on public.supplier_invoices;
+create trigger trg_si_validar
+  before insert or update on public.supplier_invoices
+  for each row execute function app.validar_factura_proveedor();
+
+-- ── 3 · Coherencia de la línea ────────────────────────────────────────────
+--
+-- Una línea vinculada tiene que venir de una recepción CONFIRMADA, del MISMO
+-- proveedor y de la MISMA empresa, y de un pedido en la MISMA moneda que la
+-- factura. El producto y la línea del pedido no se eligen: salen de la línea
+-- de recepción.
+--
+-- Una línea sin vínculo —flete, seguro, servicio, diferencia— se acepta tal
+-- cual: es lo que pide el punto 9. No mueve stock, porque las facturas no
+-- mueven stock, punto.
+
+create or replace function app.validar_linea_factura()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_f record; v_rl record; v_pl record;
+begin
+  select company_id, supplier_id, currency_code, status
+    into v_f from supplier_invoices where id = new.supplier_invoice_id;
+
+  if new.company_id <> v_f.company_id then
+    raise exception 'La línea es de otra empresa que la factura'
+      using errcode = 'check_violation';
+  end if;
+
+  if new.goods_receipt_line_id is not null then
+    select rl.product_id, rl.purchase_order_line_id, rl.quantity,
+           r.company_id, r.supplier_id, r.status, r.number
+      into v_rl
+      from goods_receipt_lines rl
+      join goods_receipts r on r.id = rl.goods_receipt_id
+     where rl.id = new.goods_receipt_line_id;
+
+    if v_rl is null then
+      raise exception 'La línea de recepción no existe' using errcode = 'foreign_key_violation';
+    end if;
+    if v_rl.company_id <> v_f.company_id then
+      raise exception 'Esa recepción es de otra empresa' using errcode = 'check_violation';
+    end if;
+    if v_rl.supplier_id <> v_f.supplier_id then
+      raise exception 'La recepción % es de otro proveedor', v_rl.number
+        using errcode = 'check_violation';
+    end if;
+    -- Sólo se factura lo que efectivamente llegó.
+    if v_rl.status <> 'confirmed' then
+      raise exception 'La recepción % no está confirmada: todavía no llegó nada', v_rl.number
+        using errcode = 'restrict_violation';
+    end if;
+
+    -- El producto y la línea del pedido salen de la recepción; no se eligen.
+    new.product_id := v_rl.product_id;
+    new.purchase_order_line_id := v_rl.purchase_order_line_id;
+  end if;
+
+  if new.purchase_order_line_id is not null then
+    select l.purchase_order_id, o.company_id, o.supplier_id, o.currency_code, o.number
+      into v_pl
+      from purchase_order_lines l
+      join purchase_orders o on o.id = l.purchase_order_id
+     where l.id = new.purchase_order_line_id;
+
+    if v_pl is null then
+      raise exception 'La línea del pedido no existe' using errcode = 'foreign_key_violation';
+    end if;
+    if v_pl.company_id <> v_f.company_id then
+      raise exception 'Ese pedido es de otra empresa' using errcode = 'check_violation';
+    end if;
+    if v_pl.supplier_id <> v_f.supplier_id then
+      raise exception 'El pedido % es de otro proveedor', v_pl.number
+        using errcode = 'check_violation';
+    end if;
+    -- UNA factura, UNA moneda. No se mezclan pedidos de monedas distintas.
+    if v_pl.currency_code <> v_f.currency_code then
+      raise exception 'El pedido % está en % y la factura en %',
+        v_pl.number, v_pl.currency_code, v_f.currency_code
+        using errcode = 'check_violation';
+    end if;
+  end if;
+
+  return new;
+end $$;
+
+drop trigger if exists trg_sil_validar on public.supplier_invoice_lines;
+create trigger trg_sil_validar
+  before insert or update on public.supplier_invoice_lines
+  for each row execute function app.validar_linea_factura();
+
+-- ── 4 · Estados ───────────────────────────────────────────────────────────
+--
+-- Los tres del CHECK, sin agregar ninguno: `draft`, `registered`, `cancelled`.
+--
+--   draft → registered   se registra
+--   draft → cancelled    se descarta antes de registrar
+--   registered → cancelled  se anula
+--
+-- Reabrir no existe: una factura registrada no vuelve a borrador.
+--
+-- Una factura NO mueve stock, así que anularla no deshace nada físico; lo que
+-- hace es LIBERAR lo facturado, porque `pendiente_de_facturar` cuenta sólo las
+-- registradas. Cuando existan pagos habrá que agregar la guarda «una factura
+-- con pagos no se anula»; hoy no hay pagos y no se inventa la tabla.
+
+create or replace function app.proteger_factura_registrada()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_mantenimiento boolean;
+begin
+  v_mantenimiento := auth.uid() is null and coalesce(auth.role(), '') = 'service_role';
+
+  if tg_op = 'DELETE' then
+    -- Un borrador se descarta. Una registrada o anulada es un documento con
+    -- historia: se anula, no se borra. La salida de mantenimiento es la misma
+    -- que en recepciones, y por la misma razón: las suites limpian lo suyo.
+    if old.status <> 'draft' and not v_mantenimiento then
+      raise exception 'La factura % está %: no se borra, se anula', old.number, old.status
+        using errcode = 'restrict_violation';
+    end if;
+    return old;
+  end if;
+
+  if new.number is distinct from old.number
+     or new.series_code is distinct from old.series_code then
+    raise exception 'La referencia interna de la factura no se cambia'
+      using errcode = 'restrict_violation';
+  end if;
+
+  if old.status = 'cancelled' then
+    raise exception 'La factura % está anulada: no se modifica', old.number
+      using errcode = 'restrict_violation';
+  end if;
+
+  if new.status is distinct from old.status then
+    if not (
+      (old.status = 'draft'      and new.status in ('registered', 'cancelled')) or
+      (old.status = 'registered' and new.status = 'cancelled')
+    ) then
+      raise exception 'Transición no permitida: % → %', old.status, new.status
+        using errcode = 'restrict_violation';
+    end if;
+    return new;
+  end if;
+
+  -- Una factura registrada sólo cambia de estado. Ni el proveedor, ni la
+  -- moneda, ni el número del proveedor, ni las fechas, ni los importes.
+  if old.status = 'registered' then
+    raise exception 'La factura % está registrada: no se modifica', old.number
+      using errcode = 'restrict_violation';
+  end if;
+
+  return new;
+end $$;
+
+drop trigger if exists trg_si_congelar on public.supplier_invoices;
+create trigger trg_si_congelar
+  before update or delete on public.supplier_invoices
+  for each row execute function app.proteger_factura_registrada();
+
+create or replace function app.proteger_lineas_factura()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_estado text; v_numero text; v_mantenimiento boolean;
+begin
+  select status, number into v_estado, v_numero
+    from supplier_invoices where id = coalesce(new.supplier_invoice_id, old.supplier_invoice_id);
+
+  -- Si la factura ya no existe, esto es el CASCADE de su borrado.
+  if v_estado is null then return coalesce(new, old); end if;
+
+  v_mantenimiento := auth.uid() is null and coalesce(auth.role(), '') = 'service_role';
+
+  if v_estado <> 'draft' and not (tg_op = 'DELETE' and v_mantenimiento) then
+    raise exception 'La factura % está %: sus líneas no se tocan', v_numero, v_estado
+      using errcode = 'restrict_violation';
+  end if;
+  return coalesce(new, old);
+end $$;
+
+drop trigger if exists trg_sil_congelar on public.supplier_invoice_lines;
+create trigger trg_sil_congelar
+  before insert or update or delete on public.supplier_invoice_lines
+  for each row execute function app.proteger_lineas_factura();
+
+-- ── 5 · Auditoría ─────────────────────────────────────────────────────────
+--
+-- Sólo eventos de negocio: el alta, el registro y la anulación. Editar un
+-- borrador no deja rastro: todavía no es un documento.
+
+create or replace function app.auditar_factura_proveedor()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if tg_op = 'INSERT' then
+    insert into purchases_audit (company_id, entity_type, entity_id, action,
+                                 from_status, to_status, actor_id)
+    values (new.company_id, 'supplier_invoice', new.id, 'create',
+            null, new.status, auth.uid());
+    return new;
+  end if;
+
+  if new.status is distinct from old.status then
+    insert into purchases_audit (company_id, entity_type, entity_id, action,
+                                 from_status, to_status, diff, actor_id)
+    values (new.company_id, 'supplier_invoice', new.id,
+            case new.status when 'registered' then 'confirm'
+                            when 'cancelled'  then 'cancel'
+                            else 'status_change' end,
+            old.status, new.status,
+            case when new.supplier_number is null then null
+                 else jsonb_build_object('numero_proveedor', new.supplier_number) end,
+            auth.uid());
+  end if;
+
+  return new;
+end $$;
+
+drop trigger if exists trg_si_auditar on public.supplier_invoices;
+create trigger trg_si_auditar
+  after insert or update on public.supplier_invoices
+  for each row execute function app.auditar_factura_proveedor();
+
+-- ── 6 · Qué falta facturar ────────────────────────────────────────────────
+--
+-- Por línea de recepción: cuánto llegó, cuánto ya se facturó y cuánto queda.
+--
+-- Lo facturado cuenta SÓLO las facturas `registered`. Los borradores no
+-- reservan, igual que en recepciones: dos borradores pueden anotar lo mismo y
+-- el segundo que intente registrar falla. Y una factura anulada libera lo
+-- suyo, que es lo que hace que anular sirva para algo.
+--
+-- Devuelve además el snapshot de la línea del pedido —precio, tratamiento,
+-- cantidad pedida— para precompletar la factura con el costo de la OC y para
+-- poder mostrar las diferencias sin ninguna tabla nueva.
+
+create or replace function public.pendiente_de_facturar(
+  p_company uuid,
+  p_receipts uuid[] default null,
+  p_supplier uuid default null,
+  p_excluir_factura uuid default null
+)
+returns table (
+  goods_receipt_line_id uuid,
+  goods_receipt_id uuid,
+  receipt_number text,
+  receipt_date date,
+  purchase_order_line_id uuid,
+  purchase_order_id uuid,
+  order_number text,
+  currency_code text,
+  product_id uuid,
+  sku text,
+  descripcion text,
+  recibido numeric,
+  facturado numeric,
+  en_borrador numeric,
+  pendiente numeric,
+  precio_pedido numeric,
+  tratamiento_pedido text,
+  cantidad_pedida numeric
+)
+language sql
+stable
+security invoker
+set search_path = public, pg_temp
+as $$
+  select rl.id, r.id, r.number, r.receipt_date,
+         rl.purchase_order_line_id, o.id, o.number, o.currency_code,
+         rl.product_id, rl.sku_snapshot, rl.name_snapshot,
+         rl.quantity,
+         coalesce(f.facturado, 0),
+         coalesce(b.en_borrador, 0),
+         rl.quantity - coalesce(f.facturado, 0),
+         l.unit_price, l.tax_treatment, l.quantity
+    from goods_receipt_lines rl
+    join goods_receipts r on r.id = rl.goods_receipt_id
+    left join purchase_order_lines l on l.id = rl.purchase_order_line_id
+    left join purchase_orders o on o.id = l.purchase_order_id
+    left join lateral (
+      select sum(il.quantity) facturado
+        from supplier_invoice_lines il
+        join supplier_invoices i on i.id = il.supplier_invoice_id
+       where il.goods_receipt_line_id = rl.id and i.status = 'registered'
+    ) f on true
+    left join lateral (
+      select sum(il.quantity) en_borrador
+        from supplier_invoice_lines il
+        join supplier_invoices i on i.id = il.supplier_invoice_id
+       where il.goods_receipt_line_id = rl.id and i.status = 'draft'
+         and (p_excluir_factura is null or i.id <> p_excluir_factura)
+    ) b on true
+   where r.company_id = p_company
+     and r.status = 'confirmed'
+     and (p_receipts is null or r.id = any (p_receipts))
+     and (p_supplier is null or r.supplier_id = p_supplier)
+   order by r.number, rl.created_at;
+$$;
+
+revoke execute on function public.pendiente_de_facturar(uuid, uuid[], uuid, uuid) from public, anon;
+grant execute on function public.pendiente_de_facturar(uuid, uuid[], uuid, uuid) to authenticated;
+
+-- ── 7 · Registrar la factura ──────────────────────────────────────────────
+--
+-- La transición que importa, del lado del servidor y en una sola transacción:
+-- bloquea las líneas de recepción que toca, valida la sobre-facturación
+-- contra lo que quedó de verdad, cambia el estado y audita.
+--
+-- Es idempotente: dos clicks o dos pestañas devuelven `ya_estaba`.
+--
+-- **No mueve stock.** El stock entró con la recepción. Acá no hay ni un
+-- insert en `stock_movements`, y hay un test que lo comprueba.
+
+create or replace function public.registrar_factura_proveedor(p_invoice uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_f         supplier_invoices;
+  v_rol       text;
+  v_linea     record;
+  v_pendiente numeric;
+  v_lineas    int := 0;
+begin
+  select * into v_f from supplier_invoices where id = p_invoice for update;
+  if not found then
+    raise exception 'La factura no existe' using errcode = 'no_data_found';
+  end if;
+
+  -- El permiso va PRIMERO, antes del atajo de idempotencia: si no, un externo
+  -- le saca información a una factura ya registrada. Es el mismo error que
+  -- tenía `confirmar_recepcion` y que la entrega 4 corrigió.
+  v_rol := app."current_role"(v_f.company_id);
+  if v_rol is null or v_rol not in ('admin', 'employee') then
+    raise exception 'Sin permiso para registrar facturas en esta empresa'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  if v_f.status = 'registered' then
+    return jsonb_build_object('invoice_id', p_invoice, 'ya_estaba', true,
+                              'lineas', (select count(*) from supplier_invoice_lines
+                                          where supplier_invoice_id = p_invoice));
+  end if;
+  if v_f.status = 'cancelled' then
+    raise exception 'La factura % está anulada', v_f.number using errcode = 'restrict_violation';
+  end if;
+
+  if not exists (select 1 from supplier_invoice_lines where supplier_invoice_id = p_invoice) then
+    raise exception 'La factura no tiene líneas' using errcode = 'restrict_violation';
+  end if;
+
+  -- Las líneas de recepción que toca esta factura, bloqueadas y en orden de
+  -- id para que dos transacciones no se traben entre sí. Desde acá hasta el
+  -- commit nadie más puede registrar contra ellas.
+  perform 1
+    from goods_receipt_lines rl
+   where rl.id in (select il.goods_receipt_line_id
+                     from supplier_invoice_lines il
+                    where il.supplier_invoice_id = p_invoice
+                      and il.goods_receipt_line_id is not null)
+   order by rl.id
+     for update;
+
+  -- Sobre-facturación: se RECHAZA. No se recorta en silencio.
+  for v_linea in
+    select il.id, il.line_no, il.quantity, il.goods_receipt_line_id,
+           rl.quantity recibida
+      from supplier_invoice_lines il
+      left join goods_receipt_lines rl on rl.id = il.goods_receipt_line_id
+     where il.supplier_invoice_id = p_invoice
+  loop
+    v_lineas := v_lineas + 1;
+    if v_linea.goods_receipt_line_id is not null then
+      select v_linea.recibida - coalesce(sum(il2.quantity), 0)
+        into v_pendiente
+        from supplier_invoice_lines il2
+        join supplier_invoices i2 on i2.id = il2.supplier_invoice_id
+       where il2.goods_receipt_line_id = v_linea.goods_receipt_line_id
+         and i2.status = 'registered';
+
+      if v_linea.quantity > v_pendiente then
+        raise exception
+          'Línea %: se intenta facturar % y quedan % por facturar', v_linea.line_no,
+          v_linea.quantity, v_pendiente
+          using errcode = 'check_violation';
+      end if;
+    end if;
+  end loop;
+
+  update supplier_invoices set status = 'registered' where id = p_invoice;
+
+  return jsonb_build_object('invoice_id', p_invoice, 'ya_estaba', false,
+                            'lineas', v_lineas);
+end $$;
+
+revoke execute on function public.registrar_factura_proveedor(uuid) from public, anon;
+grant execute on function public.registrar_factura_proveedor(uuid) to authenticated;
+
+-- ── 8 · Índice para el listado ────────────────────────────────────────────
+create index if not exists idx_si_fecha
+  on public.supplier_invoices (company_id, invoice_date desc, number desc);
+
+-- ===========================================================================
+-- fase6_limpiar_auditoria_huerfana_de_facturas
+-- ===========================================================================
+
+-- Dos eventos `create` de facturas que ya no existen: quedaron de una prueba
+-- manual de la entrega 5 donde la factura se borró y el evento no. La
+-- auditoría no se borra desde la aplicación —su única policy es SELECT— y
+-- ésta es la misma limpieza de mantenimiento que hizo falta en la entrega 3.
+delete from purchases_audit a
+ where a.entity_type = 'supplier_invoice'
+   and not exists (select 1 from supplier_invoices i where i.id = a.entity_id);
+
+-- ===========================================================================
+-- fase6_confirmar_y_registrar_solo_por_su_funcion
+-- ===========================================================================
+
+-- ===========================================================================
+-- Confirmar una recepción y registrar una factura, SÓLO por su función
+-- ===========================================================================
+--
+-- Encontrado probando la entrega 5: la validación pesada de los dos circuitos
+-- —sobre-recepción y sobre-facturación— vive dentro de `confirmar_recepcion()`
+-- y de `registrar_factura_proveedor()`, pero NADA obligaba a pasar por ahí.
+-- Un UPDATE directo por PostgREST, que cualquier admin o employee puede hacer
+-- con un cliente REST, saltaba las dos:
+--
+--   update goods_receipts   set status = 'confirmed'  -- sin un solo stock_movement
+--   update supplier_invoices set status = 'registered' -- facturando 999 sobre 40
+--
+-- Ambos fueron REPRODUCIDOS contra la base real antes de este arreglo. El de
+-- recepciones es el peor de los dos: deja la mercadería marcada como recibida
+-- y el stock sin entrar, o sea el saldo desincronizado en silencio.
+--
+-- La corrección es la misma para los dos: la transición al estado que dispara
+-- efectos sólo se acepta si viene desde adentro de su función, que deja una
+-- marca en la transacción. `set_config(..., true)` es local a la transacción y
+-- PostgREST envuelve cada request en una, así que la marca no puede filtrarse
+-- de un pedido al siguiente.
+--
+-- Lo que NO cambia: anular una factura y cancelar un pedido siguen siendo un
+-- UPDATE directo, porque no tienen ninguna validación que saltear. Sólo se
+-- cierran las dos transiciones que sí la tienen.
+
+-- ── Recepciones ────────────────────────────────────────────────────────────
+
+create or replace function app.proteger_recepcion_confirmada()
+returns trigger
+language plpgsql
+security definer
+set search_path to 'public', 'pg_temp'
+as $$
+declare v_mantenimiento boolean;
+begin
+  v_mantenimiento := auth.uid() is null and coalesce(auth.role(), '') = 'service_role';
+
+  if tg_op = 'DELETE' then
+    if old.status = 'confirmed' and not v_mantenimiento then
+      raise exception 'La recepción % está confirmada: movió stock y no se borra', old.number
+        using errcode = 'restrict_violation';
+    end if;
+    return old;
+  end if;
+
+  if old.status = 'confirmed' then
+    raise exception 'La recepción % está confirmada: no se modifica', old.number
+      using errcode = 'restrict_violation';
+  end if;
+  if new.number is distinct from old.number or new.series_code is distinct from old.series_code then
+    raise exception 'El número de la recepción no se cambia' using errcode = 'restrict_violation';
+  end if;
+
+  -- Confirmar es lo que genera el stock y lo que valida la sobre-recepción.
+  -- Por un UPDATE suelto no se pasa: entraría la mercadería al documento sin
+  -- entrar al depósito.
+  if new.status = 'confirmed'
+     and coalesce(current_setting('app.confirmando_recepcion', true), '') <> new.id::text then
+    raise exception 'Una recepción se confirma con confirmar_recepcion(), no cambiándole el estado'
+      using errcode = 'restrict_violation';
+  end if;
+
+  return new;
+end $$;
+
+create or replace function public.confirmar_recepcion(p_receipt uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public', 'pg_temp'
+as $$
+declare
+  v_r          goods_receipts;
+  v_rol        text;
+  v_linea      record;
+  v_pendiente  numeric;
+  v_movs       int := 0;
+  v_lineas     int := 0;
+  v_estado_po  text;
+begin
+  select * into v_r from goods_receipts where id = p_receipt for update;
+  if not found then
+    raise exception 'La recepción no existe' using errcode = 'no_data_found';
+  end if;
+
+  -- EL PERMISO VA PRIMERO. Antes estaba después del atajo de idempotencia y
+  -- un externo podía sacarle información a una recepción ya confirmada.
+  v_rol := app."current_role"(v_r.company_id);
+  if v_rol is null or v_rol not in ('admin', 'employee') then
+    raise exception 'Sin permiso para confirmar recepciones en esta empresa'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  -- Idempotencia: doble click, refresh o dos pestañas no suman stock dos veces.
+  if v_r.status = 'confirmed' then
+    return jsonb_build_object(
+      'receipt_id', p_receipt, 'ya_estaba', true,
+      'movimientos', (select count(*) from stock_movements
+                       where source_type = 'goods_receipt' and source_id = p_receipt),
+      'receipt_status_pedido', (select receipt_status from purchase_orders where id = v_r.purchase_order_id));
+  end if;
+
+  if not exists (select 1 from goods_receipt_lines where goods_receipt_id = p_receipt) then
+    raise exception 'La recepción no tiene líneas' using errcode = 'restrict_violation';
+  end if;
+
+  -- Las líneas del pedido, bloqueadas: desde acá hasta el commit nadie más
+  -- puede confirmar contra ellas. La segunda espera y recalcula.
+  perform 1
+    from purchase_order_lines l
+   where l.id in (select rl.purchase_order_line_id
+                    from goods_receipt_lines rl
+                   where rl.goods_receipt_id = p_receipt
+                     and rl.purchase_order_line_id is not null)
+   order by l.id
+     for update;
+
+  -- Sobre-recepción: se RECHAZA. No se recorta en silencio.
+  for v_linea in
+    select rl.id, rl.quantity, rl.product_id, rl.purchase_order_line_id,
+           l.quantity pedida, l.line_no
+      from goods_receipt_lines rl
+      left join purchase_order_lines l on l.id = rl.purchase_order_line_id
+     where rl.goods_receipt_id = p_receipt
+  loop
+    v_lineas := v_lineas + 1;
+    if v_linea.purchase_order_line_id is not null then
+      select v_linea.pedida - coalesce(sum(rl2.quantity), 0)
+        into v_pendiente
+        from goods_receipt_lines rl2
+        join goods_receipts r2 on r2.id = rl2.goods_receipt_id
+       where rl2.purchase_order_line_id = v_linea.purchase_order_line_id
+         and r2.status = 'confirmed';
+
+      if v_linea.quantity > v_pendiente then
+        raise exception
+          'Línea %: se intenta recibir % y quedan % pendientes', v_linea.line_no,
+          v_linea.quantity, v_pendiente
+          using errcode = 'check_violation';
+      end if;
+    end if;
+  end loop;
+
+  -- Las líneas SIN producto no mueven nada: se recibieron documentalmente.
+  insert into stock_movements (company_id, product_id, warehouse_id, movement_type,
+                               quantity, source_type, source_id, notes, created_by)
+  select v_r.company_id, rl.product_id, v_r.warehouse_id, 'purchase_receipt',
+         sum(rl.quantity), 'goods_receipt', p_receipt,
+         'Recepción ' || v_r.number, auth.uid()
+    from goods_receipt_lines rl
+   where rl.goods_receipt_id = p_receipt
+     and rl.product_id is not null
+   group by rl.product_id;
+  get diagnostics v_movs = row_count;
+
+  -- La marca que el trigger exige. Local a la transacción.
+  perform set_config('app.confirmando_recepcion', p_receipt::text, true);
+  update goods_receipts
+     set status = 'confirmed', confirmed_at = now(), confirmed_by = auth.uid()
+   where id = p_receipt;
+  perform set_config('app.confirmando_recepcion', '', true);
+
+  if v_r.purchase_order_id is not null then
+    v_estado_po := app.derivar_receipt_status(v_r.purchase_order_id);
+    perform registrar_evento_compra('purchase_order', v_r.purchase_order_id,
+      'receive', null, v_estado_po,
+      jsonb_build_object('recepcion', v_r.number));
+  end if;
+
+  perform registrar_evento_compra('goods_receipt', p_receipt, 'confirm',
+    'draft', 'confirmed', jsonb_build_object('lineas', v_lineas));
+
+  -- Un solo evento de stock por recepción, no uno por línea.
+  if v_movs > 0 then
+    perform registrar_evento_compra('goods_receipt', p_receipt, 'stock_applied',
+      null, null, jsonb_build_object('movimientos', v_movs, 'deposito', v_r.warehouse_id));
+  end if;
+
+  return jsonb_build_object(
+    'receipt_id', p_receipt, 'ya_estaba', false,
+    'movimientos', v_movs, 'receipt_status_pedido', v_estado_po);
+end $$;
+
+-- ── Facturas ───────────────────────────────────────────────────────────────
+
+create or replace function app.proteger_factura_registrada()
+returns trigger
+language plpgsql
+security definer
+set search_path to 'public', 'pg_temp'
+as $$
+declare v_mantenimiento boolean;
+begin
+  v_mantenimiento := auth.uid() is null and coalesce(auth.role(), '') = 'service_role';
+
+  if tg_op = 'DELETE' then
+    -- Un borrador se descarta. Una registrada o anulada es un documento con
+    -- historia: se anula, no se borra. La salida de mantenimiento es la misma
+    -- que en recepciones, y por la misma razón: las suites limpian lo suyo.
+    if old.status <> 'draft' and not v_mantenimiento then
+      raise exception 'La factura % está %: no se borra, se anula', old.number, old.status
+        using errcode = 'restrict_violation';
+    end if;
+    return old;
+  end if;
+
+  if new.number is distinct from old.number
+     or new.series_code is distinct from old.series_code then
+    raise exception 'La referencia interna de la factura no se cambia'
+      using errcode = 'restrict_violation';
+  end if;
+
+  if old.status = 'cancelled' then
+    raise exception 'La factura % está anulada: no se modifica', old.number
+      using errcode = 'restrict_violation';
+  end if;
+
+  if new.status is distinct from old.status then
+    if not (
+      (old.status = 'draft'      and new.status in ('registered', 'cancelled')) or
+      (old.status = 'registered' and new.status = 'cancelled')
+    ) then
+      raise exception 'Transición no permitida: % → %', old.status, new.status
+        using errcode = 'restrict_violation';
+    end if;
+
+    -- Registrar es lo que valida las cantidades contra lo recibido. Por un
+    -- UPDATE suelto no se pasa: se facturaría de más sin que nadie lo mire.
+    -- Anular sí puede seguir siendo un UPDATE: no tiene nada que validar.
+    if new.status = 'registered'
+       and coalesce(current_setting('app.registrando_factura', true), '') <> new.id::text then
+      raise exception 'Una factura se registra con registrar_factura_proveedor(), no cambiándole el estado'
+        using errcode = 'restrict_violation';
+    end if;
+
+    return new;
+  end if;
+
+  -- Una factura registrada sólo cambia de estado. Ni el proveedor, ni la
+  -- moneda, ni el número del proveedor, ni las fechas, ni los importes.
+  if old.status = 'registered' then
+    raise exception 'La factura % está registrada: no se modifica', old.number
+      using errcode = 'restrict_violation';
+  end if;
+
+  return new;
+end $$;
+
+create or replace function public.registrar_factura_proveedor(p_invoice uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public', 'pg_temp'
+as $$
+declare
+  v_f         supplier_invoices;
+  v_rol       text;
+  v_linea     record;
+  v_pendiente numeric;
+  v_lineas    int := 0;
+begin
+  select * into v_f from supplier_invoices where id = p_invoice for update;
+  if not found then
+    raise exception 'La factura no existe' using errcode = 'no_data_found';
+  end if;
+
+  -- El permiso va PRIMERO, antes del atajo de idempotencia: si no, un externo
+  -- le saca información a una factura ya registrada. Es el mismo error que
+  -- tenía `confirmar_recepcion` y que la entrega 4 corrigió.
+  v_rol := app."current_role"(v_f.company_id);
+  if v_rol is null or v_rol not in ('admin', 'employee') then
+    raise exception 'Sin permiso para registrar facturas en esta empresa'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  if v_f.status = 'registered' then
+    return jsonb_build_object('invoice_id', p_invoice, 'ya_estaba', true,
+                              'lineas', (select count(*) from supplier_invoice_lines
+                                          where supplier_invoice_id = p_invoice));
+  end if;
+  if v_f.status = 'cancelled' then
+    raise exception 'La factura % está anulada', v_f.number using errcode = 'restrict_violation';
+  end if;
+
+  if not exists (select 1 from supplier_invoice_lines where supplier_invoice_id = p_invoice) then
+    raise exception 'La factura no tiene líneas' using errcode = 'restrict_violation';
+  end if;
+
+  -- Las líneas de recepción que toca esta factura, bloqueadas y en orden de
+  -- id para que dos transacciones no se traben entre sí. Desde acá hasta el
+  -- commit nadie más puede registrar contra ellas.
+  perform 1
+    from goods_receipt_lines rl
+   where rl.id in (select il.goods_receipt_line_id
+                     from supplier_invoice_lines il
+                    where il.supplier_invoice_id = p_invoice
+                      and il.goods_receipt_line_id is not null)
+   order by rl.id
+     for update;
+
+  -- Sobre-facturación: se RECHAZA. No se recorta en silencio.
+  for v_linea in
+    select il.id, il.line_no, il.quantity, il.goods_receipt_line_id,
+           rl.quantity recibida
+      from supplier_invoice_lines il
+      left join goods_receipt_lines rl on rl.id = il.goods_receipt_line_id
+     where il.supplier_invoice_id = p_invoice
+  loop
+    v_lineas := v_lineas + 1;
+    if v_linea.goods_receipt_line_id is not null then
+      select v_linea.recibida - coalesce(sum(il2.quantity), 0)
+        into v_pendiente
+        from supplier_invoice_lines il2
+        join supplier_invoices i2 on i2.id = il2.supplier_invoice_id
+       where il2.goods_receipt_line_id = v_linea.goods_receipt_line_id
+         and i2.status = 'registered';
+
+      if v_linea.quantity > v_pendiente then
+        raise exception
+          'Línea %: se intenta facturar % y quedan % por facturar', v_linea.line_no,
+          v_linea.quantity, v_pendiente
+          using errcode = 'check_violation';
+      end if;
+    end if;
+  end loop;
+
+  -- La marca que el trigger exige. Local a la transacción.
+  perform set_config('app.registrando_factura', p_invoice::text, true);
+  update supplier_invoices set status = 'registered' where id = p_invoice;
+  perform set_config('app.registrando_factura', '', true);
+
+  return jsonb_build_object('invoice_id', p_invoice, 'ya_estaba', false,
+                            'lineas', v_lineas);
+end $$;
+
+revoke execute on function public.confirmar_recepcion(uuid) from anon;
+revoke execute on function public.registrar_factura_proveedor(uuid) from anon;

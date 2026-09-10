@@ -364,3 +364,155 @@ export interface Deposito {
   nombre: string
   esPorDefecto: boolean
 }
+
+// ── Facturas de proveedor ──────────────────────────────────────────────────
+
+/** Los tres del CHECK de `supplier_invoices.status`. Ojo: `registered`. */
+export type EstadoFactura = 'draft' | 'registered' | 'cancelled'
+
+export interface FacturaListado {
+  id: string
+  /** La referencia interna `FP00001`. No es el número del proveedor. */
+  numero: string
+  /** El número REAL de la factura del proveedor. Puede faltar en un borrador. */
+  numeroProveedor: string | null
+  fecha: string
+  vencimiento: string | null
+  proveedorId: string
+  proveedor: string
+  moneda: string
+  total: number
+  estado: EstadoFactura
+  lineas: number
+  /** Cuántas recepciones distintas toca. Una factura puede cubrir varias. */
+  recepciones: number
+  autor: string | null
+}
+
+export interface PaginaDeFacturas {
+  filas: FacturaListado[]
+  total: number
+}
+
+export type OrdenFacturas = 'fecha' | 'numero' | 'numeroProveedor' | 'proveedor' | 'total'
+
+export interface FiltrosFacturas {
+  /** Busca en la referencia interna y en el número del proveedor. */
+  q: string
+  proveedorId: string | null
+  estado: string
+  moneda: string
+  desde: string
+  hasta: string
+  pagina: number
+  porPagina: number
+  orden: OrdenFacturas
+  direccion: DireccionOrden
+}
+
+export const FILTROS_FACTURAS_INICIALES: FiltrosFacturas = {
+  q: '',
+  proveedorId: null,
+  estado: '',
+  moneda: '',
+  desde: '',
+  hasta: '',
+  pagina: 1,
+  porPagina: 25,
+  orden: 'fecha',
+  direccion: 'desc',
+}
+
+/**
+ * Una línea de recepción con su cuenta de facturación.
+ *
+ * Sale de `public.pendiente_de_facturar()`. `enBorrador` **no reserva**: es lo
+ * que otras facturas en borrador ya anotaron sobre la misma línea.
+ */
+export interface PendienteDeFacturar {
+  goodsReceiptLineId: string
+  recepcionId: string
+  recepcionNumero: string
+  recepcionFecha: string
+  purchaseOrderLineId: string | null
+  pedidoId: string | null
+  pedidoNumero: string | null
+  moneda: string | null
+  productId: string | null
+  sku: string | null
+  descripcion: string | null
+  recibido: number
+  facturado: number
+  enBorrador: number
+  pendiente: number
+  /** El costo que quedó en la orden. Es el punto de partida, no una atadura. */
+  precioPedido: number | null
+  tratamientoPedido: string | null
+  cantidadPedida: number | null
+}
+
+/** Una línea de la factura, tal como está guardada. */
+export interface LineaFactura {
+  id: string
+  numeroLinea: number
+  goodsReceiptLineId: string | null
+  purchaseOrderLineId: string | null
+  productId: string | null
+  sku: string | null
+  descripcion: string | null
+  cantidad: number
+  precioUnitario: number
+  descuentoPct: number
+  tratamientoImpuesto: string
+  tasaImpuesto: number | null
+  netoServidor: number
+  /** El número de la recepción de la que sale, si sale de alguna. */
+  recepcionNumero: string | null
+  pedidoNumero: string | null
+  /** Lo que decía la orden, para poder mostrar la diferencia. */
+  precioPedido: number | null
+  tratamientoPedido: string | null
+}
+
+export interface FacturaDetalle {
+  id: string
+  numero: string
+  serie: string
+  numeroProveedor: string | null
+  estado: EstadoFactura
+  proveedorId: string
+  proveedor: string
+  moneda: string
+  tipoCambio: number | null
+  fecha: string
+  vencimiento: string | null
+  formaPago: string | null
+  notas: string | null
+  subtotal: number
+  impuesto: number
+  total: number
+  autor: string | null
+  creadoEn: string
+  actualizadoEn: string
+}
+
+/** Los documentos que quedan del otro lado de las líneas. */
+export interface RelacionadosFactura {
+  recepciones: { id: string; numero: string; fecha: string }[]
+  pedidos: { id: string; numero: string }[]
+}
+
+/**
+ * Una diferencia entre lo que dice la factura y lo que decía la orden.
+ *
+ * Se DERIVA comparando la línea con el snapshot del pedido. No hay ninguna
+ * tabla de discrepancias y no se creó una: cuando haga falta un motor de
+ * conciliación de verdad será una decisión aparte.
+ */
+export interface DiferenciaConPedido {
+  lineaId: string
+  numeroLinea: number
+  tipo: 'precio' | 'impuesto'
+  enPedido: string
+  enFactura: string
+}

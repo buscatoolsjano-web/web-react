@@ -31,7 +31,9 @@
 .select,
 .boton {
   min-height: 44px;
-  font-size: var(--text-sm);
+  /* 16px y no --text-sm: por debajo de 16 iOS hace zoom al enfocar un
+     control y la página queda corrida. */
+  font-size: 1rem;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

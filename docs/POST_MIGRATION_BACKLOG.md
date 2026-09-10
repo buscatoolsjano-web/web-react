@@ -449,3 +449,34 @@ Es una decisión de ese componente por la cantidad de columnas que tiene. Si
 alguna vez aparece otra grilla igual de ancha, conviene revisar si el
 breakpoint global de 768 alcanza para todas o si hace falta un segundo corte
 con nombre propio.
+
+### Importar una factura de proveedor desde PDF o XML
+
+La entrega 5 deja la carga manual completa y correcta. Leer una factura desde
+un PDF o un XML —OCR, parseo del comprobante electrónico, sugerencia de líneas
+contra lo pendiente de facturar— es **funcionalidad nueva**, no migración, y
+queda para después de que la carga manual esté rodada.
+
+Cuando se haga, el punto de entrada natural es el mismo adjunto que hoy se
+guarda en `attachments` con `entity_type = 'supplier_invoice'`: el archivo ya
+está ahí y ya tiene la RLS de Compras.
+
+### Pagos a proveedores y cuenta corriente
+
+Fuera del alcance de la v1 por decisión explícita: no hay tablas de pagos y
+`supplier_invoices` no tiene estado «pagada». Lo único que la entrega 5 dejó
+previsto es que **una factura registrada no se borra, se anula**, justamente
+para que el día que exista un pago no pueda desaparecer el comprobante contra
+el que se pagó.
+
+### Las diferencias OC vs factura se derivan, no se guardan
+
+`diferenciasConPedido()` compara cada línea de la factura contra el snapshot de
+su `purchase_order_line` y muestra un aviso cuando el precio o el tratamiento
+de impuesto no coinciden. **No hay tabla de discrepancias** y no se creó una:
+el dato ya está en las dos líneas y una tabla nueva sería un registro derivado
+que hay que mantener sincronizado.
+
+Si alguna vez hace falta un circuito de aprobación de diferencias —alguien que
+las revise, las apruebe o las rechace, con su propio historial—, ahí sí una
+tabla tendría algo propio que guardar. Hoy no lo tiene.

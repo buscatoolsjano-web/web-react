@@ -4,12 +4,13 @@ import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { ChipEstado, ChipRecepcion } from '../components/ChipEstado'
 import { FormularioPedido } from '../components/FormularioPedido'
-import { PanelAdjuntosPedido } from '../components/PanelAdjuntosPedido'
+import { PanelAdjuntosCompras } from '../components/PanelAdjuntosCompras'
 import { PanelRelacionadosPedido } from '../components/PanelRelacionadosPedido'
 import { editabilidadDe } from '../lib/estados'
 import { problemasDeLinea } from '../lib/lineas'
 import { formatearFecha, formatearFechaHora, formatearImporte } from '../lib/formato'
 import { permisosDe } from '../lib/permisos'
+import { CLASES_PEDIDO } from '../services/adjuntosCompras'
 import { validarPedido, type DatosPedidoCompra, type ErrorDePedido } from '../lib/validacion'
 import {
   useEstadoPedido,
@@ -278,6 +279,20 @@ export function PedidoDetallePage() {
               </Link>
             ) : null}
 
+            {/* Facturar. Se factura lo RECIBIDO, no lo pedido: el enlace lleva
+                a la pantalla con el proveedor puesto y ahí aparece lo pendiente
+                de facturar de todas sus recepciones confirmadas —que puede
+                venir de este pedido y de otros—. Por eso no se filtra por
+                pedido: una factura no es de un pedido. */}
+            {escribe && pedido.estado === 'confirmed' && pedido.estadoRecepcion !== 'pending' ? (
+              <Link
+                to={`/compras/facturas/nueva?proveedor=${pedido.proveedorId}`}
+                className={styles.secundario}
+              >
+                Facturar
+              </Link>
+            ) : null}
+
             {escribe ? (
               <button
                 type="button"
@@ -456,8 +471,10 @@ export function PedidoDetallePage() {
         ) : null}
 
         {pestana === 'adjuntos' ? (
-          <PanelAdjuntosPedido
-            pedidoId={pedido.id}
+          <PanelAdjuntosCompras
+            entidad="purchase_order"
+            entidadId={pedido.id}
+            clases={CLASES_PEDIDO}
             puedeEditar={escribe && pedido.estado !== 'cancelled'}
           />
         ) : null}

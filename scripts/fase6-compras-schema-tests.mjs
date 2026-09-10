@@ -491,7 +491,10 @@ const main = async () => {
         await sc.from('attachments').delete().in('entity_id', ids)
         await sc.from('purchase_orders').delete().in('id', ids)
       }
-      await sc.from('purchases_audit').delete().in('entity_id', [...ids, ...rids])
+      // Las facturas también: desde la entrega 5 tienen trigger de auditoría,
+      // así que crear una deja un evento que hay que llevarse.
+      const fids = (facs ?? []).map((x) => x.id)
+      await sc.from('purchases_audit').delete().in('entity_id', [...ids, ...rids, ...fids])
       await sc.from('suppliers').delete().in('id', creados.proveedores)
     }
     await sc.from('warehouses').delete().like('code', `${MARCA}%`)

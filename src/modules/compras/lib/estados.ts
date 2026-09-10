@@ -93,3 +93,57 @@ export function editabilidadDe(
     duplicar: true,
   }
 }
+
+// ── Facturas de proveedor ──────────────────────────────────────────────────
+
+/**
+ * Los tres estados del CHECK de `supplier_invoices.status`.
+ *
+ * Ojo con el nombre: el schema dice **`registered`**, no `confirmed`. Se usa
+ * el que está, no se agrega uno por simetría con los otros documentos.
+ */
+const FACTURAS: Record<string, string> = {
+  draft: 'Borrador',
+  registered: 'Registrada',
+  cancelled: 'Anulada',
+}
+
+export function etiquetaDeEstadoFactura(estado: string): string {
+  return FACTURAS[estado] ?? estado
+}
+
+export const OPCIONES_ESTADO_FACTURA = Object.keys(FACTURAS).map((v) => ({
+  valor: v,
+  etiqueta: FACTURAS[v]!,
+}))
+
+/**
+ * Qué se puede hacer con una factura en cada estado.
+ *
+ * Lo que lo impide de verdad son `app.proteger_factura_registrada()` y
+ * `app.proteger_lineas_factura()`. Esto decide qué botones mostrar.
+ *
+ * Una factura **no mueve stock**, así que anularla no deshace nada físico:
+ * libera lo facturado, porque lo pendiente cuenta sólo las registradas.
+ */
+export interface EditabilidadFactura {
+  cabecera: boolean
+  lineas: boolean
+  registrar: boolean
+  anular: boolean
+  borrar: boolean
+}
+
+export function editabilidadDeFactura(estado: string): EditabilidadFactura {
+  const borrador = estado === 'draft'
+  const registrada = estado === 'registered'
+  return {
+    cabecera: borrador,
+    lineas: borrador,
+    registrar: borrador,
+    anular: borrador || registrada,
+    // Un borrador se descarta; una registrada o anulada es un documento con
+    // historia y se anula, no se borra.
+    borrar: borrador,
+  }
+}

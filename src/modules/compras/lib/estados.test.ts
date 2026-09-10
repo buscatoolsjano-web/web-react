@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { editabilidadDe, etiquetaDeEstadoPedido, etiquetaDeRecepcion } from './estados'
+import {
+  editabilidadDe,
+  editabilidadDeFactura,
+  etiquetaDeEstadoPedido,
+  etiquetaDeRecepcion,
+} from './estados'
 
 describe('etiquetas', () => {
   it('traduce los tres estados comerciales', () => {
@@ -72,5 +77,35 @@ describe('editabilidadDe', () => {
     // No debería pasar —una recepción sale de un pedido confirmado— pero si
     // pasa, manda la mercadería recibida.
     expect(editabilidadDe('draft', true).lineas).toBe(false)
+  })
+})
+
+describe('editabilidadDeFactura', () => {
+  it('un borrador se edita, se registra, se anula y se descarta', () => {
+    const e = editabilidadDeFactura('draft')
+    expect(e.cabecera).toBe(true)
+    expect(e.lineas).toBe(true)
+    expect(e.registrar).toBe(true)
+    expect(e.anular).toBe(true)
+    expect(e.borrar).toBe(true)
+  })
+
+  it('una registrada está congelada: sólo se anula', () => {
+    const e = editabilidadDeFactura('registered')
+    expect(e.cabecera).toBe(false)
+    expect(e.lineas).toBe(false)
+    expect(e.registrar).toBe(false)
+    expect(e.anular).toBe(true)
+    // Es un documento con historia: se anula, no se borra.
+    expect(e.borrar).toBe(false)
+  })
+
+  it('una anulada no vuelve de ningún lado', () => {
+    const e = editabilidadDeFactura('cancelled')
+    expect(e.cabecera).toBe(false)
+    expect(e.lineas).toBe(false)
+    expect(e.registrar).toBe(false)
+    expect(e.anular).toBe(false)
+    expect(e.borrar).toBe(false)
   })
 })
