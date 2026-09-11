@@ -16,7 +16,8 @@ export interface PanelRepuestosProps {
   guardando: boolean
   consumiendo: boolean
   error: string | null
-  onAgregar: (d: DatosRepuesto) => void
+  /** Devuelve una promesa: si el servidor rechaza, lo cargado no se pierde. */
+  onAgregar: (d: DatosRepuesto) => Promise<unknown>
   onBorrar: (id: string) => void
   onConsumir: () => void
 }
@@ -94,7 +95,7 @@ export function PanelRepuestos({
   const despuesDe = (r: RepuestoDeOrden) => proyeccion.get(`${r.productoId}|${r.depositoId}`) ?? null
   const quedanNegativos = [...proyeccion.values()].some((v) => v < 0)
 
-  const agregar = () => {
+  const agregar = async () => {
     const d = {
       productoId: producto?.id ?? null,
       depositoId,
@@ -106,19 +107,24 @@ export function PanelRepuestos({
     setErrores(encontrados)
     if (encontrados.length > 0) return
 
-    onAgregar({
-      productoId: d.productoId!,
-      sku: producto?.sku ?? null,
-      nombre: producto?.nombre ?? null,
-      depositoId: d.depositoId!,
-      cantidad: d.cantidad,
-      costoUnitario: d.costoUnitario,
-      monedaCosto: d.monedaCosto,
-    })
-    setProducto(null)
-    setCantidad('1')
-    setCosto('')
-    setMoneda('')
+    try {
+      await onAgregar({
+        productoId: d.productoId!,
+        sku: producto?.sku ?? null,
+        nombre: producto?.nombre ?? null,
+        depositoId: d.depositoId!,
+        cantidad: d.cantidad,
+        costoUnitario: d.costoUnitario,
+        monedaCosto: d.monedaCosto,
+      })
+      // Igual que en la cotización: se limpia sólo si el servidor aceptó.
+      setProducto(null)
+      setCantidad('1')
+      setCosto('')
+      setMoneda('')
+    } catch {
+      /* el mensaje del servidor ya se muestra en el panel */
+    }
   }
 
   const nombreDe = (r: RepuestoDeOrden) => r.nombre ?? r.sku ?? '(producto sin nombre guardado)'
@@ -255,6 +261,7 @@ export function PanelRepuestos({
                 setBuscando(false)
               }}
               onCerrar={() => setBuscando(false)}
+              pie="Un repuesto siempre sale del catálogo: es lo que se descuenta del depósito. Elegirlo no carga ningún costo — las listas de precios son de venta."
             />
           ) : null}
 
@@ -370,7 +377,7 @@ export function PanelRepuestos({
                 type="button"
                 className={styles.primario}
                 disabled={guardando}
-                onClick={agregar}
+                onClick={() => void agregar()}
               >
                 + Agregar repuesto
               </button>

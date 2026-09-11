@@ -48,8 +48,11 @@ function detalle(e: EventoDeMantenimiento): string | null {
   if (e.accion === 'quote_approved' || e.accion === 'quote_rejected') {
     const partes: string[] = []
     const total = e.diff?.['total']
-    if (typeof total === 'number' || typeof total === 'string') {
-      const moneda = e.diff?.['moneda']
+    const moneda = e.diff?.['moneda']
+    // Un total de cero sin moneda —una cotización que nunca se llegó a
+    // valorizar— no aporta nada: se muestra el motivo y nada más.
+    if ((typeof total === 'number' || typeof total === 'string') &&
+        !(Number(total) === 0 && typeof moneda !== 'string')) {
       partes.push(formatearImporte(Number(total), typeof moneda === 'string' ? moneda : null))
     }
     const por = e.diff?.['por']

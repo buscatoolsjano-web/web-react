@@ -7,7 +7,16 @@ import styles from './SelectorProducto.module.css'
 export interface SelectorProductoProps {
   onElegir: (p: ProductoBuscado) => void
   onCerrar: () => void
+  /**
+   * La aclaración del pie. Cambia según dónde se use: en un equipo el producto
+   * es opcional, en un repuesto es obligatorio. Dejar el texto del equipo en
+   * los dos lados contradecía el «Repuesto *» del formulario.
+   */
+  pie?: string
 }
+
+const PIE_POR_DEFECTO =
+  'El producto es opcional: un equipo que no está en el catálogo se carga igual con marca y modelo escritos a mano.'
 
 /**
  * Buscador de productos del catálogo, contra el servidor.
@@ -15,10 +24,16 @@ export interface SelectorProductoProps {
  * El legacy tenía `PRODUCTOS`, un array global con los 21.775 productos, y
  * filtraba en memoria. Acá cada tecla —debounceada— pide como mucho 20 filas.
  *
- * **No muestra ningún precio.** Acá el producto sirve para decir QUÉ
- * herramienta es el equipo; lo que cueste no tiene nada que ver con repararla.
+ * **No muestra ningún precio en ningún caso.** Ni acá ni en la cotización: las
+ * listas del catálogo son de VENTA, y ofrecerlas como precio de cotización o
+ * como costo de un repuesto sería exactamente la confusión que este módulo
+ * evita.
  */
-export function SelectorProducto({ onElegir, onCerrar }: SelectorProductoProps) {
+export function SelectorProducto({
+  onElegir,
+  onCerrar,
+  pie = PIE_POR_DEFECTO,
+}: SelectorProductoProps) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
   const [texto, setTexto] = useState('')
@@ -82,10 +97,7 @@ export function SelectorProducto({ onElegir, onCerrar }: SelectorProductoProps) 
         </ul>
       )}
 
-      <p className={styles.pie}>
-        El producto es opcional: un equipo que no está en el catálogo se carga igual con marca y
-        modelo escritos a mano.
-      </p>
+      <p className={styles.pie}>{pie}</p>
     </div>
   )
 }

@@ -21,8 +21,10 @@ export interface PanelCotizacionProps {
   puedeEditar: boolean
   guardando: boolean
   error: string | null
-  onCrear: (d: DatosLinea) => void
-  onActualizar: (id: string, d: DatosLinea) => void
+  /** Devuelven una promesa para que el formulario sepa si el servidor aceptó:
+   *  si rechaza, lo escrito NO se pierde. */
+  onCrear: (d: DatosLinea) => Promise<unknown>
+  onActualizar: (id: string, d: DatosLinea) => Promise<unknown>
   onBorrar: (id: string) => void
   onMover: (a: LineaCotizacion, b: LineaCotizacion) => void
   onMoneda: (moneda: string | null) => void
@@ -111,7 +113,7 @@ export function PanelCotizacion({
     precioUnitario: aNumero(nueva.precioUnitario),
   })
 
-  const guardar = () => {
+  const guardar = async () => {
     const d = {
       descripcion: nueva.descripcion,
       cantidad: aNumero(nueva.cantidad),
@@ -123,15 +125,23 @@ export function PanelCotizacion({
     setErrores(encontrados)
     if (encontrados.length > 0) return
 
-    if (editandoId) {
-      const previa = lineas.find((l) => l.id === editandoId)
-      onActualizar(editandoId, datos(previa?.posicion ?? 1))
-    } else {
-      const siguiente = Math.max(0, ...lineas.map((l) => l.posicion)) + 1
-      onCrear(datos(siguiente))
+    try {
+      if (editandoId) {
+        const previa = lineas.find((l) => l.id === editandoId)
+        await onActualizar(editandoId, datos(previa?.posicion ?? 1))
+      } else {
+        const siguiente = Math.max(0, ...lineas.map((l) => l.posicion)) + 1
+        await onCrear(datos(siguiente))
+      }
+      // Sólo se limpia si el servidor aceptó. Si rechaza —por ejemplo una
+      // línea con importe sin moneda elegida— lo escrito queda donde estaba y
+      // el error se muestra arriba: perder lo tipeado sería castigar a la
+      // persona por una regla que recién ahí se entera.
+      setNueva(VACIA)
+      setEditandoId(null)
+    } catch {
+      /* el mensaje del servidor ya se muestra en el panel */
     }
-    setNueva(VACIA)
-    setEditandoId(null)
   }
 
   const empezarEdicion = (l: LineaCotizacion) => {
@@ -310,7 +320,11 @@ export function PanelCotizacion({
       {editable ? (
         <>
           {buscando ? (
-            <SelectorProducto onElegir={elegirProducto} onCerrar={() => setBuscando(false)} />
+            <SelectorProducto
+              onElegir={elegirProducto}
+              onCerrar={() => setBuscando(false)}
+              pie="El producto es opcional en una línea de cotización: la mano de obra y el flete no están en el catálogo. El precio que se cobra se escribe acá, no sale de ninguna lista."
+            />
           ) : null}
 
           <div className={styles.formulario}>
@@ -423,7 +437,7 @@ export function PanelCotizacion({
                 type="button"
                 className={styles.primario}
                 disabled={guardando}
-                onClick={guardar}
+                onClick={() => void guardar()}
               >
                 {editandoId ? 'Guardar la línea' : '+ Agregar línea'}
               </button>

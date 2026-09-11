@@ -274,8 +274,8 @@ export function OrdenDetallePage() {
             cotizacion.rechazar.error?.message ??
             null
           }
-          onCrear={(d) => cotizacion.crear.mutate(d)}
-          onActualizar={(idLinea, d) => cotizacion.actualizar.mutate({ id: idLinea, datos: d })}
+          onCrear={(d) => cotizacion.crear.mutateAsync(d)}
+          onActualizar={(idLinea, d) => cotizacion.actualizar.mutateAsync({ id: idLinea, datos: d })}
           onBorrar={(idLinea) => cotizacion.borrar.mutate(idLinea)}
           onMover={(a, b) => cotizacion.mover.mutate({ a, b })}
           onMoneda={(m) => cotizacion.moneda.mutate(m)}
@@ -305,7 +305,7 @@ export function OrdenDetallePage() {
             edicionRepuestos.consumir.error?.message ??
             null
           }
-          onAgregar={(d) => edicionRepuestos.agregar.mutate(d)}
+          onAgregar={(d) => edicionRepuestos.agregar.mutateAsync(d)}
           onBorrar={(idRep) => edicionRepuestos.borrar.mutate(idRep)}
           onConsumir={() => edicionRepuestos.consumir.mutate()}
         />
