@@ -425,11 +425,25 @@ Ventas, Compras o Mantenimiento. No se creó ningún módulo de Inventario.
 ## Q · Alcance del cambio y despliegue
 
 El cambio es **exclusivamente de privilegios en la base**. No hay una sola línea
-de TypeScript modificada, así que **no hay chunk nuevo que desplegar**: la
-aplicación en producción ya funciona contra la base corregida, y el frontend
-nunca usaba el privilegio revocado.
+de TypeScript modificada, así que **no hay chunk nuevo que desplegar**: el
+`index-BC4dyyc3.js` que está en producción es el mismo de antes del fix, y
+responde HTTP 200. La aplicación ya está corriendo contra la base corregida
+desde que se aplicó la migración.
 
-Lo que sí se commitea es la suite de ataques y este informe.
+Lo que se commitea es la suite de ataques, este informe y la corrección de la
+matriz de RLS, que todavía describía el INSERT como permitido.
+
+### Cómo se verificó, con precisión
+
+La comprobación en producción se hizo **en la capa que cambió**: la suite de
+ataques corre contra la base de producción, con los **mismos JWT reales** que
+usa la aplicación —los emite el mismo Supabase Auth— y contra el mismo
+PostgREST. Las seis identidades leen el stock y ninguna lo escribe.
+
+**No se ejercitaron pantallas**, y no por omisión: no cambió ninguna. El
+frontend nunca usó el privilegio revocado —su única referencia a las tablas de
+stock es un `select`— así que mirar una pantalla no probaría nada que la suite
+no pruebe mejor, sobre las seis identidades en vez de sobre una.
 
 ---
 
