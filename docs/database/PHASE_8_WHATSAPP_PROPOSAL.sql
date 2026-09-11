@@ -1,18 +1,18 @@
 -- ===========================================================================
--- FASE 8 · WHATSAPP — SCHEMA PROPUESTO
+-- FASE 8 · WHATSAPP — SCHEMA PROPUESTO · versión 2
 -- ===========================================================================
 --
 --   ██  P R O P U E S T A  ·  N O   E J E C U T A D O  ██
 --
--- Este archivo NO se aplicó. No existe ninguna de estas tablas en el proyecto.
--- Acompaña a docs/PHASE_8_WHATSAPP_ENTREGA_1_ARQUITECTURA.md y está para
--- discutirlo, no para correrlo.
+-- Este archivo NO se aplicó. No existe ninguna de estas tablas en el proyecto
+-- (verificado: 0 tablas `whatsapp%`). Acompaña a
+-- docs/PHASE_8_WHATSAPP_ENTREGA_1_ARQUITECTURA.md y está para discutirlo.
 --
--- Antes de aplicarlo hacen falta las cinco decisiones de la sección final de
--- ese informe, y el alta en Meta de la entrega 1.5.
+-- Versión 2: incorpora las once decisiones. Lo que más cambió es la RLS del
+-- salesperson —ahora ve SÓLO lo asignado— y la cola, que necesitaba un reclamo
+-- atómico de verdad.
 --
--- Documentación de Meta consultada el 2026-09-11. Las fuentes están en la
--- sección A del informe.
+-- Documentación de Meta consultada el 2026-09-11.
 -- ===========================================================================
 
 
@@ -20,13 +20,12 @@
 -- 0 · Normalización de teléfonos — UNA sola, para todo
 -- ---------------------------------------------------------------------------
 --
--- El legacy tenía TRES tratamientos distintos —`'+' + valor`, quitar no
--- dígitos, y comparar los últimos 8— y por eso nada cruzaba con el CRM. Acá
--- hay una función y la usan el webhook, el matching y la búsqueda.
+-- El legacy tenía TRES tratamientos distintos y por eso nada cruzaba con el
+-- CRM. Acá hay una función y la usan el webhook, el matching y la búsqueda.
 --
 -- Devuelve NULL cuando no se puede determinar el país. **No se inventa un
 -- E.164**: es preferible un hueco honesto a un número inventado que después
--- alguien cruza con un cliente equivocado.
+-- alguien cruza con el cliente equivocado.
 
 create or replace function app.normalizar_telefono(p_crudo text)
 returns text
@@ -42,10 +41,9 @@ as $$
   end;
 $$;
 
--- La cola usada para el cruce con el CRM argentino: los últimos ocho dígitos.
+-- La cola usada para cruzar con el CRM argentino: los últimos ocho dígitos.
 -- Absorbe +54 9 11 xxxx-xxxx, 011 xxxx-xxxx y 11xxxxxxxx, que es como están
--- cargados los teléfonos que hay. Se documenta acá y no se repite en ningún
--- otro lado.
+-- cargados los teléfonos que hay. Se documenta acá y no se repite.
 create or replace function app.cola_telefono(p_crudo text)
 returns text
 language sql
@@ -60,11 +58,11 @@ $$;
 -- 1 · whatsapp_accounts — un número de WhatsApp de una empresa
 -- ---------------------------------------------------------------------------
 --
--- Sin esta tabla no hay multiempresa ni varios números. La v1 va a usar uno
--- solo, pero nada queda cableado: no hay ningún phone_number_id global.
+-- Sin esta tabla no hay multiempresa ni varios números. La v1 usa uno solo,
+-- pero nada queda cableado: no hay ningún phone_number_id global.
 --
--- **NUNCA guarda un access token.** Sólo identificadores que Meta considera
--- públicos. El token vive como secreto de la Edge Function.
+-- **NUNCA guarda un access token.** El token vive como secreto de la Edge
+-- Function.
 
 create table whatsapp_accounts (
   id                    uuid primary key default gen_random_uuid(),
@@ -81,7 +79,6 @@ create table whatsapp_accounts (
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now(),
 
-  -- El phone_number_id es la identidad del número del lado de Meta.
   constraint uq_wa_account_phone unique (phone_number_id)
 );
 
@@ -95,10 +92,13 @@ create index idx_wa_accounts_company on whatsapp_accounts (company_id) where act
 -- La identidad es (account_id, provider_contact_id), NUNCA el teléfono. Con
 -- Cloud API el wa_id ES un teléfono, pero el diseño no lo supone: si algún día
 -- llega un identificador que no lo es, entra igual y phone_e164 queda en null.
--- Es la lección de los @lid de Baileys, donde 5 de 8 chats no tenían teléfono.
+-- Es la lección de los @lid de Baileys: 5 de 8 chats sin teléfono usable.
 --
 -- customer_id es NULLABLE y no es un detalle: hoy sólo 3 de 1010 clientes
--- tienen teléfono cargado. Se puede conversar sin cliente asociado.
+-- tienen teléfono cargado. Se conversa igual sin cliente asociado.
+--
+-- assigned_to es la CLAVE DE AUTORIZACIÓN del salesperson (ver sección 8), no
+-- sólo un dato de trabajo. Por eso el cliente no puede escribirlo.
 
 create table whatsapp_conversations (
   id                    uuid primary key default gen_random_uuid(),
@@ -111,7 +111,7 @@ create table whatsapp_conversations (
   phone_e164            text,
   profile_name          text,           -- el pushname que publica WhatsApp
 
-  -- Vínculo con el CRM: opcional, y sólo automático si el match es único
+  -- Vínculo con el CRM: opcional, y automático sólo si el match es único
   customer_id           uuid references customers(id),
   customer_contact_id   uuid references customer_contacts(id),
   vinculo_origen        text check (vinculo_origen in ('exacto','normalizado','manual')),
@@ -133,6 +133,9 @@ create table whatsapp_conversations (
 
 create index idx_wa_conv_bandeja on whatsapp_conversations
   (company_id, last_message_at desc nulls last) where archived_at is null;
+-- El índice que sostiene la RLS del salesperson: se consulta en CADA fila.
+create index idx_wa_conv_asignada on whatsapp_conversations (assigned_to)
+  where assigned_to is not null;
 create index idx_wa_conv_cliente on whatsapp_conversations (customer_id)
   where customer_id is not null;
 create index idx_wa_conv_telefono on whatsapp_conversations (phone_e164)
@@ -145,19 +148,19 @@ create index idx_wa_conv_telefono on whatsapp_conversations (phone_e164)
 --
 -- Se descartó una tabla `whatsapp_outbox` aparte: agrega un join para dibujar
 -- el hilo y un momento en que el mensaje existe en un lado y no en el otro. El
--- legacy usó este mismo patrón —status='pendiente' en la misma tabla— y
--- funcionó. Un outbox separado se justifica con muchos productores y ruteo
--- complejo; no es el caso.
+-- legacy usó este mismo patrón y funcionó.
 --
 -- TRES marcas de tiempo, porque responden preguntas distintas:
 --   provider_timestamp  cuándo ocurrió, según Meta   ← ordena el hilo
 --   received_at         cuándo lo recibió el webhook
 --   created_at          cuándo se escribió la fila
 --
--- Y el estado NO es una progresión monótona: la documentación de Meta dice que
--- un mismo mensaje puede disparar éxito y fallo cuando el usuario tiene varios
--- dispositivos. Por eso cada estado tiene su columna y el status visible se
--- deriva por precedencia, en vez de pisarse con el último webhook que llegue.
+-- El estado NO es una progresión monótona: la documentación de Meta dice que un
+-- mismo mensaje puede disparar éxito y fallo con varios dispositivos. Por eso
+-- cada estado tiene su columna y el status visible se deriva por precedencia,
+-- en vez de pisarse con el último webhook que llegue.
+--
+-- `sending` existe por el reclamo atómico de la sección 9.
 
 create table whatsapp_messages (
   id                    uuid primary key default gen_random_uuid(),
@@ -173,35 +176,43 @@ create table whatsapp_messages (
   text_body             text,
   caption               text,
 
-  -- Identidad del proveedor. Null mientras está en la cola.
   provider_message_id   text,
-  reply_to_provider_id  text,             -- el context.id de Meta
+  reply_to_provider_id  text,              -- el context.id de Meta
 
   -- Cola de salida
   status                text not null default 'pending'
-                          check (status in ('pending','sent','delivered','read','failed')),
-  client_request_id     uuid,             -- idempotencia del lado nuestro
+                          check (status in ('pending','sending','sent','delivered','read','failed')),
+  client_request_id     uuid,
   attempts              int not null default 0,
   next_attempt_at       timestamptz,
+  claimed_at            timestamptz,       -- cuándo lo tomó un worker
 
-  -- Un timestamp por estado: los webhooks llenan el suyo y repetirlo no hace nada
+  -- Un timestamp por estado: cada webhook llena el suyo y repetirlo no hace nada
   sent_at               timestamptz,
   delivered_at          timestamptz,
   read_at               timestamptz,
   failed_at             timestamptz,
-  provider_status       text,             -- el valor crudo, para depurar
-  error_code            int,              -- Meta pide construir la lógica sobre
-  error_details         text,             -- code y error_data.details, no sobre
-                                          -- los títulos, que se van a deprecar
+  provider_status       text,              -- el valor crudo, para depurar
+  error_code            int,               -- Meta pide construir la lógica sobre
+  error_details         text,              -- code y error_data.details, no sobre
+                                           -- los títulos, que se van a deprecar
 
   provider_timestamp    timestamptz not null,
   received_at           timestamptz,
   created_by            uuid references profiles(id),
   created_at            timestamptz not null default now(),
 
-  -- Un webhook repetido no puede duplicar un mensaje. Meta reintenta 36 horas.
+  -- IDEMPOTENCIA ENTRANTE. Un webhook repetido no puede duplicar un mensaje:
+  -- Meta reintenta durante 36 horas y recomienda explícitamente deduplicar.
+  --
+  -- El alcance es POR CUENTA y no global, a propósito. La documentación
+  -- describe el wamid como «a unique ID» pero NO publica una garantía explícita
+  -- de unicidad entre cuentas distintas. Acotarlo por account_id es correcto
+  -- bajo las dos lecturas y no cuesta nada.
   constraint uq_wa_msg_provider unique (account_id, provider_message_id),
-  -- Dos clics, un mensaje.
+
+  -- IDEMPOTENCIA SALIENTE. Dos pestañas, doble clic o un reintento del
+  -- navegador producen UNA fila y UN envío.
   constraint uq_wa_msg_cliente unique (account_id, client_request_id)
 );
 
@@ -211,6 +222,9 @@ create index idx_wa_msg_hilo on whatsapp_messages
 -- La cola: sólo lo pendiente, que es un puñado de filas.
 create index idx_wa_msg_cola on whatsapp_messages (next_attempt_at)
   where status = 'pending';
+-- Los trabados, para el reaper.
+create index idx_wa_msg_trabados on whatsapp_messages (claimed_at)
+  where status = 'sending';
 
 
 -- ---------------------------------------------------------------------------
@@ -232,6 +246,7 @@ create index idx_wa_msg_cola on whatsapp_messages (next_attempt_at)
 create table whatsapp_media (
   id                    uuid primary key default gen_random_uuid(),
   company_id            uuid not null references companies(id),
+  conversation_id       uuid not null references whatsapp_conversations(id),
   message_id            uuid references whatsapp_messages(id),
 
   provider_media_id     text,
@@ -242,22 +257,38 @@ create table whatsapp_media (
 
   storage_path          text,             -- bucket privado «whatsapp»
   status                text not null default 'pendiente'
-                          check (status in ('pendiente','descargada','fallida')),
+                          check (status in ('pendiente','descargada','fallida','vencida')),
   attempts              int not null default 0,
   error_details         text,
 
   provider_expires_at   timestamptz,      -- los 7 días del id del webhook
+  -- NUESTRA retención: 180 días desde la descarga. La columna se crea ahora
+  -- para que la fecha quede escrita desde el primer archivo. El proceso que
+  -- borra NO se construye en esta entrega: sin la columna desde el día uno, el
+  -- día que se quiera aplicar la política no habría contra qué compararla.
+  media_expires_at      timestamptz,
+
   created_at            timestamptz not null default now(),
   downloaded_at         timestamptz
 );
 
+-- conversation_id además de message_id: la RLS del salesperson necesita seguir
+-- al padre, y la media entrante existe ANTES de que exista su mensaje.
+create index idx_wa_media_conversacion on whatsapp_media (conversation_id);
 create index idx_wa_media_mensaje on whatsapp_media (message_id);
 create index idx_wa_media_cola on whatsapp_media (created_at)
   where status = 'pendiente';
+create index idx_wa_media_retencion on whatsapp_media (media_expires_at)
+  where status = 'descargada';
 
--- El mensaje apunta a su archivo.
 alter table whatsapp_messages
   add column media_id uuid references whatsapp_media(id);
+
+-- BACKLOG, deliberadamente sin implementar: marcar una media como conservable
+-- (`retain` / `business_record`). No se agrega la columna hoy porque no hay
+-- pantalla que la escriba ni proceso de borrado que la lea, y una columna que
+-- nadie escribe ni lee se convierte en ruido. Agregarla el día que exista el
+-- borrado es un `alter table` de un segundo sobre una tabla chica.
 
 
 -- ---------------------------------------------------------------------------
@@ -267,9 +298,13 @@ alter table whatsapp_messages
 -- El legacy tenía un contador global: si Juan abría un chat, se apagaba para
 -- todos. Con varios empleados atendiendo eso es un error de diseño.
 --
--- El no leído NO se guarda: se calcula. Es la misma decisión que con los
--- indicadores de torque — lo derivado no se persiste, porque persistirlo crea
--- la posibilidad de que el número guardado y el real dejen de coincidir.
+-- Se eligió `last_read_at` sobre `last_read_message_id`: se compara contra
+-- provider_timestamp sin joins, no depende de que ninguna fila siga
+-- existiendo, y marcar leído dos veces no hace nada.
+--
+-- El no leído NO se guarda: se calcula. Misma decisión que con los indicadores
+-- de torque — lo derivado no se persiste, porque persistirlo crea la
+-- posibilidad de que el número guardado y el real dejen de coincidir.
 
 create table whatsapp_conversation_reads (
   conversation_id       uuid not null references whatsapp_conversations(id),
@@ -290,8 +325,10 @@ create table whatsapp_conversation_reads (
 -- ---------------------------------------------------------------------------
 --
 -- Depurar un webhook que no se puede reproducir es casi imposible sin el
--- payload. Pero nace con retención —30 días— para que no sea otro audit_logs
--- infinito: es una herramienta de diagnóstico, NO una fuente de verdad.
+-- payload. Pero nace con retención de **14 días**: un problema de webhooks se
+-- nota en horas o días, no en semanas, y catorce cubren dos fines de semana
+-- largos y una vuelta de vacaciones. Guardar más sería guardar payloads con
+-- datos personales sin un uso concreto.
 --
 -- Ningún rol de aplicación la ve. Es exclusivamente del backend.
 
@@ -311,8 +348,8 @@ create table whatsapp_webhook_events (
 
 create index idx_wa_event_retencion on whatsapp_webhook_events (received_at);
 
--- Retención propuesta: borrar lo que tenga más de 30 días.
--- delete from whatsapp_webhook_events where received_at < now() - interval '30 days';
+-- Retención (NO se aplica en esta entrega):
+-- delete from whatsapp_webhook_events where received_at < now() - interval '14 days';
 
 
 -- ---------------------------------------------------------------------------
@@ -321,8 +358,8 @@ create index idx_wa_event_retencion on whatsapp_webhook_events (received_at);
 --
 -- Una fila hija NO se autoriza por su propio company_id: se valida contra el de
 -- su padre. Es el agujero que encontramos en Mantenimiento, donde alguien podía
--- escribir en la orden de otra empresa poniendo su propio company_id en la
--- fila hija.
+-- escribir en la orden de otra empresa poniendo su propio company_id en la fila
+-- hija.
 
 create or replace function app.coherencia_empresa_whatsapp()
 returns trigger
@@ -339,10 +376,10 @@ begin
         using errcode = 'check_violation';
     end if;
 
-  elsif tg_table_name = 'whatsapp_messages' then
+  elsif tg_table_name in ('whatsapp_messages','whatsapp_media') then
     select company_id into v_otra from whatsapp_conversations where id = new.conversation_id;
     if v_otra is distinct from new.company_id then
-      raise exception 'El mensaje es de otra empresa que su conversación'
+      raise exception 'La fila es de otra empresa que su conversación'
         using errcode = 'check_violation';
     end if;
   end if;
@@ -354,15 +391,24 @@ end $$;
 -- 8 · RLS
 -- ---------------------------------------------------------------------------
 --
--- Helper propio. NO se reutiliza `app.current_internal_company_ids()` porque
--- ese incluye technician, y la política v1 lo deja afuera: el día que exista un
--- technician de verdad no queremos que herede WhatsApp por accidente.
+-- Cambió entero respecto de la versión 1: ahí el salesperson veía toda la
+-- bandeja de su empresa. Ahora ve SÓLO lo que tiene asignado.
+
+-- DOS helpers, porque son DOS preguntas distintas.
+-- Ninguno de los existentes sirve: current_writer_company_ids() deja afuera al
+-- salesperson, y current_internal_company_ids() incluye technician.
+
+create or replace function app.current_whatsapp_admin_ids()
+returns uuid[] language sql stable security definer
+set search_path to 'public', 'pg_temp'
+as $$
+  select coalesce(array_agg(company_id), '{}') from company_memberships
+   where user_id = auth.uid() and status = 'active'
+     and role in ('admin','employee');
+$$;
 
 create or replace function app.current_whatsapp_company_ids()
-returns uuid[]
-language sql
-stable
-security definer
+returns uuid[] language sql stable security definer
 set search_path to 'public', 'pg_temp'
 as $$
   select coalesce(array_agg(company_id), '{}') from company_memberships
@@ -370,7 +416,41 @@ as $$
      and role in ('admin','employee','salesperson');
 $$;
 
--- RLS habilitada en las seis.
+-- LA REGLA, EN UN SOLO LUGAR.
+--
+-- Los hijos no se autorizan por su company_id: siguen a la conversación padre.
+-- Con el salesperson en el medio esto es imprescindible — si whatsapp_messages
+-- mirara sólo su company_id, un vendedor leería los mensajes de conversaciones
+-- que no puede ver.
+--
+-- SECURITY DEFINER a propósito: llamada desde la policy de `messages` lee
+-- `conversations` sin volver a entrar en su RLS, que si no sería recursión.
+create or replace function app.puede_ver_conversacion_wa(p_conv uuid)
+returns boolean language sql stable security definer
+set search_path to 'public', 'pg_temp'
+as $$
+  select exists (
+    select 1 from whatsapp_conversations c
+     where c.id = p_conv
+       and (
+         -- admin y employee: toda la empresa
+         c.company_id = any (app.current_whatsapp_admin_ids())
+         -- salesperson: sólo lo asignado a él
+         or (c.company_id = any (app.current_whatsapp_company_ids())
+             and c.assigned_to = auth.uid())
+         -- CARTERA DEL VENDEDOR — evaluada y NO activada en la v1.
+         -- Medido: 1 de 1010 clientes tiene salesperson_id cargado, así que
+         -- esta rama sería código muerto: una vía de autorización que casi
+         -- nunca se cumple, que hay que mantener y que nadie ejercita.
+         -- Se agrega el día que customers.salesperson_id esté poblado:
+         --
+         -- or (c.company_id = any (app.current_whatsapp_company_ids())
+         --     and exists (select 1 from customers cu
+         --                  where cu.id = c.customer_id
+         --                    and cu.salesperson_id = auth.uid()))
+       ));
+$$;
+
 alter table whatsapp_accounts             enable row level security;
 alter table whatsapp_conversations        enable row level security;
 alter table whatsapp_messages             enable row level security;
@@ -378,32 +458,46 @@ alter table whatsapp_media                enable row level security;
 alter table whatsapp_conversation_reads   enable row level security;
 alter table whatsapp_webhook_events       enable row level security;
 
--- Lectura: los tres roles internos, de su empresa. SIEMPRE con TO authenticated:
--- `create policy` sin TO queda en TO PUBLIC, y esa ya nos mordió una vez.
+-- SIEMPRE con TO authenticated: `create policy` sin TO queda en TO PUBLIC, y
+-- esa ya nos mordió una vez.
+
+-- Las cuentas las ven los tres roles: hace falta para mostrar de qué número
+-- salió cada conversación.
 create policy wa_accounts_select on whatsapp_accounts for select to authenticated
   using (company_id = any (app.current_whatsapp_company_ids()));
 
+-- La conversación repite la condición EN LÍNEA y no llama a la función: si la
+-- llamara, la policy se mordería la cola.
 create policy wa_conv_select on whatsapp_conversations for select to authenticated
-  using (company_id = any (app.current_whatsapp_company_ids()));
+  using (
+    company_id = any (app.current_whatsapp_admin_ids())
+    or (company_id = any (app.current_whatsapp_company_ids())
+        and assigned_to = auth.uid())
+  );
 
+-- Los hijos siguen al padre.
 create policy wa_msg_select on whatsapp_messages for select to authenticated
-  using (company_id = any (app.current_whatsapp_company_ids()));
+  using (app.puede_ver_conversacion_wa(conversation_id));
 
 create policy wa_media_select on whatsapp_media for select to authenticated
-  using (company_id = any (app.current_whatsapp_company_ids()));
+  using (app.puede_ver_conversacion_wa(conversation_id));
 
 -- Las lecturas son de cada uno: el no leído es por usuario.
+-- Juan abrir un chat NO le borra el no leído a Facundo.
 create policy wa_reads_propias on whatsapp_conversation_reads for all to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 -- whatsapp_webhook_events NO lleva ninguna policy: con RLS habilitada y sin
--- policies queda denegada por defecto para todo rol de aplicación. Sólo la
--- toca el backend, que usa service_role y tiene BYPASSRLS.
+-- policies queda denegada por defecto para todo rol de aplicación. Sólo la toca
+-- el backend, que usa service_role y tiene BYPASSRLS.
 
--- NINGUNA policy de INSERT, UPDATE ni DELETE sobre mensajes desde el cliente.
--- Ni siquiera para mandar: para eso está la RPC, que valida permiso, empresa y
--- ventana. Es la lección de O4 — que la capa de privilegios impida la escritura
--- directa aunque mañana alguien escriba mal una policy.
+-- NINGUNA escritura desde el cliente. Ni un UPDATE sobre conversaciones:
+-- si lo hubiera, un salesperson **se apropiaría de cualquier conversación**
+-- poniéndose en assigned_to, y a partir de ahí la policy de lectura lo dejaría
+-- pasar. Todo cambio va por RPC.
+--
+-- Es además la lección de O4: que el privilegio impida la escritura directa
+-- aunque mañana alguien escriba mal una policy.
 revoke insert, update, delete on whatsapp_accounts,
                                  whatsapp_conversations,
                                  whatsapp_messages,
@@ -413,31 +507,93 @@ revoke insert, update, delete on whatsapp_accounts,
 
 
 -- ---------------------------------------------------------------------------
--- 9 · Las acciones del servidor
+-- 9 · La cola: reclamo atómico
 -- ---------------------------------------------------------------------------
 --
--- Firmas propuestas. El cuerpo se escribe en la entrega 5.
+-- NO alcanza con SELECT de los pendientes y después UPDATE: entre las dos
+-- sentencias, otro worker lee las mismas filas y el cliente recibe el mensaje
+-- dos veces.
+--
+-- El reclamo tiene que ser UNA SOLA sentencia. `FOR UPDATE SKIP LOCKED` hace
+-- que el segundo worker SALTEE las filas que el primero ya tomó, en vez de
+-- esperarlas o pisarlas.
+
+create or replace function app.tomar_mensajes_whatsapp(p_limite int default 10)
+returns setof whatsapp_messages
+language sql
+volatile
+security definer
+set search_path to 'public', 'pg_temp'
+as $$
+  update whatsapp_messages m
+     set status = 'sending',
+         claimed_at = now(),
+         attempts = attempts + 1
+   where m.id in (
+     select id from whatsapp_messages
+      where status = 'pending'
+        and (next_attempt_at is null or next_attempt_at <= now())
+      order by created_at
+      for update skip locked
+      limit p_limite)
+  returning m.*;
+$$;
+
+revoke execute on function app.tomar_mensajes_whatsapp(int) from public, anon, authenticated;
+
+-- EL CASO FEO, y por qué el reaper NO devuelve a `pending`.
+--
+-- Si el worker se cae DESPUÉS del POST a Meta pero ANTES de guardar el
+-- provider_message_id, la fila queda en `sending`. La tentación es devolverla a
+-- `pending`. No hay que hacerlo: no encontré en la documentación de Meta
+-- ninguna clave de idempotencia para el envío —algo como el Idempotency-Key de
+-- Stripe—, así que reintentar a ciegas es mandarle el mismo mensaje dos veces a
+-- un cliente.
+--
+-- El reaper los manda a `failed` y una PERSONA decide si reintenta. Es
+-- preferible un mensaje trabado que alguien mira, a un mensaje duplicado que el
+-- cliente lee.
+--
+-- update whatsapp_messages
+--    set status = 'failed', failed_at = now(),
+--        error_details = 'no se pudo confirmar el envío'
+--  where status = 'sending' and claimed_at < now() - interval '5 minutes';
+
+
+-- ---------------------------------------------------------------------------
+-- 10 · Las acciones del servidor
+-- ---------------------------------------------------------------------------
+--
+-- Firmas propuestas. El cuerpo se escribe en las entregas 5 y 6.
 --
 --   enviar_mensaje_whatsapp(p_conversacion uuid, p_texto text,
 --                           p_media uuid, p_client_request_id uuid)
---       · verifica rol y empresa
---       · verifica la VENTANA: si está cerrada, rechaza el texto libre y
---         exige plantilla. La decisión es server-side, siempre.
---       · inserta status='pending' y devuelve el id
+--       · verifica que pueda ver la conversación (app.puede_ver_conversacion_wa)
+--       · verifica la VENTANA: si está cerrada, rechaza el texto libre y exige
+--         plantilla. La decisión es server-side, siempre.
+--       · inserta status='pending' con client_request_id
 --
 --   marcar_conversacion_leida(p_conversacion uuid)
 --       · upsert en whatsapp_conversation_reads para auth.uid()
 --       · NO toca a los demás usuarios
 --
+--   asignar_conversacion(p_conversacion uuid, p_usuario uuid)
+--       · SÓLO admin y employee: app.current_whatsapp_admin_ids()
+--       · un salesperson NO puede asignarse conversaciones a sí mismo.
+--         La autoasignación es una mejora futura, y hoy no hay puerta por la
+--         que colarse: no existe UPDATE desde el cliente.
+--
 --   vincular_conversacion_cliente(p_conversacion uuid, p_customer uuid,
 --                                 p_contacto uuid)
 --       · verifica que el cliente sea de la misma empresa
+--       · el salesperson puede, si la conversación es suya
 --
---   asignar_conversacion(p_conversacion uuid, p_usuario uuid)
+--   archivar_conversacion(p_conversacion uuid)
+--       · sólo admin y employee
 --
 -- La ventana, como consulta:
 --
---   create function app.ventana_abierta(p_conversacion uuid) returns boolean as $$
+--   create function app.ventana_abierta_wa(p_conversacion uuid) returns boolean as $$
 --     select exists (
 --       select 1 from whatsapp_messages
 --        where conversation_id = p_conversacion and direction = 'in'

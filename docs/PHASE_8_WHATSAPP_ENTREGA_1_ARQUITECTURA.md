@@ -1,6 +1,10 @@
 # Fase 8 · WhatsApp — Entrega 1: arquitectura, schema y RLS
 
-**PROPUESTA. No se ejecutó nada.**
+**PROPUESTA · versión 2, con las decisiones aplicadas. No se ejecutó nada.**
+
+> Segunda versión. La primera quedó aprobada en general y volvió con once
+> decisiones; están aplicadas acá y resumidas al final, en **Cambios respecto
+> de la versión 1**.
 
 No se creó ninguna tabla, no se aplicó ninguna migración, no se tocó Meta, no se
 registró ningún número, no se generó ningún token, no se creó ningún webhook, no
@@ -79,35 +83,68 @@ que llamar aparte al endpoint `register`.
 
 ## C · El número
 
-Acá hay una decisión tuya, y las opciones no son las que uno supone.
+**DECISIÓN TOMADA: número nuevo para la v1.** El número que usa el negocio no se
+toca hasta que el circuito completo esté estable.
 
-| opción | ¿se puede? | qué implica |
+El objetivo es probar Meta → webhook → Supabase → Realtime → React → envío →
+Meta → webhook de estado **sin arriesgar el canal por donde hoy entran los
+clientes**. Si algo sale mal con el alta, la calidad del número o las
+plantillas, no se cae el WhatsApp del negocio.
+
+---
+
+## C.1 · Migración futura del número actual
+
+Investigado el **11 de septiembre de 2026** sobre documentación oficial. Esto
+**no se ejecuta**: es el mapa para decidir después.
+
+### Clasificación por escenario
+
+| escenario | estado | evidencia |
 |---|---|---|
-| **Número nuevo** | sí | lo más limpio. Hay que difundirlo: nadie lo tiene agendado |
-| **El número actual, si está en WhatsApp común (Messenger)** | **hay que borrarlo primero** | la documentación es explícita: *«Numbers already in use with WhatsApp cannot be registered unless they are deleted first»*. **Se pierde el historial del teléfono** |
-| **El número actual, si está en la app WhatsApp Business** | **sí, con coexistencia** | se puede usar la app **y** Cloud API a la vez, y *«WhatsApp keeps messaging history between both apps in sync»* |
-| Número en otra plataforma | migración | hay un flujo específico de migración de número |
+| Número **nuevo** en Cloud API | **SUPPORTED** | flujo estándar de alta |
+| Número en **WhatsApp Messenger** (consumidor) → Cloud API | **SUPPORTED, con pérdida** | hay que borrar la cuenta de la app; *«Chat history is lost»* |
+| Número en **app WhatsApp Business** → Cloud API, **directo** | **SUPPORTED, con pérdida** | mismo camino: borrar de la app y registrar |
+| Número en **app WhatsApp Business** → Cloud API **con coexistencia** | **CONDITIONALLY SUPPORTED** | ver abajo |
+| **Coexistencia contratada directamente por la empresa** | **NOT SUPPORTED** | *«You must already be a Solution Partner or Tech Provider»* |
+| Conservar el historial en una migración directa | **NOT SUPPORTED** | se pierde |
+| Coexistencia con un número de **WhatsApp Messenger** | **NOT SUPPORTED** | la función es sólo para cuentas de la app Business |
+| Si un BSP argentino concreto ofrece coexistencia y a qué costo | **NO DETERMINADO** | no es una pregunta de documentación: hay que pedir presupuestos |
 
-### La distinción que importa
+### El hallazgo que cambia la conversación
 
-Las dos páginas oficiales parecen contradecirse y no lo hacen:
+En la versión 1 dejé esto marcado como riesgo **R2**, para confirmar. Confirmado,
+y la respuesta es peor de lo que esperaba:
 
-- **WhatsApp de consumidor (Messenger): NO hay coexistencia.** Hay que borrar
-  el número de la app primero.
-- **App WhatsApp Business: SÍ hay coexistencia.**
+> **La coexistencia es exclusiva de Solution Partners y Tech Providers**, a
+> través de *Embedded Signup*. Una empresa **no puede** dar de alta su propio
+> número en coexistencia por el camino directo.
 
-Dos salvedades sobre la coexistencia, medidas en la documentación:
+Requisitos textuales de la documentación:
 
-- El *throughput* queda **fijo en 20 mensajes por segundo** mientras el número
-  esté en los dos lados.
-- Está documentada dentro del flujo de **Embedded Signup**, que es el camino de
-  los *Solution / Tech Providers*. Para una empresa que se da de alta sola,
-  **hay que confirmar si el camino directo la ofrece**. Es lo primero que
-  averiguaría antes de tocar el número que usa el negocio.
+- *«The business customer must use WhatsApp Business app version 2.24.17 or higher.»*
+- *«You must already be a Solution Partner or Tech Provider.»*
+- *«You must use Embedded Signup with session logging.»*
 
-**Recomendación:** empezar con un **número nuevo** para la entrega 1. Permite
-construir y probar todo sin poner en riesgo el número que el negocio ya usa, y
-la decisión de migrar o coexistir se toma después, con el sistema andando.
+### Entonces, para el número actual hay exactamente dos caminos
+
+| | camino directo | a través de un BSP |
+|---|---|---|
+| ¿se puede? | sí | sí |
+| historial del teléfono | **se pierde** | **se conserva**: Meta sincroniza los **180 días** previos |
+| ¿sigue andando la app WhatsApp Business? | **no**: hay que borrar la cuenta | **sí**: conviven |
+| *throughput* | completo | **fijo en 20 mensajes por segundo** |
+| costo | sólo lo de Meta | lo de Meta **más** el BSP |
+| dependencia | ninguna | un tercero en el medio |
+
+Y un detalle operativo de la documentación: tras borrar la cuenta de la app,
+*«It may take up to 3 minutes for the disconnected number to become available»*.
+
+**Lectura para cuando llegue el momento:** si conservar el historial y que el
+equipo siga usando la app del teléfono vale lo que cobra un BSP, el camino es
+por BSP. Si no, es borrar y registrar, con backup previo de las conversaciones
+desde el teléfono. **No hay una tercera opción**, y ninguna de las dos es la que
+uno supondría leyendo sólo la página de coexistencia.
 
 ---
 
@@ -363,6 +400,27 @@ extensión: un chat sin vincular ofrece «Buscar cliente» y, más adelante, «C
 cliente». **Nunca automático**: un mensaje de alguien preguntando un precio no
 es un cliente.
 
+### La cartera del vendedor: evaluada y descartada para la v1
+
+Se pidió evaluar si un salesperson debería ver además las conversaciones de
+**su cartera de clientes**. Lo medí antes de diseñarlo:
+
+| | |
+|---|---|
+| clientes | **1010** |
+| con `salesperson_id` cargado | **1** |
+| vendedores distintos | **1** |
+
+Con un cliente de mil, la regla de cartera sería **código muerto**: una segunda
+vía de autorización que casi nunca se cumple, que hay que mantener y que hay que
+probar. Peor: una vía de autorización que no se ejercita es una vía que nadie
+sabe si funciona.
+
+**Decisión: en la v1 el salesperson ve lo que tiene asignado, y nada más.** La
+regla de cartera queda como una cláusula `or` lista para agregar el día que
+`customers.salesperson_id` esté poblado — está escrita y comentada en el SQL
+propuesto, sin activar.
+
 ---
 
 ## L · No leídos
@@ -390,6 +448,11 @@ no_leidos(conversación, usuario) =
 |---|---|
 | contador persistido por usuario | hay que mantenerlo con triggers y deriva con el tiempo |
 | booleano global | es exactamente el problema del legacy |
+| `last_read_message_id` | obliga a un join para saber si un mensaje es posterior, y se rompe si ese mensaje se archiva |
+
+**Se eligió `last_read_at`**, que es lo más robusto de los tres: se compara
+contra `provider_timestamp` sin joins, no depende de que ninguna fila siga
+existiendo, y es idempotente —marcar leído dos veces no hace nada—.
 
 Es la misma decisión que se tomó con los indicadores de torque: **lo derivado no
 se guarda**, porque guardarlo crea la posibilidad de que el número guardado y el
@@ -400,31 +463,71 @@ conversaciones, no una por fila.
 
 ---
 
-## M · Mensajes salientes e idempotencia
+## M · Mensajes salientes, cola e idempotencia
 
 ```
 React
   → RPC enviar_mensaje_whatsapp(conversación, texto | plantilla, client_request_id)
-      · verifica permiso y empresa
+      · verifica rol y empresa
       · verifica la ventana (ver N) — SERVER-SIDE
       · inserta status='pending' con client_request_id
-  → wa-send toma los pending
+  → wa-send RECLAMA un lote de forma atómica  ← ver abajo
       · POST a Cloud API
       · guarda provider_message_id, status='sent'
   → webhook de estado
 ```
 
-**Dos clics, un mensaje.** La garantía es un `UNIQUE (account_id,
-client_request_id)`: el segundo intento choca contra el índice y no crea nada. El
-`client_request_id` lo genera el navegador (`crypto.randomUUID()`) **una vez por
-acción**, no por clic.
+### Dos clics, un mensaje
 
-Y del lado del despacho, `wa-send` toma las filas con `FOR UPDATE SKIP LOCKED`,
-que es lo que evita que dos ejecuciones manden el mismo mensaje. Es el mismo
-patrón del `for update` que ya usan `confirmar_entrega()` y
-`cerrar_orden_mantenimiento()`.
+`UNIQUE (account_id, client_request_id)`. El segundo intento choca contra el
+índice y no crea nada. El `client_request_id` lo genera el navegador
+(`crypto.randomUUID()`) **una vez por acción**, no por clic: se crea al abrir
+el compositor y se descarta cuando el envío se confirma.
 
----
+### Dos workers, un envío: el reclamo atómico
+
+Esto es lo que en la versión 1 estaba dicho de más arriba y hay que bajar a
+tierra. **No alcanza con `SELECT` de los pendientes y después `UPDATE`:** entre
+las dos sentencias, otro worker lee las mismas filas.
+
+El reclamo tiene que ser **una sola sentencia**:
+
+```sql
+update whatsapp_messages m
+   set status = 'sending', claimed_at = now(), attempts = attempts + 1
+ where m.id in (
+   select id from whatsapp_messages
+    where status = 'pending'
+      and (next_attempt_at is null or next_attempt_at <= now())
+    order by created_at
+    for update skip locked          ← acá está la garantía
+    limit p_limite)
+returning m.*;
+```
+
+`FOR UPDATE SKIP LOCKED` hace que el segundo worker **saltee** las filas que el
+primero ya tiene tomadas, en vez de esperarlas o pisarlas. Es el mismo mecanismo
+del `for update` que ya usan `confirmar_entrega()` y
+`cerrar_orden_mantenimiento()`, con el agregado del `skip locked` porque acá
+queremos que el segundo siga trabajando en vez de bloquearse.
+
+Eso obliga a un estado más: **`sending`**, entre `pending` y `sent`.
+
+### El caso feo: el worker se muere después de llamar a Meta
+
+Si el proceso se cae **después** del POST pero **antes** de guardar el
+`provider_message_id`, la fila queda en `sending` para siempre. La tentación es
+un *reaper* que la devuelva a `pending`. **No hay que hacer eso.**
+
+Busqué en la documentación una clave de idempotencia para el envío —algo como el
+`Idempotency-Key` de Stripe— y **no la encontré**. Sin eso, devolver a
+`pending` un mensaje que quizá ya salió es **mandarle el mismo mensaje dos veces
+a un cliente**.
+
+**Propuesta:** el *reaper* mueve los `sending` viejos —más de 5 minutos— a
+`failed` con `error_details = 'no se pudo confirmar el envío'`, y **una persona
+decide** si reintenta. Es preferible un mensaje trabado que alguien mira, a un
+mensaje duplicado que el cliente lee.
 
 ## N · Ventana de conversación
 
@@ -480,8 +583,22 @@ La tabla guarda **sólo metadata**:
 
 ```
 provider_media_id · mime_type · file_name · size_bytes · sha256
-storage_path · caption · status (pendiente|descargada|fallida) · expires_at
+storage_path · status (pendiente|descargada|fallida)
+provider_expires_at   ← los 7 días del id de Meta
+media_expires_at      ← NUESTRA retención: 180 días
 ```
+
+**Retención decidida: 180 días**, calculada al descargar
+(`media_expires_at = now() + interval '180 days'`). La columna se crea ahora
+para que la fecha quede escrita desde el primer archivo; **el proceso que borra
+no se construye en esta entrega**, que es sólo schema. Sin la columna desde el
+día uno, el día que se quiera aplicar la política no habría contra qué
+compararla.
+
+**El texto de los mensajes no sigue esa retención**: los mensajes se conservan
+indefinidamente. Lo que se va a los 180 días es el archivo de Storage; la fila
+de `whatsapp_media` queda, con su `file_name` y su `sha256`, para que el hilo
+muestre «este archivo ya no está disponible» en vez de un hueco.
 
 ### Entrante
 
@@ -634,20 +751,38 @@ mezclando el reloj del puente con el del navegador, y por eso podía desordenars
 
 ## V · Retención
 
-Propuestas, **no aplicadas**:
+Decididas. **Ninguna se aplica en esta entrega**: se define el modelo, no el
+cron que borra.
 
 | dato | retención | por qué |
 |---|---|---|
 | `whatsapp_messages` | **indefinida** | es el histórico comercial |
-| `whatsapp_media` (archivos) | **a definir — decisión tuya** | crece rápido: 56 archivos = 22 MB en una tarde |
-| `whatsapp_webhook_events` | **30 días** | es para depurar, no es fuente de verdad |
+| `whatsapp_media` · el archivo en Storage | **180 días** | 56 archivos fueron 22 MB en una sola tarde |
+| `whatsapp_media` · la fila | indefinida | para poder decir «ya no está disponible» en vez de mostrar un hueco |
+| `whatsapp_webhook_events` | **14 días** | ver abajo |
 | `whatsapp_conversation_reads` | mientras exista la conversación | una fila por usuario y chat |
 
-El punto 58 marcaba lo importante: **los payloads crudos no pueden crecer para
-siempre**. Por eso `whatsapp_webhook_events` nace con retención, no se la agrega
-después.
+**14 días para los eventos crudos**, y no 30 como propuse en la versión 1. El
+razonamiento: sirven para depurar **un problema que ya se notó**, y un problema
+de webhooks se nota en horas o días, no en semanas. Catorce días cubren dos
+fines de semana largos y una vuelta de vacaciones, que es el peor caso realista
+para que alguien diga «ayer no entró un mensaje». Guardar el doble sería guardar
+payloads con datos personales sin un uso concreto.
 
----
+### Conservar una media importante: backlog, sin columna todavía
+
+Se pidió preparar el modelo para poder marcar una media como
+`retain` / `protected` / `business_record`. **No agrego la columna hoy**, y es
+una decisión, no un olvido:
+
+- no hay todavía ninguna pantalla que la escriba;
+- no hay proceso de borrado que la lea;
+- una columna que nadie escribe ni lee es una columna que se convierte en ruido
+  y que alguien, dentro de un año, no va a saber si significa algo.
+
+Agregarla cuando exista el proceso de borrado es **un `alter table` de un
+segundo** sobre una tabla que no va a tener millones de filas. Queda en el
+backlog, explícito.
 
 ## W · Borrado
 
@@ -732,70 +867,113 @@ Nace con retención para que no sea otro `audit_logs` infinito.
 
 ## Z · RLS
 
-### El helper que falta
+Esta sección cambió entera respecto de la versión 1. Ahí el salesperson veía
+toda la bandeja de su empresa; ahora **ve sólo lo que tiene asignado**, y eso
+obliga a un diseño distinto.
 
-Los roles reales del ERP son siete y hay cinco en uso. Los helpers existentes
-no sirven tal cual:
-
-| helper | incluye |
-|---|---|
-| `app.current_writer_company_ids()` | admin, employee |
-| `app.current_internal_company_ids()` | admin, employee, salesperson, **technician** |
-
-La política que proponés —admin, employee y salesperson **sí**, technician
-**no**— no coincide con ninguno. **Hace falta un helper propio:**
+### Dos helpers, no uno
 
 ```sql
-app.current_whatsapp_company_ids()  →  admin, employee, salesperson
+app.current_whatsapp_admin_ids()    → admin, employee        (empresa completa)
+app.current_whatsapp_company_ids()  → admin, employee, salesperson
 ```
 
-Uno nuevo y no reutilizar `current_internal_company_ids()`, porque el día que se
-agregue un technician de verdad no queremos que herede WhatsApp por accidente.
+Ninguno de los helpers existentes sirve: `current_writer_company_ids()` es
+admin + employee y deja afuera al salesperson;
+`current_internal_company_ids()` incluye **technician**, que acá no va. Y se
+crean dos nuevos en vez de uno porque **son dos preguntas distintas**: «¿puede
+usar WhatsApp?» y «¿ve todo?».
 
-### La matriz
+### La regla, en un solo lugar
+
+Los hijos **no se autorizan por su `company_id`**: se autorizan siguiendo a la
+conversación padre. Es la lección de O1, y con el salesperson en el medio se
+vuelve imprescindible — si `whatsapp_messages` mirara sólo su `company_id`, un
+salesperson leería los mensajes de conversaciones que no puede ver.
+
+```sql
+create function app.puede_ver_conversacion_wa(p_conv uuid) returns boolean
+language sql stable security definer as $$
+  select exists (
+    select 1 from whatsapp_conversations c
+     where c.id = p_conv
+       and (
+         -- admin y employee: toda la empresa
+         c.company_id = any (app.current_whatsapp_admin_ids())
+         -- salesperson: sólo lo asignado a él
+         or (c.company_id = any (app.current_whatsapp_company_ids())
+             and c.assigned_to = auth.uid())
+       ));
+$$;
+```
+
+Es `SECURITY DEFINER` a propósito: llamada desde la policy de `messages` lee
+`conversations` sin volver a entrar en su RLS, que si no sería recursión. La
+policy de `conversations` **no** llama a la función: repite la condición en
+línea, justamente para no morderse la cola.
+
+### La matriz definitiva
 
 | tabla | rol | SELECT | INSERT | UPDATE | DELETE |
 |---|---|---|---|---|---|
-| **`whatsapp_accounts`** | admin | ✅ | ❌ | ❌ | ❌ |
-| | employee · salesperson | ✅ | ❌ | ❌ | ❌ |
-| | technician · customer · distributor · anon | ❌ | ❌ | ❌ | ❌ |
-| | backend | ✅ | ✅ | ✅ | ❌ |
-| **`whatsapp_conversations`** | admin · employee · salesperson | ✅ | ❌ | ⚠️ | ❌ |
-| | technician · customer · distributor · anon | ❌ | ❌ | ❌ | ❌ |
-| | backend | ✅ | ✅ | ✅ | ❌ |
-| **`whatsapp_messages`** | admin · employee · salesperson | ✅ | ❌ | ❌ | ❌ |
-| | technician · customer · distributor · anon | ❌ | ❌ | ❌ | ❌ |
-| | backend | ✅ | ✅ | ✅ | ❌ |
-| **`whatsapp_media`** | admin · employee · salesperson | ✅ | ❌ | ❌ | ❌ |
-| | technician · customer · distributor · anon | ❌ | ❌ | ❌ | ❌ |
-| | backend | ✅ | ✅ | ✅ | ❌ |
-| **`whatsapp_conversation_reads`** | admin · employee · salesperson | ⚠️ propias | ⚠️ propias | ⚠️ propias | ❌ |
-| | el resto · anon | ❌ | ❌ | ❌ | ❌ |
-| | backend | ✅ | ✅ | ✅ | ❌ |
+| **`whatsapp_accounts`** | ADMIN | ✅ empresa | ❌ | ❌ | ❌ |
+| | EMPLOYEE | ✅ empresa | ❌ | ❌ | ❌ |
+| | SALESPERSON | ✅ empresa | ❌ | ❌ | ❌ |
+| | TECHNICIAN · CUSTOMER · DISTRIBUTOR · ANON | ❌ | ❌ | ❌ | ❌ |
+| | BACKEND | ✅ | ✅ | ✅ | ❌ |
+| **`whatsapp_conversations`** | ADMIN | ✅ **empresa completa** | ❌ | ❌ | ❌ |
+| | EMPLOYEE | ✅ **empresa completa** | ❌ | ❌ | ❌ |
+| | SALESPERSON | ✅ **sólo `assigned_to = auth.uid()`** | ❌ | ❌ | ❌ |
+| | TECHNICIAN · CUSTOMER · DISTRIBUTOR · ANON | ❌ | ❌ | ❌ | ❌ |
+| | BACKEND | ✅ | ✅ | ✅ | ❌ |
+| **`whatsapp_messages`** | ADMIN · EMPLOYEE | ✅ empresa completa | ❌ | ❌ | ❌ |
+| | SALESPERSON | ✅ **sólo de sus conversaciones asignadas** | ❌ | ❌ | ❌ |
+| | TECHNICIAN · CUSTOMER · DISTRIBUTOR · ANON | ❌ | ❌ | ❌ | ❌ |
+| | BACKEND | ✅ | ✅ | ✅ | ❌ |
+| **`whatsapp_media`** | ADMIN · EMPLOYEE | ✅ empresa completa | ❌ | ❌ | ❌ |
+| | SALESPERSON | ✅ **sólo de sus conversaciones asignadas** | ❌ | ❌ | ❌ |
+| | TECHNICIAN · CUSTOMER · DISTRIBUTOR · ANON | ❌ | ❌ | ❌ | ❌ |
+| | BACKEND | ✅ | ✅ | ✅ | ❌ |
+| **`whatsapp_conversation_reads`** | ADMIN · EMPLOYEE · SALESPERSON | ✅ **sólo las propias** | ✅ propias | ✅ propias | ❌ |
+| | TECHNICIAN · CUSTOMER · DISTRIBUTOR · ANON | ❌ | ❌ | ❌ | ❌ |
+| | BACKEND | ✅ | ✅ | ✅ | ❌ |
 | **`whatsapp_webhook_events`** | **todos los roles de aplicación** | ❌ | ❌ | ❌ | ❌ |
-| | backend | ✅ | ✅ | ✅ | ✅ |
+| | BACKEND | ✅ | ✅ | ✅ | ✅ |
 
-⚠️ = acotado. En conversaciones, el `UPDATE` sólo alcanza a los campos de
-trabajo —`assigned_to`, `archived_at`, `customer_id`— y **no** a los del
-proveedor. Se hace con una RPC, no con un `UPDATE` libre.
+**Ninguna columna de `UPDATE` para nadie.** En la versión 1 había un ⚠️ que
+permitía al cliente actualizar la conversación para asignar o archivar. Con el
+salesperson dentro, eso se vuelve peligroso: un `UPDATE` directo le dejaría
+**apropiarse de cualquier conversación** poniéndose en `assigned_to`, y ahí la
+policy de lectura empezaría a dejarlo pasar. **Todo cambio va por RPC.**
 
-### Las dos reglas que vienen de las fases anteriores
+### Quién puede asignar
 
-1. **`whatsapp_messages` no acepta `INSERT` desde el cliente.** Ni siquiera para
-   mandar: para eso está la RPC, que valida permiso, empresa y ventana. Es
-   exactamente la lección de O4 — que la capa de privilegios impida la escritura
-   directa aunque mañana alguien escriba mal una policy.
+| acción | ADMIN | EMPLOYEE | SALESPERSON |
+|---|---|---|---|
+| asignar / reasignar una conversación | ✅ | ✅ | **❌** |
+| trabajar una conversación asignada a él | ✅ | ✅ | ✅ |
+| archivar | ✅ | ✅ | ❌ |
+| vincular un cliente | ✅ | ✅ | ✅ *(si es suya)* |
+| marcar leída | ✅ | ✅ | ✅ *(la suya)* |
+
+La autoasignación —que un vendedor tome una conversación libre— es una mejora
+razonable, pero **no entra en la v1** y no se puede colar por un `UPDATE`
+directo: hoy no existe esa puerta.
+
+### Las tres reglas que vienen de las fases anteriores
+
+1. **`whatsapp_messages` no acepta `INSERT` desde el cliente.** Ni para mandar:
+   para eso está la RPC. Es la lección de O4 — el privilegio tiene que impedir
+   la escritura directa aunque mañana alguien escriba mal una policy.
 2. **Ninguna policy sin `TO`.** `create policy` sin `TO` queda en `TO PUBLIC`.
-   Todas van `TO authenticated`.
+3. **El hijo sigue al padre**, nunca a su propio `company_id`.
 
 ### Storage
 
 Bucket **privado** `whatsapp`. La policy de lectura se ata a **poder ver la
-conversación**, no a conocer la ruta — que es justo lo que la entrega 0.5
-encontró mal resuelto en el legacy. URLs firmadas **cortas** (5 minutos, como en
-Mantenimiento). Nunca una URL pública permanente.
-
----
+conversación** —la misma función— y no a conocer la ruta, que es justo lo que la
+entrega 0.5 encontró mal resuelto en el legacy. URLs firmadas de 5 minutos.
+Nunca una URL pública permanente.
 
 ## AA · Realtime
 
@@ -846,7 +1024,14 @@ Respaldados fuera del repo con sha256.
 | **B · Migrar como archivo de sólo lectura** | medio: una tabla aparte y una pantalla | ver 3 horas de conversaciones de hace un mes |
 | **C · Migrar al modelo nuevo sin vínculo de cliente** | alto: los `@lid` no son teléfonos, así que 5 de 8 conversaciones no tendrían identidad válida en el modelo nuevo | contamina el modelo nuevo con datos que no encajan |
 
-**Recomendación: A.** No por pereza: los datos **no encajan** en el modelo nuevo.
+**DECISIÓN TOMADA: A.**
+
+```
+LEGACY WHATSAPP HISTORY = BACKUP ONLY
+```
+
+No se migran a las tablas nuevas. **El backup no se borra.** No por pereza: los
+datos **no encajan** en el modelo nuevo.
 Cinco de las ocho conversaciones tienen un identificador de Baileys que Cloud API
 nunca va a volver a emitir, así que entrarían como filas que no se pueden
 continuar ni vincular. El respaldo ya está hecho y verificado; si alguna vez hace
@@ -913,32 +1098,29 @@ lee el CRM real en vez de un array vacío.
 
 ---
 
-## Decisiones que necesito de vos
+## Decisiones: tomadas
 
-Cinco. El resto lo resuelvo con evidencia.
+Las cinco de la versión 1 quedaron resueltas, y con ellas seis más:
 
-**1 · El número.**
-¿Número nuevo, o el que usa el negocio hoy? Si es el actual: ¿está en WhatsApp
-común o en la app WhatsApp Business? La respuesta cambia si se puede conservar
-el historial o hay que borrarlo del teléfono.
-*Mi recomendación: número nuevo para la v1.*
+| # | decisión | resuelto |
+|---|---|---|
+| 1 | El número | **nuevo para la v1**; el actual se evalúa después |
+| 2 | ¿Salesperson? | **sí, pero sólo lo asignado** — no la bandeja entera |
+| 3 | Histórico legacy | **BACKUP ONLY**: no se migra, no se borra el respaldo |
+| 4 | Retención de media | **180 días** |
+| 5 | Asignación en la v1 | **sí** |
+| 6 | Quién asigna | admin y employee; el salesperson **no** |
+| 7 | Modelo de no leído | `last_read_at` por usuario |
+| 8 | Eventos crudos | **14 días** |
+| 9 | Outbox | **no**: la cola es `messages`, con reclamo atómico |
+| 10 | Plantillas | **sin maestro local** en la v1 |
+| 11 | Marca «conservar» en media | **backlog**: no se agrega la columna todavía |
 
-**2 · ¿Salesperson ve WhatsApp?**
-La matriz de arriba dice que sí. Si preferís que sea sólo admin y employee —como
-Mantenimiento y Compras—, se simplifica y no hace falta un helper nuevo.
+### Lo único que queda abierto, y no es para esta entrega
 
-**3 · Los 150 mensajes del legacy.**
-¿Sólo el backup (**A**), o querés poder leerlos desde la aplicación nueva (**B**)?
-*Mi recomendación: A.*
-
-**4 · Retención de la media.**
-¿Cuánto tiempo se guardan las imágenes y audios? Son 22 MB en una tarde de
-prueba. Opciones razonables: para siempre, 2 años, o 1 año con las adjuntas a un
-documento conservadas aparte.
-
-**5 · ¿Asignación de conversaciones en la v1?**
-Es barato (`assigned_to` nullable) y el legacy ya lo tenía. Pero si nadie lo va a
-usar, es una columna y una UI de más.
+**El número actual.** No es una decisión para ahora —la v1 va con número
+nuevo— pero conviene saber que, cuando llegue, hay **exactamente dos caminos** y
+ninguno es gratis: perder el historial, o pagar un BSP. Está en **C.1**.
 
 ---
 
@@ -955,6 +1137,29 @@ usar, es una columna y una UI de más.
 | **7 · Cierre** | E2E, RLS final, mobile, egress medido, regresión |  |
 
 **No hay entrega de migración de datos**, por lo de **AB**.
+
+---
+
+## Cambios respecto de la versión 1
+
+| # | qué cambió | por qué |
+|---|---|---|
+| 1 | **RLS del salesperson**: de «toda la empresa» a «sólo lo asignado» | decisión 2; un vendedor no tiene por qué leer las conversaciones de otro |
+| 2 | **Dos helpers** en vez de uno: `..._admin_ids()` y `..._company_ids()` | son dos preguntas distintas |
+| 3 | **`app.puede_ver_conversacion_wa()`**: los hijos siguen al padre | con el salesperson en el medio, autorizar por `company_id` filtraría mensajes ajenos |
+| 4 | **Se quitó todo `UPDATE` del cliente** sobre conversaciones | si no, un salesperson se apropia de cualquier chat poniéndose en `assigned_to` |
+| 5 | **Estado `sending`** y **reclamo atómico** con `FOR UPDATE SKIP LOCKED` | dos workers no pueden tomar el mismo pendiente |
+| 6 | **El *reaper* manda a `failed`, no a `pending`** | no hay clave de idempotencia documentada en el envío: reintentar a ciegas duplica el mensaje al cliente |
+| 7 | **`media_expires_at`** con 180 días | decisión 4 |
+| 8 | Eventos crudos: de 30 a **14 días** | un problema de webhooks se nota en días, no en semanas |
+| 9 | **Cartera del vendedor descartada** para la v1 | medido: **1 de 1010** clientes tiene `salesperson_id` |
+| 10 | **`last_read_at`** elegido sobre `last_read_message_id` | no depende de que ninguna fila siga existiendo |
+| 11 | **C.1 · Migración futura del número** | la coexistencia resultó **exclusiva de Solution/Tech Providers** |
+| 12 | Legacy: de recomendación a **decisión** | `LEGACY WHATSAPP HISTORY = BACKUP ONLY` |
+
+Lo que **no** cambió: el backend (Edge Functions), las seis tablas, la ausencia
+de `outbox`, `templates` y `contacts`, la media en Storage, el cero polling y
+la idempotencia por `provider_message_id` y `client_request_id`.
 
 ---
 
