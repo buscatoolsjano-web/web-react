@@ -133,6 +133,13 @@ legacy, que se sirve desde GitHub Pages y está commiteado en un repo público.
 
 Nada de esto se rota ni se toca en esta entrega, como se pidió.
 
+> **Nota posterior · terminología y estado.** `AI_WORKER_TOKEN` es el nombre de
+> la constante **del bundle legacy**. La variable del lado de Cloudflare se
+> llama **`WORKER_SECRET`**, y el worker valida el header `X-Worker-Token`
+> contra ella, sin fallback: son el mismo secreto visto desde las dos puntas.
+> **Fue rotado en la entrega 0.5**, así que el valor que sigue publicado en el
+> bundle ya no sirve. Ver `docs/PHASE_8_WHATSAPP_ENTREGA_05_SECURITY.md`.
+
 ---
 
 ## E · Pantallas

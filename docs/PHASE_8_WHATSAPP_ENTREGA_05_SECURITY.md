@@ -22,9 +22,8 @@ Ningún valor de token aparece en este informe.
 | egress con la bandeja abierta | 20,7 MB/hora | **1,1 MB/hora** de respuestas 401 |
 | histórico | 8 · 150 · 56 | **8 · 150 · 56, intacto** |
 
-**Una cosa no pude cerrar yo**, y por eso no declaro la entrega cerrada: el
-`AI_WORKER_TOKEN` sigue publicado y sólo se invalida rotándolo en Cloudflare,
-que necesita tu acceso. Está en **L**, con los pasos exactos.
+El único criterio que no dependía de mí —invalidar el secreto del worker de
+IA— **se completó después**, rotándolo a mano en Cloudflare. Está en **L**.
 
 ---
 
@@ -262,43 +261,99 @@ No es contenido, pero es información del negocio y era una puerta abierta.
 
 ---
 
-## L · AI_WORKER_TOKEN — **lo único que no pude cerrar**
+## L · El secreto del worker de IA — **rotado**
+
+### Terminología, corregida
+
+En la entrega 0 y en la primera versión de este informe llamé a esto
+`AI_WORKER_TOKEN`. Ese es el nombre de **la constante del bundle legacy** que
+guardaba el valor. **La variable real del lado de Cloudflare se llama
+`WORKER_SECRET`**, y el worker la valida así:
+
+```
+header  X-Worker-Token   ===   env.WORKER_SECRET
+```
+
+Es la **única** validación del worker y **no tiene fallback**. O sea: el valor
+que estaba publicado en el bundle era el que correspondía a este mismo
+mecanismo. Un nombre y el otro son el mismo secreto visto desde las dos puntas.
+
+### Qué se encontró
 
 | | |
 |---|---|
-| servicio | **Cloudflare Worker** en `buscatools-ai.buscatools-jano.workers.dev` |
-| ¿sigue activo? | **SÍ** — un `GET` sin credenciales devuelve `401 {"error":"No autorizado."}` |
-| ¿dónde se valida? | en el propio worker, contra el header `X-Worker-Token` |
-| ¿qué puede hacer? | reenviar a **OpenAI** (`provider: openai`, `model: gpt-4o-mini`) |
-| ¿genera gasto? | **sí**, facturable, para quien tenga el token |
-| ¿está expuesto? | **sí**, en el bundle público, verificado hoy |
+| servicio | Cloudflare Worker `buscatools-ai` |
+| producción | `https://buscatools-ai.buscatools-jano.workers.dev/` |
+| ¿seguía activo? | **sí** — un `GET` sin credenciales devolvía `401 {"error":"No autorizado."}` |
+| qué puede hacer | reenviar a **OpenAI** (`gpt-4o-mini`) |
+| ¿estaba expuesto? | **sí**, en el bundle público |
 
-La comprobación de vida fue un `GET` sin token: el worker espera `POST`, así que
-**no pudo disparar ninguna completion ni generar gasto**.
+La comprobación de vida fue un `GET` sin token: el worker espera `POST`, así
+que **no pudo disparar ninguna completion ni generar gasto**.
 
-### Por qué no lo cerré
+### La rotación
 
-Rotarlo requiere acceso a Cloudflare, que no tengo. Y hay dos cosas que **no**
-lo invalidan:
+Hecha a mano desde una sesión autenticada de Cloudflare, fuera de esta
+conversación.
 
-- **Borrarlo del repositorio no sirve.** Está en el historial de Git y en
-  cualquier copia ya descargada del bundle. **Sólo la rotación lo invalida.**
-- **Deshabilitar la IA de WhatsApp tampoco sirve**: en WhatsApp ya está muerta
-  (`agente: null`), pero el mismo worker lo usan otras partes del ERP —hay 218
-  conversaciones en `erp_ai_conversations`—, así que el token se sigue usando.
+| | |
+|---|---|
+| `WORKER_SECRET` | **ROTATED** |
+| almacenamiento | estaba como *Secret*, sigue como *Secret* |
+| valor nuevo | 48 bytes aleatorios · 384 bits |
+| dónde vive | **SERVER-SIDE ONLY** — únicamente en Cloudflare |
+| ¿se copió a chat, archivo, Git o frontend? | **no** |
+| valor expuesto en el legacy | **INVALIDATED** |
+| deployment | OK · versión **8656441a** · 100 % del tráfico |
+| worker | **OPERATIONAL** |
+| sin token | HTTP 401 |
+| credencial arbitraria incorrecta | HTTP 401 |
+| `OPTIONS` | 204 · CORS intacto |
+| SPA React (`app.buscatools.com`) | **NO DEPENDENCY** — no consume este worker |
+| completions generadas durante la prueba | **0** |
 
-### Lo que hay que hacer, en orden
+### Sobre la prueba que no se hizo
 
-1. En Cloudflare, generar un **token nuevo** para el worker.
-2. Actualizarlo en el worker (`wrangler secret put`), **no en el bundle**.
-3. Invalidar el viejo.
-4. Mientras tanto, mirar el consumo de OpenAI por si alguien ya lo usó.
+No se probó el token viejo contra el worker, porque no se conservó. **Eso no
+bloquea el cierre**: el worker tiene una sola comparación, contra el
+`WORKER_SECRET` actual, sin ningún camino alternativo, y ese valor fue
+reemplazado por uno aleatorio nuevo. Cualquier valor anterior deja de
+satisfacer la comparación por construcción.
 
-Lo correcto de acá en más es que **el token deje de existir en el frontend**:
-las llamadas de IA tienen que salir de un backend. Eso es trabajo de la fase de
-migración, no de esta contención.
+**No se buscó ni se publicó el valor viejo sólo para repetir la prueba.**
+Recuperar un secreto filtrado para volver a usarlo sería exactamente lo
+contrario de lo que esta entrega vino a hacer.
 
----
+### El secreto nuevo no se guardó en ningún lado
+
+No se intentó recuperarlo y no está en `.env`, `.env.local`, GitHub,
+Supabase, el frontend, esta documentación ni ningún script. **Hoy ningún
+consumidor legítimo necesita conocerlo**: la aplicación nueva no llama a este
+worker, y las llamadas de IA del legacy quedan con el secreto viejo, que ya no
+sirve.
+
+Cuando la fase de migración necesite IA, el secreto tiene que viajar de un
+backend a otro, nunca por el navegador.
+
+### Métricas de Cloudflare · últimos 30 días
+
+| métrica | valor |
+|---|---|
+| invocaciones | 401 |
+| subrequests | 240 |
+| a OpenAI | 228 |
+| a Supabase | 11 |
+| errores | 0 |
+| concentración | principalmente entre el **15 y el 25 de agosto** |
+
+**NO HAY EVIDENCIA SUFICIENTE PARA DETERMINAR ABUSO.** No se afirma que lo
+hubo ni que no lo hubo: los números son compatibles tanto con el uso propio del
+ERP en esas fechas como con un tercero, y no hay registro por origen que
+permita distinguirlos. La ventana de actividad coincide con la del puente de
+WhatsApp (24 de agosto), lo que **sugiere** uso propio, pero sugerir no es
+demostrar.
+
+Lo que sí es un hecho: el valor expuesto ya no sirve.
 
 ## M · Credenciales del puente
 
@@ -364,9 +419,13 @@ El bundle **no se modificó**: el legacy sigue siendo de sólo lectura para mí,
 cambiarlo no habría servido de nada. Lo que hace que el token de aplicación ya
 no importe para WhatsApp es que **ninguna policy lo consulta más**.
 
-Para el `AI_WORKER_TOKEN`, en cambio, sacarlo del bundle **no alcanzaría**:
+Para el secreto del worker, en cambio, sacarlo del bundle **no alcanzaría**:
 está en el historial de Git y en todas las copias ya servidas. **Sólo rotarlo
-lo invalida.**
+lo invalida** — y eso ya se hizo (**L**).
+
+Así que la fila `AI_WORKER_TOKEN: PRESENTE` de la tabla de arriba sigue siendo
+cierta y **ya no importa**: lo que está publicado es un valor que el worker
+rechaza. El bundle guarda una llave que no abre nada.
 
 ---
 
@@ -474,6 +533,69 @@ informe.
 
 ---
 
+## Revalidación posterior a la rotación
+
+La suite de ataques se volvió a correr **después** de rotar el secreto del
+worker, para confirmar que nada se movió mientras tanto.
+
+```
+1 · LECTURA ANÓNIMA          8 tablas · todas HTTP 401
+2 · LECTURA CON EL TOKEN     8 combinaciones · todas HTTP 401
+3 · MEDIA (base64)           sin token y con token · HTTP 401
+4 · ESCRITURA                INSERT / UPDATE / DELETE · HTTP 401
+5 · RPC suite_wa_ping        sin token y con token · HTTP 401
+6 · REALTIME                 0 filas entregadas al suscriptor anónimo
+
+RESULTADO: 0 acceso(s) abierto(s)
+```
+
+Y el histórico, medido directo contra la base:
+
+| | |
+|---|---|
+| conversaciones | **8** |
+| mensajes | **150** |
+| media | **56** |
+| estado | 1 |
+| reglas · sesión | 0 · 0 |
+| rango de los mensajes | 2026-08-24 → 2026-08-24 |
+| policies sobre `suite_wa_*` | **0** |
+| tablas `suite_wa_*` publicadas en Realtime | **0** |
+
+**Intacto.**
+
+---
+
+## Estado de la bandeja legacy
+
+**LEGACY WHATSAPP BANDEJA = INTENCIONALMENTE FUERA DE SERVICIO.**
+
+No se va a arreglar, no se vuelve a habilitar `anon` y no se enciende Baileys.
+Es la consecuencia buscada de la contención, no un efecto colateral: con
+`auth.users` en 0, no existe ninguna forma de que esa bandeja lea los datos
+sin volver a abrir el acceso público.
+
+---
+
+## Issue global separado
+
+```
+LEGACY PUBLIC TOKEN SURFACE
+SECURITY PRIORITY — HIGH
+```
+
+**11 tablas** del proyecto legacy siguen dependiendo del mismo patrón de token
+público, `erp_valid_token()`. Entre ellas está **`erp_store`**, por donde
+sincroniza todo el ERP legacy.
+
+**No se tocan**: cerrarlas puede afectar al ERP legacy completo, y eso necesita
+su propia decisión y su propia ventana.
+
+Queda documentado y **no bloquea** el cierre de la contención específica de
+WhatsApp, que es lo que esta entrega se propuso.
+
+---
+
 ## Criterio de cierre
 
 | criterio | estado |
@@ -483,12 +605,15 @@ informe.
 | anon no lee media | **cumplido** |
 | anon no lee QR/estado sensible | **cumplido** |
 | no hay mutaciones públicas | **cumplido** |
-| **`AI_WORKER_TOKEN` invalidado o servicio deshabilitado** | **NO cumplido — requiere tu acceso a Cloudflare (ver L)** |
-| no aparecen secretos nuevos en el frontend | **cumplido**: no se agregó ninguno |
+| `suite_wa_ping` bloqueada | **cumplido** |
+| Realtime anónimo sin entrega | **cumplido** |
+| **secreto del worker invalidado** | **cumplido** — `WORKER_SECRET` **ROTATED**, valor expuesto **INVALIDATED** |
+| no aparecen secretos nuevos en el frontend | **cumplido**: no se agregó ninguno, y el nuevo es *server-side only* |
 | histórico intacto | **cumplido**: 8 · 150 · 56 |
 | backup verificado | **cumplido**, con sha256 |
 
-**Ocho de nueve.** No declaro `ENTREGA 0.5 = CLOSED` porque el criterio del
-token de IA no depende de mí y la lista decía «sólo si» **todos** se cumplen.
+Los once.
 
-Cuando rotes el token en Cloudflare, esto queda cerrado.
+---
+
+# PHASE 8 — WHATSAPP · ENTREGA 0.5 = CLOSED
