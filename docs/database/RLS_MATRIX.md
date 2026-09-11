@@ -160,19 +160,31 @@ Leyenda: ✅ permitido · ⚠️ condicionado · ❌ denegado
 
 ## COMUNICACIONES
 
+> ### WhatsApp: esta parte quedó OBSOLETA
+>
+> El plan de abajo hablaba de `wa_accounts` / `wa_conversations` /
+> `wa_messages`. **Esas tablas nunca se crearon.** Lo que se construyó en la
+> Fase 8 se llama `whatsapp_*` y es **más restrictivo** en tres puntos que
+> importan:
+>
+> | el plan decía | lo que se hizo |
+> |---|---|
+> | salesperson ve lo asignado **«o sin asignar»** | ve **sólo** `assigned_to = auth.uid()` |
+> | employee/salesperson con `INSERT`/`UPDATE` sobre conversaciones | **nadie** tiene `UPDATE`: si lo tuviera, un vendedor se apropiaría de cualquier chat poniéndose en `assigned_to` |
+> | permiso `wa.view_all` | no existe: admin y employee ven la empresa completa, y se acabó |
+>
+> **La fuente de verdad es [`PHASE_8_WHATSAPP.sql`](PHASE_8_WHATSAPP.sql)** y la
+> matriz de [`../PHASE_8_WHATSAPP_ENTREGA_1.md`](../PHASE_8_WHATSAPP_ENTREGA_1.md).
+> No implementar contra la tabla de abajo.
+
+Lo de correo sigue siendo plan, sin ejecutar:
+
 | Tabla | Rol | SELECT | INSERT | UPDATE | DELETE | Condición |
 |---|---|---|---|---|---|---|
-| `wa_accounts` | admin | ✅ | ✅ | ✅ | ⚠️ | `[BASE]` |
-| | employee/salesperson | ✅ | ❌ | ❌ | ❌ | — |
-| | externo | ❌ | ❌ | ❌ | ❌ | — |
-| `wa_conversations` | admin | ✅ | ✅ | ✅ | ❌ | `[BASE]` |
-| | employee/salesperson | ⚠️ | ⚠️ | ⚠️ | ❌ | `assigned_to = auth.uid()` **o** sin asignar. Con permiso `wa.view_all` ve todas |
-| | externo | ❌ | ❌ | ❌ | ❌ | **Nunca.** Es la bandeja interna |
-| `wa_messages` | interno | ⚠️ | ⚠️ | ⚠️ | ❌ | Heredan de la conversación. UPDATE sólo `is_read`/`status`. **Sin DELETE** |
 | `email_threads`, `email_messages` | admin | ✅ | ✅ | ✅ | ❌ | `[BASE]` |
 | | employee | ⚠️ | ⚠️ | ⚠️ | ❌ | `assigned_to = auth.uid()` o permiso `email.view_all` |
 | | externo | ❌ | ❌ | ❌ | ❌ | — |
-| `email_attachments`, `wa_message_files` | — | ⚠️ | ⚠️ | ❌ | ❌ | Heredan del mensaje |
+| `email_attachments` | — | ⚠️ | ⚠️ | ❌ | ❌ | Heredan del mensaje |
 
 ---
 
@@ -224,7 +236,7 @@ REST con un JWT de ese rol**, no a través de la UI. Casos mínimos:
 | 6 | Técnico intenta `UPDATE` de una orden no asignada | 0 filas afectadas |
 | 7 | Cualquiera intenta `DELETE` en `stock_movements` | Error de política |
 | 8 | Cualquiera intenta `INSERT` en `audit_events` | Error de política |
-| 9 | Cliente pide `wa_conversations` | 0 filas |
+| 9 | Cliente pide `whatsapp_conversations` | Error de privilegio (probado en la Fase 8) |
 | 10 | Usuario sin membresía activa pide cualquier tabla | 0 filas |
 
 **Ninguna de estas pruebas pasa por el navegador.** Se hacen con `curl` o

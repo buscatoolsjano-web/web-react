@@ -4592,6 +4592,440 @@ export type Database = {
           },
         ]
       }
+      whatsapp_accounts: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          display_name: string | null
+          display_phone_number: string
+          id: string
+          phone_number_id: string
+          provider: string
+          updated_at: string
+          waba_id: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          display_name?: string | null
+          display_phone_number: string
+          id?: string
+          phone_number_id: string
+          provider?: string
+          updated_at?: string
+          waba_id: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          display_name?: string | null
+          display_phone_number?: string
+          id?: string
+          phone_number_id?: string
+          provider?: string
+          updated_at?: string
+          waba_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_conversation_reads: {
+        Row: {
+          conversation_id: string
+          last_read_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          last_read_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          last_read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversation_reads_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversation_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_conversations: {
+        Row: {
+          account_id: string
+          archived_at: string | null
+          assigned_to: string | null
+          company_id: string
+          created_at: string
+          customer_contact_id: string | null
+          customer_id: string | null
+          id: string
+          last_message_at: string | null
+          last_message_dir: string | null
+          last_message_preview: string | null
+          phone_e164: string | null
+          phone_raw: string | null
+          profile_name: string | null
+          provider_contact_id: string
+          updated_at: string
+          vinculo_origen: string | null
+        }
+        Insert: {
+          account_id: string
+          archived_at?: string | null
+          assigned_to?: string | null
+          company_id: string
+          created_at?: string
+          customer_contact_id?: string | null
+          customer_id?: string | null
+          id?: string
+          last_message_at?: string | null
+          last_message_dir?: string | null
+          last_message_preview?: string | null
+          phone_e164?: string | null
+          phone_raw?: string | null
+          profile_name?: string | null
+          provider_contact_id: string
+          updated_at?: string
+          vinculo_origen?: string | null
+        }
+        Update: {
+          account_id?: string
+          archived_at?: string | null
+          assigned_to?: string | null
+          company_id?: string
+          created_at?: string
+          customer_contact_id?: string | null
+          customer_id?: string | null
+          id?: string
+          last_message_at?: string | null
+          last_message_dir?: string | null
+          last_message_preview?: string | null
+          phone_e164?: string | null
+          phone_raw?: string | null
+          profile_name?: string | null
+          provider_contact_id?: string
+          updated_at?: string
+          vinculo_origen?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_customer_contact_id_fkey"
+            columns: ["customer_contact_id"]
+            isOneToOne: false
+            referencedRelation: "customer_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_media: {
+        Row: {
+          attempts: number
+          company_id: string
+          conversation_id: string
+          created_at: string
+          downloaded_at: string | null
+          error_details: string | null
+          file_name: string | null
+          id: string
+          media_expires_at: string
+          message_id: string | null
+          mime_type: string
+          provider_expires_at: string | null
+          provider_media_id: string | null
+          sha256: string | null
+          size_bytes: number | null
+          status: string
+          storage_path: string | null
+        }
+        Insert: {
+          attempts?: number
+          company_id: string
+          conversation_id: string
+          created_at?: string
+          downloaded_at?: string | null
+          error_details?: string | null
+          file_name?: string | null
+          id?: string
+          media_expires_at?: string
+          message_id?: string | null
+          mime_type: string
+          provider_expires_at?: string | null
+          provider_media_id?: string | null
+          sha256?: string | null
+          size_bytes?: number | null
+          status?: string
+          storage_path?: string | null
+        }
+        Update: {
+          attempts?: number
+          company_id?: string
+          conversation_id?: string
+          created_at?: string
+          downloaded_at?: string | null
+          error_details?: string | null
+          file_name?: string | null
+          id?: string
+          media_expires_at?: string
+          message_id?: string | null
+          mime_type?: string
+          provider_expires_at?: string | null
+          provider_media_id?: string | null
+          sha256?: string | null
+          size_bytes?: number | null
+          status?: string
+          storage_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_media_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_media_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_media_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_messages: {
+        Row: {
+          account_id: string
+          attempts: number
+          caption: string | null
+          claimed_at: string | null
+          client_request_id: string | null
+          company_id: string
+          conversation_id: string
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          direction: string
+          error_code: number | null
+          error_details: string | null
+          estado_visible: string | null
+          failed_at: string | null
+          id: string
+          media_id: string | null
+          message_type: string
+          next_attempt_at: string | null
+          ordenado_en: string | null
+          provider_message_id: string | null
+          provider_status: string | null
+          provider_timestamp: string | null
+          read_at: string | null
+          received_at: string | null
+          reply_to_provider_id: string | null
+          sent_at: string | null
+          status: string
+          text_body: string | null
+        }
+        Insert: {
+          account_id: string
+          attempts?: number
+          caption?: string | null
+          claimed_at?: string | null
+          client_request_id?: string | null
+          company_id: string
+          conversation_id: string
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          direction: string
+          error_code?: number | null
+          error_details?: string | null
+          estado_visible?: string | null
+          failed_at?: string | null
+          id?: string
+          media_id?: string | null
+          message_type: string
+          next_attempt_at?: string | null
+          ordenado_en?: string | null
+          provider_message_id?: string | null
+          provider_status?: string | null
+          provider_timestamp?: string | null
+          read_at?: string | null
+          received_at?: string | null
+          reply_to_provider_id?: string | null
+          sent_at?: string | null
+          status?: string
+          text_body?: string | null
+        }
+        Update: {
+          account_id?: string
+          attempts?: number
+          caption?: string | null
+          claimed_at?: string | null
+          client_request_id?: string | null
+          company_id?: string
+          conversation_id?: string
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          direction?: string
+          error_code?: number | null
+          error_details?: string | null
+          estado_visible?: string | null
+          failed_at?: string | null
+          id?: string
+          media_id?: string | null
+          message_type?: string
+          next_attempt_at?: string | null
+          ordenado_en?: string | null
+          provider_message_id?: string | null
+          provider_status?: string | null
+          provider_timestamp?: string | null
+          read_at?: string | null
+          received_at?: string | null
+          reply_to_provider_id?: string | null
+          sent_at?: string | null
+          status?: string
+          text_body?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_webhook_events: {
+        Row: {
+          account_id: string | null
+          error_details: string | null
+          event_type: string | null
+          id: number
+          payload: Json
+          processed_at: string | null
+          provider_event_id: string | null
+          received_at: string
+          signature_ok: boolean
+        }
+        Insert: {
+          account_id?: string | null
+          error_details?: string | null
+          event_type?: string | null
+          id: number
+          payload: Json
+          processed_at?: string | null
+          provider_event_id?: string | null
+          received_at?: string
+          signature_ok: boolean
+        }
+        Update: {
+          account_id?: string | null
+          error_details?: string | null
+          event_type?: string | null
+          id?: number
+          payload?: Json
+          processed_at?: string | null
+          provider_event_id?: string | null
+          received_at?: string
+          signature_ok?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_webhook_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       product_availability: {
@@ -4900,6 +5334,35 @@ export type Database = {
           score: number
           total_count: number
         }[]
+      }
+      asignar_conversacion_whatsapp: {
+        Args: {
+          p_conversacion: string
+          p_usuario?: string | null
+        }
+        Returns: Database["public"]["Tables"]["whatsapp_conversations"]["Row"]
+      }
+      marcar_conversacion_leida_whatsapp: {
+        Args: { p_conversacion: string }
+        Returns: undefined
+      }
+      no_leidos_whatsapp: {
+        Args: { p_conversaciones: string[] }
+        Returns: {
+          conversation_id: string
+          no_leidos: number
+        }[]
+      }
+      // Sólo service_role puede ejecutarlas: el frontend no las llama nunca.
+      // Están acá porque PostgREST las publica y el archivo tiene que
+      // describir el esquema real, no el que nos gustaría.
+      tomar_mensajes_whatsapp: {
+        Args: { p_limite?: number | null }
+        Returns: Database["public"]["Tables"]["whatsapp_messages"]["Row"][]
+      }
+      reciclar_mensajes_whatsapp: {
+        Args: { p_timeout?: unknown }
+        Returns: Database["public"]["Tables"]["whatsapp_messages"]["Row"][]
       }
     }
     Enums: {
