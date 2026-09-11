@@ -498,3 +498,21 @@ function traducir(mensaje: string, codigo?: string): string {
   }
   return mensaje
 }
+
+/** Todo lo que muestran los filtros, para el CSV. Mismo criterio que equipos. */
+export async function exportarOrdenes(
+  companyId: string,
+  filtros: FiltrosOrdenes,
+): Promise<{ filas: OrdenListado[]; total: number }> {
+  const TAMANO = 1000
+  const TOPE = 5000
+  const primera = await listarOrdenes(companyId, { ...filtros, pagina: 1, porPagina: TAMANO })
+  const filas = [...primera.filas]
+  const total = primera.total
+  for (let pagina = 2; filas.length < total && filas.length < TOPE; pagina += 1) {
+    const p = await listarOrdenes(companyId, { ...filtros, pagina, porPagina: TAMANO })
+    if (p.filas.length === 0) break
+    filas.push(...p.filas)
+  }
+  return { filas, total }
+}

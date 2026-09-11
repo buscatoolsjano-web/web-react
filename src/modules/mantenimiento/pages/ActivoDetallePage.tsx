@@ -7,15 +7,17 @@ import { formatearFecha, formatearFechaHora } from '../lib/formato'
 import { FormularioActivo } from '../components/FormularioActivo'
 import { ListadoOrdenes } from '../components/ListadoOrdenes'
 import { PanelHistorial } from '../components/PanelHistorial'
+import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { ChipBaja } from '../components/ChipEstado'
 import { useActivo, useGuardarActivo, useHistorialDeActivo } from '../hooks/useActivos'
 import { useOrdenes } from '../hooks/useOrdenes'
 import { obtenerClienteBreve, obtenerProductoBreve } from '../services/catalogo'
+import { CLASES_EQUIPO } from '../services/adjuntos'
 import { FILTROS_ORDENES_INICIALES } from '../types'
 import type { DatosActivo } from '../services/activos'
 import styles from './Pagina.module.css'
 
-type Pestana = 'datos' | 'ordenes' | 'historial'
+type Pestana = 'datos' | 'ordenes' | 'archivos' | 'historial'
 
 /**
  * La ficha de un equipo.
@@ -186,6 +188,7 @@ export function ActivoDetallePage() {
           [
             ['datos', 'Datos'],
             ['ordenes', `Órdenes (${ordenes.data?.total ?? 0})`],
+            ['archivos', 'Archivos'],
             ['historial', 'Historial'],
           ] as const
         ).map(([clave, etiqueta]) => (
@@ -306,6 +309,18 @@ export function ActivoDetallePage() {
             dueño de hoy.
           </p>
         </>
+      ) : null}
+
+      {/* La pestaña monta el panel sólo cuando se abre: listar los adjuntos
+          es una consulta más, y la mayoría de las visitas a un equipo son
+          para mirar sus órdenes. */}
+      {pestana === 'archivos' ? (
+        <PanelAdjuntos
+          entidad="maintenance_asset"
+          entidadId={id}
+          clases={CLASES_EQUIPO}
+          puedeEditar={permisos.editar}
+        />
       ) : null}
 
       {pestana === 'historial' ? (

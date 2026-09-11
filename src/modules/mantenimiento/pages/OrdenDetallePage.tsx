@@ -11,6 +11,7 @@ import { PanelRepuestos } from '../components/PanelRepuestos'
 import { PanelTorque } from '../components/PanelTorque'
 import { PanelCierre } from '../components/PanelCierre'
 import { PanelHistorial } from '../components/PanelHistorial'
+import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { ChipCotizacion, ChipEspera, ChipEstadoOrden, ChipEtapa } from '../components/ChipEstado'
 import {
   useAccionesOrden,
@@ -24,16 +25,25 @@ import { useAccionesCotizacion, useLineasDeCotizacion } from '../hooks/useCotiza
 import { useAccionesRepuestos, useDepositos, useRepuestosDeOrden } from '../hooks/useRepuestos'
 import { useAccionesTorque, useCapacidad, useMediciones } from '../hooks/useTorque'
 import { useAccionesCierre, usePrecheckCierre } from '../hooks/useCierre'
+import { CLASES_ORDEN } from '../services/adjuntos'
 import styles from './Pagina.module.css'
 
-type Pestana = 'trabajo' | 'cotizacion' | 'repuestos' | 'torque' | 'cierre' | 'ingreso' | 'historial'
+type Pestana =
+  | 'trabajo'
+  | 'cotizacion'
+  | 'repuestos'
+  | 'torque'
+  | 'cierre'
+  | 'ingreso'
+  | 'archivos'
+  | 'historial'
 
 /**
  * La ficha de una orden de servicio.
  *
- * Siete pestañas, y cada una es un momento del trabajo: el circuito de etapas,
- * el presupuesto, los repuestos, el torque, el cierre, los datos de ingreso y
- * el historial.
+ * Ocho pestañas, y cada una es un momento del trabajo: el circuito de etapas,
+ * el presupuesto, los repuestos, el torque, el cierre, los datos de ingreso,
+ * los archivos y el historial.
  *
  * La del cierre es la única que consulta al servidor de más, así que su
  * precheck se pide sólo cuando está abierta: preguntar «¿se puede cerrar?» en
@@ -192,6 +202,7 @@ export function OrdenDetallePage() {
             ['torque', orden.requiereTorque ? `Torque (${mediciones.data?.length ?? 0})` : 'Torque —'],
             ['cierre', 'Cierre'],
             ['ingreso', 'Ingreso'],
+            ['archivos', 'Archivos'],
             ['historial', 'Historial'],
           ] as const
         ).map(([clave, etiqueta]) => (
@@ -412,6 +423,15 @@ export function OrdenDetallePage() {
             </div>
           ) : null}
         </>
+      ) : null}
+
+      {pestana === 'archivos' ? (
+        <PanelAdjuntos
+          entidad="maintenance_order"
+          entidadId={id}
+          clases={CLASES_ORDEN}
+          puedeEditar={permisos.editar}
+        />
       ) : null}
 
       {pestana === 'historial' ? (

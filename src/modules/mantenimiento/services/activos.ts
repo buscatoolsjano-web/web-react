@@ -395,3 +395,29 @@ export async function buscarActivos(
     dueno: a.dueno?.legal_name ?? null,
   }))
 }
+
+/**
+ * Todo lo que muestran los filtros, para el CSV.
+ *
+ * Va pidiendo páginas al servidor en vez de una consulta sin `range`: así el
+ * filtro es exactamente el del listado —una sola definición, no dos que
+ * pueden divergir— y ninguna respuesta llega con miles de filas de una.
+ */
+export async function exportarActivos(
+  companyId: string,
+  filtros: FiltrosActivos,
+): Promise<{ filas: ActivoListado[]; total: number }> {
+  const TAMANO = 1000
+  const TOPE = 5000
+  const primera = await listarActivos(companyId, { ...filtros, pagina: 1, porPagina: TAMANO })
+  const filas = [...primera.filas]
+  const total = primera.total
+  for (let pagina = 2; filas.length < total && filas.length < TOPE; pagina += 1) {
+    const p = await listarActivos(companyId, { ...filtros, pagina, porPagina: TAMANO })
+    // Una página vacía corta el bucle: sin esto, un `total` que no coincide con
+    // lo que devuelve el servidor lo dejaría girando para siempre.
+    if (p.filas.length === 0) break
+    filas.push(...p.filas)
+  }
+  return { filas, total }
+}

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useMutation } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { permisosDe } from '../lib/permisos'
 import { FiltrosActivos } from '../components/FiltrosActivos'
@@ -6,6 +7,8 @@ import { ListadoActivos } from '../components/ListadoActivos'
 import { Paginador } from '../components/Paginador'
 import { useActivos } from '../hooks/useActivos'
 import { useFiltrosActivos } from '../hooks/useFiltrosActivos'
+import { descargarCsv, equiposACsv } from '../lib/csv'
+import { exportarActivos } from '../services/activos'
 import type { OrdenActivos } from '../types'
 import styles from './Pagina.module.css'
 
@@ -20,11 +23,20 @@ import styles from './Pagina.module.css'
  * avisa antes de mostrarle una pantalla en blanco, pero lo que lo impide es
  * RLS, no este `if`.
  */
+const hoy = () => new Date().toISOString().slice(0, 10)
+
 export function ActivosPage() {
   const { filtros, aplicar, limpiar, hayFiltros } = useFiltrosActivos()
   const { data, isPending, isFetching, error } = useActivos(filtros)
   const { activa } = useEmpresa()
   const permisos = permisosDe(activa)
+
+  // Exporta **lo que muestran los filtros**, no la página visible ni la tabla
+  // entera: es lo que alguien espera cuando filtró antes de apretar el botón.
+  const exportar = useMutation({
+    mutationFn: () => exportarActivos(activa!.companyId, filtros),
+    onSuccess: ({ filas }) => descargarCsv(`equipos-${hoy()}.csv`, equiposACsv(filas)),
+  })
 
   const ordenar = (columna: OrdenActivos) => {
     // Click en la columna activa invierte; en otra, empieza ascendente — un
@@ -62,6 +74,14 @@ export function ActivosPage() {
           <Link to="/mantenimiento/ordenes" className={styles.secundario}>
             Órdenes de servicio
           </Link>
+          <button
+            type="button"
+            className={styles.secundario}
+            disabled={exportar.isPending || total === 0}
+            onClick={() => exportar.mutate()}
+          >
+            {exportar.isPending ? 'Exportando…' : 'Exportar a CSV'}
+          </button>
           {permisos.crear ? (
             <Link to="/mantenimiento/activos/nuevo" className={styles.primario}>
               + Nuevo equipo
@@ -76,6 +96,12 @@ export function ActivosPage() {
         onAplicar={aplicar}
         onLimpiar={limpiar}
       />
+
+      {exportar.error ? (
+        <p className={styles.error} role="alert">
+          No se pudo exportar: {exportar.error.message}
+        </p>
+      ) : null}
 
       {error ? (
         <p className={styles.error} role="alert">

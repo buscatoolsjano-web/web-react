@@ -2527,3 +2527,106 @@ end $function$;
 
 revoke execute on function public.precheck_cierre_mantenimiento(uuid) from public, anon;
 grant execute on function public.precheck_cierre_mantenimiento(uuid) to authenticated;
+
+-- ===========================================================================
+-- FASE 7 · MANTENIMIENTO · ENTREGA 5
+-- Cierre definitivo del módulo
+-- ===========================================================================
+--
+-- Una sola migración: `fase7_entrega5_pluralizacion`.
+--
+-- La entrega 5 es una pasada de auditoría, no de funciones nuevas. Lo único
+-- que cambió en la base es el texto de dos mensajes.
+--
+-- Todo lo demás que la entrega agregó —adjuntos y exportación CSV— **no
+-- necesitó ni una línea de schema**:
+--
+--   · `attachments.entity_type` ya aceptaba 'maintenance_asset' y
+--     'maintenance_order' desde la entrega 1.
+--   · La policy `attachments_select` ya resolvía esos dos tipos por
+--     `app.current_writer_company_ids()`, que es admin + employee, o sea
+--     exactamente la política v1 de Mantenimiento.
+--   · `attachments_write` usa el mismo helper.
+--   · El bucket `ventas` ya es privado, con límite de 20 MB, y sus policies de
+--     storage ya cubrían el caso.
+--
+-- La exportación es enteramente del lado del cliente: pide las mismas páginas
+-- que el listado y arma el CSV en el navegador. No hay función nueva.
+
+-- ---------------------------------------------------------------------------
+-- 1 · fase7_entrega5_pluralizacion
+-- ---------------------------------------------------------------------------
+--
+-- «Quedan 1 repuesto(s) sin confirmar el consumo» y «la cotización tiene
+-- 1 línea(s) con importe». El paréntesis es la forma de no decidir, y acá el
+-- número siempre se conoce antes de escribir el mensaje.
+--
+-- Sólo cambian los textos: ninguna condición, ningún código de error, ninguna
+-- transición. Los dos mensajes son los únicos del módulo que tenían «(s)».
+
+-- app.bloqueos_de_cierre_mant(): la condición 12 pasa de un format() único a
+-- dos ramas.
+--
+--   if v_n = 1 then
+--     v_out := v_out || 'Queda 1 repuesto sin confirmar el consumo'::text;
+--   elsif v_n > 1 then
+--     v_out := v_out || format('Quedan %s repuestos sin confirmar el consumo', v_n);
+--   end if;
+--
+-- (El resto del cuerpo es idéntico al de la entrega 4 — ver arriba.)
+
+-- app.validar_cotizacion_mant(): lo mismo para la línea con importe.
+--
+--   if v_n = 1 then
+--     raise exception 'No se puede quitar la moneda: la cotización tiene 1 línea con importe'
+--       using errcode = 'check_violation';
+--   elsif v_n > 1 then
+--     raise exception 'No se puede quitar la moneda: la cotización tiene % líneas con importe', v_n
+--       using errcode = 'check_violation';
+--   end if;
+
+-- ---------------------------------------------------------------------------
+-- 2 · Adjuntos — lo que YA estaba (no se tocó, se verificó)
+-- ---------------------------------------------------------------------------
+--
+-- Queda transcripto acá porque la entrega 5 lo puso en uso por primera vez y
+-- conviene que el archivo canónico muestre de qué depende.
+
+-- CHECK de entity_type (entrega 1):
+--   'quote','purchase_order','order','delivery','invoice','payment','customer',
+--   'goods_receipt','supplier_invoice','supplier',
+--   'maintenance_asset','maintenance_order'
+
+-- Policy de lectura, partida por tipo de entidad:
+--
+--   create policy attachments_select on attachments for select to authenticated
+--   using (
+--     case
+--       when entity_type = any (array['supplier','purchase_order','goods_receipt',
+--                                     'supplier_invoice','maintenance_asset',
+--                                     'maintenance_order'])
+--         then company_id in (select unnest(app.current_writer_company_ids()))
+--       else company_id in (select unnest(app.current_internal_company_ids()))
+--     end);
+--
+-- `app.current_writer_company_ids()` = admin + employee.
+-- `app.current_internal_company_ids()` = admin + employee + salesperson + technician.
+--
+-- Por eso un technician y un salesperson ven adjuntos de Ventas y **cero**
+-- adjuntos de Mantenimiento: es el mismo corte que hacen las ocho tablas del
+-- módulo.
+
+-- Policies del bucket privado `ventas` (storage.objects):
+--
+--   ventas_objects_insert / ventas_objects_delete
+--     -> la primera carpeta de la ruta tiene que ser una empresa donde el
+--        usuario escribe: (storage.foldername(name))[1] in (…writer ids…)
+--
+--   ventas_objects_select
+--     -> exists (select 1 from attachments a where a.storage_path = objects.name)
+--
+-- Esa última parece tautológica y NO lo es: la subconsulta a `attachments`
+-- también pasa por la RLS de `attachments`, así que sólo encuentra fila quien
+-- puede ver el adjunto. Verificado con JWT reales: un technician, un customer,
+-- un distributor y anon que conocen el path exacto reciben «Object not found»
+-- al pedir la URL firmada. Es la prueba del punto 17 de la entrega.
