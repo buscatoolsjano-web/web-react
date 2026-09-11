@@ -550,7 +550,7 @@ dos. Es funcionalidad **nueva**.
 y sin descuentos, como el legacy. Si en algún momento la reparación se factura
 o se integra con Ventas, hay que diseñarlo — como mejora, no como migración.
 
-### Seis policies más con el bug de la comparación consigo misma
+### Seis policies más con el bug de la comparación consigo misma — CORREGIDAS
 
 El barrido que encontró el problema de `delivery_serials` encontró **seis
 policies idénticas**, y éstas **sí tienen datos reales**:
@@ -567,7 +567,43 @@ EXISTS (SELECT 1 FROM <padre> p
 
 que compara la fila con su propia empresa y es equivalente a `true`.
 
-**No se corrigieron** porque el arreglo cambia lo que ve un `customer`: hoy ve
-todas las líneas de todas las cotizaciones, y con la policy corregida vería
-sólo las de sus propios documentos. Es lo correcto, pero es un cambio de
-comportamiento en módulos cerrados y necesita aprobación explícita.
+**Corregidas.** Y al medirlo antes de tocar nada resultó que **no filtraban**:
+Postgres aplica RLS también dentro de la subconsulta de una policy, así que la
+cadena terminaba en la policy del padre, que está bien. Lo que se eliminó es la
+fragilidad de depender de esa garantía implícita. La visibilidad quedó idéntica
+en 4 roles × 6 tablas. Ver `SECURITY_FIX_TAUTOLOGICAL_RLS_POLICIES.md`.
+
+### `create policy` sin `TO` la crea en PUBLIC
+
+Postgres crea las policies `TO PUBLIC` cuando se omite la cláusula `TO`, y todas
+las del proyecto son `TO authenticated`. Se me pasó en cuatro migraciones y en
+dos de ellas cambió el comportamiento: `anon` pasó de recibir `200 []` a
+`42501: permission denied for function current_company_ids`, porque no tiene
+EXECUTE sobre `app.current_company_ids()` ni USAGE sobre el schema `app`.
+
+En las otras dos no rompió nada sólo porque esas policies usan helpers que
+`anon` sí puede ejecutar — que es precisamente la clase de garantía accidental
+que conviene no tener.
+
+**Toda policy nueva lleva `TO authenticated` explícito.** Verificable con:
+
+```sql
+select count(*) from pg_policy p join pg_class c on c.oid=p.polrelid
+ join pg_namespace n on n.oid=c.relnamespace
+ where n.nspname='public'
+   and (select array_agg(rolname) from pg_roles where oid=any(p.polroles)) is null;
+-- tiene que dar 0
+```
+
+### Los helpers de `app` con EXECUTE heredado de PUBLIC
+
+`current_internal_company_ids`, `current_writer_company_ids`,
+`current_price_list_ids` y las dos de Mantenimiento conservan el `EXECUTE` que
+Postgres otorga a PUBLIC al crear la función; sus hermanas
+—`current_company_ids`, `current_customer_ids`, `current_role`, `is_admin`,
+`is_internal`, `shares_company`— lo tienen revocado.
+
+No es explotable: `anon` no tiene USAGE sobre el schema `app` y ese schema no
+está expuesto por PostgREST. Pero la asimetría hace que el comportamiento de una
+policy dependa de qué helper use, que es justo lo que complicó el diagnóstico
+del fix de las policies tautológicas. Emparejarlo son cinco `revoke`.

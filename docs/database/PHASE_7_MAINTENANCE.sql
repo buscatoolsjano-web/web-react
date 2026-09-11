@@ -1300,3 +1300,335 @@ create policy serials_select on delivery_serials for select using (
     or customer_id in (select unnest(app.current_customer_ids()))
   )
 );
+
+-- ===========================================================================
+-- fix_rls_policies_tautologicas
+-- ===========================================================================
+
+-- ===========================================================================
+-- FIX · seis policies de SELECT que no autorizan por sí mismas
+-- ===========================================================================
+--
+-- Todas tenían la misma forma:
+--
+--   EXISTS (SELECT 1 FROM <padre> p
+--            WHERE p.id = <hija>.<fk> AND p.company_id = <hija>.company_id)
+--
+-- Esa condición comprueba **consistencia interna** —que la línea y su
+-- documento sean de la misma empresa— y NO que el usuario tenga permiso.
+-- Por sí sola es equivalente a `true` para cualquier fila bien formada.
+--
+-- MEDIDO ANTES DE TOCAR NADA: hoy NO filtran. Postgres aplica RLS también
+-- dentro de la subconsulta de una policy, así que la cadena termina en la
+-- policy del padre, que sí está bien. Un `customer` ve 0 de las 600
+-- delivery_lines y 0 de las 992 sales_quote_lines.
+--
+-- Se corrigen igual, y el motivo es la fragilidad: la garantía es IMPLÍCITA.
+-- Depende de un comportamiento sutil de Postgres y de que la policy del padre
+-- siga siendo correcta. Si mañana alguien mete un helper SECURITY DEFINER en
+-- el medio, o reescribe la del padre, la hija se queda **sin ninguna
+-- protección propia**. Después de esto, cada policy se defiende sola.
+--
+-- El objetivo es que la visibilidad quede EXACTAMENTE IGUAL. Se midió antes y
+-- se vuelve a medir después; los números tienen que coincidir.
+--
+-- Sólo SELECT. No se toca ninguna policy de escritura.
+
+-- ── 1 · delivery_lines → sigue a deliveries ────────────────────────────────
+drop policy if exists delivery_lines_select on delivery_lines;
+create policy delivery_lines_select on delivery_lines for select using (
+  company_id in (select unnest(app.current_company_ids()))
+  and (
+    company_id in (select unnest(app.current_internal_company_ids()))
+    or exists (
+      select 1 from deliveries d
+       where d.id = delivery_lines.delivery_id
+         and d.customer_id in (select unnest(app.current_customer_ids()))
+    )
+  )
+);
+
+-- ── 2 · sales_quote_lines → sigue a sales_quotes ───────────────────────────
+drop policy if exists quote_lines_select on sales_quote_lines;
+create policy quote_lines_select on sales_quote_lines for select using (
+  company_id in (select unnest(app.current_company_ids()))
+  and (
+    company_id in (select unnest(app.current_internal_company_ids()))
+    or exists (
+      select 1 from sales_quotes q
+       where q.id = sales_quote_lines.quote_id
+         and q.customer_id in (select unnest(app.current_customer_ids()))
+    )
+  )
+);
+
+-- ── 3 · sales_order_lines → sigue a sales_orders ───────────────────────────
+drop policy if exists order_lines_select on sales_order_lines;
+create policy order_lines_select on sales_order_lines for select using (
+  company_id in (select unnest(app.current_company_ids()))
+  and (
+    company_id in (select unnest(app.current_internal_company_ids()))
+    or exists (
+      select 1 from sales_orders o
+       where o.id = sales_order_lines.order_id
+         and o.customer_id in (select unnest(app.current_customer_ids()))
+    )
+  )
+);
+
+-- ── 4 · sales_invoice_lines → sigue a sales_invoices ───────────────────────
+-- Hoy hay 0 facturas. Se corrige ahora, antes de que se carguen.
+drop policy if exists invoice_lines_select on sales_invoice_lines;
+create policy invoice_lines_select on sales_invoice_lines for select using (
+  company_id in (select unnest(app.current_company_ids()))
+  and (
+    company_id in (select unnest(app.current_internal_company_ids()))
+    or exists (
+      select 1 from sales_invoices i
+       where i.id = sales_invoice_lines.invoice_id
+         and i.customer_id in (select unnest(app.current_customer_ids()))
+    )
+  )
+);
+
+-- ── 5 · customer_purchase_order_lines → sigue a customer_purchase_orders ───
+drop policy if exists po_lines_select on customer_purchase_order_lines;
+create policy po_lines_select on customer_purchase_order_lines for select using (
+  company_id in (select unnest(app.current_company_ids()))
+  and (
+    company_id in (select unnest(app.current_internal_company_ids()))
+    or exists (
+      select 1 from customer_purchase_orders p
+       where p.id = customer_purchase_order_lines.po_id
+         and p.customer_id in (select unnest(app.current_customer_ids()))
+    )
+  )
+);
+
+-- ── 6 · product_images → sigue a products ──────────────────────────────────
+--
+-- Ojo acá: `products_select` NO es como los documentos. No tiene cliente; deja
+-- ver los productos ACTIVOS a cualquier miembro de la empresa —por eso un
+-- customer ve las 8.859 imágenes— y a los internos también los inactivos.
+-- Copiar el patrón de los documentos rompería el catálogo. Se sigue el del
+-- padre real: empresa + no borrado + (interno o activo).
+drop policy if exists product_images_select on product_images;
+create policy product_images_select on product_images for select using (
+  company_id in (select unnest(app.current_company_ids()))
+  and exists (
+    select 1 from products p
+     where p.id = product_images.product_id
+       and p.deleted_at is null
+       and (
+         p.company_id in (select unnest(app.current_internal_company_ids()))
+         or p.status = 'active'
+       )
+  )
+);
+
+-- ===========================================================================
+-- fix_rls_policies_to_authenticated
+-- ===========================================================================
+
+-- ===========================================================================
+-- CORRECCIÓN · las policies nuevas quedaron en PUBLIC en vez de authenticated
+-- ===========================================================================
+--
+-- `create policy` sin cláusula `TO` la crea `TO PUBLIC`. Todas las policies
+-- originales del proyecto son `TO authenticated`, así que las nuevas
+-- empezaron a aplicarse también a `anon` — que no puede ejecutar
+-- `app.current_company_ids()` (no tiene EXECUTE ni USAGE sobre el schema
+-- `app`) y por eso recibía `42501: permission denied for function` en vez de
+-- una lista vacía.
+--
+-- Medido: antes `anon` recibía 0 filas; después del cambio, error. Funcional-
+-- mente sigue sin ver nada, pero es un cambio de comportamiento que no
+-- corresponde a este fix.
+--
+-- Se recrean las SIETE con `TO authenticated` —las seis de este fix más
+-- `delivery_serials`, donde cometí el mismo descuido en el fix anterior—.
+-- Sin una policy aplicable, `anon` vuelve a recibir 0 filas.
+
+drop policy if exists delivery_lines_select on delivery_lines;
+create policy delivery_lines_select on delivery_lines for select to authenticated using (
+  company_id in (select unnest(app.current_company_ids()))
+  and (
+    company_id in (select unnest(app.current_internal_company_ids()))
+    or exists (
+      select 1 from deliveries d
+       where d.id = delivery_lines.delivery_id
+         and d.customer_id in (select unnest(app.current_customer_ids()))
+    )
+  )
+);
+
+drop policy if exists quote_lines_select on sales_quote_lines;
+create policy quote_lines_select on sales_quote_lines for select to authenticated using (
+  company_id in (select unnest(app.current_company_ids()))
+  and (
+    company_id in (select unnest(app.current_internal_company_ids()))
+    or exists (
+      select 1 from sales_quotes q
+       where q.id = sales_quote_lines.quote_id
+         and q.customer_id in (select unnest(app.current_customer_ids()))
+    )
+  )
+);
+
+drop policy if exists order_lines_select on sales_order_lines;
+create policy order_lines_select on sales_order_lines for select to authenticated using (
+  company_id in (select unnest(app.current_company_ids()))
+  and (
+    company_id in (select unnest(app.current_internal_company_ids()))
+    or exists (
+      select 1 from sales_orders o
+       where o.id = sales_order_lines.order_id
+         and o.customer_id in (select unnest(app.current_customer_ids()))
+    )
+  )
+);
+
+drop policy if exists invoice_lines_select on sales_invoice_lines;
+create policy invoice_lines_select on sales_invoice_lines for select to authenticated using (
+  company_id in (select unnest(app.current_company_ids()))
+  and (
+    company_id in (select unnest(app.current_internal_company_ids()))
+    or exists (
+      select 1 from sales_invoices i
+       where i.id = sales_invoice_lines.invoice_id
+         and i.customer_id in (select unnest(app.current_customer_ids()))
+    )
+  )
+);
+
+drop policy if exists po_lines_select on customer_purchase_order_lines;
+create policy po_lines_select on customer_purchase_order_lines for select to authenticated using (
+  company_id in (select unnest(app.current_company_ids()))
+  and (
+    company_id in (select unnest(app.current_internal_company_ids()))
+    or exists (
+      select 1 from customer_purchase_orders p
+       where p.id = customer_purchase_order_lines.po_id
+         and p.customer_id in (select unnest(app.current_customer_ids()))
+    )
+  )
+);
+
+drop policy if exists product_images_select on product_images;
+create policy product_images_select on product_images for select to authenticated using (
+  company_id in (select unnest(app.current_company_ids()))
+  and exists (
+    select 1 from products p
+     where p.id = product_images.product_id
+       and p.deleted_at is null
+       and (
+         p.company_id in (select unnest(app.current_internal_company_ids()))
+         or p.status = 'active'
+       )
+  )
+);
+
+-- La del fix anterior, con el mismo descuido.
+drop policy if exists serials_select on delivery_serials;
+create policy serials_select on delivery_serials for select to authenticated using (
+  company_id in (select unnest(app.current_company_ids()))
+  and (
+    company_id in (select unnest(app.current_internal_company_ids()))
+    or customer_id in (select unnest(app.current_customer_ids()))
+  )
+);
+
+-- ===========================================================================
+-- fix_policies_publicas_a_authenticated
+-- ===========================================================================
+
+-- ===========================================================================
+-- Todas las policies creadas por mí quedaron en PUBLIC en vez de authenticated
+-- ===========================================================================
+--
+-- `create policy` sin cláusula `TO` la crea `TO PUBLIC`. Toda policy previa
+-- del proyecto es `TO authenticated`. Se me pasó en tres migraciones: la
+-- entrega 5 de Compras (`attachments_select`), la entrega 1 de Mantenimiento
+-- (sus 15) y el fix anterior de `delivery_serials` —esta última ya corregida—.
+--
+-- En estas 16 el efecto práctico es nulo: sus policies llaman a
+-- `app.current_writer_company_ids()` y `app.current_maintenance_*()`, que
+-- `anon` SÍ puede ejecutar, así que devuelven un array vacío y `anon` recibe
+-- 0 filas igual. Verificado antes de tocar nada.
+--
+-- Se emparejan de todos modos: que el resultado sea correcto por qué helper
+-- usa cada policy es exactamente la clase de garantía implícita que este fix
+-- vino a eliminar.
+
+-- ── attachments ────────────────────────────────────────────────────────────
+drop policy if exists attachments_select on attachments;
+create policy attachments_select on attachments for select to authenticated using (
+  case
+    when entity_type = any (array['supplier','purchase_order','goods_receipt',
+                                  'supplier_invoice',
+                                  'maintenance_asset','maintenance_order'])
+      then company_id in (select unnest(app.current_writer_company_ids()))
+    else company_id in (select unnest(app.current_internal_company_ids()))
+  end
+);
+
+-- ── Mantenimiento ──────────────────────────────────────────────────────────
+drop policy if exists mant_cp_select on maintenance_check_points;
+create policy mant_cp_select on maintenance_check_points for select to authenticated
+  using (company_id in (select unnest(app.current_maintenance_company_ids())));
+drop policy if exists mant_cp_write on maintenance_check_points;
+create policy mant_cp_write on maintenance_check_points for all to authenticated
+  using (company_id in (select unnest(app.current_maintenance_writer_ids())))
+  with check (company_id in (select unnest(app.current_maintenance_writer_ids())));
+
+drop policy if exists mant_assets_select on maintenance_assets;
+create policy mant_assets_select on maintenance_assets for select to authenticated
+  using (company_id in (select unnest(app.current_maintenance_company_ids())));
+drop policy if exists mant_assets_write on maintenance_assets;
+create policy mant_assets_write on maintenance_assets for all to authenticated
+  using (company_id in (select unnest(app.current_maintenance_writer_ids())))
+  with check (company_id in (select unnest(app.current_maintenance_writer_ids())));
+
+drop policy if exists mant_orders_select on maintenance_orders;
+create policy mant_orders_select on maintenance_orders for select to authenticated
+  using (company_id in (select unnest(app.current_maintenance_company_ids())));
+drop policy if exists mant_orders_write on maintenance_orders;
+create policy mant_orders_write on maintenance_orders for all to authenticated
+  using (company_id in (select unnest(app.current_maintenance_writer_ids())))
+  with check (company_id in (select unnest(app.current_maintenance_writer_ids())));
+
+drop policy if exists mant_ql_select on maintenance_quote_lines;
+create policy mant_ql_select on maintenance_quote_lines for select to authenticated
+  using (company_id in (select unnest(app.current_maintenance_company_ids())));
+drop policy if exists mant_ql_write on maintenance_quote_lines;
+create policy mant_ql_write on maintenance_quote_lines for all to authenticated
+  using (company_id in (select unnest(app.current_maintenance_writer_ids())))
+  with check (company_id in (select unnest(app.current_maintenance_writer_ids())));
+
+drop policy if exists mant_parts_select on maintenance_order_parts;
+create policy mant_parts_select on maintenance_order_parts for select to authenticated
+  using (company_id in (select unnest(app.current_maintenance_company_ids())));
+drop policy if exists mant_parts_write on maintenance_order_parts;
+create policy mant_parts_write on maintenance_order_parts for all to authenticated
+  using (company_id in (select unnest(app.current_maintenance_writer_ids())))
+  with check (company_id in (select unnest(app.current_maintenance_writer_ids())));
+
+drop policy if exists mant_meas_select on maintenance_measurements;
+create policy mant_meas_select on maintenance_measurements for select to authenticated
+  using (company_id in (select unnest(app.current_maintenance_company_ids())));
+drop policy if exists mant_meas_write on maintenance_measurements;
+create policy mant_meas_write on maintenance_measurements for all to authenticated
+  using (company_id in (select unnest(app.current_maintenance_writer_ids())))
+  with check (company_id in (select unnest(app.current_maintenance_writer_ids())));
+
+drop policy if exists mant_checks_select on maintenance_order_checks;
+create policy mant_checks_select on maintenance_order_checks for select to authenticated
+  using (company_id in (select unnest(app.current_maintenance_company_ids())));
+drop policy if exists mant_checks_write on maintenance_order_checks;
+create policy mant_checks_write on maintenance_order_checks for all to authenticated
+  using (company_id in (select unnest(app.current_maintenance_writer_ids())))
+  with check (company_id in (select unnest(app.current_maintenance_writer_ids())));
+
+drop policy if exists mant_audit_select on maintenance_audit;
+create policy mant_audit_select on maintenance_audit for select to authenticated
+  using (company_id in (select unnest(app.current_maintenance_company_ids())));
