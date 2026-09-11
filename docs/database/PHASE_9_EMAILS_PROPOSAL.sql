@@ -1,5 +1,5 @@
 -- ===========================================================================
--- FASE 9 · EMAILS — SCHEMA PROPUESTO
+-- FASE 9 · EMAILS — SCHEMA PROPUESTO · versión 2
 -- ===========================================================================
 --
 --   ██  P R O P U E S T A  ·  N O   E J E C U T A D O  ██
@@ -15,6 +15,17 @@
 -- Por eso acá NO hay cuerpos, no hay adjuntos binarios y no hay una tabla de
 -- mensajes. El legacy mezcló las dos cosas y terminó con 68 MB de body_html
 -- para cinco semanas de correo.
+--
+-- Versión 2: incorpora las trece decisiones aprobadas. Lo que más cambió:
+-- assigned_to dejó de ser llave de autorización y la RLS quedó sin ninguna rama
+-- por asignación, porque el salesperson no entra en la v1 y esa rama sería
+-- código muerto.
+--
+-- Autenticación decidida: service account + Domain-Wide Delegation, app
+-- INTERNAL, scope gmail.modify. NADA de https://mail.google.com/.
+-- Gate previo, que no se resuelve desde acá: ¿hay un Super Admin de Workspace?
+-- Si no lo hay, plan B = OAuth app INTERNAL con refresh token del buzón, y el
+-- schema NO cambia.
 --
 -- Documentación de Google consultada el 2026-09-11.
 -- ===========================================================================
@@ -156,8 +167,10 @@ create table email_thread_state (
   workflow_status       text not null default 'pendiente'
                           check (workflow_status in ('pendiente','en_proceso','resuelto')),
 
-  -- Clave de autorización si algún día entra el salesperson, igual que en
-  -- WhatsApp. Hoy sólo reparte trabajo entre admin y employee.
+  -- Reparte trabajo entre admin y employee, y NADA MÁS: en la v1 no es una
+  -- llave de autorización. Nadie ve más ni menos según a quién esté asignado un
+  -- hilo. Si algún día el área comercial usa Emails, ahí se agrega la rama en la
+  -- policy; hoy sería una vía de autorización que nadie ejercita.
   assigned_to           uuid references profiles(id),
 
   -- Vínculo con el CRM. Nullable de verdad: medido sobre el correo real, el
@@ -324,6 +337,8 @@ begin
     end if;
 
     -- Sólo se asigna a alguien que trabaje en esa empresa y pueda usar Emails.
+    -- En la v1 eso es admin o employee: el salesperson no tiene acceso, así que
+    -- asignarle un hilo sería dejarle trabajo que no puede abrir.
     if new.assigned_to is not null then
       if not exists (
         select 1 from company_memberships
@@ -350,12 +365,18 @@ create trigger trg_email_events_coherencia before insert or update on email_even
 -- ---------------------------------------------------------------------------
 -- 8 · RLS
 -- ---------------------------------------------------------------------------
--- v1: ADMIN + EMPLOYEE. Todos los demás, cero.
+-- v1: ADMIN + EMPLOYEE. Todos los demás, cero. Sin excepciones y sin ramas.
 --
--- Helper propio, NO el de WhatsApp, aunque hoy devuelva lo mismo: son dos
--- reglas independientes y la de Emails tiene una decisión abierta sobre el
--- salesperson. Compartir el helper acoplaría dos módulos que tienen que poder
--- moverse solos.
+-- NINGUNA policy mira assigned_to. Es la diferencia con WhatsApp y es
+-- deliberada: allá el salesperson entra y necesita una regla por asignación;
+-- acá no entra, así que esa rama sería código muerto — una vía de autorización
+-- que nadie ejercita y que igual hay que mantener y probar. Cuando el área
+-- comercial use Emails, se agrega: es un `or` en una policy.
+--
+-- Helper propio, NO el de WhatsApp, aunque hoy devuelva exactamente lo mismo.
+-- El motivo no es estilístico: si se compartiera, cambiar el modelo de roles de
+-- WhatsApp cambiaría en silencio quién lee el correo de la empresa. Son dos
+-- reglas que coinciden hoy, no una sola regla con dos usos.
 
 create or replace function app.current_email_company_ids()
 returns uuid[] language sql stable security definer
@@ -435,9 +456,11 @@ grant select on email_events       to authenticated;
 grant select, insert, update on email_thread_reads to authenticated;
 -- NADA sobre email_sync_log.
 --
--- Y ni un UPDATE sobre email_thread_state: si lo hubiera y mañana entrara el
--- salesperson, se apropiaría de cualquier hilo poniéndose en assigned_to. Todo
--- cambio va por RPC.
+-- Y ni un UPDATE sobre email_thread_state. No por el salesperson —que no existe
+-- acá— sino por la razón general: la asignación, el estado y el vínculo con el
+-- cliente son lo ÚNICO que no se puede reconstruir desde Gmail, y no se dejan a
+-- merced de un PATCH suelto desde el navegador. Todo cambio va por RPC, que
+-- además deja el rastro en email_events.
 
 revoke execute on function app.current_email_company_ids()      from public, anon;
 revoke execute on function app.puede_ver_cuenta_email(uuid)     from public, anon;
@@ -540,6 +563,32 @@ grant  execute on function app.puede_ver_cuenta_email(uuid) to authenticated, se
 --
 --   · Full-text local de cuerpos — no guardamos cuerpos. La búsqueda de
 --     contenido va a Gmail con `q=`; la de cliente/asignado/estado, a Supabase.
+--
+--   · Tabla de borradores — decidido: se usan los DRAFTS REALES de Gmail. Un
+--     borrador local sería una segunda fuente de verdad para algo que Gmail ya
+--     tiene, y además no aparecería en el Gmail de la persona.
+--
+--   · Caché de imágenes remotas / proxy — decidido: en la v1 las imágenes
+--     remotas se BLOQUEAN por defecto y se cargan con un botón. Sin proxy, así
+--     que no hay nada que guardar.
+--
+-- ===========================================================================
+-- ESTADO DEL LEGACY MIENTRAS TANTO
+-- ===========================================================================
+--
+--   MAKE EMAIL INGESTION = DEPRECATED / DISABLED
+--     Los tres escenarios de Emails quedaron APAGADOS (5856917, 5856923,
+--     6036490). Deshabilitados, no borrados. El de Ventas —6060632, «Enviar
+--     Cotización/Pedido → Gmail»— sigue activo a propósito: no toca Supabase.
+--
+--   ERP_EMAILS = CONGELADA / SÓLO RESPALDO
+--     976 filas · 479 adjuntos · 91 estados exportados aparte.
+--     Sin acceso para anon ni authenticated, bucket privado, sin policies.
+--     No se reabre y no se borra hasta terminar la migración.
+--
+--   Los 91 estados NO se migran todavía: AUTO 20 · REVIEW 67 · UNRESOLVED 4.
+--     Se reconcilian por gmail_thread_id cuando la Gmail API esté disponible.
+--     Los UID de IMAP del legacy no se usan como id de Gmail. Nunca.
 --
 -- ===========================================================================
 -- FIN DE LA PROPUESTA · NADA DE ESTO SE APLICÓ

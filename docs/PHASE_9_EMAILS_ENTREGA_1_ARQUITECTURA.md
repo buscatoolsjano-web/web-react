@@ -1,4 +1,7 @@
-# Fase 9 · Emails — Entrega 1: arquitectura y schema
+# Fase 9 · Emails — Entrega 1: arquitectura y schema · **versión 2**
+
+Versión 2: incorpora las trece decisiones aprobadas. Lo que cambió está al
+final, en **Cambios respecto de la versión 1**.
 
 > ## ESTA ENTREGA NO EJECUTA NADA
 >
@@ -161,8 +164,10 @@ cosas caras de este proyecto (ver D).
 El SPF del dominio es
 `v=spf1 +a +mx +ip4:213.158.86.61 include:_spf.webempresa.eu ~all`.
 **No incluye `_spf.google.com`.** Hoy pasa por el `+mx` —que resuelve a
-`smtp.google.com`—, pero es frágil. **Verificar antes de la entrega de envío**,
-no ahora. No se tocó nada.
+`smtp.google.com`—, pero es frágil.
+
+**Queda en backlog y no se toca el DNS.** Antes de habilitar el envío real hay
+que revisar SPF, DKIM y DMARC juntos — no sólo el SPF, y no en esta fase.
 
 ---
 
@@ -205,27 +210,58 @@ Del documento oficial de configuración del consentimiento
 Con el dominio en Workspace y la app como **Internal**, **no hay verificación ni
 evaluación de seguridad**. Eso ahorra semanas y un costo real.
 
-### Recomendación
+### Decisión
 
-> **B · Service account con Domain-Wide Delegation, con la app como *Internal*.**
+> **B · Service account con Domain-Wide Delegation, con la app como *Internal*,
+> y scope `gmail.modify`.**
+>
+> **`https://mail.google.com/` NO se pide.** Lo único que agrega es el borrado
+> permanente, que no está en la v1 y no queremos poder hacerlo por accidente.
 
 Porque elimina de un saque los tres problemas caros: el token que se muere sola
 por un cambio de contraseña, el almacenamiento cifrado de N tokens cuando haya
 más buzones, y la verificación de scopes restringidos.
 
-El costo es el que Google marca en rojo y hay que asumir con los ojos abiertos:
+El costo es el que Google marca en rojo y se asume con los ojos abiertos:
 
 > *«With domain-wide delegation, the app has access to the data belonging to all
 > of your users.»* — [knowledge.workspace.google.com](https://knowledge.workspace.google.com/admin/apps/control-api-access-with-domain-wide-delegation)
 
 Se mitiga con lo que el propio Google recomienda: **autorizar sólo
-`gmail.modify`** (nada de `https://mail.google.com/`), y que el backend
-**impersone únicamente las direcciones dadas de alta en `email_accounts`** —
-lista blanca en código, no en la consola.
+`gmail.modify`**, y que el backend **impersone únicamente las direcciones dadas
+de alta en `email_accounts`** — lista blanca en código, no en la consola.
 
-**Requiere un Super Admin.** Si no hay acceso a ese rol, la opción A sigue siendo
-viable con la app *Internal*, que evita igual la verificación y el límite de
-7 días; queda el riesgo del cambio de contraseña. **Es la decisión 1 del final.**
+### La única puerta antes de ejecutar nada
+
+DWD **requiere un Super Admin** de Google Workspace que autorice la delegación
+en la consola de Admin. Eso no se puede averiguar desde acá: no es una
+propiedad del dominio sino de quién tiene la credencial.
+
+```
+GATE:  ¿hay acceso a un SUPER ADMIN de Google Workspace?
+
+  SÍ  →  seguir con DWD  (opción B)
+  NO  →  DETENERSE y pasar al plan B
+```
+
+### Plan B, si no hay Super Admin
+
+> **OAuth con app *Internal* y refresh token del buzón.**
+
+Sigue evitando lo más caro —al ser *Internal* no hay verificación de Google, y
+no aplica el vencimiento de 7 días del estado *Testing*—, pero deja en pie un
+riesgo que hay que aceptar explícitamente:
+
+> *«The user changed passwords and the refresh token contains Gmail scopes»*
+
+O sea: **si alguien cambia la contraseña de `info@`, la bandeja se corta** y hay
+que volver a dar el consentimiento. Se mitiga con una alerta cuando el refresh
+falla, no con código.
+
+**El resto de la arquitectura no cambia en absoluto por esto.** Cambia de dónde
+saca el backend su credencial, y nada más: ni las tablas, ni la RLS, ni el
+sync, ni la UI.
+
 
 ---
 
@@ -428,16 +464,25 @@ mails del legacy, sólo 91 tenían estado — el 9 %.
 
 `assigned_to uuid` **nullable**, FK a `profiles`.
 
-En la v1 asignan **admin y employee**; el salesperson **no existe** para Emails.
-La columna se crea igual porque no cuesta nada y porque, si mañana entra el
-salesperson, ya está la llave de autorización — el mismo patrón que WhatsApp.
+Asignan **admin y employee**, entre usuarios internos. **Se mantiene**, porque
+repartir el trabajo entre quienes sí usan el módulo es útil por sí solo.
+
+Lo que **cambió** respecto de la versión 1: en la v1 `assigned_to` **no es una
+llave de autorización**. Nadie ve más ni menos según a quién esté asignado un
+hilo — admin y employee ven toda la bandeja de su empresa. **No se construye
+RLS por `assigned_to`.**
+
+Si alguna vez el área comercial usa Emails, ahí se agrega la rama de la policy,
+como en WhatsApp. Hoy sería una vía de autorización que nadie ejercita.
 
 **Sin colas, sin round-robin, sin reglas automáticas.** El legacy tenía tabla,
 ABM y pantalla de reglas de auto-asignación, con **0 filas** en producción.
 
-Se asigna por RPC, **no por `UPDATE` directo**, por la misma razón que en
-WhatsApp: si mañana entra el salesperson y hubiera `UPDATE` abierto, se
-apropiaría de cualquier hilo poniéndose en `assigned_to`.
+Se asigna por RPC, **no por `UPDATE` directo** — no por el salesperson, que no
+existe acá, sino por la razón general: la asignación y el estado son lo único
+que no se puede reconstruir desde Gmail, y no se dejan a merced de un `PATCH`
+suelto desde el navegador.
+
 
 ---
 
@@ -466,7 +511,8 @@ por otra vía.
 
 ### Borradores
 
-> **Recomendación: Gmail Drafts reales.**
+> **DECIDIDO: Gmail Drafts reales.** Sin tabla local, sin borrador duplicado
+> en Supabase.
 
 No por elegancia: porque un borrador local sería **una segunda fuente de verdad
 para algo que Gmail ya tiene**, y el módulo entero está construido sobre no
@@ -535,9 +581,9 @@ React los ejecuta.
 Medido: **590 de 755** cuerpos cargan imágenes remotas; **275** tienen algo de
 1 píxel. Abrir un mail le avisa al remitente.
 
-> **UX propuesta para la v1: opción C — bloquear por defecto, con una barra
-> discreta arriba del cuerpo: «Esta imagen muestra imágenes remotas.
-> [Mostrar imágenes]».**
+> **DECIDIDO para la v1: bloqueadas por defecto**, con una barra discreta
+> arriba del cuerpo: «Este mensaje contiene imágenes remotas.
+> [Cargar imágenes]». **Sin proxy en la v1.**
 
 Es lo que hace Gmail, la gente ya lo conoce, y no requiere construir un proxy.
 El proxy (opción B) queda para después: resuelve la privacidad del lado del
@@ -562,16 +608,20 @@ sólo porque la API lo permite.
 | Asignar y cambiar estado | ✅ | es el valor propio del ERP |
 | Vincular cliente | ✅ | ver S |
 | No leído **por usuario** | ✅ | decisión 6 |
-| Borradores | ⚠️ **decisión** | ver Ñ y las decisiones del final |
-| Archivar · spam · papelera · restaurar | ❌ | son acciones **sobre Gmail**; el legacy nunca las tuvo de verdad y su «spam» era una lista local de remitentes |
-| Marcar leído **en Gmail** | ❌ | ver R |
-| Etiquetas de Gmail | ❌ | se muestran, no se editan |
+| **Borradores de Gmail** | ✅ | decidido: borradores reales, sin copia local |
+| Archivar · spam · papelera · restaurar | ❌ | **decidido fuera de la v1**: son mutaciones del buzón real, y el legacy nunca las tuvo de verdad — su «spam» era una lista local de remitentes |
+| Marcar leído **en Gmail** | ❌ | **decidido**: abrir un hilo en el ERP no toca el no-leído de Gmail |
+| Gestión de etiquetas de Gmail | ❌ | **decidido fuera de la v1**: se muestran, no se editan |
 | IA | ❌ | decisión 10 |
 
 **Por qué archivar/spam/papelera quedan afuera:** son mutaciones del buzón real
 y no resuelven ningún problema que el equipo tenga hoy. Agregarlas es agregar
 superficie de error sobre la casilla de la empresa. Se suman cuando alguien las
 pida por un motivo concreto.
+
+**La v1 no modifica Gmail más que para enviar y para guardar borradores.** Todo
+lo demás que el ERP hace —asignar, cambiar estado, vincular un cliente, marcar
+leído— ocurre sólo de este lado.
 
 ---
 
@@ -626,6 +676,8 @@ significaría vincular mal a alguien, que es peor que no vincular.
 
 ## T · RLS
 
+**v1: ADMIN y EMPLOYEE. Todos los demás, cero.** Sin excepciones y sin ramas.
+
 | tabla | ADMIN | EMPLOYEE | SALESPERSON | TECHNICIAN | CUSTOMER | DISTRIBUTOR | ANON |
 |---|---|---|---|---|---|---|---|
 | `email_accounts` | ✅ empresa | ✅ empresa | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -635,16 +687,28 @@ significaría vincular mal a alguien, que es peor que no vincular.
 | `email_events` | ✅ empresa | ✅ empresa | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `email_sync_log` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
+**No hay ninguna policy que mire `assigned_to`.** Es la diferencia con WhatsApp
+y es deliberada: allá el salesperson entra y necesita una regla por asignación;
+acá no entra, así que esa rama sería código muerto — una vía de autorización que
+nadie ejercita y que igual hay que mantener y probar.
+
+Cuando el área comercial use Emails, se agrega. Es un `or` en una policy.
+
 **Ninguna columna de `UPDATE`, `INSERT` ni `DELETE` para nadie**, salvo la
 propia marca de leído. Todo lo demás va por RPC.
 
 `email_sync_log` no lleva ninguna policy: con RLS activa y sin policies queda
 denegada por defecto para todo rol de aplicación. Sólo la toca el backend.
 
-Un helper propio, `app.current_email_company_ids()` → admin + employee. **No se
-reutiliza el de WhatsApp** aunque hoy devuelva lo mismo: son dos reglas
-independientes, y la de Emails tiene una decisión abierta sobre el salesperson.
-Compartir el helper acoplaría dos módulos que tienen que poder moverse solos.
+### Un helper propio, no el de WhatsApp
+
+`app.current_email_company_ids()` → admin + employee. Hoy devuelve exactamente
+lo mismo que `app.current_whatsapp_admin_ids()`, y aun así se crea aparte.
+
+El motivo no es estilístico: si se compartiera, **cambiar el modelo de roles de
+WhatsApp cambiaría en silencio quién lee el correo de la empresa**. Son dos
+reglas que coinciden hoy, no una sola regla con dos usos.
+
 
 ---
 
@@ -798,16 +862,35 @@ resolver.
 ## Legacy
 
 ```
-MAKE EMAIL INGESTION = DEPRECATED
+MAKE EMAIL INGESTION = DEPRECATED / DISABLED
 ```
 
-Los tres escenarios siguen encendidos y fallando con 401 desde la entrega 0.5.
+**Los tres escenarios de Emails quedaron apagados en esta entrega**, por
+decisión aprobada. Se **deshabilitaron, no se borraron**: el blueprint queda
+disponible por si hace falta mirarlo.
 
-> **Recomendación: apagarlos.** No lo hago yo: apagar algo en Make es tocar un
-> sistema de terceros y es tu decisión. Mientras sigan prendidos consumen
-> operaciones de Make sin efecto.
+| id | escenario | estado |
+|---|---|---|
+| 5856917 | `ERP \| Gmail info@ → Supabase` | **APAGADO** |
+| 5856923 | `ERP \| Reply Webhook → Gmail + Supabase` | **APAGADO** |
+| 6036490 | `AT-BACKFILL \| Mails 14-24 ago → Supabase (temporal)` | **APAGADO** |
 
-**No se les da `service_role`. No se reactivan.**
+Verificado después de apagarlos: los tres figuran inactivos.
+
+**Lo que NO se tocó, y por qué.** Hay otros escenarios que también leen `info@`
+o mandan por Gmail, y **siguen activos a propósito** porque no son del módulo de
+Emails:
+
+| id | escenario | por qué sigue |
+|---|---|---|
+| 6060632 | `ERP \| Enviar Cotización/Pedido → Gmail` | es de **Ventas**: webhook → PDF → Gmail. **No toca Supabase** y no fallaba con 401 |
+| 4804789 | `AT-COTIZADOR \| Mails info@ → Firebase` | otra automatización, fuera del alcance de esta fase |
+| 4741405 | `AT-MAILS \| Carga automatica mails clientes` | ídem |
+
+Se leyó el blueprint de 6060632 antes de decidir, justamente para no apagar una
+función de Ventas que está en uso.
+
+**No se les dio `service_role` a ninguno. No se reactiva ninguno.**
 
 ```
 ERP_EMAILS = CONGELADA / SÓLO RESPALDO
@@ -815,22 +898,68 @@ ERP_EMAILS = CONGELADA / SÓLO RESPALDO
 
 Sin acceso para `anon` ni `authenticated`, sin policies, bucket privado. **No se
 borra** hasta terminar la migración. Las 976 filas y los 479 adjuntos siguen
-intactos, con respaldo verificado por sha256 fuera del repositorio.
+intactos, con respaldo verificado por sha256 fuera del repositorio, más los 91
+estados exportados aparte.
+
 
 ---
 
-## Decisiones que necesito
+## Decisiones: tomadas
 
-Sólo las que no puedo resolver con evidencia.
+| # | decisión | resuelto |
+|---|---|---|
+| 1 | Autenticación | **DWD + app *Internal* + `gmail.modify`**, sin `mail.google.com/` |
+| 2 | Borradores | **reales de Gmail**, sin tabla local |
+| 3 | Imágenes remotas | **bloqueadas por defecto**, botón «Cargar imágenes», sin proxy |
+| 4 | Acciones sobre Gmail | sólo **leer, componer, responder, responder a todos, reenviar, borradores y adjuntos** |
+| 5 | Salesperson | **0 acceso**, y **sin RLS por `assigned_to`** |
+| 6 | Asignación | se mantiene, entre admin y employee |
+| 7 | Make | **apagado** (hecho en esta entrega), no borrado |
+| 8 | Legacy | congelado, sin reabrir, sin borrar |
+| 9 | SPF | **backlog**, sin tocar DNS |
+| 10 | Separación índice / estado | se mantiene, es lo crítico |
+| 11 | 91 estados | AUTO 20 · REVIEW 67 · UNRESOLVED 4 — **no se migran todavía** |
+| 12 | Fuente de verdad | Gmail para el correo, Supabase para el trabajo |
+| 13 | Cuerpos | **nunca persistentes**; bajo demanda |
 
-| # | decisión | contexto | mi recomendación |
-|---|---|---|---|
-| **1** | **¿Hay un Super Admin de Workspace que autorice la delegación?** | El dominio **es** Workspace (MX = `smtp.google.com`), así que DWD es posible. Evita la verificación de Google, el límite de 7 días y que un cambio de contraseña corte la bandeja | **DWD**, con sólo `gmail.modify` y lista blanca de buzones |
-| **2** | **¿Borradores reales de Gmail, o nada de borradores en la v1?** | Los reales evitan una segunda fuente de verdad y aparecen en el Gmail de la persona; cuestan 10 unidades por guardado | **Gmail Drafts reales**, con autoguardado *debounced* |
-| **3** | **¿Imágenes remotas: bloquear con botón, o proxy?** | Bloquear es gratis y la gente ya lo conoce de Gmail; el proxy protege más pero pone al backend a bajar contenido de terceros | **Bloquear + botón** en la v1 |
-| **4** | **¿Entra alguna acción sobre Gmail en la v1** (archivar, spam, papelera, marcar leído en Gmail)? | Mi propuesta las deja afuera: son mutaciones del buzón real y el legacy nunca las tuvo | **Ninguna**, hasta que haya un pedido concreto |
-| **5** | **¿El salesperson va a usar Emails alguna vez?** | La decisión 8 dice 0 en la v1. Si la respuesta es «nunca», `assigned_to` sigue sirviendo para repartir trabajo pero la RLS se simplifica | dejar `assigned_to` preparado igual: **no cuesta nada** |
-| **6** | **¿Se apagan los tres escenarios de Make?** | Fallan con 401 desde la 0.5 y consumen operaciones sin efecto | **apagarlos**, cuando digas |
+### Lo único que queda abierto, y bloquea la entrega 2
+
+```
+GATE:  ¿hay acceso a un SUPER ADMIN de Google Workspace?
+```
+
+No es una decisión de diseño: es un dato que no puedo averiguar desde acá. El
+dominio **es** Workspace —eso está probado por el MX—, pero si existe alguien
+con el rol de Super Admin dispuesto a autorizar la delegación, no.
+
+- **Sí** → DWD, como quedó decidido.
+- **No** → **detenerse** y pasar al plan B: OAuth con app *Internal* y refresh
+  token del buzón, asumiendo que un cambio de contraseña de `info@` corta la
+  bandeja hasta reconsentir.
+
+**El resto de la arquitectura no cambia en ninguno de los dos casos.**
+
+---
+
+## Cambios respecto de la versión 1
+
+| # | qué cambió | por qué |
+|---|---|---|
+| 1 | La autenticación pasó de **recomendación** a **decisión**, con el *gate* del Super Admin y el plan B escritos | decisión 1 |
+| 2 | Se fijó el scope en **`gmail.modify`** y se descartó `mail.google.com/` explícitamente | decisión 1 |
+| 3 | **`assigned_to` dejó de ser llave de autorización**: en la v1 sólo reparte trabajo | decisión 5 |
+| 4 | **Se sacó toda rama de RLS por `assigned_to`**: sería código muerto sin salesperson | decisión 5 |
+| 5 | Se reescribió la justificación del helper propio: ya no es «hay una decisión abierta» sino que compartirlo acoplaría dos módulos | decisión 5 |
+| 6 | Borradores e imágenes remotas pasaron de recomendación a **decidido** | decisiones 2 y 3 |
+| 7 | La tabla de acciones de la v1 quedó cerrada, con el motivo de cada exclusión | decisión 4 |
+| 8 | **Make: de «recomiendo apagarlos» a apagados**, con verificación y con la lista de los que NO se tocaron | decisión 7 |
+| 9 | El SPF pasó de «verificar» a **backlog explícito**, y se amplió a DKIM y DMARC | decisión 9 |
+| 10 | La sección de decisiones abiertas quedó reducida a **una sola**, que es un dato y no una preferencia | — |
+
+Lo que **no** cambió: las seis tablas, la separación entre índice y estado, el
+cuerpo bajo demanda, la ausencia de tabla de mensajes, el matching por email
+exacto, el plan de entregas y la fuente de verdad.
+
 
 ---
 
