@@ -47,3 +47,4 @@ import-catalog.state.json
 # El snapshot de las series que dejan los fixtures de revisión entre corridas.
 scripts/.fase6-fixtures-series.json
 scripts/.fase7-entrega2-series.json
+scripts/.fase7-entrega4-series.json
