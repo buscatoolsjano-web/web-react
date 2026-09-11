@@ -1,7 +1,14 @@
 # Fase 7 · Mantenimiento — Entrega 3: cotización, repuestos y consumo
 
-Estado: **ENTREGADA**. Los cuatro gaps de integridad que midió la auditoría
-previa están cerrados, y la ficha de la orden tiene sus dos pestañas nuevas.
+Estado: **CERRADA Y VERIFICADA EN PRODUCCIÓN**. Los cuatro gaps de integridad
+que midió la auditoría previa están cerrados, y la ficha de la orden tiene sus
+dos pestañas nuevas.
+
+| | |
+|---|---|
+| Commits | `5825577` entrega · `a98aa68` tres correcciones de la verificación |
+| CI | dos corridas, 13/13 pasos + deploy |
+| Producción | `https://app.buscatools.com` — circuito completo ejercido con sesión real |
 
 **Fuera de alcance y no empezado**: torque operativo, cierre final desde la UI,
 `revoke insert on stock_movements` y WhatsApp.
@@ -303,7 +310,63 @@ mover stock, consumo con saldo negativo, idempotencia, **concurrencia real con
 dos conexiones**, atomicidad, `consumed_at` a mano, borrar y editar un consumido,
 RLS de seis identidades y el fast-path.
 
-## N · Lo que NO se hizo
+## N · Verificación final en producción
+
+Hecha sobre `https://app.buscatools.com` con sesión real y fixtures temporales,
+ejerciendo la UI —no consultando la base y dando por hecho que la pantalla la
+refleja—.
+
+| qué | resultado |
+|---|---|
+| pestañas Cotización y Repuestos | renderizan con su contador |
+| línea libre · con producto · sin cargo · valorizada | las cuatro |
+| reordenar ↑↓ | cambia el orden, el total no se mueve |
+| editar | 12.000 → 15.500 y el total pasó de 151.500 a **155.000** |
+| agregar y borrar | 155.000 → 162.800 → **155.000** |
+| **total de la UI vs. servidor** | **ARS 155.000 = suma exacta de las 4 líneas** |
+| total sin moneda | muestra `0,00` **sin prefijo**, y avisa que falta elegirla |
+| línea sin cargo sin moneda | **entra**, como dice la regla |
+| línea con importe sin moneda | **rechazada por el servidor**, con su mensaje |
+| aprobar | «Confirmar: aprobar por USD 240,00», después sólo lectura y «La aprobó …» |
+| rechazada (OS00002) | sin Aprobar, sin Rechazar, sin agregar línea, sin selector de moneda |
+| depósito | preseleccionado el `is_default`; la lista sólo tiene el de la empresa |
+| costo ↔ moneda | la moneda arranca deshabilitada y se habilita al cargar costo |
+| **el selector no ofrece ningún precio** | verificado: los únicos «EUR» del panel son nombres de producto |
+| elegir producto | **no pisa el costo cargado** ni completa moneda |
+| tres costos conviviendo | ARS 41.200 · sin cargar · USD 1.250 |
+| consumo | aviso de negativo, dos pasos, 3 líneas, **3 movimientos, saldos −3/−1/−1, 1 solo evento** |
+| idempotencia visual | tras recargar y tras atrás/adelante: 3 consumidos, **el botón no reaparece** |
+| historial | legible, sin tecnicismos, sin eventos duplicados |
+
+### Mobile en producción
+
+Las cuatro secciones —ficha, Cotización, Repuestos, historial— en los cinco
+anchos, midiendo `scrollWidth` contra `clientWidth`:
+
+| ancho | puntero | scroll horizontal global | controles < 44 px | campos < 16 px |
+|---|---|---|---|---|
+| **390** | grueso | **no** | **0** | **0** |
+| **430** | grueso | **no** | **0** | **0** |
+| **767** | grueso | **no** | **0** | **0** |
+| **768** | fino | **no** | ↑↓/Editar a 32 px, enlace a 18 px | 0 |
+| **1440** | fino | **no** | ídem | 0 |
+
+A 768 con puntero fino la tabla de líneas scrollea **dentro de su propia caja**;
+el documento no scrollea en ningún ancho. Los 32 px de ↑↓ son la densidad de
+escritorio: con puntero grueso pasan a 44, y a 767 la lista de controles chicos
+está vacía.
+
+### Tres cosas que encontró la verificación
+
+| # | clase | qué | estado |
+|---|---|---|---|
+| 1 | **BUG UX** | si el servidor rechazaba una línea o un repuesto, **el formulario se limpiaba igual** y se perdía lo escrito. Se ve entero cargando una línea con importe antes de elegir la moneda — justo el caso en que uno se entera de la regla | **corregido**: las tres acciones devuelven la promesa de la mutación y el formulario se limpia sólo si la base aceptó. Reverificado en producción: el error se muestra, lo tipeado queda, y al elegir moneda entra sin volver a escribir |
+| 2 | **BUG VISUAL** | el pie del selector de productos decía «El producto es opcional…», cierto para un equipo y **falso para un repuesto**, donde el formulario lo marca con asterisco | **corregido**: es una prop y cada panel dice lo suyo; los dos aclaran que elegir un producto no trae ningún precio |
+| 3 | **MEJORA UX** | el historial de una cotización rechazada que nunca se valorizó mostraba «0,00» sin moneda | **corregido**: muestra sólo el motivo |
+
+Ninguna de las tres tocó la base.
+
+## O · Lo que NO se hizo
 
 | | |
 |---|---|
@@ -314,3 +377,7 @@ RLS de seis identidades y el fast-path.
 | WhatsApp | no se tocó |
 
 La ficha lo dice en pantalla, en su propio bloque.
+
+---
+
+# PHASE 7 — MANTENIMIENTO · ENTREGA 3 = CLOSED
