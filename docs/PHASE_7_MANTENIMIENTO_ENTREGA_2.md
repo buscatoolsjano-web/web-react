@@ -1,8 +1,14 @@
 # Fase 7 · Mantenimiento — Entrega 2: activos, órdenes y configuración base
 
-Estado: **ENTREGADA**. Equipos, órdenes de servicio y puntos de revisión, con
-UI React, RLS probada con JWT real para las seis identidades y revisión mobile
-medida en el navegador.
+Estado: **CERRADA Y EN PRODUCCIÓN**. Equipos, órdenes de servicio y puntos de
+revisión, con UI React, RLS probada con JWT real para las seis identidades y
+revisión mobile medida en el navegador.
+
+| | |
+|---|---|
+| Commits | `5eb22d1` (entrega) · `e1e7c4e` (fix iOS del selector de empresa) |
+| CI | los 10 pasos en verde, dos corridas |
+| Producción | `https://app.buscatools.com` — **200**, las siete rutas renderizando |
 
 **Fuera de alcance y no empezado**: consumo real de repuestos, stock, torque
 operativo completo, cierre final y WhatsApp.
@@ -287,13 +293,46 @@ mostraba «Cotización → Cotización» —guarda la misma etapa en los dos ext
 porque es donde quedó parada—; ahora dice «en Cotización». Y el alta de la
 orden mostraba «— → open» en vez de «— → Abierta».
 
-### Una cosa que NO se tocó
+### El fix transversal de iOS · `e1e7c4e`
 
-El selector de empresa del encabezado (`EmpresaSelector`) tiene `font-size:
-14px`. En iOS eso hace zoom al enfocar. Es **anterior a esta entrega**, vive en
-el shell de la aplicación y afecta a todos los módulos por igual, así que
-corregirlo sería una pasada de rediseño sobre secciones ya cerradas. Queda
-anotado para que decidas.
+La revisión encontró que el **selector de empresa del encabezado** tenía
+`font-size: 14px`, y iOS hace zoom al enfocar un control cuyo texto mide menos
+de 16. Es anterior a esta entrega y vive en el shell, así que se corrigió
+aparte, con el cambio mínimo y **sólo CSS**:
+
+```css
+@media (pointer: coarse) {
+  .select { font-size: 16px; }
+}
+```
+
+La condición es el **tipo de puntero y no el ancho**, el mismo criterio de
+Compras y de Mantenimiento: un iPad en vertical mide 768px y sigue siendo
+táctil, así que por ancho se quedaría afuera justo el caso a cubrir.
+
+`.unica` —el caso de una sola membresía— es un `<span>`, no puede recibir foco
+y quedó como está.
+
+| ancho | puntero | `font-size` | alto del select | ancho del select | alto del header | scroll H |
+|---|---|---|---|---|---|---|
+| 390 | grueso | **16px** | 44 | 140 | 56 | no |
+| 430 | grueso | **16px** | 44 | 140 | 56 | no |
+| 767 | grueso | **16px** | 44 | 140 | 56 | no |
+| 768 | fino | 14px | 44 | 140 | 56 | no |
+| 1440 | fino | 14px | 44 | 194 | 56 | no |
+
+**Escritorio intacto** y **el alto del encabezado no se mueve** en ningún
+ancho: `min-height: 44px` ya era mayor que 16px de texto más sus 4+4 de
+padding.
+
+El selector sigue siendo usable: se probó el ida y vuelta **Buscatools admin ↔
+Torquetools salesperson**. Como efecto secundario quedó comprobado el filtrado
+de la navegación por rol — con Torquetools desaparecen Compras y Mantenimiento
+del menú y la pantalla muestra el aviso de rol.
+
+Verificado también **en producción**: el CSS publicado contiene
+`@media (pointer:coarse){._select_k3kjl_6{font-size:16px}}`, y con sesión real
+a 390px el select computa **16px**.
 
 ## H · Invariantes
 
@@ -364,3 +403,44 @@ que todavía no hacen lo que dicen sería peor que no tenerlos.
 * El panel de etapas **no ofrece** cerrar la orden cuando llega a la última:
   es correcto para esta entrega, pero deja la orden «abierta y en cierre» hasta
   que llegue la entrega 3.
+
+## L · CI y deploy
+
+Dos corridas, las dos con **los diez pasos en verde** —`npm ci`, lint,
+typecheck, test, test:isolated, build, artifact— y el job de deploy:
+
+| commit | corrida | build | deploy |
+|---|---|---|---|
+| `5eb22d1` | [34551417400](https://github.com/buscatoolsjano-web/web-react/actions/runs/34551417400) | success | success |
+| `e1e7c4e` | [34551754073](https://github.com/buscatoolsjano-web/web-react/actions/runs/34551754073) | success | success |
+
+### Verificación de producción
+
+| | |
+|---|---|
+| `https://app.buscatools.com/` | **HTTP 200** |
+| Los 13 chunks nuevos de Mantenimiento | **HTTP 200** cada uno, `application/javascript` |
+| `#/mantenimiento` | redirige a `#/mantenimiento/activos` (y de ahí al login con su `next`) |
+| Una ruta inventada bajo `#/mantenimiento/` | **404** de la app — o sea que las reales están registradas, no es que todo matchea |
+| Las siete rutas con sesión real | renderizan: «Equipos», «Nuevo equipo», «Órdenes de servicio», «Nueva orden de servicio», «Puntos de revisión» con sus 8 filas |
+| Errores de consola tras recargar | **0** |
+| Scroll horizontal en producción a 390 | **no** |
+
+Los hashes que publicó CI coinciden exactamente con los del build local
+(`ActivosPage-DDJivaGB.js`, `activos-BK9Lqkhg.js`, `ordenes-tilvFWIs.js`,
+`useActivos-DEVHYrPE.js`): build reproducible.
+
+### Cuatro 404 que aparecieron y NO son un defecto
+
+Al verificar, la consola mostró cuatro 404 de chunks. Son el efecto de haber
+desplegado **dos veces seguidas** con la pestaña abierta: tenía cargado el
+`index` de `5eb22d1` y pidió chunks cuyo hash ya no existía tras `e1e7c4e`.
+
+Es exactamente el caso para el que existe `lazyConRecarga()` en
+[`src/app/routes.tsx`](../src/app/routes.tsx), **y funcionó**: recargó una sola
+vez, tomó el `index` nuevo y los cuatro chunks volvieron con 200. Tras la
+recarga, cero 404 y cero errores.
+
+---
+
+# PHASE 7 — MANTENIMIENTO · ENTREGA 2 = CLOSED
