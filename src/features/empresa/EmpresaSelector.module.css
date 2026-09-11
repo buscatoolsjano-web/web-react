@@ -35,6 +35,22 @@
   letter-spacing: 0.04em;
 }
 
+/* iOS hace zoom al enfocar un control cuyo texto mide menos de 16px, y el
+   `<select>` cuenta. Es el único control enfocable del encabezado: `.unica`
+   es un `<span>` y no puede recibir foco, así que no hace falta tocarlo.
+
+   La condición es el TIPO DE PUNTERO y no el ancho, igual que en Compras y
+   en Mantenimiento: un iPad en vertical mide 768px y sigue siendo táctil, así
+   que por ancho se quedaría afuera justo el caso que hay que cubrir.
+
+   No cambia el alto: `min-height: 44px` ya era mayor que 16px de texto más
+   sus 4+4 de padding vertical. */
+@media (pointer: coarse) {
+  .select {
+    font-size: 16px;
+  }
+}
+
 @media (max-width: 768px) {
   .select,
   .unica {
