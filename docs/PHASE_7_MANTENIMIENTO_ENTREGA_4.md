@@ -481,6 +481,12 @@ Dos, y los dos los encontró la propia suite antes que nadie:
 
 **SECURITY PRIORITY — HIGH.** No se resolvió en esta entrega, tal como se pidió.
 
+> **Cerrado después de esta entrega.** El `revoke` se aplicó en su propio fix
+> transversal, con la auditoría que exigía este punto: ver
+> `docs/SECURITY_FIX_O4_STOCK_MOVEMENTS.md`. Lo de arriba es lo que era cierto
+> cuando se escribió este informe.
+
+
 ---
 
 ## W · Verificación en producción

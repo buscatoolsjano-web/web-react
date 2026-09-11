@@ -595,6 +595,12 @@ Que O4 siga abierto no bloquea el cierre de Mantenimiento, porque el módulo no
 lo usa. Es un agujero **global**, y se arregla cuando se decida arreglarlo para
 todos.
 
+> **Cerrado después de esta entrega.** El `revoke` se aplicó en su propio fix
+> transversal, con la auditoría que exigía este punto: ver
+> `docs/SECURITY_FIX_O4_STOCK_MOVEMENTS.md`. Lo de arriba es lo que era cierto
+> cuando se escribió este informe.
+
+
 ---
 
 ## Y · Datos legacy

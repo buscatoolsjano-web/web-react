@@ -83,8 +83,8 @@ Leyenda: ✅ permitido · ⚠️ condicionado · ❌ denegado
 | | externo | ⚠️ | ❌ | ❌ | ❌ | Sólo precios de su lista y con vigencia actual |
 | `stock_balances` | interno | ✅ | ❌ | ❌ | ❌ | Sólo lo escribe el trigger |
 | | externo | ⚠️ | ❌ | ❌ | ❌ | Puede ver **disponibilidad**, no la cantidad exacta (vista con booleano) |
-| `stock_movements` | admin | ✅ | ✅ | ❌ | ❌ | **Append-only: sin UPDATE ni DELETE para nadie** |
-| | employee | ⚠️ | ⚠️ | ❌ | ❌ | Con permiso `stock.movement.create` |
+| `stock_movements` | admin | ✅ | ❌ | ❌ | ❌ | **Nadie escribe directo.** Ver la nota de O4 abajo |
+| | employee | ✅ | ❌ | ❌ | ❌ | Lee para las pantallas de Compras y Mantenimiento |
 | | externo | ❌ | ❌ | ❌ | ❌ | — |
 | `warehouses` | interno | ✅ | ⚠️ | ⚠️ | ❌ | Escritura admin |
 | | externo | ❌ | ❌ | ❌ | ❌ | — |
@@ -189,6 +189,19 @@ Leyenda: ✅ permitido · ⚠️ condicionado · ❌ denegado
    `wa_messages`, `email_messages`) no tienen `UPDATE` ni `DELETE` para
    ningún rol, incluido admin. Corregir un movimiento = crear el
    contramovimiento.
+
+   **Y desde el fix de O4, `stock_movements` tampoco acepta `INSERT` desde el
+   cliente.** El diseño original le daba INSERT a admin y employee, y la
+   implementación lo hizo; medido con JWT reales, eso permitía que un admin
+   moviera el stock de cualquier producto de su empresa por PostgREST, con el
+   `movement_type` que quisiera y sin ningún documento detrás. El privilegio
+   se revocó: el stock se mueve sólo por `confirmar_entrega()`,
+   `confirmar_recepcion()` y `confirmar_consumo_mantenimiento()`, que son
+   `SECURITY DEFINER`. La policy `stockmov_insert` se dejó en su lugar como
+   segunda capa. Ver `docs/SECURITY_FIX_O4_STOCK_MOVEMENTS.md`.
+
+   `stock_balances` nunca tuvo escritura desde el cliente: lo escribe
+   `app.apply_stock_movement()`.
 5. **`audit_events` no acepta `INSERT` desde el cliente.** Sólo lo
    escriben triggers `SECURITY DEFINER`.
 6. **Las tablas de líneas nunca tienen política propia más laxa** que su
