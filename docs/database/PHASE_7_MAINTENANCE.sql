@@ -2223,3 +2223,307 @@ end $$;
 drop trigger if exists trg_mop_auditar on maintenance_order_parts;
 create trigger trg_mop_auditar after insert or delete on maintenance_order_parts
   for each row execute function app.auditar_repuesto_mantenimiento();
+
+-- ===========================================================================
+-- FASE 7 · MANTENIMIENTO · ENTREGA 4
+-- Torque y cierre final de la orden
+-- ===========================================================================
+--
+-- Tres migraciones:
+--
+--   fase7_entrega4_validaciones_de_torque
+--   fase7_entrega4_bloqueos_de_cierre
+--   fase7_entrega4_fix_concat_bloqueos
+--
+-- La auditoría previa (punto 0 del pedido) encontró que el grueso del torque
+-- YA EXISTÍA desde la entrega 1 y funcionaba: el modelo de límites en la
+-- orden, `maintenance_measurements`, `capacidad_torque()` con Cp, Cpk, CV y
+-- veredicto, los triggers que impiden completar un torque sin mediciones, y
+-- las doce condiciones de cierre dentro de `cerrar_orden_mantenimiento()`.
+-- Nada de eso se reescribió. Lo que esta entrega agrega es sólo lo que
+-- faltaba.
+--
+-- LAS FÓRMULAS, tal como estaban implementadas y como quedan (no se tocaron):
+--
+--   n        count(*) where target_value is not null and target_value > 0
+--   promedio avg(target_value)
+--   desvio   stddev_samp(target_value)          <- muestral, n-1
+--   cp       (usl - lsl) / (6 * desvio)
+--   cpk      least((usl - mu) / (3 * sigma), (mu - lsl) / (3 * sigma))
+--   cv       (desvio / promedio) * 100          <- PORCENTAJE, no la razón
+--
+--   veredicto  cpk >= 1.33 -> 'capaz'
+--              cpk >= 1.00 -> 'aceptable'
+--              si no       -> 'no_capaz'
+--
+-- Con n < 2, o con todas las mediciones iguales, `stddev_samp` es null o cero
+-- y cp/cpk/cv devuelven null. La interfaz muestra «N/D». No hay una segunda
+-- implementación de estas fórmulas en el front.
+--
+-- Caso de regresión: [9,9 · 10,1 · 10,0 · 9,95 · 10,05] con LCI 9 y LCS 11
+-- da promedio 10, desvío 0,0791, Cp 4,2164, Cpk 4,2164, CV 0,7906 % y
+-- veredicto «capaz».
+
+-- ---------------------------------------------------------------------------
+-- 1 · fase7_entrega4_validaciones_de_torque
+-- ---------------------------------------------------------------------------
+--
+-- Dos agujeros que encontró la auditoría:
+--
+--   · El nominal no estaba obligado a caer dentro de [LCI, LCS]. Un nominal
+--     fuera de su propia banda no es un objetivo: es un dato mal cargado.
+--   · `numeric` ACEPTA NaN. Un `target_value` en NaN se guardaba, y entonces
+--     `capacidad_torque()` devolvía {"promedio":"NaN"}. El guardián no puede
+--     ser `x = x`, porque para numeric NaN = NaN es TRUE: hay que comparar
+--     contra 'NaN'::numeric explícitamente.
+
+alter table maintenance_orders
+  add constraint chk_mo_torque_nominal check (
+    torque_lsl is null or torque_usl is null or torque_nominal is null
+    or (torque_nominal >= torque_lsl and torque_nominal <= torque_usl));
+
+alter table maintenance_orders
+  add constraint chk_mo_torque_numeros check (
+        (torque_lsl     is null or (torque_lsl     <> 'NaN'::numeric and torque_lsl     <> 'Infinity'::numeric and torque_lsl     <> '-Infinity'::numeric))
+    and (torque_nominal is null or (torque_nominal <> 'NaN'::numeric and torque_nominal <> 'Infinity'::numeric and torque_nominal <> '-Infinity'::numeric))
+    and (torque_usl     is null or (torque_usl     <> 'NaN'::numeric and torque_usl     <> 'Infinity'::numeric and torque_usl     <> '-Infinity'::numeric)));
+
+alter table maintenance_measurements
+  add constraint chk_mm_numeros check (
+        (target_value is null or (target_value <> 'NaN'::numeric and target_value <> 'Infinity'::numeric and target_value <> '-Infinity'::numeric))
+    and (min_value    is null or (min_value    <> 'NaN'::numeric and min_value    <> 'Infinity'::numeric and min_value    <> '-Infinity'::numeric))
+    and (max_value    is null or (max_value    <> 'NaN'::numeric and max_value    <> 'Infinity'::numeric and max_value    <> '-Infinity'::numeric)));
+
+-- ---------------------------------------------------------------------------
+-- 2 · fase7_entrega4_bloqueos_de_cierre
+-- ---------------------------------------------------------------------------
+--
+-- El pedido era una comprobación de sólo lectura que dijera de antemano si la
+-- orden se puede cerrar y, si no, exactamente qué falta — sin duplicar las
+-- doce condiciones.
+--
+-- UNA implementación, DOS usos: las condiciones 4 a 12 salen de
+-- `cerrar_orden_mantenimiento()` y pasan a `app.bloqueos_de_cierre_mant()`,
+-- con los mismos textos de mensaje. La función de cierre queda con las
+-- condiciones 1 a 3 en línea -existencia, permiso y cancelada, que son las
+-- que deciden si siquiera se puede mirar la orden- y llama a la compartida
+-- para el resto. El precheck llama a la misma. Si mañana cambia una
+-- condición, cambia en un solo lugar.
+--
+-- El permiso se verifica ANTES de devolver nada: un externo no aprende el
+-- estado de una orden ajena preguntando por qué no puede cerrarla.
+
+create or replace function app.bloqueos_de_cierre_mant(p_order uuid)
+returns text[]
+language plpgsql
+stable
+security definer
+set search_path to 'public', 'pg_temp'
+as $function$
+declare v_o maintenance_orders; v_n int; v_out text[] := '{}';
+begin
+  select * into v_o from maintenance_orders where id = p_order;
+  if not found then return array['La orden no existe'::text]; end if;
+
+  -- 4 · no se cierra salteando el circuito
+  if v_o.stage <> 'closing' then
+    v_out := v_out || format('La orden está en la etapa «%s»: se cierra desde «Cierre»', v_o.stage);
+  end if;
+
+  -- 5 · diagnóstico completado
+  if v_o.diagnosed_at is null then
+    v_out := v_out || 'Falta completar el diagnóstico'::text;
+  end if;
+
+  -- 6 · cotización resuelta (el bug del legacy: 2 de 3 fichas se cerraron con
+  --     la cotización PENDIENTE)
+  if v_o.quote_status = 'pending' then
+    v_out := v_out || 'La cotización sigue pendiente: hay que aprobarla o rechazarla'::text;
+  end if;
+
+  -- 7 · una cotización aprobada sin líneas no es una cotización
+  if v_o.quote_status = 'approved' then
+    select count(*) into v_n from maintenance_quote_lines where maintenance_order_id = p_order;
+    if v_n = 0 then
+      v_out := v_out || 'La cotización está aprobada y no tiene ninguna línea'::text;
+    end if;
+  end if;
+
+  -- 8 · reparación completada o marcada no requerida
+  if v_o.repair_required and v_o.repaired_at is null then
+    v_out := v_out || 'Falta completar la reparación, o marcarla como no requerida'::text;
+  end if;
+
+  -- 9 · torque completado o marcado no requerido
+  if v_o.torque_required and v_o.torque_at is null then
+    v_out := v_out || 'Falta completar el torque, o marcarlo como no requerido'::text;
+  end if;
+
+  -- 10 · si el torque aplica, al menos una medición cargada
+  if v_o.torque_required then
+    select count(*) into v_n from maintenance_measurements
+     where maintenance_order_id = p_order and target_value is not null;
+    if v_n = 0 then
+      v_out := v_out || 'El torque es requerido y no hay ninguna medición cargada'::text;
+    end if;
+  end if;
+
+  -- 11 · cerrar es entregar, y con fechas coherentes
+  if v_o.delivered_at is null then
+    v_out := v_out || 'Falta la fecha de entrega'::text;
+  elsif v_o.delivered_at < v_o.received_at then
+    v_out := v_out || 'La entrega no puede ser anterior al ingreso'::text;
+  end if;
+
+  -- 12 · no queda un repuesto «a consumir» colgado
+  select count(*) into v_n from maintenance_order_parts
+   where maintenance_order_id = p_order and consumed_at is null;
+  if v_n > 0 then
+    v_out := v_out || format('Quedan %s repuesto(s) sin confirmar el consumo', v_n);
+  end if;
+
+  return v_out;
+end $function$;
+
+-- ---------------------------------------------------------------------------
+-- 3 · fase7_entrega4_fix_concat_bloqueos
+-- ---------------------------------------------------------------------------
+--
+-- BUG que encontró la suite de pruebas, en la migración de arriba:
+--
+--   select array['a']::text[] || 'b';
+--   ERROR:  22P02: malformed array literal: "b"
+--
+-- `text[] || 'literal'` NO agrega un elemento. Postgres tiene que elegir entre
+-- `anycompatiblearray || anycompatiblearray` y `anycompatiblearray ||
+-- anycompatiblenonarray`, y con un literal sin tipo elige la primera: intenta
+-- leer «Falta completar el diagnóstico» como un array y falla.
+--
+-- Las ramas que usaban `format()` funcionaban -format() devuelve text
+-- declarado- y por eso el bug sólo aparecía en 7 de las 12 condiciones: la 4 y
+-- la 12 pasaban, las demás rompían con 22P02. Cada mensaje lleva ahora su
+-- `::text`, y así está escrita la función de arriba.
+--
+-- El texto consolidado de arriba ya incluye el fix; esta sección queda para
+-- que el error no se repita.
+
+-- ---------------------------------------------------------------------------
+-- 4 · cerrar_orden_mantenimiento() — refactor, misma semántica
+-- ---------------------------------------------------------------------------
+--
+-- Conserva las condiciones 1 a 3 en línea y delega 4 a 12 en la función
+-- compartida. El marcador de transacción `app.cerrando_orden_mant` sigue
+-- siendo la única puerta por la que un UPDATE puede poner status = 'closed'.
+
+create or replace function public.cerrar_orden_mantenimiento(p_order uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public', 'pg_temp'
+as $function$
+declare v_o maintenance_orders; v_rol text; v_bloqueos text[];
+begin
+  -- 1 · la orden existe
+  select * into v_o from maintenance_orders where id = p_order for update;
+  if not found then
+    raise exception 'La orden no existe' using errcode = 'no_data_found';
+  end if;
+
+  -- 2 · permiso, antes que nada
+  v_rol := app."current_role"(v_o.company_id);
+  if v_rol is null or v_rol not in ('admin','employee') then
+    raise exception 'Sin permiso para cerrar órdenes en esta empresa'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  -- 3 · no se cierra dos veces, y una cancelada no se cierra
+  if v_o.status = 'closed' then
+    return jsonb_build_object('order_id', p_order, 'ya_estaba', true);
+  end if;
+  if v_o.status = 'cancelled' then
+    raise exception 'La orden % está cancelada', v_o.number using errcode='restrict_violation';
+  end if;
+
+  -- 4 a 12 · exactamente las mismas condiciones de siempre, en un solo lugar
+  v_bloqueos := app.bloqueos_de_cierre_mant(p_order);
+  if coalesce(array_length(v_bloqueos, 1), 0) > 0 then
+    raise exception 'No se puede cerrar todavía: %', array_to_string(v_bloqueos, ' · ')
+      using errcode = 'check_violation';
+  end if;
+
+  perform set_config('app.cerrando_orden_mant', p_order::text, true);
+  update maintenance_orders
+     set status = 'closed', closed_at = now(), closed_by = auth.uid()
+   where id = p_order;
+  perform set_config('app.cerrando_orden_mant', '', true);
+
+  return jsonb_build_object('order_id', p_order, 'ya_estaba', false);
+end $function$;
+
+revoke execute on function public.cerrar_orden_mantenimiento(uuid) from public, anon;
+grant execute on function public.cerrar_orden_mantenimiento(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 5 · precheck_cierre_mantenimiento() — sólo lectura
+-- ---------------------------------------------------------------------------
+--
+-- Devuelve `puede_cerrar`, `bloqueos[]` y el estado de cada punto del resumen,
+-- para que la pantalla de cierre pueda decir QUÉ falta en vez de mostrar un
+-- error genérico. No escribe nada y no tiene efectos.
+
+create or replace function public.precheck_cierre_mantenimiento(p_order uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path to 'public', 'pg_temp'
+as $function$
+declare v_o maintenance_orders; v_rol text; v_bloqueos text[];
+        v_lineas int; v_pend int; v_consum int; v_med int;
+begin
+  select * into v_o from maintenance_orders where id = p_order;
+  if not found then
+    raise exception 'La orden no existe' using errcode = 'no_data_found';
+  end if;
+
+  -- El permiso va PRIMERO, como en el resto de las RPC: si no, un externo le
+  -- saca el estado de una orden que no puede leer.
+  v_rol := app."current_role"(v_o.company_id);
+  if v_rol is null or v_rol not in ('admin','employee') then
+    raise exception 'Sin permiso para ver el cierre de esta orden'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  v_bloqueos := app.bloqueos_de_cierre_mant(p_order);
+
+  select count(*) into v_lineas from maintenance_quote_lines where maintenance_order_id = p_order;
+  select count(*) into v_pend from maintenance_order_parts
+   where maintenance_order_id = p_order and consumed_at is null;
+  select count(*) into v_consum from maintenance_order_parts
+   where maintenance_order_id = p_order and consumed_at is not null;
+  select count(*) into v_med from maintenance_measurements
+   where maintenance_order_id = p_order and target_value is not null;
+
+  return jsonb_build_object(
+    'order_id',       p_order,
+    'estado',         v_o.status,
+    'ya_cerrada',     v_o.status = 'closed',
+    'puede_cerrar',   v_o.status = 'open' and coalesce(array_length(v_bloqueos, 1), 0) = 0,
+    'bloqueos',       to_jsonb(v_bloqueos),
+    'en_espera',      v_o.on_hold,
+    'etapa',          v_o.stage,
+    'diagnosticada',  v_o.diagnosed_at is not null,
+    'cotizacion',     v_o.quote_status,
+    'lineas',         v_lineas,
+    'requiere_reparacion', v_o.repair_required,
+    'reparada',       v_o.repaired_at is not null,
+    'requiere_torque', v_o.torque_required,
+    'torque_hecho',   v_o.torque_at is not null,
+    'mediciones',     v_med,
+    'repuestos_pendientes', v_pend,
+    'repuestos_consumidos', v_consum,
+    'entregada',      v_o.delivered_at);
+end $function$;
+
+revoke execute on function public.precheck_cierre_mantenimiento(uuid) from public, anon;
+grant execute on function public.precheck_cierre_mantenimiento(uuid) to authenticated;

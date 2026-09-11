@@ -4702,6 +4702,12 @@ export type Database = {
           created_at: string
         }[]
       }
+      precheck_cierre_mantenimiento: {
+        Args: {
+          p_order: string
+        }
+        Returns: Json
+      }
       pendiente_de_facturar: {
         Args: {
           p_company: string

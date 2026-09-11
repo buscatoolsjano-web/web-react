@@ -137,6 +137,11 @@ export interface OrdenDetalle extends OrdenListado {
   requiereTorque: boolean
   reparadaEn: string | null
   torqueEn: string | null
+  notasReparacion: string | null
+  horasManoDeObra: number | null
+  torqueLsl: number | null
+  torqueNominal: number | null
+  torqueUsl: number | null
   enEsperaDesde: string | null
   notasCierre: string | null
   cerradaEn: string | null
@@ -249,6 +254,91 @@ export interface Deposito {
   codigo: string
   nombre: string
   porDefecto: boolean
+}
+
+// ── Torque ─────────────────────────────────────────────────────────────────
+
+/**
+ * Una medición de torque.
+ *
+ * El alcance es el del sistema anterior y ni un campo más: no hay unidad, ni
+ * instrumento, ni certificado, ni técnico por medición. `valor` es el que
+ * cuenta —el que promedia `capacidad_torque()` y el que exige el cierre—;
+ * `minimo` y `maximo` son contexto de la toma y no entran en el cálculo.
+ */
+export interface Medicion {
+  id: string
+  /** Posición, única por orden. La identidad es el uuid. */
+  fila: number
+  valor: number | null
+  minimo: number | null
+  maximo: number | null
+}
+
+export interface DatosMedicion {
+  fila: number
+  valor: number | null
+  minimo: number | null
+  maximo: number | null
+}
+
+/** Los límites de la especificación. Viven en la orden, no en la medición. */
+export interface LimitesTorque {
+  lsl: number | null
+  nominal: number | null
+  usl: number | null
+}
+
+export type VeredictoTorque = 'capaz' | 'aceptable' | 'no_capaz'
+
+/**
+ * Lo que devuelve `capacidad_torque()`.
+ *
+ * **Nada de esto se guarda**: se calcula en el servidor cada vez. Cualquier
+ * indicador puede venir `null` —con menos de dos mediciones o con todas
+ * iguales no hay desvío y Cp/Cpk/CV no existen— y la pantalla muestra «N/D»
+ * en vez de inventar un número.
+ */
+export interface CapacidadTorque {
+  mediciones: number
+  promedio: number | null
+  desvio: number | null
+  promedioMin: number | null
+  promedioMax: number | null
+  cp: number | null
+  cpk: number | null
+  /** En PORCENTAJE: la función devuelve (sd / μ) × 100. */
+  cv: number | null
+  veredicto: VeredictoTorque | null
+}
+
+// ── Cierre ─────────────────────────────────────────────────────────────────
+
+/**
+ * El precheck del cierre.
+ *
+ * `bloqueos` sale de `app.bloqueos_de_cierre_mant()`, **la misma** función que
+ * usa `cerrar_orden_mantenimiento()` para decidir si deja cerrar. No hay una
+ * segunda copia de las reglas acá ni en el navegador.
+ */
+export interface PrecheckCierre {
+  estado: EstadoOrden
+  yaCerrada: boolean
+  puedeCerrar: boolean
+  bloqueos: string[]
+  enEspera: boolean
+  etapa: EtapaOrden
+  diagnosticada: boolean
+  cotizacion: EstadoCotizacion
+  lineas: number
+  requiereReparacion: boolean
+  reparada: boolean
+  requiereTorque: boolean
+  torqueHecho: boolean
+  mediciones: number
+  repuestosPendientes: number
+  repuestosConsumidos: number
+  entregada: string | null
 }
 
 // ── Puntos de revisión y checks ────────────────────────────────────────────

@@ -4,6 +4,7 @@ import {
   etiquetaDeEtapa,
   etiquetaDeResultado,
   etiquetaDeSituacion,
+  etiquetaDeVeredicto,
   type SituacionEtapa,
 } from '../lib/estados'
 import styles from './ChipEstado.module.css'
@@ -78,6 +79,23 @@ export function ChipResultado({ estado }: ChipProps) {
     : estado === 'nok' ? styles.cancelado
     : styles.borrador
   return <span className={clase}>{etiquetaDeResultado(estado)}</span>
+}
+
+/**
+ * El veredicto de capacidad del torque.
+ *
+ * Son los TRES que devuelve `capacidad_torque()` —capaz, aceptable,
+ * no_capaz—, no dos: el umbral de 1,33 separa «capaz» de «aceptable» y el de
+ * 1,00 separa «aceptable» de «no capaz». `null` no es un cuarto veredicto: es
+ * que no se puede calcular, y se dice así.
+ */
+export function ChipVeredicto({ veredicto }: { veredicto: string | null }) {
+  if (veredicto === null) return <span className={styles.pendiente}>Sin veredicto</span>
+  const clase =
+    veredicto === 'capaz' ? styles.recibido
+    : veredicto === 'aceptable' ? styles.parcial
+    : styles.cancelado
+  return <span className={clase}>{etiquetaDeVeredicto(veredicto)}</span>
 }
 
 /** El equipo dado de baja. La baja es lógica: sus órdenes lo siguen nombrando. */

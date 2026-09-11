@@ -20,6 +20,8 @@ export interface PanelEtapasProps {
   onMover: (etapa: EtapaOrden) => void
   onRequisitos: (cambios: { requiereReparacion?: boolean; requiereTorque?: boolean }) => void
   onEspera: (enEspera: boolean) => void
+  onDiagnostico: (d: { notas?: string | null; completadoEn?: string | null }) => void
+  onReparacion: (d: { notas?: string | null; completadaEn?: string | null }) => void
 }
 
 /**
@@ -49,8 +51,26 @@ export function PanelEtapas({
   onMover,
   onRequisitos,
   onEspera,
+  onDiagnostico,
+  onReparacion,
 }: PanelEtapasProps) {
   const [volverA, setVolverA] = useState('')
+  const [confirmandoVuelta, setConfirmandoVuelta] = useState(false)
+  const [notasDiag, setNotasDiag] = useState(orden.notasDiagnostico ?? '')
+  const [notasRep, setNotasRep] = useState(orden.notasReparacion ?? '')
+
+  // Si las notas cambian desde afuera se reflejan. Se ajusta DURANTE el render
+  // y no en un efecto: llamar a setState dentro de un efecto provoca un render
+  // en cascada.
+  const claveNotas = `${orden.notasDiagnostico}|${orden.notasReparacion}`
+  const [clavePrevia, setClavePrevia] = useState(claveNotas)
+  if (clavePrevia !== claveNotas) {
+    setClavePrevia(claveNotas)
+    setNotasDiag(orden.notasDiagnostico ?? '')
+    setNotasRep(orden.notasReparacion ?? '')
+  }
+
+  const HOY = new Date().toISOString().slice(0, 10)
 
   const secuencia = etapasRequeridas(orden.requiereReparacion, orden.requiereTorque)
   const siguiente = etapaSiguiente(
@@ -83,14 +103,22 @@ export function PanelEtapas({
               : styles.paso
           return (
             <li key={e.valor} className={clase}>
-              <span className={styles.orden}>
-                {requerida ? `${posicion + 1}.` : '—'}
+              {/* Completada, pendiente o no requerida. El símbolo nunca va
+                  solo: cada uno lleva su palabra al lado, porque un tilde y un
+                  guion son indistinguibles para quien no conoce la convención. */}
+              <span className={styles.orden} aria-hidden="true">
+                {!requerida ? '—' : posicion < indiceActual ? '✓' : '○'}
               </span>
               {e.etiqueta}
-              {!requerida ? <span className={styles.orden}>no requerida</span> : null}
-              {requerida && posicion < indiceActual ? (
-                <span className={styles.orden}>hecha</span>
-              ) : null}
+              {!requerida ? (
+                <span className={styles.orden}>no requerida</span>
+              ) : posicion < indiceActual ? (
+                <span className={styles.orden}>completada</span>
+              ) : e.valor === orden.etapa ? (
+                <span className={styles.orden}>en curso</span>
+              ) : (
+                <span className={styles.orden}>pendiente</span>
+              )}
             </li>
           )
         })}
@@ -159,17 +187,39 @@ export function PanelEtapas({
                   </option>
                 ))}
               </select>
-              <button
-                type="button"
-                className={styles.secundario}
-                disabled={volverA === '' || moviendo}
-                onClick={() => {
-                  if (volverA !== '') onMover(volverA as EtapaOrden)
-                  setVolverA('')
-                }}
-              >
-                Volver atrás
-              </button>
+              {confirmandoVuelta ? (
+                <>
+                  <button
+                    type="button"
+                    className={styles.secundario}
+                    disabled={moviendo}
+                    onClick={() => {
+                      if (volverA !== '') onMover(volverA as EtapaOrden)
+                      setVolverA('')
+                      setConfirmandoVuelta(false)
+                    }}
+                  >
+                    Sí, volver a {volverA === '' ? '' : etiquetaDeEtapa(volverA)}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secundario}
+                    disabled={moviendo}
+                    onClick={() => setConfirmandoVuelta(false)}
+                  >
+                    Cancelar
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.secundario}
+                  disabled={volverA === '' || moviendo}
+                  onClick={() => setConfirmandoVuelta(true)}
+                >
+                  Volver atrás
+                </button>
+              )}
             </>
           ) : null}
 
@@ -184,6 +234,89 @@ export function PanelEtapas({
         </div>
       )}
 
+      {abierta && puedeEditar && orden.etapa === 'diagnosis' ? (
+        <div className={styles.panel}>
+          <label className={styles.nota} htmlFor="notas-diagnostico">
+            Notas de diagnóstico
+          </label>
+          <textarea
+            id="notas-diagnostico"
+            className={styles.select}
+            rows={3}
+            value={notasDiag}
+            disabled={guardando}
+            onChange={(ev) => setNotasDiag(ev.target.value)}
+          />
+          <div className={styles.acciones}>
+            <button
+              type="button"
+              className={styles.secundario}
+              disabled={guardando}
+              onClick={() => onDiagnostico({ notas: notasDiag })}
+            >
+              Guardar notas
+            </button>
+            {orden.diagnosticadaEn === null ? (
+              <button
+                type="button"
+                className={styles.primario}
+                disabled={guardando}
+                onClick={() => onDiagnostico({ notas: notasDiag, completadoEn: HOY })}
+              >
+                Dar el diagnóstico por completado
+              </button>
+            ) : (
+              <span className={styles.nota}>
+                Diagnóstico completado el {orden.diagnosticadaEn}.
+              </span>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {abierta && puedeEditar && orden.etapa === 'repair' && orden.requiereReparacion ? (
+        <div className={styles.panel}>
+          <label className={styles.nota} htmlFor="notas-reparacion">
+            Notas de reparación
+          </label>
+          <textarea
+            id="notas-reparacion"
+            className={styles.select}
+            rows={3}
+            value={notasRep}
+            disabled={guardando}
+            onChange={(ev) => setNotasRep(ev.target.value)}
+          />
+          <div className={styles.acciones}>
+            <button
+              type="button"
+              className={styles.secundario}
+              disabled={guardando}
+              onClick={() => onReparacion({ notas: notasRep })}
+            >
+              Guardar notas
+            </button>
+            {orden.reparadaEn === null ? (
+              <button
+                type="button"
+                className={styles.primario}
+                disabled={guardando}
+                onClick={() => onReparacion({ notas: notasRep, completadaEn: HOY })}
+              >
+                Dar la reparación por completada
+              </button>
+            ) : (
+              <span className={styles.nota}>Reparación completada el {orden.reparadaEn}.</span>
+            )}
+          </div>
+          <p className={styles.nota}>
+            Dar la reparación por completada <strong>no consume ningún repuesto</strong>: lo que se
+            usó y lo que se descuenta del depósito son dos cosas distintas, y el consumo se
+            confirma en su propia pestaña.
+          </p>
+        </div>
+      ) : null}
+
       {orden.enEspera ? (
         <p className={styles.nota}>
           En espera desde {orden.enEsperaDesde?.slice(0, 10) ?? '—'}. La etapa no cambió: la
@@ -193,8 +326,8 @@ export function PanelEtapas({
 
       {siguiente === null && abierta ? (
         <p className={styles.nota}>
-          Está en la última etapa. El cierre de la orden es de la entrega 3 y todavía no está
-          habilitado acá.
+          Está en la última etapa. La orden se cierra desde la pestaña «Cierre», que dice
+          qué falta antes de dejar cerrarla.
         </p>
       ) : null}
     </div>

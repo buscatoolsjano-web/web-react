@@ -107,3 +107,19 @@ export function nombreDeEquipo(referencia: string, modelo: string | null): strin
   const m = (modelo ?? '').trim()
   return m === '' ? referencia : `${referencia} · ${m}`
 }
+
+/**
+ * Un indicador de capacidad —Cp, Cpk, CV, promedio o desvío— tal como se
+ * muestra.
+ *
+ * **«N/D» y no «0»**: un indicador que no existe no es un indicador que vale
+ * cero. Con menos de dos mediciones, o con todas iguales, no hay desvío
+ * muestral y `capacidad_torque()` devuelve null para Cp, Cpk y CV. Mostrar
+ * «0» ahí diría «el proceso es pésimo» cuando lo que pasa es que todavía no
+ * hay con qué opinar.
+ *
+ * Un cero real —que sí puede darse— se muestra como «0», no como «N/D».
+ */
+export function indicadorDeCapacidad(v: number | null, sufijo = ''): string {
+  return v === null ? 'N/D' : `${formatearNumero(v)}${sufijo}`
+}

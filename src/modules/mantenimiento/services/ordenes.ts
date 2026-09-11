@@ -140,6 +140,7 @@ export async function obtenerOrden(
        diagnosed_by, repair_required, torque_required, repaired_at, torque_at,
        on_hold_since, closing_notes, closed_at, received_by, created_at, updated_at,
        quote_subtotal, quote_approved_at, quote_approved_by_name, quote_notes,
+       repair_notes, labour_hours, torque_lsl, torque_nominal, torque_usl,
        autor:profiles!created_by ( full_name ),
        recibida:profiles!received_by ( full_name )`,
     )
@@ -169,6 +170,11 @@ export async function obtenerOrden(
     quote_approved_at: string | null
     quote_approved_by_name: string | null
     quote_notes: string | null
+    repair_notes: string | null
+    labour_hours: number | string | null
+    torque_lsl: number | string | null
+    torque_nominal: number | string | null
+    torque_usl: number | string | null
     autor: { full_name: string | null } | null
     recibida: { full_name: string | null } | null
   }
@@ -180,6 +186,11 @@ export async function obtenerOrden(
     aprobadaEn: f.quote_approved_at,
     quienAprobo: f.quote_approved_by_name,
     notasCotizacion: f.quote_notes,
+    notasReparacion: f.repair_notes,
+    horasManoDeObra: f.labour_hours === null ? null : aNumero(f.labour_hours),
+    torqueLsl: f.torque_lsl === null ? null : aNumero(f.torque_lsl),
+    torqueNominal: f.torque_nominal === null ? null : aNumero(f.torque_nominal),
+    torqueUsl: f.torque_usl === null ? null : aNumero(f.torque_usl),
     activoModelo: f.equipo?.model_text ?? null,
     recibidaPorId: f.received_by,
     recibidaPor: f.recibida?.full_name ?? null,

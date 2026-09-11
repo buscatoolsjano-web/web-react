@@ -5,6 +5,7 @@ import {
   formatearFechaHora,
   formatearImporte,
   formatearNumero,
+  indicadorDeCapacidad,
   nombreDeEquipo,
   rangoVisible,
   totalDePaginas,
@@ -102,5 +103,27 @@ describe('formatearNumero', () => {
 
   it('null es un guion', () => {
     expect(formatearNumero(null)).toBe('—')
+  })
+})
+
+describe('indicadorDeCapacidad', () => {
+  it('un indicador que no existe es «N/D», no «0»', () => {
+    // Con una sola medición no hay desvío muestral: Cp, Cpk y CV no existen.
+    // Mostrar «0» diría que el proceso es pésimo en vez de que no hay datos.
+    expect(indicadorDeCapacidad(null)).toBe('N/D')
+  })
+
+  it('un cero real sí es un cero', () => {
+    expect(indicadorDeCapacidad(0)).toBe('0')
+  })
+
+  it('formatea como el resto del módulo', () => {
+    expect(indicadorDeCapacidad(4.2164)).toBe('4,2164')
+    expect(indicadorDeCapacidad(-0.0487)).toBe('-0,0487')
+  })
+
+  it('el CV lleva su sufijo, porque es un porcentaje', () => {
+    expect(indicadorDeCapacidad(0.7906, ' %')).toBe('0,7906 %')
+    expect(indicadorDeCapacidad(null, ' %')).toBe('N/D')
   })
 })

@@ -13,6 +13,7 @@ import {
   etiquetaDeResultado,
   etiquetaDeServicio,
   etiquetaDeSituacion,
+  etiquetaDeVeredicto,
   situacionDeEtapa,
   MOTIVOS_INGRESO,
 } from './estados'
@@ -198,5 +199,20 @@ describe('MONEDAS', () => {
   it('son las tres de la tabla `currencies`, sin inventar ninguna', () => {
     // La columna tiene FK a `currencies(code)`: una cuarta la rechaza la base.
     expect([...MONEDAS]).toEqual(['ARS', 'USD', 'EUR'])
+  })
+})
+
+describe('etiquetaDeVeredicto', () => {
+  it('son tres veredictos, no dos', () => {
+    // `capacidad_torque()` corta en Cpk >= 1,33 y Cpk >= 1,00. «Aceptable» es
+    // un estado propio: colapsarlo con «no capaz» haría rechazar trabajo que
+    // el taller da por bueno.
+    expect(etiquetaDeVeredicto('capaz')).toBe('Capaz')
+    expect(etiquetaDeVeredicto('aceptable')).toBe('Aceptable')
+    expect(etiquetaDeVeredicto('no_capaz')).toBe('No capaz')
+  })
+
+  it('un veredicto desconocido se muestra crudo, no desaparece', () => {
+    expect(etiquetaDeVeredicto('lo_que_sea')).toBe('lo_que_sea')
   })
 })

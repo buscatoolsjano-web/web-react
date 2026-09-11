@@ -37,8 +37,10 @@ function flecha(activa: boolean, direccion: 'asc' | 'desc'): string {
  * orden sigue diciendo a quién se le hizo el trabajo. Por eso el enlace del
  * cliente sale de `customer_id` de la orden.
  *
- * No hay columna de total: el presupuesto es de la entrega 3 y en v1 todas las
- * órdenes valen cero. Mostrar una columna de ceros sería ruido.
+ * No hay columna de total. Cada orden cotiza en SU moneda —`quote_currency_code`
+ * es por orden—, así que una columna de totales en un listado mezclado pondría
+ * pesos y dólares uno debajo del otro como si fueran comparables. El total se
+ * ve en la ficha, donde la moneda está al lado.
  */
 export function ListadoOrdenes({
   filas,

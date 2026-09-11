@@ -80,6 +80,22 @@ export const OPCIONES_SERVICIO = (Object.keys(SERVICIOS) as TipoServicio[])
   .map((v) => ({ valor: v, etiqueta: SERVICIOS[v] }))
 
 /**
+ * Los tres veredictos que devuelve `capacidad_torque()`.
+ *
+ * Los umbrales son los del servidor y no se tocan acá: Cpk ≥ 1,33 → capaz;
+ * ≥ 1,00 → aceptable; menos → no capaz. Un valor desconocido se muestra crudo.
+ */
+const VEREDICTOS: Record<string, string> = {
+  capaz: 'Capaz',
+  aceptable: 'Aceptable',
+  no_capaz: 'No capaz',
+}
+
+export function etiquetaDeVeredicto(v: string): string {
+  return VEREDICTOS[v] ?? v
+}
+
+/**
  * Los cinco tipos de línea del CHECK de `maintenance_quote_lines`.
  *
  * `labour` es el default de la base y es lo que más se cotiza en un taller:
