@@ -164,6 +164,35 @@ const FacturaDetallePage = lazyConRecarga(() =>
     default: m.FacturaDetallePage,
   })),
 )
+const ActivosPage = lazyConRecarga(() =>
+  import('@/modules/mantenimiento/pages/ActivosPage').then((m) => ({ default: m.ActivosPage })),
+)
+const ActivoNuevoPage = lazyConRecarga(() =>
+  import('@/modules/mantenimiento/pages/ActivoNuevoPage').then((m) => ({
+    default: m.ActivoNuevoPage,
+  })),
+)
+const ActivoDetallePage = lazyConRecarga(() =>
+  import('@/modules/mantenimiento/pages/ActivoDetallePage').then((m) => ({
+    default: m.ActivoDetallePage,
+  })),
+)
+const OrdenesMantenimientoPage = lazyConRecarga(() =>
+  import('@/modules/mantenimiento/pages/OrdenesPage').then((m) => ({ default: m.OrdenesPage })),
+)
+const OrdenNuevaPage = lazyConRecarga(() =>
+  import('@/modules/mantenimiento/pages/OrdenNuevaPage').then((m) => ({
+    default: m.OrdenNuevaPage,
+  })),
+)
+const OrdenDetallePage = lazyConRecarga(() =>
+  import('@/modules/mantenimiento/pages/OrdenDetallePage').then((m) => ({
+    default: m.OrdenDetallePage,
+  })),
+)
+const PuntosPage = lazyConRecarga(() =>
+  import('@/modules/mantenimiento/pages/PuntosPage').then((m) => ({ default: m.PuntosPage })),
+)
 const LoginPage = lazyConRecarga(() =>
   import('@/features/auth/pages/LoginPage').then((m) => ({ default: m.LoginPage })),
 )
@@ -242,6 +271,20 @@ export const routes: RouteObject[] = [
       // La ruta literal va antes que el parametro o React Router la toma por id.
       { path: 'compras/facturas/nueva', element: privada(<FacturaNuevaPage />) },
       { path: 'compras/facturas/:id', element: privada(<FacturaDetallePage />) },
+
+      // Mantenimiento. Igual que Ventas y Compras, la sección sola no tiene
+      // pantalla propia: redirige a los equipos, que es el maestro del que
+      // cuelga todo lo demás.
+      { path: 'mantenimiento', element: <Navigate to="/mantenimiento/activos" replace /> },
+      { path: 'mantenimiento/activos', element: privada(<ActivosPage />) },
+      // `nuevo` antes que `:id`: si no, React Router lo tomaría como un id.
+      { path: 'mantenimiento/activos/nuevo', element: privada(<ActivoNuevoPage />) },
+      { path: 'mantenimiento/activos/:id', element: privada(<ActivoDetallePage />) },
+      { path: 'mantenimiento/ordenes', element: privada(<OrdenesMantenimientoPage />) },
+      // `nueva` antes que `:id`: si no, React Router la tomaría como un id.
+      { path: 'mantenimiento/ordenes/nueva', element: privada(<OrdenNuevaPage />) },
+      { path: 'mantenimiento/ordenes/:id', element: privada(<OrdenDetallePage />) },
+      { path: 'mantenimiento/puntos', element: privada(<PuntosPage />) },
     ],
   },
   {

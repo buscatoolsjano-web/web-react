@@ -1632,3 +1632,94 @@ create policy mant_checks_write on maintenance_order_checks for all to authentic
 drop policy if exists mant_audit_select on maintenance_audit;
 create policy mant_audit_select on maintenance_audit for select to authenticated
   using (company_id in (select unnest(app.current_maintenance_company_ids())));
+
+-- ===========================================================================
+-- fase7_auditar_espera_orden_mantenimiento  (Fase 7 · Mantenimiento entrega 2)
+-- ===========================================================================
+--
+-- `on_hold` es un eje ortogonal a la etapa: pausa el trabajo sin moverlo. La
+-- entrega 1 lo dejó sin auditar, y con la UI de la entrega 2 pasa a ser una
+-- acción que una persona hace con un botón. Un «¿por qué estuvo parada tres
+-- semanas?» no se contesta con un booleano.
+--
+-- Se agregan dos acciones —`order_put_on_hold` y `order_resumed`— al mismo
+-- trigger que ya audita el resto, para que el orden temporal de los eventos
+-- siga siendo uno solo. `from_status`/`to_status` guardan la ETAPA en la que
+-- quedó parada, que es el dato que hace falta para entender la pausa.
+--
+-- El resto de la función queda idéntica a la de la entrega 1.
+
+create or replace function app.auditar_orden_mantenimiento()
+returns trigger language plpgsql security definer
+set search_path to 'public','pg_temp' as $$
+declare v_accion text;
+begin
+  if tg_op = 'INSERT' then
+    insert into maintenance_audit (company_id, entity_type, entity_id, action,
+                                   from_status, to_status, actor_id)
+    values (new.company_id, 'maintenance_order', new.id, 'create', null, new.status, auth.uid());
+
+    if not new.repair_required or not new.torque_required then
+      insert into maintenance_audit (company_id, entity_type, entity_id, action, diff, actor_id)
+      values (new.company_id, 'maintenance_order', new.id, 'stage_marked_not_required',
+              jsonb_strip_nulls(jsonb_build_object(
+                'repair', case when not new.repair_required then true end,
+                'torque', case when not new.torque_required then true end,
+                'al_crear', true)),
+              auth.uid());
+    end if;
+    return new;
+  end if;
+
+  if new.status is distinct from old.status then
+    insert into maintenance_audit (company_id, entity_type, entity_id, action,
+                                   from_status, to_status, actor_id)
+    values (new.company_id, 'maintenance_order', new.id,
+            case new.status when 'closed' then 'order_closed'
+                            when 'cancelled' then 'order_cancelled'
+                            else 'status_changed' end,
+            old.status, new.status, auth.uid());
+  end if;
+
+  if new.stage is distinct from old.stage then
+    v_accion := case
+      when array_position(app.etapas_requeridas(new.repair_required, new.torque_required), new.stage)
+         < array_position(app.etapas_requeridas(new.repair_required, new.torque_required), old.stage)
+      then 'stage_reverted' else 'stage_changed' end;
+    insert into maintenance_audit (company_id, entity_type, entity_id, action,
+                                   from_status, to_status, actor_id)
+    values (new.company_id, 'maintenance_order', new.id, v_accion,
+            old.stage, new.stage, auth.uid());
+  end if;
+
+  if new.on_hold is distinct from old.on_hold then
+    insert into maintenance_audit (company_id, entity_type, entity_id, action,
+                                   from_status, to_status, actor_id)
+    values (new.company_id, 'maintenance_order', new.id,
+            case when new.on_hold then 'order_put_on_hold' else 'order_resumed' end,
+            old.stage, new.stage, auth.uid());
+  end if;
+
+  if (old.repair_required and not new.repair_required)
+     or (old.torque_required and not new.torque_required) then
+    insert into maintenance_audit (company_id, entity_type, entity_id, action, diff, actor_id)
+    values (new.company_id, 'maintenance_order', new.id, 'stage_marked_not_required',
+            jsonb_strip_nulls(jsonb_build_object(
+              'repair', case when old.repair_required and not new.repair_required then true end,
+              'torque', case when old.torque_required and not new.torque_required then true end)),
+            auth.uid());
+  end if;
+
+  if new.quote_status is distinct from old.quote_status
+     and new.quote_status in ('approved','rejected') then
+    insert into maintenance_audit (company_id, entity_type, entity_id, action,
+                                   from_status, to_status, diff, actor_id)
+    values (new.company_id, 'maintenance_order', new.id,
+            'quote_' || new.quote_status, old.quote_status, new.quote_status,
+            jsonb_strip_nulls(jsonb_build_object('total', new.quote_total,
+                                                 'por', new.quote_approved_by_name)),
+            auth.uid());
+  end if;
+
+  return new;
+end $$;

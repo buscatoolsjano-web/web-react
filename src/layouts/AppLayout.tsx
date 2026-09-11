@@ -11,6 +11,13 @@ import styles from './AppLayout.module.css'
 const ESCRIBEN_COMPRAS = ['admin', 'employee'] as const
 
 /**
+ * Los roles de Mantenimiento. Hoy el mismo conjunto que Compras, pero por su
+ * propia razón: `app.current_maintenance_company_ids()` es admin + employee.
+ * Son dos helpers distintos y pueden divergir, así que son dos constantes.
+ */
+const ESCRIBEN_MANTENIMIENTO = ['admin', 'employee'] as const
+
+/**
  * Navegación provisoria de FASE 1.
  *
  * Solo Dashboard está montado. El resto son los módulos previstos, listados
@@ -37,10 +44,24 @@ const NAV = [
   { to: '/compras/pedidos', label: 'Pedidos de compra', end: false, roles: ESCRIBEN_COMPRAS },
   { to: '/compras/recepciones', label: 'Notas de entrada', end: false, roles: ESCRIBEN_COMPRAS },
   { to: '/compras/facturas', label: 'Facturas de proveedor', end: false, roles: ESCRIBEN_COMPRAS },
+  // Mantenimiento. El rol `technician` existe en el CHECK de
+  // `company_memberships` pero tiene cero miembros y no llegó a la RLS: cuando
+  // exista alguien con ese rol se agrega acá y en el helper, no sólo acá.
+  {
+    to: '/mantenimiento/activos',
+    label: 'Equipos',
+    end: false,
+    roles: ESCRIBEN_MANTENIMIENTO,
+  },
+  {
+    to: '/mantenimiento/ordenes',
+    label: 'Órdenes de servicio',
+    end: false,
+    roles: ESCRIBEN_MANTENIMIENTO,
+  },
 ] as const
 
 const PROXIMAMENTE = [
-  'Mantenimiento',
   'WhatsApp',
   'Emails',
   'Informes',

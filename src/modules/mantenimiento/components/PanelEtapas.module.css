@@ -1,0 +1,138 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.pasos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.paso {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.pasoActual {
+  composes: paso;
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary-text);
+  font-weight: 600;
+}
+
+.pasoSalteado {
+  composes: paso;
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.orden {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-soft);
+  font-size: var(--text-xs);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.primario {
+  font: inherit;
+  font-weight: 600;
+  padding: var(--space-2) var(--space-4);
+  min-height: 36px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: var(--on-primary);
+  cursor: pointer;
+}
+
+.secundario {
+  font: inherit;
+  padding: var(--space-2) var(--space-4);
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.primario:disabled,
+.secundario:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.select {
+  font: inherit;
+  padding: var(--space-2);
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.nota {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--danger);
+}
+
+.requisitos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Un iPad en vertical mide 768 y es táctil: la consulta mira las dos cosas. */
+@media (max-width: 767px), (pointer: coarse) {
+  .primario,
+  .secundario,
+  .select {
+    min-height: 44px;
+    font-size: 1rem;
+    width: 100%;
+  }
+
+  .acciones {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .check input {
+    width: 20px;
+    height: 20px;
+  }
+}

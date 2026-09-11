@@ -1514,6 +1514,741 @@ export type Database = {
           },
         ]
       }
+      maintenance_assets: {
+        Row: {
+          asset_type: string | null
+          brand_id: string | null
+          brand_text: string | null
+          city: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          delivery_serial_id: string | null
+          id: string
+          identifier: string | null
+          model_text: string | null
+          notes: string | null
+          owner_customer_id: string | null
+          product_id: string | null
+          reference: string
+          serial_normalized: string | null
+          serial_number: string | null
+          state: string | null
+          under_contract: boolean
+          updated_at: string
+          updated_by: string | null
+          warranty_end: string | null
+          warranty_start: string | null
+        }
+        Insert: {
+          asset_type?: string | null
+          brand_id?: string | null
+          brand_text?: string | null
+          city?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          delivery_serial_id?: string | null
+          id?: string
+          identifier?: string | null
+          model_text?: string | null
+          notes?: string | null
+          owner_customer_id?: string | null
+          product_id?: string | null
+          reference: string
+          serial_normalized?: string | null
+          serial_number?: string | null
+          state?: string | null
+          under_contract?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          warranty_end?: string | null
+          warranty_start?: string | null
+        }
+        Update: {
+          asset_type?: string | null
+          brand_id?: string | null
+          brand_text?: string | null
+          city?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          delivery_serial_id?: string | null
+          id?: string
+          identifier?: string | null
+          model_text?: string | null
+          notes?: string | null
+          owner_customer_id?: string | null
+          product_id?: string | null
+          reference?: string
+          serial_normalized?: string | null
+          serial_number?: string | null
+          state?: string | null
+          under_contract?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          warranty_end?: string | null
+          warranty_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_assets_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_assets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_assets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_assets_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_assets_delivery_serial_id_fkey"
+            columns: ["delivery_serial_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_serials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_assets_owner_customer_id_fkey"
+            columns: ["owner_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_assets_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_assets_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          company_id: string
+          created_at: string
+          diff: Json | null
+          entity_id: string
+          entity_type: string
+          from_status: string | null
+          id: number
+          to_status: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          company_id: string
+          created_at?: string
+          diff?: Json | null
+          entity_id: string
+          entity_type: string
+          from_status?: string | null
+          id: number
+          to_status?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          company_id?: string
+          created_at?: string
+          diff?: Json | null
+          entity_id?: string
+          entity_type?: string
+          from_status?: string | null
+          id?: number
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_audit_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_check_points: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          id: string
+          key: string
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          id?: string
+          key: string
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          id?: string
+          key?: string
+          label?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_check_points_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_measurements: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          maintenance_order_id: string
+          max_value: number | null
+          min_value: number | null
+          row_no: number
+          target_value: number | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          maintenance_order_id: string
+          max_value?: number | null
+          min_value?: number | null
+          row_no: number
+          target_value?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          maintenance_order_id?: string
+          max_value?: number | null
+          min_value?: number | null
+          row_no?: number
+          target_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_measurements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_measurements_maintenance_order_id_fkey"
+            columns: ["maintenance_order_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_order_checks: {
+        Row: {
+          check_point_id: string
+          company_id: string
+          created_at: string
+          id: string
+          maintenance_order_id: string
+          phase: string
+          result: string
+        }
+        Insert: {
+          check_point_id: string
+          company_id: string
+          created_at?: string
+          id?: string
+          maintenance_order_id: string
+          phase: string
+          result: string
+        }
+        Update: {
+          check_point_id?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          maintenance_order_id?: string
+          phase?: string
+          result?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_order_checks_check_point_id_fkey"
+            columns: ["check_point_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_check_points"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_order_checks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_order_checks_maintenance_order_id_fkey"
+            columns: ["maintenance_order_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_order_parts: {
+        Row: {
+          company_id: string
+          consumed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          maintenance_order_id: string
+          name_snapshot: string | null
+          product_id: string
+          quantity: number
+          sku_snapshot: string | null
+          stock_movement_id: number | null
+          unit_cost_snapshot: number | null
+          updated_at: string
+          warehouse_id: string
+        }
+        Insert: {
+          company_id: string
+          consumed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          maintenance_order_id: string
+          name_snapshot?: string | null
+          product_id: string
+          quantity: number
+          sku_snapshot?: string | null
+          stock_movement_id?: number | null
+          unit_cost_snapshot?: number | null
+          updated_at?: string
+          warehouse_id: string
+        }
+        Update: {
+          company_id?: string
+          consumed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          maintenance_order_id?: string
+          name_snapshot?: string | null
+          product_id?: string
+          quantity?: number
+          sku_snapshot?: string | null
+          stock_movement_id?: number | null
+          unit_cost_snapshot?: number | null
+          updated_at?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_order_parts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_order_parts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_order_parts_maintenance_order_id_fkey"
+            columns: ["maintenance_order_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_order_parts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_order_parts_stock_movement_id_fkey"
+            columns: ["stock_movement_id"]
+            isOneToOne: false
+            referencedRelation: "stock_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_order_parts_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_orders: {
+        Row: {
+          asset_id: string
+          closed_at: string | null
+          closed_by: string | null
+          closing_notes: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          delivered_at: string | null
+          diagnosed_at: string | null
+          diagnosed_by: string | null
+          diagnosis_notes: string | null
+          entry_reason: string | null
+          id: string
+          labour_hours: number | null
+          next_preventive_date: string | null
+          number: string
+          on_hold: boolean
+          on_hold_since: string | null
+          pending_parts: string | null
+          quote_approved_at: string | null
+          quote_approved_by_name: string | null
+          quote_contact: string | null
+          quote_currency: string | null
+          quote_notes: string | null
+          quote_status: string
+          quote_subtotal: number
+          quote_total: number
+          received_at: string
+          received_by: string | null
+          repair_notes: string | null
+          repair_required: boolean
+          repaired_at: string | null
+          repaired_by: string | null
+          series_code: string
+          service_type: string
+          stage: string
+          status: string
+          technician_id: string | null
+          torque_at: string | null
+          torque_by: string | null
+          torque_lsl: number | null
+          torque_nominal: number | null
+          torque_required: boolean
+          torque_usl: number | null
+          updated_at: string
+          updated_by: string | null
+          visual_condition: string | null
+        }
+        Insert: {
+          asset_id: string
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_notes?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          delivered_at?: string | null
+          diagnosed_at?: string | null
+          diagnosed_by?: string | null
+          diagnosis_notes?: string | null
+          entry_reason?: string | null
+          id?: string
+          labour_hours?: number | null
+          next_preventive_date?: string | null
+          number: string
+          on_hold?: boolean
+          on_hold_since?: string | null
+          pending_parts?: string | null
+          quote_approved_at?: string | null
+          quote_approved_by_name?: string | null
+          quote_contact?: string | null
+          quote_currency?: string | null
+          quote_notes?: string | null
+          quote_status?: string
+          quote_subtotal?: number
+          quote_total?: number
+          received_at?: string
+          received_by?: string | null
+          repair_notes?: string | null
+          repair_required?: boolean
+          repaired_at?: string | null
+          repaired_by?: string | null
+          series_code?: string
+          service_type?: string
+          stage?: string
+          status?: string
+          technician_id?: string | null
+          torque_at?: string | null
+          torque_by?: string | null
+          torque_lsl?: number | null
+          torque_nominal?: number | null
+          torque_required?: boolean
+          torque_usl?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          visual_condition?: string | null
+        }
+        Update: {
+          asset_id?: string
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_notes?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          delivered_at?: string | null
+          diagnosed_at?: string | null
+          diagnosed_by?: string | null
+          diagnosis_notes?: string | null
+          entry_reason?: string | null
+          id?: string
+          labour_hours?: number | null
+          next_preventive_date?: string | null
+          number?: string
+          on_hold?: boolean
+          on_hold_since?: string | null
+          pending_parts?: string | null
+          quote_approved_at?: string | null
+          quote_approved_by_name?: string | null
+          quote_contact?: string | null
+          quote_currency?: string | null
+          quote_notes?: string | null
+          quote_status?: string
+          quote_subtotal?: number
+          quote_total?: number
+          received_at?: string
+          received_by?: string | null
+          repair_notes?: string | null
+          repair_required?: boolean
+          repaired_at?: string | null
+          repaired_by?: string | null
+          series_code?: string
+          service_type?: string
+          stage?: string
+          status?: string
+          technician_id?: string | null
+          torque_at?: string | null
+          torque_by?: string | null
+          torque_lsl?: number | null
+          torque_nominal?: number | null
+          torque_required?: boolean
+          torque_usl?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          visual_condition?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_orders_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_orders_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_orders_diagnosed_by_fkey"
+            columns: ["diagnosed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_orders_quote_currency_fkey"
+            columns: ["quote_currency"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "maintenance_orders_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_orders_repaired_by_fkey"
+            columns: ["repaired_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_orders_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_orders_torque_by_fkey"
+            columns: ["torque_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_orders_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_quote_lines: {
+        Row: {
+          company_id: string
+          created_at: string
+          description_snapshot: string | null
+          id: string
+          line_no: number
+          line_total: number
+          line_type: string
+          maintenance_order_id: string
+          product_id: string | null
+          quantity: number
+          sku_snapshot: string | null
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description_snapshot?: string | null
+          id?: string
+          line_no: number
+          line_total?: number
+          line_type?: string
+          maintenance_order_id: string
+          product_id?: string | null
+          quantity: number
+          sku_snapshot?: string | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description_snapshot?: string | null
+          id?: string
+          line_no?: number
+          line_total?: number
+          line_type?: string
+          maintenance_order_id?: string
+          product_id?: string | null
+          quantity?: number
+          sku_snapshot?: string | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_quote_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_quote_lines_maintenance_order_id_fkey"
+            columns: ["maintenance_order_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_quote_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_allocations: {
         Row: {
           amount: number
@@ -3910,6 +4645,46 @@ export type Database = {
       confirmar_recepcion: { Args: { p_receipt: string }; Returns: Json }
       duplicar_pedido_compra: { Args: { p_order: string }; Returns: string }
       registrar_factura_proveedor: { Args: { p_invoice: string }; Returns: Json }
+      cancelar_orden_mantenimiento: {
+        Args: {
+          p_order: string
+          p_motivo?: string | null
+        }
+        Returns: Json
+      }
+      capacidad_torque: {
+        Args: {
+          p_order: string
+        }
+        Returns: Json
+      }
+      cerrar_orden_mantenimiento: {
+        Args: {
+          p_order: string
+        }
+        Returns: Json
+      }
+      confirmar_consumo_mantenimiento: {
+        Args: {
+          p_order: string
+        }
+        Returns: Json
+      }
+      duplicados_de_serial: {
+        Args: {
+          p_company: string
+          p_serial: string
+          p_excluir?: string | null
+        }
+        Returns: {
+          id: string
+          reference: string
+          model_text: string | null
+          serial_number: string | null
+          owner_customer_id: string | null
+          created_at: string
+        }[]
+      }
       pendiente_de_facturar: {
         Args: {
           p_company: string

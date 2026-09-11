@@ -1,0 +1,226 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.etiqueta {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.control,
+.area {
+  /* 16px: menos que eso y iOS hace zoom al enfocar. */
+  font-size: 16px;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+  min-width: 0;
+}
+
+.area {
+  min-height: 5rem;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.control:focus-visible,
+.area:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.control[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.soloLectura {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-style: italic;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.error {
+  font-size: var(--text-xs);
+  color: var(--danger);
+}
+
+.errorCaja {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  background: var(--surface);
+  font-size: var(--text-sm);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.primario,
+.secundario {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.primario {
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.primario:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.secundario {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.secundario:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.primario:disabled,
+.secundario:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.primario:focus-visible,
+.secundario:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* La aclaración debajo de la dirección: por qué es un solo campo. */
+.ayuda {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+}
+
+/* ── El aviso de seriales repetidos ──────────────────────────────────────
+   Avisa, no bloquea: el serial nunca fue único en el legacy. Por eso es un
+   aviso ámbar y no un error rojo, y por eso no hay ningún estado del
+   formulario que dependa de él. */
+.aviso {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--warning-light);
+  border-left: 4px solid var(--warning-text);
+  border-radius: var(--radius-sm);
+  background: var(--warning-light);
+  color: var(--warning-text);
+  font-size: var(--text-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.avisoLista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.avisoItem {
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.seccion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.tituloSeccion {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  min-height: 44px;
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+}
+
+/* El producto elegido, con su botón para cambiarlo o quitarlo. */
+.elegido {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.elegidoSku {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cambiar {
+  font: inherit;
+  font-size: var(--text-xs);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}

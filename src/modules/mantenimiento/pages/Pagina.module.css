@@ -1,0 +1,454 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.volver {
+  align-self: flex-start;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.volver:hover {
+  color: var(--primary);
+}
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.identidad {
+  min-width: 0;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.subtitulo {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  align-items: center;
+}
+
+.historico {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.chipBaja {
+  font-size: var(--text-xs);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+}
+
+/* El aviso de revisión no se puede cerrar: es el que explica por qué un dato
+   está vacío o por qué hay dos clientes parecidos. */
+.revision {
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
+  background: var(--warning-bg, var(--surface));
+  color: var(--warning-text);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.motivos {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pestanas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.pestana,
+.pestanaActiva {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.pestanaActiva {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.pestana:hover {
+  color: var(--text);
+}
+
+.pestana:focus-visible,
+.pestanaActiva:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.bloque {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+.datos {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.dato {
+  min-width: 0;
+}
+
+.datoEtiqueta {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* `dt` y `dd`: una ficha es una lista de descripción, y además son de bloque —
+   con dos `span` la etiqueta y el valor salían pegados en la misma línea. El
+   `dd` trae un `margin-inline-start: 40px` del navegador que hay que anular. */
+.datoValor,
+.falta {
+  margin: 2px 0 0;
+  margin-inline-start: 0;
+}
+
+.datoValor {
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+/* Un dato que falta se muestra como faltante, no como vacío: la diferencia
+   entre «no lo sabemos» y «no hay nada» importa en el histórico. */
+.falta {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.chipsLista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.enlace {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.enlace:hover {
+  text-decoration: underline;
+}
+
+.notas {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  white-space: pre-wrap;
+}
+
+.nota {
+  color: var(--text-soft);
+}
+
+.error {
+  padding: var(--space-4);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  background: var(--surface);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.secundario,
+.peligro {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.secundario {
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.secundario:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.peligro {
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+
+.secundario:disabled,
+.peligro:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.secundario:focus-visible,
+.peligro:focus-visible,
+.resolver:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* El aviso de baja no es un error: es el estado del cliente. */
+.avisoBaja {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+}
+
+.motivos li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.resolver {
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.resolver:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* El botón principal de las pantallas de pedido: crear, guardar, confirmar. */
+.primario {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+}
+
+.primario:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.primario:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.primario:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* La barra de acciones al pie del formulario. */
+.acciones + .acciones,
+.bloque .acciones {
+  margin-top: var(--space-4);
+}
+
+/* Los dos chips de estado del pedido, uno al lado del otro. */
+.chipsEstado {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* El aviso de que hay cambios sin guardar. */
+.sinGuardar {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
+  background: var(--warning-bg, var(--surface));
+  color: var(--warning-text);
+  font-size: var(--text-sm);
+}
+
+/* Controles que viven dentro de una lista de datos: el depósito, la fecha y
+   el remito de una recepción en borrador. */
+.selectDato,
+.areaDato {
+  /* 16px: menos que eso y iOS hace zoom al enfocar. */
+  font-size: 16px;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+  min-width: 0;
+  max-width: 22rem;
+}
+
+.areaDato {
+  min-height: 4rem;
+  resize: vertical;
+  font-family: inherit;
+  max-width: none;
+}
+
+.selectDato:focus-visible,
+.areaDato:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.selectDato:disabled,
+.areaDato:disabled {
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  cursor: default;
+}
+
+/* La tabla de líneas de una recepción confirmada, en modo lectura. */
+.scrollLineas {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.tablaLineas {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  min-width: 30rem;
+}
+
+.tablaLineas th,
+.tablaLineas td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.tablaLineas thead th {
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.tablaLineas tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.derecha {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Un enlace que se ve como el botón principal: «Recibir mercadería» lleva a
+   otra pantalla, así que es un link, no un button. */
+a.primario {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* `.primario` y `.secundario` se usan también en enlaces —«+ Nueva orden»,
+   «Equipos»—, y un <a> no centra su texto dentro de los 44px de alto ni pierde
+   el subrayado por sí solo. */
+a.primario,
+a.secundario,
+a.peligro {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+/* El enlace del subtítulo de una ficha —al equipo, al cliente— es la
+   navegación principal desde ese documento, no una nota al pie. Con el alto de
+   línea sólo mide 18px, muy por debajo del blanco cómodo en un teléfono. */
+@media (max-width: 767px), (pointer: coarse) {
+  .subtitulo .enlace,
+  .datoValor .enlace {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
