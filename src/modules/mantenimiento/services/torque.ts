@@ -167,7 +167,29 @@ export async function completarTorque(
   if (error) throw new Error(traducir(error.message, error.code))
 }
 
+/**
+ * Los CHECK de tabla que puede tocar esta pantalla, en castellano.
+ *
+ * Un trigger levanta su excepción con un mensaje escrito para leer; un CHECK
+ * de tabla no; devuelve «new row for relation "maintenance_orders" violates
+ * check constraint "chk_mo_torque_nominal"», que no le dice nada a quien está
+ * cargando una calibración. Se traduce por nombre de constraint, que es lo
+ * único estable del mensaje.
+ */
+const CONSTRAINTS: Record<string, string> = {
+  chk_mo_torque_nominal: 'El nominal tiene que quedar entre el LCI y el LCS.',
+  chk_mo_torque_rango: 'El LCS no puede ser menor que el LCI.',
+  chk_mo_torque_numeros: 'Alguno de los límites no es un número válido.',
+  chk_mo_torque_coherente:
+    'Esta orden tiene el torque marcado como no requerido: no se le cargan límites ni mediciones.',
+  chk_mm_numeros: 'Esa medición no es un número válido.',
+  chk_mm_rango: 'El máximo no puede ser menor que el mínimo.',
+}
+
 function traducir(mensaje: string, codigo?: string): string {
+  for (const [nombre, texto] of Object.entries(CONSTRAINTS)) {
+    if (mensaje.includes(nombre)) return texto
+  }
   if (codigo === '23505' && mensaje.includes('row_no')) {
     return 'Ya hay otra medición en esa posición.'
   }

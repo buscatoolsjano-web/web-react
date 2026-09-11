@@ -188,7 +188,23 @@ export async function confirmarConsumo(
   return { yaEstaba: r.ya_estaba, lineas: r.lineas }
 }
 
+/**
+ * Los CHECK de tabla que puede tocar esta pantalla, en castellano.
+ *
+ * Un trigger levanta su excepción con un mensaje escrito para leer; un CHECK
+ * de tabla devuelve «violates check constraint "chk_..."», que no le dice nada
+ * a quien está cargando datos. Se traduce por nombre de constraint.
+ */
+const CONSTRAINTS: Record<string, string> = {
+  chk_mop_costo_moneda: 'Si cargás un costo, decí en qué moneda.',
+  chk_mop_consumo: 'Un repuesto ya consumido no se edita ni se borra.',
+  maintenance_order_parts_quantity_check: 'La cantidad del repuesto tiene que ser mayor que cero.',
+}
+
 function traducir(mensaje: string, codigo?: string): string {
+  for (const [nombre, texto] of Object.entries(CONSTRAINTS)) {
+    if (mensaje.includes(nombre)) return texto
+  }
   if (codigo === '42501') {
     return 'No tenés permiso para hacer este cambio. Mantenimiento es de administradores y empleados.'
   }

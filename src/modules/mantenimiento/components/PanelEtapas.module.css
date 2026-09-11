@@ -114,6 +114,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  /* El área que se toca es la etiqueta entera, no la cajita de 20px: 44px es
+     el mínimo que se puede acertar con el pulgar. Formulario y Filtros ya lo
+     tenían; acá faltaba. */
+  min-height: 44px;
 }
 
 /* Un iPad en vertical mide 768 y es táctil: la consulta mira las dos cosas. */

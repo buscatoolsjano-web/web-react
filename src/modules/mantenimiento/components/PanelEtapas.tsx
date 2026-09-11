@@ -111,9 +111,9 @@ export function PanelEtapas({
               </span>
               {e.etiqueta}
               {!requerida ? (
-                <span className={styles.orden}>no requerida</span>
+                <span className={styles.orden}>{e.femenina ? 'no requerida' : 'no requerido'}</span>
               ) : posicion < indiceActual ? (
-                <span className={styles.orden}>completada</span>
+                <span className={styles.orden}>{e.femenina ? 'completada' : 'completado'}</span>
               ) : e.valor === orden.etapa ? (
                 <span className={styles.orden}>en curso</span>
               ) : (
@@ -141,7 +141,7 @@ export function PanelEtapas({
             disabled={!puedeEditar || !abierta || guardando}
             onChange={(ev) => onRequisitos({ requiereTorque: ev.target.checked })}
           />
-          Requiere torque <ChipSituacion situacion={situacionTorque} />
+          Requiere torque <ChipSituacion situacion={situacionTorque} femenina={false} />
         </label>
       </div>
 

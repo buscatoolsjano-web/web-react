@@ -332,7 +332,21 @@ export async function reactivarActivo(companyId: string, id: string): Promise<vo
 }
 
 /** El error de Postgres, en castellano. */
+/**
+ * Los CHECK de tabla que puede tocar esta pantalla, en castellano.
+ *
+ * Un trigger levanta su excepción con un mensaje escrito para leer; un CHECK
+ * de tabla devuelve «violates check constraint "chk_..."», que no le dice nada
+ * a quien está cargando datos. Se traduce por nombre de constraint.
+ */
+const CONSTRAINTS: Record<string, string> = {
+  chk_ma_garantia: 'La garantía no puede terminar antes de empezar.',
+}
+
 function traducir(mensaje: string, codigo?: string): string {
+  for (const [nombre, texto] of Object.entries(CONSTRAINTS)) {
+    if (mensaje.includes(nombre)) return texto
+  }
   if (codigo === '23001' || codigo === '23514') return mensaje
   if (codigo === '23505' && mensaje.includes('reference')) {
     return 'Esa referencia de equipo ya existe.'

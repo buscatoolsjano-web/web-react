@@ -14,6 +14,7 @@ import {
   etiquetaDeServicio,
   etiquetaDeSituacion,
   etiquetaDeVeredicto,
+  etapaEsFemenina,
   situacionDeEtapa,
   MOTIVOS_INGRESO,
 } from './estados'
@@ -214,5 +215,34 @@ describe('etiquetaDeVeredicto', () => {
 
   it('un veredicto desconocido se muestra crudo, no desaparece', () => {
     expect(etiquetaDeVeredicto('lo_que_sea')).toBe('lo_que_sea')
+  })
+})
+
+describe('etiquetaDeSituacion · concordancia', () => {
+  it('«pendiente» es invariable y sirve para las cinco etapas', () => {
+    expect(etiquetaDeSituacion('pendiente')).toBe('Pendiente')
+    expect(etiquetaDeSituacion('pendiente', false)).toBe('Pendiente')
+  })
+
+  it('«completada» y «no requerida» sí concuerdan', () => {
+    expect(etiquetaDeSituacion('completada', true)).toBe('Completada')
+    expect(etiquetaDeSituacion('completada', false)).toBe('Completado')
+    expect(etiquetaDeSituacion('no-requerida', true)).toBe('No requerida')
+    expect(etiquetaDeSituacion('no-requerida', false)).toBe('No requerido')
+  })
+})
+
+describe('etapaEsFemenina', () => {
+  it('cotización y reparación son femeninas; las otras tres no', () => {
+    // Sin esto la pantalla decía «Torque no requerida» y «Cierre completada».
+    expect(etapaEsFemenina('quotation')).toBe(true)
+    expect(etapaEsFemenina('repair')).toBe(true)
+    expect(etapaEsFemenina('diagnosis')).toBe(false)
+    expect(etapaEsFemenina('torque')).toBe(false)
+    expect(etapaEsFemenina('closing')).toBe(false)
+  })
+
+  it('una etapa desconocida no se asume femenina', () => {
+    expect(etapaEsFemenina('lo_que_sea')).toBe(false)
   })
 })

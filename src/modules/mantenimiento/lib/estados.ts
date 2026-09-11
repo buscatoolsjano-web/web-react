@@ -26,13 +26,21 @@ const ESTADOS: Record<EstadoOrden, string> = {
 }
 
 /** Las cinco etapas del circuito real del legacy, en su orden. */
-export const ETAPAS: { valor: EtapaOrden; etiqueta: string }[] = [
-  { valor: 'diagnosis', etiqueta: 'Diagnóstico' },
-  { valor: 'quotation', etiqueta: 'Cotización' },
-  { valor: 'repair', etiqueta: 'Reparación' },
-  { valor: 'torque', etiqueta: 'Torque' },
-  { valor: 'closing', etiqueta: 'Cierre' },
+export const ETAPAS: { valor: EtapaOrden; etiqueta: string; femenina: boolean }[] = [
+  // El género va acá porque las cinco etapas no coinciden: «Cotización
+  // completada» pero «Torque completado». Con una sola palabra, tres de las
+  // cinco quedaban mal escritas en pantalla.
+  { valor: 'diagnosis', etiqueta: 'Diagnóstico', femenina: false },
+  { valor: 'quotation', etiqueta: 'Cotización', femenina: true },
+  { valor: 'repair', etiqueta: 'Reparación', femenina: true },
+  { valor: 'torque', etiqueta: 'Torque', femenina: false },
+  { valor: 'closing', etiqueta: 'Cierre', femenina: false },
 ]
+
+/** Si la etapa lleva palabras en femenino. Las que no están, no. */
+export function etapaEsFemenina(v: string): boolean {
+  return ETAPAS.find((e) => e.valor === v)?.femenina ?? false
+}
 
 const COTIZACION: Record<EstadoCotizacion, string> = {
   pending: 'Pendiente',
@@ -216,8 +224,16 @@ export function situacionDeEtapa(requerida: boolean, completadaEn: string | null
   return completadaEn === null ? 'pendiente' : 'completada'
 }
 
-export function etiquetaDeSituacion(s: SituacionEtapa): string {
-  return { pendiente: 'Pendiente', completada: 'Completada', 'no-requerida': 'No requerida' }[s]
+/**
+ * La situación de una etapa, concordando con su género.
+ *
+ * «Pendiente» es invariable y sirve para las cinco; «completada» y
+ * «no requerida» no.
+ */
+export function etiquetaDeSituacion(s: SituacionEtapa, femenina = true): string {
+  if (s === 'pendiente') return 'Pendiente'
+  if (s === 'completada') return femenina ? 'Completada' : 'Completado'
+  return femenina ? 'No requerida' : 'No requerido'
 }
 
 /** Qué se puede tocar según el estado. Lo impone el servidor; acá no se ofrece. */

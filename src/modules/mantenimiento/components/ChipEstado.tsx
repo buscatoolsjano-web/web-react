@@ -64,12 +64,18 @@ export function ChipEspera({ enEspera }: { enEspera: boolean }) {
  * y confundirlas era justo lo que había que evitar: una etapa que nunca va a
  * pasar no puede verse igual que una que todavía no pasó.
  */
-export function ChipSituacion({ situacion }: { situacion: SituacionEtapa }) {
+export function ChipSituacion({
+  situacion,
+  femenina = true,
+}: {
+  situacion: SituacionEtapa
+  femenina?: boolean
+}) {
   const clase =
     situacion === 'completada' ? styles.recibido
     : situacion === 'no-requerida' ? styles.borrador
     : styles.pendiente
-  return <span className={clase}>{etiquetaDeSituacion(situacion)}</span>
+  return <span className={clase}>{etiquetaDeSituacion(situacion, femenina)}</span>
 }
 
 /** El resultado de un punto de revisión: OK, NOK o N/A. */

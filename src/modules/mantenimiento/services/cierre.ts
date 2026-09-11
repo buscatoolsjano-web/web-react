@@ -131,7 +131,26 @@ export async function guardarEntrega(
   if (error) throw new Error(traducir(error.message, error.code))
 }
 
+/**
+ * Los CHECK de tabla que puede tocar esta pantalla, en castellano.
+ *
+ * Las funciones y los triggers levantan su excepción con un mensaje escrito
+ * para leer —«Falta completar el diagnóstico»—; un CHECK de tabla no: devuelve
+ * «new row for relation "maintenance_orders" violates check constraint
+ * "chk_mo_fechas"». Se traduce por nombre de constraint, que es lo único
+ * estable del mensaje.
+ */
+const CONSTRAINTS: Record<string, string> = {
+  chk_mo_fechas: 'La fecha de entrega no puede ser anterior a la de ingreso.',
+  chk_mo_repair_coherente:
+    'Esta orden tiene la reparación marcada como no requerida: no se le carga fecha de reparación.',
+  maintenance_orders_labour_hours_check: 'Las horas de mano de obra no pueden ser negativas.',
+}
+
 function traducir(mensaje: string, codigo?: string): string {
+  for (const [nombre, texto] of Object.entries(CONSTRAINTS)) {
+    if (mensaje.includes(nombre)) return texto
+  }
   if (codigo === '42501') {
     return 'No tenés permiso para hacer este cambio. Mantenimiento es de administradores y empleados.'
   }

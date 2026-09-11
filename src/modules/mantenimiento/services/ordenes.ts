@@ -489,7 +489,26 @@ export async function historialDe(
 }
 
 /** El error de Postgres, en castellano. */
+/**
+ * Los CHECK de tabla que puede tocar esta pantalla, en castellano.
+ *
+ * Un trigger levanta su excepción con un mensaje escrito para leer; un CHECK
+ * de tabla devuelve «violates check constraint "chk_..."», que no le dice nada
+ * a quien está cargando datos. Se traduce por nombre de constraint.
+ */
+const CONSTRAINTS: Record<string, string> = {
+  chk_mo_fechas: 'La fecha de entrega no puede ser anterior a la de ingreso.',
+  chk_mo_repair_coherente:
+    'Esta orden tiene la reparación marcada como no requerida: no se le carga fecha de reparación.',
+  chk_mo_torque_coherente:
+    'Esta orden tiene el torque marcado como no requerido: no se la puede mover a la etapa de torque.',
+  maintenance_orders_stage_check: 'Esa etapa no existe.',
+}
+
 function traducir(mensaje: string, codigo?: string): string {
+  for (const [nombre, texto] of Object.entries(CONSTRAINTS)) {
+    if (mensaje.includes(nombre)) return texto
+  }
   if (codigo === '23001' || codigo === '23514') return mensaje
   if (codigo === '23505' && mensaje.includes('number')) return 'Ese número de orden ya existe.'
   if (codigo === '23505') return 'Ese valor ya está cargado.'

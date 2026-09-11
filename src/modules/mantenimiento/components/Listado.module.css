@@ -184,3 +184,18 @@
   gap: var(--space-2);
   margin-top: var(--space-1);
 }
+
+/* ── Táctil por encima del corte de tarjetas ───────────────────────────────
+   Un iPad vertical mide 768: no entra en el layout de tarjetas —que corta en
+   767— y sin embargo se toca con el dedo. Ahí la tabla se queda, así que sus
+   dos controles tienen que poder acertarse: el botón de ordenar del
+   encabezado y el enlace de cada fila. */
+@media (pointer: coarse) {
+  .thBoton,
+  .enlace,
+  .enlaceSuave {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
