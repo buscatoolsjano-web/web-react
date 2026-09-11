@@ -252,7 +252,7 @@ const main = async () => {
     // ── 6 · Totales de la cotización ───────────────────────────────────────
     seccion('6 · TOTALES: LOS CALCULA EL SERVIDOR')
 
-    const o3 = await nuevaOrden(e1.data.id, cli[0].id, { quote_currency: 'USD' })
+    const o3 = await nuevaOrden(e1.data.id, cli[0].id, { quote_currency_code: 'USD' })
     await c.from('maintenance_quote_lines').insert([
       { company_id: BT, maintenance_order_id: o3.data.id, line_no: 1, line_type: 'labour',
         description_snapshot: 'Mano de obra', quantity: 2, unit_price: 50 },
@@ -413,8 +413,11 @@ const main = async () => {
     await intentar('sin diagnóstico, no cierra')
     await c.from('maintenance_orders').update({ diagnosed_at: HOY }).eq('id', o3.data.id)
     await intentar('con la cotización PENDIENTE, no cierra')
-    await c.from('maintenance_orders')
-      .update({ quote_status: 'approved', quote_approved_at: HOY }).eq('id', o3.data.id)
+    // Desde la entrega 3 la cotización no se aprueba con un UPDATE: la máquina
+    // de estados lo rechaza y sólo pasa por su RPC.
+    const { error: eAprobar } = await c.rpc('aprobar_cotizacion_mantenimiento',
+      { p_order: o3.data.id, p_por: 'Contacto del cliente' })
+    if (eAprobar) FAIL('aprobar la cotización', eAprobar.message)
     await intentar('sin la reparación completada, no cierra')
     await c.from('maintenance_orders').update({ repaired_at: HOY }).eq('id', o3.data.id)
     await intentar('sin fecha de entrega, no cierra')
@@ -441,10 +444,13 @@ const main = async () => {
                   : FAIL('SE LE AGREGÓ UNA LÍNEA A UNA ORDEN CERRADA')
 
     // Repuesto sin consumir bloquea el cierre.
+    // Nace pendiente —la entrega 3 lo exige— y se rechaza con su RPC.
     const o4 = await nuevaOrden(e1.data.id, cli[0].id, {
       repair_required: false, torque_required: false, diagnosed_at: HOY,
-      quote_status: 'rejected', delivered_at: HOY,
+      delivered_at: HOY,
     })
+    await c.rpc('rechazar_cotizacion_mantenimiento',
+      { p_order: o4.data.id, p_motivo: 'El cliente no aprobó el presupuesto' })
     await c.from('maintenance_order_parts').insert({
       company_id: BT, maintenance_order_id: o4.data.id, product_id: prods[0].id,
       warehouse_id: dep.id, quantity: 1,

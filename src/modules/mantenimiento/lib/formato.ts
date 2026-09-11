@@ -73,6 +73,8 @@ const ACCIONES: Record<string, string> = {
   quote_approved: 'Cotización aprobada',
   quote_rejected: 'Cotización rechazada',
   consumption_confirmed: 'Consumo de repuestos',
+  part_added: 'Repuesto agregado',
+  part_removed: 'Repuesto quitado',
 }
 
 export function etiquetaDeAccion(accion: string): string {

@@ -1723,3 +1723,503 @@ begin
 
   return new;
 end $$;
+
+-- ===========================================================================
+-- FASE 7 · MANTENIMIENTO · ENTREGA 3
+-- ===========================================================================
+--
+-- Cuatro migraciones que cierran los gaps de integridad que midió la auditoría
+-- previa (docs/PHASE_7_MANTENIMIENTO_ENTREGA_3_AUDITORIA.md):
+--
+--   fase7_entrega3_monedas_cotizacion_y_costo
+--   fase7_entrega3_coherencia_empresa_y_referencias
+--   fase7_entrega3_maquina_de_estados_de_la_cotizacion
+--   fase7_entrega3_la_cotizacion_nace_pendiente
+--
+-- Abajo va el resultado consolidado de las cuatro, que es lo que está aplicado.
+
+-- ===========================================================================
+-- FASE 7 · MANTENIMIENTO · ENTREGA 3
+-- Cierre de los gaps de integridad de la auditoría previa
+-- ===========================================================================
+--
+-- Ocho cosas, ni una más:
+--
+--   1  quote_currency → quote_currency_code (convención del proyecto)
+--   2  unit_cost_currency_code, obligatoria si hay costo
+--   3  P1 · coherencia de empresa entre una fila hija y su orden
+--   4  P2/P3 · producto, depósito y punto de revisión de esa misma empresa
+--   5  P5 · una línea con importe exige moneda de cotización
+--   6  P4 · máquina de estados: approved y rejected son terminales, por RPC
+--   7  P6 · evento part_added (y part_removed)
+--
+-- No toca Ventas, Compras ni Clientes. No toca grants de stock_movements.
+
+-- ── 1 · Renombre a la convención del proyecto ──────────────────────────────
+--
+-- Trece columnas de moneda en la base se llaman `currency_code` o
+-- `default_currency`; ésta era la única `*_currency` de documento. La FK a
+-- `currencies(code)` ya existía y viaja con la columna. La tabla tiene 0 filas.
+
+alter table maintenance_orders rename column quote_currency to quote_currency_code;
+
+-- ── 2 · La moneda del costo del repuesto ───────────────────────────────────
+--
+-- El costo NO se autocompleta desde `product_prices`: esas son listas de
+-- VENTA. No hay ninguna fuente de costo confiable en la base —0 pedidos de
+-- compra confirmados, 0 recepciones, 0 facturas de proveedor, ninguna columna
+-- de costo en `products`— así que el costo es carga manual o NULL.
+--
+-- Y si hay costo, tiene que decir en qué moneda: un número sin unidad no es un
+-- costo. La moneda de la cotización NO sirve de default: es lo que se le cobra
+-- al cliente, no lo que costó el repuesto.
+
+alter table maintenance_order_parts
+  add column unit_cost_currency_code text references currencies(code);
+
+alter table maintenance_order_parts
+  add constraint chk_mop_costo_moneda check (
+    unit_cost_snapshot is null or unit_cost_currency_code is not null);
+
+comment on column maintenance_order_parts.unit_cost_currency_code is
+  'Moneda del costo. Obligatoria si hay costo. Nunca se copia de quote_currency_code: la cotizacion es lo que se cobra, no lo que costo.';
+
+-- ── 3 · P1 · Coherencia de empresa entre hija y orden ──────────────────────
+--
+-- El agujero medido en la auditoría: la RLS mira `company_id` DE LA FILA, que
+-- es el del usuario. Nadie comparaba ese company_id con el de la orden. Un
+-- admin de la empresa A podía insertar una línea de cotización en una orden de
+-- la empresa B —que ni siquiera puede leer— y reescribirle el total.
+--
+-- La regla es: una fila hija NO se autoriza por su propio company_id.
+
+create or replace function app.coherencia_empresa_mant()
+returns trigger language plpgsql security definer
+set search_path to 'public','pg_temp' as $$
+declare v_emp uuid; v_num text;
+begin
+  select company_id, number into v_emp, v_num
+    from maintenance_orders where id = new.maintenance_order_id;
+
+  if v_emp is null then
+    raise exception 'La orden no existe' using errcode = 'foreign_key_violation';
+  end if;
+
+  if new.company_id is distinct from v_emp then
+    raise exception 'La fila dice ser de otra empresa que su orden %', v_num
+      using errcode = 'check_violation';
+  end if;
+
+  return new;
+end $$;
+
+drop trigger if exists trg_mql_empresa on maintenance_quote_lines;
+drop trigger if exists trg_mop_empresa on maintenance_order_parts;
+drop trigger if exists trg_mm_empresa on maintenance_measurements;
+drop trigger if exists trg_moc_empresa on maintenance_order_checks;
+
+create trigger trg_mql_empresa before insert or update on maintenance_quote_lines
+  for each row execute function app.coherencia_empresa_mant();
+create trigger trg_mop_empresa before insert or update on maintenance_order_parts
+  for each row execute function app.coherencia_empresa_mant();
+create trigger trg_mm_empresa before insert or update on maintenance_measurements
+  for each row execute function app.coherencia_empresa_mant();
+create trigger trg_moc_empresa before insert or update on maintenance_order_checks
+  for each row execute function app.coherencia_empresa_mant();
+
+-- ── 4 · P2 y P3 · Las referencias también son de esa empresa ───────────────
+--
+-- Un producto, un depósito o un punto de revisión de otra empresa entraban sin
+-- que nada los mirara. Se validan sólo las columnas que cada tabla tiene: las
+-- ramas están separadas por `tg_table_name` porque plpgsql evalúa `new.<campo>`
+-- recién al ejecutarlo, y `new.product_id` no existe en las otras dos tablas.
+
+create or replace function app.coherencia_refs_mant()
+returns trigger language plpgsql security definer
+set search_path to 'public','pg_temp' as $$
+declare v_otra uuid; v_activo boolean;
+begin
+  if tg_table_name = 'maintenance_quote_lines' then
+    if new.product_id is not null then
+      select company_id into v_otra from products where id = new.product_id;
+      if v_otra is distinct from new.company_id then
+        raise exception 'El producto de la línea es de otra empresa'
+          using errcode = 'check_violation';
+      end if;
+    end if;
+
+  elsif tg_table_name = 'maintenance_order_parts' then
+    select company_id into v_otra from products where id = new.product_id;
+    if v_otra is distinct from new.company_id then
+      raise exception 'El repuesto es un producto de otra empresa'
+        using errcode = 'check_violation';
+    end if;
+
+    select company_id, is_active into v_otra, v_activo
+      from warehouses where id = new.warehouse_id;
+    if v_otra is distinct from new.company_id then
+      raise exception 'El depósito es de otra empresa' using errcode = 'check_violation';
+    end if;
+
+    -- Un depósito dado de baja no recibe repuestos nuevos. Sólo se mira cuando
+    -- el depósito entra o cambia, para no invalidar una fila vieja si mañana se
+    -- desactiva un depósito que ya tiene repuestos cargados. Los dos casos van
+    -- en ramas separadas porque en un INSERT `old` no está asignado.
+    if not v_activo then
+      if tg_op = 'INSERT' then
+        raise exception 'El depósito está inactivo' using errcode = 'check_violation';
+      elsif new.warehouse_id is distinct from old.warehouse_id then
+        raise exception 'El depósito está inactivo' using errcode = 'check_violation';
+      end if;
+    end if;
+
+  elsif tg_table_name = 'maintenance_order_checks' then
+    select company_id into v_otra from maintenance_check_points where id = new.check_point_id;
+    if v_otra is distinct from new.company_id then
+      raise exception 'El punto de revisión es de otra empresa'
+        using errcode = 'check_violation';
+    end if;
+  end if;
+
+  return new;
+end $$;
+
+drop trigger if exists trg_mql_refs on maintenance_quote_lines;
+drop trigger if exists trg_mop_refs on maintenance_order_parts;
+drop trigger if exists trg_moc_refs on maintenance_order_checks;
+
+create trigger trg_mql_refs before insert or update on maintenance_quote_lines
+  for each row execute function app.coherencia_refs_mant();
+create trigger trg_mop_refs before insert or update on maintenance_order_parts
+  for each row execute function app.coherencia_refs_mant();
+create trigger trg_moc_refs before insert or update on maintenance_order_checks
+  for each row execute function app.coherencia_refs_mant();
+
+-- ── 5 · P5 · La cotización con importe necesita moneda ─────────────────────
+--
+-- Una cotización puede existir sin moneda mientras no tenga nada valorizado.
+-- En cuanto aparece la primera línea con importe, la moneda deja de ser
+-- opcional: un total numérico sin moneda no significa nada, que es la misma
+-- razón por la que en este proyecto ningún importe se muestra sin su código.
+
+create or replace function app.moneda_cotizacion_mant()
+returns trigger language plpgsql security definer
+set search_path to 'public','pg_temp' as $$
+declare v_moneda text;
+begin
+  if new.unit_price <= 0 then return new; end if;
+
+  select quote_currency_code into v_moneda
+    from maintenance_orders where id = new.maintenance_order_id;
+
+  if v_moneda is null then
+    raise exception 'Antes de cargar una línea con importe hay que elegir la moneda de la cotización'
+      using errcode = 'check_violation';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_mql_moneda on maintenance_quote_lines;
+create trigger trg_mql_moneda before insert or update on maintenance_quote_lines
+  for each row execute function app.moneda_cotizacion_mant();
+
+-- ── 6 · P4 · La máquina de estados de la cotización ────────────────────────
+--
+-- Hoy pasaban las seis transiciones por un UPDATE suelto, incluido desaprobar
+-- una cotización sin dejar rastro. Para v1:
+--
+--     pending → approved     por su RPC
+--     pending → rejected     por su RPC
+--     todo lo demás          rechazado
+--
+-- `approved` y `rejected` son TERMINALES. Si alguna vez hace falta reabrir,
+-- será una acción explícita con su propio nombre y su propio evento, no un
+-- UPDATE que deshaga la historia.
+--
+-- La puerta es la misma de `cerrar_orden_mantenimiento()` y de
+-- `confirmar_consumo_mantenimiento()`: un marcador local de transacción. Por un
+-- UPDATE suelto no se pasa, así que la auditoría no se puede saltear.
+
+create or replace function app.validar_cotizacion_mant()
+returns trigger language plpgsql security definer
+set search_path to 'public','pg_temp' as $$
+declare v_n int;
+begin
+  if tg_op = 'INSERT' then
+    if new.quote_status <> 'pending' then
+      raise exception 'Una orden nace con la cotización pendiente: se aprueba o se rechaza después, con su función'
+        using errcode = 'restrict_violation';
+    end if;
+    return new;
+  end if;
+
+  -- La moneda se congela junto con la cotización.
+  if new.quote_currency_code is distinct from old.quote_currency_code
+     and old.quote_status <> 'pending' then
+    raise exception 'La cotización está %: su moneda ya no se cambia', old.quote_status
+      using errcode = 'restrict_violation';
+  end if;
+
+  -- Y no se puede dejar sin moneda una cotización que ya tiene importes.
+  if new.quote_currency_code is null and old.quote_currency_code is not null then
+    select count(*) into v_n from maintenance_quote_lines
+     where maintenance_order_id = new.id and unit_price > 0;
+    if v_n > 0 then
+      raise exception 'No se puede quitar la moneda: la cotización tiene % línea(s) con importe', v_n
+        using errcode = 'check_violation';
+    end if;
+  end if;
+
+  if new.quote_status is not distinct from old.quote_status then
+    return new;
+  end if;
+
+  if old.quote_status <> 'pending' then
+    raise exception 'La cotización ya está %: es un estado final', old.quote_status
+      using errcode = 'restrict_violation';
+  end if;
+  if new.quote_status not in ('approved','rejected') then
+    raise exception 'Transición de cotización no permitida: % → %',
+      old.quote_status, new.quote_status using errcode = 'restrict_violation';
+  end if;
+  if coalesce(current_setting('app.cotizando_mant', true), '') <> new.id::text then
+    raise exception 'La cotización se aprueba o se rechaza con su función, no cambiándole el estado'
+      using errcode = 'restrict_violation';
+  end if;
+
+  return new;
+end $$;
+
+drop trigger if exists trg_mo_cotizacion on maintenance_orders;
+create trigger trg_mo_cotizacion before insert or update on maintenance_orders
+  for each row execute function app.validar_cotizacion_mant();
+
+-- ── 7 · La auditoría de la cotización, con su motivo ───────────────────────
+--
+-- Se reemplaza `auditar_orden_mantenimiento()` para una sola cosa: que el
+-- evento `quote_rejected` / `quote_approved` pueda llevar el motivo que escribe
+-- la persona. Va por un marcador local de transacción y no por un INSERT
+-- aparte, para que siga habiendo UN evento por transición y no dos.
+-- El resto de la función queda idéntica a la de la entrega 2.
+
+create or replace function app.auditar_orden_mantenimiento()
+returns trigger language plpgsql security definer
+set search_path to 'public','pg_temp' as $$
+declare v_accion text; v_motivo text;
+begin
+  if tg_op = 'INSERT' then
+    insert into maintenance_audit (company_id, entity_type, entity_id, action,
+                                   from_status, to_status, actor_id)
+    values (new.company_id, 'maintenance_order', new.id, 'create', null, new.status, auth.uid());
+
+    if not new.repair_required or not new.torque_required then
+      insert into maintenance_audit (company_id, entity_type, entity_id, action, diff, actor_id)
+      values (new.company_id, 'maintenance_order', new.id, 'stage_marked_not_required',
+              jsonb_strip_nulls(jsonb_build_object(
+                'repair', case when not new.repair_required then true end,
+                'torque', case when not new.torque_required then true end,
+                'al_crear', true)),
+              auth.uid());
+    end if;
+    return new;
+  end if;
+
+  if new.status is distinct from old.status then
+    insert into maintenance_audit (company_id, entity_type, entity_id, action,
+                                   from_status, to_status, actor_id)
+    values (new.company_id, 'maintenance_order', new.id,
+            case new.status when 'closed' then 'order_closed'
+                            when 'cancelled' then 'order_cancelled'
+                            else 'status_changed' end,
+            old.status, new.status, auth.uid());
+  end if;
+
+  if new.stage is distinct from old.stage then
+    v_accion := case
+      when array_position(app.etapas_requeridas(new.repair_required, new.torque_required), new.stage)
+         < array_position(app.etapas_requeridas(new.repair_required, new.torque_required), old.stage)
+      then 'stage_reverted' else 'stage_changed' end;
+    insert into maintenance_audit (company_id, entity_type, entity_id, action,
+                                   from_status, to_status, actor_id)
+    values (new.company_id, 'maintenance_order', new.id, v_accion,
+            old.stage, new.stage, auth.uid());
+  end if;
+
+  if new.on_hold is distinct from old.on_hold then
+    insert into maintenance_audit (company_id, entity_type, entity_id, action,
+                                   from_status, to_status, actor_id)
+    values (new.company_id, 'maintenance_order', new.id,
+            case when new.on_hold then 'order_put_on_hold' else 'order_resumed' end,
+            old.stage, new.stage, auth.uid());
+  end if;
+
+  if (old.repair_required and not new.repair_required)
+     or (old.torque_required and not new.torque_required) then
+    insert into maintenance_audit (company_id, entity_type, entity_id, action, diff, actor_id)
+    values (new.company_id, 'maintenance_order', new.id, 'stage_marked_not_required',
+            jsonb_strip_nulls(jsonb_build_object(
+              'repair', case when old.repair_required and not new.repair_required then true end,
+              'torque', case when old.torque_required and not new.torque_required then true end)),
+            auth.uid());
+  end if;
+
+  if new.quote_status is distinct from old.quote_status
+     and new.quote_status in ('approved','rejected') then
+    v_motivo := nullif(btrim(coalesce(current_setting('app.motivo_cotizacion_mant', true), '')), '');
+    insert into maintenance_audit (company_id, entity_type, entity_id, action,
+                                   from_status, to_status, diff, actor_id)
+    values (new.company_id, 'maintenance_order', new.id,
+            'quote_' || new.quote_status, old.quote_status, new.quote_status,
+            jsonb_strip_nulls(jsonb_build_object('total', new.quote_total,
+                                                 'moneda', new.quote_currency_code,
+                                                 'por', new.quote_approved_by_name,
+                                                 'motivo', v_motivo)),
+            auth.uid());
+  end if;
+
+  return new;
+end $$;
+
+-- ── 8 · Aprobar y rechazar ─────────────────────────────────────────────────
+
+-- Aprobar.
+--
+-- Exige al menos una línea. La regla ya existía —`cerrar_orden_mantenimiento()`
+-- rechaza cerrar con una cotización aprobada y vacía— y acá sólo se adelanta al
+-- momento de aprobar, para que no se pueda llegar al cierre con una orden que
+-- es imposible de cerrar.
+create or replace function public.aprobar_cotizacion_mantenimiento(
+  p_order uuid, p_por text default null)
+returns jsonb language plpgsql security definer
+set search_path to 'public','pg_temp' as $$
+declare v_o maintenance_orders; v_rol text; v_n int;
+begin
+  select * into v_o from maintenance_orders where id = p_order for update;
+  if not found then
+    raise exception 'La orden no existe' using errcode = 'no_data_found';
+  end if;
+
+  -- El permiso va PRIMERO, antes de cualquier atajo idempotente.
+  v_rol := app."current_role"(v_o.company_id);
+  if v_rol is null or v_rol not in ('admin','employee') then
+    raise exception 'Sin permiso para aprobar cotizaciones en esta empresa'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  if v_o.quote_status = 'approved' then
+    return jsonb_build_object('order_id', p_order, 'ya_estaba', true, 'estado', 'approved');
+  end if;
+  if v_o.quote_status <> 'pending' then
+    raise exception 'La cotización está %: es un estado final', v_o.quote_status
+      using errcode = 'restrict_violation';
+  end if;
+  if v_o.status <> 'open' then
+    raise exception 'La orden % está %', v_o.number, v_o.status
+      using errcode = 'restrict_violation';
+  end if;
+
+  select count(*) into v_n from maintenance_quote_lines where maintenance_order_id = p_order;
+  if v_n = 0 then
+    raise exception 'Una cotización sin ninguna línea no se puede aprobar'
+      using errcode = 'check_violation';
+  end if;
+  if v_o.quote_currency_code is null then
+    raise exception 'La cotización no tiene moneda' using errcode = 'check_violation';
+  end if;
+
+  perform set_config('app.cotizando_mant', p_order::text, true);
+  update maintenance_orders
+     set quote_status = 'approved',
+         quote_approved_at = current_date,
+         quote_approved_by_name = nullif(btrim(coalesce(p_por, '')), '')
+   where id = p_order;
+  perform set_config('app.cotizando_mant', '', true);
+
+  return jsonb_build_object('order_id', p_order, 'ya_estaba', false,
+                            'estado', 'approved', 'lineas', v_n);
+end $$;
+
+-- Rechazar.
+--
+-- No exige líneas: se puede rechazar una cotización que nunca se llegó a
+-- armar, y eso es información. El motivo va al diff del evento; no hay columna
+-- `quote_rejected_*` y no se inventa ninguna.
+create or replace function public.rechazar_cotizacion_mantenimiento(
+  p_order uuid, p_motivo text default null)
+returns jsonb language plpgsql security definer
+set search_path to 'public','pg_temp' as $$
+declare v_o maintenance_orders; v_rol text;
+begin
+  select * into v_o from maintenance_orders where id = p_order for update;
+  if not found then
+    raise exception 'La orden no existe' using errcode = 'no_data_found';
+  end if;
+
+  v_rol := app."current_role"(v_o.company_id);
+  if v_rol is null or v_rol not in ('admin','employee') then
+    raise exception 'Sin permiso para rechazar cotizaciones en esta empresa'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  if v_o.quote_status = 'rejected' then
+    return jsonb_build_object('order_id', p_order, 'ya_estaba', true, 'estado', 'rejected');
+  end if;
+  if v_o.quote_status <> 'pending' then
+    raise exception 'La cotización está %: es un estado final', v_o.quote_status
+      using errcode = 'restrict_violation';
+  end if;
+  if v_o.status <> 'open' then
+    raise exception 'La orden % está %', v_o.number, v_o.status
+      using errcode = 'restrict_violation';
+  end if;
+
+  perform set_config('app.cotizando_mant', p_order::text, true);
+  perform set_config('app.motivo_cotizacion_mant', coalesce(p_motivo, ''), true);
+  update maintenance_orders set quote_status = 'rejected' where id = p_order;
+  perform set_config('app.cotizando_mant', '', true);
+  perform set_config('app.motivo_cotizacion_mant', '', true);
+
+  return jsonb_build_object('order_id', p_order, 'ya_estaba', false, 'estado', 'rejected');
+end $$;
+
+revoke execute on function public.aprobar_cotizacion_mantenimiento(uuid, text) from public, anon;
+revoke execute on function public.rechazar_cotizacion_mantenimiento(uuid, text) from public, anon;
+grant execute on function public.aprobar_cotizacion_mantenimiento(uuid, text) to authenticated;
+grant execute on function public.rechazar_cotizacion_mantenimiento(uuid, text) to authenticated;
+
+-- ── 9 · P6 · El alta de un repuesto queda registrada ───────────────────────
+--
+-- Sólo al INSERT. Editar la cantidad o el costo de un borrador NO genera
+-- eventos: sería el audit log por cada tecla que hay que evitar.
+--
+-- El borrado SÍ se audita, y es el criterio mínimo para que el historial no
+-- mienta: sin esto, un repuesto agregado y después sacado dejaría un
+-- `part_added` suelto que hace pensar que sigue ahí. Un repuesto ya consumido
+-- no se puede borrar, así que este evento sólo aparece sobre borradores.
+
+create or replace function app.auditar_repuesto_mantenimiento()
+returns trigger language plpgsql security definer
+set search_path to 'public','pg_temp' as $$
+begin
+  if tg_op = 'INSERT' then
+    insert into maintenance_audit (company_id, entity_type, entity_id, action, diff, actor_id)
+    values (new.company_id, 'maintenance_order', new.maintenance_order_id, 'part_added',
+            jsonb_strip_nulls(jsonb_build_object(
+              'product_id', new.product_id, 'sku', new.sku_snapshot,
+              'cantidad', new.quantity, 'deposito', new.warehouse_id)),
+            auth.uid());
+    return new;
+  end if;
+
+  insert into maintenance_audit (company_id, entity_type, entity_id, action, diff, actor_id)
+  values (old.company_id, 'maintenance_order', old.maintenance_order_id, 'part_removed',
+          jsonb_strip_nulls(jsonb_build_object(
+            'product_id', old.product_id, 'sku', old.sku_snapshot,
+            'cantidad', old.quantity)),
+          auth.uid());
+  return old;
+end $$;
+
+drop trigger if exists trg_mop_auditar on maintenance_order_parts;
+create trigger trg_mop_auditar after insert or delete on maintenance_order_parts
+  for each row execute function app.auditar_repuesto_mantenimiento();

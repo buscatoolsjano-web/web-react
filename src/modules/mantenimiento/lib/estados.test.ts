@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   editabilidadDe,
+  editabilidadDeCotizacion,
+  etiquetaDeTipoLinea,
+  MONEDAS,
+  OPCIONES_TIPO_LINEA,
   etapaSiguiente,
   etapasAnteriores,
   etapasRequeridas,
@@ -144,5 +148,55 @@ describe('MOTIVOS_INGRESO', () => {
     expect(MOTIVOS_INGRESO).toHaveLength(8)
     expect(MOTIVOS_INGRESO).toContain('FALLA DE CORTE')
     expect(MOTIVOS_INGRESO).toContain('CALIBRACIÓN TORQUE')
+  })
+})
+
+describe('editabilidadDeCotizacion', () => {
+  it('pendiente y con la orden abierta: se puede todo', () => {
+    expect(editabilidadDeCotizacion('pending', 'open')).toEqual({
+      lineas: true, moneda: true, resolver: true,
+    })
+  })
+
+  it('aprobada o rechazada, nada: son estados finales', () => {
+    // Lo impone el servidor; acá sólo se deja de ofrecer lo que iba a fallar.
+    for (const estado of ['approved', 'rejected']) {
+      expect(editabilidadDeCotizacion(estado, 'open')).toEqual({
+        lineas: false, moneda: false, resolver: false,
+      })
+    }
+  })
+
+  it('con la orden cerrada o cancelada, tampoco', () => {
+    for (const estado of ['closed', 'cancelled'] as const) {
+      expect(editabilidadDeCotizacion('pending', estado)).toEqual({
+        lineas: false, moneda: false, resolver: false,
+      })
+    }
+  })
+})
+
+describe('etiquetaDeTipoLinea', () => {
+  it('traduce los cinco tipos del CHECK', () => {
+    expect(etiquetaDeTipoLinea('labour')).toBe('Mano de obra')
+    expect(etiquetaDeTipoLinea('part')).toBe('Repuesto')
+    expect(etiquetaDeTipoLinea('freight')).toBe('Flete')
+    expect(etiquetaDeTipoLinea('diagnosis')).toBe('Diagnóstico')
+    expect(etiquetaDeTipoLinea('other')).toBe('Otro')
+  })
+
+  it('un tipo desconocido se muestra crudo', () => {
+    expect(etiquetaDeTipoLinea('lo_que_sea')).toBe('lo_que_sea')
+  })
+
+  it('son cinco y ni uno más', () => {
+    expect(OPCIONES_TIPO_LINEA).toHaveLength(5)
+  })
+})
+
+describe('MONEDAS', () => {
+  it('son las tres de la tabla `currencies`, sin inventar ninguna', () => {
+    // La columna tiene FK a `currencies(code)`: una cuarta la rechaza la base.
+    expect([...MONEDAS]).toEqual(['ARS', 'USD', 'EUR'])
   })
 })

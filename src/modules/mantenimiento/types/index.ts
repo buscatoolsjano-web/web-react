@@ -119,6 +119,13 @@ export interface OrdenListado {
 
 export interface OrdenDetalle extends OrdenListado {
   serie: string
+  /** Subtotal de la cotización. Sin impuestos: no existen en este modelo. */
+  subtotal: number
+  /** La fecha en que el cliente aprobó. Es `date`, no timestamp. */
+  aprobadaEn: string | null
+  /** El nombre escrito a mano de quien aprobó, del lado del CLIENTE. */
+  quienAprobo: string | null
+  notasCotizacion: string | null
   activoModelo: string | null
   recibidaPorId: string | null
   recibidaPor: string | null
@@ -176,6 +183,72 @@ export const FILTROS_ORDENES_INICIALES: FiltrosOrdenes = {
   porPagina: 25,
   orden: 'fecha',
   direccion: 'desc',
+}
+
+// ── Cotización ─────────────────────────────────────────────────────────────
+
+/** Los cinco tipos del CHECK de `maintenance_quote_lines.line_type`. */
+export type TipoLineaCotizacion = 'labour' | 'part' | 'freight' | 'diagnosis' | 'other'
+
+export interface LineaCotizacion {
+  id: string
+  /** Posición, única por orden. No es la identidad: la identidad es el uuid. */
+  posicion: number
+  tipo: TipoLineaCotizacion
+  productoId: string | null
+  sku: string | null
+  descripcion: string | null
+  cantidad: number
+  precioUnitario: number
+  /** Lo calcula el servidor. Acá sólo se muestra. */
+  total: number
+}
+
+/** Lo que la pantalla manda al crear o editar una línea. */
+export interface DatosLinea {
+  posicion: number
+  tipo: TipoLineaCotizacion
+  productoId: string | null
+  sku: string | null
+  descripcion: string
+  cantidad: number
+  precioUnitario: number
+}
+
+// ── Repuestos ──────────────────────────────────────────────────────────────
+
+export interface RepuestoDeOrden {
+  id: string
+  productoId: string
+  sku: string | null
+  nombre: string | null
+  depositoId: string
+  deposito: string | null
+  cantidad: number
+  /** Carga manual o nulo: no hay ninguna fuente de costo confiable. */
+  costoUnitario: number | null
+  monedaCosto: string | null
+  consumidoEn: string | null
+  movimientoId: number | null
+  /** Saldo del producto en ese depósito. Se lee aparte. */
+  stockActual: number | null
+}
+
+export interface DatosRepuesto {
+  productoId: string
+  sku: string | null
+  nombre: string | null
+  depositoId: string
+  cantidad: number
+  costoUnitario: number | null
+  monedaCosto: string | null
+}
+
+export interface Deposito {
+  id: string
+  codigo: string
+  nombre: string
+  porDefecto: boolean
 }
 
 // ── Puntos de revisión y checks ────────────────────────────────────────────

@@ -40,7 +40,7 @@ const vacioANulo = (s: string): string | null => {
 const COLUMNAS = `
   id, number, asset_id, customer_id, status, stage, on_hold, service_type,
   entry_reason, technician_id, received_at, delivered_at, quote_status,
-  quote_currency, quote_total,
+  quote_currency_code, quote_total,
   equipo:maintenance_assets!asset_id ( reference, serial_number, model_text ),
   cliente:customers!customer_id ( legal_name ),
   tecnico:profiles!technician_id ( full_name )
@@ -60,7 +60,7 @@ interface Fila {
   received_at: string
   delivered_at: string | null
   quote_status: string
-  quote_currency: string | null
+  quote_currency_code: string | null
   quote_total: number | string
   equipo: { reference: string; serial_number: string | null; model_text: string | null } | null
   cliente: { legal_name: string } | null
@@ -85,7 +85,7 @@ const aFila = (f: Fila): OrdenListado => ({
   fechaIngreso: f.received_at,
   fechaEntrega: f.delivered_at,
   estadoCotizacion: f.quote_status as OrdenListado['estadoCotizacion'],
-  moneda: f.quote_currency,
+  moneda: f.quote_currency_code,
   total: aNumero(f.quote_total),
 })
 
@@ -139,6 +139,7 @@ export async function obtenerOrden(
       `${COLUMNAS}, series_code, visual_condition, diagnosis_notes, diagnosed_at,
        diagnosed_by, repair_required, torque_required, repaired_at, torque_at,
        on_hold_since, closing_notes, closed_at, received_by, created_at, updated_at,
+       quote_subtotal, quote_approved_at, quote_approved_by_name, quote_notes,
        autor:profiles!created_by ( full_name ),
        recibida:profiles!received_by ( full_name )`,
     )
@@ -164,6 +165,10 @@ export async function obtenerOrden(
     received_by: string | null
     created_at: string
     updated_at: string
+    quote_subtotal: number | string
+    quote_approved_at: string | null
+    quote_approved_by_name: string | null
+    quote_notes: string | null
     autor: { full_name: string | null } | null
     recibida: { full_name: string | null } | null
   }
@@ -171,6 +176,10 @@ export async function obtenerOrden(
   return {
     ...aFila(f),
     serie: f.series_code,
+    subtotal: aNumero(f.quote_subtotal),
+    aprobadaEn: f.quote_approved_at,
+    quienAprobo: f.quote_approved_by_name,
+    notasCotizacion: f.quote_notes,
     activoModelo: f.equipo?.model_text ?? null,
     recibidaPorId: f.received_by,
     recibidaPor: f.recibida?.full_name ?? null,

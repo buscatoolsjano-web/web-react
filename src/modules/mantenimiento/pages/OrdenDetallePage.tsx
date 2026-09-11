@@ -6,6 +6,8 @@ import { formatearFecha, formatearFechaHora } from '../lib/formato'
 import { etiquetaDeServicio } from '../lib/estados'
 import { PanelEtapas } from '../components/PanelEtapas'
 import { PanelChecks } from '../components/PanelChecks'
+import { PanelCotizacion } from '../components/PanelCotizacion'
+import { PanelRepuestos } from '../components/PanelRepuestos'
 import { PanelHistorial } from '../components/PanelHistorial'
 import { ChipCotizacion, ChipEspera, ChipEstadoOrden, ChipEtapa } from '../components/ChipEstado'
 import {
@@ -16,9 +18,11 @@ import {
   useOrden,
 } from '../hooks/useOrdenes'
 import { usePuntos } from '../hooks/useCheckPoints'
+import { useAccionesCotizacion, useLineasDeCotizacion } from '../hooks/useCotizacion'
+import { useAccionesRepuestos, useDepositos, useRepuestosDeOrden } from '../hooks/useRepuestos'
 import styles from './Pagina.module.css'
 
-type Pestana = 'trabajo' | 'ingreso' | 'historial'
+type Pestana = 'trabajo' | 'cotizacion' | 'repuestos' | 'ingreso' | 'historial'
 
 /**
  * La ficha de una orden de servicio.
@@ -43,6 +47,11 @@ export function OrdenDetallePage() {
   const puntos = usePuntos(true)
   const acciones = useAccionesOrden(id)
   const edicionChecks = useChecks(id)
+  const lineas = useLineasDeCotizacion(id)
+  const cotizacion = useAccionesCotizacion(id)
+  const repuestos = useRepuestosDeOrden(id)
+  const depositos = useDepositos()
+  const edicionRepuestos = useAccionesRepuestos(id)
 
   if (!permisos.ver) {
     return (
@@ -163,6 +172,8 @@ export function OrdenDetallePage() {
         {(
           [
             ['trabajo', 'Trabajo'],
+            ['cotizacion', `Cotización (${lineas.data?.length ?? 0})`],
+            ['repuestos', `Repuestos (${repuestos.data?.length ?? 0})`],
             ['ingreso', 'Ingreso'],
             ['historial', 'Historial'],
           ] as const
@@ -229,12 +240,75 @@ export function OrdenDetallePage() {
           <div className={styles.bloque}>
             <h2 className={styles.subtitulo}>Todavía no está en esta entrega</h2>
             <p className={styles.nota}>
-              El presupuesto con sus líneas, el consumo real de repuestos con su movimiento de
-              stock, la medición de torque y el cierre final son de la entrega siguiente. El
-              esquema ya los soporta; la pantalla todavía no los ofrece.
+              La medición de torque y el cierre final de la orden son de la entrega siguiente. El
+              esquema ya los soporta; la pantalla todavía no los ofrece. La cotización y los
+              repuestos están en sus pestañas.
             </p>
           </div>
         </>
+      ) : null}
+
+      {pestana === 'cotizacion' ? (
+        <PanelCotizacion
+          orden={orden}
+          lineas={lineas.data ?? []}
+          cargando={lineas.isPending}
+          puedeEditar={permisos.editar}
+          guardando={
+            cotizacion.crear.isPending ||
+            cotizacion.actualizar.isPending ||
+            cotizacion.borrar.isPending ||
+            cotizacion.mover.isPending ||
+            cotizacion.moneda.isPending ||
+            cotizacion.aprobar.isPending ||
+            cotizacion.rechazar.isPending
+          }
+          error={
+            lineas.error?.message ??
+            cotizacion.crear.error?.message ??
+            cotizacion.actualizar.error?.message ??
+            cotizacion.borrar.error?.message ??
+            cotizacion.mover.error?.message ??
+            cotizacion.moneda.error?.message ??
+            cotizacion.aprobar.error?.message ??
+            cotizacion.rechazar.error?.message ??
+            null
+          }
+          onCrear={(d) => cotizacion.crear.mutate(d)}
+          onActualizar={(idLinea, d) => cotizacion.actualizar.mutate({ id: idLinea, datos: d })}
+          onBorrar={(idLinea) => cotizacion.borrar.mutate(idLinea)}
+          onMover={(a, b) => cotizacion.mover.mutate({ a, b })}
+          onMoneda={(m) => cotizacion.moneda.mutate(m)}
+          onAprobar={(porQuien) => cotizacion.aprobar.mutate(porQuien)}
+          onRechazar={(motivoTexto) => cotizacion.rechazar.mutate(motivoTexto)}
+        />
+      ) : null}
+
+      {pestana === 'repuestos' ? (
+        <PanelRepuestos
+          repuestos={repuestos.data ?? []}
+          depositos={depositos.data ?? []}
+          cargando={repuestos.isPending || depositos.isPending}
+          puedeEditar={puedeEditar}
+          guardando={
+            edicionRepuestos.agregar.isPending ||
+            edicionRepuestos.actualizar.isPending ||
+            edicionRepuestos.borrar.isPending
+          }
+          consumiendo={edicionRepuestos.consumir.isPending}
+          error={
+            repuestos.error?.message ??
+            depositos.error?.message ??
+            edicionRepuestos.agregar.error?.message ??
+            edicionRepuestos.actualizar.error?.message ??
+            edicionRepuestos.borrar.error?.message ??
+            edicionRepuestos.consumir.error?.message ??
+            null
+          }
+          onAgregar={(d) => edicionRepuestos.agregar.mutate(d)}
+          onBorrar={(idRep) => edicionRepuestos.borrar.mutate(idRep)}
+          onConsumir={() => edicionRepuestos.consumir.mutate()}
+        />
       ) : null}
 
       {pestana === 'ingreso' ? (

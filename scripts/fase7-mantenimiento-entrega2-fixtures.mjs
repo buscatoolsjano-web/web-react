@@ -102,7 +102,7 @@ const crear = async () => {
     entry_reason: 'FALLA DE CORTE', visual_condition: 'Carcasa con golpe en el lateral derecho. Viene con batería y cargador.',
     diagnosis_notes: 'No corta el torque programado. Se sospecha del embrague.',
   })
-  await orden({
+  const o2 = await orden({
     asset_id: e2.id, customer_id: cli[1].id, service_type: 'preventive',
     entry_reason: 'MANTENIMIENTO PREVENTIVO', repair_required: false,
   })
@@ -110,6 +110,49 @@ const crear = async () => {
     asset_id: e3.id, customer_id: cli[0].id, service_type: 'general_review',
     entry_reason: 'CALIBRACIÓN TORQUE', repair_required: false, torque_required: true,
   })
+
+  // Una cotización de verdad, para ver el panel con líneas de los dos tipos y
+  // un total calculado por el servidor.
+  await c.from('maintenance_orders')
+    .update({ quote_currency_code: 'ARS' }).eq('id', o1.id)
+  const lineas = [
+    { line_no: 1, line_type: 'diagnosis', description_snapshot: 'Diagnóstico y desarme', quantity: 1, unit_price: 0 },
+    { line_no: 2, line_type: 'labour', description_snapshot: 'Mano de obra: cambio de embrague', quantity: 2.5, unit_price: 18000 },
+    { line_no: 3, line_type: 'part', product_id: prod?.[0]?.id ?? null, sku_snapshot: prod?.[0]?.sku ?? null, description_snapshot: 'Embrague de repuesto', quantity: 1, unit_price: 94500 },
+    { line_no: 4, line_type: 'freight', description_snapshot: 'Envío a Córdoba', quantity: 1, unit_price: 12000 },
+  ]
+  for (const l of lineas) {
+    const { error } = await c.from('maintenance_quote_lines')
+      .insert({ company_id: BT, maintenance_order_id: o1.id, ...l })
+    if (error) throw new Error('línea: ' + error.message)
+  }
+  console.log('  cotización con', lineas.length, 'líneas')
+
+  // Repuestos: uno con costo y moneda, otro sin costo. Ninguno consumido: el
+  // panel tiene que mostrar el stock de antes y la proyección.
+  const { data: prodsRep } = await s.from('products')
+    .select('id, sku, name').eq('company_id', BT).order('sku').limit(2)
+  const { data: dep } = await s.from('warehouses')
+    .select('id').eq('company_id', BT).eq('is_default', true).single()
+  for (const [i, pr] of (prodsRep ?? []).entries()) {
+    const { error } = await c.from('maintenance_order_parts').insert({
+      company_id: BT, maintenance_order_id: o1.id, product_id: pr.id,
+      warehouse_id: dep.id, quantity: i === 0 ? 3 : 1,
+      sku_snapshot: pr.sku, name_snapshot: pr.name,
+      unit_cost_snapshot: i === 0 ? 41200 : null,
+      unit_cost_currency_code: i === 0 ? 'ARS' : null,
+    })
+    if (error) throw new Error('repuesto: ' + error.message)
+  }
+  console.log('  repuestos:', (prodsRep ?? []).length)
+
+  // Una cotización ya rechazada, para ver el panel en sólo lectura y el motivo
+  // en el historial.
+  const { error: eRe } = await c.rpc('rechazar_cotizacion_mantenimiento', {
+    p_order: o2.id, p_motivo: 'El cliente prefiere reparar en otro taller',
+  })
+  if (eRe) throw new Error('rechazo: ' + eRe.message)
+  console.log('  cotización rechazada en', o2.number)
 
   // Una orden con revisiones marcadas y en espera, para ver los dos paneles
   // con datos reales y no vacíos.
@@ -143,8 +186,43 @@ const limpiar = async () => {
     await s.from('maintenance_order_checks').delete().eq('maintenance_order_id', id)
     await s.from('maintenance_quote_lines').delete().eq('maintenance_order_id', id)
     await s.from('maintenance_measurements').delete().eq('maintenance_order_id', id)
+    // Los repuestos van ANTES que sus movimientos: tienen FK a
+    // `stock_movements` y si no, el DELETE del movimiento falla en silencio y
+    // los saldos quedan corridos.
     await s.from('maintenance_order_parts').delete().eq('maintenance_order_id', id)
+    await s.from('stock_movements').delete().eq('source_id', id)
     await s.from('maintenance_orders').delete().eq('id', id)
+  }
+
+  // Un consumo confirmado en una corrida anterior deja su movimiento aunque la
+  // orden ya no esté: se barren los de servicio cuya orden no existe. En la
+  // base productiva no hay ninguno, así que el barrido es seguro.
+  const { data: consumos } = await s.from('stock_movements')
+    .select('id, source_id')
+    .eq('movement_type', 'service_consumption')
+    .eq('source_type', 'maintenance_order')
+  const { data: vivas } = await s.from('maintenance_orders').select('id')
+  const existentes = new Set((vivas ?? []).map((o) => o.id))
+  for (const m of consumos ?? []) {
+    if (!existentes.has(m.source_id)) await s.from('stock_movements').delete().eq('id', m.id)
+  }
+
+  // Confirmar un consumo mueve stock, así que los saldos se recalculan desde
+  // los movimientos que quedaron. Una fila de saldo que nació con estas
+  // fixtures —sin ningún movimiento detrás— se borra.
+  const { data: saldos } = await s.from('stock_balances')
+    .select('product_id, warehouse_id, on_hand')
+  for (const b of saldos ?? []) {
+    const { data: ms } = await s.from('stock_movements').select('quantity')
+      .eq('product_id', b.product_id).eq('warehouse_id', b.warehouse_id)
+    const total = (ms ?? []).reduce((a, m) => a + Number(m.quantity), 0)
+    if ((ms ?? []).length === 0) {
+      await s.from('stock_balances').delete()
+        .eq('product_id', b.product_id).eq('warehouse_id', b.warehouse_id)
+    } else if (Number(b.on_hand) !== total) {
+      await s.from('stock_balances').update({ on_hand: total })
+        .eq('product_id', b.product_id).eq('warehouse_id', b.warehouse_id)
+    }
   }
   for (const id of ids) await s.from('maintenance_assets').delete().eq('id', id)
 
@@ -167,6 +245,10 @@ const limpiar = async () => {
   console.log('  checks       ', await q('maintenance_order_checks'))
   console.log('  auditoría    ', await q('maintenance_audit'))
   console.log('  puntos       ', await q('maintenance_check_points'))
+  console.log('  repuestos    ', await q('maintenance_order_parts'))
+  console.log('  cotización   ', await q('maintenance_quote_lines'))
+  console.log('  movimientos  ', await q('stock_movements'))
+  console.log('  saldos       ', await q('stock_balances'))
   console.log('\n✓ limpio')
 }
 

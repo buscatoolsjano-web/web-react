@@ -108,3 +108,77 @@ export function validarOrden(d: DatosOrden): ErrorDeCampo[] {
 export function errorDe(errores: readonly ErrorDeCampo[], campo: string): string | null {
   return errores.find((e) => e.campo === campo)?.mensaje ?? null
 }
+
+/**
+ * Una línea de cotización.
+ *
+ * La regla de fondo sigue siendo la misma: sólo se valida lo que la base
+ * también exige. El `line_total` no se valida porque no se manda — lo calcula
+ * el servidor—, y la moneda no se pide acá porque la exige un trigger sobre la
+ * orden, no sobre la línea.
+ */
+export function validarLinea(d: {
+  descripcion: string
+  cantidad: number
+  precioUnitario: number
+  productoId: string | null
+  tipo: string
+}): ErrorDeCampo[] {
+  const errores: ErrorDeCampo[] = []
+
+  // Una línea sin producto y sin texto no dice nada: el cliente recibiría un
+  // renglón con un importe y sin concepto.
+  if (d.productoId === null && vacio(d.descripcion)) {
+    errores.push({
+      campo: 'descripcion',
+      mensaje: 'Poné una descripción, o elegí un producto del catálogo.',
+    })
+  }
+  if (!Number.isFinite(d.cantidad) || d.cantidad <= 0) {
+    errores.push({ campo: 'cantidad', mensaje: 'La cantidad tiene que ser mayor que cero.' })
+  }
+  if (!Number.isFinite(d.precioUnitario) || d.precioUnitario < 0) {
+    errores.push({ campo: 'precioUnitario', mensaje: 'El precio no puede ser negativo.' })
+  }
+  return errores
+}
+
+/**
+ * Un repuesto.
+ *
+ * El producto y el depósito son obligatorios —los dos son `not null`— y el
+ * costo es opcional. Si hay costo, hay moneda: es el CHECK
+ * `chk_mop_costo_moneda`, y se avisa acá para no mandar una fila que la base
+ * va a rechazar igual.
+ */
+export function validarRepuesto(d: {
+  productoId: string | null
+  depositoId: string | null
+  cantidad: number
+  costoUnitario: number | null
+  monedaCosto: string | null
+}): ErrorDeCampo[] {
+  const errores: ErrorDeCampo[] = []
+
+  if (d.productoId === null) {
+    errores.push({ campo: 'productoId', mensaje: 'Elegí el repuesto del catálogo.' })
+  }
+  if (d.depositoId === null) {
+    errores.push({ campo: 'depositoId', mensaje: 'Elegí de qué depósito sale.' })
+  }
+  if (!Number.isFinite(d.cantidad) || d.cantidad <= 0) {
+    errores.push({ campo: 'cantidad', mensaje: 'La cantidad tiene que ser mayor que cero.' })
+  }
+  if (d.costoUnitario !== null) {
+    if (!Number.isFinite(d.costoUnitario) || d.costoUnitario < 0) {
+      errores.push({ campo: 'costoUnitario', mensaje: 'El costo no puede ser negativo.' })
+    }
+    if (d.monedaCosto === null || d.monedaCosto === '') {
+      errores.push({
+        campo: 'monedaCosto',
+        mensaje: 'Si cargás un costo, decí en qué moneda. Un número sin moneda no es un costo.',
+      })
+    }
+  }
+  return errores
+}

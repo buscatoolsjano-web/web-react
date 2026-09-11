@@ -1860,6 +1860,7 @@ export type Database = {
           quantity: number
           sku_snapshot: string | null
           stock_movement_id: number | null
+          unit_cost_currency_code: string | null
           unit_cost_snapshot: number | null
           updated_at: string
           warehouse_id: string
@@ -1876,6 +1877,7 @@ export type Database = {
           quantity: number
           sku_snapshot?: string | null
           stock_movement_id?: number | null
+          unit_cost_currency_code?: string | null
           unit_cost_snapshot?: number | null
           updated_at?: string
           warehouse_id: string
@@ -1892,6 +1894,7 @@ export type Database = {
           quantity?: number
           sku_snapshot?: string | null
           stock_movement_id?: number | null
+          unit_cost_currency_code?: string | null
           unit_cost_snapshot?: number | null
           updated_at?: string
           warehouse_id?: string
@@ -1933,6 +1936,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "maintenance_order_parts_unit_cost_currency_code_fkey"
+            columns: ["unit_cost_currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+          {
             foreignKeyName: "maintenance_order_parts_warehouse_id_fkey"
             columns: ["warehouse_id"]
             isOneToOne: false
@@ -1966,7 +1976,7 @@ export type Database = {
           quote_approved_at: string | null
           quote_approved_by_name: string | null
           quote_contact: string | null
-          quote_currency: string | null
+          quote_currency_code: string | null
           quote_notes: string | null
           quote_status: string
           quote_subtotal: number
@@ -2016,7 +2026,7 @@ export type Database = {
           quote_approved_at?: string | null
           quote_approved_by_name?: string | null
           quote_contact?: string | null
-          quote_currency?: string | null
+          quote_currency_code?: string | null
           quote_notes?: string | null
           quote_status?: string
           quote_subtotal?: number
@@ -2066,7 +2076,7 @@ export type Database = {
           quote_approved_at?: string | null
           quote_approved_by_name?: string | null
           quote_contact?: string | null
-          quote_currency?: string | null
+          quote_currency_code?: string | null
           quote_notes?: string | null
           quote_status?: string
           quote_subtotal?: number
@@ -2137,7 +2147,7 @@ export type Database = {
           },
           {
             foreignKeyName: "maintenance_orders_quote_currency_fkey"
-            columns: ["quote_currency"]
+            columns: ["quote_currency_code"]
             isOneToOne: false
             referencedRelation: "currencies"
             referencedColumns: ["code"]
@@ -4645,6 +4655,13 @@ export type Database = {
       confirmar_recepcion: { Args: { p_receipt: string }; Returns: Json }
       duplicar_pedido_compra: { Args: { p_order: string }; Returns: string }
       registrar_factura_proveedor: { Args: { p_invoice: string }; Returns: Json }
+      aprobar_cotizacion_mantenimiento: {
+        Args: {
+          p_order: string
+          p_por?: string | null
+        }
+        Returns: Json
+      }
       cancelar_orden_mantenimiento: {
         Args: {
           p_order: string
@@ -4743,6 +4760,13 @@ export type Database = {
           order_date: string
           supplier_name: string
         }[]
+      }
+      rechazar_cotizacion_mantenimiento: {
+        Args: {
+          p_order: string
+          p_motivo?: string | null
+        }
+        Returns: Json
       }
       registrar_evento_compra: {
         Args: {

@@ -1,4 +1,11 @@
-import type { EstadoCotizacion, EstadoOrden, EtapaOrden, ResultadoCheck, TipoServicio } from '../types'
+import type {
+  EstadoCotizacion,
+  EstadoOrden,
+  EtapaOrden,
+  ResultadoCheck,
+  TipoLineaCotizacion,
+  TipoServicio,
+} from '../types'
 
 /**
  * Los tres ejes de estado de una orden, en castellano.
@@ -71,6 +78,55 @@ export const OPCIONES_COTIZACION = (Object.keys(COTIZACION) as EstadoCotizacion[
   .map((v) => ({ valor: v, etiqueta: COTIZACION[v] }))
 export const OPCIONES_SERVICIO = (Object.keys(SERVICIOS) as TipoServicio[])
   .map((v) => ({ valor: v, etiqueta: SERVICIOS[v] }))
+
+/**
+ * Los cinco tipos de línea del CHECK de `maintenance_quote_lines`.
+ *
+ * `labour` es el default de la base y es lo que más se cotiza en un taller:
+ * la mano de obra. `part` es el repuesto que se le COBRA al cliente, que no
+ * es lo mismo que el repuesto que se consume del depósito.
+ */
+const TIPOS_LINEA: Record<TipoLineaCotizacion, string> = {
+  labour: 'Mano de obra',
+  part: 'Repuesto',
+  freight: 'Flete',
+  diagnosis: 'Diagnóstico',
+  other: 'Otro',
+}
+
+export function etiquetaDeTipoLinea(v: string): string {
+  return TIPOS_LINEA[v as TipoLineaCotizacion] ?? v
+}
+
+export const OPCIONES_TIPO_LINEA = (Object.keys(TIPOS_LINEA) as TipoLineaCotizacion[])
+  .map((v) => ({ valor: v, etiqueta: TIPOS_LINEA[v] }))
+
+/**
+ * Las tres monedas que existen en `currencies`.
+ *
+ * No se inventa ninguna: la columna tiene FK a esa tabla, así que una cuarta
+ * la rechazaría la base.
+ */
+export const MONEDAS = ['ARS', 'USD', 'EUR'] as const
+
+/**
+ * Qué se puede hacer con la cotización según su estado.
+ *
+ * `approved` y `rejected` son FINALES. Lo impone el servidor; acá sólo se
+ * deja de ofrecer lo que iba a ser rechazado.
+ */
+export function editabilidadDeCotizacion(
+  estadoCotizacion: string,
+  estadoOrden: EstadoOrden,
+): { lineas: boolean; moneda: boolean; resolver: boolean } {
+  const abierta = estadoOrden === 'open'
+  const pendiente = estadoCotizacion === 'pending'
+  return {
+    lineas: abierta && pendiente,
+    moneda: abierta && pendiente,
+    resolver: abierta && pendiente,
+  }
+}
 
 /**
  * Los ocho motivos de ingreso del legacy. Lista abierta: el schema no tiene

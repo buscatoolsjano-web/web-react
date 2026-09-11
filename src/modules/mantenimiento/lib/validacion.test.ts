@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { errorDe, validarActivo, validarOrden } from './validacion'
+import { errorDe, validarActivo, validarLinea, validarOrden, validarRepuesto } from './validacion'
 import type { DatosActivo } from '../services/activos'
 import type { DatosOrden } from '../services/ordenes'
 
@@ -102,5 +102,80 @@ describe('validarOrden', () => {
 describe('errorDe', () => {
   it('devuelve null cuando el campo está bien', () => {
     expect(errorDe(validarOrden(ORDEN), 'activoId')).toBeNull()
+  })
+})
+
+describe('validarLinea', () => {
+  const base = { descripcion: 'Mano de obra', cantidad: 1, precioUnitario: 100, productoId: null, tipo: 'labour' }
+
+  it('una línea con concepto, cantidad y precio es válida', () => {
+    expect(validarLinea(base)).toEqual([])
+  })
+
+  it('sin producto y sin descripción no dice nada, y se rechaza', () => {
+    // Un renglón con importe y sin concepto es lo que recibiría el cliente.
+    expect(errorDe(validarLinea({ ...base, descripcion: '  ' }), 'descripcion')).toBeTruthy()
+  })
+
+  it('con producto elegido, la descripción deja de ser obligatoria', () => {
+    expect(validarLinea({ ...base, descripcion: '', productoId: 'p-1' })).toEqual([])
+  })
+
+  it('la cantidad tiene que ser mayor que cero', () => {
+    expect(errorDe(validarLinea({ ...base, cantidad: 0 }), 'cantidad')).toBeTruthy()
+    expect(errorDe(validarLinea({ ...base, cantidad: -1 }), 'cantidad')).toBeTruthy()
+    expect(errorDe(validarLinea({ ...base, cantidad: NaN }), 'cantidad')).toBeTruthy()
+  })
+
+  it('el precio puede ser cero pero no negativo', () => {
+    expect(validarLinea({ ...base, precioUnitario: 0 })).toEqual([])
+    expect(errorDe(validarLinea({ ...base, precioUnitario: -1 }), 'precioUnitario')).toBeTruthy()
+  })
+
+  it('no valida el total: lo calcula el servidor', () => {
+    // Por eso `validarLinea` no recibe ningún total.
+    expect(Object.keys(base)).not.toContain('total')
+  })
+})
+
+describe('validarRepuesto', () => {
+  const base = {
+    productoId: 'p-1',
+    depositoId: 'd-1',
+    cantidad: 1,
+    costoUnitario: null as number | null,
+    monedaCosto: null as string | null,
+  }
+
+  it('producto, depósito y cantidad alcanzan: el costo es opcional', () => {
+    expect(validarRepuesto(base)).toEqual([])
+  })
+
+  it('exige el producto y el depósito', () => {
+    expect(errorDe(validarRepuesto({ ...base, productoId: null }), 'productoId')).toBeTruthy()
+    expect(errorDe(validarRepuesto({ ...base, depositoId: null }), 'depositoId')).toBeTruthy()
+  })
+
+  it('con costo, exige la moneda del costo', () => {
+    // Es el CHECK `chk_mop_costo_moneda`: un número sin unidad no es un costo.
+    const e = validarRepuesto({ ...base, costoUnitario: 25 })
+    expect(errorDe(e, 'monedaCosto')).toMatch(/moneda/)
+  })
+
+  it('con costo y moneda, pasa', () => {
+    expect(validarRepuesto({ ...base, costoUnitario: 25, monedaCosto: 'ARS' })).toEqual([])
+  })
+
+  it('costo cero con moneda también pasa: un repuesto puede no costar nada', () => {
+    expect(validarRepuesto({ ...base, costoUnitario: 0, monedaCosto: 'ARS' })).toEqual([])
+  })
+
+  it('el costo no puede ser negativo', () => {
+    const e = validarRepuesto({ ...base, costoUnitario: -1, monedaCosto: 'ARS' })
+    expect(errorDe(e, 'costoUnitario')).toBeTruthy()
+  })
+
+  it('sin costo, la moneda puede faltar', () => {
+    expect(validarRepuesto({ ...base, costoUnitario: null, monedaCosto: null })).toEqual([])
   })
 })

@@ -1,4 +1,4 @@
-import { etiquetaDeAccion, formatearFechaHora } from '../lib/formato'
+import { etiquetaDeAccion, formatearFechaHora, formatearImporte } from '../lib/formato'
 import { etiquetaDeEstado, etiquetaDeEtapa } from '../lib/estados'
 import type { EventoDeMantenimiento } from '../types'
 import styles from './PanelHistorial.module.css'
@@ -32,13 +32,49 @@ function traducirEstado(accion: string, valor: string | null): string {
 /**
  * El texto del medio de cada evento.
  *
- * La espera guarda la misma etapa en los dos extremos —es donde quedó
- * parada—, así que «Cotización → Cotización» sería ruido: se dice «en
- * Cotización». Y un `diff` de `stage_marked_not_required` dice cuál etapa.
+ * Nunca repite lo que ya dice la etiqueta de la acción. La espera guarda la
+ * misma etapa en los dos extremos —es donde quedó parada—, así que «Cotización
+ * → Cotización» sería ruido: se dice «en Cotización». En la cotización,
+ * «pending → approved» tampoco agrega nada al lado de «Cotización aprobada»:
+ * lo que importa es por cuánto, quién y por qué.
  */
 function detalle(e: EventoDeMantenimiento): string | null {
   if (e.accion === 'order_put_on_hold' || e.accion === 'order_resumed') {
     return e.estadoNuevo ? `en ${etiquetaDeEtapa(e.estadoNuevo)}` : null
+  }
+
+  // «Cotización aprobada · pending → approved» dice dos veces lo mismo. Lo que
+  // no está en la etiqueta es por cuánto, quién y por qué.
+  if (e.accion === 'quote_approved' || e.accion === 'quote_rejected') {
+    const partes: string[] = []
+    const total = e.diff?.['total']
+    if (typeof total === 'number' || typeof total === 'string') {
+      const moneda = e.diff?.['moneda']
+      partes.push(formatearImporte(Number(total), typeof moneda === 'string' ? moneda : null))
+    }
+    const por = e.diff?.['por']
+    if (typeof por === 'string' && por !== '') partes.push(`por ${por}`)
+    const motivo = e.diff?.['motivo']
+    if (typeof motivo === 'string' && motivo !== '') partes.push(motivo)
+    return partes.length > 0 ? partes.join(' · ') : null
+  }
+
+  // Un repuesto agregado o quitado: cuál y cuánto.
+  if (e.accion === 'part_added' || e.accion === 'part_removed') {
+    const sku = e.diff?.['sku']
+    const cantidad = e.diff?.['cantidad']
+    const partes: string[] = []
+    if (typeof sku === 'string' && sku !== '') partes.push(sku)
+    if (typeof cantidad === 'number' || typeof cantidad === 'string') {
+      partes.push(`× ${cantidad}`)
+    }
+    return partes.length > 0 ? partes.join(' ') : null
+  }
+
+  // El consumo: cuántas líneas movieron stock.
+  if (e.accion === 'consumption_confirmed') {
+    const n = e.diff?.['lineas']
+    return typeof n === 'number' ? `${n} ${n === 1 ? 'repuesto' : 'repuestos'}` : null
   }
   if (e.accion !== 'stage_marked_not_required' || !e.diff) return null
   const partes: string[] = []
