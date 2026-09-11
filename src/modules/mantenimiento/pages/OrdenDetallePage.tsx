@@ -261,14 +261,6 @@ export function OrdenDetallePage() {
             )}
           </div>
 
-          <div className={styles.bloque}>
-            <h2 className={styles.subtitulo}>Todavía no está en esta entrega</h2>
-            <p className={styles.nota}>
-              La medición de torque y el cierre final de la orden son de la entrega siguiente. El
-              esquema ya los soporta; la pantalla todavía no los ofrece. La cotización y los
-              repuestos están en sus pestañas.
-            </p>
-          </div>
         </>
       ) : null}
 

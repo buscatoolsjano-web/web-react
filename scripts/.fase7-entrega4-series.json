@@ -1,0 +1,10 @@
+[
+  {
+    "doc_type": "maintenance_order",
+    "next_number": 1
+  },
+  {
+    "doc_type": "maintenance_asset",
+    "next_number": 2
+  }
+]
