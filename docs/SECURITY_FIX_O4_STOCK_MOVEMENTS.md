@@ -373,10 +373,13 @@ Los fixtures de la auditoría se limpiaron y todo volvió al baseline:
 | `stock_balances` | **379** |
 | saldos negativos | **0** |
 | deriva saldo ↔ suma de movimientos | **0** |
+| reservas · saldos con `reserved <> 0` | 0 · 0 |
 | productos de Buscatools | 21.772 |
-| clientes · contactos · proveedores | 1010 · 87 · 142 |
-| cotizaciones · pedidos · entregas | 288 · 166 · 182 |
-| filas de mantenimiento productivas | 0 |
+| clientes · contactos · aliases · proveedores | 1010 · 87 · 14 · 142 |
+| cotizaciones · pedidos · entregas · líneas de entrega | 288 · 166 · 182 · 600 |
+| órdenes de compra reales | 0 |
+| equipos y órdenes de mantenimiento productivas | 0 · 0 |
+| imágenes de producto | 8859 |
 
 ### Un residuo que dejó mi propia limpieza
 
@@ -396,7 +399,7 @@ pone en cero.** Una fila en cero sigue siendo una fila que antes no existía.
 
 | | |
 |---|---|
-| suites de base de datos, **en serie** | **0 fallos** |
+| **27 suites de base de datos, en serie** | **0 fallos** |
 | `tsc --noEmit` (strict) | limpio |
 | `eslint src scripts` | limpio |
 | `vitest run` | 47 archivos · **550 tests** |
