@@ -20,6 +20,9 @@
  *   node scripts/fase7-mantenimiento-entrega5-tests.mjs
  *
  * NO canalizar por `head`: cierra el pipe y la limpieza no llega a correr.
+ *
+ * Y NO correrla en paralelo con otra suite de base: todas afirman invariantes
+ * globales —cuántos saldos, cuántos movimientos— y dos a la vez se pisan.
  */
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'node:crypto'

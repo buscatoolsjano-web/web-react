@@ -78,7 +78,7 @@ export function ActivoDetallePage() {
     return (
       <div className={styles.page}>
         <p className={styles.error} role="alert">
-          No se pudo leer el equipo: {error.message}
+          {error.message}
         </p>
       </div>
     )
@@ -294,7 +294,7 @@ export function ActivoDetallePage() {
         <>
           {ordenes.error ? (
             <p className={styles.error} role="alert">
-              No se pudieron leer las órdenes: {ordenes.error.message}
+              {ordenes.error.message}
             </p>
           ) : (
             <ListadoOrdenes

@@ -119,7 +119,7 @@ export function OrdenesPage() {
 
       {error ? (
         <p className={styles.error} role="alert">
-          No se pudo leer el listado: {error.message}
+          {error.message}
         </p>
       ) : (
         <>

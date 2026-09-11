@@ -80,7 +80,7 @@ export function PuntosPage() {
 
       {error ? (
         <p className={styles.error} role="alert">
-          No se pudieron leer los puntos: {error.message}
+          {error.message}
         </p>
       ) : null}
 

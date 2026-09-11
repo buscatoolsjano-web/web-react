@@ -95,7 +95,7 @@ export function OrdenDetallePage() {
     return (
       <div className={styles.page}>
         <p className={styles.error} role="alert">
-          No se pudo leer la orden: {error.message}
+          {error.message}
         </p>
       </div>
     )
