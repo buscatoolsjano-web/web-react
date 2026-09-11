@@ -469,6 +469,9 @@ Dos, y los dos los encontró la propia suite antes que nadie:
    Los dos daban «SE PERMITIÓ» —un falso positivo de bug— cuando lo que pasaba
    era que mi propio setup era rechazado por un trigger y por un CHECK. Si no
    los hubiera investigado habría reportado dos agujeros que no existen.
+3. **El baseline de numeración de los fixtures, pisado por un segundo intento.**
+   Dejó la secuencia de equipos en 2 después de limpiar. Lo detectó la suite de
+   esquema, no yo. Está contado en detalle en la sección W.
 
 ---
 
@@ -480,10 +483,84 @@ Dos, y los dos los encontró la propia suite antes que nadie:
 
 ---
 
-## W · Mobile y verificación en producción
+## W · Verificación en producción
 
-*(Pendiente de medir. Se completa después del deploy, sobre la aplicación real
-y con una sesión iniciada — no alcanza con que el chunk contenga el texto.)*
+Hecha sobre `https://app.buscatools.com` con sesión iniciada, ejercitando la
+interfaz. No alcanza con que el chunk contenga el texto.
+
+### Lo que se hizo en pantalla
+
+| Paso | Resultado |
+|---|---|
+| Circuito de etapas | `✓ Diagnóstico completada · ✓ Cotización completada · — Reparación no requerida · ○ Torque en curso · ○ Cierre pendiente` |
+| Torque con las 5 mediciones del caso de regresión | **Cpk 4,2164 · veredicto «Capaz»**, calculado por el servidor |
+| Agregar una medición con **Enter** | la agrega y limpia el campo, sin tocar el mouse |
+| Una medición de 13,5 con LCS 11 | marcada **«Fuera de los límites»**, no rechazada |
+| Indicadores tras esa medición | recalculados: Cpk **0,1252**, veredicto **«No capaz»** |
+| Dar el torque por completado | acepta con mediciones cargadas |
+| Cierre con la orden incompleta | botón deshabilitado + «Faltan 2 cosas para poder cerrar» con las dos |
+| Guardar la fecha de entrega | pasa a «Falta 1 cosa» — singular y plural distinguidos |
+| Avanzar a Cierre y cerrar | confirmación en dos pasos, después **Cerrada** |
+| La orden cerrada | torque en sólo lectura, 0 controles editables, sin botón de cancelar |
+| Historial | los 7 eventos en orden, con autor y hora |
+| Orden bloqueada por 7 cosas | **las 7 enumeradas**, no sólo la primera |
+| E2E sin torque | cierra sin una sola medición; el resumen dice `— TORQUE No requerido` |
+| Cancelación | chip rojo **«Cancelada»** y texto propio: «Cancelar no es cerrar…» |
+
+La orden bloqueada por 7 condiciones es la prueba en vivo del fix del `||`:
+antes de corregirlo, 5 de esos 7 mensajes habrían dado `22P02`.
+
+### Mobile
+
+Medido en la aplicación real, en la pestaña de torque de una orden abierta.
+
+| Ancho | Puntero | Scroll horizontal | Controles < 44 px | Campos < 16 px |
+|---|---|---|---|---|
+| 390 | grueso | **no** (390 = 390) | 0 de 33 | 0 de 5 |
+| 430 | grueso | **no** | 0 de 33 | 0 de 5 |
+| 767 | grueso | **no** | 0 de 33 | 0 de 5 |
+| 768 | fino | **no** | 1 · ver abajo | 1 · ver abajo |
+| 1440 | fino | **no** | 1 · ver abajo | 1 · ver abajo |
+
+En 768 y 1440 con **mouse** aparecen dos elementos con medidas de escritorio:
+el enlace al equipo (18,4 px de alto) y el selector de empresa (14 px). **Es lo
+buscado.** La regla del proyecto es `@media (max-width: 767px), (pointer:
+coarse)`, y se comprobó que bajo puntero grueso los dos pasan a 44 px y 16 px
+—medido, no leído del CSS—. Justamente por eso el fix de iOS usó `pointer:
+coarse` y no sólo el ancho: un iPad vertical mide 768 y es táctil.
+
+La tabla de indicadores mide 640 px dentro de una caja de 358 px con
+`overflow-x: auto`: scrollea **dentro de su propio contenedor** y el documento
+no scrollea de costado en ningún ancho.
+
+### Un bug encontrado mirando producción
+
+La pestaña «Trabajo» seguía mostrando *«Todavía no está en esta entrega — la
+medición de torque y el cierre final son de la entrega siguiente»*, con las dos
+pestañas ya ahí arriba. **BUG VISUAL**, corregido, desplegado y vuelto a
+verificar (hubo que forzar la recarga: el chunk `OrdenDetallePage` estaba
+cacheado, igual que pasó en la entrega 3).
+
+### Una aspereza que se deja como está
+
+El mensaje de la condición 12 dice *«Quedan 1 repuesto(s) sin confirmar el
+consumo»*. El `(s)` es el texto original de la entrega 1 y se conservó tal cual
+al mover la condición. Es **MEJORA UX**, no un bug, y cambiarlo sería tocar un
+mensaje que nadie pidió tocar. Queda anotado.
+
+### Limpieza
+
+Los tres fixtures `ZZ-T4` se borraron y todos los invariantes volvieron a su
+valor: 0 filas de mantenimiento, 16 puntos de revisión, 381 movimientos, 379
+saldos, 0 negativos, 0 deriva entre saldo y suma de movimientos, y las
+secuencias en `maintenance_asset=1 maintenance_order=1`.
+
+Una cosa que hubo que arreglar: el primer `crear` de los fixtures falló **después**
+de pedir un número de documento —pedirlo ya mueve la secuencia—, y el segundo
+`crear` sobrescribió el archivo de baseline con el valor ya corrido. `limpiar`
+restauró entonces a 2 en vez de a 1, y lo detectó la suite de esquema
+(`esperaba EQ00001, dio EQ00002`). Se corrigió el valor y el script ahora
+**conserva el baseline** si ya existe, en vez de pisarlo.
 
 ---
 
@@ -521,4 +598,4 @@ docs/database/PHASE_7_MAINTENANCE.sql
 
 ## Y · Estado
 
-*(Pendiente hasta completar W.)*
+**PHASE 7 — MANTENIMIENTO / ENTREGA 4 = CLOSED**

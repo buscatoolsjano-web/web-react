@@ -40,10 +40,18 @@ const crear = async () => {
   const { data: comps } = await s.from('companies').select('id, slug')
   const BT = comps.find((x) => x.slug === 'buscatools').id
 
-  const { data: seq } = await s.from('document_sequences')
-    .select('doc_type, next_number').eq('company_id', BT)
-    .in('doc_type', ['maintenance_asset', 'maintenance_order'])
-  writeFileSync(SERIES, JSON.stringify(seq, null, 2))
+  // El baseline se guarda UNA vez. Si un `crear` anterior falló después de
+  // pedir un número —y pedirlo ya mueve la secuencia—, el valor de ahora no es
+  // el original: sobrescribir el archivo enterraría el bueno y `limpiar`
+  // restauraría a un número ya corrido.
+  if (!existsSync(SERIES)) {
+    const { data: seq } = await s.from('document_sequences')
+      .select('doc_type, next_number').eq('company_id', BT)
+      .in('doc_type', ['maintenance_asset', 'maintenance_order'])
+    writeFileSync(SERIES, JSON.stringify(seq, null, 2))
+  } else {
+    console.log('(hay un baseline de numeración guardado: se conserva)')
+  }
 
   const { data: cli } = await s.from('customers')
     .select('id, legal_name').eq('company_id', BT).order('legal_name').limit(1)
