@@ -537,12 +537,16 @@ grant  execute on function app.puede_ver_cuenta_email(uuid) to authenticated, se
 --   no_leidos_email(p_account uuid, p_threads text[])
 --       · deriva el contador por usuario, UNA consulta por página de bandeja
 --
--- Y las que NO son RPC de Postgres sino Edge Functions, porque hablan con
--- Gmail y necesitan el secreto:
+-- Y lo que NO son RPC de Postgres sino rutas del backend de Cloud Run, porque
+-- hablan con Gmail y necesitan la identidad de la service account adjunta
+-- (entrega 2B):
 --
---   gmail-push    recibe el Pub/Sub y encola
---   gmail-sync    history.list, actualiza el índice, renueva el watch
---   gmail-fetch   cuerpo de un hilo, adjunto, envío — todo bajo demanda
+--   POST /gmail/push    recibe el Pub/Sub autenticado por OIDC y persiste
+--   POST /gmail/sync    history.list, actualiza el índice, toma el lease
+--   GET  /gmail/thread  cuerpo de un hilo, bajo demanda
+--   GET  /gmail/attach  un adjunto, bajo demanda
+--   POST /gmail/send    envío y borradores
+--   POST /gmail/watch   renovación diaria, desde Cloud Scheduler
 
 
 -- ---------------------------------------------------------------------------
@@ -598,8 +602,9 @@ grant  execute on function app.puede_ver_cuenta_email(uuid) to authenticated, se
 --     sirve tal cual el día que alguien haga «guardar este adjunto en el
 --     cliente», que es una acción explícita y no automática.
 --
---   · Tabla de tokens — con Domain-Wide Delegation no hay un token por buzón.
---     La clave del service account vive como secreto de la Edge Function.
+--   · Tabla de tokens — con Domain-Wide Delegation no hay un token por buzón, y
+--     tampoco hay una clave que guardar: la administra Google y el backend la
+--     usa vía signJwt sin descargarla nunca (entrega 2B).
 --
 --   · Eventos crudos de Pub/Sub — el payload es {emailAddress, historyId}. No
 --     hay nada que guardar; email_sync_log registra la transición.
