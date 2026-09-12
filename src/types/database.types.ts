@@ -1339,6 +1339,365 @@ export type Database = {
           },
         ]
       }
+      email_accounts: {
+        Row: {
+          active: boolean
+          auth_mode: string
+          company_id: string
+          created_at: string
+          display_name: string | null
+          email_address: string
+          id: string
+          last_full_sync_at: string | null
+          last_history_id: string | null
+          last_synced_at: string | null
+          provider: string
+          sync_error: string | null
+          sync_error_at: string | null
+          sync_lock_owner: string | null
+          sync_lock_until: string | null
+          updated_at: string
+          watch_expiration: string | null
+          watch_topic: string | null
+        }
+        Insert: {
+          active?: boolean
+          auth_mode?: string
+          company_id: string
+          created_at?: string
+          display_name?: string | null
+          email_address: string
+          id?: string
+          last_full_sync_at?: string | null
+          last_history_id?: string | null
+          last_synced_at?: string | null
+          provider?: string
+          sync_error?: string | null
+          sync_error_at?: string | null
+          sync_lock_owner?: string | null
+          sync_lock_until?: string | null
+          updated_at?: string
+          watch_expiration?: string | null
+          watch_topic?: string | null
+        }
+        Update: {
+          active?: boolean
+          auth_mode?: string
+          company_id?: string
+          created_at?: string
+          display_name?: string | null
+          email_address?: string
+          id?: string
+          last_full_sync_at?: string | null
+          last_history_id?: string | null
+          last_synced_at?: string | null
+          provider?: string
+          sync_error?: string | null
+          sync_error_at?: string | null
+          sync_lock_owner?: string | null
+          sync_lock_until?: string | null
+          updated_at?: string
+          watch_expiration?: string | null
+          watch_topic?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_events: {
+        Row: {
+          account_id: string
+          action: string
+          actor: string | null
+          company_id: string
+          created_at: string
+          detalle: Json | null
+          gmail_thread_id: string | null
+          id: number
+        }
+        Insert: {
+          account_id: string
+          action: string
+          actor?: string | null
+          company_id: string
+          created_at?: string
+          detalle?: Json | null
+          gmail_thread_id?: string | null
+          id: number
+        }
+        Update: {
+          account_id?: string
+          action?: string
+          actor?: string | null
+          company_id?: string
+          created_at?: string
+          detalle?: Json | null
+          gmail_thread_id?: string | null
+          id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_events_actor_fkey"
+            columns: ["actor"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_sync_log: {
+        Row: {
+          account_id: string
+          created_at: string
+          duracion_ms: number | null
+          error_details: string | null
+          historial_vencido: boolean
+          history_id_desde: string | null
+          history_id_hasta: string | null
+          id: number
+          kind: string
+          threads_tocados: number
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          duracion_ms?: number | null
+          error_details?: string | null
+          historial_vencido?: boolean
+          history_id_desde?: string | null
+          history_id_hasta?: string | null
+          id: number
+          kind: string
+          threads_tocados?: number
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          duracion_ms?: number | null
+          error_details?: string | null
+          historial_vencido?: boolean
+          history_id_desde?: string | null
+          history_id_hasta?: string | null
+          id?: number
+          kind?: string
+          threads_tocados?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_sync_log_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_thread_reads: {
+        Row: {
+          account_id: string
+          gmail_thread_id: string
+          last_read_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          gmail_thread_id: string
+          last_read_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          gmail_thread_id?: string
+          last_read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_thread_reads_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_thread_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_thread_state: {
+        Row: {
+          account_id: string
+          assigned_to: string | null
+          company_id: string
+          created_at: string
+          customer_contact_id: string | null
+          customer_id: string | null
+          gmail_thread_id: string
+          id: string
+          internal_note: string | null
+          updated_at: string
+          vinculo_origen: string | null
+          workflow_status: string
+        }
+        Insert: {
+          account_id: string
+          assigned_to?: string | null
+          company_id: string
+          created_at?: string
+          customer_contact_id?: string | null
+          customer_id?: string | null
+          gmail_thread_id: string
+          id?: string
+          internal_note?: string | null
+          updated_at?: string
+          vinculo_origen?: string | null
+          workflow_status?: string
+        }
+        Update: {
+          account_id?: string
+          assigned_to?: string | null
+          company_id?: string
+          created_at?: string
+          customer_contact_id?: string | null
+          customer_id?: string | null
+          gmail_thread_id?: string
+          id?: string
+          internal_note?: string | null
+          updated_at?: string
+          vinculo_origen?: string | null
+          workflow_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_thread_state_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_thread_state_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_thread_state_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_thread_state_customer_contact_id_fkey"
+            columns: ["customer_contact_id"]
+            isOneToOne: false
+            referencedRelation: "customer_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_thread_state_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_threads: {
+        Row: {
+          account_id: string
+          company_id: string
+          gmail_labels: string[]
+          gmail_thread_id: string
+          has_attachments: boolean
+          id: string
+          last_message_at: string | null
+          last_message_dir: string | null
+          last_message_from: string | null
+          message_count: number
+          participants: string[]
+          size_estimate: number | null
+          snippet: string | null
+          subject: string | null
+          synced_at: string
+        }
+        Insert: {
+          account_id: string
+          company_id: string
+          gmail_labels: string[]
+          gmail_thread_id: string
+          has_attachments?: boolean
+          id?: string
+          last_message_at?: string | null
+          last_message_dir?: string | null
+          last_message_from?: string | null
+          message_count?: number
+          participants: string[]
+          size_estimate?: number | null
+          snippet?: string | null
+          subject?: string | null
+          synced_at?: string
+        }
+        Update: {
+          account_id?: string
+          company_id?: string
+          gmail_labels?: string[]
+          gmail_thread_id?: string
+          has_attachments?: boolean
+          id?: string
+          last_message_at?: string | null
+          last_message_dir?: string | null
+          last_message_from?: string | null
+          message_count?: number
+          participants?: string[]
+          size_estimate?: number | null
+          snippet?: string | null
+          subject?: string | null
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_threads_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_threads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goods_receipt_lines: {
         Row: {
           company_id: string
@@ -5359,6 +5718,55 @@ export type Database = {
       tomar_mensajes_whatsapp: {
         Args: { p_limite?: number | null }
         Returns: Database["public"]["Tables"]["whatsapp_messages"]["Row"][]
+      }
+      // ── Emails (fase 9) ──────────────────────────────────────────────
+      asignar_hilo_email: {
+        Args: {
+          p_account: string
+          p_thread: string
+          p_usuario?: string | null
+        }
+        Returns: Database["public"]["Tables"]["email_thread_state"]["Row"]
+      }
+      cambiar_estado_email: {
+        Args: { p_account: string; p_thread: string; p_estado: string }
+        Returns: Database["public"]["Tables"]["email_thread_state"]["Row"]
+      }
+      vincular_cliente_email: {
+        Args: {
+          p_account: string
+          p_thread: string
+          p_customer?: string | null
+          p_contacto?: string | null
+          p_origen?: string | null
+        }
+        Returns: Database["public"]["Tables"]["email_thread_state"]["Row"]
+      }
+      marcar_hilo_leido_email: {
+        Args: { p_account: string; p_thread: string }
+        Returns: undefined
+      }
+      no_leidos_email: {
+        Args: { p_account: string; p_threads: string[] }
+        Returns: {
+          gmail_thread_id: string
+          sin_leer: boolean
+        }[]
+      }
+      // Sólo service_role puede ejecutarlas: el frontend no las llama nunca.
+      // Están acá porque PostgREST las publica y el archivo tiene que describir
+      // el esquema real, no el que nos gustaría.
+      tomar_lease_email: {
+        Args: { p_account: string; p_owner: string; p_minutos?: number | null }
+        Returns: Database["public"]["Tables"]["email_accounts"]["Row"][]
+      }
+      soltar_lease_email: {
+        Args: { p_account: string; p_owner: string }
+        Returns: Database["public"]["Tables"]["email_accounts"]["Row"][]
+      }
+      avanzar_history_email: {
+        Args: { p_account: string; p_history_id: string; p_full_sync?: boolean | null }
+        Returns: Database["public"]["Tables"]["email_accounts"]["Row"][]
       }
       reciclar_mensajes_whatsapp: {
         Args: { p_timeout?: unknown }

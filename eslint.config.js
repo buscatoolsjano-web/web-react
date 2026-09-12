@@ -5,7 +5,11 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'coverage'] },
+  // `backend/` tiene su propia cadena: su tsconfig, su typecheck y sus tests
+  // corren aparte (`npm run backend:check`). Lintearlo desde acá lo obligaría a
+  // entrar en los proyectos de TypeScript del frontend, que sólo incluyen
+  // `src/` — y ahí es donde falla.
+  { ignores: ['dist', 'node_modules', 'coverage', 'backend'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
     files: ['**/*.{ts,tsx}'],
