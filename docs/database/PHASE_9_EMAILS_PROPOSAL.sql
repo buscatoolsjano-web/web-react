@@ -23,6 +23,12 @@
 --
 -- Autenticación decidida: service account + Domain-Wide Delegation, app
 -- INTERNAL, scope gmail.modify. NADA de https://mail.google.com/.
+--
+-- Entrega 2B: el backend va en Google Cloud Run con service account ADJUNTA,
+-- no en Supabase Edge Functions. Motivo: es el único runtime evaluado donde
+-- Google documenta DWD sin private key (signJwt con claim sub). En Supabase
+-- habría que guardar la private key JSON en los secretos, y eso no es keyless.
+-- Esto NO cambia ninguna tabla: cambia quién las escribe.
 -- Gate previo, que no se resuelve desde acá: ¿hay un Super Admin de Workspace?
 -- Si no lo hay, plan B = OAuth app INTERNAL con refresh token del buzón, y el
 -- schema NO cambia.
@@ -42,8 +48,15 @@
 -- dos corridas, los perdía sin avisar.
 --
 -- ██ NUNCA guarda un token. ██  Con Domain-Wide Delegation no hay un token por
--- buzón: el service account impersona cada dirección, y su clave vive como
--- secreto de la Edge Function.
+-- buzón: el service account impersona cada dirección, y su clave la administra
+-- Google — nunca se descarga ni se guarda en ningún lado.
+--
+-- ██ Y el allowlist de buzones NO vive acá. ██  Vive en la configuración del
+-- backend (ALLOWED_GMAIL_MAILBOXES). Que esta tabla diga que un buzón existe no
+-- alcanza para que el backend lo impersone: tiene que estar además en el
+-- allowlist. Es a propósito — si alguien lograra insertar una fila acá con
+-- otra dirección del dominio, sin esa segunda barrera ya tendría lectura de ese
+-- buzón. Comprometer la base no debe alcanzar para leer correo ajeno.
 
 create table email_accounts (
   id                    uuid primary key default gen_random_uuid(),
@@ -67,6 +80,34 @@ create table email_accounts (
   watch_expiration      timestamptz,
   watch_topic           text,
 
+  -- Cómo se autentica el backend contra Google para ESTE buzón. Se resuelve
+  -- según el gate del Super Admin: si lo hay, 'dwd'; si no, 'oauth_user'.
+  -- Explícito y no inferido: el backend no tiene que adivinarlo.
+  auth_mode             text not null default 'dwd'
+                          check (auth_mode in ('dwd','oauth_user')),
+
+  -- El último error de sincronización, para poder mostrar «esta cuenta dejó de
+  -- sincronizar» en la UI sin obligar a nadie a leer los logs.
+  sync_error            text,
+  sync_error_at         timestamptz,
+
+  -- LEASE de sincronización. Dos notificaciones del mismo buzón no pueden
+  -- sincronizar en paralelo. Se reclama con UNA sola sentencia:
+  --
+  --   update email_accounts
+  --      set sync_lock_until = now() + interval '5 minutes', sync_lock_owner = …
+  --    where id = … and (sync_lock_until is null or sync_lock_until < now())
+  --   returning *;
+  --
+  -- Si devuelve fila, el lease es tuyo. Nunca SELECT y después UPDATE.
+  --
+  -- Vence solo a los 5 minutos, y acá eso ES seguro —a diferencia de la cola de
+  -- WhatsApp, donde un mensaje trabado NO se reintenta— porque un sync es
+  -- idempotente: el upsert por (account_id, gmail_thread_id) da el mismo
+  -- resultado y el cursor sólo avanza.
+  sync_lock_until       timestamptz,
+  sync_lock_owner       text,
+
   active                boolean not null default true,
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now(),
@@ -74,13 +115,15 @@ create table email_accounts (
   constraint uq_email_account_direccion unique (provider, email_address)
 );
 comment on table email_accounts is
-  'Un buzón. Nunca guarda access token, refresh token ni claves: eso vive sólo como secreto de las Edge Functions.';
+  'Un buzón. Nunca guarda access token, refresh token ni claves: con DWD la clave la administra Google y el backend de Cloud Run la usa sin descargarla.';
 comment on column email_accounts.last_history_id is
   'Cursor de la Gmail API. Si vence, history.list devuelve 404 y corresponde un resync completo.';
 
 create index idx_email_accounts_company on email_accounts (company_id) where active;
 -- El cron de renovación busca por acá.
 create index idx_email_accounts_watch on email_accounts (watch_expiration) where active;
+-- Los buzones que quedaron con el lease tomado, para poder mirarlos.
+create index idx_email_accounts_lease on email_accounts (sync_lock_until) where sync_lock_until is not null;
 create trigger trg_email_accounts_touch before update on email_accounts
   for each row execute function app.touch_updated_at();
 
