@@ -116,6 +116,8 @@ async function manejarPush(ctx: Contexto, req: IncomingMessage, res: ServerRespo
       duenoLease: INSTANCIA,
       historyIdEvento: mensaje.historyId,
       origen: 'push',
+      ventanaResync: ctx.cfg.ventanaResync,
+      maxHilosResync: ctx.cfg.maxHilosResync,
     })
     log('info', 'push.ok', {
       account_id: cuenta.id,
@@ -176,6 +178,7 @@ async function manejarWatch(ctx: Contexto, req: IncomingMessage, res: ServerResp
         await sincronizar({
           cuenta, gmail: ctx.gmail, almacen: ctx.almacen,
           duenoLease: INSTANCIA, historyIdEvento: w.historyId, origen: 'cron',
+          ventanaResync: ctx.cfg.ventanaResync, maxHilosResync: ctx.cfg.maxHilosResync,
         })
       }
       salida.push({ account_id: cuenta.id, ok: true })
@@ -198,7 +201,7 @@ async function manejarSyncManual(ctx: Contexto, req: IncomingMessage, res: Serve
   } catch {
     return responder(res, 401, { error: 'no autorizado' })
   }
-  const cuerpo = (await leerCuerpo(req)) as { account_id?: string }
+  const cuerpo = (await leerCuerpo(req)) as { account_id?: string; ventana?: string; max?: number }
   if (!cuerpo.account_id) return responder(res, 400, { error: 'falta account_id' })
 
   const cuenta = await ctx.almacen.cuentaPorId(cuerpo.account_id)
@@ -207,6 +210,10 @@ async function manejarSyncManual(ctx: Contexto, req: IncomingMessage, res: Serve
 
   const r = await sincronizar({
     cuenta, gmail: ctx.gmail, almacen: ctx.almacen, duenoLease: INSTANCIA, origen: 'manual',
+    // Se puede pisar por request para una corrida puntual, pero el default
+    // manda: nunca traer el buzón entero sin querer.
+    ventanaResync: cuerpo.ventana ?? ctx.cfg.ventanaResync,
+    maxHilosResync: cuerpo.max ?? ctx.cfg.maxHilosResync,
   })
   log('info', 'sync.manual', { account_id: cuenta.id, hilos: r.hilosTocados })
   return responder(res, 200, r)
@@ -217,6 +224,48 @@ function manejarSalud(res: ServerResponse): void {
   responder(res, 200, { ok: true, instancia: INSTANCIA })
 }
 
+// ── /gmail/perfil ──────────────────────────────────────────────────────────
+/**
+ * Prueba de vida de la cadena de DWD, sin leer una sola línea de correo.
+ *
+ *   Cloud Run (SA adjunta) → signJwt → jwt-bearer → Gmail users.getProfile
+ *
+ * `users.getProfile` no muta nada y no devuelve contenido: sólo la dirección
+ * —que ya conocemos, está en el allowlist—, el historyId y un total de
+ * mensajes. Es lo mínimo que demuestra que la delegación funciona.
+ *
+ * Queda como diagnóstico permanente: si algún día la delegación se revoca o el
+ * scope cambia, ésta es la llamada que lo dice sin tocar el buzón.
+ */
+async function manejarPerfil(ctx: Contexto, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  try {
+    await exigirScheduler(ctx, req)
+  } catch {
+    return responder(res, 401, { error: 'no autorizado' })
+  }
+  const cuerpo = (await leerCuerpo(req)) as { buzon?: string }
+  // El buzón NUNCA se toma tal cual del request: se exige que esté en el
+  // allowlist, igual que en cualquier otro camino.
+  const buzon = (cuerpo.buzon ?? [...ctx.cfg.buzones][0] ?? '').toLowerCase()
+  if (!buzonPermitido(ctx.cfg.buzones, buzon)) {
+    return responder(res, 403, { error: 'buzón no permitido' })
+  }
+  try {
+    const p = await ctx.gmail.perfil(buzon)
+    log('info', 'perfil.ok', { buzon, history_id: p.historyId })
+    return responder(res, 200, {
+      ok: true,
+      emailAddress: p.emailAddress,
+      historyId: p.historyId,
+      messagesTotal: p.messagesTotal,
+    })
+  } catch (e) {
+    const err = e as Error
+    log('error', 'perfil.fallo', { buzon, error: err.message })
+    return responder(res, 502, { ok: false, error: err.message.slice(0, 300) })
+  }
+}
+
 export function construirServidor(ctx: Contexto) {
   return createServer((req, res) => {
     const ruta = (req.url ?? '').split('?')[0]
@@ -225,6 +274,7 @@ export function construirServidor(ctx: Contexto) {
       if (req.method === 'POST' && ruta === '/gmail/push') return manejarPush(ctx, req, res)
       if (req.method === 'POST' && ruta === '/gmail/watch') return manejarWatch(ctx, req, res)
       if (req.method === 'POST' && ruta === '/gmail/sync') return manejarSyncManual(ctx, req, res)
+      if (req.method === 'POST' && ruta === '/gmail/perfil') return manejarPerfil(ctx, req, res)
       // /gmail/thread y /gmail/attachment llegan en la entrega 4, junto con la
       // bandeja: sin UI que los consuma, exponerlos ahora sería superficie sin
       // uso. El cliente de Gmail ya tiene los métodos listos.

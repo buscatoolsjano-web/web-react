@@ -101,6 +101,12 @@ const main = async () => {
   const BT = comps.find((x) => x.slug === 'buscatools').id
   const empresasAntes = comps.length
   const clientesAntes = await q('customers')
+  // Desde que existe la cuenta productiva, estas tablas NO están vacías. La
+  // invariante correcta es «vuelven a como estaban», no «quedan en cero»:
+  // afirmar cero borraría la diferencia entre limpiar los fixtures y haberse
+  // llevado puesto el índice real.
+  const antes = {}
+  for (const t of TABLAS) antes[t] = await q(t)
 
   // ══════════════════════════════════════════════════════════════════════
   seccion('1 · Las seis tablas, y ninguna más')
@@ -433,7 +439,7 @@ const main = async () => {
     await s.from('customers').delete().in('id', [cliZZ.id, cliZZ2.id])
     for (const id of creados.empresas) await s.from('companies').delete().eq('id', id)
 
-    for (const t of TABLAS) cmp(`0 filas en ${t}`, 0, await q(t))
+    for (const t of TABLAS) cmp(`${t} vuelve a su número`, antes[t], await q(t))
     cmp('las empresas vuelven a su número', empresasAntes, await q('companies'))
     cmp('los clientes vuelven a su número', clientesAntes, await q('customers'))
 
@@ -444,6 +450,17 @@ const main = async () => {
     cmp('142 proveedores intactos', 142, await q('suppliers'))
     cmp('16 puntos de revisión de Mantenimiento intactos', 16, await q('maintenance_check_points'))
     cmp('las 6 tablas de WhatsApp siguen vacías', 0, await q('whatsapp_conversations'))
+
+    // El índice productivo de info@ no lo toca esta suite: sus fixtures viven
+    // en cuentas propias que se borran enteras.
+    const { count: productivos } = await s.from('email_threads')
+      .select('*', { count: 'exact', head: true }).eq('account_id', '053b871c-a451-497c-bd4a-c7678f7b697b')
+    productivos > 0
+      ? PASS('el índice productivo de info@ sigue intacto', `${productivos} hilos`)
+      : FAIL('el índice productivo quedó vacío')
+    const { data: cuentaProd } = await s.from('email_accounts')
+      .select('watch_expiration, last_history_id').eq('id', '053b871c-a451-497c-bd4a-c7678f7b697b').single()
+    cuentaProd?.watch_expiration ? PASS('y su watch sigue activo') : FAIL('el watch se perdió')
   }
 
   console.log('\n' + '='.repeat(78))

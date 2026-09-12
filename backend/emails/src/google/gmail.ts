@@ -85,11 +85,31 @@ export interface ClienteGmail {
     pagina?: string,
   ): Promise<PaginaHistorial>
 
-  /** Para el resync completo. Sólo ids: los metadatos se piden por hilo. */
-  listarHilos(buzon: string, pagina?: string): Promise<PaginaHilos>
+  /**
+   * Para el resync completo. Sólo ids: los metadatos se piden por hilo.
+   *
+   * `q` acota la ventana (`newer_than:7d`, por ejemplo). Hace falta: el buzón
+   * real tiene 26.833 mensajes, y pedir metadata de todos sus hilos serían
+   * decenas de miles de `threads.get` a 40 unidades cada uno — muy por encima
+   * del timeout del servicio y del límite de 6.000 unidades por minuto.
+   */
+  listarHilos(buzon: string, pagina?: string, q?: string): Promise<PaginaHilos>
 
   /** Metadata del hilo, SIN cuerpos. */
   hiloMetadata(buzon: string, hiloId: string): Promise<HiloGmail | null>
+
+  /**
+   * Ids de hilo que tienen adjuntos, según la búsqueda de Gmail.
+   *
+   * Hace falta un método aparte porque `format=metadata` devuelve, según la
+   * documentación, «only email message IDs, labels, and email headers»: NO trae
+   * `payload.parts`, así que desde ahí es imposible saber si hay un adjunto.
+   * La alternativa era `format=full`, que trae los cuerpos — justo lo que este
+   * módulo existe para no hacer.
+   *
+   * Una sola llamada de 10 unidades por sincronización, no una por hilo.
+   */
+  hilosConAdjunto(buzon: string, consulta: string): Promise<Set<string>>
 
   /** El hilo completo, con cuerpos. Sólo bajo demanda, al abrirlo. */
   hiloCompleto(buzon: string, hiloId: string): Promise<unknown>
@@ -113,8 +133,15 @@ function aplanarHeaders(payload: unknown): Record<string, string> {
   return salida
 }
 
-/** Recorre las partes buscando un adjunto de verdad, no una parte de texto. */
-function detectarAdjuntos(payload: unknown): boolean {
+/**
+ * Recorre las partes buscando un adjunto de verdad, no una parte de texto.
+ *
+ * Sólo sirve con `format=full`. Con `format=metadata` —que es lo que usa el
+ * sync— Gmail NO devuelve `payload.parts`, así que esto daría siempre false.
+ * Por eso el flag del índice sale de `hilosConAdjunto` y no de acá. Queda para
+ * cuando la entrega 4 abra un hilo completo.
+ */
+export function detectarAdjuntos(payload: unknown): boolean {
   const p = payload as
     | { filename?: string; body?: { attachmentId?: string }; parts?: unknown[] }
     | undefined
@@ -180,9 +207,10 @@ export class ClienteGmailReal implements ClienteGmail {
     }
   }
 
-  async listarHilos(buzon: string, pagina?: string): Promise<PaginaHilos> {
+  async listarHilos(buzon: string, pagina?: string, consulta?: string): Promise<PaginaHilos> {
     const q = new URLSearchParams({ maxResults: '100' })
     if (pagina) q.set('pageToken', pagina)
+    if (consulta) q.set('q', consulta)
     const j = (await this.pedir(buzon, `/threads?${q}`)) as {
       threads?: Array<{ id?: string }>
       nextPageToken?: string
@@ -230,6 +258,24 @@ export class ClienteGmailReal implements ClienteGmail {
         tieneAdjuntos: detectarAdjuntos(m.payload),
       })),
     }
+  }
+
+  async hilosConAdjunto(buzon: string, consulta: string): Promise<Set<string>> {
+    const ids = new Set<string>()
+    let pagina: string | null | undefined
+    let vueltas = 0
+    do {
+      const q = new URLSearchParams({ maxResults: '100', q: `has:attachment ${consulta}`.trim() })
+      if (pagina) q.set('pageToken', pagina)
+      const j = (await this.pedir(buzon, `/threads?${q}`)) as {
+        threads?: Array<{ id?: string }>
+        nextPageToken?: string
+      }
+      for (const t of j.threads ?? []) if (t.id) ids.add(t.id)
+      pagina = j.nextPageToken ?? null
+      vueltas++
+    } while (pagina && vueltas < 10)
+    return ids
   }
 
   async hiloCompleto(buzon: string, hiloId: string): Promise<unknown> {

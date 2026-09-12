@@ -52,6 +52,16 @@ export interface Config {
   readonly supabaseUrl: string
   readonly supabaseServiceKey: string
   readonly buzones: ReadonlySet<string>
+  /**
+   * Ventana del resync completo, en sintaxis de búsqueda de Gmail.
+   *
+   * El buzón real tiene 26.833 mensajes. Sin acotar, el resync pediría metadata
+   * de decenas de miles de hilos a 40 unidades de cuota cada uno: no entra ni
+   * en el timeout del servicio ni en las 6.000 unidades por minuto.
+   */
+  readonly ventanaResync: string
+  /** Tope de hilos por corrida de resync. Lo que sobra va a la siguiente. */
+  readonly maxHilosResync: number
 }
 
 export function leerConfig(): Config {
@@ -68,6 +78,8 @@ export function leerConfig(): Config {
     supabaseUrl: requerida('SUPABASE_URL'),
     supabaseServiceKey: requerida('SUPABASE_SERVICE_KEY'),
     buzones: buzonesPermitidos(),
+    ventanaResync: process.env['SYNC_VENTANA'] ?? 'newer_than:7d',
+    maxHilosResync: Number(process.env['SYNC_MAX_HILOS'] ?? '200'),
   }
 }
 

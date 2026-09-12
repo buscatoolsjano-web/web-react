@@ -248,3 +248,84 @@ describe('EL RESYNC NO PUEDE BORRAR EL ESTADO DEL ERP', () => {
     })
   })
 })
+
+describe('el resync se acota, porque el buzón real tiene 26.833 mensajes', () => {
+  it('respeta el tope de hilos por corrida', async () => {
+    const { cuenta, almacen, gmail } = armar({ historyIdInicial: null })
+    for (let i = 0; i < 12; i++) {
+      gmail.agregar(
+        hilo({ id: `t${i}`, historyId: '1001', asunto: `H${i}`, de: 'a@x.invalid', para: BUZON, cuando: i }),
+        '1001',
+      )
+    }
+
+    const r = await sincronizar({
+      cuenta, gmail, almacen, duenoLease: 'w1', origen: 'manual', maxHilosResync: 5,
+    })
+
+    // Cortar no es perder: el índice es descartable y la próxima corrida
+    // vuelve a listar. Exceder el timeout a mitad de camino sí sería un problema.
+    expect(r.hilosTocados).toBe(5)
+    expect(almacen.hilos.size).toBe(5)
+  })
+
+  it('le pasa la ventana a Gmail en vez de traer el buzón entero', async () => {
+    const { cuenta, almacen, gmail } = armar({ historyIdInicial: null })
+    gmail.agregar(hilo({ id: 't1', historyId: '1001', asunto: 'Uno', de: 'a@x.invalid', para: BUZON, cuando: 1 }), '1001')
+
+    await sincronizar({
+      cuenta, gmail, almacen, duenoLease: 'w1', origen: 'manual', ventanaResync: 'newer_than:7d',
+    })
+
+    expect(gmail.llamadas).toContain('listarHilos:newer_than:7d')
+  })
+
+  it('el sync incremental NO usa ventana: el cursor ya lo acota', async () => {
+    const { cuenta, almacen, gmail } = armar()
+    gmail.agregar(hilo({ id: 't1', historyId: '1001', asunto: 'Uno', de: 'a@x.invalid', para: BUZON, cuando: 1 }), '1001')
+
+    await sincronizar({
+      cuenta, gmail, almacen, duenoLease: 'w1', historyIdEvento: '1001', origen: 'push',
+      ventanaResync: 'newer_than:7d',
+    })
+
+    expect(gmail.llamadas.some((l) => l.startsWith('listarHilos'))).toBe(false)
+    expect(gmail.llamadas).toContain('historial:1000')
+  })
+})
+
+describe('has_attachments sale de una búsqueda, no de las partes', () => {
+  it('marca el hilo que Gmail reporta con adjunto', async () => {
+    const { cuenta, almacen, gmail } = armar()
+    gmail.agregar(hilo({ id: 't1', historyId: '1001', asunto: 'Con', de: 'a@x.invalid', para: BUZON, cuando: 1 }), '1001')
+    gmail.agregar(hilo({ id: 't2', historyId: '1001', asunto: 'Sin', de: 'b@x.invalid', para: BUZON, cuando: 2 }), '1001')
+    gmail.conAdjunto = new Set(['t1'])
+
+    await sincronizar({ cuenta, gmail, almacen, duenoLease: 'w1', historyIdEvento: '1001', origen: 'push' })
+
+    expect(almacen.hilos.get(`${cuenta.id}|t1`)?.has_attachments).toBe(true)
+    expect(almacen.hilos.get(`${cuenta.id}|t2`)?.has_attachments).toBe(false)
+  })
+
+  it('la búsqueda es UNA sola por corrida, no una por hilo', async () => {
+    const { cuenta, almacen, gmail } = armar()
+    for (let i = 0; i < 5; i++) {
+      gmail.agregar(hilo({ id: `t${i}`, historyId: '1001', asunto: `H${i}`, de: 'a@x.invalid', para: BUZON, cuando: i }), '1001')
+    }
+
+    await sincronizar({ cuenta, gmail, almacen, duenoLease: 'w1', historyIdEvento: '1001', origen: 'push' })
+
+    expect(gmail.llamadas.filter((l) => l.startsWith('conAdjunto:'))).toHaveLength(1)
+  })
+
+  it('si la búsqueda falla, el sync sigue sin el flag en vez de romperse', async () => {
+    const { cuenta, almacen, gmail } = armar()
+    gmail.agregar(hilo({ id: 't1', historyId: '1001', asunto: 'Uno', de: 'a@x.invalid', para: BUZON, cuando: 1 }), '1001')
+    gmail.hilosConAdjunto = async () => { throw new Error('Gmail caído') }
+
+    const r = await sincronizar({ cuenta, gmail, almacen, duenoLease: 'w1', historyIdEvento: '1001', origen: 'push' })
+
+    expect(r.hilosTocados).toBe(1)
+    expect(almacen.hilos.get(`${cuenta.id}|t1`)?.has_attachments).toBe(false)
+  })
+})

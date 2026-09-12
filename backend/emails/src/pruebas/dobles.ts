@@ -78,14 +78,22 @@ export class GmailFalso implements ClienteGmail {
     return { hilosTocados: [...tocados], historyId: this.historyIdActual, siguientePagina: null }
   }
 
-  async listarHilos(): Promise<PaginaHilos> {
-    this.llamadas.push('listarHilos')
+  async listarHilos(_buzon?: string, _pagina?: string, consulta?: string): Promise<PaginaHilos> {
+    this.llamadas.push(`listarHilos${consulta ? ':' + consulta : ''}`)
     return { hilos: [...this.hilos.keys()], siguientePagina: null }
   }
 
   async hiloMetadata(_buzon: string, id: string): Promise<HiloGmail | null> {
     this.llamadas.push(`hilo:${id}`)
     return this.hilos.get(id) ?? null
+  }
+
+  /** Ids que el falso reporta como «con adjunto». La suite los fija. */
+  conAdjunto = new Set<string>()
+
+  async hilosConAdjunto(_buzon: string, consulta: string): Promise<Set<string>> {
+    this.llamadas.push(`conAdjunto:${consulta}`)
+    return new Set(this.conAdjunto)
   }
 
   async hiloCompleto(_buzon: string, id: string): Promise<unknown> {

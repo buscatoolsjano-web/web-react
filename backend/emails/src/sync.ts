@@ -55,7 +55,11 @@ function direccionDe(crudo: string | undefined): string | null {
  *
  * Sólo metadata. Ni un cuerpo, ni un byte de adjunto.
  */
-export function filaDesdeHilo(cuenta: CuentaEmail, hilo: HiloGmail): FilaHilo {
+export function filaDesdeHilo(
+  cuenta: CuentaEmail,
+  hilo: HiloGmail,
+  conAdjunto = false,
+): FilaHilo {
   const ordenados = [...hilo.mensajes].sort(
     (a, b) => Number(a.internalDate ?? 0) - Number(b.internalDate ?? 0),
   )
@@ -91,7 +95,10 @@ export function filaDesdeHilo(cuenta: CuentaEmail, hilo: HiloGmail): FilaHilo {
     participants: [...participantes],
     gmail_labels: [...etiquetas],
     message_count: ordenados.length,
-    has_attachments: ordenados.some((m) => m.tieneAdjuntos),
+    // NO sale de los mensajes: con format=metadata Gmail no devuelve las
+    // partes, así que `tieneAdjuntos` siempre sería false. Viene de una
+    // búsqueda `has:attachment`, que es una sola llamada por sincronización.
+    has_attachments: conAdjunto || ordenados.some((m) => m.tieneAdjuntos),
     size_estimate: ordenados.reduce((a, m) => a + (m.sizeEstimate ?? 0), 0),
   }
 }
@@ -104,6 +111,20 @@ interface Opciones {
   /** El historyId que trajo la notificación, si vino de un push. */
   historyIdEvento?: string | null
   origen: 'push' | 'cron' | 'manual'
+  /**
+   * Ventana del resync completo, en sintaxis de búsqueda de Gmail.
+   *
+   * Hace falta y no es una optimización prematura: el buzón real tiene 26.833
+   * mensajes. Sin acotar, el resync pediría metadata de decenas de miles de
+   * hilos a 40 unidades de cuota cada uno — semanas de cuota por minuto, y muy
+   * por encima del timeout del servicio.
+   *
+   * El sync incremental NO usa esto: history.list ya viene acotado por el
+   * cursor.
+   */
+  ventanaResync?: string | undefined
+  /** Tope de hilos por corrida de resync. Lo que exceda entra en la siguiente. */
+  maxHilosResync?: number | undefined
 }
 
 /**
@@ -176,7 +197,9 @@ export async function sincronizar(op: Opciones): Promise<ResultadoSync> {
       throw e
     }
 
-    await aplicarHilos(op, cuenta, [...hilos])
+    // Ventana corta para el incremental: los hilos que tocó el historial
+    // acaban de recibir un mensaje, así que caen dentro.
+    await aplicarHilos(op, cuenta, [...hilos], 'newer_than:2d')
 
     // El cursor se mueve AL FINAL, después de aplicar los cambios. Si el
     // proceso muere en el medio, la próxima corrida vuelve a leer desde el
@@ -224,17 +247,22 @@ async function resyncCompleto(
   // ocurridos durante el listado quedarían por debajo del cursor y se perderían.
   const perfil = await op.gmail.perfil(cuenta.email_address)
 
+  const tope = op.maxHilosResync ?? 500
   let pagina: string | null | undefined
   let vueltas = 0
   const hilos: string[] = []
   do {
-    const p = await op.gmail.listarHilos(cuenta.email_address, pagina ?? undefined)
+    const p = await op.gmail.listarHilos(cuenta.email_address, pagina ?? undefined, op.ventanaResync)
     hilos.push(...p.hilos)
     pagina = p.siguientePagina
     vueltas++
-  } while (pagina && vueltas < MAX_PAGINAS)
+  } while (pagina && vueltas < MAX_PAGINAS && hilos.length < tope)
+  // Se corta en el tope. No es pérdida: el índice es descartable y la próxima
+  // corrida vuelve a listar. Lo que NO se puede hacer es exceder el timeout a
+  // mitad de camino y dejar el cursor a medio avanzar.
+  const recortados = hilos.slice(0, tope)
 
-  await aplicarHilos(op, cuenta, hilos)
+  await aplicarHilos(op, cuenta, recortados, op.ventanaResync ?? '')
   await op.almacen.avanzarHistory(cuenta.id, perfil.historyId, true)
 
   await op.almacen.registrarSync({
@@ -242,13 +270,13 @@ async function resyncCompleto(
     kind: 'resync_completo',
     history_id_desde: cuenta.last_history_id,
     history_id_hasta: perfil.historyId,
-    threads_tocados: hilos.length,
+    threads_tocados: recortados.length,
     historial_vencido: porVencimiento,
     duracion_ms: Date.now() - arranque,
   })
 
   return {
-    hilosTocados: hilos.length,
+    hilosTocados: recortados.length,
     historyIdFinal: perfil.historyId,
     historialVencido: porVencimiento,
     resyncCompleto: true,
@@ -256,12 +284,29 @@ async function resyncCompleto(
   }
 }
 
-async function aplicarHilos(op: Opciones, cuenta: CuentaEmail, hilos: string[]): Promise<void> {
+async function aplicarHilos(
+  op: Opciones,
+  cuenta: CuentaEmail,
+  hilos: string[],
+  consultaAdjuntos: string,
+): Promise<void> {
+  if (hilos.length === 0) return
+
+  // UNA sola búsqueda para todos los hilos de esta corrida, no una por hilo.
+  // Si falla, se sigue sin el flag: no vale la pena tirar abajo una
+  // sincronización entera por un clip en la lista.
+  let conAdjunto = new Set<string>()
+  try {
+    conAdjunto = await op.gmail.hilosConAdjunto(cuenta.email_address, consultaAdjuntos)
+  } catch {
+    conAdjunto = new Set<string>()
+  }
+
   const filas: FilaHilo[] = []
   for (const id of hilos) {
     const hilo = await op.gmail.hiloMetadata(cuenta.email_address, id)
     // null = el hilo se borró entre el evento y la lectura. Se saltea.
-    if (hilo) filas.push(filaDesdeHilo(cuenta, hilo))
+    if (hilo) filas.push(filaDesdeHilo(cuenta, hilo, conAdjunto.has(id)))
   }
   if (filas.length > 0) await op.almacen.upsertHilos(filas)
 }

@@ -3,9 +3,9 @@
 Documentación operativa del servicio. El diseño y su justificación están en
 [`PHASE_9_EMAILS_ENTREGA_2B_BACKEND_AUTH.md`](PHASE_9_EMAILS_ENTREGA_2B_BACKEND_AUTH.md).
 
-> **Estado: el código existe y está probado; el servicio NO está desplegado.**
-> Ver «Lo que falta» al final: hace falta `gcloud`, que no está instalado en la
-> máquina de desarrollo.
+> **Estado: DESPLEGADO y en producción** desde la entrega 3.
+> `users.watch` activo sobre `info@buscatools.com.ar`. Los recursos reales están
+> en «Recursos desplegados», al final. Este documento no contiene secretos.
 
 ---
 
@@ -41,10 +41,12 @@ adjunta al servicio, que el metadata server expone en runtime.
 |---|---|---|---|
 | `POST` | `/gmail/push` | Pub/Sub | OIDC de la SA de push |
 | `POST` | `/gmail/watch` | Cloud Scheduler | OIDC de la SA del scheduler |
-| `POST` | `/gmail/sync` | recuperación manual | OIDC de la SA del scheduler |
-| `GET` | `/salud` | Cloud Run | ninguna (no devuelve nada sensible) |
+| `POST` | `/gmail/sync` | recuperación manual · body `{account_id, ventana?, max?}` | OIDC de la SA del scheduler |
+| `POST` | `/gmail/perfil` | diagnóstico de DWD · sólo `users.getProfile` | OIDC de la SA del scheduler |
+| `GET` | `/salud` | diagnóstico | la de IAM del servicio; no devuelve nada sensible |
 
-**Ninguna ruta es anónima salvo `/salud`.** Y la validación OIDC se hace en el
+**Ninguna ruta es anónima**: el servicio corre con `--no-allow-unauthenticated`
+y un request sin token recibe 403 de Cloud Run antes de llegar al código. Y la validación OIDC se hace en el
 código además de en IAM: Cloud Run comprueba que quien llama puede invocar; el
 código comprueba que es **la subscription que esperamos**, con nuestro audience.
 
@@ -127,7 +129,9 @@ un despliegue consciente.
 | `PUBSUB_PUSH_AUDIENCE` | env | la URL del servicio |
 | `SCHEDULER_SA_EMAIL` | env | la SA del scheduler |
 | `SUPABASE_URL` | env | `https://uaxcfufvapzulqvynanp.supabase.co` |
-| `SUPABASE_SERVICE_KEY` | **Secret Manager** | — |
+| `SYNC_VENTANA` | env | `newer_than:7d` — ventana del resync, sintaxis de búsqueda de Gmail |
+| `SYNC_MAX_HILOS` | env | `200` — tope de hilos por corrida de resync |
+| `SUPABASE_SERVICE_KEY` | **Secret Manager** (`supabase-service-key`) | — |
 
 El único secreto real es la service key de Supabase. No es una key descargable
 de Google y no habilita DWD: es la credencial de nuestra propia base.
@@ -142,22 +146,25 @@ permanente.
 
 | principal | rol | sobre qué | para qué |
 |---|---|---|---|
-| SA de runtime de Cloud Run | `roles/iam.serviceAccountTokenCreator` | **sobre la SA de Gmail** | firmar la aserción DWD |
+| `buscatools-erp-email@…` (runtime **y** SA de Gmail) | `roles/iam.serviceAccountTokenCreator` | **sobre sí misma** | firmar la aserción DWD |
+| `buscatools-erp-email@…` | `roles/secretmanager.secretAccessor` | **sólo `supabase-service-key`** | leer la service key |
 | `gmail-api-push@system.gserviceaccount.com` | `roles/pubsub.publisher` | **sólo el topic** | que Gmail publique |
-| `service-545134968830@gcp-sa-pubsub.iam.gserviceaccount.com` | `roles/iam.serviceAccountTokenCreator` | sobre la SA de push | que Pub/Sub firme el OIDC |
-| SA de push | `roles/run.invoker` | **sólo este servicio** | invocar `/gmail/push` |
-| SA del scheduler | `roles/run.invoker` | **sólo este servicio** | invocar `/gmail/watch` |
+| `service-545134968830@gcp-sa-pubsub.iam.gserviceaccount.com` | `roles/iam.serviceAccountTokenCreator` | proyecto | que Pub/Sub firme el OIDC del push |
+| `buscatools-email-pubsub-push@…` | `roles/run.invoker` | **sólo este servicio** | invocar `/gmail/push` |
+| `buscatools-email-scheduler@…` | `roles/run.invoker` | **sólo este servicio** | invocar `/gmail/watch`, `/gmail/sync`, `/gmail/perfil` |
+| `buscatools-email-build@…` | `roles/cloudbuild.builds.builder` | proyecto | compilar la imagen en el deploy desde source |
 
-**Ningún rol a nivel de proyecto. Nada de Owner ni Editor.** El token creator se
-otorga *sobre la service account de destino*, que es la diferencia entre mínimo
-privilegio y no tenerlo.
+**Nada de Owner, Editor ni Service Account Admin.** El token creator de la SA de
+runtime se otorga *sobre la service account de destino*, que es la diferencia
+entre mínimo privilegio y no tenerlo. **0 keys `USER_MANAGED`** en todas las SAs.
 
-Si la SA de runtime y la de Gmail son la misma, necesita
-`serviceAccountTokenCreator` **sobre sí misma**. Son menos móviles y sigue sin
-haber key descargable.
+La SA de build existe porque Cloud Build usa por defecto la SA de Compute, que
+es compartida por todo el proyecto: darle el rol de builder a ésa habría sido
+ampliar privilegios de todo lo demás. Se pasa con `--build-service-account`.
 
-APIs a habilitar: `iamcredentials.googleapis.com`, `run.googleapis.com`,
-`cloudscheduler.googleapis.com`. Gmail y Pub/Sub ya están.
+APIs habilitadas a propósito: `run`, `iamcredentials`, `secretmanager`,
+`cloudscheduler`. Habilitadas **automáticamente** por el deploy desde source:
+`cloudbuild`, `artifactregistry`. Gmail y Pub/Sub ya estaban.
 
 ---
 
@@ -170,7 +177,7 @@ APIs a habilitar: `iamcredentials.googleapis.com`, `run.googleapis.com`,
 | `--concurrency` | 20 | el lease protege el buzón; la concurrencia sólo afecta al proceso |
 | `--no-allow-unauthenticated` | sí | IAM primero, validación OIDC después |
 | `--memory` | 256Mi | no hay dependencias ni procesamiento pesado |
-| `--timeout` | 120s | el ack de Pub/Sub es de 60 s; el margen es para el resync manual |
+| `--timeout` | 300s | el ack de Pub/Sub es de 60 s; el margen es para el resync manual, que con 200 hilos tardó 30 s |
 
 Se acepta el cold start de ~1 s: el sync es asíncrono y nadie espera.
 
@@ -224,7 +231,12 @@ Una sentencia. Si devuelve fila, es tuyo. Vence solo a los 5 minutos.
 
 Se dispara con un 404 de historial, o en el primer sync de una cuenta.
 
-- `threads.list` paginado → `upsert` en `email_threads`
+- `threads.list` **acotado** por `SYNC_VENTANA` y `SYNC_MAX_HILOS` → `upsert` en
+  `email_threads`. El buzón tiene 26.833 mensajes: sin acotar, el resync no entra
+  ni en el timeout ni en la cuota. Lo que excede el tope queda reportado como
+  recortado
+- `has_attachments` sale de **una** búsqueda `has:attachment` por corrida:
+  `format=metadata` no trae `payload.parts`, así que no se puede deducir del hilo
 - **`email_thread_state` y `email_thread_reads` no se tocan**
 - **`upsert`, nunca `delete`.** Un hilo que ya no aparezca queda con `synced_at`
   viejo. Borrar filas durante una recuperación de error es cómo se pierde lo que
@@ -271,7 +283,7 @@ qué.
 npm run backend:check     # typecheck + tests, desde la raíz del repo
 ```
 
-**42 tests, y ninguno toca `info@`.** El algoritmo entero corre contra un Gmail
+**48 tests, y ninguno toca `info@`.** El algoritmo entero corre contra un Gmail
 falso y un almacén en memoria: 404 de historial, eventos fuera de orden, evento
 repetido, lease tomado, lease vencido, resync que conserva el estado.
 
@@ -279,67 +291,56 @@ Los fixtures son inventados. Ninguno sale de correo real.
 
 ---
 
-## Lo que falta para que esto ande
+## Recursos desplegados
 
-**El código está escrito y probado; el servicio no existe todavía.** Falta
-`gcloud`, que no está instalado en esta máquina, y `gcloud auth login` necesita
-a una persona.
+| recurso | valor |
+|---|---|
+| Proyecto | `buscatools-erp-email` · 545134968830 |
+| Servicio | `buscatools-erp-email` · **us-east1** |
+| URL | `https://buscatools-erp-email-545134968830.us-east1.run.app` |
+| Revisión en servicio | `buscatools-erp-email-00004-lbv` |
+| Runtime SA | `buscatools-erp-email@buscatools-erp-email.iam.gserviceaccount.com` |
+| Escalado | min 0 · max 3 · concurrency 20 · 256 MiB · timeout 300 s |
+| Secreto | `supabase-service-key` — el único |
+| Topic | `projects/buscatools-erp-email/topics/gmail-buscatools-events` |
+| Subscription | `gmail-buscatools-events-push` → `…/gmail/push` · OIDC `buscatools-email-pubsub-push@…` · audience = URL · ack 60 s · retry 10–600 s |
+| Scheduler | `gmail-watch-renewal` · `0 6 * * *` America/Argentina/Buenos_Aires → `…/gmail/watch` · OIDC `buscatools-email-scheduler@…` |
+| Cuenta en la base | `email_accounts` `053b871c-a451-497c-bd4a-c7678f7b697b` · `info@buscatools.com.ar` · `dwd` |
+| `users.watch` | activo · `labelIds: INBOX` · se renueva a diario |
 
-En orden, y **`users.watch` va último**:
+### Cómo se desplegó
 
 ```bash
-# 1 · APIs
-gcloud services enable iamcredentials.googleapis.com run.googleapis.com \
-  cloudscheduler.googleapis.com --project buscatools-erp-email
-
-# 2 · Desplegar (Cloud Build compila el Dockerfile; no hace falta Docker local)
-gcloud run deploy buscatools-email-backend \
+gcloud run deploy buscatools-erp-email \
   --source backend/emails \
-  --project buscatools-erp-email \
-  --region us-east1 \
+  --project buscatools-erp-email --region us-east1 \
   --service-account buscatools-erp-email@buscatools-erp-email.iam.gserviceaccount.com \
+  --build-service-account projects/buscatools-erp-email/serviceAccounts/buscatools-email-build@buscatools-erp-email.iam.gserviceaccount.com \
   --no-allow-unauthenticated \
-  --min-instances 0 --max-instances 3 --concurrency 20 --memory 256Mi --timeout 120s \
-  --set-env-vars GOOGLE_PROJECT_ID=buscatools-erp-email,GMAIL_SERVICE_ACCOUNT_EMAIL=buscatools-erp-email@buscatools-erp-email.iam.gserviceaccount.com,GMAIL_PUBSUB_TOPIC=projects/buscatools-erp-email/topics/gmail-buscatools-events,ALLOWED_GMAIL_MAILBOXES=info@buscatools.com.ar,SUPABASE_URL=https://uaxcfufvapzulqvynanp.supabase.co \
+  --min-instances 0 --max-instances 3 --concurrency 20 --memory 256Mi --timeout 300s \
+  --set-env-vars GOOGLE_PROJECT_ID=…,GMAIL_SERVICE_ACCOUNT_EMAIL=…,GMAIL_PUBSUB_TOPIC=…,ALLOWED_GMAIL_MAILBOXES=info@buscatools.com.ar,SUPABASE_URL=…,PUBSUB_PUSH_SA_EMAIL=…,PUBSUB_PUSH_AUDIENCE=<URL>,SCHEDULER_SA_EMAIL=…,SYNC_VENTANA=newer_than:7d,SYNC_MAX_HILOS=200 \
   --set-secrets SUPABASE_SERVICE_KEY=supabase-service-key:latest
-
-# 3 · La SA puede firmar como sí misma
-gcloud iam service-accounts add-iam-policy-binding \
-  buscatools-erp-email@buscatools-erp-email.iam.gserviceaccount.com \
-  --member serviceAccount:buscatools-erp-email@buscatools-erp-email.iam.gserviceaccount.com \
-  --role roles/iam.serviceAccountTokenCreator --project buscatools-erp-email
-
-# 4 · SA de push, que sólo puede invocar este servicio
-gcloud iam service-accounts create gmail-push-invoker --project buscatools-erp-email
-gcloud run services add-iam-policy-binding buscatools-email-backend \
-  --member serviceAccount:gmail-push-invoker@buscatools-erp-email.iam.gserviceaccount.com \
-  --role roles/run.invoker --region us-east1 --project buscatools-erp-email
-gcloud projects add-iam-policy-binding buscatools-erp-email \
-  --member serviceAccount:service-545134968830@gcp-sa-pubsub.iam.gserviceaccount.com \
-  --role roles/iam.serviceAccountTokenCreator
-
-# 5 · Subscription push AUTENTICADA
-gcloud pubsub subscriptions create gmail-buscatools-events-push \
-  --topic gmail-buscatools-events \
-  --push-endpoint "<URL_DEL_SERVICIO>/gmail/push" \
-  --push-auth-service-account gmail-push-invoker@buscatools-erp-email.iam.gserviceaccount.com \
-  --push-auth-token-audience "<URL_DEL_SERVICIO>" \
-  --ack-deadline 60 --project buscatools-erp-email
-
-# 6 · PRUEBA DE DWD — sólo metadata, no lee ni un mensaje
-#     GET /salud primero; después users.getProfile desde el servicio.
-
-# 7 · Scheduler diario
-gcloud scheduler jobs create http gmail-watch-renewal \
-  --schedule "0 6 * * *" --time-zone "America/Argentina/Buenos_Aires" \
-  --uri "<URL_DEL_SERVICIO>/gmail/watch" --http-method POST \
-  --oidc-service-account-email gmail-push-invoker@buscatools-erp-email.iam.gserviceaccount.com \
-  --oidc-token-audience "<URL_DEL_SERVICIO>" --project buscatools-erp-email
-
-# 8 · users.watch — AL FINAL, cuando todo lo demás esté verde
-#     Lo dispara el propio endpoint /gmail/watch.
 ```
 
-**Antes del paso 8** tiene que existir la fila en `email_accounts`. No se crea
-en esta entrega: crearla sin backend desplegado dejaría una cuenta que nadie
-sincroniza.
+Un redeploy con el mismo comando conserva subscription, scheduler, IAM y watch:
+ninguno depende de la revisión.
+
+### Operación
+
+| necesidad | cómo |
+|---|---|
+| ¿DWD sigue andando? | `POST /gmail/perfil` con OIDC de la SA del scheduler |
+| forzar renovación del watch | `gcloud scheduler jobs run gmail-watch-renewal --location us-east1` |
+| recuperar un hueco | `POST /gmail/sync` `{account_id}` con OIDC de la SA del scheduler |
+| agregar un buzón | fila en `email_accounts` **y** redeploy con el allowlist ampliado |
+
+### Deuda conocida
+
+Ninguna bloquea la operación:
+
+1. **Retry/backoff ante 429/5xx de Gmail.** Los errores están clasificados y el
+   push no ackea lo reintentable, pero el cliente no reintenta por sí mismo.
+2. **Throttling del resync completo.** 200 hilos consumen ~8.000 unidades en
+   30 s, por encima de las 6.000/min por usuario. No dio 429; subir
+   `SYNC_MAX_HILOS` exige resolver esto antes.
+3. **Retención de `email_sync_log`.** El cron de 30 días no existe.

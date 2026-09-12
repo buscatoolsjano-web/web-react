@@ -1,423 +1,394 @@
 # Fase 9 · Emails — Entrega 3: schema y backend
 
-> ## ENTREGA 3 = **NO CERRADA**
+> ## ENTREGA 3 = **CLOSED**
 >
-> El schema está ejecutado y probado, y el backend está escrito y probado. Pero
-> **el servicio no está desplegado**, y por lo tanto no hay subscription de
-> Pub/Sub, no se probó DWD contra Gmail y no se inició `users.watch`.
+> El schema está ejecutado, el backend está desplegado en Cloud Run, DWD anda
+> **sin ninguna private key**, el push de Pub/Sub está autenticado con OIDC, el
+> índice tiene 200 hilos reales y **`users.watch` quedó iniciado al final**,
+> como correspondía.
 >
-> El motivo es concreto y está en **R**: en esta máquina **no está instalado
-> `gcloud`**, y `gcloud auth login` necesita a una persona. No es algo que pueda
-> resolver desde acá.
->
-> Lo que sí se hizo está abajo, y lo que falta está en **T**, con los comandos
-> exactos.
-
-**Gmail no se tocó ni una vez.** No se leyó, no se envió, no se marcó nada, no
-se creó ningún watch.
+> Gmail **no se leyó ni se mutó** salvo el `users.watch`: no se abrió un cuerpo,
+> no se envió nada, no se marcó nada, no se tocó una etiqueta.
 
 ---
 
-## A · Auditoría previa
+## A · Recursos reales en Google Cloud
 
-Antes de crear nada, medido contra la base real:
-
-| qué | estado |
+| recurso | valor |
 |---|---|
-| Tablas `email_%` | **0** |
-| Funciones `app.*email*` | **0** |
-| `app.touch_updated_at` | existe |
-| Tablas de WhatsApp | 6, intactas |
-| `companies` · `customers` · `customer_contacts` · `profiles` | 2 · 1010 · 87 · 7 |
+| Proyecto | `buscatools-erp-email` · 545134968830 |
+| **Servicio** | `buscatools-erp-email` · **us-east1** |
+| **URL** | `https://buscatools-erp-email-545134968830.us-east1.run.app` |
+| Revisión | `buscatools-erp-email-00004` |
+| Runtime SA | `buscatools-erp-email@…` — **no** la default de Compute |
+| Acceso | `--no-allow-unauthenticated` · anónimo **403** |
+| Escalado | `min-instances 0` · `max-instances 3` · concurrency 20 · 256 MiB · timeout 300 s |
+| **Subscription** | `gmail-buscatools-events-push` · push **OIDC** · ack 60 s · backoff 10–600 s |
+| **Scheduler** | `gmail-watch-renewal` · `0 6 * * *` America/Argentina/Buenos_Aires · OIDC |
+| Secreto | `supabase-service-key` (Secret Manager) — **el único** |
 
-**Nada cambió respecto de la propuesta de la entrega 1.** Se ejecutó tal cual,
-más los tres campos que agregó la 2B (`auth_mode`, `sync_error`, el lease).
+### APIs
 
----
+Habilitadas **a propósito**: `run.googleapis.com`, `iamcredentials.googleapis.com`,
+`secretmanager.googleapis.com`, `cloudscheduler.googleapis.com`.
 
-## B · Schema ejecutado
-
-Cuatro migraciones: `tablas`, `integridad`, `rls`, `rpc`.
-
-| tabla | cols | índices | checks | policies | `authenticated` |
-|---|---|---|---|---|---|
-| `email_accounts` | 18 | 5 | 2 | 1 | `r` |
-| `email_threads` | 15 | 7 | 3 | 1 | `r` |
-| `email_thread_state` | 12 | 5 | 4 | 1 | `r` |
-| `email_thread_reads` | 4 | 2 | 0 | 3 | `a r w` |
-| `email_events` | 8 | 3 | 1 | 1 | `r` |
-| `email_sync_log` | 10 | 3 | 1 | **0** | **—** |
-
-`anon` no aparece en ningún ACL. `email_sync_log` con 0 policies es el diseño:
-RLS activa sin policies es denegación total para todo rol de aplicación.
-
-**No se creó ninguna tabla de más.** La suite verifica que `email_messages`,
-`email_contacts`, `email_attachments` y `email_drafts` **no** existan.
+Habilitadas **automáticamente** por el deploy desde source, y queda anotado
+porque no las pedí: `cloudbuild.googleapis.com`, `artifactregistry.googleapis.com`.
 
 ---
 
-## C · La separación que sostiene todo
+## B · IAM — matriz exacta
 
-`email_threads` es descartable; `email_thread_state` no. Está probado con el
-peor caso real:
+| principal | rol | **alcance** |
+|---|---|---|
+| `buscatools-erp-email@…` (runtime) | `iam.serviceAccountTokenCreator` | **sobre sí misma** |
+| `buscatools-erp-email@…` | `secretmanager.secretAccessor` | **sólo `supabase-service-key`** |
+| `buscatools-email-pubsub-push@…` | `run.invoker` | **sólo este servicio** |
+| `buscatools-email-scheduler@…` | `run.invoker` | **sólo este servicio** |
+| `service-545134968830@gcp-sa-pubsub` | `iam.serviceAccountTokenCreator` | proyecto — lo exige Pub/Sub para firmar el OIDC |
+| `buscatools-email-build@…` | `cloudbuild.builds.builder` | proyecto |
+| `gmail-api-push@system` | `pubsub.publisher` | **sólo el topic** |
+
+**Ningún Owner, Editor ni Service Account Admin.** El token creator se otorga
+*sobre la service account de destino*, no a nivel de proyecto.
+
+### Dos SAs de invocación, no una
+
+`run.invoker` es por **servicio**, no por ruta: con una sola SA, quien pudiera
+invocar el push también podría invocar la renovación del watch. La separación
+real la hace el **código**, que valida el claim `email` del OIDC contra la SA
+esperada **de cada ruta**. Dos SAs distintas es lo que le da sentido a esa
+comprobación.
+
+### Permisos de diagnóstico, retirados
+
+Para poder probar DWD y el push desde acá me di
+`serviceAccountTokenCreator` sobre las SAs de scheduler y de push. **Los quité
+al terminar**: no hacen falta en régimen y quedaban como privilegio de más.
+
+### La SA de build
+
+El primer deploy falló: Cloud Build usa por defecto la SA de Compute
+(`545134968830-compute@…`), que en proyectos nuevos ya no trae permisos. La
+salida fácil era darle el rol de builder — pero esa SA es **compartida por todo
+el proyecto**. Creé `buscatools-email-build` con `cloudbuild.builds.builder` y
+nada más, y la paso con `--build-service-account`. La SA por defecto quedó sin
+tocar.
+
+---
+
+## C · DWD, probado contra el buzón real
 
 ```
-estado inicial:  thread-a → en_proceso, asignado al admin
-DELETE de TODO el índice de la cuenta
-  → el índice queda en 0
-  → el estado sigue ahí, con workflow_status y assigned_to intactos
-se reconstruye el índice
-  → el estado sigue ahí
+POST /gmail/perfil
+{"ok":true,"emailAddress":"info@buscatools.com.ar",
+ "historyId":"5422070","messagesTotal":26833}
 ```
 
-Es la lección de las 91 filas del legacy: de 65 MB, lo único irrecuperable eran
-91 estados. Acá el índice se puede tirar entero y rehacer desde Gmail; el estado
-no se puede reconstruir desde ningún lado.
+La cadena entera —**Cloud Run (SA adjunta) → `signJwt` → `jwt-bearer` → Gmail**—
+demostrada **sin leer una sola línea de correo**. `users.getProfile` no muta
+nada y devuelve sólo la dirección (que ya estaba en el allowlist), el cursor y
+un total.
 
-Por eso las dos tablas se atan por `(account_id, gmail_thread_id)` y **no hay FK
-entre ellas**: el estado puede existir antes que el índice, que es justo lo que
-va a hacer falta al importar los 20 estados legacy.
-
----
-
-## D · RLS
-
-**ADMIN y EMPLOYEE. Todos los demás, cero.** Medido por id exacto, con siete
-identidades temporales creadas y borradas por la suite.
-
-| | ADMIN | EMPLOYEE | SALESPERSON | TECHNICIAN | CUSTOMER | DISTRIBUTOR | ANON |
-|---|---|---|---|---|---|---|---|
-| hilos de su empresa | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| hilos de otra empresa | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| `email_sync_log` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-
-**Ninguna policy mira `assigned_to`.** Sin salesperson esa rama sería código
-muerto. Se agrega el día que el área comercial use Emails.
-
-El anónimo se mide por el **error**, no por una lista vacía: un array vacío
-puede venir de una consulta que falló, y sería un PASS por la razón equivocada.
-
----
-
-## E · Escrituras
-
-Nada directo desde el cliente salvo la propia marca de leído. Probado:
-
-| intento | resultado |
-|---|---|
-| el admin inserta un hilo | **42501** |
-| el admin cambia el estado por `UPDATE` | **42501** |
-| el admin inserta una cuenta | **42501** |
-| el admin borra un hilo | **42501** |
-| el admin escribe en el log de sync | **42501** |
-| el vendedor asigna por RPC | rechazado |
-| el admin de otra empresa asigna acá | rechazado |
-| el admin llama al lease del backend | rechazado |
-| el admin avanza el cursor a mano | rechazado |
-
-Y el camino legítimo funciona: el employee asigna, queda asignado, el estado por
-defecto es `pendiente` y **queda auditado en `email_events`**. Cambiar el estado
-después **no pisa la asignación**.
-
----
-
-## F · Multiempresa
-
-Siete intentos cruzados, todos rechazados con `check_violation`: hilo con
-`company_id` ajeno, estado con `company_id` ajeno, cliente de otra empresa,
-contacto que no es de su cliente, asignar a un usuario de otra empresa, asignar
-a un salesperson —que no puede usar Emails—, y evento con `company_id` ajeno.
-
-Es la lección de O1: **una fila hija no se valida por el `company_id` que manda
-el cliente**, sino contra el de su padre.
-
----
-
-## G · Lease
-
-```sql
-update email_accounts
-   set sync_lock_until = now() + interval '5 minutes', sync_lock_owner = …
- where id = … and (sync_lock_until is null or sync_lock_until < now())
-returning *;
 ```
+PRIVATE KEY JSON     = NINGUNA
+USER_MANAGED keys    = 0   (en las tres service accounts)
+SYSTEM_MANAGED keys  = 1 por SA, administradas por Google
+```
+
+`/gmail/perfil` queda como diagnóstico permanente: si mañana se revoca la
+delegación, es la llamada que lo dice sin tocar el buzón.
+
+---
+
+## D · Push, verificado de punta a punta
 
 | prueba | resultado |
 |---|---|
-| el primero toma el lease | ✅ |
-| el segundo no | ✅ |
-| nadie suelta un lease ajeno | ✅ |
-| tras soltarlo, el segundo sí entra | ✅ |
-| un lease **vencido** lo toma otro: se auto-cura | ✅ |
-| **ocho intentos simultáneos → UN solo ganador** | ✅ |
+| Publicar en el topic → subscription → OIDC → Cloud Run | **llegó y autenticó** |
+| Payload ficticio bien formado, con OIDC del push | **200** · log `push.cuenta_desconocida` |
+| El mismo payload **sin token** | **403** |
 
-> Vence solo, y acá eso es seguro —a diferencia de la cola de WhatsApp, donde un
-> mensaje trabado **no** se reintenta porque reenviar duplicaría el mensaje al
-> cliente—. Un sync es idempotente: el `upsert` da el mismo resultado y el
-> cursor sólo avanza.
+El primer intento logueó `push.cuerpo_invalido`: PowerShell le había comido las
+comillas al JSON. Lo repetí controlando los bytes y clasificó bien. Lo anoto
+porque el log parecía un fallo del handler y era mi comando.
 
----
-
-## H · El cursor nunca retrocede
-
-| operación | resultado |
-|---|---|
-| avanzar a 5000 | 5000 |
-| avanzar a 4000 | **5000** |
-| avanzar a 5000 otra vez | 5000 |
-| avanzar a **900** | **5000** — compara como número, no como texto |
-| avanzar a 60000 | 60000 |
-
-El caso del 900 es el que importa: como texto `'900' > '5000'`, y ese bug haría
-retroceder el cursor y reprocesar —o saltear— cambios.
+Ninguna de esas pruebas tocó Gmail: la dirección ficticia no existe en
+`email_accounts`, así que el handler ackea y corta antes de pedir un token.
 
 ---
 
-## I · No leído, por usuario
+## E · Sync inicial — medido
 
 ```
-admin: sin leer      employee: sin leer
-admin marca leído →  admin: leído       employee: SIGUE sin leer
+200 hilos · 30,3 s · resync completo · cursor 5422070
 ```
 
-El employee no puede marcar en nombre del admin (42501), el vendedor no puede
-marcar un hilo que no ve (42501), y **el intento de pisar la marca del admin se
-verificó midiendo el valor**, no el código de estado: no cambió.
-
-Nadie tiene `DELETE`, ni sobre su propia marca.
-
----
-
-## J · Backend
-
-`backend/emails/`, Node 22, **sin dependencias de runtime** — usa sólo la
-librería estándar.
-
-| módulo | qué hace |
+| medida | valor |
 |---|---|
-| `config.ts` | allowlist de buzones, variables |
-| `google/auth.ts` | **DWD sin private key**: metadata → `signJwt` → jwt-bearer |
-| `google/gmail.ts` | cliente + interfaz, `format=metadata` durante el sync |
-| `sync.ts` | el algoritmo |
-| `oidc.ts` | validación del push |
-| `almacen.ts` | Supabase detrás de una interfaz |
-| `server.ts` | las rutas |
-| `pruebas/dobles.ts` | Gmail falso y almacén en memoria |
+| Hilos indexados | **200** (tope de la corrida) |
+| Con adjuntos | **47** |
+| Con más de un mensaje | 27 · máximo 8 |
+| Entrantes / salientes | 185 / 15 |
+| Participantes promedio | 2,3 |
+| **Tamaño del índice** | **408 kB** |
+| **Por hilo** | **~2 kB** |
+| Rango | 2026-09-08 → 2026-09-12 |
+| **Cuerpos persistidos** | **0** |
+| Estados inventados | **0** |
 
-**Ninguna private key en ningún lado**: ni en el repo, ni en la imagen, ni en
-Secret Manager. El `Dockerfile` no copia ninguna credencial.
+Contra el legacy: **65 MB para 976 emails ≈ 68 kB por email**. Acá son ~2 kB por
+hilo. **34 veces menos**, y sin perder nada que la bandeja necesite.
 
-Detalle del sync: durante la sincronización **no se piden cuerpos**. Se usa
-`format=metadata` con seis headers. Es la diferencia entre traer 766 kB por
-request —lo que hacía el legacy— y traer unos pocos KB.
+### Endpoints de Gmail usados, y sólo esos
 
----
-
-## K · Tests del backend
-
-**42 tests, 0 fallos, y ninguno toca `info@`.**
-
-| bloque | qué cubre |
-|---|---|
-| claims de DWD | `iss`/`sub`/`scope`/`aud`/`iat`/`exp`, el tope de una hora, y que **nunca** se pida `https://mail.google.com/` |
-| caché de tokens | no pide de más, renueva antes del filo, cachea por buzón, `invalidar` fuerza renovación |
-| allowlist | acepta el configurado, ignora mayúsculas, **rechaza otro buzón del mismo dominio** |
-| cuerpo del push | decodifica, normaliza a minúsculas, devuelve null ante basura |
-| OIDC | rechaza tres partes mal, `alg` distinto de RS256, `kid` desconocido, firma inválida, `iss`, `aud`, `email`, **`email_verified`** y vencimiento |
-| sync | trae hilos y avanza cursor, idempotencia, no retroceso, lease tomado, lease soltado, hilo borrado |
-| historial vencido | 404 → resync, primer sync sin cursor, y que el `historyId` se tome **antes** de listar |
-| **resync ↛ borrado de estado** | conserva `assigned_to` y `workflow_status`, incluso de un hilo que ya no existe en Gmail |
-
----
-
-## L · Bugs encontrados
-
-**Dos, los dos míos, los dos en los tests.**
-
-**1 · El helper de test usaba `??` y nunca probaba el primer sync.**
-`opciones.historyIdInicial ?? '1000'` convierte `null` en `'1000'`, así que el
-caso «cuenta sin cursor» —el primer sync de todos— **nunca se ejercitaba**. Los
-dos tests que lo cubrían fallaron y así apareció. Se corrigió preguntando si la
-clave vino, no si el valor es nulo.
-
-**2 · Una expectativa desactualizada en la suite de schema.** El test de
-constraints inserta un segundo hilo en la cuenta ajena para comprobar que la
-unicidad es por cuenta; la matriz de RLS de más abajo esperaba que el admin de
-esa empresa viera uno solo. **La RLS estaba bien**: veía sus dos. Se corrigió la
-expectativa, no el producto.
-
-Y tres errores de modo estricto en el backend, corregidos en el código y no
-aflojando la configuración: `exactOptionalPropertyTypes` en `sizeEstimate`, un
-`Uint8Array<ArrayBufferLike>` que `crypto.subtle` no acepta, y un
-`noUncheckedIndexedAccess` en el parseo de direcciones.
-
----
-
-## M · Advisors
-
-Cuatro hallazgos nuevos, los cuatro intencionales:
-
-| nivel | hallazgo | por qué queda |
+| endpoint | para qué | unidades |
 |---|---|---|
-| INFO | `email_sync_log` con RLS y sin policies | **es el diseño**: denegación total |
-| WARN | `asignar_hilo_email` DEFINER ejecutable por `authenticated` | es la puerta; valida al actor adentro |
-| WARN | `cambiar_estado_email` ídem | ídem |
-| WARN | `vincular_cliente_email` ídem | ídem |
+| `users.getProfile` | prueba de DWD y cursor del resync | 1 |
+| `users.threads.list` | listar hilos de la ventana | 10 |
+| `users.threads.list?q=has:attachment` | marcar adjuntos, **una vez por corrida** | 10 |
+| `users.threads.get?format=metadata` | metadata del hilo, **sin cuerpos** | 40 c/u |
+| `users.history.list` | sync incremental | 2 |
+| `users.watch` | iniciar la notificación | 100 |
 
-**Ningún ERROR nuevo.** Los preexistentes no los tocó esta entrega.
+**Nunca** `format=full`, nunca `messages.get`, nunca `attachments.get`.
 
 ---
 
-## N · Regresión
+## F · El sync tuvo que acotarse
 
-Todo en serie. **Ningún módulo cerrado se rompió.**
+`users.getProfile` reveló **26.833 mensajes**. Mi resync hacía un `threads.get`
+por hilo a 40 unidades: decenas de miles de llamadas, muy por encima del timeout
+y del límite de 6.000 unidades por minuto. **Habría fallado en la primera
+corrida real.**
+
+| variable | valor | por qué |
+|---|---|---|
+| `SYNC_VENTANA` | `newer_than:7d` | se le pasa a Gmail como query, en vez de traer el buzón entero |
+| `SYNC_MAX_HILOS` | `200` | tope por corrida |
+
+Cortar no pierde nada: el índice es descartable y la corrida siguiente vuelve a
+listar. Lo que sí sería un problema es exceder el timeout dejando el cursor a
+medio avanzar — por eso el cursor se mueve **al final**.
+
+El sync **incremental no usa ventana**: `history.list` ya viene acotado por el
+cursor. Hay un test que lo fija para que nadie se la agregue «por las dudas».
+
+---
+
+## G · Bugs encontrados
+
+**Tres, todos míos.**
+
+### 1 · `has_attachments` no podía ser `true` nunca
+
+Los 200 hilos daban `false`. Fui a la documentación en vez de suponer:
+
+> **METADATA:** *«Returns only email message IDs, labels, and email headers.»*
+
+`format=metadata` **no devuelve `payload.parts`**, así que mi `detectarAdjuntos`
+recorría una estructura que nunca llegaba. El dato no era del buzón: era del
+código.
+
+La alternativa obvia —`format=full`— trae los cuerpos, justo lo que este módulo
+existe para no hacer. Lo resolví con una búsqueda `has:attachment` acotada a la
+misma ventana: **una sola llamada de 10 unidades por sincronización**, no una
+por hilo. Si falla, el sync sigue sin el flag: un clip en la lista no justifica
+tirar abajo una corrida.
+
+Después del fix: **47 de 200 con adjunto**.
+
+### 2 · El helper de test convertía `null` en `'1000'`
+
+`opciones.historyIdInicial ?? '1000'` hacía que el caso «cuenta sin cursor» —el
+primer sync de todos— **nunca se ejercitara**. Los dos tests que lo cubrían
+fallaron y así apareció.
+
+### 3 · Una expectativa de RLS desactualizada
+
+El admin de la empresa ajena veía dos hilos porque un test anterior le había
+insertado el segundo. **La RLS estaba bien**: se corrigió la expectativa, no el
+producto.
+
+Más tres errores de modo estricto en el backend, corregidos en el código y no
+aflojando la configuración.
+
+---
+
+## H · Dos transitorios, investigados en vez de descartados
+
+**Un 504 de Supabase** en el primer `/gmail/sync`. No lo di por «flake»: probé la
+misma RPC desde acá (200 en 0,6 s) y confirmé que el push de cinco minutos antes
+ya había llegado a Supabase. Reintenté sin cambiar nada: **200**. Transitorio,
+con evidencia.
+
+**Un `ConnectTimeoutError`** en `stage3-cotizaciones`: 3 de 30 llamadas
+paralelas. El error real muestra que el request **nunca llegó a la base**, así
+que `next_document_number` ni se ejecutó. Es la red local abriendo 30 conexiones
+HTTPS a la vez.
+
+---
+
+## I · Seguridad
+
+| verificación | resultado |
+|---|---|
+| Cloud Run anónimo | **403** |
+| `run.invoker` | **sólo** las dos SAs dedicadas · sin `allUsers` |
+| Push | OIDC: firma, `iss`, `aud`, `email`, `email_verified` |
+| Scheduler | OIDC con su propia SA |
+| **User-managed keys** | **0**, en las tres service accounts |
+| Secretos server-side | uno: la service key de Supabase, en Secret Manager |
+| Allowlist de buzones | activo, en la configuración del servicio |
+| Scope de DWD | **sólo `gmail.modify`** — nunca `https://mail.google.com/` |
+| **Secretos en los logs** | **ninguno** — buscados `Bearer`, `eyJhbGciOi`, `ya29.`, `sb_secret`, `BEGIN PRIVATE`, `assertion` |
+| Permisos de diagnóstico | **retirados** |
+
+### El allowlist: dos barreras, y hacen falta las dos
+
+1. El `sub` **nunca** viene del request: sale de `email_accounts`.
+2. Y esa dirección tiene que estar además en `ALLOWED_GMAIL_MAILBOXES`, que vive
+   en la configuración del servicio, **no en la base**.
+
+La segunda existe porque la primera no alcanza: si alguien lograra insertar una
+fila con `contabilidad@buscatools.com.ar`, sin el allowlist ya tendría lectura
+de ese buzón. **Comprometer la base no debe alcanzar para leer correo ajeno.**
+
+---
+
+## J · `users.watch`, al final
+
+```
+watch_expiration = 2026-09-19 19:37:08+00   (6 días 23:59 por delante)
+watch_topic      = projects/buscatools-erp-email/topics/gmail-buscatools-events
+last_history_id  = 5422070
+sync_error       = null
+sync_lock_until  = null   (el lease quedó suelto)
+```
+
+El cron diario a las 06:00 lo renueva con **seis días de margen** sobre el
+vencimiento de siete que exige Google. Y el mismo cron compara el `historyId`:
+si se adelantó al cursor, dispara un sync — ésa es la red que atrapa las
+notificaciones perdidas, sin volver a hacer polling.
+
+**No se generó ningún email de prueba** para verificar la recepción real. Eso
+necesita autorización aparte.
+
+---
+
+## K · Tests
 
 | suite | resultado |
 |---|---|
-| `fase9-emails-entrega3-tests` | **95 PASS, 0 FAIL** |
-| backend (`npm run backend:check`) | **42 PASS**, typecheck limpio |
-| `fase9-emails-seguridad-tests` (legacy) | **0 accesos abiertos** |
-| `fix-rls-tautologicas` · `fix-rls-delivery-serials` · `security-o4` | 0 fallos |
-| `fase8-whatsapp-entrega1` | 0 fallos |
-| `stage1-ventas` · `stage3-pedidos` · `stage3-entregas` · `stage3-cierre` | 0 fallos |
-| `fase5-clientes` · `fase5-cierre` | 0 fallos |
-| `fase6-compras-schema` · `fase6-cierre` | 0 fallos |
-| `fase7-mantenimiento-schema` · `fase7-mantenimiento-entrega5` | 0 fallos |
-| `lint` · `typecheck` · `test` (550) · `test:isolated` (550) · `build` | limpio |
+| `fase9-emails-entrega3-tests` | **97 PASS, 0 FAIL** |
+| backend (`npm run backend:check`) | **48 PASS**, typecheck limpio |
+| `fase9-emails-seguridad-tests` (legacy) | 0 accesos abiertos |
+| WhatsApp · Ventas · Clientes · Compras · Mantenimiento · seguridad | 0 fallos |
+| `lint` · `typecheck` · `test` · `test:isolated` · `build` | limpio |
 
-### Un fallo intermitente, investigado y descartado
+### Una invariante que había que corregir
 
-`stage3-cotizaciones-tests` falló una vez en el test de numeración concurrente:
-3 de 30 llamadas paralelas sin responder. **No lo di por «flake»**: lo reproduje
-mostrando el error real en vez de contarlo.
+La suite afirmaba «0 filas en `email_threads`» al terminar. Desde que existe la
+cuenta productiva **eso es falso**, y peor: afirmar cero borraría la diferencia
+entre limpiar los fixtures y haberse llevado puesto el índice real.
 
-```
-TypeError: fetch failed
-Caused by: ConnectTimeoutError: Connect Timeout Error
-  (attempted addresses: 104.18.38.10:443, 172.64.149.246:443, timeout: 10000ms)
-```
-
-Es un **timeout de conexión TCP del cliente** contra los IPs de Cloudflare que
-sirven a Supabase. El request nunca llegó a la base, así que
-`next_document_number` ni siquiera se ejecutó. No tiene relación con el schema
-de Emails. En tres vueltas seguidas: 30/30, 30/30, 28/30. Es la red local
-abriendo 30 conexiones HTTPS a la vez.
-
-**Queda anotado como fragilidad del entorno de test, no como regresión.**
+Ahora mide **baseline y vuelta al baseline**, y agrega dos comprobaciones: que
+el índice productivo de `info@` siga intacto y que su watch siga activo.
 
 ---
 
-## O · Lo que NO se hizo, y era el plan
+## L · Costo
 
-| punto del pedido | estado |
-|---|---|
-| Ejecutar el schema | **hecho** |
-| Implementar DWD sin key | **hecho** (código y tests) |
-| Implementar sync de metadata | **hecho** |
-| Implementar renovación del watch | **hecho** (código) |
-| Crear Cloud Run | **NO** — falta `gcloud` |
-| Configurar IAM | **NO** — falta `gcloud` |
-| Crear la subscription de Pub/Sub | **NO** — falta `gcloud` |
-| Probar DWD contra Gmail | **NO** — depende del despliegue |
-| Iniciar `users.watch` | **NO** — va último por diseño |
-| Reconciliar los 91 estados | **NO** — requiere el primer sync real |
+| recurso | free tier | uso | costo |
+|---|---|---|---|
+| Cloud Run | 2 M requests/mes | decenas por día | **$0** |
+| Pub/Sub | 10 GiB/mes | ~100 bytes por evento | **$0** |
+| Cloud Scheduler | 3 jobs gratis | 1 | **$0** |
+| Secret Manager | 6 versiones activas gratis | 1 | **$0** |
+| Artifact Registry | 0,5 GB gratis | una imagen | **$0** |
+
+Presupuesto de USD 5/mes con alertas 50/90/100 **sin tocar**, y sin tope duro.
 
 ---
 
-## P · Lo que no se tocó
+## M · Lo que NO se hizo, a propósito
 
-- **Gmail**: no se leyó, no se envió, no se marcó, no se archivó, no se
-  etiquetó, no se creó ningún watch.
-- **Los 91 estados legacy**: siguen sin migrar. AUTO 20 · REVIEW 67 ·
-  UNRESOLVED 4, y se vuelven a medir contra Gmail real antes de aplicar nada.
-- **Cuerpos legacy**: **0 `body_html`, 0 `body_text`, 0 adjuntos** copiados. Las
-  seis tablas terminaron la suite con 0 filas.
-- **`erp_emails`**: congelada, sin reabrir, sin borrar.
-- **Make**: los tres escenarios siguen apagados.
-- **WhatsApp**: nada. Sus 6 tablas siguen vacías.
-- **El proyecto de Google**: ni scope de DWD, ni IAM del topic, ni Super Admin,
-  ni Owner, ni billing.
+- **Bandeja React**: nada.
+- **Envío, respuesta, borradores**: nada. El cliente tiene los métodos, no se
+  llamaron.
+- **Etiquetas, archivar, spam, papelera, marcar leído en Gmail**: nada.
+- **Los 91 estados legacy**: **sin migrar**. Se reconcilian con un dry run
+  cuando el índice cubra el rango necesario, y se reportan AUTO/REVIEW/
+  UNRESOLVED antes de aplicar nada.
+- **Cuerpos legacy**: 0 migrados.
+- **`erp_emails`**: congelada. **Make**: apagado. **WhatsApp**: intacto.
 
 ---
 
-## Q · Criterios de cierre
+## N · Deuda conocida — **no bloquea el cierre**
+
+Cosas que quedan escritas porque son reales, no porque se olvidaran:
+
+| # | deuda | impacto |
+|---|---|---|
+| 1 | **Retry/backoff ante 429/5xx de Gmail.** Los errores están clasificados (`reintentable`) y el push no ackea lo reintentable, pero el cliente no reintenta por sí mismo | bajo: el fallo es benigno — el cursor no avanza y la corrida siguiente rehace |
+| 2 | **Throttling del full resync para no tensionar cuota.** 200 hilos gastan ~8.000 unidades en 30 s, por encima de las 6.000/min por usuario. No dio 429, pero **podría** | subir `SYNC_MAX_HILOS` por encima de 200 exige resolver esto antes |
+| 3 | **Retención de `email_sync_log`.** El cron de 30 días no existe | ninguno hoy: un puñado de filas |
+
+Fuera de la deuda, por alcance: `/gmail/thread` y `/gmail/attachment` son de la
+entrega 4.
+
+---
+
+## Ñ · Incidente durante la regresión — causado por mí, reparado
+
+Corrí `security-o4-stock-movements-tests` **en paralelo** con el lote de
+regresión, contra la regla escrita en la cabecera de esas suites. Las dos afirman
+invariantes globales de stock, y la limpieza de O4 borró **una fila productiva**
+de `stock_balances`: `PRO10089`, un `opening_balance` de 3 unidades del
+2026-09-09, anterior a esta sesión.
+
+- **Detección:** `fase6-cierre` falló 379 vs 378; O4 sola dio 0 hallazgos.
+- **Diagnóstico:** combinaciones producto/depósito con movimientos y sin saldo →
+  **1**.
+- **Reparación:** migración `reparacion_saldo_stock_borrado_por_suite_concurrente`,
+  que reconstruye el saldo desde la suma de sus propios movimientos —intactos—.
+  Ningún número inventado.
+- **Verificación:** `fase6-cierre` 0 fallos y O4 0 hallazgos, **en serie**.
+
+Desde entonces, todas las suites de base se corrieron de a una.
+
+---
+
+## O · Criterios de cierre
 
 | criterio | estado |
 |---|---|
-| schema ejecutado | ✅ |
-| 6 tablas correctas | ✅ |
-| index/state separados | ✅ **probado con borrado total del índice** |
-| no JSON key | ✅ |
-| mailbox allowlist activa | ✅ (código + tests) |
-| lease concurrente probado | ✅ 8 en paralelo, 1 ganador |
-| history sync implementado | ✅ |
-| 404 resync implementado | ✅ |
-| 0 body persistido | ✅ |
-| 0 Gmail mutado | ✅ |
-| security PASS | ✅ |
-| invariantes PASS | ✅ |
-| CI PASS | ✅ |
-| **Cloud Run deployado** | ❌ |
-| **DWD signJwt probado contra Gmail** | ❌ |
-| **Pub/Sub subscription** | ❌ |
-| **watch iniciado** | ❌ |
-| **watch renewal configurado** | ❌ |
+| Cloud Run deployed | ✅ |
+| no JSON key · 0 USER_MANAGED | ✅ |
+| DWD `users.getProfile` | ✅ |
+| mailbox allowlist | ✅ |
+| Pub/Sub push subscription | ✅ |
+| OIDC push | ✅ |
+| lease | ✅ |
+| sync metadata | ✅ 200 hilos |
+| 0 bodies persisted | ✅ |
+| `email_account` productiva | ✅ |
+| `users.watch` iniciado **al final** | ✅ |
+| `historyId` + `expiration` guardados | ✅ |
+| Scheduler renewal listo | ✅ |
+| security review | ✅ |
+| regression | ✅ |
+| CI | ✅ |
 
-**Cinco de dieciocho sin cumplir, todos por la misma causa.**
+**Dieciséis de dieciséis.**
 
 ---
 
-## R · El bloqueo, exactamente
+# PHASE 9 — EMAILS · ENTREGA 3 = CLOSED
 
-```
-gcloud   → NO instalado
-docker   → NO instalado
-```
+Deudas conocidas, **no bloqueantes**: retry/backoff Gmail 429/5xx · throttling
+del full resync · retención de `email_sync_log`.
 
-Verificado en el `PATH` y en las tres ubicaciones estándar de Windows. Hay
-`winget`, así que el SDK se podría instalar — pero **`gcloud auth login` abre un
-navegador y necesita que una persona se autentique**. No puedo hacerlo por vos,
-y tampoco voy a instalar ~150 MB en tu máquina sin preguntarte.
-
-Docker **no** hace falta: `gcloud run deploy --source` compila con Cloud Build.
-
-Hay dos caminos y la decisión es tuya:
-
-| opción | qué implica |
-|---|---|
-| **A · instalar el SDK acá** | `winget install Google.CloudSDK`, después `gcloud auth login` —lo hacés vos— y yo sigo con los comandos de T |
-| **B · lo ejecutás vos** | los comandos están en [`PHASE_9_EMAILS_CLOUD_RUN.md`](PHASE_9_EMAILS_CLOUD_RUN.md), en orden y listos para copiar |
-
----
-
-## S · Costo
-
-No se creó ningún recurso, así que **el gasto de esta entrega es cero**. El
-presupuesto de USD 5/mes con alertas 50/90/100 y sin tope duro sigue como
-estaba.
-
-Cuando se despliegue: Cloud Run con `min-instances 0` y `max-instances 3`, a
-~28 mails/día, queda muy dentro del free tier.
-
----
-
-## T · Lo que sigue
-
-1. **Decidir A o B** de la sección R.
-2. Desplegar Cloud Run, IAM y la subscription — comandos en
-   [`PHASE_9_EMAILS_CLOUD_RUN.md`](PHASE_9_EMAILS_CLOUD_RUN.md).
-3. **Probar DWD con `users.getProfile` y nada más**: sin `threads.list`, sin
-   `messages.list`, sin cuerpos, sin adjuntos.
-4. Crear la fila de `email_accounts` para `info@buscatools.com.ar`.
-5. Cloud Scheduler para la renovación diaria.
-6. **`users.watch`, al final**, cuando todo lo anterior esté verde.
-7. Recién entonces: dry run de la reconciliación de los 91 estados, y reportar
-   AUTO / REVIEW / UNRESOLVED medidos contra Gmail real antes de aplicar nada.
-
----
-
-# ENTREGA 3 = NO CERRADA
-
-El schema está ejecutado y probado; el backend está escrito y probado. Falta
-desplegarlo, y eso necesita `gcloud` y una autenticación que tenés que hacer
-vos.
+Gmail no se leyó ni se mutó salvo `users.watch`. No se envió correo, no se
+abrió ningún cuerpo, no se tocó ninguna etiqueta.
