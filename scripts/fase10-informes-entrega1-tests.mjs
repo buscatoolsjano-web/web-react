@@ -40,6 +40,21 @@ const ordenado = (a, b) => { const ks = [...new Set([...Object.keys(a ?? {}), ..
 const cmp = (t, esp, real) => (JSON.stringify(esp) === JSON.stringify(real) ? PASS(t, String(JSON.stringify(real)).slice(0, 110)) : FAIL(t, `esperaba ${JSON.stringify(esp)}, dio ${JSON.stringify(real)}`))
 
 const s = createClient(BASE, SECRET, { auth: { persistSession: false } })
+
+/**
+ * Documentos migrados del legacy (imported_at): son un histórico congelado.
+ * Las tablas siguen vivas: un número productivo sólo se afirma si todavía no
+ * entró ningún documento nuevo; si entró, la paridad calculada es la prueba.
+ */
+const historicosCongelados = async (sc) => {
+  // Sólo empresas reales: las fixtures zz-* de la propia suite no cuentan como documentos nuevos.
+  const reales = ((await sc.from('companies').select('id').not('slug', 'like', 'zz-%')).data ?? []).map((c) => c.id)
+  const nuevos = {}
+  for (const t of ['sales_quotes', 'sales_orders', 'deliveries']) nuevos[t] = (await sc.from(t).select('id', { count: 'exact', head: true }).is('imported_at', null).in('company_id', reales)).count ?? 0
+  const importados = {}
+  for (const t of ['sales_quotes', 'sales_orders', 'deliveries']) importados[t] = (await sc.from(t).select('id', { count: 'exact', head: true }).not('imported_at', 'is', null)).count ?? 0
+  return { soloHistorico: Object.values(nuevos).every((n) => n === 0), nuevos, importados }
+}
 const MARCA = 'zz-inf1'
 const creados = { usuarios: [], empresas: [], clientes: [], cot: [], ped: [], ent: [] }
 
@@ -279,7 +294,9 @@ const main = async () => {
       const sep = (tipo, moneda) => rbm[`mes|${tipo}|2026-09-01|${moneda}`]
       if (HY === 2026 && HM === 9) {
         INFO('septiembre, entregas por moneda', JSON.stringify({ USD: sep('entregas', 'USD'), ARS: sep('entregas', 'ARS'), 'SIN MONEDA': sep('entregas', 'SIN MONEDA') }))
-        cmp('las 15 NE sin moneda de septiembre quedan como SIN MONEDA, no como USD', { documentos: 15, importe: 12996570.72, en_revision: 15 }, sep('entregas', 'SIN MONEDA'))
+        const hc = await historicosCongelados(s)
+        if (hc.soloHistorico) cmp('las 15 NE sin moneda de septiembre quedan como SIN MONEDA, no como USD (histórico congelado)', { documentos: 15, importe: 12996570.72, en_revision: 15 }, sep('entregas', 'SIN MONEDA'))
+        else INFO('hay documentos nuevos: el control fijo de septiembre se omite; la paridad calculada de arriba cubre', JSON.stringify(hc.nuevos))
       }
       const ordenados = tiempos.slice().sort((a, b) => a - b)
       INFO('latencia del RPC (5 llamadas, incluye red)', `mediana ${ordenados[2]} ms · máx ${ordenados[4]} ms · filas ${rb.data.length} · ${JSON.stringify(rb.data).length} B`)

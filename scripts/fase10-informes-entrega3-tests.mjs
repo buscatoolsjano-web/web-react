@@ -46,6 +46,21 @@ const INFO = (t, d = '') => console.log(`    INFO  ${t}${d ? ' — ' + d : ''}`)
 const cmp = (t, esp, real) => (JSON.stringify(esp) === JSON.stringify(real) ? PASS(t, String(JSON.stringify(real)).slice(0, 110)) : FAIL(t, `esperaba ${JSON.stringify(esp)}, dio ${JSON.stringify(real)}`))
 
 const s = createClient(BASE, SECRET, { auth: { persistSession: false } })
+
+/**
+ * Documentos migrados del legacy (imported_at): son un histórico congelado.
+ * Las tablas siguen vivas: un número productivo sólo se afirma si todavía no
+ * entró ningún documento nuevo; si entró, la paridad calculada es la prueba.
+ */
+const historicosCongelados = async (sc) => {
+  // Sólo empresas reales: las fixtures zz-* de la propia suite no cuentan como documentos nuevos.
+  const reales = ((await sc.from('companies').select('id').not('slug', 'like', 'zz-%')).data ?? []).map((c) => c.id)
+  const nuevos = {}
+  for (const t of ['sales_quotes', 'sales_orders', 'deliveries']) nuevos[t] = (await sc.from(t).select('id', { count: 'exact', head: true }).is('imported_at', null).in('company_id', reales)).count ?? 0
+  const importados = {}
+  for (const t of ['sales_quotes', 'sales_orders', 'deliveries']) importados[t] = (await sc.from(t).select('id', { count: 'exact', head: true }).not('imported_at', 'is', null)).count ?? 0
+  return { soloHistorico: Object.values(nuevos).every((n) => n === 0), nuevos, importados }
+}
 const MARCA = 'zz-inf3'
 const r4 = (v) => (v === null || v === undefined ? null : Math.round(Number(v) * 10000) / 10000)
 const cmpC = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
@@ -506,17 +521,22 @@ const main = async () => {
 
     const ent12 = (await rankingCompleto(jano, BT, { dimension: 'productos', fuente: 'entregado', medida: 'cantidad', periodo: '12m', moneda: null })).map(normalizar)
     const g = ent12.find((x) => x.codigo === 'GRAMPA.80-4T')
-    cmp('GRAMPA.80-4T entregado 12 meses: aparece, primero, cantidad real, 2 líneas atípicas', { posicion: 1, cantidad: 1598510, lineas_atipicas: 2, cantidad_atipica: 1598500, vinculado: true }, g && { posicion: g.posicion, cantidad: g.cantidad, lineas_atipicas: g.lineas_atipicas, cantidad_atipica: g.cantidad_atipica, vinculado: g.vinculado })
+    const gEsp = esperado(bt, { dimension: 'productos', fuente: 'entregado', medida: 'cantidad', periodo: '12m', moneda: null }, M).find((x) => x.codigo === 'GRAMPA.80-4T')
+    cmp('GRAMPA.80-4T entregado 12 meses: aparece, no excluido, cantidad real = regla, marcado atípico', { ...gEsp && { cantidad: gEsp.cantidad, lineas_atipicas: gEsp.lineas_atipicas, cantidad_atipica: gEsp.cantidad_atipica }, marcado: true }, g && { cantidad: g.cantidad, lineas_atipicas: g.lineas_atipicas, cantidad_atipica: g.cantidad_atipica, marcado: (g.lineas_atipicas ?? 0) > 0 })
+    INFO('GRAMPA entregado 12m', JSON.stringify(g && { posicion: g.posicion, cantidad: g.cantidad, lineas_atipicas: g.lineas_atipicas }))
     const ped12 = (await rankingCompleto(jano, BT, { dimension: 'productos', fuente: 'pedido', medida: 'importe', periodo: '12m', moneda: 'USD' })).map(normalizar)
     const gi = ped12.find((x) => x.codigo === 'GRAMPA.80-4T')
     // Las líneas atípicas aportan 0; el importe del producto sale de sus otras líneas con precio.
     const lineasG = bt.orderLines.filter((l) => l.sku_snapshot === 'GRAMPA.80-4T' && l.product_id && bt.orders.some((o) => o.id === l.order_id && o.commercial_status === 'confirmed' && (o.currency_code ?? 'SIN MONEDA') === 'USD' && o.order_date >= tramo(M, '12m')[0] && o.order_date <= hoyAR))
     const impAtipicas = lineasG.filter((l) => Number(l.quantity_ordered) >= 1000).reduce((a, l) => a + Number(l.quantity_ordered) * Number(l.unit_price), 0)
     const impResto = r4(lineasG.filter((l) => Number(l.quantity_ordered) < 1000).reduce((a, l) => a + Number(l.quantity_ordered) * Number(l.unit_price) * (1 - Number(l.discount_pct) / 100) * (1 + Number(l.tax_rate_snapshot) / 100), 0))
-    cmp('GRAMPA.80-4T por importe USD: NO se excluye; las 2 líneas atípicas aportan 0; el importe es el de sus otras líneas; cantidad real', { atipicas_importe: 0, importe: impResto, cantidad: 1598510, lineas_atipicas: 2 }, gi && { atipicas_importe: impAtipicas, importe: gi.importe, cantidad: gi.cantidad, lineas_atipicas: gi.lineas_atipicas })
+    const giEsp = esperado(bt, { dimension: 'productos', fuente: 'pedido', medida: 'importe', periodo: '12m', moneda: 'USD' }, M).find((x) => x.codigo === 'GRAMPA.80-4T')
+    cmp('GRAMPA.80-4T por importe USD: NO se excluye; las líneas atípicas aportan 0; el importe es el de sus otras líneas; cantidad real', { atipicas_importe: 0, importe: impResto, cantidad: giEsp?.cantidad, lineas_atipicas: giEsp?.lineas_atipicas }, gi && { atipicas_importe: impAtipicas, importe: gi.importe, cantidad: gi.cantidad, lineas_atipicas: gi.lineas_atipicas })
     INFO('GRAMPA por importe USD', `puesto ${gi?.posicion} de ${gi?.total_filas}`)
     const atipicosBT = [...new Set(combos.length ? ent12.filter((x) => (x.lineas_atipicas ?? 0) > 0).map((x) => x.codigo) : [])]
-    cmp('la regla de atípico sólo marca GRAMPA en el histórico', ['GRAMPA.80-4T'], atipicosBT)
+    const hc = await historicosCongelados(s)
+    if (hc.soloHistorico) cmp('la regla de atípico sólo marca GRAMPA en el histórico congelado', ['GRAMPA.80-4T'], atipicosBT)
+    else cmp('GRAMPA sigue marcado entre los atípicos (entraron documentos nuevos)', true, atipicosBT.includes('GRAMPA.80-4T'))
 
     const top = async (p) => (await rpc(jano, BT, { ...p, limite: 5 })).data.map((x) => `${x.posicion}. ${x.etiqueta} ${x.importe ?? x.cantidad} (${x.documentos})`)
     INFO('top 5 clientes · entregado · 12m · USD', JSON.stringify(await top({ dimension: 'clientes', fuente: 'entregado', medida: 'importe', periodo: '12m', moneda: 'USD' })))
@@ -541,7 +561,9 @@ const main = async () => {
   const { data: us } = await s.auth.admin.listUsers({ perPage: 1000 })
   cmp('sin usuarios zz-inf3', 0, (us?.users ?? []).filter((u) => u.email?.startsWith(`${MARCA}-`)).length)
   const huellaDespues = await huella(BT)
-  cmp('Buscatools: 288 / 166 / 182 documentos · 992 / 593 / 600 líneas', [288, 166, 182, 992, 593, 600], ['sales_quotes', 'sales_orders', 'deliveries', 'sales_quote_lines', 'sales_order_lines', 'delivery_lines'].map((t) => huellaDespues[t].n))
+  const hcFin = await historicosCongelados(s)
+  cmp('histórico migrado congelado: 288 / 166 / 182 documentos con imported_at', [288, 166, 182], [hcFin.importados.sales_quotes, hcFin.importados.sales_orders, hcFin.importados.deliveries])
+  INFO('filas vivas de Buscatools (pueden crecer)', JSON.stringify(Object.fromEntries(Object.entries(huellaDespues).map(([k, v]) => [k, v.n]))))
   cmp('histórico sin tocar: misma huella antes y después', huellaAntes, huellaDespues)
 
   console.log('\n' + '='.repeat(78))

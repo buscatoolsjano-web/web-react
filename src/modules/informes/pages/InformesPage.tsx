@@ -78,11 +78,12 @@ function ActividadComercialVista() {
       <header className={styles.encabezado}>
         <div>
           <h1 className={styles.titulo}>Informes · Actividad comercial</h1>
-          <p className={styles.subtitulo}>
-            {actividad.data
-              ? `${etiquetaTramo(actividad.data.actual)} contra ${etiquetaTramo(actividad.data.anterior)}`
-              : 'Cargando…'}
-          </p>
+          {/* Con error no hay período que mostrar: la alerta de abajo lo explica. */}
+          {actividad.data ? (
+            <p className={styles.subtitulo}>{`${etiquetaTramo(actividad.data.actual)} contra ${etiquetaTramo(actividad.data.anterior)}`}</p>
+          ) : actividad.isPending ? (
+            <p className={styles.subtitulo}>Cargando…</p>
+          ) : null}
         </div>
         <div className={styles.accionesEncabezado}>
           <SelectorMes />

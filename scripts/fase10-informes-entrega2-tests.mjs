@@ -45,6 +45,21 @@ const INFO = (t, d = '') => console.log(`    INFO  ${t}${d ? ' — ' + d : ''}`)
 const cmp = (t, esp, real) => (JSON.stringify(esp) === JSON.stringify(real) ? PASS(t, String(JSON.stringify(real)).slice(0, 110)) : FAIL(t, `esperaba ${JSON.stringify(esp)}, dio ${JSON.stringify(real)}`))
 
 const s = createClient(BASE, SECRET, { auth: { persistSession: false } })
+
+/**
+ * Documentos migrados del legacy (imported_at): son un histórico congelado.
+ * Las tablas siguen vivas: un número productivo sólo se afirma si todavía no
+ * entró ningún documento nuevo; si entró, la paridad calculada es la prueba.
+ */
+const historicosCongelados = async (sc) => {
+  // Sólo empresas reales: las fixtures zz-* de la propia suite no cuentan como documentos nuevos.
+  const reales = ((await sc.from('companies').select('id').not('slug', 'like', 'zz-%')).data ?? []).map((c) => c.id)
+  const nuevos = {}
+  for (const t of ['sales_quotes', 'sales_orders', 'deliveries']) nuevos[t] = (await sc.from(t).select('id', { count: 'exact', head: true }).is('imported_at', null).in('company_id', reales)).count ?? 0
+  const importados = {}
+  for (const t of ['sales_quotes', 'sales_orders', 'deliveries']) importados[t] = (await sc.from(t).select('id', { count: 'exact', head: true }).not('imported_at', 'is', null)).count ?? 0
+  return { soloHistorico: Object.values(nuevos).every((n) => n === 0), nuevos, importados }
+}
 const MARCA = 'zz-inf2'
 const r4 = (v) => (v === null || v === undefined ? null : Math.round(Number(v) * 10000) / 10000)
 
@@ -425,7 +440,9 @@ const main = async () => {
 
       const cumTodos = Object.fromEntries(['completo', 'parcial', 'sin_entrega', 'sobreentregado', 'no_consta_entrega', 'detalle_no_reconstruido', 'sin_lineas'].map((c) => [c, rbm[`cumplimiento|todos|${c}|`]?.documentos ?? 0]))
       INFO('cumplimiento de los 166 pedidos (RPC)', JSON.stringify(cumTodos))
-      cmp('reconstruidos = 126 de Stage 2.5 (completo + parcial + sobreentregado + los 5 sin entrega = 131 con evidencia)', [126, 5, 21, 14], [cumTodos.completo + cumTodos.parcial + cumTodos.sobreentregado, cumTodos.sin_entrega, cumTodos.no_consta_entrega, cumTodos.detalle_no_reconstruido])
+      const hc = await historicosCongelados(s)
+      if (hc.soloHistorico) cmp('reconstruidos = 126 de Stage 2.5 (completo + parcial + sobreentregado + los 5 sin entrega = 131 con evidencia) · histórico congelado', [126, 5, 21, 14], [cumTodos.completo + cumTodos.parcial + cumTodos.sobreentregado, cumTodos.sin_entrega, cumTodos.no_consta_entrega, cumTodos.detalle_no_reconstruido])
+      else INFO('hay documentos nuevos: los conteos de Stage 2.5 cambian legítimamente; la paridad calculada cubre', JSON.stringify(hc.nuevos))
       const c12 = rbm['conversion|12m||TODAS']
       INFO('conversión 12 meses (RPC)', JSON.stringify(c12))
       INFO('inconsistencias (RPC)', JSON.stringify({ moneda_distinta: rbm['inconsistencias|todos|moneda_distinta|']?.documentos, desde_borrador: rbm['inconsistencias|todos|convertida_desde_borrador|']?.documentos }))
@@ -445,7 +462,9 @@ const main = async () => {
   const { data: us } = await s.auth.admin.listUsers({ perPage: 1000 })
   cmp('sin usuarios zz-inf2', 0, (us?.users ?? []).filter((u) => u.email?.startsWith(`${MARCA}-`)).length)
   const huellaDespues = await huella(BT)
-  cmp('Buscatools: 288 cotizaciones · 166 pedidos · 182 remitos · 593 y 600 líneas', [288, 166, 182, 593, 600], [huellaDespues.sales_quotes.n, huellaDespues.sales_orders.n, huellaDespues.deliveries.n, huellaDespues.sales_order_lines.n, huellaDespues.delivery_lines.n])
+  const hcFin = await historicosCongelados(s)
+  cmp('histórico migrado congelado: 288 cotizaciones · 166 pedidos · 182 remitos con imported_at', [288, 166, 182], [hcFin.importados.sales_quotes, hcFin.importados.sales_orders, hcFin.importados.deliveries])
+  INFO('filas vivas de Buscatools (pueden crecer)', JSON.stringify(Object.fromEntries(Object.entries(huellaDespues).map(([k, v]) => [k, v.n]))))
   cmp('histórico sin tocar: misma huella antes y después (id, total, estados, updated_at)', huellaAntes, huellaDespues)
 
   console.log('\n' + '='.repeat(78))
