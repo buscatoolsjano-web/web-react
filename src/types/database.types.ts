@@ -5744,6 +5744,20 @@ export type Database = {
       }
       // Entrega 4. Las tres son de lectura; la primera y la segunda son
       // SECURITY INVOKER, la tercera DEFINER acotada a quien usa Emails.
+      informe_actividad_comercial: {
+        Args: { p_company: string; p_mes?: string | null }
+        Returns: {
+          periodo: string
+          tipo: string | null
+          mes: string
+          desde: string | null
+          hasta: string | null
+          moneda: string | null
+          documentos: number
+          importe: number
+          en_revision: number
+        }[]
+      }
       listar_bandeja_email: {
         Args: {
           p_company: string

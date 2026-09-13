@@ -205,6 +205,9 @@ const EmailBorradoresPage = lazyConRecarga(() =>
 const EmailHiloPage = lazyConRecarga(() =>
   import('@/modules/emails/pages/EmailHiloPage').then((m) => ({ default: m.EmailHiloPage })),
 )
+const InformesPage = lazyConRecarga(() =>
+  import('@/modules/informes/pages/InformesPage').then((m) => ({ default: m.InformesPage })),
+)
 const LoginPage = lazyConRecarga(() =>
   import('@/features/auth/pages/LoginPage').then((m) => ({ default: m.LoginPage })),
 )
@@ -306,6 +309,10 @@ export const routes: RouteObject[] = [
       { path: 'emails/redactar', element: privada(<EmailRedactarPage />) },
       { path: 'emails/borradores', element: privada(<EmailBorradoresPage />) },
       { path: 'emails/:threadId', element: privada(<EmailHiloPage />) },
+
+      // Informes v1: actividad comercial agregada en el servidor. Admin y
+      // employee; la página y la RPC lo validan, el menú sólo no lo ofrece.
+      { path: 'informes', element: privada(<InformesPage />) },
     ],
   },
   {
