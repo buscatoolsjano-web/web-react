@@ -19,6 +19,13 @@ de lectura (migraciones `fase10_informes_entrega4_stock`,
 > **NO STOCK VALUATION · NO CRITICAL STOCK · NO REORDER POINT · NO MARGIN · NO COST**
 > hasta que existan datos aprobados. La pantalla no muestra ninguna de esas cifras.
 
+**Estado de hoy, en una línea:** **379 saldos producto·depósito existentes**, todos
+con stock; **0 stock negativo**, **0 disponible negativo**, **0 reservas**. Los
+**21.393 productos del catálogo sin movimientos son «Sin movimientos
+registrados», no «stock 0»**: nunca tuvieron saldo en el ERP. El riesgo de
+performance a futuro **viene de la RLS** (evaluación por fila) y su corrección
+**queda fuera de esta entrega** (sección L).
+
 ---
 
 ## A · Fuentes
@@ -87,7 +94,7 @@ UPDATE / DELETE en reservas → `reserved`). Quien genera movimientos:
 | 91–180 | 0 |
 | 181–365 | 0 |
 | más de 365 | 0 |
-| **Sin movimientos registrados** | **21.393** de 21.772 |
+| **Sin movimientos registrados** (no «stock 0») | **21.393** de 21.772 |
 
 Todo el historial del ERP nuevo empieza el 8–9/9 (aperturas), así que hoy la
 distribución no permite ningún umbral de «sin rotación»: **se muestra la
