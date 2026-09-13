@@ -49,6 +49,9 @@ jobs:
           # vuelve a definir acá y nada más.
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # El servicio público de la bandeja de Emails. Es una URL, no un secreto:
+          # la autorización la da el JWT de Supabase de cada persona.
+          VITE_EMAILS_API_URL: https://buscatools-erp-email-api-545134968830.us-east1.run.app
 
       - uses: actions/upload-pages-artifact@v3
         with:

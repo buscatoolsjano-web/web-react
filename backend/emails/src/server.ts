@@ -1,25 +1,26 @@
 /**
  * El servicio HTTP, sobre Cloud Run.
  *
- * Cinco rutas, y ninguna abierta:
+ * Cinco rutas, y ninguna abierta. Éste es el servicio PRIVADO (IAM); la bandeja
+ * habla con otro despliegue del mismo código, en MODO=api (ver api/servidor.ts):
  *
  *   POST /gmail/push    ← Pub/Sub, con OIDC validado acá además de por IAM
  *   POST /gmail/watch   ← Cloud Scheduler, con OIDC de su propia SA
  *   POST /gmail/sync    ← recuperación manual, mismo OIDC que el scheduler
- *   GET  /gmail/thread  ← la UI, con el JWT de Supabase del usuario
- *   GET  /gmail/attachment
  *   GET  /salud
  *
  * Lo que NO hay acá: envío, borradores, etiquetas, archivar, spam, papelera, ni
  * marcar leído en Gmail. La entrega 3 no muta el buzón salvo `users.watch`.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { leerConfig, buzonPermitido, type Config } from './config.js'
+import { leerConfig, leerConfigApi, buzonPermitido, type Config } from './config.js'
+import { construirServidorApi } from './api/servidor.js'
+import { AutorizadorSupabase } from './api/autorizacion.js'
 import { AlmacenSupabase, type Almacen, type CuentaEmail } from './almacen.js'
 import { ProveedorDeTokens } from './google/auth.js'
 import { ClienteGmailReal, ErrorGmail, type ClienteGmail } from './google/gmail.js'
 import { validarOidc, leerMensajePubsub, TokenInvalido } from './oidc.js'
-import { sincronizar } from './sync.js'
+import { renovarWatch, sincronizar } from './sync.js'
 
 const INSTANCIA = `cloudrun-${process.pid}-${Math.random().toString(36).slice(2, 8)}`
 
@@ -167,22 +168,12 @@ async function manejarWatch(ctx: Contexto, req: IncomingMessage, res: ServerResp
   for (const cuenta of cuentas) {
     try {
       verificarBuzon(ctx.cfg, cuenta)
-      const w = await ctx.gmail.iniciarWatch(cuenta.email_address, ctx.cfg.topicPubsub)
-      await ctx.almacen.guardarWatch(cuenta.id, w.historyId, w.expiration, ctx.cfg.topicPubsub)
-      await ctx.almacen.registrarSync({
-        account_id: cuenta.id, kind: 'watch_renovado', history_id_hasta: w.historyId,
+      const w = await renovarWatch({
+        cuenta, gmail: ctx.gmail, almacen: ctx.almacen, topic: ctx.cfg.topicPubsub,
+        duenoLease: INSTANCIA, ventanaResync: ctx.cfg.ventanaResync, maxHilosResync: ctx.cfg.maxHilosResync,
       })
-      // Red para las notificaciones perdidas: si el historyId del watch se
-      // adelantó al cursor, hay cambios sin sincronizar.
-      if (cuenta.last_history_id && BigInt(w.historyId) > BigInt(cuenta.last_history_id)) {
-        await sincronizar({
-          cuenta, gmail: ctx.gmail, almacen: ctx.almacen,
-          duenoLease: INSTANCIA, historyIdEvento: w.historyId, origen: 'cron',
-          ventanaResync: ctx.cfg.ventanaResync, maxHilosResync: ctx.cfg.maxHilosResync,
-        })
-      }
       salida.push({ account_id: cuenta.id, ok: true })
-      log('info', 'watch.renovado', { account_id: cuenta.id, expira: w.expiration })
+      log('info', 'watch.renovado', { account_id: cuenta.id, expira: w.expiration, sincronizo: w.sincronizo })
     } catch (e) {
       const err = e as Error
       // Si falla, NO se borra el watch anterior: mientras no venza, sigue
@@ -275,9 +266,8 @@ export function construirServidor(ctx: Contexto) {
       if (req.method === 'POST' && ruta === '/gmail/watch') return manejarWatch(ctx, req, res)
       if (req.method === 'POST' && ruta === '/gmail/sync') return manejarSyncManual(ctx, req, res)
       if (req.method === 'POST' && ruta === '/gmail/perfil') return manejarPerfil(ctx, req, res)
-      // /gmail/thread y /gmail/attachment llegan en la entrega 4, junto con la
-      // bandeja: sin UI que los consuma, exponerlos ahora sería superficie sin
-      // uso. El cliente de Gmail ya tiene los métodos listos.
+      // /gmail/thread y /gmail/attachment NO viven acá: están en el servicio
+      // público de la bandeja (MODO=api), para que éste siga detrás de IAM.
       responder(res, 404, { error: 'ruta desconocida' })
     }
     manejar().catch((e) => {
@@ -287,7 +277,21 @@ export function construirServidor(ctx: Contexto) {
   })
 }
 
-if (process.env['NODE_ENV'] !== 'test') {
+if (process.env['NODE_ENV'] !== 'test' && process.env['MODO'] === 'api') {
+  // El mismo código, desplegado como el servicio público de la bandeja. Ver
+  // api/servidor.ts: por qué es un servicio aparte y no rutas de éste.
+  const cfg = leerConfigApi()
+  const tokens = new ProveedorDeTokens(cfg.serviceAccount, cfg.scopeGmail)
+  const puerto = Number(process.env['PORT'] ?? 8080)
+  construirServidorApi({
+    buzones: cfg.buzones,
+    origenes: cfg.origenes,
+    autorizador: new AutorizadorSupabase(cfg.supabaseUrl, cfg.supabaseClavePublica),
+    gmail: new ClienteGmailReal((buzon) => tokens.para(buzon)),
+  }).listen(puerto, () => {
+    log('info', 'arranque', { modo: 'api', puerto, buzones: cfg.buzones.size })
+  })
+} else if (process.env['NODE_ENV'] !== 'test') {
   const cfg = leerConfig()
   const tokens = new ProveedorDeTokens(cfg.serviceAccount, cfg.scopeGmail)
   const ctx: Contexto = {

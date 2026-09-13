@@ -17,6 +17,10 @@ export const EnvSchema = z.object({
   VITE_SUPABASE_ANON_KEY: z
     .string()
     .min(20, 'VITE_SUPABASE_ANON_KEY parece incompleta'),
+  // El servicio público de la bandeja de Emails (Cloud Run). Es una URL, no un
+  // secreto: la autorización la da el JWT de cada persona. Opcional para que un
+  // entorno sin Emails siga arrancando; la bandeja lo avisa en vez de romper.
+  VITE_EMAILS_API_URL: z.string().url('VITE_EMAILS_API_URL debe ser una URL válida').optional(),
 })
 
 export type Env = z.infer<typeof EnvSchema>

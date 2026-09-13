@@ -5742,6 +5742,62 @@ export type Database = {
         }
         Returns: Database["public"]["Tables"]["email_thread_state"]["Row"]
       }
+      // Entrega 4. Las tres son de lectura; la primera y la segunda son
+      // SECURITY INVOKER, la tercera DEFINER acotada a quien usa Emails.
+      listar_bandeja_email: {
+        Args: {
+          p_company: string
+          p_account?: string | null
+          p_q?: string | null
+          p_sin_leer?: boolean | null
+          p_estado?: string | null
+          p_asignado?: string | null
+          p_cliente?: string | null
+          p_adjuntos?: boolean | null
+          p_limite?: number | null
+          p_offset?: number | null
+        }
+        Returns: {
+          id: string
+          account_id: string
+          gmail_thread_id: string
+          subject: string | null
+          snippet: string | null
+          last_message_at: string | null
+          last_message_from: string | null
+          last_message_dir: string | null
+          participants: string[]
+          message_count: number
+          has_attachments: boolean
+          workflow_status: string
+          assigned_to: string | null
+          assigned_name: string | null
+          customer_id: string | null
+          customer_name: string | null
+          vinculo_origen: string | null
+          sin_leer: boolean
+          total: number
+          total_sin_leer: number
+        }[]
+      }
+      sugerencias_cliente_email: {
+        Args: { p_account: string; p_thread: string }
+        Returns: {
+          customer_id: string
+          customer_name: string | null
+          contact_id: string | null
+          contact_name: string | null
+          direccion: string
+          clase: string
+        }[]
+      }
+      usuarios_asignables_email: {
+        Args: { p_company: string }
+        Returns: {
+          user_id: string
+          full_name: string
+        }[]
+      }
       marcar_hilo_leido_email: {
         Args: { p_account: string; p_thread: string }
         Returns: undefined

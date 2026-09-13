@@ -114,6 +114,13 @@ export interface ClienteGmail {
   /** El hilo completo, con cuerpos. Sólo bajo demanda, al abrirlo. */
   hiloCompleto(buzon: string, hiloId: string): Promise<unknown>
 
+  /**
+   * Un mensaje con sus partes, para validar un adjunto antes de bajarlo: que el
+   * mensaje sea de ESE hilo y que la parte exista. El `attachmentId` no se toma
+   * del cliente — la documentación no garantiza que sea estable entre lecturas.
+   */
+  mensajeCompleto(buzon: string, mensajeId: string): Promise<unknown>
+
   adjunto(buzon: string, mensajeId: string, adjuntoId: string): Promise<{ data: string; size: number }>
 
   iniciarWatch(buzon: string, topic: string): Promise<RespuestaWatch>
@@ -151,6 +158,11 @@ export function detectarAdjuntos(payload: unknown): boolean {
     if (detectarAdjuntos(parte)) return true
   }
   return false
+}
+
+/** El cuerpo de `users.watch`: sólo el topic. Sin `labelIds` ni `labelFilterBehavior`. */
+export function cuerpoWatch(topic: string): { topicName: string } {
+  return { topicName: topic }
 }
 
 export class ClienteGmailReal implements ClienteGmail {
@@ -282,6 +294,10 @@ export class ClienteGmailReal implements ClienteGmail {
     return this.pedir(buzon, `/threads/${encodeURIComponent(hiloId)}?format=full`)
   }
 
+  async mensajeCompleto(buzon: string, mensajeId: string): Promise<unknown> {
+    return this.pedir(buzon, `/messages/${encodeURIComponent(mensajeId)}?format=full`)
+  }
+
   async adjunto(buzon: string, mensajeId: string, adjuntoId: string) {
     const j = (await this.pedir(
       buzon,
@@ -290,11 +306,23 @@ export class ClienteGmailReal implements ClienteGmail {
     return { data: j.data ?? '', size: j.size ?? 0 }
   }
 
+  /**
+   * El watch mira el BUZÓN, no el INBOX.
+   *
+   * Hasta la entrega 4 llevaba `labelIds: ['INBOX']`. Medido en producción: un
+   * mail que un filtro de Gmail saca del INBOX, y una respuesta enviada desde
+   * Gmail (SENT), no disparaban push; entraban recién con el siguiente cambio de
+   * INBOX. Sin `labelIds`, Gmail notifica cualquier cambio del buzón, que es lo
+   * que `history.list` —sin filtro de etiqueta— ya sabía sincronizar.
+   *
+   * No se agregan otras etiquetas: cualquier lista sería una elección arbitraria
+   * de qué correo llega tarde.
+   */
   async iniciarWatch(buzon: string, topic: string): Promise<RespuestaWatch> {
     const j = (await this.pedir(buzon, '/watch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topicName: topic, labelIds: ['INBOX'], labelFilterBehavior: 'INCLUDE' }),
+      body: JSON.stringify(cuerpoWatch(topic)),
     })) as { historyId?: string; expiration?: string }
     if (!j.historyId || !j.expiration) throw new Error('watch no devolvió historyId/expiration')
     return { historyId: j.historyId, expiration: j.expiration }

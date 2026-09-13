@@ -310,3 +310,54 @@ async function aplicarHilos(
   }
   if (filas.length > 0) await op.almacen.upsertHilos(filas)
 }
+
+/**
+ * Renueva el watch de un buzón y, si Gmail ya está por delante del cursor,
+ * sincroniza la diferencia.
+ *
+ * Es la red para las notificaciones perdidas. Hasta la entrega 4 se anulaba a sí
+ * misma: guardaba el historyId del watch como cursor ANTES de comparar, así que
+ * al comparar el cursor ya estaba adelante y el sync no hacía nada. Los cambios
+ * del medio quedaban sin indexar. Encontrado en producción al renovar el watch.
+ *
+ * Ahora el cursor sólo lo mueve `sincronizar`, al final, después de aplicar. La
+ * única excepción es una cuenta sin cursor, donde el historyId del watch es el
+ * piso natural.
+ */
+export async function renovarWatch(op: {
+  cuenta: CuentaEmail
+  gmail: ClienteGmail
+  almacen: Almacen
+  topic: string
+  duenoLease: string
+  ventanaResync?: string | undefined
+  maxHilosResync?: number | undefined
+}): Promise<{ historyId: string; expiration: string; sincronizo: boolean }> {
+  const w = await op.gmail.iniciarWatch(op.cuenta.email_address, op.topic)
+  await op.almacen.guardarWatch(op.cuenta.id, w.expiration, op.topic)
+  await op.almacen.registrarSync({
+    account_id: op.cuenta.id,
+    kind: 'watch_renovado',
+    history_id_desde: op.cuenta.last_history_id,
+    history_id_hasta: w.historyId,
+  })
+
+  if (!op.cuenta.last_history_id) {
+    await op.almacen.avanzarHistory(op.cuenta.id, w.historyId, false)
+    return { ...w, sincronizo: false }
+  }
+  if (!historyIdMayor(op.cuenta.last_history_id, w.historyId)) {
+    return { ...w, sincronizo: false }
+  }
+  await sincronizar({
+    cuenta: op.cuenta,
+    gmail: op.gmail,
+    almacen: op.almacen,
+    duenoLease: op.duenoLease,
+    historyIdEvento: w.historyId,
+    origen: 'cron',
+    ventanaResync: op.ventanaResync,
+    maxHilosResync: op.maxHilosResync,
+  })
+  return { ...w, sincronizo: true }
+}

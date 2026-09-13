@@ -93,3 +93,37 @@ export function buzonPermitido(buzones: ReadonlySet<string>, direccion: string |
   if (!direccion) return false
   return buzones.has(direccion.trim().toLowerCase())
 }
+
+/**
+ * Configuración del servicio PÚBLICO de la bandeja (`MODO=api`).
+ *
+ * Deliberadamente más chica que la del servicio interno: no lleva la service
+ * key de Supabase —autoriza con el JWT de cada persona— ni nada de Pub/Sub o
+ * del scheduler. La clave publicable de Supabase no es un secreto: es la misma
+ * que ya viaja en el bundle del frontend.
+ */
+export interface ConfigApi {
+  readonly serviceAccount: string
+  readonly scopeGmail: string
+  readonly supabaseUrl: string
+  readonly supabaseClavePublica: string
+  readonly buzones: ReadonlySet<string>
+  /** Orígenes del navegador que pueden llamar. Sin comodín. */
+  readonly origenes: ReadonlySet<string>
+}
+
+export function leerConfigApi(): ConfigApi {
+  const origenes = requerida('CORS_ORIGINS')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean)
+  if (origenes.some((o) => o === '*')) throw new Error('CORS_ORIGINS no acepta comodín')
+  return {
+    serviceAccount: requerida('GMAIL_SERVICE_ACCOUNT_EMAIL'),
+    scopeGmail: 'https://www.googleapis.com/auth/gmail.modify',
+    supabaseUrl: requerida('SUPABASE_URL'),
+    supabaseClavePublica: requerida('SUPABASE_PUBLISHABLE_KEY'),
+    buzones: buzonesPermitidos(),
+    origenes: new Set(origenes),
+  }
+}

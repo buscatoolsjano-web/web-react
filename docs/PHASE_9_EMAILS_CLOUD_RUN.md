@@ -50,9 +50,9 @@ y un request sin token recibe 403 de Cloud Run antes de llegar al código. Y la 
 código además de en IAM: Cloud Run comprueba que quien llama puede invocar; el
 código comprueba que es **la subscription que esperamos**, con nuestro audience.
 
-`/gmail/thread` y `/gmail/attachment` llegan en la entrega 4, junto con la
-bandeja. Exponerlos ahora sería superficie sin consumidor. El cliente de Gmail
-ya tiene los métodos.
+`/gmail/thread` y `/gmail/attachment` **no viven en este servicio**: están en
+`buscatools-erp-email-api`, el mismo código desplegado con `MODO=api`. Ver
+«Servicio público de la bandeja», abajo.
 
 ---
 
@@ -283,7 +283,7 @@ qué.
 npm run backend:check     # typecheck + tests, desde la raíz del repo
 ```
 
-**48 tests, y ninguno toca `info@`.** El algoritmo entero corre contra un Gmail
+**86 tests, y ninguno toca `info@`.** El algoritmo entero corre contra un Gmail
 falso y un almacén en memoria: 404 de historial, eventos fuera de orden, evento
 repetido, lease tomado, lease vencido, resync que conserva el estado.
 
@@ -306,7 +306,7 @@ Los fixtures son inventados. Ninguno sale de correo real.
 | Subscription | `gmail-buscatools-events-push` → `…/gmail/push` · OIDC `buscatools-email-pubsub-push@…` · audience = URL · ack 60 s · retry 10–600 s |
 | Scheduler | `gmail-watch-renewal` · `0 6 * * *` America/Argentina/Buenos_Aires → `…/gmail/watch` · OIDC `buscatools-email-scheduler@…` |
 | Cuenta en la base | `email_accounts` `053b871c-a451-497c-bd4a-c7678f7b697b` · `info@buscatools.com.ar` · `dwd` |
-| `users.watch` | activo · `labelIds: INBOX` · se renueva a diario |
+| `users.watch` | activo · **sin filtro de etiquetas** (cuerpo `{ topicName }`) · se renueva a diario |
 
 ### Cómo se desplegó
 
@@ -344,3 +344,114 @@ Ninguna bloquea la operación:
    30 s, por encima de las 6.000/min por usuario. No dio 429; subir
    `SYNC_MAX_HILOS` exige resolver esto antes.
 3. **Retención de `email_sync_log`.** El cron de 30 días no existe.
+
+---
+
+## Servicio público de la bandeja · `buscatools-erp-email-api` (entrega 4)
+
+El navegador no puede conseguir un token de identidad de Google, así que las
+rutas que usa la bandeja no pueden estar detrás de IAM. Por eso son **otro
+servicio**, con el mismo código en `MODO=api`: el privado sigue con
+`--no-allow-unauthenticated` y sus dos invokers.
+
+| | |
+|---|---|
+| URL | `https://buscatools-erp-email-api-545134968830.us-east1.run.app` |
+| revisión | `buscatools-erp-email-api-00002-s7t` |
+| invocación | `--no-invoker-iam-check` — **pública por diseño**; la autenticación la hace el código |
+| runtime SA | `buscatools-email-api@…` |
+| escalado | min 0 · max 3 · 256 MiB · timeout 60 s |
+| rutas | `GET /salud` · `GET /gmail/thread` · `GET /gmail/attachment` · `OPTIONS` |
+| variables | `MODO=api`, `GMAIL_SERVICE_ACCOUNT_EMAIL`, `ALLOWED_GMAIL_MAILBOXES`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `CORS_ORIGINS` |
+| secretos | **ninguno** |
+
+### Qué NO tiene
+
+- La service key de Supabase: autoriza con el JWT de cada persona y la RLS.
+- Ninguna private key de Google.
+- Ningún privilegio de sync, watch o Pub/Sub: esas rutas **no existen** acá (404).
+- Ningún rol de proyecto. Su único permiso: `serviceAccountTokenCreator` **sobre**
+  `buscatools-erp-email@…`, para firmar la aserción DWD.
+
+### Autorización de cada pedido
+
+1. Sin `Authorization: Bearer <jwt>` con forma de JWT → **401**.
+2. `account_id` uuid, `thread_id` hexadecimal, `part_id` `1.2.3`; si no → **404**
+   sin tocar la base.
+3. PostgREST **con el JWT de la persona**: `email_threads` por cuenta **e** hilo,
+   con su cuenta embebida. JWT inválido → 401. Cero filas → **404** (no confirma
+   que exista). Supabase caído → 503 con `Retry-After`.
+4. Allowlist del buzón → si no, 404.
+5. Límite por persona: 120 pedidos por minuto por instancia → 429.
+6. Adjunto: `messages.get` → el mensaje tiene que ser **de ese hilo** → la parte
+   tiene que existir → el `attachmentId` sale de Gmail en ese momento.
+
+Respuestas `Cache-Control: private, no-store`. Adjuntos HTML/SVG como
+`application/octet-stream` con `Content-Security-Policy: sandbox`. CORS sólo para
+`https://app.buscatools.com` y `http://localhost:5173`.
+
+### Logs
+
+Sólo `account_id`, status, bytes y milisegundos. Revisados todos los logs de
+Cloud Run del proyecto desde el 12/9: **0** `Bearer`, `ya29.`, JWT, `sb_secret`,
+private keys o `assertion`; **0** asuntos, cuerpos o nombres de adjuntos reales.
+
+La clave **publicable** aparece en el log de **auditoría** de GCP de cada deploy
+(`CreateService` / `ReplaceService` guardan las variables de entorno de la
+revisión). Es pública —la misma del bundle—, pero conviene saberlo: cualquier
+variable de entorno en claro queda ahí. Por eso la service key del servicio
+privado es una referencia a Secret Manager, y no aparece.
+
+### Desplegar
+
+```bash
+gcloud run deploy buscatools-erp-email-api --source backend/emails --project buscatools-erp-email --region us-east1 --service-account buscatools-email-api@buscatools-erp-email.iam.gserviceaccount.com --build-service-account projects/buscatools-erp-email/serviceAccounts/buscatools-email-build@buscatools-erp-email.iam.gserviceaccount.com --no-invoker-iam-check --min-instances 0 --max-instances 3 --memory 256Mi --timeout 60s --env-vars-file api-env.yaml
+```
+
+Un redeploy sin `--env-vars-file` conserva las variables y el modo de invocación.
+
+### Red team
+
+```bash
+EMAILS_API_URL=https://buscatools-erp-email-api-545134968830.us-east1.run.app node scripts/fase9-emails-entrega4-api-redteam.mjs
+```
+
+---
+
+## Watch sin filtro de etiquetas (entrega 4)
+
+Hasta la entrega 4 el watch llevaba `labelIds: ["INBOX"]`. Medido en producción:
+los mails que un filtro de Gmail saca del INBOX, y las respuestas enviadas desde
+Gmail, no disparaban push. Ahora el cuerpo es sólo `{ topicName }`.
+
+La configuración vive en el código; el job `gmail-watch-renewal` no manda cuerpo,
+así que cada renovación diaria usa la configuración vigente.
+
+### Renovar a mano
+
+```bash
+gcloud scheduler jobs run gmail-watch-renewal --location us-east1 --project buscatools-erp-email
+```
+
+### La red para notificaciones perdidas, corregida
+
+`renovarWatch` (`src/sync.ts`) renueva el watch y, si el `historyId` de Gmail está
+por delante del cursor, **sincroniza la diferencia**. Hasta la entrega 4 esa red se
+anulaba sola: el cursor se guardaba antes de comparar. Ahora el cursor sólo lo
+mueve `sincronizar`, al final. Hay un test de regresión.
+
+## Recursos del proyecto (13/9)
+
+| recurso | cantidad | free tier |
+|---|---|---|
+| Cloud Run | 2 servicios · min 0 · max 3 · 256 MiB | 2 M requests y 180.000 vCPU-s/mes |
+| Cloud Scheduler | 1 job | 3 jobs |
+| Pub/Sub | 1 topic · 1 subscription | 10 GiB/mes |
+| Secret Manager | 1 secreto | 6 versiones activas |
+| Artifact Registry | `cloud-run-source-deploy` · **77 MB** | 0,5 GB |
+| service accounts | 5 propias + la default de Compute (sin usar) | — |
+
+**Deuda chica:** cada deploy desde source agrega una imagen a Artifact Registry y
+no hay política de limpieza. A este ritmo el 0,5 GB se alcanza después de varias
+decenas de deploys; conviene una cleanup policy antes de eso. Budget de USD 5 sin
+tocar.

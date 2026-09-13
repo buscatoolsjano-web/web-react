@@ -62,7 +62,12 @@ export interface Almacen {
   avanzarHistory(cuenta: string, historyId: string, fullSync: boolean): Promise<void>
   upsertHilos(filas: FilaHilo[]): Promise<void>
   registrarSync(entrada: EntradaSync): Promise<void>
-  guardarWatch(cuenta: string, historyId: string, expiration: string, topic: string): Promise<void>
+  /**
+   * Sólo vencimiento y topic. NO toca el cursor: el historyId que devuelve el
+   * watch es el del momento, y usarlo de cursor saltearía los cambios que
+   * todavía no se sincronizaron. Ver `renovarWatch`.
+   */
+  guardarWatch(cuenta: string, expiration: string, topic: string): Promise<void>
   registrarError(cuenta: string, error: string): Promise<void>
 }
 
@@ -162,23 +167,14 @@ export class AlmacenSupabase implements Almacen {
     })
   }
 
-  async guardarWatch(cuenta: string, historyId: string, expiration: string, topic: string): Promise<void> {
+  async guardarWatch(cuenta: string, expiration: string, topic: string): Promise<void> {
     await this.rest(`/email_accounts?id=eq.${cuenta}`, {
       method: 'PATCH',
       headers: { Prefer: 'return=minimal' },
       body: JSON.stringify({
         watch_expiration: new Date(Number(expiration)).toISOString(),
         watch_topic: topic,
-        // El watch devuelve el historyId del momento. Sólo sirve como piso si
-        // la cuenta todavía no tenía cursor: si ya tenía uno, pisarlo saltearía
-        // los cambios intermedios.
-        ...(historyId ? {} : {}),
       }),
-    })
-    await this.rpc('avanzar_history_email', {
-      p_account: cuenta,
-      p_history_id: historyId,
-      p_full_sync: false,
     })
   }
 

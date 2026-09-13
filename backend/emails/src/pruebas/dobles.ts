@@ -14,7 +14,7 @@ import type {
   PaginaHistorial,
   RespuestaWatch,
 } from '../google/gmail.js'
-import { HistorialVencido } from '../google/gmail.js'
+import { ErrorGmail, HistorialVencido } from '../google/gmail.js'
 import type { Almacen, CuentaEmail, EntradaSync, FilaHilo } from '../almacen.js'
 
 export interface HiloFalso {
@@ -98,11 +98,29 @@ export class GmailFalso implements ClienteGmail {
 
   async hiloCompleto(_buzon: string, id: string): Promise<unknown> {
     this.llamadas.push(`hiloCompleto:${id}`)
-    return this.hilos.get(id) ?? null
+    const h = this.hilosCompletos.get(id)
+    if (h) return h
+    const indice = this.hilos.get(id)
+    if (!indice) throw new ErrorGmail(404, 'no existe')
+    return indice
   }
 
-  async adjunto(): Promise<{ data: string; size: number }> {
-    this.llamadas.push('adjunto')
+  /** Mensajes con partes, para las rutas de la bandeja. La suite los fija. */
+  readonly mensajesCompletos = new Map<string, unknown>()
+  readonly hilosCompletos = new Map<string, unknown>()
+  readonly adjuntos = new Map<string, string>()
+
+  async mensajeCompleto(_buzon: string, id: string): Promise<unknown> {
+    this.llamadas.push(`mensajeCompleto:${id}`)
+    const m = this.mensajesCompletos.get(id)
+    if (!m) throw new ErrorGmail(404, 'no existe')
+    return m
+  }
+
+  async adjunto(_buzon?: string, mensajeId?: string, adjuntoId?: string): Promise<{ data: string; size: number }> {
+    this.llamadas.push(`adjunto:${mensajeId ?? ''}:${adjuntoId ?? ''}`)
+    const data = this.adjuntos.get(adjuntoId ?? '')
+    if (data !== undefined) return { data, size: Buffer.from(data, 'base64url').length }
     return { data: '', size: 0 }
   }
 
@@ -181,11 +199,10 @@ export class AlmacenMemoria implements Almacen {
     this.logs.push(e)
   }
 
-  async guardarWatch(id: string, historyId: string, expiration: string): Promise<void> {
+  async guardarWatch(id: string, expiration: string): Promise<void> {
     const c = this.cuentas.get(id)
     if (!c) return
     c.watch_expiration = new Date(Number(expiration)).toISOString()
-    await this.avanzarHistory(id, historyId, false)
   }
 
   async registrarError(_id: string, error: string): Promise<void> {

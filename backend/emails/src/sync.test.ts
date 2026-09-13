@@ -7,7 +7,7 @@
  * reconstruir.
  */
 import { describe, it, expect } from 'vitest'
-import { sincronizar, historyIdMayor, filaDesdeHilo } from './sync.js'
+import { sincronizar, historyIdMayor, filaDesdeHilo, renovarWatch } from './sync.js'
 import { AlmacenMemoria, GmailFalso, cuentaDePrueba, hilo } from './pruebas/dobles.js'
 
 const BUZON = 'buzon@prueba.invalid'
@@ -327,5 +327,55 @@ describe('has_attachments sale de una búsqueda, no de las partes', () => {
 
     expect(r.hilosTocados).toBe(1)
     expect(almacen.hilos.get(`${cuenta.id}|t1`)?.has_attachments).toBe(false)
+  })
+})
+
+describe('renovarWatch — la red para las notificaciones perdidas', () => {
+  const opciones = (a: ReturnType<typeof armar>) => ({
+    cuenta: a.cuenta,
+    gmail: a.gmail,
+    almacen: a.almacen,
+    topic: 'projects/p/topics/t',
+    duenoLease: 'cron-test',
+  })
+
+  it('REGRESIÓN: indexa lo que cambió entre el cursor y el historyId del watch', async () => {
+    // El bug de producción: guardar el historyId del watch como cursor antes de
+    // comparar hacía que el sync posterior no encontrara nada que hacer, y el
+    // hilo cambiado en 1500 no se indexaba nunca.
+    const a = armar({ historyIdInicial: '1000' })
+    a.gmail.agregar(hilo({ id: 'perdido', historyId: '1500', asunto: 'push perdido', de: 'x@y.z', para: BUZON, cuando: 1 }), '1500')
+    a.gmail.historyIdActual = '2000'
+
+    const r = await renovarWatch(opciones(a))
+
+    expect(r.sincronizo).toBe(true)
+    expect([...a.almacen.hilos.values()].map((h) => h.gmail_thread_id)).toEqual(['perdido'])
+    expect(a.almacen.cuentas.get(a.cuenta.id)?.last_history_id).toBe('2000')
+    expect(a.gmail.llamadas).toContain('historial:1000')
+  })
+
+  it('guardar el watch NO mueve el cursor por sí solo', async () => {
+    const a = armar({ historyIdInicial: '1000' })
+    a.gmail.historyIdActual = '2000'
+    await a.almacen.guardarWatch(a.cuenta.id, '1800000000000', 'projects/p/topics/t')
+    expect(a.almacen.cuentas.get(a.cuenta.id)?.last_history_id).toBe('1000')
+    expect(a.almacen.cuentas.get(a.cuenta.id)?.watch_expiration).not.toBeNull()
+  })
+
+  it('sin cambios pendientes, renueva y no sincroniza', async () => {
+    const a = armar({ historyIdInicial: '2000' })
+    a.gmail.historyIdActual = '2000'
+    const r = await renovarWatch(opciones(a))
+    expect(r.sincronizo).toBe(false)
+    expect(a.gmail.llamadas).toEqual(['watch'])
+    expect(a.almacen.logs.map((l) => l.kind)).toEqual(['watch_renovado'])
+  })
+
+  it('una cuenta sin cursor toma el historyId del watch como piso', async () => {
+    const a = armar({ historyIdInicial: null })
+    a.gmail.historyIdActual = '3000'
+    await renovarWatch(opciones(a))
+    expect(a.almacen.cuentas.get(a.cuenta.id)?.last_history_id).toBe('3000')
   })
 })

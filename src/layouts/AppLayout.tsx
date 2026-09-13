@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/useAuth'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { EmpresaSelector } from '@/features/empresa/EmpresaSelector'
 import { cx } from '@/utils/cx'
+import { ROLES_EMAILS } from '@/modules/emails/lib/permisos'
 import styles from './AppLayout.module.css'
 
 /** Los roles que escriben en Compras. Es el conjunto de la RLS de la sección. */
@@ -59,11 +60,13 @@ const NAV = [
     end: false,
     roles: ESCRIBEN_MANTENIMIENTO,
   },
+  // Emails. Admin y employee: el conjunto de `app.current_email_company_ids()`.
+  // La constante vive en el módulo y es la misma que usa la página.
+  { to: '/emails', label: 'Emails', end: false, roles: ROLES_EMAILS },
 ] as const
 
 const PROXIMAMENTE = [
   'WhatsApp',
-  'Emails',
   'Informes',
   'Configuración',
 ] as const

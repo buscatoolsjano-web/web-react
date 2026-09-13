@@ -193,6 +193,12 @@ const OrdenDetallePage = lazyConRecarga(() =>
 const PuntosPage = lazyConRecarga(() =>
   import('@/modules/mantenimiento/pages/PuntosPage').then((m) => ({ default: m.PuntosPage })),
 )
+const EmailsPage = lazyConRecarga(() =>
+  import('@/modules/emails/pages/EmailsPage').then((m) => ({ default: m.EmailsPage })),
+)
+const EmailHiloPage = lazyConRecarga(() =>
+  import('@/modules/emails/pages/EmailHiloPage').then((m) => ({ default: m.EmailHiloPage })),
+)
 const LoginPage = lazyConRecarga(() =>
   import('@/features/auth/pages/LoginPage').then((m) => ({ default: m.LoginPage })),
 )
@@ -285,6 +291,12 @@ export const routes: RouteObject[] = [
       { path: 'mantenimiento/ordenes/nueva', element: privada(<OrdenNuevaPage />) },
       { path: 'mantenimiento/ordenes/:id', element: privada(<OrdenDetallePage />) },
       { path: 'mantenimiento/puntos', element: privada(<PuntosPage />) },
+
+      // Emails. El id de la ruta es el uuid de `email_threads`, no el id de
+      // Gmail: un gmail_thread_id sólo es único dentro de su cuenta, y la
+      // bandeja no asume que haya una sola.
+      { path: 'emails', element: privada(<EmailsPage />) },
+      { path: 'emails/:threadId', element: privada(<EmailHiloPage />) },
     ],
   },
   {
