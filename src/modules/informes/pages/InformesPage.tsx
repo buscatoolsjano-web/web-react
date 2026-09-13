@@ -1,25 +1,31 @@
+import { useIsFetching, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { ConversionCotizaciones } from '../components/ConversionCotizaciones'
 import { CumplimientoPedidos } from '../components/CumplimientoPedidos'
 import { EtapasPipeline } from '../components/EtapasPipeline'
+import { ExportarInforme } from '../components/ExportarInforme'
+import { RankingComercial } from '../components/RankingComercial'
 import { SerieMensual } from '../components/SerieMensual'
 import { TarjetaActividad } from '../components/TarjetaActividad'
 import { TicketPromedio } from '../components/TicketPromedio'
 import { useActividad, usePipeline } from '../hooks/useActividad'
 import { etiquetaTramo, leerMes, textoRevision } from '../lib/actividad'
 import { etiquetaDoceMeses } from '../lib/pipeline'
+import { RANKING_INICIAL } from '../lib/rankings'
 import { puedeVerInformes } from '../lib/permisos'
 import { ErrorInforme } from '../services/actividad'
-import type { ActividadComercial, PeriodoCohorte, PipelineComercial, TipoActividad } from '../types'
+import type { ActividadComercial, ParametrosRanking, PeriodoCohorte, PipelineComercial, TipoActividad } from '../types'
 import styles from '../components/Informes.module.css'
 
 /**
- * Informes · actividad comercial (Entrega 1) y pipeline, conversión,
- * cumplimiento y ticket (Entrega 2).
+ * Informes · actividad comercial (Entrega 1); pipeline, conversión,
+ * cumplimiento y ticket (Entrega 2); rankings y CSV (Entrega 3).
  *
- * Todo lo agregan dos funciones del servidor (`informe_actividad_comercial` e
- * `informe_pipeline_comercial`), en paralelo: la pantalla no baja documentos. Reglas a la vista, porque cambian lo que el legacy mostraba:
+ * Todo lo agregan funciones del servidor (`informe_actividad_comercial`,
+ * `informe_pipeline_comercial`, `informe_rankings_comerciales`): la pantalla
+ * no baja documentos. Reglas a la vista, porque cambian lo que el legacy mostraba:
  * «vendido» es lo entregado, cada moneda por separado y sin convertir, y el mes
  * sale de la fecha del documento.
  */
@@ -53,7 +59,10 @@ function ActividadComercialVista() {
   const tope = mesActualAR()
   const actividad = useActividad(mes)
   const pipeline = usePipeline(mes)
-  const actualizando = actividad.isFetching || pipeline.isFetching
+  const queryClient = useQueryClient()
+  const [ranking, setRanking] = useState<ParametrosRanking>(RANKING_INICIAL)
+  const cambiarRanking = (c: Partial<ParametrosRanking>) => setRanking((prev) => ({ ...prev, ...c }))
+  const actualizando = useIsFetching({ queryKey: ['informes'] }) > 0
 
   const cambiarMes = (valor: string) => {
     const limpio = leerMes(valor)
@@ -98,14 +107,13 @@ function ActividadComercialVista() {
           <button
             type="button"
             className={styles.boton}
-            onClick={() => {
-              void actividad.refetch()
-              void pipeline.refetch()
-            }}
+            // Actividad, pipeline y el ranking a la vista: todo lo de Informes.
+            onClick={() => void queryClient.invalidateQueries({ queryKey: ['informes'] })}
             disabled={actualizando}
           >
             {actualizando && !actividad.isPending ? 'Actualizando…' : 'Actualizar'}
           </button>
+          <ExportarInforme mes={mes} mesEfectivo={mes ?? tope} />
         </div>
       </header>
 
@@ -122,6 +130,8 @@ function ActividadComercialVista() {
           <li><b>Cumplimiento</b>: cada pedido confirmado contra sus remitos confirmados, línea por línea. Los pedidos <b>sin evidencia</b> (no consta entrega o detalle no reconstruido) se muestran aparte y <b>no entran al porcentaje</b>: no se los da por no entregados.</li>
           <li><b>Pendiente</b>: lo que falta de cada línea × precio del pedido, neto de impuestos. Sólo pedidos con evidencia.</li>
           <li><b>Ticket promedio</b>: total de los documentos ÷ cantidad, en cada moneda. Nunca se promedian monedas distintas.</li>
+          <li><b>Rankings</b>: clientes por el total de sus documentos (con impuestos), agrupados por el cliente vinculado, no por el nombre. Productos por sus líneas (precio de la línea, con descuentos e IVA; precio 0 = importe 0) o por cantidad, agrupados por producto del catálogo; las líneas históricas sin producto van aparte, por su SKU exacto. Los remitos no tienen precio: productos entregados sólo por cantidad. Líneas con cantidad ≥ 1000 e importe 0 se marcan como <b>dato atípico</b>, sin ocultarlas. Empates: más documentos primero, después por nombre.</li>
+          <li><b>CSV</b>: lo pide al servidor con el mes elegido y trae todo, no sólo lo visible. Moneda en su propia columna, importes con punto decimal, fechas AAAA-MM-DD.</li>
         </ul>
       </details>
 
@@ -138,7 +148,7 @@ function ActividadComercialVista() {
           )}
         </div>
       ) : (
-        <Contenido datos={actividad.data} pipeline={pipeline} />
+        <Contenido datos={actividad.data} pipeline={pipeline} mes={mes} mesEfectivo={mes ?? tope} ranking={ranking} onCambiarRanking={cambiarRanking} />
       )}
     </div>
   )
@@ -147,9 +157,13 @@ function ActividadComercialVista() {
 interface ContenidoProps {
   datos: ActividadComercial
   pipeline: ReturnType<typeof usePipeline>
+  mes: string | null
+  mesEfectivo: string
+  ranking: ParametrosRanking
+  onCambiarRanking: (c: Partial<ParametrosRanking>) => void
 }
 
-function Contenido({ datos, pipeline }: ContenidoProps) {
+function Contenido({ datos, pipeline, mes, mesEfectivo, ranking, onCambiarRanking }: ContenidoProps) {
   const etiquetaActual = etiquetaTramo(datos.actual)
   const etiquetaAnterior = etiquetaTramo(datos.anterior)
   const enRevision = datos.kpis.filter((k) => k.enRevisionActual > 0)
@@ -198,6 +212,16 @@ function Contenido({ datos, pipeline }: ContenidoProps) {
       ) : (
         <SeccionesPipeline datos={datos} pipeline={pipeline.data} etiquetaActual={etiquetaActual} etiquetaAnterior={etiquetaAnterior} />
       )}
+
+      <RankingComercial
+        actividad={datos}
+        mes={mes}
+        mesEfectivo={mesEfectivo}
+        elegidos={ranking}
+        onCambiar={onCambiarRanking}
+        etiquetaMes={etiquetaActual}
+        etiquetaDoceMeses={`12 meses (${etiquetaDoceMeses({ desde: datos.series[0]?.meses[0]?.mes ?? datos.actual.desde, hasta: datos.actual.hasta, parcial: datos.actual.parcial })})`}
+      />
     </>
   )
 }

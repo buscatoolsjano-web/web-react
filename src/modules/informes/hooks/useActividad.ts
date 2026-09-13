@@ -3,11 +3,14 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { armarActividad } from '../lib/actividad'
 import { armarPipeline } from '../lib/pipeline'
 import { ErrorInforme, obtenerActividad, obtenerPipeline } from '../services/actividad'
-import type { ActividadComercial, PipelineComercial } from '../types'
+import { obtenerRanking } from '../services/rankings'
+import type { ActividadComercial, FilaRanking, ParametrosRanking, PipelineComercial } from '../types'
 
 export const clavesInformes = {
   actividad: (companyId: string | null, mes: string | null) => ['informes', companyId, 'actividad', mes ?? 'actual'] as const,
   pipeline: (companyId: string | null, mes: string | null) => ['informes', companyId, 'pipeline', mes ?? 'actual'] as const,
+  ranking: (companyId: string | null, mes: string | null, p: ParametrosRanking) =>
+    ['informes', companyId, 'ranking', mes ?? 'actual', p.dimension, p.fuente, p.medida, p.periodo, p.moneda] as const,
 }
 
 const OPCIONES = {
@@ -36,6 +39,17 @@ export function usePipeline(mes: string | null) {
     queryKey: clavesInformes.pipeline(companyId, mes),
     queryFn: async () => armarPipeline(await obtenerPipeline(companyId!, mes)),
     enabled: companyId !== null,
+    ...OPCIONES,
+  })
+}
+
+/** Top N del ranking. Deshabilitado mientras la combinación no tenga moneda (importe sin monedas disponibles). */
+export function useRanking(mes: string | null, p: ParametrosRanking, limite: number) {
+  const companyId = useEmpresa().activa?.companyId ?? null
+  return useQuery<FilaRanking[]>({
+    queryKey: [...clavesInformes.ranking(companyId, mes, p), limite],
+    queryFn: () => obtenerRanking(companyId!, mes, p, limite),
+    enabled: companyId !== null && (p.medida === 'cantidad' || p.moneda !== null),
     ...OPCIONES,
   })
 }

@@ -178,3 +178,40 @@ export interface TicketMoneda {
   moneda: Moneda
   porPeriodo: Record<PeriodoCohorte, TicketCifra>
 }
+
+// ── Entrega 3 · rankings ────────────────────────────────────────────────────
+
+export type DimensionRanking = 'clientes' | 'productos'
+export type FuenteRanking = 'entregado' | 'pedido' | 'cotizado'
+export type MedidaRanking = 'importe' | 'cantidad'
+export type PeriodoRanking = 'mes' | '12m'
+
+export interface ParametrosRanking {
+  dimension: DimensionRanking
+  fuente: FuenteRanking
+  medida: MedidaRanking
+  periodo: PeriodoRanking
+  /** Obligatoria con importe; `null` con cantidad (lo físico no tiene moneda). */
+  moneda: Moneda | null
+}
+
+/** Una fila tal cual la devuelve `informe_rankings_comerciales`. */
+export interface FilaRanking {
+  posicion: number
+  total_filas: number
+  clave: string
+  cliente_id: string | null
+  producto_id: string | null
+  etiqueta: string
+  codigo: string | null
+  moneda: string | null
+  importe: number | null
+  cantidad: number | null
+  documentos: number
+  lineas_atipicas: number | null
+  cantidad_atipica: number | null
+  vinculado: boolean
+  activo: boolean | null
+  desde: string
+  hasta: string
+}

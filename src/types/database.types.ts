@@ -5758,6 +5758,38 @@ export type Database = {
           en_revision: number
         }[]
       }
+      informe_rankings_comerciales: {
+        Args: {
+          p_company: string
+          p_mes?: string | null
+          p_dimension?: string
+          p_fuente?: string
+          p_medida?: string
+          p_periodo?: string
+          p_moneda?: string | null
+          p_limite?: number
+          p_desplazamiento?: number
+        }
+        Returns: {
+          posicion: number
+          total_filas: number
+          clave: string
+          cliente_id: string | null
+          producto_id: string | null
+          etiqueta: string
+          codigo: string | null
+          moneda: string | null
+          importe: number | null
+          cantidad: number | null
+          documentos: number
+          lineas_atipicas: number | null
+          cantidad_atipica: number | null
+          vinculado: boolean
+          activo: boolean | null
+          desde: string
+          hasta: string
+        }[]
+      }
       informe_pipeline_comercial: {
         Args: { p_company: string; p_mes?: string | null }
         Returns: {

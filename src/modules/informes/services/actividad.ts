@@ -2,7 +2,7 @@ import { supabase } from '@/services/supabase/client'
 import type { FilaActividad, FilaPipeline } from '../types'
 
 export class ErrorInforme extends Error {
-  constructor(readonly codigo: 'sin_permiso' | 'mes_futuro' | 'desconocido', mensaje: string) {
+  constructor(readonly codigo: 'sin_permiso' | 'mes_futuro' | 'parametro_invalido' | 'sin_importe' | 'desconocido', mensaje: string) {
     super(mensaje)
     this.name = 'ErrorInforme'
   }
@@ -37,8 +37,10 @@ export async function obtenerPipeline(companyId: string, mes: string | null): Pr
   return data ?? []
 }
 
-function errorDeInforme(mensaje: string): ErrorInforme {
+export function errorDeInforme(mensaje: string): ErrorInforme {
   if (/sin_permiso/.test(mensaje)) return new ErrorInforme('sin_permiso', 'Tu rol en esta empresa no tiene acceso a Informes.')
   if (/mes_futuro/.test(mensaje)) return new ErrorInforme('mes_futuro', 'Ese mes todavía no empezó.')
+  if (/sin_importe/.test(mensaje)) return new ErrorInforme('sin_importe', 'Los remitos no tienen precio: ese ranking sólo existe por cantidad.')
+  if (/parametro_invalido/.test(mensaje)) return new ErrorInforme('parametro_invalido', 'Esa combinación de ranking no existe.')
   return new ErrorInforme('desconocido', 'No se pudo leer el informe. Probá de nuevo en un momento.')
 }
