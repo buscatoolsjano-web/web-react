@@ -46,6 +46,8 @@ export interface KpiActividad {
   documentosActual: number
   documentosAnterior: number
   enRevisionActual: number
+  /** De los `enRevisionActual`, cuántos no tienen moneda. */
+  sinMonedaEnRevisionActual: number
   monedas: KpiMoneda[]
 }
 

@@ -3,7 +3,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { SerieMensual } from '../components/SerieMensual'
 import { TarjetaActividad } from '../components/TarjetaActividad'
 import { useActividad } from '../hooks/useActividad'
-import { ETIQUETA_TIPO, etiquetaTramo, leerMes } from '../lib/actividad'
+import { etiquetaTramo, leerMes, textoRevision } from '../lib/actividad'
 import { puedeVerInformes } from '../lib/permisos'
 import { ErrorInforme } from '../services/actividad'
 import type { ActividadComercial, TipoActividad } from '../types'
@@ -138,7 +138,8 @@ function Contenido({ datos }: { datos: ActividadComercial }) {
       {enRevision.length > 0 ? (
         <div className={styles.aviso} role="status">
           <span>
-            Hay documentos marcados para revisar en {etiquetaActual} (por ejemplo, sin moneda). Se muestran tal cual: no se les asigna moneda.
+            Hay documentos marcados para revisar en {etiquetaActual}. Se muestran tal cual: a los sin moneda no se les asigna una.
+            El enlace abre todos los marcados, con o sin moneda.
           </span>
           <span className={styles.enlaces}>
             {enRevision.map((k) => (
@@ -147,7 +148,7 @@ function Contenido({ datos }: { datos: ActividadComercial }) {
                 to={`${RUTA_LISTADO[k.tipo]}?revision=1&desde=${datos.actual.desde}&hasta=${datos.actual.hasta}`}
                 className={styles.enlace}
               >
-                {k.enRevisionActual} {k.enRevisionActual === 1 ? ETIQUETA_TIPO[k.tipo].documento[0] : ETIQUETA_TIPO[k.tipo].documento[1]}
+                {textoRevision(k)}
               </Link>
             ))}
           </span>

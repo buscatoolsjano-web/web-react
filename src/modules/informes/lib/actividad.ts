@@ -97,6 +97,9 @@ export function armarActividad(filas: FilaActividad[]): ActividadComercial {
       documentosActual: act.reduce((s, f) => s + Number(f.documentos), 0),
       documentosAnterior: ant.reduce((s, f) => s + Number(f.documentos), 0),
       enRevisionActual: act.reduce((s, f) => s + Number(f.en_revision), 0),
+      sinMonedaEnRevisionActual: act
+        .filter((f) => (f.moneda ?? SIN_MONEDA) === SIN_MONEDA)
+        .reduce((s, f) => s + Number(f.en_revision), 0),
       monedas: monedas.map((moneda) => {
         const a = act.find((f) => (f.moneda ?? SIN_MONEDA) === moneda)
         const p = ant.find((f) => (f.moneda ?? SIN_MONEDA) === moneda)
@@ -151,6 +154,19 @@ export function etiquetaTramo(t: Tramo): string {
   if (!t.parcial) return etiquetaMesLarga(t.desde)
   const mes = MESES[Number(t.desde.slice(5, 7)) - 1] ?? '?'
   return `${Number(t.desde.slice(8, 10))}–${Number(t.hasta.slice(8, 10))} ${mes} ${t.desde.slice(0, 4)}`
+}
+
+/**
+ * Texto del enlace a revisión: «19 remitos en revisión · 15 sin moneda».
+ *
+ * El enlace abre TODOS los documentos marcados para revisar (Ventas no tiene
+ * filtro «sin moneda»), así que el total va primero y los sin moneda se
+ * cuentan aparte, sin prometer un filtro que no existe.
+ */
+export function textoRevision(kpi: KpiActividad): string {
+  const [uno, varios] = ETIQUETA_TIPO[kpi.tipo].documento
+  const base = `${kpi.enRevisionActual} ${kpi.enRevisionActual === 1 ? uno : varios} en revisión`
+  return kpi.sinMonedaEnRevisionActual > 0 ? `${base} · ${kpi.sinMonedaEnRevisionActual} sin moneda` : base
 }
 
 export function formatearImporte(importe: number): string {

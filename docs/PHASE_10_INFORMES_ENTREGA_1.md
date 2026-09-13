@@ -31,14 +31,14 @@ auditoría previa: [`PHASE_10_INFORMES_ENTREGA_0_AUDITORIA.md`](PHASE_10_INFORME
 |---|---|---|
 | Vendido | remitos `deliveries.status in ('shipped','delivered')` | `confirmar_entrega` deja `shipped`; el histórico migrado está en `delivered`. Borrador y cancelado fuera |
 | Pedidos | `sales_orders.commercial_status = 'confirmed'` | borrador y cancelado fuera |
-| Cotizado | `sales_quotes.status <> 'draft'` (sent, accepted, **rejected, expired**) | lo cotizado es lo emitido, se haya ganado o no |
+| Cotizado | `sales_quotes.status <> 'draft'`: enviadas, aceptadas y **también rechazadas y vencidas** (`sent`, `accepted`, `rejected`, `expired`). Sólo se excluyen los borradores | lo cotizado es lo emitido, se haya ganado o no |
 | Moneda | `currency_code` del documento; `NULL` → `'SIN MONEDA'` | sin conversión ni tipo de cambio (decisión R3/R4 de Ventas) |
 | Importe | `total` del documento (con impuestos) | es el único total que existe en los tres documentos |
 | Mes | **fecha del documento** (`quote_date`/`order_date`/`delivery_date`), mes calendario | `date` sin hora: el día 1 queda en su mes (bug 3 del legacy) |
 | Hoy | `now()` en `America/Argentina/Buenos_Aires` | no depende del navegador |
 | Comparación | mes en curso: **1 → hoy** contra **los mismos días** del mes anterior (acotado a su último día). Mes pasado: completo contra completo | el legacy comparaba un mes parcial con uno completo (bug 15) |
 | Variación | `(actual − anterior) / anterior`; con anterior 0 → «sin base» | nunca +100 % inventado |
-| Revisión | `needs_review` se cuenta por moneda y se avisa con enlace al listado filtrado | se muestran tal cual, no se corrigen |
+| Revisión | `needs_review` se cuenta por moneda; el aviso muestra por tipo el total marcado y, de ésos, cuántos están SIN MONEDA (ver E) | se muestran tal cual, no se corrigen |
 | Serie | 12 meses que terminan en el mes elegido; meses vacíos en 0 | — |
 | Mes futuro | rechazado (`mes_futuro`) | — |
 
@@ -84,7 +84,7 @@ monedas ARS, USD, EUR, otras alfabéticas, SIN MONEDA al final. Tipos en
 | función | `public.informe_actividad_comercial` — migraciones `fase10_informes_entrega1_actividad` y `fase10_informes_entrega1_actividad_rangos` (definitiva) |
 | servicio | `src/modules/informes/services/actividad.ts` — `obtenerActividad`, `ErrorInforme` con mensajes en castellano |
 | hook | `src/modules/informes/hooks/useActividad.ts` — TanStack Query, `staleTime` 5 min, sin refetch al enfocar, no reintenta errores de permiso ni mes futuro |
-| lógica pura | `src/modules/informes/lib/actividad.ts` (+ 13 tests), `lib/permisos.ts` |
+| lógica pura | `src/modules/informes/lib/actividad.ts` (+ 14 tests), `lib/permisos.ts` |
 | UI | `pages/InformesPage.tsx`, `components/TarjetaActividad.tsx`, `components/SerieMensual.tsx`, `components/Informes.module.css` |
 | ruteo | `src/app/routes.tsx` (`/informes`, lazy), `src/layouts/AppLayout.tsx` (menú; sale de «Próximamente») |
 
@@ -92,7 +92,16 @@ Pantalla:
 
 - selector de mes (`?mes=YYYY-MM` en la URL, tope = mes en curso), «Mes en curso», «Actualizar»;
 - «Cómo se calcula» desplegable con las reglas de B;
-- aviso de documentos en revisión con enlaces a `/ventas/{entregas|pedidos|cotizaciones}?revision=1&desde=&hasta=`;
+- aviso de documentos en revisión, un enlace por tipo a `/ventas/{entregas|pedidos|cotizaciones}?revision=1&desde=&hasta=`:
+  - el texto es explícito: en septiembre, **«19 remitos en revisión · 15 sin moneda»**;
+    si ninguno está sin moneda, sólo «N pedidos en revisión»;
+  - **el enlace abre todos los documentos marcados para revisión** del tramo,
+    con o sin moneda (en septiembre: los 15 SIN MONEDA más 2 en USD y 2 en ARS);
+  - **el contador distingue cuántos de ellos están SIN MONEDA** (`en_revision`
+    de la fila SIN MONEDA del tramo actual);
+  - **Ventas todavía no tiene un filtro específico de «sin moneda»**: su filtro
+    de moneda sólo busca un código concreto. No se agregó en esta entrega
+    (decisión: no tocar Ventas); por eso el enlace no promete ese filtro;
 - tres tarjetas (Vendido, Pedidos, Cotizado): fila por moneda con importe y
   cantidad del tramo actual y del anterior, variación; SIN MONEDA resaltada;
 - serie de 12 meses: tipo de documento + una moneda a la vez, barras decorativas
@@ -123,7 +132,7 @@ mediana **217 ms** / máx 242 ms; esta corrida mediana **191 ms** / máx 1.199 m
 
 ### Frontend
 
-`lib/actividad.test.ts`: 13 tests (orden de monedas, cifras por moneda,
+`lib/actividad.test.ts`: 14 tests (orden de monedas, cifras por moneda, texto de revisión,
 variación sin base, serie con ceros, tramo parcial, lectura de `?mes`, etiquetas,
 permisos). Los chequeos completos del repo están en I.
 
@@ -136,7 +145,7 @@ permisos). Los chequeos completos del repo están en I.
 | Cotizado jul / ago 2026 | USD 143.747,01 / 130.031,87 |
 | `?mes` futuro | «Ese mes todavía no empezó.», sin «Reintentar» |
 | `?mes` inválido | cae al mes en curso |
-| enlace de revisión | `#/ventas/entregas?revision=1&desde=2026-09-01&hasta=2026-09-13` → «1–19 de 19» |
+| enlace de revisión | texto «19 remitos en revisión · 15 sin moneda» → `#/ventas/entregas?revision=1&desde=2026-09-01&hasta=2026-09-13` → «1–19 de 19» (todos los marcados) |
 | responsive 390 / 430 / 520 / 768 / 1440 px | sin desborde horizontal de página; controles ≥ 44 px y campos 16 px con puntero táctil; tabla en bloques ≤ 599 px; importes nunca cortados |
 | consola | sin errores |
 
@@ -166,6 +175,8 @@ Los bugs 1, 2, 3, 15 y 17 de la auditoría quedan corregidos para estos KPIs.
 8. Sin exportación CSV en esta entrega (plan: Entrega 3, con moneda).
 9. La serie muestra una moneda por vez; no hay gráfico combinado a propósito.
 10. Informes lee la empresa activa; no hay vista «todas las empresas».
+11. Sin filtro «sin moneda» en Ventas: el enlace de revisión lleva a todos los
+    marcados y el aviso cuenta aparte los sin moneda.
 
 ## I · Chequeos
 
@@ -175,9 +186,9 @@ Corridos el 2026-09-13, antes del commit:
 |---|---|
 | `npm run lint` | 0 errores |
 | `npm run typecheck` | 0 errores |
-| `npm test` | 52 archivos · **618 tests** PASS |
-| `npm run test:isolated` | 52 archivos · **618 tests** PASS |
-| `npm run build` | OK · `InformesPage` 13,14 kB JS (4,62 kB gzip) + 7,03 kB CSS, chunk propio |
+| `npm test` | 52 archivos · **619 tests** PASS |
+| `npm run test:isolated` | 52 archivos · **619 tests** PASS |
+| `npm run build` | OK · `InformesPage` 13,40 kB JS (4,69 kB gzip) + 7,03 kB CSS, chunk propio |
 | suite de base E1 | 30 PASS · 0 fallos |
 
 Backend de Emails sin cambios: no se re-corrió. Otras suites de base no se

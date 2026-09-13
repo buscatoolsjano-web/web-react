@@ -7,6 +7,7 @@ import {
   leerMes,
   mesesDeLaSerie,
   ordenarMonedas,
+  textoRevision,
   variacion,
 } from './actividad'
 import { puedeVerInformes } from './permisos'
@@ -80,6 +81,19 @@ describe('armarActividad', () => {
 
   it('sin los períodos del servidor, no inventa fechas', () => {
     expect(() => armarActividad([])).toThrow()
+  })
+
+  it('revisión: el total marcado primero y los sin moneda aparte', () => {
+    const entregas = a.kpis[0]
+    expect(entregas?.enRevisionActual).toBe(19)
+    expect(entregas?.sinMonedaEnRevisionActual).toBe(15)
+    expect(entregas && textoRevision(entregas)).toBe('19 remitos en revisión · 15 sin moneda')
+    const conMoneda = armarActividad([
+      rango('rango_actual', '2026-09-01', '2026-09-13'),
+      rango('rango_anterior', '2026-08-01', '2026-08-13'),
+      fila('actual', 'pedidos', '2026-09-01', 'USD', 3, 10, 1),
+    ]).kpis[1]
+    expect(conMoneda && textoRevision(conMoneda)).toBe('1 pedido en revisión')
   })
 })
 
