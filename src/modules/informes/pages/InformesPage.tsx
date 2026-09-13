@@ -1,19 +1,25 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { ConversionCotizaciones } from '../components/ConversionCotizaciones'
+import { CumplimientoPedidos } from '../components/CumplimientoPedidos'
+import { EtapasPipeline } from '../components/EtapasPipeline'
 import { SerieMensual } from '../components/SerieMensual'
 import { TarjetaActividad } from '../components/TarjetaActividad'
-import { useActividad } from '../hooks/useActividad'
+import { TicketPromedio } from '../components/TicketPromedio'
+import { useActividad, usePipeline } from '../hooks/useActividad'
 import { etiquetaTramo, leerMes, textoRevision } from '../lib/actividad'
+import { etiquetaDoceMeses } from '../lib/pipeline'
 import { puedeVerInformes } from '../lib/permisos'
 import { ErrorInforme } from '../services/actividad'
-import type { ActividadComercial, TipoActividad } from '../types'
+import type { ActividadComercial, PeriodoCohorte, PipelineComercial, TipoActividad } from '../types'
 import styles from '../components/Informes.module.css'
 
 /**
- * Informes v1 · actividad comercial.
+ * Informes · actividad comercial (Entrega 1) y pipeline, conversión,
+ * cumplimiento y ticket (Entrega 2).
  *
- * Todo lo agrega el servidor (`informe_actividad_comercial`): la pantalla no
- * baja documentos. Reglas a la vista, porque cambian lo que el legacy mostraba:
+ * Todo lo agregan dos funciones del servidor (`informe_actividad_comercial` e
+ * `informe_pipeline_comercial`), en paralelo: la pantalla no baja documentos. Reglas a la vista, porque cambian lo que el legacy mostraba:
  * «vendido» es lo entregado, cada moneda por separado y sin convertir, y el mes
  * sale de la fecha del documento.
  */
@@ -46,6 +52,8 @@ function ActividadComercialVista() {
   const mes = leerMes(params.get('mes'))
   const tope = mesActualAR()
   const actividad = useActividad(mes)
+  const pipeline = usePipeline(mes)
+  const actualizando = actividad.isFetching || pipeline.isFetching
 
   const cambiarMes = (valor: string) => {
     const limpio = leerMes(valor)
@@ -90,10 +98,13 @@ function ActividadComercialVista() {
           <button
             type="button"
             className={styles.boton}
-            onClick={() => void actividad.refetch()}
-            disabled={actividad.isFetching}
+            onClick={() => {
+              void actividad.refetch()
+              void pipeline.refetch()
+            }}
+            disabled={actualizando}
           >
-            {actividad.isFetching && !actividad.isPending ? 'Actualizando…' : 'Actualizar'}
+            {actualizando && !actividad.isPending ? 'Actualizando…' : 'Actualizar'}
           </button>
         </div>
       </header>
@@ -106,6 +117,11 @@ function ActividadComercialVista() {
           <li>Cada moneda por separado y <b>sin conversión</b>. Los documentos sin moneda van en <b>SIN MONEDA</b>.</li>
           <li>El mes sale de la <b>fecha del documento</b>. Importes con impuestos.</li>
           <li>En el mes en curso se compara contra los <b>mismos días</b> del mes anterior.</li>
+          <li><b>Pipeline</b>: cotizaciones abiertas (enviadas o aceptadas, sin pedido confirmado) y pedidos pendientes son el estado de <b>hoy</b>; lo entregado es del período. No es un embudo.</li>
+          <li><b>Conversión</b>: cotizaciones con fecha en el período que tienen un <b>pedido confirmado enlazado</b>. El estado «aceptada» no alcanza. <b>Denominador</b>: todas las emitidas en el período (no borradores), incluidas rechazadas y vencidas.</li>
+          <li><b>Cumplimiento</b>: cada pedido confirmado contra sus remitos confirmados, línea por línea. Los pedidos <b>sin evidencia</b> (no consta entrega o detalle no reconstruido) se muestran aparte y <b>no entran al porcentaje</b>: no se los da por no entregados.</li>
+          <li><b>Pendiente</b>: lo que falta de cada línea × precio del pedido, neto de impuestos. Sólo pedidos con evidencia.</li>
+          <li><b>Ticket promedio</b>: total de los documentos ÷ cantidad, en cada moneda. Nunca se promedian monedas distintas.</li>
         </ul>
       </details>
 
@@ -122,13 +138,18 @@ function ActividadComercialVista() {
           )}
         </div>
       ) : (
-        <Contenido datos={actividad.data} />
+        <Contenido datos={actividad.data} pipeline={pipeline} />
       )}
     </div>
   )
 }
 
-function Contenido({ datos }: { datos: ActividadComercial }) {
+interface ContenidoProps {
+  datos: ActividadComercial
+  pipeline: ReturnType<typeof usePipeline>
+}
+
+function Contenido({ datos, pipeline }: ContenidoProps) {
   const etiquetaActual = etiquetaTramo(datos.actual)
   const etiquetaAnterior = etiquetaTramo(datos.anterior)
   const enRevision = datos.kpis.filter((k) => k.enRevisionActual > 0)
@@ -162,6 +183,47 @@ function Contenido({ datos }: { datos: ActividadComercial }) {
       </div>
 
       <SerieMensual series={datos.series} />
+
+      {pipeline.isPending ? (
+        <p className={styles.nota}>Leyendo pipeline y conversión…</p>
+      ) : pipeline.error ? (
+        <div className={styles.error} role="alert">
+          <span>{pipeline.error instanceof ErrorInforme ? pipeline.error.message : 'No se pudo leer pipeline y conversión.'}</span>
+          {pipeline.error instanceof ErrorInforme && pipeline.error.codigo !== 'desconocido' ? null : (
+            <button type="button" className={styles.boton} onClick={() => void pipeline.refetch()}>
+              Reintentar
+            </button>
+          )}
+        </div>
+      ) : (
+        <SeccionesPipeline datos={datos} pipeline={pipeline.data} etiquetaActual={etiquetaActual} etiquetaAnterior={etiquetaAnterior} />
+      )}
+    </>
+  )
+}
+
+function SeccionesPipeline({
+  datos,
+  pipeline,
+  etiquetaActual,
+  etiquetaAnterior,
+}: {
+  datos: ActividadComercial
+  pipeline: PipelineComercial
+  etiquetaActual: string
+  etiquetaAnterior: string
+}) {
+  const etiquetas: Record<PeriodoCohorte, string> = {
+    actual: etiquetaActual,
+    anterior: etiquetaAnterior,
+    '12m': `12 meses (${etiquetaDoceMeses(pipeline.tramos['12m'])})`,
+  }
+  return (
+    <>
+      <EtapasPipeline pipeline={pipeline} actividad={datos} etiquetaActual={etiquetaActual} />
+      <ConversionCotizaciones pipeline={pipeline} etiquetas={etiquetas} />
+      <CumplimientoPedidos pipeline={pipeline} etiquetas={etiquetas} />
+      <TicketPromedio actividad={datos} etiquetas={etiquetas} />
     </>
   )
 }

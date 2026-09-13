@@ -5758,6 +5758,23 @@ export type Database = {
           en_revision: number
         }[]
       }
+      informe_pipeline_comercial: {
+        Args: { p_company: string; p_mes?: string | null }
+        Returns: {
+          seccion: string
+          periodo: string
+          desde: string | null
+          hasta: string | null
+          categoria: string | null
+          moneda: string | null
+          documentos: number
+          importe: number | null
+          convertidas: number | null
+          importe_convertido: number | null
+          abiertas: number | null
+          aceptadas: number | null
+        }[]
+      }
       listar_bandeja_email: {
         Args: {
           p_company: string

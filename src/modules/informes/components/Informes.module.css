@@ -469,3 +469,153 @@
     grid-area: pista;
   }
 }
+
+/* ── Entrega 2 · pipeline, conversión, cumplimiento, ticket ───────────── */
+
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.bloqueCabecera {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.bloqueTitulo {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.etapas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: var(--space-3);
+}
+
+.tarjeta > .nota,
+.tarjeta > .notaAviso {
+  margin-top: var(--space-2);
+}
+
+.notaAviso {
+  margin: 0;
+  font-size: var(--text-sm);
+  border-left: 3px solid var(--warning);
+  background: var(--warning-light);
+  color: var(--warning-text);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.categoria {
+  text-align: left;
+  font-weight: 600;
+}
+
+.categoria .docs {
+  font-weight: 400;
+}
+
+.filaTotal th,
+.filaTotal td {
+  background: var(--surface-alt);
+}
+
+.tablaKpi .filaGrupo th {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-soft);
+  text-align: left;
+  padding-top: var(--space-3);
+}
+
+@media (max-width: 599px) {
+  .lista {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    column-gap: var(--space-2);
+  }
+
+  .tablaKpi td .lista .docs::before {
+    content: none;
+  }
+}
+
+/* Las tablas de tres períodos (conversión, cumplimiento, ticket) no dependen
+   del ancho de la ventana sino de su tarjeta: con la barra lateral, a 768px
+   la tarjeta mide ~430px. Debajo de 520px pasan a bloques, igual que en el
+   teléfono. */
+.tarjetaPeriodos {
+  container-type: inline-size;
+}
+
+@container (max-width: 520px) {
+  .tablaPeriodos thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .tablaPeriodos,
+  .tablaPeriodos tbody,
+  .tablaPeriodos tr,
+  .tablaPeriodos th,
+  .tablaPeriodos td {
+    display: block;
+    width: 100%;
+  }
+
+  .tablaPeriodos tr {
+    border-top: 1px solid var(--border);
+    padding: var(--space-2) 0;
+  }
+
+  .tablaPeriodos th,
+  .tablaPeriodos td {
+    border-top: 0;
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .tablaPeriodos td {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: baseline;
+    column-gap: var(--space-1);
+    text-align: right;
+  }
+
+  .tablaPeriodos td::before {
+    content: attr(data-etiqueta);
+    font-size: var(--text-xs);
+    color: var(--text-soft);
+    text-align: left;
+    flex: 1 0 auto;
+    margin-right: var(--space-3);
+  }
+
+  .tablaPeriodos td .importe,
+  .tablaPeriodos td .docs {
+    display: inline;
+  }
+
+  .tablaPeriodos td .docs::before {
+    content: ' · ';
+  }
+}
