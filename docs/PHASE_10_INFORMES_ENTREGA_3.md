@@ -124,9 +124,17 @@ Formato, igual al resto del ERP:
 | nombre | `informe-{clientes|productos}-{fuente}-{moneda|cantidad}-{mes|12m}-{AAAA-MM}.csv`, `informe-actividad-AAAA-MM.csv`, `informe-pipeline-conversion-cumplimiento-AAAA-MM.csv`; sólo `[A-Za-z0-9._-]` (`SIN MONEDA` → `SIN-MONEDA`) |
 | botón | 44 px táctil, «Exportando…» y deshabilitado mientras corre (sin doble clic), error en línea con `role="alert"`, `aria-label` descriptivo |
 
-«CSV server-side» en esta entrega significa que **los datos del archivo salen
-completos y filtrados del servidor**. El archivo se escribe en el navegador con
-esas filas, como en Ventas, Compras y Mantenimiento.
+**Cómo funciona realmente (dos pasos):**
+
+1. **Consulta y paginación en el servidor.** Las filas se piden a las RPC con los
+   filtros activos (`?mes=` y la selección del ranking); el servidor filtra,
+   agrega, ordena y pagina (de a 500 en el ranking). Nunca se exporta sólo lo
+   visible.
+2. **Generación del archivo en el navegador.** Con esas filas completas, el
+   archivo CSV se arma y se descarga del lado del cliente
+   (`src/modules/informes/lib/csv.ts`: `actividadACsv`, `pipelineACsv`,
+   `rankingACsv`, `descargarCsv`), igual que en Ventas, Compras y
+   Mantenimiento. **El servidor no genera ni devuelve un archivo CSV.**
 
 ## H · Seguridad
 
