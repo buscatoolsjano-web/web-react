@@ -5758,6 +5758,56 @@ export type Database = {
           en_revision: number
         }[]
       }
+      informe_kardex_producto: {
+        Args: { p_company: string; p_producto: string; p_deposito?: string | null; p_orden?: string; p_limite?: number; p_desplazamiento?: number }
+        Returns: {
+          posicion: number
+          total_filas: number
+          movimiento_id: number
+          fecha: string
+          dia: string
+          warehouse_id: string
+          deposito_codigo: string | null
+          deposito: string | null
+          movement_type: string
+          sentido: string
+          quantity: number
+          saldo: number | null
+          saldo_verificado: boolean
+          inicia_con_apertura: boolean
+          saldo_actual: number | null
+          source_type: string | null
+          source_id: string | null
+          referencia: string | null
+          notas: string | null
+        }[]
+      }
+      informe_movimientos_stock: {
+        Args: { p_company: string; p_mes?: string | null; p_deposito?: string | null; p_tipo?: string | null; p_sentido?: string | null; p_producto?: string | null; p_limite?: number; p_desplazamiento?: number }
+        Returns: {
+          posicion: number
+          total_filas: number
+          movimiento_id: number
+          fecha: string
+          dia: string
+          producto_id: string
+          sku: string | null
+          producto: string | null
+          producto_activo: boolean | null
+          warehouse_id: string
+          deposito_codigo: string | null
+          deposito: string | null
+          movement_type: string
+          sentido: string
+          quantity: number
+          source_type: string | null
+          source_id: string | null
+          referencia: string | null
+          notas: string | null
+          desde: string
+          hasta: string
+        }[]
+      }
       informe_rankings_comerciales: {
         Args: {
           p_company: string
@@ -5788,6 +5838,44 @@ export type Database = {
           activo: boolean | null
           desde: string
           hasta: string
+        }[]
+      }
+      informe_stock_actual: {
+        Args: { p_company: string; p_busqueda?: string | null; p_deposito?: string | null; p_estado?: string | null; p_limite?: number; p_desplazamiento?: number }
+        Returns: {
+          posicion: number
+          total_filas: number
+          producto_id: string
+          sku: string
+          producto: string
+          producto_activo: boolean
+          warehouse_id: string
+          deposito_codigo: string
+          deposito: string
+          on_hand: number
+          reserved: number
+          available: number
+          estado: string
+          disponible_negativo: boolean
+          ultimo_movimiento: string | null
+        }[]
+      }
+      informe_stock_catalogo: {
+        Args: { p_company: string }
+        Returns: { categoria: string; cantidad: number }[]
+      }
+      informe_stock_resumen: {
+        Args: { p_company: string; p_mes?: string | null }
+        Returns: {
+          seccion: string
+          warehouse_id: string | null
+          codigo: string | null
+          deposito: string | null
+          activo: boolean | null
+          categoria: string | null
+          cantidad: number
+          desde: string | null
+          hasta: string | null
         }[]
       }
       informe_pipeline_comercial: {

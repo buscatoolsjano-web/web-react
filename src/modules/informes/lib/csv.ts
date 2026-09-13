@@ -3,6 +3,10 @@ import type { FilaActividad, FilaPipeline, FilaRanking, ParametrosRanking } from
 /**
  * CSV de Informes.
  *
+ * Sin imports de código propio a propósito: la suite de base de la Entrega 3
+ * importa este archivo directo con Node (type stripping), y un import sin
+ * extensión rompería ahí. Los CSV de stock viven en `csvStock.ts`.
+ *
  * Los datos salen del servidor ya filtrados y agregados (las mismas RPC que la
  * pantalla, con el mes elegido; el ranking completo, paginado de a 500). Acá
  * sólo se escribe el archivo, con las convenciones del resto del ERP:
@@ -46,7 +50,7 @@ export function numero(n: number | string | null | undefined): string {
 
 const siNo = (b: boolean | null) => (b === null ? '' : b ? 'si' : 'no')
 
-function armar(columnas: readonly string[], filas: string[][]): string {
+export function armar(columnas: readonly string[], filas: string[][]): string {
   return [columnas.map(texto).join(';'), ...filas.map((f) => f.join(';'))].join('\r\n')
 }
 

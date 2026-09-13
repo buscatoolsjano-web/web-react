@@ -215,3 +215,139 @@ export interface FilaRanking {
   desde: string
   hasta: string
 }
+
+// ── Entrega 4 · stock físico, movimientos y kardex ──────────────────────────
+
+/** Una fila tal cual la devuelve `informe_stock_resumen`. */
+export interface FilaResumenStock {
+  /** rango · deposito · estado · productos · ultimo_movimiento · mes · mes_tipo · mes_origen */
+  seccion: string
+  warehouse_id: string | null
+  codigo: string | null
+  deposito: string | null
+  activo: boolean | null
+  categoria: string | null
+  cantidad: number
+  desde: string | null
+  hasta: string | null
+}
+
+export type EstadoSaldo = 'con_stock' | 'cero' | 'negativo'
+
+/** Filtro de la tabla de stock. `disponible_negativo` y `reservado` cortan distinto que el estado. */
+export type FiltroEstadoStock = EstadoSaldo | 'disponible_negativo' | 'reservado'
+
+export interface ConteoEstados {
+  balances: number
+  con_stock: number
+  en_cero: number
+  negativo: number
+  disponible_negativo: number
+  con_reservas: number
+}
+
+export interface DepositoResumen {
+  id: string
+  codigo: string
+  nombre: string
+  activo: boolean
+  estados: ConteoEstados
+}
+
+export type TramoUltimoMovimiento = '0_30' | '31_90' | '91_180' | '181_365' | 'mas_365'
+
+export interface ResumenStock {
+  mes: { desde: string; hasta: string }
+  total: ConteoEstados
+  depositos: DepositoResumen[]
+  productos: { conBalance: number; conMovimientos: number; movidoHoyEnCero: number }
+  ultimoMovimiento: Record<TramoUltimoMovimiento, number>
+  movimientosMes: { movimientos: number; entradas: number; salidas: number; productos: number; depositos: number; sinDocumento: number }
+  porTipo: { clave: string; cantidad: number }[]
+  porOrigen: { clave: string; cantidad: number }[]
+}
+
+export interface CatalogoStock {
+  catalogo: number
+  sinMovimientos: number
+  sinBalance: number
+}
+
+/** Una fila tal cual la devuelve `informe_stock_actual`. */
+export interface FilaStock {
+  posicion: number
+  total_filas: number
+  producto_id: string
+  sku: string
+  producto: string
+  producto_activo: boolean
+  warehouse_id: string
+  deposito_codigo: string
+  deposito: string
+  on_hand: number
+  reserved: number
+  available: number
+  estado: string
+  disponible_negativo: boolean
+  ultimo_movimiento: string | null
+}
+
+export interface FiltrosStock {
+  busqueda: string
+  deposito: string | null
+  estado: FiltroEstadoStock | null
+}
+
+/** Una fila tal cual la devuelve `informe_movimientos_stock`. */
+export interface FilaMovimiento {
+  posicion: number
+  total_filas: number
+  movimiento_id: number
+  fecha: string
+  dia: string
+  producto_id: string
+  sku: string | null
+  producto: string | null
+  producto_activo: boolean | null
+  warehouse_id: string
+  deposito_codigo: string | null
+  deposito: string | null
+  movement_type: string
+  sentido: string
+  quantity: number
+  source_type: string | null
+  source_id: string | null
+  referencia: string | null
+  notas: string | null
+  desde: string
+  hasta: string
+}
+
+export interface FiltrosMovimientos {
+  deposito: string | null
+  tipo: string | null
+  sentido: 'entrada' | 'salida' | null
+}
+
+/** Una fila tal cual la devuelve `informe_kardex_producto`. */
+export interface FilaKardex {
+  posicion: number
+  total_filas: number
+  movimiento_id: number
+  fecha: string
+  dia: string
+  warehouse_id: string
+  deposito_codigo: string | null
+  deposito: string | null
+  movement_type: string
+  sentido: string
+  quantity: number
+  saldo: number | null
+  saldo_verificado: boolean
+  inicia_con_apertura: boolean
+  saldo_actual: number | null
+  source_type: string | null
+  source_id: string | null
+  referencia: string | null
+  notas: string | null
+}

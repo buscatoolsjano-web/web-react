@@ -1,6 +1,11 @@
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { NavegacionInformes } from '../components/NavegacionInformes'
+import { SelectorMes } from '../components/SelectorMes'
+import { useMesInformes } from '../hooks/useMesInformes'
+import { leerVista } from '../lib/vista'
+import { StockVista } from '../components/StockVista'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { ConversionCotizaciones } from '../components/ConversionCotizaciones'
 import { CumplimientoPedidos } from '../components/CumplimientoPedidos'
@@ -11,7 +16,7 @@ import { SerieMensual } from '../components/SerieMensual'
 import { TarjetaActividad } from '../components/TarjetaActividad'
 import { TicketPromedio } from '../components/TicketPromedio'
 import { useActividad, usePipeline } from '../hooks/useActividad'
-import { etiquetaTramo, leerMes, textoRevision } from '../lib/actividad'
+import { etiquetaTramo, textoRevision } from '../lib/actividad'
 import { etiquetaDoceMeses } from '../lib/pipeline'
 import { RANKING_INICIAL } from '../lib/rankings'
 import { puedeVerInformes } from '../lib/permisos'
@@ -39,12 +44,18 @@ export function InformesPage() {
       </div>
     )
   }
-  return <ActividadComercialVista />
+  return <VistasInformes />
 }
 
-/** Hoy en Argentina, `YYYY-MM`: sólo para el tope del selector; el servidor decide igual. */
-function mesActualAR(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date()).slice(0, 7)
+function VistasInformes() {
+  const [params] = useSearchParams()
+  const vista = leerVista(params.get('vista'))
+  return (
+    <div className={styles.page}>
+      <NavegacionInformes vista={vista} />
+      {vista === 'stock' ? <StockVista /> : <ActividadComercialVista />}
+    </div>
+  )
 }
 
 const RUTA_LISTADO: Record<TipoActividad, string> = {
@@ -54,9 +65,7 @@ const RUTA_LISTADO: Record<TipoActividad, string> = {
 }
 
 function ActividadComercialVista() {
-  const [params, setParams] = useSearchParams()
-  const mes = leerMes(params.get('mes'))
-  const tope = mesActualAR()
+  const { mes, tope } = useMesInformes()
   const actividad = useActividad(mes)
   const pipeline = usePipeline(mes)
   const queryClient = useQueryClient()
@@ -64,21 +73,8 @@ function ActividadComercialVista() {
   const cambiarRanking = (c: Partial<ParametrosRanking>) => setRanking((prev) => ({ ...prev, ...c }))
   const actualizando = useIsFetching({ queryKey: ['informes'] }) > 0
 
-  const cambiarMes = (valor: string) => {
-    const limpio = leerMes(valor)
-    setParams(
-      (p) => {
-        const n = new URLSearchParams(p)
-        if (limpio && limpio !== tope) n.set('mes', limpio)
-        else n.delete('mes')
-        return n
-      },
-      { replace: true },
-    )
-  }
-
   return (
-    <div className={styles.page}>
+    <div className={styles.vista}>
       <header className={styles.encabezado}>
         <div>
           <h1 className={styles.titulo}>Informes · Actividad comercial</h1>
@@ -89,21 +85,7 @@ function ActividadComercialVista() {
           </p>
         </div>
         <div className={styles.accionesEncabezado}>
-          <label className={styles.control}>
-            <span className={styles.controlEtiqueta}>Mes</span>
-            <input
-              type="month"
-              className={styles.inputMes}
-              value={mes ?? tope}
-              max={tope}
-              onChange={(e) => cambiarMes(e.target.value)}
-            />
-          </label>
-          {mes ? (
-            <button type="button" className={styles.boton} onClick={() => cambiarMes(tope)}>
-              Mes en curso
-            </button>
-          ) : null}
+          <SelectorMes />
           <button
             type="button"
             className={styles.boton}
