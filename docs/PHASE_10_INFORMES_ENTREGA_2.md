@@ -26,7 +26,7 @@ Una función nueva de lectura: `public.informe_pipeline_comercial` (migración
 | vínculo | `sales_orders.quote_id` (FK) + índice único parcial `(company_id, quote_id)`: hoy **1 pedido por cotización**, 0 con varios | se cuenta igual con `exists` (COUNT DISTINCT de cotización), por si cambia |
 | convertidas | **132** cotizaciones con pedido confirmado · 134 aceptadas · 2 aceptadas sin pedido · 0 enviadas con pedido | |
 | días cotización → pedido | mediana **8** · p90 **53** · máximo 140 · 0 pedidos antes de su cotización | las recientes todavía pueden convertirse: se muestran «abiertas» |
-| moneda cotización ≠ pedido | **1**: COTI02339 (ARS 4.791.600) → PDV01223 (USD 3.497,87) | se reporta, no se convierte |
+| moneda cotización ≠ pedido | **1**: COTI02339 (ARS 4.791.600) → PDV01223 (USD 3.497,87), ambos históricos | inconsistencia histórica: se reporta, **no se corrige ni se altera**, no se convierte |
 | `fulfillment_status` | 140 `delivered` · 26 `pending` | **no sirve solo**: 12 de los `delivered` tienen líneas sin entregar |
 | helper existente | `app.derivar_cumplimiento`: entregado = remitos `shipped`/`delivered`, líneas ≠ `chapter` | misma definición de entregado |
 | regla de Stage 2.5 | `src/modules/ventas/lib/pendientes.ts` (`RECONSTRUIDO` / `NO_CONSTA_ENTREGA` / `DETALLE_NO_RECONSTRUIDO`) | replicada en SQL, sin cambiarla |
@@ -98,7 +98,10 @@ líneas ≠ `chapter`. Precedencia:
 | `parcial` | alguna línea pendiente y algo entregado (si otra línea tiene exceso, sigue siendo parcial) | sí |
 
 - **Porcentaje:** `(completo + sobreentregado) / (completo + parcial + sin_entrega + sobreentregado)`.
-  El denominador son **sólo los pedidos con evidencia**; se muestra «114 de 131».
+  **Se calcula sólo sobre los pedidos con evidencia determinable** (las cuatro
+  categorías con evidencia). Los no determinables (`no_consta_entrega`,
+  `detalle_no_reconstruido`, `sin_lineas`) **no están ni en el numerador ni en
+  el denominador**. Hoy: 114 de 131 = 87,0 %, no 114 de 166.
 - **Cohorte:** pedidos con fecha en el tramo, según lo entregado **hoy**.
 - **Diferencia con Ventas:** un remito en **borrador o cancelado** no cuenta ni
   como entrega ni como «remito suelto del cliente». La pantalla de pedido de
@@ -213,10 +216,14 @@ latencia medida está a ~35 ms del piso de red.
 | parciales | 12 |
 | sin entrega | 5 |
 | sobreentregados | 2 |
-| **con evidencia** | **131** → completos 114 de 131 = **87,0 %** |
+| **con evidencia determinable** | **131** → completos 114 de 131 = **87,0 %** (denominador: sólo estos 131) |
 | no consta entrega | 21 |
 | detalle no reconstruido | 14 |
 | sin líneas | 0 |
+
+El 87,0 % se calcula **sólo sobre los 131 pedidos con evidencia determinable**.
+Los 35 no determinables quedan fuera del porcentaje: sobre los 166 daría 68,7 %,
+que trataría 35 pedidos sin evidencia como no completos.
 
 Coincide con Stage 2.5: 126 reconstruidos (112 + 12 + 2), 5 limpios sin entrega,
 21 dudosos, 14 sin detalle. Los 12 parciales tienen `fulfillment_status =
@@ -254,7 +261,13 @@ evidencia, sin importe.
    `convertirCotizacionEnPedido` sólo bloquea `rejected` (un borrador se puede
    convertir) y usa `USD` si la cotización no tiene moneda. **Latente:** 0 casos
    hoy. Informes lo reporta como inconsistencia.
-3. **Datos:** COTI02339 en ARS → PDV01223 en USD, sin `needs_review`.
+3. **Datos · inconsistencia histórica:** COTI02339 (ARS 4.791.600, `accepted`,
+   importada) → PDV01223 (USD 3.497,87, importado). La cotización está marcada
+   `needs_review = true`; **el pedido no** (`needs_review = false`). **No se
+   corrigió ni se alteró** (último `updated_at` de ambos: 2026-09-09, la
+   migración; la suite verifica la misma huella antes y después). En Informes
+   cuenta como convertida en ARS, la moneda de la cotización, y se avisa como
+   `moneda_distinta`.
 4. **Datos:** 31 de 166 pedidos con total guardado distinto del cálculo de sus
    líneas; 10 documentos con total 0.
 
