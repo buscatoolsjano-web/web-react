@@ -110,6 +110,11 @@ export interface ConfigApi {
   readonly buzones: ReadonlySet<string>
   /** Orígenes del navegador que pueden llamar. Sin comodín. */
   readonly origenes: ReadonlySet<string>
+  /**
+   * Clave HMAC compartida con la base (Secret Manager `email-api-hmac`). Firma las
+   * RPC de envío: sin ella, el navegador podría marcar un envío como hecho.
+   */
+  readonly claveHmac: Buffer
 }
 
 export function leerConfigApi(): ConfigApi {
@@ -125,5 +130,12 @@ export function leerConfigApi(): ConfigApi {
     supabaseClavePublica: requerida('SUPABASE_PUBLISHABLE_KEY'),
     buzones: buzonesPermitidos(),
     origenes: new Set(origenes),
+    claveHmac: claveHmac(),
   }
+}
+
+function claveHmac(): Buffer {
+  const hex = requerida('EMAIL_API_HMAC')
+  if (!/^[0-9a-f]{64}$/i.test(hex)) throw new Error('EMAIL_API_HMAC tiene que ser 64 caracteres hexadecimales')
+  return Buffer.from(hex, 'hex')
 }

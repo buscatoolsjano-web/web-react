@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { FiltrosEmails } from '../components/FiltrosEmails'
 import { ListadoEmails } from '../components/ListadoEmails'
@@ -56,6 +57,13 @@ function Bandeja() {
             {unaCuenta ? ` · ${unaCuenta.direccion}` : ''}
           </p>
         </div>
+        <span className={styles.accionesEncabezado}>
+        <Link to="/emails/redactar" className={styles.botonPrimario}>
+          Nuevo email
+        </Link>
+        <Link to="/emails/borradores" className={styles.boton}>
+          Borradores
+        </Link>
         <button
           type="button"
           className={styles.boton}
@@ -65,6 +73,7 @@ function Bandeja() {
         >
           {bandeja.isFetching && !bandeja.isPending ? 'Actualizando…' : 'Actualizar'}
         </button>
+        </span>
       </header>
 
       {canal === 'caido' ? (

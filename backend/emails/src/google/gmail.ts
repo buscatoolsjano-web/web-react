@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto'
+import { conReintentos, REINTENTOS_POR_DEFECTO, type OpcionesReintento, type Politica } from './reintentos.js'
 /**
  * Cliente de Gmail, server-side.
  *
@@ -59,6 +61,7 @@ export class ErrorGmail extends Error {
   constructor(
     readonly status: number,
     mensaje: string,
+    readonly retryAfterS: number | null = null,
   ) {
     super(mensaje)
     this.name = 'ErrorGmail'
@@ -124,9 +127,63 @@ export interface ClienteGmail {
   adjunto(buzon: string, mensajeId: string, adjuntoId: string): Promise<{ data: string; size: number }>
 
   iniciarWatch(buzon: string, topic: string): Promise<RespuestaWatch>
+
+  // ── Entrega 5: redactar ─────────────────────────────────────────────────
+  /** Sólo cabeceras: para armar In-Reply-To/References y validar el hilo. */
+  mensajeCabeceras(buzon: string, mensajeId: string, nombres: string[]): Promise<CabecerasMensaje>
+  listarBorradores(buzon: string): Promise<ResumenBorrador[]>
+  /** El borrador con su mensaje en format=full. */
+  obtenerBorrador(buzon: string, borradorId: string): Promise<{ id: string; message: unknown }>
+  crearBorrador(buzon: string, raw: Buffer, threadId: string | null): Promise<ResumenBorrador>
+  actualizarBorrador(buzon: string, borradorId: string, raw: Buffer, threadId: string | null): Promise<ResumenBorrador>
+  borrarBorrador(buzon: string, borradorId: string): Promise<void>
+  /** Gmail borra el borrador y crea el mensaje con SENT. No idempotente. */
+  enviarBorrador(buzon: string, borradorId: string): Promise<Enviado>
+  /** No idempotente. */
+  enviarMensaje(buzon: string, raw: Buffer, threadId: string | null): Promise<Enviado>
+  /**
+   * Reconciliación de un envío incierto. Gmail REEMPLAZA el Message-ID que manda
+   * el cliente (medido en producción), así que no sirve de clave: se buscan los
+   * mensajes de SENT en la ventana [desde, hasta] y se leen sólo sus cabeceras
+   * `X-BT-Request-Id`. Devuelve TODAS las coincidencias: decidir qué hacer con 0
+   * o con más de una es de quien llama.
+   */
+  buscarEnviadosPorRequestId(buzon: string, requestId: string, desdeMs: number, hastaMs: number): Promise<BusquedaEnviados>
+}
+
+export interface BusquedaEnviados {
+  coincidencias: Enviado[]
+  /** Cuántos mensajes de SENT se revisaron en la ventana. */
+  revisados: number
+  /** false si la ventana tenía más mensajes que el tope: el resultado no prueba que no haya otro. */
+  completa: boolean
+}
+
+/** Cabecera propia con el client_request_id. Gmail no la usa; la reconciliación sí. */
+export const CABECERA_REQUEST_ID = 'X-BT-Request-Id'
+/** Tope de mensajes de SENT revisados por reconciliación (2 páginas de 50). */
+export const TOPE_RECONCILIACION = 100
+
+export interface CabecerasMensaje {
+  id: string
+  threadId: string
+  labelIds: string[]
+  cabeceras: Record<string, string>
+}
+
+export interface ResumenBorrador {
+  id: string
+  messageId: string
+  threadId: string
+}
+
+export interface Enviado {
+  id: string
+  threadId: string
 }
 
 const API = 'https://gmail.googleapis.com/gmail/v1/users'
+const UPLOAD = 'https://gmail.googleapis.com/upload/gmail/v1/users'
 
 /** Los únicos headers que necesita la bandeja. Pedir más es traer de más. */
 const HEADERS_BANDEJA = ['From', 'To', 'Cc', 'Subject', 'Date', 'Message-ID']
@@ -166,18 +223,87 @@ export function cuerpoWatch(topic: string): { topicName: string } {
 }
 
 export class ClienteGmailReal implements ClienteGmail {
-  constructor(private readonly token: (buzon: string) => Promise<string>) {}
 
-  private async pedir(buzon: string, ruta: string, init?: RequestInit): Promise<unknown> {
-    const t = await this.token(buzon)
-    const r = await fetch(`${API}/${encodeURIComponent(buzon)}${ruta}`, {
-      ...init,
-      headers: { ...(init?.headers ?? {}), Authorization: `Bearer ${t}` },
-    })
-    if (!r.ok) {
-      const detalle = await r.text().catch(() => '')
-      throw new ErrorGmail(r.status, detalle.slice(0, 300))
-    }
+  constructor(
+    private readonly token: (buzon: string) => Promise<string>,
+    private readonly reintentos: OpcionesReintento = REINTENTOS_POR_DEFECTO,
+  ) {}
+
+  /** Un pedido a Gmail con la política de reintentos que corresponde. */
+  private async pedirCrudo(
+    buzon: string,
+    url: string,
+    init: RequestInit,
+    politica: Politica,
+    timeoutMs: number,
+  ): Promise<Response> {
+    return conReintentos(
+      politica,
+      async () => {
+        const t = await this.token(buzon)
+        const r = await fetch(url, {
+          ...init,
+          headers: { ...(init.headers ?? {}), Authorization: `Bearer ${t}` },
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+        if (!r.ok) {
+          const detalle = await r.text().catch(() => '')
+          const ra = Number(r.headers.get('Retry-After'))
+          throw new ErrorGmail(r.status, detalle.slice(0, 300), Number.isFinite(ra) && ra > 0 ? ra : null)
+        }
+        return r
+      },
+      (e) => (e instanceof ErrorGmail ? { status: e.status, retryAfter: e.retryAfterS } : null),
+      this.reintentos,
+    )
+  }
+
+  private async pedir(
+    buzon: string,
+    ruta: string,
+    init: RequestInit = {},
+    politica: Politica = 'lectura',
+  ): Promise<unknown> {
+    const r = await this.pedirCrudo(buzon, `${API}/${encodeURIComponent(buzon)}${ruta}`, init, politica, 30_000)
+    const txt = await r.text()
+    return txt ? JSON.parse(txt) : {}
+  }
+
+  /**
+   * Subida multipart: metadata JSON + el MIME crudo como `message/rfc822`.
+   * Sin base64 del mensaje en un JSON, y con `threadId` en la metadata.
+   */
+  private async subir(
+    buzon: string,
+    metodo: 'POST' | 'PUT',
+    ruta: string,
+    metadata: unknown,
+    raw: Buffer,
+    politica: Politica,
+  ): Promise<unknown> {
+    const limite = `bt_${randomBytes(12).toString('hex')}`
+    const cuerpo = Buffer.concat([
+      Buffer.from(`--${limite}
+Content-Type: application/json; charset=UTF-8
+
+${JSON.stringify(metadata)}
+--${limite}
+Content-Type: message/rfc822
+
+`),
+      raw,
+      Buffer.from(`
+--${limite}--
+`),
+    ])
+    const url = `${UPLOAD}/${encodeURIComponent(buzon)}${ruta}${ruta.includes('?') ? '&' : '?'}uploadType=multipart`
+    const r = await this.pedirCrudo(
+      buzon,
+      url,
+      { method: metodo, headers: { 'Content-Type': `multipart/related; boundary=${limite}` }, body: cuerpo },
+      politica,
+      60_000,
+    )
     return r.json()
   }
 
@@ -323,8 +449,117 @@ export class ClienteGmailReal implements ClienteGmail {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(cuerpoWatch(topic)),
-    })) as { historyId?: string; expiration?: string }
+    }, 'idempotente')) as { historyId?: string; expiration?: string }
     if (!j.historyId || !j.expiration) throw new Error('watch no devolvió historyId/expiration')
     return { historyId: j.historyId, expiration: j.expiration }
+  }
+
+  // ── Entrega 5: redactar ─────────────────────────────────────────────────
+
+  async mensajeCabeceras(buzon: string, mensajeId: string, nombres: string[]): Promise<CabecerasMensaje> {
+    const q = new URLSearchParams({ format: 'metadata' })
+    for (const n of nombres) q.append('metadataHeaders', n)
+    const j = (await this.pedir(buzon, `/messages/${encodeURIComponent(mensajeId)}?${q}`)) as {
+      id?: string
+      threadId?: string
+      labelIds?: string[]
+      payload?: unknown
+    }
+    return { id: j.id ?? mensajeId, threadId: j.threadId ?? '', labelIds: j.labelIds ?? [], cabeceras: aplanarHeaders(j.payload) }
+  }
+
+  async listarBorradores(buzon: string): Promise<ResumenBorrador[]> {
+    const j = (await this.pedir(buzon, '/drafts?maxResults=50')) as {
+      drafts?: Array<{ id?: string; message?: { id?: string; threadId?: string } }>
+    }
+    return (j.drafts ?? [])
+      .filter((d) => d.id && d.message?.id)
+      .map((d) => ({ id: d.id!, messageId: d.message!.id!, threadId: d.message?.threadId ?? '' }))
+  }
+
+  async obtenerBorrador(buzon: string, borradorId: string): Promise<{ id: string; message: unknown }> {
+    const j = (await this.pedir(buzon, `/drafts/${encodeURIComponent(borradorId)}?format=full`)) as {
+      id?: string
+      message?: unknown
+    }
+    return { id: j.id ?? borradorId, message: j.message ?? null }
+  }
+
+  private resumen(j: unknown): ResumenBorrador {
+    const d = j as { id?: string; message?: { id?: string; threadId?: string } }
+    if (!d.id || !d.message?.id) throw new Error('Gmail no devolvió el borrador')
+    return { id: d.id, messageId: d.message.id, threadId: d.message.threadId ?? '' }
+  }
+
+  async crearBorrador(buzon: string, raw: Buffer, threadId: string | null): Promise<ResumenBorrador> {
+    // No idempotente: un 5xx podría haber creado el borrador igual.
+    const j = await this.subir(buzon, 'POST', '/drafts', { message: threadId ? { threadId } : {} }, raw, 'no_idempotente')
+    return this.resumen(j)
+  }
+
+  async actualizarBorrador(buzon: string, borradorId: string, raw: Buffer, threadId: string | null): Promise<ResumenBorrador> {
+    const j = await this.subir(
+      buzon,
+      'PUT',
+      `/drafts/${encodeURIComponent(borradorId)}`,
+      { id: borradorId, message: threadId ? { threadId } : {} },
+      raw,
+      'idempotente',
+    )
+    return this.resumen(j)
+  }
+
+  async borrarBorrador(buzon: string, borradorId: string): Promise<void> {
+    await this.pedir(buzon, `/drafts/${encodeURIComponent(borradorId)}`, { method: 'DELETE' }, 'idempotente')
+  }
+
+  async enviarBorrador(buzon: string, borradorId: string): Promise<Enviado> {
+    const j = (await this.pedir(
+      buzon,
+      '/drafts/send',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: borradorId }) },
+      'no_idempotente',
+    )) as { id?: string; threadId?: string }
+    if (!j.id || !j.threadId) throw new Error('Gmail no devolvió el mensaje enviado')
+    return { id: j.id, threadId: j.threadId }
+  }
+
+  async enviarMensaje(buzon: string, raw: Buffer, threadId: string | null): Promise<Enviado> {
+    const j = (await this.subir(buzon, 'POST', '/messages/send', threadId ? { threadId } : {}, raw, 'no_idempotente')) as {
+      id?: string
+      threadId?: string
+    }
+    if (!j.id || !j.threadId) throw new Error('Gmail no devolvió el mensaje enviado')
+    return { id: j.id, threadId: j.threadId }
+  }
+
+  async buscarEnviadosPorRequestId(buzon: string, requestId: string, desdeMs: number, hastaMs: number): Promise<BusquedaEnviados> {
+    // after:/before: con epoch en segundos. SENT aunque después lo hayan movido a la papelera.
+    const consulta = `after:${Math.floor(desdeMs / 1000)} before:${Math.ceil(hastaMs / 1000)}`
+    const ids: Array<{ id: string; threadId: string }> = []
+    let pagina: string | undefined
+    let completa = true
+    do {
+      const q = new URLSearchParams({ labelIds: 'SENT', q: consulta, includeSpamTrash: 'true', maxResults: '50' })
+      if (pagina) q.set('pageToken', pagina)
+      const j = (await this.pedir(buzon, `/messages?${q}`)) as {
+        messages?: Array<{ id?: string; threadId?: string }>
+        nextPageToken?: string
+      }
+      for (const m of j.messages ?? []) if (m.id && m.threadId) ids.push({ id: m.id, threadId: m.threadId })
+      pagina = j.nextPageToken
+      if (pagina && ids.length >= TOPE_RECONCILIACION) {
+        completa = false
+        break
+      }
+    } while (pagina)
+    const coincidencias: Enviado[] = []
+    for (const m of ids.slice(0, TOPE_RECONCILIACION)) {
+      const cab = await this.mensajeCabeceras(buzon, m.id, [CABECERA_REQUEST_ID])
+      if ((cab.cabeceras[CABECERA_REQUEST_ID.toLowerCase()] ?? '').trim() === requestId) {
+        coincidencias.push({ id: cab.id, threadId: cab.threadId || m.threadId })
+      }
+    }
+    return { coincidencias, revisados: Math.min(ids.length, TOPE_RECONCILIACION), completa }
   }
 }

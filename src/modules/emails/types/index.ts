@@ -141,6 +141,8 @@ export interface MensajeContenido {
   de: string
   para: string
   cc: string
+  /** Reply-To del mensaje, vacío si no lo trae. */
+  responderA: string
   asunto: string
   noLeidoGmail: boolean
   html: string | null
@@ -166,4 +168,73 @@ export type CodigoErrorContenido =
   | 'gmail_no_autorizado'
   | 'gmail_no_disponible'
   | 'indice_no_disponible'
+  | 'datos_invalidos'
+  | 'limite_envios'
+  | 'demasiado_grande'
+  | 'borrador_no_disponible'
+  | 'envio_no_disponible'
+  | 'envio_no_configurado'
   | 'desconocido'
+
+// ── Redactar (entrega 5) ──────────────────────────────────────────────────
+// Espejo de backend/emails/src/api/redactar.ts.
+
+export type ModoRedaccion = 'nuevo' | 'responder' | 'responder_todos' | 'reenviar'
+
+/** Un adjunto en el composer. `nuevo` lleva los bytes; los otros, una referencia. */
+export type AdjuntoRedaccion =
+  | { clave: string; tipo: 'nuevo'; nombre: string; mime: string; tamano: number; datos: string }
+  | { clave: string; tipo: 'borrador'; nombre: string; mime: string; tamano: number; partId: string }
+  | { clave: string; tipo: 'original'; nombre: string; mime: string; tamano: number; messageId: string; partId: string }
+
+/** De dónde sacó el servidor el modo de un borrador (ver backend: redactar.ts). */
+export type OrigenModoBorrador = 'cabecera' | 'in_reply_to' | 'contexto' | 'sin_datos'
+
+export interface BorradorEditable {
+  draft_id: string
+  thread_id: string | null
+  modo: ModoRedaccion
+  modo_origen: OrigenModoBorrador
+  ref_message_id: string | null
+  para: string[]
+  cc: string[]
+  cco: string[]
+  asunto: string
+  texto: string
+  adjuntos: Array<{ part_id: string; nombre: string; mime: string; tamano: number }>
+}
+
+export interface BorradorGuardado {
+  draft_id: string
+  thread_id: string
+  recreado: boolean
+  adjuntos: Array<{ part_id: string; nombre: string; mime: string; tamano: number }>
+}
+
+export interface ResumenBorradorGmail {
+  draft_id: string
+  thread_id: string
+  asunto: string
+  para: string[]
+  fecha: string | null
+  modo: ModoRedaccion | null
+  modo_origen: OrigenModoBorrador
+}
+
+/** Por qué un envío sigue sin confirmar. Nunca se reenvía solo. */
+export type MotivoIncierto = 'resultado_perdido' | 'sin_coincidencia' | 'conflicto' | 'busqueda_incompleta' | 'busqueda_fallida'
+
+export type ResultadoEnvio =
+  | { estado: 'enviado'; gmail_message_id: string; gmail_thread_id: string; repetido: boolean }
+  | { estado: 'en_curso' }
+  | { estado: 'incierto'; motivo: MotivoIncierto }
+  | { estado: 'fallido'; error: string }
+
+export interface SugerenciaDestinatario {
+  direccion: string
+  nombre: string | null
+  clienteId: string | null
+  clienteNombre: string | null
+  fuente: 'contacto' | 'cliente' | 'historial'
+  clientes: number
+}

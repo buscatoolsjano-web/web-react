@@ -6,6 +6,8 @@ export class ErrorContenido extends Error {
     readonly codigo: CodigoErrorContenido,
     readonly status: number | null = null,
     readonly reintentarEnSegundos: number | null = null,
+    /** El cuerpo JSON de la respuesta, si lo hubo (p. ej. el campo inválido). */
+    readonly detalle: unknown = null,
   ) {
     super(codigo)
     this.name = 'ErrorContenido'
@@ -25,6 +27,12 @@ export class ErrorContenido extends Error {
 }
 
 const CONOCIDOS: readonly CodigoErrorContenido[] = [
+  'datos_invalidos',
+  'limite_envios',
+  'demasiado_grande',
+  'borrador_no_disponible',
+  'envio_no_disponible',
+  'envio_no_configurado',
   'sesion_invalida',
   'hilo_no_disponible',
   'adjunto_no_disponible',
@@ -69,6 +77,18 @@ export function mensajeDeError(codigo: CodigoErrorContenido): string {
       return 'La base no respondió. Probá de nuevo en unos segundos.'
     case 'gmail_no_disponible':
       return 'Gmail no respondió. Probá de nuevo en unos segundos.'
+    case 'datos_invalidos':
+      return 'Hay datos inválidos: revisá los destinatarios, el asunto y los adjuntos.'
+    case 'limite_envios':
+      return 'Se alcanzó el límite de envíos de seguridad. Esperá unos minutos.'
+    case 'demasiado_grande':
+      return 'El mensaje es demasiado grande. Los adjuntos suman más de 10 MB.'
+    case 'borrador_no_disponible':
+      return 'Ese borrador ya no existe en Gmail.'
+    case 'envio_no_disponible':
+      return 'No se pudo enviar: el hilo o la cuenta no están disponibles.'
+    case 'envio_no_configurado':
+      return 'El envío no está habilitado en este entorno.'
     default:
       return 'No se pudo cargar el contenido.'
   }

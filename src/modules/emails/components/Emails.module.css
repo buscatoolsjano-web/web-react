@@ -548,3 +548,41 @@
   line-height: 1.5;
   max-width: 100%;
 }
+
+/* ── Entrega 5 ────────────────────────────────────────────────────────── */
+
+.filaBoton {
+  composes: fila;
+  width: 100%;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+a.botonPrimario {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.accionesMensaje {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+}
+
+.accionesEncabezado {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+a.boton {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}

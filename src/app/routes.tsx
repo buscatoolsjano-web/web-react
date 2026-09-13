@@ -196,6 +196,12 @@ const PuntosPage = lazyConRecarga(() =>
 const EmailsPage = lazyConRecarga(() =>
   import('@/modules/emails/pages/EmailsPage').then((m) => ({ default: m.EmailsPage })),
 )
+const EmailRedactarPage = lazyConRecarga(() =>
+  import('@/modules/emails/pages/EmailRedactarPage').then((m) => ({ default: m.EmailRedactarPage })),
+)
+const EmailBorradoresPage = lazyConRecarga(() =>
+  import('@/modules/emails/pages/EmailBorradoresPage').then((m) => ({ default: m.EmailBorradoresPage })),
+)
 const EmailHiloPage = lazyConRecarga(() =>
   import('@/modules/emails/pages/EmailHiloPage').then((m) => ({ default: m.EmailHiloPage })),
 )
@@ -296,6 +302,9 @@ export const routes: RouteObject[] = [
       // Gmail: un gmail_thread_id sólo es único dentro de su cuenta, y la
       // bandeja no asume que haya una sola.
       { path: 'emails', element: privada(<EmailsPage />) },
+      // Las rutas literales antes que `:threadId`, o React Router las toma por un id.
+      { path: 'emails/redactar', element: privada(<EmailRedactarPage />) },
+      { path: 'emails/borradores', element: privada(<EmailBorradoresPage />) },
       { path: 'emails/:threadId', element: privada(<EmailHiloPage />) },
     ],
   },

@@ -9,10 +9,12 @@ export interface MensajeEmailProps {
   hilo: HiloIndice
   mensaje: MensajeContenido
   abiertoInicial: boolean
+  /** Responder, responder a todos y reenviar ESTE mensaje. */
+  onAccion?: (modo: 'responder' | 'responder_todos' | 'reenviar', mensajeId: string) => void
 }
 
 /** Un mensaje del hilo. Plegado sólo en la cabecera: el cuerpo no se dibuja hasta abrirlo. */
-export function MensajeEmail({ hilo, mensaje, abiertoInicial }: MensajeEmailProps) {
+export function MensajeEmail({ hilo, mensaje, abiertoInicial, onAccion }: MensajeEmailProps) {
   const [abierto, setAbierto] = useState(abiertoInicial)
   const id = useId()
   const cantidadAdjuntos = mensaje.adjuntos.filter((a) => !a.inline).length
@@ -41,6 +43,19 @@ export function MensajeEmail({ hilo, mensaje, abiertoInicial }: MensajeEmailProp
           </p>
           <CuerpoSeguro hilo={hilo} mensaje={mensaje} />
           <AdjuntosEmail hilo={hilo} mensaje={mensaje} />
+          {onAccion ? (
+            <div className={styles.accionesMensaje}>
+              <button type="button" className={styles.boton} onClick={() => onAccion('responder', mensaje.id)}>
+                Responder
+              </button>
+              <button type="button" className={styles.boton} onClick={() => onAccion('responder_todos', mensaje.id)}>
+                Responder a todos
+              </button>
+              <button type="button" className={styles.boton} onClick={() => onAccion('reenviar', mensaje.id)}>
+                Reenviar
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </article>

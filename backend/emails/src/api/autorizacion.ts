@@ -47,8 +47,19 @@ export interface HiloAutorizado {
   usuario: string
 }
 
+export interface CuentaAutorizada {
+  accountId: string
+  companyId: string
+  buzon: string
+  /** display_name de la cuenta: el nombre del From. Nunca lo elige el cliente. */
+  nombre: string | null
+  usuario: string
+}
+
 export interface Autorizador {
   autorizarHilo(jwt: string, accountId: string, gmailThreadId: string): Promise<HiloAutorizado>
+  /** Para redactar sin hilo: la cuenta tiene que ser visible por RLS y estar activa. */
+  autorizarCuenta(jwt: string, accountId: string): Promise<CuentaAutorizada>
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -117,5 +128,33 @@ export class AutorizadorSupabase implements Autorizador {
       gmailThreadId: f.gmail_thread_id,
       usuario: subDelJwt(jwt),
     }
+  }
+
+  async autorizarCuenta(jwt: string, accountId: string): Promise<CuentaAutorizada> {
+    const q = new URLSearchParams({
+      select: 'id,company_id,email_address,display_name,active',
+      id: `eq.${accountId}`,
+      limit: '1',
+    })
+    let r: Response
+    try {
+      r = await this.pedir(`${this.url}/rest/v1/email_accounts?${q}`, {
+        headers: { apikey: this.clavePublica, Authorization: `Bearer ${jwt}` },
+      })
+    } catch (e) {
+      throw new IndiceNoDisponible((e as Error).message)
+    }
+    if (r.status === 401 || r.status === 403) throw new NoAutenticado(`PostgREST ${r.status}`)
+    if (!r.ok) throw new IndiceNoDisponible(`PostgREST ${r.status}`)
+    const filas = (await r.json()) as Array<{
+      id: string
+      company_id: string
+      email_address: string
+      display_name: string | null
+      active: boolean
+    }>
+    const f = filas[0]
+    if (!f || !f.active) throw new NoEncontrado('cuenta no visible para este usuario')
+    return { accountId: f.id, companyId: f.company_id, buzon: f.email_address, nombre: f.display_name, usuario: subDelJwt(jwt) }
   }
 }

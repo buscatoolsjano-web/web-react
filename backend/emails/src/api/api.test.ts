@@ -272,6 +272,9 @@ describe('servidor de la bandeja', () => {
     gmail.adjuntos.set('ANGjdJ-html', b64('<script>alert(1)</script>'))
     const llamadasAutorizador: string[] = []
     const autorizador: Autorizador = opciones.autorizador ?? {
+      async autorizarCuenta() {
+        throw new NoEncontrado('no usado')
+      },
       async autorizarHilo(_jwt, accountId, threadId) {
         llamadasAutorizador.push(`${accountId}:${threadId}`)
         if (threadId !== HILO) throw new NoEncontrado('no visible')
@@ -323,7 +326,10 @@ describe('servidor de la bandeja', () => {
 
   it('JWT vencido: 401 sesion_invalida', async () => {
     const { pedir } = await levantar({
-      autorizador: { autorizarHilo: () => Promise.reject(new NoAutenticado('401')) },
+      autorizador: {
+        autorizarHilo: () => Promise.reject(new NoAutenticado('401')),
+        autorizarCuenta: () => Promise.reject(new NoAutenticado('401')),
+      },
     })
     const r = await pedir(rutaHilo)
     expect(r.status).toBe(401)

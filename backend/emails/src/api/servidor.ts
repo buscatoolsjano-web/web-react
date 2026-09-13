@@ -30,8 +30,21 @@ import {
   type HiloAutorizado,
 } from './autorizacion.js'
 import { armarHilo, buscarParte, threadIdDe } from './mensajes.js'
+import { createHash } from 'node:crypto'
+import { MimeInvalido } from './mime.js'
+import { LimiteEnvios, type RegistroEnvios } from './registro.js'
+import {
+  DatosInvalidos,
+  descartarBorrador,
+  enviar,
+  guardarBorrador,
+  listarBorradores,
+  obtenerBorradorEditable,
+} from './redactar.js'
 
 export interface ContextoApi {
+  /** Registro firmado de envíos. Sin él, las rutas de redactar responden 503. */
+  registro?: RegistroEnvios
   buzones: ReadonlySet<string>
   origenes: ReadonlySet<string>
   autorizador: Autorizador
@@ -56,8 +69,8 @@ function cabecerasCors(ctx: ContextoApi, req: IncomingMessage): Record<string, s
   if (!origen || !ctx.origenes.has(origen)) return { Vary: 'Origin' }
   return {
     'Access-Control-Allow-Origin': origen,
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type',
     'Access-Control-Expose-Headers': 'Content-Disposition, Retry-After',
     'Access-Control-Max-Age': '600',
     Vary: 'Origin',
@@ -121,10 +134,17 @@ function responderFallo(
   req: IncomingMessage,
   res: ServerResponse,
   e: unknown,
-  qué: 'hilo' | 'adjunto',
+  qué: 'hilo' | 'adjunto' | 'borrador' | 'envio',
   datos: Record<string, unknown>,
 ): void {
   if (e instanceof NoAutenticado) return json(ctx, req, res, 401, { error: 'sesion_invalida' })
+  if (e instanceof DatosInvalidos) return json(ctx, req, res, 422, { error: 'datos_invalidos', campo: e.campo })
+  if (e instanceof MimeInvalido) return json(ctx, req, res, 422, { error: 'datos_invalidos', campo: e.message })
+  if (e instanceof CuerpoDemasiadoGrande) return json(ctx, req, res, 413, { error: 'demasiado_grande' })
+  if (e instanceof LimiteEnvios) {
+    log('error', 'api.envio.limite', { ...datos, alcance: e.alcance })
+    return json(ctx, req, res, 429, { error: 'limite_envios' }, { 'Retry-After': '600' })
+  }
   if (e instanceof NoEncontrado) return json(ctx, req, res, 404, { error: `${qué}_no_disponible` })
   if (e instanceof IndiceNoDisponible) {
     log('error', `api.${qué}.indice`, { ...datos, motivo: e.message })
@@ -262,6 +282,93 @@ async function manejarAdjunto(
   }
 }
 
+/** Tope del cuerpo de un POST: 10 MB de adjuntos en base64 más el texto. */
+export const TOPE_CUERPO_JSON = 15 * 1024 * 1024
+
+class CuerpoDemasiadoGrande extends Error {}
+
+async function leerJson(req: IncomingMessage, tope: number): Promise<unknown> {
+  const trozos: Buffer[] = []
+  let total = 0
+  for await (const t of req) {
+    total += (t as Buffer).length
+    if (total > tope) throw new CuerpoDemasiadoGrande()
+    trozos.push(t as Buffer)
+  }
+  try {
+    return JSON.parse(Buffer.concat(trozos).toString('utf8') || '{}')
+  } catch {
+    throw new DatosInvalidos('json')
+  }
+}
+
+/**
+ * Borradores y envío. Cada operación autoriza adentro, con el JWT, contra la RLS
+ * y el allowlist. El ritmo se cuenta por token —no por el `sub` sin verificar—,
+ * para que un JWT falso no pueda agotarle el cupo a otra persona.
+ */
+async function manejarRedactar(
+  ctx: ContextoApi,
+  ritmo: Ritmo,
+  req: IncomingMessage,
+  res: ServerResponse,
+  ruta: string,
+  params: URLSearchParams,
+): Promise<void> {
+  const t0 = Date.now()
+  const qué = ruta === '/gmail/send' ? 'envio' : 'borrador'
+  const datos: Record<string, unknown> = { ruta, metodo: req.method }
+  try {
+    const jwt = bearer(req)
+    if (!jwt) throw new NoAutenticado('sin token')
+    if (!ctx.registro) return json(ctx, req, res, 503, { error: 'envio_no_configurado' })
+    if (!ritmo.permitir(createHash('sha256').update(jwt).digest('hex'))) throw new DemasiadosPedidos()
+    const c = { buzones: ctx.buzones, autorizador: ctx.autorizador, gmail: ctx.gmail, registro: ctx.registro }
+    const cuenta = params.get('account_id')
+
+    if (req.method === 'GET' && ruta === '/gmail/drafts') {
+      if (!validar.uuid(cuenta)) throw new NoEncontrado('account_id')
+      const hilo = params.get('thread_id')
+      if (hilo !== null && !validar.idGmail(hilo)) throw new NoEncontrado('thread_id')
+      return json(ctx, req, res, 200, await listarBorradores(c, jwt, cuenta, hilo))
+    }
+    if (req.method === 'GET' && ruta === '/gmail/draft') {
+      if (!validar.uuid(cuenta)) throw new NoEncontrado('account_id')
+      // Pista opcional: desde qué hilo y mensaje se abrió. Sólo se usa si el borrador
+      // no trae X-BT-Compose ni un In-Reply-To que coincida, y se valida igual.
+      const refPista = params.get('ref_message_id')
+      const hiloPista = params.get('thread_id')
+      const pista = {
+        modo: params.get('modo'),
+        ref_message_id: validar.idGmail(refPista) ? refPista : null,
+        thread_id: validar.idGmail(hiloPista) ? hiloPista : null,
+      }
+      return json(ctx, req, res, 200, await obtenerBorradorEditable(c, jwt, cuenta, params.get('draft_id') ?? '', pista))
+    }
+    if (req.method === 'DELETE' && ruta === '/gmail/draft') {
+      if (!validar.uuid(cuenta)) throw new NoEncontrado('account_id')
+      return json(ctx, req, res, 200, await descartarBorrador(c, jwt, cuenta, params.get('draft_id') ?? ''))
+    }
+    if (req.method === 'POST' && ruta === '/gmail/draft') {
+      const r = await guardarBorrador(c, jwt, await leerJson(req, TOPE_CUERPO_JSON))
+      log('info', 'api.borrador.ok', { ...datos, recreado: r.recreado, adjuntos: r.adjuntos.length, ms: Date.now() - t0 })
+      return json(ctx, req, res, 200, r)
+    }
+    if (req.method === 'POST' && ruta === '/gmail/send') {
+      const r = await enviar(c, jwt, await leerJson(req, TOPE_CUERPO_JSON))
+      log(r.estado === 'incierto' && r.motivo === 'conflicto' ? 'error' : 'info', 'api.envio.resultado', { ...datos, estado: r.estado, ...(r.estado === 'incierto' ? { motivo: r.motivo } : {}), ms: Date.now() - t0 })
+      const codigo = r.estado === 'enviado' ? 200 : r.estado === 'fallido' ? 502 : 202
+      return json(ctx, req, res, codigo, r)
+    }
+    return json(ctx, req, res, 405, { error: 'metodo_no_permitido' })
+  } catch (e) {
+    if (e instanceof DemasiadosPedidos) {
+      return json(ctx, req, res, 429, { error: 'demasiadas_solicitudes' }, { 'Retry-After': '60' })
+    }
+    return responderFallo(ctx, req, res, e, qué, datos)
+  }
+}
+
 export function construirServidorApi(ctx: ContextoApi) {
   const ritmo = new Ritmo(ctx.limitePorMinuto ?? 120, ctx.ahora ?? Date.now)
   return createServer((req, res) => {
@@ -279,6 +386,9 @@ export function construirServidorApi(ctx: ContextoApi) {
       }
       if (req.method === 'GET' && ruta === '/gmail/attachment') {
         return manejarAdjunto(ctx, ritmo, req, res, url.searchParams)
+      }
+      if (ruta === '/gmail/drafts' || ruta === '/gmail/draft' || ruta === '/gmail/send') {
+        return manejarRedactar(ctx, ritmo, req, res, ruta, url.searchParams)
       }
       // Nada de push, watch, sync ni perfil acá: viven en el servicio privado.
       json(ctx, req, res, 404, { error: 'ruta_desconocida' })

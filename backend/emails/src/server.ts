@@ -16,6 +16,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { leerConfig, leerConfigApi, buzonPermitido, type Config } from './config.js'
 import { construirServidorApi } from './api/servidor.js'
 import { AutorizadorSupabase } from './api/autorizacion.js'
+import { RegistroSupabase } from './api/registro.js'
 import { AlmacenSupabase, type Almacen, type CuentaEmail } from './almacen.js'
 import { ProveedorDeTokens } from './google/auth.js'
 import { ClienteGmailReal, ErrorGmail, type ClienteGmail } from './google/gmail.js'
@@ -287,6 +288,7 @@ if (process.env['NODE_ENV'] !== 'test' && process.env['MODO'] === 'api') {
     buzones: cfg.buzones,
     origenes: cfg.origenes,
     autorizador: new AutorizadorSupabase(cfg.supabaseUrl, cfg.supabaseClavePublica),
+    registro: new RegistroSupabase(cfg.supabaseUrl, cfg.supabaseClavePublica, cfg.claveHmac),
     gmail: new ClienteGmailReal((buzon) => tokens.para(buzon)),
   }).listen(puerto, () => {
     log('info', 'arranque', { modo: 'api', puerto, buzones: cfg.buzones.size })

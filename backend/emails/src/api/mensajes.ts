@@ -31,6 +31,8 @@ export interface MensajePayload {
   de: string
   para: string
   cc: string
+  /** Reply-To, si el remitente pidió que las respuestas vayan a otra dirección. */
+  responderA: string
   asunto: string
   /** Sólo informativo: abrir en el ERP NO lo cambia. */
   noLeidoGmail: boolean
@@ -167,6 +169,7 @@ export function analizarMensaje(m: MensajeGmailCompleto): MensajeAnalizado {
     de: header(raiz, 'From'),
     para: header(raiz, 'To'),
     cc: header(raiz, 'Cc'),
+    responderA: header(raiz, 'Reply-To'),
     asunto: header(raiz, 'Subject'),
     noLeidoGmail: (m.labelIds ?? []).includes('UNREAD'),
     html: null,

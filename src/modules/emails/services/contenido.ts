@@ -26,12 +26,30 @@ async function jwt(): Promise<string> {
   return token
 }
 
-async function pedir(ruta: string, params: Record<string, string>, senal?: AbortSignal): Promise<Response> {
-  const url = `${base()}${ruta}?${new URLSearchParams(params)}`
+export interface OpcionesPedido {
+  metodo?: 'GET' | 'POST' | 'DELETE'
+  cuerpo?: unknown
+  /** Estados que NO son error para esta ruta (p. ej. 202 de un envío incierto). */
+  aceptar?: number[]
+}
+
+/** Un pedido al servicio de la bandeja. Exportado para el composer (services/redactar). */
+export async function pedir(
+  ruta: string,
+  params: Record<string, string>,
+  senal?: AbortSignal,
+  opciones: OpcionesPedido = {},
+): Promise<Response> {
+  const url = `${base()}${ruta}${Object.keys(params).length ? `?${new URLSearchParams(params)}` : ''}`
   let r: Response
   try {
     r = await fetch(url, {
-      headers: { Authorization: `Bearer ${await jwt()}` },
+      method: opciones.metodo ?? 'GET',
+      headers: {
+        Authorization: `Bearer ${await jwt()}`,
+        ...(opciones.cuerpo !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      },
+      ...(opciones.cuerpo !== undefined ? { body: JSON.stringify(opciones.cuerpo) } : {}),
       // Nada de cookies: la identidad va en el header, y sólo ahí.
       credentials: 'omit',
       cache: 'no-store',
@@ -42,10 +60,12 @@ async function pedir(ruta: string, params: Record<string, string>, senal?: Abort
     if ((e as Error).name === 'AbortError') throw e
     throw new ErrorContenido('sin_red')
   }
-  if (!r.ok) {
-    const cuerpo: unknown = await r.json().catch(() => null)
+  // 200 siempre es éxito; otro 2xx sólo si la ruta lo declara (el 202 de un envío
+  // en curso o incierto NO es un error, pero tampoco es «enviado»).
+  if (r.status !== 200 && !(opciones.aceptar ?? []).includes(r.status)) {
+    const cuerpo: unknown = await r.clone().json().catch(() => null)
     const retry = Number(r.headers.get('Retry-After'))
-    throw new ErrorContenido(clasificarRespuesta(r.status, cuerpo), r.status, Number.isFinite(retry) && retry > 0 ? retry : null)
+    throw new ErrorContenido(clasificarRespuesta(r.status, cuerpo), r.status, Number.isFinite(retry) && retry > 0 ? retry : null, cuerpo)
   }
   return r
 }

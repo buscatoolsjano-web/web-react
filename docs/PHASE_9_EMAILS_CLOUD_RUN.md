@@ -347,7 +347,7 @@ Ninguna bloquea la operación:
 
 ---
 
-## Servicio público de la bandeja · `buscatools-erp-email-api` (entrega 4)
+## Servicio público de la bandeja · `buscatools-erp-email-api` (entregas 4 y 5)
 
 El navegador no puede conseguir un token de identidad de Google, así que las
 rutas que usa la bandeja no pueden estar detrás de IAM. Por eso son **otro
@@ -357,21 +357,35 @@ servicio**, con el mismo código en `MODO=api`: el privado sigue con
 | | |
 |---|---|
 | URL | `https://buscatools-erp-email-api-545134968830.us-east1.run.app` |
-| revisión | `buscatools-erp-email-api-00002-s7t` |
+| revisión | `buscatools-erp-email-api-00004-t8k` (entrega 5; la 00002-s7t fue la de la entrega 4) |
 | invocación | `--no-invoker-iam-check` — **pública por diseño**; la autenticación la hace el código |
 | runtime SA | `buscatools-email-api@…` |
 | escalado | min 0 · max 3 · 256 MiB · timeout 60 s |
-| rutas | `GET /salud` · `GET /gmail/thread` · `GET /gmail/attachment` · `OPTIONS` |
+| rutas | `GET /salud` · `GET /gmail/thread` · `GET /gmail/attachment` · `GET /gmail/drafts` · `GET|POST|DELETE /gmail/draft` · `POST /gmail/send` · `OPTIONS` |
 | variables | `MODO=api`, `GMAIL_SERVICE_ACCOUNT_EMAIL`, `ALLOWED_GMAIL_MAILBOXES`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `CORS_ORIGINS` |
-| secretos | **ninguno** |
+| secretos | `EMAIL_API_HMAC` ← Secret Manager `email-api-hmac:1` (referencia; el valor no está en la revisión) |
 
 ### Qué NO tiene
 
 - La service key de Supabase: autoriza con el JWT de cada persona y la RLS.
 - Ninguna private key de Google.
 - Ningún privilegio de sync, watch o Pub/Sub: esas rutas **no existen** acá (404).
-- Ningún rol de proyecto. Su único permiso: `serviceAccountTokenCreator` **sobre**
-  `buscatools-erp-email@…`, para firmar la aserción DWD.
+- Ningún rol de proyecto. Sus únicos permisos: `serviceAccountTokenCreator` **sobre**
+  `buscatools-erp-email@…` (firmar la aserción DWD) y, desde la entrega 5,
+  `secretmanager.secretAccessor` **sólo sobre** `email-api-hmac`. No puede leer
+  `supabase-service-key`.
+
+### La clave HMAC (entrega 5)
+
+El servicio público no tiene service key, y el navegador tiene el mismo JWT que el
+servicio. Para que el navegador no pueda marcar un envío como hecho ni fabricar un
+evento, las RPC de envío exigen además una firma HMAC-SHA256 que sólo pueden
+producir la base y este servicio. La clave se cargó a Secret Manager directo desde
+la base (sin imprimirse ni tocar disco), se verificó igual byte a byte, y se
+monta como variable **por referencia**. Revisados después del deploy: revision
+config, `services describe`, salida del deploy, build y logs de Cloud Run, build y
+Secret Manager — **0** apariciones del valor. Detalle en
+`docs/PHASE_9_EMAILS_ENTREGA_5.md`.
 
 ### Autorización de cada pedido
 
@@ -408,13 +422,20 @@ privado es una referencia a Secret Manager, y no aparece.
 gcloud run deploy buscatools-erp-email-api --source backend/emails --project buscatools-erp-email --region us-east1 --service-account buscatools-email-api@buscatools-erp-email.iam.gserviceaccount.com --build-service-account projects/buscatools-erp-email/serviceAccounts/buscatools-email-build@buscatools-erp-email.iam.gserviceaccount.com --no-invoker-iam-check --min-instances 0 --max-instances 3 --memory 256Mi --timeout 60s --env-vars-file api-env.yaml
 ```
 
-Un redeploy sin `--env-vars-file` conserva las variables y el modo de invocación.
+Un redeploy sin `--env-vars-file` conserva las variables, el secreto y el modo de
+invocación. La primera vez de la entrega 5 se agregó
+`--update-secrets EMAIL_API_HMAC=email-api-hmac:1`; no hace falta repetirlo.
 
 ### Red team
 
 ```bash
 EMAILS_API_URL=https://buscatools-erp-email-api-545134968830.us-east1.run.app node scripts/fase9-emails-entrega4-api-redteam.mjs
+EMAILS_API_URL=https://buscatools-erp-email-api-545134968830.us-east1.run.app node scripts/fase9-emails-entrega5-api-redteam.mjs
 ```
+
+El de la entrega 5 no manda ni crea nada en Gmail: los ataques de identidad usan un
+cuerpo que pasa la validación de forma pero se corta en el servidor antes de
+cualquier llamada a Gmail.
 
 ---
 
@@ -447,8 +468,8 @@ mueve `sincronizar`, al final. Hay un test de regresión.
 | Cloud Run | 2 servicios · min 0 · max 3 · 256 MiB | 2 M requests y 180.000 vCPU-s/mes |
 | Cloud Scheduler | 1 job | 3 jobs |
 | Pub/Sub | 1 topic · 1 subscription | 10 GiB/mes |
-| Secret Manager | 1 secreto | 6 versiones activas |
-| Artifact Registry | `cloud-run-source-deploy` · **77 MB** | 0,5 GB |
+| Secret Manager | 2 secretos (`supabase-service-key`, `email-api-hmac`) | 6 versiones activas |
+| Artifact Registry | `cloud-run-source-deploy` · 77 MB medido el 13/9 antes de los 2 deploys de la entrega 5 (no re-medido) | 0,5 GB |
 | service accounts | 5 propias + la default de Compute (sin usar) | — |
 
 **Deuda chica:** cada deploy desde source agrega una imagen a Artifact Registry y

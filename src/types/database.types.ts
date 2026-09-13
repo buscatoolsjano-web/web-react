@@ -5791,6 +5791,48 @@ export type Database = {
           clase: string
         }[]
       }
+      // Entrega 5. SECURITY INVOKER: un rol sin acceso a Emails no ve el historial.
+      autocompletar_destinatarios_email: {
+        Args: { p_company: string; p_q: string }
+        Returns: {
+          direccion: string
+          nombre: string | null
+          cliente_id: string | null
+          cliente_nombre: string | null
+          fuente: string
+          clientes: number
+        }[]
+      }
+      // Entrega 5. Exigen una firma HMAC que sólo tiene el servicio de la bandeja:
+      // el frontend no puede usarlas aunque tenga EXECUTE.
+      reservar_envio_email: {
+        Args: { p_account: string; p_client_request_id: string; p_operacion: string; p_firma: string }
+        Returns: {
+          id: string
+          status: string
+          nuevo: boolean
+          gmail_message_id: string | null
+          gmail_thread_id: string | null
+          created_at: string
+          intentos: number
+          attempted_at: string
+        }[]
+      }
+      completar_envio_email: {
+        Args: {
+          p_request: string
+          p_estado: string
+          p_message_id: string | null
+          p_thread_id: string | null
+          p_error: string | null
+          p_firma: string
+        }
+        Returns: { id: string; status: string; gmail_message_id: string | null; gmail_thread_id: string | null }[]
+      }
+      registrar_descarte_borrador_email: {
+        Args: { p_account: string; p_thread: string | null; p_firma: string }
+        Returns: undefined
+      }
       usuarios_asignables_email: {
         Args: { p_company: string }
         Returns: {
