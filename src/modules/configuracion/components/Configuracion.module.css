@@ -352,3 +352,189 @@
   font-size: var(--text-xs);
   color: var(--danger);
 }
+
+/* ── Empresa (Entrega 2) ──────────────────────────────────────────────── */
+
+.fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.legend {
+  padding: 0 var(--space-2);
+  font-weight: 700;
+  font-size: var(--text-base);
+}
+
+.grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: var(--space-3) var(--space-4);
+}
+
+.campoAncho {
+  grid-column: 1 / -1;
+}
+
+.textarea {
+  min-height: 5.5rem;
+  padding: var(--space-2) var(--space-3);
+  resize: vertical;
+  font-family: inherit;
+}
+
+.control:disabled,
+.textarea:disabled {
+  background: var(--input-readonly-bg);
+  color: var(--text);
+  opacity: 1;
+}
+
+.control[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.filaColor {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.muestraColor {
+  flex: 0 0 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+}
+
+.logo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.logoMarco {
+  flex: 0 0 auto;
+  width: 11rem;
+  height: 7rem;
+  max-width: 100%;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-alt);
+  overflow: hidden;
+}
+
+.logoImagen {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.logoAcciones {
+  flex: 1 1 14rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.botonArchivo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.botonArchivo:hover {
+  background: var(--surface-alt);
+}
+
+.botonArchivo[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* El input real queda accesible para teclado y lectores; la etiqueta es el botón visible. */
+.inputArchivo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.botonArchivo:has(+ .inputArchivo:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.barraGuardar {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .barraGuardar > * {
+    flex: 1 1 auto;
+  }
+}
+
+/* ── Numeración (Entrega 2) ───────────────────────────────────────────── */
+
+.codigo {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.alerta {
+  margin: 0;
+  border-left: 4px solid var(--warning);
+  background: var(--warning-light);
+  color: var(--warning-text);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.tono_ok {
+  background: var(--success-light);
+  color: var(--text);
+}
+
+.tono_alerta {
+  background: var(--warning-light);
+  color: var(--warning-text);
+}
+
+.tono_error {
+  background: var(--danger);
+  color: #fff;
+}
+
+.tono_neutro {
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  border-color: var(--border-strong);
+}

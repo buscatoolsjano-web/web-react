@@ -211,6 +211,12 @@ const InformesPage = lazyConRecarga(() =>
 const ConfiguracionShell = lazyConRecarga(() =>
   import('@/modules/configuracion/components/ConfiguracionShell').then((m) => ({ default: m.ConfiguracionShell })),
 )
+const EmpresaPage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/EmpresaPage').then((m) => ({ default: m.EmpresaPage })),
+)
+const NumeracionPage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/NumeracionPage').then((m) => ({ default: m.NumeracionPage })),
+)
 const UsuariosPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/UsuariosPage').then((m) => ({ default: m.UsuariosPage })),
 )
@@ -326,14 +332,17 @@ export const routes: RouteObject[] = [
       // employee; la página y la RPC lo validan, el menú sólo no lo ofrece.
       { path: 'informes', element: privada(<InformesPage />) },
 
-      // Configuración (Fase 12). Sólo admin: el shell no ofrece la pantalla a
-      // otros roles y las RPC y la Edge Function los rechazan con sin_permiso.
-      // Hoy la única subsección es Usuarios.
+      // Configuración (Fase 12). Admin y employee entran; cada sección filtra
+      // por rol (lib/permisos) y las RPC y Edge Functions lo vuelven a validar.
+      // Usuarios es sólo admin; Empresa la edita sólo admin; Numeración es de
+      // sólo lectura para los dos.
       {
         path: 'configuracion',
         element: privada(<ConfiguracionShell />),
         children: [
-          { index: true, element: <Navigate to="/configuracion/usuarios" replace /> },
+          { index: true, element: <Navigate to="/configuracion/empresa" replace /> },
+          { path: 'empresa', element: conSuspense(<EmpresaPage />) },
+          { path: 'numeracion', element: conSuspense(<NumeracionPage />) },
           { path: 'usuarios', element: conSuspense(<UsuariosPage />) },
         ],
       },

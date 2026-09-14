@@ -5746,6 +5746,51 @@ export type Database = {
       // SECURITY INVOKER, la tercera DEFINER acotada a quien usa Emails.
       // Fase 12 · Configuración → Usuarios. Sólo admin de la empresa (la RPC lo
       // valida). Las de invitación son de la Edge Function y no se tipan acá.
+      // Fase 12 E2 · Empresa y numeración. Admin/employee leen; sólo admin edita.
+      config_empresa_obtener: {
+        Args: { p_company: string }
+        Returns: {
+          id: string
+          slug: string
+          name: string
+          legal_name: string | null
+          tax_id: string | null
+          address: string | null
+          phone: string | null
+          email: string | null
+          website: string | null
+          brand_color: string | null
+          default_currency: string
+          is_active: boolean
+          logo_path: string | null
+          updated_at: string
+          puede_editar: boolean
+        }[]
+      }
+      config_empresa_actualizar: {
+        Args: { p_company: string; p_esperado: string; p_datos: Json }
+        Returns: { updated_at: string; campos: string[] }[]
+      }
+      config_numeracion_diagnostico: {
+        Args: { p_company: string }
+        Returns: {
+          doc_type: string
+          series_code: string
+          prefix: string
+          padding: number
+          is_default: boolean
+          next_number: number
+          proximo: string
+          documentos: number
+          con_patron: number
+          fuera_patron: number
+          max_numero: number | null
+          max_numero_sin_atipicos: number | null
+          atipicos_por_encima: number
+          estado: string
+          autoridad: string
+        }[]
+      }
       config_listar_usuarios: {
         Args: { p_company: string }
         Returns: {

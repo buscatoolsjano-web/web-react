@@ -68,7 +68,8 @@ const NAV = [
   // Informes v1: admin y employee (decisión de la entrega 1). La RPC rechaza al
   // resto con sin_permiso aunque la RLS de ventas les deje leer documentos.
   { to: '/informes', label: 'Informes', end: false, roles: ROLES_INFORMES },
-  // Configuración: sólo admin. Hoy contiene Usuarios.
+  // Configuración: admin y employee (Empresa y Numeración en lectura para
+  // employee; Usuarios sólo admin).
   { to: '/configuracion', label: 'Configuración', end: false, roles: ROLES_CONFIGURACION },
 ] as const
 

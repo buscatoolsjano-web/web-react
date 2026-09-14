@@ -22,6 +22,7 @@ import {
   rolesPermitidos,
   textoResultadoInvitacion,
 } from '../lib/usuarios'
+import { puedeAdministrarUsuarios } from '../lib/permisos'
 import { ErrorUsuarios } from '../services/usuarios'
 import type { UsuarioEmpresa } from '../types'
 import styles from '../components/Configuracion.module.css'
@@ -48,6 +49,14 @@ const quien = (u: UsuarioEmpresa) => u.nombre || u.email
  * global desde acá.
  */
 export function UsuariosPage() {
+  const { activa } = useEmpresa()
+  if (!puedeAdministrarUsuarios(activa?.rol)) {
+    return <p className={styles.vacio}>Sólo un administrador puede ver y administrar los usuarios de la empresa.</p>
+  }
+  return <UsuariosAdmin />
+}
+
+function UsuariosAdmin() {
   const { activa } = useEmpresa()
   const usuarios = useUsuarios()
   const acciones = useAccionesUsuarios()

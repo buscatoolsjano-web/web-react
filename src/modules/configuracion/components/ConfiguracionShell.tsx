@@ -1,17 +1,16 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { cx } from '@/utils/cx'
-import { puedeVerConfiguracion } from '../lib/permisos'
+import { puedeVerConfiguracion, seccionesVisibles } from '../lib/permisos'
 import styles from './Configuracion.module.css'
 
 /**
  * Esqueleto de Configuración: navegación interna + la subsección.
  *
- * Hoy tiene una sola entrada. Empresa, Listas de precios, Marcas y categorías y
- * Auditoría se agregan acá cuando existan (Entrega 0, plan T); no se muestran
- * como «próximamente» para no ofrecer pantallas que no hay.
+ * Las secciones visibles dependen del rol (lib/permisos). Listas de precios,
+ * Marcas y categorías y Auditoría se agregan cuando existan (Entrega 0, plan T);
+ * no se muestran como «próximamente» para no ofrecer pantallas que no hay.
  */
-const SECCIONES = [{ to: '/configuracion/usuarios', label: 'Usuarios' }] as const
 
 export function ConfiguracionShell() {
   const { activa, cargando } = useEmpresa()
@@ -30,7 +29,7 @@ export function ConfiguracionShell() {
     <div className={styles.shell}>
       <nav className={styles.subnav} aria-label="Secciones de configuración">
         <p className={styles.subnavTitulo}>Configuración</p>
-        {SECCIONES.map((s) => (
+        {seccionesVisibles(activa?.rol).map((s) => (
           <NavLink key={s.to} to={s.to} className={({ isActive }) => cx(styles.subnavItem, isActive && styles.subnavActivo)}>
             {s.label}
           </NavLink>

@@ -28,6 +28,10 @@
  *   node --experimental-strip-types scripts/fase12-configuracion-entrega1-tests.mjs
  *
  * NO correrla en paralelo con otra suite de base.
+ *
+ * ENVÍOS: con SMTP propio configurado, invitar a una cuenta nueva o sin confirmar
+ * MANDA un correo real. Por defecto esos casos NO se ejecutan. Para correrlos
+ * (sólo con direcciones controladas): agregar `--con-envios`.
  */
 import { createClient } from '@supabase/supabase-js'
 import { createHash, randomUUID } from 'node:crypto'
@@ -51,6 +55,7 @@ const s = createClient(BASE, SECRET, { auth: { persistSession: false } })
 const MARCA = 'zz-cfg1'
 const FN = `${BASE}/functions/v1/config-usuarios`
 const ORIGEN_APP = 'https://app.buscatools.com'
+const CON_ENVIOS = process.argv.includes('--con-envios')
 
 const nuevoEmail = (etq) => `${MARCA}-${etq}-${Date.now()}-${Math.floor(Math.random() * 1e4)}@buscatools.test`
 const cuentas = new Map()
@@ -386,6 +391,9 @@ const main = async () => {
     const { count: nMemb } = await s.from('company_memberships').select('id', { count: 'exact', head: true }).eq('user_id', otro.id).eq('company_id', ZZ)
     cmp('dos invitaciones simultáneas → 1 membresía, la otra 409', [1, [200, 409]], [nMemb, [c1.status, c2.status].sort()])
 
+    if (!CON_ENVIOS) {
+      INFO('casos con envío real (cuenta sin confirmar, reenvío, email nuevo)', 'OMITIDOS: correr con --con-envios sólo con direcciones controladas')
+    } else {
     // Cuenta SIN confirmar (p. ej. un alta pública previa): se agrega y se intenta invitar.
     const sinConfirmar = nuevoEmail('sinconfirmar')
     const { data: uSin } = await s.auth.admin.createUser({ email: sinConfirmar, password: `Zz${randomUUID()}!`, email_confirm: false })
@@ -411,6 +419,7 @@ const main = async () => {
       cmp('email nuevo: invitado con membresía y nombre', ['invitado', 1], [r7.json.resultado, nNuevo])
     } else {
       cmp('email nuevo rechazado por el mailer: error clasificado y SIN cuenta huérfana', [true, 0], [['correo_no_autorizado', 'correo_no_enviado', 'demasiados_envios', 'email_rechazado'].includes(r7.json?.error), nNuevo])
+    }
     }
     cmp('ninguna respuesta trae tokens, enlaces ni texto crudo de Auth', [], respuestas.filter((t) => /eyJ|access_token|action_link|token_hash|verify\?|http|password/i.test(t)))
     const { data: aud } = await s.from('users_audit').select('action').eq('company_id', ZZ)

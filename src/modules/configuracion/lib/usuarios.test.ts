@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { puedeVerConfiguracion } from './permisos'
+import { puedeAdministrarUsuarios, puedeVerConfiguracion, seccionesVisibles } from './permisos'
 import {
   adminsActivos,
   esAutoDegradacion,
@@ -33,10 +33,16 @@ const u = (p: Partial<UsuarioEmpresa>): UsuarioEmpresa => ({
 })
 
 describe('permisos de Configuración', () => {
-  it('sólo admin', () => {
+  it('entran admin y employee; el resto no', () => {
     expect(['admin', 'employee', 'salesperson', 'technician', 'customer', 'distributor', 'supplier', '', null].map(puedeVerConfiguracion)).toEqual([
-      true, false, false, false, false, false, false, false, false,
+      true, true, false, false, false, false, false, false, false,
     ])
+  })
+  it('Usuarios es sólo admin; employee ve Empresa y Numeración', () => {
+    expect(['admin', 'employee', 'salesperson'].map(puedeAdministrarUsuarios)).toEqual([true, false, false])
+    expect(seccionesVisibles('admin').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Usuarios'])
+    expect(seccionesVisibles('employee').map((s) => s.label)).toEqual(['Empresa', 'Numeración'])
+    expect(seccionesVisibles('technician')).toEqual([])
   })
 })
 

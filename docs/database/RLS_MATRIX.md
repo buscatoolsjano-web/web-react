@@ -43,7 +43,11 @@ Leyenda: ✅ permitido · ⚠️ condicionado · ❌ denegado
 
 | Tabla | Rol | SELECT | INSERT | UPDATE | DELETE | Condición |
 |---|---|---|---|---|---|---|
-| `companies` | admin | ✅ | ❌ | ⚠️ | ❌ | `id = ANY(current_company_ids())`. Alta de empresa sólo por service_role |
+| `companies` | admin | ✅ | ❌ | ⚠️ | ❌ | SELECT `id = ANY(current_company_ids())`. **Sin UPDATE directo** (Fase 12 E2: se borró `companies_update`): datos sólo por `config_empresa_actualizar` (lista blanca, versión optimista); logo sólo por la Edge Function `config-empresa-logo`. `slug`, `default_currency` e `is_active` no se editan desde la app. Alta sólo por service_role |
+| `company_audit` | admin | ⚠️ | ❌ | ❌ | ❌ | Sólo su empresa. Nombres de campos cambiados, sin valores (Fase 12 E2) |
+| | resto | ❌ | ❌ | ❌ | ❌ | — |
+| `document_sequences` | todos | ❌ | ❌ | ❌ | ❌ | Sin policies y sin privilegios de tabla para anon/authenticated (Fase 12 E2). Números sólo por `next_document_number` (definer); lectura diagnóstica por `config_numeracion_diagnostico` (admin, employee) |
+| storage `empresa-logos` | miembro activo | ⚠️ | ❌ | ❌ | ❌ | Bucket privado. SELECT (URL firmada) si la carpeta es de una empresa propia. Escritura sólo service_role desde la Edge Function |
 | | resto | ⚠️ | ❌ | ❌ | ❌ | Sólo sus empresas, columnas públicas |
 | `profiles` | todos | ⚠️ | ❌ | ⚠️ | ❌ | SELECT: perfiles que comparten empresa. UPDATE: sólo el propio (`id = auth.uid()`) |
 | | admin | ✅ | ❌ | ⚠️ | ❌ | UPDATE de perfiles de su empresa. El alta la hace Auth |
