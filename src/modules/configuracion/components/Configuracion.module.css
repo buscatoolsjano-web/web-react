@@ -608,3 +608,61 @@
   gap: var(--space-1);
   overflow-wrap: anywhere;
 }
+
+/* ── Auditoría (Entrega 4) ─────────────────────────────────────────────── */
+
+.filtrosAuditoria {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+  gap: var(--space-2) var(--space-3);
+  align-items: end;
+  min-width: 0;
+}
+
+.resumenAuditoria {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 10rem;
+  overflow-wrap: anywhere;
+}
+
+/* Celdas del visor: mínimo razonable para que ninguna columna quede de una
+   palabra por renglón (Usuarios usa .persona, más ancha, para emails largos). */
+.celdaAuditoria {
+  display: flex;
+  flex-direction: column;
+  min-width: 8rem;
+  overflow-wrap: anywhere;
+}
+
+.card .celdaAuditoria {
+  min-width: 0;
+}
+
+.card .resumenAuditoria {
+  min-width: 0;
+}
+
+.botonDetalle {
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: none;
+  background: none;
+  color: var(--primary-text);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.botonDetalle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* dt/dd agrupados en un div sin romper la grilla de dos columnas del dl. */
+.filaDetalle {
+  display: contents;
+}

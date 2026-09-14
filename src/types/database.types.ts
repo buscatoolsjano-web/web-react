@@ -5792,6 +5792,14 @@ export type Database = {
           autoridad_configurada: boolean
         }[]
       }
+      config_auditoria_listar: {
+        Args: { p_company: string; p_desde?: string | null; p_hasta?: string | null; p_modulo?: string | null; p_evento?: string | null; p_actor?: string | null; p_texto?: string | null; p_limite?: number; p_desplazamiento?: number }
+        Returns: { origen: string; evento_id: number; modulo: string; evento: string; fecha: string; actor: Json | null; entidad_tipo: string; entidad_id: string | null; entidad_nombre: string | null; entidad_existe: boolean; detalles: Json; total: number }[]
+      }
+      config_auditoria_actores: {
+        Args: { p_company: string }
+        Returns: { actor_id: string; nombre: string | null; email: string | null; eventos: number }[]
+      }
       config_marcas_listar: {
         Args: { p_company: string }
         Returns: { id: string; name: string; is_active: boolean; created_at: string; productos: number; equipos: number; puede_editar: boolean }[]

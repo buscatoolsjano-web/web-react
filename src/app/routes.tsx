@@ -235,6 +235,9 @@ const CategoriasPage = lazyConRecarga(() =>
 const AtributosPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/AtributosPage').then((m) => ({ default: m.AtributosPage })),
 )
+const AuditoriaPage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/AuditoriaPage').then((m) => ({ default: m.AuditoriaPage })),
+)
 const RecuperarPage = lazyConRecarga(() =>
   import('@/features/auth/pages/RecuperarPage').then((m) => ({ default: m.RecuperarPage })),
 )
@@ -365,6 +368,8 @@ export const routes: RouteObject[] = [
           { path: 'marcas', element: conSuspense(<MarcasPage />) },
           { path: 'categorias', element: conSuspense(<CategoriasPage />) },
           { path: 'atributos', element: conSuspense(<AtributosPage />) },
+          // Entrega 4: auditoría de Configuración, sólo admin y sólo lectura.
+          { path: 'auditoria', element: conSuspense(<AuditoriaPage />) },
         ],
       },
     ],

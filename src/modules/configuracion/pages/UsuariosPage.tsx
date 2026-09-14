@@ -51,7 +51,12 @@ const quien = (u: UsuarioEmpresa) => u.nombre || u.email
 export function UsuariosPage() {
   const { activa } = useEmpresa()
   if (!puedeAdministrarUsuarios(activa?.rol)) {
-    return <p className={styles.vacio}>Sólo un administrador puede ver y administrar los usuarios de la empresa.</p>
+    return (
+      <>
+        <h1 className={styles.titulo}>Usuarios</h1>
+        <p className={styles.vacio}>Sólo un administrador puede ver y administrar los usuarios de la empresa.</p>
+      </>
+    )
   }
   return <UsuariosAdmin />
 }

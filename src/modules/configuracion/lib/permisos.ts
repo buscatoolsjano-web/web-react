@@ -11,6 +11,7 @@
  *   · Numeración: admin y employee leen; nadie edita (Entrega 2).
  *   · Listas de precios y Atributos: admin y employee leen; nadie edita (Entrega 3).
  *   · Marcas y Categorías: admin administra; employee lee (Entrega 3).
+ *   · Auditoría: sólo admin, sólo lectura (Entrega 4).
  */
 export const ROLES_CONFIGURACION = ['admin', 'employee'] as const
 
@@ -22,6 +23,7 @@ export const SECCIONES_CONFIGURACION = [
   { to: '/configuracion/marcas', label: 'Marcas', roles: ['admin', 'employee'] },
   { to: '/configuracion/categorias', label: 'Categorías', roles: ['admin', 'employee'] },
   { to: '/configuracion/atributos', label: 'Atributos', roles: ['admin', 'employee'] },
+  { to: '/configuracion/auditoria', label: 'Auditoría', roles: ['admin'] },
 ] as const
 
 export function puedeVerConfiguracion(rol: string | null | undefined): boolean {
@@ -29,6 +31,10 @@ export function puedeVerConfiguracion(rol: string | null | undefined): boolean {
 }
 
 export function puedeAdministrarUsuarios(rol: string | null | undefined): boolean {
+  return rol === 'admin'
+}
+
+export function puedeVerAuditoria(rol: string | null | undefined): boolean {
   return rol === 'admin'
 }
 
