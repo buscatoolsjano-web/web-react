@@ -77,3 +77,28 @@ configurable.
 - El patrón tabla→cards se define una vez y lo heredan los 19 módulos.
 - Costo: escribir CSS a mano en vez de utilidades. Aceptado a cambio de
   controlar el resultado visual.
+
+## Actualización — Fase 13 (rediseño aprobado, 2026-09-14)
+
+La regla «tokens portados literalmente, no se retocan sin aprobación» se
+levanta **con aprobación explícita** para el rediseño global (decisiones de
+producto registradas en `docs/PHASE_13_REDISENO_ENTREGA_1_FUNDACIONES.md`):
+marca `#f37021`, acción primaria `#c2410c`, sidebar clara con header oscuro,
+densidad comfortable, dark mode fuera de la fase, sin librerías de UI.
+
+Cómo convive con lo anterior:
+
+1. `tokens.css` tiene ahora tres capas: paleta y escalas nuevas
+   (`--color-*`, `--radius-md`, `--control-h-*`, `--z-*`…), **alias** con los
+   nombres de Fase 1 que apuntan a la paleta nueva, y el tema oscuro legacy
+   sin expandir. Los CSS Modules existentes no se editan: heredan el
+   contraste corregido por los alias. Los alias se retiran en la entrega de
+   cierre, cuando todos los módulos usen los nombres nuevos.
+2. El punto 2 (CSS Modules, sin framework) sigue vigente. Las primitivas
+   (`src/components/ui`, `forms`, `modals`, `tables`, `feedback`, `icons`)
+   son propias; los íconos son SVG dibujados para el proyecto, sin paquete.
+3. El punto 4 se amplía a cuatro breakpoints permitidos
+   (`max-width: 767px`, `min-width: 768px`, `1024px`, `1440px`);
+   `--bp-mobile` / `MOBILE_BREAKPOINT` siguen siendo la referencia de JS.
+4. `src/styles/tokens.test.ts` falla si un CSS usa una variable no definida
+   o si un par texto/fondo de la paleta baja de WCAG AA.

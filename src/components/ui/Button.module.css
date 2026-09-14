@@ -3,50 +3,125 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-sm);
+  min-height: var(--control-h-md);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
+  font: inherit;
   font-size: var(--text-sm);
-  font-weight: 500;
-  /* 44px: objetivo táctil mínimo cómodo en mobile */
-  min-height: 44px;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
 }
 
+.btn:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+/* Deshabilitado sin opacidad: el texto sigue siendo legible (AA) y no parece
+   un botón primario «roto». */
 .btn:disabled {
-  opacity: 0.55;
   cursor: not-allowed;
+  background: var(--color-neutral-soft);
+  border-color: var(--color-border);
+  color: var(--color-text-disabled);
+}
+
+/* Cargando: conserva el color de la variante, sólo bloquea. */
+.btn.loading:disabled {
+  cursor: progress;
+}
+
+.sm {
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+}
+
+.lg {
+  min-height: var(--control-h-lg);
+  padding: 0 var(--space-5);
+  font-size: var(--text-base);
+}
+
+/* Objetivo táctil: en punteros gruesos ningún botón baja de 44px. */
+@media (pointer: coarse) {
+  .btn {
+    min-height: var(--touch-target);
+  }
 }
 
 .primary {
-  background: var(--primary);
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
-
 .primary:not(:disabled):hover {
-  background: var(--primary-hover);
+  background: var(--color-primary-hover);
+}
+.primary:not(:disabled):active,
+.primary.loading {
+  background: var(--color-primary-active);
+  color: var(--color-on-primary);
 }
 
 .secondary {
-  background: var(--surface);
-  color: var(--text);
-  border-color: var(--border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
 }
-
 .secondary:not(:disabled):hover {
-  background: var(--surface-alt);
+  background: var(--color-surface-alt);
+}
+.secondary:not(:disabled):active,
+.secondary.loading {
+  background: var(--color-neutral-soft);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
 }
 
 .ghost {
   background: transparent;
-  color: var(--text-soft);
+  color: var(--color-text-soft);
+}
+.ghost:not(:disabled):hover {
+  background: var(--color-neutral-soft);
+  color: var(--color-text);
+}
+.ghost:disabled {
+  background: transparent;
+  border-color: transparent;
+}
+.ghost.loading {
+  color: var(--color-text);
 }
 
-.ghost:not(:disabled):hover {
-  background: var(--surface-alt);
-  color: var(--text);
+.danger {
+  background: var(--color-danger);
+  color: var(--color-on-primary);
+}
+.danger:not(:disabled):hover {
+  background: var(--color-danger-hover);
+}
+.danger:not(:disabled):active,
+.danger.loading {
+  background: var(--color-danger-text);
+  color: var(--color-on-primary);
 }
 
 .block {
   width: 100%;
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.spinner {
+  flex: none;
 }

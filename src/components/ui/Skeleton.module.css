@@ -1,0 +1,47 @@
+.skeleton {
+  display: block;
+  background: linear-gradient(90deg, var(--color-surface-sunken) 0%, var(--color-neutral-soft) 50%, var(--color-surface-sunken) 100%);
+  background-size: 200% 100%;
+  animation: brillo 1.4s ease-in-out infinite;
+}
+
+.sm {
+  border-radius: var(--radius-sm);
+}
+.md {
+  border-radius: var(--radius-md);
+}
+.full {
+  border-radius: var(--radius-full);
+}
+
+.filas {
+  display: grid;
+  gap: 0;
+}
+
+.fila {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--space-4);
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+@keyframes brillo {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}

@@ -54,7 +54,11 @@ const tsx = archivos(SRC, ['.tsx']).filter((p) => !/\.test\.tsx$/.test(p))
 // ── Tokens definidos ────────────────────────────────────────────────────────
 const tokensCss = readFileSync(join(SRC, 'styles', 'tokens.css'), 'utf8')
 const definidos = new Set([...tokensCss.matchAll(/(--[a-z0-9-]+)\s*:/gi)].map((m) => m[1]))
-const tokenValor = Object.fromEntries([...sinComentarios(tokensCss).split(':root[data-theme=\'dark\']')[0].matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gi)].map((m) => [m[1], m[2].trim()]))
+// Tema claro: gana la última definición (los alias de Fase 13 van después de la
+// paleta) y se resuelven los var() encadenados hasta llegar al hex.
+const tokenCrudo = Object.fromEntries([...sinComentarios(tokensCss).split(':root[data-theme=\'dark\']')[0].matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gi)].map((m) => [m[1], m[2].trim()]))
+const resolver = (v, n = 0) => { const m = /^var\((--[a-z0-9-]+)\)$/i.exec(v ?? ''); return m && n < 10 ? resolver(tokenCrudo[m[1]], n + 1) : v }
+const tokenValor = Object.fromEntries(Object.keys(tokenCrudo).map((k) => [k, resolver(tokenCrudo[k])]))
 
 // ── CSS ─────────────────────────────────────────────────────────────────────
 const r = {
@@ -140,6 +144,10 @@ const pares = [
   ['#ffffff', '--primary'], ['#ffffff', '--primary-hover'], ['--primary', '--surface'], ['--primary-text', '--primary-light'], ['--primary-text', '--surface'],
   ['--warning-text', '--warning-light'], ['--success', '--surface'], ['--success', '--success-light'], ['--text', '--success-light'], ['--danger', '--surface'],
   ['#ffffff', '--danger'], ['--topnav-text-soft', '--topnav-bg'], ['--text-soft', '--surface-alt'], ['--border', '--surface'], ['--border-strong', '--surface'],
+  // Paleta de Fase 13 (primitivas). Los de arriba son los nombres de Fase 1, hoy alias.
+  ['--color-on-primary', '--color-primary'], ['--color-text-muted', '--color-neutral-soft'], ['--color-text-disabled', '--color-neutral-soft'],
+  ['--color-success-text', '--color-success-soft'], ['--color-warning-text', '--color-warning-soft'], ['--color-danger-text', '--color-danger-soft'],
+  ['--color-info-text', '--color-info-soft'], ['--color-neutral-text', '--color-neutral-soft'], ['--color-border-strong', '--color-surface'],
 ]
 const contraste = pares.map(([a, b]) => {
   const va = a.startsWith('--') ? tokenValor[a] : a

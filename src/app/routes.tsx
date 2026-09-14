@@ -251,6 +251,22 @@ const NotFoundPage = lazyConRecarga(() =>
   import('@/app/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 )
 
+// Fase 13: pantalla de primitivas SÓLO en desarrollo. `import.meta.env.DEV` es
+// `false` literal en el build de producción, así que ni la ruta ni su chunk llegan a dist/.
+const rutasDesarrollo: RouteObject[] = import.meta.env.DEV
+  ? [
+      {
+        path: '/dev/ui',
+        element: conSuspense(
+          (() => {
+            const UiKitPage = lazyConRecarga(() => import('@/app/dev/UiKitPage').then((m) => ({ default: m.UiKitPage })))
+            return <UiKitPage />
+          })(),
+        ),
+      },
+    ]
+  : []
+
 function conSuspense(nodo: ReactNode): ReactNode {
   return <Suspense fallback={<p style={{ padding: '1rem' }}>Cargando…</p>}>{nodo}</Suspense>
 }
@@ -386,5 +402,6 @@ export const routes: RouteObject[] = [
       { path: 'definir-contrasena', element: conSuspense(<DefinirContrasenaPage />) },
     ],
   },
+  ...rutasDesarrollo,
   { path: '*', element: conSuspense(<NotFoundPage />), errorElement: <ErrorPage /> },
 ]

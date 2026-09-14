@@ -1,43 +1,211 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   DESIGN TOKENS — BUSCATOOLS
-   Portados LITERALMENTE del sistema legacy (index.html, bloques
-   :root[data-theme="light"] / [data-theme="dark"]) para garantizar
-   fidelidad visual 1:1 durante la migración.
+   DESIGN TOKENS — BUSCATOOLS ERP
 
-   NO cambiar estos valores sin aprobación explícita. Ver ADR-008.
+   Fase 13 · E1 (rediseño aprobado; ver ADR-008 §Fase 13 y
+   docs/PHASE_13_REDISENO_ENTREGA_1_FUNDACIONES.md).
+
+   Tres capas, en este orden:
+     1. Paleta y escalas NUEVAS (`--color-*`, `--space-*`, `--radius-*`…).
+        Es lo que usan las primitivas de `src/components/`.
+     2. ALIAS con los nombres viejos (`--primary`, `--text-muted`…) que
+        apuntan a la capa 1. Los 95 CSS Modules existentes siguen funcionando
+        sin editarse y heredan el contraste corregido. Se eliminan en E6,
+        cuando cada módulo ya use los nombres nuevos.
+     3. Tema oscuro legacy, SIN expandir (fuera de la Fase 13). Redefine los
+        nombres viejos como antes; las primitivas nuevas no tienen tema oscuro.
+
+   Reglas:
+   · Ningún hex/px nuevo fuera de este archivo (salvo impresión).
+   · Todo par texto/fondo nuevo se mide con
+     `node scripts/fase13-rediseno-auditoria.mjs` antes de adoptarlo.
    ───────────────────────────────────────────────────────────────────────── */
 
-:root,
-:root[data-theme='light'] {
-  --bg: #f5f5f5;
-  --surface: #ffffff;
-  --surface-alt: #fafafa;
-  --text: #1a1a1a;
-  --text-soft: #6b6b6b;
-  --text-muted: #999999;
-  --border: #e5e5e5;
-  --border-strong: #d0d0d0;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
-  --primary: #f37021;
-  --primary-hover: #d85518;
-  --primary-light: #fff3eb;
-  --primary-text: #b8430e;
-  --warning: #ffc107;
-  --warning-light: #fff9c4;
-  --warning-text: #856404;
-  --success: #28a745;
-  --success-light: #d4edda;
-  --danger: #dc3545;
-  --topnav-bg: #1a1a1a;
-  --topnav-text: #ffffff;
-  --topnav-text-soft: #b0b0b0;
-  --topnav-hover: #2d2d2d;
-  --sidebar-bg: #ffffff;
-  --sidebar-border: #e5e5e5;
-  --input-readonly-bg: #f0f0f0;
+/* ── 1. Paleta ──────────────────────────────────────────────────────────── */
+:root {
+  /* Marca: identidad, indicador activo, foco. No es color de texto. */
+  --color-brand-500: #f37021;
+  --color-brand-600: #d85518;
+
+  /* Acción primaria (blanco encima 5.18:1; hover 7.31:1) */
+  --color-primary: #c2410c;
+  --color-primary-hover: #9a3412;
+  --color-primary-active: #7c2d12;
+  --color-primary-soft: #fff4ec;
+  --color-primary-text: #b8430e; /* 5.46 sobre blanco · 5.04 sobre soft */
+  --color-on-primary: #ffffff;
+
+  /* Superficies */
+  --color-bg: #f6f6f5;
+  --color-surface: #ffffff;
+  --color-surface-alt: #fafaf9;
+  --color-surface-sunken: #f0f0ef; /* readonly, pistas de carga */
+  --color-overlay: rgb(20 20 20 / 0.5);
+
+  /* Bordes */
+  --color-border: #e4e4e2; /* separadores (decorativo) */
+  --color-border-medium: #d0d0cd; /* bordes punteados, chips neutros */
+  --color-border-strong: #8f8f8c; /* límite de controles, 3.24:1 */
+
+  /* Texto */
+  --color-text: #1a1a1a;
+  --color-text-soft: #525250; /* 7.83 */
+  --color-text-muted: #6b6b68; /* 5.35 blanco · 4.94 bg */
+  --color-text-disabled: #6b6b68;
+
+  /* Estados: base (íconos, bordes), soft (fondo), text (texto AA sobre soft) */
+  --color-success: #16a34a;
+  --color-success-soft: #ecfdf3;
+  --color-success-text: #166534;
+  --color-warning: #d97706;
+  --color-warning-soft: #fffbeb;
+  --color-warning-text: #92400e;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  --color-danger-soft: #fef2f2;
+  --color-danger-text: #991b1b;
+  --color-info: #2563eb;
+  --color-info-soft: #eff6ff;
+  --color-info-text: #1e40af;
+  --color-neutral-soft: #f4f4f3;
+  --color-neutral-text: #52524f;
+
+  /* Shell: header oscuro, sidebar clara (decisión F13) */
+  --color-topnav-bg: #1a1a1a;
+  --color-topnav-text: #ffffff;
+  --color-topnav-text-soft: #b0b0b0;
+  --color-topnav-hover: #2d2d2d;
+  --color-sidebar-bg: #ffffff;
+
+  /* Foco: anillo de marca con separación (≥ 3:1 contra blanco por el halo oscuro) */
+  --focus-outline: 2px solid var(--color-primary);
+  --focus-offset: 2px;
+  --focus-ring: 0 0 0 3px rgb(243 112 33 / 0.35);
 }
 
+/* ── 1b. Escalas ────────────────────────────────────────────────────────── */
+:root {
+  /* Espaciado (base 4px). Los valores 1–6 son los de Fase 1: no cambian para
+     no mover el layout existente. */
+  --space-0: 0;
+  --space-1: 0.25rem; /* 4 */
+  --space-2: 0.5rem; /* 8 */
+  --space-3: 0.75rem; /* 12 */
+  --space-4: 1rem; /* 16 */
+  --space-5: 1.5rem; /* 24 */
+  --space-6: 2rem; /* 32 */
+  --space-8: 2.5rem; /* 40 */
+  --space-10: 3rem; /* 48 */
+
+  /* Radios: botones e inputs comparten --radius-md */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+
+  /* Sombras */
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.12); /* diálogos, drawer */
+
+  /* Tipografía */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --text-xs: 0.75rem; /* 12 — mínimo en pantalla */
+  --text-label: 0.8125rem; /* 13 */
+  --text-sm: 0.875rem; /* 14 — body */
+  --text-base: 1rem; /* 16 — h3, inputs en mobile */
+  --text-lg: 1.125rem; /* 18 — h2 */
+  --text-xl: 1.5rem; /* 24 — h1 */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --leading-tight: 1.25;
+  --leading-table: 1.35;
+  --leading-normal: 1.5;
+
+  /* Controles */
+  --control-h-sm: 32px; /* sólo desktop, grillas densas */
+  --control-h-md: 40px;
+  --control-h-lg: 48px;
+  --touch-target: 44px;
+
+  /* Movimiento */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Layout del shell */
+  --sidebar-w: 240px;
+  --sidebar-w-compact: 64px;
+  --header-h: 56px;
+
+  /* Breakpoints (documentación: CSS Modules no admite var() en @media).
+     Permitidos: max-width 767px · min-width 768px · min-width 1024px · min-width 1440px.
+     --bp-mobile debe coincidir con MOBILE_BREAKPOINT en src/hooks/useMediaQuery.ts. */
+  --bp-mobile: 768px;
+  --bp-desktop: 1024px;
+  --bp-wide: 1440px;
+
+  /* Capas */
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-header: 100;
+  --z-dropdown: 150;
+  --z-drawer: 200;
+  --z-modal: 300;
+  --z-toast: 400;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+  }
+}
+
+/* ── 2. Alias de compatibilidad (nombres de Fase 1 → capa nueva) ─────────── */
+:root,
+:root[data-theme='light'] {
+  --bg: var(--color-bg);
+  --surface: var(--color-surface);
+  --surface-alt: var(--color-surface-alt);
+  --text: var(--color-text);
+  --text-soft: var(--color-text-soft);
+  --text-muted: var(--color-text-muted);
+  --border: var(--color-border);
+  /* Se queda en el gris medio: en los módulos también dibuja vacíos punteados
+     y chips. Los controles pasan a --color-border-strong al migrar cada módulo. */
+  --border-strong: var(--color-border-medium);
+  --shadow: var(--shadow-sm);
+  --primary: var(--color-primary);
+  --primary-hover: var(--color-primary-hover);
+  --primary-light: var(--color-primary-soft);
+  --primary-text: var(--color-primary-text);
+  --warning: var(--color-warning);
+  --warning-light: var(--color-warning-soft);
+  --warning-text: var(--color-warning-text);
+  /* `--success` se usa como COLOR DE TEXTO en los módulos (9 de 12 usos). */
+  --success: var(--color-success-text);
+  --success-light: var(--color-success-soft);
+  --danger: var(--color-danger);
+  --topnav-bg: var(--color-topnav-bg);
+  --topnav-text: var(--color-topnav-text);
+  --topnav-text-soft: var(--color-topnav-text-soft);
+  --topnav-hover: var(--color-topnav-hover);
+  --sidebar-bg: var(--color-sidebar-bg);
+  --sidebar-border: var(--color-border);
+  --input-readonly-bg: var(--color-surface-sunken);
+
+  /* Variables que los módulos usaban SIN definir (auditoría E0). */
+  --accent: var(--color-primary); /* catálogo: antes caía a #d9600a */
+  --warning-bg: var(--color-warning-soft);
+  --surface-soft: var(--color-neutral-soft);
+  --on-primary: var(--color-on-primary); /* mantenimiento/PanelEtapas */
+}
+
+/* ── 3. Tema oscuro legacy (sin expandir en la Fase 13) ─────────────────── */
 :root[data-theme='dark'] {
   --bg: #121212;
   --surface: #1e1e1e;
@@ -66,39 +234,4 @@
   --sidebar-bg: #1e1e1e;
   --sidebar-border: #333333;
   --input-readonly-bg: #252525;
-}
-
-/* ── Tokens NUEVOS (no existían en el legacy) ─────────────────────────────
-   Escalas que el legacy resolvía con valores sueltos repetidos. Se agregan
-   para poder construir layout consistente sin inventar números por pantalla. */
-:root {
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
-
-  --radius-sm: 4px;
-  --radius: 8px;
-  --radius-lg: 12px;
-
-  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.5rem;
-
-  /* Layout del shell */
-  --sidebar-w: 240px;
-  --header-h: 56px;
-
-  /* Breakpoint único de referencia. Debe coincidir con MOBILE_BREAKPOINT
-     en src/hooks/useMediaQuery.ts — si cambiás uno, cambiá el otro. */
-  --bp-mobile: 768px;
-
-  --z-header: 100;
-  --z-drawer: 200;
-  --z-modal: 300;
 }
