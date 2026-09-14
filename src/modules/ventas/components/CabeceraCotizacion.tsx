@@ -1,4 +1,6 @@
-import { useId } from 'react'
+import { Field } from '@/components/forms/Field'
+import { Input, Select, Textarea } from '@/components/forms/controls'
+import { Button } from '@/components/ui/Button'
 import { BuscadorCliente } from './BuscadorCliente'
 import styles from './CabeceraCotizacion.module.css'
 
@@ -31,8 +33,14 @@ export interface CabeceraCotizacionProps {
 const MONEDAS = ['USD', 'ARS', 'EUR'] as const
 
 /** La percepción del legacy es 2,5 %, pero la alícuota se guarda, no se fija. */
-export const PERCEPCION_HABITUAL = '2.5'
+const PERCEPCION_HABITUAL = '2.5'
 
+/**
+ * Cabecera editable de cotización y pedido.
+ *
+ * Fase 13: los mismos campos y el mismo `onCambiar`, agrupados en tres bloques
+ * (cliente, condiciones, notas) y con los controles del sistema (`Field`).
+ */
 export function CabeceraCotizacion({
   valores,
   editable,
@@ -40,134 +48,80 @@ export function CabeceraCotizacion({
   mostrarValidez = true,
   onCambiar,
 }: CabeceraCotizacionProps) {
-  const id = useId()
-
-  const campo = (
-    clave: CampoCabecera,
-    etiqueta: string,
-    extra: React.InputHTMLAttributes<HTMLInputElement> = {},
-  ) => (
-    <div className={styles.campo}>
-      <label className={styles.etiqueta} htmlFor={`${id}-${clave}`}>
-        {etiqueta}
-      </label>
-      <input
-        id={`${id}-${clave}`}
-        className={styles.control}
-        value={valores[clave]}
-        readOnly={!editable}
-        onChange={(e) => onCambiar(clave, e.target.value)}
-        {...extra}
-      />
-    </div>
-  )
+  const numero = { type: 'number', step: 'any', min: '0' } as const
 
   return (
-    <div className={styles.grilla}>
-      <div className={`${styles.campo} ${styles.ancho}`}>
-        {/* El buscador tiene su propio input con su `aria-label`, así que acá
-            va un rótulo y no un `<label for>` que apuntaría a nada. */}
-        <span className={styles.etiqueta}>Cliente</span>
-        <BuscadorCliente
-          valor={valores.customerId || null}
-          editable={editable}
-          onElegir={(elegido) => onCambiar('customerId', elegido ?? '')}
-        />
-      </div>
-
-      <div className={`${styles.campo} ${styles.ancho}`}>
-        <label className={styles.etiqueta} htmlFor={`${id}-titulo`}>
-          Título
-        </label>
-        <input
-          id={`${id}-titulo`}
-          className={styles.control}
-          value={valores.titulo}
-          readOnly={!editable}
-          onChange={(e) => onCambiar('titulo', e.target.value)}
-        />
-      </div>
-
-      {campo('fecha', 'Fecha', { type: 'date' })}
-      {mostrarValidez ? campo('validaHasta', 'Válida hasta', { type: 'date' }) : null}
-
-      <div className={styles.campo}>
-        <label className={styles.etiqueta} htmlFor={`${id}-moneda`}>
-          Moneda
-        </label>
-        <select
-          id={`${id}-moneda`}
-          className={styles.control}
-          value={valores.moneda}
-          // Una vez que hay líneas con precios, cambiar la moneda cambiaría el
-          // significado de cada importe sin tocar ningún número. Un documento
-          // = una moneda, y se elige al crearlo.
-          disabled={!editable || !monedaEditable}
-          onChange={(e) => onCambiar('moneda', e.target.value)}
-        >
-          {MONEDAS.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-        {!monedaEditable ? (
-          <span className={styles.ayuda}>La moneda se define al crear el documento.</span>
-        ) : null}
-      </div>
-
-      {campo('tipoCambio', 'Tipo de cambio', { type: 'number', step: 'any', min: '0' })}
-      {campo('formaPago', 'Forma de pago')}
-      {campo('descuentoPct', '% Dto. global', {
-        type: 'number',
-        step: 'any',
-        min: '0',
-        max: '100',
-      })}
-
-      <div className={styles.campo}>
-        <label className={styles.etiqueta} htmlFor={`${id}-percepcionPct`}>
-          % Percepción IIBB
-        </label>
-        <div className={styles.linea}>
-          <input
-            id={`${id}-percepcionPct`}
-            className={styles.control}
-            type="number"
-            step="any"
-            min="0"
-            max="100"
-            value={valores.percepcionPct}
-            readOnly={!editable}
-            onChange={(e) => onCambiar('percepcionPct', e.target.value)}
-          />
-          {editable ? (
-            <button
-              type="button"
-              className={styles.mini}
-              onClick={() =>
-                onCambiar('percepcionPct', valores.percepcionPct ? '' : PERCEPCION_HABITUAL)
-              }
-            >
-              {valores.percepcionPct ? 'Quitar' : `${PERCEPCION_HABITUAL} %`}
-            </button>
-          ) : null}
+    <div className={styles.bloques}>
+      <fieldset className={styles.grupo}>
+        <legend className={styles.leyenda}>Cliente y referencia</legend>
+        <div className={styles.grilla}>
+          <div className={`${styles.campo} ${styles.ancho}`}>
+            {/* El buscador tiene su propio input con su `aria-label`, así que acá
+                va un rótulo y no un `<label for>` que apuntaría a nada. */}
+            <span className={styles.etiqueta}>Cliente</span>
+            <BuscadorCliente
+              valor={valores.customerId || null}
+              editable={editable}
+              onElegir={(elegido) => onCambiar('customerId', elegido ?? '')}
+            />
+          </div>
+          <Field label="Título" optional className={styles.ancho}>
+            <Input value={valores.titulo} readOnly={!editable} onChange={(e) => onCambiar('titulo', e.target.value)} />
+          </Field>
         </div>
-      </div>
+      </fieldset>
 
-      <div className={`${styles.campo} ${styles.ancho}`}>
-        <label className={styles.etiqueta} htmlFor={`${id}-notas`}>
-          Información adicional
-        </label>
-        <textarea
-          id={`${id}-notas`}
-          className={styles.area}
-          value={valores.notas}
-          readOnly={!editable}
-          rows={3}
-          onChange={(e) => onCambiar('notas', e.target.value)}
-        />
-      </div>
+      <fieldset className={styles.grupo}>
+        <legend className={styles.leyenda}>Fechas y condiciones</legend>
+        <div className={styles.grilla}>
+          <Field label="Fecha">
+            <Input type="date" value={valores.fecha} readOnly={!editable} onChange={(e) => onCambiar('fecha', e.target.value)} />
+          </Field>
+          {mostrarValidez ? (
+            <Field label="Válida hasta" optional>
+              <Input type="date" value={valores.validaHasta} readOnly={!editable} onChange={(e) => onCambiar('validaHasta', e.target.value)} />
+            </Field>
+          ) : null}
+          <Field label="Moneda" help={monedaEditable ? undefined : 'La moneda se define al crear el documento.'}>
+            <Select value={valores.moneda} disabled={!editable || !monedaEditable} onChange={(e) => onCambiar('moneda', e.target.value)}>
+              {MONEDAS.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Tipo de cambio" optional>
+            <Input {...numero} inputMode="decimal" value={valores.tipoCambio} readOnly={!editable} onChange={(e) => onCambiar('tipoCambio', e.target.value)} />
+          </Field>
+          <Field label="Forma de pago" optional>
+            <Input value={valores.formaPago} readOnly={!editable} onChange={(e) => onCambiar('formaPago', e.target.value)} />
+          </Field>
+          <Field label="% Dto. global" optional>
+            <Input {...numero} max="100" inputMode="decimal" value={valores.descuentoPct} readOnly={!editable} onChange={(e) => onCambiar('descuentoPct', e.target.value)} />
+          </Field>
+          <Field label="% Percepción IIBB" optional>
+            <div className={styles.linea}>
+              <Input {...numero} max="100" inputMode="decimal" value={valores.percepcionPct} readOnly={!editable} onChange={(e) => onCambiar('percepcionPct', e.target.value)} />
+              {editable ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => onCambiar('percepcionPct', valores.percepcionPct ? '' : PERCEPCION_HABITUAL)}
+                >
+                  {valores.percepcionPct ? 'Quitar' : `${PERCEPCION_HABITUAL} %`}
+                </Button>
+              ) : null}
+            </div>
+          </Field>
+        </div>
+      </fieldset>
+
+      <fieldset className={styles.grupo}>
+        <legend className={styles.leyenda}>Notas</legend>
+        <Field label="Información adicional" optional>
+          <Textarea value={valores.notas} readOnly={!editable} rows={3} onChange={(e) => onCambiar('notas', e.target.value)} />
+        </Field>
+      </fieldset>
     </div>
   )
 }

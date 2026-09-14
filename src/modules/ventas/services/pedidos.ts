@@ -266,7 +266,7 @@ export function editabilidadPedido(
   tieneEntregas: boolean,
 ): Editabilidad {
   if (!esInterno) {
-    return { editable: false, motivo: 'Sólo el equipo interno edita pedidos.', audita: false }
+    return { editable: false, motivo: 'Tu rol no edita pedidos: es de administradores y empleados.', audita: false }
   }
   if (estado === 'cancelled') {
     return { editable: false, motivo: 'El pedido está cancelado.', audita: false }

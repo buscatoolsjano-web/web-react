@@ -1,6 +1,11 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/icons/Icon'
+import { Alert } from '@/components/feedback/Alert'
+import docUi from '@/components/document/Document.module.css'
 import { BuscadorProveedor } from '../components/BuscadorProveedor'
 import { GrillaFactura, type CargaPorLinea } from '../components/GrillaFactura'
 import { LineasLibresFactura } from '../components/LineasLibresFactura'
@@ -77,11 +82,11 @@ export function FacturaNuevaPage() {
 
   if (!permisos.crearProveedor) {
     return (
-      <div className={styles.page}>
-        <Link to="/compras/facturas" className={styles.volver}>
-          ← Facturas de proveedor
-        </Link>
-        <p className={styles.nota}>Tu rol no puede cargar facturas de proveedor.</p>
+      <div className={docUi.pagina}>
+        <PageHeader back={{ to: '/compras/facturas', label: 'Facturas de proveedor' }} title="Nueva factura de proveedor" />
+        <Alert tone="neutral">
+          <p>Tu rol no puede cargar facturas de proveedor.</p>
+        </Alert>
       </div>
     )
   }
@@ -172,20 +177,12 @@ export function FacturaNuevaPage() {
   }
 
   return (
-    <div className={styles.page}>
-      <Link to="/compras/facturas" className={styles.volver}>
-        ← Facturas de proveedor
-      </Link>
-
-      <header className={styles.encabezado}>
-        <div className={styles.identidad}>
-          <h1 className={styles.titulo}>Nueva factura de proveedor</h1>
-          <p className={styles.subtitulo}>
-            Nace en borrador. Registrarla es otra acción, y no mueve stock: el stock ya entró
-            con la recepción.
-          </p>
-        </div>
-      </header>
+    <div className={docUi.pagina}>
+      <PageHeader
+        back={{ to: '/compras/facturas', label: 'Facturas de proveedor' }}
+        title="Nueva factura de proveedor"
+        subtitle="Nace en borrador. Registrarla es otra acción, y no mueve stock: el stock ya entró con la recepción."
+      />
 
       <section className={styles.bloque}>
         <div className={cab.grilla}>
@@ -310,9 +307,9 @@ export function FacturaNuevaPage() {
           {pendiente.isPending ? (
             <p className={styles.nota}>Cargando lo pendiente de facturar…</p>
           ) : pendiente.error ? (
-            <p className={styles.error} role="alert">
-              {pendiente.error.message}
-            </p>
+            <Alert tone="danger" role="alert">
+              <p>{pendiente.error.message}</p>
+            </Alert>
           ) : (
             <GrillaFactura
               pendientes={visibles}
@@ -365,28 +362,18 @@ export function FacturaNuevaPage() {
         ) : null}
 
         {crear.error ? (
-          <p className={styles.error} role="alert">
-            {crear.error.message}
-          </p>
+          <Alert tone="danger" role="alert">
+            <p>{crear.error.message}</p>
+          </Alert>
         ) : null}
 
         <div className={styles.acciones}>
-          <button
-            type="button"
-            className={styles.primario}
-            disabled={crear.isPending || excede}
-            onClick={guardar}
-          >
+          <Button icon={<Icon name="check" size={16} />} loading={crear.isPending} disabled={excede} onClick={guardar}>
             {crear.isPending ? 'Guardando…' : 'Crear factura en borrador'}
-          </button>
-          <button
-            type="button"
-            className={styles.secundario}
-            disabled={crear.isPending}
-            onClick={() => void navegar('/compras/facturas')}
-          >
+          </Button>
+          <Button variant="ghost" disabled={crear.isPending} onClick={() => void navegar('/compras/facturas')}>
             Cancelar
-          </button>
+          </Button>
         </div>
       </section>
     </div>

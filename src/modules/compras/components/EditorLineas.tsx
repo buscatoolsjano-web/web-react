@@ -2,6 +2,7 @@ import { TRATAMIENTOS } from '../lib/tratamientos'
 import { netoDeLinea } from '../lib/lineas'
 import { formatearImporte } from '../lib/formato'
 import type { LineaPedidoCompra, UltimoPrecioCompra } from '../types'
+import { IconButton } from '@/components/ui/IconButton'
 import styles from './EditorLineas.module.css'
 
 export type CampoLinea =
@@ -227,35 +228,9 @@ export function EditorLineas({
 
                 {editable ? (
                   <td className={styles.acciones}>
-                    <button
-                      type="button"
-                      className={styles.icono}
-                      onClick={() => onMover(l.id, -1)}
-                      disabled={i === 0}
-                      aria-label="Subir"
-                      title="Subir"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.icono}
-                      onClick={() => onMover(l.id, 1)}
-                      disabled={i === lineas.length - 1}
-                      aria-label="Bajar"
-                      title="Bajar"
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.icono}
-                      onClick={() => onEliminar(l.id)}
-                      aria-label="Eliminar línea"
-                      title="Eliminar"
-                    >
-                      ×
-                    </button>
+                    <IconButton icon="arrow-up" aria-label="Subir" size="sm" onClick={() => onMover(l.id, -1)} disabled={i === 0} />
+                    <IconButton icon="arrow-down" aria-label="Bajar" size="sm" onClick={() => onMover(l.id, 1)} disabled={i === lineas.length - 1} />
+                    <IconButton icon="trash" aria-label="Eliminar línea" size="sm" variant="danger" onClick={() => onEliminar(l.id)} />
                   </td>
                 ) : null}
               </tr>

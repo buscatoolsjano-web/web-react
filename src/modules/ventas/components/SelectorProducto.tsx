@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { buscarProductos, precioSugerido, type ProductoParaLinea } from '../services/productosParaLinea'
 import { formatearImporte } from '../lib/formato'
+import { IconButton } from '@/components/ui/IconButton'
 import styles from './SelectorProducto.module.css'
 
 export interface SelectorProductoProps {
@@ -39,14 +40,12 @@ export function SelectorProducto({ moneda, onElegir, onCerrar }: SelectorProduct
   })
 
   return (
-    <div className={styles.panel} role="dialog" aria-label="Agregar producto">
+    <div className={styles.panel} role="group" aria-label="Agregar producto">
       <div className={styles.cabecera}>
         <label className={styles.etiqueta} htmlFor={idBusqueda}>
           Buscar por SKU, nombre o marca
         </label>
-        <button type="button" className={styles.cerrar} onClick={onCerrar} aria-label="Cerrar">
-          ×
-        </button>
+        <IconButton icon="x" aria-label="Cerrar búsqueda de productos" onClick={onCerrar} />
       </div>
 
       <input

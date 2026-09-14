@@ -256,7 +256,7 @@ export function editabilidadEntrega(
   estado: string,
   esInterno: boolean,
 ): { confirmable: boolean; motivo: string | null } {
-  if (!esInterno) return { confirmable: false, motivo: 'Sólo el equipo interno despacha remitos.' }
+  if (!esInterno) return { confirmable: false, motivo: 'Tu rol no despacha remitos: es de administradores y empleados.' }
   if (estado === 'draft') return { confirmable: true, motivo: null }
   if (estado === 'cancelled') return { confirmable: false, motivo: 'El remito está cancelado.' }
   return { confirmable: false, motivo: 'El remito ya fue despachado.' }

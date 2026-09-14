@@ -1,75 +1,6 @@
-.fondo {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-3);
-}
-
-.caja {
-  background: var(--surface);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
-  width: min(56rem, 100%);
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-/* En mobile ocupa la pantalla: una caja centrada con márgenes desperdicia
-   espacio justo donde no sobra. */
-@media (max-width: 640px) {
-  .fondo {
-    padding: 0;
-  }
-  .caja {
-    width: 100%;
-    max-height: 100vh;
-    height: 100%;
-    border-radius: 0;
-  }
-}
-
-.cabecera,
-.pie {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--border);
-}
-
-.pie {
-  border-bottom: none;
-  border-top: 1px solid var(--border);
-  justify-content: flex-end;
-}
-
-.titulo {
-  margin: 0;
-  font-size: var(--text-lg);
-  font-weight: 700;
-  flex: 1 1 auto;
-}
-
-.cerrar {
-  border: none;
-  background: none;
-  color: var(--text-soft);
-  font-size: 26px;
-  line-height: 1;
-  cursor: pointer;
-  min-width: 44px;
-  min-height: 44px;
-}
-
+/* Contenido del diálogo «Generar nota de entrega». El marco (fondo, caja,
+   encabezado, pie, foco) lo pone `Dialog`. */
 .cuerpo {
-  padding: var(--space-4);
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -77,54 +8,40 @@
 }
 
 .fecha {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-soft);
   max-width: 14rem;
-}
-
-.control,
-.numero {
-  font: inherit;
-  font-size: var(--text-sm);
-  min-height: 44px;
-  padding: var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
-  text-transform: none;
-  letter-spacing: normal;
-}
-
-@media (max-width: 767px) {
-  .control,
-  .numero {
-    font-size: 16px;
-  }
 }
 
 .numero {
   width: 6rem;
+  min-height: var(--control-h-md);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-.control:focus-visible,
 .numero:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .numero {
+    min-height: var(--touch-target);
+    font-size: var(--text-base);
+  }
 }
 
 .scroll {
   overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
 }
 
 .tabla {
@@ -137,17 +54,15 @@
 .tabla td {
   padding: var(--space-2) var(--space-3);
   text-align: left;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
 }
 
 .tabla thead th {
-  background: var(--surface-alt);
-  color: var(--text-soft);
-  font-weight: 600;
+  background: var(--color-surface-alt);
+  color: var(--color-text-soft);
+  font-weight: var(--weight-semibold);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
   white-space: nowrap;
 }
 
@@ -170,70 +85,24 @@
   display: block;
   margin-top: 2px;
   font-size: var(--text-xs);
-  color: var(--text-soft);
+  color: var(--color-text-soft);
 }
 
 .sinDato {
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   font-style: italic;
   font-size: var(--text-xs);
 }
 
 .alerta {
-  color: var(--danger);
-  font-weight: 700;
-}
-
-.aviso {
-  margin: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--warning);
-  border-left-width: 4px;
-  border-radius: var(--radius-sm);
-  background: var(--warning-light);
-  color: var(--warning-text);
-  font-size: var(--text-sm);
-  line-height: 1.5;
+  color: var(--color-danger-text);
+  font-weight: var(--weight-bold);
 }
 
 .nota {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   margin: 0;
-  color: var(--text-soft);
-  font-size: var(--text-sm);
-}
-
-.error {
-  margin: 0;
-  color: var(--danger);
-  font-size: var(--text-sm);
-}
-
-.primario,
-.secundario {
-  min-height: 44px;
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-}
-
-.primario {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-
-.primario:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.primario:focus-visible,
-.secundario:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
+  color: var(--color-text-soft);
 }

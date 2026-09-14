@@ -7,6 +7,7 @@ export function PedidosPage() {
       titulo="Pedidos"
       etiquetaOrigen="Cotización"
       rutaNuevo="/ventas/pedidos/nuevo"
+      etiquetaNuevo="Nuevo pedido"
     />
   )
 }

@@ -2,6 +2,17 @@ import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Spinner } from '@/components/ui/Spinner'
+import { Icon } from '@/components/icons/Icon'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { ActionBar } from '@/components/document/ActionBar'
+import docUi from '@/components/document/Document.module.css'
 import { ChipEstado, ChipRecepcion } from '../components/ChipEstado'
 import { FormularioPedido } from '../components/FormularioPedido'
 import { ModalImpresionCompras } from '../components/ModalImpresionCompras'
@@ -101,27 +112,31 @@ export function PedidoDetallePage() {
     staleTime: 5 * 60_000,
   })
 
-  if (isPending) return <p className={styles.nota}>Cargando…</p>
-
-  if (error) {
+  if (isPending) {
     return (
-      <p className={styles.error} role="alert">
-        No se pudo leer el pedido: {error.message}
+      <p className={styles.nota} role="status">
+        <Spinner size={20} /> Cargando pedido de compra…
       </p>
     )
   }
 
+  if (error) {
+    return <ErrorState title="No se pudo leer el pedido de compra." description={error.message} />
+  }
+
   if (!pedido) {
     return (
-      <div className={styles.page}>
-        <p className={styles.nota}>
-          No se encontró el pedido. Puede que no exista o que no tengas acceso: Compras es de
-          administradores y empleados.
-        </p>
-        <Link to="/compras/pedidos" className={styles.volver}>
-          ← Volver al listado
-        </Link>
-      </div>
+      <EmptyState
+        headingLevel={1}
+        icon="search"
+        title="No se encontró el pedido de compra"
+        description="Puede que no exista o que no tengas acceso: Compras es de administradores y empleados."
+        action={
+          <LinkButton to="/compras/pedidos" icon={<Icon name="arrow-left" size={16} />}>
+            Volver a Pedidos de compra
+          </LinkButton>
+        }
+      />
     )
   }
 
@@ -166,12 +181,10 @@ export function PedidoDetallePage() {
 
   const errorAlGuardar = guardar.cabecera.error?.message ?? guardar.lineas.error?.message ?? null
 
-  return (
-    <div className={styles.page}>
-      <Link to="/compras/pedidos" className={styles.volver}>
-        ← Pedidos de compra
-      </Link>
+  const recibir = escribe && pedido.estado === 'confirmed' && pedido.estadoRecepcion !== 'received'
 
+  return (
+    <div className={docUi.pagina}>
       {imprimiendo ? (
         <ModalImpresionCompras
           doc={imprimiblePedido(pedido, lineasServidor.data ?? [], etiquetaDeTratamiento)}
@@ -179,190 +192,134 @@ export function PedidoDetallePage() {
         />
       ) : null}
 
-      <header className={styles.encabezado}>
-        <div className={styles.identidad}>
-          <h1 className={styles.titulo}>{pedido.numero}</h1>
-          <p className={styles.subtitulo}>
-            <Link className={styles.enlace} to={`/compras/proveedores/${pedido.proveedorId}`}>
+      <PageHeader
+        back={{ to: '/compras/pedidos', label: 'Pedidos de compra' }}
+        title={pedido.numero}
+        status={
+          <>
+            <ChipEstado estado={pedido.estado} />
+            <ChipRecepcion estado={pedido.estadoRecepcion} />
+          </>
+        }
+        subtitle={
+          <>
+            <Link className={docUi.enlace} to={`/compras/proveedores/${pedido.proveedorId}`}>
               {pedido.proveedor}
             </Link>
             {' · '}
             {formatearFecha(pedido.fecha)}
-            {' · '}
-            {formatearImporte(pedido.total, pedido.moneda)}
-          </p>
-          <div className={styles.chipsEstado}>
-            <ChipEstado estado={pedido.estado} />
-            <ChipRecepcion estado={pedido.estadoRecepcion} />
+          </>
+        }
+        actions={
+          <div className={docUi.importe}>
+            <span className={docUi.importeValor}>{formatearImporte(pedido.total, pedido.moneda)}</span>
+            <span className={docUi.importeLabel}>Total</span>
           </div>
-        </div>
-
-        {!editando ? (
-          <div className={styles.acciones}>
-            {escribe && puede.cabecera ? (
-              <button type="button" className={styles.secundario} onClick={empezarEdicion}>
-                Editar
-              </button>
-            ) : null}
-
-            {/* Imprimir: el pedido es lo que se le manda al proveedor. Se
-                arma con los snapshots guardados, nunca con el catálogo de hoy. */}
-            <button
-              type="button"
-              className={styles.secundario}
-              onClick={() => setImprimiendo(true)}
-            >
-              Imprimir
-            </button>
-
-            {escribe && puede.confirmar ? (
-              confirmando ? (
-                <>
-                  <button
-                    type="button"
-                    className={styles.primario}
-                    disabled={estado.confirmar.isPending}
-                    onClick={() =>
-                      estado.confirmar.mutate(undefined, {
-                        onSuccess: (ok) => {
-                          setConfirmando(false)
-                          if (!ok) setAviso('Alguien más ya cambió el estado de este pedido.')
-                        },
-                      })
-                    }
-                  >
-                    {estado.confirmar.isPending ? 'Confirmando…' : 'Sí, confirmar'}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.secundario}
-                    onClick={() => setConfirmando(false)}
-                  >
-                    No
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.primario}
-                  onClick={() => setConfirmando(true)}
-                >
-                  Confirmar pedido
-                </button>
-              )
-            ) : null}
-
-            {escribe && puede.cancelar ? (
-              cancelando ? (
-                <>
-                  <button
-                    type="button"
-                    className={styles.peligro}
-                    disabled={estado.cancelar.isPending}
-                    onClick={() =>
-                      estado.cancelar.mutate(undefined, {
-                        onSuccess: (ok) => {
-                          setCancelando(false)
-                          if (!ok) setAviso('Alguien más ya cambió el estado de este pedido.')
-                        },
-                      })
-                    }
-                  >
-                    {estado.cancelar.isPending ? 'Cancelando…' : 'Sí, cancelar'}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.secundario}
-                    onClick={() => setCancelando(false)}
-                  >
-                    No
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.secundario}
-                  onClick={() => setCancelando(true)}
-                >
-                  Cancelar pedido
-                </button>
-              )
-            ) : null}
-
-            {/* Recibir mercadería. Sólo desde un pedido confirmado y mientras
-                quede algo por recibir: un pedido ya recibido del todo no
-                necesita otra nota de entrada. */}
-            {escribe &&
-            pedido.estado === 'confirmed' &&
-            pedido.estadoRecepcion !== 'received' ? (
-              <Link to={`/compras/recepciones/nueva?pedido=${pedido.id}`} className={styles.primario}>
-                Recibir mercadería
-              </Link>
-            ) : null}
-
-            {/* Facturar. Se factura lo RECIBIDO, no lo pedido: el enlace lleva
-                a la pantalla con el proveedor puesto y ahí aparece lo pendiente
-                de facturar de todas sus recepciones confirmadas —que puede
-                venir de este pedido y de otros—. Por eso no se filtra por
-                pedido: una factura no es de un pedido. */}
-            {escribe && pedido.estado === 'confirmed' && pedido.estadoRecepcion !== 'pending' ? (
-              <Link
-                to={`/compras/facturas/nueva?proveedor=${pedido.proveedorId}`}
-                className={styles.secundario}
-              >
-                Facturar
-              </Link>
-            ) : null}
-
-            {escribe ? (
-              <button
-                type="button"
-                className={styles.secundario}
-                disabled={estado.duplicar.isPending}
-                onClick={() =>
-                  estado.duplicar.mutate(undefined, {
-                    onSuccess: (nuevo) => void navegar(`/compras/pedidos/${nuevo}`),
-                  })
-                }
-              >
-                {estado.duplicar.isPending ? 'Duplicando…' : 'Duplicar'}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-      </header>
+        }
+      />
 
       {pedido.estado === 'cancelled' ? (
-        <p className={styles.avisoBaja} role="note">
-          Este pedido está <strong>cancelado</strong>: no se modifica ni se reabre. Si hace falta
-          uno parecido, duplicalo.
-        </p>
+        <Alert tone="neutral">
+          <p>
+            Este pedido está <strong>cancelado</strong>: no se modifica ni se reabre. Si hace falta
+            uno parecido, duplicalo.
+          </p>
+        </Alert>
       ) : null}
 
       {pedido.conRecepcion ? (
-        <p className={styles.avisoBaja} role="note">
-          Este pedido ya tiene mercadería recibida: <strong>sus líneas están congeladas</strong> y
-          no se puede cancelar. La llegada estimada, la condición de pago y las notas sí se pueden
-          ajustar, y cada cambio queda registrado.
-        </p>
+        <Alert tone="info">
+          <p>
+            Este pedido ya tiene mercadería recibida: <strong>sus líneas están congeladas</strong> y
+            no se puede cancelar. La llegada estimada, la condición de pago y las notas sí se pueden
+            ajustar, y cada cambio queda registrado.
+          </p>
+        </Alert>
       ) : pedido.estado === 'confirmed' ? (
-        <p className={styles.avisoBaja} role="note">
-          Este pedido está confirmado: el proveedor ya lo tiene. El proveedor, la moneda y la
-          fecha no se cambian, y <strong>cada cambio queda registrado</strong>.
-        </p>
+        <Alert tone="info">
+          <p>
+            Este pedido está confirmado: el proveedor ya lo tiene. El proveedor, la moneda y la
+            fecha no se cambian, y <strong>cada cambio queda registrado</strong>.
+          </p>
+        </Alert>
       ) : null}
 
       {aviso ? (
-        <p className={styles.error} role="alert">
-          {aviso}
-        </p>
+        <Alert tone="warning" role="alert">
+          <p>{aviso}</p>
+        </Alert>
       ) : null}
       {estado.confirmar.error || estado.cancelar.error || estado.duplicar.error ? (
-        <p className={styles.error} role="alert">
-          {estado.confirmar.error?.message ??
-            estado.cancelar.error?.message ??
-            estado.duplicar.error?.message}
-        </p>
+        <Alert tone="danger" role="alert" title="No se pudo completar la acción">
+          <p>
+            {estado.confirmar.error?.message ??
+              estado.cancelar.error?.message ??
+              estado.duplicar.error?.message}
+          </p>
+        </Alert>
+      ) : null}
+
+      {!editando ? (
+        <ActionBar
+          primary={
+            recibir ? (
+              // Recibir mercadería. Sólo desde un pedido confirmado y mientras
+              // quede algo por recibir: un pedido ya recibido del todo no
+              // necesita otra nota de entrada.
+              <LinkButton to={`/compras/recepciones/nueva?pedido=${pedido.id}`} variant="primary" icon={<Icon name="package" size={16} />}>
+                Recibir mercadería
+              </LinkButton>
+            ) : escribe && puede.confirmar ? (
+              <Button icon={<Icon name="check" size={16} />} onClick={() => setConfirmando(true)}>
+                Confirmar pedido
+              </Button>
+            ) : null
+          }
+          secondary={
+            <>
+              {escribe && puede.cabecera ? (
+                <Button variant="secondary" icon={<Icon name="edit" size={16} />} onClick={empezarEdicion}>
+                  Editar
+                </Button>
+              ) : null}
+              {/* Imprimir: el pedido es lo que se le manda al proveedor. Se
+                  arma con los snapshots guardados, nunca con el catálogo de hoy. */}
+              <Button variant="secondary" icon={<Icon name="printer" size={16} />} onClick={() => setImprimiendo(true)}>
+                Imprimir
+              </Button>
+              {/* Facturar. Se factura lo RECIBIDO, no lo pedido: el enlace lleva
+                  a la pantalla con el proveedor puesto y ahí aparece lo pendiente
+                  de facturar de todas sus recepciones confirmadas —que puede
+                  venir de este pedido y de otros—. Por eso no se filtra por
+                  pedido: una factura no es de un pedido. */}
+              {escribe && pedido.estado === 'confirmed' && pedido.estadoRecepcion !== 'pending' ? (
+                <LinkButton to={`/compras/facturas/nueva?proveedor=${pedido.proveedorId}`} variant="secondary">
+                  Facturar
+                </LinkButton>
+              ) : null}
+              {escribe ? (
+                <Button
+                  variant="secondary"
+                  loading={estado.duplicar.isPending}
+                  onClick={() =>
+                    estado.duplicar.mutate(undefined, {
+                      onSuccess: (nuevo) => void navegar(`/compras/pedidos/${nuevo}`),
+                    })
+                  }
+                >
+                  {estado.duplicar.isPending ? 'Duplicando…' : 'Duplicar'}
+                </Button>
+              ) : null}
+            </>
+          }
+          danger={
+            escribe && puede.cancelar ? (
+              <Button variant="secondary" onClick={() => setCancelando(true)}>
+                Cancelar pedido
+              </Button>
+            ) : null
+          }
+        />
       ) : null}
 
       <nav className={styles.pestanas} aria-label="Secciones del pedido">
@@ -383,10 +340,12 @@ export function PedidoDetallePage() {
         {pestana === 'pedido' && editando ? (
           <>
             {sinGuardar ? (
-              <p className={styles.sinGuardar} role="note">
-                Hay cambios sin guardar. Los totales que se ven son una cuenta provisoria; el que
-                vale lo calcula el servidor al guardar.
-              </p>
+              <Alert tone="warning">
+                <p>
+                  Hay cambios sin guardar. Los totales que se ven son una cuenta provisoria; el que
+                  vale lo calcula el servidor al guardar.
+                </p>
+              </Alert>
             ) : null}
 
             <FormularioPedido
@@ -414,25 +373,22 @@ export function PedidoDetallePage() {
             />
 
             {errorAlGuardar ? (
-              <p className={styles.error} role="alert">
-                {errorAlGuardar}
-              </p>
+              <Alert tone="danger" role="alert" title="No se pudo guardar">
+                <p>{errorAlGuardar}</p>
+              </Alert>
             ) : null}
 
             <div className={styles.acciones}>
-              <button
-                type="button"
-                className={styles.primario}
-                disabled={guardar.cabecera.isPending || guardar.lineas.isPending}
+              <Button
+                icon={<Icon name="check" size={16} />}
+                loading={guardar.cabecera.isPending || guardar.lineas.isPending}
                 onClick={() => void guardarTodo()}
               >
-                {guardar.cabecera.isPending || guardar.lineas.isPending
-                  ? 'Guardando…'
-                  : 'Guardar cambios'}
-              </button>
-              <button type="button" className={styles.secundario} onClick={salirDeEdicion}>
+                {guardar.cabecera.isPending || guardar.lineas.isPending ? 'Guardando…' : 'Guardar cambios'}
+              </Button>
+              <Button variant="ghost" onClick={salirDeEdicion}>
                 Cancelar
-              </button>
+              </Button>
             </div>
           </>
         ) : null}
@@ -508,6 +464,44 @@ export function PedidoDetallePage() {
           />
         ) : null}
       </section>
+
+      <ConfirmDialog
+        open={confirmando}
+        title={`¿Confirmar el pedido ${pedido.numero}?`}
+        description="Queda como enviado al proveedor: el proveedor, la moneda y la fecha ya no se cambian. Confirmar no mueve stock."
+        confirmLabel="Confirmar pedido"
+        cancelLabel="Volver"
+        busy={estado.confirmar.isPending}
+        onCancel={() => setConfirmando(false)}
+        onConfirm={() =>
+          estado.confirmar.mutate(undefined, {
+            onSuccess: (ok) => {
+              setConfirmando(false)
+              if (!ok) setAviso('Alguien más ya cambió el estado de este pedido.')
+            },
+            onError: () => setConfirmando(false),
+          })
+        }
+      />
+      <ConfirmDialog
+        open={cancelando}
+        tone="danger"
+        title={`¿Cancelar el pedido ${pedido.numero}?`}
+        description="Un pedido cancelado no se modifica ni se reabre. Si hace falta uno parecido, se duplica."
+        confirmLabel="Cancelar pedido"
+        cancelLabel="Volver"
+        busy={estado.cancelar.isPending}
+        onCancel={() => setCancelando(false)}
+        onConfirm={() =>
+          estado.cancelar.mutate(undefined, {
+            onSuccess: (ok) => {
+              setCancelando(false)
+              if (!ok) setAviso('Alguien más ya cambió el estado de este pedido.')
+            },
+            onError: () => setCancelando(false),
+          })
+        }
+      />
     </div>
   )
 }

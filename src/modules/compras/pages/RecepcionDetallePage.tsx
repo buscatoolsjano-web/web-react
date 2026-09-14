@@ -1,6 +1,17 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Spinner } from '@/components/ui/Spinner'
+import { Icon } from '@/components/icons/Icon'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { ActionBar } from '@/components/document/ActionBar'
+import docUi from '@/components/document/Document.module.css'
 import { ChipRecepcionDoc } from '../components/ChipEstado'
 import { ModalImpresionCompras } from '../components/ModalImpresionCompras'
 import { imprimibleRecepcion } from '../lib/impresion'
@@ -70,27 +81,31 @@ export function RecepcionDetallePage() {
     id ?? null,
   )
 
-  if (isPending) return <p className={styles.nota}>Cargando…</p>
-
-  if (error) {
+  if (isPending) {
     return (
-      <p className={styles.error} role="alert">
-        No se pudo leer la recepción: {error.message}
+      <p className={styles.nota} role="status">
+        <Spinner size={20} /> Cargando nota de entrada…
       </p>
     )
   }
 
+  if (error) {
+    return <ErrorState title="No se pudo leer la nota de entrada." description={error.message} />
+  }
+
   if (!recepcion) {
     return (
-      <div className={styles.page}>
-        <p className={styles.nota}>
-          No se encontró la recepción. Puede que no exista o que no tengas acceso: Compras es de
-          administradores y empleados.
-        </p>
-        <Link to="/compras/recepciones" className={styles.volver}>
-          ← Volver al listado
-        </Link>
-      </div>
+      <EmptyState
+        headingLevel={1}
+        icon="search"
+        title="No se encontró la nota de entrada"
+        description="Puede que no exista o que no tengas acceso: Compras es de administradores y empleados."
+        action={
+          <LinkButton to="/compras/recepciones" icon={<Icon name="arrow-left" size={16} />}>
+            Volver a Notas de entrada
+          </LinkButton>
+        }
+      />
     )
   }
 
@@ -163,168 +178,97 @@ export function RecepcionDetallePage() {
   const unidades = guardadas.reduce((a, l) => a + l.cantidad, 0)
 
   return (
-    <div className={styles.page}>
-      <Link to="/compras/recepciones" className={styles.volver}>
-        ← Notas de entrada
-      </Link>
-
+    <div className={docUi.pagina}>
       {imprimiendo ? (
-        <ModalImpresionCompras
-          doc={imprimibleRecepcion(recepcion, guardadas)}
-          onCerrar={() => setImprimiendo(false)}
-        />
+        <ModalImpresionCompras doc={imprimibleRecepcion(recepcion, guardadas)} onCerrar={() => setImprimiendo(false)} />
       ) : null}
 
-      <header className={styles.encabezado}>
-        <div className={styles.identidad}>
-          <h1 className={styles.titulo}>{recepcion.numero}</h1>
-          <p className={styles.subtitulo}>
-            <Link className={styles.enlace} to={`/compras/proveedores/${recepcion.proveedorId}`}>
+      <PageHeader
+        back={{ to: '/compras/recepciones', label: 'Notas de entrada' }}
+        title={recepcion.numero}
+        status={<ChipRecepcionDoc estado={recepcion.estado} />}
+        subtitle={
+          <>
+            <Link className={docUi.enlace} to={`/compras/proveedores/${recepcion.proveedorId}`}>
               {recepcion.proveedor}
             </Link>
             {' · '}
             {formatearFecha(recepcion.fecha)}
             {' · '}
             {recepcion.deposito}
-          </p>
-          <div className={styles.chipsEstado}>
-            <ChipRecepcionDoc estado={recepcion.estado} />
-          </div>
-        </div>
-
-        {!editando ? (
-          <div className={styles.acciones}>
-            {escribe && esBorrador ? (
-              <button type="button" className={styles.secundario} onClick={empezar}>
-                Editar
-              </button>
-            ) : null}
-
-            {/* Imprimir: documento logístico, sin importes. La recepción no
-                está valorizada y no se le inventa un precio. */}
-            <button
-              type="button"
-              className={styles.secundario}
-              onClick={() => setImprimiendo(true)}
-            >
-              Imprimir
-            </button>
-
-            {escribe && esBorrador ? (
-              confirmando ? (
-                <>
-                  <button
-                    type="button"
-                    className={styles.primario}
-                    disabled={acciones.confirmar.isPending}
-                    onClick={() =>
-                      acciones.confirmar.mutate(undefined, {
-                        onSuccess: (r) => {
-                          setConfirmando(false)
-                          setAviso(
-                            r.yaEstaba
-                              ? 'Esta recepción ya estaba confirmada: el stock no se sumó dos veces.'
-                              : `Confirmada. ${r.movimientos} ${r.movimientos === 1 ? 'movimiento' : 'movimientos'} de stock.`,
-                          )
-                        },
-                      })
-                    }
-                  >
-                    {acciones.confirmar.isPending ? 'Confirmando…' : 'Sí, confirmar y sumar stock'}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.secundario}
-                    onClick={() => setConfirmando(false)}
-                  >
-                    No
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.primario}
-                  onClick={() => setConfirmando(true)}
-                >
-                  Confirmar recepción
-                </button>
-              )
-            ) : null}
-
-            {/* Facturar lo que llegó. Sólo desde una recepción confirmada:
-                facturar lo que todavía no entró no es facturar, es adelantar.
-                La grilla de la factura vuelve a preguntarle al servidor qué
-                queda pendiente, así que si ya está toda facturada la pantalla
-                lo dice sola. */}
-            {escribe && !esBorrador ? (
-              <Link
-                to={`/compras/facturas/nueva?recepcion=${recepcion.id}&proveedor=${recepcion.proveedorId}`}
-                className={styles.primario}
-              >
-                Facturar
-              </Link>
-            ) : null}
-
-            {escribe && esBorrador ? (
-              borrando ? (
-                <>
-                  <button
-                    type="button"
-                    className={styles.peligro}
-                    disabled={acciones.borrar.isPending}
-                    onClick={() =>
-                      acciones.borrar.mutate(undefined, {
-                        onSuccess: () => void navegar('/compras/recepciones'),
-                      })
-                    }
-                  >
-                    {acciones.borrar.isPending ? 'Borrando…' : 'Sí, borrar el borrador'}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.secundario}
-                    onClick={() => setBorrando(false)}
-                  >
-                    No
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.secundario}
-                  onClick={() => setBorrando(true)}
-                >
-                  Borrar borrador
-                </button>
-              )
-            ) : null}
-          </div>
-        ) : null}
-      </header>
+          </>
+        }
+      />
 
       {esBorrador ? (
-        <p className={styles.avisoBaja} role="note">
-          Esta recepción está en <strong>borrador</strong>: todavía no movió stock. Las
-          cantidades anotadas acá <strong>no están reservadas</strong>; si otra recepción de las
-          mismas líneas se confirma primero, ésta va a fallar por sobre-recepción.
-        </p>
+        <Alert tone="warning">
+          <p>
+            Esta recepción está en <strong>borrador</strong>: todavía no movió stock. Las
+            cantidades anotadas acá <strong>no están reservadas</strong>; si otra recepción de las
+            mismas líneas se confirma primero, ésta va a fallar por sobre-recepción.
+          </p>
+        </Alert>
       ) : (
-        <p className={styles.avisoBaja} role="note">
-          Esta recepción está <strong>confirmada</strong>: movió stock y quedó congelada. No se
-          edita, no vuelve a borrador y no se borra. Para deshacerla haría falta un movimiento de
-          stock en contra, y eso todavía no existe.
-        </p>
+        <Alert tone="info">
+          <p>
+            Esta recepción está <strong>confirmada</strong>: movió stock y quedó congelada. No se
+            edita, no vuelve a borrador y no se borra. Para deshacerla haría falta un movimiento de
+            stock en contra, y eso todavía no existe.
+          </p>
+        </Alert>
       )}
 
       {aviso ? (
-        <p className={styles.avisoBaja} role="status">
-          {aviso}
-        </p>
+        <Alert tone="success" role="status">
+          <p>{aviso}</p>
+        </Alert>
       ) : null}
       {acciones.confirmar.error || acciones.borrar.error ? (
-        <p className={styles.error} role="alert">
-          {acciones.confirmar.error?.message ?? acciones.borrar.error?.message}
-        </p>
+        <Alert tone="danger" role="alert" title="No se pudo completar la acción">
+          <p>{acciones.confirmar.error?.message ?? acciones.borrar.error?.message}</p>
+        </Alert>
+      ) : null}
+
+      {!editando ? (
+        <ActionBar
+          primary={
+            escribe && esBorrador ? (
+              <Button icon={<Icon name="check" size={16} />} onClick={() => setConfirmando(true)}>
+                Confirmar recepción
+              </Button>
+            ) : escribe && !esBorrador ? (
+              // Facturar lo que llegó. Sólo desde una recepción confirmada:
+              // facturar lo que todavía no entró no es facturar, es adelantar.
+              // La grilla de la factura vuelve a preguntarle al servidor qué
+              // queda pendiente, así que si ya está toda facturada la pantalla
+              // lo dice sola.
+              <LinkButton to={`/compras/facturas/nueva?recepcion=${recepcion.id}&proveedor=${recepcion.proveedorId}`} variant="primary">
+                Facturar
+              </LinkButton>
+            ) : null
+          }
+          secondary={
+            <>
+              {escribe && esBorrador ? (
+                <Button variant="secondary" icon={<Icon name="edit" size={16} />} onClick={empezar}>
+                  Editar
+                </Button>
+              ) : null}
+              {/* Imprimir: documento logístico, sin importes. La recepción no
+                  está valorizada y no se le inventa un precio. */}
+              <Button variant="secondary" icon={<Icon name="printer" size={16} />} onClick={() => setImprimiendo(true)}>
+                Imprimir
+              </Button>
+            </>
+          }
+          danger={
+            escribe && esBorrador ? (
+              <Button variant="danger" icon={<Icon name="trash" size={16} />} onClick={() => setBorrando(true)}>
+                Borrar borrador
+              </Button>
+            ) : null
+          }
+        />
       ) : null}
 
       <section className={styles.bloque}>
@@ -504,6 +448,44 @@ export function RecepcionDetallePage() {
           </div>
         )}
       </section>
+      <ConfirmDialog
+        open={confirmando}
+        title={`¿Confirmar la recepción ${recepcion.numero}?`}
+        description="Suma el stock de cada línea al depósito y la recepción queda congelada: no vuelve a borrador ni se borra."
+        confirmLabel="Confirmar y sumar stock"
+        cancelLabel="Volver"
+        busy={acciones.confirmar.isPending}
+        onCancel={() => setConfirmando(false)}
+        onConfirm={() =>
+          acciones.confirmar.mutate(undefined, {
+            onSuccess: (r) => {
+              setConfirmando(false)
+              setAviso(
+                r.yaEstaba
+                  ? 'Esta recepción ya estaba confirmada: el stock no se sumó dos veces.'
+                  : `Confirmada. ${r.movimientos} ${r.movimientos === 1 ? 'movimiento' : 'movimientos'} de stock.`,
+              )
+            },
+            onError: () => setConfirmando(false),
+          })
+        }
+      />
+      <ConfirmDialog
+        open={borrando}
+        tone="danger"
+        title={`¿Borrar el borrador ${recepcion.numero}?`}
+        description="Se borra la nota de entrada en borrador y sus líneas. No se puede deshacer."
+        confirmLabel="Borrar borrador"
+        cancelLabel="Volver"
+        busy={acciones.borrar.isPending}
+        onCancel={() => setBorrando(false)}
+        onConfirm={() =>
+          acciones.borrar.mutate(undefined, {
+            onSuccess: () => void navegar('/compras/recepciones'),
+            onError: () => setBorrando(false),
+          })
+        }
+      />
     </div>
   )
 }

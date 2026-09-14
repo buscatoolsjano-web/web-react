@@ -196,7 +196,7 @@ export async function cambiarEstado(
 
 export function editabilidad(estado: string, esInterno: boolean): Editabilidad {
   if (!esInterno)
-    return { editable: false, motivo: 'Sólo el equipo interno edita cotizaciones.', audita: false }
+    return { editable: false, motivo: 'Tu rol no edita cotizaciones: es de administradores y empleados.', audita: false }
   if (estado === 'draft') return { editable: true, motivo: null, audita: false }
   if (estado === 'sent')
     return {

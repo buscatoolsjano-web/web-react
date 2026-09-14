@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { FilterBar } from '@/components/filters/FilterBar'
+import { Field } from '@/components/forms/Field'
+import { Checkbox, Input, Select } from '@/components/forms/controls'
 import { estadosDisponibles } from '../lib/estados'
 import { useClientes, useMonedas } from '../hooks/useDocumentos'
 import type { FiltrosVentas, TipoDocumento } from '../types'
-import styles from './FiltrosDocumentos.module.css'
 
 export interface FiltrosDocumentosProps {
   tipo: TipoDocumento
@@ -12,11 +14,19 @@ export interface FiltrosDocumentosProps {
   onLimpiar: () => void
 }
 
+/** Filtros aplicados además de la búsqueda (para el contador en mobile). */
+function contarActivos(f: FiltrosVentas): number {
+  return [f.clienteId, f.estado, f.moneda, f.desde, f.hasta, f.soloRevision].filter(Boolean).length
+}
+
 /**
  * Los cinco filtros mínimos: fecha, cliente, estado, moneda y número.
  *
  * Todos van al servidor. El legacy filtraba en memoria sobre la lista
  * completa, lo que obligaba a traerla entera.
+ *
+ * Fase 13: sólo cambia el layout (`FilterBar`) y los controles del sistema.
+ * Valores, URL y debounce son los mismos.
  */
 export function FiltrosDocumentos({
   tipo,
@@ -49,95 +59,61 @@ export function FiltrosDocumentos({
   }, [texto, filtros.q, onAplicar])
 
   return (
-    <div className={styles.barra}>
-      <input
-        type="search"
-        className={styles.buscador}
-        placeholder="Buscar por número…"
-        value={texto}
-        onChange={(e) => setTexto(e.target.value)}
-        aria-label="Buscar por número de documento"
-      />
+    <FilterBar
+      activeCount={contarActivos(filtros)}
+      hasFilters={hayFiltros}
+      onClear={onLimpiar}
+      search={
+        <Field label="Buscar por número de documento" hideLabel>
+          <Input type="search" placeholder="Buscar por número…" value={texto} onChange={(e) => setTexto(e.target.value)} />
+        </Field>
+      }
+    >
+      <Field label="Cliente" hideLabel>
+        <Select value={filtros.clienteId ?? ''} onChange={(e) => onAplicar({ clienteId: e.target.value || null })}>
+          <option value="">Todos los clientes</option>
+          {(clientes.data ?? []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nombre}
+              {/* Un cliente dado de baja sigue en el filtro: sus documentos
+                  históricos existen y hay que poder buscarlos por él. */}
+              {c.dadoDeBaja ? ' (dado de baja)' : ''}
+            </option>
+          ))}
+        </Select>
+      </Field>
 
-      <select
-        className={styles.select}
-        value={filtros.clienteId ?? ''}
-        onChange={(e) => onAplicar({ clienteId: e.target.value || null })}
-        aria-label="Cliente"
-      >
-        <option value="">Todos los clientes</option>
-        {(clientes.data ?? []).map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.nombre}
-            {/* Un cliente dado de baja sigue en el filtro: sus documentos
-                históricos existen y hay que poder buscarlos por él. */}
-            {c.dadoDeBaja ? ' (dado de baja)' : ''}
-          </option>
-        ))}
-      </select>
+      <Field label="Estado" hideLabel>
+        <Select value={filtros.estado ?? ''} onChange={(e) => onAplicar({ estado: e.target.value || null })}>
+          <option value="">Todos los estados</option>
+          {estadosDisponibles(tipo).map((e) => (
+            <option key={e.valor} value={e.valor}>
+              {e.etiqueta}
+            </option>
+          ))}
+        </Select>
+      </Field>
 
-      <select
-        className={styles.select}
-        value={filtros.estado ?? ''}
-        onChange={(e) => onAplicar({ estado: e.target.value || null })}
-        aria-label="Estado"
-      >
-        <option value="">Todos los estados</option>
-        {estadosDisponibles(tipo).map((e) => (
-          <option key={e.valor} value={e.valor}>
-            {e.etiqueta}
-          </option>
-        ))}
-      </select>
+      <Field label="Moneda" hideLabel>
+        <Select value={filtros.moneda ?? ''} onChange={(e) => onAplicar({ moneda: e.target.value || null })}>
+          <option value="">Todas las monedas</option>
+          {(monedas.data ?? []).map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </Select>
+      </Field>
 
-      <select
-        className={styles.select}
-        value={filtros.moneda ?? ''}
-        onChange={(e) => onAplicar({ moneda: e.target.value || null })}
-        aria-label="Moneda"
-      >
-        <option value="">Todas las monedas</option>
-        {(monedas.data ?? []).map((m) => (
-          <option key={m} value={m}>
-            {m}
-          </option>
-        ))}
-      </select>
+      <Field label="Desde">
+        <Input type="date" value={filtros.desde ?? ''} onChange={(e) => onAplicar({ desde: e.target.value || null })} />
+      </Field>
 
-      <label className={styles.fecha}>
-        <span className={styles.fechaLabel}>Desde</span>
-        <input
-          type="date"
-          className={styles.select}
-          value={filtros.desde ?? ''}
-          onChange={(e) => onAplicar({ desde: e.target.value || null })}
-        />
-      </label>
+      <Field label="Hasta">
+        <Input type="date" value={filtros.hasta ?? ''} onChange={(e) => onAplicar({ hasta: e.target.value || null })} />
+      </Field>
 
-      <label className={styles.fecha}>
-        <span className={styles.fechaLabel}>Hasta</span>
-        <input
-          type="date"
-          className={styles.select}
-          value={filtros.hasta ?? ''}
-          onChange={(e) => onAplicar({ hasta: e.target.value || null })}
-        />
-      </label>
-
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={filtros.soloRevision}
-          onChange={(e) => onAplicar({ soloRevision: e.target.checked })}
-        />
-        Sólo con observaciones
-      </label>
-
-      {hayFiltros ? (
-        <button type="button" className={styles.limpiar} onClick={onLimpiar}>
-          Limpiar
-        </button>
-      ) : null}
-    </div>
+      <Checkbox label="Sólo con observaciones" checked={filtros.soloRevision} onChange={(e) => onAplicar({ soloRevision: e.target.checked })} />
+    </FilterBar>
   )
 }

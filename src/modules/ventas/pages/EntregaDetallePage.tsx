@@ -1,8 +1,20 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Spinner } from '@/components/ui/Spinner'
+import { Icon } from '@/components/icons/Icon'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { ActionBar } from '@/components/document/ActionBar'
+import { DocSection, MetaList, Missing, Totals } from '@/components/document/DocSection'
+import docUi from '@/components/document/Document.module.css'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { AccionesDocumento } from '../components/AccionesDocumento'
+import { useAccionesDocumento } from '../components/AccionesDocumento'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { ChipEstado } from '../components/ChipEstado'
@@ -10,12 +22,12 @@ import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { TablaLineas } from '../components/TablaLineas'
 import { mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
+import { escribeVentas } from '../lib/permisos'
 import { presentarEstado } from '../lib/estados'
 import { formatearFecha, formatearImporte } from '../lib/formato'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { useDocumento, useRelacionados } from '../hooks/useDocumentos'
 import { confirmarEntrega, editabilidadEntrega } from '../services/entregas'
-import styles from './DetallePage.module.css'
 import editor from './EditorCotizacion.module.css'
 
 /**
@@ -36,6 +48,8 @@ export function EntregaDetallePage() {
   const [resultado, setResultado] = useState<string | null>(null)
 
   const esInterno = activa?.esInterno ?? false
+  // Despachar es de admin y employee: el mismo conjunto que `deliveries_write`.
+  const escribe = escribeVentas(activa?.rol)
   // Fase 12 E2.5: despachar es el efecto productivo del remito (mueve stock).
   const autoridad = useAutoridadNumeracion()
   const stelEntrega = autoridad.stel('delivery')
@@ -59,55 +73,67 @@ export function EntregaDetallePage() {
     },
   })
 
-  if (isPending) return <p className={styles.nota}>Cargando…</p>
+  const acciones = useAccionesDocumento(doc)
 
-  if (error) {
+  if (isPending) {
     return (
-      <p className={styles.error} role="alert">
-        No se pudo leer el remito: {error.message}
+      <p className={editor.cargando} role="status">
+        <Spinner size={20} /> Cargando nota de entrega…
       </p>
     )
   }
 
+  if (error) {
+    return <ErrorState title="No se pudo leer la nota de entrega." description={error.message} />
+  }
+
   if (!doc) {
     return (
-      <div className={styles.page}>
-        <p className={styles.nota}>
-          No se encontró la nota de entrega. Puede que no exista o que no tengas acceso.
-        </p>
-        <Link to="/ventas/entregas" className={styles.volver}>
-          ← Volver al listado
-        </Link>
-      </div>
+      <EmptyState
+        headingLevel={1}
+        icon="search"
+        title="No se encontró la nota de entrega"
+        description="Puede que no exista o que no tengas acceso."
+        action={
+          <LinkButton to="/ventas/entregas" icon={<Icon name="arrow-left" size={16} />}>
+            Volver a Notas de entrega
+          </LinkButton>
+        }
+      />
     )
   }
 
-  const permiso = editabilidadEntrega(doc.estado, esInterno)
+  const permiso = editabilidadEntrega(doc.estado, escribe)
 
   return (
-    <div className={styles.page}>
-      <Link to="/ventas/entregas" className={styles.volver}>
-        ← Notas de entrega
-      </Link>
-
-      <header className={styles.encabezado}>
-        <div className={styles.identidad}>
-          <h1 className={styles.titulo}>{doc.numero}</h1>
-          <div className={styles.chips}>
+    <div className={docUi.pagina}>
+      <PageHeader
+        back={{ to: '/ventas/entregas', label: 'Notas de entrega' }}
+        title={doc.numero}
+        status={
+          <>
             <ChipEstado estado={presentarEstado('entrega', doc.estado)} />
-            {doc.serie ? <span className={styles.historico}>Serie {doc.serie}</span> : null}
+            {doc.serie ? <Badge tone="neutral">Serie {doc.serie}</Badge> : null}
             {doc.esHistorico ? (
-              <span className={styles.historico}>Migrado del sistema anterior</span>
+              <Badge tone="neutral" outline>
+                Migrado del sistema anterior
+              </Badge>
             ) : null}
-            {confirmar.isPending ? <span className={editor.guardando}>Despachando…</span> : null}
+            {confirmar.isPending ? (
+              <span className={editor.guardando} role="status">
+                <Spinner size={16} /> Despachando…
+              </span>
+            ) : null}
+          </>
+        }
+        subtitle={[doc.clienteNombre, formatearFecha(doc.fecha), doc.titulo].filter(Boolean).join(' · ')}
+        actions={
+          <div className={docUi.importe}>
+            <span className={docUi.importeValor}>{formatearImporte(doc.total, doc.moneda)}</span>
+            <span className={docUi.importeLabel}>Total</span>
           </div>
-          {doc.titulo ? <p className={styles.subtitulo}>{doc.titulo}</p> : null}
-        </div>
-        <div className={styles.importe}>
-          <span className={styles.importeValor}>{formatearImporte(doc.total, doc.moneda)}</span>
-          <span className={styles.importeEtiqueta}>Total</span>
-        </div>
-      </header>
+        }
+      />
 
       <AvisosHistoricos
         motivos={doc.motivosRevision}
@@ -121,112 +147,100 @@ export function EntregaDetallePage() {
       ) : null}
 
       {ultimoError ? (
-        <p className={styles.error} role="alert">
-          {ultimoError}
-        </p>
+        <Alert tone="danger" role="alert" title="No se pudo despachar">
+          <p>{ultimoError}</p>
+        </Alert>
       ) : null}
       {resultado ? (
-        <p className={styles.notas} role="status">
-          {resultado}
-        </p>
+        <Alert tone="success" role="status">
+          <p>{resultado}</p>
+        </Alert>
       ) : null}
 
-      <section className={styles.bloque}>
-        <dl className={styles.datos}>
-          <div className={styles.dato}>
-            <dt className={styles.datoEtiqueta}>Cliente</dt>
-            <dd className={styles.datoValor}>{doc.clienteNombre}</dd>
-          </div>
-          <div className={styles.dato}>
-            <dt className={styles.datoEtiqueta}>Contacto</dt>
-            <dd className={styles.datoValor}>{doc.contactoNombre ?? '—'}</dd>
-          </div>
-          <div className={styles.dato}>
-            <dt className={styles.datoEtiqueta}>Fecha</dt>
-            <dd className={styles.datoValor}>{formatearFecha(doc.fecha)}</dd>
-          </div>
-          <div className={styles.dato}>
-            <dt className={styles.datoEtiqueta}>Moneda</dt>
-            <dd className={styles.datoValor}>
-              {doc.moneda ?? <span className={styles.falta}>Sin registrar</span>}
-            </dd>
-          </div>
-          {doc.origen ? (
-            <div className={styles.dato}>
-              <dt className={styles.datoEtiqueta}>Pedido de origen</dt>
-              <dd className={styles.datoValor}>
-                <Link to={`/ventas/pedidos/${doc.origen.id}`} className={styles.enlace}>
-                  {doc.origen.numero}
-                </Link>
-              </dd>
-            </div>
-          ) : null}
-        </dl>
-        {doc.notas ? <p className={styles.notas}>{doc.notas}</p> : null}
-      </section>
-
-      <section className={styles.bloque}>
-        <h2 className={styles.h2}>Líneas</h2>
-        <TablaLineas lineas={doc.lineas} moneda={doc.moneda} tipo="entrega" />
-        <dl className={styles.totales}>
-          <div>
-            <dt>Subtotal</dt>
-            <dd>{formatearImporte(doc.subtotal, doc.moneda)}</dd>
-          </div>
-          <div>
-            <dt>Impuestos</dt>
-            <dd>{formatearImporte(doc.impuesto, doc.moneda)}</dd>
-          </div>
-          <div className={styles.totalFinal}>
-            <dt>Total</dt>
-            <dd>{formatearImporte(doc.total, doc.moneda)}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <div className={editor.barra}>
-        {permiso.confirmable ? (
-          <>
-            <button
-              type="button"
-              className={editor.primario}
-              disabled={confirmar.isPending || stelEntrega || autoridad.cargando}
+      <ActionBar
+        primary={
+          permiso.confirmable ? (
+            <Button
+              icon={<Icon name="truck" size={16} />}
+              loading={confirmar.isPending}
+              disabled={stelEntrega || autoridad.cargando}
               aria-describedby={stelEntrega ? 'motivo-despachar' : undefined}
               onClick={() => confirmar.mutate()}
             >
               {confirmar.isPending ? 'Despachando…' : 'Confirmar y despachar'}
-            </button>
-            {stelEntrega ? (
-              <p id="motivo-despachar" className={editor.motivo}>
-                {motivoBloqueo('delivery')}
+            </Button>
+          ) : null
+        }
+        secondary={acciones.secundarias}
+        danger={acciones.peligro}
+        note={
+          <>
+            {permiso.confirmable ? (
+              stelEntrega ? (
+                <p id="motivo-despachar">{motivoBloqueo('delivery')}</p>
+              ) : (
+                <p>
+                  Descuenta el stock de cada línea y libera las reservas del pedido. Se puede apretar una
+                  sola vez: el servidor no repite el movimiento.
+                </p>
+              )
+            ) : permiso.motivo ? (
+              <p className={editor.candado}>
+                <Icon name="alert-circle" size={16} /> {permiso.motivo}
               </p>
-            ) : (
-              <span className={editor.aviso}>
-                Descuenta el stock de cada línea y libera las reservas del pedido. Se puede apretar
-                una sola vez: el servidor no repite el movimiento.
-              </span>
-            )}
+            ) : null}
+            {acciones.motivo}
+            {acciones.error ? (
+              <p className={editor.error} role="alert">
+                {acciones.error}
+              </p>
+            ) : null}
           </>
-        ) : (
-          <span className={editor.candado}>{permiso.motivo}</span>
-        )}
-      </div>
+        }
+      />
 
-      <AccionesDocumento doc={doc} />
-
-      <section className={styles.bloque}>
-        <h2 className={styles.h2}>Adjuntos</h2>
-        <PanelAdjuntos tipo="entrega" documentoId={doc.id} />
-      </section>
-
-      <section className={styles.bloque}>
-        <h2 className={styles.h2}>Relacionados</h2>
-        <PanelRelacionados
-          relacionados={relacionados.data}
-          cargando={relacionados.isPending}
-          idActual={doc.id}
+      <DocSection title="Datos de la entrega">
+        <MetaList
+          items={[
+            { label: 'Cliente', value: doc.clienteNombre },
+            { label: 'Contacto', value: doc.contactoNombre ?? '—' },
+            { label: 'Fecha', value: formatearFecha(doc.fecha) },
+            { label: 'Moneda', value: doc.moneda ?? <Missing /> },
+            doc.origen
+              ? {
+                  label: 'Pedido de origen',
+                  value: (
+                    <Link to={`/ventas/pedidos/${doc.origen.id}`} className={docUi.enlace}>
+                      {doc.origen.numero}
+                    </Link>
+                  ),
+                }
+              : null,
+            doc.notas ? { label: 'Notas', value: doc.notas, wide: true } : null,
+          ]}
         />
-      </section>
+      </DocSection>
+
+      <DocSection title="Líneas">
+        <TablaLineas lineas={doc.lineas} moneda={doc.moneda} tipo="entrega" />
+        <Totals
+          rows={[
+            { label: 'Subtotal', value: formatearImporte(doc.subtotal, doc.moneda) },
+            { label: 'Impuestos', value: formatearImporte(doc.impuesto, doc.moneda) },
+            { label: 'Total', value: formatearImporte(doc.total, doc.moneda), strong: true },
+          ]}
+        />
+      </DocSection>
+
+      <DocSection title="Adjuntos">
+        <PanelAdjuntos tipo="entrega" documentoId={doc.id} />
+      </DocSection>
+
+      <DocSection title="Relacionados">
+        <PanelRelacionados relacionados={relacionados.data} cargando={relacionados.isPending} idActual={doc.id} />
+      </DocSection>
+
+      {acciones.capas}
     </div>
   )
 }

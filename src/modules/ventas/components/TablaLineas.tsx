@@ -1,3 +1,4 @@
+import { Icon } from '@/components/icons/Icon'
 import { formatearCantidad, formatearImporte } from '../lib/formato'
 import type { LineaDocumento, TipoDocumento } from '../types'
 import styles from './TablaLineas.module.css'
@@ -65,37 +66,37 @@ export function TablaLineas({ lineas, moneda, tipo }: TablaLineasProps) {
                 </tr>
               ) : (
                 <tr key={l.id}>
-                  <td className={styles.num}>{l.numeroLinea ?? '—'}</td>
-                  <td className={styles.sku}>
+                  <td className={styles.num} data-label="#">{l.numeroLinea ?? '—'}</td>
+                  <td className={styles.sku} data-label="Referencia">
                     {l.sku ?? '—'}
                     {l.sku && l.productId === null ? (
                       <span
                         className={styles.sinProducto}
                         title="El SKU quedó guardado, pero el producto no está en el catálogo actual"
                       >
-                        {' '}
-                        ⚠
+                        <Icon name="alert-triangle" size={16} />
+                        <span className="sr-only">Producto fuera del catálogo actual</span>
                       </span>
                     ) : null}
                   </td>
-                  <td>
+                  <td className={styles.celdaNombre} data-label="Descripción">
                     <span className={styles.nombre}>{l.nombre ?? '—'}</span>
                     {l.descripcion && l.descripcion !== l.nombre ? (
                       <span className={styles.descripcion}>{l.descripcion}</span>
                     ) : null}
                   </td>
-                  <td className={styles.derecha}>{formatearCantidad(l.cantidad)}</td>
+                  <td className={styles.derecha} data-label="Cant.">{formatearCantidad(l.cantidad)}</td>
                   {hayPrecios ? (
                     <>
-                      <td className={styles.derecha}>
+                      <td className={styles.derecha} data-label="Precio">
                         {formatearImporte(l.precioUnitario, moneda)}
                       </td>
-                      <td className={styles.derecha}>
+                      <td className={styles.derecha} data-label="% Dto.">
                         {l.descuentoPct === null || l.descuentoPct === 0
                           ? '—'
                           : `${formatearCantidad(l.descuentoPct)} %`}
                       </td>
-                      <td className={styles.derecha}>{formatearImporte(subtotal(l), moneda)}</td>
+                      <td className={`${styles.derecha} ${styles.subtotal}`} data-label="Subtotal">{formatearImporte(subtotal(l), moneda)}</td>
                     </>
                   ) : null}
                 </tr>

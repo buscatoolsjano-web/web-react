@@ -1,17 +1,21 @@
+import { Alert } from '@/components/feedback/Alert'
 import { TITULO_BANNER_STEL } from '../lib/autoridad'
-import styles from './AvisoAutoridadStel.module.css'
 
 export interface AvisoAutoridadStelProps {
   /** Qué sigue funcionando en esta pantalla. */
   detalle: string
 }
 
-/** Banner de convivencia con STEL: la emisión desde el ERP está bloqueada. */
+/**
+ * Banner de convivencia con STEL: la emisión desde el ERP está bloqueada.
+ *
+ * Fase 13: el mismo `Alert` de advertencia que el resto del sistema, con el
+ * mismo título, texto y `data-testid` de E2.5. El rediseño no lo esconde.
+ */
 export function AvisoAutoridadStel({ detalle }: AvisoAutoridadStelProps) {
   return (
-    <div className={styles.caja} role="note" data-testid="aviso-autoridad-stel">
-      <p className={styles.titulo}>{TITULO_BANNER_STEL}</p>
-      <p className={styles.detalle}>{detalle}</p>
-    </div>
+    <Alert tone="warning" title={TITULO_BANNER_STEL} data-testid="aviso-autoridad-stel">
+      <p>{detalle}</p>
+    </Alert>
   )
 }

@@ -1,19 +1,27 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Icon } from '@/components/icons/Icon'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Pagination } from '@/components/tables/Pagination'
+import { contar } from '@/components/tables/rango'
+import doc from '@/components/document/Document.module.css'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { FiltrosDocumentos } from '../components/FiltrosDocumentos'
 import { ListadoDocumentos } from '../components/ListadoDocumentos'
-import { Paginador } from '../components/Paginador'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { useDocumentos } from '../hooks/useDocumentos'
-import { useFiltrosVentas } from '../hooks/useFiltrosVentas'
+import { TAMANOS_DE_PAGINA, useFiltrosVentas } from '../hooks/useFiltrosVentas'
 import { DOC_TYPE_DE, motivoBloqueo } from '../lib/autoridad'
 import { aCsv, descargarCsv } from '../lib/csv'
+import { escribeVentas } from '../lib/permisos'
 import { exportarCsv } from '../services/acciones'
 import { ETIQUETA_DE, type OrdenVentas, type TipoDocumento } from '../types'
-import styles from './ListadoPage.module.css'
 
 export interface ListadoPageProps {
   tipo: TipoDocumento
@@ -22,6 +30,8 @@ export interface ListadoPageProps {
   etiquetaOrigen: string | null
   /** Ruta de alta. Sin ella no se muestra el botón: todavía no se puede crear. */
   rutaNuevo?: string
+  /** Texto del botón de alta («Nueva cotización»). */
+  etiquetaNuevo?: string
 }
 
 /**
@@ -30,18 +40,20 @@ export interface ListadoPageProps {
  * Todo pasa por el servidor: filtros, orden, página y el total exacto. Con
  * 636 documentos el legacy los traía todos para mostrar diez.
  */
-export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo }: ListadoPageProps) {
+export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaNuevo = 'Nuevo' }: ListadoPageProps) {
   const { filtros, aplicar, limpiar, hayFiltros } = useFiltrosVentas()
-  const { data, isPending, isFetching, error } = useDocumentos(tipo, filtros)
+  const { data, isPending, isFetching, error, refetch } = useDocumentos(tipo, filtros)
   const { activa } = useEmpresa()
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
-  // El botón se muestra a quien puede escribir. Lo que IMPIDE crear no es
-  // esconder el botón: es RLS, que rechaza el insert de un rol externo.
-  const puedeCrear = rutaNuevo !== undefined && (activa?.esInterno ?? false)
+  // El botón se muestra a quien puede escribir (admin y employee, el mismo
+  // conjunto que `quotes_write`/`orders_write`). Lo que IMPIDE crear no es
+  // esconder el botón: es RLS.
+  const puedeCrear = rutaNuevo !== undefined && escribeVentas(activa?.rol)
   // Fase 12 E2.5: con STEL como autoridad no se emite. Lo impone la base.
   const autoridad = useAutoridadNumeracion()
   const docType = DOC_TYPE_DE[tipo]
   const stel = autoridad.stel(docType)
+  const etiquetas = ETIQUETA_DE[tipo]
 
   const ordenar = (columna: OrdenVentas) => {
     // Click en la columna activa invierte; en otra, empieza descendente.
@@ -88,78 +100,72 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo }: Listado
       return exportarCsv(tipo, activa!.companyId, filtros)
     },
     onSuccess: ({ contenido }) => {
-      descargarCsv(`${ETIQUETA_DE[tipo].plural}-${hoy()}.csv`, contenido)
+      descargarCsv(`${etiquetas.plural}-${hoy()}.csv`, contenido)
     },
   })
 
+  const total = data?.total ?? 0
+  const filas = data?.filas ?? []
+  const vacio = !isPending && !error && filas.length === 0
+
+  const acciones = (
+    <>
+      <Button
+        variant="secondary"
+        icon={<Icon name="download" size={16} />}
+        loading={exportar.isPending}
+        disabled={total === 0}
+        onClick={() => exportar.mutate()}
+      >
+        {exportar.isPending
+          ? 'Exportando…'
+          : seleccionados.size > 0
+            ? `Exportar ${seleccionados.size} a CSV`
+            : 'Exportar a CSV'}
+      </Button>
+      {seleccionados.size > 0 ? (
+        <Button variant="ghost" onClick={() => setSeleccionados(new Set())}>
+          Limpiar selección
+        </Button>
+      ) : null}
+      {puedeCrear && !stel && !autoridad.cargando ? (
+        <LinkButton to={rutaNuevo} variant="primary" icon={<Icon name="plus" size={16} />}>
+          {etiquetaNuevo}
+        </LinkButton>
+      ) : null}
+      {puedeCrear && (stel || autoridad.cargando) ? (
+        <Button
+          icon={<Icon name="plus" size={16} />}
+          disabled
+          aria-describedby={stel ? 'motivo-nueva' : undefined}
+        >
+          {etiquetaNuevo}
+        </Button>
+      ) : null}
+    </>
+  )
+
   return (
-    <div className={styles.page}>
-      <header className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>{titulo}</h1>
-          <p className={styles.subtitulo}>
-            {isPending
-              ? 'Cargando…'
-              : `${data?.total ?? 0} ${
-                  (data?.total ?? 0) === 1
-                    ? ETIQUETA_DE[tipo].singular
-                    : ETIQUETA_DE[tipo].plural
-                }`}
-          </p>
-        </div>
-        <div className={styles.acciones}>
-          <button
-            type="button"
-            className={styles.secundario}
-            disabled={exportar.isPending || (data?.total ?? 0) === 0}
-            onClick={() => exportar.mutate()}
-          >
-            {exportar.isPending
-              ? 'Exportando…'
-              : seleccionados.size > 0
-                ? `Exportar ${seleccionados.size} a CSV`
-                : 'Exportar a CSV'}
-          </button>
-          {seleccionados.size > 0 ? (
-            <button
-              type="button"
-              className={styles.secundario}
-              onClick={() => setSeleccionados(new Set())}
-            >
-              Limpiar selección
-            </button>
-          ) : null}
-          {puedeCrear && !stel && !autoridad.cargando ? (
-            <Link to={rutaNuevo} className={styles.nuevo}>
-              + Nueva
-            </Link>
-          ) : null}
-          {puedeCrear && (stel || autoridad.cargando) ? (
-            <button
-              type="button"
-              className={styles.nuevo}
-              disabled
-              aria-describedby={stel ? 'motivo-nueva' : undefined}
-            >
-              + Nueva
-            </button>
-          ) : null}
-        </div>
-      </header>
+    <div className={doc.listado}>
+      <PageHeader
+        title={titulo}
+        subtitle={isPending ? 'Cargando…' : contar(total, etiquetas)}
+        actions={acciones}
+      />
 
       {stel ? (
         <AvisoAutoridadStel detalle="Podés consultar, buscar, filtrar y exportar. Crear, emitir, confirmar o despachar desde el ERP está bloqueado hasta completar la migración." />
       ) : null}
       {puedeCrear && stel ? (
-        <p id="motivo-nueva" className={styles.motivo}>
+        <p id="motivo-nueva" className={doc.motivo}>
           {motivoBloqueo(docType)}
         </p>
       ) : null}
 
       {exportar.error ? (
-        <p className={styles.error} role="alert">
-          No se pudo exportar: {exportar.error.message}
-        </p>
+        <Alert tone="danger" role="alert" title="No se pudo exportar">
+          <p>{exportar.error.message}</p>
+        </Alert>
       ) : null}
 
       <FiltrosDocumentos
@@ -171,13 +177,41 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo }: Listado
       />
 
       {error ? (
-        <p className={styles.error} role="alert">
-          No se pudo leer el listado: {error.message}
-        </p>
+        <ErrorState
+          title="No se pudo leer el listado."
+          description="Revisá la conexión y volvé a intentar."
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+        />
+      ) : vacio ? (
+        hayFiltros ? (
+          <EmptyState
+            icon="search"
+            title="Sin resultados para estos filtros"
+            description={`No hay ${etiquetas.plural} que coincidan. Probá con otro cliente, estado o fecha.`}
+            action={
+              <Button variant="secondary" onClick={limpiar}>
+                Limpiar filtros
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon="inbox"
+            title={`Todavía no hay ${etiquetas.plural}`}
+            action={
+              puedeCrear && !stel && !autoridad.cargando ? (
+                <LinkButton to={rutaNuevo} variant="primary" icon={<Icon name="plus" size={16} />}>
+                  {etiquetaNuevo}
+                </LinkButton>
+              ) : undefined
+            }
+          />
+        )
       ) : (
         <>
           <ListadoDocumentos
-            filas={data?.filas ?? []}
+            filas={filas}
             orden={filtros.orden}
             direccion={filtros.direccion}
             onOrdenar={ordenar}
@@ -187,13 +221,15 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo }: Listado
             onSeleccionar={marcar}
             onSeleccionarTodos={marcarTodos}
           />
-          <Paginador
-            pagina={filtros.pagina}
-            porPagina={filtros.porPagina}
-            total={data?.total ?? 0}
-            cargando={isFetching}
-            onIr={(pagina) => aplicar({ pagina })}
-            onTamano={(porPagina) => aplicar({ porPagina })}
+          <Pagination
+            offset={(filtros.pagina - 1) * filtros.porPagina}
+            pageSize={filtros.porPagina}
+            total={total}
+            noun={etiquetas}
+            loading={isFetching}
+            onChange={(offset) => aplicar({ pagina: Math.floor(offset / filtros.porPagina) + 1 })}
+            pageSizeOptions={TAMANOS_DE_PAGINA}
+            onPageSizeChange={(porPagina) => aplicar({ porPagina })}
           />
         </>
       )}

@@ -1,4 +1,10 @@
 import { useMemo, useState } from 'react'
+import { Dialog } from '@/components/modals/Dialog'
+import { Button } from '@/components/ui/Button'
+import { Field } from '@/components/forms/Field'
+import { Input } from '@/components/forms/controls'
+import { Alert } from '@/components/feedback/Alert'
+import { Spinner } from '@/components/ui/Spinner'
 import { formatearCantidad } from '../lib/formato'
 import type { LineaParaEntregar } from '../services/entregas'
 import styles from './ModalEntregaParcial.module.css'
@@ -26,6 +32,9 @@ const HOY = () => new Date().toISOString().slice(0, 10)
  * El stock se muestra, pero **no bloquea**: el sistema anterior descontaba sin
  * mirar el saldo y dejaba que quedara negativo. Migrar el circuito no es el
  * momento de cambiar esa regla, así que se avisa y se deja seguir.
+ *
+ * Fase 13: sobre `Dialog` (foco atrapado, Escape, retorno de foco). Mientras
+ * se genera, no se cierra.
  */
 export function ModalEntregaParcial({
   lineas,
@@ -60,33 +69,42 @@ export function ModalEntregaParcial({
   )
 
   return (
-    <div className={styles.fondo} role="dialog" aria-modal="true" aria-label="Generar remito">
-      <div className={styles.caja}>
-        <header className={styles.cabecera}>
-          <h2 className={styles.titulo}>Generar nota de entrega</h2>
-          <button type="button" className={styles.cerrar} onClick={onCerrar} aria-label="Cerrar">
-            ×
-          </button>
-        </header>
-
+    <Dialog
+      open
+      onClose={onCerrar}
+      title="Generar nota de entrega"
+      size="lg"
+      busy={guardando}
+      closeOnOverlay={false}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onCerrar} disabled={guardando}>
+            Cancelar
+          </Button>
+          <Button
+            loading={guardando}
+            disabled={total <= 0 || conPendiente.length === 0}
+            onClick={() => onConfirmar(cantidades, fecha)}
+          >
+            {guardando ? 'Generando…' : 'Generar remito'}
+          </Button>
+        </>
+      }
+    >
         <div className={styles.cuerpo}>
           {cargando ? (
-            <p className={styles.nota}>Calculando pendientes…</p>
+            <p className={styles.nota} role="status">
+              <Spinner size={16} /> Calculando pendientes…
+            </p>
           ) : conPendiente.length === 0 ? (
             <p className={styles.nota}>
               Este pedido ya está entregado por completo: no queda nada pendiente.
             </p>
           ) : (
             <>
-              <label className={styles.fecha}>
-                <span>Fecha del remito</span>
-                <input
-                  type="date"
-                  className={styles.control}
-                  value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
-                />
-              </label>
+              <Field label="Fecha del remito" className={styles.fecha}>
+                <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+              </Field>
 
               <div className={styles.scroll}>
                 <table className={styles.tabla}>
@@ -154,38 +172,26 @@ export function ModalEntregaParcial({
               </div>
 
               {sinStock.length > 0 ? (
-                <p className={styles.aviso} role="note">
-                  {sinStock.length === 1
-                    ? 'Una línea supera el stock libre.'
-                    : `${sinStock.length} líneas superan el stock libre.`}{' '}
-                  El sistema anterior tampoco lo impedía: el remito se puede emitir igual y el
-                  saldo queda en negativo.
-                </p>
+                <Alert tone="warning">
+                  <p>
+                    {sinStock.length === 1
+                      ? 'Una línea supera el stock libre.'
+                      : `${sinStock.length} líneas superan el stock libre.`}{' '}
+                    El sistema anterior tampoco lo impedía: el remito se puede emitir igual y el
+                    saldo queda en negativo.
+                  </p>
+                </Alert>
               ) : null}
             </>
           )}
 
           {error ? (
-            <p className={styles.error} role="alert">
-              {error}
-            </p>
+            <Alert tone="danger" role="alert">
+              <p>{error}</p>
+            </Alert>
           ) : null}
         </div>
 
-        <footer className={styles.pie}>
-          <button type="button" className={styles.secundario} onClick={onCerrar}>
-            Cancelar
-          </button>
-          <button
-            type="button"
-            className={styles.primario}
-            disabled={guardando || total <= 0 || conPendiente.length === 0}
-            onClick={() => onConfirmar(cantidades, fecha)}
-          >
-            {guardando ? 'Generando…' : 'Generar remito'}
-          </button>
-        </footer>
-      </div>
-    </div>
+    </Dialog>
   )
 }

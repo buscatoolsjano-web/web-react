@@ -3,7 +3,9 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { formatearFecha, formatearNumero } from '../lib/formato'
 import { ChipRecepcionDoc } from './ChipEstado'
 import type { DireccionOrden, OrdenRecepciones, RecepcionListado } from '../types'
-import styles from './ListadoPedidos.module.css'
+import { Icon } from '@/components/icons/Icon'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import tabla from '@/components/tables/Tabla.module.css'
 
 export interface ListadoRecepcionesProps {
   filas: readonly RecepcionListado[]
@@ -20,10 +22,6 @@ const COLUMNAS: { clave: OrdenRecepciones; etiqueta: string }[] = [
   { clave: 'pedido', etiqueta: 'Pedido' },
 ]
 
-function flecha(activa: boolean, direccion: DireccionOrden): string {
-  if (!activa) return ''
-  return direccion === 'asc' ? ' ↑' : ' ↓'
-}
 
 /**
  * El listado de recepciones.
@@ -41,28 +39,34 @@ export function ListadoRecepciones({
 }: ListadoRecepcionesProps) {
   const isMobile = useIsMobile()
 
-  if (!cargando && filas.length === 0) {
-    return <p className={styles.vacio}>No hay recepciones que coincidan con estos filtros.</p>
+  // El vacío y el error los resuelve la página (Fase 13).
+  if (cargando && filas.length === 0) {
+    return (
+      <div className={tabla.contenedor}>
+        <SkeletonRows rows={5} columns={isMobile ? 2 : 6} label="Cargando recepciones…" />
+      </div>
+    )
   }
+  if (filas.length === 0) return null
 
   if (isMobile) {
     return (
-      <ul className={styles.tarjetas}>
+      <ul className={tabla.tarjetas}>
         {filas.map((r) => (
           <li key={r.id}>
-            <Link to={`/compras/recepciones/${r.id}`} className={styles.tarjeta}>
-              <span className={styles.tarjetaNumero}>{r.numero}</span>
-              <span className={styles.tarjetaFecha}>{formatearFecha(r.fecha)}</span>
-              <span className={styles.tarjetaProveedor}>{r.proveedor}</span>
-              <span className={styles.tarjetaDato}>
+            <Link to={`/compras/recepciones/${r.id}`} className={tabla.tarjeta}>
+              <span className={tabla.tarjetaTitulo}>{r.numero}</span>
+              <span className={`${tabla.tarjetaDerecha} ${tabla.tarjetaMeta}`}>{formatearFecha(r.fecha)}</span>
+              <span className={tabla.tarjetaTexto}>{r.proveedor}</span>
+              <span className={`${tabla.tarjetaTexto} ${tabla.tarjetaMeta}`}>
                 {r.pedidoNumero ? `Pedido ${r.pedidoNumero} · ` : ''}
                 {r.deposito}
               </span>
-              <span className={styles.tarjetaDato}>
+              <span className={`${tabla.tarjetaTexto} ${tabla.tarjetaMeta}`}>
                 {r.lineas} {r.lineas === 1 ? 'línea' : 'líneas'} ·{' '}
                 {formatearNumero(r.unidades)} unidades
               </span>
-              <span className={styles.tarjetaChips}>
+              <span className={tabla.tarjetaTexto}>
                 <ChipRecepcionDoc estado={r.estado} />
               </span>
             </Link>
@@ -73,8 +77,8 @@ export function ListadoRecepciones({
   }
 
   return (
-    <div className={styles.scroll}>
-      <table className={styles.tabla}>
+    <div className={tabla.contenedor}>
+      <table className={tabla.tabla}>
         <thead>
           <tr>
             {COLUMNAS.map((c) => (
@@ -85,18 +89,18 @@ export function ListadoRecepciones({
                   orden === c.clave ? (direccion === 'asc' ? 'ascending' : 'descending') : 'none'
                 }
               >
-                <button type="button" className={styles.thBoton} onClick={() => onOrdenar(c.clave)}>
+                <button type="button" className={tabla.orden} onClick={() => onOrdenar(c.clave)}>
                   {c.etiqueta}
-                  {flecha(orden === c.clave, direccion)}
+                  {orden === c.clave ? <Icon name={direccion === 'asc' ? 'arrow-up' : 'arrow-down'} size={16} className={tabla.ordenIcono} /> : null}
                 </button>
               </th>
             ))}
             <th scope="col">Depósito</th>
             <th scope="col">Estado</th>
-            <th scope="col" className={styles.derecha}>
+            <th scope="col" className={tabla.num}>
               Líneas
             </th>
-            <th scope="col" className={styles.derecha}>
+            <th scope="col" className={tabla.num}>
               Unidades
             </th>
             <th scope="col">Creada por</th>
@@ -105,35 +109,35 @@ export function ListadoRecepciones({
         <tbody>
           {filas.map((r) => (
             <tr key={r.id}>
-              <td className={styles.numero}>
-                <Link to={`/compras/recepciones/${r.id}`} className={styles.enlace}>
+              <td className={tabla.nowrap}>
+                <Link to={`/compras/recepciones/${r.id}`} className={tabla.enlace}>
                   {r.numero}
                 </Link>
               </td>
-              <td className={styles.numero}>{formatearFecha(r.fecha)}</td>
-              <td className={styles.recorta} title={r.proveedor}>
-                <Link to={`/compras/proveedores/${r.proveedorId}`} className={styles.enlaceSuave}>
+              <td className={tabla.nowrap}>{formatearFecha(r.fecha)}</td>
+              <td className={tabla.texto} title={r.proveedor}>
+                <Link to={`/compras/proveedores/${r.proveedorId}`} className={tabla.enlaceSuave}>
                   {r.proveedor}
                 </Link>
               </td>
-              <td className={styles.numero}>
+              <td className={tabla.nowrap}>
                 {r.pedidoId && r.pedidoNumero ? (
-                  <Link to={`/compras/pedidos/${r.pedidoId}`} className={styles.enlaceSuave}>
+                  <Link to={`/compras/pedidos/${r.pedidoId}`} className={tabla.enlaceSuave}>
                     {r.pedidoNumero}
                   </Link>
                 ) : (
                   '—'
                 )}
               </td>
-              <td className={styles.recorta} title={r.deposito}>
+              <td className={tabla.secundario} title={r.deposito}>
                 {r.deposito}
               </td>
               <td>
                 <ChipRecepcionDoc estado={r.estado} />
               </td>
-              <td className={styles.derecha}>{r.lineas}</td>
-              <td className={styles.derecha}>{formatearNumero(r.unidades)}</td>
-              <td className={styles.recorta} title={r.autor ?? undefined}>
+              <td className={tabla.num}>{r.lineas}</td>
+              <td className={tabla.num}>{formatearNumero(r.unidades)}</td>
+              <td className={tabla.secundario} title={r.autor ?? undefined}>
                 {r.autor ?? '—'}
               </td>
             </tr>

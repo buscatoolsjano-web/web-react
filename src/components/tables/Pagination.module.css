@@ -9,6 +9,7 @@
 
 .rango {
   margin: 0;
+  margin-right: var(--space-3);
   font-size: var(--text-sm);
   color: var(--color-text-soft);
   font-variant-numeric: tabular-nums;
@@ -16,7 +17,68 @@
 
 .botones {
   display: flex;
+  align-items: center;
   gap: var(--space-2);
+}
+
+.pagina {
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.tamano {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-right: auto;
+}
+
+.tamanoLabel {
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  white-space: nowrap;
+}
+
+.tamanoSelect {
+  position: relative;
+  display: inline-flex;
+}
+
+.tamanoSelect select {
+  appearance: none;
+  min-height: var(--control-h-sm);
+  padding: 0 calc(var(--space-2) + 20px) 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.tamanoSelect select:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.tamanoFlecha {
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-soft);
+  pointer-events: none;
+}
+
+@media (pointer: coarse), (max-width: 767px) {
+  .tamanoSelect select {
+    min-height: var(--touch-target);
+    font-size: var(--text-base);
+  }
 }
 
 @media (max-width: 767px) {
@@ -27,7 +89,11 @@
   .rango {
     text-align: center;
   }
-  .botones > * {
+  .botones > :not(.pagina) {
     flex: 1;
+  }
+  .tamano {
+    margin-right: 0;
+    justify-content: center;
   }
 }

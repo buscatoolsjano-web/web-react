@@ -8,6 +8,7 @@ export function CotizacionesPage() {
       titulo="Cotizaciones"
       etiquetaOrigen={null}
       rutaNuevo="/ventas/cotizaciones/nueva"
+      etiquetaNuevo="Nueva cotización"
     />
   )
 }

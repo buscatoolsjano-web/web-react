@@ -1,8 +1,8 @@
 .fondo {
   position: fixed;
   inset: 0;
-  z-index: 110;
-  background: rgba(0, 0, 0, 0.5);
+  z-index: var(--z-modal);
+  background: var(--color-overlay);
   display: flex;
   align-items: center;
   justify-content: center;

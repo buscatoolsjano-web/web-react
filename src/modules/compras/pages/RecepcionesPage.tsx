@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { useIsMobile } from '@/hooks/useMediaQuery'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/icons/Icon'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { FilterBar } from '@/components/filters/FilterBar'
+import { Field } from '@/components/forms/Field'
+import { Input, Select } from '@/components/forms/controls'
+import { contar } from '@/components/tables/rango'
+import doc from '@/components/document/Document.module.css'
 import { permisosDe } from '../lib/permisos'
 import { descargarCsv, recepcionesACsv } from '../lib/csv'
 import { exportarRecepciones } from '../services/recepciones'
@@ -11,8 +21,8 @@ import { useDepositos, useRecepciones } from '../hooks/useRecepciones'
 import { useFiltrosRecepciones } from '../hooks/useFiltrosRecepciones'
 import { useProveedores } from '../hooks/useProveedores'
 import { FILTROS_INICIALES, type FiltrosRecepciones, type OrdenRecepciones } from '../types'
-import filtros_ from '../components/FiltrosPedidos.module.css'
-import styles from './ProveedoresPage.module.css'
+
+const RECEPCIONES = { singular: 'recepción', plural: 'recepciones' }
 
 /** Cuántos filtros hay puestos, sin contar el buscador que está a la vista. */
 function contarActivos(f: FiltrosRecepciones): number {
@@ -34,10 +44,9 @@ function contarActivos(f: FiltrosRecepciones): number {
  */
 export function RecepcionesPage() {
   const { filtros, aplicar, limpiar, hayFiltros } = useFiltrosRecepciones()
-  const { data, isPending, isFetching, error } = useRecepciones(filtros)
+  const { data, isPending, isFetching, error, refetch } = useRecepciones(filtros)
   const { activa } = useEmpresa()
   const permisos = permisosDe(activa)
-  const isMobile = useIsMobile()
   const depositos = useDepositos()
   const proveedores = useProveedores({
     ...FILTROS_INICIALES,
@@ -46,7 +55,6 @@ export function RecepcionesPage() {
     direccion: 'asc',
   })
 
-  const [desplegado, setDesplegado] = useState(false)
   const [texto, setTexto] = useState(filtros.q)
 
   // Si el filtro cambia desde afuera hay que reflejarlo en el input. Se ajusta
@@ -91,152 +99,120 @@ export function RecepcionesPage() {
 
   if (!permisos.verProveedores) {
     return (
-      <div className={styles.page}>
-        <h1 className={styles.titulo}>Notas de entrada</h1>
-        <p className={styles.error} role="note">
-          Tu rol no tiene acceso a Compras. La sección es de administradores y empleados.
-        </p>
+      <div className={doc.listado}>
+        <PageHeader title="Notas de entrada" />
+        <Alert tone="neutral">
+          <p>Tu rol no tiene acceso a Compras. La sección es de administradores y empleados.</p>
+        </Alert>
       </div>
     )
   }
 
   const total = data?.total ?? 0
-  const activos = contarActivos(filtros)
-
-  const mostrarTodos = !isMobile || desplegado
+  const filas = data?.filas ?? []
 
   return (
-    <div className={styles.page}>
-      <header className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>Notas de entrada</h1>
-          <p className={styles.subtitulo}>
-            {isPending ? 'Cargando…' : `${total} ${total === 1 ? 'recepción' : 'recepciones'}`}
-          </p>
-        </div>
-        <div className={styles.acciones}>
-          <button
-            type="button"
-            className={styles.secundario}
-            disabled={exportar.isPending || total === 0}
+    <div className={doc.listado}>
+      <PageHeader
+        title="Notas de entrada"
+        subtitle={isPending ? 'Cargando…' : contar(total, RECEPCIONES)}
+        actions={
+          <Button
+            variant="secondary"
+            icon={<Icon name="download" size={16} />}
+            loading={exportar.isPending}
+            disabled={total === 0}
             onClick={() => exportar.mutate()}
           >
             {exportar.isPending ? 'Exportando…' : 'Exportar a CSV'}
-          </button>
-        </div>
-      </header>
+          </Button>
+        }
+      />
 
-      <p className={styles.subtitulo}>
-        Una recepción se crea desde un pedido de compra confirmado, con el botón «Recibir
-        mercadería».
-      </p>
+      <Alert tone="info">
+        <p>Una recepción se crea desde un pedido de compra confirmado, con el botón «Recibir mercadería».</p>
+      </Alert>
 
-      <div className={filtros_.barra}>
-        <input
-          type="search"
-          className={filtros_.buscador}
-          placeholder="Número de recepción: NEP000…"
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          aria-label="Buscar por número"
-        />
+      {exportar.error ? (
+        <Alert tone="danger" role="alert" title="No se pudo exportar">
+          <p>{exportar.error.message}</p>
+        </Alert>
+      ) : null}
 
-        {isMobile ? (
-          <button
-            type="button"
-            className={filtros_.desplegar}
-            aria-expanded={desplegado}
-            onClick={() => setDesplegado((v) => !v)}
-          >
-            {desplegado ? 'Ocultar filtros' : 'Filtros'}
-            {activos > 0 ? <span className={filtros_.contador}>{activos}</span> : null}
-          </button>
-        ) : null}
+      <FilterBar
+        activeCount={contarActivos(filtros)}
+        hasFilters={hayFiltros}
+        onClear={limpiar}
+        search={
+          <Field label="Buscar por número" hideLabel>
+            <Input type="search" placeholder="Número de recepción: NEP000…" value={texto} onChange={(e) => setTexto(e.target.value)} />
+          </Field>
+        }
+      >
+        <Field label="Proveedor" hideLabel>
+          <Select value={filtros.proveedorId ?? ''} onChange={(e) => aplicar({ proveedorId: e.target.value || null })}>
+            <option value="">Todos los proveedores</option>
+            {(proveedores.data?.filas ?? []).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.razonSocial}
+              </option>
+            ))}
+          </Select>
+        </Field>
 
-        {mostrarTodos ? (
-          <>
-            <select
-              className={filtros_.select}
-              value={filtros.proveedorId ?? ''}
-              onChange={(e) => aplicar({ proveedorId: e.target.value || null })}
-              aria-label="Proveedor"
-            >
-              <option value="">Todos los proveedores</option>
-              {(proveedores.data?.filas ?? []).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.razonSocial}
+        <Field label="Estado" hideLabel>
+          <Select value={filtros.estado} onChange={(e) => aplicar({ estado: e.target.value })}>
+            <option value="">Borradores y confirmadas</option>
+            <option value="draft">Borradores</option>
+            <option value="confirmed">Confirmadas</option>
+          </Select>
+        </Field>
+
+        {(depositos.data ?? []).length > 1 ? (
+          <Field label="Depósito" hideLabel>
+            <Select value={filtros.depositoId ?? ''} onChange={(e) => aplicar({ depositoId: e.target.value || null })}>
+              <option value="">Todos los depósitos</option>
+              {(depositos.data ?? []).map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nombre}
                 </option>
               ))}
-            </select>
-
-            <select
-              className={filtros_.select}
-              value={filtros.estado}
-              onChange={(e) => aplicar({ estado: e.target.value })}
-              aria-label="Estado"
-            >
-              <option value="">Borradores y confirmadas</option>
-              <option value="draft">Borradores</option>
-              <option value="confirmed">Confirmadas</option>
-            </select>
-
-            {(depositos.data ?? []).length > 1 ? (
-              <select
-                className={filtros_.select}
-                value={filtros.depositoId ?? ''}
-                onChange={(e) => aplicar({ depositoId: e.target.value || null })}
-                aria-label="Depósito"
-              >
-                <option value="">Todos los depósitos</option>
-                {(depositos.data ?? []).map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.nombre}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-
-            <label className={filtros_.fecha}>
-              <span className={filtros_.fechaLabel}>Desde</span>
-              <input
-                type="date"
-                className={filtros_.select}
-                value={filtros.desde}
-                onChange={(e) => aplicar({ desde: e.target.value })}
-              />
-            </label>
-            <label className={filtros_.fecha}>
-              <span className={filtros_.fechaLabel}>hasta</span>
-              <input
-                type="date"
-                className={filtros_.select}
-                value={filtros.hasta}
-                onChange={(e) => aplicar({ hasta: e.target.value })}
-              />
-            </label>
-          </>
+            </Select>
+          </Field>
         ) : null}
 
-        {hayFiltros ? (
-          <button type="button" className={filtros_.limpiar} onClick={limpiar}>
-            Limpiar
-          </button>
-        ) : null}
-      </div>
+        <Field label="Desde">
+          <Input type="date" value={filtros.desde} onChange={(e) => aplicar({ desde: e.target.value })} />
+        </Field>
+        <Field label="Hasta">
+          <Input type="date" value={filtros.hasta} onChange={(e) => aplicar({ hasta: e.target.value })} />
+        </Field>
+      </FilterBar>
 
       {error ? (
-        <p className={styles.error} role="alert">
-          No se pudo leer el listado: {error.message}
-        </p>
+        <ErrorState title="No se pudo leer el listado." description="Revisá la conexión y volvé a intentar." onRetry={() => void refetch()} retrying={isFetching} />
+      ) : !isPending && filas.length === 0 ? (
+        hayFiltros ? (
+          <EmptyState
+            icon="search"
+            title="Sin resultados para estos filtros"
+            description="No hay notas de entrada que coincidan. Probá con otro proveedor, estado o fecha."
+            action={
+              <Button variant="secondary" onClick={limpiar}>
+                Limpiar filtros
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon="package"
+            title="Todavía no hay notas de entrada"
+            description="Se generan desde un pedido de compra confirmado, al recibir la mercadería."
+          />
+        )
       ) : (
         <>
-          <ListadoRecepciones
-            filas={data?.filas ?? []}
-            orden={filtros.orden}
-            direccion={filtros.direccion}
-            onOrdenar={ordenar}
-            cargando={isPending}
-          />
+          <ListadoRecepciones filas={filas} orden={filtros.orden} direccion={filtros.direccion} onOrdenar={ordenar} cargando={isPending} />
           <Paginador
             pagina={filtros.pagina}
             porPagina={filtros.porPagina}
@@ -244,6 +220,7 @@ export function RecepcionesPage() {
             cargando={isFetching}
             onIr={(pagina) => aplicar({ pagina })}
             onTamano={(porPagina) => aplicar({ porPagina })}
+            sustantivo={RECEPCIONES}
           />
         </>
       )}

@@ -1,5 +1,5 @@
+import { Alert } from '@/components/feedback/Alert'
 import { presentarMotivo } from '../lib/estados'
-import styles from './AvisosHistoricos.module.css'
 
 export interface AvisosHistoricosProps {
   motivos: readonly string[]
@@ -25,22 +25,21 @@ export function AvisosHistoricos({
   if (motivos.length === 0 && !numeroFueraDeSerie) return null
 
   return (
-    <div className={styles.caja} role="note">
-      <p className={styles.titulo}>
-        {esHistorico ? 'Documento histórico con observaciones' : 'Documento con observaciones'}
-      </p>
-      <ul className={styles.lista}>
-        {motivos.map((m) => (
-          <li key={m}>{presentarMotivo(m)}</li>
-        ))}
-      </ul>
+    <Alert tone="warning" title={esHistorico ? 'Documento histórico con observaciones' : 'Documento con observaciones'}>
+      {motivos.length > 0 ? (
+        <ul>
+          {motivos.map((m) => (
+            <li key={m}>{presentarMotivo(m)}</li>
+          ))}
+        </ul>
+      ) : null}
       {numeroFueraDeSerie && numeroSospechado ? (
-        <p className={styles.sospecha}>
+        <p>
           El número podría ser <strong>{numeroSospechado}</strong>. Es una sospecha registrada
           durante la migración: <strong>el número original no se modificó</strong> y sigue siendo el
           que vale.
         </p>
       ) : null}
-    </div>
+    </Alert>
   )
 }

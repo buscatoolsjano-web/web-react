@@ -10,6 +10,10 @@ import {
   urlDeDescarga,
 } from '../services/adjuntos'
 import type { TipoDocumento } from '../types'
+import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
+import { Icon } from '@/components/icons/Icon'
+import { escribeVentas } from '../lib/permisos'
 import styles from './PanelAdjuntos.module.css'
 
 export interface PanelAdjuntosProps {
@@ -31,7 +35,8 @@ export function PanelAdjuntos({ tipo, documentoId }: PanelAdjuntosProps) {
   const entrada = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const esInterno = activa?.esInterno ?? false
+  // Subir y borrar es de admin y employee (`attachments_write`); ver es de los internos.
+  const escribe = escribeVentas(activa?.rol)
   const clave = ['ventas', activa?.companyId, 'adjuntos', tipo, documentoId]
 
   const adjuntos = useQuery({
@@ -81,23 +86,22 @@ export function PanelAdjuntos({ tipo, documentoId }: PanelAdjuntosProps) {
               <span className={styles.meta}>
                 {formatearBytes(a.bytes)} · {formatearFecha(a.subidoEn)}
               </span>
-              {esInterno ? (
-                <button
-                  type="button"
-                  className={styles.borrar}
+              {escribe ? (
+                <IconButton
+                  icon="trash"
+                  variant="danger"
+                  size="sm"
                   aria-label={`Borrar ${a.nombre}`}
                   disabled={borrar.isPending}
                   onClick={() => borrar.mutate({ id: a.id, ruta: a.ruta })}
-                >
-                  ×
-                </button>
+                />
               ) : null}
             </li>
           ))}
         </ul>
       )}
 
-      {esInterno ? (
+      {escribe ? (
         <div className={styles.acciones}>
           <input
             ref={entrada}
@@ -110,14 +114,14 @@ export function PanelAdjuntos({ tipo, documentoId }: PanelAdjuntosProps) {
               e.target.value = ''
             }}
           />
-          <button
-            type="button"
-            className={styles.boton}
-            disabled={subir.isPending}
+          <Button
+            variant="secondary"
+            icon={<Icon name="paperclip" size={16} />}
+            loading={subir.isPending}
             onClick={() => entrada.current?.click()}
           >
             {subir.isPending ? 'Subiendo…' : 'Adjuntar archivo'}
-          </button>
+          </Button>
           <span className={styles.ayuda}>PDF, imagen, planilla o texto. Hasta 20 MB.</span>
         </div>
       ) : null}

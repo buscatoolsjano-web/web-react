@@ -1,5 +1,14 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Icon } from '@/components/icons/Icon'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ActionBar } from '@/components/document/ActionBar'
+import { DocSection, Totals } from '@/components/document/DocSection'
+import docUi from '@/components/document/Document.module.css'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
@@ -8,6 +17,7 @@ import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { DOC_TYPE_DE, mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
+import { escribeVentas } from '../lib/permisos'
 import { crearCotizacion, type LineaNueva } from '../services/cotizaciones'
 import { crearPedido } from '../services/pedidos'
 import { lineaCapitulo, lineaDeProducto, lineaLibre, mover, renumerar } from '../lib/lineaNueva'
@@ -15,7 +25,6 @@ import { tasaDe } from '../lib/tratamientos'
 import { formatearImporte } from '../lib/formato'
 import { totalesPrevios } from '../lib/totales'
 import { RUTA_DE, type LineaDocumento } from '../types'
-import styles from './DetallePage.module.css'
 import editor from './EditorCotizacion.module.css'
 
 const HOY = () => new Date().toISOString().slice(0, 10)
@@ -70,7 +79,9 @@ export function DocumentoNuevoPage({ tipo }: DocumentoNuevoProps) {
   const [lineas, setLineas] = useState<LineaDocumento[]>([])
   const [buscando, setBuscando] = useState(false)
 
-  const esInterno = activa?.esInterno ?? false
+  // Crear es de admin y employee: el mismo conjunto que `quotes_write`,
+  // `orders_write` y `next_document_number`.
+  const escribe = escribeVentas(activa?.rol)
   // Fase 12 E2.5: guardar consume la numeración. Con STEL como autoridad la
   // base lo rechaza; acá se anticipa para no armar un documento en vano.
   const autoridad = useAutoridadNumeracion()
@@ -157,34 +168,37 @@ export function DocumentoNuevoPage({ tipo }: DocumentoNuevoProps) {
   // calcula el servidor al guardar; esto es sólo para no editar a ciegas.
   const previo = totalesPrevios(lineas, aNum(cab.descuentoPct), aNum(cab.percepcionPct))
 
-  if (!esInterno) {
+  const listado = tipo === 'cotizacion' ? 'Cotizaciones' : 'Pedidos'
+
+  if (!escribe) {
     return (
-      <p className={styles.nota}>
-        Sólo el equipo interno puede crear documentos de venta.
-      </p>
+      <EmptyState
+        headingLevel={1}
+        icon="alert-circle"
+        title="Tu rol no crea documentos de venta"
+        description="Crear cotizaciones y pedidos es de administradores y empleados. Podés consultarlos en el listado."
+        action={
+          <LinkButton to={RUTA_DE[tipo]} icon={<Icon name="arrow-left" size={16} />}>
+            Volver a {listado}
+          </LinkButton>
+        }
+      />
     )
   }
 
   return (
-    <div className={styles.page}>
-      <Link to={RUTA_DE[tipo]} className={styles.volver}>
-        ← {tipo === 'cotizacion' ? 'Cotizaciones' : 'Pedidos'}
-      </Link>
-
-      <header className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>{tipo === 'cotizacion' ? 'Nueva cotización' : 'Nuevo pedido'}</h1>
-          <p className={styles.subtitulo}>
-            El número se asigna al guardar, desde la numeración del servidor.
-          </p>
-        </div>
-      </header>
+    <div className={docUi.pagina}>
+      <PageHeader
+        back={{ to: RUTA_DE[tipo], label: listado }}
+        title={tipo === 'cotizacion' ? 'Nueva cotización' : 'Nuevo pedido'}
+        subtitle="El número se asigna al guardar, desde la numeración del servidor."
+      />
 
       {stel ? (
         <AvisoAutoridadStel detalle="No se puede crear este documento desde el ERP hasta completar la migración: se sigue emitiendo en STEL. Podés volver al listado para consultar y exportar." />
       ) : null}
 
-      <section className={styles.bloque}>
+      <DocSection title="Datos del documento">
         <CabeceraCotizacion
           valores={cab}
           editable
@@ -192,44 +206,29 @@ export function DocumentoNuevoPage({ tipo }: DocumentoNuevoProps) {
           mostrarValidez={tipo === 'cotizacion'}
           onCambiar={cambiarCabecera}
         />
-      </section>
+      </DocSection>
 
-      <section className={styles.bloque}>
-        <h2 className={styles.h2}>Líneas</h2>
-
-        <EditorLineas
-          lineas={lineas}
-          moneda={cab.moneda}
-          editable
-          onCambiar={cambiarLinea}
-          onEliminar={(id) => setLineas((ls) => renumerar(ls.filter((l) => l.id !== id)))}
-          onMover={(id, dir) => setLineas((ls) => mover(ls, id, dir))}
-        />
-
-        <div className={editor.acciones}>
-          <button type="button" className={editor.boton} onClick={() => setBuscando(true)}>
-            Añadir producto
-          </button>
-          <button
-            type="button"
-            className={editor.boton}
-            onClick={() => setLineas((ls) => [...ls, lineaLibre(ls.length + 1)])}
-          >
-            Nueva línea
-          </button>
-          <button
-            type="button"
-            className={editor.boton}
-            onClick={() => setLineas((ls) => [...ls, lineaCapitulo(ls.length + 1)])}
-          >
-            Nuevo capítulo
-          </button>
-          <span className={editor.espacio} />
-          <span className={editor.neto}>
-            Total estimado: <strong>{formatearImporte(previo.total, cab.moneda)}</strong>
-          </span>
-        </div>
-
+      <DocSection
+        title="Líneas"
+        actions={
+          <>
+            <Button variant="secondary" size="sm" icon={<Icon name="search" size={16} />} onClick={() => setBuscando(true)}>
+              Añadir producto
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Icon name="plus" size={16} />}
+              onClick={() => setLineas((ls) => [...ls, lineaLibre(ls.length + 1)])}
+            >
+              Nueva línea
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setLineas((ls) => [...ls, lineaCapitulo(ls.length + 1)])}>
+              Nuevo capítulo
+            </Button>
+          </>
+        }
+      >
         {buscando ? (
           <div className={editor.selector}>
             <SelectorProducto
@@ -243,41 +242,62 @@ export function DocumentoNuevoPage({ tipo }: DocumentoNuevoProps) {
           </div>
         ) : null}
 
-        <p className={editor.aviso}>
-          Subtotal {formatearImporte(previo.subtotal, cab.moneda)} · impuestos y percepciones{' '}
-          {formatearImporte(previo.impuesto, cab.moneda)}. Es una estimación:{' '}
-          <strong>los totales que quedan guardados los calcula el servidor</strong> a partir de las
-          líneas, el descuento global y la percepción.
-        </p>
-      </section>
+        <EditorLineas
+          lineas={lineas}
+          moneda={cab.moneda}
+          editable
+          onCambiar={cambiarLinea}
+          onEliminar={(id) => setLineas((ls) => renumerar(ls.filter((l) => l.id !== id)))}
+          onMover={(id, dir) => setLineas((ls) => mover(ls, id, dir))}
+        />
 
-      <div className={editor.barra}>
-        <button
-          type="button"
-          className={editor.primario}
-          onClick={() => guardar.mutate()}
-          disabled={guardar.isPending || !cab.customerId || stel || autoridad.cargando}
-          aria-describedby={stel ? 'motivo-guardar' : undefined}
-        >
-          {guardar.isPending ? 'Guardando…' : 'Guardar'}
-        </button>
-        <Link to={RUTA_DE[tipo]} className={editor.boton}>
-          Cancelar
-        </Link>
-        {stel ? (
-          <p id="motivo-guardar" className={editor.motivo}>
-            {motivoBloqueo(DOC_TYPE_DE[tipo])}
-          </p>
-        ) : null}
-        {!stel && !cab.customerId ? (
-          <span className={editor.aviso}>Elegí un cliente para poder guardar.</span>
-        ) : null}
-        {guardar.error ? (
-          <span className={editor.error} role="alert">
-            {mensajeErrorVentas(guardar.error)}
-          </span>
-        ) : null}
-      </div>
+        <Totals
+          rows={[
+            { label: 'Subtotal estimado', value: formatearImporte(previo.subtotal, cab.moneda) },
+            { label: 'Impuestos y percepciones', value: formatearImporte(previo.impuesto, cab.moneda) },
+            { label: 'Total estimado', value: formatearImporte(previo.total, cab.moneda), strong: true },
+          ]}
+          note={
+            <>
+              Es una estimación: <strong>los totales que quedan guardados los calcula el servidor</strong> a partir de
+              las líneas, el descuento global y la percepción.
+            </>
+          }
+        />
+      </DocSection>
+
+      {guardar.error ? (
+        <Alert tone="danger" role="alert" title="No se pudo guardar">
+          <p>{mensajeErrorVentas(guardar.error)}</p>
+        </Alert>
+      ) : null}
+
+      <ActionBar
+        label="Guardar documento"
+        primary={
+          <Button
+            icon={<Icon name="check" size={16} />}
+            onClick={() => guardar.mutate()}
+            loading={guardar.isPending}
+            disabled={!cab.customerId || stel || autoridad.cargando}
+            aria-describedby={stel ? 'motivo-guardar' : !cab.customerId ? 'motivo-cliente' : undefined}
+          >
+            {guardar.isPending ? 'Guardando…' : 'Guardar'}
+          </Button>
+        }
+        secondary={
+          <LinkButton to={RUTA_DE[tipo]} variant="ghost">
+            Cancelar
+          </LinkButton>
+        }
+        note={
+          stel ? (
+            <p id="motivo-guardar">{motivoBloqueo(DOC_TYPE_DE[tipo])}</p>
+          ) : !cab.customerId ? (
+            <p id="motivo-cliente">Elegí un cliente para poder guardar.</p>
+          ) : null
+        }
+      />
     </div>
   )
 }

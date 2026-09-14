@@ -1,6 +1,14 @@
-import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Icon } from '@/components/icons/Icon'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { contar } from '@/components/tables/rango'
+import doc from '@/components/document/Document.module.css'
 import { permisosDe } from '../lib/permisos'
 import { descargarCsv, pedidosACsv } from '../lib/csv'
 import { etiquetaDeEstadoPedido, etiquetaDeRecepcion } from '../lib/estados'
@@ -11,7 +19,8 @@ import { Paginador } from '../components/Paginador'
 import { usePedidos } from '../hooks/usePedidos'
 import { useFiltrosPedidos } from '../hooks/useFiltrosPedidos'
 import type { OrdenPedidos } from '../types'
-import styles from './ProveedoresPage.module.css'
+
+const PEDIDOS = { singular: 'pedido', plural: 'pedidos' }
 
 /**
  * El listado de pedidos de compra.
@@ -24,7 +33,7 @@ import styles from './ProveedoresPage.module.css'
  */
 export function PedidosPage() {
   const { filtros, aplicar, limpiar, hayFiltros } = useFiltrosPedidos()
-  const { data, isPending, isFetching, error } = usePedidos(filtros)
+  const { data, isPending, isFetching, error, refetch } = usePedidos(filtros)
   const { activa } = useEmpresa()
   const permisos = permisosDe(activa)
 
@@ -55,63 +64,72 @@ export function PedidosPage() {
 
   if (!permisos.verProveedores) {
     return (
-      <div className={styles.page}>
-        <h1 className={styles.titulo}>Pedidos de compra</h1>
-        <p className={styles.error} role="note">
-          Tu rol no tiene acceso a Compras. La sección es de administradores y empleados.
-        </p>
+      <div className={doc.listado}>
+        <PageHeader title="Pedidos de compra" />
+        <Alert tone="neutral">
+          <p>Tu rol no tiene acceso a Compras. La sección es de administradores y empleados.</p>
+        </Alert>
       </div>
     )
   }
 
   const total = data?.total ?? 0
+  const filas = data?.filas ?? []
+  const nuevo = permisos.crearProveedor ? (
+    <LinkButton to="/compras/pedidos/nuevo" variant="primary" icon={<Icon name="plus" size={16} />}>
+      Nuevo pedido
+    </LinkButton>
+  ) : undefined
 
   return (
-    <div className={styles.page}>
-      <header className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>Pedidos de compra</h1>
-          <p className={styles.subtitulo}>
-            {isPending ? 'Cargando…' : `${total} ${total === 1 ? 'pedido' : 'pedidos'}`}
-          </p>
-        </div>
-        <div className={styles.acciones}>
-          <button
-            type="button"
-            className={styles.secundario}
-            disabled={exportar.isPending || total === 0}
-            onClick={() => exportar.mutate()}
-          >
-            {exportar.isPending ? 'Exportando…' : 'Exportar a CSV'}
-          </button>
-          {permisos.crearProveedor ? (
-            <Link to="/compras/pedidos/nuevo" className={styles.nuevo}>
-              + Nuevo pedido
-            </Link>
-          ) : null}
-        </div>
-      </header>
-
-      <FiltrosPedidos
-        filtros={filtros}
-        hayFiltros={hayFiltros}
-        onAplicar={aplicar}
-        onLimpiar={limpiar}
+    <div className={doc.listado}>
+      <PageHeader
+        title="Pedidos de compra"
+        subtitle={isPending ? 'Cargando…' : contar(total, PEDIDOS)}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              icon={<Icon name="download" size={16} />}
+              loading={exportar.isPending}
+              disabled={total === 0}
+              onClick={() => exportar.mutate()}
+            >
+              {exportar.isPending ? 'Exportando…' : 'Exportar a CSV'}
+            </Button>
+            {nuevo}
+          </>
+        }
       />
 
+      {exportar.error ? (
+        <Alert tone="danger" role="alert" title="No se pudo exportar">
+          <p>{exportar.error.message}</p>
+        </Alert>
+      ) : null}
+
+      <FiltrosPedidos filtros={filtros} hayFiltros={hayFiltros} onAplicar={aplicar} onLimpiar={limpiar} />
+
       {error ? (
-        <p className={styles.error} role="alert">
-          No se pudo leer el listado: {error.message}
-        </p>
+        <ErrorState title="No se pudo leer el listado." description="Revisá la conexión y volvé a intentar." onRetry={() => void refetch()} retrying={isFetching} />
+      ) : !isPending && filas.length === 0 ? (
+        hayFiltros ? (
+          <EmptyState
+            icon="search"
+            title="Sin resultados para estos filtros"
+            description="No hay pedidos de compra que coincidan. Probá con otro proveedor, estado o fecha."
+            action={
+              <Button variant="secondary" onClick={limpiar}>
+                Limpiar filtros
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState icon="inbox" title="Todavía no hay pedidos de compra" action={nuevo} />
+        )
       ) : (
         <>
-          <ListadoPedidos
-            filas={data?.filas ?? []}
-            orden={filtros.orden}
-            direccion={filtros.direccion}
-            onOrdenar={ordenar}
-            cargando={isPending}
-          />
+          <ListadoPedidos filas={filas} orden={filtros.orden} direccion={filtros.direccion} onOrdenar={ordenar} cargando={isPending} />
           <Paginador
             pagina={filtros.pagina}
             porPagina={filtros.porPagina}
@@ -119,6 +137,7 @@ export function PedidosPage() {
             cargando={isFetching}
             onIr={(pagina) => aplicar({ pagina })}
             onTamano={(porPagina) => aplicar({ porPagina })}
+            sustantivo={PEDIDOS}
           />
         </>
       )}

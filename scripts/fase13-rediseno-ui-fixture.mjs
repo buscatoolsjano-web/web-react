@@ -163,11 +163,24 @@ ok(await s.from('company_memberships').insert({ company_id: idB, user_id: u.user
 
 const link = (await s.auth.admin.generateLink({ type: 'magiclink', email, options: { redirectTo: `${origen}/` } })).data.properties.action_link
 
+// E3: empresa zz con numeración STEL en cotizaciones, pedidos y remitos, para ver
+// la emisión bloqueada. Los borradores se crean ANTES de fijar la autoridad
+// (el guard de E2.5 impide emitir después); el admin es el mismo usuario.
+const { id: idS } = ok(await s.from('companies').insert({ slug: `${MARCA}-stel-${Date.now()}`, name: 'ZZ Rediseño STEL', legal_name: 'ZZ Rediseño STEL SA', default_currency: 'USD' }).select('id').single(), 'empresa STEL')
+ok(await s.from('document_sequences').insert(['quote', 'sales_order', 'delivery'].map((doc_type) => ({ company_id: idS, doc_type, prefix: doc_type.slice(0, 3).toUpperCase(), padding: 5, next_number: 5, series_code: doc_type.slice(0, 3).toUpperCase(), is_default: true }))), 'secuencias STEL')
+const cliS = ok(await s.from('customers').insert({ company_id: idS, legal_name: 'ZZ Cliente STEL SA', status: 'active' }).select('id').single(), 'cliente STEL')
+const cotS = ok(await s.from('sales_quotes').insert({ company_id: idS, customer_id: cliS.id, number: 'QUO-00001', series_code: 'QUO', quote_date: dia(1), currency_code: 'USD', title: 'ZZ Cotización bajo STEL' }).select('id').single(), 'cotización STEL')
+ok(await s.from('sales_quote_lines').insert({ company_id: idS, quote_id: cotS.id, line_no: 1, sku_snapshot: 'ZZ-LIBRE', name_snapshot: 'ZZ Servicio', quantity: 1, unit_price: 100 }), 'línea cotización STEL')
+const pedS = ok(await s.from('sales_orders').insert({ company_id: idS, customer_id: cliS.id, number: 'SAL-00001', series_code: 'SAL', order_date: dia(1), currency_code: 'USD', origin: 'manual' }).select('id').single(), 'pedido STEL')
+ok(await s.from('sales_order_lines').insert({ company_id: idS, order_id: pedS.id, line_no: 1, sku_snapshot: 'ZZ-LIBRE', name_snapshot: 'ZZ Servicio', quantity_ordered: 2, unit_price: 100 }), 'línea pedido STEL')
+ok(await s.from('document_numbering_authority').insert(['quote', 'sales_order', 'delivery'].map((doc_type) => ({ company_id: idS, doc_type, authority: 'STEL', reason: 'ZZ rediseño: emisión bloqueada' }))), 'autoridad STEL')
+ok(await s.from('company_memberships').insert({ company_id: idS, user_id: u.user.id, role: 'admin', status: 'active' }), 'membresía STEL')
+
 // E2: un usuario zz SIN membresía, para ver el estado «sin empresa activa» del shell.
 const emailSin = `${MARCA}-sinempresa-${Date.now()}@buscatools.test`
 const { error: es } = await s.auth.admin.createUser({ email: emailSin, password: `Zz${randomUUID()}!`, email_confirm: true, user_metadata: { full_name: 'ZZ Sin Empresa' } })
 if (es) throw new Error(`usuario sin empresa: ${es.message}`)
 const linkSin = (await s.auth.admin.generateLink({ type: 'magiclink', email: emailSin, options: { redirectTo: `${origen}/` } })).data.properties.action_link
 
-writeFileSync(salida, JSON.stringify({ empresa: id, admin: link, sinEmpresa: linkSin, cotizacion: cotis[1].id, pedido: pedidos[1].id, cliente: clientes[0].id }))
+writeFileSync(salida, JSON.stringify({ empresa: id, empresaStel: idS, admin: link, sinEmpresa: linkSin, cotizacion: cotis[1].id, cotizacionBorrador: cotis[0].id, pedido: pedidos[1].id, pedidoBorrador: pedidos[0].id, cotizacionStel: cotS.id, pedidoStel: pedS.id, cliente: clientes[0].id }))
 console.log(`    preparado: ${productos.length} productos, ${clientes.length} clientes, ${cotis.length} cotizaciones, ${pedidos.length} pedidos, ${proveedores.length} proveedores, 3 compras, ${equipos.length} equipos, 3 órdenes (el enlace quedó en el archivo, no se imprime)`)

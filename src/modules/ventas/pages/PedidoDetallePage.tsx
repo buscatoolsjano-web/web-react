@@ -1,8 +1,20 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Spinner } from '@/components/ui/Spinner'
+import { Icon } from '@/components/icons/Icon'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { ActionBar } from '@/components/document/ActionBar'
+import { DocSection, MetaList, Missing, Totals } from '@/components/document/DocSection'
+import docUi from '@/components/document/Document.module.css'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { AccionesDocumento } from '../components/AccionesDocumento'
+import { useAccionesDocumento } from '../components/AccionesDocumento'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { CabeceraCotizacion, type CampoCabecera, type ValoresCabecera } from '../components/CabeceraCotizacion'
@@ -16,6 +28,7 @@ import { PanelStock } from '../components/PanelStock'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TablaLineas } from '../components/TablaLineas'
 import { mensajeErrorVentas, motivoBloqueo, type DocTypeVentas } from '../lib/autoridad'
+import { escribeVentas } from '../lib/permisos'
 import { presentarCumplimiento, presentarEstado } from '../lib/estados'
 import { formatearFecha, formatearImporte } from '../lib/formato'
 import { lineaCapitulo, lineaDeProducto, lineaLibre } from '../lib/lineaNueva'
@@ -40,7 +53,6 @@ import {
   intercambiarOrdenPedido,
 } from '../services/pedidos'
 import type { DocumentoDetalle, LineaDocumento } from '../types'
-import styles from './DetallePage.module.css'
 import editor from './EditorCotizacion.module.css'
 
 /** Campo lógico del editor → columna real de `sales_order_lines`. */
@@ -113,6 +125,9 @@ export function PedidoDetallePage() {
   const [errorRemito, setErrorRemito] = useState<string | null>(null)
 
   const esInterno = activa?.esInterno ?? false
+  // Escribir (editar, confirmar, generar remito) es de admin y employee: el
+  // mismo conjunto que `orders_write` y `deliveries_write`.
+  const escribe = escribeVentas(activa?.rol)
   // Fase 12 E2.5: confirmar el pedido y generar el remito son emisiones.
   const autoridad = useAutoridadNumeracion()
   const stelPedido = autoridad.stel('sales_order')
@@ -126,7 +141,7 @@ export function PedidoDetallePage() {
 
   // Un pedido con entregas tiene las líneas congeladas, y lo impone un trigger.
   const tieneEntregas = (relacionados.data?.entregas.length ?? 0) > 0
-  const permiso = editabilidadPedido(doc?.estado ?? '', esInterno, tieneEntregas)
+  const permiso = editabilidadPedido(doc?.estado ?? '', escribe, tieneEntregas)
   const editando = modoEdicion && permiso.editable
 
   const guardar = useMutation({
@@ -165,33 +180,40 @@ export function PedidoDetallePage() {
     onError: (e: Error) => setErrorRemito(mensajeErrorVentas(e)),
   })
 
-  if (isPending) return <p className={styles.nota}>Cargando…</p>
+  const acciones = useAccionesDocumento(doc)
 
-  if (error) {
+  if (isPending) {
     return (
-      <p className={styles.error} role="alert">
-        No se pudo leer el pedido: {error.message}
+      <p className={editor.cargando} role="status">
+        <Spinner size={20} /> Cargando pedido…
       </p>
     )
   }
 
+  if (error) {
+    return <ErrorState title="No se pudo leer el pedido." description={error.message} />
+  }
+
   if (!doc) {
     return (
-      <div className={styles.page}>
-        <p className={styles.nota}>
-          No se encontró el pedido. Puede que no exista o que no tengas acceso.
-        </p>
-        <Link to="/ventas/pedidos" className={styles.volver}>
-          ← Volver al listado
-        </Link>
-      </div>
+      <EmptyState
+        headingLevel={1}
+        icon="search"
+        title="No se encontró el pedido"
+        description="Puede que no exista o que no tengas acceso."
+        action={
+          <LinkButton to="/ventas/pedidos" icon={<Icon name="arrow-left" size={16} />}>
+            Volver a Pedidos
+          </LinkButton>
+        }
+      />
     )
   }
 
   // Los tipos cuya emisión se ofrece en esta barra y está bloqueada: un motivo.
   const tiposBloqueados: DocTypeVentas[] = [
-    ...(stelPedido && doc.estado === 'draft' ? (['sales_order'] as const) : []),
-    ...(esInterno && stelEntrega && doc.estado === 'confirmed' ? (['delivery'] as const) : []),
+    ...(escribe && stelPedido && doc.estado === 'draft' ? (['sales_order'] as const) : []),
+    ...(escribe && stelEntrega && doc.estado === 'confirmed' ? (['delivery'] as const) : []),
   ]
 
   const cambiarCampo = (campo: CampoCabecera, valor: string) => {
@@ -277,32 +299,37 @@ export function PedidoDetallePage() {
     )
   }
 
-  return (
-    <div className={styles.page}>
-      <Link to="/ventas/pedidos" className={styles.volver}>
-        ← Pedidos
-      </Link>
+  const idMotivo = 'motivo-emision-pedido'
 
-      <header className={styles.encabezado}>
-        <div className={styles.identidad}>
-          <h1 className={styles.titulo}>{doc.numero}</h1>
-          <div className={styles.chips}>
+  return (
+    <div className={docUi.pagina}>
+      <PageHeader
+        back={{ to: '/ventas/pedidos', label: 'Pedidos' }}
+        title={doc.numero}
+        status={
+          <>
             <ChipEstado estado={presentarEstado('pedido', doc.estado)} />
-            {doc.estadoSecundario ? (
-              <ChipEstado estado={presentarCumplimiento(doc.estadoSecundario)} />
-            ) : null}
+            {doc.estadoSecundario ? <ChipEstado estado={presentarCumplimiento(doc.estadoSecundario)} /> : null}
             {doc.esHistorico ? (
-              <span className={styles.historico}>Migrado del sistema anterior</span>
+              <Badge tone="neutral" outline>
+                Migrado del sistema anterior
+              </Badge>
             ) : null}
-            {guardar.isPending ? <span className={editor.guardando}>Guardando…</span> : null}
+            {guardar.isPending ? (
+              <span className={editor.guardando} role="status">
+                <Spinner size={16} /> Guardando…
+              </span>
+            ) : null}
+          </>
+        }
+        subtitle={[doc.clienteNombre, formatearFecha(doc.fecha), editando ? null : doc.titulo].filter(Boolean).join(' · ')}
+        actions={
+          <div className={docUi.importe}>
+            <span className={docUi.importeValor}>{formatearImporte(doc.total, doc.moneda)}</span>
+            <span className={docUi.importeLabel}>Total</span>
           </div>
-          {doc.titulo && !editando ? <p className={styles.subtitulo}>{doc.titulo}</p> : null}
-        </div>
-        <div className={styles.importe}>
-          <span className={styles.importeValor}>{formatearImporte(doc.total, doc.moneda)}</span>
-          <span className={styles.importeEtiqueta}>Total</span>
-        </div>
-      </header>
+        }
+      />
 
       <AvisosHistoricos
         motivos={doc.motivosRevision}
@@ -316,12 +343,73 @@ export function PedidoDetallePage() {
       ) : null}
 
       {ultimoError ? (
-        <p className={styles.error} role="alert">
-          {ultimoError}
-        </p>
+        <Alert tone="danger" role="alert" title="No se pudo guardar">
+          <p>{ultimoError}</p>
+        </Alert>
       ) : null}
 
-      <section className={styles.bloque}>
+      <ActionBar
+        primary={
+          escribe && doc.estado === 'confirmed' ? (
+            <Button
+              icon={<Icon name="truck" size={16} />}
+              disabled={stelEntrega || autoridad.cargando}
+              aria-describedby={stelEntrega ? idMotivo : undefined}
+              onClick={() => {
+                setErrorRemito(null)
+                setGenerando(true)
+              }}
+            >
+              Generar nota de entrega
+            </Button>
+          ) : escribe && doc.estado === 'draft' ? (
+            <Button
+              disabled={stelPedido || autoridad.cargando}
+              aria-describedby={stelPedido ? idMotivo : undefined}
+              onClick={() => guardar.mutate(() => cambiarEstadoPedido(doc.id, 'draft', 'confirmed'))}
+            >
+              Confirmar pedido
+            </Button>
+          ) : null
+        }
+        secondary={
+          <>
+            {permiso.editable ? (
+              <Button
+                variant={editando ? 'primary' : 'secondary'}
+                icon={<Icon name={editando ? 'check' : 'edit'} size={16} />}
+                onClick={() => setModoEdicion((v) => !v)}
+              >
+                {editando ? 'Terminar edición' : 'Editar'}
+              </Button>
+            ) : null}
+            {acciones.secundarias}
+          </>
+        }
+        // «Cancelar pedido» es la acción común del documento: escribe lo mismo
+        // (commercial_status = cancelled + evento «cancelled») que el botón
+        // propio que había acá, y cubre todos los estados en que aparecía.
+        danger={acciones.peligro}
+        note={
+          <>
+            {!permiso.editable && permiso.motivo ? (
+              <p className={editor.candado}>
+                <Icon name="alert-circle" size={16} /> {permiso.motivo}
+              </p>
+            ) : null}
+            {permiso.editable && permiso.motivo ? <p>{permiso.motivo}</p> : null}
+            {tiposBloqueados.length > 0 ? <p id={idMotivo}>{motivoBloqueo(...tiposBloqueados)}</p> : null}
+            {acciones.motivo}
+            {acciones.error ? (
+              <p className={editor.error} role="alert">
+                {acciones.error}
+              </p>
+            ) : null}
+          </>
+        }
+      />
+
+      <DocSection title="Datos del pedido">
         {editando ? (
           <CabeceraCotizacion
             valores={aValores(doc)}
@@ -330,84 +418,50 @@ export function PedidoDetallePage() {
             onCambiar={cambiarCampo}
           />
         ) : (
-          <dl className={styles.datos}>
-            <div className={styles.dato}>
-              <dt className={styles.datoEtiqueta}>Cliente</dt>
-              <dd className={styles.datoValor}>{doc.clienteNombre}</dd>
-            </div>
-            <div className={styles.dato}>
-              <dt className={styles.datoEtiqueta}>Contacto</dt>
-              <dd className={styles.datoValor}>{doc.contactoNombre ?? '—'}</dd>
-            </div>
-            <div className={styles.dato}>
-              <dt className={styles.datoEtiqueta}>Fecha</dt>
-              <dd className={styles.datoValor}>{formatearFecha(doc.fecha)}</dd>
-            </div>
-            <div className={styles.dato}>
-              <dt className={styles.datoEtiqueta}>Moneda</dt>
-              <dd className={styles.datoValor}>
-                {doc.moneda ?? <span className={styles.falta}>Sin registrar</span>}
-              </dd>
-            </div>
-            <div className={styles.dato}>
-              <dt className={styles.datoEtiqueta}>Tipo de cambio</dt>
-              <dd className={styles.datoValor}>
-                {doc.tipoCambio ?? <span className={styles.falta}>Sin registrar</span>}
-              </dd>
-            </div>
-            <div className={styles.dato}>
-              <dt className={styles.datoEtiqueta}>Vendedor</dt>
-              <dd className={styles.datoValor}>
-                {doc.vendedor ?? <span className={styles.falta}>Sin registrar</span>}
-              </dd>
-            </div>
-            {doc.origen ? (
-              <div className={styles.dato}>
-                <dt className={styles.datoEtiqueta}>Cotización de origen</dt>
-                <dd className={styles.datoValor}>
-                  <Link to={`/ventas/cotizaciones/${doc.origen.id}`} className={styles.enlace}>
-                    {doc.origen.numero}
-                  </Link>
-                </dd>
-              </div>
-            ) : null}
-          </dl>
+          <MetaList
+            items={[
+              { label: 'Cliente', value: doc.clienteNombre },
+              { label: 'Contacto', value: doc.contactoNombre ?? '—' },
+              { label: 'Fecha', value: formatearFecha(doc.fecha) },
+              { label: 'Moneda', value: doc.moneda ?? <Missing /> },
+              { label: 'Tipo de cambio', value: doc.tipoCambio ?? <Missing /> },
+              { label: 'Vendedor', value: doc.vendedor ?? <Missing /> },
+              doc.origen
+                ? {
+                    label: 'Cotización de origen',
+                    value: (
+                      <Link to={`/ventas/cotizaciones/${doc.origen.id}`} className={docUi.enlace}>
+                        {doc.origen.numero}
+                      </Link>
+                    ),
+                  }
+                : null,
+              doc.notas ? { label: 'Notas', value: doc.notas, wide: true } : null,
+            ]}
+          />
         )}
-        {!editando && doc.notas ? <p className={styles.notas}>{doc.notas}</p> : null}
-      </section>
+      </DocSection>
 
-      <section className={styles.bloque}>
-        <h2 className={styles.h2}>Líneas</h2>
-
+      <DocSection
+        title="Líneas"
+        actions={
+          editando ? (
+            <>
+              <Button variant="secondary" size="sm" icon={<Icon name="search" size={16} />} onClick={() => setBuscando(true)}>
+                Añadir producto
+              </Button>
+              <Button variant="secondary" size="sm" icon={<Icon name="plus" size={16} />} onClick={() => insertar(lineaLibre(proximoNumeroDeLinea()))}>
+                Nueva línea
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => insertar(lineaCapitulo(proximoNumeroDeLinea()))}>
+                Nuevo capítulo
+              </Button>
+            </>
+          ) : null
+        }
+      >
         {editando ? (
           <>
-            <EditorLineas
-              lineas={lineas}
-              moneda={doc.moneda ?? 'USD'}
-              editable
-              onCambiar={cambiarLinea}
-              onEliminar={(lineaId) => guardar.mutate(() => eliminarLineaPedido(lineaId))}
-              onMover={moverLinea}
-            />
-            <div className={editor.acciones}>
-              <button type="button" className={editor.boton} onClick={() => setBuscando(true)}>
-                Añadir producto
-              </button>
-              <button
-                type="button"
-                className={editor.boton}
-                onClick={() => insertar(lineaLibre(proximoNumeroDeLinea()))}
-              >
-                Nueva línea
-              </button>
-              <button
-                type="button"
-                className={editor.boton}
-                onClick={() => insertar(lineaCapitulo(proximoNumeroDeLinea()))}
-              >
-                Nuevo capítulo
-              </button>
-            </div>
             {buscando ? (
               <div className={editor.selector}>
                 <SelectorProducto
@@ -420,126 +474,50 @@ export function PedidoDetallePage() {
                 />
               </div>
             ) : null}
+            <EditorLineas
+              lineas={lineas}
+              moneda={doc.moneda ?? 'USD'}
+              editable
+              onCambiar={cambiarLinea}
+              onEliminar={(lineaId) => guardar.mutate(() => eliminarLineaPedido(lineaId))}
+              onMover={moverLinea}
+            />
           </>
         ) : (
           <TablaLineas lineas={lineas} moneda={doc.moneda} tipo="pedido" />
         )}
 
-        <dl className={styles.totales}>
-          <div>
-            <dt>Subtotal</dt>
-            <dd>{formatearImporte(doc.subtotal, doc.moneda)}</dd>
-          </div>
-          <div>
-            <dt>Impuestos y percepciones</dt>
-            <dd>{formatearImporte(doc.impuesto, doc.moneda)}</dd>
-          </div>
-          <div className={styles.totalFinal}>
-            <dt>Total</dt>
-            <dd>{formatearImporte(doc.total, doc.moneda)}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section className={styles.bloque}>
-        <h2 className={styles.h2}>Entregas</h2>
-        <PanelPendientes
-          lineas={lineas}
-          resultado={pendientes.data}
-          cargando={pendientes.isPending}
+        <Totals
+          rows={[
+            { label: 'Subtotal', value: formatearImporte(doc.subtotal, doc.moneda) },
+            { label: 'Impuestos y percepciones', value: formatearImporte(doc.impuesto, doc.moneda) },
+            { label: 'Total', value: formatearImporte(doc.total, doc.moneda), strong: true },
+          ]}
         />
-      </section>
+      </DocSection>
+
+      <DocSection title="Entregas">
+        <PanelPendientes lineas={lineas} resultado={pendientes.data} cargando={pendientes.isPending} />
+      </DocSection>
 
       {esInterno ? (
-        <section className={styles.bloque}>
-          <h2 className={styles.h2}>Stock</h2>
+        <DocSection title="Stock">
           <PanelStock
             lineas={lineas}
             disponibilidad={stock.data}
             cargando={stock.isPending && productIds.length > 0}
             esInterno={esInterno}
           />
-        </section>
+        </DocSection>
       ) : null}
 
-      <div className={editor.barra}>
-        {permiso.editable ? (
-          <button
-            type="button"
-            className={editando ? editor.boton : editor.primario}
-            onClick={() => setModoEdicion((v) => !v)}
-          >
-            {editando ? 'Terminar edición' : 'Editar'}
-          </button>
-        ) : (
-          <span className={editor.candado}>{permiso.motivo}</span>
-        )}
-        {permiso.editable && permiso.motivo ? (
-          <span className={editor.aviso}>{permiso.motivo}</span>
-        ) : null}
-
-        <span className={editor.espacio} />
-
-        <div className={editor.estados}>
-          {esInterno && doc.estado === 'confirmed' ? (
-            <button
-              type="button"
-              className={editor.primario}
-              disabled={stelEntrega || autoridad.cargando}
-              aria-describedby={stelEntrega ? 'motivo-emision-pedido' : undefined}
-              onClick={() => {
-                setErrorRemito(null)
-                setGenerando(true)
-              }}
-            >
-              → Nota de entrega
-            </button>
-          ) : null}
-          {doc.estado === 'draft' ? (
-            <button
-              type="button"
-              className={editor.boton}
-              disabled={stelPedido || autoridad.cargando}
-              aria-describedby={stelPedido ? 'motivo-emision-pedido' : undefined}
-              onClick={() => guardar.mutate(() => cambiarEstadoPedido(doc.id, 'draft', 'confirmed'))}
-            >
-              Confirmar pedido
-            </button>
-          ) : null}
-          {doc.estado === 'confirmed' && !tieneEntregas ? (
-            <button
-              type="button"
-              className={editor.boton}
-              onClick={() =>
-                guardar.mutate(() => cambiarEstadoPedido(doc.id, 'confirmed', 'cancelled'))
-              }
-            >
-              Cancelar pedido
-            </button>
-          ) : null}
-        </div>
-        {tiposBloqueados.length > 0 ? (
-          <p id="motivo-emision-pedido" className={editor.motivo}>
-            {motivoBloqueo(...tiposBloqueados)}
-          </p>
-        ) : null}
-      </div>
-
-      <AccionesDocumento doc={doc} />
-
-      <section className={styles.bloque}>
-        <h2 className={styles.h2}>Adjuntos</h2>
+      <DocSection title="Adjuntos">
         <PanelAdjuntos tipo="pedido" documentoId={doc.id} />
-      </section>
+      </DocSection>
 
-      <section className={styles.bloque}>
-        <h2 className={styles.h2}>Relacionados</h2>
-        <PanelRelacionados
-          relacionados={relacionados.data}
-          cargando={relacionados.isPending}
-          idActual={doc.id}
-        />
-      </section>
+      <DocSection title="Relacionados">
+        <PanelRelacionados relacionados={relacionados.data} cargando={relacionados.isPending} idActual={doc.id} />
+      </DocSection>
 
       {generando ? (
         <ModalEntregaParcial
@@ -551,6 +529,9 @@ export function PedidoDetallePage() {
           onConfirmar={(cantidades, fecha) => crearRemito.mutate({ cantidades, fecha })}
         />
       ) : null}
+
+
+      {acciones.capas}
     </div>
   )
 }

@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { Icon } from '@/components/icons/Icon'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import tabla from '@/components/tables/Tabla.module.css'
 import { presentarCumplimiento, presentarEstado } from '../lib/estados'
 import { formatearFecha, formatearImporte } from '../lib/formato'
 import { ChipEstado } from './ChipEstado'
 import { RUTA_DE, type DireccionOrden, type DocumentoListado, type OrdenVentas } from '../types'
-import styles from './ListadoDocumentos.module.css'
 
 export interface ListadoDocumentosProps {
   filas: readonly DocumentoListado[]
@@ -20,17 +22,14 @@ export interface ListadoDocumentosProps {
   onSeleccionarTodos?: (marcado: boolean) => void
 }
 
-const COLUMNAS: { clave: OrdenVentas; etiqueta: string }[] = [
+const COLUMNAS: { clave: OrdenVentas; etiqueta: string; num?: boolean }[] = [
   { clave: 'numero', etiqueta: 'Número' },
   { clave: 'cliente', etiqueta: 'Cliente' },
   { clave: 'fecha', etiqueta: 'Fecha' },
-  { clave: 'total', etiqueta: 'Total' },
+  { clave: 'total', etiqueta: 'Total', num: true },
 ]
 
-function flecha(activa: boolean, direccion: DireccionOrden): string {
-  if (!activa) return ''
-  return direccion === 'asc' ? ' ↑' : ' ↓'
-}
+const observaciones = (n: number) => `${n} ${n === 1 ? 'observación' : 'observaciones'}`
 
 /**
  * El mismo listado para los tres documentos.
@@ -41,7 +40,7 @@ function flecha(activa: boolean, direccion: DireccionOrden): string {
  *
  * Tabla en desktop y tarjetas en mobile: una tabla de siete columnas en 390px
  * obliga a hacer scroll horizontal en toda la página, que es justo lo que no
- * queremos.
+ * queremos. El vacío y el error los resuelve la página.
  */
 export function ListadoDocumentos({
   filas,
@@ -58,29 +57,32 @@ export function ListadoDocumentos({
   const haySeleccion = onSeleccionar !== undefined && seleccionados !== undefined
   const todosMarcados = haySeleccion && filas.length > 0 && filas.every((d) => seleccionados.has(d.id))
 
-  if (!cargando && filas.length === 0) {
+  if (cargando && filas.length === 0) {
     return (
-      <p className={styles.vacio}>
-        No hay documentos que coincidan con estos filtros.
-      </p>
+      <div className={tabla.contenedor}>
+        <SkeletonRows rows={5} columns={isMobile ? 2 : 6} label="Cargando documentos…" />
+      </div>
     )
   }
+  if (filas.length === 0) return null
 
   if (isMobile) {
     return (
-      <ul className={styles.tarjetas}>
+      <ul className={tabla.tarjetas}>
         {filas.map((d) => (
           <li key={d.id}>
-            <Link to={`${RUTA_DE[d.tipo]}/${d.id}`} className={styles.tarjeta}>
-              <span className={styles.tarjetaNumero}>{d.numero}</span>
-              <ChipEstado estado={presentarEstado(d.tipo, d.estado)} />
-              <span className={styles.tarjetaCliente}>{d.clienteNombre}</span>
-              <span className={styles.tarjetaFecha}>{formatearFecha(d.fecha)}</span>
-              <span className={styles.tarjetaTotal}>{formatearImporte(d.total, d.moneda)}</span>
+            <Link to={`${RUTA_DE[d.tipo]}/${d.id}`} className={tabla.tarjeta}>
+              <span className={tabla.tarjetaTitulo}>{d.numero}</span>
+              <span className={tabla.tarjetaDerecha}>
+                <ChipEstado estado={presentarEstado(d.tipo, d.estado)} />
+              </span>
+              <span className={tabla.tarjetaTexto}>{d.clienteNombre}</span>
+              <span className={tabla.tarjetaMeta}>{formatearFecha(d.fecha)}</span>
+              <span className={`${tabla.tarjetaDerecha} ${tabla.tarjetaImporte}`}>{formatearImporte(d.total, d.moneda)}</span>
               {d.necesitaRevision ? (
-                <span className={styles.marca} title={d.motivosRevision.join(', ')}>
-                  ⚠ {d.motivosRevision.length} observación
-                  {d.motivosRevision.length === 1 ? '' : 'es'}
+                <span className={tabla.tarjetaAviso}>
+                  <Icon name="alert-triangle" size={16} />
+                  {observaciones(d.motivosRevision.length)}
                 </span>
               ) : null}
             </Link>
@@ -91,12 +93,12 @@ export function ListadoDocumentos({
   }
 
   return (
-    <div className={styles.scroll}>
-      <table className={styles.tabla}>
+    <div className={tabla.contenedor}>
+      <table className={tabla.tabla}>
         <thead>
           <tr>
             {haySeleccion ? (
-              <th scope="col" className={styles.check}>
+              <th scope="col" className={tabla.check}>
                 <input
                   type="checkbox"
                   checked={todosMarcados}
@@ -105,25 +107,22 @@ export function ListadoDocumentos({
                 />
               </th>
             ) : null}
-            {COLUMNAS.map((c) => (
-              <th
-                key={c.clave}
-                scope="col"
-                className={c.clave === 'total' ? styles.derecha : undefined}
-                aria-sort={
-                  orden === c.clave
-                    ? direccion === 'asc'
-                      ? 'ascending'
-                      : 'descending'
-                    : 'none'
-                }
-              >
-                <button type="button" className={styles.thBoton} onClick={() => onOrdenar(c.clave)}>
-                  {c.etiqueta}
-                  {flecha(orden === c.clave, direccion)}
-                </button>
-              </th>
-            ))}
+            {COLUMNAS.map((c) => {
+              const activa = orden === c.clave
+              return (
+                <th
+                  key={c.clave}
+                  scope="col"
+                  className={c.num ? tabla.num : undefined}
+                  aria-sort={activa ? (direccion === 'asc' ? 'ascending' : 'descending') : 'none'}
+                >
+                  <button type="button" className={tabla.orden} onClick={() => onOrdenar(c.clave)}>
+                    {c.etiqueta}
+                    {activa ? <Icon name={direccion === 'asc' ? 'arrow-up' : 'arrow-down'} size={16} className={tabla.ordenIcono} /> : null}
+                  </button>
+                </th>
+              )
+            })}
             <th scope="col">Título</th>
             <th scope="col">Estado</th>
             {etiquetaOrigen ? <th scope="col">{etiquetaOrigen}</th> : null}
@@ -132,9 +131,9 @@ export function ListadoDocumentos({
         </thead>
         <tbody>
           {filas.map((d) => (
-            <tr key={d.id}>
+            <tr key={d.id} className={haySeleccion && seleccionados.has(d.id) ? tabla.seleccionada : undefined}>
               {haySeleccion ? (
-                <td className={styles.check}>
+                <td className={tabla.check}>
                   <input
                     type="checkbox"
                     checked={seleccionados.has(d.id)}
@@ -143,35 +142,29 @@ export function ListadoDocumentos({
                   />
                 </td>
               ) : null}
-              <td>
-                <Link to={`${RUTA_DE[d.tipo]}/${d.id}`} className={styles.enlace}>
+              <td className={tabla.nowrap}>
+                <Link to={`${RUTA_DE[d.tipo]}/${d.id}`} className={tabla.enlace}>
                   {d.numero}
                 </Link>
                 {d.necesitaRevision ? (
-                  <span
-                    className={styles.aviso}
-                    title={d.motivosRevision.join(', ')}
-                    aria-label={`${d.motivosRevision.length} observaciones`}
-                  >
-                    ⚠
+                  <span className={tabla.marca} title={d.motivosRevision.join(', ')}>
+                    <Icon name="alert-triangle" size={16} />
+                    <span className="sr-only">{observaciones(d.motivosRevision.length)}</span>
                   </span>
                 ) : null}
               </td>
-              <td>{d.clienteNombre}</td>
-              <td className={styles.nowrap}>{formatearFecha(d.fecha)}</td>
-              <td className={styles.derecha}>{formatearImporte(d.total, d.moneda)}</td>
-              <td className={styles.titulo}>{d.titulo ?? '—'}</td>
-              <td className={styles.nowrap}>
-                <ChipEstado estado={presentarEstado(d.tipo, d.estado)} />
-                {d.estadoSecundario ? (
-                  <>
-                    {' '}
-                    <ChipEstado estado={presentarCumplimiento(d.estadoSecundario)} />
-                  </>
-                ) : null}
+              <td className={tabla.texto}>{d.clienteNombre}</td>
+              <td className={tabla.nowrap}>{formatearFecha(d.fecha)}</td>
+              <td className={tabla.num}>{formatearImporte(d.total, d.moneda)}</td>
+              <td className={`${tabla.secundario} ${tabla.texto}`}>{d.titulo ?? '—'}</td>
+              <td>
+                <span className={tabla.estados}>
+                  <ChipEstado estado={presentarEstado(d.tipo, d.estado)} />
+                  {d.estadoSecundario ? <ChipEstado estado={presentarCumplimiento(d.estadoSecundario)} /> : null}
+                </span>
               </td>
-              {etiquetaOrigen ? <td className={styles.nowrap}>{d.origen ?? '—'}</td> : null}
-              <td className={styles.nowrap}>{d.vendedor ?? '—'}</td>
+              {etiquetaOrigen ? <td className={tabla.nowrap}>{d.origen ?? '—'}</td> : null}
+              <td className={`${tabla.nowrap} ${tabla.secundario}`}>{d.vendedor ?? '—'}</td>
             </tr>
           ))}
         </tbody>

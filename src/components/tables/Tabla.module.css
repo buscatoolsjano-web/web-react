@@ -1,0 +1,234 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Estilo común de tablas de listados (Fase 13 · E3). Sólo CSS: cada módulo
+   arma su propia tabla con sus columnas; no hay un <DataTable> genérico.
+
+     import tabla from '@/components/tables/Tabla.module.css'
+     <div className={tabla.contenedor}><table className={tabla.tabla}>…
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* La tabla scrollea dentro de su caja: el body nunca scrollea en horizontal. */
+.contenedor {
+  overflow-x: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--leading-table);
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--space-3);
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tabla thead th {
+  background: var(--color-surface-alt);
+  color: var(--color-text-soft);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.tabla tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.tabla tbody tr {
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.tabla tbody tr:hover {
+  background: var(--color-surface-alt);
+}
+
+.tabla tbody tr.seleccionada {
+  background: var(--color-primary-soft);
+}
+
+/* Encabezado ordenable: el botón ocupa la celda y anuncia el orden con aria-sort. */
+.orden {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.orden:hover {
+  color: var(--color-text);
+}
+
+.orden:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+  border-radius: var(--radius-sm);
+}
+
+.ordenIcono {
+  color: var(--color-text-muted);
+}
+
+.num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabla th.num {
+  text-align: right;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.check {
+  width: 44px;
+}
+
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+}
+
+.enlace {
+  color: var(--color-primary-text);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.enlace:hover {
+  text-decoration: underline;
+}
+
+.enlace:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+  border-radius: var(--radius-sm);
+}
+
+.secundario {
+  color: var(--color-text-soft);
+}
+
+.marca {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: var(--space-1);
+  color: var(--color-warning-text);
+}
+
+.estados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+/* ── Tarjetas (listados en < 768px) ────────────────────────────────────── */
+.tarjetas {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tarjeta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+a.tarjeta:hover {
+  border-color: var(--color-border-strong);
+}
+
+a.tarjeta:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.tarjetaTitulo {
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.tarjetaDerecha {
+  justify-self: end;
+  text-align: right;
+}
+
+.tarjetaTexto {
+  grid-column: 1 / -1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.tarjetaMeta {
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+}
+
+.tarjetaImporte {
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.tarjetaAviso {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-warning-text);
+}
+
+/* Enlace secundario dentro de una fila (p. ej. la ficha del proveedor). */
+.enlaceSuave {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.enlaceSuave:hover {
+  color: var(--color-primary-text);
+  text-decoration: underline;
+}
+
+.enlaceSuave:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+  border-radius: var(--radius-sm);
+}
+
+/* Columna de texto largo (cliente, proveedor, título): ancho mínimo legible;
+   si no entra, la tabla scrollea dentro de su caja en vez de partir cada
+   palabra en una línea. */
+.texto {
+  min-width: 14rem;
+}
+
+.textoCorto {
+  min-width: 10rem;
+}

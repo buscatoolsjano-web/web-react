@@ -1,6 +1,17 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Spinner } from '@/components/ui/Spinner'
+import { Icon } from '@/components/icons/Icon'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { ActionBar } from '@/components/document/ActionBar'
+import docUi from '@/components/document/Document.module.css'
 import { ChipFactura } from '../components/ChipEstado'
 import { ModalImpresionCompras } from '../components/ModalImpresionCompras'
 import { PanelAdjuntosCompras } from '../components/PanelAdjuntosCompras'
@@ -71,27 +82,31 @@ export function FacturaDetallePage() {
   const [aviso, setAviso] = useState<string | null>(null)
   const [imprimiendo, setImprimiendo] = useState(false)
 
-  if (isPending) return <p className={styles.nota}>Cargando…</p>
-
-  if (error) {
+  if (isPending) {
     return (
-      <p className={styles.error} role="alert">
-        No se pudo leer la factura: {error.message}
+      <p className={styles.nota} role="status">
+        <Spinner size={20} /> Cargando factura…
       </p>
     )
   }
 
+  if (error) {
+    return <ErrorState title="No se pudo leer la factura." description={error.message} />
+  }
+
   if (!factura) {
     return (
-      <div className={styles.page}>
-        <p className={styles.nota}>
-          No se encontró la factura. Puede que no exista o que no tengas acceso: Compras es de
-          administradores y empleados.
-        </p>
-        <Link to="/compras/facturas" className={styles.volver}>
-          ← Volver al listado
-        </Link>
-      </div>
+      <EmptyState
+        headingLevel={1}
+        icon="search"
+        title="No se encontró la factura"
+        description="Puede que no exista o que no tengas acceso: Compras es de administradores y empleados."
+        action={
+          <LinkButton to="/compras/facturas" icon={<Icon name="arrow-left" size={16} />}>
+            Volver a Facturas de proveedor
+          </LinkButton>
+        }
+      />
     )
   }
 
@@ -102,11 +117,7 @@ export function FacturaDetallePage() {
   const reparto = repartoDeLineas(filas)
 
   return (
-    <div className={styles.page}>
-      <Link to="/compras/facturas" className={styles.volver}>
-        ← Facturas de proveedor
-      </Link>
-
+    <div className={docUi.pagina}>
       {imprimiendo ? (
         <ModalImpresionCompras
           doc={imprimibleFactura(factura, filas, etiquetaDeTratamiento, [
@@ -117,183 +128,101 @@ export function FacturaDetallePage() {
         />
       ) : null}
 
-      <header className={styles.encabezado}>
-        <div className={styles.identidad}>
-          <h1 className={styles.titulo}>
-            {factura.numeroProveedor ?? <Falta>sin número del proveedor</Falta>}
-          </h1>
-          <p className={styles.subtitulo}>
-            <Link className={styles.enlace} to={`/compras/proveedores/${factura.proveedorId}`}>
+      <PageHeader
+        back={{ to: '/compras/facturas', label: 'Facturas de proveedor' }}
+        title={factura.numeroProveedor ?? <Falta>sin número del proveedor</Falta>}
+        status={<ChipFactura estado={factura.estado} />}
+        subtitle={
+          <>
+            <Link className={docUi.enlace} to={`/compras/proveedores/${factura.proveedorId}`}>
               {factura.proveedor}
             </Link>
             {' · '}
             {formatearFecha(factura.fecha)}
-            {' · '}
-            {formatearImporte(factura.total, factura.moneda)}
             {' · ref. '}
             {factura.numero}
-          </p>
-          <div className={styles.chipsEstado}>
-            <ChipFactura estado={factura.estado} />
+          </>
+        }
+        actions={
+          <div className={docUi.importe}>
+            <span className={docUi.importeValor}>{formatearImporte(factura.total, factura.moneda)}</span>
+            <span className={docUi.importeLabel}>Total</span>
           </div>
-        </div>
-
-        <div className={styles.acciones}>
-          {/* Imprimir: se imprime lo que el proveedor facturó, sin arreglar
-              nada. Si facturó a otro precio que la orden, sale ese precio. */}
-          <button
-            type="button"
-            className={styles.secundario}
-            onClick={() => setImprimiendo(true)}
-          >
-            Imprimir
-          </button>
-
-          {escribe && puede.registrar ? (
-            registrando ? (
-              <>
-                <button
-                  type="button"
-                  className={styles.primario}
-                  disabled={acciones.registrar.isPending}
-                  onClick={() =>
-                    acciones.registrar.mutate(undefined, {
-                      onSuccess: (r) => {
-                        setRegistrando(false)
-                        setAviso(
-                          r.yaEstaba
-                            ? 'Esta factura ya estaba registrada.'
-                            : `Registrada. ${r.lineas} ${r.lineas === 1 ? 'línea' : 'líneas'}.`,
-                        )
-                      },
-                    })
-                  }
-                >
-                  {acciones.registrar.isPending ? 'Registrando…' : 'Sí, registrar'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.secundario}
-                  onClick={() => setRegistrando(false)}
-                >
-                  No
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className={styles.primario}
-                onClick={() => setRegistrando(true)}
-              >
-                Registrar factura
-              </button>
-            )
-          ) : null}
-
-          {escribe && puede.anular ? (
-            anulando ? (
-              <>
-                <button
-                  type="button"
-                  className={styles.peligro}
-                  disabled={acciones.anular.isPending}
-                  onClick={() =>
-                    acciones.anular.mutate(undefined, {
-                      onSuccess: (ok) => {
-                        setAnulando(false)
-                        if (!ok) setAviso('Alguien más ya cambió el estado de esta factura.')
-                      },
-                    })
-                  }
-                >
-                  {acciones.anular.isPending ? 'Anulando…' : 'Sí, anular'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.secundario}
-                  onClick={() => setAnulando(false)}
-                >
-                  No
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className={styles.secundario}
-                onClick={() => setAnulando(true)}
-              >
-                Anular factura
-              </button>
-            )
-          ) : null}
-
-          {escribe && puede.borrar ? (
-            borrando ? (
-              <>
-                <button
-                  type="button"
-                  className={styles.peligro}
-                  disabled={acciones.borrar.isPending}
-                  onClick={() =>
-                    acciones.borrar.mutate(undefined, {
-                      onSuccess: () => void navegar('/compras/facturas'),
-                    })
-                  }
-                >
-                  {acciones.borrar.isPending ? 'Borrando…' : 'Sí, borrar el borrador'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.secundario}
-                  onClick={() => setBorrando(false)}
-                >
-                  No
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className={styles.secundario}
-                onClick={() => setBorrando(true)}
-              >
-                Borrar borrador
-              </button>
-            )
-          ) : null}
-        </div>
-      </header>
+        }
+      />
 
       {factura.estado === 'draft' ? (
-        <p className={styles.avisoBaja} role="note">
-          Esta factura está en <strong>borrador</strong>. Las cantidades anotadas acá{' '}
-          <strong>no están reservadas</strong>: si otra factura de las mismas líneas se registra
-          primero, ésta va a fallar por sobre-facturación.
-        </p>
+        <Alert tone="warning">
+          <p>
+            Esta factura está en <strong>borrador</strong>. Las cantidades anotadas acá{' '}
+            <strong>no están reservadas</strong>: si otra factura de las mismas líneas se registra
+            primero, ésta va a fallar por sobre-facturación.
+          </p>
+        </Alert>
       ) : factura.estado === 'registered' ? (
-        <p className={styles.avisoBaja} role="note">
-          Esta factura está <strong>registrada</strong> y quedó congelada. Una factura no mueve
-          stock —el stock entró con la recepción—, así que anularla no deshace nada físico: lo
-          que hace es liberar lo facturado.
-        </p>
+        <Alert tone="info">
+          <p>
+            Esta factura está <strong>registrada</strong> y quedó congelada. Una factura no mueve
+            stock —el stock entró con la recepción—, así que anularla no deshace nada físico: lo
+            que hace es liberar lo facturado.
+          </p>
+        </Alert>
       ) : (
-        <p className={styles.avisoBaja} role="note">
-          Esta factura está <strong>anulada</strong>. No se modifica, y lo que facturaba volvió a
-          quedar pendiente de facturar.
-        </p>
+        <Alert tone="neutral">
+          <p>
+            Esta factura está <strong>anulada</strong>. No se modifica, y lo que facturaba volvió a
+            quedar pendiente de facturar.
+          </p>
+        </Alert>
       )}
 
       {aviso ? (
-        <p className={styles.avisoBaja} role="status">
-          {aviso}
-        </p>
+        <Alert tone="success" role="status">
+          <p>{aviso}</p>
+        </Alert>
       ) : null}
       {acciones.registrar.error || acciones.anular.error || acciones.borrar.error ? (
-        <p className={styles.error} role="alert">
-          {acciones.registrar.error?.message ??
-            acciones.anular.error?.message ??
-            acciones.borrar.error?.message}
-        </p>
+        <Alert tone="danger" role="alert" title="No se pudo completar la acción">
+          <p>
+            {acciones.registrar.error?.message ??
+              acciones.anular.error?.message ??
+              acciones.borrar.error?.message}
+          </p>
+        </Alert>
       ) : null}
+
+      <ActionBar
+        primary={
+          escribe && puede.registrar ? (
+            <Button icon={<Icon name="check" size={16} />} onClick={() => setRegistrando(true)}>
+              Registrar factura
+            </Button>
+          ) : null
+        }
+        secondary={
+          // Imprimir: se imprime lo que el proveedor facturó, sin arreglar
+          // nada. Si facturó a otro precio que la orden, sale ese precio.
+          <Button variant="secondary" icon={<Icon name="printer" size={16} />} onClick={() => setImprimiendo(true)}>
+            Imprimir
+          </Button>
+        }
+        danger={
+          (escribe && puede.anular) || (escribe && puede.borrar) ? (
+            <>
+              {escribe && puede.anular ? (
+                <Button variant="secondary" onClick={() => setAnulando(true)}>
+                  Anular factura
+                </Button>
+              ) : null}
+              {escribe && puede.borrar ? (
+                <Button variant="danger" icon={<Icon name="trash" size={16} />} onClick={() => setBorrando(true)}>
+                  Borrar borrador
+                </Button>
+              ) : null}
+            </>
+          ) : null
+        }
+      />
 
       {diferencias.length > 0 ? (
         <div className={styles.revision} role="note">
@@ -483,6 +412,59 @@ export function FacturaDetallePage() {
           esHistorico={false}
         />
       </section>
+      <ConfirmDialog
+        open={registrando}
+        title={`¿Registrar la factura ${factura.numeroProveedor ?? factura.numero}?`}
+        description="Queda congelada y lo facturado deja de estar pendiente. Una factura no mueve stock."
+        confirmLabel="Registrar factura"
+        cancelLabel="Volver"
+        busy={acciones.registrar.isPending}
+        onCancel={() => setRegistrando(false)}
+        onConfirm={() =>
+          acciones.registrar.mutate(undefined, {
+            onSuccess: (r) => {
+              setRegistrando(false)
+              setAviso(r.yaEstaba ? 'Esta factura ya estaba registrada.' : `Registrada. ${r.lineas} ${r.lineas === 1 ? 'línea' : 'líneas'}.`)
+            },
+            onError: () => setRegistrando(false),
+          })
+        }
+      />
+      <ConfirmDialog
+        open={anulando}
+        tone="danger"
+        title={`¿Anular la factura ${factura.numeroProveedor ?? factura.numero}?`}
+        description="No se puede deshacer: la factura queda anulada y lo que facturaba vuelve a estar pendiente de facturar."
+        confirmLabel="Anular factura"
+        cancelLabel="Volver"
+        busy={acciones.anular.isPending}
+        onCancel={() => setAnulando(false)}
+        onConfirm={() =>
+          acciones.anular.mutate(undefined, {
+            onSuccess: (ok) => {
+              setAnulando(false)
+              if (!ok) setAviso('Alguien más ya cambió el estado de esta factura.')
+            },
+            onError: () => setAnulando(false),
+          })
+        }
+      />
+      <ConfirmDialog
+        open={borrando}
+        tone="danger"
+        title={`¿Borrar el borrador ${factura.numero}?`}
+        description="Se borra la factura en borrador y sus líneas. No se puede deshacer."
+        confirmLabel="Borrar borrador"
+        cancelLabel="Volver"
+        busy={acciones.borrar.isPending}
+        onCancel={() => setBorrando(false)}
+        onConfirm={() =>
+          acciones.borrar.mutate(undefined, {
+            onSuccess: () => void navegar('/compras/facturas'),
+            onError: () => setBorrando(false),
+          })
+        }
+      />
     </div>
   )
 }

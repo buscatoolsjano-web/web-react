@@ -166,6 +166,7 @@ export function ProveedoresPage() {
             cargando={isFetching}
             onIr={(pagina) => aplicar({ pagina })}
             onTamano={(porPagina) => aplicar({ porPagina })}
+            sustantivo={{ singular: 'proveedor', plural: 'proveedores' }}
           />
         </>
       )}

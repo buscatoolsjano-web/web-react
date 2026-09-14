@@ -1,6 +1,11 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/icons/Icon'
+import { Alert } from '@/components/feedback/Alert'
+import docUi from '@/components/document/Document.module.css'
 import { FormularioPedido } from '../components/FormularioPedido'
 import { permisosDe } from '../lib/permisos'
 import { problemasDeLinea } from '../lib/lineas'
@@ -75,30 +80,22 @@ export function PedidoNuevoPage() {
 
   if (!permisos.crearProveedor) {
     return (
-      <div className={styles.page}>
-        <Link to="/compras/pedidos" className={styles.volver}>
-          ← Pedidos de compra
-        </Link>
-        <p className={styles.nota}>Tu rol no puede dar de alta pedidos de compra.</p>
+      <div className={docUi.pagina}>
+        <PageHeader back={{ to: '/compras/pedidos', label: 'Pedidos de compra' }} title="Nuevo pedido de compra" />
+        <Alert tone="neutral">
+          <p>Tu rol no puede dar de alta pedidos de compra.</p>
+        </Alert>
       </div>
     )
   }
 
   return (
-    <div className={styles.page}>
-      <Link to="/compras/pedidos" className={styles.volver}>
-        ← Pedidos de compra
-      </Link>
-
-      <header className={styles.encabezado}>
-        <div className={styles.identidad}>
-          <h1 className={styles.titulo}>Nuevo pedido de compra</h1>
-          <p className={styles.subtitulo}>
-            El número lo asigna el servidor al guardar. El pedido nace en borrador: confirmarlo
-            es otra acción.
-          </p>
-        </div>
-      </header>
+    <div className={docUi.pagina}>
+      <PageHeader
+        back={{ to: '/compras/pedidos', label: 'Pedidos de compra' }}
+        title="Nuevo pedido de compra"
+        subtitle="El número lo asigna el servidor al guardar. El pedido nace en borrador: confirmarlo es otra acción."
+      />
 
       <section className={styles.bloque}>
         <FormularioPedido
@@ -118,28 +115,18 @@ export function PedidoNuevoPage() {
         />
 
         {crear.error ? (
-          <p className={styles.error} role="alert">
-            {crear.error.message}
-          </p>
+          <Alert tone="danger" role="alert">
+            <p>{crear.error.message}</p>
+          </Alert>
         ) : null}
 
         <div className={styles.acciones}>
-          <button
-            type="button"
-            className={styles.primario}
-            disabled={crear.isPending}
-            onClick={guardar}
-          >
+          <Button icon={<Icon name="check" size={16} />} loading={crear.isPending} disabled={false} onClick={guardar}>
             {crear.isPending ? 'Guardando…' : 'Crear pedido'}
-          </button>
-          <button
-            type="button"
-            className={styles.secundario}
-            disabled={crear.isPending}
-            onClick={() => void navegar('/compras/pedidos')}
-          >
+          </Button>
+          <Button variant="ghost" disabled={crear.isPending} onClick={() => void navegar('/compras/pedidos')}>
             Cancelar
-          </button>
+          </Button>
         </div>
       </section>
     </div>

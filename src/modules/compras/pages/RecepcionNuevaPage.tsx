@@ -1,6 +1,12 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/icons/Icon'
+import { Spinner } from '@/components/ui/Spinner'
+import { Alert } from '@/components/feedback/Alert'
+import docUi from '@/components/document/Document.module.css'
 import { GrillaRecepcion } from '../components/GrillaRecepcion'
 import { permisosDe } from '../lib/permisos'
 import { formatearFecha } from '../lib/formato'
@@ -56,52 +62,56 @@ export function RecepcionNuevaPage() {
 
   if (!permisos.crearProveedor) {
     return (
-      <div className={styles.page}>
-        <Link to="/compras/recepciones" className={styles.volver}>
-          ← Notas de entrada
-        </Link>
-        <p className={styles.nota}>Tu rol no puede registrar recepciones.</p>
+      <div className={docUi.pagina}>
+        <PageHeader back={{ to: '/compras/recepciones', label: 'Notas de entrada' }} title="Recibir mercadería" />
+        <Alert tone="neutral">
+          <p>Tu rol no puede registrar recepciones.</p>
+        </Alert>
       </div>
     )
   }
 
   if (!pedidoId) {
     return (
-      <div className={styles.page}>
-        <Link to="/compras/pedidos" className={styles.volver}>
-          ← Pedidos de compra
-        </Link>
-        <p className={styles.nota}>
-          Una recepción se crea desde un pedido de compra confirmado. Abrí el pedido y usá
-          «Recibir mercadería».
-        </p>
+      <div className={docUi.pagina}>
+        <PageHeader back={{ to: '/compras/pedidos', label: 'Pedidos de compra' }} title="Recibir mercadería" />
+        <Alert tone="neutral">
+          <p>Una recepción se crea desde un pedido de compra confirmado. Abrí el pedido y usá
+          «Recibir mercadería».</p>
+        </Alert>
       </div>
     )
   }
 
-  if (cargandoPedido) return <p className={styles.nota}>Cargando…</p>
+  if (cargandoPedido) {
+    return (
+      <p className={styles.nota} role="status">
+        <Spinner size={20} /> Cargando pedido…
+      </p>
+    )
+  }
 
   if (!pedido) {
     return (
-      <div className={styles.page}>
-        <Link to="/compras/pedidos" className={styles.volver}>
-          ← Pedidos de compra
-        </Link>
-        <p className={styles.nota}>No se encontró el pedido, o no tenés acceso.</p>
+      <div className={docUi.pagina}>
+        <PageHeader back={{ to: '/compras/pedidos', label: 'Pedidos de compra' }} title="Recibir mercadería" />
+        <Alert tone="neutral">
+          <p>No se encontró el pedido, o no tenés acceso.</p>
+        </Alert>
       </div>
     )
   }
 
   if (pedido.estado !== 'confirmed') {
     return (
-      <div className={styles.page}>
-        <Link to={`/compras/pedidos/${pedido.id}`} className={styles.volver}>
-          ← {pedido.numero}
-        </Link>
-        <p className={styles.nota}>
-          Sólo se recibe contra un pedido <strong>confirmado</strong>. Este está en{' '}
-          {pedido.estado === 'draft' ? 'borrador' : 'estado cancelado'}.
-        </p>
+      <div className={docUi.pagina}>
+        <PageHeader back={{ to: `/compras/pedidos/${pedido.id}`, label: pedido.numero }} title="Recibir mercadería" />
+        <Alert tone="neutral">
+          <p>
+            Sólo se recibe contra un pedido <strong>confirmado</strong>. Este está en{' '}
+            {pedido.estado === 'draft' ? 'borrador' : 'estado cancelado'}.
+          </p>
+        </Alert>
       </div>
     )
   }
@@ -151,24 +161,19 @@ export function RecepcionNuevaPage() {
   }
 
   return (
-    <div className={styles.page}>
-      <Link to={`/compras/pedidos/${pedido.id}`} className={styles.volver}>
-        ← {pedido.numero}
-      </Link>
+    <div className={docUi.pagina}>
+      <PageHeader
+        back={{ to: `/compras/pedidos/${pedido.id}`, label: pedido.numero }}
+        title="Recibir mercadería"
+        subtitle={`${pedido.numero} · ${pedido.proveedor} · ${formatearFecha(pedido.fecha)}`}
+      />
 
-      <header className={styles.encabezado}>
-        <div className={styles.identidad}>
-          <h1 className={styles.titulo}>Recibir mercadería</h1>
-          <p className={styles.subtitulo}>
-            {pedido.numero} · {pedido.proveedor} · {formatearFecha(pedido.fecha)}
-          </p>
-        </div>
-      </header>
-
-      <p className={styles.avisoBaja} role="note">
-        La recepción se guarda en <strong>borrador</strong> y no mueve stock. El stock entra
-        cuando la confirmes, desde su ficha.
-      </p>
+      <Alert tone="info">
+        <p>
+          La recepción se guarda en <strong>borrador</strong> y no mueve stock. El stock entra
+          cuando la confirmes, desde su ficha.
+        </p>
+      </Alert>
 
       <section className={styles.bloque}>
         <dl className={styles.datos}>
@@ -248,9 +253,9 @@ export function RecepcionNuevaPage() {
         {pendiente.isPending ? (
           <p className={styles.nota}>Cargando lo pendiente…</p>
         ) : pendiente.error ? (
-          <p className={styles.error} role="alert">
-            {pendiente.error.message}
-          </p>
+          <Alert tone="danger" role="alert">
+            <p>{pendiente.error.message}</p>
+          </Alert>
         ) : (
           <GrillaRecepcion
             lineas={lineas}
@@ -262,28 +267,18 @@ export function RecepcionNuevaPage() {
         )}
 
         {crear.error ? (
-          <p className={styles.error} role="alert">
-            {crear.error.message}
-          </p>
+          <Alert tone="danger" role="alert">
+            <p>{crear.error.message}</p>
+          </Alert>
         ) : null}
 
         <div className={styles.acciones}>
-          <button
-            type="button"
-            className={styles.primario}
-            disabled={crear.isPending || !depositoId || !hayAlgo || excede}
-            onClick={guardar}
-          >
+          <Button icon={<Icon name="check" size={16} />} loading={crear.isPending} disabled={!depositoId || !hayAlgo || excede} onClick={guardar}>
             {crear.isPending ? 'Guardando…' : 'Crear recepción en borrador'}
-          </button>
-          <button
-            type="button"
-            className={styles.secundario}
-            disabled={crear.isPending}
-            onClick={() => void navegar(`/compras/pedidos/${pedido.id}`)}
-          >
+          </Button>
+          <Button variant="ghost" disabled={crear.isPending} onClick={() => void navegar(`/compras/pedidos/${pedido.id}`)}>
             Cancelar
-          </button>
+          </Button>
         </div>
       </section>
     </div>

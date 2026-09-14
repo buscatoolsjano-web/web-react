@@ -1,0 +1,72 @@
+.barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.busqueda {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.filtros {
+  display: contents;
+}
+
+.filtros[hidden] {
+  display: none;
+}
+
+/* Cada filtro: ancho natural con mínimo razonable; las fechas no se estiran. */
+.filtros > * {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.filtros > :where(select, [data-filtro='select']) {
+  min-width: 160px;
+}
+
+.limpiar {
+  margin-left: auto;
+}
+
+.contador {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+@media (max-width: 767px) {
+  .barra {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .busqueda,
+  .plegar {
+    width: 100%;
+    flex: none;
+  }
+  .filtros {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .filtros > * {
+    width: 100%;
+  }
+  .limpiar {
+    margin-left: 0;
+  }
+}

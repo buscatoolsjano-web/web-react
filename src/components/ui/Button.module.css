@@ -125,3 +125,11 @@
 .spinner {
   flex: none;
 }
+
+/* LinkButton: un <a> con el aspecto del botón. */
+.enlace {
+  text-decoration: none;
+}
+.enlace:hover {
+  text-decoration: none;
+}

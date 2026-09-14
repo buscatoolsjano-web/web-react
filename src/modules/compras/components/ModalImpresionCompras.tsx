@@ -1,4 +1,8 @@
-import { useState } from 'react'
+import { useId, useRef, useState } from 'react'
+import { useModalAccesible } from '@/components/modals/useModalAccesible'
+import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
+import { Icon } from '@/components/icons/Icon'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import {
@@ -58,16 +62,20 @@ export function ModalImpresionCompras({ doc, onCerrar }: ModalImpresionComprasPr
     setTimeout(limpiar, 3000)
   }
 
+  const caja = useRef<HTMLDivElement>(null)
+  const idTitulo = useId()
+  // Fase 13: foco adentro, Escape y retorno del foco, sin cambiar la estructura
+  // (la hoja de impresión depende de ella).
+  useModalAccesible(caja, { onClose: onCerrar })
+
   return (
-    <div className={styles.fondo} role="dialog" aria-modal="true" aria-label="Vista previa">
-      <div className={styles.caja}>
+    <div className={styles.fondo}>
+      <div ref={caja} className={styles.caja} role="dialog" aria-modal="true" aria-labelledby={idTitulo} tabIndex={-1}>
         <header className={styles.cabecera} data-no-imprimir>
-          <h2 className={styles.titulo}>
+          <h2 id={idTitulo} className={styles.titulo}>
             Vista previa <span className={styles.ref}>{doc.numero}</span>
           </h2>
-          <button type="button" className={styles.cerrar} onClick={onCerrar} aria-label="Cerrar">
-            ×
-          </button>
+          <IconButton icon="x" aria-label="Cerrar" onClick={onCerrar} />
         </header>
 
         <div className={styles.cuerpo}>
@@ -84,9 +92,9 @@ export function ModalImpresionCompras({ doc, onCerrar }: ModalImpresionComprasPr
               </select>
             </label>
 
-            <button type="button" className={styles.primario} onClick={imprimir}>
+            <Button icon={<Icon name="printer" size={16} />} onClick={imprimir}>
               Imprimir
-            </button>
+            </Button>
             <p className={styles.ayuda}>
               Se imprime exactamente lo que se ve. Para guardar un PDF, elegí «Guardar como PDF»
               en el diálogo del navegador.

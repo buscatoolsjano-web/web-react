@@ -69,12 +69,14 @@
 /* El aviso de revisión no se puede cerrar: es el que explica por qué un dato
    está vacío o por qué hay dos clientes parecidos. */
 .revision {
-  border: 1px solid var(--warning);
-  border-radius: var(--radius);
-  background: var(--warning-bg, var(--surface));
-  color: var(--warning-text);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+  border-left: 4px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
   padding: var(--space-3) var(--space-4);
   font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 
 .motivos {
@@ -89,41 +91,44 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .pestana,
 .pestanaActiva {
-  min-height: 44px;
+  min-height: var(--touch-target);
   padding: var(--space-2) var(--space-3);
+  font: inherit;
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: var(--text-soft);
+  margin-bottom: -1px;
+  color: var(--color-text-soft);
   cursor: pointer;
 }
 
 .pestanaActiva {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
+  color: var(--color-primary-text);
+  border-bottom-color: var(--color-brand-500);
 }
 
 .pestana:hover {
-  color: var(--text);
+  color: var(--color-text);
 }
 
 .pestana:focus-visible,
 .pestanaActiva:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: var(--focus-outline);
   outline-offset: -2px;
+  border-radius: var(--radius-sm);
 }
 
 .bloque {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
   padding: var(--space-4);
   min-width: 0;
 }
@@ -131,8 +136,8 @@
 .datos {
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-3) var(--space-5);
 }
 
 .dato {
@@ -141,9 +146,8 @@
 
 .datoEtiqueta {
   font-size: var(--text-xs);
-  color: var(--text-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-weight: var(--weight-medium);
+  color: var(--color-text-soft);
 }
 
 .datoValor {
@@ -169,7 +173,8 @@
 }
 
 .enlace {
-  color: var(--primary);
+  color: var(--color-primary-text);
+  font-weight: var(--weight-semibold);
   text-decoration: none;
 }
 
@@ -185,15 +190,21 @@
 }
 
 .nota {
-  color: var(--text-soft);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-soft);
 }
 
 .error {
-  padding: var(--space-4);
-  border: 1px solid var(--danger);
-  border-radius: var(--radius);
-  color: var(--danger);
-  background: var(--surface);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+  border-left: 4px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  color: var(--color-danger-text);
+  background: var(--color-danger-soft);
+  font-size: var(--text-sm);
 }
 
 .acciones {
@@ -205,23 +216,17 @@
 
 .secundario,
 .peligro {
-  min-height: 44px;
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  cursor: pointer;
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger-text);
 }
 
 .secundario {
-  border: 1px solid var(--border);
-  color: var(--text);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text);
 }
 
 .secundario:hover:not(:disabled) {
-  border-color: var(--primary);
-  color: var(--primary);
+  background: var(--color-surface-alt);
 }
 
 .peligro {
@@ -246,11 +251,13 @@
 .avisoBaja {
   margin: 0;
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-alt);
-  color: var(--text-soft);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  color: var(--color-text-soft);
   font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 
 .motivos li {
@@ -337,8 +344,8 @@
   font-size: 16px;
   min-height: 44px;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
   width: 100%;
@@ -355,8 +362,9 @@
 
 .selectDato:focus-visible,
 .areaDato:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
 }
 
 .selectDato:disabled,
@@ -389,12 +397,10 @@
 }
 
 .tablaLineas thead th {
-  background: var(--surface-alt);
-  color: var(--text-soft);
-  font-weight: 600;
+  background: var(--color-surface-alt);
+  color: var(--color-text-soft);
+  font-weight: var(--weight-semibold);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
   white-space: nowrap;
 }
 
@@ -419,4 +425,11 @@ a.primario {
   text-decoration: none;
   display: inline-flex;
   align-items: center;
+}
+
+@media (pointer: coarse), (max-width: 767px) {
+  .secundario,
+  .peligro {
+    min-height: var(--touch-target);
+  }
 }

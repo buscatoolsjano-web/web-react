@@ -1,0 +1,260 @@
+/* ── Página de documento ──────────────────────────────────────────────── */
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  max-width: 1200px;
+}
+
+/* Total en el encabezado */
+.importe {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.importeValor {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.importeLabel {
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+}
+
+@media (max-width: 767px) {
+  .importe {
+    justify-items: start;
+  }
+}
+
+/* ── Barra de acciones (en el flujo, nunca sobre el contenido) ─────────── */
+.actionBar {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.actionFila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.actionPrimaria,
+.actionGrupo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.actionPeligro {
+  margin-left: auto;
+}
+
+.actionNota {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.actionNota p {
+  margin: 0;
+}
+
+@media (max-width: 767px) {
+  .actionFila {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .actionPrimaria > *,
+  .actionGrupo > * {
+    flex: 1 1 auto;
+  }
+  .actionPeligro {
+    margin-left: 0;
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+/* ── Secciones ─────────────────────────────────────────────────────────── */
+.seccion {
+  min-width: 0;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.seccionFlush {
+  padding: 0;
+  overflow: hidden;
+}
+
+.seccionFlush > .seccionCabecera {
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.seccionCabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.seccionTitulo {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  color: var(--color-text);
+}
+
+.seccionAcciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ── Metadatos ─────────────────────────────────────────────────────────── */
+.meta {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-3) var(--space-5);
+}
+
+.metaItem {
+  min-width: 0;
+}
+
+.metaAncho {
+  grid-column: 1 / -1;
+}
+
+.metaLabel {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-soft);
+}
+
+.metaValor {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.falta {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* ── Totales ───────────────────────────────────────────────────────────── */
+.totales {
+  display: grid;
+  justify-items: end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.totalesLista {
+  margin: 0;
+  display: grid;
+  gap: var(--space-1);
+  min-width: min(320px, 100%);
+}
+
+.totalFila {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.totalFila dd {
+  margin: 0;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.totalFinal {
+  margin-top: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+}
+
+.totalesNota {
+  margin: 0;
+  max-width: 60ch;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+@media (max-width: 767px) {
+  .totales,
+  .totalesNota {
+    justify-items: stretch;
+    text-align: left;
+  }
+  .totalesLista {
+    min-width: 0;
+  }
+}
+
+/* ── Enlaces dentro de documentos ──────────────────────────────────────── */
+.enlace {
+  color: var(--color-primary-text);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.enlace:hover {
+  text-decoration: underline;
+}
+
+.enlace:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Página de listado ─────────────────────────────────────────────────── */
+.listado {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.listado > header {
+  margin-bottom: 0;
+}
+
+/* Motivo visible de una acción deshabilitada (no sólo tooltip). */
+.motivo {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
