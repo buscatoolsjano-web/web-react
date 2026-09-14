@@ -7,6 +7,8 @@ export interface EmpresaContextValue {
   cargando: boolean
   error: Error | null
   cambiarEmpresa: (companyId: string) => void
+  /** Vuelve a pedir las membresías (tras un error de red). */
+  reintentar: () => void
 }
 
 /**

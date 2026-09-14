@@ -29,6 +29,7 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
     data: membresias = [],
     isPending,
     error,
+    refetch,
   } = useQuery({
     queryKey: ['empresa', 'membresias', userId],
     queryFn: () => listarMembresias(userId!),
@@ -71,8 +72,9 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
       cargando: userId !== null && isPending,
       error: error instanceof Error ? error : null,
       cambiarEmpresa,
+      reintentar: () => void refetch(),
     }),
-    [membresias, activa, userId, isPending, error, cambiarEmpresa],
+    [membresias, activa, userId, isPending, error, cambiarEmpresa, refetch],
   )
 
   return <EmpresaContext.Provider value={valor}>{children}</EmpresaContext.Provider>

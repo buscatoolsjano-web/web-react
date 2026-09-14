@@ -1,0 +1,534 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   SHELL — Fase 13 · E2.
+   < 768 cajón · 768–1023 barra compacta 64px + cajón · ≥ 1024 sidebar 240px.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+/* ── Header oscuro ─────────────────────────────────────────────────────── */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  flex: none;
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 max(var(--space-4), env(safe-area-inset-right)) 0 max(var(--space-4), env(safe-area-inset-left));
+  background: var(--color-topnav-bg);
+  color: var(--color-topnav-text);
+}
+
+.hamburguesa {
+  margin-left: calc(var(--space-2) * -1);
+  color: var(--color-topnav-text);
+}
+.hamburguesa:not(:disabled):hover {
+  background: var(--color-topnav-hover);
+  color: var(--color-topnav-text);
+}
+
+.marca {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target);
+  flex: none;
+  border-radius: var(--radius-md);
+  color: var(--color-topnav-text);
+  text-decoration: none;
+}
+
+.marca:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+/* El PNG oficial tiene «tools» en gris oscuro sobre fondo transparente: sobre
+   el header negro no se leería. Se apoya en una placa clara sin alterar el
+   archivo. Cuando llegue el SVG oficial se reemplaza sólo el asset. */
+.logoFondo {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.logo {
+  display: block;
+  width: auto;
+  height: 34px;
+}
+
+.marcaErp {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.08em;
+  color: var(--color-topnav-text-soft);
+}
+
+.espaciador {
+  flex: 1;
+}
+
+.sesion {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* ── Menú de usuario ───────────────────────────────────────────────────── */
+.usuario {
+  position: relative;
+  flex: none;
+}
+
+.usuarioBoton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--touch-target);
+  padding: 0 var(--space-2) 0 var(--space-1);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-topnav-text);
+  cursor: pointer;
+}
+
+.usuarioBoton:hover {
+  background: var(--color-topnav-hover);
+}
+
+.usuarioBoton:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--color-brand-500);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.usuarioFlecha {
+  color: var(--color-topnav-text-soft);
+}
+
+.usuarioPanel {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: var(--z-dropdown);
+  width: min(280px, calc(100vw - var(--space-6)));
+  padding: var(--space-2);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.usuarioDatos {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-2);
+}
+
+.usuarioNombre {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.usuarioEmail,
+.usuarioEmpresa {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+  overflow-wrap: anywhere;
+}
+
+.usuarioSalir {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.usuarioSalir:hover {
+  background: var(--color-neutral-soft);
+}
+
+.usuarioSalir:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -2px;
+}
+
+/* ── Cuerpo ────────────────────────────────────────────────────────────── */
+.cuerpo {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.main {
+  flex: 1;
+  /* clave: permite que los hijos scrolleen sin empujar el body */
+  min-width: 0;
+  padding: var(--space-4);
+  padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
+}
+
+@media (min-width: 768px) {
+  .main {
+    padding: var(--space-5);
+  }
+}
+
+/* ── Sidebar ≥ 1024 ────────────────────────────────────────────────────── */
+.sidebar {
+  position: sticky;
+  top: var(--header-h);
+  flex: none;
+  width: var(--sidebar-w);
+  height: calc(100dvh - var(--header-h));
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--color-sidebar-bg);
+  border-right: 1px solid var(--color-border);
+}
+
+/* ── Panel de navegación (sidebar y cajón) ─────────────────────────────── */
+/* minmax(0, 1fr): sin esto la fila más ancha («WhatsApp · Próximamente»)
+   estira la columna y aparece scroll horizontal en la sidebar. */
+.panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-3) var(--space-5);
+}
+
+.grupo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+}
+
+.grupoTitulo {
+  margin: 0;
+  padding: 0 var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.lista,
+.hijos {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item,
+.hijo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-soft);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.item svg {
+  flex: none;
+}
+
+.item:hover,
+.hijo:hover {
+  background: var(--color-neutral-soft);
+  color: var(--color-text);
+}
+
+.item:focus-visible,
+.hijo:focus-visible,
+.compactaItem:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -2px;
+}
+
+.itemTexto {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* `hidden` en la lista de hijos: el display:grid de arriba le ganaría al UA. */
+.hijos[hidden] {
+  display: none;
+}
+
+/* Activo: fondo suave de marca + barra de marca a la izquierda (no sólo color). */
+.itemActivo,
+.itemActivo:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+  font-weight: var(--weight-semibold);
+}
+
+.itemActivo::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-brand-500);
+}
+
+.itemPadreActivo {
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+}
+
+.flecha {
+  color: var(--color-text-muted);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.flechaAbierta {
+  transform: rotate(180deg);
+}
+
+.hijos {
+  margin: 2px 0 var(--space-1);
+}
+
+.hijo {
+  /* Alineado con el texto del padre: padding + ícono 20 + gap. */
+  padding-left: calc(var(--space-3) + 20px + var(--space-3));
+}
+
+.itemProximamente,
+.itemProximamente:hover {
+  cursor: default;
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.pronto {
+  flex: none;
+  padding: 1px var(--space-2);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* ── Barra compacta 768–1023 ───────────────────────────────────────────── */
+.sidebarCompacta {
+  position: sticky;
+  top: var(--header-h);
+  flex: none;
+  width: var(--sidebar-w-compact);
+  height: calc(100dvh - var(--header-h));
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--color-sidebar-bg);
+  border-right: 1px solid var(--color-border);
+}
+
+.compacta {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0 var(--space-5);
+}
+
+.compactaLista {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.compactaItem {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-soft);
+  cursor: pointer;
+}
+
+.compactaItem:hover {
+  background: var(--color-neutral-soft);
+  color: var(--color-text);
+}
+
+.compactaActivo,
+.compactaActivo:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+}
+
+.compactaActivo::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-brand-500);
+}
+
+.compactaSeparador {
+  width: 24px;
+  height: 1px;
+  margin: var(--space-2) 0;
+  background: var(--color-border);
+}
+
+/* ── Cajón (mobile y panel expandido de tablet) ────────────────────────── */
+.velo {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-drawer);
+  padding: 0;
+  border: 0;
+  background: var(--color-overlay);
+  animation: aparecer var(--duration-base) var(--ease-standard);
+}
+
+.cajon {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: calc(var(--z-drawer) + 1);
+  width: min(var(--sidebar-w), 86vw);
+  overflow-y: auto;
+  padding-left: env(safe-area-inset-left);
+  background: var(--color-sidebar-bg);
+  box-shadow: var(--shadow-lg);
+  animation: entrar var(--duration-base) var(--ease-standard);
+}
+
+@media (min-width: 768px) {
+  .cajon {
+    width: 280px;
+  }
+}
+
+.cajonCabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-h);
+  padding: 0 var(--space-2) 0 var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cajonTitulo {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes entrar {
+  from {
+    transform: translateX(-16px);
+    opacity: 0;
+  }
+}
+
+/* ── Estados del shell ─────────────────────────────────────────────────── */
+.estadoCentro {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 40vh;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+}
+
+/* Mobile: el header sólo tiene lugar para marca, empresa y avatar. */
+@media (max-width: 767px) {
+  .header {
+    gap: var(--space-2);
+  }
+  .marcaErp {
+    display: none;
+  }
+  .logoFondo {
+    height: 36px;
+  }
+  .logo {
+    height: 30px;
+  }
+  .usuarioFlecha {
+    display: none;
+  }
+}

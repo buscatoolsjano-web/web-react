@@ -11,13 +11,13 @@ export interface EmptyStateProps {
   /** CTA si el rol puede crear, o «Limpiar filtros». */
   action?: ReactNode | undefined
   /** Nivel del título según el lugar donde se usa. */
-  headingLevel?: 2 | 3 | undefined
+  headingLevel?: 1 | 2 | 3 | undefined
   compact?: boolean | undefined
   className?: string | undefined
 }
 
 export function EmptyState({ title, description, icon, action, headingLevel = 2, compact = false, className }: EmptyStateProps) {
-  const Titulo = headingLevel === 2 ? 'h2' : 'h3'
+  const Titulo = headingLevel === 1 ? 'h1' : headingLevel === 2 ? 'h2' : 'h3'
   return (
     <div className={cx(styles.estado, compact && styles.compacto, className)}>
       {icon && (

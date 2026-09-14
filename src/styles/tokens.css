@@ -74,6 +74,7 @@
   --color-topnav-text: #ffffff;
   --color-topnav-text-soft: #b0b0b0;
   --color-topnav-hover: #2d2d2d;
+  --color-topnav-border: #4a4a48; /* límite de controles en el header oscuro */
   --color-sidebar-bg: #ffffff;
 
   /* Foco: anillo de marca con separación (≥ 3:1 contra blanco por el halo oscuro) */

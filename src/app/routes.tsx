@@ -4,6 +4,7 @@ import { AppLayout } from '@/layouts/AppLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
 import { ErrorPage } from '@/app/ErrorPage'
+import { CargandoRuta } from '@/app/CargandoRuta'
 
 const CLAVE_RECARGA = 'bt-chunk-recargado'
 
@@ -268,7 +269,7 @@ const rutasDesarrollo: RouteObject[] = import.meta.env.DEV
   : []
 
 function conSuspense(nodo: ReactNode): ReactNode {
-  return <Suspense fallback={<p style={{ padding: '1rem' }}>Cargando…</p>}>{nodo}</Suspense>
+  return <Suspense fallback={<CargandoRuta />}>{nodo}</Suspense>
 }
 
 /**
@@ -388,6 +389,10 @@ export const routes: RouteObject[] = [
           { path: 'auditoria', element: conSuspense(<AuditoriaPage />) },
         ],
       },
+
+      // Fase 13 · E2: el 404 vive dentro del shell (header y navegación a mano).
+      // Es privado como el resto: sin sesión, primero el login y después el 404.
+      { path: '*', element: privada(<NotFoundPage />) },
     ],
   },
   {
@@ -403,5 +408,4 @@ export const routes: RouteObject[] = [
     ],
   },
   ...rutasDesarrollo,
-  { path: '*', element: conSuspense(<NotFoundPage />), errorElement: <ErrorPage /> },
 ]

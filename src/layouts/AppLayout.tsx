@@ -1,187 +1,145 @@
-import { useEffect, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
-import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useEffect, useId, useRef, useState } from 'react'
+import { Link, Outlet, useLocation } from 'react-router-dom'
+import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
 import { useAuth } from '@/features/auth/useAuth'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { EmpresaSelector } from '@/features/empresa/EmpresaSelector'
-import { cx } from '@/utils/cx'
-import { ROLES_EMAILS } from '@/modules/emails/lib/permisos'
-import { ROLES_INFORMES } from '@/modules/informes/lib/permisos'
-import { ROLES_CONFIGURACION } from '@/modules/configuracion/lib/permisos'
-import styles from './AppLayout.module.css'
+import { IconButton } from '@/components/ui/IconButton'
+import { navegacionPara } from './navegacion'
+import { PanelNav } from './PanelNav'
+import { BarraCompacta } from './BarraCompacta'
+import { MenuUsuario } from './MenuUsuario'
+import { EstadoEmpresa } from './EstadoEmpresa'
+import { nombreVisible } from './sesion'
+import styles from './Shell.module.css'
 
-/** Los roles que escriben en Compras. Es el conjunto de la RLS de la sección. */
-const ESCRIBEN_COMPRAS = ['admin', 'employee'] as const
-
-/**
- * Los roles de Mantenimiento. Hoy el mismo conjunto que Compras, pero por su
- * propia razón: `app.current_maintenance_company_ids()` es admin + employee.
- * Son dos helpers distintos y pueden divergir, así que son dos constantes.
- */
-const ESCRIBEN_MANTENIMIENTO = ['admin', 'employee'] as const
+/** Mismo punto de corte que la escala de tokens: 768–1023 es tablet. */
+const TABLET = '(min-width: 768px) and (max-width: 1023px)'
 
 /**
- * Navegación provisoria de FASE 1.
+ * Shell de la app (Fase 13 · E2).
  *
- * Solo Dashboard está montado. El resto son los módulos previstos, listados
- * como referencia visual del shell.
+ * - ≥ 1024px: sidebar clara de 240px con la navegación agrupada.
+ * - 768–1023px: barra compacta de 64px; el panel completo se abre encima.
+ * - < 768px: el panel completo es un cajón que abre la hamburguesa.
  *
- * En Fase 2.5 esta lista pasa a filtrarse por permisos: las secciones sin
- * permiso NO se renderizan. No se ocultan con CSS — ese fue el error del
- * legacy, donde los permisos eran `el.style.display = 'none'`.
+ * La navegación sale de `navegacion.ts`, filtrada por el rol de la empresa
+ * activa con las mismas reglas de Fase 1. Ocultar un enlace no es un control
+ * de acceso: eso lo hace RLS.
  */
-const NAV = [
-  { to: '/', label: 'Dashboard', end: true },
-  { to: '/catalogo', label: 'Catálogo', end: false },
-  // Ventas entra por sus tres subsecciones, igual que en el legacy: la
-  // sección sola nunca tuvo pantalla propia.
-  { to: '/ventas/cotizaciones', label: 'Cotizaciones', end: false },
-  { to: '/ventas/pedidos', label: 'Pedidos', end: false },
-  { to: '/ventas/entregas', label: 'Notas de entrega', end: false },
-  { to: '/clientes', label: 'Clientes', end: false },
-  // Compras. Sólo admin y employee: `roles` filtra el enlace para no ofrecerle
-  // a un vendedor una pantalla que RLS le va a devolver vacía. Ocultar el
-  // enlace es una cortesía, no el control de acceso: las ocho tablas de
-  // Compras usan `app.current_writer_company_ids()`.
-  { to: '/compras/proveedores', label: 'Proveedores', end: false, roles: ESCRIBEN_COMPRAS },
-  { to: '/compras/pedidos', label: 'Pedidos de compra', end: false, roles: ESCRIBEN_COMPRAS },
-  { to: '/compras/recepciones', label: 'Notas de entrada', end: false, roles: ESCRIBEN_COMPRAS },
-  { to: '/compras/facturas', label: 'Facturas de proveedor', end: false, roles: ESCRIBEN_COMPRAS },
-  // Mantenimiento. El rol `technician` existe en el CHECK de
-  // `company_memberships` pero tiene cero miembros y no llegó a la RLS: cuando
-  // exista alguien con ese rol se agrega acá y en el helper, no sólo acá.
-  {
-    to: '/mantenimiento/activos',
-    label: 'Equipos',
-    end: false,
-    roles: ESCRIBEN_MANTENIMIENTO,
-  },
-  {
-    to: '/mantenimiento/ordenes',
-    label: 'Órdenes de servicio',
-    end: false,
-    roles: ESCRIBEN_MANTENIMIENTO,
-  },
-  // Emails. Admin y employee: el conjunto de `app.current_email_company_ids()`.
-  // La constante vive en el módulo y es la misma que usa la página.
-  { to: '/emails', label: 'Emails', end: false, roles: ROLES_EMAILS },
-  // Informes v1: admin y employee (decisión de la entrega 1). La RPC rechaza al
-  // resto con sin_permiso aunque la RLS de ventas les deje leer documentos.
-  { to: '/informes', label: 'Informes', end: false, roles: ROLES_INFORMES },
-  // Configuración: admin y employee (Empresa y Numeración en lectura para
-  // employee; Usuarios sólo admin).
-  { to: '/configuracion', label: 'Configuración', end: false, roles: ROLES_CONFIGURACION },
-] as const
-
-const PROXIMAMENTE = [
-  'WhatsApp',
-] as const
-
 export function AppLayout() {
   const isMobile = useIsMobile()
+  const isTablet = useMediaQuery(TABLET)
   const { user, session, salir } = useAuth()
-  const { activa } = useEmpresa()
-  const [drawerAbierto, setDrawerAbierto] = useState(false)
+  const empresa = useEmpresa()
+  const { pathname } = useLocation()
+  const [cajon, setCajon] = useState<{ abierto: boolean; modulo: string | null }>({ abierto: false, modulo: null })
+  const idCajon = useId()
+  const disparador = useRef<HTMLElement | null>(null)
+  const panelCajon = useRef<HTMLDivElement>(null)
 
-  // Un ítem sin `roles` lo ve cualquiera; uno con `roles`, sólo esos.
-  const rol = activa?.rol ?? ''
-  const navVisible = NAV.filter(
-    (item) => !('roles' in item) || (item.roles as readonly string[]).includes(rol),
-  )
+  const grupos = navegacionPara(empresa.activa?.rol ?? '')
+  const conCajon = isMobile || isTablet
 
-  // Al cruzar el breakpoint, cerrar el drawer.
-  //
-  // Se ajusta DURANTE el render (patrón oficial de React para estado
-  // derivado de props/estado externo) y no en un useEffect: llamar a
-  // setState dentro de un efecto provoca un render en cascada.
-  // https://react.dev/learn/you-might-not-need-an-effect
-  const [eraMobile, setEraMobile] = useState(isMobile)
-  if (eraMobile !== isMobile) {
-    setEraMobile(isMobile)
-    setDrawerAbierto(false)
+  // Cerrar el cajón al cruzar de breakpoint o al cambiar de ruta. Se ajusta
+  // DURANTE el render (patrón de React para estado derivado), no en un efecto.
+  const [visto, setVisto] = useState({ conCajon, pathname })
+  if (visto.conCajon !== conCajon || visto.pathname !== pathname) {
+    setVisto({ conCajon, pathname })
+    if (cajon.abierto) setCajon({ abierto: false, modulo: null })
   }
 
-  // Bloquear el scroll del fondo mientras el drawer está abierto.
+  const abrirCajon = (modulo: string | null) => {
+    disparador.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setCajon({ abierto: true, modulo })
+  }
+  const cerrarCajon = () => setCajon({ abierto: false, modulo: null })
+
+  // Cajón abierto: sin scroll de fondo, foco adentro, Escape cierra y el foco
+  // vuelve a quien lo abrió. El resto del shell queda `inert` (ver JSX).
+  const abierto = cajon.abierto && conCajon
   useEffect(() => {
-    if (!isMobile || !drawerAbierto) return
+    if (!abierto) return
     const previo = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    panelCajon.current?.querySelector<HTMLElement>('a[href], button:not([disabled])')?.focus()
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCajon({ abierto: false, modulo: null })
+    }
+    document.addEventListener('keydown', tecla)
+    const quien = disparador.current
     return () => {
       document.body.style.overflow = previo
+      document.removeEventListener('keydown', tecla)
+      if (quien?.isConnected) quien.focus()
     }
-  }, [isMobile, drawerAbierto])
+  }, [abierto])
 
-  const sidebarVisible = !isMobile || drawerAbierto
+  const email = user?.email ?? ''
 
   return (
     <div className={styles.shell}>
-      <header className={styles.header}>
-        <button
-          type="button"
-          className={styles.burger}
-          onClick={() => setDrawerAbierto((v) => !v)}
-          aria-label={drawerAbierto ? 'Cerrar menú' : 'Abrir menú'}
-          aria-expanded={drawerAbierto}
-        >
-          &#9776;
-        </button>
-        <span className={styles.brand}>BUSCATOOLS</span>
-        <span className={styles.headerSpacer} />
+      <header className={styles.header} inert={abierto || undefined}>
+        {isMobile && (
+          <IconButton
+            icon="menu"
+            aria-label="Abrir menú"
+            aria-expanded={abierto}
+            aria-controls={idCajon}
+            className={styles.hamburguesa}
+            onClick={() => abrirCajon(null)}
+          />
+        )}
+        <Link to="/" className={styles.marca} aria-label="Buscatools ERP, ir al inicio">
+          <span className={styles.logoFondo}>
+            <img src={`${import.meta.env.BASE_URL}brand/buscatools-logo.png`} alt="" className={styles.logo} width={1400} height={673} />
+          </span>
+          <span className={styles.marcaErp} aria-hidden="true">
+            ERP
+          </span>
+        </Link>
+        <span className={styles.espaciador} />
         {session && (
           <div className={styles.sesion}>
             <EmpresaSelector />
-            <span className={styles.email} title={user?.email ?? ''}>
-              {user?.email}
-            </span>
-            <button type="button" className={styles.salir} onClick={() => void salir()}>
-              Salir
-            </button>
+            <MenuUsuario email={email} nombre={nombreVisible(user)} empresa={empresa.activa?.companyName ?? null} rol={empresa.activa?.rol ?? null} onSalir={() => void salir()} />
           </div>
         )}
       </header>
 
-      <div className={styles.body}>
-        {isMobile && drawerAbierto && (
-          <button
-            type="button"
-            className={styles.overlay}
-            aria-label="Cerrar menú"
-            onClick={() => setDrawerAbierto(false)}
-          />
+      <div className={styles.cuerpo}>
+        {!conCajon && (
+          <aside className={styles.sidebar}>
+            <PanelNav grupos={grupos} />
+          </aside>
+        )}
+        {isTablet && (
+          <aside className={styles.sidebarCompacta} inert={abierto || undefined}>
+            <BarraCompacta grupos={grupos} expandida={abierto} onExpandir={abrirCajon} />
+          </aside>
         )}
 
-        <aside
-          className={cx(styles.sidebar, sidebarVisible && styles.sidebarOpen)}
-          aria-hidden={isMobile && !drawerAbierto}
-        >
-          <p className={styles.sidebarTitle}>Módulos</p>
-          <nav className={styles.nav}>
-            {navVisible.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) => cx(styles.navItem, isActive && styles.navItemActive)}
-                // Cerrar el drawer al navegar: en mobile taparía el contenido.
-                onClick={() => setDrawerAbierto(false)}
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
+        {abierto && (
+          <>
+            <button type="button" className={styles.velo} aria-label="Cerrar menú" tabIndex={-1} onClick={cerrarCajon} />
+            <div ref={panelCajon} id={idCajon} className={styles.cajon} role="dialog" aria-modal="true" aria-label="Menú principal">
+              <div className={styles.cajonCabecera}>
+                <span className={styles.cajonTitulo}>Menú</span>
+                <IconButton icon="x" aria-label="Cerrar menú" onClick={cerrarCajon} />
+              </div>
+              <PanelNav grupos={grupos} abrir={cajon.modulo} onNavegar={cerrarCajon} />
+            </div>
+          </>
+        )}
 
-          <p className={cx(styles.sidebarTitle, styles.sidebarTitleSpaced)}>Próximamente</p>
-          <nav className={styles.nav} aria-label="Módulos pendientes de migración">
-            {PROXIMAMENTE.map((label) => (
-              <span key={label} className={cx(styles.navItem, styles.navItemDisabled)}>
-                {label}
-              </span>
-            ))}
-          </nav>
-        </aside>
-
-        <main className={styles.main}>
-          <Outlet />
+        <main className={styles.main} inert={abierto || undefined}>
+          {session ? (
+            <EstadoEmpresa cargando={empresa.cargando} error={empresa.error} sinEmpresa={!empresa.activa} onReintentar={empresa.reintentar} onSalir={() => void salir()}>
+              <Outlet />
+            </EstadoEmpresa>
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
     </div>

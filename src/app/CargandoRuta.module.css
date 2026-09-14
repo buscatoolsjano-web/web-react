@@ -1,0 +1,10 @@
+.cargando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 40vh;
+  padding: var(--space-4);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+}

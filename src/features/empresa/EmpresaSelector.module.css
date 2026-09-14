@@ -1,64 +1,91 @@
+/* Empresa activa en el header oscuro. */
+.unica,
 .wrap {
+  position: relative;
   display: inline-flex;
   align-items: center;
-}
-
-.select {
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: var(--touch-target);
+  color: var(--color-topnav-text);
   font-size: var(--text-sm);
-  padding: var(--space-1) var(--space-2);
-  /* 44px: área táctil mínima en celular. Antes 36. */
-  min-height: 44px;
-  border: 1px solid var(--topnav-text-soft);
-  border-radius: var(--radius-sm);
-  background: var(--topnav-hover);
-  color: var(--topnav-text);
-  max-width: 220px;
-}
-
-.select:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
 }
 
 .unica {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-  color: var(--topnav-text);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-topnav-hover);
+}
+
+.icono {
+  flex: none;
+  color: var(--color-topnav-text-soft);
+}
+
+.wrap .icono {
+  position: absolute;
+  left: var(--space-3);
+  pointer-events: none;
+}
+
+.nombre {
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--weight-semibold);
 }
 
 .rol {
+  flex: none;
   font-size: var(--text-xs);
-  color: var(--topnav-text-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: var(--color-topnav-text-soft);
 }
 
-/* iOS hace zoom al enfocar un control cuyo texto mide menos de 16px, y el
-   `<select>` cuenta. Es el único control enfocable del encabezado: `.unica`
-   es un `<span>` y no puede recibir foco, así que no hace falta tocarlo.
+.select {
+  appearance: none;
+  min-height: var(--touch-target);
+  max-width: 280px;
+  padding: 0 calc(var(--space-3) + 20px) 0 calc(var(--space-3) + 24px);
+  border: 1px solid var(--color-topnav-border);
+  border-radius: var(--radius-md);
+  background: var(--color-topnav-hover);
+  color: var(--color-topnav-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
 
-   La condición es el TIPO DE PUNTERO y no el ancho, igual que en Compras y
-   en Mantenimiento: un iPad en vertical mide 768px y sigue siendo táctil, así
-   que por ancho se quedaría afuera justo el caso que hay que cubrir.
+.select:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
 
-   No cambia el alto: `min-height: 44px` ya era mayor que 16px de texto más
-   sus 4+4 de padding vertical. */
+.flecha {
+  position: absolute;
+  right: var(--space-3);
+  color: var(--color-topnav-text-soft);
+  pointer-events: none;
+}
+
+/* iOS hace zoom al enfocar un control con texto de menos de 16px. La condición
+   es el tipo de puntero y no el ancho: un iPad en vertical mide 768px. */
 @media (pointer: coarse) {
   .select {
     font-size: 16px;
   }
 }
 
-@media (max-width: 768px) {
-  .select,
-  .unica {
-    max-width: 140px;
+@media (max-width: 767px) {
+  .nombre {
+    max-width: 120px;
   }
-
-  /* En pantallas chicas el nombre de la empresa alcanza; el rol se ve en
-     el detalle de la sesión. */
+  .select {
+    max-width: 170px;
+  }
   .rol {
     display: none;
   }

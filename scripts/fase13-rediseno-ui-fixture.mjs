@@ -157,5 +157,12 @@ await s.from('profiles').update({ full_name: 'ZZ Admin Rediseño' }).eq('id', u.
 ok(await s.from('company_memberships').insert({ company_id: id, user_id: u.user.id, role: 'admin', status: 'active' }), 'membresía')
 
 const link = (await s.auth.admin.generateLink({ type: 'magiclink', email, options: { redirectTo: `${origen}/` } })).data.properties.action_link
-writeFileSync(salida, JSON.stringify({ empresa: id, admin: link, cotizacion: cotis[1].id, pedido: pedidos[1].id, cliente: clientes[0].id }))
+
+// E2: un usuario zz SIN membresía, para ver el estado «sin empresa activa» del shell.
+const emailSin = `${MARCA}-sinempresa-${Date.now()}@buscatools.test`
+const { error: es } = await s.auth.admin.createUser({ email: emailSin, password: `Zz${randomUUID()}!`, email_confirm: true, user_metadata: { full_name: 'ZZ Sin Empresa' } })
+if (es) throw new Error(`usuario sin empresa: ${es.message}`)
+const linkSin = (await s.auth.admin.generateLink({ type: 'magiclink', email: emailSin, options: { redirectTo: `${origen}/` } })).data.properties.action_link
+
+writeFileSync(salida, JSON.stringify({ empresa: id, admin: link, sinEmpresa: linkSin, cotizacion: cotis[1].id, pedido: pedidos[1].id, cliente: clientes[0].id }))
 console.log(`    preparado: ${productos.length} productos, ${clientes.length} clientes, ${cotis.length} cotizaciones, ${pedidos.length} pedidos, ${proveedores.length} proveedores, 3 compras, ${equipos.length} equipos, 3 órdenes (el enlace quedó en el archivo, no se imprime)`)
