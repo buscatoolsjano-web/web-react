@@ -7,6 +7,7 @@ import { EmpresaSelector } from '@/features/empresa/EmpresaSelector'
 import { cx } from '@/utils/cx'
 import { ROLES_EMAILS } from '@/modules/emails/lib/permisos'
 import { ROLES_INFORMES } from '@/modules/informes/lib/permisos'
+import { ROLES_CONFIGURACION } from '@/modules/configuracion/lib/permisos'
 import styles from './AppLayout.module.css'
 
 /** Los roles que escriben en Compras. Es el conjunto de la RLS de la sección. */
@@ -67,11 +68,12 @@ const NAV = [
   // Informes v1: admin y employee (decisión de la entrega 1). La RPC rechaza al
   // resto con sin_permiso aunque la RLS de ventas les deje leer documentos.
   { to: '/informes', label: 'Informes', end: false, roles: ROLES_INFORMES },
+  // Configuración: sólo admin. Hoy contiene Usuarios.
+  { to: '/configuracion', label: 'Configuración', end: false, roles: ROLES_CONFIGURACION },
 ] as const
 
 const PROXIMAMENTE = [
   'WhatsApp',
-  'Configuración',
 ] as const
 
 export function AppLayout() {

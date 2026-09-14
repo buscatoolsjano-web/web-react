@@ -1,0 +1,354 @@
+/* Configuración. Mismas convenciones que el resto de los módulos: controles de
+   44px, 16px en campos táctiles y nada que desborde horizontalmente. */
+
+.shell {
+  display: grid;
+  grid-template-columns: 12rem minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+  min-width: 0;
+}
+
+/* Con el menú lateral de la app, la navegación interna en columna deja la tabla
+   sin lugar hasta ~1100px: por debajo pasa arriba, en fila. */
+@media (max-width: 1099px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+}
+
+.subnav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.subnavTitulo {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+@media (max-width: 1099px) {
+  .subnav {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  .subnavTitulo {
+    display: none;
+  }
+}
+
+.subnavItem {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.subnavItem:hover {
+  background: var(--surface-alt);
+}
+
+.subnavActivo {
+  background: var(--primary-light);
+  color: var(--primary-text);
+  font-weight: 600;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.subtitulo {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+.barra {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.buscar {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.control {
+  font-size: 16px;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+  min-width: 0;
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.vacio {
+  margin: 0;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+  background: var(--surface);
+}
+
+.nota {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+}
+
+/* ── Filas ─────────────────────────────────────────────────────────────── */
+
+.persona {
+  display: flex;
+  flex-direction: column;
+  /* Sin mínimo, la columna se aprieta hasta partir el email letra por letra;
+     con mínimo, la tabla scrollea dentro de su caja. */
+  min-width: 13rem;
+}
+
+.card .persona {
+  min-width: 0;
+}
+
+.nombre {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.email {
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+
+.propia {
+  margin-left: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--primary-text);
+  font-weight: 600;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.chip_activo {
+  background: var(--success-light);
+  color: var(--text);
+}
+
+.chip_invitacion_pendiente,
+.chip_sin_confirmar {
+  background: var(--warning-light);
+  color: var(--warning-text);
+}
+
+.chip_suspendido,
+.chip_bloqueada {
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  border-color: var(--border-strong);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.selectRol {
+  font-size: 16px;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  max-width: 100%;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.cardCabecera {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.cardDatos {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.cardDatos dt {
+  color: var(--text-soft);
+}
+
+.cardDatos dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cardAcciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.cardAcciones > * {
+  flex: 1 1 10rem;
+}
+
+/* ── Diálogos ──────────────────────────────────────────────────────────── */
+
+.fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+}
+
+.caja {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  width: min(32rem, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .fondo {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .caja {
+    width: 100%;
+    border-radius: var(--radius) var(--radius) 0 0;
+    max-height: 95vh;
+  }
+}
+
+.dialogoTitulo {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.dialogoTexto {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.pie {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .pie > * {
+    flex: 1 1 auto;
+  }
+}
+
+.peligro {
+  background: var(--danger);
+  color: #fff;
+}
+
+.peligro:not(:disabled):hover {
+  filter: brightness(0.92);
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.etiqueta {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.errorCampo {
+  font-size: var(--text-xs);
+  color: var(--danger);
+}

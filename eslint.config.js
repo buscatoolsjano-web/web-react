@@ -9,7 +9,9 @@ export default tseslint.config(
   // corren aparte (`npm run backend:check`). Lintearlo desde acá lo obligaría a
   // entrar en los proyectos de TypeScript del frontend, que sólo incluyen
   // `src/` — y ahí es donde falla.
-  { ignores: ['dist', 'node_modules', 'coverage', 'backend'] },
+  // `supabase/functions/` es código Deno: se despliega como Edge Function y sus
+  // pruebas corren desde scripts/ (fase12-configuracion-entrega1-tests.mjs).
+  { ignores: ['dist', 'node_modules', 'coverage', 'backend', 'supabase'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
     files: ['**/*.{ts,tsx}'],

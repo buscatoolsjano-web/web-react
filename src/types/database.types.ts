@@ -5744,6 +5744,34 @@ export type Database = {
       }
       // Entrega 4. Las tres son de lectura; la primera y la segunda son
       // SECURITY INVOKER, la tercera DEFINER acotada a quien usa Emails.
+      // Fase 12 · Configuración → Usuarios. Sólo admin de la empresa (la RPC lo
+      // valida). Las de invitación son de la Edge Function y no se tipan acá.
+      config_listar_usuarios: {
+        Args: { p_company: string }
+        Returns: {
+          membership_id: string
+          user_id: string
+          nombre: string | null
+          email: string
+          rol: string
+          estado: string
+          cliente: string | null
+          alta: string
+          invitado_el: string | null
+          email_confirmado: boolean
+          ultimo_ingreso: string | null
+          bloqueada: boolean
+          es_propia: boolean
+        }[]
+      }
+      config_cambiar_rol: {
+        Args: { p_membership: string; p_rol: string }
+        Returns: { membership_id: string; rol: string; estado: string }[]
+      }
+      config_cambiar_estado: {
+        Args: { p_membership: string; p_estado: string }
+        Returns: { membership_id: string; rol: string; estado: string }[]
+      }
       informe_actividad_comercial: {
         Args: { p_company: string; p_mes?: string | null }
         Returns: {

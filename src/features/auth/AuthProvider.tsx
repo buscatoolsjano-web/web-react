@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js'
 import { cerrarSesion, obtenerSesion, suscribirCambiosDeSesion } from '@/services/auth/session'
 import { AuthContext, type AuthContextValue } from './authContext'
 import { olvidarEmpresaPreferida } from '@/features/empresa/preferencia'
+import { limpiarContrasenaPendiente } from '@/services/auth/contrasenaPendiente'
 
 
 /**
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (evento === 'SIGNED_OUT') {
         queryClient.clear()
         olvidarEmpresaPreferida()
+        limpiarContrasenaPendiente()
       }
     })
 

@@ -47,8 +47,10 @@ Leyenda: ✅ permitido · ⚠️ condicionado · ❌ denegado
 | | resto | ⚠️ | ❌ | ❌ | ❌ | Sólo sus empresas, columnas públicas |
 | `profiles` | todos | ⚠️ | ❌ | ⚠️ | ❌ | SELECT: perfiles que comparten empresa. UPDATE: sólo el propio (`id = auth.uid()`) |
 | | admin | ✅ | ❌ | ⚠️ | ❌ | UPDATE de perfiles de su empresa. El alta la hace Auth |
-| `company_memberships` | admin | ✅ | ✅ | ✅ | ⚠️ | `[BASE]`. **No puede quitarse a sí mismo el rol admin** |
+| `company_memberships` | admin | ✅ | ⚠️ | ⚠️ | ❌ | SELECT `[BASE]`. **Sin escritura directa** (Fase 12 E1: se borró `memberships_write` y se revocaron INSERT/UPDATE/DELETE de `authenticated`). Rol y estado sólo por `config_cambiar_rol` / `config_cambiar_estado`; altas sólo por la Edge Function `config-usuarios`. Trigger `trg_memberships_ultimo_admin`: ninguna empresa queda sin un admin activo (también con service_role en UPDATE). Nadie se suspende a sí mismo |
 | | resto | ⚠️ | ❌ | ❌ | ❌ | Sólo su propia membresía (`user_id = auth.uid()`) |
+| `users_audit` | admin | ⚠️ | ❌ | ❌ | ❌ | Sólo su empresa (`app.is_admin`). La escriben triggers y RPC de servicio (Fase 12 E1) |
+| | resto | ❌ | ❌ | ❌ | ❌ | — |
 | `roles`, `permissions`, `role_permissions` | todos | ✅ | ❌ | ❌ | ❌ | Sólo lectura. Se administran por migración |
 | `membership_permissions` | admin | ✅ | ✅ | ✅ | ✅ | `[BASE]` vía la membresía |
 | | resto | ⚠️ | ❌ | ❌ | ❌ | Sólo las propias |

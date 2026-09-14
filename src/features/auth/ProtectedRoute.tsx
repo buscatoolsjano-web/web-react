@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
+import { contrasenaPendiente } from '@/services/auth/contrasenaPendiente'
+import { RUTA_DEFINIR_CONTRASENA } from '@/services/auth/callbackUrl'
 import { useAuth } from './useAuth'
 
 /**
@@ -26,6 +28,10 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     const destino = `${location.pathname}${location.search}`
     return <Navigate to={`/auth/login?next=${encodeURIComponent(destino)}`} replace />
   }
+
+  // Entró por un enlace de invitación o de recuperación y todavía no eligió
+  // contraseña: primero eso.
+  if (contrasenaPendiente()) return <Navigate to={RUTA_DEFINIR_CONTRASENA} replace />
 
   return <>{children}</>
 }

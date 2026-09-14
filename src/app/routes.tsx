@@ -208,6 +208,18 @@ const EmailHiloPage = lazyConRecarga(() =>
 const InformesPage = lazyConRecarga(() =>
   import('@/modules/informes/pages/InformesPage').then((m) => ({ default: m.InformesPage })),
 )
+const ConfiguracionShell = lazyConRecarga(() =>
+  import('@/modules/configuracion/components/ConfiguracionShell').then((m) => ({ default: m.ConfiguracionShell })),
+)
+const UsuariosPage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/UsuariosPage').then((m) => ({ default: m.UsuariosPage })),
+)
+const RecuperarPage = lazyConRecarga(() =>
+  import('@/features/auth/pages/RecuperarPage').then((m) => ({ default: m.RecuperarPage })),
+)
+const DefinirContrasenaPage = lazyConRecarga(() =>
+  import('@/features/auth/pages/DefinirContrasenaPage').then((m) => ({ default: m.DefinirContrasenaPage })),
+)
 const LoginPage = lazyConRecarga(() =>
   import('@/features/auth/pages/LoginPage').then((m) => ({ default: m.LoginPage })),
 )
@@ -313,13 +325,31 @@ export const routes: RouteObject[] = [
       // Informes v1: actividad comercial agregada en el servidor. Admin y
       // employee; la página y la RPC lo validan, el menú sólo no lo ofrece.
       { path: 'informes', element: privada(<InformesPage />) },
+
+      // Configuración (Fase 12). Sólo admin: el shell no ofrece la pantalla a
+      // otros roles y las RPC y la Edge Function los rechazan con sin_permiso.
+      // Hoy la única subsección es Usuarios.
+      {
+        path: 'configuracion',
+        element: privada(<ConfiguracionShell />),
+        children: [
+          { index: true, element: <Navigate to="/configuracion/usuarios" replace /> },
+          { path: 'usuarios', element: conSuspense(<UsuariosPage />) },
+        ],
+      },
     ],
   },
   {
     path: '/auth',
     element: <AuthLayout />,
     errorElement: <ErrorPage />,
-    children: [{ path: 'login', element: conSuspense(<LoginPage />) }],
+    children: [
+      { path: 'login', element: conSuspense(<LoginPage />) },
+      { path: 'recuperar', element: conSuspense(<RecuperarPage />) },
+      // Destino de los enlaces de invitación y recuperación (sin tokens en la
+      // URL: capturarCallback los saca antes de montar el router).
+      { path: 'definir-contrasena', element: conSuspense(<DefinirContrasenaPage />) },
+    ],
   },
   { path: '*', element: conSuspense(<NotFoundPage />), errorElement: <ErrorPage /> },
 ]

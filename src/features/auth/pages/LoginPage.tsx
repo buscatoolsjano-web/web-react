@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { StatusMessage } from '@/components/ui/StatusMessage'
 import { iniciarSesion } from '@/services/auth/session'
@@ -11,10 +11,8 @@ import styles from './LoginPage.module.css'
  *
  * No se guarda nada: ni el email, ni el password, ni un flag de "logueado".
  * El SDK maneja el token. Si el usuario refresca, la sesión vuelve sola.
- *
- * PENDIENTE (fuera del alcance de esta entrega): recuperación de
- * contraseña. Requiere configurar el template de email y la URL de retorno
- * en el proyecto Supabase.
+
+ * La recuperación de contraseña es `/auth/recuperar` (Fase 12, entrega 1).
  */
 export function LoginPage() {
   const { session, cargando } = useAuth()
@@ -86,7 +84,7 @@ export function LoginPage() {
       </form>
 
       <p className={styles.nota}>
-        ¿Olvidaste tu contraseña? Por ahora, pedile el restablecimiento a un administrador.
+        <Link to="/auth/recuperar">¿Olvidaste tu contraseña?</Link>
       </p>
     </div>
   )
