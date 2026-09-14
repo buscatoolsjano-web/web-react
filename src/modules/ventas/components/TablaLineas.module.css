@@ -126,8 +126,10 @@
     border-radius: var(--radius-md);
     background: var(--color-surface);
   }
-  .tabla td,
-  .tabla tbody tr:last-child td {
+  /* Sin `.tabla tbody tr:last-child td` en este grupo: es más específico que
+     `td.num` / `td.celdaNombre` y la última tarjeta mostraba «#» y la descripción
+     a la derecha. El borde de la última fila ya lo quita la regla base. */
+  .tabla td {
     display: flex;
     justify-content: space-between;
     gap: var(--space-3);

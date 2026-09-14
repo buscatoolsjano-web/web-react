@@ -253,6 +253,11 @@ aditiva para quien usa los dos.
 5. Doble «Cancelar» en el pedido de Ventas (misma escritura).
 6. Modales de impresión sin trampa de foco, Escape ni retorno del foco.
 7. Filtros de Ventas ocupando ~60% de la pantalla a 390.
+8. **Encontrado en la revisión en producción, corregido después del push de `2aef9a6`**: en < 768px la
+   **última** tarjeta de `TablaLineas` mostraba el renglón «#» y la descripción alineada a la derecha.
+   `.tabla tbody tr:last-child td` estaba en el grupo mobile y le ganaba por especificidad a `td.num` /
+   `td.celdaNombre`. Se sacó del grupo (el borde de la última fila ya lo quita la regla base). Verificado a
+   390 en producción aplicando el mismo cambio sobre la hoja de estilos: las 3 tarjetas quedan iguales.
 
 ## O. Deudas
 
@@ -267,3 +272,14 @@ aditiva para quien usa los dos.
 - Enlaces en línea < 44px (OC-00002) exentos por ser texto.
 - `test:isolated` con una corrida inestable bajo carga (L).
 - Emails conserva `window.confirm` (fuera de alcance).
+- Paneles «Entregas» y «Stock» del pedido de Ventas (`PanelPendientes`, `PanelStock`, no tocados en E3): a
+  390 la tabla hace scroll interno y la descripción queda de una palabra por renglón. No es scroll de
+  página, pero conviene pasarlos a tarjetas como `TablaLineas`.
+- Antes de E3 los botones de transición «Confirmar pedido», «Cancelar pedido» (propio del pedido) y
+  «Marcar como enviada / aceptada / rechazada» se mostraban sin chequeo de rol. Son UPDATE directos sobre
+  `sales_orders` / `sales_quotes`, cuya única política de escritura es `*_write` (admin/employee): para
+  vendedor o técnico no cambiaban ninguna fila. Con `escribeVentas` quedan ocultos para esos roles, igual
+  que el resto de E; para ellos tampoco se muestra el renglón de motivo STEL bajo esos botones (el banner
+  STEL sigue visible).
+- El build local (Windows, `core.autocrlf=true`) produce otros hashes de chunks que CI; el contenido
+  desplegado se verificó por texto y tamaño.
