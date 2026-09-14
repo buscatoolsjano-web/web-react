@@ -38,10 +38,11 @@ describe('permisos de Configuración', () => {
       true, true, false, false, false, false, false, false, false,
     ])
   })
-  it('Usuarios es sólo admin; employee ve Empresa y Numeración', () => {
+  it('Usuarios es sólo admin; employee ve el resto (Entrega 3: listas, marcas, categorías, atributos)', () => {
     expect(['admin', 'employee', 'salesperson'].map(puedeAdministrarUsuarios)).toEqual([true, false, false])
-    expect(seccionesVisibles('admin').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Usuarios'])
-    expect(seccionesVisibles('employee').map((s) => s.label)).toEqual(['Empresa', 'Numeración'])
+    expect(seccionesVisibles('admin').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Usuarios', 'Listas de precios', 'Marcas', 'Categorías', 'Atributos'])
+    expect(seccionesVisibles('employee').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Listas de precios', 'Marcas', 'Categorías', 'Atributos'])
+    expect(seccionesVisibles('salesperson')).toEqual([])
     expect(seccionesVisibles('technician')).toEqual([])
   })
 })

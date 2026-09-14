@@ -7,9 +7,9 @@ import styles from './Configuracion.module.css'
 /**
  * Esqueleto de Configuración: navegación interna + la subsección.
  *
- * Las secciones visibles dependen del rol (lib/permisos). Listas de precios,
- * Marcas y categorías y Auditoría se agregan cuando existan (Entrega 0, plan T);
- * no se muestran como «próximamente» para no ofrecer pantallas que no hay.
+ * Las secciones visibles dependen del rol (lib/permisos). Auditoría se agrega
+ * cuando exista; no se muestra como «próximamente» para no ofrecer pantallas
+ * que no hay.
  */
 
 export function ConfiguracionShell() {

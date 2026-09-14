@@ -220,6 +220,21 @@ const NumeracionPage = lazyConRecarga(() =>
 const UsuariosPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/UsuariosPage').then((m) => ({ default: m.UsuariosPage })),
 )
+const ListasPreciosPage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/ListasPreciosPage').then((m) => ({ default: m.ListasPreciosPage })),
+)
+const ListaPreciosDetallePage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/ListaPreciosDetallePage').then((m) => ({ default: m.ListaPreciosDetallePage })),
+)
+const MarcasPage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/MarcasPage').then((m) => ({ default: m.MarcasPage })),
+)
+const CategoriasPage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/CategoriasPage').then((m) => ({ default: m.CategoriasPage })),
+)
+const AtributosPage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/AtributosPage').then((m) => ({ default: m.AtributosPage })),
+)
 const RecuperarPage = lazyConRecarga(() =>
   import('@/features/auth/pages/RecuperarPage').then((m) => ({ default: m.RecuperarPage })),
 )
@@ -344,6 +359,12 @@ export const routes: RouteObject[] = [
           { path: 'empresa', element: conSuspense(<EmpresaPage />) },
           { path: 'numeracion', element: conSuspense(<NumeracionPage />) },
           { path: 'usuarios', element: conSuspense(<UsuariosPage />) },
+          // Entrega 3: listas y atributos sólo lectura; marcas y categorías las administra el admin.
+          { path: 'listas-precios', element: conSuspense(<ListasPreciosPage />) },
+          { path: 'listas-precios/:id', element: conSuspense(<ListaPreciosDetallePage />) },
+          { path: 'marcas', element: conSuspense(<MarcasPage />) },
+          { path: 'categorias', element: conSuspense(<CategoriasPage />) },
+          { path: 'atributos', element: conSuspense(<AtributosPage />) },
         ],
       },
     ],

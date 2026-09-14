@@ -9,6 +9,8 @@
  *   · Usuarios:   sólo admin (Entrega 1).
  *   · Empresa:    admin edita; employee lee (Entrega 2).
  *   · Numeración: admin y employee leen; nadie edita (Entrega 2).
+ *   · Listas de precios y Atributos: admin y employee leen; nadie edita (Entrega 3).
+ *   · Marcas y Categorías: admin administra; employee lee (Entrega 3).
  */
 export const ROLES_CONFIGURACION = ['admin', 'employee'] as const
 
@@ -16,6 +18,10 @@ export const SECCIONES_CONFIGURACION = [
   { to: '/configuracion/empresa', label: 'Empresa', roles: ['admin', 'employee'] },
   { to: '/configuracion/numeracion', label: 'Numeración', roles: ['admin', 'employee'] },
   { to: '/configuracion/usuarios', label: 'Usuarios', roles: ['admin'] },
+  { to: '/configuracion/listas-precios', label: 'Listas de precios', roles: ['admin', 'employee'] },
+  { to: '/configuracion/marcas', label: 'Marcas', roles: ['admin', 'employee'] },
+  { to: '/configuracion/categorias', label: 'Categorías', roles: ['admin', 'employee'] },
+  { to: '/configuracion/atributos', label: 'Atributos', roles: ['admin', 'employee'] },
 ] as const
 
 export function puedeVerConfiguracion(rol: string | null | undefined): boolean {

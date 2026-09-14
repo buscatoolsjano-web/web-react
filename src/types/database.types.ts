@@ -5792,6 +5792,54 @@ export type Database = {
           autoridad_configurada: boolean
         }[]
       }
+      config_marcas_listar: {
+        Args: { p_company: string }
+        Returns: { id: string; name: string; is_active: boolean; created_at: string; productos: number; equipos: number; puede_editar: boolean }[]
+      }
+      config_marca_crear: {
+        Args: { p_company: string; p_datos: Json }
+        Returns: { id: string; name: string }[]
+      }
+      config_marca_estado: {
+        Args: { p_company: string; p_marca: string; p_activa: boolean }
+        Returns: { is_active: boolean; cambiado: boolean; productos: number }[]
+      }
+      config_marca_eliminar: {
+        Args: { p_company: string; p_marca: string }
+        Returns: { eliminada: boolean }[]
+      }
+      config_categorias_listar: {
+        Args: { p_company: string }
+        Returns: { id: string; name: string; slug: string; position: number; needs_review: boolean; parent_id: string | null; productos: number; atributos: number; subcategorias: number; puede_editar: boolean }[]
+      }
+      config_categoria_crear: {
+        Args: { p_company: string; p_datos: Json }
+        Returns: { id: string; name: string; slug: string }[]
+      }
+      config_categoria_renombrar: {
+        Args: { p_company: string; p_categoria: string; p_esperado: string; p_datos: Json }
+        Returns: { name: string; cambiado: boolean }[]
+      }
+      config_categoria_eliminar: {
+        Args: { p_company: string; p_categoria: string }
+        Returns: { eliminada: boolean }[]
+      }
+      config_atributos_listar: {
+        Args: { p_company: string }
+        Returns: { key: string; label: string; data_type: string; unit: string | null; is_filterable: boolean; position: number; categorias: string[]; productos: number }[]
+      }
+      config_listas_precios_listar: {
+        Args: { p_company: string }
+        Returns: { id: string; name: string; currency_code: string; is_default: boolean; valid_from: string | null; valid_to: string | null; created_at: string; items: number; items_vigentes: number; precios_cero: number; vigencia_desde: string | null; vigencia_hasta: string | null; clientes: number }[]
+      }
+      config_lista_precios_clientes: {
+        Args: { p_company: string; p_lista: string }
+        Returns: { id: string; legal_name: string; total: number }[]
+      }
+      config_lista_precios_items: {
+        Args: { p_company: string; p_lista: string; p_busqueda?: string | null; p_vigencia?: string; p_limite?: number; p_desplazamiento?: number }
+        Returns: { price_id: string; product_id: string; sku: string; name: string; marca: string | null; amount: number; valid_from: string; valid_to: string | null; vigencia: string; producto_estado: string; total: number }[]
+      }
       autoridad_numeracion_empresa: {
         Args: { p_company: string }
         Returns: { doc_type: string; authority: string }[]
