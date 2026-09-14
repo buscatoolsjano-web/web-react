@@ -236,12 +236,20 @@ E2.5 (tipo `customer` en la empresa STEL y todos los tipos en la empresa ERP).
 
 ## K. Bugs y deuda preexistentes (no corregidos)
 
-1. **Suites que escriben en Buscatools real** (las de J): hay que portarlas a
-   empresas fixture. Las de Ventas quedan inservibles mientras Buscatools sea STEL.
-2. **UI ofrece alta a roles que no pueden escribir:** el listado muestra «+ Nueva»
-   a todo interno (`esInterno`), pero la base sólo deja escribir ventas a admin y
-   employee. Un salesperson o technician ve el botón y recibe «permission denied».
-   Con STEL no se nota en Buscatools (está deshabilitado para todos).
+> **Deuda registrada. No se resuelve dentro de E2.5**, salvo que llegue a afectar
+> el guardrail (hoy no lo afecta: ninguna de las dos habilita emisión).
+
+1. **DEUDA · Suites antiguas de Ventas que escriben sobre Buscatools real**
+   (`stage1-ventas-tests`, `stage1-ventas-rls`, `stage3-*`; también
+   `fase6-cierre-tests` y `fase7-mantenimiento-entrega5-tests`, ver J). **Deben
+   portarse a empresas fixture (`zz-*`) antes de volver a ejecutarse.** No
+   correrlas mientras tanto: las de Ventas quedan bloqueadas por el guardrail y
+   sus restauraciones escribirían `document_sequences` reales.
+2. **DEUDA · «+ Nueva» visible para salesperson/technician:** inconsistencia de UI
+   previa a E2.5. El listado muestra «+ Nueva» a todo interno (`esInterno`), pero
+   la base sólo deja escribir ventas a admin y employee: un salesperson o
+   technician ve el botón y recibe «permission denied». No es un agujero (la base
+   rechaza) y con autoridad STEL el botón ya está deshabilitado para todos.
 3. **Re-sincronización de cotizaciones aceptadas:** `bloquear_cotizacion_cerrada`
    impide cambiar el estado de una `accepted`, también al importador (F).
 4. **`npm test` en esta máquina:** timeouts intermitentes al arrancar workers de
