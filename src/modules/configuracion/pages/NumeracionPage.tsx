@@ -4,15 +4,16 @@ import type { Column } from '@/components/tables/types'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { cx } from '@/utils/cx'
 import { useNumeracion } from '../hooks/useEmpresaConfig'
-import { alertas, etiquetaTipo, formatearNumero, presentarAutoridad, presentarEstado, type SecuenciaDiagnostico } from '../lib/numeracion'
+import { alertas, etiquetaTipo, formatearNumero, presentarAutoridad, presentarEmision, presentarEstado, type SecuenciaDiagnostico } from '../lib/numeracion'
 import styles from '../components/Configuracion.module.css'
 
 /**
  * Configuración → Numeración: SÓLO LECTURA.
  *
  * Muestra cada secuencia contra los documentos que hay en esta base. No hay
- * botones para cambiar prefijos, próximos números ni resetear: mientras STEL
- * siga emitiendo, alinear la numeración es una decisión de cutover.
+ * botones para cambiar prefijos, próximos números, resetear ni cambiar la
+ * autoridad: mientras STEL siga emitiendo, alinear la numeración es una
+ * decisión de cutover.
  */
 export function NumeracionPage() {
   const { activa } = useEmpresa()
@@ -63,7 +64,16 @@ export function NumeracionPage() {
       ),
     },
     { key: 'estado', header: 'Estado', render: (s) => <Chip p={presentarEstado(s)} /> },
-    { key: 'autoridad', header: 'Autoridad', render: (s) => <Chip p={presentarAutoridad(s.autoridad)} /> },
+    {
+      key: 'autoridad',
+      header: 'Autoridad',
+      render: (s) => (
+        <span className={styles.chips}>
+          <Chip p={presentarAutoridad(s.autoridad)} />
+          {s.autoridad === 'STEL' && <Chip p={presentarEmision(s.autoridad)} />}
+        </span>
+      ),
+    },
   ]
 
   return (
@@ -115,14 +125,19 @@ export function NumeracionPage() {
                   <dd>
                     <Chip p={presentarAutoridad(s.autoridad)} />
                   </dd>
+                  <dt>Estado de emisión</dt>
+                  <dd>
+                    <Chip p={presentarEmision(s.autoridad)} />
+                  </dd>
                 </dl>
                 <p className={styles.nota}>{presentarEstado(s).detalle}</p>
               </article>
             )}
           />
           <p className={styles.nota}>
-            «Autoridad» es el estado operativo acordado (no un dato de la base): STEL numera cotizaciones, pedidos y remitos de
-            Buscatools. «Atípicos» son números mal tipeados marcados en la importación; no se tienen en cuenta para el estado.
+            «Autoridad» viene de la base y no se edita desde acá: donde dice STEL, la base bloquea la emisión desde el ERP y
+            sólo un cutover auditado la pasa a ERP. Los tipos sin autoridad configurada los numera el ERP. «Atípicos» son
+            números mal tipeados marcados en la importación; no se tienen en cuenta para el estado.
           </p>
         </>
       )}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alertas, etiquetaTipo, formatearNumero, normalizarEstado, presentarAutoridad, presentarEstado, type SecuenciaDiagnostico } from './numeracion'
+import { alertas, etiquetaTipo, formatearNumero, normalizarEstado, presentarAutoridad, presentarEmision, presentarEstado, type SecuenciaDiagnostico } from './numeracion'
 
 const sec = (p: Partial<SecuenciaDiagnostico>): SecuenciaDiagnostico => ({
   docType: 'delivery',
@@ -16,6 +16,7 @@ const sec = (p: Partial<SecuenciaDiagnostico>): SecuenciaDiagnostico => ({
   atipicosPorEncima: 0,
   estado: 'OK',
   autoridad: 'ERP',
+  autoridadConfigurada: false,
   ...p,
 })
 
@@ -38,6 +39,11 @@ describe('autoridad', () => {
   it('STEL avisa que «Al día» no descarta una colisión con STEL', () => {
     expect(presentarAutoridad('STEL').detalle).toMatch(/no descarta una colisión/)
     expect(presentarAutoridad('ERP').etiqueta).toBe('ERP')
+  })
+  it('STEL muestra la emisión desde ERP bloqueada; ERP, habilitada', () => {
+    expect(presentarEmision('STEL')).toMatchObject({ etiqueta: 'Emisión desde ERP bloqueada', tono: 'error' })
+    expect(presentarEmision('STEL').detalle).toMatch(/external_numbering_authority/)
+    expect(presentarEmision('ERP').etiqueta).toBe('Emisión desde ERP habilitada')
   })
 })
 

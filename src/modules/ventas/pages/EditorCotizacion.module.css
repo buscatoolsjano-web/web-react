@@ -26,9 +26,23 @@
   align-items: center;
 }
 
-.boton:hover {
+.boton:hover:not(:disabled) {
   border-color: var(--primary);
   color: var(--primary);
+}
+
+.boton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Motivo de una acción de emisión bloqueada (Fase 12 E2.5): texto visible,
+   no sólo un tooltip, para que se lea también en mobile. */
+.motivo {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
 }
 
 .primario {

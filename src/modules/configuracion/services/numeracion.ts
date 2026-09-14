@@ -23,5 +23,6 @@ export async function diagnosticoNumeracion(companyId: string): Promise<Secuenci
     atipicosPorEncima: Number(f.atipicos_por_encima),
     estado: normalizarEstado(f.estado),
     autoridad: f.autoridad === 'STEL' ? 'STEL' : 'ERP',
+    autoridadConfigurada: f.autoridad_configurada === true,
   }))
 }

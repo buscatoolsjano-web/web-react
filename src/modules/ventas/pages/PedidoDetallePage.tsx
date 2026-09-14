@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { AccionesDocumento } from '../components/AccionesDocumento'
+import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { CabeceraCotizacion, type CampoCabecera, type ValoresCabecera } from '../components/CabeceraCotizacion'
 import { ChipEstado } from '../components/ChipEstado'
@@ -14,6 +15,7 @@ import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelStock } from '../components/PanelStock'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TablaLineas } from '../components/TablaLineas'
+import { mensajeErrorVentas, motivoBloqueo, type DocTypeVentas } from '../lib/autoridad'
 import { presentarCumplimiento, presentarEstado } from '../lib/estados'
 import { formatearFecha, formatearImporte } from '../lib/formato'
 import { lineaCapitulo, lineaDeProducto, lineaLibre } from '../lib/lineaNueva'
@@ -24,6 +26,7 @@ import {
   usePendientes,
   useRelacionados,
 } from '../hooks/useDocumentos'
+import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { esSensible, registrarEvento } from '../services/auditoria'
 import { crearEntregaDesdePedido, lineasParaEntregar } from '../services/entregas'
 import { ordenarLineas, type LineaNueva } from '../services/cotizaciones'
@@ -110,6 +113,10 @@ export function PedidoDetallePage() {
   const [errorRemito, setErrorRemito] = useState<string | null>(null)
 
   const esInterno = activa?.esInterno ?? false
+  // Fase 12 E2.5: confirmar el pedido y generar el remito son emisiones.
+  const autoridad = useAutoridadNumeracion()
+  const stelPedido = autoridad.stel('sales_order')
+  const stelEntrega = autoridad.stel('delivery')
   const lineas = useMemo(() => (doc ? ordenarLineas(doc.lineas) : []), [doc])
   const productIds = useMemo(
     () => lineas.flatMap((l) => (l.productId ? [l.productId] : [])),
@@ -128,7 +135,7 @@ export function PedidoDetallePage() {
       setUltimoError(null)
       void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
     },
-    onError: (e: Error) => setUltimoError(e.message),
+    onError: (e: Error) => setUltimoError(mensajeErrorVentas(e)),
   })
 
   // Los pendientes se piden sólo cuando el modal está abierto: es una consulta
@@ -155,7 +162,7 @@ export function PedidoDetallePage() {
       void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
       void navegar(`/ventas/entregas/${entregaId}`)
     },
-    onError: (e: Error) => setErrorRemito(e.message),
+    onError: (e: Error) => setErrorRemito(mensajeErrorVentas(e)),
   })
 
   if (isPending) return <p className={styles.nota}>Cargando…</p>
@@ -180,6 +187,12 @@ export function PedidoDetallePage() {
       </div>
     )
   }
+
+  // Los tipos cuya emisión se ofrece en esta barra y está bloqueada: un motivo.
+  const tiposBloqueados: DocTypeVentas[] = [
+    ...(stelPedido && doc.estado === 'draft' ? (['sales_order'] as const) : []),
+    ...(esInterno && stelEntrega && doc.estado === 'confirmed' ? (['delivery'] as const) : []),
+  ]
 
   const cambiarCampo = (campo: CampoCabecera, valor: string) => {
     if (campo === 'validaHasta' || campo === 'moneda') return
@@ -297,6 +310,10 @@ export function PedidoDetallePage() {
         numeroSospechado={doc.numeroSospechado}
         esHistorico={doc.esHistorico}
       />
+
+      {esInterno && (stelPedido || stelEntrega) ? (
+        <AvisoAutoridadStel detalle="Podés consultar, editar el borrador, imprimir y exportar. Confirmar el pedido, duplicarlo o generar la nota de entrega desde el ERP está bloqueado hasta completar la migración." />
+      ) : null}
 
       {ultimoError ? (
         <p className={styles.error} role="alert">
@@ -468,6 +485,8 @@ export function PedidoDetallePage() {
             <button
               type="button"
               className={editor.primario}
+              disabled={stelEntrega || autoridad.cargando}
+              aria-describedby={stelEntrega ? 'motivo-emision-pedido' : undefined}
               onClick={() => {
                 setErrorRemito(null)
                 setGenerando(true)
@@ -480,6 +499,8 @@ export function PedidoDetallePage() {
             <button
               type="button"
               className={editor.boton}
+              disabled={stelPedido || autoridad.cargando}
+              aria-describedby={stelPedido ? 'motivo-emision-pedido' : undefined}
               onClick={() => guardar.mutate(() => cambiarEstadoPedido(doc.id, 'draft', 'confirmed'))}
             >
               Confirmar pedido
@@ -497,6 +518,11 @@ export function PedidoDetallePage() {
             </button>
           ) : null}
         </div>
+        {tiposBloqueados.length > 0 ? (
+          <p id="motivo-emision-pedido" className={editor.motivo}>
+            {motivoBloqueo(...tiposBloqueados)}
+          </p>
+        ) : null}
       </div>
 
       <AccionesDocumento doc={doc} />

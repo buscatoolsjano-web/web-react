@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { CabeceraCotizacion, type ValoresCabecera } from '../components/CabeceraCotizacion'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { SelectorProducto } from '../components/SelectorProducto'
+import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
+import { DOC_TYPE_DE, mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
 import { crearCotizacion, type LineaNueva } from '../services/cotizaciones'
 import { crearPedido } from '../services/pedidos'
 import { lineaCapitulo, lineaDeProducto, lineaLibre, mover, renumerar } from '../lib/lineaNueva'
@@ -68,6 +71,10 @@ export function DocumentoNuevoPage({ tipo }: DocumentoNuevoProps) {
   const [buscando, setBuscando] = useState(false)
 
   const esInterno = activa?.esInterno ?? false
+  // Fase 12 E2.5: guardar consume la numeración. Con STEL como autoridad la
+  // base lo rechaza; acá se anticipa para no armar un documento en vano.
+  const autoridad = useAutoridadNumeracion()
+  const stel = autoridad.stel(DOC_TYPE_DE[tipo])
 
   const cambiarCabecera = (campo: keyof ValoresCabecera, valor: string) =>
     setCab((v) => ({ ...v, [campo]: valor }))
@@ -173,6 +180,10 @@ export function DocumentoNuevoPage({ tipo }: DocumentoNuevoProps) {
         </div>
       </header>
 
+      {stel ? (
+        <AvisoAutoridadStel detalle="No se puede crear este documento desde el ERP hasta completar la migración: se sigue emitiendo en STEL. Podés volver al listado para consultar y exportar." />
+      ) : null}
+
       <section className={styles.bloque}>
         <CabeceraCotizacion
           valores={cab}
@@ -245,19 +256,25 @@ export function DocumentoNuevoPage({ tipo }: DocumentoNuevoProps) {
           type="button"
           className={editor.primario}
           onClick={() => guardar.mutate()}
-          disabled={guardar.isPending || !cab.customerId}
+          disabled={guardar.isPending || !cab.customerId || stel || autoridad.cargando}
+          aria-describedby={stel ? 'motivo-guardar' : undefined}
         >
           {guardar.isPending ? 'Guardando…' : 'Guardar'}
         </button>
         <Link to={RUTA_DE[tipo]} className={editor.boton}>
           Cancelar
         </Link>
-        {!cab.customerId ? (
+        {stel ? (
+          <p id="motivo-guardar" className={editor.motivo}>
+            {motivoBloqueo(DOC_TYPE_DE[tipo])}
+          </p>
+        ) : null}
+        {!stel && !cab.customerId ? (
           <span className={editor.aviso}>Elegí un cliente para poder guardar.</span>
         ) : null}
         {guardar.error ? (
           <span className={editor.error} role="alert">
-            {guardar.error.message}
+            {mensajeErrorVentas(guardar.error)}
           </span>
         ) : null}
       </div>

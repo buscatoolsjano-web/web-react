@@ -65,3 +65,10 @@
   color: var(--danger);
   flex: 1 1 100%;
 }
+
+/* Motivo de Duplicar bloqueado (Fase 12 E2.5). */
+.motivo {
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  flex: 1 1 100%;
+}

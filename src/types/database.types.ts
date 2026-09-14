@@ -5789,7 +5789,12 @@ export type Database = {
           atipicos_por_encima: number
           estado: string
           autoridad: string
+          autoridad_configurada: boolean
         }[]
+      }
+      autoridad_numeracion_empresa: {
+        Args: { p_company: string }
+        Returns: { doc_type: string; authority: string }[]
       }
       config_listar_usuarios: {
         Args: { p_company: string }

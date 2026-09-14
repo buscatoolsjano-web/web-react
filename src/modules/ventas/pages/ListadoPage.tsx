@@ -2,11 +2,14 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { FiltrosDocumentos } from '../components/FiltrosDocumentos'
 import { ListadoDocumentos } from '../components/ListadoDocumentos'
 import { Paginador } from '../components/Paginador'
+import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { useDocumentos } from '../hooks/useDocumentos'
 import { useFiltrosVentas } from '../hooks/useFiltrosVentas'
+import { DOC_TYPE_DE, motivoBloqueo } from '../lib/autoridad'
 import { aCsv, descargarCsv } from '../lib/csv'
 import { exportarCsv } from '../services/acciones'
 import { ETIQUETA_DE, type OrdenVentas, type TipoDocumento } from '../types'
@@ -35,6 +38,10 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo }: Listado
   // El botón se muestra a quien puede escribir. Lo que IMPIDE crear no es
   // esconder el botón: es RLS, que rechaza el insert de un rol externo.
   const puedeCrear = rutaNuevo !== undefined && (activa?.esInterno ?? false)
+  // Fase 12 E2.5: con STEL como autoridad no se emite. Lo impone la base.
+  const autoridad = useAutoridadNumeracion()
+  const docType = DOC_TYPE_DE[tipo]
+  const stel = autoridad.stel(docType)
 
   const ordenar = (columna: OrdenVentas) => {
     // Click en la columna activa invierte; en otra, empieza descendente.
@@ -122,13 +129,32 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo }: Listado
               Limpiar selección
             </button>
           ) : null}
-          {puedeCrear ? (
+          {puedeCrear && !stel && !autoridad.cargando ? (
             <Link to={rutaNuevo} className={styles.nuevo}>
               + Nueva
             </Link>
           ) : null}
+          {puedeCrear && (stel || autoridad.cargando) ? (
+            <button
+              type="button"
+              className={styles.nuevo}
+              disabled
+              aria-describedby={stel ? 'motivo-nueva' : undefined}
+            >
+              + Nueva
+            </button>
+          ) : null}
         </div>
       </header>
+
+      {stel ? (
+        <AvisoAutoridadStel detalle="Podés consultar, buscar, filtrar y exportar. Crear, emitir, confirmar o despachar desde el ERP está bloqueado hasta completar la migración." />
+      ) : null}
+      {puedeCrear && stel ? (
+        <p id="motivo-nueva" className={styles.motivo}>
+          {motivoBloqueo(docType)}
+        </p>
+      ) : null}
 
       {exportar.error ? (
         <p className={styles.error} role="alert">

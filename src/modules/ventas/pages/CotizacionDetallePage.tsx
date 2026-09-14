@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { AccionesDocumento } from '../components/AccionesDocumento'
+import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { CabeceraCotizacion, type CampoCabecera, type ValoresCabecera } from '../components/CabeceraCotizacion'
 import { ChipEstado } from '../components/ChipEstado'
@@ -11,10 +12,12 @@ import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TablaLineas } from '../components/TablaLineas'
+import { mensajeErrorVentas, motivoBloqueo, type DocTypeVentas } from '../lib/autoridad'
 import { presentarEstado } from '../lib/estados'
 import { formatearFecha, formatearImporte } from '../lib/formato'
 import { lineaCapitulo, lineaDeProducto, lineaLibre } from '../lib/lineaNueva'
 import { tasaDe } from '../lib/tratamientos'
+import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { useDocumento, useRelacionados } from '../hooks/useDocumentos'
 import { esSensible, registrarEvento } from '../services/auditoria'
 import {
@@ -88,6 +91,11 @@ export function CotizacionDetallePage() {
   const [ultimoError, setUltimoError] = useState<string | null>(null)
 
   const esInterno = activa?.esInterno ?? false
+  // Fase 12 E2.5: enviar/aceptar la cotización y generar el pedido son
+  // emisiones. Con STEL como autoridad las bloquea la base; acá se anticipa.
+  const autoridad = useAutoridadNumeracion()
+  const stelCotizacion = autoridad.stel('quote')
+  const stelPedido = autoridad.stel('sales_order')
   const permiso = editabilidad(doc?.estado ?? '', esInterno)
   const editando = modoEdicion && permiso.editable
 
@@ -100,7 +108,7 @@ export function CotizacionDetallePage() {
       setUltimoError(null)
       void refrescar()
     },
-    onError: (e: Error) => setUltimoError(e.message),
+    onError: (e: Error) => setUltimoError(mensajeErrorVentas(e)),
   })
 
   /**
@@ -117,7 +125,7 @@ export function CotizacionDetallePage() {
       void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
       void navegar(`/ventas/pedidos/${pedidoId}`)
     },
-    onError: (e: Error) => setUltimoError(e.message),
+    onError: (e: Error) => setUltimoError(mensajeErrorVentas(e)),
   })
 
   const lineas = useMemo(() => (doc ? ordenarLineas(doc.lineas) : []), [doc])
@@ -233,6 +241,12 @@ export function CotizacionDetallePage() {
     )
   }
 
+  // Los tipos cuya emisión se ofrece en esta barra y está bloqueada: un motivo.
+  const tiposBloqueados: DocTypeVentas[] = [
+    ...(stelCotizacion && (doc.estado === 'draft' || doc.estado === 'sent') ? (['quote'] as const) : []),
+    ...(esInterno && stelPedido && doc.estado !== 'rejected' && !yaTienePedido ? (['sales_order'] as const) : []),
+  ]
+
   const transicion = (hasta: string) =>
     guardar.mutate(() => cambiarEstado(doc.id, doc.estado, hasta))
 
@@ -266,6 +280,10 @@ export function CotizacionDetallePage() {
         numeroSospechado={doc.numeroSospechado}
         esHistorico={doc.esHistorico}
       />
+
+      {esInterno && (stelCotizacion || stelPedido) ? (
+        <AvisoAutoridadStel detalle="Podés consultar, editar el borrador, imprimir y exportar. Marcarla como enviada o aceptada, duplicarla o generar el pedido desde el ERP está bloqueado hasta completar la migración." />
+      ) : null}
 
       {ultimoError ? (
         <p className={styles.error} role="alert">
@@ -409,9 +427,10 @@ export function CotizacionDetallePage() {
             <button
               type="button"
               className={editor.primario}
-              disabled={yaTienePedido || convertir.isPending}
+              disabled={yaTienePedido || convertir.isPending || stelPedido || autoridad.cargando}
               onClick={() => convertir.mutate()}
               title={yaTienePedido ? 'Esta cotización ya tiene un pedido' : undefined}
+              aria-describedby={stelPedido && !yaTienePedido ? 'motivo-emision-cotizacion' : undefined}
             >
               {convertir.isPending
                 ? 'Generando…'
@@ -421,13 +440,25 @@ export function CotizacionDetallePage() {
             </button>
           ) : null}
           {doc.estado === 'draft' ? (
-            <button type="button" className={editor.boton} onClick={() => transicion('sent')}>
+            <button
+              type="button"
+              className={editor.boton}
+              disabled={stelCotizacion || autoridad.cargando}
+              aria-describedby={stelCotizacion ? 'motivo-emision-cotizacion' : undefined}
+              onClick={() => transicion('sent')}
+            >
               Marcar como enviada
             </button>
           ) : null}
           {doc.estado === 'sent' ? (
             <>
-              <button type="button" className={editor.boton} onClick={() => transicion('accepted')}>
+              <button
+                type="button"
+                className={editor.boton}
+                disabled={stelCotizacion || autoridad.cargando}
+                aria-describedby={stelCotizacion ? 'motivo-emision-cotizacion' : undefined}
+                onClick={() => transicion('accepted')}
+              >
                 Marcar aceptada
               </button>
               <button type="button" className={editor.boton} onClick={() => transicion('rejected')}>
@@ -436,6 +467,11 @@ export function CotizacionDetallePage() {
             </>
           ) : null}
         </div>
+        {tiposBloqueados.length > 0 ? (
+          <p id="motivo-emision-cotizacion" className={editor.motivo}>
+            {motivoBloqueo(...tiposBloqueados)}
+          </p>
+        ) : null}
       </div>
 
       <AccionesDocumento doc={doc} />

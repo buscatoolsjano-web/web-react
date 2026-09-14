@@ -1,9 +1,9 @@
 /**
  * Numeración: cómo se muestra el diagnóstico de `config_numeracion_diagnostico`.
  *
- * Todo es lectura. Mientras STEL emita cotizaciones, pedidos y remitos de
- * Buscatools, React no es autoridad de esa numeración y esta pantalla no ofrece
- * editar nada.
+ * Todo es lectura. La autoridad de numeración (STEL o ERP) sale de la base
+ * (`document_numbering_authority`, Fase 12 E2.5): con STEL, la base bloquea la
+ * emisión desde el ERP. Esta pantalla no ofrece editar nada, tampoco la autoridad.
  */
 
 export type EstadoSecuencia = 'OK' | 'BEHIND' | 'AHEAD' | 'SIN_DOCUMENTOS' | 'UNKNOWN'
@@ -24,6 +24,8 @@ export interface SecuenciaDiagnostico {
   atipicosPorEncima: number
   estado: EstadoSecuencia
   autoridad: Autoridad
+  /** Hay una fila explícita de autoridad; sin fila, el ERP numera por defecto. */
+  autoridadConfigurada: boolean
 }
 
 const TIPOS: Record<string, string> = {
@@ -87,9 +89,21 @@ export function presentarAutoridad(a: Autoridad): Presentacion {
         etiqueta: 'STEL',
         tono: 'alerta',
         detalle:
-          'STEL Order numera estos documentos. Los números que emitió después de la última importación no están en esta base, así que «Al día» no descarta una colisión con STEL. React no debe emitir este tipo mientras STEL siga activo.',
+          'STEL Order numera estos documentos. Los números que emitió después de la última importación no están en esta base, así que «Al día» no descarta una colisión con STEL. La base bloquea la emisión de este tipo desde el ERP.',
       }
     : { etiqueta: 'ERP', tono: 'neutro', detalle: 'El ERP numera estos documentos con su propia secuencia.' }
+}
+
+/** Qué pasa con la emisión desde el ERP según la autoridad. */
+export function presentarEmision(a: Autoridad): Presentacion {
+  return a === 'STEL'
+    ? {
+        etiqueta: 'Emisión desde ERP bloqueada',
+        tono: 'error',
+        detalle:
+          'La base rechaza crear, duplicar, convertir, enviar, confirmar o despachar este tipo desde el ERP (error external_numbering_authority). Consultar, exportar e importar sigue funcionando.',
+      }
+    : { etiqueta: 'Emisión desde ERP habilitada', tono: 'neutro', detalle: 'El ERP emite este tipo con su secuencia.' }
 }
 
 /** Alertas a mostrar arriba de la tabla. */
@@ -98,7 +112,7 @@ export function alertas(lista: readonly SecuenciaDiagnostico[]): string[] {
   const atrasadas = lista.filter((s) => s.estado === 'BEHIND')
   if (atrasadas.length) out.push(`${atrasadas.length} secuencia(s) atrasada(s): el próximo número ya existe (${atrasadas.map((s) => etiquetaTipo(s.docType)).join(', ')}).`)
   const stel = lista.filter((s) => s.autoridad === 'STEL')
-  if (stel.length) out.push(`STEL es la autoridad de ${stel.map((s) => etiquetaTipo(s.docType).toLowerCase()).join(', ')}. La comparación sólo usa lo importado.`)
+  if (stel.length) out.push(`STEL es la autoridad de ${stel.map((s) => etiquetaTipo(s.docType).toLowerCase()).join(', ')}. La comparación sólo usa lo importado y la emisión desde el ERP está bloqueada.`)
   const atipicos = lista.filter((s) => s.atipicosPorEncima > 0)
   for (const s of atipicos) out.push(`${etiquetaTipo(s.docType)}: ${s.atipicosPorEncima} número(s) atípico(s) del import (p. ej. ${formatearNumero(s, s.maxNumero)}) quedan por encima del próximo y no se tienen en cuenta.`)
   return out

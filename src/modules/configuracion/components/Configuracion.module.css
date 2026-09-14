@@ -171,6 +171,13 @@
   font-weight: 600;
 }
 
+/* Varios chips juntos (Numeración: autoridad + emisión bloqueada). */
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
 .chip {
   display: inline-flex;
   align-items: center;

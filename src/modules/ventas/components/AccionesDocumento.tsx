@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
+import { DOC_TYPE_DE, mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
 import { borrarDocumento, cancelarDocumento, duplicarDocumento } from '../services/acciones'
 import { RUTA_DE, type DocumentoDetalle } from '../types'
 import { ModalImpresion } from './ModalImpresion'
@@ -27,6 +29,9 @@ export function AccionesDocumento({ doc }: AccionesDocumentoProps) {
   const [error, setError] = useState<string | null>(null)
 
   const esInterno = activa?.esInterno ?? false
+  // Fase 12 E2.5: duplicar consume la numeración del tipo del documento.
+  const autoridad = useAutoridadNumeracion()
+  const stelDuplicar = autoridad.stel(DOC_TYPE_DE[doc.tipo])
   const refrescar = () =>
     queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
 
@@ -38,7 +43,7 @@ export function AccionesDocumento({ doc }: AccionesDocumentoProps) {
       void refrescar()
       void navegar(`${RUTA_DE[doc.tipo]}/${nuevoId}`)
     },
-    onError: (e: Error) => setError(e.message),
+    onError: (e: Error) => setError(mensajeErrorVentas(e)),
   })
 
   const cancelar = useMutation({
@@ -47,7 +52,7 @@ export function AccionesDocumento({ doc }: AccionesDocumentoProps) {
       setError(null)
       void refrescar()
     },
-    onError: (e: Error) => setError(e.message),
+    onError: (e: Error) => setError(mensajeErrorVentas(e)),
   })
 
   const borrar = useMutation({
@@ -57,7 +62,7 @@ export function AccionesDocumento({ doc }: AccionesDocumentoProps) {
       void refrescar()
       void navegar(RUTA_DE[doc.tipo], { replace: true })
     },
-    onError: (e: Error) => setError(e.message),
+    onError: (e: Error) => setError(mensajeErrorVentas(e)),
   })
 
   const cerrado =
@@ -75,7 +80,8 @@ export function AccionesDocumento({ doc }: AccionesDocumentoProps) {
           <button
             type="button"
             className={styles.boton}
-            disabled={duplicar.isPending}
+            disabled={duplicar.isPending || stelDuplicar || autoridad.cargando}
+            aria-describedby={stelDuplicar ? `motivo-duplicar-${doc.id}` : undefined}
             onClick={() => duplicar.mutate()}
           >
             {duplicar.isPending ? 'Duplicando…' : 'Duplicar'}
@@ -110,6 +116,12 @@ export function AccionesDocumento({ doc }: AccionesDocumentoProps) {
           >
             Eliminar
           </button>
+        ) : null}
+
+        {sePuedeDuplicar && stelDuplicar ? (
+          <span id={`motivo-duplicar-${doc.id}`} className={styles.motivo}>
+            {motivoBloqueo(DOC_TYPE_DE[doc.tipo])}
+          </span>
         ) : null}
 
         {error ? (

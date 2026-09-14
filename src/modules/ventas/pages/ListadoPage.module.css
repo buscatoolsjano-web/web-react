@@ -52,6 +52,17 @@
   border-color: var(--primary-hover);
 }
 
+.nuevo:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.motivo {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
 .nuevo:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;

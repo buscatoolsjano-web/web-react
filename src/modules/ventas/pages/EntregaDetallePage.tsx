@@ -3,13 +3,16 @@ import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { AccionesDocumento } from '../components/AccionesDocumento'
+import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { ChipEstado } from '../components/ChipEstado'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { TablaLineas } from '../components/TablaLineas'
+import { mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
 import { presentarEstado } from '../lib/estados'
 import { formatearFecha, formatearImporte } from '../lib/formato'
+import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { useDocumento, useRelacionados } from '../hooks/useDocumentos'
 import { confirmarEntrega, editabilidadEntrega } from '../services/entregas'
 import styles from './DetallePage.module.css'
@@ -33,6 +36,9 @@ export function EntregaDetallePage() {
   const [resultado, setResultado] = useState<string | null>(null)
 
   const esInterno = activa?.esInterno ?? false
+  // Fase 12 E2.5: despachar es el efecto productivo del remito (mueve stock).
+  const autoridad = useAutoridadNumeracion()
+  const stelEntrega = autoridad.stel('delivery')
 
   const confirmar = useMutation({
     mutationFn: () => confirmarEntrega(id!),
@@ -49,7 +55,7 @@ export function EntregaDetallePage() {
     },
     onError: (e: Error) => {
       setResultado(null)
-      setUltimoError(e.message)
+      setUltimoError(mensajeErrorVentas(e))
     },
   })
 
@@ -109,6 +115,10 @@ export function EntregaDetallePage() {
         numeroSospechado={doc.numeroSospechado}
         esHistorico={doc.esHistorico}
       />
+
+      {esInterno && stelEntrega ? (
+        <AvisoAutoridadStel detalle="Podés consultar, imprimir y exportar. Confirmar y despachar desde el ERP está bloqueado hasta completar la migración: no se mueve stock." />
+      ) : null}
 
       {ultimoError ? (
         <p className={styles.error} role="alert">
@@ -180,15 +190,22 @@ export function EntregaDetallePage() {
             <button
               type="button"
               className={editor.primario}
-              disabled={confirmar.isPending}
+              disabled={confirmar.isPending || stelEntrega || autoridad.cargando}
+              aria-describedby={stelEntrega ? 'motivo-despachar' : undefined}
               onClick={() => confirmar.mutate()}
             >
               {confirmar.isPending ? 'Despachando…' : 'Confirmar y despachar'}
             </button>
-            <span className={editor.aviso}>
-              Descuenta el stock de cada línea y libera las reservas del pedido. Se puede apretar
-              una sola vez: el servidor no repite el movimiento.
-            </span>
+            {stelEntrega ? (
+              <p id="motivo-despachar" className={editor.motivo}>
+                {motivoBloqueo('delivery')}
+              </p>
+            ) : (
+              <span className={editor.aviso}>
+                Descuenta el stock de cada línea y libera las reservas del pedido. Se puede apretar
+                una sola vez: el servidor no repite el movimiento.
+              </span>
+            )}
           </>
         ) : (
           <span className={editor.candado}>{permiso.motivo}</span>
