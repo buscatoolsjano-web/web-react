@@ -156,6 +156,11 @@ if (eu) throw new Error(`usuario: ${eu.message}`)
 await s.from('profiles').update({ full_name: 'ZZ Admin Rediseño' }).eq('id', u.user.id)
 ok(await s.from('company_memberships').insert({ company_id: id, user_id: u.user.id, role: 'admin', status: 'active' }), 'membresía')
 
+// E2: segunda empresa zz donde el mismo usuario es VENDEDOR, para probar el
+// selector de empresa y que la navegación cambie con el rol de la membresía.
+const { id: idB } = ok(await s.from('companies').insert({ slug: `${MARCA}-b-${Date.now()}`, name: 'ZZ Rediseño B', legal_name: 'ZZ Rediseño B SA', default_currency: 'USD' }).select('id').single(), 'empresa B')
+ok(await s.from('company_memberships').insert({ company_id: idB, user_id: u.user.id, role: 'salesperson', status: 'active' }), 'membresía B')
+
 const link = (await s.auth.admin.generateLink({ type: 'magiclink', email, options: { redirectTo: `${origen}/` } })).data.properties.action_link
 
 // E2: un usuario zz SIN membresía, para ver el estado «sin empresa activa» del shell.
