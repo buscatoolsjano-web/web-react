@@ -48,3 +48,8 @@ import-catalog.state.json
 scripts/.fase6-fixtures-series.json
 scripts/.fase7-entrega2-series.json
 scripts/.fase7-entrega4-series.json
+
+# Temporales de los fixtures y mediciones visuales `zz` (magic links, ids,
+# helpers de navegador). Se generan en node_modules/, pero por si alguien
+# los saca de ahí: nunca se commitean.
+.zz-*
