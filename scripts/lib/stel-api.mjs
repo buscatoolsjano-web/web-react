@@ -53,7 +53,7 @@ export function limpiar(texto) {
 
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms))
 
-export function crearCliente({ maxLlamadas = 150, usarCache = true, log = console.log } = {}) {
+export function crearCliente({ maxLlamadas = 150, usarCache = true, cacheDir = CACHE_DIR, log = console.log } = {}) {
   let llamadas = 0
   let ultima = 0
   const registro = []
@@ -61,7 +61,7 @@ export function crearCliente({ maxLlamadas = 150, usarCache = true, log = consol
   async function get(ruta, params = {}) {
     const qs = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]))
     const id = `${ruta}?${qs.toString()}`
-    const archivoCache = path.join(CACHE_DIR, createHash('sha1').update(id).digest('hex') + '.json')
+    const archivoCache = path.join(cacheDir, createHash('sha1').update(id).digest('hex') + '.json')
     if (usarCache && fs.existsSync(archivoCache)) {
       return JSON.parse(fs.readFileSync(archivoCache, 'utf8')).datos
     }
@@ -104,7 +104,7 @@ export function crearCliente({ maxLlamadas = 150, usarCache = true, log = consol
       registro.push({ ruta, params: { ...params }, estado: res.status, ms, n })
       log(`  · STEL ${ruta} ${params.start ? `start=${params.start} ` : ''}→ ${n} (${ms} ms)`)
       if (usarCache) {
-        fs.mkdirSync(CACHE_DIR, { recursive: true })
+        fs.mkdirSync(cacheDir, { recursive: true })
         fs.writeFileSync(archivoCache, JSON.stringify({ id, datos }))
       }
       return datos

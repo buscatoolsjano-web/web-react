@@ -322,7 +322,9 @@ const main = async () => {
         clase(await anon.from(t).insert(fila(t)).select('id')),
       ].join('/')
     }
-    const M = 'STEL/STEL/STEL/PERMISO/STEL/PERMISO/PERMISO/PERMISO'
+    // Fase 14 E2: el admin que finge una importación ya no llega al guard de autoridad:
+    // lo frena antes app.proteger_campos_importacion (imported_at/legacy_source sólo server-side).
+    const M = 'STEL/STEL/PERMISO/PERMISO/STEL/PERMISO/PERMISO/PERMISO'
     cmp('admin / employee / admin fingiendo importación / salesperson / service role sin marca / admin de otra empresa / customer / anon', {
       sales_quotes: M, sales_orders: M, deliveries: M,
     }, res)

@@ -168,12 +168,12 @@ function recortarDoc(d) {
   }
 }
 
-async function leerStel(c) {
+export async function leerStel(c, { desde = DESDE, conMaestro = true, loteReferencias = 40 } = {}) {
   const t0 = Date.now()
   const docs = {}
   for (const t of TIPOS) {
     // Orden estable por fecha de creación (`id` no es un campo de orden admitido).
-    const lista = await c.todos(t.stel, { 'start-date': fechaStel(`${DESDE}T00:00:00Z`), sort: 'creation-date:asc' }, { limite: 200, maxPaginas: 10 })
+    const lista = await c.todos(t.stel, { 'start-date': fechaStel(`${desde}T00:00:00Z`), sort: 'creation-date:asc' }, { limite: 200, maxPaginas: 10 })
     docs[t.tipo] = lista.map(recortarDoc)
   }
 
@@ -227,8 +227,8 @@ async function leerStel(c) {
   const items = { products: [], services: [] }
   for (const clase of ['products', 'services']) {
     const refs = [...new Set(usados[clase].values())]
-    for (let i = 0; i < refs.length; i += 40) {
-      const lote = refs.slice(i, i + 40)
+    for (let i = 0; i < refs.length; i += loteReferencias) {
+      const lote = refs.slice(i, i + loteReferencias)
       // `in:` usa la coma como separador: una referencia con coma se pide sola.
       const conComa = lote.filter((r) => r.includes(','))
       const sinComa = lote.filter((r) => !r.includes(','))
@@ -256,9 +256,9 @@ async function leerStel(c) {
   const productos = [...items.products.map((p) => recortarItem(p, 'products')), ...items.services.map((p) => recortarItem(p, 'services'))]
 
   // U-B-2: tamaño y actividad del maestro de productos en STEL.
-  const maestro = await medirMaestro(c)
+  const maestro = conMaestro ? await medirMaestro(c) : { omitido: true }
 
-  return { docs, padresExternos, estados: estados.map((e) => ({ id: e.id, name: e.name, type: e.type, deleted: e.deleted })), clientes, productos, usados: { products: usados.products.size, services: usados.services.size }, maestro, duracionMs: Date.now() - t0 }
+  return { leidoEn: new Date(t0).toISOString(), docs, padresExternos, estados: estados.map((e) => ({ id: e.id, name: e.name, type: e.type, deleted: e.deleted })), clientes, productos, usados: { products: usados.products.size, services: usados.services.size }, maestro, duracionMs: Date.now() - t0 }
 }
 
 /** Cuenta con búsqueda binaria sobre `start` (limit=1): ~16 llamadas en vez de ~75 páginas. */
@@ -318,7 +318,7 @@ export async function leerReactEmpresa(sb, slug) {
   const docs = {
     quote: await traerTodo(sb, 'sales_quotes', 'id, number, original_number, suspected_normalized_number, number_outlier, customer_id, quote_date, currency_code, exchange_rate, status, title, subtotal, tax_amount, total, discount_pct, perception_pct, external_source, external_id, imported_at, legacy_source, series_code, created_by, needs_review, review_reason', deBT),
     order: await traerTodo(sb, 'sales_orders', 'id, number, original_number, suspected_normalized_number, number_outlier, customer_id, order_date, quote_id, origin, currency_code, exchange_rate, commercial_status, fulfillment_status, title, subtotal, tax_amount, total, discount_pct, perception_pct, external_source, external_id, imported_at, legacy_source, series_code, created_by, needs_review, review_reason', deBT),
-    delivery: await traerTodo(sb, 'deliveries', 'id, number, original_number, suspected_normalized_number, number_outlier, customer_id, delivery_date, order_id, status, currency_code, exchange_rate, title, subtotal, tax_amount, total, external_source, external_id, imported_at, legacy_source, series_code, created_by, needs_review, review_reason', deBT),
+    delivery: await traerTodo(sb, 'deliveries', 'id, number, original_number, suspected_normalized_number, number_outlier, customer_id, delivery_date, order_id, source_quote_id, status, currency_code, exchange_rate, title, subtotal, tax_amount, total, external_source, external_id, imported_at, legacy_source, series_code, created_by, needs_review, review_reason', deBT),
   }
   const lineas = {
     quote: await traerTodo(sb, 'sales_quote_lines', 'id, quote_id, line_no, product_id, sku_snapshot, name_snapshot, quantity, unit_price, discount_pct, tax_treatment, tax_rate_snapshot, line_type', deBT),
@@ -326,7 +326,7 @@ export async function leerReactEmpresa(sb, slug) {
     delivery: await traerTodo(sb, 'delivery_lines', 'id, delivery_id, order_line_id, product_id, sku_snapshot, name_snapshot, quantity, unit_price, discount_pct', deBT),
   }
   const clientes = await traerTodo(sb, 'customers', 'id, legal_name, trade_name, legacy_name, tax_id, legacy_ref, status, deleted_at', deBT)
-  const productos = await traerTodo(sb, 'products', 'id, sku, name, status, deleted_at, needs_review, legacy_ref', deBT)
+  const productos = await traerTodo(sb, 'products', 'id, sku, name, status, deleted_at, needs_review, legacy_ref, external_source, external_id, category_id', deBT)
   const { data: secuencias } = await sb.from('document_sequences').select('doc_type, prefix, padding, next_number, series_code, is_default').eq('company_id', BT)
   const { data: autoridad } = await sb.from('document_numbering_authority').select('doc_type, authority').eq('company_id', BT)
   return { BT, docs, lineas, clientes, productos, secuencias: secuencias ?? [], autoridad: autoridad ?? [] }

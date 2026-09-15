@@ -999,6 +999,7 @@ export type Database = {
           review_reason: string | null
           series_code: string | null
           shipping_address_id: string | null
+          source_quote_id: string | null
           status: string
           subtotal: number | null
           suspected_normalized_number: string | null
@@ -1033,6 +1034,7 @@ export type Database = {
           review_reason?: string | null
           series_code?: string | null
           shipping_address_id?: string | null
+          source_quote_id?: string | null
           status?: string
           subtotal?: number | null
           suspected_normalized_number?: string | null
@@ -1067,6 +1069,7 @@ export type Database = {
           review_reason?: string | null
           series_code?: string | null
           shipping_address_id?: string | null
+          source_quote_id?: string | null
           status?: string
           subtotal?: number | null
           suspected_normalized_number?: string | null
@@ -3085,6 +3088,8 @@ export type Database = {
           deleted_at: string | null
           description: string | null
           description_long: string | null
+          external_id: string | null
+          external_source: string | null
           id: string
           is_kit: boolean
           is_serialized: boolean
@@ -3113,6 +3118,8 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           description_long?: string | null
+          external_id?: string | null
+          external_source?: string | null
           id?: string
           is_kit?: boolean
           is_serialized?: boolean
@@ -3141,6 +3148,8 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           description_long?: string | null
+          external_id?: string | null
+          external_source?: string | null
           id?: string
           is_kit?: boolean
           is_serialized?: boolean
