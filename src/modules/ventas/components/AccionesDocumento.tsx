@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
-import { DOC_TYPE_DE, mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
+import { DOC_TYPE_DE, MENSAJES_WORKFLOW, mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
 import { escribeVentas } from '../lib/permisos'
 import { borrarDocumento, cancelarDocumento, duplicarDocumento } from '../services/acciones'
 import { ETIQUETA_DE, RUTA_DE, type DocumentoDetalle } from '../types'
@@ -93,8 +93,11 @@ export function useAccionesDocumento(doc: DocumentoDetalle | null | undefined): 
 
   if (!doc) return { secundarias: null, peligro: null, motivo: null, error: null, capas: null }
 
+  // Fase 14 E3: un remito despachado ya movió stock; la base rechaza cancelarlo
+  // (DELIVERY_ALREADY_DISPATCHED), así que la acción no se ofrece.
+  const remitoDespachado = doc.tipo === 'entrega' && (doc.estado === 'shipped' || doc.estado === 'delivered')
   const cerrado =
-    doc.estado === 'rejected' || doc.estado === 'cancelled' || doc.estado === 'accepted'
+    doc.estado === 'rejected' || doc.estado === 'cancelled' || doc.estado === 'accepted' || remitoDespachado
   const sePuedeDuplicar = escribe && doc.tipo !== 'entrega'
   const idMotivo = `motivo-duplicar-${doc.id}`
   const nombre = ETIQUETA_DE[doc.tipo].singular
@@ -126,17 +129,19 @@ export function useAccionesDocumento(doc: DocumentoDetalle | null | undefined): 
               Cancelar {nombre}
             </Button>
           ) : null}
-          {!doc.esHistorico ? (
+          {!doc.esHistorico && !remitoDespachado ? (
             <Button variant="danger" icon={<Icon name="trash" size={16} />} disabled={borrar.isPending} onClick={() => setConfirmar('eliminar')}>
               Eliminar
             </Button>
           ) : null}
         </>
       ) : null,
-    motivo:
-      sePuedeDuplicar && stelDuplicar ? (
-        <p id={idMotivo}>{motivoBloqueo(DOC_TYPE_DE[doc.tipo])}</p>
-      ) : null,
+    motivo: (
+      <>
+        {sePuedeDuplicar && stelDuplicar ? <p id={idMotivo}>{motivoBloqueo(DOC_TYPE_DE[doc.tipo])}</p> : null}
+        {escribe && remitoDespachado ? <p>{MENSAJES_WORKFLOW.DELIVERY_ALREADY_DISPATCHED}</p> : null}
+      </>
+    ),
     error,
     capas: (
       <>

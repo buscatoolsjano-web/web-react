@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { DocumentoDetalle } from '../types'
 
-const estado = vi.hoisted(() => ({ rol: 'admin', stel: false }))
+const estado = vi.hoisted((): { rol: string; stel: boolean; doc: unknown } => ({ rol: 'admin', stel: false, doc: null }))
 const servicios = vi.hoisted(() => ({
   borrar: vi.fn(() => Promise.resolve()),
   cancelar: vi.fn(() => Promise.resolve()),
@@ -25,10 +25,10 @@ vi.mock('./ModalImpresion', () => ({ ModalImpresion: () => <div>vista previa</di
 
 const { useAccionesDocumento } = await import('./AccionesDocumento')
 
-const doc = { id: 'p1', tipo: 'pedido', numero: 'PED-00002', estado: 'confirmed', esHistorico: false } as unknown as DocumentoDetalle
+const pedido = { id: 'p1', tipo: 'pedido', numero: 'PED-00002', estado: 'confirmed', esHistorico: false } as unknown as DocumentoDetalle
 
 function Barra() {
-  const a = useAccionesDocumento(doc)
+  const a = useAccionesDocumento((estado.doc as DocumentoDetalle | null) ?? pedido)
   return (
     <div id="root">
       {a.secundarias}
@@ -51,6 +51,7 @@ const montar = () =>
 beforeEach(() => {
   estado.rol = 'admin'
   estado.stel = false
+  estado.doc = null
   vi.clearAllMocks()
 })
 
@@ -99,5 +100,21 @@ describe('Acciones del documento (Fase 13)', () => {
     const duplicar = screen.getByRole('button', { name: 'Duplicar' })
     expect(duplicar).toBeDisabled()
     expect(document.getElementById(duplicar.getAttribute('aria-describedby')!)).toHaveTextContent(/STEL numera los pedidos/)
+  })
+
+  it.each(['shipped', 'delivered'])('Fase 14 E3: remito %s no ofrece Cancelar y explica por qué', (est) => {
+    estado.doc = { id: 'r1', tipo: 'entrega', numero: 'RT0000000001', estado: est, esHistorico: false }
+    montar()
+    expect(screen.queryByRole('button', { name: /Cancelar/ })).toBeNull()
+    // Borrarlo tampoco: el trigger lo rechaza porque ya movió stock.
+    expect(screen.queryByRole('button', { name: 'Eliminar' })).toBeNull()
+    expect(screen.getByText('El remito ya generó movimiento de stock y no puede cancelarse directamente.')).toBeInTheDocument()
+  })
+
+  it('Fase 14 E3: remito en borrador sí se puede cancelar', () => {
+    estado.doc = { id: 'r2', tipo: 'entrega', numero: 'RT0000000002', estado: 'draft', esHistorico: false }
+    montar()
+    expect(screen.getByRole('button', { name: /Cancelar/ })).toBeInTheDocument()
+    expect(screen.queryByText(/ya generó movimiento de stock/)).toBeNull()
   })
 })

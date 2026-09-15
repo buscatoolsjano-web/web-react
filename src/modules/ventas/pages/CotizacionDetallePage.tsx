@@ -73,7 +73,7 @@ function aValores(d: DocumentoDetalle): ValoresCabecera {
     titulo: d.titulo ?? '',
     fecha: d.fecha.slice(0, 10),
     validaHasta: d.validaHasta?.slice(0, 10) ?? '',
-    moneda: d.moneda ?? 'USD',
+    moneda: d.moneda ?? '',
     tipoCambio: texto(d.tipoCambio),
     formaPago: d.formaPago ?? '',
     descuentoPct: texto(d.descuentoPct),
@@ -440,7 +440,7 @@ export function CotizacionDetallePage() {
             {buscando ? (
               <div className={editor.selector}>
                 <SelectorProducto
-                  moneda={doc.moneda ?? 'USD'}
+                  moneda={doc.moneda ?? ''}
                   onCerrar={() => setBuscando(false)}
                   onElegir={(p, precio) => {
                     insertar(lineaDeProducto(p, precio, proximoNumeroDeLinea()))
@@ -451,7 +451,7 @@ export function CotizacionDetallePage() {
             ) : null}
             <EditorLineas
               lineas={lineas}
-              moneda={doc.moneda ?? 'USD'}
+              moneda={doc.moneda ?? ''}
               editable
               onCambiar={cambiarLinea}
               onEliminar={(lineaId) => guardar.mutate(() => eliminarLinea(lineaId))}

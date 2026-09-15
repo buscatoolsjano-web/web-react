@@ -1,6 +1,7 @@
 import { Field } from '@/components/forms/Field'
 import { Input, Select, Textarea } from '@/components/forms/controls'
 import { Button } from '@/components/ui/Button'
+import { MONEDAS_DOCUMENTO as MONEDAS } from '../lib/moneda'
 import { BuscadorCliente } from './BuscadorCliente'
 import styles from './CabeceraCotizacion.module.css'
 
@@ -29,8 +30,6 @@ export interface CabeceraCotizacionProps {
   onCambiar: (campo: CampoCabecera, valor: string) => void
 }
 
-/** Las tres monedas que existen en `currencies`. */
-const MONEDAS = ['USD', 'ARS', 'EUR'] as const
 
 /** La percepción del legacy es 2,5 %, pero la alícuota se guarda, no se fija. */
 const PERCEPCION_HABITUAL = '2.5'
@@ -82,8 +81,13 @@ export function CabeceraCotizacion({
               <Input type="date" value={valores.validaHasta} readOnly={!editable} onChange={(e) => onCambiar('validaHasta', e.target.value)} />
             </Field>
           ) : null}
-          <Field label="Moneda" help={monedaEditable ? undefined : 'La moneda se define al crear el documento.'}>
-            <Select value={valores.moneda} disabled={!editable || !monedaEditable} onChange={(e) => onCambiar('moneda', e.target.value)}>
+          <Field label="Moneda" help={monedaEditable ? 'Obligatoria: no hay moneda por defecto.' : 'La moneda se define al crear el documento.'}>
+            <Select value={valores.moneda} required disabled={!editable || !monedaEditable} onChange={(e) => onCambiar('moneda', e.target.value)}>
+              {valores.moneda === '' ? (
+                <option value="" disabled>
+                  Elegí la moneda
+                </option>
+              ) : null}
               {MONEDAS.map((m) => (
                 <option key={m} value={m}>
                   {m}

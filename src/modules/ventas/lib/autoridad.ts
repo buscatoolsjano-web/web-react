@@ -64,9 +64,24 @@ export function esErrorAutoridadExterna(e: unknown): boolean {
   return texto.includes(CODIGO_AUTORIDAD_EXTERNA)
 }
 
+/**
+ * Fase 14 E3: códigos estables de las invariantes de workflow (triggers de la base
+ * y validaciones del servicio) → texto para la persona.
+ */
+export const MENSAJES_WORKFLOW: Record<string, string> = {
+  DELIVERY_ALREADY_DISPATCHED: 'El remito ya generó movimiento de stock y no puede cancelarse directamente.',
+  DELIVERY_CANCELLED: 'El remito está cancelado.',
+  DELIVERY_STATUS_REQUIRES_DISPATCH: 'El remito sólo avanza con «Confirmar y despachar», que descuenta el stock.',
+  DOCUMENT_CURRENCY_REQUIRED: 'Elegí la moneda del documento: no hay moneda por defecto.',
+  DOCUMENT_CURRENCY_MISMATCH: 'El documento tiene que conservar la moneda de su documento de origen.',
+}
+
 /** Mensaje para mostrar de cualquier error de una acción de Ventas. */
 export function mensajeErrorVentas(e: unknown): string {
   if (esErrorAutoridadExterna(e)) return MENSAJE_AUTORIDAD_EXTERNA
+  const texto = e instanceof Error ? e.message : typeof e === 'string' ? e : ''
+  const codigo = Object.keys(MENSAJES_WORKFLOW).find((c) => texto.includes(c))
+  if (codigo) return MENSAJES_WORKFLOW[codigo]!
   if (e instanceof Error) return e.message
   return 'Ocurrió un error inesperado.'
 }

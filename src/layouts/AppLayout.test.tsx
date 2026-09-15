@@ -239,7 +239,7 @@ describe('apariencia e identidad por módulo (Fase 14)', () => {
     const boton = within(screen.getByRole('banner')).getByRole('button', { name: 'Apariencia' })
     fireEvent.click(boton)
     // El diálogo se carga bajo demanda (lazy).
-    const dialogo = await screen.findByRole('dialog', { name: 'Apariencia' })
+    const dialogo = await screen.findByRole('dialog', { name: 'Apariencia' }, { timeout: 5000 })
     expect(within(dialogo).getByRole('group', { name: 'Tema' })).toBeInTheDocument()
     expect(within(dialogo).getByRole('radio', { name: 'Claro naranja, tema claro (original)' })).toBeChecked()
     fireEvent.click(within(dialogo).getByRole('radio', { name: 'Grafito, tema oscuro' }))

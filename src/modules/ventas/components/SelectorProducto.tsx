@@ -62,6 +62,8 @@ export function SelectorProducto({ moneda, onElegir, onCerrar }: SelectorProduct
         <p className={styles.nota} role="alert">
           {error.message}
         </p>
+      ) : !moneda ? (
+        <p className={styles.nota}>Elegí la moneda del documento para ver los precios de lista.</p>
       ) : consulta.trim().length < 2 ? (
         <p className={styles.nota}>Escribí al menos dos caracteres.</p>
       ) : isFetching ? (
@@ -88,7 +90,7 @@ export function SelectorProducto({ moneda, onElegir, onCerrar }: SelectorProduct
                     ) : p.precio !== null ? (
                       // Hay precio, pero en otra moneda: no se convierte sin
                       // un tipo de cambio confirmado.
-                      <span className={styles.otraMoneda}>
+                      <span className={styles.otraMoneda} title={`Precio en ${p.monedaPrecio ?? 'otra moneda'}: no se aplica a un documento en ${moneda}`}>
                         {formatearImporte(p.precio, p.monedaPrecio)}
                       </span>
                     ) : (

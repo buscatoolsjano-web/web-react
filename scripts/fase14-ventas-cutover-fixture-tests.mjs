@@ -270,8 +270,8 @@ const main = async () => {
   cmp('ARS: moneda, tipo de cambio y total en pesos (no se convierte)', ['ARS', 1250.5, totalesEsperados([{ ...LINEAS[0], price: 125000 }], 0, 0).total], [r2q.currency_code, num(r2q.exchange_rate), num(r2q.total)])
   const nQ3 = await c.rpc('next_document_number', { p_company: E, p_doc_type: 'quote' })
   const q3 = await c.from('sales_quotes').insert({ company_id: E, number: nQ3.data, series_code: 'COTI', customer_id: cli.id, quote_date: HOY, currency_code: null, status: 'draft' }).select('id').single()
-  cmp('una cotización SIN moneda se puede guardar (currency_code es nullable)', 'OK', clase(q3))
-  INFO('riesgo', 'convertirCotizacionEnPedido usa `currency_code ?? "USD"`: el pedido nacería en USD sin que nadie lo elija (ver sección 4)')
+  // Fase 14 E3: moneda obligatoria en documentos nuevos (DOCUMENT_CURRENCY_REQUIRED).
+  cmp('una cotización SIN moneda ya no se guarda (Fase 14 E3)', true, /DOCUMENT_CURRENCY_REQUIRED/.test(q3.error?.message ?? ''))
 
   // ── 3 · Enviar y aceptar ─────────────────────────────────────────────────
   seccion('3 · Enviar y aceptar; la aceptada queda congelada')
@@ -309,9 +309,10 @@ const main = async () => {
   const dup = await c.from('sales_orders').insert({ company_id: E, number: nOdup.data, series_code: 'PDV', customer_id: cli.id, quote_id: q.data.id, origin: 'quote', order_date: HOY, currency_code: 'USD', commercial_status: 'draft' }).select('id')
   cmp('segunda conversión de la misma cotización: rechazada (uq_sales_orders_quote)', true, /uq_sales_orders_quote/.test(dup.error?.message ?? ''))
   INFO('número consumido por el intento duplicado', `${nOdup.data} (el número se pide antes del insert: un fallo quema un número)`)
-  // Sin moneda → la vía de la UI la convierte en USD.
-  const { data: cot3 } = await c.from('sales_quotes').select('currency_code').eq('id', q3.data.id).single()
-  cmp('cotización sin moneda: la regla de la UI (`?? "USD"`) asigna USD al pedido', 'USD', cot3.currency_code ?? 'USD')
+  // Fase 14 E3: un pedido desde la cotización USD en otra moneda → DOCUMENT_CURRENCY_MISMATCH.
+  const nOmon = await c.rpc('next_document_number', { p_company: E, p_doc_type: 'sales_order' })
+  const pedidoOtraMoneda = await c.from('sales_orders').insert({ company_id: E, number: nOmon.data, series_code: 'PDV', customer_id: cli.id, quote_id: q2.data.id, origin: 'quote', order_date: HOY, currency_code: 'USD', commercial_status: 'draft' }).select('id')
+  cmp('pedido desde la cotización ARS en USD: rechazado (la moneda de la cotización manda)', true, /DOCUMENT_CURRENCY_MISMATCH/.test(pedidoOtraMoneda.error?.message ?? ''))
 
   // ── 5 · Pedido → remitos → stock ─────────────────────────────────────────
   seccion('5 · Pedido → remito parcial → despacho → resto; stock')
@@ -355,17 +356,18 @@ const main = async () => {
   cmp('saldo final: A 50−4, B 50−2', [saldoA0 - 4, saldoB0 - 2], [await saldo(A), await saldo(B)])
   const cancelShipped = await c.from('deliveries').update({ status: 'cancelled' }).eq('id', R3a.d.data.id).select('id')
   const movTrasCancel = await cuenta('stock_movements', (x) => x.eq('company_id', E))
-  INFO('cancelar un remito YA despachado', `${clase(cancelShipped)} · movimientos ${movTrasCancel} (antes ${mov0 + 3}) · saldo A ${await saldo(A)} · cumplimiento ${(await leer('sales_orders', o.data.id)).fulfillment_status} — sin movimiento compensatorio ni recálculo`)
+  // Fase 14 E3: un remito despachado no se cancela directamente.
+  cmp('cancelar un remito YA despachado: bloqueado, stock y cumplimiento intactos', [true, mov0 + 3, saldoA0 - 4, 'delivered'], [/DELIVERY_ALREADY_DISPATCHED/.test(cancelShipped.error?.message ?? ''), movTrasCancel, await saldo(A), (await leer('sales_orders', o.data.id)).fulfillment_status])
   const { data: movs } = await s.from('stock_movements').select('movement_type, quantity, source_type').eq('company_id', E).neq('source_type', MARCA).order('id')
   cmp('movimientos de venta: sale_delivery negativos con source delivery', [['sale_delivery', -1, 'delivery'], ['sale_delivery', -2, 'delivery'], ['sale_delivery', -3, 'delivery']],
     (movs ?? []).map((m) => [m.movement_type, Number(m.quantity), m.source_type]).sort((x, y) => x[1] - y[1]).reverse())
 
   // ── 6 · Secuencias ───────────────────────────────────────────────────────
   seccion('6 · Secuencias')
-  cmp('quote +3, sales_order +2 (incluye el intento duplicado), delivery +5 (incluye el remito de sobreentrega)',
-    { ...seq0, quote: seq0.quote + 3, sales_order: seq0.sales_order + 2, delivery: seq0.delivery + 5 }, await seqDe(E))
+  cmp('quote +3 (el intento sin moneda quemó un número), sales_order +3 (duplicado y otra moneda), delivery +5 (incluye el remito de sobreentrega)',
+    { ...seq0, quote: seq0.quote + 3, sales_order: seq0.sales_order + 3, delivery: seq0.delivery + 5 }, await seqDe(E))
   const { data: nums } = await s.from('sales_quotes').select('number').eq('company_id', E).order('number')
-  cmp('números de cotización únicos y correlativos', ['COTI02629', 'COTI02630', 'COTI02631'], (nums ?? []).map((x) => x.number))
+  cmp('números de cotización únicos (COTI02631 no se guardó: sin moneda)', ['COTI02629', 'COTI02630'], (nums ?? []).map((x) => x.number))
 
   // ── 7 · Permisos ─────────────────────────────────────────────────────────
   seccion('7 · Permisos por rol (JWT reales)')

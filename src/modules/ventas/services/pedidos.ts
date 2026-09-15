@@ -2,6 +2,7 @@ import { supabase } from '@/services/supabase/client'
 import type { TablesUpdate } from '@/types/database.types'
 import { registrarEvento, type Editabilidad } from './auditoria'
 import type { LineaNueva } from './cotizaciones'
+import { exigirMoneda } from '../lib/moneda'
 
 export type CambiosPedido = TablesUpdate<'sales_orders'>
 export type CambiosLineaPedido = TablesUpdate<'sales_order_lines'>
@@ -68,6 +69,7 @@ export async function crearPedido(
   cab: CabeceraPedidoNueva,
   lineas: readonly LineaNueva[],
 ): Promise<string> {
+  exigirMoneda(cab.moneda)
   const numero = await proximoNumero(cab.companyId)
 
   const { data, error } = await supabase
@@ -161,7 +163,9 @@ export async function convertirCotizacionEnPedido(
       contactId: cot.contact_id,
       titulo: cot.title,
       fecha: hoy,
-      moneda: cot.currency_code ?? 'USD',
+      // Fase 14 E3: la moneda del documento fuente manda. Sin moneda no se convierte
+      // (antes caía en USD sin que nadie la eligiera).
+      moneda: exigirMoneda(cot.currency_code),
       tipoCambio: cot.exchange_rate === null ? null : Number(cot.exchange_rate),
       formaPago: cot.payment_terms,
       notas: cot.notes,

@@ -2,6 +2,7 @@ import { supabase } from '@/services/supabase/client'
 import type { TablesUpdate } from '@/types/database.types'
 import { registrarEvento, type Editabilidad } from './auditoria'
 import type { LineaDocumento } from '../types'
+import { exigirMoneda } from '../lib/moneda'
 
 export type CambiosCabecera = TablesUpdate<'sales_quotes'>
 export type CambiosLinea = TablesUpdate<'sales_quote_lines'>
@@ -83,6 +84,8 @@ export async function crearCotizacion(
   cab: CabeceraNueva,
   lineas: readonly LineaNueva[],
 ): Promise<string> {
+  // Antes del número: un guardado sin moneda no quema un número de la serie.
+  exigirMoneda(cab.moneda)
   const { data: numero, error: eNum } = await supabase.rpc('next_document_number', {
     p_company: cab.companyId,
     p_doc_type: 'quote',

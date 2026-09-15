@@ -16,7 +16,7 @@ import { CabeceraCotizacion, type ValoresCabecera } from '../components/Cabecera
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
-import { DOC_TYPE_DE, mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
+import { DOC_TYPE_DE, MENSAJES_WORKFLOW, mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
 import { escribeVentas } from '../lib/permisos'
 import { crearCotizacion, type LineaNueva } from '../services/cotizaciones'
 import { crearPedido } from '../services/pedidos'
@@ -34,7 +34,9 @@ const INICIALES: ValoresCabecera = {
   titulo: '',
   fecha: HOY(),
   validaHasta: '',
-  moneda: 'USD',
+  // Fase 14 E3: sin moneda preseleccionada. Un USD visible que en realidad es un
+  // valor por defecto terminaba guardado sin que nadie lo eligiera.
+  moneda: '',
   tipoCambio: '',
   formaPago: '30 DIAS F/F con ECHEQ',
   descuentoPct: '',
@@ -123,6 +125,7 @@ export function DocumentoNuevoPage({ tipo }: DocumentoNuevoProps) {
     mutationFn: async () => {
       if (!activa) throw new Error('Sin empresa activa')
       if (!cab.customerId) throw new Error('Elegí un cliente antes de guardar.')
+      if (!cab.moneda) throw new Error(MENSAJES_WORKFLOW.DOCUMENT_CURRENCY_REQUIRED)
 
       const aLinea = (l: LineaDocumento): LineaNueva => ({
         tipoLinea: l.tipoLinea,

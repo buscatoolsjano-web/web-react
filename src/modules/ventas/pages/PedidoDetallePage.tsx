@@ -92,7 +92,7 @@ function aValores(d: DocumentoDetalle): ValoresCabecera {
     titulo: d.titulo ?? '',
     fecha: d.fecha.slice(0, 10),
     validaHasta: '',
-    moneda: d.moneda ?? 'USD',
+    moneda: d.moneda ?? '',
     tipoCambio: texto(d.tipoCambio),
     formaPago: d.formaPago ?? '',
     descuentoPct: texto(d.descuentoPct),
@@ -465,7 +465,7 @@ export function PedidoDetallePage() {
             {buscando ? (
               <div className={editor.selector}>
                 <SelectorProducto
-                  moneda={doc.moneda ?? 'USD'}
+                  moneda={doc.moneda ?? ''}
                   onCerrar={() => setBuscando(false)}
                   onElegir={(p, precio) => {
                     insertar(lineaDeProducto(p, precio, proximoNumeroDeLinea()))
@@ -476,7 +476,7 @@ export function PedidoDetallePage() {
             ) : null}
             <EditorLineas
               lineas={lineas}
-              moneda={doc.moneda ?? 'USD'}
+              moneda={doc.moneda ?? ''}
               editable
               onCambiar={cambiarLinea}
               onEliminar={(lineaId) => guardar.mutate(() => eliminarLineaPedido(lineaId))}

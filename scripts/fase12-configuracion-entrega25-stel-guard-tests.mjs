@@ -377,7 +377,7 @@ const main = async () => {
     cmp('editar borradores (sin consumir numeración) sigue funcionando', { editarCotizacion: '1', editarPedido: '1', editarLineaRemito: '1' }, e)
 
     // Mover un documento de la empresa ERP a la STEL (sólo lo intenta el service role).
-    const { data: nq } = await s.from('sales_quotes').insert({ company_id: ERP.id, number: 'ZQ-MOVER', customer_id: ERP.cliente, quote_date: HOY }).select('id').single()
+    const { data: nq } = await s.from('sales_quotes').insert({ company_id: ERP.id, number: 'ZQ-MOVER', customer_id: ERP.cliente, quote_date: HOY, currency_code: 'ARS' }).select('id').single()
     cmp('mover un documento a una empresa con autoridad STEL: bloqueado', 'STEL', clase(await s.from('sales_quotes').update({ company_id: STEL.id, customer_id: STEL.cliente }).eq('id', nq.id).select('id')))
     await s.from('sales_quotes').delete().eq('id', nq.id)
   }
@@ -424,13 +424,13 @@ const main = async () => {
     const c = id.adminErp.c
     const seq0 = await seqDe(ERP.id)
     const nQ = await c.rpc('next_document_number', { p_company: ERP.id, p_doc_type: 'quote' })
-    const q = await c.from('sales_quotes').insert({ company_id: ERP.id, number: nQ.data, customer_id: ERP.cliente, quote_date: HOY }).select('id').single()
+    const q = await c.from('sales_quotes').insert({ company_id: ERP.id, number: nQ.data, customer_id: ERP.cliente, quote_date: HOY, currency_code: 'ARS' }).select('id').single()
     const qs = await c.from('sales_quotes').update({ status: 'sent' }).eq('id', q.data?.id).select('id')
     const nO = await c.rpc('next_document_number', { p_company: ERP.id, p_doc_type: 'sales_order' })
-    const o = await c.from('sales_orders').insert({ company_id: ERP.id, number: nO.data, customer_id: ERP.cliente, order_date: HOY }).select('id').single()
+    const o = await c.from('sales_orders').insert({ company_id: ERP.id, number: nO.data, customer_id: ERP.cliente, order_date: HOY, currency_code: 'ARS' }).select('id').single()
     const oc = await c.from('sales_orders').update({ commercial_status: 'confirmed' }).eq('id', o.data?.id).select('id')
     const nD = await c.rpc('next_document_number', { p_company: ERP.id, p_doc_type: 'delivery' })
-    const d = await c.from('deliveries').insert({ company_id: ERP.id, number: nD.data, customer_id: ERP.cliente, order_id: o.data?.id, delivery_date: HOY }).select('id').single()
+    const d = await c.from('deliveries').insert({ company_id: ERP.id, number: nD.data, customer_id: ERP.cliente, order_id: o.data?.id, delivery_date: HOY, currency_code: 'ARS' }).select('id').single()
     const dl = await c.from('delivery_lines').insert({ company_id: ERP.id, delivery_id: d.data?.id, product_id: ERP.producto, warehouse_id: ERP.deposito, quantity: 2 })
     const conf = await c.rpc('confirmar_entrega', { p_delivery: d.data?.id })
     cmp('numerar, crear, enviar, confirmar, remito y despacho', ['OK', 'OK', 'OK', 'OK', 'OK', 'OK', 'OK', 'OK', 'OK', 'OK'], [nQ, q, qs, nO, o, oc, nD, d, dl, conf].map(clase))
