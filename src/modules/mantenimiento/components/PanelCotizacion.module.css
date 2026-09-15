@@ -181,55 +181,6 @@
   align-items: center;
 }
 
-.primario,
-.secundario,
-.peligro,
-.mini {
-  font: inherit;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  min-height: 44px;
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
-}
-
-.primario {
-  border: 1px solid var(--primary);
-  background: var(--primary);
-  color: #fff;
-}
-
-.secundario {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-}
-
-.peligro {
-  border: 1px solid var(--danger);
-  background: var(--surface);
-  color: var(--danger);
-}
-
-.mini {
-  min-height: 32px;
-  padding: 2px var(--space-2);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-soft);
-}
-
-.primario:disabled,
-.secundario:disabled,
-.peligro:disabled,
-.mini:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
 .formulario {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -253,6 +204,24 @@
   color: var(--text-soft);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+.punto .etiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.iconoOk {
+  color: var(--color-success);
+}
+
+.iconoFalta {
+  color: var(--color-warning-text);
+}
+
+.iconoNr {
+  color: var(--color-text-muted);
 }
 
 .anchoCompleto {
@@ -299,17 +268,6 @@
 
 /* Un iPad en vertical mide 768 y es táctil: la consulta mira las dos cosas. */
 @media (max-width: 767px), (pointer: coarse) {
-  .mini {
-    min-height: 44px;
-    font-size: var(--text-sm);
-    padding: var(--space-2) var(--space-3);
-  }
-
-  .primario,
-  .secundario,
-  .peligro {
-    width: 100%;
-  }
 
   .acciones {
     flex-direction: column;

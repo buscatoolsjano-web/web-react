@@ -2,6 +2,10 @@ import { useMutation } from '@tanstack/react-query'
 import { useId } from 'react'
 import { Link } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Button } from '@/components/ui/Button'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { Icon } from '@/components/icons/Icon'
 import { useRanking } from '../hooks/useActividad'
 import { formatearImporte } from '../lib/actividad'
 import { descargarCsv, rankingACsv } from '../lib/csv'
@@ -141,14 +145,14 @@ export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, eti
         {sinMonedas ? (
           <p className={styles.vacio}>Sin documentos de {fuente.titulo.toLowerCase()} en {etiquetaPeriodo}.</p>
         ) : ranking.isPending ? (
-          <p className={styles.nota}>Leyendo el ranking…</p>
+          <SkeletonRows rows={5} columns={4} label="Leyendo el ranking…" />
         ) : ranking.error ? (
-          <div className={styles.error} role="alert">
-            <span>{ranking.error instanceof ErrorInforme ? ranking.error.message : 'No se pudo leer el ranking.'}</span>
-            {ranking.error instanceof ErrorInforme && ranking.error.codigo !== 'desconocido' ? null : (
-              <button type="button" className={styles.boton} onClick={() => void ranking.refetch()}>Reintentar</button>
-            )}
-          </div>
+          <ErrorState
+            compact
+            title={ranking.error instanceof ErrorInforme ? ranking.error.message : 'No se pudo leer el ranking.'}
+            onRetry={ranking.error instanceof ErrorInforme && ranking.error.codigo !== 'desconocido' ? undefined : () => void ranking.refetch()}
+            retrying={ranking.isFetching}
+          />
         ) : filas.length === 0 ? (
           <p className={styles.vacio}>Sin datos para este ranking en {etiquetaPeriodo}.</p>
         ) : (
@@ -176,15 +180,16 @@ export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, eti
         )}
 
         <div className={styles.accionesRanking}>
-          <button
-            type="button"
-            className={styles.boton}
+          <Button
+            variant="secondary"
+            icon={<Icon name="download" size={16} />}
+            loading={exportar.isPending}
             disabled={exportar.isPending || sinMonedas || filas.length === 0}
             onClick={() => exportar.mutate()}
             aria-label={`Exportar el ranking completo de ${esProducto ? 'productos' : 'clientes'} a CSV`}
           >
             {exportar.isPending ? 'Exportando…' : `Exportar ranking completo (CSV${total > 0 ? `, ${total} filas` : ''})`}
-          </button>
+          </Button>
           {exportar.error ? (
             <span className={styles.errorEnLinea} role="alert">
               No se pudo exportar: {exportar.error.message}

@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { IconButton } from '@/components/ui/IconButton'
 import { partirEntrada } from '../lib/destinatarios'
 import { autocompletar } from '../services/redactar'
 import styles from './Composer.module.css'
@@ -64,15 +65,14 @@ export function CampoDestinatarios({ etiqueta, valores, onCambiar, onPendiente, 
         {valores.map((d) => (
           <span key={d} className={styles.chip}>
             <span className={styles.chipTexto}>{d}</span>
-            <button
-              type="button"
+            <IconButton
+              icon="x"
+              size="sm"
               className={styles.chipQuitar}
               onClick={() => quitar(d)}
               disabled={deshabilitado}
               aria-label={`Quitar ${d} de ${etiqueta}`}
-            >
-              ×
-            </button>
+            />
           </span>
         ))}
         <input

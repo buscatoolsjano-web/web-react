@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { EventoAuditoria } from '../lib/auditoria'
 
-const estado = vi.hoisted(() => ({ rol: 'admin', movil: false, error: false, filas: [] as unknown[] }))
+const estado = vi.hoisted(() => ({ rol: 'admin', movil: false, error: false, filas: [] as unknown[], total: null as number | null }))
 const llamadas = vi.hoisted(() => ({ auditoria: [] as unknown[][], refetch: vi.fn() }))
 
 vi.mock('@/features/empresa/useEmpresa', () => ({
@@ -23,7 +23,7 @@ vi.mock('../hooks/useAuditoria', () => ({
     llamadas.auditoria.push(args)
     return estado.error
       ? { isError: true, error: new Error('desconocido'), isPending: false, isFetching: false, refetch: llamadas.refetch }
-      : { isError: false, data: { filas: estado.filas, total: estado.filas.length ? 120 : 0 }, isPending: false, isFetching: false, refetch: llamadas.refetch }
+      : { isError: false, data: { filas: estado.filas, total: estado.total ?? (estado.filas.length ? 120 : 0) }, isPending: false, isFetching: false, refetch: llamadas.refetch }
   },
   useActoresAuditoria: () => ({ data: [{ id: 'a1', etiqueta: 'Jano', eventos: 3 }], isError: false }),
 }))
@@ -50,6 +50,7 @@ beforeEach(() => {
   estado.rol = 'admin'
   estado.movil = false
   estado.error = false
+  estado.total = null
   estado.filas = [
     evento({}),
     evento({ clave: 'dna:1', origen: 'document_numbering_authority_audit', modulo: 'numeracion', evento: 'NUMBERING_AUTHORITY_INSERT', actor: null, entidadTipo: 'tipo_documento', entidadNombre: 'quote', detalles: { tipo_documento: 'quote', autoridad_nueva: 'STEL', origen_tecnico: 'postgres' } }),
@@ -115,6 +116,18 @@ describe('Auditoría', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('«Hasta» no puede ser anterior a «Desde».')
     expect(screen.getByLabelText('Hasta')).toHaveAttribute('aria-invalid', 'true')
     expect(llamadas.auditoria.at(-1)![0]).toMatchObject({ desde: '', hasta: '' })
+  })
+
+  it('singular y plural: «1 evento», nunca «1 eventos»', () => {
+    estado.filas = [evento({})]
+    estado.total = 1
+    const { unmount } = render(<AuditoriaPage />)
+    expect(screen.getByText('1–1 de 1 evento')).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/(^|\D)1 eventos/)
+    unmount()
+    estado.total = 120
+    render(<AuditoriaPage />)
+    expect(screen.getByText('1–50 de 120 eventos')).toBeInTheDocument()
   })
 
   it('vacío sin error', () => {

@@ -1,113 +1,106 @@
-/* El composer. En mobile ocupa el ancho; nada acá tiene ancho fijo. */
-
+/* El composer (Fase 13 · E5). En mobile ocupa el ancho; nada tiene ancho fijo. */
 .composer {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  padding: var(--space-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  display: grid;
+  gap: var(--space-4);
   min-width: 0;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
 }
 
-.cabecera {
+.cabecera,
+.cabeceraSinTitulo {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
   align-items: baseline;
+  justify-content: space-between;
   gap: var(--space-2);
+}
+
+.cabeceraSinTitulo {
+  justify-content: flex-end;
+}
+
+.cabeceraSinTitulo:has(> span:empty) {
+  display: none;
 }
 
 .titulo {
   margin: 0;
   font-size: var(--text-lg);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 
+/* Indicador de autoguardado: texto + ícono, anunciado con aria-live. */
 .estado,
 .estadoError {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
   font-size: var(--text-sm);
-  color: var(--text-soft);
+  color: var(--color-text-soft);
 }
 
 .estadoError {
-  color: var(--danger);
-  font-weight: 600;
+  color: var(--color-danger-text);
+  font-weight: var(--weight-semibold);
 }
 
 .campo {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  display: grid;
   gap: var(--space-1);
   min-width: 0;
-  position: relative;
 }
 
 .etiqueta {
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
 }
 
-.entrada,
-.texto,
-.entradaChip {
-  font: inherit;
-  font-size: 16px;
-  color: var(--text);
-  background: var(--surface);
-  min-width: 0;
-}
-
-.entrada,
-.texto {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3);
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.entrada {
-  min-height: 44px;
+.inicio {
+  justify-self: start;
 }
 
 .texto {
   min-height: 200px;
   resize: vertical;
-  line-height: 1.5;
+  line-height: var(--leading-normal);
 }
 
+/* En una respuesta el asunto no se edita: se ve como dato, no como campo. */
 .asuntoFijo {
-  margin: 0;
-  min-height: 44px;
   display: flex;
   align-items: center;
+  min-height: var(--control-h-md);
+  margin: 0;
   padding: 0 var(--space-3);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-soft);
+  border: 1px dashed var(--color-border-medium);
+  border-radius: var(--radius-md);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
   overflow-wrap: anywhere;
 }
 
+/* ── Destinatarios como chips ──────────────────────────────────────────── */
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1);
   align-items: center;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 4px var(--space-2);
-  min-height: 44px;
-  box-sizing: border-box;
-  background: var(--surface);
+  gap: var(--space-1);
+  min-height: var(--control-h-md);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
 }
 
-.chips:focus-within,
-.entrada:focus-visible,
-.texto:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
+.chips:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
 }
 
 .chip {
@@ -115,222 +108,165 @@
   align-items: center;
   max-width: 100%;
   min-width: 0;
-  border-radius: 16px;
-  background: var(--surface-alt);
-  border: 1px solid var(--border);
-  font-size: var(--text-sm);
   padding-left: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-alt);
+  font-size: var(--text-sm);
 }
 
 .chipTexto {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
 }
 
 .chipQuitar {
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  color: var(--text-soft);
-  min-width: 32px;
-  min-height: 32px;
+  border-radius: var(--radius-full);
 }
 
 .entradaChip {
   flex: 1 1 120px;
-  border: none;
-  outline: none;
-  min-height: 36px;
+  min-width: 0;
+  min-height: 32px;
   padding: 0 var(--space-1);
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  /* 16px: menos que eso y iOS hace zoom al enfocar. */
+  font-size: 16px;
 }
 
 @media (pointer: coarse) {
-  .chipQuitar {
-    min-width: 44px;
-    min-height: 44px;
-  }
+  .chips,
   .entradaChip {
-    min-height: 44px;
+    min-height: var(--touch-target);
   }
 }
 
 .sugerencias {
-  list-style: none;
-  margin: 0;
-  padding: var(--space-1) 0;
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  z-index: 20;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lg);
+  z-index: var(--z-dropdown);
   max-height: 260px;
+  margin: 0;
+  padding: var(--space-1) 0;
   overflow-y: auto;
+  list-style: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
 }
 
 .sugerencia {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: grid;
+  justify-items: start;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--touch-target);
   padding: var(--space-2) var(--space-3);
-  border: none;
+  border: 0;
   background: none;
-  text-align: left;
+  color: var(--color-text);
   font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
 .sugerencia:hover,
 .sugerencia:focus-visible {
-  background: var(--surface-alt);
+  background: var(--color-surface-alt);
+}
+
+.sugerencia:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: calc(var(--focus-offset) * -1);
 }
 
 .sugerenciaDireccion {
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   overflow-wrap: anywhere;
 }
 
 .sugerenciaContexto {
   font-size: var(--text-xs);
-  color: var(--text-soft);
+  color: var(--color-text-soft);
   overflow-wrap: anywhere;
 }
 
+/* ── Adjuntos ──────────────────────────────────────────────────────────── */
 .adjuntos {
-  list-style: none;
+  display: grid;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  list-style: none;
 }
 
 .adjunto {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
   align-items: center;
   gap: var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2);
   min-width: 0;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.adjuntoIcono {
+  flex: none;
+  color: var(--color-text-muted);
 }
 
 .adjuntoTexto {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  flex: 1 1 auto;
   min-width: 0;
-  flex: 1 1 160px;
   font-size: var(--text-sm);
   overflow-wrap: anywhere;
 }
 
-.boton,
-.botonPrimario,
+/* Un <label> con aspecto de botón secundario para el input de archivos. */
 .botonArchivo {
-  min-height: 44px;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-size: var(--text-sm);
-  cursor: pointer;
-  white-space: nowrap;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-self: start;
+  gap: var(--space-2);
+  min-height: var(--control-h-md);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
 }
 
-.botonArchivo {
-  align-self: flex-start;
+.botonArchivo:hover {
+  background: var(--color-surface-alt);
+}
+
+.botonArchivo:focus-within {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 .botonArchivo[aria-disabled='true'] {
-  opacity: 0.5;
+  color: var(--color-text-disabled);
   pointer-events: none;
 }
 
-.botonPrimario {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-  font-weight: 600;
-}
-
-.boton:disabled,
-.botonPrimario:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.boton:focus-visible,
-.botonPrimario:focus-visible,
-.botonArchivo:focus-within,
-.enlace:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
-}
-
-.enlace {
-  align-self: flex-start;
-  border: none;
-  background: none;
-  color: var(--primary);
-  font: inherit;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  min-height: 44px;
-  padding: 0;
-}
-
-.acciones {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
-}
-
-.enviado {
-  font-weight: 700;
-  color: var(--success);
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-}
-
-.nota {
-  font-size: var(--text-xs);
-  color: var(--text-soft);
-  margin: 0;
-}
-
-.aviso {
-  margin: 0;
-  border: 1px solid var(--warning);
-  background: var(--warning-light);
-  color: var(--warning-text);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-sm);
-}
-
-.error {
-  color: var(--danger);
-  font-size: var(--text-sm);
+@media (pointer: coarse) {
+  .botonArchivo {
+    min-height: var(--touch-target);
+  }
 }
 
 .oculto {
@@ -339,4 +275,48 @@
   height: 1px;
   opacity: 0;
   overflow: hidden;
+}
+
+.nota {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+}
+
+.error {
+  font-size: var(--text-sm);
+  color: var(--color-danger-text);
+}
+
+/* ── Acciones: enviar (primaria), guardar/cerrar y descartar separado ──── */
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.peligro {
+  margin-left: auto;
+  color: var(--color-danger-text);
+}
+
+.enviado {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target);
+  color: var(--color-success-text);
+  font-weight: var(--weight-bold);
+}
+
+@media (max-width: 767px) {
+  .acciones {
+    display: grid;
+  }
+  .peligro {
+    margin-left: 0;
+  }
 }

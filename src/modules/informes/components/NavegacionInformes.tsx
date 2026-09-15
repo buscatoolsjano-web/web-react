@@ -1,15 +1,21 @@
-import { Link, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Tabs } from '@/components/ui/Tabs'
 import { leerMes } from '../lib/actividad'
 import type { VistaInformes } from '../lib/vista'
-import styles from './Informes.module.css'
 
+export const ID_PESTANAS_INFORMES = 'informes'
 
 /**
  * Pestañas de Informes. La ruta sigue siendo `/informes`: la vista va en la
  * URL para que «atrás» y los enlaces funcionen, y el `?mes=` se conserva.
+ *
+ * Fase 13 · E5: el patrón ARIA de pestañas compartido (`Tabs`, con ← →). La
+ * URL que arma cada pestaña es la misma de antes y sigue agregando una entrada
+ * al historial, como el enlace que reemplaza.
  */
 export function NavegacionInformes({ vista }: { vista: VistaInformes }) {
   const [params] = useSearchParams()
+  const navigate = useNavigate()
   const mes = leerMes(params.get('mes'))
   const href = (v: VistaInformes) => {
     const n = new URLSearchParams()
@@ -19,17 +25,15 @@ export function NavegacionInformes({ vista }: { vista: VistaInformes }) {
     return q ? `?${q}` : '?'
   }
   return (
-    <nav className={styles.pestanas} aria-label="Informes">
-      {(['comercial', 'stock'] as const).map((v) => (
-        <Link
-          key={v}
-          to={{ search: href(v) }}
-          className={v === vista ? styles.pestanaActiva : styles.pestana}
-          aria-current={v === vista ? 'page' : undefined}
-        >
-          {v === 'comercial' ? 'Comercial' : 'Stock'}
-        </Link>
-      ))}
-    </nav>
+    <Tabs
+      id={ID_PESTANAS_INFORMES}
+      label="Informes"
+      value={vista}
+      onChange={(v) => void navigate({ search: href(v) })}
+      items={[
+        { key: 'comercial', label: 'Comercial' },
+        { key: 'stock', label: 'Stock' },
+      ]}
+    />
   )
 }

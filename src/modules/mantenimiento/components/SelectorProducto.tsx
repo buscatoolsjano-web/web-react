@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react'
+import { IconButton } from '@/components/ui/IconButton'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { buscarProductos, type ProductoBuscado } from '../services/catalogo'
@@ -58,9 +59,7 @@ export function SelectorProducto({
         <label className={styles.etiqueta} htmlFor={idBusqueda}>
           Buscar por SKU, nombre o marca
         </label>
-        <button type="button" className={styles.cerrar} onClick={onCerrar} aria-label="Cerrar">
-          ×
-        </button>
+        <IconButton icon="x" size="sm" onClick={onCerrar} aria-label="Cerrar" />
       </div>
 
       <input

@@ -1,7 +1,17 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { PageHeader } from '@/components/layout/PageHeader'
+import doc from '@/components/document/Document.module.css'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Badge } from '@/components/ui/Badge'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { Spinner } from '@/components/ui/Spinner'
+import { Icon } from '@/components/icons/Icon'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { SinAccesoEmails } from '../components/SinAccesoEmails'
 import { useCuentas } from '../hooks/useEmails'
 import { ErrorContenido, mensajeDeError } from '../lib/errores'
 import { puedeUsarEmails } from '../lib/permisos'
@@ -18,18 +28,12 @@ const ETIQUETA_MODO: Record<string, string> = {
 
 /**
  * Los borradores del buzón, leídos de Gmail. No hay copia local: si alguien
- * crea uno desde Gmail, aparece acá también.
+ * crea uno desde Gmail, aparece acá también. La identificación de cada
+ * borrador (`draft_id`, hilo y modo) no cambió.
  */
 export function EmailBorradoresPage() {
   const { activa } = useEmpresa()
-  if (!puedeUsarEmails(activa?.rol)) {
-    return (
-      <div className={styles.page}>
-        <h1 className={styles.titulo}>Borradores</h1>
-        <p className={styles.vacio}>Tu rol en esta empresa no tiene acceso a la bandeja de correo.</p>
-      </div>
-    )
-  }
+  if (!puedeUsarEmails(activa?.rol)) return <SinAccesoEmails titulo="Borradores" />
   return <Borradores />
 }
 
@@ -62,48 +66,60 @@ function Borradores() {
   }
 
   const error = borradores.error
+  const lista = borradores.data ?? []
   return (
-    <div className={styles.page}>
-      <Link to="/emails" className={styles.volver}>
-        ← Volver a la bandeja
-      </Link>
-      <header className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>Borradores</h1>
-          <p className={styles.subtitulo}>Guardados en Gmail{cuenta ? ` · ${cuenta.direccion}` : ''}</p>
-        </div>
-        <Link to="/emails/redactar" className={styles.botonPrimario}>
-          Nuevo email
-        </Link>
-      </header>
+    <div className={doc.listado}>
+      <PageHeader
+        back={{ to: '/emails', label: 'Bandeja' }}
+        title="Borradores"
+        subtitle={`Guardados en Gmail${cuenta ? ` · ${cuenta.direccion}` : ''}`}
+        actions={
+          <LinkButton to="/emails/redactar" variant="primary" icon={<Icon name="plus" size={16} />}>
+            Nuevo email
+          </LinkButton>
+        }
+      />
 
       {borradores.isPending && cuenta ? (
-        <p className={styles.nota}>Leyendo los borradores de Gmail…</p>
+        <div className={styles.lista}>
+          <p className={styles.cargandoTexto} role="status">
+            <Spinner size={16} />
+            Leyendo los borradores de Gmail…
+          </p>
+          <SkeletonRows rows={3} columns={2} />
+        </div>
       ) : error ? (
-        <div className={styles.error} role="alert">
-          <span>{mensajeDeError(error instanceof ErrorContenido ? error.codigo : 'desconocido')}</span>
-          <button type="button" className={styles.boton} onClick={() => void borradores.refetch()}>
-            Reintentar
-          </button>
-        </div>
-      ) : (borradores.data ?? []).length === 0 ? (
-        <div className={styles.vacio}>
-          <p>No hay borradores.</p>
-        </div>
+        <ErrorState
+          title={mensajeDeError(error instanceof ErrorContenido ? error.codigo : 'desconocido')}
+          onRetry={() => void borradores.refetch()}
+          retrying={borradores.isFetching}
+        />
+      ) : lista.length === 0 ? (
+        <EmptyState icon="edit" title="No hay borradores" description="Los borradores que se guarden desde el ERP o desde Gmail aparecen acá." />
       ) : (
         <ul className={styles.lista} aria-label="Borradores">
-          {(borradores.data ?? []).map((b) => (
+          {lista.map((b) => (
             <li key={b.draft_id}>
               <button type="button" className={styles.filaBoton} onClick={() => void abrir(b)} disabled={abriendo !== null}>
                 <span className={styles.remitente}>{b.para.length ? `Para: ${b.para.join(', ')}` : '(sin destinatarios)'}</span>
                 <span className={styles.centro}>
                   <span className={styles.asunto}>{b.asunto || '(sin asunto)'}</span>
                   <span className={styles.meta}>
-                    {b.modo ? <span className={styles.chip}>{ETIQUETA_MODO[b.modo]}</span> : null}
+                    {b.modo ? <Badge tone="neutral">{ETIQUETA_MODO[b.modo]}</Badge> : null}
                     {b.fecha ? <span>{new Date(b.fecha).toLocaleString('es-AR')}</span> : null}
                   </span>
                 </span>
-                <span className={styles.derecha}>{abriendo === b.draft_id ? 'Abriendo…' : 'Abrir'}</span>
+                <span className={styles.derecha}>
+                  {abriendo === b.draft_id ? (
+                    <>
+                      <Spinner size={16} /> Abriendo…
+                    </>
+                  ) : (
+                    <>
+                      Abrir <Icon name="chevron-right" size={16} />
+                    </>
+                  )}
+                </span>
               </button>
             </li>
           ))}

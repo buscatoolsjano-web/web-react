@@ -1,11 +1,18 @@
 import { useId, useState } from 'react'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Badge } from '@/components/ui/Badge'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { FilterBar } from '@/components/filters/FilterBar'
+import { Field } from '@/components/forms/Field'
+import { Input, Select } from '@/components/forms/controls'
+import { Pagination } from '@/components/tables/Pagination'
+import { Icon } from '@/components/icons/Icon'
 import { Button } from '@/components/ui/Button'
-import { StatusMessage } from '@/components/ui/StatusMessage'
 import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
 import type { Column } from '@/components/tables/types'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { useDebounce } from '@/hooks/useDebounce'
-import { cx } from '@/utils/cx'
 import { useActoresAuditoria, useAuditoria } from '../hooks/useAuditoria'
 import {
   FILTROS_VACIOS,
@@ -25,10 +32,11 @@ import {
   type FiltrosAuditoria,
   type Modulo,
 } from '../lib/auditoria'
-import { rangoPagina } from '../lib/maestros'
 import { puedeVerAuditoria } from '../lib/permisos'
 import { ErrorAuditoria } from '../services/auditoria'
 import styles from '../components/Configuracion.module.css'
+
+const EVENTOS = { singular: 'evento', plural: 'eventos' }
 
 const codigo = (e: unknown) => (e instanceof ErrorAuditoria ? e.codigo : 'desconocido')
 
@@ -51,8 +59,8 @@ export function AuditoriaPage() {
   if (!puedeVerAuditoria(activa?.rol)) {
     return (
       <>
-        <h1 className={styles.titulo}>Auditoría</h1>
-        <p className={styles.vacio}>Sólo un administrador de la empresa puede ver la auditoría.</p>
+        <PageHeader title="Auditoría" />
+        <EmptyState icon="eye" title="Sin acceso a Auditoría" description="Sólo un administrador de la empresa puede ver la auditoría." />
       </>
     )
   }
@@ -112,90 +120,77 @@ function AuditoriaAdmin() {
 
   return (
     <>
-      <div className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>Auditoría</h1>
-          <p className={styles.subtitulo}>Cambios de Configuración en {activa?.companyName ?? 'la empresa'}. Sólo lectura: nada se borra ni se edita desde acá.</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Auditoría"
+        subtitle={`Cambios de Configuración en ${activa?.companyName ?? 'la empresa'}. Nada se borra ni se edita desde acá.`}
+        status={<Badge tone="neutral" outline>Sólo lectura</Badge>}
+      />
 
-      <form className={styles.filtrosAuditoria} onSubmit={(ev) => ev.preventDefault()} aria-label="Filtros de auditoría">
-        <label className={styles.campo} htmlFor={ids.desde}>
-          <span className={styles.etiqueta}>Desde</span>
-          <input id={ids.desde} className={styles.control} type="date" value={filtros.desde} max={filtros.hasta || undefined} onChange={(e) => cambiar({ desde: e.target.value })} aria-invalid={!!rangoInvalido} aria-describedby={rangoInvalido ? `${ids.hasta}-error` : undefined} />
-        </label>
-        <label className={styles.campo} htmlFor={ids.hasta}>
-          <span className={styles.etiqueta}>Hasta</span>
-          <input id={ids.hasta} className={styles.control} type="date" value={filtros.hasta} min={filtros.desde || undefined} onChange={(e) => cambiar({ hasta: e.target.value })} aria-invalid={!!rangoInvalido} aria-describedby={rangoInvalido ? `${ids.hasta}-error` : undefined} />
-        </label>
-        <label className={styles.campo} htmlFor={ids.modulo}>
-          <span className={styles.etiqueta}>Módulo</span>
-          <select id={ids.modulo} className={styles.control} value={filtros.modulo} onChange={(e) => cambiar({ modulo: e.target.value as Modulo | '' })}>
+      {/* Mismo estado y mismos valores: FilterBar sólo ordena (y pliega en mobile). */}
+      <FilterBar
+        label="Filtros de auditoría"
+        activeCount={[filtros.desde, filtros.hasta, filtros.modulo, filtros.evento, filtros.actor].filter(Boolean).length}
+        hasFilters={hayFiltros(filtros)}
+        onClear={() => {
+          setFiltros(FILTROS_VACIOS)
+          setPagina(0)
+        }}
+        search={
+          <Field label="Buscar" id={ids.texto}>
+            <Input type="search" maxLength={100} placeholder="Nombre, email, marca, categoría o motivo" value={filtros.texto} onChange={(e) => cambiar({ texto: e.target.value })} />
+          </Field>
+        }
+      >
+        <Field label="Desde" id={ids.desde}>
+          <Input type="date" value={filtros.desde} max={filtros.hasta || undefined} onChange={(e) => cambiar({ desde: e.target.value })} aria-invalid={!!rangoInvalido} aria-describedby={rangoInvalido ? `${ids.hasta}-error` : undefined} />
+        </Field>
+        <Field label="Hasta" id={ids.hasta}>
+          <Input type="date" value={filtros.hasta} min={filtros.desde || undefined} onChange={(e) => cambiar({ hasta: e.target.value })} aria-invalid={!!rangoInvalido} aria-describedby={rangoInvalido ? `${ids.hasta}-error` : undefined} />
+        </Field>
+        <Field label="Módulo" id={ids.modulo}>
+          <Select value={filtros.modulo} onChange={(e) => cambiar({ modulo: e.target.value as Modulo | '' })}>
             <option value="">Todos</option>
             {Object.entries(MODULOS).map(([k, v]) => (
               <option key={k} value={k}>
                 {v}
               </option>
             ))}
-          </select>
-        </label>
-        <label className={styles.campo} htmlFor={ids.evento}>
-          <span className={styles.etiqueta}>Evento</span>
-          <select id={ids.evento} className={styles.control} value={filtros.evento} onChange={(e) => cambiar({ evento: e.target.value })}>
+          </Select>
+        </Field>
+        <Field label="Evento" id={ids.evento}>
+          <Select value={filtros.evento} onChange={(e) => cambiar({ evento: e.target.value })}>
             <option value="">Todos</option>
             {eventosDeModulo(filtros.modulo).map((e) => (
               <option key={e.codigo} value={e.codigo}>
                 {e.etiqueta}
               </option>
             ))}
-          </select>
-        </label>
-        <label className={styles.campo} htmlFor={ids.actor}>
-          <span className={styles.etiqueta}>Actor</span>
-          <select id={ids.actor} className={styles.control} value={filtros.actor} onChange={(e) => cambiar({ actor: e.target.value })} disabled={actores.isError}>
+          </Select>
+        </Field>
+        <Field label="Actor" id={ids.actor}>
+          <Select value={filtros.actor} onChange={(e) => cambiar({ actor: e.target.value })} disabled={actores.isError}>
             <option value="">Todos</option>
             {(actores.data ?? []).map((a) => (
               <option key={a.id} value={a.id}>
                 {a.etiqueta} ({a.eventos})
               </option>
             ))}
-          </select>
-        </label>
-        <label className={cx(styles.campo, styles.campoAncho)} htmlFor={ids.texto}>
-          <span className={styles.etiqueta}>Buscar</span>
-          <input id={ids.texto} className={styles.control} type="search" maxLength={100} placeholder="Nombre, email, marca, categoría o motivo" value={filtros.texto} onChange={(e) => cambiar({ texto: e.target.value })} />
-        </label>
-        {rangoInvalido && (
-          <p id={`${ids.hasta}-error`} className={cx(styles.errorCampo, styles.campoAncho)} role="alert">
-            {rangoInvalido} No se aplica el rango de fechas.
-          </p>
-        )}
-        {hayFiltros(filtros) && (
-          <div className={styles.campoAncho}>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setFiltros(FILTROS_VACIOS)
-                setPagina(0)
-              }}
-            >
-              Limpiar filtros
-            </Button>
-          </div>
-        )}
-      </form>
+          </Select>
+        </Field>
+      </FilterBar>
+      {rangoInvalido && (
+        <p id={`${ids.hasta}-error`} className={styles.errorCampo} role="alert">
+          <Icon name="alert-circle" size={16} />
+          {rangoInvalido} No se aplica el rango de fechas.
+        </p>
+      )}
 
       {q.isError ? (
-        <div className={styles.page}>
-          <StatusMessage tono="error" titulo={MENSAJES[codigo(q.error)] ?? MENSAJES.desconocido!} />
-          {codigo(q.error) !== 'sin_permiso' && (
-            <div>
-              <Button variant="secondary" onClick={() => void q.refetch()} disabled={q.isFetching}>
-                {q.isFetching ? 'Reintentando…' : 'Reintentar'}
-              </Button>
-            </div>
-          )}
-        </div>
+        <ErrorState
+          title={MENSAJES[codigo(q.error)] ?? MENSAJES.desconocido!}
+          onRetry={codigo(q.error) !== 'sin_permiso' ? () => void q.refetch() : undefined}
+          retrying={q.isFetching}
+        />
       ) : (
         <>
           <ResponsiveTable
@@ -223,17 +218,16 @@ function AuditoriaAdmin() {
               </article>
             )}
           />
-          <nav className={styles.paginador} aria-label="Páginas de auditoría">
-            <Button variant="secondary" onClick={() => setPagina((p) => Math.max(0, p - 1))} disabled={pagina === 0 || q.isFetching}>
-              Anterior
-            </Button>
-            <span className={styles.nota} role="status" aria-live="polite">
-              {q.isFetching ? 'Cargando…' : total === 0 ? '0 eventos' : `${rangoPagina(pagina * POR_PAGINA_AUDITORIA, filas.length, total)} eventos`}
-            </span>
-            <Button variant="secondary" onClick={() => setPagina((p) => Math.min(ultimaPagina, p + 1))} disabled={pagina >= ultimaPagina || q.isFetching}>
-              Siguiente
-            </Button>
-          </nav>
+          {/* «1 evento» / «N eventos»: el plural lo resuelve Pagination. */}
+          <Pagination
+            label="Páginas de auditoría"
+            offset={pagina * POR_PAGINA_AUDITORIA}
+            pageSize={POR_PAGINA_AUDITORIA}
+            total={total}
+            noun={EVENTOS}
+            loading={q.isFetching}
+            onChange={(offset) => setPagina(Math.min(ultimaPagina, Math.floor(offset / POR_PAGINA_AUDITORIA)))}
+          />
         </>
       )}
     </>
@@ -259,9 +253,17 @@ function Resumen({ e, abierto, onAlternar }: { e: EventoAuditoria; abierto: bool
       {resumen ? <span>{resumen}</span> : <span className={styles.email}>Sin más datos</span>}
       {detalles.length > 0 && (
         <>
-          <button type="button" className={styles.botonDetalle} aria-expanded={abierto} aria-controls={id} onClick={onAlternar}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={styles.botonDetalle}
+            icon={<Icon name={abierto ? 'chevron-up' : 'chevron-down'} size={16} />}
+            aria-expanded={abierto}
+            aria-controls={id}
+            onClick={onAlternar}
+          >
             {abierto ? 'Ocultar detalle' : 'Ver detalle'}
-          </button>
+          </Button>
           {abierto && (
             <dl id={id} className={styles.cardDatos}>
               {detalles.map((d) => (

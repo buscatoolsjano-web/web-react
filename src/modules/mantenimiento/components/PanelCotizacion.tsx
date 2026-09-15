@@ -1,4 +1,6 @@
 import { useId, useState } from 'react'
+import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import {
   MONEDAS,
@@ -162,41 +164,39 @@ export function PanelCotizacion({
 
   const filaAcciones = (l: LineaCotizacion, i: number) => (
     <>
-      <button
-        type="button"
-        className={styles.mini}
+      <IconButton
+        icon="arrow-up"
+        size="sm"
+        variant="secondary"
         disabled={guardando || i === 0}
         onClick={() => {
           const anterior = lineas[i - 1]
           if (anterior) onMover(l, anterior)
         }}
         aria-label={`Subir ${l.descripcion ?? l.sku ?? 'la línea'}`}
-      >
-        ↑
-      </button>
-      <button
-        type="button"
-        className={styles.mini}
+      />
+      <IconButton
+        icon="arrow-down"
+        size="sm"
+        variant="secondary"
         disabled={guardando || i === lineas.length - 1}
         onClick={() => {
           const siguiente = lineas[i + 1]
           if (siguiente) onMover(l, siguiente)
         }}
         aria-label={`Bajar ${l.descripcion ?? l.sku ?? 'la línea'}`}
-      >
-        ↓
-      </button>
-      <button type="button" className={styles.mini} disabled={guardando} onClick={() => empezarEdicion(l)}>
+      />
+      <Button variant="secondary" size="sm" disabled={guardando} onClick={() => empezarEdicion(l)}>
         Editar
-      </button>
-      <button
-        type="button"
-        className={styles.mini}
+      </Button>
+      <Button
+        variant="secondary"
+        size="sm"
         disabled={guardando}
         onClick={() => onBorrar(l.id)}
       >
         Borrar
-      </button>
+      </Button>
     </>
   )
 
@@ -370,18 +370,18 @@ export function PanelCotizacion({
                 {nueva.sku ? (
                   <>
                     Producto: {nueva.sku}{' '}
-                    <button
-                      type="button"
-                      className={styles.mini}
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => setNueva({ ...nueva, productoId: null, sku: null })}
                     >
                       Quitar
-                    </button>
+                    </Button>
                   </>
                 ) : (
-                  <button type="button" className={styles.mini} onClick={() => setBuscando(true)}>
+                  <Button variant="secondary" size="sm" onClick={() => setBuscando(true)}>
                     Elegir del catálogo
-                  </button>
+                  </Button>
                 )}
               </span>
             </div>
@@ -433,18 +433,15 @@ export function PanelCotizacion({
             </div>
 
             <div className={`${styles.acciones} ${styles.anchoCompleto}`}>
-              <button
-                type="button"
-                className={styles.primario}
+              <Button
                 disabled={guardando}
                 onClick={() => void guardar()}
               >
                 {editandoId ? 'Guardar la línea' : '+ Agregar línea'}
-              </button>
+              </Button>
               {editandoId ? (
-                <button
-                  type="button"
-                  className={styles.secundario}
+                <Button
+                  variant="secondary"
                   disabled={guardando}
                   onClick={() => {
                     setEditandoId(null)
@@ -453,7 +450,7 @@ export function PanelCotizacion({
                   }}
                 >
                   Cancelar
-                </button>
+                </Button>
               ) : null}
             </div>
           </div>
@@ -504,28 +501,24 @@ export function PanelCotizacion({
           <div className={styles.acciones}>
             {resolviendo === null ? (
               <>
-                <button
-                  type="button"
-                  className={styles.primario}
+                <Button
                   disabled={guardando || lineas.length === 0}
                   onClick={() => setResolviendo('aprobar')}
                 >
                   Aprobar
-                </button>
-                <button
-                  type="button"
-                  className={styles.peligro}
+                </Button>
+                <Button
+                  variant="danger"
                   disabled={guardando}
                   onClick={() => setResolviendo('rechazar')}
                 >
                   Rechazar
-                </button>
+                </Button>
               </>
             ) : (
               <>
-                <button
-                  type="button"
-                  className={resolviendo === 'aprobar' ? styles.primario : styles.peligro}
+                <Button
+                  variant={resolviendo === 'aprobar' ? 'primary' : 'danger'}
                   disabled={guardando}
                   onClick={() => {
                     if (resolviendo === 'aprobar') onAprobar(por)
@@ -536,15 +529,14 @@ export function PanelCotizacion({
                   {resolviendo === 'aprobar'
                     ? `Confirmar: aprobar por ${formatearImporte(orden.total, orden.moneda)}`
                     : 'Confirmar el rechazo'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.secundario}
+                </Button>
+                <Button
+                  variant="secondary"
                   disabled={guardando}
                   onClick={() => setResolviendo(null)}
                 >
                   Volver
-                </button>
+                </Button>
               </>
             )}
           </div>

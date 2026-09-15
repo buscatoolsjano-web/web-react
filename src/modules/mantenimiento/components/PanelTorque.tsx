@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { Button } from '@/components/ui/Button'
 import { formatearNumero, indicadorDeCapacidad } from '../lib/formato'
 import { ChipVeredicto } from './ChipEstado'
 import type {
@@ -137,14 +138,13 @@ export function PanelTorque({
         </p>
         {editable ? (
           <div className={styles.acciones}>
-            <button
-              type="button"
-              className={styles.secundario}
+            <Button
+              variant="secondary"
               disabled={guardando}
               onClick={() => onRequerido(true)}
             >
               Marcar el torque como requerido
-            </button>
+            </Button>
           </div>
         ) : null}
         {error ? (
@@ -210,14 +210,13 @@ export function PanelTorque({
         </div>
         {editable ? (
           <div className={styles.acciones}>
-            <button
-              type="button"
-              className={styles.secundario}
+            <Button
+              variant="secondary"
               disabled={guardando}
               onClick={guardarLimites}
             >
               Guardar límites
-            </button>
+            </Button>
           </div>
         ) : null}
         <p className={`${styles.nota} ${styles.anchoCompleto}`}>
@@ -320,14 +319,14 @@ export function PanelTorque({
               ) : null}
               {editable ? (
                 <span className={styles.tarjetaAcciones}>
-                  <button
-                    type="button"
-                    className={styles.mini}
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     disabled={guardando}
                     onClick={() => onBorrar(m.id)}
                   >
                     Quitar
-                  </button>
+                  </Button>
                 </span>
               ) : null}
             </li>
@@ -355,14 +354,12 @@ export function PanelTorque({
               }
             }}
           />
-          <button
-            type="button"
-            className={styles.primario}
+          <Button
             disabled={guardando}
             onClick={() => void agregar()}
           >
             + Agregar medición
-          </button>
+          </Button>
         </div>
       ) : null}
 
@@ -377,14 +374,13 @@ export function PanelTorque({
                 mediciones: la base lo impide.
               </p>
               <div className={styles.acciones}>
-                <button
-                  type="button"
-                  className={styles.secundario}
+                <Button
+                  variant="secondary"
                   disabled={guardando}
                   onClick={() => onCompletar(null)}
                 >
                   Reabrir el torque
-                </button>
+                </Button>
               </div>
             </>
           ) : (
@@ -394,22 +390,19 @@ export function PanelTorque({
                 servidor: una etapa «hecha» sin ninguna medición no midió nada.
               </p>
               <div className={styles.acciones}>
-                <button
-                  type="button"
-                  className={styles.primario}
+                <Button
                   disabled={guardando || mediciones.length === 0}
                   onClick={() => onCompletar(new Date().toISOString().slice(0, 10))}
                 >
                   Dar el torque por completado
-                </button>
-                <button
-                  type="button"
-                  className={styles.secundario}
+                </Button>
+                <Button
+                  variant="secondary"
                   disabled={guardando}
                   onClick={() => onRequerido(false)}
                 >
                   Marcar como no requerido
-                </button>
+                </Button>
               </div>
             </>
           )}

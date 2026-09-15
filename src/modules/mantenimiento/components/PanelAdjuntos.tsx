@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { IconButton } from '@/components/ui/IconButton'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { formatearFecha } from '../lib/formato'
@@ -105,15 +106,15 @@ export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: Panel
                 {formatearFecha(a.subidoEn)}
               </span>
               {puedeEditar ? (
-                <button
-                  type="button"
+                <IconButton
+                  icon="trash"
+                  variant="danger"
+                  size="sm"
                   className={styles.borrar}
                   aria-label={`Borrar ${a.nombre}`}
                   disabled={borrar.isPending}
                   onClick={() => borrar.mutate({ id: a.id, ruta: a.ruta })}
-                >
-                  ×
-                </button>
+                />
               ) : null}
             </li>
           ))}

@@ -1,12 +1,17 @@
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import doc from '@/components/document/Document.module.css'
+import { Alert } from '@/components/feedback/Alert'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Icon } from '@/components/icons/Icon'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import { permisosDe } from '../lib/permisos'
 import { FormularioOrden } from '../components/FormularioOrden'
 import { useCrearOrden } from '../hooks/useOrdenes'
 import { obtenerActivo } from '../services/activos'
 import type { DatosOrden } from '../services/ordenes'
-import styles from './Pagina.module.css'
 
 const hoy = () => new Date().toISOString().slice(0, 10)
 
@@ -36,20 +41,28 @@ export function OrdenNuevaPage() {
 
   if (!permisos.crear) {
     return (
-      <div className={styles.page}>
-        <h1 className={styles.titulo}>Nueva orden</h1>
-        <p className={styles.error} role="note">
-          Tu rol no puede crear órdenes. Mantenimiento es de administradores y empleados.
-        </p>
-        <Link to="/mantenimiento/ordenes" className={styles.volver}>
-          ← Volver a órdenes
-        </Link>
+      <div className={doc.listado}>
+        <PageHeader title="Nueva orden" back={{ to: '/mantenimiento/ordenes', label: 'Órdenes' }} />
+        <Alert
+          tone="neutral"
+          action={
+            <LinkButton to="/mantenimiento/ordenes" variant="secondary" icon={<Icon name="arrow-left" size={16} />}>
+              Volver a órdenes
+            </LinkButton>
+          }
+        >
+          <p>Tu rol no puede crear órdenes. Mantenimiento es de administradores y empleados.</p>
+        </Alert>
       </div>
     )
   }
 
   if (equipoPrevio && activo.isPending) {
-    return <p className={styles.nota}>Cargando equipo…</p>
+    return (
+      <div className={doc.pagina}>
+        <SkeletonRows rows={5} columns={2} label="Cargando equipo…" />
+      </div>
+    )
   }
 
   const a = activo.data ?? null
@@ -66,11 +79,12 @@ export function OrdenNuevaPage() {
   }
 
   return (
-    <div className={styles.page}>
-      <Link to="/mantenimiento/ordenes" className={styles.volver}>
-        ← Órdenes
-      </Link>
-      <h1 className={styles.titulo}>Nueva orden de servicio</h1>
+    <div className={doc.pagina}>
+      <PageHeader
+        title="Nueva orden de servicio"
+        subtitle={a ? `Equipo ${a.referencia}${a.dueno ? ` · ${a.dueno}` : ''}` : undefined}
+        back={{ to: '/mantenimiento/ordenes', label: 'Órdenes' }}
+      />
 
       <FormularioOrden
         valores={valores}

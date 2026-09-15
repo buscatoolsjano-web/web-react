@@ -2,6 +2,10 @@ import { useMutation } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Button } from '@/components/ui/Button'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { Icon } from '@/components/icons/Icon'
 import { POR_PAGINA_STOCK, useMovimientosStock } from '../hooks/useStock'
 import { descargarCsv, nombreArchivo } from '../lib/csv'
 import { movimientosACsv } from '../lib/csvStock'
@@ -112,11 +116,9 @@ export function MovimientosStock({ mes, etiquetaMes, resumen }: Props) {
         </div>
 
         {movs.isPending ? (
-          <p className={styles.nota}>Leyendo movimientos…</p>
+          <SkeletonRows rows={5} columns={5} label="Leyendo movimientos…" />
         ) : movs.error ? (
-          <div className={styles.error} role="alert">
-            <span>{movs.error instanceof ErrorInforme ? movs.error.message : 'No se pudieron leer los movimientos.'}</span>
-          </div>
+          <ErrorState compact title={movs.error instanceof ErrorInforme ? movs.error.message : 'No se pudieron leer los movimientos.'} />
         ) : filas.length === 0 ? (
           <p className={styles.vacio}>Sin movimientos en {etiquetaMes} con esos filtros.</p>
         ) : (
@@ -163,16 +165,17 @@ export function MovimientosStock({ mes, etiquetaMes, resumen }: Props) {
         )}
 
         <div className={styles.accionesRanking}>
-          <Paginador pagina={pagina} porPagina={POR_PAGINA_STOCK} total={total} onCambiar={setPagina} cargando={movs.isFetching} />
-          <button
-            type="button"
-            className={styles.boton}
+          <Paginador pagina={pagina} porPagina={POR_PAGINA_STOCK} total={total} onCambiar={setPagina} cargando={movs.isFetching} sustantivo={{ singular: 'movimiento', plural: 'movimientos' }} />
+          <Button
+            variant="secondary"
+            icon={<Icon name="download" size={16} />}
+            loading={exportar.isPending}
             disabled={exportar.isPending || total === 0}
             onClick={() => exportar.mutate()}
             aria-label={`Exportar a CSV los movimientos de ${etiquetaMes} con los filtros actuales`}
           >
             {exportar.isPending ? 'Exportando…' : `Exportar CSV${total > 0 ? ` (${total} filas)` : ''}`}
-          </button>
+          </Button>
           {exportar.error ? <span className={styles.errorEnLinea} role="alert">No se pudo exportar: {exportar.error.message}</span> : null}
         </div>
       </div>

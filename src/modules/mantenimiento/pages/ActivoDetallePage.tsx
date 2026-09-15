@@ -1,7 +1,19 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { ActionBar } from '@/components/document/ActionBar'
+import { DocSection, MetaList, Missing } from '@/components/document/DocSection'
+import doc from '@/components/document/Document.module.css'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Button } from '@/components/ui/Button'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { TabPanel, Tabs, type TabItem } from '@/components/ui/Tabs'
+import { Icon } from '@/components/icons/Icon'
 import { permisosDe } from '../lib/permisos'
 import { formatearFecha, formatearFechaHora } from '../lib/formato'
 import { FormularioActivo } from '../components/FormularioActivo'
@@ -17,6 +29,8 @@ import { FILTROS_ORDENES_INICIALES } from '../types'
 import type { DatosActivo } from '../services/activos'
 import styles from './Pagina.module.css'
 
+const ID_PESTANAS = 'ficha-equipo'
+
 type Pestana = 'datos' | 'ordenes' | 'archivos' | 'historial'
 
 /**
@@ -28,10 +42,12 @@ type Pestana = 'datos' | 'ordenes' | 'archivos' | 'historial'
  * La procedencia —de qué entrega salió este equipo— se muestra **si existe** y
  * nunca se fuerza. La gran mayoría de los equipos que entran al taller no
  * salieron de una venta nuestra.
+ *
+ * Fase 13 · E5: PageHeader, ActionBar (una principal, secundarias y la baja
+ * aparte), pestañas comunes y secciones. Mismas mutaciones y permisos.
  */
 export function ActivoDetallePage() {
   const { id = '' } = useParams()
-  const navegar = useNavigate()
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
   const permisos = permisosDe(activa)
@@ -63,34 +79,45 @@ export function ActivoDetallePage() {
 
   if (!permisos.ver) {
     return (
-      <div className={styles.page}>
-        <h1 className={styles.titulo}>Equipo</h1>
-        <p className={styles.error} role="note">
-          Tu rol no tiene acceso a Mantenimiento. La sección es de administradores y empleados.
-        </p>
+      <div className={doc.listado}>
+        <PageHeader title="Equipo" back={{ to: '/mantenimiento/activos', label: 'Equipos' }} />
+        <Alert tone="neutral">
+          <p>Tu rol no tiene acceso a Mantenimiento. La sección es de administradores y empleados.</p>
+        </Alert>
       </div>
     )
   }
 
-  if (isPending) return <p className={styles.nota}>Cargando equipo…</p>
+  if (isPending) {
+    return (
+      <div className={doc.pagina}>
+        <SkeletonRows rows={6} columns={3} label="Cargando equipo…" />
+      </div>
+    )
+  }
 
   if (error) {
     return (
-      <div className={styles.page}>
-        <p className={styles.error} role="alert">
-          {error.message}
-        </p>
+      <div className={doc.pagina}>
+        <PageHeader title="Equipo" back={{ to: '/mantenimiento/activos', label: 'Equipos' }} />
+        <ErrorState title="No se pudo leer el equipo." description={error.message} />
       </div>
     )
   }
 
   if (!activo) {
     return (
-      <div className={styles.page}>
-        <p className={styles.nota}>Este equipo no existe o no es de la empresa activa.</p>
-        <Link to="/mantenimiento/activos" className={styles.volver}>
-          ← Volver a equipos
-        </Link>
+      <div className={doc.pagina}>
+        <EmptyState
+          icon="search"
+          title="Equipo no encontrado"
+          description="Este equipo no existe o no es de la empresa activa."
+          action={
+            <LinkButton to="/mantenimiento/activos" variant="secondary" icon={<Icon name="arrow-left" size={16} />}>
+              Volver a equipos
+            </LinkButton>
+          }
+        />
       </div>
     )
   }
@@ -111,239 +138,222 @@ export function ActivoDetallePage() {
     notas: activo.notas ?? '',
   }
 
-  const dato = (etiqueta: string, valor: string | null, falta = 'sin dato') => (
-    <div className={styles.dato} key={etiqueta}>
-      <dt className={styles.datoEtiqueta}>{etiqueta}</dt>
-      <dd className={valor ? styles.datoValor : styles.falta}>{valor ?? falta}</dd>
-    </div>
-  )
+  const dato = (etiqueta: string, valor: string | null, falta = 'sin dato') => ({
+    label: etiqueta,
+    value: valor ?? <Missing>{falta}</Missing>,
+  })
+
+  const pestanas: TabItem<Pestana>[] = [
+    { key: 'datos', label: 'Datos' },
+    { key: 'ordenes', label: 'Órdenes', count: ordenes.data?.total ?? 0 },
+    { key: 'archivos', label: 'Archivos' },
+    { key: 'historial', label: 'Historial' },
+  ]
 
   return (
-    <div className={styles.page}>
-      <Link to="/mantenimiento/activos" className={styles.volver}>
-        ← Equipos
-      </Link>
-
-      <header className={styles.encabezado}>
-        <div className={styles.identidad}>
-          <h1 className={styles.titulo}>{activo.referencia}</h1>
-          <p className={styles.subtitulo}>
-            {activo.modelo ?? activo.tipo ?? 'Sin modelo cargado'}
-          </p>
-          <div className={styles.chips}>
-            <ChipBaja dadoDeBaja={activo.dadoDeBaja} />
-          </div>
-        </div>
-
-        {permisos.editar && !editando ? (
-          <div className={styles.acciones}>
-            <button
-              type="button"
-              className={styles.secundario}
-              onClick={() => {
-                setPestana('datos')
-                setEditando(true)
-              }}
-            >
-              Editar
-            </button>
-            <Link
-              to={`/mantenimiento/ordenes/nueva?eq=${activo.id}`}
-              className={styles.primario}
-            >
-              + Nueva orden
-            </Link>
-            {activo.dadoDeBaja ? (
-              <button
-                type="button"
-                className={styles.secundario}
-                disabled={acciones.reactivar.isPending}
-                onClick={() => acciones.reactivar.mutate()}
-              >
-                Reactivar
-              </button>
-            ) : (
-              <button
-                type="button"
-                className={styles.peligro}
-                disabled={acciones.darDeBaja.isPending}
-                onClick={() => acciones.darDeBaja.mutate()}
-              >
-                Dar de baja
-              </button>
-            )}
-          </div>
-        ) : null}
-      </header>
-
-      {activo.dadoDeBaja ? (
-        <p className={styles.avisoBaja} role="note">
-          Equipo dado de baja. La baja es lógica: sus órdenes lo siguen nombrando y el historial
-          queda intacto.
-        </p>
-      ) : null}
-
-      <nav className={styles.pestanas}>
-        {(
-          [
-            ['datos', 'Datos'],
-            ['ordenes', `Órdenes (${ordenes.data?.total ?? 0})`],
-            ['archivos', 'Archivos'],
-            ['historial', 'Historial'],
-          ] as const
-        ).map(([clave, etiqueta]) => (
-          <button
-            key={clave}
-            type="button"
-            className={pestana === clave ? styles.pestanaActiva : styles.pestana}
-            aria-current={pestana === clave ? 'page' : undefined}
-            onClick={() => setPestana(clave)}
-          >
-            {etiqueta}
-          </button>
-        ))}
-      </nav>
-
-      {pestana === 'datos' ? (
-        editando ? (
-          <FormularioActivo
-            valores={valores}
-            clienteInicial={cliente.data ?? null}
-            productoInicial={producto.data ?? null}
-            excluirId={activo.id}
-            referencia={activo.referencia}
-            guardando={acciones.guardar.isPending}
-            errorAlGuardar={acciones.guardar.error?.message ?? null}
-            etiquetaGuardar="Guardar cambios"
-            onGuardar={(datos) =>
-              acciones.guardar.mutate(datos, { onSuccess: () => setEditando(false) })
-            }
-            onCancelar={() => setEditando(false)}
-          />
-        ) : (
+    <div className={doc.pagina}>
+      <PageHeader
+        back={{ to: '/mantenimiento/activos', label: 'Equipos' }}
+        title={activo.referencia}
+        subtitle={
           <>
-            <dl className={styles.datos}>
-              {dato('Número de serie', activo.serie, 'sin número de serie')}
-              {dato('Etiqueta interna', activo.identificador)}
-              {dato('Marca', activo.marca)}
-              {dato('Modelo', activo.modelo)}
-              {dato('Tipo', activo.tipo)}
-              {dato('Producto del catálogo', activo.productoSku, 'sin producto asociado')}
-              {dato('Ciudad', activo.ciudad)}
-              {dato('Provincia', activo.provincia)}
-              {dato(
-                'Garantía',
-                activo.garantiaDesde || activo.garantiaHasta
-                  ? `${formatearFecha(activo.garantiaDesde)} → ${formatearFecha(activo.garantiaHasta)}`
-                  : null,
-                'sin garantía cargada',
-              )}
-              {dato('Bajo contrato', activo.bajoContrato ? 'Sí' : 'No')}
-              {dato('Alta', formatearFechaHora(activo.creadoEn))}
-              {dato('Creado por', activo.autor)}
-            </dl>
-
-            <div className={styles.bloque}>
-              <h2 className={styles.subtitulo}>Dueño actual</h2>
-              {activo.duenoId ? (
-                <p className={styles.datoValor}>
-                  <Link to={`/clientes/${activo.duenoId}`} className={styles.enlace}>
-                    {activo.dueno ?? 'Ver cliente'}
-                  </Link>
-                </p>
-              ) : (
-                <p className={styles.falta}>
-                  Sin dueño asignado. Es válido: un equipo puede entrar al taller antes de saber
-                  de quién es.
-                </p>
-              )}
-              <p className={styles.nota}>
-                Cambiar el dueño <strong>no modifica ninguna orden ya creada</strong>. Cada orden
-                guarda su propio cliente, congelado en el momento del ingreso.
-              </p>
-            </div>
-
-            <div className={styles.bloque}>
-              <h2 className={styles.subtitulo}>Procedencia</h2>
-              {activo.procedencia ? (
-                <p className={styles.datoValor}>
-                  Salió de la entrega{' '}
-                  {activo.procedencia.entregaNumero ?? '(sin número visible)'} · serie{' '}
-                  {activo.procedencia.serial} · {formatearFecha(activo.procedencia.fecha)}
-                </p>
-              ) : (
-                <p className={styles.nota}>
-                  Sin entrega de origen registrada. La mayoría de los equipos que entran al taller
-                  no salieron de una venta nuestra, así que el vínculo se muestra sólo cuando
-                  existe de verdad.
-                </p>
-              )}
-            </div>
-
-            {activo.notas ? (
-              <div className={styles.bloque}>
-                <h2 className={styles.subtitulo}>Notas</h2>
-                <p className={styles.notas}>{activo.notas}</p>
-              </div>
-            ) : null}
+            {activo.modelo ?? activo.tipo ?? 'Sin modelo cargado'}
+            {activo.serie ? ` · serie ${activo.serie}` : ' · sin número de serie'}
+            {' · '}
+            {activo.duenoId ? (
+              <Link to={`/clientes/${activo.duenoId}`} className={`${doc.enlace} ${styles.enlaceTactil}`}>
+                {activo.dueno ?? 'Ver cliente'}
+              </Link>
+            ) : (
+              'sin dueño asignado'
+            )}
           </>
-        )
-      ) : null}
+        }
+        status={activo.dadoDeBaja ? <ChipBaja dadoDeBaja={activo.dadoDeBaja} /> : undefined}
+      />
 
-      {pestana === 'ordenes' ? (
-        <>
-          {ordenes.error ? (
-            <p className={styles.error} role="alert">
-              {ordenes.error.message}
-            </p>
-          ) : (
-            <ListadoOrdenes
-              filas={ordenes.data?.filas ?? []}
-              orden="fecha"
-              direccion="desc"
-              cargando={ordenes.isPending}
-            />
-          )}
-          <p className={styles.nota}>
-            El cliente de cada orden es el que tenía el equipo cuando entró, no necesariamente el
-            dueño de hoy.
-          </p>
-        </>
-      ) : null}
-
-      {/* La pestaña monta el panel sólo cuando se abre: listar los adjuntos
-          es una consulta más, y la mayoría de las visitas a un equipo son
-          para mirar sus órdenes. */}
-      {pestana === 'archivos' ? (
-        <PanelAdjuntos
-          entidad="maintenance_asset"
-          entidadId={id}
-          clases={CLASES_EQUIPO}
-          puedeEditar={permisos.editar}
+      {permisos.editar && !editando ? (
+        <ActionBar
+          label="Acciones del equipo"
+          primary={
+            <LinkButton to={`/mantenimiento/ordenes/nueva?eq=${activo.id}`} variant="primary" icon={<Icon name="plus" size={16} />}>
+              Nueva orden
+            </LinkButton>
+          }
+          secondary={
+            <>
+              <Button
+                variant="secondary"
+                icon={<Icon name="edit" size={16} />}
+                onClick={() => {
+                  setPestana('datos')
+                  setEditando(true)
+                }}
+              >
+                Editar
+              </Button>
+              {activo.dadoDeBaja ? (
+                <Button
+                  variant="secondary"
+                  icon={<Icon name="refresh" size={16} />}
+                  loading={acciones.reactivar.isPending}
+                  onClick={() => acciones.reactivar.mutate()}
+                >
+                  Reactivar
+                </Button>
+              ) : null}
+            </>
+          }
+          danger={
+            activo.dadoDeBaja ? undefined : (
+              <Button variant="danger" loading={acciones.darDeBaja.isPending} onClick={() => acciones.darDeBaja.mutate()}>
+                Dar de baja
+              </Button>
+            )
+          }
         />
       ) : null}
 
-      {pestana === 'historial' ? (
-        <PanelHistorial eventos={historial.data ?? []} cargando={historial.isPending} />
-      ) : null}
-
       {acciones.darDeBaja.error || acciones.reactivar.error ? (
-        <p className={styles.error} role="alert">
-          {acciones.darDeBaja.error?.message ?? acciones.reactivar.error?.message}
-        </p>
+        <Alert tone="danger" role="alert" title="No se pudo cambiar el estado del equipo">
+          <p>{acciones.darDeBaja.error?.message ?? acciones.reactivar.error?.message}</p>
+        </Alert>
       ) : null}
 
-      {/* Navegar afuera no es parte de esta ficha, pero el botón de volver de
-          arriba puede quedar lejos en una ficha larga. */}
-      <button
-        type="button"
-        className={styles.volver}
-        onClick={() => {
-          void navegar('/mantenimiento/activos')
-        }}
-      >
-        ← Volver a equipos
-      </button>
+      {activo.dadoDeBaja ? (
+        <Alert tone="warning" role="note" title="Equipo dado de baja">
+          <p>La baja es lógica: sus órdenes lo siguen nombrando y el historial queda intacto.</p>
+        </Alert>
+      ) : null}
+
+      <div>
+        <Tabs id={ID_PESTANAS} label="Secciones del equipo" items={pestanas} value={pestana} onChange={setPestana} />
+        <TabPanel tabsId={ID_PESTANAS} tabKey={pestana} className={styles.panelPestana}>
+          {pestana === 'datos' ? (
+            editando ? (
+              <FormularioActivo
+                valores={valores}
+                clienteInicial={cliente.data ?? null}
+                productoInicial={producto.data ?? null}
+                excluirId={activo.id}
+                referencia={activo.referencia}
+                guardando={acciones.guardar.isPending}
+                errorAlGuardar={acciones.guardar.error?.message ?? null}
+                etiquetaGuardar="Guardar cambios"
+                onGuardar={(datos) =>
+                  acciones.guardar.mutate(datos, { onSuccess: () => setEditando(false) })
+                }
+                onCancelar={() => setEditando(false)}
+              />
+            ) : (
+              <>
+                <DocSection title="Datos del equipo">
+                  <MetaList
+                    items={[
+                      dato('Número de serie', activo.serie, 'sin número de serie'),
+                      dato('Etiqueta interna', activo.identificador),
+                      dato('Marca', activo.marca),
+                      dato('Modelo', activo.modelo),
+                      dato('Tipo', activo.tipo),
+                      dato('Producto del catálogo', activo.productoSku, 'sin producto asociado'),
+                      dato('Ciudad', activo.ciudad),
+                      dato('Provincia', activo.provincia),
+                      dato(
+                        'Garantía',
+                        activo.garantiaDesde || activo.garantiaHasta
+                          ? `${formatearFecha(activo.garantiaDesde)} al ${formatearFecha(activo.garantiaHasta)}`
+                          : null,
+                        'sin garantía cargada',
+                      ),
+                      dato('Bajo contrato', activo.bajoContrato ? 'Sí' : 'No'),
+                      dato('Alta', formatearFechaHora(activo.creadoEn)),
+                      dato('Creado por', activo.autor),
+                    ]}
+                  />
+                </DocSection>
+
+                <DocSection title="Dueño actual">
+                  {activo.duenoId ? (
+                    <p className={styles.datoValor}>
+                      <Link to={`/clientes/${activo.duenoId}`} className={`${doc.enlace} ${styles.enlaceTactil}`}>
+                        {activo.dueno ?? 'Ver cliente'}
+                      </Link>
+                    </p>
+                  ) : (
+                    <p className={styles.falta}>
+                      Sin dueño asignado. Es válido: un equipo puede entrar al taller antes de saber
+                      de quién es.
+                    </p>
+                  )}
+                  <p className={styles.nota}>
+                    Cambiar el dueño <strong>no modifica ninguna orden ya creada</strong>. Cada orden
+                    guarda su propio cliente, congelado en el momento del ingreso.
+                  </p>
+                </DocSection>
+
+                <DocSection title="Procedencia">
+                  {activo.procedencia ? (
+                    <p className={styles.datoValor}>
+                      Salió de la entrega{' '}
+                      {activo.procedencia.entregaNumero ?? '(sin número visible)'} · serie{' '}
+                      {activo.procedencia.serial} · {formatearFecha(activo.procedencia.fecha)}
+                    </p>
+                  ) : (
+                    <p className={styles.nota}>
+                      Sin entrega de origen registrada. La mayoría de los equipos que entran al taller
+                      no salieron de una venta nuestra, así que el vínculo se muestra sólo cuando
+                      existe de verdad.
+                    </p>
+                  )}
+                </DocSection>
+
+                {activo.notas ? (
+                  <DocSection title="Notas">
+                    <p className={styles.notas}>{activo.notas}</p>
+                  </DocSection>
+                ) : null}
+              </>
+            )
+          ) : null}
+
+          {pestana === 'ordenes' ? (
+            <>
+              {ordenes.error ? (
+                <ErrorState compact title="No se pudieron leer las órdenes." description={ordenes.error.message} />
+              ) : !ordenes.isPending && (ordenes.data?.filas ?? []).length === 0 ? (
+                <EmptyState compact icon="inbox" title="Este equipo todavía no tiene órdenes de servicio" />
+              ) : (
+                <ListadoOrdenes
+                  filas={ordenes.data?.filas ?? []}
+                  orden="fecha"
+                  direccion="desc"
+                  cargando={ordenes.isPending}
+                />
+              )}
+              <p className={styles.nota}>
+                El cliente de cada orden es el que tenía el equipo cuando entró, no necesariamente el
+                dueño de hoy.
+              </p>
+            </>
+          ) : null}
+
+          {/* La pestaña monta el panel sólo cuando se abre: listar los adjuntos
+              es una consulta más, y la mayoría de las visitas a un equipo son
+              para mirar sus órdenes. */}
+          {pestana === 'archivos' ? (
+            <PanelAdjuntos
+              entidad="maintenance_asset"
+              entidadId={id}
+              clases={CLASES_EQUIPO}
+              puedeEditar={permisos.editar}
+            />
+          ) : null}
+
+          {pestana === 'historial' ? (
+            <PanelHistorial eventos={historial.data ?? []} cargando={historial.isPending} />
+          ) : null}
+        </TabPanel>
+      </div>
     </div>
   )
 }

@@ -1,10 +1,16 @@
 import { useState } from 'react'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Badge, type BadgeTone } from '@/components/ui/Badge'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { Field } from '@/components/forms/Field'
+import { Input } from '@/components/forms/controls'
+import { contar } from '@/components/tables/rango'
+import { Icon } from '@/components/icons/Icon'
 import { Button } from '@/components/ui/Button'
 import { StatusMessage, type Tono } from '@/components/ui/StatusMessage'
 import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
 import type { Column } from '@/components/tables/types'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { cx } from '@/utils/cx'
 import { Dialogo } from '../components/Dialogo'
 import { FormularioInvitacion } from '../components/FormularioInvitacion'
 import { useAccionesUsuarios, useUsuarios } from '../hooks/useUsuarios'
@@ -39,6 +45,7 @@ interface Aviso {
 }
 
 const codigo = (e: unknown) => (e instanceof ErrorUsuarios ? e.codigo : 'desconocido')
+const MIEMBROS = { singular: 'miembro', plural: 'miembros' }
 const quien = (u: UsuarioEmpresa) => u.nombre || u.email
 
 /**
@@ -53,8 +60,8 @@ export function UsuariosPage() {
   if (!puedeAdministrarUsuarios(activa?.rol)) {
     return (
       <>
-        <h1 className={styles.titulo}>Usuarios</h1>
-        <p className={styles.vacio}>Sólo un administrador puede ver y administrar los usuarios de la empresa.</p>
+        <PageHeader title="Usuarios" />
+        <EmptyState icon="users" title="Sin acceso a Usuarios" description="Sólo un administrador puede ver y administrar los usuarios de la empresa." />
       </>
     )
   }
@@ -125,7 +132,11 @@ function UsuariosAdmin() {
         <span className={styles.persona}>
           <span className={styles.nombre}>
             {u.nombre || '(sin nombre)'}
-            {u.esPropia && <span className={styles.propia}>vos</span>}
+            {u.esPropia && (
+              <Badge tone="brand" className={styles.propia}>
+                vos
+              </Badge>
+            )}
           </span>
           <span className={styles.email}>{u.email}</span>
         </span>
@@ -138,15 +149,15 @@ function UsuariosAdmin() {
 
   return (
     <>
-      <div className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>Usuarios</h1>
-          <p className={styles.subtitulo}>Quién tiene acceso a {empresa} y con qué rol.</p>
-        </div>
-        <Button onClick={() => abrir({ tipo: 'invitar' })} disabled={ocupado || usuarios.isError}>
-          Invitar usuario
-        </Button>
-      </div>
+      <PageHeader
+        title="Usuarios"
+        subtitle={`Quién tiene acceso a ${empresa} y con qué rol.`}
+        actions={
+          <Button icon={<Icon name="plus" size={16} />} onClick={() => abrir({ tipo: 'invitar' })} disabled={ocupado || usuarios.isError}>
+            Invitar usuario
+          </Button>
+        }
+      />
 
       {aviso && <StatusMessage tono={aviso.tono} titulo={aviso.titulo} {...(aviso.detalle ? { detalle: aviso.detalle } : {})} />}
 
@@ -155,17 +166,12 @@ function UsuariosAdmin() {
       ) : (
         <>
           <div className={styles.barra}>
-            <input
-              className={cx(styles.control, styles.buscar)}
-              type="search"
-              placeholder="Buscar por nombre, email o rol"
-              aria-label="Buscar usuarios"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-            />
+<Field label="Buscar usuarios" hideLabel className={styles.buscar}>
+              <Input type="search" placeholder="Buscar por nombre, email o rol" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+            </Field>
             {usuarios.data && (
               <span className={styles.nota}>
-                {visibles.length === lista.length ? `${lista.length} miembros` : `${visibles.length} de ${lista.length}`}
+                {visibles.length === lista.length ? contar(lista.length, MIEMBROS) : `${visibles.length} de ${lista.length}`}
               </span>
             )}
           </div>
@@ -212,7 +218,7 @@ function UsuariosAdmin() {
               <Button variant="secondary" onClick={cerrar} disabled={ocupado}>
                 Cancelar
               </Button>
-              <Button className={pendiente.tipo === 'suspender' || esPeligrosa(pendiente) ? styles.peligro : undefined} onClick={() => void confirmar()} disabled={ocupado}>
+              <Button variant={pendiente.tipo === 'suspender' || esPeligrosa(pendiente) ? 'danger' : 'primary'} onClick={() => void confirmar()} disabled={ocupado}>
                 {ocupado ? 'Guardando…' : textoBoton(pendiente)}
               </Button>
             </>
@@ -257,9 +263,22 @@ function SelectorRol({ u, lista, deshabilitado, onElegir }: { u: UsuarioEmpresa;
   )
 }
 
+const TONO_ESTADO: Record<string, BadgeTone> = {
+  activo: 'success',
+  invitacion_pendiente: 'warning',
+  sin_confirmar: 'warning',
+  suspendido: 'danger',
+  bloqueada: 'danger',
+}
+
 function ChipEstado({ u }: { u: UsuarioEmpresa }) {
   const e = estadoVisible(u)
-  return <span className={cx(styles.chip, styles[`chip_${e}`])}>{ETIQUETA_ESTADO[e]}</span>
+  const tono = TONO_ESTADO[e] ?? 'neutral'
+  return (
+    <Badge tone={tono} dot={tono !== 'success'} outline={tono === 'danger'}>
+      {ETIQUETA_ESTADO[e]}
+    </Badge>
+  )
 }
 
 function Acciones({ u, lista, deshabilitado, abrir }: { u: UsuarioEmpresa; lista: UsuarioEmpresa[]; deshabilitado: boolean; abrir: (p: Pendiente) => void }) {

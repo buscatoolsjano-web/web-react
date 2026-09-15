@@ -37,14 +37,14 @@
   overflow-wrap: anywhere;
 }
 
+.flecha {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 var(--space-1);
+}
+
 .meta {
   font-size: var(--text-xs);
   color: var(--text-soft);
   white-space: nowrap;
-}
-
-.nota {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--text-soft);
 }

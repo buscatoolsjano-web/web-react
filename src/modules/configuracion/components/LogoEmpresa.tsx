@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react'
+import { Icon } from '@/components/icons/Icon'
 import { Button } from '@/components/ui/Button'
 import { StatusMessage } from '@/components/ui/StatusMessage'
 import { useAccionesEmpresa, useUrlLogo } from '../hooks/useEmpresaConfig'
@@ -84,7 +85,10 @@ export function LogoEmpresa({ logoPath, version, puedeEditar, ocupado, onCambio 
         ) : logoPath && url.isError ? (
           <span className={styles.nota}>No se pudo cargar el logo.</span>
         ) : (
-          <span className={styles.nota}>Sin logo</span>
+          <span className={styles.logoVacio}>
+            <Icon name="image" size={24} />
+            Sin logo
+          </span>
         )}
       </div>
 
@@ -139,7 +143,7 @@ export function LogoEmpresa({ logoPath, version, puedeEditar, ocupado, onCambio 
               <Button variant="secondary" onClick={() => setConfirmarQuitar(false)} disabled={trabajando}>
                 Cancelar
               </Button>
-              <Button className={styles.peligro} onClick={() => void quitar()} disabled={trabajando}>
+              <Button variant="danger" onClick={() => void quitar()} disabled={trabajando}>
                 {trabajando ? 'Quitando…' : 'Quitar logo'}
               </Button>
             </>

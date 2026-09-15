@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useIsMobile } from '@/hooks/useMediaQuery'
+import { FilterBar } from '@/components/filters/FilterBar'
+import { Field } from '@/components/forms/Field'
+import { Input, Select } from '@/components/forms/controls'
 import { useTiposDeActivo } from '../hooks/useActivos'
 import type { FiltrosActivos as Filtros } from '../types'
-import styles from './Filtros.module.css'
 
 export interface FiltrosActivosProps {
   filtros: Filtros
@@ -23,7 +24,8 @@ export interface FiltrosActivosProps {
  * la ficha del cliente o del equipo, que es cuando hace falta.
  *
  * En mobile los controles se pliegan detrás de un botón que dice cuántos hay
- * puestos; el buscador queda siempre a la vista porque es el que más se usa.
+ * puestos (lo hace `FilterBar`); el buscador queda siempre a la vista porque
+ * es el que más se usa.
  */
 
 function contarActivos(f: Filtros): number {
@@ -38,8 +40,6 @@ export function FiltrosActivos({
   onAplicar,
   onLimpiar,
 }: FiltrosActivosProps) {
-  const isMobile = useIsMobile()
-  const [desplegado, setDesplegado] = useState(false)
   const tipos = useTiposDeActivo()
 
   const [texto, setTexto] = useState(filtros.q)
@@ -60,66 +60,35 @@ export function FiltrosActivos({
     return () => clearTimeout(id)
   }, [texto, filtros.q, onAplicar])
 
-  const activos = contarActivos(filtros)
-  const mostrarTodos = !isMobile || desplegado
-
   return (
-    <div className={styles.barra}>
-      <input
-        type="search"
-        className={styles.buscador}
-        placeholder="Serie, referencia EQ000… o etiqueta"
-        value={texto}
-        onChange={(e) => setTexto(e.target.value)}
-        aria-label="Buscar por serie, referencia o etiqueta"
-      />
+    <FilterBar
+      activeCount={contarActivos(filtros)}
+      hasFilters={hayFiltros}
+      onClear={onLimpiar}
+      search={
+        <Field label="Buscar por serie, referencia o etiqueta" hideLabel>
+          <Input type="search" placeholder="Serie, referencia EQ000… o etiqueta" value={texto} onChange={(e) => setTexto(e.target.value)} />
+        </Field>
+      }
+    >
+      <Field label="Tipo de equipo" hideLabel>
+        <Select value={filtros.tipo} onChange={(e) => onAplicar({ tipo: e.target.value })}>
+          <option value="">Todos los tipos</option>
+          {(tipos.data ?? []).map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </Select>
+      </Field>
 
-      {isMobile ? (
-        <button
-          type="button"
-          className={styles.desplegar}
-          aria-expanded={desplegado}
-          onClick={() => setDesplegado((v) => !v)}
-        >
-          {desplegado ? 'Ocultar filtros' : 'Filtros'}
-          {activos > 0 ? <span className={styles.contador}>{activos}</span> : null}
-        </button>
-      ) : null}
-
-      {!mostrarTodos ? null : (
-        <>
-          <select
-            className={styles.select}
-            value={filtros.tipo}
-            onChange={(e) => onAplicar({ tipo: e.target.value })}
-            aria-label="Tipo de equipo"
-          >
-            <option value="">Todos los tipos</option>
-            {(tipos.data ?? []).map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className={styles.select}
-            value={filtros.estado}
-            onChange={(e) => onAplicar({ estado: e.target.value })}
-            aria-label="Estado del equipo"
-          >
-            <option value="">Activos y dados de baja</option>
-            <option value="activo">Sólo activos</option>
-            <option value="baja">Sólo dados de baja</option>
-          </select>
-
-          {hayFiltros ? (
-            <button type="button" className={styles.limpiar} onClick={onLimpiar}>
-              Limpiar filtros
-            </button>
-          ) : null}
-        </>
-      )}
-    </div>
+      <Field label="Estado del equipo" hideLabel>
+        <Select value={filtros.estado} onChange={(e) => onAplicar({ estado: e.target.value })}>
+          <option value="">Activos y dados de baja</option>
+          <option value="activo">Sólo activos</option>
+          <option value="baja">Sólo dados de baja</option>
+        </Select>
+      </Field>
+    </FilterBar>
   )
 }

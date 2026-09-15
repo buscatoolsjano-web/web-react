@@ -1,6 +1,14 @@
-import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Icon } from '@/components/icons/Icon'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { contar } from '@/components/tables/rango'
+import doc from '@/components/document/Document.module.css'
 import { permisosDe } from '../lib/permisos'
 import { FiltrosOrdenes } from '../components/FiltrosOrdenes'
 import { ListadoOrdenes } from '../components/ListadoOrdenes'
@@ -16,18 +24,22 @@ import {
 import { descargarCsv, ordenesACsv } from '../lib/csv'
 import { exportarOrdenes } from '../services/ordenes'
 import type { OrdenDeOrdenes } from '../types'
-import styles from './Pagina.module.css'
+
+const ORDENES = { singular: 'orden', plural: 'órdenes' }
 
 /**
  * Las órdenes de servicio.
  *
  * Filtros, orden, página y total exacto los resuelve el servidor.
+ *
+ * Fase 13 · E5: PageHeader, FilterBar, tabla común, Pagination y los estados
+ * vacío / error del sistema. Mismas consultas y mismos permisos.
  */
 const hoy = () => new Date().toISOString().slice(0, 10)
 
 export function OrdenesPage() {
   const { filtros, aplicar, limpiar, hayFiltros } = useFiltrosOrdenes()
-  const { data, isPending, isFetching, error } = useOrdenes(filtros)
+  const { data, isPending, isFetching, error, refetch } = useOrdenes(filtros)
   const { activa } = useEmpresa()
   const permisos = permisosDe(activa)
 
@@ -61,48 +73,49 @@ export function OrdenesPage() {
 
   if (!permisos.ver) {
     return (
-      <div className={styles.page}>
-        <h1 className={styles.titulo}>Órdenes de servicio</h1>
-        <p className={styles.error} role="note">
-          Tu rol no tiene acceso a Mantenimiento. La sección es de administradores y empleados.
-        </p>
+      <div className={doc.listado}>
+        <PageHeader title="Órdenes de servicio" />
+        <Alert tone="neutral">
+          <p>Tu rol no tiene acceso a Mantenimiento. La sección es de administradores y empleados.</p>
+        </Alert>
       </div>
     )
   }
 
   const total = data?.total ?? 0
+  const filas = data?.filas ?? []
+  const nueva = permisos.crear ? (
+    <LinkButton to="/mantenimiento/ordenes/nueva" variant="primary" icon={<Icon name="plus" size={16} />}>
+      Nueva orden
+    </LinkButton>
+  ) : undefined
 
   return (
-    <div className={styles.page}>
-      <header className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>Órdenes de servicio</h1>
-          <p className={styles.subtitulo}>
-            {isPending ? 'Cargando…' : `${total} ${total === 1 ? 'orden' : 'órdenes'}`}
-          </p>
-        </div>
-        <div className={styles.acciones}>
-          <Link to="/mantenimiento/activos" className={styles.secundario}>
-            Equipos
-          </Link>
-          <Link to="/mantenimiento/puntos" className={styles.secundario}>
-            Puntos de revisión
-          </Link>
-          <button
-            type="button"
-            className={styles.secundario}
-            disabled={exportar.isPending || total === 0}
-            onClick={() => exportar.mutate()}
-          >
-            {exportar.isPending ? 'Exportando…' : 'Exportar a CSV'}
-          </button>
-          {permisos.crear ? (
-            <Link to="/mantenimiento/ordenes/nueva" className={styles.primario}>
-              + Nueva orden
-            </Link>
-          ) : null}
-        </div>
-      </header>
+    <div className={doc.listado}>
+      <PageHeader
+        title="Órdenes de servicio"
+        subtitle={isPending ? 'Cargando…' : contar(total, ORDENES)}
+        actions={
+          <>
+            <LinkButton to="/mantenimiento/activos" variant="ghost">
+              Equipos
+            </LinkButton>
+            <LinkButton to="/mantenimiento/puntos" variant="ghost">
+              Puntos de revisión
+            </LinkButton>
+            <Button
+              variant="secondary"
+              icon={<Icon name="download" size={16} />}
+              loading={exportar.isPending}
+              disabled={total === 0}
+              onClick={() => exportar.mutate()}
+            >
+              {exportar.isPending ? 'Exportando…' : 'Exportar a CSV'}
+            </Button>
+            {nueva}
+          </>
+        }
+      />
 
       <FiltrosOrdenes
         filtros={filtros}
@@ -112,19 +125,32 @@ export function OrdenesPage() {
       />
 
       {exportar.error ? (
-        <p className={styles.error} role="alert">
-          No se pudo exportar: {exportar.error.message}
-        </p>
+        <Alert tone="danger" role="alert" title="No se pudo exportar">
+          <p>{exportar.error.message}</p>
+        </Alert>
       ) : null}
 
       {error ? (
-        <p className={styles.error} role="alert">
-          {error.message}
-        </p>
+        <ErrorState title="No se pudo leer el listado." description={error.message} onRetry={() => void refetch()} retrying={isFetching} />
+      ) : !isPending && filas.length === 0 ? (
+        hayFiltros ? (
+          <EmptyState
+            icon="search"
+            title="Sin resultados para estos filtros"
+            description="No hay órdenes que coincidan. Probá con otro estado, etapa o fecha."
+            action={
+              <Button variant="secondary" onClick={limpiar}>
+                Limpiar filtros
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState icon="inbox" title="Todavía no hay órdenes de servicio" action={nueva} />
+        )
       ) : (
         <>
           <ListadoOrdenes
-            filas={data?.filas ?? []}
+            filas={filas}
             orden={filtros.orden}
             direccion={filtros.direccion}
             onOrdenar={ordenar}
@@ -137,6 +163,7 @@ export function OrdenesPage() {
             cargando={isFetching}
             onIr={(pagina) => aplicar({ pagina })}
             onTamano={(porPagina) => aplicar({ porPagina })}
+            sustantivo={ORDENES}
           />
         </>
       )}

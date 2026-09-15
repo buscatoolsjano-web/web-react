@@ -23,23 +23,6 @@
   letter-spacing: 0.03em;
 }
 
-.cerrar {
-  min-width: 44px;
-  min-height: 44px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text-soft);
-  font-size: var(--text-lg);
-  line-height: 1;
-  cursor: pointer;
-}
-
-.cerrar:hover {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
 .input {
   /* 16px: menos que eso y iOS hace zoom al enfocar. */
   font-size: 16px;
@@ -54,10 +37,9 @@
 }
 
 .input:focus-visible,
-.cerrar:focus-visible,
 .fila:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 .lista {

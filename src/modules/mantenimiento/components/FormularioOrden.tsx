@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { Button } from '@/components/ui/Button'
 import { MOTIVOS_INGRESO, OPCIONES_SERVICIO } from '../lib/estados'
 import { errorDe, validarOrden, type ErrorDeCampo } from '../lib/validacion'
 import { useTecnicos } from '../hooks/useOrdenes'
@@ -254,17 +255,16 @@ export function FormularioOrden({
       </section>
 
       <div className={styles.acciones}>
-        <button type="submit" className={styles.primario} disabled={guardando}>
+        <Button type="submit" disabled={guardando}>
           {guardando ? 'Creando…' : 'Crear orden'}
-        </button>
-        <button
-          type="button"
-          className={styles.secundario}
+        </Button>
+        <Button
+          variant="secondary"
           disabled={guardando}
           onClick={onCancelar}
         >
           Cancelar
-        </button>
+        </Button>
       </div>
     </form>
   )

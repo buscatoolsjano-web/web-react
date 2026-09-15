@@ -1,6 +1,21 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { ActionBar } from '@/components/document/ActionBar'
+import { DocSection, MetaList, Missing } from '@/components/document/DocSection'
+import doc from '@/components/document/Document.module.css'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Field } from '@/components/forms/Field'
+import { Textarea } from '@/components/forms/controls'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { Button } from '@/components/ui/Button'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { TabPanel, Tabs, type TabItem } from '@/components/ui/Tabs'
+import { Icon } from '@/components/icons/Icon'
 import { permisosDe } from '../lib/permisos'
 import { formatearFecha, formatearFechaHora } from '../lib/formato'
 import { etiquetaDeServicio } from '../lib/estados'
@@ -28,6 +43,8 @@ import { useAccionesCierre, usePrecheckCierre } from '../hooks/useCierre'
 import { CLASES_ORDEN } from '../services/adjuntos'
 import styles from './Pagina.module.css'
 
+const ID_PESTANAS = 'orden-servicio'
+
 type Pestana =
   | 'trabajo'
   | 'cotizacion'
@@ -49,6 +66,10 @@ type Pestana =
  * precheck se pide sólo cuando está abierta: preguntar «¿se puede cerrar?» en
  * cada visita a una orden que recién entró al taller sería una consulta por
  * nada.
+ *
+ * Fase 13 · E5: PageHeader con equipo, cliente y técnico; pestañas comunes
+ * (teclado ← → Inicio Fin); la cancelación pide el motivo en un
+ * ConfirmDialog. Las mismas mutaciones, con los mismos argumentos.
  */
 export function OrdenDetallePage() {
   const { id = '' } = useParams()
@@ -80,34 +101,45 @@ export function OrdenDetallePage() {
 
   if (!permisos.ver) {
     return (
-      <div className={styles.page}>
-        <h1 className={styles.titulo}>Orden de servicio</h1>
-        <p className={styles.error} role="note">
-          Tu rol no tiene acceso a Mantenimiento. La sección es de administradores y empleados.
-        </p>
+      <div className={doc.listado}>
+        <PageHeader title="Orden de servicio" back={{ to: '/mantenimiento/ordenes', label: 'Órdenes' }} />
+        <Alert tone="neutral">
+          <p>Tu rol no tiene acceso a Mantenimiento. La sección es de administradores y empleados.</p>
+        </Alert>
       </div>
     )
   }
 
-  if (isPending) return <p className={styles.nota}>Cargando orden…</p>
+  if (isPending) {
+    return (
+      <div className={doc.pagina}>
+        <SkeletonRows rows={6} columns={3} label="Cargando orden…" />
+      </div>
+    )
+  }
 
   if (error) {
     return (
-      <div className={styles.page}>
-        <p className={styles.error} role="alert">
-          {error.message}
-        </p>
+      <div className={doc.pagina}>
+        <PageHeader title="Orden de servicio" back={{ to: '/mantenimiento/ordenes', label: 'Órdenes' }} />
+        <ErrorState title="No se pudo leer la orden." description={error.message} />
       </div>
     )
   }
 
   if (!orden) {
     return (
-      <div className={styles.page}>
-        <p className={styles.nota}>Esta orden no existe o no es de la empresa activa.</p>
-        <Link to="/mantenimiento/ordenes" className={styles.volver}>
-          ← Volver a órdenes
-        </Link>
+      <div className={doc.pagina}>
+        <EmptyState
+          icon="search"
+          title="Orden no encontrada"
+          description="Esta orden no existe o no es de la empresa activa."
+          action={
+            <LinkButton to="/mantenimiento/ordenes" variant="secondary" icon={<Icon name="arrow-left" size={16} />}>
+              Volver a órdenes
+            </LinkButton>
+          }
+        />
       </div>
     )
   }
@@ -115,113 +147,77 @@ export function OrdenDetallePage() {
   const abierta = orden.estado === 'open'
   const puedeEditar = permisos.editar && abierta
 
-  const dato = (etiqueta: string, valor: string | null, falta = 'sin dato') => (
-    <div className={styles.dato} key={etiqueta}>
-      <dt className={styles.datoEtiqueta}>{etiqueta}</dt>
-      <dd className={valor ? styles.datoValor : styles.falta}>{valor ?? falta}</dd>
-    </div>
-  )
+  const dato = (etiqueta: string, valor: string | null, falta = 'sin dato') => ({
+    label: etiqueta,
+    value: valor ?? <Missing>{falta}</Missing>,
+  })
+
+  const pestanas: TabItem<Pestana>[] = [
+    { key: 'trabajo', label: 'Trabajo' },
+    { key: 'cotizacion', label: 'Cotización', count: lineas.data?.length ?? 0 },
+    { key: 'repuestos', label: 'Repuestos', count: repuestos.data?.length ?? 0 },
+    // Sin torque requerido no hay conteo: «0» diría que faltan mediciones.
+    orden.requiereTorque
+      ? { key: 'torque', label: 'Torque', count: mediciones.data?.length ?? 0 }
+      : { key: 'torque', label: 'Torque (no requerido)' },
+    { key: 'cierre', label: 'Cierre' },
+    { key: 'ingreso', label: 'Ingreso' },
+    { key: 'archivos', label: 'Archivos' },
+    { key: 'historial', label: 'Historial' },
+  ]
+
+  const cerrarCancelacion = () => {
+    if (acciones.cancelar.isPending) return
+    setCancelando(false)
+  }
 
   return (
-    <div className={styles.page}>
-      <Link to="/mantenimiento/ordenes" className={styles.volver}>
-        ← Órdenes
-      </Link>
-
-      <header className={styles.encabezado}>
-        <div className={styles.identidad}>
-          <h1 className={styles.titulo}>{orden.numero}</h1>
-          <p className={styles.subtitulo}>
-            <Link to={`/mantenimiento/activos/${orden.activoId}`} className={styles.enlace}>
+    <div className={doc.pagina}>
+      <PageHeader
+        back={{ to: '/mantenimiento/ordenes', label: 'Órdenes' }}
+        title={orden.numero}
+        subtitle={
+          <>
+            Equipo{' '}
+            <Link to={`/mantenimiento/activos/${orden.activoId}`} className={`${doc.enlace} ${styles.enlaceTactil}`}>
               {orden.activoReferencia}
             </Link>
             {orden.activoSerie ? ` · serie ${orden.activoSerie}` : ' · sin serie'}
-          </p>
-          <div className={styles.chips}>
+            {' · '}
+            <Link to={`/clientes/${orden.clienteId}`} className={`${doc.enlace} ${styles.enlaceTactil}`}>
+              {orden.cliente}
+            </Link>
+            {' · '}
+            {orden.tecnico ? `Técnico: ${orden.tecnico}` : 'sin técnico asignado'}
+          </>
+        }
+        status={
+          <>
             <ChipEstadoOrden estado={orden.estado} />
             <ChipEtapa estado={orden.etapa} />
             <ChipEspera enEspera={orden.enEspera} />
             <ChipCotizacion estado={orden.estadoCotizacion} />
-          </div>
-        </div>
+          </>
+        }
+      />
 
-        {puedeEditar ? (
-          <div className={styles.acciones}>
-            <button
-              type="button"
-              className={styles.peligro}
-              onClick={() => setCancelando((v) => !v)}
-            >
-              {cancelando ? 'No cancelar' : 'Cancelar orden'}
-            </button>
-          </div>
-        ) : null}
-      </header>
-
-      {cancelando ? (
-        <div className={styles.bloque}>
-          <label className={styles.datoEtiqueta} htmlFor="motivo-cancelacion">
-            Motivo de la cancelación
-          </label>
-          <textarea
-            id="motivo-cancelacion"
-            className={styles.areaDato}
-            value={motivo}
-            onChange={(e) => setMotivo(e.target.value)}
-          />
-          <div className={styles.acciones}>
-            <button
-              type="button"
-              className={styles.peligro}
-              disabled={acciones.cancelar.isPending}
-              onClick={() =>
-                acciones.cancelar.mutate(motivo, { onSuccess: () => setCancelando(false) })
-              }
-            >
-              {acciones.cancelar.isPending ? 'Cancelando…' : 'Confirmar cancelación'}
-            </button>
-          </div>
-          <p className={styles.nota}>
-            Cancelar es la salida sin requisitos y no vuelve atrás. Se registra quién la canceló,
-            cuándo y con qué motivo.
-          </p>
-          {acciones.cancelar.error ? (
-            <p className={styles.error} role="alert">
-              {acciones.cancelar.error.message}
-            </p>
-          ) : null}
-        </div>
+      {puedeEditar ? (
+        <ActionBar
+          label="Acciones de la orden"
+          danger={
+            <Button variant="danger" icon={<Icon name="x" size={16} />} onClick={() => setCancelando(true)}>
+              Cancelar orden
+            </Button>
+          }
+        />
       ) : null}
 
-      <nav className={styles.pestanas}>
-        {(
-          [
-            ['trabajo', 'Trabajo'],
-            ['cotizacion', `Cotización (${lineas.data?.length ?? 0})`],
-            ['repuestos', `Repuestos (${repuestos.data?.length ?? 0})`],
-            ['torque', orden.requiereTorque ? `Torque (${mediciones.data?.length ?? 0})` : 'Torque —'],
-            ['cierre', 'Cierre'],
-            ['ingreso', 'Ingreso'],
-            ['archivos', 'Archivos'],
-            ['historial', 'Historial'],
-          ] as const
-        ).map(([clave, etiqueta]) => (
-          <button
-            key={clave}
-            type="button"
-            className={pestana === clave ? styles.pestanaActiva : styles.pestana}
-            aria-current={pestana === clave ? 'page' : undefined}
-            onClick={() => setPestana(clave)}
-          >
-            {etiqueta}
-          </button>
-        ))}
-      </nav>
-
+      <div>
+        <Tabs id={ID_PESTANAS} label="Secciones de la orden" items={pestanas} value={pestana} onChange={setPestana} />
+        <TabPanel tabsId={ID_PESTANAS} tabKey={pestana} className={styles.panelPestana}>
       {pestana === 'trabajo' ? (
         <>
-          <div className={styles.bloque}>
-            <h2 className={styles.subtitulo}>Etapa</h2>
+          <DocSection title="Etapa">
             <PanelEtapas
               orden={orden}
               puedeEditar={permisos.editar}
@@ -244,12 +240,11 @@ export function OrdenDetallePage() {
               onDiagnostico={(d) => cierre.diagnostico.mutate(d)}
               onReparacion={(d) => cierre.reparacion.mutate(d)}
             />
-          </div>
+          </DocSection>
 
-          <div className={styles.bloque}>
-            <h2 className={styles.subtitulo}>Puntos de revisión</h2>
+          <DocSection title="Puntos de revisión">
             {puntos.isPending || checks.isPending ? (
-              <p className={styles.nota}>Cargando revisiones…</p>
+              <SkeletonRows rows={4} columns={3} label="Cargando revisiones…" />
             ) : (
               <PanelChecks
                 puntos={puntos.data ?? []}
@@ -270,8 +265,7 @@ export function OrdenDetallePage() {
                 onBorrar={(checkId) => edicionChecks.borrar.mutate(checkId)}
               />
             )}
-          </div>
-
+          </DocSection>
         </>
       ) : null}
 
@@ -383,23 +377,26 @@ export function OrdenDetallePage() {
 
       {pestana === 'ingreso' ? (
         <>
-          <dl className={styles.datos}>
-            {dato('Cliente de la orden', orden.cliente)}
-            {dato('Fecha de ingreso', formatearFecha(orden.fechaIngreso))}
-            {dato('Tipo de servicio', etiquetaDeServicio(orden.tipoServicio))}
-            {dato('Motivo de ingreso', orden.motivoIngreso)}
-            {dato('Técnico asignado', orden.tecnico, 'sin asignar')}
-            {dato('Recibida por', orden.recibidaPor)}
-            {dato('Serie del documento', orden.serie)}
-            {dato('Diagnosticada', formatearFechaHora(orden.diagnosticadaEn))}
-            {dato('Creada', formatearFechaHora(orden.creadoEn))}
-            {dato('Creada por', orden.autor)}
-          </dl>
+          <DocSection title="Datos de ingreso">
+            <MetaList
+              items={[
+                dato('Cliente de la orden', orden.cliente),
+                dato('Fecha de ingreso', formatearFecha(orden.fechaIngreso)),
+                dato('Tipo de servicio', etiquetaDeServicio(orden.tipoServicio)),
+                dato('Motivo de ingreso', orden.motivoIngreso),
+                dato('Técnico asignado', orden.tecnico, 'sin asignar'),
+                dato('Recibida por', orden.recibidaPor),
+                dato('Serie del documento', orden.serie),
+                dato('Diagnosticada', formatearFechaHora(orden.diagnosticadaEn)),
+                dato('Creada', formatearFechaHora(orden.creadoEn)),
+                dato('Creada por', orden.autor),
+              ]}
+            />
+          </DocSection>
 
-          <div className={styles.bloque}>
-            <h2 className={styles.subtitulo}>Cliente congelado</h2>
+          <DocSection title="Cliente congelado">
             <p className={styles.datoValor}>
-              <Link to={`/clientes/${orden.clienteId}`} className={styles.enlace}>
+              <Link to={`/clientes/${orden.clienteId}`} className={`${doc.enlace} ${styles.enlaceTactil}`}>
                 {orden.cliente}
               </Link>
             </p>
@@ -407,20 +404,18 @@ export function OrdenDetallePage() {
               Es el cliente que tenía el equipo al ingresar. Si después el equipo cambia de dueño,
               esta orden no cambia: lo impide un trigger, no esta pantalla.
             </p>
-          </div>
+          </DocSection>
 
           {orden.condicionVisual ? (
-            <div className={styles.bloque}>
-              <h2 className={styles.subtitulo}>Condición visual al recibir</h2>
+            <DocSection title="Condición visual al recibir">
               <p className={styles.notas}>{orden.condicionVisual}</p>
-            </div>
+            </DocSection>
           ) : null}
 
           {orden.notasDiagnostico ? (
-            <div className={styles.bloque}>
-              <h2 className={styles.subtitulo}>Notas de diagnóstico</h2>
+            <DocSection title="Notas de diagnóstico">
               <p className={styles.notas}>{orden.notasDiagnostico}</p>
-            </div>
+            </DocSection>
           ) : null}
         </>
       ) : null}
@@ -437,6 +432,29 @@ export function OrdenDetallePage() {
       {pestana === 'historial' ? (
         <PanelHistorial eventos={historial.data ?? []} cargando={historial.isPending} />
       ) : null}
+        </TabPanel>
+      </div>
+
+      <ConfirmDialog
+        open={cancelando}
+        tone="danger"
+        title={`¿Cancelar la orden ${orden.numero}?`}
+        description="Cancelar es la salida sin requisitos y no vuelve atrás. Se registra quién la canceló, cuándo y con qué motivo."
+        confirmLabel={acciones.cancelar.isPending ? 'Cancelando…' : 'Confirmar cancelación'}
+        cancelLabel="No cancelar"
+        busy={acciones.cancelar.isPending}
+        onCancel={cerrarCancelacion}
+        onConfirm={() => acciones.cancelar.mutate(motivo, { onSuccess: () => setCancelando(false) })}
+      >
+        <Field label="Motivo de la cancelación" id="motivo-cancelacion">
+          <Textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3} />
+        </Field>
+        {acciones.cancelar.error ? (
+          <Alert tone="danger" role="alert" title="No se pudo cancelar">
+            <p>{acciones.cancelar.error.message}</p>
+          </Alert>
+        ) : null}
+      </ConfirmDialog>
     </div>
   )
 }

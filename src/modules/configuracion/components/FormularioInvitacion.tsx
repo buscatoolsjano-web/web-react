@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/Button'
+import { Field } from '@/components/forms/Field'
+import { Input, Select } from '@/components/forms/controls'
 import { StatusMessage } from '@/components/ui/StatusMessage'
 import { ROLES_ASIGNABLES, etiquetaRol, validarInvitacion, type ErroresInvitacion } from '../lib/usuarios'
 import { Dialogo } from './Dialogo'
@@ -51,45 +53,22 @@ export function FormularioInvitacion({ empresa, enviando, error, onEnviar, onCer
         </>
       }
     >
-      <form id="form-invitacion" onSubmit={enviar} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-        <label className={styles.campo}>
-          <span className={styles.etiqueta}>Email</span>
-          <input
-            className={styles.control}
-            type="email"
-            inputMode="email"
-            autoComplete="off"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={enviando}
-            aria-invalid={!!errores.email}
-          />
-          {errores.email && <span className={styles.errorCampo}>{errores.email}</span>}
-        </label>
-        <label className={styles.campo}>
-          <span className={styles.etiqueta}>Nombre (opcional)</span>
-          <input
-            className={styles.control}
-            type="text"
-            autoComplete="off"
-            maxLength={120}
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            disabled={enviando}
-          />
-          {errores.nombre && <span className={styles.errorCampo}>{errores.nombre}</span>}
-        </label>
-        <label className={styles.campo}>
-          <span className={styles.etiqueta}>Rol en {empresa}</span>
-          <select className={styles.control} value={rol} onChange={(e) => setRol(e.target.value)} disabled={enviando}>
+      <form id="form-invitacion" onSubmit={enviar} noValidate className={styles.formDialogo}>
+        <Field label="Email" error={errores.email}>
+          <Input type="email" inputMode="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} disabled={enviando} />
+        </Field>
+        <Field label="Nombre" optional error={errores.nombre}>
+          <Input type="text" autoComplete="off" maxLength={120} value={nombre} onChange={(e) => setNombre(e.target.value)} disabled={enviando} />
+        </Field>
+        <Field label={`Rol en ${empresa}`} error={errores.rol}>
+          <Select value={rol} onChange={(e) => setRol(e.target.value)} disabled={enviando}>
             {ROLES_ASIGNABLES.map((r) => (
               <option key={r} value={r}>
                 {etiquetaRol(r)}
               </option>
             ))}
-          </select>
-          {errores.rol && <span className={styles.errorCampo}>{errores.rol}</span>}
-        </label>
+          </Select>
+        </Field>
         <p className={styles.nota}>
           Recibe un correo de Supabase para elegir su contraseña. Si ya tiene cuenta, sólo se le agrega el acceso a esta
           empresa.

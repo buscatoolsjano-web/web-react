@@ -1,4 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { cx } from '@/utils/cx'
 import { puedeVerConfiguracion, seccionesVisibles } from '../lib/permisos'
@@ -15,12 +18,12 @@ import styles from './Configuracion.module.css'
 export function ConfiguracionShell() {
   const { activa, cargando } = useEmpresa()
 
-  if (cargando) return <p className={styles.nota}>Cargando…</p>
+  if (cargando) return <SkeletonRows rows={4} columns={2} label="Cargando…" />
   if (!puedeVerConfiguracion(activa?.rol)) {
     return (
       <div className={styles.page}>
-        <h1 className={styles.titulo}>Configuración</h1>
-        <p className={styles.vacio}>Tu rol en esta empresa no tiene acceso a Configuración.</p>
+        <PageHeader title="Configuración" />
+        <EmptyState icon="settings" title="Sin acceso a Configuración" description="Tu rol en esta empresa no tiene acceso a Configuración." />
       </div>
     )
   }

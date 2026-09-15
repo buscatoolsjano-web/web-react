@@ -1,5 +1,10 @@
 import { useEffect, useId, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Field } from '@/components/forms/Field'
+import { Input } from '@/components/forms/controls'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { Spinner } from '@/components/ui/Spinner'
 import { ETIQUETA_CLASE, presentarSugerencias } from '../lib/formato'
 import {
   useBuscarClientes,
@@ -52,11 +57,17 @@ export function PanelCliente({ hilo, estado }: PanelClienteProps) {
       </h2>
 
       {!estado ? (
-        <p className={styles.nota}>Cargando…</p>
+        <p className={styles.cargandoTexto}>
+          <Spinner size={16} />
+          Cargando…
+        </p>
       ) : clienteId ? (
         <>
           {cliente.isPending ? (
-            <p className={styles.nota}>Cargando…</p>
+            <p className={styles.cargandoTexto}>
+              <Spinner size={16} />
+              Cargando…
+            </p>
           ) : cliente.data ? (
             <>
               <Link to={`/clientes/${cliente.data.id}`} className={styles.enlace}>
@@ -81,19 +92,17 @@ export function PanelCliente({ hilo, estado }: PanelClienteProps) {
           ) : (
             <p className={styles.nota}>El cliente vinculado no está disponible.</p>
           )}
-          <button
-            type="button"
-            className={styles.boton}
-            disabled={vincular.isPending}
-            onClick={() => vincular.mutate(null)}
-          >
+          <Button variant="ghost" size="sm" className={styles.botonInicio} loading={vincular.isPending} onClick={() => vincular.mutate(null)}>
             Desvincular cliente
-          </button>
+          </Button>
         </>
       ) : (
         <>
           {sugerencias.isPending ? (
-            <p className={styles.nota}>Buscando coincidencias…</p>
+            <p className={styles.cargandoTexto}>
+              <Spinner size={16} />
+              Buscando coincidencias…
+            </p>
           ) : (sugerencias.data ?? []).length === 0 ? (
             <p className={styles.nota}>No hay coincidencias con clientes por dirección ni por dominio.</p>
           ) : (
@@ -101,43 +110,38 @@ export function PanelCliente({ hilo, estado }: PanelClienteProps) {
               {presentarSugerencias(sugerencias.data ?? []).map((s) => (
                 <li key={`${s.clienteId}|${s.contactoId ?? ''}|${s.direccion}`} className={styles.sugerencia}>
                   <span className={styles.sugerenciaTexto}>
-                    <span>
+                    <span className={styles.sugerenciaNombre}>
                       {s.clienteNombre}
-                      {s.recomendada ? ' ★' : ''}
+                      {s.recomendada ? <Badge tone="brand">Recomendada</Badge> : null}
                     </span>
                     <span className={styles.nota}>
                       {ETIQUETA_CLASE[s.clase]} · {s.direccion}
                       {s.contactoNombre ? ` · ${s.contactoNombre}` : ''}
                     </span>
                   </span>
-                  <button
-                    type="button"
-                    className={s.recomendada ? styles.botonPrimario : styles.boton}
+                  <Button
+                    variant={s.recomendada ? 'primary' : 'secondary'}
+                    size="sm"
                     disabled={vincular.isPending}
                     aria-label={`Vincular ${s.clienteNombre}`}
                     onClick={() => vincular.mutate({ id: s.clienteId, contactoId: s.contactoId, origen: s.clase })}
                   >
                     Vincular
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
           )}
 
-          <label className={styles.campo} htmlFor={idBuscar}>
-            Vincular a mano
-            <input
-              id={idBuscar}
-              type="search"
-              className={styles.buscador}
-              placeholder="Razón social o referencia…"
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-            />
-          </label>
+          <Field label="Vincular a mano">
+            <Input type="search" placeholder="Razón social o referencia…" value={texto} onChange={(e) => setTexto(e.target.value)} />
+          </Field>
           {consulta.trim().length >= 2 ? (
             encontrados.isPending ? (
-              <p className={styles.nota}>Buscando…</p>
+              <p className={styles.cargandoTexto}>
+                <Spinner size={16} />
+                Buscando…
+              </p>
             ) : (encontrados.data ?? []).length === 0 ? (
               <p className={styles.nota}>Sin resultados.</p>
             ) : (
@@ -148,9 +152,9 @@ export function PanelCliente({ hilo, estado }: PanelClienteProps) {
                       <span>{c.nombre}</span>
                       {c.referencia ? <span className={styles.nota}>{c.referencia}</span> : null}
                     </span>
-                    <button
-                      type="button"
-                      className={styles.boton}
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       disabled={vincular.isPending}
                       aria-label={`Vincular ${c.nombre}`}
                       onClick={() => {
@@ -159,7 +163,7 @@ export function PanelCliente({ hilo, estado }: PanelClienteProps) {
                       }}
                     >
                       Vincular
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -169,7 +173,7 @@ export function PanelCliente({ hilo, estado }: PanelClienteProps) {
       )}
 
       {vincular.error ? (
-        <p className={styles.nota} role="alert">
+        <p className={styles.errorTexto} role="alert">
           {vincular.error.message}
         </p>
       ) : null}

@@ -1,4 +1,5 @@
-import styles from './Informes.module.css'
+import { Pagination } from '@/components/tables/Pagination'
+import type { Sustantivo } from '@/components/tables/rango'
 
 interface Props {
   pagina: number
@@ -6,22 +7,26 @@ interface Props {
   total: number
   onCambiar: (pagina: number) => void
   cargando?: boolean
+  /** Cómo se llaman las filas («saldo/saldos», «movimiento/movimientos»). */
+  sustantivo: Sustantivo
 }
 
-/** «1–50 de 379» con Anterior / Siguiente. La página es 0-based. */
-export function Paginador({ pagina, porPagina, total, onCambiar, cargando = false }: Props) {
+/**
+ * «1–50 de 379 movimientos» con Anterior / Siguiente. La página es 0-based.
+ *
+ * Fase 13 · E5: el mismo contrato sobre la `Pagination` común (singular y
+ * plural, «Página X de Y»). Sin selector de tamaño: el servidor fija 50.
+ */
+export function Paginador({ pagina, porPagina, total, onCambiar, cargando = false, sustantivo }: Props) {
   if (total === 0) return null
-  const desde = pagina * porPagina + 1
-  const hasta = Math.min(total, (pagina + 1) * porPagina)
   return (
-    <div className={styles.paginador}>
-      <button type="button" className={styles.boton} disabled={pagina === 0 || cargando} onClick={() => onCambiar(pagina - 1)}>
-        Anterior
-      </button>
-      <span className={styles.nota} aria-live="polite">{desde}–{hasta} de {total}</span>
-      <button type="button" className={styles.boton} disabled={hasta >= total || cargando} onClick={() => onCambiar(pagina + 1)}>
-        Siguiente
-      </button>
-    </div>
+    <Pagination
+      offset={pagina * porPagina}
+      pageSize={porPagina}
+      total={total}
+      noun={sustantivo}
+      loading={cargando}
+      onChange={(offset) => onCambiar(Math.floor(offset / porPagina))}
+    />
   )
 }

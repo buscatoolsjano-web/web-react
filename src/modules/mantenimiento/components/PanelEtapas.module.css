@@ -39,6 +39,11 @@
   color: var(--text-muted);
 }
 
+.icono {
+  flex-shrink: 0;
+  color: currentColor;
+}
+
 .orden {
   font-variant-numeric: tabular-nums;
   color: var(--text-soft);
@@ -50,35 +55,6 @@
   flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
-}
-
-.primario {
-  font: inherit;
-  font-weight: 600;
-  padding: var(--space-2) var(--space-4);
-  min-height: 36px;
-  border: 1px solid var(--primary);
-  border-radius: var(--radius-sm);
-  background: var(--primary);
-  color: var(--on-primary);
-  cursor: pointer;
-}
-
-.secundario {
-  font: inherit;
-  padding: var(--space-2) var(--space-4);
-  min-height: 36px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.primario:disabled,
-.secundario:disabled {
-  cursor: default;
-  opacity: 0.6;
 }
 
 .select {
@@ -122,8 +98,6 @@
 
 /* Un iPad en vertical mide 768 y es táctil: la consulta mira las dos cosas. */
 @media (max-width: 767px), (pointer: coarse) {
-  .primario,
-  .secundario,
   .select {
     min-height: 44px;
     font-size: 1rem;

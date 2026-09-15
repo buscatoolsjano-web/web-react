@@ -1,5 +1,9 @@
 import { useId, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Button } from '@/components/ui/Button'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { Icon } from '@/components/icons/Icon'
 import { POR_PAGINA_STOCK, useKardex, useStockActual } from '../hooks/useStock'
 import { enlaceOrigen, etiquetaTipoMovimiento, formatearCantidad, formatearFechaHora, formatearSaldo, textoOrigen } from '../lib/stock'
 import { ErrorInforme } from '../services/actividad'
@@ -67,7 +71,7 @@ export function KardexProducto({ producto, onElegir, depositos }: Props) {
                 <span className={styles.controlEtiqueta}>Producto o SKU</span>
                 <input className={styles.inputTexto} type="search" value={texto} maxLength={100} onChange={(e) => setTexto(e.target.value)} placeholder="Buscar producto con stock registrado" />
               </label>
-              <button type="submit" className={styles.boton}>Buscar</button>
+              <Button type="submit" variant="secondary" icon={<Icon name="search" size={16} />}>Buscar</Button>
             </form>
             {busqueda === '' ? (
               <p className={styles.nota}>Elegí un producto con «Kardex» en la tabla de stock, o buscalo acá.</p>
@@ -111,7 +115,7 @@ export function KardexProducto({ producto, onElegir, depositos }: Props) {
                   </button>
                 ))}
               </div>
-              <button type="button" className={styles.boton} onClick={() => elegir(null)}>Cambiar producto</button>
+              <Button variant="ghost" onClick={() => elegir(null)}>Cambiar producto</Button>
             </div>
 
             {saldosActuales.length > 0 ? (
@@ -127,11 +131,9 @@ export function KardexProducto({ producto, onElegir, depositos }: Props) {
             ) : null}
 
             {kardex.isPending ? (
-              <p className={styles.nota}>Leyendo movimientos…</p>
+              <SkeletonRows rows={5} columns={5} label="Leyendo movimientos…" />
             ) : kardex.error ? (
-              <div className={styles.error} role="alert">
-                <span>{kardex.error instanceof ErrorInforme ? kardex.error.message : 'No se pudo leer el kardex.'}</span>
-              </div>
+              <ErrorState compact title={kardex.error instanceof ErrorInforme ? kardex.error.message : 'No se pudo leer el kardex.'} />
             ) : filas.length === 0 ? (
               <p className={styles.vacio}>Sin movimientos registrados para este producto.</p>
             ) : (
@@ -176,7 +178,7 @@ export function KardexProducto({ producto, onElegir, depositos }: Props) {
               </div>
             )}
             <div className={styles.accionesRanking}>
-              <Paginador pagina={pagina} porPagina={POR_PAGINA_STOCK} total={total} onCambiar={setPagina} cargando={kardex.isFetching} />
+              <Paginador pagina={pagina} porPagina={POR_PAGINA_STOCK} total={total} onCambiar={setPagina} cargando={kardex.isFetching} sustantivo={{ singular: 'movimiento', plural: 'movimientos' }} />
             </div>
           </>
         )}

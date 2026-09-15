@@ -1,6 +1,10 @@
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Button } from '@/components/ui/Button'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { Icon } from '@/components/icons/Icon'
 import { useMesInformes } from '../hooks/useMesInformes'
 import { useResumenStock } from '../hooks/useStock'
 import { etiquetaTramo } from '../lib/actividad'
@@ -36,19 +40,19 @@ export function StockVista() {
     <div className={styles.vista}>
       <header className={styles.encabezado}>
         <div>
-          <h1 className={styles.titulo}>Informes · Stock</h1>
+          <h2 className={styles.tituloVista}>Stock</h2>
           <p className={styles.subtitulo}>Cantidades físicas del ERP. Sin valorización, costo ni stock crítico.</p>
         </div>
         <div className={styles.accionesEncabezado}>
           <SelectorMes etiqueta="Mes de movimientos" />
-          <button
-            type="button"
-            className={styles.boton}
+          <Button
+            variant="ghost"
+            icon={<Icon name="refresh" size={16} />}
             onClick={() => void queryClient.invalidateQueries({ queryKey: ['informes', companyId, 'stock'] })}
-            disabled={actualizando}
+            loading={actualizando}
           >
             {actualizando ? 'Actualizando…' : 'Actualizar'}
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -65,14 +69,15 @@ export function StockVista() {
       </details>
 
       {resumen.isPending ? (
-        <p className={styles.nota}>Leyendo el stock…</p>
-      ) : resumen.error ? (
-        <div className={styles.error} role="alert">
-          <span>{resumen.error instanceof ErrorInforme ? resumen.error.message : 'No se pudo leer el stock.'}</span>
-          {resumen.error instanceof ErrorInforme && resumen.error.codigo !== 'desconocido' ? null : (
-            <button type="button" className={styles.boton} onClick={() => void resumen.refetch()}>Reintentar</button>
-          )}
+        <div className={styles.cargando}>
+          <SkeletonRows rows={4} columns={4} label="Leyendo el stock…" />
         </div>
+      ) : resumen.error ? (
+        <ErrorState
+          title={resumen.error instanceof ErrorInforme ? resumen.error.message : 'No se pudo leer el stock.'}
+          onRetry={resumen.error instanceof ErrorInforme && resumen.error.codigo !== 'desconocido' ? undefined : () => void resumen.refetch()}
+          retrying={resumen.isFetching}
+        />
       ) : (
         <>
           <ResumenStockSeccion resumen={resumen.data} />

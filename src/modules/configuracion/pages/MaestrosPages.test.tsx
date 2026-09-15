@@ -139,7 +139,7 @@ describe('Listas de precios', () => {
     detalle()
     expect(screen.getByText('USD 0,00')).toBeInTheDocument()
     expect(screen.getByText('Otro Cliente S.A.')).toBeInTheDocument()
-    expect(screen.getByText('1–1 de 120')).toBeInTheDocument()
+    expect(screen.getByText('1–50 de 120 precios')).toBeInTheDocument()
     expect(items).toHaveBeenLastCalledWith({ busqueda: '', vigencia: 'todas', desplazamiento: 0, limite: 50 })
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))

@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { Button } from '@/components/ui/Button'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { MONEDAS } from '../lib/estados'
 import { formatearFechaHora, formatearImporte, formatearNumero } from '../lib/formato'
@@ -167,14 +168,14 @@ export function PanelRepuestos({
               )}
               {puedeEditar && r.consumidoEn === null ? (
                 <span className={styles.tarjetaAcciones}>
-                  <button
-                    type="button"
-                    className={styles.mini}
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     disabled={guardando}
                     onClick={() => onBorrar(r.id)}
                   >
                     Quitar
-                  </button>
+                  </Button>
                 </span>
               ) : null}
             </li>
@@ -233,14 +234,14 @@ export function PanelRepuestos({
                     {puedeEditar ? (
                       <td>
                         {r.consumidoEn === null ? (
-                          <button
-                            type="button"
-                            className={styles.mini}
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             disabled={guardando}
                             onClick={() => onBorrar(r.id)}
                           >
                             Quitar
-                          </button>
+                          </Button>
                         ) : null}
                       </td>
                     ) : null}
@@ -271,14 +272,14 @@ export function PanelRepuestos({
               {producto ? (
                 <span className={styles.tarjetaAcciones}>
                   <strong>{producto.sku}</strong> {producto.nombre}
-                  <button type="button" className={styles.mini} onClick={() => setBuscando(true)}>
+                  <Button variant="secondary" size="sm" onClick={() => setBuscando(true)}>
                     Cambiar
-                  </button>
+                  </Button>
                 </span>
               ) : (
-                <button type="button" className={styles.secundario} onClick={() => setBuscando(true)}>
+                <Button variant="secondary" onClick={() => setBuscando(true)}>
                   Elegir del catálogo
-                </button>
+                </Button>
               )}
               {errorDe(errores, 'productoId') ? (
                 <span className={styles.campoError}>{errorDe(errores, 'productoId')}</span>
@@ -373,14 +374,12 @@ export function PanelRepuestos({
             </div>
 
             <div className={`${styles.acciones} ${styles.anchoCompleto}`}>
-              <button
-                type="button"
-                className={styles.primario}
+              <Button
                 disabled={guardando}
                 onClick={() => void agregar()}
               >
                 + Agregar repuesto
-              </button>
+              </Button>
             </div>
 
             <p className={`${styles.nota} ${styles.anchoCompleto}`}>
@@ -414,9 +413,7 @@ export function PanelRepuestos({
           <div className={styles.acciones}>
             {confirmando ? (
               <>
-                <button
-                  type="button"
-                  className={styles.primario}
+                <Button
                   disabled={consumiendo}
                   onClick={() => {
                     onConsumir()
@@ -424,25 +421,22 @@ export function PanelRepuestos({
                   }}
                 >
                   {consumiendo ? 'Registrando…' : 'Sí, descontar del stock'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.secundario}
+                </Button>
+                <Button
+                  variant="secondary"
                   disabled={consumiendo}
                   onClick={() => setConfirmando(false)}
                 >
                   Volver
-                </button>
+                </Button>
               </>
             ) : (
-              <button
-                type="button"
-                className={styles.primario}
+              <Button
                 disabled={consumiendo}
                 onClick={() => setConfirmando(true)}
               >
                 Confirmar consumo
-              </button>
+              </Button>
             )}
           </div>
         </div>

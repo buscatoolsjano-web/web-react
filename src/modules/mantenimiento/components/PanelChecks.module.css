@@ -82,9 +82,10 @@
   cursor: pointer;
 }
 
+/* Sin opacidad: en sólo lectura todas están deshabilitadas y la elegida tiene
+   que seguir leyéndose con su color (Fase 13 · E5). */
 .opcion:disabled {
   cursor: default;
-  opacity: 0.6;
 }
 
 .elegidaOk {

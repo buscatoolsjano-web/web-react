@@ -1,4 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Badge } from '@/components/ui/Badge'
 import { StatusMessage } from '@/components/ui/StatusMessage'
 import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
 import type { Column } from '@/components/tables/types'
@@ -33,7 +35,7 @@ export function ListasPreciosPage() {
           <Link to={`/configuracion/listas-precios/${l.id}`} className={cx(styles.nombre, styles.enlace)}>
             {l.nombre}
           </Link>
-          {l.porDefecto && <span className={styles.email}>Predeterminada de la empresa</span>}
+          {l.porDefecto && <Badge tone="brand">Predeterminada de la empresa</Badge>}
         </span>
       ),
     },
@@ -57,12 +59,7 @@ export function ListasPreciosPage() {
 
   return (
     <>
-      <div className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>Listas de precios</h1>
-          <p className={styles.subtitulo}>Listas de {activa?.companyName ?? 'la empresa'}, cada una en su moneda.</p>
-        </div>
-      </div>
+      <PageHeader title="Listas de precios" subtitle={`Listas de ${activa?.companyName ?? 'la empresa'}, cada una en su moneda.`} status={<Badge tone="neutral" outline>Sólo lectura</Badge>} />
 
       <StatusMessage tono="pending" titulo={AUTORIDAD.listas.titulo} detalle={AUTORIDAD.listas.detalle} />
 
@@ -80,7 +77,7 @@ export function ListasPreciosPage() {
             <article className={styles.card}>
               <div className={styles.cardCabecera}>
                 {columnas[0]!.render!(l)}
-                <span className={cx(styles.chip, styles.tono_neutro)}>{l.moneda}</span>
+                <Badge tone="neutral">{l.moneda}</Badge>
               </div>
               <dl className={styles.cardDatos}>
                 <dt>Precios</dt>

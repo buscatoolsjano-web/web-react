@@ -1,10 +1,15 @@
 import { useState } from 'react'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Badge } from '@/components/ui/Badge'
+import { Field } from '@/components/forms/Field'
+import { Input, Select } from '@/components/forms/controls'
+import { contar } from '@/components/tables/rango'
+import { Icon } from '@/components/icons/Icon'
 import { Button } from '@/components/ui/Button'
 import { StatusMessage, type Tono } from '@/components/ui/StatusMessage'
 import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
 import type { Column } from '@/components/tables/types'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { cx } from '@/utils/cx'
 import { Dialogo } from '../components/Dialogo'
 import { DialogoNombre } from '../components/DialogoNombre'
 import { useAccionesMaestros, useMarcas } from '../hooks/useMaestros'
@@ -13,6 +18,8 @@ import { ErrorMaestro } from '../services/maestros'
 import styles from '../components/Configuracion.module.css'
 
 type Pendiente = { tipo: 'crear' } | { tipo: 'desactivar' | 'reactivar' | 'eliminar'; m: Marca }
+
+const MARCAS = { singular: 'marca', plural: 'marcas' }
 
 const codigo = (e: unknown) => (e instanceof ErrorMaestro ? e.codigo : 'desconocido')
 
@@ -87,17 +94,17 @@ export function MarcasPage() {
 
   return (
     <>
-      <div className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>Marcas</h1>
-          <p className={styles.subtitulo}>Marcas de productos de {activa?.companyName ?? 'la empresa'}.</p>
-        </div>
-        {admin && (
-          <Button onClick={() => abrir({ tipo: 'crear' })} disabled={ocupado}>
-            Nueva marca
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Marcas"
+        subtitle={`Marcas de productos de ${activa?.companyName ?? 'la empresa'}.`}
+        actions={
+          admin ? (
+            <Button icon={<Icon name="plus" size={16} />} onClick={() => abrir({ tipo: 'crear' })} disabled={ocupado}>
+              Nueva marca
+            </Button>
+          ) : undefined
+        }
+      />
 
       {!q.isPending && !q.isError && !admin && <StatusMessage tono="pending" titulo="Sólo lectura" detalle="Sólo un administrador puede crear, desactivar o eliminar marcas." />}
       <p className={styles.nota}>{AUTORIDAD.marcasNombre}</p>
@@ -109,20 +116,17 @@ export function MarcasPage() {
       ) : (
         <>
           <div className={styles.barra}>
-            <input
-              className={cx(styles.control, styles.buscar)}
-              type="search"
-              placeholder="Buscar marca"
-              aria-label="Buscar marca"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-            />
-            <select className={styles.selectFiltro} aria-label="Filtrar por estado" value={estado} onChange={(e) => setEstado(e.target.value as FiltroEstado)}>
-              <option value="todas">Todas</option>
-              <option value="activas">Activas</option>
-              <option value="inactivas">Inactivas</option>
-            </select>
-            {q.data && <span className={styles.nota}>{visibles.length === lista.length ? `${lista.length} marcas` : `${visibles.length} de ${lista.length}`}</span>}
+<Field label="Buscar marca" hideLabel className={styles.buscar}>
+              <Input type="search" placeholder="Buscar marca" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+            </Field>
+            <Field label="Filtrar por estado" hideLabel className={styles.selectFiltro}>
+              <Select value={estado} onChange={(e) => setEstado(e.target.value as FiltroEstado)}>
+                <option value="todas">Todas</option>
+                <option value="activas">Activas</option>
+                <option value="inactivas">Inactivas</option>
+              </Select>
+            </Field>
+            {q.data && <span className={styles.nota}>{visibles.length === lista.length ? contar(lista.length, MARCAS) : `${visibles.length} de ${lista.length}`}</span>}
           </div>
           <ResponsiveTable
             columns={columnas}
@@ -177,7 +181,7 @@ export function MarcasPage() {
               <Button variant="secondary" onClick={cerrar} disabled={ocupado}>
                 Cancelar
               </Button>
-              <Button className={pendiente.tipo === 'eliminar' ? styles.peligro : undefined} onClick={() => void confirmar()} disabled={ocupado}>
+              <Button variant={pendiente.tipo === 'eliminar' ? 'danger' : 'primary'} onClick={() => void confirmar()} disabled={ocupado}>
                 {ocupado ? 'Guardando…' : { desactivar: 'Desactivar', reactivar: 'Reactivar', eliminar: 'Eliminar' }[pendiente.tipo]}
               </Button>
             </>
@@ -198,7 +202,7 @@ export function MarcasPage() {
 }
 
 function ChipActiva({ activa }: { activa: boolean }) {
-  return <span className={cx(styles.chip, activa ? styles.tono_ok : styles.tono_neutro)}>{activa ? 'Activa' : 'Inactiva'}</span>
+  return activa ? <Badge tone="success">Activa</Badge> : <Badge tone="neutral" outline>Inactiva</Badge>
 }
 
 function Acciones({ m, deshabilitado, abrir }: { m: Marca; deshabilitado: boolean; abrir: (p: Pendiente) => void }) {

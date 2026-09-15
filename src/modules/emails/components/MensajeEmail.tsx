@@ -1,4 +1,6 @@
 import { useId, useState } from 'react'
+import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/icons/Icon'
 import { fechaCompleta } from '../lib/formato'
 import type { HiloIndice, MensajeContenido } from '../types'
 import { AdjuntosEmail } from './AdjuntosEmail'
@@ -13,7 +15,10 @@ export interface MensajeEmailProps {
   onAccion?: (modo: 'responder' | 'responder_todos' | 'reenviar', mensajeId: string) => void
 }
 
-/** Un mensaje del hilo. Plegado sólo en la cabecera: el cuerpo no se dibuja hasta abrirlo. */
+/**
+ * Un mensaje del hilo. Plegado sólo en la cabecera: el cuerpo no se dibuja
+ * hasta abrirlo (y `CuerpoSeguro` sigue siendo el único que lo pinta).
+ */
 export function MensajeEmail({ hilo, mensaje, abiertoInicial, onAccion }: MensajeEmailProps) {
   const [abierto, setAbierto] = useState(abiertoInicial)
   const id = useId()
@@ -28,9 +33,16 @@ export function MensajeEmail({ hilo, mensaje, abiertoInicial, onAccion }: Mensaj
         aria-controls={id}
         onClick={() => setAbierto((v) => !v)}
       >
+        <Icon name="chevron-down" size={16} className={abierto ? styles.flechaAbierta : styles.flecha} />
         <span className={styles.mensajeDe}>{mensaje.de || '(sin remitente)'}</span>
         <span className={styles.mensajeFecha}>
-          {cantidadAdjuntos > 0 ? `📎 ${cantidadAdjuntos} · ` : ''}
+          {cantidadAdjuntos > 0 ? (
+            <span className={styles.clip}>
+              <Icon name="paperclip" size={16} />
+              {cantidadAdjuntos}
+              <span className="sr-only"> {cantidadAdjuntos === 1 ? 'adjunto' : 'adjuntos'}</span>
+            </span>
+          ) : null}
           {fechaCompleta(mensaje.fecha)}
         </span>
       </button>
@@ -44,16 +56,16 @@ export function MensajeEmail({ hilo, mensaje, abiertoInicial, onAccion }: Mensaj
           <CuerpoSeguro hilo={hilo} mensaje={mensaje} />
           <AdjuntosEmail hilo={hilo} mensaje={mensaje} />
           {onAccion ? (
-            <div className={styles.accionesMensaje}>
-              <button type="button" className={styles.boton} onClick={() => onAccion('responder', mensaje.id)}>
+            <div className={styles.accionesMensaje} role="group" aria-label="Acciones del mensaje">
+              <Button variant="secondary" size="sm" icon={<Icon name="arrow-left" size={16} />} onClick={() => onAccion('responder', mensaje.id)}>
                 Responder
-              </button>
-              <button type="button" className={styles.boton} onClick={() => onAccion('responder_todos', mensaje.id)}>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => onAccion('responder_todos', mensaje.id)}>
                 Responder a todos
-              </button>
-              <button type="button" className={styles.boton} onClick={() => onAccion('reenviar', mensaje.id)}>
+              </Button>
+              <Button variant="ghost" size="sm" icon={<Icon name="arrow-right" size={16} />} onClick={() => onAccion('reenviar', mensaje.id)}>
                 Reenviar
-              </button>
+              </Button>
             </div>
           ) : null}
         </div>

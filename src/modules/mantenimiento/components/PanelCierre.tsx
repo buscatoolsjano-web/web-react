@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { Button } from '@/components/ui/Button'
 import { etiquetaDeCotizacion, etiquetaDeEtapa, etiquetaDeVeredicto } from '../lib/estados'
 import { formatearFecha } from '../lib/formato'
+import { Icon, type IconName } from '@/components/icons/Icon'
 import type { CapacidadTorque, OrdenDetalle, PrecheckCierre } from '../types'
 import styles from './PanelCotizacion.module.css'
 
@@ -18,7 +20,9 @@ export interface PanelCierreProps {
 
 type Marca = 'ok' | 'falta' | 'nr'
 
-const SIMBOLO: Record<Marca, string> = { ok: '✓', falta: '○', nr: '—' }
+// El ícono acompaña a la palabra del detalle; nunca va solo.
+const ICONO: Record<Marca, IconName> = { ok: 'check-circle', falta: 'circle', nr: 'minus' }
+const CLASE_ICONO: Record<Marca, string | undefined> = { ok: styles.iconoOk, falta: styles.iconoFalta, nr: styles.iconoNr }
 
 /**
  * El cierre de la orden.
@@ -78,7 +82,7 @@ export function PanelCierre({
   const fila = (etiqueta: string, marca: Marca, detalle: string) => (
     <li key={etiqueta} className={styles.punto}>
       <span className={styles.etiqueta}>
-        {SIMBOLO[marca]} {etiqueta}
+        <Icon name={ICONO[marca]} size={16} className={CLASE_ICONO[marca]} aria-hidden="true" /> {etiqueta}
       </span>
       <span className={styles.tarjetaDato}>{detalle}</span>
     </li>
@@ -145,14 +149,13 @@ export function PanelCierre({
             />
           </div>
           <div className={styles.acciones}>
-            <button
-              type="button"
-              className={styles.secundario}
+            <Button
+              variant="secondary"
               disabled={guardando || entrega === ''}
               onClick={() => onEntrega(entrega)}
             >
               Guardar la entrega
-            </button>
+            </Button>
           </div>
           <p className={`${styles.nota} ${styles.anchoCompleto}`}>
             Cerrar es entregar: sin fecha de entrega la orden no cierra, y no puede ser anterior
@@ -191,9 +194,7 @@ export function PanelCierre({
           <div className={styles.acciones}>
             {confirmando ? (
               <>
-                <button
-                  type="button"
-                  className={styles.primario}
+                <Button
                   disabled={guardando}
                   onClick={() => {
                     onCerrar()
@@ -201,25 +202,22 @@ export function PanelCierre({
                   }}
                 >
                   {guardando ? 'Cerrando…' : 'Sí, cerrar la orden'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.secundario}
+                </Button>
+                <Button
+                  variant="secondary"
                   disabled={guardando}
                   onClick={() => setConfirmando(false)}
                 >
                   Volver
-                </button>
+                </Button>
               </>
             ) : (
-              <button
-                type="button"
-                className={styles.primario}
+              <Button
                 disabled={guardando || !precheck.puedeCerrar}
                 onClick={() => setConfirmando(true)}
               >
                 Cerrar orden
-              </button>
+              </Button>
             )}
           </div>
         </div>

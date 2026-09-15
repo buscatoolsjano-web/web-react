@@ -1,4 +1,9 @@
 import { useState } from 'react'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Badge } from '@/components/ui/Badge'
+import { Field } from '@/components/forms/Field'
+import { Input } from '@/components/forms/controls'
+import { contar } from '@/components/tables/rango'
 import { StatusMessage } from '@/components/ui/StatusMessage'
 import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
 import type { Column } from '@/components/tables/types'
@@ -8,6 +13,8 @@ import { useAtributos } from '../hooks/useMaestros'
 import { AUTORIDAD, etiquetaTipoAtributo, filtrarAtributos, mensajeErrorMaestro, type Atributo } from '../lib/maestros'
 import { ErrorMaestro } from '../services/maestros'
 import styles from '../components/Configuracion.module.css'
+
+const ATRIBUTOS = { singular: 'atributo', plural: 'atributos' }
 
 const codigo = (e: unknown) => (e instanceof ErrorMaestro ? e.codigo : 'desconocido')
 
@@ -42,12 +49,7 @@ export function AtributosPage() {
 
   return (
     <>
-      <div className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>Atributos</h1>
-          <p className={styles.subtitulo}>Características de los productos de {activa?.companyName ?? 'la empresa'}.</p>
-        </div>
-      </div>
+      <PageHeader title="Atributos" subtitle={`Características de los productos de ${activa?.companyName ?? 'la empresa'}.`} status={<Badge tone="neutral" outline>Sólo lectura</Badge>} />
 
       <StatusMessage tono="pending" titulo={AUTORIDAD.atributos.titulo} detalle={AUTORIDAD.atributos.detalle} />
 
@@ -56,15 +58,10 @@ export function AtributosPage() {
       ) : (
         <>
           <div className={styles.barra}>
-            <input
-              className={cx(styles.control, styles.buscar)}
-              type="search"
-              placeholder="Buscar por nombre, clave o categoría"
-              aria-label="Buscar atributo"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-            />
-            {q.data && <span className={styles.nota}>{visibles.length === lista.length ? `${lista.length} atributos` : `${visibles.length} de ${lista.length}`}</span>}
+<Field label="Buscar atributo" hideLabel className={styles.buscar}>
+              <Input type="search" placeholder="Buscar por nombre, clave o categoría" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+            </Field>
+            {q.data && <span className={styles.nota}>{visibles.length === lista.length ? contar(lista.length, ATRIBUTOS) : `${visibles.length} de ${lista.length}`}</span>}
           </div>
           <ResponsiveTable
             columns={columnas}

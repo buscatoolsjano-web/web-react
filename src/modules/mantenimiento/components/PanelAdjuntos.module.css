@@ -54,10 +54,9 @@
 }
 
 .nombre:focus-visible,
-.borrar:focus-visible,
 .boton:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 .meta {
@@ -66,21 +65,9 @@
   white-space: nowrap;
 }
 
+/* El botón es IconButton; acá sólo que no se achique en una fila angosta. */
 .borrar {
-  min-width: 44px;
-  min-height: 44px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text-soft);
-  font-size: var(--text-lg);
-  line-height: 1;
-  cursor: pointer;
-}
-
-.borrar:hover:not(:disabled) {
-  border-color: var(--danger);
-  color: var(--danger);
+  flex-shrink: 0;
 }
 
 .acciones {
@@ -142,6 +129,6 @@
 }
 
 .select:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }

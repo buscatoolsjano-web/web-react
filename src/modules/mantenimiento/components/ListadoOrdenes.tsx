@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { Icon } from '@/components/icons/Icon'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import tabla from '@/components/tables/Tabla.module.css'
 import { formatearFecha } from '../lib/formato'
 import { etiquetaDeServicio } from '../lib/estados'
 import { ChipEspera, ChipEstadoOrden, ChipEtapa } from './ChipEstado'
@@ -17,17 +20,12 @@ export interface ListadoOrdenesProps {
   cargando: boolean
 }
 
-const COLUMNAS: { clave: OrdenDeOrdenes; etiqueta: string }[] = [
+const COLUMNAS: { clave: OrdenDeOrdenes; etiqueta: string; clase?: string | undefined }[] = [
   { clave: 'numero', etiqueta: 'Número' },
-  { clave: 'fecha', etiqueta: 'Ingreso' },
+  { clave: 'fecha', etiqueta: 'Ingreso', clase: styles.ocultaBajo1024 },
   { clave: 'cliente', etiqueta: 'Cliente' },
   { clave: 'etapa', etiqueta: 'Etapa' },
 ]
-
-function flecha(activa: boolean, direccion: 'asc' | 'desc'): string {
-  if (!activa) return ''
-  return direccion === 'asc' ? ' ↑' : ' ↓'
-}
 
 /**
  * El listado de órdenes de servicio.
@@ -41,6 +39,9 @@ function flecha(activa: boolean, direccion: 'asc' | 'desc'): string {
  * es por orden—, así que una columna de totales en un listado mezclado pondría
  * pesos y dólares uno debajo del otro como si fueran comparables. El total se
  * ve en la ficha, donde la moneda está al lado.
+ *
+ * Fase 13 · E5: tabla y tarjetas comunes; el vacío y el error los resuelve la
+ * página (o la ficha del equipo, que muestra su propio mensaje).
  */
 export function ListadoOrdenes({
   filas,
@@ -51,27 +52,31 @@ export function ListadoOrdenes({
 }: ListadoOrdenesProps) {
   const isMobile = useIsMobile()
 
-  if (!cargando && filas.length === 0) {
-    return <p className={styles.vacio}>No hay órdenes que coincidan con estos filtros.</p>
+  if (cargando && filas.length === 0) {
+    return (
+      <div className={tabla.contenedor}>
+        <SkeletonRows rows={5} columns={isMobile ? 2 : 6} label="Cargando órdenes…" />
+      </div>
+    )
   }
+  if (filas.length === 0) return null
 
   if (isMobile) {
     return (
-      <ul className={styles.tarjetas}>
+      <ul className={tabla.tarjetas}>
         {filas.map((o) => (
           <li key={o.id}>
-            <Link to={`/mantenimiento/ordenes/${o.id}`} className={styles.tarjeta}>
-              <span className={styles.tarjetaNumero}>{o.numero}</span>
-              <span className={styles.tarjetaFecha}>{formatearFecha(o.fechaIngreso)}</span>
-              <span className={styles.tarjetaProveedor}>{o.cliente}</span>
-              <span className={styles.tarjetaDato}>
+            <Link to={`/mantenimiento/ordenes/${o.id}`} className={tabla.tarjeta}>
+              <span className={tabla.tarjetaTitulo}>{o.numero}</span>
+              <span className={`${tabla.tarjetaDerecha} ${tabla.tarjetaMeta}`}>{formatearFecha(o.fechaIngreso)}</span>
+              <span className={tabla.tarjetaTexto}>{o.cliente}</span>
+              <span className={`${tabla.tarjetaTexto} ${tabla.tarjetaMeta}`}>
                 {o.activoReferencia}
                 {o.activoSerie ? ` · ${o.activoSerie}` : ''}
-              </span>
-              <span className={o.tecnico ? styles.tarjetaDato : styles.tarjetaFalta}>
+                {' · '}
                 {o.tecnico ?? 'sin técnico asignado'}
               </span>
-              <span className={styles.tarjetaChips}>
+              <span className={`${tabla.tarjetaTexto} ${tabla.estados}`}>
                 <ChipEstadoOrden estado={o.estado} />
                 <ChipEtapa estado={o.etapa} />
                 <ChipEspera enEspera={o.enEspera} />
@@ -84,51 +89,51 @@ export function ListadoOrdenes({
   }
 
   return (
-    <div className={styles.scroll}>
-      <table className={styles.tabla}>
+    <div className={tabla.contenedor}>
+      <table className={tabla.tabla}>
         <thead>
           <tr>
-            {COLUMNAS.map((c) => (
-              <th
-                key={c.clave}
-                scope="col"
-                aria-sort={
-                  !onOrdenar ? undefined
-                  : orden === c.clave ? (direccion === 'asc' ? 'ascending' : 'descending')
-                  : 'none'
-                }
-              >
-                {onOrdenar ? (
-                  <button
-                    type="button"
-                    className={styles.thBoton}
-                    onClick={() => onOrdenar(c.clave)}
-                  >
-                    {c.etiqueta}
-                    {flecha(orden === c.clave, direccion)}
-                  </button>
-                ) : (
-                  c.etiqueta
-                )}
-              </th>
-            ))}
+            {COLUMNAS.map((c) => {
+              const activa = orden === c.clave
+              return (
+                <th
+                  key={c.clave}
+                  scope="col"
+                  className={c.clase}
+                  aria-sort={!onOrdenar ? undefined : activa ? (direccion === 'asc' ? 'ascending' : 'descending') : 'none'}
+                >
+                  {onOrdenar ? (
+                    <button type="button" className={tabla.orden} onClick={() => onOrdenar(c.clave)}>
+                      {c.etiqueta}
+                      {activa ? <Icon name={direccion === 'asc' ? 'arrow-up' : 'arrow-down'} size={16} className={tabla.ordenIcono} /> : null}
+                    </button>
+                  ) : (
+                    c.etiqueta
+                  )}
+                </th>
+              )
+            })}
             <th scope="col">Equipo</th>
-            <th scope="col">Servicio</th>
-            <th scope="col">Técnico</th>
+            <th scope="col" className={styles.ocultaBajo1280}>
+              Servicio
+            </th>
+            <th scope="col" className={styles.ocultaBajo1280}>
+              Técnico
+            </th>
             <th scope="col">Estado</th>
           </tr>
         </thead>
         <tbody>
           {filas.map((o) => (
             <tr key={o.id}>
-              <td className={styles.numero}>
-                <Link to={`/mantenimiento/ordenes/${o.id}`} className={styles.enlace}>
+              <td className={tabla.nowrap}>
+                <Link to={`/mantenimiento/ordenes/${o.id}`} className={tabla.enlace}>
                   {o.numero}
                 </Link>
               </td>
-              <td className={styles.numero}>{formatearFecha(o.fechaIngreso)}</td>
+              <td className={`${tabla.nowrap} ${styles.ocultaBajo1024}`}>{formatearFecha(o.fechaIngreso)}</td>
               <td className={styles.recorta} title={o.cliente}>
-                <Link to={`/clientes/${o.clienteId}`} className={styles.enlaceSuave}>
+                <Link to={`/clientes/${o.clienteId}`} className={tabla.enlaceSuave}>
                   {o.cliente}
                 </Link>
               </td>
@@ -136,20 +141,22 @@ export function ListadoOrdenes({
                 <ChipEtapa estado={o.etapa} />
               </td>
               <td className={styles.recorta}>
-                <Link to={`/mantenimiento/activos/${o.activoId}`} className={styles.enlaceSuave}>
+                <Link to={`/mantenimiento/activos/${o.activoId}`} className={tabla.enlaceSuave}>
                   {o.activoReferencia}
                 </Link>
               </td>
-              <td className={styles.recorta}>{etiquetaDeServicio(o.tipoServicio)}</td>
+              <td className={`${styles.recorta} ${styles.ocultaBajo1280}`}>{etiquetaDeServicio(o.tipoServicio)}</td>
               <td
-                className={o.tecnico ? styles.recorta : styles.falta}
+                className={`${o.tecnico ? styles.recorta : styles.falta} ${styles.ocultaBajo1280}`}
                 title={o.tecnico ?? undefined}
               >
                 {o.tecnico ?? 'sin asignar'}
               </td>
-              <td className={styles.tarjetaChips}>
-                <ChipEstadoOrden estado={o.estado} />
-                <ChipEspera enEspera={o.enEspera} />
+              <td>
+                <span className={tabla.estados}>
+                  <ChipEstadoOrden estado={o.estado} />
+                  <ChipEspera enEspera={o.enEspera} />
+                </span>
               </td>
             </tr>
           ))}

@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { PageHeader } from '@/components/layout/PageHeader'
+import doc from '@/components/document/Document.module.css'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { Spinner } from '@/components/ui/Spinner'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { Composer } from '../components/Composer'
+import { SinAccesoEmails } from '../components/SinAccesoEmails'
 import { useCuentas } from '../hooks/useEmails'
 import { useParamsUrl } from '../hooks/useParamsUrl'
 import { puedeUsarEmails } from '../lib/permisos'
@@ -16,14 +22,7 @@ import styles from '../components/Emails.module.css'
  */
 export function EmailRedactarPage() {
   const { activa } = useEmpresa()
-  if (!puedeUsarEmails(activa?.rol)) {
-    return (
-      <div className={styles.page}>
-        <h1 className={styles.titulo}>Emails</h1>
-        <p className={styles.vacio}>Tu rol en esta empresa no tiene acceso a la bandeja de correo.</p>
-      </div>
-    )
-  }
+  if (!puedeUsarEmails(activa?.rol)) return <SinAccesoEmails titulo="Nuevo email" />
   return <Redactar />
 }
 
@@ -63,37 +62,31 @@ function Redactar() {
     }
   }, [enviadoA, cuenta, navigate])
 
+  const titulo = inicial.borrador ? 'Borrador' : 'Nuevo email'
+
   return (
-    <div className={styles.page}>
-      <Link to="/emails" className={styles.volver}>
-        ← Volver a la bandeja
-      </Link>
+    <div className={`${doc.pagina} ${styles.paginaAngosta}`}>
+      <PageHeader back={{ to: '/emails', label: 'Bandeja' }} title={titulo} subtitle={cuenta ? `Desde ${cuenta.direccion}` : undefined} />
       {cuentas.isPending ? (
-        <p className={styles.nota}>Cargando…</p>
-      ) : !cuenta || !opciones ? (
-        <div className={styles.vacio}>
-          <p>Esta empresa no tiene ninguna cuenta de correo conectada.</p>
+        <div className={styles.lista}>
+          <SkeletonRows rows={4} columns={1} label="Cargando…" />
         </div>
+      ) : !cuenta || !opciones ? (
+        <EmptyState icon="mail" title="Sin cuenta de correo" description="Esta empresa no tiene ninguna cuenta de correo conectada." />
       ) : enviadoA ? (
-        <div className={styles.vacio} role="status">
-          <p>Enviado. Abriendo el hilo en cuanto Gmail lo sincronice…</p>
+        <div className={styles.enviadoCaja} role="status">
+          <p className={styles.cargandoTexto}>
+            <Spinner size={16} />
+            Enviado. Abriendo el hilo en cuanto Gmail lo sincronice…
+          </p>
           {tardando ? (
-            <p>
-              Está tardando más de lo normal. El mail salió igual:{' '}
-              <Link to="/emails">volvé a la bandeja</Link> y va a aparecer ahí.
+            <p className={styles.nota}>
+              Está tardando más de lo normal. El mail salió igual: <Link to="/emails">volvé a la bandeja</Link> y va a aparecer ahí.
             </p>
           ) : null}
         </div>
       ) : (
-        <>
-          <p className={styles.subtitulo}>Desde {cuenta.direccion}</p>
-          <Composer
-            opciones={opciones}
-            titulo={inicial.borrador ? 'Borrador' : 'Nuevo email'}
-            onCerrar={() => void navigate('/emails')}
-            onEnviado={setEnviadoA}
-          />
-        </>
+        <Composer opciones={opciones} titulo={titulo} mostrarTitulo={false} onCerrar={() => void navigate('/emails')} onEnviado={setEnviadoA} />
       )}
     </div>
   )

@@ -1,6 +1,10 @@
 import { useMutation } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Button } from '@/components/ui/Button'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { Icon } from '@/components/icons/Icon'
 import { POR_PAGINA_STOCK, useStockActual } from '../hooks/useStock'
 import { descargarCsv, nombreArchivo } from '../lib/csv'
 import { stockACsv } from '../lib/csvStock'
@@ -60,7 +64,7 @@ export function TablaStock({ depositos, onVerKardex }: Props) {
             <span className={styles.controlEtiqueta}>Producto o SKU</span>
             <input className={styles.inputTexto} type="search" value={texto} maxLength={100} onChange={(e) => setTexto(e.target.value)} placeholder="Buscar" />
           </label>
-          <button type="submit" className={styles.boton}>Buscar</button>
+          <Button type="submit" variant="secondary" icon={<Icon name="search" size={16} />}>Buscar</Button>
           {depositos.length > 1 ? (
             <label className={styles.control}>
               <span className={styles.controlEtiqueta}>Depósito</span>
@@ -80,11 +84,9 @@ export function TablaStock({ depositos, onVerKardex }: Props) {
         </form>
 
         {stock.isPending ? (
-          <p className={styles.nota}>Leyendo saldos…</p>
+          <SkeletonRows rows={5} columns={5} label="Leyendo saldos…" />
         ) : stock.error ? (
-          <div className={styles.error} role="alert">
-            <span>{stock.error instanceof ErrorInforme ? stock.error.message : 'No se pudieron leer los saldos.'}</span>
-          </div>
+          <ErrorState compact title={stock.error instanceof ErrorInforme ? stock.error.message : 'No se pudieron leer los saldos.'} />
         ) : filas.length === 0 ? (
           <p className={styles.vacio}>Ningún saldo coincide con los filtros.</p>
         ) : (
@@ -143,16 +145,17 @@ export function TablaStock({ depositos, onVerKardex }: Props) {
         )}
 
         <div className={styles.accionesRanking}>
-          <Paginador pagina={pagina} porPagina={POR_PAGINA_STOCK} total={total} onCambiar={setPagina} cargando={stock.isFetching} />
-          <button
-            type="button"
-            className={styles.boton}
+          <Paginador pagina={pagina} porPagina={POR_PAGINA_STOCK} total={total} onCambiar={setPagina} cargando={stock.isFetching} sustantivo={{ singular: 'saldo', plural: 'saldos' }} />
+          <Button
+            variant="secondary"
+            icon={<Icon name="download" size={16} />}
+            loading={exportar.isPending}
             disabled={exportar.isPending || total === 0}
             onClick={() => exportar.mutate()}
             aria-label="Exportar a CSV el stock con los filtros actuales"
           >
             {exportar.isPending ? 'Exportando…' : `Exportar CSV${total > 0 ? ` (${total} filas)` : ''}`}
-          </button>
+          </Button>
           {exportar.error ? <span className={styles.errorEnLinea} role="alert">No se pudo exportar: {exportar.error.message}</span> : null}
         </div>
       </div>

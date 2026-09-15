@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from '@/components/ui/Button'
 import {
   ETAPAS,
   etapaSiguiente,
@@ -7,6 +8,7 @@ import {
   etiquetaDeEtapa,
   situacionDeEtapa,
 } from '../lib/estados'
+import { Icon } from '@/components/icons/Icon'
 import { ChipSituacion } from './ChipEstado'
 import type { EtapaOrden, OrdenDetalle } from '../types'
 import styles from './PanelEtapas.module.css'
@@ -106,9 +108,12 @@ export function PanelEtapas({
               {/* Completada, pendiente o no requerida. El símbolo nunca va
                   solo: cada uno lleva su palabra al lado, porque un tilde y un
                   guion son indistinguibles para quien no conoce la convención. */}
-              <span className={styles.orden} aria-hidden="true">
-                {!requerida ? '—' : posicion < indiceActual ? '✓' : '○'}
-              </span>
+              <Icon
+                name={!requerida ? 'minus' : posicion < indiceActual ? 'check-circle' : e.valor === orden.etapa ? 'arrow-right' : 'circle'}
+                size={16}
+                className={styles.icono}
+                aria-hidden="true"
+              />
               {e.etiqueta}
               {!requerida ? (
                 <span className={styles.orden}>{e.femenina ? 'no requerida' : 'no requerido'}</span>
@@ -161,16 +166,14 @@ export function PanelEtapas({
         </p>
       ) : (
         <div className={styles.acciones}>
-          <button
-            type="button"
-            className={styles.primario}
+          <Button
             disabled={siguiente === null || moviendo}
             onClick={() => siguiente && onMover(siguiente)}
           >
             {siguiente === null
               ? 'Última etapa'
               : `Avanzar a ${etiquetaDeEtapa(siguiente)}`}
-          </button>
+          </Button>
 
           {anteriores.length > 0 ? (
             <>
@@ -189,9 +192,8 @@ export function PanelEtapas({
               </select>
               {confirmandoVuelta ? (
                 <>
-                  <button
-                    type="button"
-                    className={styles.secundario}
+                  <Button
+                    variant="secondary"
                     disabled={moviendo}
                     onClick={() => {
                       if (volverA !== '') onMover(volverA as EtapaOrden)
@@ -200,37 +202,34 @@ export function PanelEtapas({
                     }}
                   >
                     Sí, volver a {volverA === '' ? '' : etiquetaDeEtapa(volverA)}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.secundario}
+                  </Button>
+                  <Button
+                    variant="secondary"
                     disabled={moviendo}
                     onClick={() => setConfirmandoVuelta(false)}
                   >
                     Cancelar
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <button
-                  type="button"
-                  className={styles.secundario}
+                <Button
+                  variant="secondary"
                   disabled={volverA === '' || moviendo}
                   onClick={() => setConfirmandoVuelta(true)}
                 >
                   Volver atrás
-                </button>
+                </Button>
               )}
             </>
           ) : null}
 
-          <button
-            type="button"
-            className={styles.secundario}
+          <Button
+            variant="secondary"
             disabled={guardando}
             onClick={() => onEspera(!orden.enEspera)}
           >
             {orden.enEspera ? 'Reanudar' : 'Poner en espera'}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -248,23 +247,20 @@ export function PanelEtapas({
             onChange={(ev) => setNotasDiag(ev.target.value)}
           />
           <div className={styles.acciones}>
-            <button
-              type="button"
-              className={styles.secundario}
+            <Button
+              variant="secondary"
               disabled={guardando}
               onClick={() => onDiagnostico({ notas: notasDiag })}
             >
               Guardar notas
-            </button>
+            </Button>
             {orden.diagnosticadaEn === null ? (
-              <button
-                type="button"
-                className={styles.primario}
+              <Button
                 disabled={guardando}
                 onClick={() => onDiagnostico({ notas: notasDiag, completadoEn: HOY })}
               >
                 Dar el diagnóstico por completado
-              </button>
+              </Button>
             ) : (
               <span className={styles.nota}>
                 Diagnóstico completado el {orden.diagnosticadaEn}.
@@ -288,23 +284,20 @@ export function PanelEtapas({
             onChange={(ev) => setNotasRep(ev.target.value)}
           />
           <div className={styles.acciones}>
-            <button
-              type="button"
-              className={styles.secundario}
+            <Button
+              variant="secondary"
               disabled={guardando}
               onClick={() => onReparacion({ notas: notasRep })}
             >
               Guardar notas
-            </button>
+            </Button>
             {orden.reparadaEn === null ? (
-              <button
-                type="button"
-                className={styles.primario}
+              <Button
                 disabled={guardando}
                 onClick={() => onReparacion({ notas: notasRep, completadaEn: HOY })}
               >
                 Dar la reparación por completada
-              </button>
+              </Button>
             ) : (
               <span className={styles.nota}>Reparación completada el {orden.reparadaEn}.</span>
             )}

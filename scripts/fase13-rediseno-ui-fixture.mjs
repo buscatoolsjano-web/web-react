@@ -5,7 +5,8 @@
  * pantallas que cambian con los tokens y las primitivas: listados y detalles
  * de Ventas (cotizaciones y pedidos en cada estado), Compras (proveedores y
  * pedidos), Mantenimiento (equipos y órdenes), Clientes (más de una página),
- * Catálogo (marcas, categorías, productos con precio) y Configuración.
+ * Catálogo (marcas, categorías, productos con precio), Configuración y, desde
+ * E5, metadata de Emails (sin Gmail) y paneles de Mantenimiento.
  *
  * No toca Buscatools ni Torquetools, no envía correos (el usuario se crea
  * confirmado y el enlace se genera sin mandar nada) y `limpiar` no deja
@@ -33,11 +34,12 @@ const MARCA = 'zz-f13ui'
 // se borran a mano (su guard las bloquea si el documento no es borrador): caen
 // en cascada con la cotización o el pedido.
 const TABLAS_EMPRESA = [
+  'email_events', 'email_send_requests', 'email_thread_state', 'email_threads',
   'maintenance_order_checks', 'maintenance_measurements', 'maintenance_order_parts', 'maintenance_quote_lines',
-  'maintenance_orders', 'maintenance_assets', 'maintenance_audit',
+  'maintenance_orders', 'maintenance_assets', 'maintenance_check_points', 'maintenance_audit',
   'sales_orders', 'sales_quotes',
   'purchase_order_lines', 'purchase_orders', 'purchases_audit', 'suppliers',
-  'customer_product_aliases', 'customer_contacts', 'customer_addresses', 'customers',
+  'customer_product_aliases', 'customer_contacts', 'customer_addresses', 'customers', 'email_accounts', 'warehouses',
   'company_memberships', 'product_prices', 'price_lists', 'product_images', 'products',
   'product_attribute_categories', 'product_attribute_definitions', 'product_categories', 'brands',
   'users_audit', 'company_audit', 'catalog_audit', 'document_numbering_authority', 'document_numbering_authority_audit',
@@ -48,6 +50,15 @@ async function limpiar() {
   const { data: emp } = await s.from('companies').select('id').like('slug', `${MARCA}-%`)
   const ids = (emp ?? []).map((x) => x.id)
   if (ids.length) {
+    // email_thread_reads y email_sync_log no tienen company_id: se borran por cuenta.
+    const { data: cuentas } = await s.from('email_accounts').select('id').in('company_id', ids)
+    const idsCuentas = (cuentas ?? []).map((c) => c.id)
+    if (idsCuentas.length) {
+      for (const t of ['email_thread_reads', 'email_sync_log']) {
+        const r = await s.from(t).delete().in('account_id', idsCuentas)
+        if (r.error && !/does not exist|schema cache/.test(r.error.message)) console.log(`    aviso ${t}: ${r.error.message}`)
+      }
+    }
     for (const t of TABLAS_EMPRESA) {
       const r = await s.from(t).delete().in('company_id', ids)
       if (r.error && !/does not exist|schema cache/.test(r.error.message)) console.log(`    aviso ${t}: ${r.error.message}`)
@@ -196,6 +207,30 @@ for (const [i, eq] of equipos.slice(0, 3).entries()) {
     entry_reason: 'ZZ: pierde torque al final del ciclo', on_hold: i === 2,
   }), 'orden mantenimiento')
 }
+// E5 · Mantenimiento: una orden con torque y datos en cada panel (revisión,
+// cotización y un repuesto SIN consumir: no mueve stock).
+const puntos = ok(await s.from('maintenance_check_points').insert(['ZZ Embrague', 'ZZ Motor neumático', 'ZZ Carcasa'].map((label, i) => ({
+  company_id: id, key: `zz_punto_${i + 1}`, label, sort_order: i + 1, active: true,
+}))).select('id'), 'puntos de revisión')
+const os4 = ok(await s.from('maintenance_orders').insert({
+  company_id: id, asset_id: equipos[3].id, customer_id: equipos[3].owner_customer_id, number: 'OS-00004', series_code: 'OS',
+  entry_reason: 'ZZ: calibración anual con informe de torque', service_type: 'preventive', torque_required: true,
+  visual_condition: 'ZZ: carcasa con marcas de uso, sin golpes.', quote_currency_code: 'USD',
+}).select('id').single(), 'orden con torque')
+ok(await s.from('maintenance_order_checks').insert(puntos.slice(0, 2).map((p, i) => ({
+  company_id: id, maintenance_order_id: os4.id, check_point_id: p.id, phase: 'diagnosis', result: i === 0 ? 'ok' : 'nok',
+}))), 'revisiones')
+ok(await s.from('maintenance_quote_lines').insert([
+  { company_id: id, maintenance_order_id: os4.id, line_no: 1, line_type: 'labour', description_snapshot: 'ZZ Mano de obra de calibración', quantity: 2, unit_price: 45 },
+  { company_id: id, maintenance_order_id: os4.id, line_no: 2, line_type: 'part', product_id: productos[0].id, sku_snapshot: productos[0].sku, description_snapshot: 'ZZ Kit de embrague', quantity: 1, unit_price: 120 },
+]), 'cotización')
+ok(await s.from('maintenance_measurements').insert([1, 2, 3].map((row_no) => ({
+  company_id: id, maintenance_order_id: os4.id, row_no, min_value: 9.5, max_value: 10.5, target_value: 10,
+}))), 'mediciones')
+const deposito = ok(await s.from('warehouses').insert({ company_id: id, code: 'ZZ-DEP', name: 'ZZ Depósito', is_default: true, is_active: true }).select('id').single(), 'depósito')
+ok(await s.from('maintenance_order_parts').insert({
+  company_id: id, maintenance_order_id: os4.id, product_id: productos[0].id, warehouse_id: deposito.id, quantity: 1, sku_snapshot: productos[0].sku, name_snapshot: productos[0].name,
+}), 'repuesto')
 
 // Usuario admin del fixture (contraseña aleatoria que no se guarda)
 const email = `${MARCA}-admin-${Date.now()}@buscatools.test`
@@ -203,6 +238,42 @@ const { data: u, error: eu } = await s.auth.admin.createUser({ email, password: 
 if (eu) throw new Error(`usuario: ${eu.message}`)
 await s.from('profiles').update({ full_name: 'ZZ Admin Rediseño' }).eq('id', u.user.id)
 ok(await s.from('company_memberships').insert({ company_id: id, user_id: u.user.id, role: 'admin', status: 'active' }), 'membresía')
+
+// E5 · Emails: SÓLO metadata local. La cuenta usa un dominio .test que no está en
+// ALLOWED_GMAIL_MAILBOXES ni en el Workspace: el backend no puede delegar en ella
+// y nada llega a Gmail. No se crean borradores ni envíos.
+const cuentaMail = ok(await s.from('email_accounts').insert({
+  company_id: id, provider: 'gmail', email_address: `${MARCA}-buzon-${Date.now()}@buscatools.test`, display_name: 'ZZ Buzón', auth_mode: 'dwd', active: true,
+}).select('id').single(), 'cuenta de correo')
+const HILOS = [
+  { asunto: 'ZZ Pedido de cotización: atornilladores neumáticos para línea 3', de: 'ZZ Ana Compras <ana@zz-cliente.test>', dir: 'in', msgs: 3, adj: true, estado: 'pendiente', leido: false, cliente: true },
+  { asunto: 'ZZ Re: Envío de la orden de compra 4512', de: 'ZZ Buzón <buzon@zz.test>', dir: 'out', msgs: 5, adj: false, estado: 'en_proceso', leido: true, cliente: true, asignado: true },
+  { asunto: '', de: 'ZZ Proveedor <ventas@zz-proveedor.test>', dir: 'in', msgs: 1, adj: false, estado: 'pendiente', leido: false },
+  { asunto: 'ZZ Consulta por calibración con un asunto bastante largo para ver cómo se recorta en la bandeja en mobile', de: 'ZZ Bruno Planta <bruno@zz-cliente.test>', dir: 'in', msgs: 2, adj: true, estado: 'resuelto', leido: true },
+  { asunto: 'ZZ Factura de marzo', de: 'ZZ Contabilidad <pagos@zz-cliente.test>', dir: 'in', msgs: 1, adj: true, estado: 'pendiente', leido: false, asignado: true },
+]
+const hilosCreados = ok(await s.from('email_threads').insert(HILOS.map((h, i) => ({
+  company_id: id, account_id: cuentaMail.id, gmail_thread_id: `zz-hilo-${i + 1}`, subject: h.asunto || null,
+  snippet: `ZZ extracto del mensaje ${i + 1}: gracias por la respuesta, quedamos atentos.`,
+  last_message_at: new Date(Date.now() - i * 5 * 3600000).toISOString(), last_message_from: h.de, last_message_dir: h.dir,
+  participants: [h.de, 'ZZ Buzón <buzon@zz.test>'], gmail_labels: ['INBOX'], message_count: h.msgs, has_attachments: h.adj,
+}))).select('id, gmail_thread_id'), 'hilos')
+ok(await s.from('email_thread_state').insert(HILOS.map((h, i) => ({
+  company_id: id, account_id: cuentaMail.id, gmail_thread_id: `zz-hilo-${i + 1}`, workflow_status: h.estado,
+  assigned_to: h.asignado ? u.user.id : null, customer_id: h.cliente ? clientes[0].id : null, vinculo_origen: h.cliente ? 'exacto' : null,
+}))), 'estado de hilos')
+ok(await s.from('email_thread_reads').insert(HILOS.flatMap((h, i) => (h.leido ? [{
+  account_id: cuentaMail.id, gmail_thread_id: `zz-hilo-${i + 1}`, user_id: u.user.id, last_read_at: new Date().toISOString(),
+}] : []))), 'leídos')
+
+// E5 · Configuración → Auditoría: eventos de ejemplo en la empresa zz (uno de
+// usuarios y cuatro de catálogo) para ver el listado, los filtros y el plural.
+const { data: membresia } = await s.from('company_memberships').select('id').eq('company_id', id).eq('user_id', u.user.id).single()
+ok(await s.from('users_audit').insert({ company_id: id, membership_id: membresia.id, target_user_id: u.user.id, action: 'MEMBERSHIP_ADDED', to_role: 'admin', to_status: 'active', actor_id: u.user.id }), 'auditoría usuarios')
+ok(await s.from('catalog_audit').insert([
+  ...marcas.map((m) => ({ company_id: id, entity_type: 'brand', entity_id: m.id, entity_name: m.name, action: 'BRAND_CREATED', actor_id: u.user.id })),
+  { company_id: id, entity_type: 'category', entity_id: cat2.id, entity_name: 'ZZ Llaves de torque', action: 'CATEGORY_CREATED', actor_id: u.user.id },
+]), 'auditoría catálogo')
 
 // E2: segunda empresa zz donde el mismo usuario es VENDEDOR, para probar el
 // selector de empresa y que la navegación cambie con el rol de la membresía.
@@ -230,5 +301,5 @@ const { error: es } = await s.auth.admin.createUser({ email: emailSin, password:
 if (es) throw new Error(`usuario sin empresa: ${es.message}`)
 const linkSin = (await s.auth.admin.generateLink({ type: 'magiclink', email: emailSin, options: { redirectTo: `${origen}/` } })).data.properties.action_link
 
-writeFileSync(salida, JSON.stringify({ empresa: id, clienteCompleto: clientes[0].id, clienteMinimo: clienteMinimo.id, skuGaleria: productos2[1].sku, skuSinImagen: productos2[0].sku, skuImagenRota: productos2[4].sku, empresaStel: idS, admin: link, sinEmpresa: linkSin, cotizacion: cotis[1].id, cotizacionBorrador: cotis[0].id, pedido: pedidos[1].id, pedidoBorrador: pedidos[0].id, cotizacionStel: cotS.id, pedidoStel: pedS.id, cliente: clientes[0].id }))
+writeFileSync(salida, JSON.stringify({ empresa: id, ordenTorque: os4.id, hilo: hilosCreados[0].id, hiloSinAsunto: hilosCreados[2].id, clienteCompleto: clientes[0].id, clienteMinimo: clienteMinimo.id, skuGaleria: productos2[1].sku, skuSinImagen: productos2[0].sku, skuImagenRota: productos2[4].sku, empresaStel: idS, admin: link, sinEmpresa: linkSin, cotizacion: cotis[1].id, cotizacionBorrador: cotis[0].id, pedido: pedidos[1].id, pedidoBorrador: pedidos[0].id, cotizacionStel: cotS.id, pedidoStel: pedS.id, cliente: clientes[0].id }))
 console.log(`    preparado: ${productos.length + productos2.length} productos, ${clientes.length + 1} clientes, ${cotis.length} cotizaciones, ${pedidos.length} pedidos, ${proveedores.length} proveedores, 3 compras, ${equipos.length} equipos, 3 órdenes (el enlace quedó en el archivo, no se imprime)`)

@@ -1,4 +1,12 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { Field } from '@/components/forms/Field'
+import { Input, Textarea } from '@/components/forms/controls'
+import { Alert } from '@/components/feedback/Alert'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
+import { Spinner } from '@/components/ui/Spinner'
+import { Icon } from '@/components/icons/Icon'
 import { CampoDestinatarios } from './CampoDestinatarios'
 import { nuevaClave, useComposer, type OpcionesComposer } from '../hooks/useComposer'
 import { TOPE_ADJUNTOS_BYTES, totalAdjuntos } from '../lib/destinatarios'
@@ -9,6 +17,8 @@ import styles from './Composer.module.css'
 export interface ComposerProps {
   opciones: OpcionesComposer
   titulo: string
+  /** Sin título visible cuando la página ya lo dice en su encabezado. */
+  mostrarTitulo?: boolean
   onCerrar: () => void
   onEnviado: (gmailThreadId: string) => void
 }
@@ -43,15 +53,21 @@ function leerArchivo(archivo: File): Promise<string> {
  *
  * Texto plano. El HTML del mensaje lo arma el servidor escapando lo escrito:
  * no hay editor que pueda colar un `<script>`.
+ *
+ * Fase 13 · E5: sólo presentación. El autoguardado, la idempotencia del envío
+ * (`client_request_id`), la conciliación de inciertos y los borradores siguen
+ * en `useComposer` sin cambios. Descartar con contenido pide confirmación en
+ * un `ConfirmDialog` (antes `window.confirm`) con el mismo texto y la misma
+ * consecuencia.
  */
-export function Composer({ opciones, titulo, onCerrar, onEnviado }: ComposerProps) {
+export function Composer({ opciones, titulo, mostrarTitulo = true, onCerrar, onEnviado }: ComposerProps) {
   const c = useComposer(opciones)
-  const idAsunto = useId()
-  const idTexto = useId()
   const idArchivos = useId()
   const [mostrarCopias, setMostrarCopias] = useState(false)
   const [pendientes, setPendientes] = useState({ para: false, cc: false, cco: false })
   const [errorAdjunto, setErrorAdjunto] = useState<string | null>(null)
+  const [confirmandoDescarte, setConfirmandoDescarte] = useState(false)
+  const [descartando, setDescartando] = useState(false)
   const avisado = useRef(false)
 
   const { para, cc, cco, asunto, texto, adjuntos, modo } = c.campos
@@ -88,37 +104,64 @@ export function Composer({ opciones, titulo, onCerrar, onEnviado }: ComposerProp
     if (nuevos.length) c.set.adjuntos([...adjuntos, ...nuevos])
   }
 
-  const descartar = async () => {
-    if (c.tieneContenido && !window.confirm('¿Descartar este borrador? Se borra de Gmail y no se puede recuperar.')) return
+  // Igual que antes: sin contenido se descarta directo; con contenido, se confirma.
+  const ejecutarDescarte = async () => {
+    setDescartando(true)
     try {
       await c.descartar()
     } finally {
+      setDescartando(false)
+      setConfirmandoDescarte(false)
       onCerrar()
     }
   }
+  const descartar = () => {
+    if (c.tieneContenido) setConfirmandoDescarte(true)
+    else void ejecutarDescarte()
+  }
 
   const estadoGuardado =
-    c.guardado === 'guardando' ? 'Guardando…'
-      : c.guardado === 'guardado' ? 'Borrador guardado'
-        : c.guardado === 'error' ? 'Borrador no guardado'
-          : c.guardado === 'sucio' ? 'Cambios sin guardar'
-            : ''
+    c.guardado === 'guardando' ? (
+      <>
+        <Spinner size={16} /> Guardando…
+      </>
+    ) : c.guardado === 'guardado' ? (
+      <>
+        <Icon name="check" size={16} /> Borrador guardado
+      </>
+    ) : c.guardado === 'error' ? (
+      <>
+        <Icon name="alert-circle" size={16} /> Borrador no guardado
+      </>
+    ) : c.guardado === 'sucio' ? (
+      'Cambios sin guardar'
+    ) : (
+      ''
+    )
 
   return (
     <section className={styles.composer} aria-label={titulo}>
-      <header className={styles.cabecera}>
-        <h2 className={styles.titulo}>{titulo}</h2>
+      <header className={mostrarTitulo ? styles.cabecera : styles.cabeceraSinTitulo}>
+        {mostrarTitulo ? <h2 className={styles.titulo}>{titulo}</h2> : null}
         <span className={c.guardado === 'error' ? styles.estadoError : styles.estado} role="status" aria-live="polite">
           {estadoGuardado}
         </span>
       </header>
 
-      {c.cargando ? <p className={styles.nota}>Recuperando el borrador de Gmail…</p> : null}
-      {c.errorCarga ? <p className={styles.aviso} role="alert">{c.errorCarga}</p> : null}
-      {c.recreado ? (
-        <p className={styles.aviso} role="status">
-          El borrador se había borrado fuera del ERP. Se creó uno nuevo con lo que tenías escrito.
+      {c.cargando ? (
+        <p className={styles.estado} role="status">
+          <Spinner size={16} /> Recuperando el borrador de Gmail…
         </p>
+      ) : null}
+      {c.errorCarga ? (
+        <Alert tone="danger" role="alert" title="No se pudo recuperar el borrador">
+          <p>{c.errorCarga}</p>
+        </Alert>
+      ) : null}
+      {c.recreado ? (
+        <Alert tone="info" role="status" title="Borrador recreado">
+          <p>El borrador se había borrado fuera del ERP. Se creó uno nuevo con lo que tenías escrito.</p>
+        </Alert>
       ) : null}
 
       <CampoDestinatarios etiqueta="Para" valores={para} onCambiar={c.set.para} deshabilitado={bloqueado}
@@ -132,36 +175,35 @@ export function Composer({ opciones, titulo, onCerrar, onEnviado }: ComposerProp
             onPendiente={(v) => setPendientes((p) => ({ ...p, cco: v }))} />
         </>
       ) : (
-        <button type="button" className={styles.enlace} onClick={() => setMostrarCopias(true)}>
+        <Button variant="ghost" size="sm" className={styles.inicio} icon={<Icon name="plus" size={16} />} onClick={() => setMostrarCopias(true)}>
           Agregar Cc / Cco
-        </button>
+        </Button>
       )}
 
-      <div className={styles.campo}>
-        <label htmlFor={idAsunto} className={styles.etiqueta}>
-          Asunto
-        </label>
-        {esRespuesta ? (
-          // Gmail sólo mantiene el hilo si el asunto coincide: en una respuesta no se edita.
-          <p id={idAsunto} className={styles.asuntoFijo}>{asunto}</p>
-        ) : (
-          <input id={idAsunto} className={styles.entrada} value={asunto} maxLength={500} disabled={bloqueado}
-            onChange={(e) => c.set.asunto(e.target.value)} />
-        )}
-      </div>
+      {esRespuesta ? (
+        // Gmail sólo mantiene el hilo si el asunto coincide: en una respuesta no se edita.
+        <div className={styles.campo}>
+          <span className={styles.etiqueta}>Asunto</span>
+          <p className={styles.asuntoFijo}>{asunto}</p>
+        </div>
+      ) : (
+        <Field label="Asunto">
+          <Input value={asunto} maxLength={500} disabled={bloqueado} onChange={(e) => c.set.asunto(e.target.value)} />
+        </Field>
+      )}
 
-      <div className={styles.campo}>
-        <label htmlFor={idTexto} className={styles.etiqueta}>
-          Mensaje
-        </label>
-        <textarea id={idTexto} className={styles.texto} value={texto} disabled={bloqueado} rows={10}
-          onChange={(e) => c.set.texto(e.target.value)} />
-        {modo !== 'nuevo' ? (
-          <span className={styles.nota}>
-            {modo === 'reenviar' ? 'Debajo se agrega el mensaje reenviado, con sus datos.' : 'Debajo se agrega la cita del mensaje al que respondés.'}
-          </span>
-        ) : null}
-      </div>
+      <Field
+        label="Mensaje"
+        help={
+          modo !== 'nuevo'
+            ? modo === 'reenviar'
+              ? 'Debajo se agrega el mensaje reenviado, con sus datos.'
+              : 'Debajo se agrega la cita del mensaje al que respondés.'
+            : undefined
+        }
+      >
+        <Textarea className={styles.texto} value={texto} disabled={bloqueado} rows={10} onChange={(e) => c.set.texto(e.target.value)} />
+      </Field>
 
       <div className={styles.campo}>
         <span className={styles.etiqueta}>Adjuntos</span>
@@ -169,6 +211,7 @@ export function Composer({ opciones, titulo, onCerrar, onEnviado }: ComposerProp
           <ul className={styles.adjuntos}>
             {adjuntos.map((a) => (
               <li key={a.clave} className={styles.adjunto}>
+                <Icon name="paperclip" size={16} className={styles.adjuntoIcono} />
                 <span className={styles.adjuntoTexto}>
                   <span>{a.nombre}</span>
                   <span className={styles.nota}>
@@ -176,16 +219,15 @@ export function Composer({ opciones, titulo, onCerrar, onEnviado }: ComposerProp
                     {a.tipo === 'original' ? ' · del mensaje original' : ''}
                   </span>
                 </span>
-                <button type="button" className={styles.boton} disabled={bloqueado}
+                <IconButton icon="x" size="sm" disabled={bloqueado}
                   aria-label={`Quitar el adjunto ${a.nombre}`}
-                  onClick={() => c.set.adjuntos(adjuntos.filter((x) => x.clave !== a.clave))}>
-                  Quitar
-                </button>
+                  onClick={() => c.set.adjuntos(adjuntos.filter((x) => x.clave !== a.clave))} />
               </li>
             ))}
           </ul>
         ) : null}
         <label htmlFor={idArchivos} className={styles.botonArchivo} aria-disabled={bloqueado}>
+          <Icon name="upload" size={16} />
           Adjuntar archivos
           <input id={idArchivos} type="file" multiple className={styles.oculto} disabled={bloqueado}
             onChange={(e) => {
@@ -198,46 +240,81 @@ export function Composer({ opciones, titulo, onCerrar, onEnviado }: ComposerProp
       </div>
 
       {c.errorGuardado ? (
-        <p className={styles.aviso} role="alert">
-          {c.errorGuardado} Lo escrito sigue acá.{' '}
-          <button type="button" className={styles.enlace} onClick={() => void c.guardarAhora()}>Reintentar guardado</button>
-        </p>
+        <Alert
+          tone="warning"
+          role="alert"
+          title="El borrador no se guardó"
+          action={
+            <Button variant="secondary" size="sm" onClick={() => void c.guardarAhora()}>
+              Reintentar guardado
+            </Button>
+          }
+        >
+          <p>{c.errorGuardado} Lo escrito sigue acá.</p>
+        </Alert>
       ) : null}
 
       {c.envio.estado === 'incierto' ? (
-        <p className={styles.aviso} role="alert">
-          {AVISO_INCIERTO[c.envio.motivo]}{' '}
-          <button type="button" className={styles.enlace} onClick={() => void c.comprobar()}>Verificar</button>
-        </p>
+        <Alert
+          tone="warning"
+          role="alert"
+          title="Envío sin confirmar"
+          action={
+            <Button variant="secondary" size="sm" onClick={() => void c.comprobar()}>
+              Verificar
+            </Button>
+          }
+        >
+          <p>{AVISO_INCIERTO[c.envio.motivo]}</p>
+        </Alert>
       ) : null}
-      {c.envio.estado === 'error' ? <p className={styles.aviso} role="alert">{c.envio.mensaje}</p> : null}
+      {c.envio.estado === 'error' ? (
+        <Alert tone="danger" role="alert" title="No se pudo enviar">
+          <p>{c.envio.mensaje}</p>
+        </Alert>
+      ) : null}
       {hayInvalidos ? <p className={styles.error} role="alert">Corregí las direcciones marcadas antes de enviar.</p> : null}
 
       <footer className={styles.acciones}>
         {enviado ? (
-          <span className={styles.enviado} role="status">Enviado</span>
+          <span className={styles.enviado} role="status">
+            <Icon name="check-circle" size={20} /> Enviado
+          </span>
         ) : (
-          <button type="button" className={styles.botonPrimario} disabled={bloqueado || hayInvalidos || c.envio.estado === 'incierto'}
+          <Button variant="primary" loading={enviando} disabled={bloqueado || hayInvalidos || c.envio.estado === 'incierto'}
+            icon={<Icon name="arrow-right" size={16} />}
             onClick={() => void c.enviarAhora()}>
             {enviando ? 'Enviando…' : TITULO_ENVIO[modo]}
-          </button>
+          </Button>
         )}
-        {!enviado ? (
-          <button type="button" className={styles.boton} disabled={enviando} onClick={() => void descartar()}>
-            Descartar
-          </button>
-        ) : null}
         {!enviado && c.guardado !== 'guardado' && c.guardado !== 'inicial' ? (
-          <button type="button" className={styles.boton} disabled={bloqueado || c.guardado === 'guardando'} onClick={() => void c.guardarAhora()}>
+          <Button variant="secondary" disabled={bloqueado || c.guardado === 'guardando'} onClick={() => void c.guardarAhora()}>
             Guardar borrador
-          </button>
+          </Button>
         ) : null}
         {!enviado ? (
-          <button type="button" className={styles.boton} disabled={enviando} onClick={onCerrar}>
+          <Button variant="ghost" disabled={enviando} onClick={onCerrar}>
             Cerrar
-          </button>
+          </Button>
+        ) : null}
+        {!enviado ? (
+          <Button variant="ghost" className={styles.peligro} icon={<Icon name="trash" size={16} />} disabled={enviando} onClick={descartar}>
+            Descartar
+          </Button>
         ) : null}
       </footer>
+
+      <ConfirmDialog
+        open={confirmandoDescarte}
+        tone="danger"
+        title="¿Descartar este borrador?"
+        description="Se borra de Gmail y no se puede recuperar."
+        confirmLabel="Descartar borrador"
+        cancelLabel="Volver"
+        busy={descartando}
+        onConfirm={() => void ejecutarDescarte()}
+        onCancel={() => setConfirmandoDescarte(false)}
+      />
     </section>
   )
 }

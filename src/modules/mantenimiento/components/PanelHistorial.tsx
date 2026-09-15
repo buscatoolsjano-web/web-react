@@ -1,5 +1,8 @@
 import { etiquetaDeAccion, formatearFechaHora, formatearImporte } from '../lib/formato'
 import { etiquetaDeEstado, etiquetaDeEtapa } from '../lib/estados'
+import { Icon } from '@/components/icons/Icon'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import type { EventoDeMantenimiento } from '../types'
 import styles from './PanelHistorial.module.css'
 
@@ -89,10 +92,10 @@ function detalle(e: EventoDeMantenimiento): string | null {
 }
 
 export function PanelHistorial({ eventos, cargando }: PanelHistorialProps) {
-  if (cargando) return <p className={styles.nota}>Cargando historial…</p>
+  if (cargando) return <SkeletonRows rows={4} columns={3} label="Cargando historial…" />
 
   if (eventos.length === 0) {
-    return <p className={styles.nota}>Sin movimientos registrados todavía.</p>
+    return <EmptyState compact icon="inbox" title="Sin movimientos registrados todavía." />
   }
 
   return (
@@ -105,7 +108,14 @@ export function PanelHistorial({ eventos, cargando }: PanelHistorialProps) {
             <span className={styles.estados}>
               {extra ??
                 (e.estadoAnterior || e.estadoNuevo
-                  ? `${traducirEstado(e.accion, e.estadoAnterior)} → ${traducirEstado(e.accion, e.estadoNuevo)}`
+                  ? (
+                      <>
+                        {traducirEstado(e.accion, e.estadoAnterior)}
+                        {/* La flecha se lee «a»: «Diagnóstico a Reparación». */}
+                        <Icon name="arrow-right" size={16} className={styles.flecha} role="img" aria-hidden={false} aria-label="a" />
+                        {traducirEstado(e.accion, e.estadoNuevo)}
+                      </>
+                    )
                   : '')}
             </span>
             <span className={styles.meta}>

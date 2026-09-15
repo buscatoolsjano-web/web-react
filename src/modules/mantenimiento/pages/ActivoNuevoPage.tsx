@@ -1,10 +1,14 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import doc from '@/components/document/Document.module.css'
+import { Alert } from '@/components/feedback/Alert'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Icon } from '@/components/icons/Icon'
 import { permisosDe } from '../lib/permisos'
 import { FormularioActivo } from '../components/FormularioActivo'
 import { useCrearActivo } from '../hooks/useActivos'
 import type { DatosActivo } from '../services/activos'
-import styles from './Pagina.module.css'
 
 const VACIO: DatosActivo = {
   duenoId: null,
@@ -36,24 +40,28 @@ export function ActivoNuevoPage() {
 
   if (!permisos.crear) {
     return (
-      <div className={styles.page}>
-        <h1 className={styles.titulo}>Nuevo equipo</h1>
-        <p className={styles.error} role="note">
-          Tu rol no puede dar de alta equipos. Mantenimiento es de administradores y empleados.
-        </p>
-        <Link to="/mantenimiento/activos" className={styles.volver}>
-          ← Volver a equipos
-        </Link>
+      <div className={doc.listado}>
+        <PageHeader title="Nuevo equipo" back={{ to: '/mantenimiento/activos', label: 'Equipos' }} />
+        <Alert
+          tone="neutral"
+          action={
+            <LinkButton to="/mantenimiento/activos" variant="secondary" icon={<Icon name="arrow-left" size={16} />}>
+              Volver a equipos
+            </LinkButton>
+          }
+        >
+          <p>Tu rol no puede dar de alta equipos. Mantenimiento es de administradores y empleados.</p>
+        </Alert>
       </div>
     )
   }
 
   return (
-    <div className={styles.page}>
-      <Link to="/mantenimiento/activos" className={styles.volver}>
-        ← Equipos
-      </Link>
-      <h1 className={styles.titulo}>Nuevo equipo</h1>
+    <div className={doc.pagina}>
+      <PageHeader
+        title="Nuevo equipo"
+        back={{ to: '/mantenimiento/activos', label: 'Equipos' }}
+      />
 
       <FormularioActivo
         valores={VACIO}

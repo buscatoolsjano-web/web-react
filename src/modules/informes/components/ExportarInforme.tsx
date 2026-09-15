@@ -1,5 +1,9 @@
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Field } from '@/components/forms/Field'
+import { Select } from '@/components/forms/controls'
+import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/icons/Icon'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { actividadACsv, descargarCsv, nombreArchivo, pipelineACsv } from '../lib/csv'
 import { obtenerActividad, obtenerPipeline } from '../services/actividad'
@@ -18,6 +22,9 @@ interface Props {
  * conversión y cumplimiento). Pide las filas al servidor con el mes elegido en
  * el momento del clic: el archivo trae lo mismo que la pantalla, completo. El
  * ranking tiene su propio botón, al lado de sus filtros.
+ *
+ * Fase 13 · E5: sólo la presentación (Field + Button); la generación del CSV
+ * es la misma.
  */
 export function ExportarInforme({ mes, mesEfectivo }: Props) {
   const companyId = useEmpresa().activa?.companyId ?? null
@@ -32,24 +39,26 @@ export function ExportarInforme({ mes, mesEfectivo }: Props) {
 
   return (
     <div className={styles.exportar}>
-      <label className={styles.control}>
-        <span className={styles.controlEtiqueta}>Exportar</span>
-        <select className={styles.select} value={tipo} onChange={(e) => setTipo(e.target.value as Tipo)}>
+      <Field label="Exportar">
+        <Select value={tipo} onChange={(e) => setTipo(e.target.value as Tipo)}>
           <option value="actividad">Actividad comercial</option>
           <option value="pipeline">Pipeline, conversión y cumplimiento</option>
-        </select>
-      </label>
-      <button
-        type="button"
-        className={styles.boton}
-        disabled={exportar.isPending || companyId === null}
+        </Select>
+      </Field>
+      <Button
+        variant="secondary"
+        icon={<Icon name="download" size={16} />}
+        loading={exportar.isPending}
+        disabled={companyId === null}
         onClick={() => exportar.mutate(tipo)}
         aria-label={`Descargar CSV de ${tipo === 'actividad' ? 'actividad comercial' : 'pipeline, conversión y cumplimiento'}`}
       >
         {exportar.isPending ? 'Exportando…' : 'CSV'}
-      </button>
+      </Button>
       {exportar.error ? (
-        <span className={styles.errorEnLinea} role="alert">No se pudo exportar: {exportar.error.message}</span>
+        <span className={styles.errorEnLinea} role="alert">
+          No se pudo exportar: {exportar.error.message}
+        </span>
       ) : null}
     </div>
   )

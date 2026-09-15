@@ -1,8 +1,10 @@
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Badge, type BadgeTone } from '@/components/ui/Badge'
+import { Alert } from '@/components/feedback/Alert'
 import { StatusMessage } from '@/components/ui/StatusMessage'
 import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
 import type { Column } from '@/components/tables/types'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { cx } from '@/utils/cx'
 import { useNumeracion } from '../hooks/useEmpresaConfig'
 import { alertas, etiquetaTipo, formatearNumero, presentarAutoridad, presentarEmision, presentarEstado, type SecuenciaDiagnostico } from '../lib/numeracion'
 import styles from '../components/Configuracion.module.css'
@@ -78,12 +80,7 @@ export function NumeracionPage() {
 
   return (
     <>
-      <div className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>Numeración</h1>
-          <p className={styles.subtitulo}>Secuencias de {activa?.companyName ?? 'la empresa'} comparadas con los documentos de esta base.</p>
-        </div>
-      </div>
+      <PageHeader title="Numeración" subtitle={`Secuencias de ${activa?.companyName ?? 'la empresa'} comparadas con los documentos de esta base.`} status={<Badge tone="warning" dot>Sólo lectura</Badge>} />
 
       <StatusMessage
         tono="pending"
@@ -96,9 +93,9 @@ export function NumeracionPage() {
       ) : (
         <>
           {alertas(lista).map((a) => (
-            <p key={a} className={styles.alerta} role="note">
-              {a}
-            </p>
+            <Alert key={a} tone="warning" role="note">
+              <p>{a}</p>
+            </Alert>
           ))}
           <ResponsiveTable
             columns={columnas}
@@ -145,10 +142,16 @@ export function NumeracionPage() {
   )
 }
 
+const TONO_BADGE: Record<string, BadgeTone> = { ok: 'success', alerta: 'warning', error: 'danger', neutro: 'neutral' }
+
+/** Estado, autoridad o emisión. El detalle queda en el `title` (y escrito en la card mobile). */
 function Chip({ p }: { p: { etiqueta: string; tono: string; detalle: string } }) {
+  const tono = TONO_BADGE[p.tono] ?? 'neutral'
   return (
-    <span className={cx(styles.chip, styles[`tono_${p.tono}`])} title={p.detalle}>
-      {p.etiqueta}
+    <span title={p.detalle}>
+      <Badge tone={tono} dot={tono === 'warning' || tono === 'danger'}>
+        {p.etiqueta}
+      </Badge>
     </span>
   )
 }

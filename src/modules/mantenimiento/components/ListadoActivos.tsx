@@ -1,5 +1,9 @@
 import { Link } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { Icon } from '@/components/icons/Icon'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { contar } from '@/components/tables/rango'
+import tabla from '@/components/tables/Tabla.module.css'
 import { formatearFecha } from '../lib/formato'
 import { ChipBaja } from './ChipEstado'
 import type { ActivoListado, OrdenActivos } from '../types'
@@ -13,18 +17,15 @@ export interface ListadoActivosProps {
   cargando: boolean
 }
 
-const COLUMNAS: { clave: OrdenActivos; etiqueta: string }[] = [
+const COLUMNAS: { clave: OrdenActivos; etiqueta: string; clase?: string | undefined }[] = [
   { clave: 'referencia', etiqueta: 'Referencia' },
   { clave: 'serie', etiqueta: 'Nº de serie' },
-  { clave: 'modelo', etiqueta: 'Modelo' },
+  { clave: 'modelo', etiqueta: 'Modelo', clase: styles.ocultaBajo1024 },
   { clave: 'cliente', etiqueta: 'Dueño actual' },
-  { clave: 'alta', etiqueta: 'Alta' },
+  { clave: 'alta', etiqueta: 'Alta', clase: styles.ocultaBajo1280 },
 ]
 
-function flecha(activa: boolean, direccion: 'asc' | 'desc'): string {
-  if (!activa) return ''
-  return direccion === 'asc' ? ' ↑' : ' ↓'
-}
+const ORDENES = { singular: 'orden', plural: 'órdenes' }
 
 /**
  * El listado de equipos.
@@ -36,6 +37,8 @@ function flecha(activa: boolean, direccion: 'asc' | 'desc'): string {
  *
  * «Sin serie» y «sin dueño» no son huecos: son estados legítimos y se dicen
  * con palabras. Un equipo puede entrar al taller antes de saber de quién es.
+ *
+ * Fase 13 · E5: tabla y tarjetas comunes; el vacío y el error, en la página.
  */
 export function ListadoActivos({
   filas,
@@ -46,32 +49,34 @@ export function ListadoActivos({
 }: ListadoActivosProps) {
   const isMobile = useIsMobile()
 
-  if (!cargando && filas.length === 0) {
-    return <p className={styles.vacio}>No hay equipos que coincidan con estos filtros.</p>
+  if (cargando && filas.length === 0) {
+    return (
+      <div className={tabla.contenedor}>
+        <SkeletonRows rows={5} columns={isMobile ? 2 : 6} label="Cargando equipos…" />
+      </div>
+    )
   }
+  if (filas.length === 0) return null
 
   if (isMobile) {
     return (
-      <ul className={styles.tarjetas}>
+      <ul className={tabla.tarjetas}>
         {filas.map((a) => (
           <li key={a.id}>
-            <Link to={`/mantenimiento/activos/${a.id}`} className={styles.tarjeta}>
-              <span className={styles.tarjetaNumero}>{a.referencia}</span>
-              <span className={a.serie ? styles.tarjetaFecha : styles.tarjetaFalta}>
-                {a.serie ?? 'sin número de serie'}
-              </span>
-              <span className={styles.tarjetaProveedor}>{a.modelo ?? a.tipo ?? '—'}</span>
-              <span className={a.dueno ? styles.tarjetaDato : styles.tarjetaFalta}>
+            <Link to={`/mantenimiento/activos/${a.id}`} className={tabla.tarjeta}>
+              <span className={tabla.tarjetaTitulo}>{a.referencia}</span>
+              <span className={`${tabla.tarjetaDerecha} ${tabla.tarjetaMeta}`}>{a.serie ?? 'sin número de serie'}</span>
+              <span className={tabla.tarjetaTexto}>{a.modelo ?? a.tipo ?? '—'}</span>
+              <span className={`${tabla.tarjetaTexto} ${tabla.tarjetaMeta}`}>
                 {a.dueno ?? 'sin dueño asignado'}
+                {' · '}
+                {a.ordenes === 0 ? 'sin órdenes' : contar(a.ordenes, ORDENES)}
               </span>
-              <span className={styles.tarjetaDato}>
-                {a.ordenes === 0
-                  ? 'sin órdenes'
-                  : `${a.ordenes} ${a.ordenes === 1 ? 'orden' : 'órdenes'}`}
-              </span>
-              <span className={styles.tarjetaChips}>
-                <ChipBaja dadoDeBaja={a.dadoDeBaja} />
-              </span>
+              {a.dadoDeBaja ? (
+                <span className={`${tabla.tarjetaTexto} ${tabla.estados}`}>
+                  <ChipBaja dadoDeBaja={a.dadoDeBaja} />
+                </span>
+              ) : null}
             </Link>
           </li>
         ))}
@@ -80,26 +85,30 @@ export function ListadoActivos({
   }
 
   return (
-    <div className={styles.scroll}>
-      <table className={styles.tabla}>
+    <div className={tabla.contenedor}>
+      <table className={tabla.tabla}>
         <thead>
           <tr>
-            {COLUMNAS.map((c) => (
-              <th
-                key={c.clave}
-                scope="col"
-                aria-sort={
-                  orden === c.clave ? (direccion === 'asc' ? 'ascending' : 'descending') : 'none'
-                }
-              >
-                <button type="button" className={styles.thBoton} onClick={() => onOrdenar(c.clave)}>
-                  {c.etiqueta}
-                  {flecha(orden === c.clave, direccion)}
-                </button>
-              </th>
-            ))}
-            <th scope="col">Tipo</th>
-            <th scope="col" className={styles.derecha}>
+            {COLUMNAS.map((c) => {
+              const activa = orden === c.clave
+              return (
+                <th
+                  key={c.clave}
+                  scope="col"
+                  className={c.clase}
+                  aria-sort={activa ? (direccion === 'asc' ? 'ascending' : 'descending') : 'none'}
+                >
+                  <button type="button" className={tabla.orden} onClick={() => onOrdenar(c.clave)}>
+                    {c.etiqueta}
+                    {activa ? <Icon name={direccion === 'asc' ? 'arrow-up' : 'arrow-down'} size={16} className={tabla.ordenIcono} /> : null}
+                  </button>
+                </th>
+              )
+            })}
+            <th scope="col" className={styles.ocultaBajo1280}>
+              Tipo
+            </th>
+            <th scope="col" className={tabla.num}>
               Órdenes
             </th>
             <th scope="col">Estado</th>
@@ -108,29 +117,27 @@ export function ListadoActivos({
         <tbody>
           {filas.map((a) => (
             <tr key={a.id}>
-              <td className={styles.numero}>
-                <Link to={`/mantenimiento/activos/${a.id}`} className={styles.enlace}>
+              <td className={tabla.nowrap}>
+                <Link to={`/mantenimiento/activos/${a.id}`} className={tabla.enlace}>
                   {a.referencia}
                 </Link>
               </td>
-              <td className={a.serie ? styles.numero : styles.falta}>
-                {a.serie ?? 'sin número de serie'}
-              </td>
-              <td className={styles.recorta} title={a.modelo ?? undefined}>
+              <td className={a.serie ? tabla.nowrap : styles.falta}>{a.serie ?? 'sin número de serie'}</td>
+              <td className={`${styles.recorta} ${styles.ocultaBajo1024}`} title={a.modelo ?? undefined}>
                 {a.modelo ?? '—'}
               </td>
               <td className={a.dueno ? styles.recorta : styles.falta} title={a.dueno ?? undefined}>
                 {a.dueno ? (
-                  <Link to={`/clientes/${a.duenoId}`} className={styles.enlaceSuave}>
+                  <Link to={`/clientes/${a.duenoId}`} className={tabla.enlaceSuave}>
                     {a.dueno}
                   </Link>
                 ) : (
                   'sin dueño asignado'
                 )}
               </td>
-              <td className={styles.numero}>{formatearFecha(a.creadoEn)}</td>
-              <td className={styles.recorta}>{a.tipo ?? '—'}</td>
-              <td className={styles.derecha}>{a.ordenes}</td>
+              <td className={`${tabla.nowrap} ${styles.ocultaBajo1280}`}>{formatearFecha(a.creadoEn)}</td>
+              <td className={`${styles.recorta} ${styles.ocultaBajo1280}`}>{a.tipo ?? '—'}</td>
+              <td className={tabla.num}>{a.ordenes}</td>
               <td>
                 <ChipBaja dadoDeBaja={a.dadoDeBaja} />
               </td>

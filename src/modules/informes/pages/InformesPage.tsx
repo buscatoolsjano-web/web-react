@@ -1,7 +1,16 @@
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { NavegacionInformes } from '../components/NavegacionInformes'
+import { PageHeader } from '@/components/layout/PageHeader'
+import doc from '@/components/document/Document.module.css'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Button } from '@/components/ui/Button'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { TabPanel } from '@/components/ui/Tabs'
+import { Icon } from '@/components/icons/Icon'
+import { ID_PESTANAS_INFORMES, NavegacionInformes } from '../components/NavegacionInformes'
 import { SelectorMes } from '../components/SelectorMes'
 import { useMesInformes } from '../hooks/useMesInformes'
 import { leerVista } from '../lib/vista'
@@ -38,9 +47,9 @@ export function InformesPage() {
   const { activa } = useEmpresa()
   if (!puedeVerInformes(activa?.rol)) {
     return (
-      <div className={styles.page}>
-        <h1 className={styles.titulo}>Informes</h1>
-        <p className={styles.vacio}>Tu rol en esta empresa no tiene acceso a Informes.</p>
+      <div className={doc.listado}>
+        <PageHeader title="Informes" />
+        <EmptyState icon="bar-chart" title="Sin acceso a Informes" description="Tu rol en esta empresa no tiene acceso a Informes." />
       </div>
     )
   }
@@ -50,10 +59,16 @@ export function InformesPage() {
 function VistasInformes() {
   const [params] = useSearchParams()
   const vista = leerVista(params.get('vista'))
+  // Un solo h1 para la sección; cada pestaña titula su vista con un h2.
   return (
-    <div className={styles.page}>
-      <NavegacionInformes vista={vista} />
-      {vista === 'stock' ? <StockVista /> : <ActividadComercialVista />}
+    <div className={doc.listado}>
+      <PageHeader title="Informes" subtitle="Actividad comercial y stock, calculados en el servidor." />
+      <div>
+        <NavegacionInformes vista={vista} />
+        <TabPanel tabsId={ID_PESTANAS_INFORMES} tabKey={vista}>
+          {vista === 'stock' ? <StockVista /> : <ActividadComercialVista />}
+        </TabPanel>
+      </div>
     </div>
   )
 }
@@ -77,7 +92,7 @@ function ActividadComercialVista() {
     <div className={styles.vista}>
       <header className={styles.encabezado}>
         <div>
-          <h1 className={styles.titulo}>Informes · Actividad comercial</h1>
+          <h2 className={styles.tituloVista}>Actividad comercial</h2>
           {/* Con error no hay período que mostrar: la alerta de abajo lo explica. */}
           {actividad.data ? (
             <p className={styles.subtitulo}>{`${etiquetaTramo(actividad.data.actual)} contra ${etiquetaTramo(actividad.data.anterior)}`}</p>
@@ -87,15 +102,16 @@ function ActividadComercialVista() {
         </div>
         <div className={styles.accionesEncabezado}>
           <SelectorMes />
-          <button
-            type="button"
-            className={styles.boton}
+          <Button
+            variant="ghost"
+            icon={<Icon name="refresh" size={16} />}
             // Actividad, pipeline y el ranking a la vista: todo lo de Informes.
             onClick={() => void queryClient.invalidateQueries({ queryKey: ['informes'] })}
+            loading={actualizando && !actividad.isPending}
             disabled={actualizando}
           >
             {actualizando && !actividad.isPending ? 'Actualizando…' : 'Actualizar'}
-          </button>
+          </Button>
           <ExportarInforme mes={mes} mesEfectivo={mes ?? tope} />
         </div>
       </header>
@@ -119,17 +135,16 @@ function ActividadComercialVista() {
       </details>
 
       {actividad.isPending ? (
-        <p className={styles.nota}>Leyendo el informe…</p>
-      ) : actividad.error ? (
-        <div className={styles.error} role="alert">
-          <span>{actividad.error instanceof ErrorInforme ? actividad.error.message : 'No se pudo leer el informe.'}</span>
-          {/* Sin permiso o mes futuro no se arreglan reintentando. */}
-          {actividad.error instanceof ErrorInforme && actividad.error.codigo !== 'desconocido' ? null : (
-            <button type="button" className={styles.boton} onClick={() => void actividad.refetch()}>
-              Reintentar
-            </button>
-          )}
+        <div className={styles.cargando}>
+          <SkeletonRows rows={4} columns={4} label="Leyendo el informe…" />
         </div>
+      ) : actividad.error ? (
+        <ErrorState
+          title={actividad.error instanceof ErrorInforme ? actividad.error.message : 'No se pudo leer el informe.'}
+          // Sin permiso o mes futuro no se arreglan reintentando.
+          onRetry={actividad.error instanceof ErrorInforme && actividad.error.codigo !== 'desconocido' ? undefined : () => void actividad.refetch()}
+          retrying={actividad.isFetching}
+        />
       ) : (
         <Contenido datos={actividad.data} pipeline={pipeline} mes={mes} mesEfectivo={mes ?? tope} ranking={ranking} onCambiarRanking={cambiarRanking} />
       )}
@@ -154,11 +169,8 @@ function Contenido({ datos, pipeline, mes, mesEfectivo, ranking, onCambiarRankin
   return (
     <>
       {enRevision.length > 0 ? (
-        <div className={styles.aviso} role="status">
-          <span>
-            Hay documentos marcados para revisar en {etiquetaActual}. Se muestran tal cual: a los sin moneda no se les asigna una.
-            El enlace abre todos los marcados, con o sin moneda.
-          </span>
+        <Alert tone="warning" role="status" title={'Hay documentos marcados para revisar en ' + etiquetaActual}>
+          <p>Se muestran tal cual: a los sin moneda no se les asigna una. El enlace abre todos los marcados, con o sin moneda.</p>
           <span className={styles.enlaces}>
             {enRevision.map((k) => (
               <Link
@@ -170,7 +182,7 @@ function Contenido({ datos, pipeline, mes, mesEfectivo, ranking, onCambiarRankin
               </Link>
             ))}
           </span>
-        </div>
+        </Alert>
       ) : null}
 
       <div className={styles.tarjetas}>
@@ -182,16 +194,16 @@ function Contenido({ datos, pipeline, mes, mesEfectivo, ranking, onCambiarRankin
       <SerieMensual series={datos.series} />
 
       {pipeline.isPending ? (
-        <p className={styles.nota}>Leyendo pipeline y conversión…</p>
-      ) : pipeline.error ? (
-        <div className={styles.error} role="alert">
-          <span>{pipeline.error instanceof ErrorInforme ? pipeline.error.message : 'No se pudo leer pipeline y conversión.'}</span>
-          {pipeline.error instanceof ErrorInforme && pipeline.error.codigo !== 'desconocido' ? null : (
-            <button type="button" className={styles.boton} onClick={() => void pipeline.refetch()}>
-              Reintentar
-            </button>
-          )}
+        <div className={styles.cargando}>
+          <SkeletonRows rows={3} columns={4} label="Leyendo pipeline y conversión…" />
         </div>
+      ) : pipeline.error ? (
+        <ErrorState
+          compact
+          title={pipeline.error instanceof ErrorInforme ? pipeline.error.message : 'No se pudo leer pipeline y conversión.'}
+          onRetry={pipeline.error instanceof ErrorInforme && pipeline.error.codigo !== 'desconocido' ? undefined : () => void pipeline.refetch()}
+          retrying={pipeline.isFetching}
+        />
       ) : (
         <SeccionesPipeline datos={datos} pipeline={pipeline.data} etiquetaActual={etiquetaActual} etiquetaAnterior={etiquetaAnterior} />
       )}

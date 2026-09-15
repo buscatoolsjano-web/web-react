@@ -1,11 +1,17 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { Button } from '@/components/ui/Button'
+import { useParams } from 'react-router-dom'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Badge } from '@/components/ui/Badge'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Field } from '@/components/forms/Field'
+import { Input, Select } from '@/components/forms/controls'
+import { Pagination } from '@/components/tables/Pagination'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import { StatusMessage } from '@/components/ui/StatusMessage'
 import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
 import type { Column } from '@/components/tables/types'
 import { useDebounce } from '@/hooks/useDebounce'
-import { cx } from '@/utils/cx'
 import { useClientesDeLista, useItemsDeLista, useListasPrecios } from '../hooks/useMaestros'
 import {
   AUTORIDAD,
@@ -14,13 +20,15 @@ import {
   formatearPrecio,
   mensajeErrorMaestro,
   presentarVigencia,
-  rangoPagina,
   textoVigenciaLista,
   type ItemPrecio,
   type Vigencia,
 } from '../lib/maestros'
 import { ErrorMaestro } from '../services/maestros'
 import styles from '../components/Configuracion.module.css'
+
+const PRECIOS = { singular: 'precio', plural: 'precios' }
+const VOLVER = { to: '/configuracion/listas-precios', label: 'Listas de precios' }
 
 const codigo = (e: unknown) => (e instanceof ErrorMaestro ? e.codigo : 'desconocido')
 
@@ -46,18 +54,16 @@ export function ListaPreciosDetallePage() {
   const ultimaPagina = Math.max(0, Math.ceil(total / POR_PAGINA) - 1)
   const moneda = lista?.moneda ?? ''
 
-  const volver = (
-    <Link to="/configuracion/listas-precios" className={styles.enlace}>
-      ← Listas de precios
-    </Link>
-  )
-
   if (listas.isError || (listas.data && !lista)) {
     const cod = listas.isError ? codigo(listas.error) : 'no_encontrado'
     return (
       <>
-        {volver}
-        <StatusMessage tono="error" titulo={cod === 'no_encontrado' ? 'Esta lista no existe en la empresa activa.' : mensajeErrorMaestro(cod)} />
+        <PageHeader title="Lista de precios" back={VOLVER} />
+        {cod === 'no_encontrado' ? (
+          <EmptyState icon="search" title="Esta lista no existe en la empresa activa." />
+        ) : (
+          <ErrorState title={mensajeErrorMaestro(cod)} />
+        )}
       </>
     )
   }
@@ -97,15 +103,12 @@ export function ListaPreciosDetallePage() {
 
   return (
     <>
-      {volver}
-      <div className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>{lista?.nombre ?? 'Lista de precios'}</h1>
-          <p className={styles.subtitulo}>
-            {lista ? `${lista.moneda} · ${lista.porDefecto ? 'predeterminada de la empresa · ' : ''}${textoVigenciaLista(lista)}` : 'Cargando…'}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        back={VOLVER}
+        title={lista?.nombre ?? 'Lista de precios'}
+        subtitle={lista ? `${lista.moneda} · ${lista.porDefecto ? 'predeterminada de la empresa · ' : ''}${textoVigenciaLista(lista)}` : 'Cargando…'}
+        status={<Badge tone="neutral" outline>Sólo lectura</Badge>}
+      />
 
       <StatusMessage tono="pending" titulo={AUTORIDAD.listas.titulo} detalle={AUTORIDAD.listas.detalle} />
 
@@ -114,7 +117,7 @@ export function ListaPreciosDetallePage() {
           Clientes con esta lista por defecto
         </h2>
         {clientes.isPending ? (
-          <p className={styles.nota}>Cargando…</p>
+          <SkeletonRows rows={2} columns={1} label="Cargando clientes…" />
         ) : clientes.isError ? (
           <StatusMessage tono="error" titulo={mensajeErrorMaestro(codigo(clientes.error))} />
         ) : clientes.data.total === 0 ? (
@@ -137,32 +140,32 @@ export function ListaPreciosDetallePage() {
 
       <h2 className={styles.legend}>Precios</h2>
       <div className={styles.barra}>
-        <input
-          className={cx(styles.control, styles.buscar)}
-          type="search"
-          placeholder="Buscar por SKU o producto"
-          aria-label="Buscar precio por SKU o producto"
-          maxLength={100}
-          value={busqueda}
-          onChange={(e) => {
-            setBusqueda(e.target.value)
-            setPagina(0)
-          }}
-        />
-        <select
-          className={styles.selectFiltro}
-          aria-label="Filtrar por vigencia"
-          value={vigencia}
-          onChange={(e) => {
-            setVigencia(e.target.value as 'todas' | Vigencia)
-            setPagina(0)
-          }}
-        >
-          <option value="todas">Todas las vigencias</option>
-          <option value="vigente">Vigentes</option>
-          <option value="futura">Futuras</option>
-          <option value="vencida">Vencidas</option>
-        </select>
+        <Field label="Buscar precio por SKU o producto" hideLabel className={styles.buscar}>
+          <Input
+            type="search"
+            placeholder="Buscar por SKU o producto"
+            maxLength={100}
+            value={busqueda}
+            onChange={(e) => {
+              setBusqueda(e.target.value)
+              setPagina(0)
+            }}
+          />
+        </Field>
+        <Field label="Filtrar por vigencia" hideLabel className={styles.selectFiltro}>
+          <Select
+            value={vigencia}
+            onChange={(e) => {
+              setVigencia(e.target.value as 'todas' | Vigencia)
+              setPagina(0)
+            }}
+          >
+            <option value="todas">Todas las vigencias</option>
+            <option value="vigente">Vigentes</option>
+            <option value="futura">Futuras</option>
+            <option value="vencida">Vencidas</option>
+          </Select>
+        </Field>
       </div>
 
       {items.isError ? (
@@ -176,17 +179,15 @@ export function ListaPreciosDetallePage() {
             isLoading={items.isPending}
             emptyMessage={busquedaDiferida || vigencia !== 'todas' ? 'Ningún precio coincide con la búsqueda.' : 'Esta lista no tiene precios.'}
           />
-          <nav className={styles.paginador} aria-label="Páginas de precios">
-            <Button variant="secondary" onClick={() => setPagina((p) => Math.max(0, p - 1))} disabled={pagina === 0 || items.isFetching}>
-              Anterior
-            </Button>
-            <span className={styles.nota} role="status" aria-live="polite">
-              {items.isFetching ? 'Cargando…' : rangoPagina(pagina * POR_PAGINA, filas.length, total)}
-            </span>
-            <Button variant="secondary" onClick={() => setPagina((p) => Math.min(ultimaPagina, p + 1))} disabled={pagina >= ultimaPagina || items.isFetching}>
-              Siguiente
-            </Button>
-          </nav>
+          <Pagination
+            label="Páginas de precios"
+            offset={pagina * POR_PAGINA}
+            pageSize={POR_PAGINA}
+            total={total}
+            noun={PRECIOS}
+            loading={items.isFetching}
+            onChange={(offset) => setPagina(Math.min(ultimaPagina, Math.floor(offset / POR_PAGINA)))}
+          />
         </>
       )}
     </>
@@ -195,5 +196,7 @@ export function ListaPreciosDetallePage() {
 
 function ChipVigencia({ v }: { v: Vigencia }) {
   const p = presentarVigencia(v)
-  return <span className={cx(styles.chip, styles[`tono_${p.tono}`])}>{p.etiqueta}</span>
+  if (p.tono === 'ok') return <Badge tone="success">{p.etiqueta}</Badge>
+  if (p.tono === 'alerta') return <Badge tone="warning" dot>{p.etiqueta}</Badge>
+  return <Badge tone="neutral" outline>{p.etiqueta}</Badge>
 }

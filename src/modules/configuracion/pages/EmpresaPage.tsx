@@ -1,5 +1,9 @@
 import { useId, useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Badge } from '@/components/ui/Badge'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
 import { StatusMessage } from '@/components/ui/StatusMessage'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
@@ -55,10 +59,22 @@ export function EmpresaPage() {
     if (descartar) setDescartar(false)
   }
 
-  if (datos.isPending) return <p className={styles.nota}>Cargando datos de la empresa…</p>
+  if (datos.isPending) {
+    return (
+      <>
+        <PageHeader title="Empresa" />
+        <SkeletonRows rows={6} columns={2} label="Cargando datos de la empresa…" />
+      </>
+    )
+  }
   if (datos.isError || !estado) {
     const codigo = datos.error instanceof ErrorEmpresa ? datos.error.codigo : 'desconocido'
-    return <StatusMessage tono="error" titulo={codigo === 'sin_permiso' ? 'Tu rol no tiene acceso a los datos de la empresa.' : mensajeErrorEmpresa(codigo)} />
+    return (
+      <>
+        <PageHeader title="Empresa" />
+        <ErrorState title={codigo === 'sin_permiso' ? 'Tu rol no tiene acceso a los datos de la empresa.' : mensajeErrorEmpresa(codigo)} />
+      </>
+    )
   }
 
   const { fuente, inicial, form } = estado
@@ -104,14 +120,21 @@ export function EmpresaPage() {
 
   return (
     <form onSubmit={(e) => void guardar(e)} noValidate className={styles.page}>
-      <div className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>Empresa</h1>
-          <p className={styles.subtitulo}>
-            Datos de {fuente.name} que usan los documentos impresos y el sistema.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Empresa"
+        subtitle={`Datos de ${fuente.name} que usan los documentos impresos y el sistema.`}
+        status={
+          !puedeEditar ? (
+            <Badge tone="neutral" outline>
+              Sólo lectura
+            </Badge>
+          ) : hayCambios ? (
+            <Badge tone="warning" dot>
+              Cambios sin guardar
+            </Badge>
+          ) : undefined
+        }
+      />
 
       {!puedeEditar && <StatusMessage tono="pending" titulo="Sólo lectura" detalle="Sólo un administrador de la empresa puede editar estos datos." />}
 

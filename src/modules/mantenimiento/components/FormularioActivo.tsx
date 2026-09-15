@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react'
+import { Button } from '@/components/ui/Button'
 import { Link } from 'react-router-dom'
 import { useDuplicadosDeSerial } from '../hooks/useActivos'
 import { errorDe, validarActivo, type ErrorDeCampo } from '../lib/validacion'
@@ -392,17 +393,16 @@ export function FormularioActivo({
       </div>
 
       <div className={styles.acciones}>
-        <button type="submit" className={styles.primario} disabled={guardando}>
+        <Button type="submit" disabled={guardando}>
           {guardando ? 'Guardando…' : etiquetaGuardar}
-        </button>
-        <button
-          type="button"
-          className={styles.secundario}
+        </Button>
+        <Button
+          variant="secondary"
           disabled={guardando}
           onClick={onCancelar}
         >
           Cancelar
-        </button>
+        </Button>
       </div>
     </form>
   )

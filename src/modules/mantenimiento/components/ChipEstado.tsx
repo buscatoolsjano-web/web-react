@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/Badge'
 import {
   etiquetaDeCotizacion,
   etiquetaDeEstado,
@@ -7,7 +8,6 @@ import {
   etiquetaDeVeredicto,
   type SituacionEtapa,
 } from '../lib/estados'
-import styles from './ChipEstado.module.css'
 
 export interface ChipProps {
   estado: string
@@ -21,18 +21,20 @@ export interface ChipProps {
  * tres cosas que cambian por separado.
  *
  * Ninguno se distingue sólo por color: cada chip lleva su texto.
+ *
+ * Fase 13 · E5: los mismos chips como `Badge` del sistema. Etiquetas y
+ * códigos son los de `lib/estados`; sólo cambia la presentación.
  */
 export function ChipEstadoOrden({ estado }: ChipProps) {
-  const clase =
-    estado === 'closed' ? styles.recibido
-    : estado === 'cancelled' ? styles.cancelado
-    : styles.confirmado
-  return <span className={clase}>{etiquetaDeEstado(estado)}</span>
+  const etiqueta = etiquetaDeEstado(estado)
+  if (estado === 'closed') return <Badge tone="success">{etiqueta}</Badge>
+  if (estado === 'cancelled') return <Badge tone="danger" outline>{etiqueta}</Badge>
+  return <Badge tone="brand">{etiqueta}</Badge>
 }
 
 /** Dónde está el trabajo. Sin color propio: la etapa no es buena ni mala. */
 export function ChipEtapa({ estado }: ChipProps) {
-  return <span className={styles.borrador}>{etiquetaDeEtapa(estado)}</span>
+  return <Badge tone="neutral">{etiquetaDeEtapa(estado)}</Badge>
 }
 
 /**
@@ -44,17 +46,20 @@ export function ChipEtapa({ estado }: ChipProps) {
  * visual en la ficha de una orden en cotización.
  */
 export function ChipCotizacion({ estado }: ChipProps) {
-  const clase =
-    estado === 'approved' ? styles.recibido
-    : estado === 'rejected' ? styles.cancelado
-    : styles.pendiente
-  return <span className={clase}>Presupuesto: {etiquetaDeCotizacion(estado)}</span>
+  const texto = `Presupuesto: ${etiquetaDeCotizacion(estado)}`
+  if (estado === 'approved') return <Badge tone="success">{texto}</Badge>
+  if (estado === 'rejected') return <Badge tone="danger" outline>{texto}</Badge>
+  return <Badge tone="warning" dot>{texto}</Badge>
 }
 
 /** La espera es ortogonal a todo lo demás: sólo aparece cuando está activa. */
 export function ChipEspera({ enEspera }: { enEspera: boolean }) {
   if (!enEspera) return null
-  return <span className={styles.parcial}>En espera</span>
+  return (
+    <Badge tone="warning" dot>
+      En espera
+    </Badge>
+  )
 }
 
 /**
@@ -71,20 +76,18 @@ export function ChipSituacion({
   situacion: SituacionEtapa
   femenina?: boolean
 }) {
-  const clase =
-    situacion === 'completada' ? styles.recibido
-    : situacion === 'no-requerida' ? styles.borrador
-    : styles.pendiente
-  return <span className={clase}>{etiquetaDeSituacion(situacion, femenina)}</span>
+  const etiqueta = etiquetaDeSituacion(situacion, femenina)
+  if (situacion === 'completada') return <Badge tone="success">{etiqueta}</Badge>
+  if (situacion === 'no-requerida') return <Badge tone="neutral" outline>{etiqueta}</Badge>
+  return <Badge tone="warning" dot>{etiqueta}</Badge>
 }
 
 /** El resultado de un punto de revisión: OK, NOK o N/A. */
 export function ChipResultado({ estado }: ChipProps) {
-  const clase =
-    estado === 'ok' ? styles.recibido
-    : estado === 'nok' ? styles.cancelado
-    : styles.borrador
-  return <span className={clase}>{etiquetaDeResultado(estado)}</span>
+  const etiqueta = etiquetaDeResultado(estado)
+  if (estado === 'ok') return <Badge tone="success">{etiqueta}</Badge>
+  if (estado === 'nok') return <Badge tone="danger">{etiqueta}</Badge>
+  return <Badge tone="neutral" outline>{etiqueta}</Badge>
 }
 
 /**
@@ -96,16 +99,19 @@ export function ChipResultado({ estado }: ChipProps) {
  * que no se puede calcular, y se dice así.
  */
 export function ChipVeredicto({ veredicto }: { veredicto: string | null }) {
-  if (veredicto === null) return <span className={styles.pendiente}>Sin veredicto</span>
-  const clase =
-    veredicto === 'capaz' ? styles.recibido
-    : veredicto === 'aceptable' ? styles.parcial
-    : styles.cancelado
-  return <span className={clase}>{etiquetaDeVeredicto(veredicto)}</span>
+  if (veredicto === null) return <Badge tone="neutral" outline>Sin veredicto</Badge>
+  const etiqueta = etiquetaDeVeredicto(veredicto)
+  if (veredicto === 'capaz') return <Badge tone="success">{etiqueta}</Badge>
+  if (veredicto === 'aceptable') return <Badge tone="warning" dot>{etiqueta}</Badge>
+  return <Badge tone="danger">{etiqueta}</Badge>
 }
 
 /** El equipo dado de baja. La baja es lógica: sus órdenes lo siguen nombrando. */
 export function ChipBaja({ dadoDeBaja }: { dadoDeBaja: boolean }) {
   if (!dadoDeBaja) return null
-  return <span className={styles.cancelado}>Dado de baja</span>
+  return (
+    <Badge tone="danger" outline>
+      Dado de baja
+    </Badge>
+  )
 }

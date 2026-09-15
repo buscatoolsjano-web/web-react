@@ -1,4 +1,10 @@
 import { useState } from 'react'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Badge } from '@/components/ui/Badge'
+import { Field } from '@/components/forms/Field'
+import { Input } from '@/components/forms/controls'
+import { contar } from '@/components/tables/rango'
+import { Icon } from '@/components/icons/Icon'
 import { Button } from '@/components/ui/Button'
 import { StatusMessage, type Tono } from '@/components/ui/StatusMessage'
 import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
@@ -13,6 +19,8 @@ import { ErrorMaestro } from '../services/maestros'
 import styles from '../components/Configuracion.module.css'
 
 type Pendiente = { tipo: 'crear' } | { tipo: 'renombrar' | 'eliminar'; c: Categoria }
+
+const CATEGORIAS = { singular: 'categoría', plural: 'categorías' }
 
 const codigo = (e: unknown) => (e instanceof ErrorMaestro ? e.codigo : 'desconocido')
 
@@ -84,22 +92,22 @@ export function CategoriasPage() {
     },
     { key: 'productos', header: 'Productos', align: 'right', width: '8rem', render: (c) => c.productos.toLocaleString('es-AR') },
     { key: 'atributos', header: 'Atributos', align: 'right', width: '7rem', render: (c) => c.atributos.toLocaleString('es-AR') },
-    { key: 'revision', header: 'Revisión', width: '9rem', render: (c) => (c.enRevision ? <span className={cx(styles.chip, styles.tono_alerta)}>En revisión</span> : '—') },
+    { key: 'revision', header: 'Revisión', width: '9rem', render: (c) => (c.enRevision ? <Badge tone="warning" dot>En revisión</Badge> : '—') },
   ]
 
   return (
     <>
-      <div className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>Categorías</h1>
-          <p className={styles.subtitulo}>Categorías de productos de {activa?.companyName ?? 'la empresa'}.</p>
-        </div>
-        {admin && (
-          <Button onClick={() => abrir({ tipo: 'crear' })} disabled={ocupado}>
-            Nueva categoría
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Categorías"
+        subtitle={`Categorías de productos de ${activa?.companyName ?? 'la empresa'}.`}
+        actions={
+          admin ? (
+            <Button icon={<Icon name="plus" size={16} />} onClick={() => abrir({ tipo: 'crear' })} disabled={ocupado}>
+              Nueva categoría
+            </Button>
+          ) : undefined
+        }
+      />
 
       {!q.isPending && !q.isError && !admin && <StatusMessage tono="pending" titulo="Sólo lectura" detalle="Sólo un administrador puede crear, renombrar o eliminar categorías." />}
       <p className={styles.nota}>{AUTORIDAD.categorias}</p>
@@ -111,15 +119,10 @@ export function CategoriasPage() {
       ) : (
         <>
           <div className={styles.barra}>
-            <input
-              className={cx(styles.control, styles.buscar)}
-              type="search"
-              placeholder="Buscar categoría"
-              aria-label="Buscar categoría"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-            />
-            {q.data && <span className={styles.nota}>{visibles.length === lista.length ? `${lista.length} categorías` : `${visibles.length} de ${lista.length}`}</span>}
+<Field label="Buscar categoría" hideLabel className={styles.buscar}>
+              <Input type="search" placeholder="Buscar categoría" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+            </Field>
+            {q.data && <span className={styles.nota}>{visibles.length === lista.length ? contar(lista.length, CATEGORIAS) : `${visibles.length} de ${lista.length}`}</span>}
           </div>
           <ResponsiveTable
             columns={columnas}
@@ -132,7 +135,11 @@ export function CategoriasPage() {
               <article className={styles.card}>
                 <div className={styles.cardCabecera}>
                   {columnas[0]!.render!(c)}
-                  {c.enRevision && <span className={cx(styles.chip, styles.tono_alerta)}>En revisión</span>}
+                  {c.enRevision && (
+                    <Badge tone="warning" dot>
+                      En revisión
+                    </Badge>
+                  )}
                 </div>
                 <dl className={styles.cardDatos}>
                   <dt>Productos</dt>
@@ -179,7 +186,7 @@ export function CategoriasPage() {
               <Button variant="secondary" onClick={cerrar} disabled={ocupado}>
                 Cancelar
               </Button>
-              <Button className={styles.peligro} onClick={() => void eliminar()} disabled={ocupado}>
+              <Button variant="danger" onClick={() => void eliminar()} disabled={ocupado}>
                 {ocupado ? 'Eliminando…' : 'Eliminar'}
               </Button>
             </>

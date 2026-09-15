@@ -1,4 +1,6 @@
 import { useId } from 'react'
+import { Field } from '@/components/forms/Field'
+import { Select } from '@/components/forms/controls'
 import { ESTADOS_TRABAJO, type EstadoHilo, type EstadoTrabajo, type HiloIndice } from '../types'
 import { ETIQUETA_ESTADO } from '../lib/formato'
 import { useAsignables, useAsignar, useCambiarEstado } from '../hooks/useEmails'
@@ -17,8 +19,7 @@ export interface PanelTrabajoProps {
  * `assigned_to` reparte trabajo y NADA MÁS: no da ni quita acceso a nadie.
  */
 export function PanelTrabajo({ hilo, estado }: PanelTrabajoProps) {
-  const idEstado = useId()
-  const idAsignado = useId()
+  const idTitulo = useId()
   const asignables = useAsignables()
   const asignar = useAsignar(hilo)
   const cambiar = useCambiarEstado(hilo)
@@ -27,16 +28,13 @@ export function PanelTrabajo({ hilo, estado }: PanelTrabajoProps) {
   const error = asignar.error ?? cambiar.error
 
   return (
-    <section className={styles.panel} aria-labelledby={`${idEstado}-t`}>
-      <h2 id={`${idEstado}-t`} className={styles.panelTitulo}>
+    <section className={styles.panel} aria-labelledby={idTitulo}>
+      <h2 id={idTitulo} className={styles.panelTitulo}>
         Trabajo
       </h2>
 
-      <label className={styles.campo} htmlFor={idEstado}>
-        Estado
-        <select
-          id={idEstado}
-          className={styles.select}
+      <Field label="Estado">
+        <Select
           value={estado?.estado ?? 'pendiente'}
           disabled={!estado || cambiar.isPending}
           onChange={(e) => cambiar.mutate(e.target.value as EstadoTrabajo)}
@@ -46,14 +44,11 @@ export function PanelTrabajo({ hilo, estado }: PanelTrabajoProps) {
               {ETIQUETA_ESTADO[e]}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
 
-      <label className={styles.campo} htmlFor={idAsignado}>
-        Asignado a
-        <select
-          id={idAsignado}
-          className={styles.select}
+      <Field label="Asignado a">
+        <Select
           value={estado?.asignadoA ?? ''}
           disabled={!estado || asignar.isPending || asignables.isPending}
           onChange={(e) => asignar.mutate(e.target.value || null)}
@@ -65,11 +60,11 @@ export function PanelTrabajo({ hilo, estado }: PanelTrabajoProps) {
               {u.nombre}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
 
       {error ? (
-        <p className={styles.nota} role="alert">
+        <p className={styles.errorTexto} role="alert">
           {error.message}
         </p>
       ) : null}

@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { PageHeader } from '@/components/layout/PageHeader'
+import doc from '@/components/document/Document.module.css'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Button } from '@/components/ui/Button'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { Spinner } from '@/components/ui/Spinner'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { BadgeEstado } from '../components/BadgeEstado'
+import { SinAccesoEmails } from '../components/SinAccesoEmails'
 import { Composer } from '../components/Composer'
 import { MensajeEmail } from '../components/MensajeEmail'
 import { PanelCliente } from '../components/PanelCliente'
@@ -32,14 +42,7 @@ import styles from '../components/Emails.module.css'
  */
 export function EmailHiloPage() {
   const { activa } = useEmpresa()
-  if (!puedeUsarEmails(activa?.rol)) {
-    return (
-      <div className={styles.page}>
-        <h1 className={styles.titulo}>Emails</h1>
-        <p className={styles.vacio}>Tu rol en esta empresa no tiene acceso a la bandeja de correo.</p>
-      </div>
-    )
-  }
+  if (!puedeUsarEmails(activa?.rol)) return <SinAccesoEmails titulo="Emails" />
   return <Hilo />
 }
 
@@ -143,40 +146,36 @@ function Hilo() {
     }
   }, [hilo, marcarLeido])
 
-  const volver = (
-    <Link to={`/emails${desde}`} className={styles.volver}>
-      ← Volver a la bandeja
-    </Link>
-  )
+  const volver = { to: `/emails${desde}`, label: 'Bandeja' }
 
   if (indice.isPending) {
     return (
-      <div className={styles.page}>
-        {volver}
-        <p className={styles.nota}>Cargando…</p>
+      <div className={doc.pagina}>
+        <PageHeader title="Hilo" back={volver} />
+        <div className={styles.lista}>
+          <SkeletonRows rows={4} columns={2} label="Cargando el hilo…" />
+        </div>
       </div>
     )
   }
   if (indice.error) {
     return (
-      <div className={styles.page}>
-        {volver}
-        <div className={styles.error} role="alert">
-          <span>No se pudo leer el hilo: {indice.error.message}</span>
-          <button type="button" className={styles.boton} onClick={() => void indice.refetch()}>
-            Reintentar
-          </button>
-        </div>
+      <div className={doc.pagina}>
+        <PageHeader title="Hilo" back={volver} />
+        <ErrorState
+          title="No se pudo leer el hilo."
+          description={indice.error.message}
+          onRetry={() => void indice.refetch()}
+          retrying={indice.isFetching}
+        />
       </div>
     )
   }
   if (!hilo) {
     return (
-      <div className={styles.page}>
-        {volver}
-        <div className={styles.vacio}>
-          <p>Este hilo no existe o no pertenece a la empresa activa.</p>
-        </div>
+      <div className={doc.pagina}>
+        <PageHeader title="Hilo" back={volver} />
+        <EmptyState icon="mail" title="Este hilo no está disponible" description="No existe o no pertenece a la empresa activa." />
       </div>
     )
   }
@@ -187,15 +186,13 @@ function Hilo() {
   const mensajes = contenido.data?.hilo.mensajes ?? []
 
   return (
-    <div className={styles.page}>
-      {volver}
-      <header>
-        <h1 className={styles.titulo}>{hilo.asunto?.trim() || '(sin asunto)'}</h1>
-        <p className={styles.subtitulo}>
-          {hilo.cantidadMensajes} {hilo.cantidadMensajes === 1 ? 'mensaje' : 'mensajes'} ·{' '}
-          {hilo.participantes.join(', ')}
-        </p>
-      </header>
+    <div className={doc.pagina}>
+      <PageHeader
+        back={volver}
+        title={hilo.asunto?.trim() || '(sin asunto)'}
+        subtitle={`${hilo.cantidadMensajes} ${hilo.cantidadMensajes === 1 ? 'mensaje' : 'mensajes'} · ${hilo.participantes.join(', ')}`}
+        status={estado.data ? <BadgeEstado estado={estado.data.estado} /> : undefined}
+      />
 
       <div className={styles.detalle}>
         <aside className={styles.lateral} aria-label="Trabajo y cliente">
@@ -205,27 +202,23 @@ function Hilo() {
 
         <section className={styles.mensajes} aria-label="Mensajes" aria-busy={contenido.isFetching}>
           {contenido.isPending && !errorContenido ? (
-            <p className={styles.nota} role="status">
-              Trayendo el hilo desde Gmail…
-            </p>
+            // El contenido viene de Gmail al abrir y puede tardar (arranque en frío
+            // del servicio): se dice qué se está esperando, no sólo un spinner.
+            <div className={styles.cargandoContenido} role="status">
+              <span className={styles.cargandoTexto}>
+                <Spinner size={16} />
+                Trayendo el hilo desde Gmail…
+              </span>
+              <SkeletonRows rows={3} columns={1} />
+            </div>
           ) : errorContenido ? (
-            <div className={styles.error} role="alert">
-              <span>{mensajeDeError(codigo)}</span>
-              {reintentable ? (
-                <button
-                  type="button"
-                  className={styles.boton}
-                  disabled={contenido.isFetching}
-                  onClick={() => void contenido.refetch()}
-                >
-                  {contenido.isFetching ? 'Reintentando…' : 'Reintentar'}
-                </button>
-              ) : null}
-            </div>
+            <ErrorState
+              title={mensajeDeError(codigo)}
+              onRetry={reintentable ? () => void contenido.refetch() : undefined}
+              retrying={contenido.isFetching}
+            />
           ) : mensajes.length === 0 ? (
-            <div className={styles.vacio}>
-              <p>Gmail no devolvió mensajes para este hilo.</p>
-            </div>
+            <EmptyState icon="inbox" title="Sin mensajes" description="Gmail no devolvió mensajes para este hilo." compact />
           ) : (
             mensajes.map((m, i) => (
               <MensajeEmail
@@ -243,21 +236,29 @@ function Hilo() {
           )}
 
           {modoValido && !apertura.borrador && !ignorarBorradores && borradoresDelModo.length > 0 ? (
-            <div className={styles.aviso} role="status">
-              <span>
-                Este hilo tiene {borradoresDelModo.length === 1 ? 'un borrador guardado' : `${borradoresDelModo.length} borradores guardados`} en Gmail.
-              </span>
-              <button type="button" className={styles.boton} onClick={() => {
-                  const id = borradoresDelModo[0]!.draft_id
-                  setApertura({ borrador: id, envio: null })
-                  cambiarUrl({ borrador: id })
-                }}>
-                Seguir el borrador
-              </button>
-              <button type="button" className={styles.boton} onClick={() => setIgnorarBorradores(true)}>
-                Empezar uno nuevo
-              </button>
-            </div>
+            <Alert
+              tone="info"
+              role="status"
+              title={`Este hilo tiene ${borradoresDelModo.length === 1 ? 'un borrador guardado' : `${borradoresDelModo.length} borradores guardados`} en Gmail`}
+              action={
+                <span className={styles.accionesAviso}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      const id = borradoresDelModo[0]!.draft_id
+                      setApertura({ borrador: id, envio: null })
+                      cambiarUrl({ borrador: id })
+                    }}
+                  >
+                    Seguir el borrador
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setIgnorarBorradores(true)}>
+                    Empezar uno nuevo
+                  </Button>
+                </span>
+              }
+            />
           ) : null}
 
           {opciones && (apertura.borrador || ignorarBorradores || borradoresHilo.isError || (borradoresHilo.isSuccess && borradoresDelModo.length === 0)) ? (
@@ -269,7 +270,10 @@ function Hilo() {
               onEnviado={alEnviar}
             />
           ) : modoValido && borradoresHilo.isPending && !apertura.borrador && !ignorarBorradores ? (
-            <p className={styles.nota}>Buscando borradores de este hilo en Gmail…</p>
+            <p className={styles.cargandoTexto} role="status">
+              <Spinner size={16} />
+              Buscando borradores de este hilo en Gmail…
+            </p>
           ) : null}
         </section>
       </div>

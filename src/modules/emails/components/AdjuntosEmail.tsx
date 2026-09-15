@@ -1,4 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
+import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/icons/Icon'
 import { ErrorContenido, mensajeDeError } from '../lib/errores'
 import { adjuntosVisibles, tamanoLegible } from '../lib/formato'
 import { guardarEnDisco, traerAdjunto } from '../services/contenido'
@@ -42,26 +44,28 @@ function Adjunto({ hilo, mensajeId, adjunto }: { hilo: HiloIndice; mensajeId: st
 
   return (
     <li className={styles.adjunto}>
+      <Icon name="paperclip" size={16} className={styles.adjuntoIcono} />
       <span className={styles.adjuntoTexto}>
-        <span>{adjunto.nombre}</span>
+        <span className={styles.adjuntoNombre}>{adjunto.nombre}</span>
         <span className={styles.nota}>
           {adjunto.mime} · {tamanoLegible(adjunto.tamano)}
         </span>
         {error ? (
-          <span className={styles.nota} role="alert">
+          <span className={styles.errorTexto} role="alert">
             {error}
           </span>
         ) : null}
       </span>
-      <button
-        type="button"
-        className={styles.boton}
+      <Button
+        variant="secondary"
+        size="sm"
+        icon={<Icon name="download" size={16} />}
         onClick={() => bajar.mutate()}
-        disabled={bajar.isPending}
+        loading={bajar.isPending}
         aria-label={`Descargar ${adjunto.nombre}`}
       >
         {bajar.isPending ? 'Descargando…' : 'Descargar'}
-      </button>
+      </Button>
     </li>
   )
 }
