@@ -8,7 +8,7 @@
  *       No escribe nada. Deja en scripts/output/e2/ (ignorado): plan, huella,
  *       respaldo de las filas afectadas y el reporte del gate.
  *
- *   node scripts/fase14-stel-e2-reconciliacion.mjs aplicar --plan-hash <sha256> --autorizo-reconciliacion-productiva [--aprobar-borrados <json>]
+ *   node scripts/fase14-stel-e2-reconciliacion.mjs aplicar --plan-hash <sha256> --autorizo-reconciliacion-productiva [--excluir-documentos COTI1,COTI2] [--aprobar-borrados <json>]
  *       SÓLO con autorización explícita del usuario. Vuelve a leer STEL, rearma el
  *       plan y si el hash no es EXACTAMENTE el autorizado, se detiene sin escribir.
  *       Después: verifica stock, secuencias y autoridad (idénticos) y que un
@@ -24,7 +24,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { leerReactEmpresa, leerStel } from './fase14-stel-api-auditoria.mjs'
 import { crearCliente, limpiar } from './lib/stel-api.mjs'
-import { CATEGORIA_REVISION, ejecutarPlan, hashPlan, huellaEmpresa, planificarE2, respaldoAfectado, revertirRun } from './lib/stel-reconciliacion.mjs'
+import { CATEGORIA_REVISION, ejecutarPlan, hashPlan, huellaEmpresa, planificarE2, respaldoAfectado, resumirPlan, revertirRun } from './lib/stel-reconciliacion.mjs'
 
 const [, , comando] = process.argv
 const arg = (n) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : null }
@@ -145,23 +145,51 @@ async function aplicar() {
     process.exit(2)
   }
   const aprobados = arg('--aprobar-borrados') ? { borrados: JSON.parse(fs.readFileSync(arg('--aprobar-borrados'), 'utf8')) } : { borrados: [] }
-  const { stel } = await leerStelAhora(Number(arg('--max-llamadas') ?? 60))
-  const { plan, react } = await armarPlan(stel, aprobados)
-  const hash = hashPlan(plan)
+  const excluir = new Set((arg('--excluir-documentos') ?? '').split(',').map((x) => x.trim()).filter(Boolean))
+  console.log('  GATE · STEL leído ahora…')
+  const { stel, llamadas } = await leerStelAhora(Number(arg('--max-llamadas') ?? 80))
+  const { plan: planCompleto, reco, react } = await armarPlan(stel, aprobados)
+  const hash = hashPlan(planCompleto)
+  console.log(`  llamadas a STEL: ${llamadas} · plan de ahora ${hash}`)
   if (hash !== autorizado) {
-    guardar(`plan-rechazado-${hash.slice(0, 12)}.json`, plan)
-    console.error(`✗ STEL o React cambiaron desde el dry run autorizado: el plan de ahora (${hash.slice(0, 12)}…) no es el aprobado (${autorizado.slice(0, 12)}…). No se escribió nada; correr dryrun y volver a pedir autorización.`)
+    const corto = hash.slice(0, 12)
+    guardar(`plan-rechazado-${corto}.json`, planCompleto)
+    guardar(`gate1-rechazado-${corto}.json`, reporteGate(planCompleto, reco, { cambiosDesdeE1: cambiosDesdeE1(stel), autorizado }))
+    console.error(`✗ GATE: el plan de ahora (${corto}…) no es el autorizado (${autorizado.slice(0, 12)}…). No se escribió nada.`)
+    console.error(JSON.stringify(planCompleto.resumen))
     process.exit(3)
   }
+  console.log('  GATE OK: el plan de ahora es exactamente el autorizado')
+  // Exclusión explícita del usuario: sólo quita acciones, nunca agrega.
+  const plan = { ...planCompleto, documentos: planCompleto.documentos.filter((d) => !excluir.has(d.numero)) }
+  const excluidos = planCompleto.documentos.filter((d) => excluir.has(d.numero))
+  const faltan = [...excluir].filter((n) => !excluidos.some((d) => d.numero === n))
+  if (faltan.length) { console.error(`✗ documentos a excluir que no están en el plan: ${faltan.join(', ')}`); process.exit(2) }
+  const dependientes = plan.documentos.filter((d) => d.depende.some((k) => excluidos.some((e) => k === `${e.tipo}:${e.numero}`)))
+  if (dependientes.length) { console.error(`✗ hay documentos que dependen de los excluidos: ${dependientes.map((d) => d.numero).join(', ')}`); process.exit(2) }
+  plan.resumen = resumirPlan(plan)
+  const hashEjecutado = hashPlan(plan)
+  const corto = autorizado.slice(0, 12)
+  guardar(`stel-aplicar-${corto}.json`, { leidoEn: stel.leidoEn, stel })
   const huellaAntes = await huellaEmpresa(sb, react.BT)
-  guardar(`respaldo-aplicar-${hash.slice(0, 12)}.json`, { generado: new Date().toISOString(), huella: huellaAntes, filas: await respaldoAfectado(sb, plan) })
-  const hechos = await ejecutarPlan(sb, plan, { autorizacion: { planHash: autorizado, confirmado: true }, log: (m) => console.log(m) })
+  const respaldo = await respaldoAfectado(sb, planCompleto)
+  const archivoRespaldo = guardar(`respaldo-aplicar-${corto}.json`, { generado: new Date().toISOString(), planAutorizado: autorizado, planEjecutado: hashEjecutado, excluidos: [...excluir], huella: huellaAntes, filas: respaldo })
+  const cuentaRespaldo = Object.fromEntries(Object.entries(respaldo).map(([t, f]) => [t, f.length]))
+  console.log('  SNAPSHOT OK:', JSON.stringify(Object.fromEntries(Object.entries(huellaAntes).map(([t, v]) => [t, v.filas]))))
+  console.log('  BACKUP OK:', archivoRespaldo, JSON.stringify(cuentaRespaldo))
+  console.log('  ROLLBACK PREPARADO: public.stel_revertir_reconciliacion(run) desde la bitácora + respaldo local')
+  console.log(`  EXCLUIDOS: ${[...excluir].join(', ') || 'ninguno'} · plan ejecutado ${hashEjecutado}`)
+  const hechos = await ejecutarPlan(sb, plan, {
+    autorizacion: { planHash: hashEjecutado, confirmado: true },
+    alIniciar: (run) => { console.log(`  RECONCILIATION_RUN_ID: ${run}`); guardar(`run-en-curso-${corto}.json`, { run, planAutorizado: autorizado, planEjecutado: hashEjecutado, inicio: new Date().toISOString() }) },
+    log: (m) => console.log(m),
+  })
   const huellaDespues = await huellaEmpresa(sb, react.BT)
   const invariantes = ['document_sequences', 'document_numbering_authority', 'stock_balances', 'stock_movements', 'stock_reservations', 'sales_audit']
   const rotos = invariantes.filter((t) => huellaAntes[t].hash !== huellaDespues[t].hash)
   const segundo = (await armarPlan(stel, aprobados)).plan
-  const informe = { run: hechos.run, hechos, invariantesRotos: rotos, segundaCorrida: { productos: segundo.productos.length, documentos: segundo.documentos.length, pendientesBorrado: segundo.pendientesBorrado.length, bloqueados: segundo.bloqueados.length } }
-  console.log(informe)
+  const informe = { run: hechos.run, planAutorizado: autorizado, planEjecutado: hashEjecutado, excluidos: [...excluir], resumenEjecutado: plan.resumen, hechos, invariantesRotos: rotos, huellaAntes, huellaDespues, segundaCorrida: { productos: segundo.productos.length, documentos: segundo.documentos.map((d) => d.numero), pendientesBorrado: segundo.pendientesBorrado.length, bloqueados: segundo.bloqueados.length } }
+  console.log(JSON.stringify({ run: informe.run, planEjecutado: hashEjecutado, hechos: { productos: hechos.productos, documentos: hechos.documentos, cambios: hechos.cambios, fallidos: hechos.fallidos, salteados: hechos.salteados }, invariantesRotos: rotos, segundaCorrida: informe.segundaCorrida }, null, 1))
   guardar(`aplicado-${hechos.run}.json`, informe)
   if (rotos.length || hechos.fallidos.length) process.exit(4)
 }
@@ -176,6 +204,108 @@ async function revertir() {
   console.log(`  revertidas ${n} entradas del run ${run}`)
 }
 
-const acciones = { dryrun, aplicar, revertir }
+/**
+ * Post-ejecución: documentos de STEL leídos AHORA (5 llamadas); clientes, ítems y
+ * padres del gate de `aplicar` (minutos antes). Auditoría completa, segundo dry run
+ * y comprobaciones puntuales contra el plan autorizado y el respaldo.
+ */
+async function verificar() {
+  const autorizado = arg('--plan-hash')
+  const corto = (autorizado ?? '').slice(0, 12)
+  const archivoStel = path.join(SALIDA, `stel-aplicar-${corto}.json`)
+  const archivoPlan = path.join(SALIDA, `plan-${corto}.json`)
+  const archivoRespaldo = path.join(SALIDA, `respaldo-aplicar-${corto}.json`)
+  for (const f of [archivoStel, archivoPlan, archivoRespaldo]) if (!fs.existsSync(f)) { console.error(`✗ falta ${path.relative(process.cwd(), f)}`); process.exit(2) }
+  const { stel: stelGate } = JSON.parse(fs.readFileSync(archivoStel, 'utf8'))
+  const planAutorizado = JSON.parse(fs.readFileSync(archivoPlan, 'utf8'))
+  const respaldo = JSON.parse(fs.readFileSync(archivoRespaldo, 'utf8')).filas
+
+  const cacheDir = path.resolve(`.stel-cache/e2-verificar-${Date.now()}`)
+  const c = crearCliente({ maxLlamadas: 12, usarCache: true, cacheDir, log: () => {} })
+  const docs = {}
+  try {
+    for (const [t, ruta] of [['quote', 'salesEstimates'], ['order', 'salesOrders'], ['delivery', 'salesDeliveryNotes']]) {
+      const { fechaStel } = await import('./lib/stel-api.mjs')
+      const lista = await c.todos(ruta, { 'start-date': fechaStel('2026-01-01T00:00:00Z'), sort: 'creation-date:asc' }, { limite: 200, maxPaginas: 10 })
+      // Mismo recorte que la auditoría: se reutiliza su normalización por id.
+      const porId = new Map([...stelGate.docs[t]].map((d) => [d.id, d]))
+      docs[t] = lista.map((d) => ({ ...(porId.get(d.id) ?? {}), ...recortar(d) }))
+    }
+  } finally {
+    fs.rmSync(cacheDir, { recursive: true, force: true })
+  }
+  const stel = { ...stelGate, leidoEn: new Date().toISOString(), docs }
+  const llamadas = c.llamadas()
+  const { plan: segundo, reco, react } = await armarPlan(stel, { borrados: [] })
+
+  const cuenta = (arr, fn) => arr.filter(fn).length
+  const verif = {}
+  // 32 monedas
+  const monedas = planAutorizado.documentos.filter((d) => d.operacion === 'update' && d.cabecera.currency_code)
+  const reactPorNumero = Object.fromEntries(['quote', 'order', 'delivery'].map((t) => [t, new Map(react.docs[t].map((d) => [d.number, d]))]))
+  verif.monedas = { esperadas: monedas.length, corregidas: cuenta(monedas, (d) => reactPorNumero[d.tipo].get(d.numero)?.currency_code === d.cabecera.currency_code.new), sinMonedaReactHoy: ['quote', 'order', 'delivery'].reduce((n, t) => n + cuenta(react.docs[t], (d) => !d.currency_code), 0) }
+  // 30 nuevos completos
+  const lineasPorDoc = {}
+  for (const [t, fk] of [['quote', 'quote_id'], ['order', 'order_id'], ['delivery', 'delivery_id']]) for (const l of react.lineas[t]) lineasPorDoc[`${t}:${l[fk]}`] = (lineasPorDoc[`${t}:${l[fk]}`] ?? 0) + 1
+  const nuevos = planAutorizado.documentos.filter((d) => d.operacion === 'insert')
+  const detalleNuevos = nuevos.map((d) => {
+    const r = reactPorNumero[d.tipo].get(d.numero)
+    const ok = Boolean(r) && r.external_id === d.stel_id && r.currency_code === d.cabecera.currency_code && Number(r.total) === d.cabecera.total && (lineasPorDoc[`${d.tipo}:${r.id}`] ?? 0) === d.lineas.insertar.length && Boolean(r.imported_at)
+    return { numero: d.numero, ok, lineas: r ? lineasPorDoc[`${d.tipo}:${r.id}`] ?? 0 : null, esperadas: d.lineas.insertar.length }
+  })
+  verif.documentosNuevos = { esperados: nuevos.length, completos: cuenta(detalleNuevos, (x) => x.ok), incompletos: detalleNuevos.filter((x) => !x.ok) }
+  // 595 renglones de remitos con precio
+  const lineasRem = new Map(react.lineas.delivery.map((l) => [l.id, l]))
+  const preciosRem = planAutorizado.documentos.filter((d) => d.tipo === 'delivery').flatMap((d) => d.lineas.actualizar.filter((l) => l.campos.unit_price))
+  verif.preciosRemitos = { esperados: preciosRem.length, conPrecioStel: cuenta(preciosRem, (l) => Number(lineasRem.get(l.id)?.unit_price) === l.campos.unit_price.new && Number(lineasRem.get(l.id)?.discount_pct) === (l.campos.discount_pct?.new ?? Number(lineasRem.get(l.id)?.discount_pct))) }
+  // 11 source_quote_id
+  const quotePorId = new Map(react.docs.quote.map((q) => [q.id, q.number]))
+  const directos = planAutorizado.documentos.filter((d) => d.operacion === 'update' && d.cabecera.source_quote_id)
+  verif.remitosDirectos = { esperados: directos.length, correctos: cuenta(directos, (d) => reactPorNumero.delivery.get(d.numero)?.source_quote_id === d.cabecera.source_quote_id.new), detalle: directos.map((d) => `${d.numero}→${quotePorId.get(reactPorNumero.delivery.get(d.numero)?.source_quote_id) ?? 'null'}`) }
+  // COTI02499
+  verif.coti02499 = reactPorNumero.quote.has('COTI02499')
+  // 8 renglones no autorizados
+  const pendientes = planAutorizado.pendientesBorrado
+  const tabla = { quote: 'sales_quote_lines', delivery: 'delivery_lines' }
+  const intactos = []
+  for (const p of pendientes) {
+    const antes = respaldo[tabla[p.tipo]].find((r) => r.id === p.react_linea_id)
+    const { data: ahora } = await sb.from(tabla[p.tipo]).select('*').eq('id', p.react_linea_id).maybeSingle()
+    intactos.push({ numero: p.numero, sku: p.sku, intacta: Boolean(ahora) && canonicoSimple(antes) === canonicoSimple(ahora) })
+  }
+  verif.renglonesNoAutorizados = { esperados: pendientes.length, intactos: cuenta(intactos, (x) => x.intacta), detalle: intactos }
+
+  const rp = reco.resumen
+  const informe = {
+    generado: new Date().toISOString(), llamadasStel: llamadas, stelDocumentosLeidosEn: stel.leidoEn,
+    auditoria: rp,
+    productos: { resumenPorLinea: reco.productos.resumenPorLinea, distintos: reco.productos.distintos, porResolucion: reco.productos.porResolucion, vinculadosPorIdStel: react.productos.filter((p) => p.external_source === 'stel').length },
+    segundoDryRun: { hash: hashPlan(segundo), resumen: segundo.resumen, documentos: segundo.documentos.map((d) => ({ numero: d.numero, cabecera: Object.keys(d.cabecera), lineas: { insertar: d.lineas.insertar.length, actualizar: d.lineas.actualizar.length } })), productos: segundo.productos.map((p) => `${p.op}:${p.sku}`), bloqueados: segundo.bloqueados, pendientesBorrado: segundo.pendientesBorrado.map((p) => `${p.numero}:${p.sku}`) },
+    verificaciones: verif,
+  }
+  const f = guardar(`verificacion-${corto}.json`, informe)
+  console.log(JSON.stringify({ ...informe, productos: { ...informe.productos }, segundoDryRun: { ...informe.segundoDryRun, resumen: undefined } }, null, 1))
+  console.log(`  detalle: ${f}`)
+}
+
+function recortar(d) {
+  return {
+    id: d.id, 'full-reference': d['full-reference'], date: d.date, 'creation-date': d['creation-date'], 'utc-last-modification-date': d['utc-last-modification-date'],
+    'account-id': d['account-id'], 'document-state-id': d['document-state-id'], 'parent-document-id': d['parent-document-id'] ?? null,
+    'parent-document-path': d['parent-document-path'] ?? null, title: d.title ?? null, 'currency-code': d['currency-code'] ?? null,
+    'currency-rate': d['currency-rate'] ?? null, 'discount-percentage': d['discount-percentage'], 'discount-total-amount': d['discount-total-amount'],
+    'subtotal-amount': d['subtotal-amount'], 'tax-total-amount': d['tax-total-amount'], 'total-amount': d['total-amount'], 'tax-breakdown': d['tax-breakdown'] ?? [],
+    'primary-tax-enabled': d['primary-tax-enabled'], 'income-tax-percentage': d['income-tax-percentage'] ?? null, deleted: d.deleted ?? false,
+    lines: (d.lines ?? []).map((l) => ({
+      id: l.id, order: l.order, 'line-type': l['line-type'], deleted: l.deleted, 'item-id': l['item-id'], 'item-path': l['item-path'],
+      'item-reference': l['item-reference'], 'item-name': l['item-name'], 'item-deleted': l['item-deleted'], units: l.units,
+      'item-base-price': l['item-base-price'], 'discount-percentage': l['discount-percentage'], 'total-amount': l['total-amount'],
+      'primary-tax-percentage': l['primary-tax-percentage'], 'parent-document-id': l['parent-document-id'] ?? null,
+    })),
+  }
+}
+const canonicoSimple = (o) => JSON.stringify(Object.keys(o ?? {}).sort().map((k) => [k, o[k]]))
+
+const acciones = { dryrun, aplicar, revertir, verificar }
 if (!acciones[comando]) { console.error('uso: dryrun | aplicar --plan-hash H --autorizo-reconciliacion-productiva | revertir --run ID --autorizo-reversion'); process.exit(1) }
 acciones[comando]().catch((e) => { console.error('✗', limpiar(e.message)); process.exit(1) })

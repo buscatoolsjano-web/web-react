@@ -267,3 +267,57 @@ Idénticas a las de la migración **sin** las líneas que mencionan `app.en_reco
 - `app.bloquear_pedido_cerrado`: quitar el primer `if app.en_reconciliacion_stel() then return new; end if;`.
 - `app.proteger_borrado_{cotizacion,pedido,entrega}`: quitar la variable `v_reconciliacion` y los
   `and not v_reconciliacion` de los dos `if` (histórico y ya emitido).
+
+## 13. Ejecución productiva (autorizada, 2026-09-15)
+
+Autorización del usuario: plan `e62de165c350699ccd14cce6bab6d4c9f4b0643573f81d8d5a30eeeb8e8ac4e8`, **sin** los 8
+borrados y **sin** tocar los 3 bloqueados. COTI02530 (bloqueado por estado regresivo) figuraba en el plan con
+id STEL + vínculo de 1 línea; por decisión explícita del usuario se **excluyó** del run.
+
+| Paso | Resultado |
+|---|---|
+| Gate | STEL leído 20:50 UTC (59 llamadas): plan = hash autorizado, exacto |
+| Snapshot / backup / rollback | Huella de 16 tablas; respaldo local de 2.182 filas afectadas (`scripts/output/e2/respaldo-aplicar-e62de165c350.json`); reversión por bitácora disponible |
+| RECONCILIATION_RUN_ID | `c5253205-5655-452e-ba53-61bbe775831e` (20:51:21 → 20:56:42 UTC, `finished`) |
+| EXECUTED_PLAN_HASH | `f4db57fe96f845b798aa287527635c86a2a9b355a0a9aa080c412ea4673fc127` (= autorizado − COTI02530) |
+| Productos | 53 creados (en «Pendiente de clasificación STEL», 26 con precio en Lista base), 711 vinculados, 1 categoría técnica |
+| Documentos | 30 insertados (16/4/10), 634 actualizados |
+| Líneas | 81 insertadas, 727 actualizadas (1.399 campos), 0 borradas |
+| Monedas / relaciones | 32 / 32 (14 quote→order, 7 order→delivery, 11 source_quote_id) |
+| Fallidos / salteados | 0 / 0 |
+
+**Validación post-ejecución** (documentos STEL releídos 20:58 UTC; STEL sin documentos nuevos desde el corte):
+
+| | STEL | React | Faltan | Cabecera | Líneas | Moneda | Total |
+|---|---|---|---|---|---|---|---|
+| Cotizaciones | 303 | 304 | 0 | 0 | 2 (COTI02489, COTI02516: borrados no autorizados) | 0 | 0 |
+| Pedidos | 170 | 170 | 0 | 0 | 0 | 0 | 0 |
+| Remitos | 192 | 192 | 0 | 0 | 1 (RT0000001405: borrados no autorizados) | 0 | 0 |
+
+- **React sólo:** COTI02499, que se conserva.
+- **Estado distinto:** 1 (COTI02530, bloqueado).
+- **Cliente ambiguo sin acción:** 1 (COTI02452).
+- **Productos:**
+  - 766 usados: 764 vinculados por id STEL y 2 bloqueados por nombre;
+  - 0 faltantes, 0 ambiguos, 0 vínculos incorrectos;
+  - 1 línea sin producto: la de COTI02530, excluido.
+
+Comprobaciones puntuales:
+- 32/32 monedas corregidas (0 documentos sin moneda en React);
+- 30/30 documentos nuevos completos (id STEL, moneda, total y cantidad de líneas);
+- 595/595 renglones de remitos con precio STEL;
+- 11/11 `source_quote_id` correctos;
+- COTI02499 intacta;
+- 8/8 renglones no autorizados intactos (fila idéntica al respaldo);
+- los 2 productos bloqueados y COTI02530 (cabecera y líneas) idénticos a la foto previa.
+
+**Invariantes:**
+- Idénticos al baseline: `document_sequences` (quote 2629, sales_order 1316, delivery 1424), `document_numbering_authority` (STEL ×3), `stock_movements`, `stock_balances`, clientes y categorías existentes.
+- 0 reservas, 0 eventos, 0 runs en curso.
+
+**Segundo dry run:** 0 acciones aplicables salvo las exceptuadas:
+- COTI02530 (excluido: id STEL + 1 línea);
+- los 8 borrados no autorizados;
+- los 3 bloqueados.
+
+CUTOVER_READY sigue **NO**.

@@ -344,6 +344,7 @@ export async function ejecutarPlan(sb, plan, o = {}) {
   const r = await sb.rpc('stel_reconciliacion_iniciar', { p_company: plan.empresa, p_plan_hash: hash, p_stel_read_at: plan.stelLeidoEn })
   if (r.error) throw new Error(`iniciar: ${r.error.message}`)
   const run = r.data
+  o.alIniciar?.(run, hash)
   const fallidos = new Map()
   const hechos = { run, productos: 0, documentos: 0, cambios: 0, fallidos: [], salteados: [] }
   const idInsertado = new Map()
@@ -362,7 +363,7 @@ export async function ejecutarPlan(sb, plan, o = {}) {
       if (x.error) { fallidos.set(`product:${p.stel_id}`, x.error.message); hechos.fallidos.push({ item: `product:${p.stel_id}`, sku: p.sku, error: x.error.message }); continue }
       hechos.productos++
       hechos.cambios += x.data.cambios
-      log(`  producto ${p.op} ${p.sku} → ${x.data.cambios}`)
+      if (hechos.productos % 100 === 0) log(`  productos procesados: ${hechos.productos}`)
     }
     for (const tipo of ['quote', 'order', 'delivery']) {
       for (const d of plan.documentos.filter((x) => x.tipo === tipo)) {
@@ -386,6 +387,7 @@ export async function ejecutarPlan(sb, plan, o = {}) {
         if (x.error) { fallidos.set(`${tipo}:${d.numero}`, x.error.message); hechos.fallidos.push({ item: `${tipo}:${d.numero}`, error: x.error.message }); log(`  ✗ ${d.numero}: ${x.error.message}`); continue }
         if (d.operacion === 'insert') idInsertado.set(`${tipo}:${d.numero}`, x.data.document_id)
         hechos.documentos++
+        if (hechos.documentos % 100 === 0) log(`  documentos procesados: ${hechos.documentos}`)
         hechos.cambios += x.data.cambios
       }
     }
