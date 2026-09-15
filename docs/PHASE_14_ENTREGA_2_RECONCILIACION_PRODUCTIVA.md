@@ -2,9 +2,9 @@
 
 > Esta entrega **implementa** el camino seguro para dejar correctos los datos históricos de Ventas de
 > Buscatools con STEL Order como fuente de verdad, y deja el **dry run final** listo para autorizar.
-> **No se ejecutó la reconciliación productiva.** STEL sigue siendo la autoridad de numeración; no se
-> tocaron `document_numbering_authority`, secuencias, stock, avisos, botones, Gmail ni STEL. Los datos
-> productivos quedaron idénticos (hash por tabla antes y después, § 9). Fecha: 2026-09-15.
+> La reconciliación productiva se ejecutó **después**, con autorización explícita del usuario (§ 13: run
+> `c5253205-…`). STEL sigue siendo la autoridad de numeración; no se tocaron `document_numbering_authority`,
+> secuencias, stock, avisos, botones, Gmail ni STEL. Fecha: 2026-09-15.
 
 ## 0. Resultado
 
