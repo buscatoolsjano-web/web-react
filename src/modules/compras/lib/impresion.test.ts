@@ -60,8 +60,8 @@ const lineaPedido = (cambios: Partial<LineaPedidoCompra> = {}): LineaPedidoCompr
 
 const recepcion = (cambios: Partial<RecepcionDetalle> = {}): RecepcionDetalle => ({
   id: 'r1',
-  numero: 'NEP00003',
-  serie: 'NEP',
+  numero: 'NTEP00003',
+  serie: 'NTEP',
   estado: 'confirmed',
   fecha: '2026-09-10',
   proveedorId: 's1',
@@ -116,7 +116,7 @@ const lineaFactura = (cambios: Partial<LineaFactura> = {}): LineaFactura => ({
   tratamientoImpuesto: 'vat_21',
   tasaImpuesto: 21,
   netoServidor: 1000,
-  recepcionNumero: 'NEP00003',
+  recepcionNumero: 'NTEP00003',
   pedidoNumero: 'PC00007',
   precioPedido: 100,
   tratamientoPedido: 'vat_21',
@@ -237,7 +237,7 @@ describe('imprimibleFactura', () => {
 
   it('cada línea dice de qué recepción vino', () => {
     const d = imprimibleFactura(factura(), [lineaFactura()], etiqueta)
-    expect(d.lineas[0]?.origen).toBe('NEP00003')
+    expect(d.lineas[0]?.origen).toBe('NTEP00003')
   })
 
   it('una línea libre no tiene origen y no se le inventa uno', () => {
@@ -259,7 +259,7 @@ describe('imprimibleFactura', () => {
   })
 
   it('lleva los relacionados que le pasen, sin ir a buscarlos sola', () => {
-    const d = imprimibleFactura(factura(), [], etiqueta, ['NEP00003', 'PC00007'])
-    expect(d.relacionados).toEqual(['NEP00003', 'PC00007'])
+    const d = imprimibleFactura(factura(), [], etiqueta, ['NTEP00003', 'PC00007'])
+    expect(d.relacionados).toEqual(['NTEP00003', 'PC00007'])
   })
 })

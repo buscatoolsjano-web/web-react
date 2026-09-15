@@ -10,8 +10,8 @@ describe('leerFiltros de recepciones', () => {
   })
 
   it('lee los seis filtros', () => {
-    const f = leer('q=NEP000&prov=p1&pedido=pc1&estado=confirmed&dep=d1&desde=2026-01-01&hasta=2026-12-31')
-    expect(f.q).toBe('NEP000')
+    const f = leer('q=NTEP000&prov=p1&pedido=pc1&estado=confirmed&dep=d1&desde=2026-01-01&hasta=2026-12-31')
+    expect(f.q).toBe('NTEP000')
     expect(f.proveedorId).toBe('p1')
     expect(f.pedidoId).toBe('pc1')
     expect(f.estado).toBe('confirmed')
@@ -43,7 +43,7 @@ describe('escribirFiltros de recepciones', () => {
 
   it('ida y vuelta: lo que se escribe se vuelve a leer igual', () => {
     const original = {
-      q: 'NEP00003',
+      q: 'NTEP00003',
       proveedorId: 'abc',
       pedidoId: 'def',
       estado: 'draft',

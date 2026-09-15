@@ -145,7 +145,7 @@ export function RecepcionesPage() {
         onClear={limpiar}
         search={
           <Field label="Buscar por número" hideLabel>
-            <Input type="search" placeholder="Número de recepción: NEP000…" value={texto} onChange={(e) => setTexto(e.target.value)} />
+            <Input type="search" placeholder="Número de recepción: NTEP000…" value={texto} onChange={(e) => setTexto(e.target.value)} />
           </Field>
         }
       >

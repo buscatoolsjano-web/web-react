@@ -66,7 +66,7 @@ await s.from('document_sequences').insert([
   { company_id: emp.id, doc_type: 'customer', prefix: 'CLI', padding: 5, next_number: 3, series_code: 'CLI', is_default: true },
   { company_id: emp.id, doc_type: 'supplier', prefix: 'PROV', padding: 5, next_number: 2, series_code: 'PROV', is_default: true },
   { company_id: emp.id, doc_type: 'purchase_order', prefix: 'PC', padding: 5, next_number: 10, series_code: 'PC', is_default: true },
-  { company_id: emp.id, doc_type: 'goods_receipt', prefix: 'NEP', padding: 5, next_number: 1, series_code: 'NEP', is_default: true },
+  { company_id: emp.id, doc_type: 'goods_receipt', prefix: 'NTEP', padding: 5, next_number: 1, series_code: 'NTEP', is_default: true },
 ])
 await s.from('customers').insert([
   { company_id: emp.id, legal_name: 'ZZ c5', legacy_ref: 'CLI00005' },

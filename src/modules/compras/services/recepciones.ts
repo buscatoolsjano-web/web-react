@@ -362,7 +362,8 @@ export async function crearRecepcion(
       purchase_order_id: d.pedidoId,
       warehouse_id: d.depositoId,
       number: numero,
-      series_code: 'NEP',
+      // La serie la pone la base (default de goods_receipts.series_code = NTEP,
+      // la misma que la secuencia): no se repite el prefijo en el cliente.
       status: 'draft',
       receipt_date: d.fecha,
       supplier_document: vacioANulo(d.documentoProveedor),

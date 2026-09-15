@@ -83,7 +83,7 @@ describe('los tres documentos del circuito', () => {
   })
 
   const unaRecepcion = (c: Partial<RecepcionListado> = {}): RecepcionListado => ({
-    id: 'r1', numero: 'NEP00003', fecha: '2026-09-10', proveedorId: 's1',
+    id: 'r1', numero: 'NTEP00003', fecha: '2026-09-10', proveedorId: 's1',
     proveedor: 'Herramientas del Sur S.A.', pedidoId: 'p1', pedidoNumero: 'PC00007',
     depositoId: 'd1', deposito: 'Principal', estado: 'confirmed', lineas: 3,
     unidades: 52, autor: 'Jano', ...c,

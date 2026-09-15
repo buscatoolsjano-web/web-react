@@ -67,7 +67,7 @@ describe('alertas', () => {
   it('formatea números con el relleno de la secuencia', () => {
     expect(formatearNumero({ prefijo: 'RT', padding: 10 }, 1426)).toBe('RT0000001426')
     expect(formatearNumero({ prefijo: 'PDV', padding: 5 }, 11292)).toBe('PDV11292')
-    expect(formatearNumero({ prefijo: 'NEP', padding: 5 }, null)).toBe('—')
+    expect(formatearNumero({ prefijo: 'NTEP', padding: 5 }, null)).toBe('—')
   })
   it('etiquetas de tipo conocidas y desconocidas', () => {
     expect(etiquetaTipo('quote')).toBe('Cotizaciones')

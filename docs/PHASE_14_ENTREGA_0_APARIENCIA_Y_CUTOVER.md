@@ -332,3 +332,24 @@ Residuos: 0 empresas y 0 usuarios `zz`, 0 huérfanos. Cambio de esquema: la colu
 | Plan de cutover y rollback | Definidos |
 | Cutover NO ejecutado | PASS (autoridad STEL ×3 intacta) |
 | Limpieza | PASS (0 `zz`, navegador sin sesión ni storage, servidor local detenido, temporales borrados) |
+
+## F. Prefijos de numeración confirmados (2026-09-15)
+
+| Documento | Prefijo | Estado |
+|---|---|---|
+| Proveedor | PROV | ya estaba |
+| Nota de entrega de proveedor (recepción) | **NTEP** | **cambiado desde NEP** |
+| Cotización | COTI | ya estaba |
+| Pedido de venta | PDV | ya estaba |
+| Nota de entrega | RT | ya estaba |
+
+- Migración `fase14_e0_prefijo_ntep` (`docs/database/PHASE_14_ENTREGA_0_PREFIJO_NTEP.sql`, con rollback):
+  secuencia `goods_receipt` de Buscatools y Torquetools de NEP a NTEP (padding 5, próximo 1: el primer
+  número será NTEP00001) y default de `goods_receipts.series_code` en NTEP. Con guarda: sólo se aplica
+  si no hay recepciones (había 0).
+- La app deja de mandar `series_code` al crear una recepción: usa el default de la base. Buscador:
+  «Número de recepción: NTEP000…».
+- Verificado con un login real en una empresa `zz` descartable: número NTEP00001, serie NTEP, diagnóstico
+  de Numeración con prefijo NTEP en estado OK; limpieza completa (0 `zz`, 0 auditoría huérfana).
+- Sin cambios en cotizaciones, pedidos, remitos, autoridad STEL ni secuencias de ventas.
+  **CUTOVER_READY = NO** se mantiene.
