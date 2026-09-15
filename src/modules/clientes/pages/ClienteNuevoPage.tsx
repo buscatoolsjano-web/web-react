@@ -1,10 +1,15 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { DocSection } from '@/components/document/DocSection'
+import doc from '@/components/document/Document.module.css'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { LinkButton } from '@/components/ui/LinkButton'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { FormularioCliente } from '../components/FormularioCliente'
 import { permisosDe } from '../lib/permisos'
 import { CLIENTE_VACIO } from '../lib/validacion'
 import { useCrearCliente } from '../hooks/useEdicionClientes'
-import styles from './ClienteDetallePage.module.css'
+import styles from './ClienteNuevoPage.module.css'
 
 /**
  * Alta de cliente.
@@ -19,34 +24,31 @@ export function ClienteNuevoPage() {
   const permisos = permisosDe(activa)
   const crear = useCrearCliente()
   const navegar = useNavigate()
+  const volver = { to: '/clientes', label: 'Clientes' }
 
   if (!permisos.crearCliente) {
     return (
-      <div className={styles.page}>
-        <Link to="/clientes" className={styles.volver}>
-          ← Clientes
-        </Link>
-        <p className={styles.nota}>Tu rol no puede dar de alta clientes.</p>
+      <div className={doc.pagina}>
+        <PageHeader title="Nuevo cliente" back={volver} />
+        <EmptyState
+          icon="users"
+          title="Tu rol no puede dar de alta clientes"
+          description="El alta es de administradores, empleados y vendedores."
+          action={<LinkButton to="/clientes">Volver al listado</LinkButton>}
+        />
       </div>
     )
   }
 
   return (
-    <div className={styles.page}>
-      <Link to="/clientes" className={styles.volver}>
-        ← Clientes
-      </Link>
+    <div className={`${doc.pagina} ${styles.pagina}`}>
+      <PageHeader
+        back={volver}
+        title="Nuevo cliente"
+        subtitle="Los contactos y las direcciones se cargan después, desde la ficha."
+      />
 
-      <header className={styles.encabezado}>
-        <div className={styles.identidad}>
-          <h1 className={styles.titulo}>Nuevo cliente</h1>
-          <p className={styles.subtitulo}>
-            Los contactos y las direcciones se cargan después, desde la ficha.
-          </p>
-        </div>
-      </header>
-
-      <section className={styles.bloque}>
+      <DocSection>
         <FormularioCliente
           valores={CLIENTE_VACIO}
           guardando={crear.isPending}
@@ -59,7 +61,7 @@ export function ClienteNuevoPage() {
           }
           onCancelar={() => void navegar('/clientes')}
         />
-      </section>
+      </DocSection>
     </div>
   )
 }

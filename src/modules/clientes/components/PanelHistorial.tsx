@@ -1,4 +1,11 @@
 import { Link } from 'react-router-dom'
+import { DocSection } from '@/components/document/DocSection'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { Badge } from '@/components/ui/Badge'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { Icon } from '@/components/icons/Icon'
+import tabla from '@/components/tables/Tabla.module.css'
 import { GraficoActividad } from './GraficoActividad'
 import { useActividadMensual, useTotalesPorMoneda } from '../hooks/useResumen'
 import { etiquetaDeEstado } from '../lib/estados'
@@ -42,6 +49,9 @@ const PLURAL: Record<TipoDeDocumento, string> = {
  * 2. Los totales van **por moneda**, y los calcula el servidor. El panel del
  *    legacy sumaba ARS, USD y EUR en un solo importe; y sumar lo que trajo la
  *    pantalla daría un total que depende de cuántas filas se pidieron.
+ *
+ * Fase 13 · E4: tres secciones (importes, actividad, documentos) con la tabla
+ * común y el estado como `Badge`.
  */
 export function PanelHistorial({ clienteId, documentos, cargando }: PanelHistorialProps) {
   const totales = useTotalesPorMoneda(clienteId)
@@ -71,77 +81,82 @@ export function PanelHistorial({ clienteId, documentos, cargando }: PanelHistori
     return a.moneda.localeCompare(b.moneda)
   })
 
-  if (cargando) return <p className={styles.nota}>Cargando historial…</p>
+  if (cargando) return <SkeletonRows rows={4} columns={5} label="Cargando historial…" />
 
   if (documentos.length === 0) {
-    return <p className={styles.nota}>Este cliente todavía no tiene documentos.</p>
+    return (
+      <EmptyState
+        compact
+        headingLevel={3}
+        icon="inbox"
+        title="Sin documentos"
+        description="Este cliente todavía no tiene cotizaciones, pedidos ni notas de entrega."
+      />
+    )
   }
 
   return (
     <div className={styles.wrap}>
-      <section>
-        <h3 className={styles.h3}>Importes por moneda</h3>
+      <DocSection title="Importes por moneda">
         {totales.error ? (
-          <p className={styles.nota} role="alert">
-            {totales.error.message}
-          </p>
+          <Alert tone="danger" role="alert" title="No se pudieron calcular los importes">
+            <p>{totales.error.message}</p>
+          </Alert>
         ) : (
           <>
             <div className={styles.resumen}>
               {monedas.map((m) => (
-                <div key={m.moneda ?? 'sin'} className={styles.moneda}>
-                  <span className={styles.monedaEtiqueta}>{m.moneda ?? 'Sin moneda'}</span>
+                <dl key={m.moneda ?? 'sin'} className={styles.moneda}>
+                  <dt className={styles.monedaEtiqueta}>{m.moneda ?? 'Sin moneda'}</dt>
                   {(m.filas ?? []).map((f) => (
-                    <span key={f.tipo} className={styles.linea}>
+                    <dd key={f.tipo} className={styles.linea}>
                       <span className={styles.lineaTipo}>{ETIQUETA[f.tipo]}</span>
-                      <span className={styles.lineaValor}>
-                        {formatearImporte(f.importe, m.moneda)}
-                      </span>
+                      <span className={styles.lineaValor}>{formatearImporte(f.importe, m.moneda)}</span>
                       <span className={styles.lineaDocs}>
-                        {f.documentos} doc{f.documentos === 1 ? '' : 's'}
+                        {f.documentos} {f.documentos === 1 ? 'documento' : 'documentos'}
                         {f.sinImporte > 0 ? ` · ${f.sinImporte} sin importe` : ''}
                       </span>
-                    </span>
+                    </dd>
                   ))}
-                </div>
+                </dl>
               ))}
             </div>
             <p className={styles.aclaracion}>
-              Los importes no se suman entre monedas: cada una va por su lado y no se
-              convierte nada. Los totales los calcula el servidor sobre todos los
-              documentos, no sobre los que muestra la tabla.
+              Los importes no se suman entre monedas: cada una va por su lado y no se convierte nada. Los totales los calcula el
+              servidor sobre todos los documentos, no sobre los que muestra la tabla.
             </p>
           </>
         )}
-      </section>
+      </DocSection>
 
-      <section>
-        <h3 className={styles.h3}>Últimos doce meses</h3>
+      <DocSection title="Últimos doce meses">
         <GraficoActividad filas={actividad.data ?? []} cargando={actividad.isPending} />
-      </section>
+      </DocSection>
 
-      <section>
-        <h3 className={styles.h3}>Documentos</h3>
-        <div className={styles.atajos}>
-          {(['cotizacion', 'pedido', 'entrega'] as const).map((tipo) =>
-            porTipo[tipo] > 0 ? (
-              <Link key={tipo} className={styles.atajo} to={`${RUTA[tipo]}?cliente=${clienteId}`}>
-                Ver {porTipo[tipo]} {porTipo[tipo] === 1 ? ETIQUETA[tipo].toLowerCase() : PLURAL[tipo]}{' '}
-                en Ventas →
-              </Link>
-            ) : null,
-          )}
-        </div>
-
-        <div className={styles.scroll}>
-          <table className={styles.tabla}>
+      <DocSection
+        title="Documentos"
+        actions={
+          <span className={styles.atajos}>
+            {(['cotizacion', 'pedido', 'entrega'] as const).map((tipo) =>
+              porTipo[tipo] > 0 ? (
+                <Link key={tipo} className={styles.atajo} to={`${RUTA[tipo]}?cliente=${clienteId}`}>
+                  Ver {porTipo[tipo]} {porTipo[tipo] === 1 ? ETIQUETA[tipo].toLowerCase() : PLURAL[tipo]} en Ventas
+                  <Icon name="arrow-right" size={16} />
+                </Link>
+              ) : null,
+            )}
+          </span>
+        }
+      >
+        <div className={tabla.contenedor}>
+          <table className={tabla.tabla}>
             <thead>
               <tr>
                 <th scope="col">Documento</th>
                 <th scope="col">Número</th>
                 <th scope="col">Fecha</th>
                 <th scope="col">Estado</th>
-                <th scope="col" className={styles.derecha}>
+                <th scope="col" className={tabla.num}>
                   Total
                 </th>
               </tr>
@@ -149,21 +164,23 @@ export function PanelHistorial({ clienteId, documentos, cargando }: PanelHistori
             <tbody>
               {documentos.map((d) => (
                 <tr key={`${d.tipo}-${d.id}`}>
-                  <td>{ETIQUETA[d.tipo]}</td>
-                  <td>
-                    <Link className={styles.enlace} to={`${RUTA[d.tipo]}/${d.id}`}>
+                  <td className={tabla.nowrap}>{ETIQUETA[d.tipo]}</td>
+                  <td className={tabla.nowrap}>
+                    <Link className={tabla.enlace} to={`${RUTA[d.tipo]}/${d.id}`}>
                       {d.numero}
                     </Link>
                   </td>
-                  <td className={styles.nowrap}>{formatearFecha(d.fecha)}</td>
-                  <td>{etiquetaDeEstado(d.tipo, d.estado)}</td>
-                  <td className={styles.derecha}>{formatearImporte(d.total, d.moneda)}</td>
+                  <td className={tabla.nowrap}>{formatearFecha(d.fecha)}</td>
+                  <td>
+                    <Badge tone="neutral">{etiquetaDeEstado(d.tipo, d.estado)}</Badge>
+                  </td>
+                  <td className={tabla.num}>{formatearImporte(d.total, d.moneda)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </section>
+      </DocSection>
     </div>
   )
 }

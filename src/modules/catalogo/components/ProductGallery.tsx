@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { IconButton } from '@/components/ui/IconButton'
+import { useModalAccesible } from '@/components/modals/useModalAccesible'
 import { ImagenProducto } from './ImagenProducto'
 import type { ImagenProducto as Imagen } from '../types'
 import styles from './ProductGallery.module.css'
@@ -76,13 +79,13 @@ export function ProductGallery({ imagenes, nombre }: ProductGalleryProps) {
 
       {diagramas.length > 0 && (
         <section className={styles.diagramas}>
-          <h3 className={styles.tituloDiagramas}>
+          <h2 className={styles.tituloDiagramas}>
             Diagrama de catálogo
             <span className={styles.aclaracion}>
               {' '}
               — página del catálogo del fabricante, no una foto del producto
             </span>
-          </h3>
+          </h2>
           <div className={styles.miniaturas}>
             {diagramas.map((d) => (
               <button
@@ -114,9 +117,10 @@ export function ProductGallery({ imagenes, nombre }: ProductGalleryProps) {
 /**
  * Visor ampliado.
  *
- * Cierra con Esc y con click en el fondo; navega con las flechas. El foco
- * queda dentro mientras está abierto y vuelve al botón que lo abrió, que es
- * lo mínimo para que se pueda usar sin mouse.
+ * Fase 13 · E4: usa el mismo hook de accesibilidad que los diálogos
+ * (`useModalAccesible`): se monta en un portal, deja el resto de la app
+ * `inert`, atrapa el foco, cierra con Escape y devuelve el foco al botón que lo
+ * abrió. Además navega con las flechas y cierra con click en el fondo.
  */
 function Lightbox({
   imagenes,
@@ -130,8 +134,11 @@ function Lightbox({
   onCerrar: () => void
 }) {
   const [i, setI] = useState(Math.max(inicial, 0))
+  const caja = useRef<HTMLDivElement>(null)
   const cerrarRef = useRef<HTMLButtonElement>(null)
   const hayVarias = imagenes.length > 1
+
+  useModalAccesible(caja, { onClose: onCerrar, initialFocus: () => cerrarRef.current })
 
   const anterior = useCallback(
     () => setI((v) => (v - 1 + imagenes.length) % imagenes.length),
@@ -140,61 +147,47 @@ function Lightbox({
   const siguiente = useCallback(() => setI((v) => (v + 1) % imagenes.length), [imagenes.length])
 
   useEffect(() => {
-    cerrarRef.current?.focus()
+    if (!hayVarias) return
     const alTecla = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCerrar()
-      if (e.key === 'ArrowLeft' && hayVarias) anterior()
-      if (e.key === 'ArrowRight' && hayVarias) siguiente()
+      if (e.key === 'ArrowLeft') anterior()
+      if (e.key === 'ArrowRight') siguiente()
     }
     document.addEventListener('keydown', alTecla)
-    // El fondo no debe scrollear mientras el visor está abierto.
-    const overflowPrevio = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', alTecla)
-      document.body.style.overflow = overflowPrevio
-    }
-  }, [onCerrar, anterior, siguiente, hayVarias])
+    return () => document.removeEventListener('keydown', alTecla)
+  }, [anterior, siguiente, hayVarias])
 
   const img = imagenes[i]
   if (!img) return null
 
-  return (
-    <div
-      className={styles.lightbox}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Imagen de ${nombre}`}
-      onClick={onCerrar}
-    >
-      <div className={styles.lightboxCuerpo} onClick={(e) => e.stopPropagation()}>
-        <button ref={cerrarRef} type="button" className={styles.cerrar} onClick={onCerrar}>
-          <span aria-hidden="true">✕</span>
-          <span className="sr-only">Cerrar</span>
-        </button>
+  return createPortal(
+    <div className={styles.lightbox} onClick={onCerrar}>
+      <div
+        ref={caja}
+        className={styles.lightboxCuerpo}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Imagen de ${nombre}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <IconButton ref={cerrarRef} icon="x" aria-label="Cerrar" variant="secondary" className={styles.cerrar} onClick={onCerrar} />
 
         {hayVarias && (
-          <button type="button" className={styles.anterior} onClick={anterior}>
-            <span aria-hidden="true">‹</span>
-            <span className="sr-only">Anterior</span>
-          </button>
+          <IconButton icon="chevron-left" aria-label="Imagen anterior" variant="secondary" className={styles.anterior} onClick={anterior} />
         )}
 
         <img className={styles.lightboxImg} src={img.url} alt={nombre} />
 
         {hayVarias && (
-          <button type="button" className={styles.siguiente} onClick={siguiente}>
-            <span aria-hidden="true">›</span>
-            <span className="sr-only">Siguiente</span>
-          </button>
+          <IconButton icon="chevron-right" aria-label="Imagen siguiente" variant="secondary" className={styles.siguiente} onClick={siguiente} />
         )}
 
         {hayVarias && (
-          <p className={styles.contador}>
-            {i + 1} / {imagenes.length}
+          <p className={styles.contador} aria-live="polite">
+            {i + 1} de {imagenes.length}
           </p>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

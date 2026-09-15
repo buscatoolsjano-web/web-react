@@ -1,4 +1,6 @@
 import { useResumenCliente } from '../hooks/useResumen'
+import { Alert } from '@/components/feedback/Alert'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import { formatearFecha } from '../lib/formato'
 import styles from './PanelResumen.module.css'
 
@@ -7,7 +9,9 @@ export interface PanelResumenProps {
 }
 
 /**
- * El panel rápido, arriba de las pestañas.
+ * El panel rápido, arriba de las pestañas (Fase 13 · E4: dentro de la sección
+ * «Actividad»; la ayuda de cada métrica va como title y también para lectores
+ * de pantalla, que un title solo no alcanza).
  *
  * En el legacy se abría desde el listado (`abrirClienteQuickPanel`); acá vive
  * en la ficha, que es donde se termina mirando al cliente. Son los mismos
@@ -22,13 +26,13 @@ export function PanelResumen({ clienteId }: PanelResumenProps) {
 
   if (error) {
     return (
-      <p className={styles.error} role="alert">
-        No se pudo leer el resumen: {error.message}
-      </p>
+      <Alert tone="danger" role="alert" title="No se pudo leer el resumen">
+        <p>{error.message}</p>
+      </Alert>
     )
   }
 
-  if (isPending) return <p className={styles.nota}>Cargando el resumen…</p>
+  if (isPending) return <SkeletonRows rows={2} columns={3} label="Cargando el resumen…" />
   if (!data) return null
 
   const metricas: { etiqueta: string; valor: string; ayuda?: string }[] = [
@@ -57,7 +61,10 @@ export function PanelResumen({ clienteId }: PanelResumenProps) {
       {metricas.map((m) => (
         <div key={m.etiqueta} className={styles.metrica} title={m.ayuda}>
           <dt className={styles.etiqueta}>{m.etiqueta}</dt>
-          <dd className={styles.valor}>{m.valor}</dd>
+          <dd className={styles.valor}>
+            {m.valor}
+            {m.ayuda ? <span className="sr-only">. {m.ayuda}</span> : null}
+          </dd>
         </div>
       ))}
     </dl>

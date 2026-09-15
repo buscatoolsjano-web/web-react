@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { FilterBar } from '@/components/filters/FilterBar'
+import { Field } from '@/components/forms/Field'
+import { Checkbox, Input, Select } from '@/components/forms/controls'
 import { useRubros } from '../hooks/useClientes'
 import type { FiltrosClientes as Filtros } from '../types'
-import styles from './FiltrosClientes.module.css'
 
 export interface FiltrosClientesProps {
   filtros: Filtros
@@ -18,14 +20,10 @@ export interface FiltrosClientesProps {
  * un solo campo —es lo que la gente usa— y quedan aparte los dos que no son
  * texto: el rubro y la cola de revisión.
  *
- * Todos van al servidor.
+ * Todos van al servidor. Fase 13 · E4: sobre el `FilterBar` común; en mobile
+ * la búsqueda queda a la vista y el resto se pliega.
  */
-export function FiltrosClientes({
-  filtros,
-  hayFiltros,
-  onAplicar,
-  onLimpiar,
-}: FiltrosClientesProps) {
+export function FiltrosClientes({ filtros, hayFiltros, onAplicar, onLimpiar }: FiltrosClientesProps) {
   const rubros = useRubros()
 
   // Se escribe letra por letra: se espera a que la persona pare de tipear
@@ -48,56 +46,49 @@ export function FiltrosClientes({
     return () => clearTimeout(id)
   }, [texto, filtros.q, onAplicar])
 
+  const activos = (filtros.rubro ? 1 : 0) + (filtros.soloRevision ? 1 : 0) + (filtros.incluirBajas ? 1 : 0)
+
   return (
-    <div className={styles.barra}>
-      <input
-        type="search"
-        className={styles.buscador}
-        placeholder="Nombre, referencia, CUIT, email o dominio…"
-        value={texto}
-        onChange={(e) => setTexto(e.target.value)}
-        aria-label="Buscar cliente"
+    <FilterBar
+      label="Buscar y filtrar clientes"
+      activeCount={activos}
+      hasFilters={hayFiltros}
+      onClear={onLimpiar}
+      search={
+        <Field label="Buscar cliente" hideLabel>
+          <Input
+            type="search"
+            placeholder="Nombre, referencia, CUIT, email o dominio…"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+          />
+        </Field>
+      }
+    >
+      {(rubros.data ?? []).length > 0 ? (
+        <Field label="Rubro" hideLabel>
+          <Select value={filtros.rubro ?? ''} onChange={(e) => onAplicar({ rubro: e.target.value || null })}>
+            <option value="">Todos los rubros</option>
+            {(rubros.data ?? []).map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      ) : null}
+
+      <Checkbox
+        label="Sólo los marcados para revisión"
+        checked={filtros.soloRevision}
+        onChange={(e) => onAplicar({ soloRevision: e.target.checked })}
       />
 
-      {(rubros.data ?? []).length > 0 ? (
-        <select
-          className={styles.select}
-          value={filtros.rubro ?? ''}
-          onChange={(e) => onAplicar({ rubro: e.target.value || null })}
-          aria-label="Rubro"
-        >
-          <option value="">Todos los rubros</option>
-          {(rubros.data ?? []).map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
-      ) : null}
-
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={filtros.soloRevision}
-          onChange={(e) => onAplicar({ soloRevision: e.target.checked })}
-        />
-        Sólo los marcados para revisión
-      </label>
-
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={filtros.incluirBajas}
-          onChange={(e) => onAplicar({ incluirBajas: e.target.checked })}
-        />
-        Incluir dados de baja
-      </label>
-
-      {hayFiltros ? (
-        <button type="button" className={styles.limpiar} onClick={onLimpiar}>
-          Limpiar
-        </button>
-      ) : null}
-    </div>
+      <Checkbox
+        label="Incluir dados de baja"
+        checked={filtros.incluirBajas}
+        onChange={(e) => onAplicar({ incluirBajas: e.target.checked })}
+      />
+    </FilterBar>
   )
 }

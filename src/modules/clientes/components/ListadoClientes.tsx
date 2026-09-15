@@ -1,5 +1,9 @@
 import { Link } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { Badge } from '@/components/ui/Badge'
+import { Icon } from '@/components/icons/Icon'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import tabla from '@/components/tables/Tabla.module.css'
 import { formatearCuit, nombreVisible } from '../lib/formato'
 import type { ClienteListado, DireccionOrden, OrdenClientes } from '../types'
 import styles from './ListadoClientes.module.css'
@@ -22,22 +26,23 @@ const COLUMNAS: { clave: OrdenClientes; etiqueta: string }[] = [
   { clave: 'rubro', etiqueta: 'Rubro' },
 ]
 
-function flecha(activa: boolean, direccion: DireccionOrden): string {
-  if (!activa) return ''
-  return direccion === 'asc' ? ' ↑' : ' ↓'
-}
-
 /** Los emails de un cliente son varios; en la tabla entra el primero. */
 function resumenEmails(emails: readonly string[]): { texto: string; resto: number } {
   if (emails.length === 0) return { texto: '—', resto: 0 }
   return { texto: emails[0]!, resto: emails.length - 1 }
 }
 
+const observaciones = (n: number) => `${n} ${n === 1 ? 'observación' : 'observaciones'}`
+
 /**
  * El listado del maestro.
  *
  * Tabla en desktop y tarjetas en mobile: la tabla del legacy tiene ocho
  * columnas y en 390px obliga a hacer scroll horizontal de toda la página.
+ * Hasta 1279 px (con la barra lateral, ~720 px útiles a 1024) el nombre
+ * comercial pasa debajo de la razón social y el dominio deja de ser columna
+ * (se ve en la ficha); hasta 1023 px el rubro también pasa debajo del nombre.
+ * El vacío y el error los resuelve la página.
  */
 export function ListadoClientes({
   filas,
@@ -52,37 +57,50 @@ export function ListadoClientes({
   const isMobile = useIsMobile()
   const todosMarcados = filas.length > 0 && filas.every((c) => seleccionados.has(c.id))
 
-  if (!cargando && filas.length === 0) {
-    return <p className={styles.vacio}>No hay clientes que coincidan con estos filtros.</p>
+  if (cargando && filas.length === 0) {
+    return (
+      <div className={tabla.contenedor}>
+        <SkeletonRows rows={6} columns={isMobile ? 2 : 6} label="Cargando clientes…" />
+      </div>
+    )
   }
+  if (filas.length === 0) return null
 
   if (isMobile) {
     return (
-      <ul className={styles.tarjetas}>
+      <ul className={tabla.tarjetas}>
         {filas.map((c) => {
           const emails = resumenEmails(c.emails)
           return (
             <li key={c.id}>
-              <Link to={`/clientes/${c.id}`} className={styles.tarjeta}>
-                <span className={styles.tarjetaNombre}>
-                  {nombreVisible(c.razonSocial, c.nombreComercial)}
+              <Link to={`/clientes/${c.id}`} className={tabla.tarjeta}>
+                <span className={tabla.tarjetaTitulo}>{nombreVisible(c.razonSocial, c.nombreComercial)}</span>
+                <span className={tabla.tarjetaDerecha}>
+                  {c.referencia ? <span className={styles.referencia}>{c.referencia}</span> : null}
                 </span>
-                {c.referencia ? (
-                  <span className={styles.tarjetaRef}>{c.referencia}</span>
-                ) : null}
-                <span className={styles.tarjetaDato}>{formatearCuit(c.cuit)}</span>
-                <span className={styles.tarjetaDato}>
+                {c.nombreComercial ? <span className={tabla.tarjetaTexto}>{c.razonSocial}</span> : null}
+                <span className={tabla.tarjetaMeta}>
+                  {formatearCuit(c.cuit)}
+                  {c.rubro ? ` · ${c.rubro}` : ''}
+                </span>
+                <span className={`${tabla.tarjetaMeta} ${styles.email}`}>
                   {emails.texto}
                   {emails.resto > 0 ? ` +${emails.resto}` : ''}
                 </span>
-                {c.rubro ? <span className={styles.tarjetaDato}>{c.rubro}</span> : null}
-                {c.necesitaRevision ? (
-                  <span className={styles.marca} title={c.motivosRevision.join(', ')}>
-                    ⚠ {c.motivosRevision.length} observación
-                    {c.motivosRevision.length === 1 ? '' : 'es'}
+                {c.necesitaRevision || c.dadoDeBaja ? (
+                  <span className={styles.estadosTarjeta}>
+                    {c.necesitaRevision ? (
+                      <Badge tone="warning" dot>
+                        {observaciones(c.motivosRevision.length)}
+                      </Badge>
+                    ) : null}
+                    {c.dadoDeBaja ? (
+                      <Badge tone="danger" outline>
+                        Dado de baja
+                      </Badge>
+                    ) : null}
                   </span>
                 ) : null}
-                {c.dadoDeBaja ? <span className={styles.baja}>Dado de baja</span> : null}
               </Link>
             </li>
           )
@@ -92,11 +110,11 @@ export function ListadoClientes({
   }
 
   return (
-    <div className={styles.scroll}>
-      <table className={styles.tabla}>
+    <div className={tabla.contenedor}>
+      <table className={tabla.tabla}>
         <thead>
           <tr>
-            <th scope="col" className={styles.check}>
+            <th scope="col" className={tabla.check}>
               <input
                 type="checkbox"
                 checked={todosMarcados}
@@ -104,31 +122,37 @@ export function ListadoClientes({
                 onChange={(e) => onSeleccionarTodos(e.target.checked)}
               />
             </th>
-            {COLUMNAS.map((c) => (
-              <th
-                key={c.clave}
-                scope="col"
-                aria-sort={
-                  orden === c.clave ? (direccion === 'asc' ? 'ascending' : 'descending') : 'none'
-                }
-              >
-                <button type="button" className={styles.thBoton} onClick={() => onOrdenar(c.clave)}>
-                  {c.etiqueta}
-                  {flecha(orden === c.clave, direccion)}
-                </button>
-              </th>
-            ))}
-            <th scope="col">Nombre</th>
+            {COLUMNAS.map((c) => {
+              const activa = orden === c.clave
+              return (
+                <th
+                  key={c.clave}
+                  scope="col"
+                  className={c.clave === 'rubro' ? styles.soloMedio : undefined}
+                  aria-sort={activa ? (direccion === 'asc' ? 'ascending' : 'descending') : 'none'}
+                >
+                  <button type="button" className={tabla.orden} onClick={() => onOrdenar(c.clave)}>
+                    {c.etiqueta}
+                    {activa ? <Icon name={direccion === 'asc' ? 'arrow-up' : 'arrow-down'} size={16} className={tabla.ordenIcono} /> : null}
+                  </button>
+                </th>
+              )
+            })}
+            <th scope="col" className={styles.soloAncho}>
+              Nombre
+            </th>
             <th scope="col">Email</th>
-            <th scope="col">Dominio</th>
+            <th scope="col" className={styles.soloAncho}>
+              Dominio
+            </th>
           </tr>
         </thead>
         <tbody>
           {filas.map((c) => {
             const emails = resumenEmails(c.emails)
             return (
-              <tr key={c.id} className={c.dadoDeBaja ? styles.filaBaja : undefined}>
-                <td className={styles.check}>
+              <tr key={c.id} className={seleccionados.has(c.id) ? tabla.seleccionada : undefined}>
+                <td className={tabla.check}>
                   <input
                     type="checkbox"
                     checked={seleccionados.has(c.id)}
@@ -136,31 +160,38 @@ export function ListadoClientes({
                     onChange={(e) => onSeleccionar(c.id, e.target.checked)}
                   />
                 </td>
-                <td className={styles.referencia}>{c.referencia ?? '—'}</td>
-                <td>
-                  <Link to={`/clientes/${c.id}`} className={styles.enlace}>
+                <td className={`${tabla.nowrap} ${tabla.secundario}`}>{c.referencia ?? '—'}</td>
+                <td className={styles.colNombre}>
+                  <Link to={`/clientes/${c.id}`} className={c.dadoDeBaja ? `${tabla.enlace} ${styles.baja}` : tabla.enlace}>
                     {c.razonSocial}
                   </Link>
-                  {c.necesitaRevision ? (
-                    <span className={styles.marca} title={c.motivosRevision.join(', ')}>
-                      {' '}
-                      ⚠
+                  {c.nombreComercial ? <span className={styles.soloTablet}>{c.nombreComercial}</span> : null}
+                  {c.rubro ? <span className={styles.soloCompacto}>{c.rubro}</span> : null}
+                  {c.necesitaRevision || c.dadoDeBaja ? (
+                    <span className={styles.estados}>
+                      {c.necesitaRevision ? (
+                        <Badge tone="warning" dot>
+                          <span title={c.motivosRevision.join(', ')}>{observaciones(c.motivosRevision.length)}</span>
+                        </Badge>
+                      ) : null}
+                      {c.dadoDeBaja ? (
+                        <Badge tone="danger" outline>
+                          Dado de baja
+                        </Badge>
+                      ) : null}
                     </span>
                   ) : null}
-                  {c.dadoDeBaja ? <span className={styles.baja}> · dado de baja</span> : null}
                 </td>
-                <td className={styles.mono}>{formatearCuit(c.cuit)}</td>
-                <td>{c.rubro ?? '—'}</td>
-                <td>{c.nombreComercial ?? '—'}</td>
-                <td className={styles.emails} title={c.emails.join(', ')}>
+                <td className={`${tabla.nowrap} ${styles.cuit}`}>{formatearCuit(c.cuit)}</td>
+                <td className={styles.soloMedio}>{c.rubro ?? <span className={tabla.secundario}>—</span>}</td>
+                <td className={`${tabla.textoCorto} ${styles.soloAncho}`}>{c.nombreComercial ?? <span className={tabla.secundario}>—</span>}</td>
+                <td className={styles.recorte} title={c.emails.join(', ')}>
                   {emails.texto}
-                  {emails.resto > 0 ? <span className={styles.resto}> +{emails.resto}</span> : null}
+                  {emails.resto > 0 ? <span className={tabla.secundario}> +{emails.resto}</span> : null}
                 </td>
-                <td className={styles.emails} title={c.dominios.join(', ')}>
-                  {c.dominios[0] ?? '—'}
-                  {c.dominios.length > 1 ? (
-                    <span className={styles.resto}> +{c.dominios.length - 1}</span>
-                  ) : null}
+                <td className={`${styles.recorte} ${styles.soloAncho}`} title={c.dominios.join(', ')}>
+                  {c.dominios[0] ?? <span className={tabla.secundario}>—</span>}
+                  {c.dominios.length > 1 ? <span className={tabla.secundario}> +{c.dominios.length - 1}</span> : null}
                 </td>
               </tr>
             )

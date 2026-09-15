@@ -1,0 +1,4 @@
+/* Un formulario no se estira a 1200 px: se lee mejor angosto. */
+.pagina {
+  max-width: 880px;
+}

@@ -1,4 +1,13 @@
 import { useId, useState } from 'react'
+import { Field } from '@/components/forms/Field'
+import { Checkbox, Input } from '@/components/forms/controls'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { Icon } from '@/components/icons/Icon'
 import { useContactosEdicion } from '../hooks/useEdicionClientes'
 import { CONTACTO_VACIO, validarContacto, type DatosContacto } from '../lib/validacion'
 import type { ContactoCliente } from '../types'
@@ -32,7 +41,8 @@ function aDatos(c: ContactoCliente): DatosContacto {
  * los tenía el legacy y por qué renombrar un cliente le perdía la agenda.
  *
  * Un contacto **sí** se borra de verdad: no tiene documentos colgando. El que
- * no se borra nunca es el cliente.
+ * no se borra nunca es el cliente. Fase 13 · E4: el borrado pide confirmación
+ * en un `ConfirmDialog` (antes, «Confirmar borrado / No» en línea).
  */
 export function EditorContactos({
   clienteId,
@@ -45,7 +55,7 @@ export function EditorContactos({
   const [editando, setEditando] = useState<string | null>(null)
   const [datos, setDatos] = useState<DatosContacto>(CONTACTO_VACIO)
   const [errores, setErrores] = useState<string[]>([])
-  const [confirmando, setConfirmando] = useState<string | null>(null)
+  const [confirmando, setConfirmando] = useState<ContactoCliente | null>(null)
 
   const abrirNuevo = () => {
     setDatos({ ...CONTACTO_VACIO, esPrincipal: contactos.length === 0 })
@@ -75,70 +85,58 @@ export function EditorContactos({
   const campo = (
     clave: keyof DatosContacto,
     etiqueta: string,
-    extra: React.InputHTMLAttributes<HTMLInputElement> = {},
-  ) => (
-    <div className={styles.campo}>
-      <label className={styles.etiqueta} htmlFor={`${id}-${clave}`}>
-        {etiqueta}
-      </label>
-      <input
-        id={`${id}-${clave}`}
-        className={styles.control}
-        value={String(datos[clave] ?? '')}
-        onChange={(e) => setDatos({ ...datos, [clave]: e.target.value })}
-        {...extra}
-      />
-    </div>
-  )
+    extra: React.InputHTMLAttributes<HTMLInputElement> & { requerido?: boolean } = {},
+  ) => {
+    const { requerido = false, ...resto } = extra
+    return (
+      <Field label={etiqueta} required={requerido} id={`${id}-${clave}`}>
+        <Input value={String(datos[clave] ?? '')} onChange={(e) => setDatos({ ...datos, [clave]: e.target.value })} {...resto} />
+      </Field>
+    )
+  }
 
   /** El mismo formulario para el alta y para la edición. */
   const formulario = (etiquetaBoton: string) => (
     <form className={styles.form} onSubmit={guardar} noValidate>
-      {campo('nombre', 'Nombre *', { required: true, autoFocus: true })}
-      {campo('cargo', 'Cargo')}
-      {campo('email', 'Email', { type: 'email' })}
-      {campo('telefono', 'Teléfono')}
-      {campo('fax', 'Fax')}
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={datos.esPrincipal}
-          onChange={(e) => setDatos({ ...datos, esPrincipal: e.target.checked })}
-        />
-        Contacto principal
-      </label>
-      {errores.map((m) => (
-        <p key={m} className={styles.error} role="alert">
-          {m}
-        </p>
-      ))}
-      {errorAlGuardar ? (
-        <p className={styles.error} role="alert">
-          {errorAlGuardar}
-        </p>
+      <div className={styles.grilla}>
+        {campo('nombre', 'Nombre', { requerido: true, autoFocus: true })}
+        {campo('cargo', 'Cargo')}
+        {campo('email', 'Email', { type: 'email' })}
+        {campo('telefono', 'Teléfono', { type: 'tel' })}
+        {campo('fax', 'Fax')}
+      </div>
+      <Checkbox label="Contacto principal" checked={datos.esPrincipal} onChange={(e) => setDatos({ ...datos, esPrincipal: e.target.checked })} />
+      {errores.length > 0 || errorAlGuardar ? (
+        <Alert tone="danger" role="alert" title={errorAlGuardar ? 'No se pudo guardar' : 'Revisá el contacto'}>
+          {errores.map((m) => (
+            <p key={m}>{m}</p>
+          ))}
+          {errorAlGuardar ? <p>{errorAlGuardar}</p> : null}
+        </Alert>
       ) : null}
       <div className={styles.acciones}>
-        <button type="submit" className={styles.primario} disabled={guardando}>
+        <Button type="submit" variant="primary" loading={guardando}>
           {guardando ? 'Guardando…' : etiquetaBoton}
-        </button>
-        <button
-          type="button"
-          className={styles.secundario}
-          onClick={() => setEditando(null)}
-          disabled={guardando}
-        >
+        </Button>
+        <Button variant="ghost" onClick={() => setEditando(null)} disabled={guardando}>
           Cancelar
-        </button>
+        </Button>
       </div>
     </form>
   )
 
-  if (cargando) return <p className={styles.nota}>Cargando contactos…</p>
+  if (cargando) return <SkeletonRows rows={3} columns={2} label="Cargando contactos…" />
 
   return (
     <div className={styles.wrap}>
       {contactos.length === 0 && editando === null ? (
-        <p className={styles.nota}>Este cliente no tiene contactos cargados.</p>
+        <EmptyState
+          compact
+          headingLevel={3}
+          icon="users"
+          title="Sin contactos cargados"
+          description="Las personas de la empresa se cargan acá: nombre, cargo, email y teléfono."
+        />
       ) : null}
 
       <ul className={styles.lista}>
@@ -151,79 +149,71 @@ export function EditorContactos({
             <li key={c.id} className={styles.item}>
               <div className={styles.cabecera}>
                 <span className={styles.nombre}>{c.nombre}</span>
-                {c.esPrincipal ? <span className={styles.principal}>Principal</span> : null}
+                {c.esPrincipal ? <Badge tone="brand">Principal</Badge> : null}
               </div>
-              {c.cargo ? <span className={styles.cargo}>{c.cargo}</span> : null}
+              {c.cargo ? <span className={styles.secundario}>{c.cargo}</span> : null}
               <div className={styles.datos}>
                 {c.email ? (
                   <a className={styles.enlace} href={`mailto:${c.email}`}>
+                    <Icon name="mail" size={16} />
                     {c.email}
                   </a>
                 ) : null}
-                {c.telefono ? <span className={styles.dato}>{c.telefono}</span> : null}
-                {c.fax ? <span className={styles.dato}>fax {c.fax}</span> : null}
+                {c.telefono ? (
+                  <span className={styles.dato}>
+                    <Icon name="phone" size={16} />
+                    {c.telefono}
+                  </span>
+                ) : null}
+                {c.fax ? <span className={styles.dato}>Fax {c.fax}</span> : null}
               </div>
               {c.notas ? <p className={styles.notas}>{c.notas}</p> : null}
               {puedeEditar ? (
                 <div className={styles.acciones}>
-                  <button
-                    type="button"
-                    className={styles.secundario}
-                    onClick={() => abrirEdicion(c)}
-                  >
+                  <Button variant="secondary" size="sm" icon={<Icon name="edit" size={16} />} onClick={() => abrirEdicion(c)}>
                     Editar
-                  </button>
-                  {confirmando === c.id ? (
-                    <>
-                      <button
-                        type="button"
-                        className={styles.peligro}
-                        disabled={borrar.isPending}
-                        onClick={() =>
-                          borrar.mutate(c.id, { onSuccess: () => setConfirmando(null) })
-                        }
-                      >
-                        {borrar.isPending ? 'Borrando…' : 'Confirmar borrado'}
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.secundario}
-                        onClick={() => setConfirmando(null)}
-                      >
-                        No
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      className={styles.secundario}
-                      onClick={() => setConfirmando(c.id)}
-                    >
-                      Borrar
-                    </button>
-                  )}
+                  </Button>
+                  <Button variant="ghost" size="sm" className={styles.peligro} icon={<Icon name="trash" size={16} />} onClick={() => setConfirmando(c)}>
+                    Borrar
+                  </Button>
                 </div>
               ) : null}
             </li>
           ),
         )}
 
-        {editando === 'nuevo' ? (
-          <li className={styles.itemForm}>{formulario('Agregar contacto')}</li>
-        ) : null}
+        {editando === 'nuevo' ? <li className={styles.itemForm}>{formulario('Agregar contacto')}</li> : null}
       </ul>
 
       {borrar.error ? (
-        <p className={styles.error} role="alert">
-          {borrar.error.message}
-        </p>
+        <Alert tone="danger" role="alert" title="No se pudo borrar el contacto">
+          <p>{borrar.error.message}</p>
+        </Alert>
       ) : null}
 
       {puedeEditar && editando === null ? (
-        <button type="button" className={styles.primario} onClick={abrirNuevo}>
-          + Agregar contacto
-        </button>
+        <Button variant="secondary" className={styles.agregar} icon={<Icon name="plus" size={16} />} onClick={abrirNuevo}>
+          Agregar contacto
+        </Button>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmando !== null}
+        tone="danger"
+        title={`¿Borrar el contacto ${confirmando?.nombre ?? ''}?`}
+        description="Se borra de la ficha del cliente. No se puede deshacer."
+        confirmLabel="Borrar contacto"
+        cancelLabel="Volver"
+        busy={borrar.isPending}
+        onConfirm={() => {
+          if (!confirmando) return
+          borrar.mutate(confirmando.id, {
+            onSuccess: () => setConfirmando(null),
+            onError: () => setConfirmando(null),
+          })
+        }}
+        onCancel={() => setConfirmando(null)}
+      />
     </div>
   )
 }

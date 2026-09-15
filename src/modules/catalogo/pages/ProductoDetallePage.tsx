@@ -1,5 +1,12 @@
-import { Link, useParams } from 'react-router-dom'
-import { StatusMessage } from '@/components/ui/StatusMessage'
+import { useParams } from 'react-router-dom'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { DocSection, MetaList, Missing, type MetaItem } from '@/components/document/DocSection'
+import doc from '@/components/document/Document.module.css'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Badge } from '@/components/ui/Badge'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Spinner } from '@/components/ui/Spinner'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { DisponibilidadBadge, PrecioCelda, StockCelda } from '../components/Celdas'
 import { ListaAtributos } from '../components/ListaAtributos'
@@ -27,117 +34,119 @@ export function ProductoDetallePage() {
 
   const { porDefecto, cargando: listasCargando } = useListasDePrecios(companyId)
   const { data: definiciones = [] } = useDefinicionesDeAtributos(companyId)
-  const { data: producto, isPending, error } = useProducto(sku, porDefecto?.id ?? null, !listasCargando)
+  const { data: producto, isPending, isFetching, error, refetch } = useProducto(sku, porDefecto?.id ?? null, !listasCargando)
   const { data: disponibilidad } = useDisponibilidad(producto ? [producto.id] : [])
 
-  if (isPending) return <StatusMessage tono="pending" titulo="Cargando producto…" />
+  const volver = { to: '/catalogo', label: 'Catálogo' }
+
+  if (isPending) {
+    return (
+      <div className={styles.cargando}>
+        <Spinner label="Cargando producto…" />
+      </div>
+    )
+  }
 
   if (error) {
     return (
-      <StatusMessage
-        tono="error"
-        titulo="No se pudo cargar el producto"
-        detalle={error instanceof Error ? error.message : String(error)}
-      />
+      <div className={doc.pagina}>
+        <PageHeader title="Producto" back={volver} />
+        <ErrorState
+          title="No se pudo cargar el producto."
+          description={error instanceof Error ? error.message : String(error)}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+        />
+      </div>
     )
   }
 
   if (!producto) {
     return (
-      <div className={styles.page}>
-        <StatusMessage
-          tono="error"
-          titulo={`No existe el producto ${sku ?? ''}`}
-          detalle={`No se encontró en ${activa?.companyName ?? 'esta empresa'}.`}
+      <div className={doc.pagina}>
+        <PageHeader title="Producto" back={volver} />
+        <EmptyState
+          icon="package"
+          title={`No existe el producto ${sku ?? ''}`}
+          description={`No se encontró en ${activa?.companyName ?? 'esta empresa'}.`}
+          action={<LinkButton to="/catalogo">Volver al catálogo</LinkButton>}
         />
-        <Link className={styles.volver} to="/catalogo">
-          ← Volver al catálogo
-        </Link>
       </div>
     )
   }
 
-  return (
-    <div className={styles.page}>
-      <Link className={styles.volver} to="/catalogo">
-        ← Volver al catálogo
-      </Link>
+  // La ficha muestra sólo lo cargado, como antes; si no hay nada, lo dice.
+  const ficha: (MetaItem | null)[] = [
+    producto.modelo ? { label: 'Modelo', value: producto.modelo } : null,
+    producto.tipo ? { label: 'Tipo', value: producto.tipo } : null,
+    producto.origen ? { label: 'Origen', value: producto.origen } : null,
+    producto.ncm ? { label: 'NCM', value: producto.ncm } : null,
+    producto.pesoG !== null ? { label: 'Peso', value: `${formatearCantidad(producto.pesoG)} g` } : null,
+    producto.volumenCm3 !== null ? { label: 'Volumen', value: `${formatearCantidad(producto.volumenCm3)} cm³` } : null,
+  ]
+  const hayFicha = ficha.some(Boolean)
 
-      <header className={styles.encabezado}>
-        <code className={styles.sku}>{producto.sku}</code>
-        <h1 className={styles.titulo}>{producto.nombre}</h1>
-        <p className={styles.meta}>
-          {producto.marca?.nombre ?? 'Sin marca'}
-          {producto.categoria && ` · ${producto.categoria.nombre}`}
-          {producto.serie && ` · Serie ${producto.serie}`}
-        </p>
-        <div className={styles.badges}>
-          {producto.esKit && <span className={styles.badge}>Kit</span>}
-          {producto.necesitaRevision && (
-            <span className={styles.badgeAviso}>Datos a revisar</span>
-          )}
-        </div>
-      </header>
+  return (
+    <div className={doc.pagina}>
+      <PageHeader
+        back={volver}
+        title={producto.nombre}
+        subtitle={
+          <>
+            <code className={styles.sku}>{producto.sku}</code>
+            {' · '}
+            {producto.marca?.nombre ?? 'Sin marca'}
+            {producto.categoria ? ` · ${producto.categoria.nombre}` : ''}
+            {producto.serie ? ` · Serie ${producto.serie}` : ''}
+          </>
+        }
+        status={
+          producto.esKit || producto.necesitaRevision ? (
+            <>
+              {producto.esKit ? <Badge tone="info">Kit</Badge> : null}
+              {producto.necesitaRevision ? (
+                <Badge tone="warning" dot>
+                  Datos a revisar
+                </Badge>
+              ) : null}
+            </>
+          ) : undefined
+        }
+      />
 
       <div className={styles.principal}>
         <ProductGallery imagenes={producto.imagenes} nombre={producto.nombre} />
 
-        <div className={styles.destacados}>
-        <div className={styles.dato}>
-          <span className={styles.datoEtiqueta}>Precio</span>
-          <PrecioCelda monto={producto.precio} moneda={porDefecto?.moneda ?? null} />
-        </div>
-        <div className={styles.dato}>
-          <span className={styles.datoEtiqueta}>
-            {esInterno ? 'Stock (real / virtual)' : 'Disponibilidad'}
-          </span>
-          {esInterno ? (
-            <StockCelda stock={producto.stock} />
-          ) : (
-            <DisponibilidadBadge disponible={disponibilidad?.get(producto.id) ?? false} />
-          )}
-        </div>
+        <div className={styles.resumen}>
+          <dl className={styles.destacados}>
+            <div className={styles.dato}>
+              <dt className={styles.datoEtiqueta}>Precio{porDefecto ? ` · ${porDefecto.nombre}` : ''}</dt>
+              <dd className={styles.datoValor}>
+                <PrecioCelda monto={producto.precio} moneda={porDefecto?.moneda ?? null} />
+              </dd>
+            </div>
+            <div className={styles.dato}>
+              <dt className={styles.datoEtiqueta}>{esInterno ? 'Stock (real / virtual)' : 'Disponibilidad'}</dt>
+              <dd className={styles.datoValor}>
+                {esInterno ? (
+                  <StockCelda stock={producto.stock} />
+                ) : (
+                  <DisponibilidadBadge disponible={disponibilidad?.get(producto.id) ?? false} />
+                )}
+              </dd>
+            </div>
+          </dl>
+          {producto.descripcion ? <p className={styles.descripcion}>{producto.descripcion}</p> : null}
         </div>
       </div>
 
-      {producto.descripcion && <p className={styles.descripcion}>{producto.descripcion}</p>}
-
-      <section className={styles.seccion}>
-        <h2 className={styles.seccionTitulo}>Características</h2>
+      <DocSection title="Características">
         <ListaAtributos atributos={producto.atributos} definiciones={definiciones} />
-      </section>
+      </DocSection>
 
-      <section className={styles.seccion}>
-        <h2 className={styles.seccionTitulo}>Ficha</h2>
-        <dl className={styles.ficha}>
-          <Fila etiqueta="Modelo" valor={producto.modelo} />
-          <Fila etiqueta="Tipo" valor={producto.tipo} />
-          <Fila etiqueta="Origen" valor={producto.origen} />
-          <Fila etiqueta="NCM" valor={producto.ncm} />
-          <Fila
-            etiqueta="Peso"
-            valor={producto.pesoG === null ? null : `${formatearCantidad(producto.pesoG)} g`}
-          />
-          <Fila
-            etiqueta="Volumen"
-            valor={
-              producto.volumenCm3 === null
-                ? null
-                : `${formatearCantidad(producto.volumenCm3)} cm³`
-            }
-          />
-        </dl>
-      </section>
-    </div>
-  )
-}
-
-function Fila({ etiqueta, valor }: { etiqueta: string; valor: string | null }) {
-  if (!valor) return null
-  return (
-    <div className={styles.fichaItem}>
-      <dt className={styles.fichaEtiqueta}>{etiqueta}</dt>
-      <dd className={styles.fichaValor}>{valor}</dd>
+      <DocSection title="Ficha">
+        {hayFicha ? <MetaList items={ficha} /> : <Missing>Sin datos de ficha cargados.</Missing>}
+      </DocSection>
     </div>
   )
 }

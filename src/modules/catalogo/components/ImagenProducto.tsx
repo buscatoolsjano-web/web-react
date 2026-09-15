@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Icon } from '@/components/icons/Icon'
 import type { ImagenProducto as Imagen } from '../types'
 import styles from './ImagenProducto.module.css'
 
@@ -25,6 +26,10 @@ export interface ImagenProductoProps {
  * miniatura y las de apexbits no tienen ninguna. Derivarla a ciegas dejaría
  * rota la mitad de las imágenes.
  *
+ * Sin imagen se ve un ícono propio (decorativo, `aria-hidden`) y el texto
+ * «Sin imagen» queda para lectores de pantalla. Antes era el glifo `▣`, con
+ * contraste bajo y sin semántica.
+ *
  * La caja tiene proporción fija por CSS, así que el alto está reservado
  * antes de que la imagen cargue y el listado no salta (CLS).
  */
@@ -38,9 +43,7 @@ export function ImagenProducto({ imagen, alt, tamano = 'thumb', className }: Ima
   if (src === null || falloOriginal) {
     return (
       <div className={[styles.caja, styles.vacia, className].filter(Boolean).join(' ')}>
-        <span className={styles.icono} aria-hidden="true">
-          ▣
-        </span>
+        <Icon name="image" size={tamano === 'full' ? 32 : 20} className={styles.icono} />
         <span className="sr-only">Sin imagen</span>
       </div>
     )

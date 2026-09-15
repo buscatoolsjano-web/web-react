@@ -37,7 +37,7 @@
 .chipActivo {
   border: 1px solid var(--primary);
   background: var(--primary);
-  color: #fff;
+  color: var(--color-on-primary);
 }
 
 .chip:focus-visible,
@@ -111,7 +111,7 @@
 
 .summary {
   cursor: pointer;
-  color: var(--primary);
+  color: var(--color-primary-text);
   min-height: 44px;
   display: flex;
   align-items: center;

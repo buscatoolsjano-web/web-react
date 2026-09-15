@@ -1,155 +1,84 @@
 .wrap {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  display: grid;
+  gap: var(--space-4);
   min-width: 0;
 }
 
 .resumen {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: var(--space-3);
 }
 
-/* Una caja por moneda. Nunca hay una caja "total": sumar ARS con USD no
-   significa nada, y el panel del legacy lo hacía. */
 .moneda {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-alt);
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
   padding: var(--space-3);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
 }
 
 .monedaEtiqueta {
-  font-size: var(--text-xs);
-  color: var(--text-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
 }
 
-.monedaTotal {
-  font-weight: 700;
+.linea {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 var(--space-3);
+  margin: 0;
+}
+
+.lineaTipo {
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.lineaValor {
+  font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
+  text-align: right;
 }
 
-.monedaDocs {
+.lineaDocs {
+  grid-column: 1 / -1;
   font-size: var(--text-xs);
-  color: var(--text-soft);
+  color: var(--color-text-muted);
 }
 
 .aclaracion {
-  margin: 0;
+  margin: var(--space-3) 0 0;
   font-size: var(--text-xs);
-  color: var(--text-muted);
+  color: var(--color-text-soft);
 }
 
 .atajos {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--space-1) var(--space-3);
 }
 
 .atajo {
-  font-size: var(--text-sm);
-  color: var(--primary);
-  text-decoration: none;
-  min-height: 44px;
   display: inline-flex;
   align-items: center;
+  gap: var(--space-1);
+  min-height: var(--touch-target);
+  color: var(--color-primary-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
 }
 
 .atajo:hover {
   text-decoration: underline;
 }
 
-.scroll {
-  overflow-x: auto;
-  border: 1px solid var(--border);
+.atajo:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
   border-radius: var(--radius-sm);
-}
-
-.tabla {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-sm);
-}
-
-.tabla th,
-.tabla td {
-  padding: var(--space-2) var(--space-3);
-  text-align: left;
-  border-bottom: 1px solid var(--border);
-}
-
-.tabla thead th {
-  background: var(--surface-alt);
-  color: var(--text-soft);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-}
-
-.tabla tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.enlace {
-  color: var(--primary);
-  font-weight: 600;
-  text-decoration: none;
-  font-variant-numeric: tabular-nums;
-}
-
-.enlace:hover {
-  text-decoration: underline;
-}
-
-.derecha {
-  text-align: right;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.nowrap {
-  white-space: nowrap;
-}
-
-.nota {
-  color: var(--text-soft);
-  margin: 0;
-}
-
-/* Dentro de cada caja de moneda, una línea por tipo de documento. */
-.linea {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0 var(--space-2);
-  font-size: var(--text-sm);
-  margin-top: var(--space-1);
-}
-
-.lineaTipo {
-  color: var(--text-soft);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.lineaValor {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.lineaDocs {
-  grid-column: 1 / -1;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
 }

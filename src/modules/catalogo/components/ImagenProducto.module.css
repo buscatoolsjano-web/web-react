@@ -5,8 +5,8 @@
   aspect-ratio: 1 / 1;
   width: 100%;
   overflow: hidden;
-  border-radius: var(--radius);
-  background: var(--surface-soft, #f4f4f5);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -22,11 +22,10 @@
 }
 
 .vacia {
-  border: 1px dashed var(--border);
+  border: 1px dashed var(--color-border-medium);
 }
 
+/* Sin opacidad: el ícono es decorativo, pero se tiene que ver (≥ 3:1). */
 .icono {
-  font-size: 1.5rem;
-  color: var(--text-soft);
-  opacity: 0.5;
+  color: var(--color-text-muted);
 }

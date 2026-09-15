@@ -1,25 +1,31 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
-import { StatusMessage } from '@/components/ui/StatusMessage'
+import { useEffect, useMemo, useState } from 'react'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { FilterBar } from '@/components/filters/FilterBar'
+import { Field } from '@/components/forms/Field'
+import { Input, Select } from '@/components/forms/controls'
+import { Button } from '@/components/ui/Button'
+import { Spinner } from '@/components/ui/Spinner'
+import { Icon } from '@/components/icons/Icon'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Pagination } from '@/components/tables/Pagination'
+import { contar } from '@/components/tables/rango'
+import doc from '@/components/document/Document.module.css'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { PanelFacetas } from '../components/PanelFacetas'
-import { ImagenProducto } from '../components/ImagenProducto'
-import { Paginador } from '../components/Paginador'
-import { PrecioCelda, DisponibilidadBadge, StockCelda } from '../components/Celdas'
-import { construirColumnas } from '../components/columnas'
+import { FiltrosActivos, PanelFacetas } from '../components/PanelFacetas'
+import { ListadoProductos } from '../components/ListadoProductos'
 import { useFacetas, useListasDePrecios } from '../hooks/useCatalogoFacetas'
 import { useDisponibilidad, useProductos } from '../hooks/useProductos'
 import { useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
 import { contarFiltrosActivos } from '../lib/planDeConsulta'
 import { debePropagarBusqueda } from '../lib/busquedaDiferida'
-import { atributosDestacados } from '../lib/destacados'
-import { OPCIONES_POR_PAGINA, type ProductoListado } from '../types'
+import { OPCIONES_POR_PAGINA } from '../types'
 import styles from './CatalogoPage.module.css'
 
+const PRODUCTO = { singular: 'producto', plural: 'productos' } as const
+
 export function CatalogoPage() {
-  const navigate = useNavigate()
   const { activa } = useEmpresa()
   const { filtros, actualizar, limpiar } = useFiltrosCatalogo()
 
@@ -80,211 +86,125 @@ export function CatalogoPage() {
     [facetas],
   )
 
-  const { data, isPending, isFetching, error } = useProductos(filtros, listaEfectiva?.id ?? null, !listasCargando)
+  const { data, isPending, isFetching, error, refetch } = useProductos(filtros, listaEfectiva?.id ?? null, !listasCargando)
   const productos = useMemo(() => data?.productos ?? [], [data])
   const total = data?.total ?? 0
 
   const idsPagina = useMemo(() => productos.map((p) => p.id), [productos])
-
-  // `navigate` devuelve una promesa en React Router 7; no hay nada que
-  // esperar acá, así que se descarta explícitamente.
-  const abrirProducto = useCallback(
-    (sku: string) => {
-      void navigate(`/catalogo/${encodeURIComponent(sku)}`)
-    },
-    [navigate],
-  )
   const { data: disponibilidad } = useDisponibilidad(idsPagina)
 
-  const columnas = useMemo(
-    () =>
-      construirColumnas({
-        esInterno,
-        moneda: listaEfectiva?.moneda ?? null,
-        disponibilidad,
-      }),
-    [esInterno, listaEfectiva, disponibilidad],
-  )
-
   const activos = contarFiltrosActivos(filtros)
-
-  if (!activa) {
-    return <StatusMessage tono="pending" titulo="Cargando empresa…" />
+  const hayFiltros = activos > 0 || filtros.q !== ''
+  const limpiarTodo = () => {
+    limpiar()
+    setTextoInput('')
   }
 
-  return (
-    <div className={styles.page}>
-      <header className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>Catálogo</h1>
-          <p className={styles.subtitulo}>
-            {activa.companyName} · {activa.rol}
-            {listaEfectiva && ` · ${listaEfectiva.nombre}`}
-          </p>
-        </div>
-      </header>
-
-      <div className={styles.barra}>
-        <input
-          className={styles.buscador}
-          type="search"
-          value={textoInput}
-          onChange={(e) => setTextoInput(e.target.value)}
-          placeholder="Buscar por SKU o nombre…"
-          aria-label="Buscar productos"
-        />
-
-        {puedeElegir && (
-          <label className={styles.control}>
-            <span className="sr-only">Lista de precios</span>
-            <select
-              className={styles.select}
-              value={listaEfectiva?.id ?? ''}
-              onChange={(e) => setListaElegida(e.target.value)}
-            >
-              {listas.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-
-        <label className={styles.control}>
-          <span className="sr-only">Productos por página</span>
-          <select
-            className={styles.select}
-            value={filtros.porPagina}
-            onChange={(e) => actualizar({ porPagina: Number(e.target.value) })}
-          >
-            {OPCIONES_POR_PAGINA.map((n) => (
-              <option key={n} value={n}>
-                {n} por página
-              </option>
-            ))}
-          </select>
-        </label>
-
+  if (!activa) {
+    return (
+      <div className={styles.cargando}>
+        <Spinner label="Cargando empresa…" />
       </div>
+    )
+  }
 
-      <PanelFacetas
-        filtros={filtros}
-        facetas={facetas}
-        cargando={facetasCargando}
-        onCambiar={actualizar}
-        onLimpiar={() => {
-          limpiar()
-          setTextoInput('')
-        }}
+  const vacio = !isPending && !error && productos.length === 0
+  const moneda = listaEfectiva?.moneda ?? null
+
+  return (
+    <div className={doc.listado}>
+      <PageHeader
+        title="Catálogo"
+        subtitle={
+          <>
+            {isPending ? 'Cargando…' : contar(total, PRODUCTO)}
+            {listaEfectiva ? ` · ${listaEfectiva.nombre}` : ''}
+          </>
+        }
       />
 
-      <div className={styles.cuerpo}>
-        <section className={styles.resultados}>
-          {error && (
-            <StatusMessage
-              tono="error"
-              titulo="No se pudo cargar el catálogo"
-              detalle={error instanceof Error ? error.message : String(error)}
-            />
-          )}
-
-          {!error && (
-            <>
-              <ResponsiveTable
-                columns={columnas}
-                rows={productos}
-                rowKey={(p) => p.id}
-                isLoading={isPending}
-                emptyMessage={
-                  activos > 0 || filtros.q
-                    ? 'Ningún producto coincide con la búsqueda. Probá quitar filtros.'
-                    : 'No hay productos cargados en esta empresa.'
-                }
-                onRowClick={(p) => abrirProducto(p.sku)}
-                renderCard={(p) => (
-                  <TarjetaProducto
-                    producto={p}
-                    unidades={unidades}
-                    esInterno={esInterno}
-                    moneda={listaEfectiva?.moneda ?? null}
-                    disponible={disponibilidad?.get(p.id) ?? false}
-                    onAbrir={() => abrirProducto(p.sku)}
-                  />
-                )}
+      <FilterBar
+        label="Buscar y filtrar productos"
+        activeCount={activos}
+        search={
+          <div className={styles.busqueda}>
+            <Field label="Buscar productos" hideLabel className={styles.buscador}>
+              <Input
+                type="search"
+                value={textoInput}
+                onChange={(e) => setTextoInput(e.target.value)}
+                placeholder="Buscar por SKU o nombre…"
               />
-
-              <Paginador
-                pagina={filtros.pagina}
-                porPagina={filtros.porPagina}
-                total={total}
-                cargando={isFetching}
-                onIr={(pagina) => actualizar({ pagina })}
-              />
-            </>
-          )}
-        </section>
-      </div>
-    </div>
-  )
-}
-
-/**
- * Card mobile. Reproduce la del legacy: SKU, nombre, marca, precio y
- * stock/disponibilidad, con toda la card clickeable.
- */
-function TarjetaProducto({
-  producto,
-  unidades,
-  esInterno,
-  moneda,
-  disponible,
-  onAbrir,
-}: {
-  producto: ProductoListado
-  unidades: ReadonlyMap<string, string | null>
-  esInterno: boolean
-  moneda: string | null
-  disponible: boolean
-  onAbrir: () => void
-}) {
-  // Uno o dos atributos, no quince. Cuáles salen de los datos del propio
-  // producto en el orden en que vienen: no hay una lista de casos por
-  // categoría en el código.
-  const destacados = atributosDestacados(producto.atributos, 2, unidades)
-
-  return (
-    <button type="button" className={styles.card} onClick={onAbrir}>
-      <div className={styles.cardImagen}>
-        <ImagenProducto imagen={producto.imagen} alt="" tamano="thumb" />
-      </div>
-      <div className={styles.cardTexto}>
-        <div className={styles.cardFila}>
-          <code className={styles.cardSku}>{producto.sku}</code>
-          <PrecioCelda monto={producto.precio} moneda={moneda} />
-        </div>
-        <div className={styles.cardNombre}>{producto.nombre}</div>
-        <div className={styles.cardMeta}>
-          <span>{producto.marca?.nombre ?? 'Sin marca'}</span>
-          {producto.tipo && <span>· {producto.tipo}</span>}
-        </div>
-        {destacados.length > 0 && (
-          <div className={styles.cardAtributos}>
-            {destacados.map((d) => (
-              <span key={d.key} className={styles.cardAtributo}>
-                {d.texto}
-              </span>
-            ))}
+            </Field>
+            <span className={styles.lupa} aria-hidden="true">
+              {isFetching && !isPending ? <Spinner size={16} /> : <Icon name="search" size={16} />}
+            </span>
+            {puedeElegir && (
+              <Field label="Lista de precios" hideLabel className={styles.lista}>
+                <Select value={listaEfectiva?.id ?? ''} onChange={(e) => setListaElegida(e.target.value)}>
+                  {listas.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.nombre}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
           </div>
-        )}
-        <div className={styles.cardFila}>
-          {esInterno ? (
-            <StockCelda stock={producto.stock} />
-          ) : (
-            <DisponibilidadBadge disponible={disponible} />
-          )}
-        </div>
-      </div>
-    </button>
+        }
+      >
+        <PanelFacetas filtros={filtros} facetas={facetas} cargando={facetasCargando} onCambiar={actualizar} />
+      </FilterBar>
+
+      <FiltrosActivos filtros={filtros} facetas={facetas} onCambiar={actualizar} onLimpiar={limpiarTodo} />
+
+      {error ? (
+        <ErrorState
+          title="No se pudo cargar el catálogo."
+          description={error instanceof Error ? error.message : String(error)}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+        />
+      ) : vacio ? (
+        hayFiltros ? (
+          <EmptyState
+            icon="search"
+            title="Ningún producto coincide"
+            description="Probá con otra búsqueda o quitá algún filtro."
+            action={
+              <Button variant="secondary" onClick={limpiarTodo}>
+                Limpiar filtros
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState icon="package" title="Todavía no hay productos" description="Esta empresa no tiene productos cargados en el catálogo." />
+        )
+      ) : (
+        <>
+          <ListadoProductos
+            productos={productos}
+            esInterno={esInterno}
+            moneda={moneda}
+            disponibilidad={disponibilidad}
+            unidades={unidades}
+            cargando={isPending}
+          />
+          {total > 0 ? (
+            <Pagination
+              label="Paginación del catálogo"
+              offset={(filtros.pagina - 1) * filtros.porPagina}
+              pageSize={filtros.porPagina}
+              total={total}
+              noun={PRODUCTO}
+              loading={isFetching}
+              onChange={(offset) => actualizar({ pagina: Math.floor(offset / filtros.porPagina) + 1 })}
+              pageSizeOptions={OPCIONES_POR_PAGINA}
+              onPageSizeChange={(porPagina) => actualizar({ porPagina })}
+            />
+          ) : null}
+        </>
+      )}
+    </div>
   )
 }

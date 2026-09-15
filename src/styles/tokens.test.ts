@@ -94,6 +94,19 @@ describe('tokens', () => {
     expect(fallan).toEqual([])
   })
 
+  it('Catálogo (E4): el contador de facetas cumple AA en chip normal y activo', () => {
+    // Antes era `opacity: .75` sobre el chip activo: 3.56:1. Ahora sin opacidad,
+    // con --color-text-muted en el chip normal y el color del chip en el activo.
+    const css = sinComentarios(TODOS_LOS_CSS['modules/catalogo/components/PanelFacetas.module.css'] ?? '')
+    const bloque = (selector: string) => new RegExp(`(^|\\n)${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`).exec(css)?.[2] ?? ''
+    expect(css).not.toMatch(/opacity/)
+    expect(bloque('.cuenta')).toMatch(/color:\s*var\(--color-text-muted\)/)
+    expect(bloque('.chipActivo .cuenta')).toMatch(/color:\s*inherit/)
+    expect(css).toMatch(/\.chipActivo,\s*\.chipActivo:hover\s*\{[^}]*color:\s*var\(--color-on-primary\)[^}]*\}/)
+    expect(contraste('--color-text-muted', '--color-surface')).toBeGreaterThanOrEqual(4.5)
+    expect(contraste('--color-on-primary', '--color-primary')).toBeGreaterThanOrEqual(4.5)
+  })
+
   it('límites de controles ≥ 3:1 (WCAG 1.4.11)', () => {
     expect(contraste('--color-border-strong', '--color-surface')).toBeGreaterThanOrEqual(3)
     expect(contraste('--color-primary', '--color-surface')).toBeGreaterThanOrEqual(3)

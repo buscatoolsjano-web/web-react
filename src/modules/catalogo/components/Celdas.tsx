@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/Badge'
 import { formatearCantidad, formatearPrecio, SIN_PRECIO } from '../lib/formato'
 import type { StockProducto } from '../types'
 import styles from './Celdas.module.css'
@@ -19,14 +20,23 @@ export function PrecioCelda({ monto, moneda }: { monto: number | null; moneda: s
 /**
  * Stock para roles internos: real y virtual, como en el legacy.
  *
- * Real = on_hand · Virtual = on_hand − reserved.
+ * Real = on_hand · Virtual = on_hand − reserved. Visualmente «12 / 10»; el
+ * lector de pantalla oye «12 real, 10 virtual».
  */
 export function StockCelda({ stock }: { stock: StockProducto | null }) {
-  if (!stock) return <span className={styles.sinDato}>0</span>
+  const real = stock ? formatearCantidad(stock.real) : '0'
+  const virtual = stock ? formatearCantidad(stock.virtual) : null
   return (
-    <span className={styles.stock}>
-      <strong>{formatearCantidad(stock.real)}</strong>
-      <span className={styles.stockVirtual}>{formatearCantidad(stock.virtual)}</span>
+    <span className={stock ? styles.stock : `${styles.stock} ${styles.sinDato}`}>
+      <strong>{real}</strong>
+      <span className="sr-only"> real</span>
+      {virtual !== null ? (
+        <span className={styles.stockVirtual}>
+          <span aria-hidden="true">/ </span>
+          {virtual}
+          <span className="sr-only"> virtual</span>
+        </span>
+      ) : null}
     </span>
   )
 }
@@ -38,10 +48,12 @@ export function StockCelda({ stock }: { stock: StockProducto | null }) {
  * hay stock. En ningún caso se muestra una cantidad.
  */
 export function DisponibilidadBadge({ disponible }: { disponible: boolean | undefined }) {
-  if (disponible === undefined) return <span className={styles.sinDato}>…</span>
-  return disponible ? (
-    <span className={styles.disponible}>Disponible</span>
-  ) : (
-    <span className={styles.sinDato}>Consultar</span>
-  )
+  if (disponible === undefined) {
+    return (
+      <span className={styles.sinDato} aria-label="Consultando disponibilidad">
+        …
+      </span>
+    )
+  }
+  return disponible ? <Badge tone="success">Disponible</Badge> : <Badge tone="neutral">Consultar</Badge>
 }

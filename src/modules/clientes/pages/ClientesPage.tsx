@@ -1,6 +1,14 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { Button } from '@/components/ui/Button'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Icon } from '@/components/icons/Icon'
+import { contar, type Sustantivo } from '@/components/tables/rango'
+import doc from '@/components/document/Document.module.css'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { permisosDe } from '../lib/permisos'
 import { FiltrosClientes } from '../components/FiltrosClientes'
@@ -11,7 +19,8 @@ import { useFiltrosClientes } from '../hooks/useFiltrosClientes'
 import { aCsv, descargarCsv } from '../lib/csv'
 import { exportarClientes } from '../services/clientes'
 import type { OrdenClientes } from '../types'
-import styles from './ClientesPage.module.css'
+
+const CLIENTE: Sustantivo = { singular: 'cliente', plural: 'clientes' }
 
 /**
  * El maestro de clientes.
@@ -22,7 +31,7 @@ import styles from './ClientesPage.module.css'
  */
 export function ClientesPage() {
   const { filtros, aplicar, limpiar, hayFiltros } = useFiltrosClientes()
-  const { data, isPending, isFetching, error } = useClientes(filtros)
+  const { data, isPending, isFetching, error, refetch } = useClientes(filtros)
   const { activa } = useEmpresa()
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
   // El botón se le muestra a quien puede crear. Lo que IMPIDE crear no es
@@ -79,67 +88,86 @@ export function ClientesPage() {
   })
 
   const total = data?.total ?? 0
+  const filas = data?.filas ?? []
+  const vacio = !isPending && !error && filas.length === 0
+
+  const acciones = (
+    <>
+      <Button
+        variant="secondary"
+        icon={<Icon name="download" size={16} />}
+        loading={exportar.isPending}
+        disabled={total === 0}
+        onClick={() => exportar.mutate()}
+      >
+        {exportar.isPending
+          ? 'Exportando…'
+          : seleccionados.size > 0
+            ? `Exportar ${seleccionados.size} a CSV`
+            : 'Exportar a CSV'}
+      </Button>
+      {seleccionados.size > 0 ? (
+        <Button variant="ghost" onClick={() => setSeleccionados(new Set())}>
+          Limpiar selección
+        </Button>
+      ) : null}
+      {permisos.crearCliente ? (
+        <LinkButton to="/clientes/nuevo" variant="primary" icon={<Icon name="plus" size={16} />}>
+          Nuevo cliente
+        </LinkButton>
+      ) : null}
+    </>
+  )
 
   return (
-    <div className={styles.page}>
-      <header className={styles.encabezado}>
-        <div>
-          <h1 className={styles.titulo}>Clientes</h1>
-          <p className={styles.subtitulo}>
-            {isPending ? 'Cargando…' : `${total} ${total === 1 ? 'cliente' : 'clientes'}`}
-          </p>
-        </div>
-        <div className={styles.acciones}>
-          <button
-            type="button"
-            className={styles.secundario}
-            disabled={exportar.isPending || total === 0}
-            onClick={() => exportar.mutate()}
-          >
-            {exportar.isPending
-              ? 'Exportando…'
-              : seleccionados.size > 0
-                ? `Exportar ${seleccionados.size} a CSV`
-                : 'Exportar a CSV'}
-          </button>
-          {seleccionados.size > 0 ? (
-            <button
-              type="button"
-              className={styles.secundario}
-              onClick={() => setSeleccionados(new Set())}
-            >
-              Limpiar selección
-            </button>
-          ) : null}
-          {permisos.crearCliente ? (
-            <Link to="/clientes/nuevo" className={styles.nuevo}>
-              + Nuevo cliente
-            </Link>
-          ) : null}
-        </div>
-      </header>
+    <div className={doc.listado}>
+      <PageHeader title="Clientes" subtitle={isPending ? 'Cargando…' : contar(total, CLIENTE)} actions={acciones} />
 
       {exportar.error ? (
-        <p className={styles.error} role="alert">
-          No se pudo exportar: {exportar.error.message}
-        </p>
+        <Alert tone="danger" role="alert" title="No se pudo exportar">
+          <p>{exportar.error.message}</p>
+        </Alert>
       ) : null}
 
-      <FiltrosClientes
-        filtros={filtros}
-        hayFiltros={hayFiltros}
-        onAplicar={aplicar}
-        onLimpiar={limpiar}
-      />
+      <FiltrosClientes filtros={filtros} hayFiltros={hayFiltros} onAplicar={aplicar} onLimpiar={limpiar} />
 
       {error ? (
-        <p className={styles.error} role="alert">
-          No se pudo leer el listado: {error.message}
-        </p>
+        <ErrorState
+          title="No se pudo leer el listado."
+          description={error.message}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+        />
+      ) : vacio ? (
+        hayFiltros ? (
+          <EmptyState
+            icon="search"
+            title="Sin resultados para estos filtros"
+            description="No hay clientes que coincidan. Probá con otro nombre, CUIT o rubro."
+            action={
+              <Button variant="secondary" onClick={limpiar}>
+                Limpiar filtros
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon="users"
+            title="Todavía no hay clientes"
+            description="Los clientes que se den de alta van a aparecer acá."
+            action={
+              permisos.crearCliente ? (
+                <LinkButton to="/clientes/nuevo" variant="primary" icon={<Icon name="plus" size={16} />}>
+                  Nuevo cliente
+                </LinkButton>
+              ) : undefined
+            }
+          />
+        )
       ) : (
         <>
           <ListadoClientes
-            filas={data?.filas ?? []}
+            filas={filas}
             orden={filtros.orden}
             direccion={filtros.direccion}
             onOrdenar={ordenar}
@@ -148,14 +176,17 @@ export function ClientesPage() {
             onSeleccionar={marcar}
             onSeleccionarTodos={marcarTodos}
           />
-          <Paginador
-            pagina={filtros.pagina}
-            porPagina={filtros.porPagina}
-            total={total}
-            cargando={isFetching}
-            onIr={(pagina) => aplicar({ pagina })}
-            onTamano={(porPagina) => aplicar({ porPagina })}
-          />
+          {total > 0 ? (
+            <Paginador
+              pagina={filtros.pagina}
+              porPagina={filtros.porPagina}
+              total={total}
+              cargando={isFetching}
+              sustantivo={CLIENTE}
+              onIr={(pagina) => aplicar({ pagina })}
+              onTamano={(porPagina) => aplicar({ porPagina })}
+            />
+          ) : null}
         </>
       )}
     </div>

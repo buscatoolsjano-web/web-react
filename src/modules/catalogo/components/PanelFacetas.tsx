@@ -1,4 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/forms/controls'
+import { Icon } from '@/components/icons/Icon'
+import { cx } from '@/utils/cx'
 import { mostrarFacetaSubtipo } from '../lib/clasificarFaceta'
 import type {
   Facetas,
@@ -14,11 +18,10 @@ export interface PanelFacetasProps {
   facetas: Facetas | undefined
   cargando: boolean
   onCambiar: (cambios: Partial<FiltrosCatalogo>) => void
-  onLimpiar: () => void
 }
 
 /**
- * Barra de filtros del catálogo.
+ * Facetas del catálogo.
  *
  * La disposición es HORIZONTAL y por capas, no una columna lateral que crece
  * hacia abajo:
@@ -31,6 +34,10 @@ export interface PanelFacetasProps {
  * pantalla: sin categoría elegida había 40 chips de subcategoría y listas de
  * hasta 234 valores apiladas una tras otra.
  *
+ * Fase 13 · E4: vive dentro del `FilterBar` compartido, que en < 768 px la
+ * pliega detrás de «Filtros». Los filtros aplicados van aparte
+ * (`FiltrosActivos`) y quedan siempre a la vista.
+ *
  * Las opciones vienen de `catalog_facets`, que calcula cada faceta con todos
  * los filtros activos MENOS el suyo. Dos consecuencias visibles: no hay
  * opciones muertas —en Balanceadores se ofrecen 3 marcas y no las 25 de la
@@ -38,13 +45,7 @@ export interface PanelFacetasProps {
  *
  * Ninguna categoría está nombrada en el código: qué se dibuja sale de los datos.
  */
-export function PanelFacetas({
-  filtros,
-  facetas,
-  cargando,
-  onCambiar,
-  onLimpiar,
-}: PanelFacetasProps) {
+export function PanelFacetas({ filtros, facetas, cargando, onCambiar }: PanelFacetasProps) {
   const hayCategoria = filtros.categoria !== null
 
   const verSubtipos = mostrarFacetaSubtipo(
@@ -71,9 +72,10 @@ export function PanelFacetas({
   const verDesplegables = hayCategoria || hayFiltroDeAtributo
 
   return (
-    <div className={styles.barra} aria-busy={cargando}>
+    <div className={styles.facetas} aria-busy={cargando}>
       {/* ── Fila 1 · categorías ─────────────────────────────────────────── */}
       <FilaChips
+        etiqueta="Categoría"
         opciones={facetas?.categorias ?? []}
         seleccionados={filtros.categoria ? [filtros.categoria] : []}
         totalTodas={facetas?.total ?? null}
@@ -104,58 +106,51 @@ export function PanelFacetas({
 
       {/* ── Fila 3 · marca y atributos, como desplegables ───────────────── */}
       {verDesplegables && (marcas.length > 0 || atributos.length > 0) && (
-        <div className={styles.filaDesplegables}>
+        <div className={styles.fila}>
           <span className={styles.rotulo}>Filtrar por</span>
-
-          {marcas.length > 0 && (
-            <DesplegableLista
-              titulo="Marca"
-              opciones={marcas}
-              seleccionados={filtros.marca ? [filtros.marca] : []}
-              multiple={false}
-              onElegir={(valores) => onCambiar({ marca: valores[0] ?? null })}
-            />
-          )}
-
-          {atributos.map((a) =>
-            a.clase === 'range' ? (
-              <DesplegableRango
-                key={a.key}
-                faceta={a}
-                valor={filtros.rangos[a.key] ?? { min: null, max: null }}
-                onCambiar={(r) => {
-                  const rangos = { ...filtros.rangos }
-                  if (r.min === null && r.max === null) delete rangos[a.key]
-                  else rangos[a.key] = r
-                  onCambiar({ rangos })
-                }}
-              />
-            ) : (
+          <div className={styles.desplegables}>
+            {marcas.length > 0 && (
               <DesplegableLista
-                key={a.key}
-                titulo={a.unidad ? `${a.label} (${a.unidad})` : a.label}
-                opciones={a.opciones}
-                seleccionados={filtros.atributos[a.key] ?? []}
-                multiple
-                onElegir={(valores) => {
-                  const atrs = { ...filtros.atributos }
-                  if (valores.length === 0) delete atrs[a.key]
-                  else atrs[a.key] = valores
-                  onCambiar({ atributos: atrs })
-                }}
+                titulo="Marca"
+                opciones={marcas}
+                seleccionados={filtros.marca ? [filtros.marca] : []}
+                multiple={false}
+                onElegir={(valores) => onCambiar({ marca: valores[0] ?? null })}
               />
-            ),
-          )}
+            )}
+
+            {atributos.map((a) =>
+              a.clase === 'range' ? (
+                <DesplegableRango
+                  key={a.key}
+                  faceta={a}
+                  valor={filtros.rangos[a.key] ?? { min: null, max: null }}
+                  onCambiar={(r) => {
+                    const rangos = { ...filtros.rangos }
+                    if (r.min === null && r.max === null) delete rangos[a.key]
+                    else rangos[a.key] = r
+                    onCambiar({ rangos })
+                  }}
+                />
+              ) : (
+                <DesplegableLista
+                  key={a.key}
+                  titulo={a.unidad ? `${a.label} (${a.unidad})` : a.label}
+                  opciones={a.opciones}
+                  seleccionados={filtros.atributos[a.key] ?? []}
+                  multiple
+                  onElegir={(valores) => {
+                    const atrs = { ...filtros.atributos }
+                    if (valores.length === 0) delete atrs[a.key]
+                    else atrs[a.key] = valores
+                    onCambiar({ atributos: atrs })
+                  }}
+                />
+              ),
+            )}
+          </div>
         </div>
       )}
-
-      {/* ── Filtros aplicados ──────────────────────────────────────────── */}
-      <ChipsFiltrosActivos
-        filtros={filtros}
-        facetas={facetas}
-        onCambiar={onCambiar}
-        onLimpiar={onLimpiar}
-      />
     </div>
   )
 }
@@ -174,7 +169,7 @@ function FilaChips({
   multiple,
   onElegir,
 }: {
-  etiqueta?: string
+  etiqueta: string
   opciones: readonly OpcionFaceta[]
   seleccionados: readonly string[]
   totalTodas: number | null
@@ -194,11 +189,11 @@ function FilaChips({
 
   return (
     <div className={styles.fila}>
-      {etiqueta && <span className={styles.rotulo}>{etiqueta}</span>}
-      <div className={styles.chips} role="group" aria-label={etiqueta ?? 'Categoría'}>
+      <span className={styles.rotulo}>{etiqueta}</span>
+      <div className={styles.chips} role="group" aria-label={etiqueta}>
         <button
           type="button"
-          className={seleccionados.length === 0 ? styles.chipActivo : styles.chip}
+          className={cx(styles.chip, seleccionados.length === 0 && styles.chipActivo)}
           onClick={() => onElegir([])}
           aria-pressed={seleccionados.length === 0}
         >
@@ -211,7 +206,7 @@ function FilaChips({
           <button
             key={o.valor}
             type="button"
-            className={seleccionados.includes(o.valor) ? styles.chipActivo : styles.chip}
+            className={cx(styles.chip, seleccionados.includes(o.valor) && styles.chipActivo)}
             onClick={() => alternar(o.valor)}
             aria-pressed={seleccionados.includes(o.valor)}
           >
@@ -225,10 +220,11 @@ function FilaChips({
 }
 
 /**
- * Envoltorio de desplegable: botón + panel flotante.
+ * Envoltorio de desplegable: botón + panel.
  *
- * Cierra con Escape y con un click afuera. El foco vuelve al botón, que es
- * lo mínimo para que se pueda usar sin mouse.
+ * En escritorio el panel flota debajo del botón; en < 768 px se abre en línea,
+ * debajo, para no salirse de la pantalla. Cierra con Escape y con un click
+ * afuera, y el foco vuelve al botón.
  */
 function Desplegable({
   titulo,
@@ -270,20 +266,18 @@ function Desplegable({
       <button
         ref={boton}
         type="button"
-        className={activo ? styles.botonDesplegableActivo : styles.botonDesplegable}
+        className={cx(styles.botonDesplegable, activo && styles.botonDesplegableActivo)}
         onClick={() => setAbierto((v) => !v)}
         aria-expanded={abierto}
         aria-controls={id}
       >
         <span className={styles.botonTitulo}>{titulo}</span>
         <span className={styles.botonValor}>{resumen ?? 'Todos'}</span>
-        <span aria-hidden="true" className={styles.flecha}>
-          ▾
-        </span>
+        <Icon name="chevron-down" size={16} className={cx(styles.flecha, abierto && styles.flechaAbierta)} />
       </button>
 
       {abierto && (
-        <div className={styles.panelFlotante} id={id}>
+        <div className={styles.panel} id={id} role="group" aria-label={titulo}>
           {children(() => setAbierto(false))}
         </div>
       )}
@@ -342,8 +336,7 @@ function DesplegableLista({
       {(cerrar) => (
         <>
           {opciones.length > UMBRAL_BUSCADOR && (
-            <input
-              className={styles.buscadorFaceta}
+            <Input
               type="search"
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
@@ -354,9 +347,9 @@ function DesplegableLista({
           )}
 
           {seleccionados.length > 0 && (
-            <button type="button" className={styles.quitarTodo} onClick={() => onElegir([])}>
+            <Button variant="ghost" size="sm" className={styles.quitar} onClick={() => onElegir([])}>
               Quitar selección
-            </button>
+            </Button>
           )}
 
           <ul className={styles.lista}>
@@ -418,8 +411,7 @@ function DesplegableRango({
       {() => (
         <>
           <div className={styles.rango}>
-            <input
-              className={styles.numero}
+            <Input
               type="number"
               inputMode="decimal"
               value={valor.min ?? ''}
@@ -428,9 +420,10 @@ function DesplegableRango({
               onChange={(e) => onCambiar({ ...valor, min: leer(e.target.value) })}
               autoFocus
             />
-            <span className={styles.guion}>–</span>
-            <input
-              className={styles.numero}
+            <span className={styles.guion} aria-hidden="true">
+              –
+            </span>
+            <Input
               type="number"
               inputMode="decimal"
               value={valor.max ?? ''}
@@ -446,13 +439,9 @@ function DesplegableRango({
             </p>
           )}
           {activo && (
-            <button
-              type="button"
-              className={styles.quitarTodo}
-              onClick={() => onCambiar({ min: null, max: null })}
-            >
+            <Button variant="ghost" size="sm" className={styles.quitar} onClick={() => onCambiar({ min: null, max: null })}>
               Quitar rango
-            </button>
+            </Button>
           )}
         </>
       )}
@@ -460,18 +449,19 @@ function DesplegableRango({
   )
 }
 
-/** Los filtros aplicados, cada uno con su ✕, más el botón de limpiar todo. */
-function ChipsFiltrosActivos({
-  filtros,
-  facetas,
-  onCambiar,
-  onLimpiar,
-}: {
+export interface FiltrosActivosProps {
   filtros: FiltrosCatalogo
   facetas: Facetas | undefined
   onCambiar: (cambios: Partial<FiltrosCatalogo>) => void
   onLimpiar: () => void
-}) {
+}
+
+/**
+ * Los filtros aplicados, cada uno con su botón de quitar, más «Limpiar
+ * filtros». Queda fuera del panel plegable: en mobile se sigue viendo qué está
+ * filtrando la lista aunque el panel esté cerrado.
+ */
+export function FiltrosActivos({ filtros, facetas, onCambiar, onLimpiar }: FiltrosActivosProps) {
   const activos: { clave: string; texto: string; quitar: () => void }[] = []
 
   if (filtros.categoria) {
@@ -529,22 +519,16 @@ function ChipsFiltrosActivos({
   if (activos.length === 0) return null
 
   return (
-    <div className={styles.activos}>
+    <div className={styles.activos} role="group" aria-label="Filtros aplicados">
       {activos.map((a) => (
-        <button
-          key={a.clave}
-          type="button"
-          className={styles.chipActivoQuitar}
-          onClick={a.quitar}
-        >
+        <button key={a.clave} type="button" className={styles.chipQuitar} onClick={a.quitar} aria-label={`Quitar filtro: ${a.texto}`}>
           {a.texto}
-          <span aria-hidden="true"> ✕</span>
-          <span className="sr-only">Quitar filtro</span>
+          <Icon name="x" size={16} />
         </button>
       ))}
-      <button type="button" className={styles.limpiar} onClick={onLimpiar}>
-        Limpiar
-      </button>
+      <Button variant="ghost" size="sm" onClick={onLimpiar}>
+        Limpiar filtros
+      </Button>
     </div>
   )
 }

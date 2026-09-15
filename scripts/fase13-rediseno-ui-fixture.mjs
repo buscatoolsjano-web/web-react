@@ -37,8 +37,8 @@ const TABLAS_EMPRESA = [
   'maintenance_orders', 'maintenance_assets', 'maintenance_audit',
   'sales_orders', 'sales_quotes',
   'purchase_order_lines', 'purchase_orders', 'purchases_audit', 'suppliers',
-  'customer_contacts', 'customer_addresses', 'customers',
-  'company_memberships', 'product_prices', 'price_lists', 'products',
+  'customer_product_aliases', 'customer_contacts', 'customer_addresses', 'customers',
+  'company_memberships', 'product_prices', 'price_lists', 'product_images', 'products',
   'product_attribute_categories', 'product_attribute_definitions', 'product_categories', 'brands',
   'users_audit', 'company_audit', 'catalog_audit', 'document_numbering_authority', 'document_numbering_authority_audit',
   'document_sequences',
@@ -97,6 +97,33 @@ const clientes = ok(await s.from('customers').insert(Array.from({ length: 23 }, 
   review_reason: i === 3 ? 'ZZ: CUIT a revisar' : null,
 }))).select('id'), 'clientes')
 
+// E4 · Catálogo: segunda categoría con subtipos y atributos filtrables, 22
+// productos más (paginado de 25), fotos propias del sitio, una rota, una
+// galería con diagrama, kits, a revisar y sin precio.
+const defs = ok(await s.from('product_attribute_definitions').insert([
+  { company_id: id, key: 'zz_torque', label: 'ZZ Torque máximo', data_type: 'number', unit: 'Nm', is_filterable: true, position: 1 },
+  { company_id: id, key: 'zz_encastre', label: 'ZZ Encastre', data_type: 'text', unit: null, is_filterable: true, position: 2 },
+]).select('id, key'), 'atributos')
+const cat2 = ok(await s.from('product_categories').insert({ company_id: id, name: 'ZZ Llaves de torque', slug: 'zz-llaves-torque', position: 2, needs_review: false }).select('id').single(), 'categoría 2')
+ok(await s.from('product_attribute_categories').insert(defs.map((d) => ({ company_id: id, attribute_definition_id: d.id, category_id: cat2.id }))), 'atributos por categoría')
+const TIPOS = ['ZZ Click', 'ZZ Digital', 'ZZ Dial']
+const ENCASTRES = ['1/4 HEX', '3/8 cuadrado', '1/2 cuadrado']
+const productos2 = ok(await s.from('products').insert(Array.from({ length: 22 }, (_, i) => ({
+  company_id: id, sku: `ZZF13-L${String(i + 1).padStart(2, '0')}`, name: i === 0 ? 'ZZ Llave' : `ZZ Llave de torque ${TIPOS[i % 3]} ${10 + i * 5} Nm`,
+  category_id: cat2.id, brand_id: i % 5 === 4 ? null : marcas[i % 3].id, status: 'active', product_type: TIPOS[i % 3], series: i % 4 === 0 ? `ZZS-${i}` : null,
+  is_kit: i === 2, needs_review: i === 5, attributes: { zz_torque: 10 + i * 5, zz_encastre: ENCASTRES[i % 3] },
+  model_code: i === 1 ? 'ZZ-M1' : null, description: i === 1 ? 'ZZ Llave de torque con escala doble y certificado de calibración.' : null,
+  origin_country: i === 1 ? 'DE' : null, weight_g: i === 1 ? 850 : null,
+}))).select('id, sku'), 'productos E4')
+ok(await s.from('product_prices').insert(productos2.filter((_, i) => i % 3 !== 2).map((p, i) => ({ company_id: id, price_list_id: lista.id, product_id: p.id, amount: 95.5 + i * 41.25, valid_from: '2026-01-01' }))), 'precios E4')
+const foto = `${origen}/brand/buscatools-logo.png`
+ok(await s.from('product_images').insert([
+  ...productos2.filter((_, i) => i % 2 === 1).map((p) => ({ company_id: id, product_id: p.id, source_url: foto, kind: 'product_image', position: 0, is_primary: true })),
+  { company_id: id, product_id: productos2[1].id, source_url: `${foto}?vista=2`, kind: 'product_image', position: 1, is_primary: false },
+  { company_id: id, product_id: productos2[1].id, source_url: `${foto}?diagrama=1`, kind: 'shared_diagram', position: 2, is_primary: false },
+  { company_id: id, product_id: productos2[4].id, source_url: `${origen}/brand/zz-no-existe.png`, kind: 'product_image', position: 0, is_primary: true },
+]), 'imágenes E4')
+
 // Ventas: cotizaciones en todos los estados y pedidos en los tres comerciales
 const estadosCoti = ['draft', 'sent', 'accepted', 'rejected', 'expired', 'draft', 'sent']
 const cotis = ok(await s.from('sales_quotes').insert(estadosCoti.map((status, i) => ({
@@ -122,6 +149,27 @@ for (const [i, commercial_status] of estadosPed.entries()) {
   if (commercial_status !== 'draft') ok(await s.from('sales_orders').update({ commercial_status }).eq('id', p.id), 'estado pedido')
   pedidos.push(p)
 }
+
+// E4 · Clientes: el 01 con ficha completa (emails, dominios, rubro, condiciones,
+// notas, contactos, direcciones y equivalencias) y uno mínimo, sólo razón social.
+ok(await s.from('customers').update({
+  trade_name: 'ZZ Metalúrgica Uno', emails: ['compras@zz-cliente.test', 'pagos@zz-cliente.test'], email_domains: ['zz-cliente.test'],
+  industry: 'ZZ Metalmecánica', payment_terms: '30 días fecha factura', default_currency: 'USD', notes: 'ZZ: recibe mercadería de 8 a 14 h.',
+}).eq('id', clientes[0].id), 'cliente completo')
+ok(await s.from('customer_contacts').insert([
+  { company_id: id, customer_id: clientes[0].id, full_name: 'ZZ Ana Compras', role: 'Jefa de compras', email: 'ana@zz-cliente.test', phone: '011 5555-0101', is_default: true },
+  { company_id: id, customer_id: clientes[0].id, full_name: 'ZZ Bruno Planta', role: 'Mantenimiento', phone: '011 5555-0102', is_default: false, notes: 'ZZ: turno tarde' },
+]), 'contactos')
+ok(await s.from('customer_addresses').insert([
+  { company_id: id, customer_id: clientes[0].id, kind: 'both', is_default: true, street: 'ZZ Av. Siempre Viva 742', city: 'ZZ Ciudad', state: 'ZZ Provincia', postal_code: '1000', country_code: 'AR' },
+  { company_id: id, customer_id: clientes[0].id, kind: 'shipping', is_default: false, street: 'ZZ Calle Depósito 100', city: 'ZZ Parque Industrial', country_code: 'AR' },
+]), 'direcciones')
+ok(await s.from('customer_product_aliases').insert([
+  { company_id: id, customer_id: clientes[0].id, customer_code: 'ZZ-A1', customer_description: 'ZZ atornillador chico', normalized_key: 'zz-a1', product_id: productos[0].id, status: 'confirmed', source: 'manual' },
+  { company_id: id, customer_id: clientes[0].id, customer_code: 'ZZ-A2', customer_description: 'ZZ llave dial', normalized_key: 'zz-a2', product_id: productos2[0].id, status: 'suggested', source: 'ai' },
+  { company_id: id, customer_id: clientes[0].id, customer_code: 'ZZ-A3', customer_description: 'ZZ repuesto viejo', normalized_key: 'zz-a3', product_id: productos[1].id, status: 'rejected', source: 'legacy' },
+]), 'equivalencias')
+const clienteMinimo = ok(await s.from('customers').insert({ company_id: id, legal_name: 'ZZ Cliente Mínimo SA', status: 'active' }).select('id').single(), 'cliente mínimo')
 
 // Compras
 const proveedores = ok(await s.from('suppliers').insert(Array.from({ length: 6 }, (_, i) => ({
@@ -182,5 +230,5 @@ const { error: es } = await s.auth.admin.createUser({ email: emailSin, password:
 if (es) throw new Error(`usuario sin empresa: ${es.message}`)
 const linkSin = (await s.auth.admin.generateLink({ type: 'magiclink', email: emailSin, options: { redirectTo: `${origen}/` } })).data.properties.action_link
 
-writeFileSync(salida, JSON.stringify({ empresa: id, empresaStel: idS, admin: link, sinEmpresa: linkSin, cotizacion: cotis[1].id, cotizacionBorrador: cotis[0].id, pedido: pedidos[1].id, pedidoBorrador: pedidos[0].id, cotizacionStel: cotS.id, pedidoStel: pedS.id, cliente: clientes[0].id }))
-console.log(`    preparado: ${productos.length} productos, ${clientes.length} clientes, ${cotis.length} cotizaciones, ${pedidos.length} pedidos, ${proveedores.length} proveedores, 3 compras, ${equipos.length} equipos, 3 órdenes (el enlace quedó en el archivo, no se imprime)`)
+writeFileSync(salida, JSON.stringify({ empresa: id, clienteCompleto: clientes[0].id, clienteMinimo: clienteMinimo.id, skuGaleria: productos2[1].sku, skuSinImagen: productos2[0].sku, skuImagenRota: productos2[4].sku, empresaStel: idS, admin: link, sinEmpresa: linkSin, cotizacion: cotis[1].id, cotizacionBorrador: cotis[0].id, pedido: pedidos[1].id, pedidoBorrador: pedidos[0].id, cotizacionStel: cotS.id, pedidoStel: pedS.id, cliente: clientes[0].id }))
+console.log(`    preparado: ${productos.length + productos2.length} productos, ${clientes.length + 1} clientes, ${cotis.length} cotizaciones, ${pedidos.length} pedidos, ${proveedores.length} proveedores, 3 compras, ${equipos.length} equipos, 3 órdenes (el enlace quedó en el archivo, no se imprime)`)

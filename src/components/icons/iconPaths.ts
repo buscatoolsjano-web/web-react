@@ -45,6 +45,9 @@ export const TRAZOS = {
   'log-out': 'M9.5 20H5V4h4.5M15.5 16.5L20 12l-4.5-4.5M20 12H9.5',
   building: 'M5 21V4h9v17M14 9h5v12M3 21h18M8 8h3M8 12h3M8 16h3',
   inbox: 'M3.5 13l2.5-8h12l2.5 8v6h-17zM3.5 13H9l1 2.5h4l1-2.5h5.5',
+  image: 'M4 5h16v14H4zM4 16l4.5-4.5 3.5 3.5 2.5-2.5L20 17.5M15 9.5h.01',
+  phone: 'M6.5 3.5h3l1.5 4.5-2 1.5a11 11 0 0 0 5.5 5.5l1.5-2 4.5 1.5v3a2 2 0 0 1-2 2A16 16 0 0 1 4.5 5.5a2 2 0 0 1 2-2z',
+  'map-pin': 'M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
 } as const
 
 export type IconName = keyof typeof TRAZOS

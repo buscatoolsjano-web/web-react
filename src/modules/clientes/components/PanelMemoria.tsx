@@ -1,4 +1,16 @@
 import { useEffect, useId, useState } from 'react'
+import { DocSection } from '@/components/document/DocSection'
+import { Field } from '@/components/forms/Field'
+import { Checkbox, Input } from '@/components/forms/controls'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { Badge, type BadgeTone } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { Spinner } from '@/components/ui/Spinner'
+import { Icon } from '@/components/icons/Icon'
+import tabla from '@/components/tables/Tabla.module.css'
 import { useAlias, useAliasEdicion, useBuscarProductos } from '../hooks/useMemoriaYPrecios'
 import { formatearFecha } from '../lib/formato'
 import type { DatosAlias } from '../lib/alias'
@@ -17,6 +29,12 @@ const ETIQUETA_ESTADO: Record<string, string> = {
   suggested: 'Sugerida',
   confirmed: 'Confirmada',
   rejected: 'Descartada',
+}
+
+const TONO_ESTADO: Record<string, BadgeTone> = {
+  suggested: 'info',
+  confirmed: 'success',
+  rejected: 'neutral',
 }
 
 const ETIQUETA_ORIGEN: Record<string, string> = {
@@ -41,6 +59,9 @@ function aDatos(a: AliasDeProducto): DatosAlias {
  * renombrarlo le borraba la memoria y dos clientes homónimos la compartían.
  * Acá cuelga de `customer_id`, y la unicidad es por cliente: **el mismo código
  * puede significar productos distintos en clientes distintos**.
+ *
+ * Fase 13 · E4: estados como `Badge`, el borrado con `ConfirmDialog` y los
+ * botones de la fila con las primitivas. Mismas mutaciones.
  */
 export function PanelMemoria({ clienteId, puedeEditar }: PanelMemoriaProps) {
   const id = useId()
@@ -52,7 +73,7 @@ export function PanelMemoria({ clienteId, puedeEditar }: PanelMemoriaProps) {
   const [producto, setProducto] = useState<ProductoBuscado | null>(null)
   const [texto, setTexto] = useState('')
   const [consulta, setConsulta] = useState('')
-  const [confirmandoBorrado, setConfirmandoBorrado] = useState<string | null>(null)
+  const [confirmandoBorrado, setConfirmandoBorrado] = useState<AliasDeProducto | null>(null)
   const [verDescartadas, setVerDescartadas] = useState(false)
 
   useEffect(() => {
@@ -94,53 +115,41 @@ export function PanelMemoria({ clienteId, puedeEditar }: PanelMemoriaProps) {
 
   const formulario = (etiquetaBoton: string) => (
     <form className={styles.form} onSubmit={guardar} noValidate>
-      <div className={styles.campo}>
-        <label className={styles.etiqueta} htmlFor={`${id}-codigo`}>
-          Código del cliente
-        </label>
-        <input
-          id={`${id}-codigo`}
-          className={styles.control}
-          value={datos.codigoCliente}
-          placeholder="El que usa en su orden de compra"
-          onChange={(e) => setDatos({ ...datos, codigoCliente: e.target.value })}
-        />
+      <div className={styles.grilla}>
+        <Field label="Código del cliente" id={`${id}-codigo`}>
+          <Input
+            value={datos.codigoCliente}
+            placeholder="El que usa en su orden de compra"
+            onChange={(e) => setDatos({ ...datos, codigoCliente: e.target.value })}
+          />
+        </Field>
+        <Field label="Descripción del cliente" id={`${id}-desc`}>
+          <Input
+            value={datos.descripcionCliente}
+            placeholder="Cómo lo nombra, tal cual"
+            onChange={(e) => setDatos({ ...datos, descripcionCliente: e.target.value })}
+          />
+        </Field>
       </div>
 
-      <div className={styles.campo}>
-        <label className={styles.etiqueta} htmlFor={`${id}-desc`}>
-          Descripción del cliente
-        </label>
-        <input
-          id={`${id}-desc`}
-          className={styles.control}
-          value={datos.descripcionCliente}
-          placeholder="Cómo lo nombra, tal cual"
-          onChange={(e) => setDatos({ ...datos, descripcionCliente: e.target.value })}
-        />
-      </div>
-
-      <div className={`${styles.campo} ${styles.ancho}`}>
-        <span className={styles.etiqueta}>Producto Buscatools</span>
+      <div className={styles.producto}>
+        <span className={styles.etiqueta} id={`${id}-producto`}>
+          Producto Buscatools
+        </span>
         {producto ? (
-          <div className={styles.elegido}>
-            <span className={styles.sku}>{producto.sku}</span>
+          <div className={styles.elegido} aria-labelledby={`${id}-producto`} role="group">
+            <code className={styles.sku}>{producto.sku}</code>
             <span className={styles.nombreProducto}>{producto.nombre}</span>
-            <button type="button" className={styles.secundario} onClick={() => setProducto(null)}>
+            <Button variant="secondary" size="sm" onClick={() => setProducto(null)}>
               Cambiar
-            </button>
+            </Button>
           </div>
         ) : (
           <>
-            <input
-              type="search"
-              className={styles.control}
-              value={texto}
-              placeholder="Buscar por SKU, nombre o marca…"
-              aria-label="Buscar producto"
-              onChange={(e) => setTexto(e.target.value)}
-            />
-            <ul className={styles.resultados}>
+            <Field label="Buscar producto" hideLabel help="Hace falta elegir el producto: una equivalencia sin producto no equivale a nada.">
+              <Input type="search" value={texto} placeholder="Buscar por SKU, nombre o marca…" onChange={(e) => setTexto(e.target.value)} />
+            </Field>
+            <ul className={styles.resultados} aria-label="Productos encontrados">
               {(busqueda.data ?? []).map((p) => (
                 <li key={p.id}>
                   <button
@@ -151,66 +160,64 @@ export function PanelMemoria({ clienteId, puedeEditar }: PanelMemoriaProps) {
                       setTexto('')
                     }}
                   >
-                    <span className={styles.sku}>{p.sku}</span> {p.nombre}
+                    <code className={styles.sku}>{p.sku}</code> {p.nombre}
                     {p.marca ? <span className={styles.marca}> · {p.marca}</span> : null}
                   </button>
                 </li>
               ))}
-              {busqueda.isFetching ? <li className={styles.nota}>Buscando…</li> : null}
+              {busqueda.isFetching ? (
+                <li className={styles.buscando}>
+                  <Spinner size={16} /> Buscando…
+                </li>
+              ) : null}
             </ul>
-            <p className={styles.ayuda}>
-              Hace falta elegir el producto: una equivalencia sin producto no equivale a
-              nada.
-            </p>
           </>
         )}
       </div>
 
       {errorAlGuardar ? (
-        <p className={styles.error} role="alert">
-          {errorAlGuardar}
-        </p>
+        <Alert tone="danger" role="alert" title="No se pudo guardar">
+          <p>{errorAlGuardar}</p>
+        </Alert>
       ) : null}
 
       <div className={styles.acciones}>
-        <button type="submit" className={styles.primario} disabled={guardando || !listoParaGuardar}>
+        <Button type="submit" variant="primary" loading={guardando} disabled={!listoParaGuardar}>
           {guardando ? 'Guardando…' : etiquetaBoton}
-        </button>
-        <button
-          type="button"
-          className={styles.secundario}
-          onClick={() => setEditando(null)}
-          disabled={guardando}
-        >
+        </Button>
+        <Button variant="ghost" onClick={() => setEditando(null)} disabled={guardando}>
           Cancelar
-        </button>
+        </Button>
       </div>
     </form>
   )
 
-  if (isPending) return <p className={styles.nota}>Cargando la memoria de productos…</p>
+  if (isPending) return <SkeletonRows rows={3} columns={4} label="Cargando la memoria de productos…" />
   if (error) {
     return (
-      <p className={styles.error} role="alert">
-        {error.message}
-      </p>
+      <Alert tone="danger" role="alert" title="No se pudo leer la memoria de productos">
+        <p>{error.message}</p>
+      </Alert>
     )
   }
 
   return (
     <div className={styles.wrap}>
       {visibles.length === 0 && editando === null ? (
-        <p className={styles.nota}>
-          Este cliente no tiene equivalencias cargadas. Sirven para reconocer sus productos
-          cuando manda una orden de compra con sus propios códigos.
-        </p>
+        <EmptyState
+          compact
+          headingLevel={3}
+          icon="package"
+          title="Sin equivalencias cargadas"
+          description="Sirven para reconocer sus productos cuando manda una orden de compra con sus propios códigos."
+        />
       ) : null}
 
-      {editando === 'nueva' ? <div className={styles.caja}>{formulario('Agregar')}</div> : null}
+      {editando === 'nueva' ? <DocSection title="Nueva equivalencia">{formulario('Agregar')}</DocSection> : null}
 
       {visibles.length > 0 ? (
-        <div className={styles.scroll}>
-          <table className={styles.tabla}>
+        <div className={tabla.contenedor}>
+          <table className={tabla.tabla}>
             <thead>
               <tr>
                 <th scope="col">Código del cliente</th>
@@ -219,7 +226,11 @@ export function PanelMemoria({ clienteId, puedeEditar }: PanelMemoriaProps) {
                 <th scope="col">Producto</th>
                 <th scope="col">Estado</th>
                 <th scope="col">Alta</th>
-                {puedeEditar ? <th scope="col" /> : null}
+                {puedeEditar ? (
+                  <th scope="col">
+                    <span className="sr-only">Acciones</span>
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -229,92 +240,52 @@ export function PanelMemoria({ clienteId, puedeEditar }: PanelMemoriaProps) {
                     <td colSpan={puedeEditar ? 7 : 6}>{formulario('Guardar')}</td>
                   </tr>
                 ) : (
-                  <tr key={a.id} className={a.estado === 'rejected' ? styles.filaBaja : undefined}>
-                    <td className={styles.mono}>{a.codigoCliente ?? '—'}</td>
-                    <td className={styles.descripcion} title={a.descripcionCliente ?? ''}>
+                  <tr key={a.id} className={a.estado === 'rejected' ? styles.filaDescartada : undefined}>
+                    <td className={tabla.nowrap}>
+                      <code className={styles.sku}>{a.codigoCliente ?? '—'}</code>
+                    </td>
+                    <td className={tabla.textoCorto} title={a.descripcionCliente ?? ''}>
                       {a.descripcionCliente ?? '—'}
                     </td>
-                    <td className={styles.mono}>{a.sku ?? '—'}</td>
-                    <td className={styles.descripcion} title={a.nombreProducto ?? ''}>
+                    <td className={tabla.nowrap}>
+                      <code className={styles.sku}>{a.sku ?? '—'}</code>
+                    </td>
+                    <td className={tabla.texto} title={a.nombreProducto ?? ''}>
                       {a.nombreProducto ?? '—'}
                     </td>
-                    <td className={styles.nowrap}>
-                      {ETIQUETA_ESTADO[a.estado] ?? a.estado}
-                      {a.estado === 'confirmed' && !a.confirmadoPorPersona ? (
-                        <span
-                          className={styles.aviso}
-                          title="La dio por buena la migración, no una persona"
-                        >
-                          {' '}
-                          ⚠
-                        </span>
-                      ) : null}
-                      <span className={styles.origen}>
-                        {' '}
-                        {ETIQUETA_ORIGEN[a.origen ?? ''] ?? a.origen ?? ''}
+                    <td>
+                      <span className={styles.estado}>
+                        <Badge tone={TONO_ESTADO[a.estado] ?? 'neutral'}>{ETIQUETA_ESTADO[a.estado] ?? a.estado}</Badge>
+                        {a.estado === 'confirmed' && !a.confirmadoPorPersona ? (
+                          <span className={styles.aviso}>
+                            <Icon name="alert-triangle" size={16} />
+                            La dio por buena la migración, no una persona
+                          </span>
+                        ) : null}
+                        <span className={styles.origen}>{ETIQUETA_ORIGEN[a.origen ?? ''] ?? a.origen ?? ''}</span>
                       </span>
                     </td>
-                    <td className={styles.nowrap}>{formatearFecha(a.creadoEn)}</td>
+                    <td className={tabla.nowrap}>{formatearFecha(a.creadoEn)}</td>
                     {puedeEditar ? (
-                      <td className={styles.acciones}>
-                        <button
-                          type="button"
-                          className={styles.secundario}
-                          onClick={() => abrir(a)}
-                        >
-                          Editar
-                        </button>
-                        {a.estado === 'confirmed' && !a.confirmadoPorPersona ? (
-                          <button
-                            type="button"
-                            className={styles.secundario}
-                            disabled={confirmar.isPending}
-                            onClick={() => confirmar.mutate(a.id)}
-                          >
-                            Confirmar
-                          </button>
-                        ) : null}
-                        {a.estado !== 'rejected' ? (
-                          <button
-                            type="button"
-                            className={styles.secundario}
-                            disabled={descartar.isPending}
-                            onClick={() => descartar.mutate(a.id)}
-                          >
-                            Descartar
-                          </button>
-                        ) : null}
-                        {confirmandoBorrado === a.id ? (
-                          <>
-                            <button
-                              type="button"
-                              className={styles.peligro}
-                              disabled={borrar.isPending}
-                              onClick={() =>
-                                borrar.mutate(a.id, {
-                                  onSuccess: () => setConfirmandoBorrado(null),
-                                })
-                              }
-                            >
-                              Confirmar borrado
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.secundario}
-                              onClick={() => setConfirmandoBorrado(null)}
-                            >
-                              No
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            className={styles.secundario}
-                            onClick={() => setConfirmandoBorrado(a.id)}
-                          >
+                      <td>
+                        <div className={styles.accionesFila}>
+                          <Button variant="secondary" size="sm" onClick={() => abrir(a)}>
+                            Editar
+                          </Button>
+                          {a.estado === 'confirmed' && !a.confirmadoPorPersona ? (
+                            <Button variant="secondary" size="sm" loading={confirmar.isPending} onClick={() => confirmar.mutate(a.id)}>
+                              Confirmar
+                            </Button>
+                          ) : null}
+                          {a.estado !== 'rejected' ? (
+                            <Button variant="ghost" size="sm" loading={descartar.isPending} onClick={() => descartar.mutate(a.id)}>
+                              Descartar
+                            </Button>
+                          ) : null}
+                          <Button variant="ghost" size="sm" className={styles.peligro} onClick={() => setConfirmandoBorrado(a)}>
                             Borrar
-                          </button>
-                        )}
+                          </Button>
+                        </div>
                       </td>
                     ) : null}
                   </tr>
@@ -327,27 +298,42 @@ export function PanelMemoria({ clienteId, puedeEditar }: PanelMemoriaProps) {
 
       <div className={styles.pie}>
         {puedeEditar && editando === null ? (
-          <button type="button" className={styles.primario} onClick={() => abrir(null)}>
-            + Agregar equivalencia
-          </button>
+          <Button variant="secondary" icon={<Icon name="plus" size={16} />} onClick={() => abrir(null)}>
+            Agregar equivalencia
+          </Button>
         ) : null}
         {descartadas > 0 ? (
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={verDescartadas}
-              onChange={(e) => setVerDescartadas(e.target.checked)}
-            />
-            Ver las {descartadas} descartada{descartadas === 1 ? '' : 's'}
-          </label>
+          <Checkbox
+            label={`Ver las ${descartadas} descartada${descartadas === 1 ? '' : 's'}`}
+            checked={verDescartadas}
+            onChange={(e) => setVerDescartadas(e.target.checked)}
+          />
         ) : null}
       </div>
 
       {borrar.error || descartar.error || confirmar.error ? (
-        <p className={styles.error} role="alert">
-          {borrar.error?.message ?? descartar.error?.message ?? confirmar.error?.message}
-        </p>
+        <Alert tone="danger" role="alert" title="No se pudo actualizar la equivalencia">
+          <p>{borrar.error?.message ?? descartar.error?.message ?? confirmar.error?.message}</p>
+        </Alert>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmandoBorrado !== null}
+        tone="danger"
+        title={`¿Borrar la equivalencia ${confirmandoBorrado?.codigoCliente ?? confirmandoBorrado?.descripcionCliente ?? ''}?`}
+        description="Se borra la relación entre el código del cliente y el producto. Si sólo no aplica, «Descartar» la conserva en el historial. No se puede deshacer."
+        confirmLabel="Borrar equivalencia"
+        cancelLabel="Volver"
+        busy={borrar.isPending}
+        onConfirm={() => {
+          if (!confirmandoBorrado) return
+          borrar.mutate(confirmandoBorrado.id, {
+            onSuccess: () => setConfirmandoBorrado(null),
+            onError: () => setConfirmandoBorrado(null),
+          })
+        }}
+        onCancel={() => setConfirmandoBorrado(null)}
+      />
     </div>
   )
 }

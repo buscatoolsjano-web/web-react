@@ -1,41 +1,39 @@
-.barra {
-  display: flex;
-  flex-direction: column;
+/* Facetas del catálogo (Fase 13 · E4). Vive dentro del FilterBar: ocupa toda
+   la fila debajo de la búsqueda y en < 768 px se pliega con él. */
+
+div.facetas {
+  flex: 1 1 100%;
+  display: grid;
   gap: var(--space-2);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-3);
   min-width: 0;
 }
 
-.barra[aria-busy='true'] {
+.facetas[aria-busy='true'] {
   /* Las opciones anteriores siguen visibles mientras llegan las nuevas, para
-     que los conteos no parpadeen en cada click. Sólo se atenúan. */
-  opacity: 0.75;
+     que los conteos no parpadeen en cada click. Antes se atenuaban con
+     opacidad, y eso bajaba de AA los textos secundarios mientras cargaba: la
+     búsqueda ya muestra un spinner, así que acá sólo cambia el cursor. */
+  cursor: progress;
 }
 
-.fila,
-.filaDesplegables {
+.fila {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   min-width: 0;
 }
 
-.filaDesplegables {
-  flex-wrap: wrap;
-  border-top: 1px solid var(--border);
+.fila + .fila {
   padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
 }
 
 .rotulo {
   flex: none;
+  min-width: 6.5rem;
   font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--text-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-soft);
 }
 
 /* ── Chips en fila ─────────────────────────────────────────────────────── */
@@ -48,125 +46,158 @@
      categorías ocupaban media pantalla. */
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 2px;
-  scrollbar-width: thin;
+  padding: 2px;
+  scrollbar-width: none;
 }
 
-.chip,
-.chipActivo {
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  /* 44 px de alto mínimo: el objetivo táctil que nos fijamos. */
-  min-height: 44px;
+  min-height: var(--control-h-md);
   padding: 0 var(--space-3);
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-medium);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
   font-size: var(--text-sm);
   white-space: nowrap;
   cursor: pointer;
 }
 
 .chip:hover {
-  border-color: var(--text-soft);
+  border-color: var(--color-border-strong);
 }
 
-.chipActivo {
-  background: var(--accent, #d9600a);
-  border-color: var(--accent, #d9600a);
-  color: #fff;
-  font-weight: 600;
+.chip:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
+.chipActivo,
+.chipActivo:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: var(--weight-semibold);
+}
+
+/* Contador: sin opacidad. Antes era `opacity: .75` y sobre el chip activo
+   quedaba en 3.56:1. Ahora hereda el color del chip (blanco sobre primario,
+   5.18:1) o usa --color-text-muted sobre superficie (5.35:1). */
 .cuenta {
   font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
   font-variant-numeric: tabular-nums;
-  opacity: 0.75;
+  color: var(--color-text-muted);
+}
+
+.chipActivo .cuenta {
+  color: inherit;
 }
 
 /* ── Desplegables ──────────────────────────────────────────────────────── */
 
-.desplegable {
-  position: relative;
+.desplegables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
   min-width: 0;
 }
 
-.botonDesplegable,
-.botonDesplegableActivo {
+.desplegable {
+  position: relative;
+  flex: none;
+}
+
+.botonDesplegable {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 44px;
-  /* No se encoge: dentro de una fila con scroll horizontal, dejar que el
-     botón se comprima lo dejaba en una sola letra («M», «Capa»). */
-  flex: 0 0 auto;
-  width: max-content;
+  min-height: var(--control-h-md);
   max-width: 260px;
   padding: 0 var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
   font-size: var(--text-sm);
   cursor: pointer;
 }
 
+.botonDesplegable:hover {
+  background: var(--color-surface-alt);
+}
+
+.botonDesplegable:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
 .botonDesplegableActivo {
-  border-color: var(--accent, #d9600a);
-  background: color-mix(in srgb, var(--accent, #d9600a) 10%, transparent);
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 
 .botonTitulo {
-  color: var(--text-soft);
+  color: var(--color-text-soft);
   white-space: nowrap;
 }
 
 .botonValor {
-  font-weight: 600;
+  min-width: 0;
+  font-weight: var(--weight-semibold);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .flecha {
-  color: var(--text-soft);
-  font-size: 0.7em;
+  flex: none;
+  color: var(--color-text-soft);
+  transition: transform var(--duration-fast) var(--ease-standard);
 }
 
-.panelFlotante {
+.flechaAbierta {
+  transform: rotate(180deg);
+}
+
+.panel {
   position: absolute;
-  z-index: 20;
-  top: calc(100% + 4px);
+  z-index: var(--z-dropdown);
+  top: calc(100% + var(--space-1));
   left: 0;
+  display: grid;
+  gap: var(--space-2);
   min-width: 240px;
   max-width: 320px;
   max-height: 340px;
   overflow-y: auto;
   padding: var(--space-2);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.14);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
 }
 
 /* Cerca del borde derecho el panel se alinea a la derecha para no salirse. */
-.desplegable:nth-last-child(-n + 2) .panelFlotante {
+.desplegable:nth-last-child(-n + 2) .panel {
   left: auto;
   right: 0;
 }
 
 .lista {
-  list-style: none;
+  display: grid;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
+  list-style: none;
 }
 
 .opcion {
@@ -174,9 +205,21 @@
   align-items: center;
   gap: var(--space-2);
   /* Toda la fila es clickeable, no sólo la casilla. */
-  min-height: 44px;
-  cursor: pointer;
+  min-height: var(--touch-target);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
   font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.opcion:hover {
+  background: var(--color-surface-alt);
+}
+
+.opcion input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
 }
 
 .opcionTexto {
@@ -189,32 +232,12 @@
 
 .vacio {
   padding: var(--space-2);
-  color: var(--text-soft);
+  color: var(--color-text-soft);
   font-size: var(--text-sm);
 }
 
-.buscadorFaceta,
-.numero {
-  min-height: 44px;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-size: var(--text-sm);
-  min-width: 0;
-}
-
-.quitarTodo {
-  align-self: flex-start;
-  min-height: 44px;
-  padding: 0 var(--space-2);
-  background: none;
-  border: 0;
-  color: var(--accent, #d9600a);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  text-decoration: underline;
+.quitar {
+  justify-self: start;
 }
 
 /* ── Rango ─────────────────────────────────────────────────────────────── */
@@ -225,19 +248,19 @@
   gap: var(--space-2);
 }
 
-.rango .numero {
+.rango > input {
   flex: 1;
   min-width: 0;
 }
 
 .guion {
-  color: var(--text-soft);
+  color: var(--color-text-soft);
 }
 
 .ayuda {
   margin: 0;
   font-size: var(--text-xs);
-  color: var(--text-soft);
+  color: var(--color-text-soft);
 }
 
 /* ── Filtros aplicados ─────────────────────────────────────────────────── */
@@ -247,59 +270,64 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  border-top: 1px solid var(--border);
-  padding-top: var(--space-2);
 }
 
-.chipActivoQuitar {
+.chipQuitar {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
-  padding: 0 var(--space-3);
-  border-radius: 999px;
-  border: 1px solid var(--accent, #d9600a);
-  background: color-mix(in srgb, var(--accent, #d9600a) 12%, transparent);
-  color: var(--text);
+  gap: var(--space-1);
+  min-height: var(--control-h-md);
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+  font: inherit;
   font-size: var(--text-sm);
   cursor: pointer;
 }
 
-.limpiar {
-  min-height: 44px;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-size: var(--text-sm);
-  cursor: pointer;
+.chipQuitar:hover {
+  background: var(--color-surface);
 }
 
-.limpiar:hover {
-  border-color: var(--text-soft);
+.chipQuitar:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
-@media (max-width: 768px) {
-  .filaDesplegables {
-    /* En mobile los desplegables también scrollean de costado en vez de
-       apilarse: la barra queda de dos o tres líneas como mucho. */
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: thin;
+/* ── < 768 px: dentro del panel plegado del FilterBar ──────────────────── */
+@media (max-width: 767px) {
+  .fila {
+    display: grid;
+    gap: var(--space-1);
   }
-
+  .fila + .fila {
+    padding-top: var(--space-3);
+  }
+  .chip,
   .botonDesplegable,
-  .botonDesplegableActivo {
-    /* En mobile se acorta el valor, no el título: saber QUÉ filtro es
-       importa más que ver el valor entero. */
-    max-width: 200px;
+  .chipQuitar {
+    min-height: var(--touch-target);
   }
-
+  /* Los desplegables se apilan a lo ancho y abren su panel en línea, debajo:
+     un panel flotante se salía de la pantalla y los botones se pisaban. */
+  .desplegables {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .botonDesplegable {
+    width: 100%;
+    max-width: none;
+  }
   .botonValor {
-    max-width: 90px;
+    margin-left: auto;
   }
-
-  .panelFlotante {
-    max-width: min(320px, calc(100vw - 2 * var(--space-4)));
+  .panel {
+    position: static;
+    max-width: none;
+    max-height: 300px;
+    margin-top: var(--space-1);
+    box-shadow: none;
   }
 }
