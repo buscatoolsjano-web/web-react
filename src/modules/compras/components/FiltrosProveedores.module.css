@@ -53,6 +53,16 @@
 .check input {
   width: 18px;
   height: 18px;
+  flex-shrink: 0;
+}
+
+/* En un teléfono la casilla de 18px se ve chica al lado del texto: la
+   etiqueta entera ya es el blanco táctil de 44px, la casilla crece a 24px. */
+@media (max-width: 767px), (pointer: coarse) {
+  .check input {
+    width: 24px;
+    height: 24px;
+  }
 }
 
 .limpiar {

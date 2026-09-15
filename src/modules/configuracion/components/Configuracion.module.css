@@ -126,6 +126,15 @@
   min-width: 13rem;
 }
 
+/* Tamaño «Grande» en una tabla angosta: el mismo mínimo en px que con 16px
+   (13rem = 208px). Con 13rem a 18px la primera columna se come 234px y a
+   768 la tabla scrollea dentro de su caja. */
+@media (max-width: 1151px) {
+  :root[data-tamano='grande'] .persona {
+    min-width: 11.5rem;
+  }
+}
+
 .card .persona {
   min-width: 0;
 }
@@ -167,6 +176,19 @@
   }
 }
 
+/* Tamaño «Grande»: mismos cortes corridos que en ResponsiveTable. */
+@media (min-width: 1280px) and (max-width: 1619px) {
+  :root[data-tamano='grande'] .soloTablaCompacta {
+    display: block;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1151px) {
+  :root[data-tamano='grande'] .soloTablaAngosta {
+    display: block;
+  }
+}
+
 /* Numeración: el tipo de documento no necesita el ancho de un email. */
 .celdaTipo {
   min-width: 9rem;
@@ -184,6 +206,17 @@
 .chipsApilados {
   flex-direction: column;
   align-items: flex-start;
+}
+
+/* Un chip de Numeración puede partirse en dos renglones antes que empujar la
+   card o la tabla fuera de su caja (tamaño «Grande» a 390px). */
+.chip {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.chip > span {
+  white-space: normal;
 }
 
 .acciones {

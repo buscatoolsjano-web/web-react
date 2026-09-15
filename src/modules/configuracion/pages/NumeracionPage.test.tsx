@@ -47,6 +47,8 @@ describe('Numeración: STEL siempre visible al adaptar columnas', () => {
     for (const fila of screen.getAllByRole('row').slice(1)) {
       expect(within(fila).getByText('STEL')).toBeInTheDocument()
       expect(within(fila).getByText('Emisión desde ERP bloqueada')).toBeInTheDocument()
+      // Con «Grande» el chip puede partirse en dos renglones en vez de ensanchar la tabla.
+      expect(within(fila).getByText('Emisión desde ERP bloqueada').parentElement!.className).toMatch(/chip/)
     }
     // El dato de las columnas ocultas se repite bajo el tipo (en tablet), con singular y plural.
     expect(screen.getByText(/1 documento$/)).toBeInTheDocument()

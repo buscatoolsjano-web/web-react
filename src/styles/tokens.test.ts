@@ -303,3 +303,27 @@ describe('apariencia (Fase 14 · E0)', () => {
     expect(valor('--color-logo-plate')).toBe('#ffffff')
   })
 })
+
+describe('tamaño «Grande» en tablas (Fase 14 · E0)', () => {
+  const tabla = TODOS_LOS_CSS['components/tables/ResponsiveTable.module.css']!
+  const config = TODOS_LOS_CSS['modules/configuracion/components/Configuracion.module.css']!
+  const proveedores = TODOS_LOS_CSS['modules/compras/components/ListadoProveedores.module.css']!
+  const bloque = (css: string, media: string, clase: string) =>
+    new RegExp(`@media \\(${media.replace(/[()]/g, '\\$&')}\\) \\{[^@]*:root\\[data-tamano='grande'\\] \\.${clase}\\b`).test(sinComentarios(css))
+
+  it('sigue siendo 18px (112,5%)', () => {
+    expect(tokens).toMatch(/:root\[data-tamano='grande'\]\s*\{[^}]*font-size:\s*112\.5%/)
+  })
+
+  it('las columnas secundarias se ocultan con los cortes corridos, iguales en los tres listados', () => {
+    for (const css of [tabla, proveedores]) {
+      expect(bloque(css, 'max-width: 1619px', 'ocultaBajoXl')).toBe(true)
+      expect(bloque(css, 'max-width: 1151px', 'ocultaBajoLg')).toBe(true)
+    }
+    expect(bloque(proveedores, 'max-width: 1619px', 'soloCompacta')).toBe(true)
+    expect(bloque(proveedores, 'max-width: 1151px', 'soloAngosta')).toBe(true)
+    // El dato oculto se repite en la columna principal en los mismos anchos.
+    expect(bloque(config, 'min-width: 1280px) and (max-width: 1619px', 'soloTablaCompacta')).toBe(true)
+    expect(bloque(config, 'min-width: 1024px) and (max-width: 1151px', 'soloTablaAngosta')).toBe(true)
+  })
+})

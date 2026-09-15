@@ -75,6 +75,31 @@
   }
 }
 
+/* Tamaño «Grande» (Fase 14 · E0): el rem pasa a 18px pero las media queries
+   siguen midiendo px, así que la tabla necesita 12,5% más de ancho. Los cortes
+   se corren en la misma proporción (1280 → 1440, 1024 → 1152) para ocultar
+   las secundarias antes de que aparezca scroll. */
+@media (max-width: 1619px) {
+  :root[data-tamano='grande'] .ocultaBajoXl {
+    display: none;
+  }
+}
+
+@media (max-width: 1151px) {
+  :root[data-tamano='grande'] .ocultaBajoLg {
+    display: none;
+  }
+}
+
+/* Y en esos anchos, menos aire lateral por celda (13,5px en vez de 18px): con
+   cinco o seis columnas es lo que falta para entrar a 768 sin scroll interno. */
+@media (max-width: 1151px) {
+  :root[data-tamano='grande'] .table th,
+  :root[data-tamano='grande'] .table td {
+    padding-inline: var(--space-3);
+  }
+}
+
 .carga {
   padding: var(--space-3);
 }

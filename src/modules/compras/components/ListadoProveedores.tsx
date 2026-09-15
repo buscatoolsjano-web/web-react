@@ -1,6 +1,7 @@
 import { Icon } from '@/components/icons/Icon'
 import { Link } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { cx } from '@/utils/cx'
 import {
   ETIQUETA_NOMBRE_COMERCIAL,
   etiquetaDeEstado,
@@ -21,11 +22,13 @@ export interface ListadoProveedoresProps {
   onSeleccionarTodos: (marcado: boolean) => void
 }
 
-const COLUMNAS: { clave: OrdenProveedores; etiqueta: string }[] = [
+/** `secundaria`: la columna se oculta por debajo de ese ancho y su dato pasa
+ *  abajo de la razón social (ver `.soloCompacta` y `.soloAngosta`). */
+const COLUMNAS: { clave: OrdenProveedores; etiqueta: string; secundaria?: 'lg' }[] = [
   { clave: 'referencia', etiqueta: 'Referencia' },
   { clave: 'nombre', etiqueta: 'Razón social' },
-  { clave: 'pais', etiqueta: 'País' },
-  { clave: 'formaPago', etiqueta: 'Forma de pago' },
+  { clave: 'pais', etiqueta: 'País', secundaria: 'lg' },
+  { clave: 'formaPago', etiqueta: 'Forma de pago', secundaria: 'lg' },
 ]
 
 function flecha(activa: boolean, direccion: DireccionOrden) {
@@ -39,6 +42,11 @@ function flecha(activa: boolean, direccion: DireccionOrden) {
  * Tabla en escritorio y tarjetas en mobile: siete columnas en 390px obligan a
  * hacer scroll horizontal de toda la página, que es justo lo que no se
  * quiere. La tabla, además, scrollea dentro de su propia caja.
+ *
+ * Fase 14 · E0: prioridad de columnas. Por debajo de 1280px (1440 con el
+ * tamaño «Grande») nombre comercial, teléfono y email; por debajo de 1024px
+ * (1152) también país y forma de pago. Lo oculto se lee abajo de la razón
+ * social, así que a 1024 y 768 la tabla entra sin scroll interno.
  */
 export function ListadoProveedores({
   filas,
@@ -111,6 +119,7 @@ export function ListadoProveedores({
               <th
                 key={c.clave}
                 scope="col"
+                className={c.secundaria === 'lg' ? styles.ocultaBajoLg : undefined}
                 aria-sort={
                   orden === c.clave ? (direccion === 'asc' ? 'ascending' : 'descending') : 'none'
                 }
@@ -121,9 +130,9 @@ export function ListadoProveedores({
                 </button>
               </th>
             ))}
-            <th scope="col">{ETIQUETA_NOMBRE_COMERCIAL}</th>
-            <th scope="col">Teléfono</th>
-            <th scope="col">Email</th>
+            <th scope="col" className={styles.ocultaBajoXl}>{ETIQUETA_NOMBRE_COMERCIAL}</th>
+            <th scope="col" className={styles.ocultaBajoXl}>Teléfono</th>
+            <th scope="col" className={styles.ocultaBajoXl}>Email</th>
             <th scope="col">Estado</th>
           </tr>
         </thead>
@@ -148,18 +157,32 @@ export function ListadoProveedores({
                     <Icon name="alert-triangle" size={16} role="img" aria-hidden={false} aria-label="A revisar" />
                   </span>
                 ) : null}
+                <span className={cx(styles.dato, styles.soloAngosta)}>
+                  {nombreDePais(p.pais)}
+                  {p.formaPago ? ` · ${p.formaPago}` : ''}
+                </span>
+                {p.nombreComercial ? (
+                  <span className={cx(styles.dato, styles.soloCompacta)}>
+                    {ETIQUETA_NOMBRE_COMERCIAL}: {p.nombreComercial}
+                  </span>
+                ) : null}
+                {p.telefono || p.email ? (
+                  <span className={cx(styles.dato, styles.soloCompacta)}>
+                    {[p.telefono, p.email].filter(Boolean).join(' · ')}
+                  </span>
+                ) : null}
               </td>
-              <td className={styles.pais} title={p.pais ?? undefined}>
+              <td className={cx(styles.pais, styles.ocultaBajoLg)} title={p.pais ?? undefined}>
                 {nombreDePais(p.pais)}
               </td>
-              <td className={styles.recorta} title={p.formaPago ?? undefined}>
+              <td className={cx(styles.recorta, styles.ocultaBajoLg)} title={p.formaPago ?? undefined}>
                 {p.formaPago ?? '—'}
               </td>
-              <td className={styles.recorta} title={p.nombreComercial ?? undefined}>
+              <td className={cx(styles.recorta, styles.ocultaBajoXl)} title={p.nombreComercial ?? undefined}>
                 {p.nombreComercial ?? '—'}
               </td>
-              <td className={styles.referencia}>{p.telefono ?? '—'}</td>
-              <td className={styles.recorta} title={p.email ?? undefined}>
+              <td className={cx(styles.referencia, styles.ocultaBajoXl)}>{p.telefono ?? '—'}</td>
+              <td className={cx(styles.recorta, styles.ocultaBajoXl)} title={p.email ?? undefined}>
                 {p.email ?? '—'}
               </td>
               <td className={p.dadoDeBaja ? styles.baja : undefined}>

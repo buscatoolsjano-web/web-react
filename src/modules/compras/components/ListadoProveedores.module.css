@@ -174,6 +174,13 @@
   cursor: pointer;
 }
 
+@media (pointer: coarse) {
+  .check input {
+    width: 24px;
+    height: 24px;
+  }
+}
+
 /* Dentro de la tarjeta, la observación y la baja ocupan su propia línea. */
 .tarjeta .marca,
 .tarjeta .baja {
@@ -191,4 +198,53 @@
 
 .marca svg {
   vertical-align: middle;
+}
+
+/* ── Prioridad de columnas (Fase 14 · E0) ─────────────────────────────── */
+
+/* Datos de las columnas ocultas, abajo de la razón social. Sólo en la tabla:
+   la tarjeta mobile ya los muestra. */
+.dato {
+  display: none;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1279px) {
+  .ocultaBajoXl {
+    display: none;
+  }
+  .soloCompacta {
+    display: block;
+  }
+}
+
+@media (max-width: 1023px) {
+  .ocultaBajoLg {
+    display: none;
+  }
+  .soloAngosta {
+    display: block;
+  }
+}
+
+/* Tamaño «Grande»: el rem es 18px y las media queries miden px; los cortes se
+   corren 12,5% (1280 → 1440, 1024 → 1152), igual que en ResponsiveTable. */
+@media (max-width: 1619px) {
+  :root[data-tamano='grande'] .ocultaBajoXl {
+    display: none;
+  }
+  :root[data-tamano='grande'] .soloCompacta {
+    display: block;
+  }
+}
+
+@media (max-width: 1151px) {
+  :root[data-tamano='grande'] .ocultaBajoLg {
+    display: none;
+  }
+  :root[data-tamano='grande'] .soloAngosta {
+    display: block;
+  }
 }

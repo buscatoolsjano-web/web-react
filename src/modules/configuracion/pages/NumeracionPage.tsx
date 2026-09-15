@@ -154,11 +154,15 @@ export function NumeracionPage() {
 
 const TONO_BADGE: Record<string, BadgeTone> = { ok: 'success', alerta: 'warning', error: 'danger', neutro: 'neutral' }
 
-/** Estado, autoridad o emisión. El detalle queda en el `title` (y escrito en la card mobile). */
+/**
+ * Estado, autoridad o emisión. El detalle queda en el `title` (y escrito en la card mobile).
+ * Puede pasar a dos renglones: con el tamaño «Grande», «Emisión desde ERP bloqueada»
+ * no entra en una card de 390px ni en una columna apretada.
+ */
 function Chip({ p }: { p: { etiqueta: string; tono: string; detalle: string } }) {
   const tono = TONO_BADGE[p.tono] ?? 'neutral'
   return (
-    <span title={p.detalle}>
+    <span title={p.detalle} className={styles.chip}>
       <Badge tone={tono} dot={tono === 'warning' || tono === 'danger'}>
         {p.etiqueta}
       </Badge>
