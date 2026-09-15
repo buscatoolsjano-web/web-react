@@ -7,6 +7,7 @@ import { errorDe, validarRepuesto, type ErrorDeCampo } from '../lib/validacion'
 import { SelectorProducto } from './SelectorProducto'
 import type { DatosRepuesto, Deposito, RepuestoDeOrden } from '../types'
 import type { ProductoBuscado } from '../services/catalogo'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './PanelCotizacion.module.css'
 
 export interface PanelRepuestosProps {
@@ -139,7 +140,7 @@ export function PanelRepuestos({
       ) : null}
 
       {cargando ? (
-        <p className={styles.nota}>Cargando los repuestos…</p>
+        <SkeletonRows rows={3} columns={4} label="Cargando los repuestos…" />
       ) : repuestos.length === 0 ? (
         <p className={styles.vacio}>Todavía no se cargó ningún repuesto.</p>
       ) : isMobile ? (

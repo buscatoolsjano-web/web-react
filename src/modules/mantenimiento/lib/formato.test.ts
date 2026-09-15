@@ -7,8 +7,6 @@ import {
   formatearNumero,
   indicadorDeCapacidad,
   nombreDeEquipo,
-  rangoVisible,
-  totalDePaginas,
 } from './formato'
 
 describe('formatearImporte', () => {
@@ -73,22 +71,6 @@ describe('nombreDeEquipo', () => {
   it('sin modelo queda la referencia sola', () => {
     expect(nombreDeEquipo('EQ00001', null)).toBe('EQ00001')
     expect(nombreDeEquipo('EQ00001', '   ')).toBe('EQ00001')
-  })
-})
-
-describe('rangoVisible y totalDePaginas', () => {
-  it('dicen qué se está viendo', () => {
-    expect(rangoVisible(1, 25, 60)).toBe('1–25 de 60')
-    expect(rangoVisible(3, 25, 60)).toBe('51–60 de 60')
-  })
-
-  it('sin resultados lo dice con palabras', () => {
-    expect(rangoVisible(1, 25, 0)).toBe('0 resultados')
-  })
-
-  it('siempre hay al menos una página', () => {
-    expect(totalDePaginas(0, 25)).toBe(1)
-    expect(totalDePaginas(60, 25)).toBe(3)
   })
 })
 

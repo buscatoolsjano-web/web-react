@@ -1,4 +1,7 @@
 import { useRouteError } from 'react-router-dom'
+import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/icons/Icon'
+import styles from './ErrorPage.module.css'
 
 /**
  * Pantalla de error de las rutas.
@@ -9,6 +12,9 @@ import { useRouteError } from 'react-router-dom'
  *
  * El detalle técnico va en un <details> cerrado: sirve para reportar el
  * problema sin ser lo primero que se lee.
+ *
+ * Fase 13 · E6: estilos del sistema en lugar de estilos inline; el mismo
+ * «Recargar» y el mismo detalle plegado.
  */
 export function ErrorPage() {
   const error = useRouteError()
@@ -16,59 +22,24 @@ export function ErrorPage() {
     error instanceof Error ? error.message : typeof error === 'string' ? error : null
 
   return (
-    <div style={{ padding: 'var(--space-5)', maxWidth: '42rem', margin: '0 auto' }}>
-      <h1 style={{ fontSize: 'var(--text-lg)', margin: '0 0 var(--space-2)' }}>
-        Algo salió mal
-      </h1>
-      <p style={{ color: 'var(--text-soft)', margin: '0 0 var(--space-4)' }}>
-        No se pudo cargar esta pantalla. Casi siempre se resuelve recargando la página.
-      </p>
+    <main className={styles.wrap}>
+      <div className={styles.caja} role="alert">
+        <span className={styles.icono} aria-hidden="true">
+          <Icon name="alert-triangle" size={32} />
+        </span>
+        <h1 className={styles.titulo}>Algo salió mal</h1>
+        <p className={styles.texto}>No se pudo cargar esta pantalla. Casi siempre se resuelve recargando la página.</p>
+        <Button icon={<Icon name="refresh" size={16} />} onClick={() => window.location.reload()}>
+          Recargar
+        </Button>
 
-      <button
-        type="button"
-        onClick={() => window.location.reload()}
-        style={{
-          minHeight: 44,
-          padding: 'var(--space-2) var(--space-4)',
-          border: 'none',
-          borderRadius: 'var(--radius-sm)',
-          background: 'var(--primary)',
-          color: 'var(--primary-text)',
-          fontSize: 'var(--text-sm)',
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}
-      >
-        Recargar
-      </button>
-
-      {detalle && (
-        <details style={{ marginTop: 'var(--space-5)' }}>
-          <summary
-            style={{
-              cursor: 'pointer',
-              color: 'var(--text-muted)',
-              fontSize: 'var(--text-sm)',
-            }}
-          >
-            Detalle técnico
-          </summary>
-          <pre
-            style={{
-              marginTop: 'var(--space-2)',
-              padding: 'var(--space-3)',
-              background: 'var(--surface-alt)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: 'var(--text-xs)',
-              overflowX: 'auto',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}
-          >
-            {detalle}
-          </pre>
-        </details>
-      )}
-    </div>
+        {detalle && (
+          <details className={styles.detalle}>
+            <summary>Detalle técnico</summary>
+            <pre>{detalle}</pre>
+          </details>
+        )}
+      </div>
+    </main>
   )
 }

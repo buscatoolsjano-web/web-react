@@ -10,6 +10,7 @@ import {
   subirAdjunto,
   urlDeDescarga,
 } from '../services/adjuntos'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './PanelAdjuntos.module.css'
 
 export interface PanelAdjuntosProps {
@@ -67,7 +68,7 @@ export function PanelAdjuntos({ proveedorId, puedeEditar }: PanelAdjuntosProps) 
   const etiquetaDeClase = (v: string | null) =>
     CLASES.find((c) => c.valor === v)?.etiqueta ?? v ?? '—'
 
-  if (adjuntos.isPending) return <p className={styles.nota}>Cargando adjuntos…</p>
+  if (adjuntos.isPending) return <SkeletonRows rows={2} columns={3} label="Cargando adjuntos…" />
 
   if (adjuntos.error) {
     return (

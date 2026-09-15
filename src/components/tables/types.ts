@@ -20,6 +20,13 @@ export interface Column<T> {
   width?: string
   /** Rol en la card mobile. Default: 'field'. */
   mobile?: MobileRole
+  /**
+   * Prioridad en la tabla (Fase 13 · E6). Una columna secundaria se oculta
+   * debajo de un ancho: 'xl' debajo de 1280px, 'lg' debajo de 1024px. El dato
+   * no se pierde: la página lo repite dentro de una columna esencial en esos
+   * anchos, y la card mobile sigue mostrando todas las columnas.
+   */
+  hideBelow?: 'lg' | 'xl' | undefined
 }
 
 /** Un par etiqueta/valor ya resuelto para pintar en la card. */

@@ -13,6 +13,7 @@ import { formatearFecha } from '../lib/formato'
 import { usePedido } from '../hooks/usePedidos'
 import { useCrearRecepcion, useDepositos, usePendienteDePedido } from '../hooks/useRecepciones'
 import type { CantidadARecibir } from '../services/recepciones'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './ProveedorDetallePage.module.css'
 
 const hoy = () => new Date().toISOString().slice(0, 10)
@@ -251,7 +252,7 @@ export function RecepcionNuevaPage() {
 
       <section className={styles.bloque}>
         {pendiente.isPending ? (
-          <p className={styles.nota}>Cargando lo pendiente…</p>
+          <SkeletonRows rows={3} columns={4} label="Cargando lo pendiente…" />
         ) : pendiente.error ? (
           <Alert tone="danger" role="alert">
             <p>{pendiente.error.message}</p>

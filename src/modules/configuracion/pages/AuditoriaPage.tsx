@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button'
 import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
 import type { Column } from '@/components/tables/types'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { cx } from '@/utils/cx'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useActoresAuditoria, useAuditoria } from '../hooks/useAuditoria'
 import {
@@ -101,7 +102,7 @@ function AuditoriaAdmin() {
     })
 
   const columnas: Column<EventoAuditoria>[] = [
-    { key: 'fecha', header: 'Fecha y hora', width: '8rem', render: (e) => <span className={styles.celdaAuditoria}>{formatearFechaHora(e.fecha)}</span> },
+    { key: 'fecha', header: 'Fecha y hora', width: '8rem', hideBelow: 'lg', render: (e) => <span className={styles.celdaAuditoria}>{formatearFechaHora(e.fecha)}</span> },
     {
       key: 'evento',
       header: 'Evento',
@@ -110,11 +111,13 @@ function AuditoriaAdmin() {
         <span className={styles.celdaAuditoria}>
           <span className={styles.nombre}>{etiquetaEvento(e.evento)}</span>
           <span className={styles.email}>{etiquetaModulo(e.modulo)}</span>
+          <span className={cx(styles.email, styles.soloTablaAngosta)}>{formatearFechaHora(e.fecha)}</span>
+          <span className={cx(styles.email, styles.soloTablaCompacta)}>{etiquetaEntidad(e)}</span>
         </span>
       ),
     },
     { key: 'actor', header: 'Actor', render: (e) => <Actor e={e} /> },
-    { key: 'entidad', header: 'Entidad', render: (e) => <span className={styles.celdaAuditoria}>{etiquetaEntidad(e)}</span> },
+    { key: 'entidad', header: 'Entidad', hideBelow: 'xl', render: (e) => <span className={styles.celdaAuditoria}>{etiquetaEntidad(e)}</span> },
     { key: 'resumen', header: 'Resumen', render: (e) => <Resumen e={e} abierto={abiertos.has(e.clave)} onAlternar={() => alternar(e.clave)} /> },
   ]
 

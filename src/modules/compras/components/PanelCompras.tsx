@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ComprasDelProveedor } from '../types'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './PanelCompras.module.css'
 
 export interface PanelComprasProps {
@@ -25,7 +26,7 @@ const DOCUMENTOS = [
  * pueden llamarse parecido y un nombre se edita.
  */
 export function PanelCompras({ proveedorId, datos, cargando }: PanelComprasProps) {
-  if (cargando) return <p className={styles.nota}>Cargando…</p>
+  if (cargando) return <SkeletonRows rows={3} columns={4} label="Cargando…" />
 
   const total = (datos?.pedidos ?? 0) + (datos?.recepciones ?? 0) + (datos?.facturas ?? 0)
 

@@ -123,10 +123,18 @@ export function ListadoDocumentos({
                 </th>
               )
             })}
-            <th scope="col">Título</th>
+            <th scope="col" className={tabla.ocultaBajoXl}>
+              Título
+            </th>
             <th scope="col">Estado</th>
-            {etiquetaOrigen ? <th scope="col">{etiquetaOrigen}</th> : null}
-            <th scope="col">Vendedor</th>
+            {etiquetaOrigen ? (
+              <th scope="col" className={tabla.ocultaBajoLg}>
+                {etiquetaOrigen}
+              </th>
+            ) : null}
+            <th scope="col" className={tabla.ocultaBajoXl}>
+              Vendedor
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -156,15 +164,15 @@ export function ListadoDocumentos({
               <td className={tabla.texto}>{d.clienteNombre}</td>
               <td className={tabla.nowrap}>{formatearFecha(d.fecha)}</td>
               <td className={tabla.num}>{formatearImporte(d.total, d.moneda)}</td>
-              <td className={`${tabla.secundario} ${tabla.texto}`}>{d.titulo ?? '—'}</td>
+              <td className={`${tabla.secundario} ${tabla.texto} ${tabla.ocultaBajoXl}`}>{d.titulo ?? '—'}</td>
               <td>
                 <span className={tabla.estados}>
                   <ChipEstado estado={presentarEstado(d.tipo, d.estado)} />
                   {d.estadoSecundario ? <ChipEstado estado={presentarCumplimiento(d.estadoSecundario)} /> : null}
                 </span>
               </td>
-              {etiquetaOrigen ? <td className={tabla.nowrap}>{d.origen ?? '—'}</td> : null}
-              <td className={`${tabla.nowrap} ${tabla.secundario}`}>{d.vendedor ?? '—'}</td>
+              {etiquetaOrigen ? <td className={`${tabla.nowrap} ${tabla.ocultaBajoLg}`}>{d.origen ?? '—'}</td> : null}
+              <td className={`${tabla.nowrap} ${tabla.secundario} ${tabla.ocultaBajoXl}`}>{d.vendedor ?? '—'}</td>
             </tr>
           ))}
         </tbody>

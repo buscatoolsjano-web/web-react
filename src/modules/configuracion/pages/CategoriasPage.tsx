@@ -168,7 +168,7 @@ export function CategoriasPage() {
           ayuda={
             pendiente.tipo === 'crear'
               ? 'La clave interna (slug) se genera del nombre y después no cambia.'
-              : `La clave interna «${pendiente.c.slug}» no cambia${pendiente.c.productos ? ` y los ${pendiente.c.productos.toLocaleString('es-AR')} productos siguen en esta categoría` : ''}.`
+              : `La clave interna «${pendiente.c.slug}» no cambia${pendiente.c.productos ? (pendiente.c.productos === 1 ? ' y su único producto sigue en esta categoría' : ` y los ${pendiente.c.productos.toLocaleString('es-AR')} productos siguen en esta categoría`) : ''}.`
           }
           guardando={acciones.crearCategoria.isPending || acciones.renombrarCategoria.isPending}
           error={errorDialogo}

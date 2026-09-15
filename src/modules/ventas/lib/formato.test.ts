@@ -3,8 +3,6 @@ import {
   formatearCantidad,
   formatearFecha,
   formatearImporte,
-  rangoVisible,
-  totalDePaginas,
 } from './formato'
 
 describe('formatearImporte', () => {
@@ -49,22 +47,5 @@ describe('formatearCantidad', () => {
 
   it('null es raya', () => {
     expect(formatearCantidad(null)).toBe('—')
-  })
-})
-
-describe('paginación', () => {
-  it('rangoVisible sobre las 288 cotizaciones', () => {
-    expect(rangoVisible(1, 25, 288)).toBe('1–25 de 288')
-    expect(rangoVisible(12, 25, 288)).toBe('276–288 de 288')
-  })
-
-  it('sin resultados no muestra un rango', () => {
-    expect(rangoVisible(1, 25, 0)).toBe('0 resultados')
-  })
-
-  it('totalDePaginas nunca devuelve 0', () => {
-    expect(totalDePaginas(288, 25)).toBe(12)
-    expect(totalDePaginas(0, 25)).toBe(1)
-    expect(totalDePaginas(10, 0)).toBe(1)
   })
 })

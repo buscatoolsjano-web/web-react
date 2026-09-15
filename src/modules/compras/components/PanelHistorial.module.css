@@ -48,3 +48,9 @@
   font-size: var(--text-sm);
   color: var(--text-soft);
 }
+
+.flecha {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 var(--space-1);
+}

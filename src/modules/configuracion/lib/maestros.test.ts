@@ -13,7 +13,6 @@ import {
   presentarVigencia,
   puedeEliminarCategoria,
   puedeEliminarMarca,
-  rangoPagina,
   textoDesactivar,
   textoVigenciaLista,
   validarNombre,
@@ -111,11 +110,6 @@ describe('listas de precios', () => {
     expect(textoVigenciaLista({ items: 12254, vigenciaDesde: '2026-01-01', vigenciaHasta: null })).toBe('desde 01/01/2026, sin fin')
     expect(textoVigenciaLista({ items: 3, vigenciaDesde: '2026-01-01', vigenciaHasta: '2026-12-31' })).toBe('desde 01/01/2026 hasta 31/12/2026')
     expect(textoVigenciaLista({ items: 0, vigenciaDesde: null, vigenciaHasta: null })).toBe('Sin precios')
-  })
-  it('rango de página', () => {
-    expect(rangoPagina(0, 50, 12254)).toBe('1–50 de 12.254')
-    expect(rangoPagina(12250, 4, 12254)).toBe('12.251–12.254 de 12.254')
-    expect(rangoPagina(0, 0, 0)).toBe('0 precios')
   })
   it('tipo de atributo con unidad', () => {
     expect(etiquetaTipoAtributo('number', 'Nm')).toBe('Número (Nm)')

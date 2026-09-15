@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { Icon } from '@/components/icons/Icon'
 import { escribeVentas } from '../lib/permisos'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './PanelAdjuntos.module.css'
 
 export interface PanelAdjuntosProps {
@@ -70,7 +71,7 @@ export function PanelAdjuntos({ tipo, documentoId }: PanelAdjuntosProps) {
     }
   }
 
-  if (adjuntos.isPending) return <p className={styles.nota}>Cargando adjuntos…</p>
+  if (adjuntos.isPending) return <SkeletonRows rows={2} columns={3} label="Cargando adjuntos…" />
 
   return (
     <div className={styles.panel}>

@@ -1,3 +1,4 @@
+import { Icon } from '@/components/icons/Icon'
 import { Link } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import {
@@ -27,9 +28,9 @@ const COLUMNAS: { clave: OrdenProveedores; etiqueta: string }[] = [
   { clave: 'formaPago', etiqueta: 'Forma de pago' },
 ]
 
-function flecha(activa: boolean, direccion: DireccionOrden): string {
-  if (!activa) return ''
-  return direccion === 'asc' ? ' ↑' : ' ↓'
+function flecha(activa: boolean, direccion: DireccionOrden) {
+  if (!activa) return null
+  return <Icon name={direccion === 'asc' ? 'arrow-up' : 'arrow-down'} size={16} className={styles.flecha} />
 }
 
 /**
@@ -79,7 +80,7 @@ export function ListadoProveedores({
               {p.formaPago ? <span className={styles.tarjetaDato}>{p.formaPago}</span> : null}
               {p.necesitaRevision ? (
                 <span className={styles.marca} title={p.motivosRevision.join(', ')}>
-                  ⚠ {p.motivosRevision.length} observación
+                  <Icon name="alert-triangle" size={16} /> {p.motivosRevision.length} observación
                   {p.motivosRevision.length === 1 ? '' : 'es'}
                 </span>
               ) : null}
@@ -144,8 +145,7 @@ export function ListadoProveedores({
                 </Link>
                 {p.necesitaRevision ? (
                   <span className={styles.marca} title={p.motivosRevision.join(', ')}>
-                    {' '}
-                    ⚠
+                    <Icon name="alert-triangle" size={16} role="img" aria-hidden={false} aria-label="A revisar" />
                   </span>
                 ) : null}
               </td>

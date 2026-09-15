@@ -15,6 +15,10 @@
  *
  *   node scripts/fase13-rediseno-auditoria.mjs            → resumen legible
  *   node scripts/fase13-rediseno-auditoria.mjs --json     → todo en JSON
+ *
+ * E6 (cierre): distingue diálogos y paginadores propios de los que usan las
+ * primitivas (Dialog / useModalAccesible · Pagination), cuenta el uso de las
+ * primitivas del sistema y compara contra los números medidos en E0.
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -102,13 +106,30 @@ for (const f of css) {
 }
 
 // ── TSX ─────────────────────────────────────────────────────────────────────
-const t = { archivosTsx: tsx.length, dialogos: [], paginadores: [], inline: [], iconos: [], svg: [], cargando: [], alertas: 0, vacios: [], tabs: [], botonNativo: 0, botonComponente: 0, h1: [], toasts: [], windowConfirm: [], selects: 0, inputsDate: 0, statusMessage: 0, responsiveTable: 0, tablasNativas: [] }
+const t = { archivosTsx: tsx.length, dialogosAccesibles: [], dialogosPropios: [], paginadoresSobrePagination: [], paginadoresPropios: [], primitivas: {}, cargandoSuelto: 0, dialogos: [], paginadores: [], inline: [], iconos: [], svg: [], cargando: [], alertas: 0, vacios: [], tabs: [], botonNativo: 0, botonComponente: 0, h1: [], toasts: [], windowConfirm: [], selects: 0, inputsDate: 0, statusMessage: 0, responsiveTable: 0, tablasNativas: [] }
 const ICONO = /[←-⇿⌀-⏿─-➿⬀-⯿\u{1F300}-\u{1FAFF}]|&#9776;|&times;|&larr;|&rarr;/gu
 for (const f of tsx) {
   const txt = readFileSync(f, 'utf8')
   const r2 = rel(f)
-  if (/role="dialog"|role=\{?'dialog'|<dialog/.test(txt)) t.dialogos.push(r2)
-  if (/Paginador|paginador|Anterior<\/|'Anterior'|>\s*Anterior\s*</.test(txt)) t.paginadores.push(r2)
+  if (/role="dialog"|role=\{?'dialog'|<dialog/.test(txt)) {
+    t.dialogos.push(r2)
+    // Con foco atrapado y Escape (Dialog o useModalAccesible), o panel no modal sin aria-modal.
+    // El cajón del shell maneja foco, Escape e inert a mano (E2): también cuenta.
+    const focoPropio = /'Escape'/.test(txt) && /\.focus\(/.test(txt) && /inert/.test(txt)
+    if (/useModalAccesible|modals\/Dialog'/.test(txt) || !/aria-modal/.test(txt) || focoPropio) t.dialogosAccesibles.push(r2)
+    else t.dialogosPropios.push(r2)
+  }
+  if (/Paginador|paginador|Anterior<\/|'Anterior'|>\s*Anterior\s*</.test(txt)) {
+    t.paginadores.push(r2)
+    if (/tables\/Pagination'|<Paginador\b|export function Pagination\b/.test(txt)) t.paginadoresSobrePagination.push(r2)
+    else t.paginadoresPropios.push(r2)
+  }
+  for (const p of ['PageHeader', 'FilterBar', 'Pagination', 'Badge', 'Dialog', 'ConfirmDialog', 'EmptyState', 'ErrorState', 'Alert', 'SkeletonRows', 'Spinner', 'Tabs', 'Field', 'IconButton', 'LinkButton', 'ActionBar', 'DocSection']) {
+    const n = (txt.match(new RegExp(`<${p}\\b`, 'g')) ?? []).length
+    if (n) t.primitivas[p] = (t.primitivas[p] ?? 0) + n
+  }
+  // «Cargando…» como único contenido de un párrafo o span (no labels de Skeleton/Spinner ni textos de botón).
+  t.cargandoSuelto += (txt.match(/<(p|span|li)[^>]*>\s*Cargando[^<{]*<\/(p|span|li)>/g) ?? []).length
   const inl = (txt.match(/style=\{\{/g) ?? []).length
   if (inl) t.inline.push([r2, inl])
   const ico = [...txt.replace(/\/\/.*$|\/\*[\s\S]*?\*\//gm, '').matchAll(ICONO)].map((m) => m[0])
@@ -196,7 +217,13 @@ const resumen = {
   tsx: {
     archivos: t.archivosTsx,
     dialogos: t.dialogos,
+    dialogosAccesibles: t.dialogosAccesibles,
+    dialogosPropios: t.dialogosPropios,
     paginadores: t.paginadores,
+    paginadoresSobrePagination: t.paginadoresSobrePagination,
+    paginadoresPropios: t.paginadoresPropios,
+    primitivas: Object.entries(t.primitivas).sort((a, b) => b[1] - a[1]),
+    cargandoSuelto: t.cargandoSuelto,
     estilosInline: t.inline.sort((a, b) => b[1] - a[1]),
     iconosUnicode: t.iconos,
     svgInline: t.svg,
@@ -239,8 +266,10 @@ if (JSON_OUT) {
   L('clases repetidas (≥4 archivos)', resumen.css.clasesRepetidasEn4oMasArchivos.map(([c, n]) => `.${c}×${n}`).join(' '))
   console.log('\n  TSX')
   L('archivos', resumen.tsx.archivos)
-  L('diálogos propios', `${resumen.tsx.dialogos.length}: ${resumen.tsx.dialogos.join(', ')}`)
-  L('paginadores', `${resumen.tsx.paginadores.length}: ${resumen.tsx.paginadores.join(', ')}`)
+  L('diálogos (con role=dialog)', `${resumen.tsx.dialogos.length} · accesibles/no modales ${resumen.tsx.dialogosAccesibles.length} · propios sin foco ${resumen.tsx.dialogosPropios.length}${resumen.tsx.dialogosPropios.length ? ': ' + resumen.tsx.dialogosPropios.join(', ') : ''}`)
+  L('paginadores', `${resumen.tsx.paginadores.length} archivos · sobre Pagination ${resumen.tsx.paginadoresSobrePagination.length} · propios ${resumen.tsx.paginadoresPropios.length}${resumen.tsx.paginadoresPropios.length ? ': ' + resumen.tsx.paginadoresPropios.join(', ') : ''}`)
+  L('primitivas del sistema (usos)', resumen.tsx.primitivas.map(([p, n]) => `${p}×${n}`).join(' '))
+  L('«Cargando…» suelto', resumen.tsx.cargandoSuelto)
   L('window.confirm / alert', resumen.tsx.windowConfirmAlert.join(', ') || '0')
   L('botones nativos / <Button>', `${resumen.tsx.botonesNativos} / ${resumen.tsx.botonesComponente}`)
   L('<ResponsiveTable> / <table> nativas', `${resumen.tsx.responsiveTable} / ${resumen.tsx.tablasNativas.length} (${resumen.tsx.tablasNativas.join(', ')})`)
@@ -259,5 +288,43 @@ if (JSON_OUT) {
     L('CSS total / chunks', `${resumen.bundle.cssTotalKB} kB / ${resumen.bundle.chunksCss}`)
     L('mayores', resumen.bundle.mayores.join(' · '))
   }
+
+  // Números medidos en E0 (docs/PHASE_13_REDISENO_ENTREGA_0_AUDITORIA.md §A), para ver el recorrido.
+  const E0 = {
+    'colores literales fuera de tokens': 105,
+    'variables CSS no definidas (usos)': 18,
+    'font-size distintos': 22,
+    'border-radius distintos': 11,
+    'media queries distintas': 17,
+    '<button> nativos': 345,
+    '<Button> compartido': 40,
+    'window.confirm': 2,
+    'archivos con íconos unicode': 20,
+    'diálogos propios sin foco/Escape': 7,
+    'paginadores propios': 6,
+    'tabs con role=tab': 0,
+    'toasts': 0,
+    'JS total (kB)': 1515,
+    'CSS total (kB)': 210,
+  }
+  const hoy = {
+    'colores literales fuera de tokens': resumen.css.coloresLiteralesFueraDeTokens,
+    'variables CSS no definidas (usos)': resumen.css.varsNoDefinidas.reduce((s, [, n]) => s + n, 0),
+    'font-size distintos': resumen.css.fontSize.length,
+    'border-radius distintos': resumen.css.radius.length,
+    'media queries distintas': resumen.css.media.length,
+    '<button> nativos': resumen.tsx.botonesNativos,
+    '<Button> compartido': resumen.tsx.botonesComponente,
+    'window.confirm': resumen.tsx.windowConfirmAlert.length,
+    'archivos con íconos unicode': resumen.tsx.iconosUnicode.length,
+    'diálogos propios sin foco/Escape': resumen.tsx.dialogosPropios.length,
+    'paginadores propios': resumen.tsx.paginadoresPropios.length,
+    'tabs con role=tab': resumen.tsx.tabs.length,
+    'toasts': resumen.tsx.toasts.length,
+    'JS total (kB)': resumen.bundle?.jsTotalKB ?? '—',
+    'CSS total (kB)': resumen.bundle?.cssTotalKB ?? '—',
+  }
+  console.log('\n  E0 → HOY')
+  for (const k of Object.keys(E0)) L(k, `${E0[k]} → ${hoy[k]}`)
   console.log('')
 }

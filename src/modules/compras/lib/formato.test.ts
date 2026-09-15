@@ -9,8 +9,6 @@ import {
   formatearNumero,
   nombreDePais,
   nombreVisible,
-  rangoVisible,
-  totalDePaginas,
 } from './formato'
 
 describe('formatearFecha', () => {
@@ -103,19 +101,6 @@ describe('nombreVisible', () => {
   it('sin razón social, algo se muestra', () => {
     expect(nombreVisible('')).toBe('Sin nombre')
     expect(nombreVisible('   ')).toBe('Sin nombre')
-  })
-})
-
-describe('rangoVisible y totalDePaginas', () => {
-  it('cuenta los 142 proveedores de a 25', () => {
-    expect(totalDePaginas(142, 25)).toBe(6)
-    expect(rangoVisible(1, 25, 142)).toBe('1–25 de 142')
-    expect(rangoVisible(6, 25, 142)).toBe('126–142 de 142')
-  })
-
-  it('sin resultados no miente', () => {
-    expect(rangoVisible(1, 25, 0)).toBe('0 resultados')
-    expect(totalDePaginas(0, 25)).toBe(1)
   })
 })
 

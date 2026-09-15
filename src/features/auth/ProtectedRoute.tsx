@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { contrasenaPendiente } from '@/services/auth/contrasenaPendiente'
 import { RUTA_DEFINIR_CONTRASENA } from '@/services/auth/callbackUrl'
+import { Spinner } from '@/components/ui/Spinner'
+import cargandoStyles from '@/app/CargandoRuta.module.css'
 import { useAuth } from './useAuth'
 
 /**
@@ -16,10 +18,12 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   const location = useLocation()
 
   if (cargando) {
+    // Fase 13 · E6: el mismo estado con el spinner del sistema, sin estilos inline.
     return (
-      <p style={{ padding: 'var(--space-4)', color: 'var(--text-soft)' }} role="status">
-        Verificando sesión…
-      </p>
+      <div className={cargandoStyles.cargando} role="status">
+        <Spinner size={20} />
+        <span>Verificando sesión…</span>
+      </div>
     )
   }
 

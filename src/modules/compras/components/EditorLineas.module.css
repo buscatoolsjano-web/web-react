@@ -84,7 +84,7 @@
 .sku:focus-visible,
 .numero:focus-visible,
 .select:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: var(--focus-outline);
   outline-offset: -1px;
   background: var(--surface);
 }
@@ -157,7 +157,7 @@
 }
 
 .icono:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: var(--focus-outline);
   outline-offset: 1px;
 }
 

@@ -1,7 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
+import { Alert } from '@/components/feedback/Alert'
+import { Field } from '@/components/forms/Field'
+import { Input } from '@/components/forms/controls'
 import { Button } from '@/components/ui/Button'
-import { StatusMessage } from '@/components/ui/StatusMessage'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Spinner } from '@/components/ui/Spinner'
 import { LARGO_MINIMO, validarContrasenaNueva } from '@/services/auth/contrasena'
 import { contrasenaPendiente } from '@/services/auth/contrasenaPendiente'
 import { definirContrasena, procesarEnlaceDeAuth, type ResultadoEnlace } from '@/services/auth/session'
@@ -14,6 +18,9 @@ import styles from './LoginPage.module.css'
  * El enlace ya trae una sesión válida (la procesa `procesarEnlaceDeAuth`); acá
  * la persona elige su contraseña. No se guarda nada: la contraseña va directo
  * a Supabase Auth con `updateUser`.
+ *
+ * Fase 13 · E6: sólo presentación. El procesamiento del enlace, la sesión, la
+ * validación y `definirContrasena` son los mismos.
  */
 export function DefinirContrasenaPage() {
   const { session, cargando } = useAuth()
@@ -32,26 +39,31 @@ export function DefinirContrasenaPage() {
   // Con un enlace válido la sesión llega un instante después (onAuthStateChange).
   if (enlace === null || cargando || (enlace.ok && !session)) {
     return (
-      <div className={styles.wrap}>
-        <p className={styles.subtitle} role="status">
-          Verificando el enlace…
-        </p>
+      <div className={styles.verificando} role="status">
+        <Spinner size={20} />
+        <span>Verificando el enlace…</span>
       </div>
     )
   }
 
   if (!enlace.ok && enlace.codigo !== 'sin_enlace') {
+    const vencido = enlace.codigo === 'enlace_vencido'
     return (
       <div className={styles.wrap}>
-        <h1 className={styles.title}>El enlace no sirve</h1>
-        <StatusMessage
-          tono="error"
-          titulo={enlace.codigo === 'enlace_vencido' ? 'El enlace venció o ya se usó.' : 'El enlace no es válido.'}
-          detalle="Pedí uno nuevo. Si era una invitación, pedile a un administrador que la reenvíe."
-        />
-        <p className={styles.nota}>
-          <Link to="/auth/recuperar">Pedir un enlace nuevo</Link> · <Link to="/auth/login">Iniciar sesión</Link>
-        </p>
+        <header className={styles.cabecera}>
+          <h1 className={styles.title}>{vencido ? 'El enlace venció' : 'El enlace no sirve'}</h1>
+        </header>
+        <Alert tone="danger" role="alert" title={vencido ? 'El enlace venció o ya se usó.' : 'El enlace no es válido.'}>
+          <p>Pedí uno nuevo. Si era una invitación, pedile a un administrador que la reenvíe.</p>
+        </Alert>
+        <div className={styles.acciones}>
+          <LinkButton to="/auth/recuperar" variant="primary">
+            Pedir un enlace nuevo
+          </LinkButton>
+          <LinkButton to="/auth/login" variant="secondary">
+            Iniciar sesión
+          </LinkButton>
+        </div>
       </div>
     )
   }
@@ -65,7 +77,7 @@ export function DefinirContrasenaPage() {
   return <FormularioContrasena esInvitacion={motivo === 'invite'} email={session.user.email ?? ''} />
 }
 
-function FormularioContrasena({ esInvitacion, email }: { esInvitacion: boolean; email: string }) {
+export function FormularioContrasena({ esInvitacion, email }: { esInvitacion: boolean; email: string }) {
   const navigate = useNavigate()
   const [contrasena, setContrasena] = useState('')
   const [confirmacion, setConfirmacion] = useState('')
@@ -95,13 +107,15 @@ function FormularioContrasena({ esInvitacion, email }: { esInvitacion: boolean; 
   if (estado === 'listo') {
     return (
       <div className={styles.wrap}>
-        <h1 className={styles.title}>Contraseña guardada</h1>
-        <StatusMessage tono="ok" titulo="Ya podés usar el sistema." detalle={`La próxima vez ingresá con ${email} y tu contraseña nueva.`} />
-        <div className={styles.form} style={{ marginTop: 'var(--space-4)' }}>
-          <Button block onClick={() => void navigate('/', { replace: true })}>
-            Entrar al sistema
-          </Button>
-        </div>
+        <header className={styles.cabecera}>
+          <h1 className={styles.title}>Contraseña guardada</h1>
+        </header>
+        <Alert tone="success" role="status" title="Ya podés usar el sistema.">
+          <p>La próxima vez ingresá con {email} y tu contraseña nueva.</p>
+        </Alert>
+        <Button block onClick={() => void navigate('/', { replace: true })}>
+          Entrar al sistema
+        </Button>
       </div>
     )
   }
@@ -109,48 +123,26 @@ function FormularioContrasena({ esInvitacion, email }: { esInvitacion: boolean; 
   const guardando = estado === 'guardando'
   return (
     <div className={styles.wrap}>
-      <h1 className={styles.title}>{esInvitacion ? 'Bienvenido: elegí tu contraseña' : 'Elegí una contraseña nueva'}</h1>
-      <p className={styles.subtitle}>
-        Cuenta: <strong>{email}</strong>
-      </p>
+      <header className={styles.cabecera}>
+        <h1 className={styles.title}>{esInvitacion ? 'Bienvenido: elegí tu contraseña' : 'Elegí una contraseña nueva'}</h1>
+        <p className={styles.subtitle}>
+          Cuenta: <strong>{email}</strong>
+        </p>
+      </header>
 
       <form onSubmit={(e) => void guardar(e)} className={styles.form} noValidate>
         {/* El usuario oculto ayuda a los gestores de contraseñas a asociarla a la cuenta. */}
         <input type="email" name="username" autoComplete="username" value={email} readOnly hidden />
-        <label className={styles.field}>
-          <span className={styles.label}>Contraseña nueva</span>
-          <input
-            className={styles.input}
-            type="password"
-            name="new-password"
-            autoComplete="new-password"
-            minLength={LARGO_MINIMO}
-            required
-            value={contrasena}
-            onChange={(e) => setContrasena(e.target.value)}
-            disabled={guardando}
-          />
-        </label>
-        <label className={styles.field}>
-          <span className={styles.label}>Repetir contraseña</span>
-          <input
-            className={styles.input}
-            type="password"
-            name="confirm-password"
-            autoComplete="new-password"
-            required
-            value={confirmacion}
-            onChange={(e) => setConfirmacion(e.target.value)}
-            disabled={guardando}
-          />
-        </label>
-        <p className={styles.nota} style={{ margin: 0, textAlign: 'left' }}>
-          Al menos {LARGO_MINIMO} caracteres. Mejor si combina letras, números y símbolos.
-        </p>
+        <Field label="Contraseña nueva" help={`Al menos ${LARGO_MINIMO} caracteres. Mejor si combina letras, números y símbolos.`}>
+          <Input type="password" name="new-password" autoComplete="new-password" minLength={LARGO_MINIMO} required value={contrasena} onChange={(e) => setContrasena(e.target.value)} disabled={guardando} />
+        </Field>
+        <Field label="Repetir contraseña">
+          <Input type="password" name="confirm-password" autoComplete="new-password" required value={confirmacion} onChange={(e) => setConfirmacion(e.target.value)} disabled={guardando} />
+        </Field>
 
-        {error && <StatusMessage tono="error" titulo={error} />}
+        {error && <Alert tone="danger" role="alert" title={error} />}
 
-        <Button type="submit" block disabled={guardando || !contrasena || !confirmacion}>
+        <Button type="submit" block loading={guardando} disabled={!contrasena || !confirmacion}>
           {guardando ? 'Guardando…' : 'Guardar contraseña'}
         </Button>
       </form>

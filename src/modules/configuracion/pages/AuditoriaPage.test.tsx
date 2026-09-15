@@ -72,7 +72,8 @@ describe('Auditoría', () => {
     render(<AuditoriaPage />)
     const fila = within(screen.getByRole('table')).getByText('Rol cambiado').closest('tr')!
     expect(within(fila).getByText('Jano')).toBeInTheDocument()
-    expect(within(fila).getByText('Usuario: Norberto')).toBeInTheDocument()
+    // La entidad está en su columna y repetida bajo el evento (visible sólo entre 768 y 1279px).
+    expect(within(fila).getAllByText('Usuario: Norberto')).toHaveLength(2)
     expect(within(fila).getByText('Vendedor → Empleado')).toBeInTheDocument()
     const num = within(screen.getByRole('table')).getByText('Autoridad de numeración asignada').closest('tr')!
     expect(within(num).getByText('Proceso del sistema (sin usuario)')).toBeInTheDocument()

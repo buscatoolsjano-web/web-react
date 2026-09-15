@@ -1,7 +1,7 @@
 {
-  "name": "Buscatools",
+  "name": "Buscatools ERP",
   "short_name": "Buscatools",
-  "description": "Sistema de gestión Buscatools — ventas, catálogo, compras, mantenimiento y comunicaciones.",
+  "description": "Buscatools ERP — ventas, catálogo, compras, mantenimiento y comunicaciones.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

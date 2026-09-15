@@ -36,6 +36,7 @@ import {
   useLineasDeFactura,
   useRelacionadosDeFactura,
 } from '../hooks/useFacturas'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './ProveedorDetallePage.module.css'
 import listado from '../components/ListadoPedidos.module.css'
 
@@ -357,7 +358,7 @@ export function FacturaDetallePage() {
       <section className={styles.bloque}>
         <h2 className={styles.datoEtiqueta}>Documentos relacionados</h2>
         {relacionados.isPending ? (
-          <p className={styles.nota}>Cargando…</p>
+          <SkeletonRows rows={2} columns={3} label="Cargando…" />
         ) : (relacionados.data?.recepciones.length ?? 0) === 0 &&
           (relacionados.data?.pedidos.length ?? 0) === 0 ? (
           <p className={styles.nota}>

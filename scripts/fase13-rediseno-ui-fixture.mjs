@@ -39,8 +39,10 @@ const TABLAS_EMPRESA = [
   'maintenance_orders', 'maintenance_assets', 'maintenance_check_points', 'maintenance_audit',
   'sales_orders', 'sales_quotes',
   'purchase_order_lines', 'purchase_orders', 'purchases_audit', 'suppliers',
+  // Las membresías de portal apuntan a un cliente: se borran antes que customers.
+  'company_memberships',
   'customer_product_aliases', 'customer_contacts', 'customer_addresses', 'customers', 'email_accounts', 'warehouses',
-  'company_memberships', 'product_prices', 'price_lists', 'product_images', 'products',
+  'product_prices', 'price_lists', 'product_images', 'products',
   'product_attribute_categories', 'product_attribute_definitions', 'product_categories', 'brands',
   'users_audit', 'company_audit', 'catalog_audit', 'document_numbering_authority', 'document_numbering_authority_audit',
   'document_sequences',
@@ -295,11 +297,27 @@ ok(await s.from('sales_order_lines').insert({ company_id: idS, order_id: pedS.id
 ok(await s.from('document_numbering_authority').insert(['quote', 'sales_order', 'delivery'].map((doc_type) => ({ company_id: idS, doc_type, authority: 'STEL', reason: 'ZZ rediseño: emisión bloqueada' }))), 'autoridad STEL')
 ok(await s.from('company_memberships').insert({ company_id: idS, user_id: u.user.id, role: 'admin', status: 'active' }), 'membresía STEL')
 
+// E6: el Inicio por rol. Tres empresas zz sin datos donde el mismo usuario es
+// admin (empresa vacía), técnico y cliente: el selector de empresa cambia el rol.
+for (const [sufijo, nombre, role] of [['vacia', 'ZZ Rediseño Vacía', 'admin'], ['tecnico', 'ZZ Rediseño Técnico', 'technician'], ['cliente', 'ZZ Rediseño Portal', 'customer']]) {
+  const { id: idR } = ok(await s.from('companies').insert({ slug: `${MARCA}-${sufijo}-${Date.now()}`, name: nombre, legal_name: `${nombre} SA`, default_currency: 'USD' }).select('id').single(), `empresa ${sufijo}`)
+  // Un cliente tiene que estar vinculado a un cliente de la empresa (chk_external_link).
+  const externo = role === 'customer' ? { customer_id: ok(await s.from('customers').insert({ company_id: idR, legal_name: 'ZZ Cliente del portal SA', status: 'active' }).select('id').single(), 'cliente portal').id } : {}
+  ok(await s.from('company_memberships').insert({ company_id: idR, user_id: u.user.id, role, status: 'active', ...externo }), `membresía ${sufijo}`)
+}
+
+// E6: otro usuario zz para ver «Elegí una contraseña nueva». `generateLink` no
+// manda correo; es un usuario aparte para no invalidar el enlace del admin.
+const emailRec = `${MARCA}-recupero-${Date.now()}@buscatools.test`
+const { error: er } = await s.auth.admin.createUser({ email: emailRec, password: `Zz${randomUUID()}!`, email_confirm: true, user_metadata: { full_name: 'ZZ Recupero' } })
+if (er) throw new Error(`usuario recupero: ${er.message}`)
+const linkRec = (await s.auth.admin.generateLink({ type: 'recovery', email: emailRec, options: { redirectTo: `${origen}/` } })).data.properties.action_link
+
 // E2: un usuario zz SIN membresía, para ver el estado «sin empresa activa» del shell.
 const emailSin = `${MARCA}-sinempresa-${Date.now()}@buscatools.test`
 const { error: es } = await s.auth.admin.createUser({ email: emailSin, password: `Zz${randomUUID()}!`, email_confirm: true, user_metadata: { full_name: 'ZZ Sin Empresa' } })
 if (es) throw new Error(`usuario sin empresa: ${es.message}`)
 const linkSin = (await s.auth.admin.generateLink({ type: 'magiclink', email: emailSin, options: { redirectTo: `${origen}/` } })).data.properties.action_link
 
-writeFileSync(salida, JSON.stringify({ empresa: id, ordenTorque: os4.id, hilo: hilosCreados[0].id, hiloSinAsunto: hilosCreados[2].id, clienteCompleto: clientes[0].id, clienteMinimo: clienteMinimo.id, skuGaleria: productos2[1].sku, skuSinImagen: productos2[0].sku, skuImagenRota: productos2[4].sku, empresaStel: idS, admin: link, sinEmpresa: linkSin, cotizacion: cotis[1].id, cotizacionBorrador: cotis[0].id, pedido: pedidos[1].id, pedidoBorrador: pedidos[0].id, cotizacionStel: cotS.id, pedidoStel: pedS.id, cliente: clientes[0].id }))
+writeFileSync(salida, JSON.stringify({ empresa: id, ordenTorque: os4.id, hilo: hilosCreados[0].id, hiloSinAsunto: hilosCreados[2].id, clienteCompleto: clientes[0].id, clienteMinimo: clienteMinimo.id, skuGaleria: productos2[1].sku, skuSinImagen: productos2[0].sku, skuImagenRota: productos2[4].sku, empresaStel: idS, admin: link, sinEmpresa: linkSin, recuperacion: linkRec, cotizacion: cotis[1].id, cotizacionBorrador: cotis[0].id, pedido: pedidos[1].id, pedidoBorrador: pedidos[0].id, cotizacionStel: cotS.id, pedidoStel: pedS.id, cliente: clientes[0].id }))
 console.log(`    preparado: ${productos.length + productos2.length} productos, ${clientes.length + 1} clientes, ${cotis.length} cotizaciones, ${pedidos.length} pedidos, ${proveedores.length} proveedores, 3 compras, ${equipos.length} equipos, 3 órdenes (el enlace quedó en el archivo, no se imprime)`)

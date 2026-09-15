@@ -9,6 +9,7 @@ import type {
   Medicion,
   OrdenDetalle,
 } from '../types'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './PanelCotizacion.module.css'
 
 export interface PanelTorqueProps {
@@ -286,7 +287,7 @@ export function PanelTorque({
 
       {/* ── Mediciones ──────────────────────────────────────────────────── */}
       {cargando ? (
-        <p className={styles.nota}>Cargando mediciones…</p>
+        <SkeletonRows rows={3} columns={4} label="Cargando mediciones…" />
       ) : mediciones.length === 0 ? (
         <p className={styles.vacio}>Todavía no hay mediciones.</p>
       ) : (

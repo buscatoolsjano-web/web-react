@@ -212,8 +212,3 @@ export function etiquetaTipoAtributo(t: string, unidad: string | null): string {
 }
 
 export const POR_PAGINA = 50
-
-export function rangoPagina(desplazamiento: number, filas: number, total: number): string {
-  if (total === 0) return '0 precios'
-  return `${(desplazamiento + 1).toLocaleString('es-AR')}–${(desplazamiento + filas).toLocaleString('es-AR')} de ${total.toLocaleString('es-AR')}`
-}

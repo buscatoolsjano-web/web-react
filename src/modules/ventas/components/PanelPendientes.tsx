@@ -96,9 +96,9 @@ export function PanelPendientes({ lineas, resultado, cargando }: PanelPendientes
                     <span className={styles.sku}>{l.sku ?? '—'}</span>
                     <span className={styles.nombre}>{l.nombre ?? ''}</span>
                   </td>
-                  <td className={styles.derecha}>{formatearCantidad(p?.pedido ?? l.cantidad)}</td>
-                  <td className={styles.derecha}>{formatearCantidad(p?.entregado ?? 0)}</td>
-                  <td className={styles.derecha}>
+                  <td className={styles.derecha} data-etiqueta="Pedido">{formatearCantidad(p?.pedido ?? l.cantidad)}</td>
+                  <td className={styles.derecha} data-etiqueta="Entregado">{formatearCantidad(p?.entregado ?? 0)}</td>
+                  <td className={styles.derecha} data-etiqueta="Pendiente">
                     {p && p.exceso > 0 ? (
                       <span className={styles.marcaExceso}>
                         +{formatearCantidad(p.exceso)} de más

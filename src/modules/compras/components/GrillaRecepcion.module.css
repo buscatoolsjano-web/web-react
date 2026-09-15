@@ -30,7 +30,7 @@
 }
 
 .secundario:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: var(--focus-outline);
   outline-offset: 2px;
 }
 
@@ -126,7 +126,7 @@
 
 .numero:focus-visible,
 .numeroMal:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: var(--focus-outline);
   outline-offset: -1px;
 }
 

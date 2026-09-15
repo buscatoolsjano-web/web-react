@@ -1,10 +1,15 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import doc from '@/components/document/Document.module.css'
+import { Alert } from '@/components/feedback/Alert'
 import { FormularioProveedor } from '../components/FormularioProveedor'
 import { permisosDe } from '../lib/permisos'
 import { PROVEEDOR_VACIO } from '../lib/validacion'
 import { useCrearProveedor } from '../hooks/useEdicionProveedores'
 import styles from './ProveedorDetallePage.module.css'
+
+const VOLVER = { to: '/compras/proveedores', label: 'Proveedores' }
 
 /**
  * Alta de proveedor.
@@ -22,30 +27,22 @@ export function ProveedorNuevoPage() {
 
   if (!permisos.crearProveedor) {
     return (
-      <div className={styles.page}>
-        <Link to="/compras/proveedores" className={styles.volver}>
-          ← Proveedores
-        </Link>
-        <p className={styles.nota}>Tu rol no puede dar de alta proveedores.</p>
+      <div className={doc.listado}>
+        <PageHeader title="Nuevo proveedor" back={VOLVER} />
+        <Alert tone="neutral">
+          <p>Tu rol no puede dar de alta proveedores.</p>
+        </Alert>
       </div>
     )
   }
 
   return (
-    <div className={styles.page}>
-      <Link to="/compras/proveedores" className={styles.volver}>
-        ← Proveedores
-      </Link>
-
-      <header className={styles.encabezado}>
-        <div className={styles.identidad}>
-          <h1 className={styles.titulo}>Nuevo proveedor</h1>
-          <p className={styles.subtitulo}>
-            La referencia PROV la asigna el servidor al guardar. Los adjuntos se cargan
-            después, desde la ficha.
-          </p>
-        </div>
-      </header>
+    <div className={doc.pagina}>
+      <PageHeader
+        back={VOLVER}
+        title="Nuevo proveedor"
+        subtitle="La referencia PROV la asigna el servidor al guardar. Los adjuntos se cargan después, desde la ficha."
+      />
 
       <section className={styles.bloque}>
         <FormularioProveedor

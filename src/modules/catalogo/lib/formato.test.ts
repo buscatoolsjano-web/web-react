@@ -3,9 +3,7 @@ import {
   formatearCantidad,
   formatearPrecio,
   presentarAtributos,
-  rangoVisible,
   SIN_PRECIO,
-  totalDePaginas,
   valorConUnidad,
 } from './formato'
 import type { DefinicionAtributo } from '../types'
@@ -81,17 +79,3 @@ describe('presentarAtributos', () => {
   })
 })
 
-describe('rangoVisible', () => {
-  it('arma el texto del paginador', () => {
-    expect(rangoVisible(2, 50, 216)).toBe('51–100 de 216')
-    expect(rangoVisible(5, 50, 216)).toBe('201–216 de 216')
-    expect(rangoVisible(1, 50, 0)).toBe('0 resultados')
-  })
-})
-
-describe('totalDePaginas', () => {
-  it('redondea hacia arriba y nunca devuelve cero', () => {
-    expect(totalDePaginas(216, 50)).toBe(5)
-    expect(totalDePaginas(0, 50)).toBe(1)
-  })
-})

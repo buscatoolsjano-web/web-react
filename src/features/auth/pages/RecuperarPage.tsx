@@ -1,7 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { Alert } from '@/components/feedback/Alert'
+import { Field } from '@/components/forms/Field'
+import { Input } from '@/components/forms/controls'
 import { Button } from '@/components/ui/Button'
-import { StatusMessage } from '@/components/ui/StatusMessage'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { Icon } from '@/components/icons/Icon'
 import { solicitarRecuperacion } from '@/services/auth/session'
 import styles from './LoginPage.module.css'
 
@@ -10,6 +14,9 @@ import styles from './LoginPage.module.css'
  *
  * El mensaje de éxito es el mismo exista o no la cuenta: decir «ese email no
  * está registrado» permitiría averiguar quién tiene cuenta.
+ *
+ * Fase 13 · E6: sólo presentación. Mismos estados (editando, enviando,
+ * enviado, límite, sin red, error) y el mismo `solicitarRecuperacion`.
  */
 export function RecuperarPage() {
   const [email, setEmail] = useState('')
@@ -24,15 +31,15 @@ export function RecuperarPage() {
   if (estado === 'enviado') {
     return (
       <div className={styles.wrap}>
-        <h1 className={styles.title}>Revisá tu correo</h1>
-        <StatusMessage
-          tono="ok"
-          titulo="Si existe una cuenta asociada, vas a recibir un correo."
-          detalle="Abrí el enlace para elegir una contraseña nueva. Si no llega en unos minutos, revisá spam o pedilo de nuevo."
-        />
-        <p className={styles.nota}>
-          <Link to="/auth/login">Volver a iniciar sesión</Link>
-        </p>
+        <header className={styles.cabecera}>
+          <h1 className={styles.title}>Revisá tu correo</h1>
+        </header>
+        <Alert tone="success" role="status" title="Si existe una cuenta asociada, vas a recibir un correo.">
+          <p>Abrí el enlace para elegir una contraseña nueva. Si no llega en unos minutos, revisá spam o pedilo de nuevo.</p>
+        </Alert>
+        <LinkButton to="/auth/login" variant="secondary" icon={<Icon name="arrow-left" size={16} />}>
+          Volver a iniciar sesión
+        </LinkButton>
       </div>
     )
   }
@@ -40,39 +47,34 @@ export function RecuperarPage() {
   const enviando = estado === 'enviando'
   return (
     <div className={styles.wrap}>
-      <h1 className={styles.title}>Recuperar contraseña</h1>
-      <p className={styles.subtitle}>Te mandamos un enlace para elegir una contraseña nueva.</p>
+      <header className={styles.cabecera}>
+        <h1 className={styles.title}>Recuperar contraseña</h1>
+        <p className={styles.subtitle}>Te mandamos un enlace para elegir una contraseña nueva.</p>
+      </header>
 
       <form onSubmit={(e) => void enviar(e)} className={styles.form} noValidate>
-        <label className={styles.field}>
-          <span className={styles.label}>Email</span>
-          <input
-            className={styles.input}
-            type="email"
-            name="email"
-            autoComplete="username"
-            inputMode="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={enviando}
-          />
-        </label>
+        <Field label="Email">
+          <Input type="email" name="email" autoComplete="username" inputMode="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={enviando} />
+        </Field>
 
         {estado === 'limite' && (
-          <StatusMessage tono="error" titulo="Se pidieron demasiados correos." detalle="Esperá unos minutos y volvé a intentar." />
+          <Alert tone="danger" role="alert" title="Se pidieron demasiados correos.">
+            <p>Esperá unos minutos y volvé a intentar.</p>
+          </Alert>
         )}
-        {estado === 'sin_red' && <StatusMessage tono="error" titulo="No se pudo contactar al servidor. Revisá la conexión." />}
-        {estado === 'error' && <StatusMessage tono="error" titulo="No se pudo procesar el pedido. Intentá más tarde." />}
+        {estado === 'sin_red' && <Alert tone="danger" role="alert" title="No se pudo contactar al servidor. Revisá la conexión." />}
+        {estado === 'error' && <Alert tone="danger" role="alert" title="No se pudo procesar el pedido. Intentá más tarde." />}
 
-        <Button type="submit" block disabled={enviando || !email.includes('@')}>
+        <Button type="submit" block loading={enviando} disabled={!email.includes('@')}>
           {enviando ? 'Enviando…' : 'Enviar enlace'}
         </Button>
       </form>
 
-      <p className={styles.nota}>
-        <Link to="/auth/login">Volver a iniciar sesión</Link>
-      </p>
+      <nav className={styles.enlaces} aria-label="Otras opciones">
+        <Link to="/auth/login" className={styles.enlace}>
+          Volver a iniciar sesión
+        </Link>
+      </nav>
     </div>
   )
 }

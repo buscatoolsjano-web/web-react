@@ -53,8 +53,7 @@
   text-decoration: underline;
 }
 
-.nombre:focus-visible,
-.boton:focus-visible {
+.nombre:focus-visible {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
 }
@@ -81,23 +80,6 @@
   display: none;
 }
 
-.boton {
-  min-height: 44px;
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.boton:hover:not(:disabled) {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
 .ayuda {
   font-size: var(--text-xs);
   color: var(--text-muted);
@@ -113,22 +95,4 @@
   margin: 0;
   font-size: var(--text-sm);
   color: var(--danger);
-}
-
-/* El tipo de archivo, al lado del botón de adjuntar. */
-.select {
-  font-size: 16px;
-  min-height: 44px;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
-  flex: 0 0 auto;
-  max-width: 100%;
-}
-
-.select:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
 }

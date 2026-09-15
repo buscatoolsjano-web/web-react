@@ -276,7 +276,7 @@ export function ClienteDetallePage() {
                     <ul className={styles.listaSimple}>
                       {cliente.emails.map((e) => (
                         <li key={e}>
-                          <a className={doc.enlace} href={`mailto:${e}`}>
+                          <a className={`${doc.enlace} ${styles.enlaceTactil}`} href={`mailto:${e}`}>
                             {e}
                           </a>
                         </li>

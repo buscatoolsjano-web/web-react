@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { cx } from '@/utils/cx'
 import { deriveCard, resolveCell } from './deriveCard'
 import type { Column } from './types'
 import styles from './ResponsiveTable.module.css'
@@ -27,6 +29,9 @@ export interface ResponsiveTableProps<T> {
  *
  * Renderiza UNA sola de las dos vistas (no ambas ocultas con CSS), para no
  * duplicar el DOM en listados largos.
+ *
+ * Fase 13 · E6: prioridad de columnas (`hideBelow`) para que a 1024 y 768 la
+ * tabla muestre las esenciales sin scroll interno, y carga con skeleton.
  */
 export function ResponsiveTable<T>({
   columns,
@@ -43,7 +48,9 @@ export function ResponsiveTable<T>({
   if (isLoading) {
     return (
       <div className={styles.wrap}>
-        <p className={styles.state}>Cargando…</p>
+        <div className={styles.carga}>
+          <SkeletonRows rows={4} columns={isMobile ? 2 : Math.min(columns.length, 5)} label="Cargando…" />
+        </div>
       </div>
     )
   }
@@ -96,11 +103,11 @@ export function ResponsiveTable<T>({
           <thead>
             <tr>
               {columns.map((c) => (
-                <th key={c.key} style={c.width ? { width: c.width } : undefined} className={alineacion(c.align)}>
+                <th key={c.key} scope="col" style={c.width ? { width: c.width } : undefined} className={cx(alineacion(c.align), prioridad(c.hideBelow))}>
                   {c.header}
                 </th>
               ))}
-              {actions && <th aria-label="Acciones" />}
+              {actions && <th scope="col" aria-label="Acciones" />}
             </tr>
           </thead>
           <tbody>
@@ -111,7 +118,7 @@ export function ResponsiveTable<T>({
                 {...(onRowClick ? { onClick: () => onRowClick(row) } : {})}
               >
                 {columns.map((c) => (
-                  <td key={c.key} className={alineacion(c.align)}>
+                  <td key={c.key} className={cx(alineacion(c.align), prioridad(c.hideBelow))}>
                     {resolveCell(c, row) as ReactNode}
                   </td>
                 ))}
@@ -128,5 +135,11 @@ export function ResponsiveTable<T>({
 function alineacion(align: Column<unknown>['align']): string | undefined {
   if (align === 'right') return styles.alignRight
   if (align === 'center') return styles.alignCenter
+  return undefined
+}
+
+function prioridad(hideBelow: Column<unknown>['hideBelow']): string | undefined {
+  if (hideBelow === 'xl') return styles.ocultaBajoXl
+  if (hideBelow === 'lg') return styles.ocultaBajoLg
   return undefined
 }

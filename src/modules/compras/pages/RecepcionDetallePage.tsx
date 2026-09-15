@@ -26,6 +26,7 @@ import {
   useRecepcion,
 } from '../hooks/useRecepciones'
 import type { CantidadARecibir } from '../services/recepciones'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './ProveedorDetallePage.module.css'
 
 function Dato({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
@@ -363,7 +364,7 @@ export function RecepcionDetallePage() {
         {editando ? (
           <>
             {pendiente.isPending ? (
-              <p className={styles.nota}>Cargando lo pendiente…</p>
+              <SkeletonRows rows={3} columns={4} label="Cargando lo pendiente…" />
             ) : (
               <GrillaRecepcion
                 lineas={lineasPendiente}

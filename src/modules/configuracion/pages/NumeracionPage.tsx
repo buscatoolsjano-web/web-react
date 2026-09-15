@@ -5,6 +5,7 @@ import { StatusMessage } from '@/components/ui/StatusMessage'
 import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
 import type { Column } from '@/components/tables/types'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { cx } from '@/utils/cx'
 import { useNumeracion } from '../hooks/useEmpresaConfig'
 import { alertas, etiquetaTipo, formatearNumero, presentarAutoridad, presentarEmision, presentarEstado, type SecuenciaDiagnostico } from '../lib/numeracion'
 import styles from '../components/Configuracion.module.css'
@@ -28,20 +29,28 @@ export function NumeracionPage() {
       header: 'Tipo de documento',
       mobile: 'title',
       render: (s) => (
-        <span className={styles.persona}>
+        <span className={cx(styles.persona, styles.celdaTipo)}>
           <span className={styles.nombre}>{etiquetaTipo(s.docType)}</span>
           <span className={styles.email}>
             Prefijo {s.prefijo}
             {s.serie && s.serie !== s.prefijo ? ` · serie ${s.serie}` : ''}
             {s.esDefault ? '' : ' · no predeterminada'}
           </span>
+          {/* Entre 768 y 1279px las columnas de números se ocultan: el dato va acá. */}
+          <span className={cx(styles.email, styles.soloTablaCompacta)}>
+            Próximo <code className={styles.codigo}>{s.proximo}</code>
+            {s.maxSinAtipicos !== null ? <> · mayor <code className={styles.codigo}>{formatearNumero(s, s.maxSinAtipicos)}</code></> : null}
+            {' · '}
+            {s.documentos.toLocaleString('es-AR')} {s.documentos === 1 ? 'documento' : 'documentos'}
+          </span>
         </span>
       ),
     },
-    { key: 'proximo', header: 'Próximo (servidor)', render: (s) => <code className={styles.codigo}>{s.proximo}</code> },
+    { key: 'proximo', header: 'Próximo (servidor)', hideBelow: 'xl', render: (s) => <code className={styles.codigo}>{s.proximo}</code> },
     {
       key: 'max',
       header: 'Mayor existente',
+      hideBelow: 'xl',
       render: (s) =>
         s.maxSinAtipicos === null ? (
           '—'
@@ -57,6 +66,7 @@ export function NumeracionPage() {
     {
       key: 'docs',
       header: 'Documentos',
+      hideBelow: 'xl',
       align: 'right',
       render: (s) => (
         <span>
@@ -70,7 +80,7 @@ export function NumeracionPage() {
       key: 'autoridad',
       header: 'Autoridad',
       render: (s) => (
-        <span className={styles.chips}>
+        <span className={cx(styles.chips, styles.chipsApilados)}>
           <Chip p={presentarAutoridad(s.autoridad)} />
           {s.autoridad === 'STEL' && <Chip p={presentarEmision(s.autoridad)} />}
         </span>

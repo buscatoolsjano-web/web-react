@@ -38,11 +38,12 @@ export function AtributosPage() {
         <span className={styles.persona}>
           <span className={styles.nombre}>{a.etiqueta}</span>
           <code className={cx(styles.codigo, styles.email)}>{a.clave}</code>
+          <span className={cx(styles.email, styles.soloTablaAngosta)}>Filtro en Catálogo: {a.filtrable ? 'Sí' : 'No'}</span>
         </span>
       ),
     },
     { key: 'tipo', header: 'Tipo', width: '9rem', render: (a) => etiquetaTipoAtributo(a.tipo, a.unidad) },
-    { key: 'filtrable', header: 'Filtro en Catálogo', width: '9rem', render: (a) => (a.filtrable ? 'Sí' : 'No') },
+    { key: 'filtrable', header: 'Filtro en Catálogo', width: '9rem', hideBelow: 'lg', render: (a) => (a.filtrable ? 'Sí' : 'No') },
     { key: 'categorias', header: 'Categorías', render: (a) => (a.categorias.length ? a.categorias.join(', ') : '—') },
     { key: 'productos', header: 'Productos', align: 'right', width: '8rem', render: (a) => a.productos.toLocaleString('es-AR') },
   ]

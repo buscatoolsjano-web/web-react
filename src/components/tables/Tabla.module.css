@@ -232,3 +232,23 @@ a.tarjeta:focus-visible {
 .textoCorto {
   min-width: 10rem;
 }
+
+/* Prioridad de columnas (Fase 13 · E6): la misma regla que ResponsiveTable.
+   'Xl' se oculta debajo de 1280px y 'Lg' debajo de 1024px; el dato sigue en
+   la ficha y en la tarjeta mobile. */
+@media (max-width: 1279px) {
+  .ocultaBajoXl {
+    display: none;
+  }
+
+  /* En pantallas medianas una razón social larga no necesita 14rem: se parte en renglones. */
+  .texto {
+    min-width: 9rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  .ocultaBajoLg {
+    display: none;
+  }
+}

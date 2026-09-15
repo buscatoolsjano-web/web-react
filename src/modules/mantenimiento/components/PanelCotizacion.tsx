@@ -14,6 +14,7 @@ import { SelectorProducto } from './SelectorProducto'
 import { ChipCotizacion } from './ChipEstado'
 import type { DatosLinea, LineaCotizacion, OrdenDetalle, TipoLineaCotizacion } from '../types'
 import type { ProductoBuscado } from '../services/catalogo'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './PanelCotizacion.module.css'
 
 export interface PanelCotizacionProps {
@@ -249,7 +250,7 @@ export function PanelCotizacion({
       ) : null}
 
       {cargando ? (
-        <p className={styles.nota}>Cargando la cotización…</p>
+        <SkeletonRows rows={3} columns={4} label="Cargando la cotización…" />
       ) : lineas.length === 0 ? (
         <p className={styles.vacio}>La cotización todavía no tiene líneas.</p>
       ) : isMobile ? (

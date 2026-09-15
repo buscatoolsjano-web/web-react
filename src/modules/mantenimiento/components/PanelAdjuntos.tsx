@@ -1,5 +1,10 @@
 import { useRef, useState } from 'react'
 import { IconButton } from '@/components/ui/IconButton'
+import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/icons/Icon'
+import { Field } from '@/components/forms/Field'
+import { Select } from '@/components/forms/controls'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { formatearFecha } from '../lib/formato'
@@ -12,6 +17,7 @@ import {
   subirAdjunto,
   urlDeDescarga,
 } from '../services/adjuntos'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './PanelAdjuntos.module.css'
 
 export interface PanelAdjuntosProps {
@@ -33,6 +39,9 @@ export interface PanelAdjuntosProps {
  * excepción al congelamiento: un informe o una foto que aparece después no
  * cambia lo que pasó, y prohibirlo obligaría a reabrir la orden —que
  * justamente no se puede— para guardar un papel.
+ *
+ * Fase 13 · E6: borrar pide confirmación en un ConfirmDialog (antes era
+ * directo). La mutación y el archivo que se borra son los mismos.
  */
 export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: PanelAdjuntosProps) {
   const { activa } = useEmpresa()
@@ -40,6 +49,7 @@ export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: Panel
   const entrada = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [clase, setClase] = useState<string>(clases[0]?.valor ?? 'other')
+  const [aBorrar, setABorrar] = useState<{ id: string; ruta: string; nombre: string } | null>(null)
 
   const clave = ['mantenimiento', activa?.companyId, 'adjuntos', entidad, entidadId]
 
@@ -78,7 +88,7 @@ export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: Panel
   const etiquetaDeClase = (v: string | null) =>
     clases.find((c) => c.valor === v)?.etiqueta ?? v ?? '—'
 
-  if (adjuntos.isPending) return <p className={styles.nota}>Cargando los archivos…</p>
+  if (adjuntos.isPending) return <SkeletonRows rows={2} columns={3} label="Cargando los archivos…" />
 
   if (adjuntos.error) {
     return (
@@ -113,7 +123,7 @@ export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: Panel
                   className={styles.borrar}
                   aria-label={`Borrar ${a.nombre}`}
                   disabled={borrar.isPending}
-                  onClick={() => borrar.mutate({ id: a.id, ruta: a.ruta })}
+                  onClick={() => setABorrar({ id: a.id, ruta: a.ruta, nombre: a.nombre })}
                 />
               ) : null}
             </li>
@@ -123,18 +133,15 @@ export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: Panel
 
       {puedeEditar ? (
         <div className={styles.acciones}>
-          <select
-            className={styles.select}
-            value={clase}
-            aria-label="Tipo de archivo"
-            onChange={(e) => setClase(e.target.value)}
-          >
-            {clases.map((c) => (
-              <option key={c.valor} value={c.valor}>
-                {c.etiqueta}
-              </option>
-            ))}
-          </select>
+          <Field label="Tipo de archivo" hideLabel>
+            <Select value={clase} onChange={(e) => setClase(e.target.value)}>
+              {clases.map((c) => (
+                <option key={c.valor} value={c.valor}>
+                  {c.etiqueta}
+                </option>
+              ))}
+            </Select>
+          </Field>
           <input
             ref={entrada}
             type="file"
@@ -146,14 +153,9 @@ export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: Panel
               e.target.value = ''
             }}
           />
-          <button
-            type="button"
-            className={styles.boton}
-            disabled={subir.isPending}
-            onClick={() => entrada.current?.click()}
-          >
+          <Button variant="secondary" icon={<Icon name="upload" size={16} />} loading={subir.isPending} onClick={() => entrada.current?.click()}>
             {subir.isPending ? 'Subiendo…' : 'Adjuntar archivo'}
-          </button>
+          </Button>
           <span className={styles.ayuda}>Foto, PDF o planilla. Hasta 20 MB.</span>
         </div>
       ) : null}
@@ -168,6 +170,19 @@ export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: Panel
           {error}
         </p>
       ) : null}
+
+      <ConfirmDialog
+        open={aBorrar !== null}
+        tone="danger"
+        title={`¿Borrar «${aBorrar?.nombre ?? ''}»?`}
+        description="El archivo se borra del almacenamiento y no se puede recuperar."
+        confirmLabel={borrar.isPending ? 'Borrando…' : 'Borrar archivo'}
+        busy={borrar.isPending}
+        onCancel={() => setABorrar(null)}
+        onConfirm={() => {
+          if (aBorrar) borrar.mutate({ id: aBorrar.id, ruta: aBorrar.ruta }, { onSettled: () => setABorrar(null) })
+        }}
+      />
     </div>
   )
 }

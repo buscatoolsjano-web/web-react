@@ -11,6 +11,7 @@ import {
   type Clase,
   type EntidadCompras,
 } from '../services/adjuntosCompras'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './PanelAdjuntos.module.css'
 
 export interface PanelAdjuntosComprasProps {
@@ -80,7 +81,7 @@ export function PanelAdjuntosCompras({
   const etiquetaDeClase = (v: string | null) =>
     clases.find((c) => c.valor === v)?.etiqueta ?? v ?? '—'
 
-  if (adjuntos.isPending) return <p className={styles.nota}>Cargando adjuntos…</p>
+  if (adjuntos.isPending) return <SkeletonRows rows={2} columns={3} label="Cargando adjuntos…" />
 
   if (adjuntos.error) {
     return (

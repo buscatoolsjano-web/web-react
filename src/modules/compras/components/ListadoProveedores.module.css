@@ -50,7 +50,7 @@
 }
 
 .thBoton:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: var(--focus-outline);
   outline-offset: 2px;
 }
 
@@ -133,7 +133,7 @@
 }
 
 .tarjeta:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: var(--focus-outline);
   outline-offset: 1px;
 }
 
@@ -179,4 +179,16 @@
 .tarjeta .baja {
   grid-column: 1 / -1;
   font-size: var(--text-xs);
+}
+
+/* Fase 13 · E6: flecha de orden y marca de revisión como íconos. */
+.flecha {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: var(--space-1);
+  color: var(--color-text-muted);
+}
+
+.marca svg {
+  vertical-align: middle;
 }

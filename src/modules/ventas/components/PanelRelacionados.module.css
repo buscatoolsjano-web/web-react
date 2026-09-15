@@ -49,7 +49,7 @@ a.item:hover {
 }
 
 a.item:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: var(--focus-outline);
   outline-offset: 1px;
 }
 

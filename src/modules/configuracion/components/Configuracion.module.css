@@ -147,11 +147,43 @@
   vertical-align: middle;
 }
 
+/* Prioridad de columnas (Fase 13 · E6): lo que ResponsiveTable oculta con
+   `hideBelow` se repite dentro de la columna principal SÓLO en la tabla
+   (768–1279px o 768–1023px). En mobile la card ya muestra todos los campos. */
+.soloTablaCompacta,
+.soloTablaAngosta {
+  display: none;
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .soloTablaCompacta {
+    display: block;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .soloTablaAngosta {
+    display: block;
+  }
+}
+
+/* Numeración: el tipo de documento no necesita el ancho de un email. */
+.celdaTipo {
+  min-width: 9rem;
+}
+
 /* Varios chips juntos (Numeración: autoridad + emisión bloqueada). */
 .chips {
   display: inline-flex;
   flex-wrap: wrap;
   gap: var(--space-1);
+}
+
+/* «STEL» y «Emisión desde ERP bloqueada» uno debajo del otro: la columna
+   queda angosta y ninguno de los dos se corta ni se va del cuadro. */
+.chipsApilados {
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .acciones {

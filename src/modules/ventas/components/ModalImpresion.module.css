@@ -125,7 +125,7 @@
 }
 
 .control:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: var(--focus-outline);
   outline-offset: 1px;
 }
 
@@ -157,7 +157,7 @@
 }
 
 .primario:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: var(--focus-outline);
   outline-offset: 2px;
 }
 

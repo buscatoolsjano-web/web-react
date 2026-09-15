@@ -10,6 +10,7 @@ import {
   type PedidoCompraDetalle,
   type RelacionadosPedido,
 } from '../types'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './PanelCompras.module.css'
 
 export interface PanelRelacionadosPedidoProps {
@@ -61,7 +62,7 @@ export function PanelRelacionadosPedido({
     staleTime: 30_000,
   })
 
-  if (cargando) return <p className={styles.nota}>Cargando…</p>
+  if (cargando) return <SkeletonRows rows={2} columns={3} label="Cargando…" />
 
   const filas = recepciones.data?.filas ?? []
   const filasFactura = facturas.data ?? []

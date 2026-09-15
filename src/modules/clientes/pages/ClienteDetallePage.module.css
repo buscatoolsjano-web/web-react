@@ -70,3 +70,13 @@
   padding: 0;
   list-style: none;
 }
+
+/* Fase 13 · E6: en un teléfono cada email es un blanco de 44px (antes 19px). */
+@media (max-width: 767px), (pointer: coarse) {
+  .enlaceTactil {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target);
+    overflow-wrap: anywhere;
+  }
+}

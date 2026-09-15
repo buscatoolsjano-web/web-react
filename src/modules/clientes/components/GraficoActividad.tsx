@@ -8,6 +8,7 @@ import {
 } from '../lib/actividad'
 import { formatearImporte } from '../lib/formato'
 import type { ActividadMensual, TipoDeDocumento } from '../types'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './GraficoActividad.module.css'
 
 export interface GraficoActividadProps {
@@ -49,7 +50,7 @@ export function GraficoActividad({ filas, cargando }: GraficoActividadProps) {
   // render con datos y después manda lo que la persona haya tocado.
   const monedaActiva = moneda === undefined ? (monedas[0] ?? null) : moneda
 
-  if (cargando) return <p className={styles.nota}>Cargando la actividad…</p>
+  if (cargando) return <SkeletonRows rows={2} columns={4} label="Cargando la actividad…" />
   if (filas.length === 0) {
     return <p className={styles.nota}>Sin documentos en los últimos doce meses.</p>
   }

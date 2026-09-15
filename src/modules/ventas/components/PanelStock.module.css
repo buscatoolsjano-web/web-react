@@ -1,7 +1,7 @@
 .scroll {
   overflow-x: auto;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--surface);
 }
 
@@ -24,8 +24,6 @@
   color: var(--text-soft);
   font-weight: 600;
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
   white-space: nowrap;
 }
 
@@ -52,7 +50,7 @@
 }
 
 .falta {
-  color: var(--danger);
+  color: var(--color-danger-text);
   font-weight: 700;
 }
 
@@ -67,4 +65,56 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   line-height: 1.5;
+}
+
+/* Fase 13 · E6 — en un teléfono la tabla de 4–6 columnas dejaba la
+   descripción en una palabra por renglón. Cada línea pasa a ser un bloque:
+   referencia arriba y cada cantidad con su etiqueta al lado. */
+@media (max-width: 599px) {
+  .tabla thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .tabla,
+  .tabla tbody,
+  .tabla tr,
+  .tabla td {
+    display: block;
+    width: 100%;
+  }
+
+  .tabla tr {
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .tabla tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .tabla td {
+    border-bottom: 0;
+    padding: var(--space-1) var(--space-3);
+  }
+
+  .tabla td[data-etiqueta] {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .tabla td[data-etiqueta]::before {
+    content: attr(data-etiqueta);
+    color: var(--color-text-soft);
+    font-size: var(--text-xs);
+    text-align: left;
+  }
+  .sinDato {
+    white-space: normal;
+  }
 }

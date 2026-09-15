@@ -1,3 +1,4 @@
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import { formatearCantidad } from '../lib/formato'
 import { faltante, type DisponibilidadProducto } from '../services/stock'
 import type { LineaDocumento } from '../types'
@@ -31,7 +32,7 @@ export function PanelStock({ lineas, disponibilidad, cargando, esInterno }: Pane
     )
   }
 
-  if (cargando || !disponibilidad) return <p className={styles.nota}>Consultando stock…</p>
+  if (cargando || !disponibilidad) return <SkeletonRows rows={2} columns={4} label="Consultando stock…" />
 
   return (
     <>
@@ -67,13 +68,13 @@ export function PanelStock({ lineas, disponibilidad, cargando, esInterno }: Pane
                     <span className={styles.sku}>{l.sku ?? '—'}</span>
                     <span className={styles.nombre}>{l.nombre ?? ''}</span>
                   </td>
-                  <td className={styles.derecha}>{formatearCantidad(l.cantidad)}</td>
+                  <td className={styles.derecha} data-etiqueta="Pedido">{formatearCantidad(l.cantidad)}</td>
                   {d ? (
                     <>
-                      <td className={styles.derecha}>{formatearCantidad(d.enStock)}</td>
-                      <td className={styles.derecha}>{formatearCantidad(d.reservado)}</td>
-                      <td className={styles.derecha}>{formatearCantidad(d.libre)}</td>
-                      <td className={styles.derecha}>
+                      <td className={styles.derecha} data-etiqueta="En stock">{formatearCantidad(d.enStock)}</td>
+                      <td className={styles.derecha} data-etiqueta="Reservado">{formatearCantidad(d.reservado)}</td>
+                      <td className={styles.derecha} data-etiqueta="Libre">{formatearCantidad(d.libre)}</td>
+                      <td className={styles.derecha} data-etiqueta="Faltante">
                         {falta > 0 ? (
                           <span className={styles.falta}>{formatearCantidad(falta)}</span>
                         ) : (

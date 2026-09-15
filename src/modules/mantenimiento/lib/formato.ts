@@ -39,18 +39,6 @@ export function formatearFechaHora(iso: string | null): string {
   return hora === '' ? fecha : `${fecha} ${hora}`
 }
 
-export function rangoVisible(pagina: number, porPagina: number, total: number): string {
-  if (total === 0) return '0 resultados'
-  const desde = (pagina - 1) * porPagina + 1
-  const hasta = Math.min(pagina * porPagina, total)
-  return `${desde}–${hasta} de ${total}`
-}
-
-export function totalDePaginas(total: number, porPagina: number): number {
-  if (porPagina <= 0) return 1
-  return Math.max(1, Math.ceil(total / porPagina))
-}
-
 /**
  * Las acciones de `maintenance_audit`, en castellano.
  *

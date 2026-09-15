@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import { Icon } from '@/components/icons/Icon'
 import { Button } from '@/components/ui/Button'
+import { Spinner } from '@/components/ui/Spinner'
 import { StatusMessage } from '@/components/ui/StatusMessage'
 import { useAccionesEmpresa, useUrlLogo } from '../hooks/useEmpresaConfig'
 import { LOGO_TIPOS, mensajeErrorEmpresa, validarLogo } from '../lib/empresa'
@@ -81,7 +82,10 @@ export function LogoEmpresa({ logoPath, version, puedeEditar, ocupado, onCambio 
         {vista ? (
           <img src={vista} alt={elegido ? 'Vista previa del logo nuevo' : 'Logo actual de la empresa'} className={styles.logoImagen} />
         ) : logoPath && url.isPending ? (
-          <span className={styles.nota}>Cargando logo…</span>
+          <span className={styles.logoVacio} role="status">
+            <Spinner size={20} />
+            Cargando logo…
+          </span>
         ) : logoPath && url.isError ? (
           <span className={styles.nota}>No se pudo cargar el logo.</span>
         ) : (

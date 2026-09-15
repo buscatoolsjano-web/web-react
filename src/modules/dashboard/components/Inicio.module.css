@@ -1,0 +1,359 @@
+/* Inicio (Fase 13 · E6). Desktop: métricas en grilla; tablet 2 columnas;
+   mobile 1 columna. Nada desborda en horizontal. */
+
+.seccion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.seccionCabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.seccionTitulo {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+.enlaceSeccion,
+.metricaEnlace {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--touch-target);
+  color: var(--color-primary-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.enlaceSeccion:hover,
+.metricaEnlace:hover {
+  text-decoration: underline;
+}
+
+.enlaceSeccion:focus-visible,
+.metricaEnlace:focus-visible,
+.acceso:focus-visible,
+.reciente:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+  border-radius: var(--radius-sm);
+}
+
+.nota {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+/* ── Métricas ─────────────────────────────────────────────────────────── */
+
+.metricas {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+@media (max-width: 1279px) {
+  .metricas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 599px) {
+  .metricas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.metrica {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.metricaCabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.metricaIcono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+}
+
+.metricaTitulo {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-soft);
+}
+
+.metricaValor {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.metricaUnidad {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-soft);
+}
+
+.metricaNota {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.metricaCarga {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.metricaError {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  color: var(--color-danger-text);
+  font-size: var(--text-sm);
+}
+
+.metricaError p {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+/* El enlace va siempre abajo, alineado entre tarjetas de distinto alto. */
+.metricaEnlace {
+  margin-top: auto;
+  align-self: flex-start;
+}
+
+.monedas {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.moneda,
+.monedaSin {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.monedaSin {
+  color: var(--color-warning-text);
+}
+
+.monedaCodigo {
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.monedaImporte {
+  white-space: nowrap;
+}
+
+/* ── Actividad del mes ────────────────────────────────────────────────── */
+
+.actividad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (max-width: 1023px) {
+  .actividad {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.actividadTipo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.actividadNombre {
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.actividadValor {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+/* ── Recientes (vendedor) ─────────────────────────────────────────────── */
+
+.recientes {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.recientes li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.reciente {
+  display: grid;
+  grid-template-columns: minmax(7rem, auto) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+
+.reciente:hover {
+  background: var(--color-surface-alt);
+}
+
+.recienteNumero {
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.recienteCliente {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recienteMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-soft);
+  white-space: nowrap;
+}
+
+.recienteImporte {
+  justify-self: end;
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .reciente {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .recienteCliente {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+}
+
+/* ── Accesos rápidos ──────────────────────────────────────────────────── */
+
+.accesos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.acceso {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--touch-target);
+  height: 100%;
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.acceso:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-alt);
+}
+
+.accesoIcono {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--color-primary-text);
+}
+
+.accesoTexto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.accesoLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.accesoModulo {
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+}
+
+.accesoFlecha {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}

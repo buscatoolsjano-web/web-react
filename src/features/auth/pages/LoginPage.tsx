@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { Alert } from '@/components/feedback/Alert'
+import { Field } from '@/components/forms/Field'
+import { Input } from '@/components/forms/controls'
 import { Button } from '@/components/ui/Button'
-import { StatusMessage } from '@/components/ui/StatusMessage'
 import { iniciarSesion } from '@/services/auth/session'
 import { useAuth } from '../useAuth'
 import styles from './LoginPage.module.css'
@@ -13,6 +15,9 @@ import styles from './LoginPage.module.css'
  * El SDK maneja el token. Si el usuario refresca, la sesión vuelve sola.
 
  * La recuperación de contraseña es `/auth/recuperar` (Fase 12, entrega 1).
+ *
+ * Fase 13 · E6: sólo presentación (Field, Button, Alert). Mismo submit, mismo
+ * `iniciarSesion`, mismo destino `next`.
  */
 export function LoginPage() {
   const { session, cargando } = useAuth()
@@ -44,48 +49,32 @@ export function LoginPage() {
 
   return (
     <div className={styles.wrap}>
-      <h1 className={styles.title}>Iniciar sesión</h1>
-      <p className={styles.subtitle}>Sistema de gestión BUSCATOOLS</p>
+      <header className={styles.cabecera}>
+        <h1 className={styles.title}>Iniciar sesión</h1>
+        <p className={styles.subtitle}>Ingresá con tu email y tu contraseña.</p>
+      </header>
 
       <form onSubmit={(e) => void manejarSubmit(e)} className={styles.form} noValidate>
-        <label className={styles.field}>
-          <span className={styles.label}>Email</span>
-          <input
-            className={styles.input}
-            type="email"
-            name="email"
-            autoComplete="username"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={enviando}
-          />
-        </label>
+        <Field label="Email">
+          <Input type="email" name="email" autoComplete="username" inputMode="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={enviando} />
+        </Field>
 
-        <label className={styles.field}>
-          <span className={styles.label}>Contraseña</span>
-          <input
-            className={styles.input}
-            type="password"
-            name="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={enviando}
-          />
-        </label>
+        <Field label="Contraseña">
+          <Input type="password" name="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={enviando} />
+        </Field>
 
-        {error && <StatusMessage tono="error" titulo={error} />}
+        {error && <Alert tone="danger" role="alert" title={error} />}
 
-        <Button type="submit" block disabled={enviando || !email || !password}>
+        <Button type="submit" block loading={enviando} disabled={!email || !password}>
           {enviando ? 'Ingresando…' : 'Ingresar'}
         </Button>
       </form>
 
-      <p className={styles.nota}>
-        <Link to="/auth/recuperar">¿Olvidaste tu contraseña?</Link>
-      </p>
+      <nav className={styles.enlaces} aria-label="Ayuda para ingresar">
+        <Link to="/auth/recuperar" className={styles.enlace}>
+          ¿Olvidaste tu contraseña?
+        </Link>
+      </nav>
     </div>
   )
 }

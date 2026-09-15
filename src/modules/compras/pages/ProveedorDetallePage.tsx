@@ -1,6 +1,20 @@
-import { useState, type ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { ActionBar } from '@/components/document/ActionBar'
+import { DocSection, MetaList, Missing } from '@/components/document/DocSection'
+import doc from '@/components/document/Document.module.css'
+import { Alert } from '@/components/feedback/Alert'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { LinkButton } from '@/components/ui/LinkButton'
+import { SkeletonRows } from '@/components/ui/Skeleton'
+import { TabPanel, Tabs, type TabItem } from '@/components/ui/Tabs'
+import { Icon } from '@/components/icons/Icon'
 import { FormularioProveedor } from '../components/FormularioProveedor'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { PanelCompras } from '../components/PanelCompras'
@@ -31,26 +45,8 @@ import styles from './ProveedorDetallePage.module.css'
 
 type Pestana = 'informacion' | 'compras' | 'adjuntos' | 'historial'
 
-const PESTANAS: { clave: Pestana; etiqueta: string }[] = [
-  { clave: 'informacion', etiqueta: 'Información' },
-  { clave: 'compras', etiqueta: 'Compras relacionadas' },
-  { clave: 'adjuntos', etiqueta: 'Adjuntos' },
-  { clave: 'historial', etiqueta: 'Historial' },
-]
-
-function Dato({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
-  return (
-    <div className={styles.dato}>
-      <dt className={styles.datoEtiqueta}>{etiqueta}</dt>
-      <dd className={styles.datoValor}>{children}</dd>
-    </div>
-  )
-}
-
-/** Un dato que no está se muestra como faltante, no como vacío. */
-function Falta({ children }: { children: ReactNode }) {
-  return <span className={styles.falta}>{children}</span>
-}
+const ID_PESTANAS = 'ficha-proveedor'
+const VOLVER = { to: '/compras/proveedores', label: 'Proveedores' }
 
 function aFormulario(p: ProveedorDetalle): DatosProveedor {
   return {
@@ -76,6 +72,10 @@ function aFormulario(p: ProveedorDetalle): DatosProveedor {
  * circuito existe en la base desde la entrega 1 pero no tiene pantalla, así
  * que no hay ni un documento. Se dice eso, no se inventan datos ni se muestra
  * un «próximamente».
+ *
+ * Fase 13 · E6 (deuda de E3): PageHeader, ActionBar, pestañas comunes,
+ * MetaList y la baja en un ConfirmDialog (antes, confirmación en línea). Las
+ * mismas mutaciones y los mismos permisos.
  */
 export function ProveedorDetallePage() {
   const { id } = useParams<{ id: string }>()
@@ -92,259 +92,205 @@ export function ProveedorDetallePage() {
   const baja = useBajaProveedor(id ?? '')
   const revision = useResolverRevisionProveedor(id ?? '')
 
-  if (isPending) return <p className={styles.nota}>Cargando…</p>
+  if (isPending) {
+    return (
+      <div className={doc.pagina}>
+        <SkeletonRows rows={6} columns={3} label="Cargando proveedor…" />
+      </div>
+    )
+  }
 
   if (error) {
     return (
-      <p className={styles.error} role="alert">
-        No se pudo leer el proveedor: {error.message}
-      </p>
+      <div className={doc.pagina}>
+        <PageHeader title="Proveedor" back={VOLVER} />
+        <ErrorState title="No se pudo leer el proveedor." description={error.message} />
+      </div>
     )
   }
 
   if (!proveedor) {
     return (
-      <div className={styles.page}>
-        <p className={styles.nota}>
-          No se encontró el proveedor. Puede que no exista o que no tengas acceso: Compras es
-          de administradores y empleados.
-        </p>
-        <Link to="/compras/proveedores" className={styles.volver}>
-          ← Volver al listado
-        </Link>
+      <div className={doc.pagina}>
+        <EmptyState
+          icon="search"
+          title="No se encontró el proveedor"
+          description="Puede que no exista o que no tengas acceso: Compras es de administradores y empleados."
+          action={
+            <LinkButton to="/compras/proveedores" variant="secondary" icon={<Icon name="arrow-left" size={16} />}>
+              Volver al listado
+            </LinkButton>
+          }
+        />
       </div>
     )
   }
 
+  const falta = (texto: string) => <Missing>{texto}</Missing>
+  const cantidadHistorial = historial.data?.length ?? 0
+  const pestanas: TabItem<Pestana>[] = [
+    { key: 'informacion', label: 'Información' },
+    { key: 'compras', label: 'Compras relacionadas' },
+    { key: 'adjuntos', label: 'Adjuntos' },
+    { key: 'historial', label: 'Historial', count: cantidadHistorial > 0 ? cantidadHistorial : undefined },
+  ]
+
   return (
-    <div className={styles.page}>
-      <Link to="/compras/proveedores" className={styles.volver}>
-        ← Proveedores
-      </Link>
+    <div className={doc.pagina}>
+      <PageHeader
+        back={VOLVER}
+        title={nombreVisible(proveedor.razonSocial)}
+        subtitle={proveedor.referencia ?? 'sin referencia'}
+        status={
+          proveedor.dadoDeBaja || proveedor.esHistorico ? (
+            <>
+              {proveedor.dadoDeBaja ? (
+                <Badge tone="danger" outline>
+                  Dado de baja
+                </Badge>
+              ) : null}
+              {proveedor.esHistorico ? <Badge tone="neutral">Migrado del sistema anterior</Badge> : null}
+            </>
+          ) : undefined
+        }
+      />
 
-      <header className={styles.encabezado}>
-        <div className={styles.identidad}>
-          <h1 className={styles.titulo}>{nombreVisible(proveedor.razonSocial)}</h1>
-          <p className={styles.subtitulo}>{proveedor.referencia ?? 'sin referencia'}</p>
-          <div className={styles.chips}>
-            {proveedor.dadoDeBaja ? <span className={styles.chipBaja}>Dado de baja</span> : null}
-            {proveedor.esHistorico ? (
-              <span className={styles.historico}>Migrado del sistema anterior</span>
-            ) : null}
-          </div>
-        </div>
-
-        {!editando ? (
-          <div className={styles.acciones}>
-            {permisos.editarProveedor && !proveedor.dadoDeBaja ? (
-              <button
-                type="button"
-                className={styles.secundario}
-                onClick={() => setEditando(true)}
-              >
-                Editar
-              </button>
-            ) : null}
-            {permisos.darDeBaja && proveedor.dadoDeBaja ? (
-              <button
-                type="button"
-                className={styles.secundario}
-                disabled={baja.reactivar.isPending}
-                onClick={() => baja.reactivar.mutate()}
-              >
-                {baja.reactivar.isPending ? 'Reactivando…' : 'Reactivar'}
-              </button>
-            ) : null}
-            {permisos.darDeBaja && !proveedor.dadoDeBaja ? (
-              confirmandoBaja ? (
-                <>
-                  <button
-                    type="button"
-                    className={styles.peligro}
-                    disabled={baja.dar.isPending}
-                    onClick={() =>
-                      baja.dar.mutate(undefined, { onSuccess: () => setConfirmandoBaja(false) })
-                    }
-                  >
-                    {baja.dar.isPending ? 'Dando de baja…' : 'Confirmar baja'}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.secundario}
-                    onClick={() => setConfirmandoBaja(false)}
-                  >
-                    No
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.secundario}
-                  onClick={() => setConfirmandoBaja(true)}
-                >
-                  Dar de baja
-                </button>
-              )
-            ) : null}
-          </div>
-        ) : null}
-      </header>
+      {!editando && (permisos.editarProveedor || permisos.darDeBaja) ? (
+        <ActionBar
+          label="Acciones del proveedor"
+          secondary={
+            <>
+              {permisos.editarProveedor && !proveedor.dadoDeBaja ? (
+                <Button variant="secondary" icon={<Icon name="edit" size={16} />} onClick={() => setEditando(true)}>
+                  Editar
+                </Button>
+              ) : null}
+              {permisos.darDeBaja && proveedor.dadoDeBaja ? (
+                <Button variant="secondary" icon={<Icon name="refresh" size={16} />} loading={baja.reactivar.isPending} onClick={() => baja.reactivar.mutate()}>
+                  {baja.reactivar.isPending ? 'Reactivando…' : 'Reactivar'}
+                </Button>
+              ) : null}
+            </>
+          }
+          danger={
+            permisos.darDeBaja && !proveedor.dadoDeBaja ? (
+              <Button variant="danger" onClick={() => setConfirmandoBaja(true)}>
+                Dar de baja
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : null}
 
       {proveedor.dadoDeBaja ? (
-        <p className={styles.avisoBaja} role="note">
-          Este proveedor está dado de baja: <strong>no se ofrece</strong> al armar un pedido de
-          compra nuevo. Sus documentos anteriores lo siguen nombrando igual y su ficha sigue
-          accesible.
-        </p>
+        <Alert tone="warning" title="Este proveedor está dado de baja">
+          <p>
+            <strong>No se ofrece</strong> al armar un pedido de compra nuevo. Sus documentos anteriores lo siguen nombrando igual y su ficha sigue accesible.
+          </p>
+        </Alert>
       ) : null}
 
       {baja.dar.error || baja.reactivar.error ? (
-        <p className={styles.error} role="alert">
-          {baja.dar.error?.message ?? baja.reactivar.error?.message}
-        </p>
+        <Alert tone="danger" role="alert" title="No se pudo cambiar el estado del proveedor">
+          <p>{baja.dar.error?.message ?? baja.reactivar.error?.message}</p>
+        </Alert>
       ) : null}
 
       {proveedor.necesitaRevision ? (
-        <div className={styles.revision} role="note">
-          <strong>Este proveedor quedó marcado para revisión.</strong>
+        <Alert
+          tone="warning"
+          title="Este proveedor quedó marcado para revisión"
+          action={
+            permisos.resolverRevision ? (
+              <Button variant="secondary" size="sm" loading={revision.isPending} onClick={() => revision.mutate()}>
+                {revision.isPending ? 'Guardando…' : 'Dar por revisado'}
+              </Button>
+            ) : undefined
+          }
+        >
           <ul className={styles.motivos}>
             {proveedor.motivosRevision.map((m) => (
               <li key={m}>{explicarMotivo(m)}</li>
             ))}
           </ul>
-          {permisos.resolverRevision ? (
-            <button
-              type="button"
-              className={styles.resolver}
-              disabled={revision.isPending}
-              onClick={() => revision.mutate()}
-            >
-              {revision.isPending ? 'Guardando…' : 'Dar por revisado'}
-            </button>
-          ) : null}
           {revision.error ? (
             <p className={styles.error} role="alert">
               {revision.error.message}
             </p>
           ) : null}
-        </div>
+        </Alert>
       ) : null}
 
-      <nav className={styles.pestanas} aria-label="Secciones de la ficha">
-        {PESTANAS.map((p) => (
-          <button
-            key={p.clave}
-            type="button"
-            className={p.clave === pestana ? styles.pestanaActiva : styles.pestana}
-            aria-current={p.clave === pestana ? 'true' : undefined}
-            onClick={() => setPestana(p.clave)}
-          >
-            {p.etiqueta}
-            {p.clave === 'historial' && (historial.data?.length ?? 0) > 0
-              ? ` (${historial.data!.length})`
-              : ''}
-          </button>
-        ))}
-      </nav>
+      <div>
+        <Tabs id={ID_PESTANAS} label="Secciones de la ficha" items={pestanas} value={pestana} onChange={setPestana} />
+        <TabPanel tabsId={ID_PESTANAS} tabKey={pestana} className={styles.panelPestana}>
+          {pestana === 'informacion' && editando ? (
+            <FormularioProveedor
+              valores={aFormulario(proveedor)}
+              cuitOriginal={proveedor.cuit}
+              referencia={proveedor.referencia}
+              guardando={guardar.isPending}
+              errorAlGuardar={guardar.error?.message ?? null}
+              etiquetaGuardar="Guardar cambios"
+              onGuardar={(datos) => guardar.mutate(datos, { onSuccess: () => setEditando(false) })}
+              onCancelar={() => setEditando(false)}
+            />
+          ) : null}
 
-      <section className={styles.bloque}>
-        {pestana === 'informacion' && editando ? (
-          <FormularioProveedor
-            valores={aFormulario(proveedor)}
-            cuitOriginal={proveedor.cuit}
-            referencia={proveedor.referencia}
-            guardando={guardar.isPending}
-            errorAlGuardar={guardar.error?.message ?? null}
-            etiquetaGuardar="Guardar cambios"
-            onGuardar={(datos) => guardar.mutate(datos, { onSuccess: () => setEditando(false) })}
-            onCancelar={() => setEditando(false)}
-          />
-        ) : null}
+          {pestana === 'informacion' && !editando ? (
+            <DocSection title="Datos del proveedor">
+              <MetaList
+                items={[
+                  { label: 'Razón social', value: proveedor.razonSocial },
+                  { label: ETIQUETA_NOMBRE_COMERCIAL, value: proveedor.nombreComercial ?? falta('sin dato') },
+                  { label: 'Referencia', value: proveedor.referencia ?? falta('sin referencia') },
+                  { label: 'CUIT', value: proveedor.cuit ? formatearCuit(proveedor.cuit) : falta('sin CUIT') },
+                  { label: 'Teléfono', value: proveedor.telefono ?? falta('sin teléfono') },
+                  {
+                    label: 'Email',
+                    value: proveedor.email ? (
+                      <a className={`${styles.enlace} ${styles.enlaceTactil}`} href={`mailto:${proveedor.email}`}>
+                        {proveedor.email}
+                      </a>
+                    ) : (
+                      falta('sin email')
+                    ),
+                  },
+                  { label: 'País', value: proveedor.pais ? nombreDePais(proveedor.pais) : falta('sin país') },
+                  { label: 'Forma de pago', value: proveedor.formaPago ?? falta('no definida') },
+                  { label: 'Moneda por defecto', value: proveedor.monedaPorDefecto ?? falta('no definida') },
+                  { label: 'Actividad', value: proveedor.actividad ?? falta('sin actividad') },
+                  { label: 'Agente', value: proveedor.agente ?? falta('sin agente') },
+                  { label: 'Estado', value: etiquetaDeEstado(proveedor.estado, proveedor.dadoDeBaja) },
+                  { label: 'Alta', value: formatearFecha(proveedor.creadoEn) },
+                  { label: 'Dirección', value: proveedor.direccion ?? falta('sin dirección'), wide: true },
+                  proveedor.notas ? { label: 'Notas', value: <span className={styles.notas}>{proveedor.notas}</span>, wide: true } : null,
+                ]}
+              />
+            </DocSection>
+          ) : null}
 
-        {pestana === 'informacion' && !editando ? (
-          <>
-            <dl className={styles.datos}>
-              <Dato etiqueta="Razón social">{proveedor.razonSocial}</Dato>
-              <Dato etiqueta={ETIQUETA_NOMBRE_COMERCIAL}>
-                {proveedor.nombreComercial ?? <Falta>sin dato</Falta>}
-              </Dato>
-              <Dato etiqueta="Referencia">
-                {proveedor.referencia ?? <Falta>sin referencia</Falta>}
-              </Dato>
-              <Dato etiqueta="CUIT">
-                {proveedor.cuit ? formatearCuit(proveedor.cuit) : <Falta>sin CUIT</Falta>}
-              </Dato>
-              <Dato etiqueta="Teléfono">
-                {proveedor.telefono ?? <Falta>sin teléfono</Falta>}
-              </Dato>
-              <Dato etiqueta="Email">
-                {proveedor.email ? (
-                  <a className={styles.enlace} href={`mailto:${proveedor.email}`}>
-                    {proveedor.email}
-                  </a>
-                ) : (
-                  <Falta>sin email</Falta>
-                )}
-              </Dato>
-              <Dato etiqueta="País">
-                {proveedor.pais ? nombreDePais(proveedor.pais) : <Falta>sin país</Falta>}
-              </Dato>
-              <Dato etiqueta="Forma de pago">
-                {proveedor.formaPago ?? <Falta>no definida</Falta>}
-              </Dato>
-              <Dato etiqueta="Moneda por defecto">
-                {proveedor.monedaPorDefecto ?? <Falta>no definida</Falta>}
-              </Dato>
-              <Dato etiqueta="Actividad">
-                {proveedor.actividad ?? <Falta>sin actividad</Falta>}
-              </Dato>
-              <Dato etiqueta="Agente">{proveedor.agente ?? <Falta>sin agente</Falta>}</Dato>
-              <Dato etiqueta="Estado">
-                {etiquetaDeEstado(proveedor.estado, proveedor.dadoDeBaja)}
-              </Dato>
-              <Dato etiqueta="Alta">{formatearFecha(proveedor.creadoEn)}</Dato>
-            </dl>
+          {pestana === 'compras' ? <PanelCompras proveedorId={proveedor.id} datos={compras.data} cargando={compras.isPending} /> : null}
 
-            <dl className={styles.datos} style={{ marginTop: 'var(--space-4)' }}>
-              <Dato etiqueta="Dirección">
-                {proveedor.direccion ?? <Falta>sin dirección</Falta>}
-              </Dato>
-            </dl>
+          {pestana === 'adjuntos' ? <PanelAdjuntos proveedorId={proveedor.id} puedeEditar={permisos.editarAdjuntos && !proveedor.dadoDeBaja} /> : null}
 
-            {proveedor.notas ? (
-              <>
-                <p className={styles.datoEtiqueta} style={{ marginTop: 'var(--space-4)' }}>
-                  Notas
-                </p>
-                <p className={styles.notas}>{proveedor.notas}</p>
-              </>
-            ) : null}
-          </>
-        ) : null}
+          {pestana === 'historial' ? (
+            <PanelHistorial eventos={historial.data ?? []} cargando={historial.isPending} esHistorico={proveedor.esHistorico} />
+          ) : null}
+        </TabPanel>
+      </div>
 
-        {pestana === 'compras' ? (
-          <PanelCompras
-            proveedorId={proveedor.id}
-            datos={compras.data}
-            cargando={compras.isPending}
-          />
-        ) : null}
-
-        {pestana === 'adjuntos' ? (
-          <PanelAdjuntos
-            proveedorId={proveedor.id}
-            puedeEditar={permisos.editarAdjuntos && !proveedor.dadoDeBaja}
-          />
-        ) : null}
-
-        {pestana === 'historial' ? (
-          <PanelHistorial
-            eventos={historial.data ?? []}
-            cargando={historial.isPending}
-            esHistorico={proveedor.esHistorico}
-          />
-        ) : null}
-      </section>
+      <ConfirmDialog
+        open={confirmandoBaja}
+        tone="danger"
+        title={`¿Dar de baja ${nombreVisible(proveedor.razonSocial)}?`}
+        description="No se va a ofrecer al armar pedidos de compra nuevos. Sus documentos anteriores lo siguen nombrando y se puede reactivar."
+        confirmLabel={baja.dar.isPending ? 'Dando de baja…' : 'Confirmar baja'}
+        cancelLabel="Cancelar"
+        busy={baja.dar.isPending}
+        onCancel={() => setConfirmandoBaja(false)}
+        onConfirm={() => baja.dar.mutate(undefined, { onSuccess: () => setConfirmandoBaja(false) })}
+      />
     </div>
   )
 }

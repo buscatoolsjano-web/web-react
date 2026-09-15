@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { DocSection } from '@/components/document/DocSection'
 import doc from '@/components/document/Document.module.css'
 import { Alert } from '@/components/feedback/Alert'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { Field } from '@/components/forms/Field'
@@ -44,6 +45,7 @@ export function PuntosPage() {
 
   const [nuevo, setNuevo] = useState({ clave: '', etiqueta: '' })
   const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [aBorrar, setABorrar] = useState<PuntoDeRevision | null>(null)
   const [borrador, setBorrador] = useState({ clave: '', etiqueta: '', posicion: 0 })
 
   if (!permisos.configurar) {
@@ -185,7 +187,7 @@ export function PuntosPage() {
                           variant="danger"
                           icon={<Icon name="trash" size={16} />}
                           disabled={edicion.borrar.isPending}
-                          onClick={() => edicion.borrar.mutate(p.id)}
+                          onClick={() => setABorrar(p)}
                         >
                           Borrar
                         </Button>
@@ -229,6 +231,19 @@ export function PuntosPage() {
           </Button>
         </div>
       </DocSection>
+
+      <ConfirmDialog
+        open={aBorrar !== null}
+        tone="danger"
+        title={`¿Borrar el punto «${aBorrar?.etiqueta ?? ''}»?`}
+        description="Si ya se usó en alguna orden la base no lo deja borrar: en ese caso conviene desactivarlo."
+        confirmLabel={edicion.borrar.isPending ? 'Borrando…' : 'Borrar punto'}
+        busy={edicion.borrar.isPending}
+        onCancel={() => setABorrar(null)}
+        onConfirm={() => {
+          if (aBorrar) edicion.borrar.mutate(aBorrar.id, { onSettled: () => setABorrar(null) })
+        }}
+      />
     </div>
   )
 }

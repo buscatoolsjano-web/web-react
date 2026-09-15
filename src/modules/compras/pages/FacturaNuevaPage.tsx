@@ -19,6 +19,7 @@ import { useCrearFactura, usePendienteDeFacturar } from '../hooks/useFacturas'
 import { useQuery } from '@tanstack/react-query'
 import { totalesDeFactura } from '../lib/facturacion'
 import cab from '../components/CabeceraPedido.module.css'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './ProveedorDetallePage.module.css'
 
 const hoy = () => new Date().toISOString().slice(0, 10)
@@ -305,7 +306,7 @@ export function FacturaNuevaPage() {
       ) : (
         <section className={styles.bloque}>
           {pendiente.isPending ? (
-            <p className={styles.nota}>Cargando lo pendiente de facturar…</p>
+            <SkeletonRows rows={3} columns={4} label="Cargando lo pendiente de facturar…" />
           ) : pendiente.error ? (
             <Alert tone="danger" role="alert">
               <p>{pendiente.error.message}</p>

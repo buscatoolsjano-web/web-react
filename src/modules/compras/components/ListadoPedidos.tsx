@@ -15,12 +15,12 @@ export interface ListadoPedidosProps {
   cargando: boolean
 }
 
-const COLUMNAS: { clave: OrdenPedidos; etiqueta: string; num?: boolean }[] = [
+const COLUMNAS: { clave: OrdenPedidos; etiqueta: string; num?: boolean; ocultar?: 'lg' }[] = [
   { clave: 'numero', etiqueta: 'Número' },
   { clave: 'fecha', etiqueta: 'Fecha' },
   { clave: 'proveedor', etiqueta: 'Proveedor' },
   { clave: 'total', etiqueta: 'Total', num: true },
-  { clave: 'eta', etiqueta: 'Llegada estimada' },
+  { clave: 'eta', etiqueta: 'Llegada estimada', ocultar: 'lg' },
 ]
 
 /** La fecha estimada, o que falta: «sin fecha» no es lo mismo que vacío. */
@@ -80,7 +80,7 @@ export function ListadoPedidos({ filas, orden, direccion, onOrdenar, cargando }:
                 <th
                   key={c.clave}
                   scope="col"
-                  className={c.num ? tabla.num : undefined}
+                  className={[c.num ? tabla.num : '', c.ocultar ? tabla.ocultaBajoLg : ''].filter(Boolean).join(' ') || undefined}
                   aria-sort={activa ? (direccion === 'asc' ? 'ascending' : 'descending') : 'none'}
                 >
                   <button type="button" className={tabla.orden} onClick={() => onOrdenar(c.clave)}>
@@ -91,10 +91,12 @@ export function ListadoPedidos({ filas, orden, direccion, onOrdenar, cargando }:
               )
             })}
             <th scope="col">Estado</th>
-            <th scope="col" className={tabla.num}>
+            <th scope="col" className={`${tabla.num} ${tabla.ocultaBajoXl}`}>
               Líneas
             </th>
-            <th scope="col">Creado por</th>
+            <th scope="col" className={tabla.ocultaBajoXl}>
+              Creado por
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -115,15 +117,15 @@ export function ListadoPedidos({ filas, orden, direccion, onOrdenar, cargando }:
                   </Link>
                 </td>
                 <td className={tabla.num}>{formatearImporte(p.total, p.moneda)}</td>
-                <td className={`${tabla.nowrap} ${e.falta ? tabla.secundario : ''}`}>{e.texto}</td>
+                <td className={`${tabla.nowrap} ${e.falta ? tabla.secundario : ''} ${tabla.ocultaBajoLg}`}>{e.texto}</td>
                 <td>
                   <span className={tabla.estados}>
                     <ChipEstado estado={p.estado} />
                     <ChipRecepcion estado={p.estadoRecepcion} />
                   </span>
                 </td>
-                <td className={tabla.num}>{p.lineas}</td>
-                <td className={tabla.secundario} title={p.autor ?? undefined}>
+                <td className={`${tabla.num} ${tabla.ocultaBajoXl}`}>{p.lineas}</td>
+                <td className={`${tabla.secundario} ${tabla.ocultaBajoXl}`} title={p.autor ?? undefined}>
                   {p.autor ?? '—'}
                 </td>
               </tr>

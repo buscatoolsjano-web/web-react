@@ -7,6 +7,7 @@ import { ActionBar } from '@/components/document/ActionBar'
 import { DocSection, MetaList, Missing } from '@/components/document/DocSection'
 import doc from '@/components/document/Document.module.css'
 import { Alert } from '@/components/feedback/Alert'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { Button } from '@/components/ui/Button'
@@ -54,6 +55,7 @@ export function ActivoDetallePage() {
 
   const [pestana, setPestana] = useState<Pestana>('datos')
   const [editando, setEditando] = useState(false)
+  const [confirmandoBaja, setConfirmandoBaja] = useState(false)
 
   const { data: activo, isPending, error } = useActivo(id)
   const historial = useHistorialDeActivo(id)
@@ -206,7 +208,7 @@ export function ActivoDetallePage() {
           }
           danger={
             activo.dadoDeBaja ? undefined : (
-              <Button variant="danger" loading={acciones.darDeBaja.isPending} onClick={() => acciones.darDeBaja.mutate()}>
+              <Button variant="danger" loading={acciones.darDeBaja.isPending} onClick={() => setConfirmandoBaja(true)}>
                 Dar de baja
               </Button>
             )
@@ -354,6 +356,17 @@ export function ActivoDetallePage() {
           ) : null}
         </TabPanel>
       </div>
+
+      <ConfirmDialog
+        open={confirmandoBaja}
+        tone="danger"
+        title={`¿Dar de baja ${activo.referencia}?`}
+        description="La baja es lógica: sus órdenes lo siguen nombrando y el historial queda intacto. Se puede reactivar."
+        confirmLabel={acciones.darDeBaja.isPending ? 'Dando de baja…' : 'Dar de baja'}
+        busy={acciones.darDeBaja.isPending}
+        onCancel={() => setConfirmandoBaja(false)}
+        onConfirm={() => acciones.darDeBaja.mutate(undefined, { onSettled: () => setConfirmandoBaja(false) })}
+      />
     </div>
   )
 }

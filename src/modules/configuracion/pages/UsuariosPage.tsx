@@ -11,6 +11,7 @@ import { StatusMessage, type Tono } from '@/components/ui/StatusMessage'
 import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
 import type { Column } from '@/components/tables/types'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { cx } from '@/utils/cx'
 import { Dialogo } from '../components/Dialogo'
 import { FormularioInvitacion } from '../components/FormularioInvitacion'
 import { useAccionesUsuarios, useUsuarios } from '../hooks/useUsuarios'
@@ -139,12 +140,13 @@ function UsuariosAdmin() {
             )}
           </span>
           <span className={styles.email}>{u.email}</span>
+          <span className={cx(styles.email, styles.soloTablaCompacta)}>Último ingreso: {u.ultimoIngreso ? formatearFecha(u.ultimoIngreso) : 'nunca'}</span>
         </span>
       ),
     },
-    { key: 'rol', header: 'Rol', width: '13rem', render: (u) => <SelectorRol u={u} lista={lista} deshabilitado={ocupado} onElegir={(rol) => abrir({ tipo: 'rol', u, rol })} /> },
-    { key: 'estado', header: 'Estado', width: '11rem', render: (u) => <ChipEstado u={u} /> },
-    { key: 'ingreso', header: 'Último ingreso', width: '8rem', render: (u) => (u.ultimoIngreso ? formatearFecha(u.ultimoIngreso) : 'Nunca') },
+    { key: 'rol', header: 'Rol', width: '12rem', render: (u) => <SelectorRol u={u} lista={lista} deshabilitado={ocupado} onElegir={(rol) => abrir({ tipo: 'rol', u, rol })} /> },
+    { key: 'estado', header: 'Estado', render: (u) => <ChipEstado u={u} /> },
+    { key: 'ingreso', header: 'Último ingreso', width: '8rem', hideBelow: 'xl', render: (u) => (u.ultimoIngreso ? formatearFecha(u.ultimoIngreso) : 'Nunca') },
   ]
 
   return (

@@ -1,3 +1,5 @@
+import { Icon } from '@/components/icons/Icon'
+import { SkeletonRows } from '@/components/ui/Skeleton'
 import { etiquetaDeAccion, formatearFechaHora } from '../lib/formato'
 import type { EventoDeProveedor } from '../types'
 import styles from './PanelHistorial.module.css'
@@ -19,7 +21,7 @@ export interface PanelHistorialProps {
  * real está en la ficha, como «Alta».
  */
 export function PanelHistorial({ eventos, cargando, esHistorico }: PanelHistorialProps) {
-  if (cargando) return <p className={styles.nota}>Cargando historial…</p>
+  if (cargando) return <SkeletonRows rows={3} columns={3} label="Cargando historial…" />
 
   if (eventos.length === 0) {
     return (
@@ -38,7 +40,10 @@ export function PanelHistorial({ eventos, cargando, esHistorico }: PanelHistoria
           <span className={styles.accion}>{etiquetaDeAccion(e.accion)}</span>
           {e.estadoAnterior || e.estadoNuevo ? (
             <span className={styles.estados}>
-              {e.estadoAnterior ?? '—'} → {e.estadoNuevo ?? '—'}
+              {e.estadoAnterior ?? '—'}
+              {/* La flecha se lee «a»: «borrador a confirmado». */}
+              <Icon name="arrow-right" size={16} className={styles.flecha} role="img" aria-hidden={false} aria-label="a" />
+              {e.estadoNuevo ?? '—'}
             </span>
           ) : null}
           <span className={styles.meta}>
