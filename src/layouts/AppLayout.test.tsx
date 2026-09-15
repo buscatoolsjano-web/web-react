@@ -20,7 +20,7 @@ const estado = vi.hoisted<EstadoPrueba>(() => ({
   error: null,
   sesion: true,
 }))
-const llamadas = vi.hoisted(() => ({ salir: vi.fn(), reintentar: vi.fn(), cambiar: vi.fn() }))
+const llamadas = vi.hoisted(() => ({ salir: vi.fn(), reintentar: vi.fn(), cambiar: vi.fn(), cambiarApariencia: vi.fn() }))
 
 vi.mock('@/hooks/useMediaQuery', () => ({
   useIsMobile: () => estado.ancho < 768,
@@ -46,6 +46,17 @@ vi.mock('@/features/empresa/useEmpresa', () => ({
     }))
     return { membresias: lista, activa: lista[0] ?? null, cargando: estado.cargando, error: estado.error, cambiarEmpresa: llamadas.cambiar, reintentar: llamadas.reintentar }
   },
+}))
+
+vi.mock('@/features/apariencia/useApariencia', () => ({
+  useApariencia: () => ({
+    apariencia: { version: 1, preset: 'claro-naranja', acento: 'tema', tamano: 'normal', fuente: 'sistema' },
+    cambiar: llamadas.cambiarApariencia,
+    restaurar: vi.fn(),
+    guardando: false,
+    error: null,
+    disponible: true,
+  }),
 }))
 
 const { AppLayout } = await import('./AppLayout')
@@ -219,5 +230,39 @@ describe('sesión (utilidades)', () => {
     expect(nombreVisible({ user_metadata: { full_name: '  Ana  ' } })).toBe('Ana')
     expect(nombreVisible({ user_metadata: { full_name: 42 } })).toBeNull()
     expect(nombreVisible(null)).toBeNull()
+  })
+})
+
+describe('apariencia e identidad por módulo (Fase 14)', () => {
+  it('«Apariencia» en el header abre el diálogo accesible y un tema se elige con el radio', async () => {
+    montar()
+    const boton = within(screen.getByRole('banner')).getByRole('button', { name: 'Apariencia' })
+    fireEvent.click(boton)
+    // El diálogo se carga bajo demanda (lazy).
+    const dialogo = await screen.findByRole('dialog', { name: 'Apariencia' })
+    expect(within(dialogo).getByRole('group', { name: 'Tema' })).toBeInTheDocument()
+    expect(within(dialogo).getByRole('radio', { name: 'Claro naranja, tema claro (original)' })).toBeChecked()
+    fireEvent.click(within(dialogo).getByRole('radio', { name: 'Grafito, tema oscuro' }))
+    expect(llamadas.cambiarApariencia).toHaveBeenCalledWith({ preset: 'grafito' })
+  })
+
+  it('data-modulo en <html>: ventas, compras, mantenimiento; nada en otros módulos y se limpia al salir', () => {
+    const casos: [string, string | undefined][] = [
+      ['/ventas/cotizaciones', 'ventas'],
+      ['/compras/pedidos', 'compras'],
+      ['/mantenimiento/ordenes', 'mantenimiento'],
+      ['/catalogo', undefined],
+      ['/clientes', undefined],
+      ['/emails', undefined],
+      ['/informes', undefined],
+      ['/configuracion/numeracion', undefined],
+      ['/', undefined],
+    ]
+    for (const [ruta, esperado] of casos) {
+      const { unmount } = montar(ruta)
+      expect(document.documentElement.dataset.modulo, ruta).toBe(esperado)
+      unmount()
+      expect(document.documentElement.dataset.modulo).toBeUndefined()
+    }
   })
 })

@@ -54,6 +54,10 @@ export default defineConfig(({ mode }) => {
       globals: true,
       setupFiles: ['src/test/setup.ts'],
       include: ['src/**/*.{test,spec}.{ts,tsx}'],
+      // Fase 14: con ~100 archivos en paralelo, el PRIMER test de un archivo
+      // jsdom pesado (shell, Inicio, diálogo de apariencia) llegó a 5 s por pura
+      // contención de CPU; solo tarda ~0,3 s. 15 s sigue cortando cuelgues reales.
+      testTimeout: 15_000,
     },
   }
 })

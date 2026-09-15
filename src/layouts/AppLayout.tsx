@@ -4,6 +4,8 @@ import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
 import { useAuth } from '@/features/auth/useAuth'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { EmpresaSelector } from '@/features/empresa/EmpresaSelector'
+import { BotonApariencia } from '@/features/apariencia/BotonApariencia'
+import { moduloDeRuta } from '@/features/apariencia/opciones'
 import { IconButton } from '@/components/ui/IconButton'
 import { navegacionPara } from './navegacion'
 import { PanelNav } from './PanelNav'
@@ -75,6 +77,18 @@ export function AppLayout() {
     }
   }, [abierto])
 
+  // Identidad por módulo (Fase 14): Ventas verde, Compras azul, Mantenimiento
+  // grafito. Va en el <html> para que los diálogos (portal en body) la hereden.
+  const modulo = moduloDeRuta(pathname)
+  useEffect(() => {
+    const raiz = document.documentElement
+    if (modulo) raiz.dataset.modulo = modulo
+    else delete raiz.dataset.modulo
+    return () => {
+      delete raiz.dataset.modulo
+    }
+  }, [modulo])
+
   const email = user?.email ?? ''
 
   return (
@@ -102,6 +116,7 @@ export function AppLayout() {
         {session && (
           <div className={styles.sesion}>
             <EmpresaSelector />
+            <BotonApariencia className={styles.botonHeader} />
             <MenuUsuario email={email} nombre={nombreVisible(user)} empresa={empresa.activa?.companyName ?? null} rol={empresa.activa?.rol ?? null} onSalir={() => void salir()} />
           </div>
         )}

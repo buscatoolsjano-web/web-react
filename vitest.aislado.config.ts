@@ -31,5 +31,7 @@ export default defineConfig({
     // se quedan sin los matchers de jest-dom y fallan sólo acá.
     setupFiles: ['src/test/setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    // Mismo margen que la suite normal (ver vite.config.ts).
+    testTimeout: 15_000,
   },
 })

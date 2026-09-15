@@ -102,7 +102,7 @@
 
 .danger {
   background: var(--color-danger);
-  color: var(--color-on-primary);
+  color: var(--color-on-danger);
 }
 .danger:not(:disabled):hover {
   background: var(--color-danger-hover);
@@ -110,7 +110,7 @@
 .danger:not(:disabled):active,
 .danger.loading {
   background: var(--color-danger-text);
-  color: var(--color-on-primary);
+  color: var(--color-on-danger);
 }
 
 .block {

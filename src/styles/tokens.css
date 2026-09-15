@@ -11,8 +11,9 @@
         apuntan a la capa 1. Los 95 CSS Modules existentes siguen funcionando
         sin editarse y heredan el contraste corregido. Se eliminan en E6,
         cuando cada módulo ya use los nombres nuevos.
-     3. Tema oscuro legacy, SIN expandir (fuera de la Fase 13). Redefine los
-        nombres viejos como antes; las primitivas nuevas no tienen tema oscuro.
+     3. Apariencia por usuario (Fase 14 · E0): presets claros y oscuros,
+        acento elegido, acento por módulo, tamaño y tipografía. Sólo
+        redefine la capa 1: los alias de la capa 2 la siguen solos.
 
    Reglas:
    · Ningún hex/px nuevo fuera de este archivo (salvo impresión).
@@ -21,7 +22,12 @@
    ───────────────────────────────────────────────────────────────────────── */
 
 /* ── 1. Paleta ──────────────────────────────────────────────────────────── */
-:root {
+/* `[data-theme='light']` además de :root: una tarjeta de vista previa clara
+   dentro de un tema oscuro vuelve a esta paleta (ver capa 3). */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
   /* Marca: identidad, indicador activo, foco. No es color de texto. */
   --color-brand-500: #f37021;
   --color-brand-600: #d85518;
@@ -33,6 +39,7 @@
   --color-primary-soft: #fff4ec;
   --color-primary-text: #b8430e; /* 5.46 sobre blanco · 5.04 sobre soft */
   --color-on-primary: #ffffff;
+  --color-on-danger: #ffffff; /* texto de botones de peligro (en oscuro, oscuro) */
 
   /* Superficies */
   --color-bg: #f6f6f5;
@@ -75,14 +82,29 @@
   --color-topnav-text-soft: #b0b0b0;
   --color-topnav-hover: #2d2d2d;
   --color-topnav-border: #4a4a48; /* límite de controles en el header oscuro */
+  --color-topnav-focus: var(--color-brand-500); /* foco sobre el header */
   --color-sidebar-bg: #ffffff;
+
+  /* Fase 14: indicador activo (barra de la navegación), fijo claro detrás
+     del logo (el PNG oficial tiene «tools» en gris oscuro) y texto sobre marca. */
+  --color-indicator: var(--color-brand-500);
+  --color-logo-plate: #ffffff;
+  --color-on-brand: #1a1a1a;
+
+  /* Identidad por módulo (Fase 14): fuera de Ventas/Compras/Mantenimiento
+     son el acento global. Ver capa 3e. */
+  --module-accent: var(--color-primary);
+  --module-accent-hover: var(--color-primary-hover);
+  --module-accent-soft: var(--color-primary-soft);
+  --module-accent-border: var(--color-indicator);
+  --module-accent-text: var(--color-primary-text);
 
   /* Foco: anillo de marca con separación (≥ 3:1 contra blanco por el halo oscuro) */
   --focus-outline: 2px solid var(--color-primary);
   --focus-offset: 2px;
   /* Fase 13 · E6: el anillo de los campos lleva 1px sólido del primario (junto al borde
      primario suman 2px a 5.18:1) y un halo suave; el halo solo no llegaba a 3:1. */
-  --focus-ring: 0 0 0 1px var(--color-primary), 0 0 0 4px rgb(194 65 12 / 0.22);
+  --focus-ring: 0 0 0 1px var(--color-primary), 0 0 0 4px color-mix(in srgb, var(--color-primary) 22%, transparent);
 }
 
 /* ── 1b. Escalas ────────────────────────────────────────────────────────── */
@@ -208,33 +230,643 @@
   --on-primary: var(--color-on-primary); /* mantenimiento/PanelEtapas */
 }
 
-/* ── 3. Tema oscuro legacy (sin expandir en la Fase 13) ─────────────────── */
-:root[data-theme='dark'] {
-  --bg: #121212;
-  --surface: #1e1e1e;
-  --surface-alt: #2a2a2a;
-  --text: #e0e0e0;
-  --text-soft: #a0a0a0;
-  --text-muted: #707070;
-  --border: #333333;
-  --border-strong: #444444;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
-  --primary: #ff8540;
-  --primary-hover: #f37021;
-  --primary-light: #3a2418;
-  --primary-text: #ffb380;
-  --warning: #ffc107;
-  --warning-light: #4a3c00;
-  --warning-text: #ffe082;
-  --success: #4caf50;
-  --success-light: #1b5e20;
-  --danger: #ef5350;
-  --topnav-bg: #0a0a0a;
-  --topnav-text: #ffffff;
-  --topnav-text-soft: #a0a0a0;
-  --topnav-hover: #1a1a1a;
-  --sidebar-bg: #1e1e1e;
-  --sidebar-border: #333333;
-  --input-readonly-bg: #252525;
+/* ── 3. Apariencia por usuario (Fase 14 · E0) ─────────────────────────────
+   El usuario elige preset, acento, tamaño y tipografía (ver
+   src/features/apariencia/opciones.ts). Se traduce a atributos del <html>:
+     data-theme      light | dark     (modo del preset)
+     data-apariencia <preset>
+     data-acento     <acento>         (ausente = el del preset)
+     data-modulo     ventas | compras | mantenimiento  (lo pone el shell)
+     data-tamano / data-fuente
+   Orden de la cascada: base clara (capa 1) → oscuro común → preset →
+   acento elegido → acento del módulo. Los selectores de preset NO llevan
+   :root: así las tarjetas de vista previa del diálogo muestran su tema.
+   Los estados (success/warning/danger/info) cambian sólo de luminosidad en
+   oscuro: la semántica no cambia. Todo par se mide en tokens.test.ts. */
+
+/* 3a. Oscuro común (= Oscuro naranja) */
+[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg: #121212;
+  --color-surface: #1c1c1c;
+  --color-surface-alt: #232323;
+  --color-surface-sunken: #2a2a2a;
+  --color-overlay: rgb(0 0 0 / 0.65);
+  --color-border: #333333;
+  --color-border-medium: #474747;
+  --color-border-strong: #858585;
+  --color-text: #ededed;
+  --color-text-soft: #c2c2c2;
+  --color-text-muted: #a3a3a3;
+  --color-text-disabled: #a3a3a3;
+  --color-success: #4ade80;
+  --color-success-soft: #0f2918;
+  --color-success-text: #86efac;
+  --color-warning: #fbbf24;
+  --color-warning-soft: #2e2308;
+  --color-warning-text: #fcd34d;
+  --color-danger: #f87171;
+  --color-danger-hover: #fca5a5;
+  --color-danger-soft: #3b1515;
+  --color-danger-text: #fecaca;
+  --color-on-danger: #1f0606;
+  --color-info: #60a5fa;
+  --color-info-soft: #0f2140;
+  --color-info-text: #bfdbfe;
+  --color-neutral-soft: #2a2a2a;
+  --color-neutral-text: #d6d6d6;
+  --color-topnav-bg: #0a0a0a;
+  --color-topnav-text: #f5f5f5;
+  --color-topnav-text-soft: #a8a8a8;
+  --color-topnav-hover: #1f1f1f;
+  --color-topnav-border: #474747;
+  --color-topnav-focus: #fb923c;
+  --color-sidebar-bg: #1c1c1c;
+  --color-primary: #fb923c;
+  --color-primary-hover: #fdba74;
+  --color-primary-active: #fed7aa;
+  --color-primary-soft: #3a2210;
+  --color-primary-text: #fdba74;
+  --color-on-primary: #1f0d02;
+  --color-indicator: #fb923c;
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.55);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.6);
+}
+
+/* 3b. Presets claros: sólo acento y header (superficies de la capa 1) */
+[data-apariencia='turquesa-marino'] {
+  --color-primary: #007c89;
+  --color-primary-hover: #006570;
+  --color-primary-active: #00505a;
+  --color-primary-soft: #e6f6f8;
+  --color-primary-text: #007481;
+  --color-indicator: #007c89;
+  --color-topnav-bg: #1a2b3c;
+  --color-topnav-text: #ffffff;
+  --color-topnav-text-soft: #b3c1d0;
+  --color-topnav-hover: #26394d;
+  --color-topnav-border: #4f6378;
+  --color-topnav-focus: #4dd0e1;
+}
+
+[data-apariencia='violeta-claro'] {
+  --color-primary: #7c3aed;
+  --color-primary-hover: #6d28d9;
+  --color-primary-active: #5b21b6;
+  --color-primary-soft: #f5f3ff;
+  --color-primary-text: #6d28d9;
+  --color-indicator: #7c3aed;
+  --color-topnav-bg: #f8f8fb;
+  --color-topnav-text: #1f1f2e;
+  --color-topnav-text-soft: #545468;
+  --color-topnav-hover: #ebebf3;
+  --color-topnav-border: #8a8aa0;
+  --color-topnav-focus: #7c3aed;
+}
+
+[data-apariencia='azul-marino'] {
+  --color-primary: #0066cc;
+  --color-primary-hover: #0052a3;
+  --color-primary-active: #003d7a;
+  --color-primary-soft: #eaf2fb;
+  --color-primary-text: #005bb8;
+  --color-indicator: #0066cc;
+  --color-topnav-bg: #1e3a5f;
+  --color-topnav-text: #ffffff;
+  --color-topnav-text-soft: #b7c5d6;
+  --color-topnav-hover: #29496f;
+  --color-topnav-border: #56708f;
+  --color-topnav-focus: #6cb4ff;
+}
+
+[data-apariencia='verde-menta-claro'] {
+  --color-primary: #047857;
+  --color-primary-hover: #065f46;
+  --color-primary-active: #064e3b;
+  --color-primary-soft: #ecfdf5;
+  --color-primary-text: #047857;
+  --color-indicator: #047857;
+  --color-topnav-bg: #064e3b;
+  --color-topnav-text: #ffffff;
+  --color-topnav-text-soft: #a7d9c5;
+  --color-topnav-hover: #0a5c48;
+  --color-topnav-border: #3f7d69;
+  --color-topnav-focus: #34d399;
+}
+
+[data-apariencia='azul-corporativo'] {
+  --color-primary: #0070d2;
+  --color-primary-hover: #005fb2;
+  --color-primary-active: #004e93;
+  --color-primary-soft: #eef5fc;
+  --color-primary-text: #0065bd;
+  --color-indicator: #0070d2;
+  --color-topnav-bg: #16325c;
+  --color-topnav-text: #ffffff;
+  --color-topnav-text-soft: #b3c3da;
+  --color-topnav-hover: #214274;
+  --color-topnav-border: #56709a;
+  --color-topnav-focus: #5eb0ff;
+}
+
+[data-apariencia='azul-corporativo-claro'] {
+  --color-primary: #0070d2;
+  --color-primary-hover: #005fb2;
+  --color-primary-active: #004e93;
+  --color-primary-soft: #eef5fc;
+  --color-primary-text: #0065bd;
+  --color-indicator: #0070d2;
+  --color-topnav-bg: #f4f6f9;
+  --color-topnav-text: #16325c;
+  --color-topnav-text-soft: #3d5272;
+  --color-topnav-hover: #e3e8ef;
+  --color-topnav-border: #7d8ba0;
+  --color-topnav-focus: #0070d2;
+}
+
+[data-apariencia='azul-electrico'] {
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-active: #1e40af;
+  --color-primary-soft: #eff6ff;
+  --color-primary-text: #1d4ed8;
+  --color-indicator: #2563eb;
+  --color-topnav-bg: #1e3a8a;
+  --color-topnav-text: #ffffff;
+  --color-topnav-text-soft: #bccbf2;
+  --color-topnav-hover: #274aa3;
+  --color-topnav-border: #5a70b8;
+  --color-topnav-focus: #93b4ff;
+}
+
+/* 3c. Presets oscuros (sobre 3a) */
+[data-apariencia='azul-cielo-oscuro'] {
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-alt: #253248;
+  --color-surface-sunken: #2c3a52;
+  --color-border: #334155;
+  --color-border-medium: #475569;
+  --color-border-strong: #7c8ba1;
+  --color-text: #e2e8f0;
+  --color-text-soft: #cbd5e1;
+  --color-text-muted: #9eacc0;
+  --color-text-disabled: #9eacc0;
+  --color-neutral-soft: #2c3a52;
+  --color-neutral-text: #d5dde8;
+  --color-topnav-bg: #0b1222;
+  --color-topnav-text: #e2e8f0;
+  --color-topnav-text-soft: #94a3b8;
+  --color-topnav-hover: #1a2436;
+  --color-topnav-border: #3b4a60;
+  --color-topnav-focus: #38bdf8;
+  --color-sidebar-bg: #1e293b;
+  --color-primary: #38bdf8;
+  --color-primary-hover: #7dd3fc;
+  --color-primary-active: #bae6fd;
+  --color-primary-soft: #0c2a3f;
+  --color-primary-text: #7dd3fc;
+  --color-on-primary: #041522;
+  --color-indicator: #38bdf8;
+}
+
+[data-apariencia='azul-noche'] {
+  --color-bg: #111a2e;
+  --color-surface: #1b2740;
+  --color-surface-alt: #22304d;
+  --color-surface-sunken: #2a3a5a;
+  --color-border: #33466b;
+  --color-border-medium: #45597f;
+  --color-border-strong: #8193b5;
+  --color-text: #f1f5f9;
+  --color-text-soft: #cdd7e5;
+  --color-text-muted: #a4b3cb;
+  --color-text-disabled: #a4b3cb;
+  --color-neutral-soft: #2a3a5a;
+  --color-neutral-text: #dbe3ee;
+  --color-topnav-bg: #1e293b;
+  --color-topnav-text: #f1f5f9;
+  --color-topnav-text-soft: #a9b8cc;
+  --color-topnav-hover: #2a3a52;
+  --color-topnav-border: #4a5b75;
+  --color-topnav-focus: #60a5fa;
+  --color-sidebar-bg: #1b2740;
+  --color-primary: #60a5fa;
+  --color-primary-hover: #93c5fd;
+  --color-primary-active: #bfdbfe;
+  --color-primary-soft: #14264a;
+  --color-primary-text: #93c5fd;
+  --color-on-primary: #06142b;
+  --color-indicator: #60a5fa;
+}
+
+[data-apariencia='gris-pizarra-oscuro'] {
+  --color-bg: #020617;
+  --color-surface: #0f172a;
+  --color-surface-alt: #162033;
+  --color-surface-sunken: #1d2940;
+  --color-border: #1e293b;
+  --color-border-medium: #334155;
+  --color-border-strong: #6b7a90;
+  --color-text: #e2e8f0;
+  --color-text-soft: #cbd5e1;
+  --color-text-muted: #94a3b8;
+  --color-text-disabled: #94a3b8;
+  --color-neutral-soft: #1d2940;
+  --color-neutral-text: #d1d9e4;
+  --color-topnav-bg: #020617;
+  --color-topnav-text: #e2e8f0;
+  --color-topnav-text-soft: #94a3b8;
+  --color-topnav-hover: #111a2c;
+  --color-topnav-border: #334155;
+  --color-topnav-focus: #60a5fa;
+  --color-sidebar-bg: #0f172a;
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-primary-active: #93c5fd;
+  --color-primary-soft: #12203d;
+  --color-primary-text: #93c5fd;
+  --color-on-primary: #020617;
+  --color-indicator: #3b82f6;
+}
+
+[data-apariencia='verde-esmeralda'] {
+  --color-bg: #04130e;
+  --color-surface: #0b2019;
+  --color-surface-alt: #102a21;
+  --color-surface-sunken: #153429;
+  --color-border: #1d4034;
+  --color-border-medium: #2d5a4a;
+  --color-border-strong: #5f9280;
+  --color-text: #ecfdf5;
+  --color-text-soft: #c1e5d6;
+  --color-text-muted: #92c2b0;
+  --color-text-disabled: #92c2b0;
+  --color-neutral-soft: #153429;
+  --color-neutral-text: #cfeadf;
+  --color-topnav-bg: #064e3b;
+  --color-topnav-text: #ecfdf5;
+  --color-topnav-text-soft: #a7d9c6;
+  --color-topnav-hover: #0a6049;
+  --color-topnav-border: #2f7a62;
+  --color-topnav-focus: #6ee7b7;
+  --color-sidebar-bg: #0b2019;
+  --color-primary: #34d399;
+  --color-primary-hover: #6ee7b7;
+  --color-primary-active: #a7f3d0;
+  --color-primary-soft: #0d3325;
+  --color-primary-text: #6ee7b7;
+  --color-on-primary: #022c1e;
+  --color-indicator: #34d399;
+}
+
+[data-apariencia='verde-industrial'] {
+  --color-bg: #0a120c;
+  --color-surface: #111d14;
+  --color-surface-alt: #16261a;
+  --color-surface-sunken: #1c3021;
+  --color-border: #25402c;
+  --color-border-medium: #355a3f;
+  --color-border-strong: #6a9575;
+  --color-text: #dcfce7;
+  --color-text-soft: #b9dcc4;
+  --color-text-muted: #8db79a;
+  --color-text-disabled: #8db79a;
+  --color-neutral-soft: #1c3021;
+  --color-neutral-text: #c6e6d0;
+  --color-topnav-bg: #14532d;
+  --color-topnav-text: #dcfce7;
+  --color-topnav-text-soft: #a3cfb2;
+  --color-topnav-hover: #1b6a3a;
+  --color-topnav-border: #3f7d55;
+  --color-topnav-focus: #86efac;
+  --color-sidebar-bg: #111d14;
+  --color-primary: #4ade80;
+  --color-primary-hover: #86efac;
+  --color-primary-active: #bbf7d0;
+  --color-primary-soft: #10331c;
+  --color-primary-text: #86efac;
+  --color-on-primary: #052e14;
+  --color-indicator: #4ade80;
+}
+
+[data-apariencia='grafito'] {
+  --color-bg: #0b0f17;
+  --color-surface: #151b26;
+  --color-surface-alt: #1b2230;
+  --color-surface-sunken: #212a3a;
+  --color-border: #2a3345;
+  --color-border-medium: #3a455a;
+  --color-border-strong: #737f94;
+  --color-text: #e5e7eb;
+  --color-text-soft: #cbd5e1;
+  --color-text-muted: #9ca7b8;
+  --color-text-disabled: #9ca7b8;
+  --color-neutral-soft: #212a3a;
+  --color-neutral-text: #d4d9e1;
+  --color-topnav-bg: #0f172a;
+  --color-topnav-text: #e2e8f0;
+  --color-topnav-text-soft: #94a3b8;
+  --color-topnav-hover: #1c2536;
+  --color-topnav-border: #3b475c;
+  --color-topnav-focus: #cbd5e1;
+  --color-sidebar-bg: #151b26;
+  --color-primary: #94a3b8;
+  --color-primary-hover: #cbd5e1;
+  --color-primary-active: #e2e8f0;
+  --color-primary-soft: #222c3b;
+  --color-primary-text: #cbd5e1;
+  --color-on-primary: #0f172a;
+  --color-indicator: #94a3b8;
+}
+
+[data-apariencia='naranja-oscuro'] {
+  --color-bg: #140a05;
+  --color-surface: #1f120a;
+  --color-surface-alt: #28180e;
+  --color-surface-sunken: #321f12;
+  --color-border: #3f2718;
+  --color-border-medium: #573822;
+  --color-border-strong: #9a765e;
+  --color-text: #fff1e6;
+  --color-text-soft: #f3d4bd;
+  --color-text-muted: #cda88c;
+  --color-text-disabled: #cda88c;
+  --color-neutral-soft: #321f12;
+  --color-neutral-text: #f0d6c2;
+  --color-topnav-bg: #431407;
+  --color-topnav-text: #fed7aa;
+  --color-topnav-text-soft: #e5b48c;
+  --color-topnav-hover: #5a1e0d;
+  --color-topnav-border: #8a4a2c;
+  --color-topnav-focus: #fdba74;
+  --color-sidebar-bg: #1f120a;
+  --color-primary: #fb923c;
+  --color-primary-hover: #fdba74;
+  --color-primary-active: #fed7aa;
+  --color-primary-soft: #3a1d0b;
+  --color-primary-text: #fdba74;
+  --color-on-primary: #1a0a02;
+  --color-indicator: #f97316;
+}
+
+[data-apariencia='cian-oscuro'] {
+  --color-bg: #0a0a0a;
+  --color-surface: #151515;
+  --color-surface-alt: #1c1c1c;
+  --color-surface-sunken: #232323;
+  --color-border: #2e2e2e;
+  --color-border-medium: #404040;
+  --color-border-strong: #7d7d7d;
+  --color-text: #e5e5e5;
+  --color-text-soft: #c4c4c4;
+  --color-text-muted: #a3a3a3;
+  --color-text-disabled: #a3a3a3;
+  --color-neutral-soft: #232323;
+  --color-neutral-text: #d4d4d4;
+  --color-topnav-bg: #0a0a0a;
+  --color-topnav-text: #e0e0e0;
+  --color-topnav-text-soft: #9e9e9e;
+  --color-topnav-hover: #1c1c1c;
+  --color-topnav-border: #3a3a3a;
+  --color-topnav-focus: #67e8f9;
+  --color-sidebar-bg: #151515;
+  --color-primary: #22d3ee;
+  --color-primary-hover: #67e8f9;
+  --color-primary-active: #a5f3fc;
+  --color-primary-soft: #062a30;
+  --color-primary-text: #67e8f9;
+  --color-on-primary: #03181c;
+  --color-indicator: #22d3ee;
+}
+
+/* 3d. Acento elegido por el usuario (pisa el del preset) */
+[data-theme='light'][data-acento='naranja'] {
+  --color-primary: #c2410c;
+  --color-primary-hover: #9a3412;
+  --color-primary-active: #7c2d12;
+  --color-primary-soft: #fff4ec;
+  --color-primary-text: #b8430e;
+  --color-on-primary: #ffffff;
+  --color-indicator: #c2410c;
+}
+
+[data-theme='dark'][data-acento='naranja'] {
+  --color-primary: #fb923c;
+  --color-primary-hover: #fdba74;
+  --color-primary-active: #fed7aa;
+  --color-primary-soft: #3a2210;
+  --color-primary-text: #fdba74;
+  --color-on-primary: #1f0d02;
+  --color-indicator: #fb923c;
+}
+
+[data-theme='light'][data-acento='azul'] {
+  --color-primary: #1d4ed8;
+  --color-primary-hover: #1e40af;
+  --color-primary-active: #1e3a8a;
+  --color-primary-soft: #eff6ff;
+  --color-primary-text: #1d4ed8;
+  --color-on-primary: #ffffff;
+  --color-indicator: #2563eb;
+}
+
+[data-theme='dark'][data-acento='azul'] {
+  --color-primary: #60a5fa;
+  --color-primary-hover: #93c5fd;
+  --color-primary-active: #bfdbfe;
+  --color-primary-soft: #12264a;
+  --color-primary-text: #93c5fd;
+  --color-on-primary: #06142b;
+  --color-indicator: #60a5fa;
+}
+
+[data-theme='light'][data-acento='turquesa'] {
+  --color-primary: #0f766e;
+  --color-primary-hover: #115e59;
+  --color-primary-active: #134e4a;
+  --color-primary-soft: #f0fdfa;
+  --color-primary-text: #0f766e;
+  --color-on-primary: #ffffff;
+  --color-indicator: #0f766e;
+}
+
+[data-theme='dark'][data-acento='turquesa'] {
+  --color-primary: #2dd4bf;
+  --color-primary-hover: #5eead4;
+  --color-primary-active: #99f6e4;
+  --color-primary-soft: #0b302b;
+  --color-primary-text: #5eead4;
+  --color-on-primary: #042f2b;
+  --color-indicator: #2dd4bf;
+}
+
+[data-theme='light'][data-acento='verde'] {
+  --color-primary: #15803d;
+  --color-primary-hover: #166534;
+  --color-primary-active: #14532d;
+  --color-primary-soft: #f0fdf4;
+  --color-primary-text: #15803d;
+  --color-on-primary: #ffffff;
+  --color-indicator: #16a34a;
+}
+
+[data-theme='dark'][data-acento='verde'] {
+  --color-primary: #4ade80;
+  --color-primary-hover: #86efac;
+  --color-primary-active: #bbf7d0;
+  --color-primary-soft: #10331c;
+  --color-primary-text: #86efac;
+  --color-on-primary: #052e14;
+  --color-indicator: #4ade80;
+}
+
+[data-theme='light'][data-acento='violeta'] {
+  --color-primary: #7c3aed;
+  --color-primary-hover: #6d28d9;
+  --color-primary-active: #5b21b6;
+  --color-primary-soft: #f5f3ff;
+  --color-primary-text: #6d28d9;
+  --color-on-primary: #ffffff;
+  --color-indicator: #7c3aed;
+}
+
+[data-theme='dark'][data-acento='violeta'] {
+  --color-primary: #a78bfa;
+  --color-primary-hover: #c4b5fd;
+  --color-primary-active: #ddd6fe;
+  --color-primary-soft: #241a45;
+  --color-primary-text: #c4b5fd;
+  --color-on-primary: #1a0b3d;
+  --color-indicator: #a78bfa;
+}
+
+[data-theme='light'][data-acento='rosa'] {
+  --color-primary: #be185d;
+  --color-primary-hover: #9d174d;
+  --color-primary-active: #831843;
+  --color-primary-soft: #fdf2f8;
+  --color-primary-text: #be185d;
+  --color-on-primary: #ffffff;
+  --color-indicator: #db2777;
+}
+
+[data-theme='dark'][data-acento='rosa'] {
+  --color-primary: #f472b6;
+  --color-primary-hover: #f9a8d4;
+  --color-primary-active: #fbcfe8;
+  --color-primary-soft: #3d1027;
+  --color-primary-text: #f9a8d4;
+  --color-on-primary: #2a0a1c;
+  --color-indicator: #f472b6;
+}
+
+[data-theme='light'][data-acento='grafito'] {
+  --color-primary: #374151;
+  --color-primary-hover: #1f2937;
+  --color-primary-active: #111827;
+  --color-primary-soft: #f3f4f6;
+  --color-primary-text: #374151;
+  --color-on-primary: #ffffff;
+  --color-indicator: #4b5563;
+}
+
+[data-theme='dark'][data-acento='grafito'] {
+  --color-primary: #94a3b8;
+  --color-primary-hover: #cbd5e1;
+  --color-primary-active: #e2e8f0;
+  --color-primary-soft: #222c3b;
+  --color-primary-text: #cbd5e1;
+  --color-on-primary: #0f172a;
+  --color-indicator: #94a3b8;
+}
+
+/* 3e. Identidad por módulo (pisa el acento): Ventas verde, Compras azul,
+   Mantenimiento grafito. La marca (logo, header) sigue naranja; los estados
+   semánticos y el aviso STEL no cambian. En oscuro el grafito es claro:
+   un botón negro sobre fondo negro no se lee. */
+[data-theme='light'][data-modulo='ventas'] {
+  --color-primary: #15803d;
+  --color-primary-hover: #166534;
+  --color-primary-active: #14532d;
+  --color-primary-soft: #f0fdf4;
+  --color-primary-text: #15803d;
+  --color-on-primary: #ffffff;
+  --color-indicator: #16a34a;
+}
+
+[data-theme='dark'][data-modulo='ventas'] {
+  --color-primary: #4ade80;
+  --color-primary-hover: #86efac;
+  --color-primary-active: #bbf7d0;
+  --color-primary-soft: #10331c;
+  --color-primary-text: #86efac;
+  --color-on-primary: #052e14;
+  --color-indicator: #4ade80;
+}
+
+[data-theme='light'][data-modulo='compras'] {
+  --color-primary: #1d4ed8;
+  --color-primary-hover: #1e40af;
+  --color-primary-active: #1e3a8a;
+  --color-primary-soft: #eff6ff;
+  --color-primary-text: #1d4ed8;
+  --color-on-primary: #ffffff;
+  --color-indicator: #2563eb;
+}
+
+[data-theme='dark'][data-modulo='compras'] {
+  --color-primary: #60a5fa;
+  --color-primary-hover: #93c5fd;
+  --color-primary-active: #bfdbfe;
+  --color-primary-soft: #12264a;
+  --color-primary-text: #93c5fd;
+  --color-on-primary: #06142b;
+  --color-indicator: #60a5fa;
+}
+
+[data-theme='light'][data-modulo='mantenimiento'] {
+  --color-primary: #374151;
+  --color-primary-hover: #1f2937;
+  --color-primary-active: #111827;
+  --color-primary-soft: #f3f4f6;
+  --color-primary-text: #374151;
+  --color-on-primary: #ffffff;
+  --color-indicator: #4b5563;
+}
+
+[data-theme='dark'][data-modulo='mantenimiento'] {
+  --color-primary: #94a3b8;
+  --color-primary-hover: #cbd5e1;
+  --color-primary-active: #e2e8f0;
+  --color-primary-soft: #222c3b;
+  --color-primary-text: #cbd5e1;
+  --color-on-primary: #0f172a;
+  --color-indicator: #94a3b8;
+}
+
+/* 3f. Tamaño y tipografía. `rem` escala todo junto. En mobile «Compacto» no
+   baja de 16px: un input más chico hace zoom en iOS. */
+:root[data-tamano='compacto'] {
+  font-size: 93.75%;
+}
+
+:root[data-tamano='grande'] {
+  font-size: 112.5%;
+}
+
+@media (max-width: 767px) {
+  :root[data-tamano='compacto'] {
+    font-size: 100%;
+  }
+}
+
+:root[data-fuente='clasica'] {
+  --font-sans: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+}
+
+:root[data-fuente='serif'] {
+  --font-sans: Georgia, 'Times New Roman', serif;
 }

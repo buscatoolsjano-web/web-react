@@ -41,7 +41,7 @@
   border-radius: var(--radius-sm);
   border: 1px solid var(--primary);
   background: var(--primary);
-  color: #fff;
+  color: var(--color-on-primary);
   text-decoration: none;
   display: inline-flex;
   align-items: center;

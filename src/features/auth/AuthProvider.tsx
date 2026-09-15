@@ -5,6 +5,7 @@ import { cerrarSesion, obtenerSesion, suscribirCambiosDeSesion } from '@/service
 import { AuthContext, type AuthContextValue } from './authContext'
 import { olvidarEmpresaPreferida } from '@/features/empresa/preferencia'
 import { limpiarContrasenaPendiente } from '@/services/auth/contrasenaPendiente'
+import { olvidarAparienciaLocal } from '@/features/apariencia/opciones'
 
 
 /**
@@ -43,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (evento === 'SIGNED_OUT') {
         queryClient.clear()
         olvidarEmpresaPreferida()
+        olvidarAparienciaLocal()
         limpiarContrasenaPendiente()
       }
     })
@@ -64,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // La empresa elegida es del usuario que se va: no tiene por qué
         // sobrevivir al cambio de sesión en este navegador.
         olvidarEmpresaPreferida()
+        olvidarAparienciaLocal()
       },
     }),
     [session, cargando, queryClient],
