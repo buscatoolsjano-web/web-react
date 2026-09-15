@@ -62,7 +62,8 @@ export function AparienciaProvider({ children }: { children: ReactNode }) {
       setGuardando(true)
       cola.current = cola.current.then(async () => {
         try {
-          await guardarApariencia(userId, esOriginal(siguiente) ? null : siguiente)
+          // La base toma el usuario del JWT: no se manda ningún id.
+          await guardarApariencia(esOriginal(siguiente) ? null : siguiente)
           queryClient.setQueryData(['apariencia', userId], siguiente)
           guardarAparienciaLocal(userId, siguiente)
           setOptimista((actual) => (actual === siguiente ? null : actual))

@@ -26,14 +26,31 @@
 1. columna nullable `appearance` (NULL = original Buscatools; las 7 filas reales quedaron NULL);
 2. función pura `app.apariencia_valida(jsonb)`: exactamente 5 claves (`version`, `preset`, `acento`,
    `tamano`, `fuente`), `version = 1`, valores de una lista blanca, ≤ 512 bytes;
-3. CHECK `profiles_appearance_valida`. EXECUTE sólo `authenticated` y `service_role`.
+3. CHECK `profiles_appearance_valida`.
 
-Sin RPC nueva, sin SECURITY DEFINER, sin `company_id`/`user_id` libres: el cliente actualiza SU fila
-y RLS garantiza el aislamiento. Rollback en el encabezado del SQL.
+### A.1b Superficie de escritura de `profiles` (hardening antes del push)
 
-Observación (no corregida, fuera de alcance): `authenticated` tiene UPDATE sobre todas las columnas
-de su propio perfil (también `full_name`, `is_active`, `deleted_at`). Ninguna función de permisos lee
-`profiles.is_active`, pero conviene acotarlo a columnas en una entrega de seguridad.
+Auditoría (2026-09-15): `authenticated` tenía **todos** los privilegios de tabla sobre `profiles`
+(INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN) y la política
+`profiles_update_own` (id = auth.uid()): cualquier usuario podía cambiar por REST `is_active`,
+`full_name`, `deleted_at`, `locale`, `theme`, `phone`, `avatar_path`, `created_at`, `updated_at` de su
+perfil. Los escritores legítimos son sólo el trigger de alta `app.handle_new_user` y
+`config_registrar_miembro` (ambos SECURITY DEFINER; el segundo sólo `service_role`, vía la Edge
+Function de Usuarios). El frontend no escribía `profiles` salvo la apariencia.
+
+Migración `fase14_e0_profiles_escritura_minima`
+(`docs/database/PHASE_14_ENTREGA_0_PROFILES_ESCRITURA.sql`, con rollback exacto):
+
+- `authenticated`: **sólo SELECT** sobre `profiles` (`profiles_select` sin cambios); se revoca todo
+  lo demás y se elimina `profiles_update_own`.
+- Única escritura de un usuario: **`public.guardar_mi_apariencia(p_appearance jsonb)`**, SECURITY
+  DEFINER con `search_path` fijo; actualiza **sólo `appearance`** de la fila `auth.uid()`; sin sesión
+  → `sin_sesion` (42501). No recibe id, empresa ni otra columna. EXECUTE: `authenticated` (no `anon`).
+- `app.apariencia_valida` deja de ser ejecutable por `authenticated` (el CHECK corre como el dueño de
+  la función que escribe).
+- La app ya no hace UPDATE sobre `profiles`: `guardarApariencia(a)` llama a la RPC con el valor de
+  apariencia y nada más.
+- `service_role`, el trigger de alta y las RPC de Configuración no cambian.
 
 ### A.2 Opciones
 
@@ -83,7 +100,7 @@ Probado con una mutación deliberada (texto muted oscuro a `#555555` → el test
 ### A.5 Guardado, carga y multi-dispositivo
 
 - `AparienciaProvider` (debajo de Auth): lee `profiles.appearance` al iniciar sesión (React Query),
-  aplica, y guarda cada cambio. **Vista previa optimista**: el cambio se ve al instante; si el
+  aplica, y guarda cada cambio con la RPC `guardar_mi_apariencia`. **Vista previa optimista**: el cambio se ve al instante; si el
   servidor rechaza, vuelve a lo último confirmado y el diálogo muestra la alerta.
 - Caché `bt-apariencia` en `localStorage` **con el id del usuario**: `main.tsx` la aplica antes del
   primer render si hay sesión guardada (sin destello). Se borra al cerrar sesión. La de otro
@@ -123,24 +140,34 @@ Probado con una mutación deliberada (texto muted oscuro a `#555555` → el test
 
 ## C. Readiness del cutover (resumen; detalle en la auditoría)
 
-| Tipo | Clasificación |
+**`CUTOVER_READY = NO`**
+
+**Razón principal:** el proyecto legacy está restringido por cuota de egress; `stel-daily-sync`
+devuelve **HTTP 402**; el store legacy no recibe documentos desde el **2026-09-12**. Por lo tanto
+**no se puede conocer desde esta fuente el último número realmente emitido por STEL hoy**, y sin ese
+número no hay secuencia segura ni reconciliación completa.
+
+| Tipo | Clasificación (con la razón principal resuelta) |
 |---|---|
-| quotes | **READY_WITH_FIXES** |
-| sales_orders | **READY_WITH_FIXES** |
+| quotes | READY_WITH_FIXES |
+| sales_orders | READY_WITH_FIXES |
 | deliveries | **NOT_READY** |
 
 ### C.1 Bloqueantes
 
-1. **Convivencia con STEL sin resolver.** STEL sigue siendo la autoridad y nada impide que siga
-   emitiendo los mismos números. Hace falta una decisión operativa de congelar STEL por tipo.
-2. **Último número real de STEL desconocido.** El sync STEL → legacy no agrega nada desde el
-   2026-09-12 y hoy responde 402 (proyecto legacy restringido por cuota). Hay que leerlo en STEL.
-3. **Delta sin importar:** COTI02541–02547 y RT0000001424–1426, más lo emitido después del 09-12.
-4. **Remitos:** secuencia en 1424 contra RT0000001426 ya emitido (colisión); cancelar un remito
-   despachado deja el stock descontado sin compensar y el pedido como entregado.
-5. **Catálogo/precios (U-B-2):** 10 SKU de STEL no existen en el ERP; la lista por defecto es USD
-   (en ARS no hay precio sugerido) y una línea sin precio entra en 0 sin bloqueo.
-6. **Moneda por defecto al convertir:** una cotización sin moneda produce un pedido en USD.
+1. **Último número real de STEL desconocido** (razón principal, arriba).
+2. **Convivencia con STEL sin resolver:** nada impide que STEL siga emitiendo los mismos números.
+3. **COTI02541–02547 faltantes** en React.
+4. **RT0000001424–1426 faltantes** en React (y la secuencia de remitos en 1424: colisión).
+5. **10 SKU de los documentos faltantes inexistentes en React** (PRO12600, PRO12602, PRO12603,
+   PRO12604, PRO12605, PRO12606, PRO12608, PRO12609, PRO12610, B2036LA-2).
+6. **32 + 9 documentos sin moneda** (32 importados, 9 del delta).
+7. **Cambios de moneda entre documentos relacionados:** PDV01223 (USD) ← COTI02339 (ARS);
+   RT0000001382 (ARS) ← PDV01274 (USD).
+8. **Default silencioso a USD** al convertir una cotización sin moneda en pedido.
+9. **Cancelación de remito despachado sin corrección de stock** (severidad alta, ver C.6).
+10. **U-B-2 productos/precios:** maestro de productos y de precios sin decidir; lista por defecto
+    sólo USD; línea sin precio entra en 0 sin bloqueo.
 
 ### C.2 Correcciones propuestas (NO ejecutadas)
 
@@ -195,6 +222,30 @@ Probado con una mutación deliberada (texto muted oscuro a `#555555` → el test
 | Documentos de prueba | No se borran: se rechazan/cancelan con motivo «smoke test cutover <fecha>» para que el número no quede como hueco sin explicación |
 | Evitar duplicados | Nunca bajar `next_number` en React; nunca dejar STEL y ERP emitiendo el mismo tipo a la vez; repetir la verificación de unicidad antes y después |
 
+### C.6 Hallazgo de severidad ALTA: cancelar un remito despachado no restaura stock
+
+**Qué pasa hoy** (reproducido en el fixture `zz-f14`, sin tocar datos reales):
+
+1. Remito en borrador → `confirmar_entrega` → movimientos `sale_delivery` negativos, saldo baja,
+   estado `shipped`, cumplimiento del pedido recalculado.
+2. El mismo remito se puede pasar a `cancelled` con un UPDATE directo (la misma vía que usa la UI
+   para cancelar).
+3. **No se genera movimiento compensatorio, el saldo queda descontado y el pedido sigue
+   `delivered`/`partially_delivered`.** Stock y cumplimiento quedan inconsistentes con el documento.
+
+**Severidad:** alta. Hoy no afecta datos reales (Buscatools no emite remitos desde el ERP: autoridad
+STEL), pero **bloquea el cutover de `delivery`**.
+
+**Antes de cualquier cutover de `delivery` debe corregirse** (no se corrige en esta entrega; requiere
+autorización) y quedar cubierto por tests:
+
+| Test requerido | Esperado |
+|---|---|
+| Despacho | stock baja exactamente lo despachado; un movimiento por línea con producto |
+| Cancelación de un remito despachado | comportamiento **definido y consistente**: o bien se bloquea, o bien genera el movimiento compensatorio y recalcula el cumplimiento, en una sola operación del servidor |
+| Reintento idempotente | repetir la cancelación (o el despacho) no cambia nada la segunda vez |
+| Sin doble movimiento | ni el despacho ni la cancelación pueden producir dos movimientos para la misma línea, tampoco en concurrencia |
+
 ## D. Tests
 
 ### D.1 Frontend (Vitest)
@@ -211,7 +262,8 @@ Probado con una mutación deliberada (texto muted oscuro a `#555555` → el test
 
 | Script | Resultado |
 |---|---|
-| `scripts/fase14-apariencia-tests.mjs` | TODO PASA: default NULL; guardar y leer desde otra sesión; 10 inválidos rechazados por CHECK; 17 presets aceptados; A no escribe la de B (0 filas), no inserta perfiles, upsert no toca a B; anon sin efecto; restaurar NULL; service role y alta de usuario por trigger siguen funcionando; perfiles reales idénticos |
+| `scripts/fase14-apariencia-tests.mjs` | TODO PASA. RPC: guardar la propia y leerla desde otra sesión; 17 presets aceptados; 10 inválidos rechazados por el CHECK. **Red team:** A por REST sobre su perfil (appearance directo, is_active, full_name, phone, avatar_path, locale, theme, deleted_at, created_at, updated_at, id, INSERT, DELETE, UPSERT) → BLOCKED y fila intacta; A sobre B (REST, UPSERT, RPC con `p_user`/`id` inyectados) → BLOCKED y B intacto; anon (RPC, UPDATE, INSERT, SELECT) → BLOCKED; rol y membresía intactos. Restaurar NULL. **Flujos legítimos:** alta de usuario por trigger, login y lectura del perfil propio y de compañeros, membresías, service role, `config_listar_usuarios`. Perfiles y membresías reales idénticos |
+| `scripts/fase12-configuracion-entrega1-tests.mjs` (revalidación Configuración E1) | 86 PASS, 0 FAIL (casos con envío real omitidos por defecto). Se actualizó una expectativa: «el perfil propio sigue editable» pasó a «ya no se edita por REST» |
 | `scripts/fase14-ventas-cutover-fixture-tests.mjs` | TODO PASA (ver auditoría §10–11) |
 
 ### D.3 Navegador (localhost + fixture `zz-f13ui`)
@@ -269,13 +321,14 @@ Residuos: 0 empresas y 0 usuarios `zz`, 0 huérfanos. Cambio de esquema: la colu
 | Criterio | Estado |
 |---|---|
 | Apariencia por usuario | PASS |
+| Escritura de `profiles` acotada a `appearance` por RPC | PASS (red team) |
 | Presets AA | PASS (544 combinaciones) |
 | Acentos de módulo | PASS |
 | Sistema de diseño intacto (CSS de módulos sin tocar salvo 3 `#fff` → token) | PASS |
 | Auditoría de Ventas completa | PASS |
 | Diferencias conocidas y documentadas | PASS |
 | Fixture E2E | PASS |
-| Readiness clasificada | quotes/orders READY_WITH_FIXES · deliveries NOT_READY |
+| Readiness clasificada | **CUTOVER_READY = NO** (legacy restringido, sync 402, sin datos desde 2026-09-12) · quotes/orders READY_WITH_FIXES · deliveries NOT_READY |
 | Plan de cutover y rollback | Definidos |
 | Cutover NO ejecutado | PASS (autoridad STEL ×3 intacta) |
 | Limpieza | PASS (0 `zz`, navegador sin sesión ni storage, servidor local detenido, temporales borrados) |

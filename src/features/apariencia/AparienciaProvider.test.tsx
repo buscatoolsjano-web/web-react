@@ -5,8 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { Apariencia } from './opciones'
 
 // La base se simula con un mapa por usuario: guardar sólo toca la fila de la
-// sesión (como RLS profiles_update_own) y un valor fuera de la lista blanca se
-// rechaza (como el CHECK profiles_appearance_valida).
+// sesión (como la RPC guardar_mi_apariencia) y un valor fuera de la lista blanca
+// se rechaza (como el CHECK profiles_appearance_valida).
 interface BaseSimulada {
   filas: Map<string, unknown>
   fallarProximo: boolean
@@ -24,7 +24,9 @@ vi.mock('@/services/apariencia/apariencia', async () => {
   const { normalizarApariencia } = await import('./opciones')
   return {
     leerApariencia: (userId: string) => Promise.resolve(normalizarApariencia(base.filas.get(userId) ?? null)),
-    guardarApariencia: async (userId: string, a: Apariencia | null) => {
+    // Como la RPC guardar_mi_apariencia: el usuario sale de la sesión, no de un parámetro.
+    guardarApariencia: async (a: Apariencia | null) => {
+      const userId = auth.userId!
       if (base.demorar) await new Promise<void>((ok) => (base.pendiente = ok))
       if (base.fallarProximo) {
         base.fallarProximo = false

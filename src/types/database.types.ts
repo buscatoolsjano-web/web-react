@@ -5855,6 +5855,10 @@ export type Database = {
         Args: { p_company: string }
         Returns: { doc_type: string; authority: string }[]
       }
+      guardar_mi_apariencia: {
+        Args: { p_appearance: Json | null }
+        Returns: Json
+      }
       config_listar_usuarios: {
         Args: { p_company: string }
         Returns: {

@@ -13,9 +13,14 @@
 --      claves y valores (los mismos ids que src/features/apariencia/opciones.ts);
 --   3. CHECK que la usa: un valor inválido se rechaza en la base, no sólo en la UI.
 --
--- Sin company_id ni user_id libres: el cliente actualiza SU fila por RLS.
--- Sin RPC nueva, sin SECURITY DEFINER, sin datos: las filas existentes quedan NULL.
+-- Sin datos: las filas existentes quedan NULL.
 -- Aplicada como migración `fase14_e0_apariencia_por_usuario`.
+--
+-- SUPERADO en la misma entrega por PHASE_14_ENTREGA_0_PROFILES_ESCRITURA.sql
+-- (`fase14_e0_profiles_escritura_minima`): authenticated ya no escribe profiles
+-- por REST; la apariencia se guarda sólo con public.guardar_mi_apariencia, se
+-- eliminó profiles_update_own y app.apariencia_valida quedó sin EXECUTE para
+-- authenticated. Aplicar el rollback de ese archivo ANTES que el de éste.
 --
 -- Rollback:
 --   alter table public.profiles drop constraint profiles_appearance_valida;

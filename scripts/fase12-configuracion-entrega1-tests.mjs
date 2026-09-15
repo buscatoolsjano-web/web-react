@@ -246,8 +246,10 @@ const main = async () => {
     }
     cmp('RPC de servicio cerradas para authenticated (incluso admin) y anon', [], abiertas)
     cmp('nadie se coló en la empresa ajena', null, await membresia(id.ajeno.id, ZZ))
+    // Fase 14 · E0: un usuario ya no escribe profiles por REST (sólo la apariencia,
+    // por la RPC guardar_mi_apariencia). Ver docs/database/PHASE_14_ENTREGA_0_PROFILES_ESCRITURA.sql.
     const perfil = await id.employee.c.from('profiles').update({ phone: '000' }).eq('id', id.employee.id).select('id')
-    cmp('el perfil propio sigue editable (sin cambios de RLS en profiles)', 1, (perfil.data ?? []).length)
+    cmp('el perfil propio ya no se edita por REST (Fase 14: sólo appearance por RPC)', true, Boolean(perfil.error) && (perfil.data ?? []).length === 0)
     const perfilAjeno = await id.employee.c.from('profiles').update({ full_name: 'hack' }).eq('id', id.admin.id).select('id')
     cmp('un perfil ajeno no', 0, (perfilAjeno.data ?? []).length)
   }

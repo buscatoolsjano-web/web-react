@@ -2,11 +2,14 @@ import { supabase } from '@/services/supabase/client'
 import { normalizarApariencia, type Apariencia } from '@/features/apariencia/opciones'
 
 /**
- * Apariencia guardada en `profiles.appearance`, la fila del propio usuario.
+ * Apariencia guardada en `profiles.appearance`.
  *
- * El aislamiento lo da RLS (`profiles_update_own`: id = auth.uid()) y la
- * validación, el CHECK `profiles_appearance_valida`. El `eq('id', userId)`
- * sólo elige la fila: con el id de otra persona el UPDATE toca 0 filas.
+ * Leer: la fila propia (RLS `profiles_select`).
+ * Guardar: SÓLO por la RPC `guardar_mi_apariencia`, que escribe la columna
+ * `appearance` de la fila de `auth.uid()` y nada más. Un usuario no tiene
+ * privilegio de UPDATE sobre `profiles` (ver
+ * docs/database/PHASE_14_ENTREGA_0_PROFILES_ESCRITURA.sql). El valor lo valida
+ * el CHECK `profiles_appearance_valida`.
  */
 export async function leerApariencia(userId: string): Promise<Apariencia> {
   const { data, error } = await supabase.from('profiles').select('appearance').eq('id', userId).maybeSingle()
@@ -14,12 +17,8 @@ export async function leerApariencia(userId: string): Promise<Apariencia> {
   return normalizarApariencia(data?.appearance ?? null)
 }
 
-export async function guardarApariencia(userId: string, a: Apariencia | null): Promise<void> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ appearance: a === null ? null : { ...a } })
-    .eq('id', userId)
-    .select('id')
+/** `null` = restaurar el original. Nunca se manda el perfil ni un id: la base toma el usuario del JWT. */
+export async function guardarApariencia(a: Apariencia | null): Promise<void> {
+  const { error } = await supabase.rpc('guardar_mi_apariencia', { p_appearance: a === null ? null : { ...a } })
   if (error) throw new Error(`No se pudo guardar la apariencia: ${error.message}`)
-  if (!data || data.length === 0) throw new Error('No se pudo guardar la apariencia: el perfil no existe o no es tuyo.')
 }

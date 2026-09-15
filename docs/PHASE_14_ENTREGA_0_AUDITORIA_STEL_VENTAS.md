@@ -243,6 +243,7 @@ percepción; los totales que manda el cliente se ignoran.
 | COTI02541–02547 | documento | existe | no existe | **Alta** (cutover) | Delta posterior a la importación | Importar el delta con la vía de importación (service role + `imported_at`) antes del corte |
 | RT0000001424–1426 | documento y número | existe | no existe; secuencia = 1424 | **Crítica** | STEL siguió emitiendo remitos | Importar los 3 remitos y llevar la secuencia a (último RT de STEL + 1) en el corte |
 | Todo lo emitido en STEL después del 2026-09-12 | documento | desconocido | — | **Crítica** | Sync caído (legacy restringido) | Leer en STEL los últimos números y documentos antes del corte |
+| Flujo de remitos (fixture) | stock al cancelar un remito despachado | — | cancelado sin movimiento compensatorio; pedido sigue entregado | **Alta** | La cancelación es un UPDATE de estado sin lógica de stock | Bloquear o compensar en una operación del servidor, con tests de despacho, cancelación, idempotencia y sin doble movimiento (ver APARIENCIA_Y_CUTOVER §C.6). NO corregido en esta entrega |
 | 10 SKU del delta | producto | existe en STEL | no existe | Alta | STEL da de alta productos que el catálogo no recibe | Resolver U-B-2 y dar de alta esos productos antes de emitir |
 | 32 + 9 documentos | moneda | vacía | NULL | Media | STEL no envía moneda | Completar a mano con respaldo documental; no asumir USD |
 | PDV01223 / RT0000001382 | moneda | distinta en la cadena | idem | Media | Carga legacy | Confirmar con el comprobante real |
@@ -302,6 +303,15 @@ el ERP; si en STEL sí lo hace, es una decisión de negocio pendiente.
 - **No hay coexistencia posible para el mismo tipo y serie.** El corte exige congelar STEL por tipo.
 
 ## 13. Clasificación
+
+**`CUTOVER_READY = NO`.** Razón principal: el proyecto legacy está restringido por cuota;
+`stel-daily-sync` devuelve 402; el store legacy no se actualiza desde 2026-09-12; por lo tanto no se
+puede conocer desde esta fuente el último número realmente emitido por STEL hoy. Blockers
+adicionales: COTI02541–02547 y RT0000001424–1426 faltantes; 10 SKU de esos documentos inexistentes
+en React; 32 + 9 documentos sin moneda; cambios de moneda entre documentos relacionados; default
+silencioso a USD al convertir; cancelación de remito despachado sin corrección de stock (alta); U-B-2.
+
+Clasificación por tipo, suponiendo resuelta la razón principal:
 
 | Tipo | Clasificación | Motivo |
 |---|---|---|
