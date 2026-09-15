@@ -53,3 +53,8 @@ scripts/.fase7-entrega4-series.json
 # helpers de navegador). Se generan en node_modules/, pero por si alguien
 # los saca de ahí: nunca se commitean.
 .zz-*
+
+# Fase 14 · E1: reportes de reconciliación con STEL (datos de clientes y
+# documentos reales) y cache de respuestas de la API. Nunca se commitean.
+scripts/output/
+.stel-cache/
