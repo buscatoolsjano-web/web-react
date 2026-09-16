@@ -3,13 +3,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import type { SecuenciaDiagnostico } from '../lib/numeracion'
 
-const estado = vi.hoisted(() => ({ movil: false, filas: [] as unknown[] }))
+const estado = vi.hoisted(() => ({ movil: false, filas: [] as unknown[], sync: [] as unknown[] }))
 
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({ activa: { companyId: 'c1', companyName: 'ZZ STEL', rol: 'admin', esInterno: true }, cargando: false }),
 }))
 vi.mock('@/hooks/useMediaQuery', () => ({ useIsMobile: () => estado.movil, useMediaQuery: () => estado.movil }))
-vi.mock('../hooks/useEmpresaConfig', () => ({ useNumeracion: () => ({ data: estado.filas, isPending: false, isError: false }) }))
+vi.mock('../hooks/useEmpresaConfig', () => ({
+  useNumeracion: () => ({ data: estado.filas, isPending: false, isError: false }),
+  // Fase 14 E4: el bloque de sync es aparte; acá se prueban las columnas de numeración.
+  useSyncStel: () => ({ data: estado.sync, isPending: false, isError: false }),
+}))
 
 const { NumeracionPage } = await import('./NumeracionPage')
 
@@ -35,6 +39,7 @@ const sec = (p: Partial<SecuenciaDiagnostico>): SecuenciaDiagnostico => ({
 beforeEach(() => {
   estado.movil = false
   estado.filas = [sec({}), sec({ docType: 'delivery', serie: 'DEL', prefijo: 'DEL', proximo: 'DEL00005', documentos: 0 })]
+  estado.sync = []
 })
 
 describe('Numeración: STEL siempre visible al adaptar columnas', () => {
@@ -65,5 +70,34 @@ describe('Numeración: STEL siempre visible al adaptar columnas', () => {
       expect(within(c).getByText('STEL')).toBeInTheDocument()
       expect(within(c).getByText('Emisión desde ERP bloqueada')).toBeInTheDocument()
     }
+  })
+})
+
+describe('Numeración: estado del sync con STEL (Fase 14 E4)', () => {
+  it('sin datos (o sin permiso) la sección no aparece', () => {
+    render(<NumeracionPage />)
+    expect(screen.queryByText('Sincronización con STEL')).not.toBeInTheDocument()
+  })
+
+  it('con datos muestra estado, última corrida y punto de control, y el error si lo hay', () => {
+    estado.sync = [
+      { entidad: 'products', estado: 'finished', inicio: '2026-09-15T10:00:00Z', fin: '2026-09-15T10:00:05Z', checkpoint: '2026-09-15T09:00:00Z', ultimoVisto: '555001', llamadas: 2, error: null, bloqueado: false, resumen: {} },
+      { entidad: 'documents', estado: 'failed', inicio: '2026-09-15T11:00:00Z', fin: '2026-09-15T11:00:02Z', checkpoint: null, ultimoVisto: null, llamadas: 17, error: 'sin checkpoint: pasar --desde', bloqueado: false, resumen: {} },
+    ]
+    render(<NumeracionPage />)
+    expect(screen.getByText('Sincronización con STEL')).toBeInTheDocument()
+    expect(screen.getByText(/Catálogo/)).toBeInTheDocument()
+    expect(screen.getByText('Al día')).toBeInTheDocument()
+    expect(screen.getByText('Con error')).toBeInTheDocument()
+    expect(screen.getByText(/sin checkpoint/)).toBeInTheDocument()
+    expect(screen.getByText(/2 llamadas a STEL/)).toBeInTheDocument()
+    expect(screen.getByText(/sin punto de control todavía/)).toBeInTheDocument()
+  })
+
+  it('no muestra nada que se parezca a una clave de API', () => {
+    estado.sync = [{ entidad: 'products', estado: 'finished', inicio: null, fin: null, checkpoint: null, ultimoVisto: null, llamadas: 0, error: null, bloqueado: false, resumen: {} }]
+    render(<NumeracionPage />)
+    expect(document.body.textContent?.toLowerCase()).not.toContain('apikey')
+    expect(document.body.textContent?.toLowerCase()).not.toContain('stel_api_key')
   })
 })

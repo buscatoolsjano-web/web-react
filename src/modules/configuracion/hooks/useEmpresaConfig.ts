@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { diagnosticoNumeracion } from '../services/numeracion'
+import { diagnosticoNumeracion, estadoSyncStel } from '../services/numeracion'
 import { ErrorEmpresa, actualizarEmpresa, obtenerEmpresa, quitarLogo, subirLogo, urlLogo } from '../services/empresa'
 import type { CampoEditable } from '../lib/empresa'
 
@@ -8,6 +8,7 @@ export const clavesEmpresa = {
   datos: (companyId: string | null) => ['configuracion', companyId, 'empresa'] as const,
   logo: (path: string | null) => ['configuracion', 'logo', path] as const,
   numeracion: (companyId: string | null) => ['configuracion', companyId, 'numeracion'] as const,
+  syncStel: (companyId: string | null) => ['configuracion', companyId, 'sync-stel'] as const,
 }
 
 const sinReintentoPorPermiso = (intentos: number, error: Error) =>
@@ -41,6 +42,22 @@ export function useNumeracion() {
   return useQuery({
     queryKey: clavesEmpresa.numeracion(companyId),
     queryFn: () => diagnosticoNumeracion(companyId!),
+    enabled: companyId !== null,
+    staleTime: 60_000,
+    retry: sinReintentoPorPermiso,
+  })
+}
+
+/**
+ * Estado del sync con STEL (Fase 14 E4). Sólo lo devuelve la base para admin;
+ * para el resto de los roles la consulta falla con `sin_permiso` y la pantalla
+ * simplemente no muestra la sección.
+ */
+export function useSyncStel() {
+  const companyId = useEmpresa().activa?.companyId ?? null
+  return useQuery({
+    queryKey: clavesEmpresa.syncStel(companyId),
+    queryFn: () => estadoSyncStel(companyId!),
     enabled: companyId !== null,
     staleTime: 60_000,
     retry: sinReintentoPorPermiso,

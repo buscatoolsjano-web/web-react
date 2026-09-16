@@ -52,11 +52,20 @@ export function estadoReact(tipo, nombre) {
 /**
  * @param stel  lo que devuelve leerStel
  * @param react lo que devuelve leerReactEmpresa
- * @param o     { categoriaRevisionId?, listaBaseId, aprobados: { borrados: string[] } }
+ * @param o     { categoriaRevisionId?, listaBaseId, aprobados }
+ *
+ * `aprobados` son las excepciones que una persona autorizó caso por caso, cada
+ * una revalidada contra STEL antes de entrar (Fase 14 E4):
+ *   borrados:          ids de líneas de React que sobran
+ *   vinculosProducto:  ids STEL cuyo producto React se vincula pese al nombre distinto
+ *   estadosRegresivos: números de cotización que pueden volver de accepted a sent
+ *   clientes:          [{ customer_id, stel_account_id, tax_id }] identidad fuerte
  */
 export function planificarE2(stel, react, o = {}) {
   const reco = reconciliar(stel, react)
   const aprobados = new Set(o.aprobados?.borrados ?? [])
+  const vinculosAprobados = new Set((o.aprobados?.vinculosProducto ?? []).map(String))
+  const regresivosAprobados = new Set(o.aprobados?.estadosRegresivos ?? [])
   const itemPorId = new Map(stel.productos.map((p) => [p.id, p]))
   const prodPorExterno = new Map(react.productos.filter((p) => p.external_source === 'stel').map((p) => [p.external_id, p]))
   const prodPorSku = new Map()
@@ -64,6 +73,7 @@ export function planificarE2(stel, react, o = {}) {
   const reactDoc = Object.fromEntries(Object.keys(TIPOS).map((t) => [t, new Map(react.docs[t].map((d) => [d.id, d]))]))
   const stelDoc = Object.fromEntries(Object.keys(TIPOS).map((t) => [t, new Map([...(stel.docs[t] ?? []), ...(stel.padresExternos?.[t] ?? [])].map((d) => [d.id, d]))]))
   const bloqueados = []
+  const excepciones = []
   const info = { tipoDeCambioNoCopiado: 0, cambiosDeMonedaEnStel: [], soloEnReact: [], ordenDeLineasDistinto: [], totalesStelInconsistentes: [], categoriasStelSinMapeo: 0 }
 
   // ── Productos ────────────────────────────────────────────────────────────
@@ -82,11 +92,12 @@ export function planificarE2(stel, react, o = {}) {
       const p = porSku[0]
       if (p.external_id && p.external_id !== stelId) { bloqueados.push({ tipo: 'product', stel_id: stelId, sku: u.sku, motivo: 'SKU_VINCULADO_A_OTRO_ID_STEL' }); destinoProducto.set(itemId, null); continue }
       const sim = similitud(p.name, item?.name ?? u.nombre)
-      if (sim < 0.34) {
+      if (sim < 0.34 && !vinculosAprobados.has(stelId)) {
         bloqueados.push({ tipo: 'product', stel_id: stelId, sku: u.sku, motivo: 'NAME_MISMATCH', stel: item?.name ?? u.nombre, react: p.name })
         destinoProducto.set(itemId, null)
         continue
       }
+      if (sim < 0.34) excepciones.push({ tipo: 'product', motivo: 'LINK_EXISTING_APROBADO', stel_id: stelId, sku: u.sku, stel: item?.name ?? u.nombre, react: p.name })
       productos.push({ op: 'vincular', stel_id: stelId, sku: u.sku, product_id: p.id })
       destinoProducto.set(itemId, p.id)
       continue
@@ -208,8 +219,12 @@ export function planificarE2(stel, react, o = {}) {
       if (tipo === 'quote') {
         const e = estadoReact('quote', f.stel.estado)
         if (e && e !== r.status) {
-          if (['accepted', 'rejected'].includes(r.status) && e === 'sent') bloqueados.push({ tipo, numero: f.numero, motivo: 'ESTADO_REGRESIVO', react: r.status, stel: f.stel.estado })
-          else poner('status', r.status, e)
+          const regresivo = ['accepted', 'rejected'].includes(r.status) && e === 'sent'
+          if (regresivo && !regresivosAprobados.has(f.numero)) bloqueados.push({ tipo, numero: f.numero, motivo: 'ESTADO_REGRESIVO', react: r.status, stel: f.stel.estado })
+          else {
+            poner('status', r.status, e)
+            if (regresivo) excepciones.push({ tipo, numero: f.numero, motivo: 'ESTADO_REGRESIVO_APROBADO', react: r.status, stel: f.stel.estado })
+          }
         }
       }
       if (padre) {
@@ -255,6 +270,8 @@ export function planificarE2(stel, react, o = {}) {
       documentos.push({
         tipo, numero: f.numero, stel_id: String(s.id), estado_stel: f.stel.estado, operacion: 'update', react_id: r.id, cabecera: cab, lineas,
         auditoria: auditoria(f), depende: padre && cab[padre.campo] ? [`${padre.tipo}:${padre.numero}`] : [],
+        // La base vuelve a exigir que no haya derivados aunque esto venga en true.
+        ...(cab.status && regresivosAprobados.has(f.numero) ? { aprobar_estado_regresivo: true } : {}),
       })
     }
   }
@@ -272,9 +289,12 @@ export function planificarE2(stel, react, o = {}) {
     stelLeidoEn: stel.leidoEn ?? null,
     categoriaRevision: productos.some((p) => p.op === 'crear') ? { ...CATEGORIA_REVISION, id: o.categoriaRevisionId ?? null } : null,
     productos,
+    // Identidad fuerte de cliente: ya viene decidida y revalidada desde afuera.
+    clientes: (o.aprobados?.clientes ?? []).map((c) => ({ customer_id: c.customer_id, stel_account_id: String(c.stel_account_id ?? ''), tax_id: c.tax_id })),
     documentos,
     pendientesBorrado,
     bloqueados,
+    excepciones,
     info,
   }
   plan.resumen = resumirPlan(plan)
@@ -302,6 +322,9 @@ export function resumirPlan(plan) {
     LINE_PRODUCT_LINKS: docs.reduce((n, d) => n + d.lineas.actualizar.filter((l) => l.campos.product_id).length, 0),
     LINES_TO_DELETE_PENDING_APPROVAL: plan.pendientesBorrado.length,
     LINES_TO_DELETE_APPROVED: docs.reduce((n, d) => n + d.lineas.borrar.length, 0),
+    CUSTOMERS_TO_IDENTIFY: (plan.clientes ?? []).length,
+    APPROVED_EXCEPTIONS: (plan.excepciones ?? []).length,
+    APPROVED_EXCEPTIONS_BY_REASON: (plan.excepciones ?? []).reduce((m, e) => ({ ...m, [e.motivo]: (m[e.motivo] ?? 0) + 1 }), {}),
     CURRENCY_FIXES: campos((c) => c === 'currency_code'),
     TOTAL_FIELD_FIXES: campos((c) => ['subtotal', 'tax_amount', 'total', 'discount_pct'].includes(c)),
     STATUS_FIXES: campos((c) => c === 'status'),
@@ -314,7 +337,7 @@ export function resumirPlan(plan) {
 
 /** Hash del contenido ejecutable (sin resumen ni info, que son derivados). */
 export function hashPlan(plan) {
-  const ejecutable = { empresa: plan.empresa, categoriaRevision: plan.categoriaRevision && { nombre: plan.categoriaRevision.nombre, slug: plan.categoriaRevision.slug }, productos: plan.productos, documentos: plan.documentos }
+  const ejecutable = { empresa: plan.empresa, categoriaRevision: plan.categoriaRevision && { nombre: plan.categoriaRevision.nombre, slug: plan.categoriaRevision.slug }, productos: plan.productos, clientes: plan.clientes ?? [], documentos: plan.documentos }
   return createHash('sha256').update(canonico(ejecutable)).digest('hex')
 }
 
@@ -346,7 +369,7 @@ export async function ejecutarPlan(sb, plan, o = {}) {
   const run = r.data
   o.alIniciar?.(run, hash)
   const fallidos = new Map()
-  const hechos = { run, productos: 0, documentos: 0, cambios: 0, fallidos: [], salteados: [] }
+  const hechos = { run, productos: 0, clientes: 0, documentos: 0, cambios: 0, fallidos: [], salteados: [] }
   const idInsertado = new Map()
 
   try {
@@ -365,12 +388,21 @@ export async function ejecutarPlan(sb, plan, o = {}) {
       hechos.cambios += x.data.cambios
       if (hechos.productos % 100 === 0) log(`  productos procesados: ${hechos.productos}`)
     }
+    // Clientes antes que los documentos: un documento puede apuntar al cliente,
+    // pero la identidad fuerte no depende de ningún documento.
+    for (const c of plan.clientes ?? []) {
+      const x = await sb.rpc('stel_reconciliar_cliente', { p_run: run, p: c })
+      if (x.error) { fallidos.set(`customer:${c.customer_id}`, x.error.message); hechos.fallidos.push({ item: `customer:${c.customer_id}`, error: x.error.message }); continue }
+      hechos.clientes++
+      hechos.cambios += x.data.cambios
+    }
     for (const tipo of ['quote', 'order', 'delivery']) {
       for (const d of plan.documentos.filter((x) => x.tipo === tipo)) {
         const bloqueo = d.depende.find((k) => fallidos.has(k))
         if (bloqueo) { fallidos.set(`${tipo}:${d.numero}`, `depende de ${bloqueo}`); hechos.salteados.push({ item: `${tipo}:${d.numero}`, depende: bloqueo }); continue }
         const payload = { tipo: d.tipo, stel_id: d.stel_id, numero: d.numero, estado_stel: d.estado_stel, operacion: d.operacion, cabecera: structuredClone(d.cabecera), lineas: d.lineas, auditoria: d.auditoria }
         if (d.react_id) payload.react_id = d.react_id
+        if (d.aprobar_estado_regresivo) payload.aprobar_estado_regresivo = true
         // Padre insertado en este mismo run: ahora sí tiene uuid.
         for (const [campo, v] of Object.entries(payload.cabecera)) {
           const nuevo = d.operacion === 'insert' ? v : v?.new
@@ -391,7 +423,7 @@ export async function ejecutarPlan(sb, plan, o = {}) {
         hechos.cambios += x.data.cambios
       }
     }
-    await sb.rpc('stel_reconciliacion_cerrar', { p_run: run, p_estado: hechos.fallidos.length ? 'failed' : 'finished', p_resumen: { cambios: hechos.cambios, documentos: hechos.documentos, productos: hechos.productos, fallidos: hechos.fallidos.length, salteados: hechos.salteados.length } })
+    await sb.rpc('stel_reconciliacion_cerrar', { p_run: run, p_estado: hechos.fallidos.length ? 'failed' : 'finished', p_resumen: { cambios: hechos.cambios, documentos: hechos.documentos, productos: hechos.productos, clientes: hechos.clientes, fallidos: hechos.fallidos.length, salteados: hechos.salteados.length } })
   } catch (e) {
     await sb.rpc('stel_reconciliacion_cerrar', { p_run: run, p_estado: 'failed', p_resumen: { error: String(e.message).slice(0, 200) } })
     throw e
@@ -452,7 +484,8 @@ export async function huellaEmpresa(sb, companyId, { soloNegocio = false } = {})
 
 /** Filas actuales de todo lo que el plan tocaría (material de rollback independiente de la bitácora). */
 export async function respaldoAfectado(sb, plan) {
-  const ids = { sales_quotes: new Set(), sales_orders: new Set(), deliveries: new Set(), sales_quote_lines: new Set(), sales_order_lines: new Set(), delivery_lines: new Set(), products: new Set() }
+  const ids = { sales_quotes: new Set(), sales_orders: new Set(), deliveries: new Set(), sales_quote_lines: new Set(), sales_order_lines: new Set(), delivery_lines: new Set(), products: new Set(), customers: new Set() }
+  for (const c of plan.clientes ?? []) ids.customers.add(c.customer_id)
   for (const d of plan.documentos) {
     const conf = TIPOS[d.tipo]
     if (d.react_id) ids[conf.tabla].add(d.react_id)

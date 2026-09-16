@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabase/client'
 import { normalizarEstado, type SecuenciaDiagnostico } from '../lib/numeracion'
+import type { EntidadSync, EstadoSync, SyncStel } from '../lib/sync-stel'
 
 /**
  * Diagnóstico de numeración: sólo lectura. No existe (ni se usa) ninguna
@@ -24,5 +25,26 @@ export async function diagnosticoNumeracion(companyId: string): Promise<Secuenci
     estado: normalizarEstado(f.estado),
     autoridad: f.autoridad === 'STEL' ? 'STEL' : 'ERP',
     autoridadConfigurada: f.autoridad_configurada === true,
+  }))
+}
+
+/**
+ * Estado del sync con STEL. Sólo para admin de la empresa: la RPC lo verifica.
+ * No trae ni puede traer la clave de la API.
+ */
+export async function estadoSyncStel(companyId: string): Promise<SyncStel[]> {
+  const { data, error } = await supabase.rpc('stel_sync_estado', { p_company: companyId })
+  if (error) throw new Error(error.message.includes('sin_permiso') ? 'sin_permiso' : 'desconocido')
+  return (data ?? []).map((f) => ({
+    entidad: f.entity as EntidadSync,
+    estado: f.last_status as EstadoSync,
+    inicio: f.last_started_at,
+    fin: f.last_finished_at,
+    checkpoint: f.cursor_modified_at,
+    ultimoVisto: f.cursor_external_id,
+    llamadas: Number(f.last_calls ?? 0),
+    error: f.last_error,
+    bloqueado: f.locked === true,
+    resumen: (f.last_summary ?? {}) as Record<string, unknown>,
   }))
 }

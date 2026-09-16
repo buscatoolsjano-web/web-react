@@ -6,8 +6,9 @@ import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
 import type { Column } from '@/components/tables/types'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { cx } from '@/utils/cx'
-import { useNumeracion } from '../hooks/useEmpresaConfig'
+import { useNumeracion, useSyncStel } from '../hooks/useEmpresaConfig'
 import { alertas, etiquetaTipo, formatearNumero, presentarAutoridad, presentarEmision, presentarEstado, type SecuenciaDiagnostico } from '../lib/numeracion'
+import { desdeHace, fechaCorta, presentarEstadoSync, ETIQUETA_ENTIDAD, type SyncStel } from '../lib/sync-stel'
 import styles from '../components/Configuracion.module.css'
 
 /**
@@ -146,9 +147,56 @@ export function NumeracionPage() {
             sólo un cutover auditado la pasa a ERP. Los tipos sin autoridad configurada los numera el ERP. «Atípicos» son
             números mal tipeados marcados en la importación; no se tienen en cuenta para el estado.
           </p>
+          <SincronizacionStel />
         </>
       )}
     </>
+  )
+}
+
+/**
+ * Observabilidad del sync con STEL: qué se sincronizó, cuándo y si falló.
+ * No hay botón para lanzarlo: lo corre el servidor. Para roles que no son admin
+ * la consulta no devuelve nada y la sección no aparece.
+ */
+function SincronizacionStel() {
+  const q = useSyncStel()
+  if (q.isPending || q.isError || (q.data ?? []).length === 0) return null
+  return (
+    <section className={styles.bloqueSync} aria-labelledby="sync-stel">
+      <h2 id="sync-stel" className={styles.subtituloSync}>
+        Sincronización con STEL
+      </h2>
+      <ul className={styles.listaSimple}>
+        {q.data.map((s) => (
+          <FilaSync key={s.entidad} s={s} />
+        ))}
+      </ul>
+      <p className={styles.nota}>
+        El sync trae de STEL el catálogo y los documentos nuevos. Corre en el servidor y guarda hasta dónde llegó, así un
+        reintento no repite trabajo. Si una corrida falla, el punto de control no avanza.
+      </p>
+    </section>
+  )
+}
+
+function FilaSync({ s }: { s: SyncStel }) {
+  const p = presentarEstadoSync(s)
+  return (
+    <li className={styles.filaSync}>
+      <span className={styles.persona}>
+        <span className={styles.nombre}>{ETIQUETA_ENTIDAD[s.entidad] ?? s.entidad}</span>
+        <span className={styles.email}>
+          Última corrida {desdeHace(s.fin ?? s.inicio)} ({fechaCorta(s.fin ?? s.inicio)}) · {s.llamadas} llamada{s.llamadas === 1 ? '' : 's'} a STEL
+        </span>
+        <span className={styles.email}>
+          Punto de control: {s.checkpoint ? fechaCorta(s.checkpoint) : 'sin punto de control todavía'}
+          {s.ultimoVisto ? ` · último visto ${s.ultimoVisto}` : ''}
+        </span>
+        {s.error && <span className={styles.email}>{s.error}</span>}
+      </span>
+      <Chip p={p} />
+    </li>
   )
 }
 

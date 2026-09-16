@@ -126,6 +126,8 @@ async function dryrun() {
     plan: guardar(`plan-${corto}.json`, plan),
     huella: guardar(`huella-antes-${corto}.json`, { generado: new Date().toISOString(), huella }),
     respaldo: guardar(`respaldo-${corto}.json`, { generado: new Date().toISOString(), filas: respaldo }),
+    // E4: la lectura de STEL de este dry run, para auditar excepciones sin volver a gastar cupo.
+    stel: guardar(`stel-dryrun-${corto}.json`, { leidoEn: stel.leidoEn, stel }),
   }
   const reporte = reporteGate(plan, reco, { llamadasStel: llamadas, cambiosDesdeE1: cambios, listaBase: { nombre: listaBase.name, moneda: listaBase.currency_code }, archivos })
   archivos.reporte = guardar(`gate1-${corto}.json`, reporte)

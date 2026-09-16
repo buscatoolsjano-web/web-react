@@ -5864,6 +5864,25 @@ export type Database = {
         Args: { p_company: string }
         Returns: { doc_type: string; authority: string }[]
       }
+      autoridad_numeracion_series: {
+        Args: { p_company: string }
+        Returns: { doc_type: string; series_code: string; authority: string; reason: string }[]
+      }
+      stel_sync_estado: {
+        Args: { p_company: string }
+        Returns: {
+          entity: string
+          last_status: string
+          last_started_at: string | null
+          last_finished_at: string | null
+          cursor_modified_at: string | null
+          cursor_external_id: string | null
+          last_calls: number
+          last_error: string | null
+          last_summary: Json
+          locked: boolean
+        }[]
+      }
       guardar_mi_apariencia: {
         Args: { p_appearance: Json | null }
         Returns: Json

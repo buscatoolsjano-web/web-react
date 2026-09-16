@@ -569,3 +569,38 @@
 .filaDetalle {
   display: contents;
 }
+
+/* Numeración → «Sincronización con STEL»: observabilidad, dos o tres renglones.
+   En angosto el chip baja debajo del texto en vez de apretar la columna. */
+.bloqueSync {
+  margin-top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.subtituloSync {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.filaSync {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.filaSync:last-child {
+  border-bottom: 0;
+}
+
+.bloqueSync .listaSimple {
+  padding-left: 0;
+  list-style: none;
+  gap: 0;
+}
