@@ -1,5 +1,6 @@
 import { Icon } from '@/components/icons/Icon'
 import { formatearCantidad, formatearImporte } from '../lib/formato'
+import { TRATAMIENTOS } from '../lib/tratamientos'
 import type { LineaDocumento, TipoDocumento } from '../types'
 import styles from './TablaLineas.module.css'
 
@@ -17,6 +18,19 @@ function subtotal(l: LineaDocumento): number | null {
   return bruto * (1 - dto / 100)
 }
 
+/**
+ * Cómo se muestra el impuesto de la línea.
+ *
+ * Se prefiere la etiqueta del tratamiento («IVA 21 %») y no la alícuota suelta:
+ * «Exento» y «No gravado» son los dos 0 % y no significan lo mismo.
+ */
+function impuesto(l: LineaDocumento): string {
+  const t = TRATAMIENTOS.find((x) => x.valor === l.tratamientoImpuesto)
+  if (t && t.tasa !== null) return t.etiqueta
+  if (l.tasaImpuesto !== null) return `${formatearCantidad(l.tasaImpuesto)} %`
+  return t?.etiqueta ?? '—'
+}
+
 export function TablaLineas({ lineas, moneda, tipo }: TablaLineasProps) {
   if (lineas.length === 0) {
     return <p className={styles.vacio}>Este documento no tiene líneas.</p>
@@ -26,18 +40,23 @@ export function TablaLineas({ lineas, moneda, tipo }: TablaLineasProps) {
   // guardó el importe en la cabecera. En ese caso las columnas de precio no
   // se muestran vacías, se ocultan y se explica por qué.
   const hayPrecios = lineas.some((l) => l.precioUnitario !== null)
+  const columnas = hayPrecios ? 8 : 4
 
   return (
     <>
       <div className={styles.scroll}>
         <table className={styles.tabla}>
+          <caption className="sr-only">Líneas del documento</caption>
           <thead>
             <tr>
               <th scope="col" className={styles.num}>
                 #
               </th>
               <th scope="col">Referencia</th>
-              <th scope="col">Descripción</th>
+              <th scope="col">Producto</th>
+              <th scope="col" className={styles.colDescripcion}>
+                Descripción
+              </th>
               <th scope="col" className={styles.derecha}>
                 Cant.
               </th>
@@ -48,6 +67,9 @@ export function TablaLineas({ lineas, moneda, tipo }: TablaLineasProps) {
                   </th>
                   <th scope="col" className={styles.derecha}>
                     % Dto.
+                  </th>
+                  <th scope="col" className={styles.derecha}>
+                    Impuesto
                   </th>
                   <th scope="col" className={styles.derecha}>
                     Subtotal
@@ -62,11 +84,13 @@ export function TablaLineas({ lineas, moneda, tipo }: TablaLineasProps) {
               // fila y no lleva cantidad ni importe.
               l.tipoLinea === 'chapter' ? (
                 <tr key={l.id} className={styles.capitulo}>
-                  <td colSpan={hayPrecios ? 7 : 4}>{l.nombre ?? l.descripcion ?? '—'}</td>
+                  <td colSpan={columnas + 1}>{l.nombre ?? l.descripcion ?? '—'}</td>
                 </tr>
               ) : (
                 <tr key={l.id}>
-                  <td className={styles.num} data-label="#">{l.numeroLinea ?? '—'}</td>
+                  <td className={styles.num} data-label="#">
+                    {l.numeroLinea ?? '—'}
+                  </td>
                   <td className={styles.sku} data-label="Referencia">
                     {l.sku ?? '—'}
                     {l.sku && l.productId === null ? (
@@ -79,24 +103,43 @@ export function TablaLineas({ lineas, moneda, tipo }: TablaLineasProps) {
                       </span>
                     ) : null}
                   </td>
-                  <td className={styles.celdaNombre} data-label="Descripción">
+                  <td className={styles.celdaNombre} data-label="Producto">
                     <span className={styles.nombre}>{l.nombre ?? '—'}</span>
+                    {/* La descripción tiene columna propia a partir de 1280px.
+                        Más angosto no entra, así que vuelve acá debajo del
+                        nombre: sólo una de las dos copias se ve nunca. */}
                     {l.descripcion && l.descripcion !== l.nombre ? (
-                      <span className={styles.descripcion}>{l.descripcion}</span>
+                      <span className={styles.descripcionInline} aria-hidden="true">
+                        {l.descripcion}
+                      </span>
                     ) : null}
                   </td>
-                  <td className={styles.derecha} data-label="Cant.">{formatearCantidad(l.cantidad)}</td>
+                  <td className={styles.colDescripcion} data-label="Descripción">
+                    {l.descripcion && l.descripcion !== l.nombre ? (
+                      <span className={styles.descripcion}>{l.descripcion}</span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td className={`${styles.derecha} ${styles.cantidad}`} data-label="Cant.">
+                    {formatearCantidad(l.cantidad)}
+                  </td>
                   {hayPrecios ? (
                     <>
-                      <td className={styles.derecha} data-label="Precio">
+                      <td className={`${styles.derecha} ${styles.precio}`} data-label="Precio">
                         {formatearImporte(l.precioUnitario, moneda)}
                       </td>
-                      <td className={styles.derecha} data-label="% Dto.">
+                      <td className={`${styles.derecha} ${styles.dto}`} data-label="% Dto.">
                         {l.descuentoPct === null || l.descuentoPct === 0
                           ? '—'
                           : `${formatearCantidad(l.descuentoPct)} %`}
                       </td>
-                      <td className={`${styles.derecha} ${styles.subtotal}`} data-label="Subtotal">{formatearImporte(subtotal(l), moneda)}</td>
+                      <td className={`${styles.derecha} ${styles.impuestoCelda}`} data-label="Impuesto">
+                        {impuesto(l)}
+                      </td>
+                      <td className={`${styles.derecha} ${styles.subtotal}`} data-label="Subtotal">
+                        {formatearImporte(subtotal(l), moneda)}
+                      </td>
                     </>
                   ) : null}
                 </tr>

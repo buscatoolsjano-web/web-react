@@ -12,6 +12,17 @@ import { borrarDocumento, cancelarDocumento, duplicarDocumento } from '../servic
 import { ETIQUETA_DE, RUTA_DE, type DocumentoDetalle } from '../types'
 import { ModalImpresion } from './ModalImpresion'
 
+export interface OpcionesAcciones {
+  /**
+   * Id del texto que ya explica el bloqueo de autoridad en la pantalla.
+   *
+   * Cuando la página muestra el banner de STEL, «Duplicar» lo referencia con
+   * `aria-describedby` en vez de repetir la misma frase debajo de la barra:
+   * un solo mensaje de autoridad por pantalla (Fase 15 E1).
+   */
+  idMotivoAutoridad?: string | undefined
+}
+
 export interface AccionesDocumento {
   /** Ver/Imprimir y Duplicar. */
   secundarias: ReactNode
@@ -38,7 +49,10 @@ export interface AccionesDocumento {
  * de antes; los `window.confirm` pasan a `ConfirmDialog` y los botones de
  * escritura se muestran a quien escribe (admin y employee).
  */
-export function useAccionesDocumento(doc: DocumentoDetalle | null | undefined): AccionesDocumento {
+export function useAccionesDocumento(
+  doc: DocumentoDetalle | null | undefined,
+  opciones: OpcionesAcciones = {},
+): AccionesDocumento {
   const { activa } = useEmpresa()
   const navegar = useNavigate()
   const queryClient = useQueryClient()
@@ -99,7 +113,10 @@ export function useAccionesDocumento(doc: DocumentoDetalle | null | undefined): 
   const cerrado =
     doc.estado === 'rejected' || doc.estado === 'cancelled' || doc.estado === 'accepted' || remitoDespachado
   const sePuedeDuplicar = escribe && doc.tipo !== 'entrega'
-  const idMotivo = `motivo-duplicar-${doc.id}`
+  // Si la página ya explica el bloqueo de autoridad, se apunta a ESE texto;
+  // si no, esta barra escribe el suyo.
+  const idPropio = `motivo-duplicar-${doc.id}`
+  const idMotivo = opciones.idMotivoAutoridad ?? idPropio
   const nombre = ETIQUETA_DE[doc.tipo].singular
 
   return {
@@ -138,7 +155,9 @@ export function useAccionesDocumento(doc: DocumentoDetalle | null | undefined): 
       ) : null,
     motivo: (
       <>
-        {sePuedeDuplicar && stelDuplicar ? <p id={idMotivo}>{motivoBloqueo(DOC_TYPE_DE[doc.tipo])}</p> : null}
+        {sePuedeDuplicar && stelDuplicar && !opciones.idMotivoAutoridad ? (
+          <p id={idPropio}>{motivoBloqueo(DOC_TYPE_DE[doc.tipo])}</p>
+        ) : null}
         {escribe && remitoDespachado ? <p>{MENSAJES_WORKFLOW.DELIVERY_ALREADY_DISPATCHED}</p> : null}
       </>
     ),

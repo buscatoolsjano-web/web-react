@@ -54,7 +54,40 @@ describe('<TablaLineas>', () => {
     )
     const celda = screen.getByText('Accesorios')
     expect(celda).toBeInTheDocument()
-    expect(celda.getAttribute('colspan')).toBe('4')
+    // Sin precios las columnas son #, Referencia, Producto, Descripción y Cant.
+    expect(celda.getAttribute('colspan')).toBe('5')
+  })
+
+  it('Producto y Descripción son columnas distintas, y el impuesto tiene la suya', () => {
+    render(
+      <TablaLineas
+        lineas={[
+          {
+            ...base,
+            precioUnitario: 100,
+            descripcion: 'Con contrapesos de acero',
+            tratamientoImpuesto: 'vat_105',
+            tasaImpuesto: 10.5,
+          },
+        ]}
+        moneda="USD"
+        tipo="cotizacion"
+      />,
+    )
+    expect(screen.getByRole('columnheader', { name: 'Producto' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Descripción' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Impuesto' })).toBeInTheDocument()
+    // El tratamiento se nombra, no se muestra la alícuota suelta: «Exento» y
+    // «No gravado» son los dos 0 % y no significan lo mismo.
+    expect(screen.getByText('IVA 10,5 %')).toBeInTheDocument()
+  })
+
+  it('cada celda lleva su rótulo, que es lo que la vuelve tarjeta en mobile', () => {
+    const { container } = render(
+      <TablaLineas lineas={[{ ...base, precioUnitario: 100 }]} moneda="USD" tipo="cotizacion" />,
+    )
+    const rotulos = [...container.querySelectorAll('tbody td')].map((td) => td.getAttribute('data-label'))
+    expect(rotulos).toEqual(['#', 'Referencia', 'Producto', 'Descripción', 'Cant.', 'Precio', '% Dto.', 'Impuesto', 'Subtotal'])
   })
 
   it('marca el SKU cuyo producto ya no está en el catálogo', () => {

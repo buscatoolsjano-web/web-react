@@ -11,12 +11,27 @@ export interface PanelRelacionadosProps {
   idActual: string
 }
 
-const SECCIONES: { clave: keyof Relacionados; titulo: string; navegable: boolean }[] = [
-  { clave: 'cotizaciones', titulo: 'Cotización', navegable: true },
-  { clave: 'pedidos', titulo: 'Pedido', navegable: true },
-  { clave: 'entregas', titulo: 'Entregas', navegable: true },
-  { clave: 'facturas', titulo: 'Facturas', navegable: false },
-  { clave: 'pagos', titulo: 'Cobranzas', navegable: false },
+interface Seccion {
+  clave: keyof Relacionados
+  titulo: string
+  navegable: boolean
+  /**
+   * `true` cuando la sección se muestra aunque esté vacía.
+   *
+   * La cadena cotización → pedido → entregas se muestra siempre: que un
+   * documento NO tenga pedido es información. Facturas y cobranzas, en cambio,
+   * todavía no existen como documento en el sistema —cero filas en las dos
+   * tablas—, así que una sección vacía sólo prometería una pantalla que no hay.
+   */
+  siempre: boolean
+}
+
+const SECCIONES: Seccion[] = [
+  { clave: 'cotizaciones', titulo: 'Cotización', navegable: true, siempre: true },
+  { clave: 'pedidos', titulo: 'Pedido', navegable: true, siempre: true },
+  { clave: 'entregas', titulo: 'Entregas', navegable: true, siempre: true },
+  { clave: 'facturas', titulo: 'Facturas', navegable: false, siempre: false },
+  { clave: 'pagos', titulo: 'Cobranzas', navegable: false, siempre: false },
 ]
 
 function Fila({ d, navegable }: { d: DocumentoRelacionado; navegable: boolean }) {
@@ -56,17 +71,19 @@ export function PanelRelacionados({ relacionados, cargando, idActual }: PanelRel
     return <p className={styles.nota}>Buscando documentos relacionados…</p>
   }
 
+  const visibles = SECCIONES.map((s) => ({
+    ...s,
+    items: relacionados[s.clave].filter((d) => d.id !== idActual),
+  })).filter((s) => s.siempre || s.items.length > 0)
+
   return (
     <div className={styles.grilla}>
-      {SECCIONES.map(({ clave, titulo, navegable }) => {
-        const items = relacionados[clave].filter((d) => d.id !== idActual)
+      {visibles.map(({ clave, titulo, navegable, items }) => {
         return (
           <section key={clave} className={styles.seccion}>
             <h3 className={styles.titulo}>{titulo}</h3>
             {items.length === 0 ? (
-              <p className={styles.vacio}>
-                {clave === 'facturas' || clave === 'pagos' ? 'Sin registrar' : 'No hay'}
-              </p>
+              <p className={styles.vacio}>No hay</p>
             ) : (
               <ul className={styles.lista}>
                 {items.map((d) => (

@@ -258,3 +258,69 @@
   font-size: var(--text-sm);
   color: var(--color-text-soft);
 }
+
+/* ── Identidad del documento ───────────────────────────────────────────── */
+/* Cliente · fecha en un renglón; el título comercial en el suyo, porque suele
+   ser largo y si comparte línea desplaza al cliente fuera de vista. */
+.identidad,
+.tituloDoc {
+  display: block;
+}
+
+.tituloDoc {
+  margin-top: 2px;
+  color: var(--color-text-muted);
+}
+
+/* De dónde salió el documento: contexto, no alerta. */
+.origen {
+  font-weight: var(--weight-regular);
+}
+
+/* ── «Más ▾» ───────────────────────────────────────────────────────────── */
+.mas {
+  position: relative;
+  display: inline-flex;
+}
+
+.masFlecha {
+  margin-left: var(--space-1);
+}
+
+/* `display: flex` le gana al `display: none` que el navegador aplica por
+   `[hidden]`, así que el panel cerrado se veía abierto. La regla va explícita. */
+.masPanel[hidden] {
+  display: none;
+}
+
+.masPanel {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  min-width: max-content;
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 767px) {
+  .mas {
+    display: flex;
+  }
+  .masPanel {
+    position: static;
+    box-shadow: none;
+  }
+}
+
+/* ── Pestañas del documento ────────────────────────────────────────────── */
+.pestanas {
+  min-width: 0;
+}

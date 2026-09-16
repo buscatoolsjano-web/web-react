@@ -18,6 +18,11 @@ export function netoDeLinea(l: LineaDocumento): number {
   return l.cantidad * precio * (1 - (l.descuentoPct ?? 0) / 100)
 }
 
+/** Unidades del documento. Un capítulo es un título, no mercadería: no suma. */
+export function unidadesDe(lineas: readonly LineaDocumento[]): number {
+  return lineas.filter((l) => l.tipoLinea !== 'chapter').reduce((total, l) => total + l.cantidad, 0)
+}
+
 export function netoDeLineas(lineas: readonly LineaDocumento[]): number {
   return lineas.reduce((s, l) => s + netoDeLinea(l), 0)
 }

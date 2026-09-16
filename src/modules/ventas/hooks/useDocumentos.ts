@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { listarClientes } from '../services/clientes'
+import { listarEventos, type EntidadAuditable } from '../services/auditoria'
 import { listarDocumentos, monedasUsadas, obtenerDocumento } from '../services/documentos'
 import { documentosRelacionados, evidenciaDeEntrega } from '../services/relacionados'
 import { disponibilidadDeProductos } from '../services/stock'
@@ -126,6 +127,33 @@ export function usePendientes(pedido: DocumentoDetalle | null | undefined) {
       })
     },
     enabled: companyId !== null && !!pedidoId,
+    staleTime: 30_000,
+  })
+}
+
+/** `TipoDocumento` → la entidad con la que `sales_audit` guarda sus eventos. */
+const ENTIDAD_DE: Record<TipoDocumento, EntidadAuditable> = {
+  cotizacion: 'sales_quote',
+  pedido: 'sales_order',
+  entrega: 'delivery',
+}
+
+/**
+ * Los eventos del documento, para la pestaña Trazabilidad.
+ *
+ * Se consulta sólo cuando esa pestaña está abierta —el panel se monta recién
+ * ahí— y sólo para quien escribe: la policy `audit_select` limita `sales_audit`
+ * a las empresas donde la persona escribe, así que pedirlos desde otro rol
+ * sería un viaje para recibir cero filas.
+ */
+export function useTrazabilidad(tipo: TipoDocumento, id: string | undefined, habilitado: boolean) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery({
+    queryKey: ['ventas', companyId, tipo, 'trazabilidad', id],
+    queryFn: () => listarEventos(companyId!, ENTIDAD_DE[tipo], id!),
+    enabled: companyId !== null && !!id && habilitado,
     staleTime: 30_000,
   })
 }

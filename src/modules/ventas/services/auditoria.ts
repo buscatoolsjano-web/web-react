@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import type { EventoAuditoria } from '../lib/trazabilidad'
 
 export type EntidadAuditable = 'sales_quote' | 'sales_order' | 'delivery'
 
@@ -69,4 +70,47 @@ export interface Editabilidad {
   motivo: string | null
   /** `true` cuando editar deja rastro en `sales_audit`. */
   audita: boolean
+}
+
+/**
+ * Los eventos registrados de un documento, del más reciente al más viejo.
+ *
+ * Sólo lectura, y la visibilidad la decide la base: `audit_select` limita
+ * `sales_audit` a las empresas donde la persona escribe (admin y employee).
+ * Un rol de sólo lectura no recibe filas — no se le esconde nada acá.
+ */
+export async function listarEventos(
+  companyId: string,
+  tipo: EntidadAuditable,
+  id: string,
+): Promise<EventoAuditoria[]> {
+  const { data, error } = await supabase
+    .from('sales_audit')
+    .select('id, action, from_status, to_status, diff, created_at, actor:profiles!actor_id ( full_name )')
+    .eq('company_id', companyId)
+    .eq('entity_type', tipo)
+    .eq('entity_id', id)
+    .order('created_at', { ascending: false })
+    .limit(200)
+  if (error) throw new Error(`No se pudo leer la trazabilidad: ${error.message}`)
+
+  type Fila = {
+    id: number
+    action: string
+    from_status: string | null
+    to_status: string | null
+    diff: Record<string, { from: unknown; to: unknown }> | null
+    created_at: string
+    actor: { full_name: string | null } | null
+  }
+
+  return ((data ?? []) as unknown as Fila[]).map((f) => ({
+    id: f.id,
+    accion: f.action,
+    desde: f.from_status,
+    hasta: f.to_status,
+    diff: f.diff,
+    actor: f.actor?.full_name ?? null,
+    fecha: f.created_at,
+  }))
 }

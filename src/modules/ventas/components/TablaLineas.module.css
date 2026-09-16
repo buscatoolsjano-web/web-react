@@ -1,5 +1,8 @@
-/* Tabla de líneas de sólo lectura. En < 768px cada línea se apila como una
-   tarjeta con sus rótulos (data-label): nada de scroll horizontal. */
+/* Tabla de líneas de sólo lectura. Por debajo de 900px cada línea se apila como
+   una tarjeta con sus rótulos (data-label): nada de scroll horizontal.
+   El corte es más alto que los 767px del resto del sistema porque estas filas
+   tienen ocho columnas, y a 768px la de «Producto» caía a una palabra por
+   renglón y la tabla scrolleaba de costado igual. */
 .scroll {
   overflow-x: auto;
   border: 1px solid var(--color-border);
@@ -60,9 +63,27 @@
 
 .descripcion {
   display: block;
-  margin-top: 2px;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: var(--color-text-soft);
+}
+
+/* La descripción tiene columna propia sólo cuando hay lugar: con 9 columnas a
+   1024px el nombre y la descripción quedan en dos hilos de tres palabras. Más
+   angosto, la copia de adentro de «Producto» ocupa su lugar. */
+.descripcionInline {
+  display: none;
+}
+
+@media (max-width: 1279px) {
+  .colDescripcion {
+    display: none;
+  }
+  .descripcionInline {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--text-xs);
+    color: var(--color-text-soft);
+  }
 }
 
 .derecha {
@@ -95,7 +116,7 @@
   background: var(--color-surface);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .scroll {
     overflow: visible;
     border: 0;
@@ -118,10 +139,13 @@
     display: grid;
     gap: var(--space-2);
   }
+  /* Cada línea es una tarjeta de dos columnas: cantidad y precio en un
+     renglón, descuento e impuesto en el siguiente. Nada de scroll de costado. */
   .tabla tr {
-    display: flex;
-    flex-direction: column;
-    padding: var(--space-2) var(--space-3);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-3);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface);
@@ -133,7 +157,7 @@
     display: flex;
     justify-content: space-between;
     gap: var(--space-3);
-    padding: var(--space-1) 0;
+    padding: 0;
     border: 0;
     text-align: right;
     width: auto;
@@ -145,19 +169,46 @@
     font-size: var(--text-xs);
     text-align: left;
   }
-  .tabla td.num {
+  .tabla td.num,
+  .tabla td.colDescripcion {
     display: none;
   }
   .tabla td.celdaNombre {
-    order: -1;
+    order: 1;
+    grid-column: 1 / -1;
     display: block;
     text-align: left;
-    padding-bottom: var(--space-2);
+    font-weight: var(--weight-semibold);
   }
   .tabla td.celdaNombre::before {
     content: none;
   }
+  .tabla td.sku {
+    order: 2;
+    grid-column: 1 / -1;
+    padding-bottom: var(--space-1);
+  }
+  .tabla td.cantidad {
+    order: 3;
+  }
+  .tabla td.precio {
+    order: 4;
+  }
+  .tabla td.dto {
+    order: 5;
+  }
+  .tabla td.impuestoCelda {
+    order: 6;
+  }
+  .tabla td.subtotal {
+    order: 7;
+    grid-column: 1 / -1;
+    margin-top: var(--space-1);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--color-border);
+  }
   .tabla tr.capitulo {
+    grid-template-columns: minmax(0, 1fr);
     background: var(--color-surface-alt);
   }
   .capitulo td {

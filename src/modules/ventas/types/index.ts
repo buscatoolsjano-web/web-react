@@ -116,6 +116,10 @@ export interface DocumentoDetalle {
   clienteId: string | null
   clienteNombre: string
   contactoNombre: string | null
+  /** Cargo, correo y teléfono del contacto, cuando el contacto existe. */
+  contactoRol: string | null
+  contactoEmail: string | null
+  contactoTelefono: string | null
   titulo: string | null
   moneda: string | null
   tipoCambio: number | null
@@ -136,6 +140,12 @@ export interface DocumentoDetalle {
   motivosRevision: string[]
   numeroFueraDeSerie: boolean
   esHistorico: boolean
+  /** `'stel'` en lo que vino de STEL; `null` en lo que emitió el ERP. */
+  externalSource: string | null
+  /** Nombre de quien lo creó; `null` en casi todo el histórico. */
+  creadoPor: string | null
+  creadoEn: string
+  actualizadoEn: string
   lineas: LineaDocumento[]
   /** Documento origen, si lo hay. */
   origen: { tipo: TipoDocumento; id: string; numero: string } | null

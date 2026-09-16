@@ -224,13 +224,18 @@ function columnasDetalle(tipo: TipoDocumento): string {
       : tipo === 'pedido'
         ? ', payment_terms'
         : ''
+  // `external_source` distingue lo que vino de STEL de lo que emitió el ERP;
+  // `created_at`/`updated_at` y quién creó el documento son la ficha técnica
+  // que la pestaña Información muestra al pie. Son columnas de la MISMA
+  // consulta: no agregan un viaje más.
   return `
     id, number, original_number, suspected_normalized_number, ${c.campoFecha},
     title, currency_code, exchange_rate, subtotal, tax_amount, total,
     ${c.campoEstado}${segundo}${propios}, needs_review, review_reason, number_outlier,
-    series_code, imported_at, notes,
+    series_code, imported_at, external_source, created_at, updated_at, notes,
     customers!customer_id ( id, legal_name, trade_name ),
-    contacto:customer_contacts!contact_id ( full_name )${vendedor}${origen}
+    contacto:customer_contacts!contact_id ( full_name, role, email, phone ),
+    creador:profiles!created_by ( full_name )${vendedor}${origen}
   `
 }
 
@@ -303,7 +308,11 @@ export async function obtenerDocumento(
     valid_until?: string | null
     discount_pct?: number | string | null
     perception_pct?: number | string | null
-    contacto: { full_name: string | null } | null
+    external_source: string | null
+    created_at: string
+    updated_at: string
+    contacto: { full_name: string | null; role: string | null; email: string | null; phone: string | null } | null
+    creador: { full_name: string | null } | null
   }
 
   const { data: lineas, error: errorLineas } = await supabase
@@ -324,6 +333,9 @@ export async function obtenerDocumento(
     clienteId: f.customers?.id ?? null,
     clienteNombre: nombreCliente(f.customers),
     contactoNombre: f.contacto?.full_name ?? null,
+    contactoRol: f.contacto?.role ?? null,
+    contactoEmail: f.contacto?.email ?? null,
+    contactoTelefono: f.contacto?.phone ?? null,
     titulo: f.title,
     moneda: f.currency_code,
     tipoCambio: aNumero(f.exchange_rate),
@@ -343,6 +355,10 @@ export async function obtenerDocumento(
     motivosRevision: separarMotivos(f.review_reason),
     numeroFueraDeSerie: f.number_outlier,
     esHistorico: f.imported_at !== null,
+    externalSource: f.external_source,
+    creadoPor: f.creador?.full_name ?? null,
+    creadoEn: f.created_at,
+    actualizadoEn: f.updated_at,
     lineas: ((lineas ?? []) as unknown as FilaLinea[]).map((l, i) => aLinea(tipo, l, i)),
     origen:
       c.fkOrigen && f.origen
