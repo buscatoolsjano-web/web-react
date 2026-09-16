@@ -48,6 +48,7 @@ Entra todo junto —cabecera, líneas, borrados y el evento de auditoría— o n
 | Sin cambios | «Guardar cambios» está deshabilitado y el aviso dice «Sin cambios todavía. Lo que edites no se escribe hasta que lo guardes». |
 | Con cambios | El aviso pasa a «Hay cambios sin guardar. No se escribe nada hasta que aprietes «Guardar cambios»». |
 | Cambiar de pestaña | El borrador **no** se pierde: las cinco pestañas comparten el mismo estado. |
+| Irse a otra cotización | El borrador se suelta y el documento nuevo abre en lectura: pertenecía al anterior. La navegación interna no pide confirmación todavía (ver §13). |
 | Descartar con cambios | `ConfirmDialog` «Hay cambios sin guardar» (nunca `window.confirm`). Al confirmar se suelta el borrador y vuelve lo del servidor. |
 | Descartar sin cambios | Sale de edición sin preguntar: no hay nada que perder. |
 | Cerrar la pestaña con cambios | `beforeunload` sólo mientras hay cambios sucios; un aviso permanente es ruido que se aprende a ignorar. |
@@ -119,8 +120,14 @@ tarifa en el documento.
 - **No** se agrega a `sales_orders` ni a `deliveries`: hoy no los edita nadie y serían dos
   columnas siempre vacías. El `unit_price` de cada línea ya viaja como snapshot al convertir, así
   que lo que falta es la metadata, no plata. Queda anotado para la entrega que haga Pedido.
-- La tarifa **sugiere** precio; no lo impone. Cambiarla no reescribe ninguna línea: no hay
-  «recalcular todos» y no se agregó ninguno.
+- La tarifa se **registra**; no cambia ningún precio. Cambiarla no reescribe ninguna línea: no
+  hay «recalcular todos» y no se agregó ninguno.
+- **Todavía no alimenta la sugerencia de precio.** El buscador de productos
+  (`services/productosParaLinea.ts`, anterior a E2) sigue tomando el precio de la lista
+  `is_default` de la empresa, no de la tarifa elegida en el documento. Medido en producción: con
+  «ZZ Lista mayorista» seleccionada (ZZ-300 a 64), la línea nueva entró a 80, el precio de la
+  lista por defecto. Queda para E3; el texto de ayuda del campo dice exactamente eso para no
+  prometer lo que no hace.
 
 `DB_CHANGES = 2` (una columna, una función). Ninguna policy se modificó; el rollback está al pie
 del `.sql` y no deja RLS rota.
@@ -375,4 +382,9 @@ Idéntico al baseline de partida.
 - **Adjuntos** sigue en sólo lectura.
 - **Recalcular precios desde la tarifa** — pendiente de decisión: cambiar la tarifa hoy no reescribe
   ningún precio, y no se agregó ningún «recalcular todos» sin autorización.
+- **La tarifa del documento no alimenta el buscador de productos**: la sugerencia sale de la
+  lista por defecto de la empresa. Encontrado en la revisión productiva de E2.
+- **Navegar a otra cotización con cambios sin guardar no pide confirmación.** Hoy el borrador se
+  suelta en silencio (antes quedaba encima del documento nuevo, que era peor). Falta un bloqueo
+  de navegación del router con el mismo `ConfirmDialog` que usa «Descartar».
 - **Trazabilidad**: falta paginado cuando un documento acumule muchos eventos (hoy trae 200).

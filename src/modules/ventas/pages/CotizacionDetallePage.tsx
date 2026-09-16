@@ -106,6 +106,16 @@ const CAMPO_BORRADOR = {
  */
 export function CotizacionDetallePage() {
   const { id } = useParams<{ id: string }>()
+  // El borrador pertenece a ESTE documento. Si la ruta cambia a otra
+  // cotización —el menú, el botón atrás, un enlace— React reusaría el mismo
+  // componente y el borrador viejo quedaría encima del documento nuevo: la
+  // pantalla mostraría los datos de A sobre B y «Guardar» apuntaría al
+  // equivocado. Con la `key` el detalle se remonta y no queda nada colgando.
+  return <Detalle key={id ?? ''} />
+}
+
+function Detalle() {
+  const { id } = useParams<{ id: string }>()
   const navegar = useNavigate()
   const { activa } = useEmpresa()
   const queryClient = useQueryClient()
@@ -149,6 +159,7 @@ export function CotizacionDetallePage() {
   const tarifas = useTarifas(editando)
   const vendedores = useVendedores(editando)
   const contactos = useContactos(editando ? borrador.cabecera.customerId || null : null)
+
 
   // Cerrar la pestaña con cambios sin guardar avisa. Sólo si hay cambios: un
   // `beforeunload` permanente es ruido que la gente aprende a ignorar.

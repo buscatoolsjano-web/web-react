@@ -139,8 +139,8 @@ export function EditorCabecera({
               avisoTarifa
                 ? 'Cambió la moneda y la tarifa anterior estaba en otra: se quitó.'
                 : ocultas > 0
-                  ? `Sólo las tarifas en ${valores.moneda}. Sugiere el precio de las líneas nuevas; no toca las cargadas.`
-                  : 'Sugiere el precio de las líneas nuevas. No cambia los precios ya cargados.'
+                  ? `Sólo las tarifas en ${valores.moneda}. Queda registrada en el documento; no cambia ningún precio.`
+                  : 'Queda registrada en el documento. No cambia ningún precio: el buscador de productos sigue sugiriendo el de la lista por defecto.'
             }
           >
             <Select value={valores.listaPrecioId} onChange={(e) => onCambiar('listaPrecioId', e.target.value)}>

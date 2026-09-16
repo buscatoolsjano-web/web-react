@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { DocumentoDetalle, LineaDocumento, Relacionados } from '../types'
 import type { EventoAuditoria } from '../lib/trazabilidad'
@@ -322,6 +322,29 @@ describe('Cotización · acciones', () => {
 
     expect(espias.guardar).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument()
+  })
+
+  it('irse a otra cotización cierra la edición: el borrador no viaja', async () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/ventas/cotizaciones/q1']}>
+          <Link to="/ventas/cotizaciones/q2">ir a otra</Link>
+          <Routes>
+            <Route path="/ventas/cotizaciones/:id" element={<CotizacionDetallePage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
+    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ borrador de q1' } })
+
+    fireEvent.click(screen.getByRole('link', { name: 'ir a otra' }))
+
+    // El documento nuevo abre en lectura, sin el borrador del anterior.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Guardar cambios' })).not.toBeInTheDocument()
+    expect(espias.guardar).not.toHaveBeenCalled()
   })
 
   it('cambiar de pestaña NO descarta el borrador', () => {
