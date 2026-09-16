@@ -107,13 +107,30 @@ const limpiar = async () => {
     const { data: convs } = await s.from('whatsapp_conversations').select('id').in('company_id', ids)
     const cids = (convs ?? []).map((c) => c.id)
     if (cids.length) await s.from('whatsapp_conversation_reads').delete().in('conversation_id', cids)
-    for (const t of ['whatsapp_media', 'whatsapp_messages', 'whatsapp_conversations', 'whatsapp_accounts']) {
-      await s.from(t).delete().in('company_id', ids)
+    // Cada borrado se verifica. Un error sin mirar acá es residuo en producción
+    // con un PASS final que igual da verde.
+    const borrar = async (t, col = 'company_id') => {
+      const r = await s.from(t).delete().in(col, ids)
+      if (r.error) console.log(`    aviso ${t}: ${r.error.message.slice(0, 120)}`)
     }
-    await s.from('customer_contacts').delete().in('company_id', ids)
-    await s.from('customers').delete().in('company_id', ids)
-    await s.from('company_memberships').delete().in('company_id', ids)
-    await s.from('companies').delete().in('id', ids)
+    for (const t of ['whatsapp_media', 'whatsapp_messages', 'whatsapp_conversations', 'whatsapp_accounts']) {
+      await borrar(t)
+    }
+    // Las membresías ANTES que los clientes: la del usuario de portal apunta
+    // al cliente (`company_memberships.customer_id`), así que al revés el
+    // cliente no se borra y después tampoco la empresa.
+    await borrar('company_memberships')
+    await borrar('customer_contacts')
+    await borrar('customers')
+    // Los usuarios ANTES que las empresas: una membresía viva impide borrarlas.
+    for (const u of creados.usuarios) await s.auth.admin.deleteUser(u)
+    creados.usuarios = []
+    // Y el borrado de la empresa se VERIFICA. Sin esto el error pasaba en
+    // silencio y quedaban empresas de prueba en producción: las invariantes
+    // sólo contaban las tablas de WhatsApp, así que el PASS final era cierto
+    // y el residuo también.
+    const r = await s.from('companies').delete().in('id', ids)
+    if (r.error) console.log(`    aviso companies: ${r.error.message.slice(0, 120)}`)
   }
   for (const u of creados.usuarios) await s.auth.admin.deleteUser(u)
 }
@@ -358,6 +375,9 @@ async function main() {
   creados.empresas = []
   creados.usuarios = []
   for (const t of TABLAS) cmp(`${t} vuelve a su conteo`, base[t], await cuenta(t))
+  // La invariante que faltaba: que no quede ninguna empresa de prueba.
+  const { count: zz } = await s.from('companies').select('id', { count: 'exact', head: true }).like('slug', `${MARCA}-%`)
+  cmp('no queda ninguna empresa de prueba', 0, zz)
 
   console.log('\n' + '='.repeat(78))
   console.log(fallos === 0 ? '  RESULTADO: 0 FALLOS' : `  RESULTADO: ${fallos} FALLO(S)`)
