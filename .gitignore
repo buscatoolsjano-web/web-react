@@ -58,3 +58,6 @@ scripts/.fase7-entrega4-series.json
 # documentos reales) y cache de respuestas de la API. Nunca se commitean.
 scripts/output/
 .stel-cache/
+
+# Scratch del CLI de Supabase (versión cacheada, ids de link). No es código.
+supabase/.temp/
