@@ -4,7 +4,8 @@
 > se implementó el sync incremental STEL → React, se resolvió el modelo de autoridad por serie
 > (RT vs RT-ML) y quedó el ensayo de corte pasando en una empresa fixture.
 > **No se hizo el corte**: la autoridad sigue en STEL, las secuencias en COTI 2629 / PDV 1316 /
-> RT 1424, y la UI productiva sigue bloqueada. **CUTOVER_READY = NO.** 2026-09-15.
+> RT 1424, y la UI productiva sigue bloqueada. E4.5 alineó además los precios de catálogo.
+> El preflight da **READY**; el cutover **no se hizo** y necesita autorización aparte. 2026-09-16.
 
 ## 0. Resultado
 
@@ -17,16 +18,15 @@
 | SP.2007VPM/80 | conflicto humano | **sin tocar** | DATA_CONFLICT_REQUIRES_HUMAN |
 | Reconciliación STEL ↔ React | 2 line mismatch + 1 status + 1 customer | **0 en los tres tipos** | **OK** |
 | Sync de catálogo | no existía | incremental con checkpoint, candado y bitácora | **IMPLEMENTADO** |
-| Sync de precios | no existía | mecanismo listo; la alineación masiva **no** se aplicó | **DECISIÓN PENDIENTE** |
+| Sync de precios | no existía | mecanismo listo y **alineación aplicada** (E4.5, § 7) | **APLICADA** |
 | Delta de documentos | manual | incremental, idempotente, sin stock ni secuencias | **IMPLEMENTADO** |
 | RT vs RT-ML | el modelo no distinguía series | autoridad por serie (tabla aparte, vacía) | **RESUELTO** |
 | Ensayo de corte | no existía | 13 pasos, **PASS** en fixture | **OK** |
-| Preflight | no existía | `scripts/fase14-cutover-preflight.mjs` | **NOT_READY** (§ 13) |
+| Preflight | no existía | `scripts/fase14-cutover-preflight.mjs` | **READY** (§ 13) |
 
-**Un solo bloqueante nuevo, y es de negocio:** los precios de catálogo de React están
-**exactamente al triple** de los de STEL en 649 de 666 productos vinculados, y los documentos se
-venden al precio de STEL. Alinearlos es correcto según la evidencia, pero cambia 666 precios
-productivos: **no se aplicó** (§ 7).
+**E4.5 cerró el único bloqueante que quedaba** (§ 7): con autorización explícita se alinearon 692
+precios de «Lista base» con el catálogo de STEL. El preflight pasa a **READY** — que no es una
+orden de corte: el corte lo decide una persona y se ejecuta con el checklist del § 14.
 
 ## 1. Cambios productivos exactos
 
@@ -36,6 +36,7 @@ Todo lo que cambió en datos reales, y nada más:
 |---|---|---|
 | `2ea4829e-7f0a-4baf-b24f-f7312cb07df8` | Excepciones autorizadas | 1 producto vinculado · 1 cliente con CUIT · 4 documentos (COTI02489, COTI02516, COTI02530, RT0000001405) · 8 líneas borradas · 1 línea vinculada a producto · **14 cambios** |
 | `d0a064c9-513c-4999-9c57-7004ee6dd9e3` | Sync de catálogo (sin precios) | 9 productos actualizados (nombre / descripción / tipo) sobre 61 leídos |
+| `e948d627-6f64-4780-a673-7718cead8209` | **E4.5** · alineación de precios de «Lista base» | 665 precios actualizados · 27 creados · 0 documentos históricos tocados |
 
 Invariantes verificadas después de cada run: `document_sequences`, `document_numbering_authority`,
 `stock_balances`, `stock_movements`, `stock_reservations` y `sales_audit` con el **mismo hash**
@@ -193,15 +194,16 @@ sin sentido mientras los precios coincidan.
   listas por cliente y leer la asignación cuenta por cuenta. **Decisión empresarial: se detiene esa
   parte y se reporta**, como pide el punto 9.
 
-## 7. Precios: el hallazgo que frena la alineación
+## 7. Precios: el desfasaje ×3 y su alineación (E4.5)
 
-`stel_sync_precio` está implementado y probado, y el CLI puede aplicarlo. **No se ejecutó sobre
-Buscatools.** Motivo, medido sobre los 765 productos vinculados:
+### 7.1 El hallazgo
+
+Medido sobre los 765 productos vinculados, antes de tocar nada:
 
 | Medición | Valor |
 |---|---|
-| Con precio en STEL | 719 |
-| Precio igual en React | 26 |
+| Con precio de catálogo en STEL | 719 |
+| Precio ya igual en React | 26 |
 | Precio distinto | **666** |
 | De esos, React = STEL × **3,000** exacto | **649** |
 | Sin precio en React | 27 |
@@ -211,18 +213,65 @@ Ejemplos: `GE.TSN125A` React 2244 / STEL 748 · `SP.PH2` React 5,43 / STEL 1,81 
 
 Y lo que dicen los documentos reales: PRO12575 se vendió a **540** en COTI02505, PDV01314 y
 RT0000001426; PRO12576 a **18,2**. Es decir, **se vende al precio de STEL**, no al de la lista.
+La «Lista base» viene del catálogo legacy con un margen ×3 y quedó desfasada; STEL es el maestro
+operativo y es lo que se factura. Sin alinear, el ERP habría cotizado al triple desde el día uno.
 
-**Lectura:** la «Lista base» viene del catálogo legacy con un margen ×3 y quedó desalineada; STEL
-es el maestro y es lo que se factura. Alinear es lo correcto **y es necesario antes del corte**
-(si no, el ERP cotizaría al triple), pero son 666 precios productivos: queda como decisión
-explícita, con el comando listo:
+### 7.2 Qué se aplicó
 
-```bash
-node scripts/fase14-e4-sync-stel.mjs productos --desde 2020-01-01T00:00:00Z --aplicar --full-sync
-```
+Con autorización explícita (E4.5), releyendo STEL antes de escribir:
+`scripts/fase14-e45-precios-alineacion.mjs`.
 
-Antes de aplicarlo conviene correrlo sin `--aplicar`: informa producto por producto qué cambiaría.
-Es reversible por run desde la bitácora.
+| | Valor |
+|---|---|
+| Plan | `5ef349bf45aa8986b41ed9685f692118eeb26478a9807be10fac6461807ed8d7` |
+| Run | `e948d627-6f64-4780-a673-7718cead8209` |
+| Fuente | `sales-price` del catálogo de STEL (USD), nunca una fórmula, un documento, otra tarifa ni FX |
+| Destino | **sólo** «Lista base» (USD, la predeterminada) |
+| Precios actualizados | **665** |
+| Precios creados (React no tenía) | **27** |
+| Ya iguales | 26 |
+| Bloqueados / a revisión | 47 (§ 7.4) |
+| Documentos históricos modificados | **0** |
+
+Las otras dos listas quedaron intactas (124 precios cada una, datos de prueba de Fase 3) y
+tampoco se tocó ninguna línea de documento, total, stock, secuencia ni autoridad: la huella por
+tabla de todo eso es idéntica antes y después.
+
+### 7.3 Los casos que no eran ×3
+
+20 productos tenían una diferencia real de precio sin ser exactamente el triple:
+
+- **3** son ×3 con redondeo (`PRO12411` 2,99998 · `TC.CL140NX15D-MH` 2,99996 · `TE.9346.0` 3,00002);
+- **15 subían** de precio al alinear (familia `TE.*`: STEL los remarcó entre marzo y agosto de
+  2026 y React tenía el valor viejo). Contrastado con ventas: `TE.9361` se vendió a 2226 y
+  `TE.HEAVY.75` a 3198, exactamente el catálogo nuevo de STEL;
+- **2** con otro ratio: `SP.VPEM5/100` (4,07; se vendió a 37,42 = el precio de STEL) y
+  **`TE.9323`** (1,51), el único donde la última venta registrada (534,20) no se explica ni por
+  el catálogo de STEL (191,10) ni por el de React (288,86). Se alineó igual, porque la regla
+  autorizada es explícita —el catálogo de STEL manda y el precio de los documentos no se usa como
+  fuente— pero queda anotado acá por si el negocio quiere revisarlo.
+
+Se evaluó y **se descartó** usar «la última venta» como guardia automática: marca 44 productos, y
+en casi todos la venta fue negociada o simbólica (ratios de 0,004 a 8) mientras el catálogo seguía
+siendo ×3 limpio. Habría bloqueado alineaciones correctas por una señal ruidosa.
+
+### 7.4 Lo que quedó sin alinear (47)
+
+| Clase | Cantidad | Qué es |
+|---|---|---|
+| `HUMAN_REVIEW` | 27 | 25 ítems inactivos o borrados en STEL y 2 cuyo id vinculado ya no se puede leer. **Ninguno tiene precio en React**: no hay nada desalineado, hay que decidir si el producto sigue vivo |
+| `NO_STEL_PRICE` | 19 | STEL no tiene precio de catálogo para ese ítem. Tampoco lo tienen en React |
+| `DATA_CONFLICT` | 1 | `IR.QA1L08C4LD`: la referencia hoy devuelve el ítem STEL 41790901 y el producto está vinculado al 41455829. Es el **único** caso que queda con una diferencia real de precio (React 12300 · STEL 4100) y se deja como está hasta que una persona decida a qué ítem corresponde |
+
+El preflight lee esa clasificación (`scripts/output/e45/verificacion.json`) y la informa aparte en
+`noAlineables` en vez de contarla como desalineada; si el archivo no está, cuenta estricto.
+
+### 7.5 Idempotencia y mantenimiento
+
+Segunda corrida del dry run inmediatamente después: **PRICES_TO_UPDATE = 0**, 718 ya iguales.
+De ahí en más lo mantiene el sync incremental de E4: cuando STEL cambia un precio, la corrida
+diaria lo escribe en «Lista base», el checkpoint avanza y la siguiente no hace nada (probado en
+fixture con 1 sola llamada, sin full scan).
 
 **FX_POLICY = NONE_FOR_INITIAL_CUTOVER.** Las listas tienen moneda obligatoria a nivel de esquema
 (`price_lists.currency_code NOT NULL`) y las 3 son USD. Una cotización en ARS no recibe precios
@@ -281,6 +330,7 @@ Se recalcula en el momento del corte (T4/T7): STEL sigue emitiendo.
 | Suite | Resultado |
 |---|---|
 | `scripts/fase14-e4-sync-cutover-tests.mjs` (nueva) | **TODO PASA** — excepciones, sync, precios, checkpoint/candado, autoridad por serie, delta, ensayo de corte, funciones puras, limpieza |
+| `scripts/fase14-e45-precios-tests.mjs` (nueva) | **TODO PASA** — clasificación, escritura acotada a la lista por defecto, sync incremental de precio con checkpoint, y cotización → pedido con el precio alineado |
 | `scripts/fase14-e3-cutover-readiness-tests.mjs` | TODO PASA |
 | `scripts/fase14-stel-e2-tests.mjs` | ALL PASS |
 | `scripts/fase14-stel-api-reconcile-fixture-tests.mjs` | ALL PASS |
@@ -309,7 +359,7 @@ clave de API.
 | RECONCILIATION_MISMATCHES | 0 |
 | PRODUCT_SYNC_OK | ✔ (última corrida `finished`, checkpoint 2026-09-15 18:20) |
 | PRICE_MAPPING_DEFINED | ✔ |
-| **PRICE_SYNC_OK** | ✘ **666 productos desalineados** (§ 7) |
+| **PRICE_SYNC_OK** | ✔ 0 desalineados, 0 sin precio; 47 no alineables con motivo (§ 7.4) |
 | RTML_POLICY_OK | ✔ (sin secuencia RT-ML) · fila de autoridad de serie: pendiente para el corte |
 | SEQUENCE_PLAN_SAFE | ✔ (ningún próximo propuesto está ocupado y ninguna secuencia baja) |
 | SEQUENCE_COLLISIONS | 2 — esperado: PDV y RT todavía emitirían un número usado; lo arregla T7 |
@@ -319,7 +369,8 @@ clave de API.
 | CUTOVER_REHEARSAL | ✔ PASS (13/13) |
 | ROLLBACK_DOCUMENTED | ✔ (§ 15) |
 
-**FINAL: NOT_READY** — falta sólo `PRICE_SYNC_OK`.
+**FINAL: READY.** READY significa que no queda nada técnico por resolver, **no** que haya que
+cortar: el corte se ejecuta con el checklist del § 14 y con autorización explícita.
 
 ## 14. CHECKLIST DEL FREEZE (ejecutable, no ejecutado)
 
@@ -401,8 +452,9 @@ Rollback de las migraciones de E4: al pie de
 
 ## 18. Lo que queda
 
-1. **Alineación de precios** (666 productos ×3): decisión de negocio, mecanismo listo (§ 7).
-2. **Mapeo de las tarifas por cliente**: decisión de negocio (§ 6).
+1. **Mapeo de las tarifas por cliente**: decisión de negocio (§ 6). La alineación de precios de
+   catálogo ya se hizo (§ 7).
+2. `TE.9323` e `IR.QA1L08C4LD`: dos precios que conviene que mire una persona (§ 7.3 y § 7.4).
 3. SP.2007VPM/80: conflicto interno de STEL, necesita que una persona diga cuál es el largo real.
 4. Productos nuevos de STEL que todavía no están en React (11 en la última ventana): crear con
    `--crear-nuevos` antes del corte, o quedan sin poder cotizarse.
@@ -411,4 +463,5 @@ Rollback de las migraciones de E4: al pie de
 7. Cron del sync: los scripts existen y están medidos, falta agendarlos (§ 4.2).
 8. Flujo de devolución de un remito despachado (sigue pendiente desde E3).
 
-**CUTOVER_READY = NO.**
+**CUTOVER_READY = SÍ, técnicamente** (preflight READY). El corte **no está hecho** y no se hace
+sin autorización explícita: sigue todo como estaba, con STEL numerando.

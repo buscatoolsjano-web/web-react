@@ -239,7 +239,9 @@ describe('apariencia e identidad por módulo (Fase 14)', () => {
     const boton = within(screen.getByRole('banner')).getByRole('button', { name: 'Apariencia' })
     fireEvent.click(boton)
     // El diálogo se carga bajo demanda (lazy).
-    const dialogo = await screen.findByRole('dialog', { name: 'Apariencia' }, { timeout: 5000 })
+    // El diálogo es lazy: con la suite completa en paralelo su carga puede pasar
+    // de 5 s en una máquina cargada, y el test se volvía intermitente.
+    const dialogo = await screen.findByRole('dialog', { name: 'Apariencia' }, { timeout: 15_000 })
     expect(within(dialogo).getByRole('group', { name: 'Tema' })).toBeInTheDocument()
     expect(within(dialogo).getByRole('radio', { name: 'Claro naranja, tema claro (original)' })).toBeChecked()
     fireEvent.click(within(dialogo).getByRole('radio', { name: 'Grafito, tema oscuro' }))

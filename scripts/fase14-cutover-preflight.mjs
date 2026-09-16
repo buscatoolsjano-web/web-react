@@ -172,7 +172,7 @@ async function main() {
   const { data: lista } = await sb.from('price_lists').select('id, name, currency_code').eq('company_id', BT).eq('is_default', true).single()
   let desalineados = null
   if (stel) {
-    const porStel = new Map(stel.productos.map((p) => [String(p.id), Number(p['sales-price'])]))
+    const porStel = new Map(stel.productos.map((p) => [String(p.id), p]))
     const vinculados = react.productos.filter((p) => p.external_source === 'stel')
     const ids = vinculados.map((p) => p.id)
     const precios = new Map()
@@ -180,18 +180,37 @@ async function main() {
       const { data } = await sb.from('product_prices').select('product_id, amount').eq('price_list_id', lista.id).is('valid_to', null).in('product_id', ids.slice(i, i + 200))
       for (const x of data ?? []) precios.set(x.product_id, Number(x.amount))
     }
+    // Un producto cuenta como desalineado sólo si STEL tiene hoy un precio de
+    // catálogo aplicable: si el ítem está inactivo, borrado, sin precio, o lo
+    // clasificó E4.5 como no alineable, se informa aparte con el motivo.
+    const excepciones = new Map()
+    const fExc = path.resolve(arg('--excepciones-precios') ?? 'scripts/output/e45/verificacion.json')
+    if (fs.existsSync(fExc)) {
+      const v = JSON.parse(fs.readFileSync(fExc, 'utf8'))
+      for (const f of v.filas ?? v.casosNoTriple ?? []) {
+        if (['DATA_CONFLICT', 'MULTIPLE_PRICE_SOURCE', 'HUMAN_REVIEW', 'NO_STEL_PRICE'].includes(f.clase)) excepciones.set(f.productId ?? f.product_id, f.clase)
+      }
+    }
     desalineados = 0
     let sinPrecio = 0
+    const noAlineables = { inactivoEnStel: 0, sinPrecioEnStel: 0, clasificadoEnE45: 0 }
     for (const p of vinculados) {
-      const st = porStel.get(p.external_id)
-      if (!Number.isFinite(st) || st <= 0) continue
+      if (excepciones.has(p.id)) { noAlineables.clasificadoEnE45++; continue }
+      const item = porStel.get(p.external_id)
+      const st = item ? Number(item['sales-price']) : NaN
+      if (item && (item.inactive || item.deleted)) { noAlineables.inactivoEnStel++; continue }
+      if (!Number.isFinite(st) || st <= 0) { noAlineables.sinPrecioEnStel++; continue }
       const re = precios.get(p.id)
       if (re === undefined) { sinPrecio++; continue }
       if (Math.abs(re - st) > 0.01) desalineados++
     }
-    out.detalle.precios = { lista: lista.name, moneda: lista.currency_code, vinculados: vinculados.length, desalineados, sinPrecioEnReact: sinPrecio }
+    out.detalle.precios = {
+      lista: lista.name, moneda: lista.currency_code, vinculados: vinculados.length,
+      desalineados, sinPrecioEnReact: sinPrecio, noAlineables,
+      excepcionesDeclaradas: excepciones.size, archivoExcepciones: fs.existsSync(fExc) ? path.relative(process.cwd(), fExc) : null,
+    }
   }
-  out.criterios.PRICE_SYNC_OK = desalineados === 0
+  out.criterios.PRICE_SYNC_OK = desalineados === 0 && (out.detalle.precios?.sinPrecioEnReact ?? 0) === 0
   out.criterios.PRICE_MAPPING_DEFINED = true
 
   // ── RT-ML y autoridad por serie ────────────────────────────────────────────
