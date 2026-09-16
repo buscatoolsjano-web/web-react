@@ -1,5 +1,6 @@
 import type { IconName } from '@/components/icons/Icon'
 import { ROLES_EMAILS } from '@/modules/emails/lib/permisos'
+import { ROLES_WHATSAPP } from '@/modules/whatsapp/lib/permisos'
 import { ROLES_INFORMES } from '@/modules/informes/lib/permisos'
 import { ROLES_CONFIGURACION } from '@/modules/configuracion/lib/permisos'
 
@@ -104,7 +105,7 @@ export const NAVEGACION: GrupoNav[] = [
     label: 'Comunicación',
     entradas: [
       { id: 'emails', label: 'Emails', icon: 'mail', destino: { to: '/emails', label: 'Emails', roles: ROLES_EMAILS } },
-      { id: 'whatsapp', label: 'WhatsApp', icon: 'message-circle', proximamente: true },
+      { id: 'whatsapp', label: 'WhatsApp', icon: 'message-circle', destino: { to: '/whatsapp', label: 'WhatsApp', roles: ROLES_WHATSAPP } },
     ],
   },
   {

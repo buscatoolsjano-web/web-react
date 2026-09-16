@@ -134,7 +134,8 @@ describe('sidebar desktop (≥ 1024)', () => {
     fireEvent.click(compras)
     expect(compras).toHaveAttribute('aria-expanded', 'true')
     expect(within(nav).getByRole('link', { name: 'Facturas' })).toBeVisible()
-    expect(within(nav).getByText('WhatsApp').closest('[aria-disabled]')).toHaveAttribute('aria-disabled', 'true')
+    // Fase 16: WhatsApp dejó de ser «próximamente» y ahora es un enlace real.
+    expect(within(nav).getByRole('link', { name: 'WhatsApp' })).toHaveAttribute('href', '/whatsapp')
   })
 
   it('el rol filtra igual que antes: un vendedor no ve Compras, Mantenimiento, Emails, Informes ni Configuración', () => {

@@ -3,11 +3,15 @@ import { destinosPara, entradaActiva, navegacionPara, NAVEGACION } from './naveg
 import { ROLES_EMAILS } from '@/modules/emails/lib/permisos'
 import { ROLES_INFORMES } from '@/modules/informes/lib/permisos'
 import { ROLES_CONFIGURACION } from '@/modules/configuracion/lib/permisos'
+import { ROLES_WHATSAPP } from '@/modules/whatsapp/lib/permisos'
 
 /**
  * La lista plana de Fase 1 tal como estaba en AppLayout.tsx antes de la
  * Fase 13 (commit 0525de0). La navegación agrupada tiene que ofrecerle a cada
  * rol exactamente estos destinos: el rediseño no cambia permisos.
+ *
+ * Fase 16: se suma /whatsapp, que hasta ahora figuraba como «próximamente».
+ * Es el ÚNICO destino nuevo desde la Fase 1, y entra con sus propios roles.
  */
 const AC = ['admin', 'employee']
 const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
@@ -24,6 +28,7 @@ const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
   { to: '/mantenimiento/activos', roles: AC },
   { to: '/mantenimiento/ordenes', roles: AC },
   { to: '/emails', roles: ROLES_EMAILS },
+  { to: '/whatsapp', roles: ROLES_WHATSAPP },
   { to: '/informes', roles: ROLES_INFORMES },
   { to: '/configuracion', roles: ROLES_CONFIGURACION },
 ]
@@ -47,11 +52,18 @@ describe('navegación agrupada', () => {
     expect(nav.some((g) => g.id === 'analisis')).toBe(false)
   })
 
-  it('WhatsApp sigue como «próximamente» para todos, sin enlace', () => {
-    for (const rol of ['admin', 'salesperson', '']) {
+  it('WhatsApp ya no es «próximamente»: lleva a la bandeja de quien puede usarla', () => {
+    for (const rol of ROLES_WHATSAPP) {
       const w = navegacionPara(rol).flatMap((g) => g.entradas).find((e) => e.id === 'whatsapp')!
-      expect(w.proximamente).toBe(true)
-      expect(w.destino).toBeUndefined()
+      expect(w.proximamente).toBeUndefined()
+      expect(w.destino?.to).toBe('/whatsapp')
+    }
+  })
+
+  it('technician, customer y el sin rol no ven WhatsApp', () => {
+    for (const rol of ['technician', 'customer', 'distributor', '']) {
+      const w = navegacionPara(rol).flatMap((g) => g.entradas).find((e) => e.id === 'whatsapp')
+      expect(w).toBeUndefined()
     }
   })
 

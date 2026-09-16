@@ -5053,13 +5053,16 @@ export type Database = {
           customer_contact_id: string | null
           customer_id: string | null
           id: string
+          last_inbound_at: string | null
           last_message_at: string | null
           last_message_dir: string | null
           last_message_preview: string | null
+          last_outbound_at: string | null
           phone_e164: string | null
           phone_raw: string | null
           profile_name: string | null
           provider_contact_id: string
+          service_window_expires_at: string | null
           updated_at: string
           vinculo_origen: string | null
         }
@@ -5724,12 +5727,68 @@ export type Database = {
           no_leidos: number
         }[]
       }
+      // Fase 16 · la llama la persona desde la Edge Function de envío; valida
+      // al actor adentro, como asignar_conversacion_whatsapp.
+      encolar_mensaje_whatsapp: {
+        Args: {
+          p_conversacion: string
+          p_texto: string
+          p_client_request_id: string
+        }
+        Returns: Database["public"]["Tables"]["whatsapp_messages"]["Row"]
+      }
       // Sólo service_role puede ejecutarlas: el frontend no las llama nunca.
       // Están acá porque PostgREST las publica y el archivo tiene que
       // describir el esquema real, no el que nos gustaría.
       tomar_mensajes_whatsapp: {
         Args: { p_limite?: number | null }
         Returns: Database["public"]["Tables"]["whatsapp_messages"]["Row"][]
+      }
+      registrar_entrante_whatsapp: {
+        Args: {
+          p_phone_number_id: string
+          p_waba_id?: string | null
+          p_wa_id: string
+          p_profile_name?: string | null
+          p_provider_message_id: string
+          p_tipo: string
+          p_texto?: string | null
+          p_caption?: string | null
+          p_reply_to?: string | null
+          p_timestamp?: string | null
+          p_media?: Json | null
+        }
+        Returns: Json
+      }
+      registrar_estado_whatsapp: {
+        Args: {
+          p_phone_number_id: string
+          p_provider_message_id: string
+          p_estado: string
+          p_timestamp?: string | null
+          p_error_code?: number | null
+          p_error_details?: string | null
+        }
+        Returns: Json
+      }
+      sellar_saliente_whatsapp: {
+        Args: {
+          p_mensaje: string
+          p_provider_message_id?: string | null
+          p_error_code?: number | null
+          p_error_details?: string | null
+        }
+        Returns: Database["public"]["Tables"]["whatsapp_messages"]["Row"]
+      }
+      sellar_media_whatsapp: {
+        Args: {
+          p_media: string
+          p_storage_path?: string | null
+          p_size_bytes?: number | null
+          p_mime_type?: string | null
+          p_error_details?: string | null
+        }
+        Returns: undefined
       }
       // ── Emails (fase 9) ──────────────────────────────────────────────
       asignar_hilo_email: {
