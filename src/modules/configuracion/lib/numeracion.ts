@@ -117,3 +117,96 @@ export function alertas(lista: readonly SecuenciaDiagnostico[]): string[] {
   for (const s of atipicos) out.push(`${etiquetaTipo(s.docType)}: ${s.atipicosPorEncima} número(s) atípico(s) del import (p. ej. ${formatearNumero(s, s.maxNumero)}) quedan por encima del próximo y no se tienen en cuenta.`)
   return out
 }
+
+// ── Autoridad por serie (Fase 14 E5) ────────────────────────────────────────
+/**
+ * Excepción de autoridad para UNA serie dentro de un tipo
+ * (`document_numbering_authority_series`). Hoy la usa RT-ML: los remitos los
+ * emite el ERP, salvo los de MercadoLibre, que los sigue emitiendo STEL.
+ */
+export interface AutoridadSerie {
+  docType: string
+  serie: string
+  autoridad: Autoridad
+  motivo: string
+}
+
+export interface FilaAutoridad {
+  docType: string
+  serie: string
+  /** «Remitos MercadoLibre · RT-ML» */
+  etiqueta: string
+  autoridad: Autoridad
+  /** La autoridad viene de una excepción de serie, no del tipo. */
+  porSerie: boolean
+  /** STEL y sin secuencia en el ERP: sólo entra por importación. */
+  soloImportacion: boolean
+  /** Próximo número reservado para emitir desde el ERP, o null si no aplica. */
+  proximo: string | null
+}
+
+/** Series con nombre propio; el resto se nombra por su tipo. */
+const SERIES: Record<string, string> = {
+  'delivery/RT-ML': 'Remitos MercadoLibre',
+}
+
+/**
+ * Qué sistema emite cada serie, combinando las secuencias con las excepciones.
+ * La serie manda sobre el tipo; sin excepción, vale la autoridad del tipo. Una
+ * excepción sin secuencia (RT-ML) igual se muestra: es justamente el caso que
+ * hay que entender.
+ */
+export function filasAutoridad(
+  secuencias: readonly SecuenciaDiagnostico[],
+  series: readonly AutoridadSerie[],
+): FilaAutoridad[] {
+  const porClave = new Map(series.map((s) => [`${s.docType}/${s.serie}`, s]))
+  const nombre = (docType: string, serie: string) => SERIES[`${docType}/${serie}`] ?? etiquetaTipo(docType)
+  const filas: FilaAutoridad[] = []
+
+  // Sólo los tipos que tienen semántica de autoridad: los de Ventas.
+  for (const s of secuencias.filter((x) => ['quote', 'sales_order', 'delivery'].includes(x.docType))) {
+    const excepcion = porClave.get(`${s.docType}/${s.serie}`)
+    const autoridad = excepcion?.autoridad ?? s.autoridad
+    filas.push({
+      docType: s.docType,
+      serie: s.serie,
+      etiqueta: nombre(s.docType, s.serie),
+      autoridad,
+      porSerie: excepcion !== undefined,
+      soloImportacion: autoridad === 'STEL',
+      proximo: autoridad === 'STEL' ? null : s.proximo,
+    })
+  }
+
+  // Excepciones de series que no tienen secuencia en el ERP.
+  const yaEstan = new Set(filas.map((f) => `${f.docType}/${f.serie}`))
+  for (const e of series) {
+    if (yaEstan.has(`${e.docType}/${e.serie}`)) continue
+    filas.push({
+      docType: e.docType,
+      serie: e.serie,
+      etiqueta: nombre(e.docType, e.serie),
+      autoridad: e.autoridad,
+      porSerie: true,
+      soloImportacion: e.autoridad === 'STEL',
+      proximo: null,
+    })
+  }
+
+  return filas.sort((a, b) => a.docType.localeCompare(b.docType) || a.serie.localeCompare(b.serie))
+}
+
+/** Cómo se lee una fila de autoridad. */
+export function presentarFilaAutoridad(f: FilaAutoridad): Presentacion {
+  if (f.autoridad === 'STEL') {
+    return {
+      etiqueta: f.soloImportacion ? 'STEL · Solo importación' : 'STEL',
+      tono: 'alerta',
+      detalle: f.soloImportacion
+        ? 'STEL emite y numera esta serie. El ERP no la emite: sólo la importa para poder consultarla.'
+        : 'STEL emite y numera esta serie.',
+    }
+  }
+  return { etiqueta: 'ERP', tono: 'ok', detalle: 'El ERP emite y numera esta serie con su propia secuencia.' }
+}

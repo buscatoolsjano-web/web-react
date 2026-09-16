@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { diagnosticoNumeracion, estadoSyncStel } from '../services/numeracion'
+import { autoridadPorSerie, diagnosticoNumeracion, estadoSyncStel } from '../services/numeracion'
 import { ErrorEmpresa, actualizarEmpresa, obtenerEmpresa, quitarLogo, subirLogo, urlLogo } from '../services/empresa'
 import type { CampoEditable } from '../lib/empresa'
 
@@ -9,6 +9,7 @@ export const clavesEmpresa = {
   logo: (path: string | null) => ['configuracion', 'logo', path] as const,
   numeracion: (companyId: string | null) => ['configuracion', companyId, 'numeracion'] as const,
   syncStel: (companyId: string | null) => ['configuracion', companyId, 'sync-stel'] as const,
+  autoridadSeries: (companyId: string | null) => ['configuracion', companyId, 'autoridad-series'] as const,
 }
 
 const sinReintentoPorPermiso = (intentos: number, error: Error) =>
@@ -58,6 +59,21 @@ export function useSyncStel() {
   return useQuery({
     queryKey: clavesEmpresa.syncStel(companyId),
     queryFn: () => estadoSyncStel(companyId!),
+    enabled: companyId !== null,
+    staleTime: 60_000,
+    retry: sinReintentoPorPermiso,
+  })
+}
+
+/**
+ * Excepciones de autoridad por serie (Fase 14 E5). Si falla, la pantalla sigue
+ * mostrando la autoridad por tipo: no se rompe por una consulta de más.
+ */
+export function useAutoridadSeries() {
+  const companyId = useEmpresa().activa?.companyId ?? null
+  return useQuery({
+    queryKey: clavesEmpresa.autoridadSeries(companyId),
+    queryFn: () => autoridadPorSerie(companyId!),
     enabled: companyId !== null,
     staleTime: 60_000,
     retry: sinReintentoPorPermiso,

@@ -30,7 +30,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { decidir } from './fase14-e4-gate-excepciones.mjs'
 import { ES_ATIPICO, mayorDeSerie, proximoNumero } from './fase14-cutover-preflight.mjs'
-import { huellaEmpresa } from './lib/stel-reconciliacion.mjs'
+import { leerReactEmpresa } from './fase14-stel-api-auditoria.mjs'
+import { huellaEmpresa, planificarE2 } from './lib/stel-reconciliacion.mjs'
 import { productoDeStel } from './lib/stel-sync.mjs'
 
 const BASE = process.env.VITE_SUPABASE_URL
@@ -378,6 +379,45 @@ async function main() {
   fs.mkdirSync(SALIDA, { recursive: true })
   fs.writeFileSync(path.join(SALIDA, 'ensayo.json'), JSON.stringify(ensayo, null, 1))
   cmp('ENSAYO DE CORTE', 'PASS', ensayo.resultado)
+
+  // ── 7 bis · Protección de los documentos del ERP ───────────────────────────
+  seccion('7 bis · Después del corte: STEL no puede tocar lo que emite el ERP')
+  // El ensayo dejó en C una cotización y un pedido emitidos por el ERP.
+  const propios = ok(await s.from('sales_quotes').select('id, number, imported_at, external_id').eq('company_id', C.E).is('imported_at', null), 'documentos propios')
+  cmp('el ensayo dejó documentos emitidos por el ERP', true, propios.length > 0 && propios.every((d) => d.imported_at === null && d.external_id === null))
+  const propia = propios[0]
+  const runP = ok(await s.rpc('stel_sync_tomar', { p_company: C.E, p_entidad: 'documents', p_owner: 'test-proteccion' }), 'run protección').run
+  // 1 · La reconciliación no puede sobrescribir un documento que no vino de STEL.
+  const pisar = await s.rpc('stel_reconciliar_documento', {
+    p_run: runP,
+    p: { tipo: 'quote', stel_id: '940001', numero: propia.number, estado_stel: 'Pendiente', operacion: 'update', react_id: propia.id, cabecera: { total: { old: null, new: 999 } }, lineas: { insertar: [], actualizar: [], borrar: [] } },
+  })
+  cmp('actualizar un documento del ERP → documento_no_historico', 'OTRO', clase(pisar).startsWith('OTRO') && `${pisar.error?.message}`.includes('documento_no_historico') ? 'OTRO' : clase(pisar))
+  cmp('y su total no cambió', true, Number(ok(await s.from('sales_quotes').select('total').eq('id', propia.id).single(), 'total').total) !== 999)
+  // 2 · Tampoco puede insertar en una serie que ya emite el ERP. El ensayo
+  // terminó con el rollback a STEL, así que para esta prueba se vuelve a ERP.
+  ok(await s.from('document_numbering_authority').update({ authority: 'ERP', reason: 'ZZ E4 7bis: serie del ERP' }).eq('company_id', C.E).eq('doc_type', 'quote'), 'autoridad ERP')
+  const colisionar = await s.rpc('stel_reconciliar_documento', {
+    p_run: runP,
+    p: { tipo: 'quote', stel_id: '940002', numero: 'COTI02557', estado_stel: 'Pendiente', operacion: 'insert', cabecera: { customer_id: C.cli, quote_date: HOY, currency_code: 'USD', subtotal: 1, tax_amount: 0, total: 1, series_code: 'COTI', status: 'sent' }, lineas: { insertar: [], actualizar: [], borrar: [] } },
+  })
+  cmp('insertar de STEL en una serie del ERP → serie_emitida_por_el_erp', 'serie_emitida_por_el_erp', clase(colisionar))
+  await s.rpc('stel_sync_cerrar', { p_run: runP, p_estado: 'finished', p_cursor: null, p_cursor_id: null, p_llamadas: 0, p_resumen: {}, p_error: null })
+  // 3 · El plan los clasifica como del ERP, no como faltantes de STEL.
+  const reactC = await leerReactEmpresa(s, ok(await s.from('companies').select('slug').eq('id', C.E).single(), 'slug').slug)
+  const stelVacio = { leidoEn: new Date().toISOString(), docs: { quote: [], order: [], delivery: [] }, padresExternos: { quote: [], order: [] }, estados: [], clientes: [], productos: [] }
+  const { plan: planC } = planificarE2(stelVacio, reactC, { categoriaRevisionId: C.cat, listaBaseId: C.lista, aprobados: { borrados: [] } })
+  const soloEnReact = planC.info.soloEnReact
+  const numerosPropios = new Set(propios.map((d) => d.number))
+  const clasificadosPropios = soloEnReact.filter((x) => numerosPropios.has(x.numero))
+  cmp('los documentos del ERP se clasifican ERP_ISSUED / POST_CUTOVER', [propios.length, true],
+    [clasificadosPropios.length, clasificadosPropios.every((x) => x.clasificacion === 'ERP_ISSUED / POST_CUTOVER' && x.accion === 'no corresponde a STEL')])
+  cmp('y el plan no propone nada sobre ellos', [0, 0, 0], [planC.documentos.length, planC.pendientesBorrado.length, planC.productos.length])
+  const importada = ok(await s.from('sales_quotes').select('number').eq('company_id', C.E).not('imported_at', 'is', null).limit(1), 'importada')
+  if (importada.length) {
+    const fila = soloEnReact.find((x) => x.numero === importada[0].number)
+    cmp('un importado que STEL ya no tiene sigue siendo otra cosa', 'SOURCE_MISSING / PROBABLE_DELETED_IN_STEL', fila?.clasificacion)
+  }
 
   // ── 8 · Funciones puras ────────────────────────────────────────────────────
   seccion('8 · Funciones puras (preflight y gate)')

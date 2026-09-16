@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import type { SecuenciaDiagnostico } from '../lib/numeracion'
 
-const estado = vi.hoisted(() => ({ movil: false, filas: [] as unknown[], sync: [] as unknown[] }))
+const estado = vi.hoisted(() => ({ movil: false, filas: [] as unknown[], sync: [] as unknown[], series: [] as unknown[], seriesError: false }))
 
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({ activa: { companyId: 'c1', companyName: 'ZZ STEL', rol: 'admin', esInterno: true }, cargando: false }),
@@ -13,6 +13,7 @@ vi.mock('../hooks/useEmpresaConfig', () => ({
   useNumeracion: () => ({ data: estado.filas, isPending: false, isError: false }),
   // Fase 14 E4: el bloque de sync es aparte; acá se prueban las columnas de numeración.
   useSyncStel: () => ({ data: estado.sync, isPending: false, isError: false }),
+  useAutoridadSeries: () => ({ data: estado.seriesError ? undefined : estado.series, isPending: false, isError: estado.seriesError }),
 }))
 
 const { NumeracionPage } = await import('./NumeracionPage')
@@ -40,6 +41,8 @@ beforeEach(() => {
   estado.movil = false
   estado.filas = [sec({}), sec({ docType: 'delivery', serie: 'DEL', prefijo: 'DEL', proximo: 'DEL00005', documentos: 0 })]
   estado.sync = []
+  estado.series = []
+  estado.seriesError = false
 })
 
 describe('Numeración: STEL siempre visible al adaptar columnas', () => {
@@ -99,5 +102,69 @@ describe('Numeración: estado del sync con STEL (Fase 14 E4)', () => {
     render(<NumeracionPage />)
     expect(document.body.textContent?.toLowerCase()).not.toContain('apikey')
     expect(document.body.textContent?.toLowerCase()).not.toContain('stel_api_key')
+  })
+})
+
+describe('Numeración: autoridad de emisión por serie (Fase 14 E5)', () => {
+  const ventas = [
+    sec({ docType: 'quote', serie: 'COTI', prefijo: 'COTI', padding: 5, proximo: 'COTI02630', autoridad: 'ERP', autoridadConfigurada: true }),
+    sec({ docType: 'delivery', serie: 'RT', prefijo: 'RT', padding: 10, proximo: 'RT0000001433', autoridad: 'ERP', autoridadConfigurada: true }),
+  ]
+
+  it('ya no dice que la numeración «queda para el cutover»', () => {
+    estado.filas = ventas
+    render(<NumeracionPage />)
+    expect(screen.queryByText(/queda para el cutover/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/La autoridad define desde qué sistema se emite/)).toBeInTheDocument()
+    expect(screen.getByText(/próximo número reservado para emitir desde el ERP/)).toBeInTheDocument()
+  })
+
+  it('muestra una fila por serie con su autoridad real', () => {
+    estado.filas = ventas
+    render(<NumeracionPage />)
+    const bloque = screen.getByRole('region', { name: 'Autoridad de emisión' })
+    expect(within(bloque).getByText(/Cotizaciones · COTI/)).toBeInTheDocument()
+    expect(within(bloque).getByText(/COTI02630/)).toBeInTheDocument()
+    expect(within(bloque).getAllByText('ERP').length).toBe(2)
+  })
+
+  it('RT-ML se ve como excepción de serie, sin secuencia del ERP y sin alarma', () => {
+    estado.filas = ventas
+    estado.series = [{ docType: 'delivery', serie: 'RT-ML', autoridad: 'STEL', motivo: 'MercadoLibre sigue en STEL' }]
+    render(<NumeracionPage />)
+    const bloque = screen.getByRole('region', { name: 'Autoridad de emisión' })
+    expect(within(bloque).getByText(/Remitos MercadoLibre · RT-ML/)).toBeInTheDocument()
+    expect(within(bloque).getByText('STEL · Solo importación')).toBeInTheDocument()
+    expect(within(bloque).getByText(/Secuencia del ERP: no aplica/)).toBeInTheDocument()
+    // La serie normal sigue siendo del ERP.
+    expect(within(bloque).getByText(/Notas de entrega .remitos. · RT$/)).toBeInTheDocument()
+  })
+
+  it('si la consulta de series falla, quedan las filas por tipo y se avisa', () => {
+    estado.filas = ventas
+    estado.seriesError = true
+    render(<NumeracionPage />)
+    const bloque = screen.getByRole('region', { name: 'Autoridad de emisión' })
+    expect(within(bloque).getAllByText('ERP').length).toBe(2)
+    expect(within(bloque).getByText(/No se pudieron leer las excepciones por serie/)).toBeInTheDocument()
+  })
+
+  it('refleja STEL si la autoridad vuelve a ser de STEL', () => {
+    estado.filas = [sec({ docType: 'quote', serie: 'COTI', prefijo: 'COTI', padding: 5, proximo: 'COTI02630', autoridad: 'STEL', autoridadConfigurada: true })]
+    render(<NumeracionPage />)
+    const bloque = screen.getByRole('region', { name: 'Autoridad de emisión' })
+    expect(within(bloque).getByText('STEL · Solo importación')).toBeInTheDocument()
+    expect(within(bloque).queryByText('ERP')).not.toBeInTheDocument()
+  })
+
+  it('mobile: el bloque sigue visible y sin desbordar', () => {
+    estado.movil = true
+    estado.filas = ventas
+    estado.series = [{ docType: 'delivery', serie: 'RT-ML', autoridad: 'STEL', motivo: 'x' }]
+    render(<NumeracionPage />)
+    const bloque = screen.getByRole('region', { name: 'Autoridad de emisión' })
+    expect(within(bloque).getByText(/Remitos MercadoLibre · RT-ML/)).toBeInTheDocument()
+    // La fila envuelve en vez de ensanchar: el chip baja debajo del texto.
+    expect(bloque.querySelector('li')!.className).toMatch(/filaSync/)
   })
 })

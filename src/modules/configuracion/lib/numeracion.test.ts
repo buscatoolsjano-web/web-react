@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alertas, etiquetaTipo, formatearNumero, normalizarEstado, presentarAutoridad, presentarEmision, presentarEstado, type SecuenciaDiagnostico } from './numeracion'
+import { alertas, etiquetaTipo, filasAutoridad, formatearNumero, normalizarEstado, presentarAutoridad, presentarEmision, presentarEstado, presentarFilaAutoridad, type AutoridadSerie, type SecuenciaDiagnostico } from './numeracion'
 
 const sec = (p: Partial<SecuenciaDiagnostico>): SecuenciaDiagnostico => ({
   docType: 'delivery',
@@ -72,5 +72,64 @@ describe('alertas', () => {
   it('etiquetas de tipo conocidas y desconocidas', () => {
     expect(etiquetaTipo('quote')).toBe('Cotizaciones')
     expect(etiquetaTipo('otro_tipo')).toBe('otro_tipo')
+  })
+})
+
+describe('autoridad por serie (Fase 14 E5)', () => {
+  const ventas = [
+    sec({ docType: 'quote', serie: 'COTI', prefijo: 'COTI', padding: 5, proximo: 'COTI02630', autoridad: 'ERP', autoridadConfigurada: true }),
+    sec({ docType: 'sales_order', serie: 'PDV', prefijo: 'PDV', padding: 5, proximo: 'PDV01319', autoridad: 'ERP', autoridadConfigurada: true }),
+    sec({ docType: 'delivery', serie: 'RT', proximo: 'RT0000001433', autoridad: 'ERP', autoridadConfigurada: true }),
+  ]
+  const rtml: AutoridadSerie = { docType: 'delivery', serie: 'RT-ML', autoridad: 'STEL', motivo: 'MercadoLibre sigue en STEL' }
+
+  it('con todo en ERP muestra una fila por serie con su próximo número', () => {
+    const filas = filasAutoridad(ventas, [])
+    expect(filas.map((f) => [f.serie, f.autoridad, f.proximo])).toEqual([
+      ['RT', 'ERP', 'RT0000001433'],
+      ['COTI', 'ERP', 'COTI02630'],
+      ['PDV', 'ERP', 'PDV01319'],
+    ])
+    expect(filas.every((f) => !f.porSerie && !f.soloImportacion)).toBe(true)
+  })
+
+  it('si el tipo es de STEL, la serie hereda y no ofrece número del ERP', () => {
+    const [fila] = filasAutoridad([sec({ autoridad: 'STEL', autoridadConfigurada: true })], [])
+    expect([fila!.autoridad, fila!.proximo, fila!.porSerie, fila!.soloImportacion]).toEqual(['STEL', null, false, true])
+  })
+
+  it('RT-ML aparece como excepción de serie, sin secuencia del ERP', () => {
+    const filas = filasAutoridad(ventas, [rtml])
+    const ml = filas.find((f) => f.serie === 'RT-ML')!
+    expect([ml.autoridad, ml.porSerie, ml.soloImportacion, ml.proximo]).toEqual(['STEL', true, true, null])
+    expect(ml.etiqueta).toBe('Remitos MercadoLibre')
+    // …y la serie normal de remitos no se contagia.
+    expect(filas.find((f) => f.serie === 'RT')!.autoridad).toBe('ERP')
+  })
+
+  it('una excepción de serie manda sobre la autoridad del tipo, en los dos sentidos', () => {
+    const tipoStel = [sec({ autoridad: 'STEL', autoridadConfigurada: true })]
+    const serieErp: AutoridadSerie = { docType: 'delivery', serie: 'RT', autoridad: 'ERP', motivo: 'la serie RT pasó al ERP' }
+    const [fila] = filasAutoridad(tipoStel, [serieErp])
+    expect([fila!.autoridad, fila!.porSerie, fila!.proximo]).toEqual(['ERP', true, 'RT0000001424'])
+  })
+
+  it('sin excepciones (o si la consulta falla) igual devuelve las filas por tipo', () => {
+    expect(filasAutoridad(ventas, []).length).toBe(3)
+  })
+
+  it('no inventa filas para tipos sin semántica de autoridad', () => {
+    const otros = [sec({ docType: 'customer', serie: 'CLI', prefijo: 'CLI', padding: 5, proximo: 'CLI01225' })]
+    expect(filasAutoridad(otros, [])).toEqual([])
+  })
+
+  it('el texto explica el modo sin tecnicismos', () => {
+    const filas = filasAutoridad(ventas, [rtml])
+    const ml = presentarFilaAutoridad(filas.find((f) => f.serie === 'RT-ML')!)
+    expect(ml.etiqueta).toBe('STEL · Solo importación')
+    expect(ml.tono).toBe('alerta')
+    expect(ml.detalle).toContain('sólo la importa')
+    const rt = presentarFilaAutoridad(filas.find((f) => f.serie === 'RT')!)
+    expect([rt.etiqueta, rt.tono]).toEqual(['ERP', 'ok'])
   })
 })

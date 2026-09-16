@@ -6,8 +6,8 @@ import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
 import type { Column } from '@/components/tables/types'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { cx } from '@/utils/cx'
-import { useNumeracion, useSyncStel } from '../hooks/useEmpresaConfig'
-import { alertas, etiquetaTipo, formatearNumero, presentarAutoridad, presentarEmision, presentarEstado, type SecuenciaDiagnostico } from '../lib/numeracion'
+import { useAutoridadSeries, useNumeracion, useSyncStel } from '../hooks/useEmpresaConfig'
+import { alertas, etiquetaTipo, filasAutoridad, formatearNumero, presentarAutoridad, presentarEmision, presentarEstado, presentarFilaAutoridad, type FilaAutoridad, type SecuenciaDiagnostico } from '../lib/numeracion'
 import { desdeHace, fechaCorta, presentarEstadoSync, ETIQUETA_ENTIDAD, type SyncStel } from '../lib/sync-stel'
 import styles from '../components/Configuracion.module.css'
 
@@ -96,8 +96,10 @@ export function NumeracionPage() {
       <StatusMessage
         tono="pending"
         titulo="Sólo lectura"
-        detalle="No se pueden cambiar prefijos ni próximos números desde acá. Mientras STEL siga emitiendo cotizaciones, pedidos y remitos, alinear la numeración queda para el cutover."
+        detalle="La autoridad define desde qué sistema se emite cada tipo o serie de documento. Las secuencias muestran el próximo número reservado para emitir desde el ERP. Nada de esto se edita acá."
       />
+
+      <AutoridadDeEmision />
 
       {q.isError ? (
         <StatusMessage tono="error" titulo={q.error.message === 'sin_permiso' ? 'Tu rol no tiene acceso a la numeración.' : 'No se pudo leer la numeración.'} />
@@ -151,6 +153,53 @@ export function NumeracionPage() {
         </>
       )}
     </>
+  )
+}
+
+/**
+ * Desde qué sistema se emite cada serie. Sale de la base: la autoridad del tipo
+ * y, si la hay, la excepción de serie. Con RT-ML es la única forma de ver que
+ * los remitos de MercadoLibre siguen siendo de STEL aunque el resto sea del ERP.
+ * Si la consulta de excepciones falla, quedan las filas por tipo.
+ */
+function AutoridadDeEmision() {
+  const secuencias = useNumeracion()
+  const series = useAutoridadSeries()
+  if (secuencias.isPending || secuencias.isError) return null
+  const filas = filasAutoridad(secuencias.data ?? [], series.data ?? [])
+  if (filas.length === 0) return null
+  return (
+    <section className={styles.bloqueSync} aria-labelledby="autoridad-emision">
+      <h2 id="autoridad-emision" className={styles.subtituloSync}>
+        Autoridad de emisión
+      </h2>
+      <ul className={styles.listaSimple}>
+        {filas.map((f) => (
+          <FilaDeAutoridad key={`${f.docType}/${f.serie}`} f={f} />
+        ))}
+      </ul>
+      {series.isError && (
+        <p className={styles.nota}>No se pudieron leer las excepciones por serie: se muestra la autoridad de cada tipo.</p>
+      )}
+    </section>
+  )
+}
+
+function FilaDeAutoridad({ f }: { f: FilaAutoridad }) {
+  const p = presentarFilaAutoridad(f)
+  return (
+    <li className={styles.filaSync}>
+      <span className={styles.persona}>
+        <span className={styles.nombre}>
+          {f.etiqueta} · {f.serie}
+        </span>
+        <span className={styles.email}>
+          {f.proximo === null ? 'Secuencia del ERP: no aplica' : <>Próximo número del ERP: <code className={styles.codigo}>{f.proximo}</code></>}
+          {f.porSerie ? ' · excepción de esta serie' : ''}
+        </span>
+      </span>
+      <Chip p={p} />
+    </li>
   )
 }
 

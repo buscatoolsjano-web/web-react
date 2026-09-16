@@ -233,7 +233,13 @@ async function main() {
   seccion('4 · Autoridad')
   const { data: bt } = await s.from('companies').select('id').eq('slug', 'buscatools').single()
   const aut = (await s.from('document_numbering_authority').select('doc_type, authority').eq('company_id', bt.id).order('doc_type')).data
-  cmp('Buscatools sigue STEL en delivery / quote / sales_order', [['delivery', 'STEL'], ['quote', 'STEL'], ['sales_order', 'STEL']], aut.map((a) => [a.doc_type, a.authority]))
+  // Desde el cutover (2026-09-16) Buscatools emite desde el ERP. La excepción
+  // es la serie RT-ML, que sigue siendo de STEL: si alguien la moviera sin
+  // querer, MercadoLibre pasaría a numerarse dos veces.
+  cmp('Buscatools emite desde el ERP en delivery / quote / sales_order', [['delivery', 'ERP'], ['quote', 'ERP'], ['sales_order', 'ERP']], aut.map((a) => [a.doc_type, a.authority]))
+  const series = (await s.from('document_numbering_authority_series').select('doc_type, series_code, authority').eq('company_id', bt.id).order('series_code')).data
+  cmp('y RT-ML sigue siendo de STEL (import-only)', [['delivery', 'RT-ML', 'STEL']], (series ?? []).map((x) => [x.doc_type, x.series_code, x.authority]))
+  cmp('RT-ML no tiene secuencia en el ERP', 0, (await s.from('document_sequences').select('*', { count: 'exact', head: true }).eq('company_id', bt.id).eq('series_code', 'RT-ML')).count)
   cmp('la fixture ERP ejecutó el workflow futuro (cotización → pedido → remito despachado)', ['accepted', 'confirmed', 'shipped'], [(await s.from('sales_quotes').select('status').eq('id', q.id).single()).data.status, (await s.from('sales_orders').select('commercial_status').eq('id', o.id).single()).data.commercial_status, r1.status])
 
   seccion('5 · Limpieza y datos reales')

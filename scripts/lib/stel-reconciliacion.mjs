@@ -147,7 +147,13 @@ export function planificarE2(stel, react, o = {}) {
   for (const [tipo, conf] of Object.entries(TIPOS)) {
     for (const f of reco.documentos[tipo]) {
       if (f.clase === 'REACT_ONLY') {
-        info.soloEnReact.push({ tipo, numero: f.numero, clasificacion: 'SOURCE_MISSING / PROBABLE_DELETED_IN_STEL', accion: 'se conserva' })
+        // Un documento sin marca de importación lo emitió el ERP después del
+        // cutover: STEL no lo tiene ni tiene por qué tenerlo. No es un faltante
+        // y nunca se toca. Los importados que ya no están en STEL sí son otra
+        // cosa: STEL los borró y acá se conservan a propósito.
+        info.soloEnReact.push(f.react?.importado
+          ? { tipo, numero: f.numero, clasificacion: 'SOURCE_MISSING / PROBABLE_DELETED_IN_STEL', accion: 'se conserva' }
+          : { tipo, numero: f.numero, clasificacion: 'ERP_ISSUED / POST_CUTOVER', accion: 'no corresponde a STEL' })
         continue
       }
       const s = stelDoc[tipo].get(f.stel.id)

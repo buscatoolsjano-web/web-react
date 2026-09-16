@@ -556,7 +556,10 @@ export function reconciliar(stel, react) {
       REACT_COUNT: react.docs[t.tipo].length,
       MATCHED: cuenta((f) => f.clase === 'MATCHED'),
       STEL_ONLY: cuenta((f) => f.clase === 'STEL_ONLY'),
-      REACT_ONLY: cuenta((f) => f.clase === 'REACT_ONLY'),
+      // Después del cutover el ERP emite documentos que STEL no tiene ni va a
+      // tener. No son un faltante: se cuentan aparte y no son mismatch.
+      REACT_ONLY: cuenta((f) => f.clase === 'REACT_ONLY' && f.react?.importado),
+      ERP_ISSUED: cuenta((f) => f.clase === 'REACT_ONLY' && !f.react?.importado),
       HEADER_MISMATCH: cuenta((f) => f.cabecera?.length > 0),
       LINE_MISMATCH: cuenta((f) => f.lineas?.difieren),
       TOTAL_MISMATCH: cuenta((f) => f.totales?.reactVsStel.total === false),

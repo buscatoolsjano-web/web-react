@@ -1,5 +1,5 @@
 import { supabase } from '@/services/supabase/client'
-import { normalizarEstado, type SecuenciaDiagnostico } from '../lib/numeracion'
+import { normalizarEstado, type AutoridadSerie, type SecuenciaDiagnostico } from '../lib/numeracion'
 import type { EntidadSync, EstadoSync, SyncStel } from '../lib/sync-stel'
 
 /**
@@ -46,5 +46,20 @@ export async function estadoSyncStel(companyId: string): Promise<SyncStel[]> {
     error: f.last_error,
     bloqueado: f.locked === true,
     resumen: (f.last_summary ?? {}) as Record<string, unknown>,
+  }))
+}
+
+/**
+ * Excepciones de autoridad por serie. Si la consulta falla, la pantalla se
+ * queda con la autoridad por tipo: es peor no mostrar nada que mostrar de menos.
+ */
+export async function autoridadPorSerie(companyId: string): Promise<AutoridadSerie[]> {
+  const { data, error } = await supabase.rpc('autoridad_numeracion_series', { p_company: companyId })
+  if (error) throw new Error(error.message.includes('sin_permiso') ? 'sin_permiso' : 'desconocido')
+  return (data ?? []).map((f) => ({
+    docType: f.doc_type,
+    serie: f.series_code,
+    autoridad: f.authority === 'STEL' ? 'STEL' : 'ERP',
+    motivo: f.reason,
   }))
 }

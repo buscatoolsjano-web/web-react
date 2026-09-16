@@ -224,9 +224,16 @@ const main = async () => {
   seccion('1 · Configuración de autoridad')
   {
     const { data: reales } = await s.from('document_numbering_authority').select('doc_type, authority, companies!inner(slug)').not('companies.slug', 'like', 'zz-%').order('doc_type')
-    cmp('Buscatools: quote/sales_order/delivery → STEL (y nada más en empresas reales)',
-      [['buscatools', 'delivery', 'STEL'], ['buscatools', 'quote', 'STEL'], ['buscatools', 'sales_order', 'STEL']],
+    // Después del cutover de Fase 14, Buscatools emite desde el ERP. Lo que este
+    // test cuida no es qué valor tiene, sino que sólo Buscatools tenga filas y
+    // que la serie RT-ML siga siendo la única excepción.
+    cmp('Buscatools: quote/sales_order/delivery → ERP (y nada más en empresas reales)',
+      [['buscatools', 'delivery', 'ERP'], ['buscatools', 'quote', 'ERP'], ['buscatools', 'sales_order', 'ERP']],
       (reales ?? []).map((x) => [x.companies.slug, x.doc_type, x.authority]).sort())
+    const { data: seriesReales } = await s.from('document_numbering_authority_series').select('doc_type, series_code, authority, companies!inner(slug)').not('companies.slug', 'like', 'zz-%')
+    cmp('única excepción por serie en empresas reales: RT-ML → STEL',
+      [['buscatools', 'delivery', 'RT-ML', 'STEL']],
+      (seriesReales ?? []).map((x) => [x.companies.slug, x.doc_type, x.series_code, x.authority]).sort())
     const { data: tt } = await s.from('companies').select('id').eq('slug', 'torquetools').single()
     cmp('Torquetools: sin filas (no se asumió autoridad)', 0, await cuenta('document_numbering_authority', (q) => q.eq('company_id', tt.id)))
     const malos = []
