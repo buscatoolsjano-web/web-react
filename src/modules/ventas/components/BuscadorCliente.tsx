@@ -47,10 +47,17 @@ export function BuscadorCliente({ valor, editable, onElegir }: BuscadorClientePr
     staleTime: 5 * 60_000,
   })
 
+  // El buscador está a la vista cuando se puede editar y todavía no hay cliente,
+  // o cuando se tocó «Cambiar». `abierto` solo no alcanzaba: en un documento
+  // nuevo el campo se mostraba pero la consulta quedaba deshabilitada, así que
+  // nunca aparecía ningún cliente. Se vio al emitir la primera cotización desde
+  // el ERP, que hasta el cutover no se podía crear.
+  const buscando = editable && (valor === null || abierto)
+
   const resultados = useQuery({
     queryKey: ['ventas', companyId, 'buscar-cliente', consulta],
     queryFn: () => buscarClientes(companyId!, consulta),
-    enabled: companyId !== null && abierto,
+    enabled: companyId !== null && buscando,
     staleTime: 30_000,
   })
 

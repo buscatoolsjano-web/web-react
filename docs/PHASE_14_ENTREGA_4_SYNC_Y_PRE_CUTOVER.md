@@ -3,9 +3,10 @@
 > Se aplicaron las cuatro excepciones autorizadas (revalidadas contra STEL antes de escribir),
 > se implementó el sync incremental STEL → React, se resolvió el modelo de autoridad por serie
 > (RT vs RT-ML) y quedó el ensayo de corte pasando en una empresa fixture.
-> **No se hizo el corte**: la autoridad sigue en STEL, las secuencias en COTI 2629 / PDV 1316 /
-> RT 1424, y la UI productiva sigue bloqueada. E4.5 alineó además los precios de catálogo.
-> El preflight da **READY**; el cutover **no se hizo** y necesita autorización aparte. 2026-09-16.
+> E4.5 alineó los precios de catálogo y, con autorización explícita, el **cutover se ejecutó el
+> 2026-09-16 02:05 UTC** (§ 13 bis): quote, sales_order y la serie RT pasaron al ERP; RT-ML sigue
+> en STEL. Se emitió la primera cotización del ERP (COTI02629) y ahí se frenó, sin pedido ni
+> remito. 2026-09-16.
 
 ## 0. Resultado
 
@@ -24,9 +25,8 @@
 | Ensayo de corte | no existía | 13 pasos, **PASS** en fixture | **OK** |
 | Preflight | no existía | `scripts/fase14-cutover-preflight.mjs` | **READY** (§ 13) |
 
-**E4.5 cerró el único bloqueante que quedaba** (§ 7): con autorización explícita se alinearon 692
-precios de «Lista base» con el catálogo de STEL. El preflight pasa a **READY** — que no es una
-orden de corte: el corte lo decide una persona y se ejecuta con el checklist del § 14.
+**E4.5 cerró el último bloqueante** (§ 7): se alinearon 692 precios de «Lista base» con el catálogo
+de STEL. Con el preflight en READY y el freeze confirmado, **el corte se ejecutó** (§ 13 bis).
 
 ## 1. Cambios productivos exactos
 
@@ -372,7 +372,99 @@ clave de API.
 **FINAL: READY.** READY significa que no queda nada técnico por resolver, **no** que haya que
 cortar: el corte se ejecuta con el checklist del § 14 y con autorización explícita.
 
-## 14. CHECKLIST DEL FREEZE (ejecutable, no ejecutado)
+## 13 bis. CUTOVER EJECUTADO — 2026-09-16 02:05 UTC
+
+`CUTOVER_RUN_ID = cutover-2026-09-16-a7f3c2e1` (migración `fase14_cutover_buscatools_erp`).
+
+Se ejecutó el corte productivo de Buscatools para **quote**, **sales_order** y la serie normal
+**RT**, con el freeze de STEL confirmado por el usuario. **RT-ML quedó fuera**, en STEL.
+
+### Gate previo (02:02 UTC, lectura fresca de STEL)
+
+| Criterio | Valor |
+|---|---|
+| DELTA_PENDING | 0 (delta final aplicado: 0 documentos nuevos) |
+| RECONCILIATION_MISMATCHES | 0 |
+| PRODUCT_SYNC_OK · PRICE_SYNC_OK | ✔ · ✔ |
+| Stock · Moneda | ✔ 0 reservas, 0 saldos negativos · ✔ 0 documentos sin moneda |
+| Últimos de STEL | COTI02555 · PDV01318 · RT0000001432 |
+
+### Lo que cambió, en una sola transacción
+
+Con verificaciones adentro: si la autoridad ya no era STEL, si había filas de autoridad por serie,
+si las secuencias se habían movido desde el gate o si el próximo número de cualquier serie ya
+existía, la transacción abortaba sin aplicar nada.
+
+| | Antes | Después |
+|---|---|---|
+| authority quote | STEL | **ERP** |
+| authority sales_order | STEL | **ERP** |
+| authority delivery | STEL | **ERP** |
+| authority serie RT-ML | (no existía) | **STEL** (import-only) |
+| secuencia COTI | 2629 | 2629 (ya estaba por encima) |
+| secuencia PDV | 1316 | **1319** |
+| secuencia RT | 1424 | **1433** |
+
+Ninguna secuencia bajó. Hash de stock y de movimientos idéntico antes y después; cantidad de
+documentos idéntica (304 / 170 / 192). Las cuatro filas quedaron en
+`document_numbering_authority_audit` con la misma marca de tiempo: una sola operación.
+
+### Verificación inmediata
+
+- Resolución de autoridad: COTI → ERP · PDV → ERP · RT → ERP · **RT-ML → STEL**.
+- «Nueva cotización» habilitada para el admin y sin el aviso de STEL en pantalla.
+- RT-ML sigue sin secuencia en React y su serie sigue en STEL.
+- Colisiones: 0. Ningún documento ocupa un número desde el próximo de cada serie en adelante.
+- RLS y roles: no se tocó ninguna política. La matriz de roles la cubren las suites de E3 y E4,
+  incluido el ensayo con la autoridad ya en ERP.
+
+### Bug encontrado por el smoke test
+
+Al crear la primera cotización apareció un defecto que hasta ahora **no se podía ver**, porque el
+ERP nunca había podido emitir: en un documento nuevo, `BuscadorCliente` mostraba el campo de
+búsqueda pero dejaba la consulta deshabilitada (`enabled: … && abierto`, y `abierto` sólo se
+encendía con el botón «Cambiar», que únicamente existe cuando ya hay un cliente elegido). Resultado:
+«Ningún cliente activo coincide» para cualquier texto, y ninguna forma de elegir cliente.
+
+Arreglado en el momento: la búsqueda se habilita cuando el campo está a la vista
+(`editable && (valor === null || abierto)`), con cinco casos de regresión en
+`BuscadorCliente.test.tsx`.
+
+### Smoke test productivo
+
+**COTI02629** — Cliente de prueba · 16/09/2026 · USD · serie COTI · borrador.
+
+| Verificación | Resultado |
+|---|---|
+| Número | COTI02629, el que seguía; la secuencia quedó en 2630 |
+| Moneda | USD explícita (el alta no trae moneda por defecto) |
+| Precio | BR.PH1 a **USD 31,16**, que es el precio actual de STEL. El viejo ×3 (93,48) no aparece |
+| Línea | 1 unidad, 0 % de descuento, IVA 21 % |
+| Totales (los calcula el servidor) | subtotal 31,16 · impuestos 6,54 · **total 37,70** |
+| Persistencia | se guardó, se salió del documento y al reabrirlo está igual |
+| En la base | `imported_at`, `external_source` y `legacy_source` en NULL: es un documento propio del ERP, no una importación |
+| Efectos | 1 evento de auditoría, **0 movimientos de stock**, hash de stock sin cambios |
+
+**Se frenó ahí**: no se convirtió a pedido ni se generó remito.
+
+### Monitoreo post-corte (02:31 UTC)
+
+STEL sigue respondiendo y sus últimos números **no se movieron** (COTI02555 · PDV01318 ·
+RT0000001432): no hubo emisión en STEL después del freeze, así que no hay alerta crítica.
+DELTA_PENDING 0 · RECONCILIATION_MISMATCHES 0 · colisiones 0 · sync de catálogo y de documentos en
+`finished` y sin candado · autoridad ERP ×3 · RT-ML STEL.
+
+El preflight ahora descuenta los documentos emitidos por el ERP (los que no tienen `imported_at`)
+al contar faltantes: que COTI02629 no exista en STEL es el corte funcionando, no un desfasaje.
+
+### Pendiente inmediato
+
+La aplicación desplegada en `app.buscatools.com` **todavía corre el build anterior**: la rama
+local no está pusheada. El corte ya está vivo en la base, así que quien entre hoy a la app
+desplegada puede emitir, pero sin los arreglos de E3, E4 y el del buscador de clientes. **Conviene
+desplegar antes de avisarle al equipo que puede empezar a usar el ERP.**
+
+## 14. CHECKLIST DEL FREEZE (ejecutado el 2026-09-16; ver § 13 bis)
 
 Cada paso con responsable y verificación. Nada de esto corrió sobre Buscatools.
 
@@ -463,5 +555,6 @@ Rollback de las migraciones de E4: al pie de
 7. Cron del sync: los scripts existen y están medidos, falta agendarlos (§ 4.2).
 8. Flujo de devolución de un remito despachado (sigue pendiente desde E3).
 
-**CUTOVER_READY = SÍ, técnicamente** (preflight READY). El corte **no está hecho** y no se hace
-sin autorización explícita: sigue todo como estaba, con STEL numerando.
+**CUTOVER_SUCCESS = YES** (2026-09-16 02:05 UTC, § 13 bis). El ERP numera y emite cotizaciones,
+pedidos y remitos de la serie RT; RT-ML sigue siendo de STEL. Falta desplegar la rama para que la
+app publicada tenga los arreglos de E3, E4 y el del buscador de clientes.

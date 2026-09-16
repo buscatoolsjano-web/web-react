@@ -135,9 +135,13 @@ async function main() {
     const reco = reconciliar(stel, react)
     const mismatches = {}
     let total = 0
+    // Después del cutover el ERP emite documentos que STEL no tiene ni va a
+    // tener: eso no es un faltante, es el corte funcionando. Se cuentan aparte.
+    const emitidosPorElErp = Object.fromEntries(tipos.map(([t]) => [t, react.docs[t].filter((d) => !d.imported_at && !d.external_id).length]))
+    out.detalle.emitidosPorElErp = emitidosPorElErp
     for (const [tipo] of tipos) {
       const r = reco.resumen[tipo]
-      const permitidas = (EXCEPCIONES_APROBADAS[tipo]?.REACT_ONLY ?? []).length
+      const permitidas = (EXCEPCIONES_APROBADAS[tipo]?.REACT_ONLY ?? []).length + emitidosPorElErp[tipo]
       const m = {
         STEL_ONLY: r.STEL_ONLY, REACT_ONLY: Math.max(0, r.REACT_ONLY - permitidas),
         HEADER_MISMATCH: r.HEADER_MISMATCH, LINE_MISMATCH: r.LINE_MISMATCH,

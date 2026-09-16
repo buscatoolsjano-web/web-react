@@ -364,9 +364,15 @@ export async function ejecutarPlan(sb, plan, o = {}) {
   }
   if (!plan.stelLeidoEn) throw new Error('el plan no dice cuándo se leyó STEL')
 
-  const r = await sb.rpc('stel_reconciliacion_iniciar', { p_company: plan.empresa, p_plan_hash: hash, p_stel_read_at: plan.stelLeidoEn })
-  if (r.error) throw new Error(`iniciar: ${r.error.message}`)
-  const run = r.data
+  // `o.run`: la corrida ya está abierta y la cierra quien la abrió (el sync de
+  // documentos). Sólo puede haber una por empresa a la vez.
+  const propia = !o.run
+  let run = o.run ?? null
+  if (propia) {
+    const r = await sb.rpc('stel_reconciliacion_iniciar', { p_company: plan.empresa, p_plan_hash: hash, p_stel_read_at: plan.stelLeidoEn })
+    if (r.error) throw new Error(`iniciar: ${r.error.message}`)
+    run = r.data
+  }
   o.alIniciar?.(run, hash)
   const fallidos = new Map()
   const hechos = { run, productos: 0, clientes: 0, documentos: 0, cambios: 0, fallidos: [], salteados: [] }
@@ -423,9 +429,9 @@ export async function ejecutarPlan(sb, plan, o = {}) {
         hechos.cambios += x.data.cambios
       }
     }
-    await sb.rpc('stel_reconciliacion_cerrar', { p_run: run, p_estado: hechos.fallidos.length ? 'failed' : 'finished', p_resumen: { cambios: hechos.cambios, documentos: hechos.documentos, productos: hechos.productos, clientes: hechos.clientes, fallidos: hechos.fallidos.length, salteados: hechos.salteados.length } })
+    if (propia) await sb.rpc('stel_reconciliacion_cerrar', { p_run: run, p_estado: hechos.fallidos.length ? 'failed' : 'finished', p_resumen: { cambios: hechos.cambios, documentos: hechos.documentos, productos: hechos.productos, clientes: hechos.clientes, fallidos: hechos.fallidos.length, salteados: hechos.salteados.length } })
   } catch (e) {
-    await sb.rpc('stel_reconciliacion_cerrar', { p_run: run, p_estado: 'failed', p_resumen: { error: String(e.message).slice(0, 200) } })
+    if (propia) await sb.rpc('stel_reconciliacion_cerrar', { p_run: run, p_estado: 'failed', p_resumen: { error: String(e.message).slice(0, 200) } })
     throw e
   }
   return hechos

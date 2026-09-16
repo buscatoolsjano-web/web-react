@@ -222,7 +222,9 @@ export async function sincronizarDocumentos(sb, c, o) {
     if (plan.productos.length || plan.clientes?.length) {
       throw new Error(`el delta necesita ${plan.productos.length} producto(s) y ${plan.clientes?.length ?? 0} cliente(s): corre la reconciliación manual`)
     }
-    const hechos = await ejecutarPlan(sb, plan, { autorizacion: { planHash: hashPlan(plan), confirmado: true }, log })
+    // La corrida ya está abierta por `stel_sync_tomar`: se reusa (sólo puede
+    // haber una por empresa) y la cierra `cerrar` más abajo.
+    const hechos = await ejecutarPlan(sb, plan, { run, autorizacion: { planHash: hashPlan(plan), confirmado: true }, log })
     resumen.cambios = hechos.cambios
     resumen.errores = hechos.fallidos
     await cerrar(sb, run, hechos.fallidos.length ? 'failed' : 'finished', hechos.fallidos.length ? null : new Date().toISOString(), null, c.llamadas(), resumen)
