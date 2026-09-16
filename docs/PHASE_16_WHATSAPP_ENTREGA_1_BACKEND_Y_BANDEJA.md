@@ -356,6 +356,16 @@ Probado en el navegador a 1440, 1024, 768 y 390 con un fixture zz: **cero scroll
 
 ### Secretos — los carga Jano, nunca por chat
 
+> **Por qué no los cargó el asistente.** Se intentó. El CLI de Supabase está
+> instalado pero **sin sesión** (`supabase login` es interactivo y no hay
+> `SUPABASE_ACCESS_TOKEN` en el entorno), y el canal MCP del proyecto expone
+> desplegar y listar funciones pero **no tiene ninguna herramienta de
+> secretos**. Así que no hay forma de cargarlos sin que el valor pase por el
+> asistente, que es justamente lo que no queremos.
+>
+> Los tres comandos de abajo los corre Jano en su máquina, después de
+> `supabase login`.
+
 ```bash
 supabase secrets set META_WHATSAPP_ACCESS_TOKEN --project-ref uaxcfufvapzulqvynanp
 ```
@@ -388,9 +398,22 @@ También se pueden cargar en **Dashboard → Project Settings → Edge Functions
 `META_WHATSAPP_PHONE_NUMBER_ID` no hace falta como secreto: la cuenta sale de la base. Se puede
 cargar `META_GRAPH_VERSION` para fijar otra versión de Graph; por defecto es `v23.0`.
 
-### Desplegar las funciones
+### Desplegar las funciones — HECHO en E1.5 (2026-09-16)
 
-**No se desplegaron desde acá**: el pedido era implementar, probar y dejar commit local.
+Las dos están **ACTIVE**, versión 1:
+
+| función | `verify_jwt` | por qué |
+|---|---|---|
+| `whatsapp-webhook` | **false** | La llama Meta, que no tiene JWT. La protege la firma |
+| `whatsapp-send-message` | **true** | La llama una persona desde la aplicación |
+
+**URL del webhook, la que va en el panel de Meta:**
+
+```
+https://uaxcfufvapzulqvynanp.supabase.co/functions/v1/whatsapp-webhook
+```
+
+Para volver a desplegar desde una máquina con el CLI autenticado:
 
 ```bash
 supabase functions deploy whatsapp-webhook --no-verify-jwt --project-ref uaxcfufvapzulqvynanp
@@ -400,7 +423,24 @@ supabase functions deploy whatsapp-webhook --no-verify-jwt --project-ref uaxcfuf
 supabase functions deploy whatsapp-send-message --project-ref uaxcfufvapzulqvynanp
 ```
 
-`--no-verify-jwt` **sólo** en el webhook: lo llama Meta. La otra sí valida JWT.
+`--no-verify-jwt` **sólo** en el webhook.
+
+#### Fail-closed verificado contra la función desplegada
+
+Sin ningún secreto cargado, medido contra la URL productiva:
+
+| prueba | resultado |
+|---|---|
+| `GET` con `hub.mode=subscribe` y cualquier verify token | **403 Forbidden** |
+| `POST` sin `X-Hub-Signature-256` | **403** |
+| `POST` con firma bien formada, calculada con otro secreto | **403** |
+| `DELETE` | 405 |
+| `whatsapp-send-message` sin `Authorization` | 401 |
+| `whatsapp-send-message` con un JWT inválido | 401 |
+
+Después de las seis pruebas, las seis tablas siguen en **0 filas** —incluida
+`whatsapp_webhook_events`—: un POST rechazado no parsea, no guarda y no procesa.
+**La ausencia de secretos no habilita ningún modo permisivo; la cierra entera.**
 
 ### Pasos manuales en Meta — los hace Jano
 
