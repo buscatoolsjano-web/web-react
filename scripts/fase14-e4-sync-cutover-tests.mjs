@@ -355,6 +355,12 @@ async function main() {
   const oC = ok(await cAdmin.from('sales_orders').insert({ company_id: C.E, number: ok(await numeroC('sales_order'), 'número pedido'), series_code: 'PDV', customer_id: C.cli, quote_id: qC.id, origin: 'quote', order_date: HOY, currency_code: 'USD', commercial_status: 'confirmed' }).select('id').single(), 'pedido')
   ok(await cAdmin.from('sales_order_lines').insert({ company_id: C.E, order_id: oC.id, line_no: 1, line_type: 'item', product_id: prodC, sku_snapshot: 'ZZE4-CORTE', quantity_ordered: 2, unit_price: 50, discount_pct: 0, tax_treatment: 'vat_21', tax_rate_snapshot: 21 }), 'línea pedido')
   paso(7, 'pedido generado desde la cotización', true)
+  // Una segunda conversión de la misma cotización no puede existir. En
+  // producción no se prueba: el número se pide antes de insertar, así que un
+  // intento quemaría uno. Acá, en la fixture, se verifica el índice único.
+  const segundoPedido = await cAdmin.from('sales_orders').insert({ company_id: C.E, number: ok(await numeroC('sales_order'), 'número segundo pedido'), series_code: 'PDV', customer_id: C.cli, quote_id: qC.id, origin: 'quote', order_date: HOY, currency_code: 'USD', commercial_status: 'draft' }).select('id')
+  paso(7.1, 'una segunda conversión de la misma cotización se rechaza', `${segundoPedido.error?.message ?? ''}`.includes('uq_sales_orders_quote') || segundoPedido.error?.code === '23505', clase(segundoPedido))
+  cmp('y la cotización sigue con un solo pedido', 1, (await s.from('sales_orders').select('*', { count: 'exact', head: true }).eq('quote_id', qC.id)).count)
   const dC = ok(await cAdmin.from('deliveries').insert({ company_id: C.E, number: ok(await numeroC('delivery'), 'número remito'), series_code: 'RT', customer_id: C.cli, order_id: oC.id, delivery_date: HOY, currency_code: 'USD', status: 'draft' }).select('id, number').single(), 'remito')
   ok(await cAdmin.from('delivery_lines').insert({ company_id: C.E, delivery_id: dC.id, product_id: prodC, warehouse_id: C.W, sku_snapshot: 'ZZE4-CORTE', name_snapshot: 'ZZ E4 corte', quantity: 2, unit_price: 50, discount_pct: 0, tax_treatment: 'vat_21', tax_rate_snapshot: 21 }), 'línea remito')
   paso(8, 'remito creado en borrador', dC.number === 'RT0000000001', dC.number)
@@ -402,6 +408,25 @@ async function main() {
     p: { tipo: 'quote', stel_id: '940002', numero: 'COTI02557', estado_stel: 'Pendiente', operacion: 'insert', cabecera: { customer_id: C.cli, quote_date: HOY, currency_code: 'USD', subtotal: 1, tax_amount: 0, total: 1, series_code: 'COTI', status: 'sent' }, lineas: { insertar: [], actualizar: [], borrar: [] } },
   })
   cmp('insertar de STEL en una serie del ERP → serie_emitida_por_el_erp', 'serie_emitida_por_el_erp', clase(colisionar))
+  // …y con aprobación explícita por documento sí entra: es el caso de absorber
+  // algo que STEL emitió antes de respetar el freeze. Queda anotado y no
+  // consume la secuencia del ERP.
+  const seqAntes = num(ok(await s.from('document_sequences').select('next_number').eq('company_id', C.E).eq('doc_type', 'quote').single(), 'secuencia antes').next_number)
+  const absorber = await s.rpc('stel_reconciliar_documento', {
+    p_run: runP,
+    p: { tipo: 'quote', stel_id: '940003', numero: 'COTI02558', estado_stel: 'Pendiente', operacion: 'insert', aprobar_serie_del_erp: true, cabecera: { customer_id: C.cli, quote_date: HOY, currency_code: 'USD', subtotal: 1, tax_amount: 0, total: 1, series_code: 'COTI', status: 'sent' }, lineas: { insertar: [], actualizar: [], borrar: [] } },
+  })
+  cmp('con aprobar_serie_del_erp sí se absorbe', 'OK', clase(absorber))
+  const absorbida = ok(await s.from('sales_quotes').select('id, imported_at, external_id').eq('company_id', C.E).eq('number', 'COTI02558').single(), 'absorbida')
+  cmp('entra como histórico importado de STEL', [true, '940003'], [absorbida.imported_at !== null, absorbida.external_id])
+  cmp('y no consumió la secuencia del ERP', seqAntes, num(ok(await s.from('document_sequences').select('next_number').eq('company_id', C.E).eq('doc_type', 'quote').single(), 'secuencia después').next_number))
+  cmp('la absorción queda anotada como excepción', 1, (await s.from('stel_reconciliation_log').select('*', { count: 'exact', head: true }).eq('run_id', runP).eq('action', 'note').eq('entity_id', absorbida.id)).count)
+  // Un número que ya existe sigue rechazándose aunque venga aprobado.
+  const numeroRepetido = await s.rpc('stel_reconciliar_documento', {
+    p_run: runP,
+    p: { tipo: 'quote', stel_id: '940004', numero: 'COTI02558', estado_stel: 'Pendiente', operacion: 'insert', aprobar_serie_del_erp: true, cabecera: { customer_id: C.cli, quote_date: HOY, currency_code: 'USD', subtotal: 1, tax_amount: 0, total: 1, series_code: 'COTI', status: 'sent' }, lineas: { insertar: [], actualizar: [], borrar: [] } },
+  })
+  cmp('absorber un número que ya existe se rechaza igual', true, `${numeroRepetido.error?.message}`.includes('documento_ya_existe'))
   await s.rpc('stel_sync_cerrar', { p_run: runP, p_estado: 'finished', p_cursor: null, p_cursor_id: null, p_llamadas: 0, p_resumen: {}, p_error: null })
   // 3 · El plan los clasifica como del ERP, no como faltantes de STEL.
   const reactC = await leerReactEmpresa(s, ok(await s.from('companies').select('slug').eq('id', C.E).single(), 'slug').slug)

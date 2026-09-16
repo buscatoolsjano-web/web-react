@@ -66,6 +66,9 @@ export function planificarE2(stel, react, o = {}) {
   const aprobados = new Set(o.aprobados?.borrados ?? [])
   const vinculosAprobados = new Set((o.aprobados?.vinculosProducto ?? []).map(String))
   const regresivosAprobados = new Set(o.aprobados?.estadosRegresivos ?? [])
+  // Documentos que STEL emitió en una serie que ya pasó al ERP y que se decidió
+  // absorber. Sin esta lista la base los rechaza (serie_emitida_por_el_erp).
+  const absorcionAprobada = new Set(o.aprobados?.seriesDelErp ?? [])
   const itemPorId = new Map(stel.productos.map((p) => [p.id, p]))
   const prodPorExterno = new Map(react.productos.filter((p) => p.external_source === 'stel').map((p) => [p.external_id, p]))
   const prodPorSku = new Map()
@@ -203,7 +206,13 @@ export function planificarE2(stel, react, o = {}) {
           ...(tipo === 'order' ? { commercial_status: estado, fulfillment_status: hijos === 0 ? 'pending' : normTexto(f.stel.estado) === 'cerrado' ? 'delivered' : 'partially_delivered' } : {}),
         }
         if (padre) cabecera[padre.campo] = padre.react_id ?? { depende: padre.numero }
-        documentos.push({ tipo, numero: f.numero, stel_id: String(s.id), estado_stel: f.stel.estado, operacion: 'insert', cabecera, lineas: { insertar: lineas, actualizar: [], borrar: [] }, auditoria: auditoria(f), depende: padre ? [`${padre.tipo}:${padre.numero}`] : [] })
+        documentos.push({
+          tipo, numero: f.numero, stel_id: String(s.id), estado_stel: f.stel.estado, operacion: 'insert', cabecera,
+          lineas: { insertar: lineas, actualizar: [], borrar: [] }, auditoria: auditoria(f),
+          depende: padre ? [`${padre.tipo}:${padre.numero}`] : [],
+          ...(absorcionAprobada.has(f.numero) ? { aprobar_serie_del_erp: true } : {}),
+        })
+        if (absorcionAprobada.has(f.numero)) excepciones.push({ tipo, numero: f.numero, motivo: 'ABSORCION_POST_CUTOVER_APROBADA' })
         continue
       }
 
@@ -415,6 +424,7 @@ export async function ejecutarPlan(sb, plan, o = {}) {
         const payload = { tipo: d.tipo, stel_id: d.stel_id, numero: d.numero, estado_stel: d.estado_stel, operacion: d.operacion, cabecera: structuredClone(d.cabecera), lineas: d.lineas, auditoria: d.auditoria }
         if (d.react_id) payload.react_id = d.react_id
         if (d.aprobar_estado_regresivo) payload.aprobar_estado_regresivo = true
+        if (d.aprobar_serie_del_erp) payload.aprobar_serie_del_erp = true
         // Padre insertado en este mismo run: ahora sí tiene uuid.
         for (const [campo, v] of Object.entries(payload.cabecera)) {
           const nuevo = d.operacion === 'insert' ? v : v?.new
