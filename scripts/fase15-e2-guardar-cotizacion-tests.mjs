@@ -326,12 +326,26 @@ async function main() {
   // Doble submit del mismo snapshot: el segundo es un conflicto, no un duplicado.
   q = await leer(q.id)
   ls = await lineas(q.id)
+  const eventos6 = async () =>
+    (await s.from('sales_audit').select('*', { count: 'exact', head: true }).eq('entity_id', q.id)).count
+  const eventosAntes = await eventos6()
+  const arranque = Date.now()
   const dobles = await Promise.all([
     guardar(admin.c, q, { title: 'ZZ doble' }, ls.map(deLaBase)),
     guardar(admin.c, q, { title: 'ZZ doble' }, ls.map(deLaBase)),
   ])
+  const tardanza = Date.now() - arranque
   cmp('doble submit: exactamente uno entra', 1, dobles.filter((x) => !x.error).length)
+  rechaza('el que pierde recibe CONFLICTO_DE_EDICION', dobles.find((x) => x.error) ?? {}, 'CONFLICTO_DE_EDICION')
+  // El conflicto tiene que volver enseguida. Con `errcode = '40001'` PostgREST
+  // lo tomaba por transitorio y reintentaba 125 segundos hasta el timeout del
+  // gateway; con el P0001 por defecto contesta 400 al instante. El umbral es
+  // generoso a propósito: no mide performance, detecta el reintento.
+  if (tardanza < 10_000) PASS('el conflicto vuelve sin reintento largo', `${tardanza} ms`)
+  else FAIL('el conflicto vuelve sin reintento largo', `tardó ${tardanza} ms`)
   cmp('y no se duplicaron líneas', ls.length, (await lineas(q.id)).length)
+  cmp('el documento quedó con lo del ganador', 'ZZ doble', (await leer(q.id)).title)
+  cmp('la auditoría sumó UN solo evento', eventosAntes + 1, await eventos6())
 
   // ── 7 · Estado y roles ───────────────────────────────────────────────────
   seccion('7 · Estado y roles')
