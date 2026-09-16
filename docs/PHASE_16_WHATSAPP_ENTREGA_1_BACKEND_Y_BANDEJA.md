@@ -84,8 +84,12 @@ destinatario: manda `conversation_id` y texto, y el resto se resuelve del lado d
 
 **El WABA no está hardcodeado en ninguna parte del código.** El webhook lo lee de `entry[].id` y
 lo persiste tal como llegó; lo que decide si un evento nos corresponde es
-`value.metadata.phone_number_id` contra `whatsapp_accounts`, no una constante. El valor
-`27996680623359463`, que apareció en la consola con alcance de app, no figura en el repositorio.
+`value.metadata.phone_number_id` contra `whatsapp_accounts`, no una constante.
+
+El valor `27996680623359463`, que apareció en la consola con alcance de app, **no se usa como
+canónico en ningún lado**. Aparece exactamente una vez en el repositorio, en
+`webhook.test.ts`, como caso negativo: el test manda un evento con ESE WABA y verifica que el
+webhook lo lea del evento en vez de suponer el otro.
 
 ---
 
