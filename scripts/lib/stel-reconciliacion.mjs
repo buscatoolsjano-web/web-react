@@ -218,6 +218,18 @@ export function planificarE2(stel, react, o = {}) {
 
       // MATCHED
       const r = reactDoc[tipo].get(f.react.id)
+      // Mismo número en los dos sistemas, pero el de React no vino de una
+      // importación: son documentos distintos que comparten número. Eso no se
+      // reconcilia —vincularlos daría por buena la colisión—: se bloquea para
+      // que una persona decida. Pasó con PDV01320 el 2026-09-16.
+      if (!r.imported_at && !r.external_id) {
+        bloqueados.push({
+          tipo, numero: f.numero, motivo: 'COLISION_NUMERO_ERP_VS_STEL',
+          stel: { id: String(s.id), total: num(s['total-amount']), creado: s['creation-date'] },
+          react: { id: r.id, total: num(r.total), emitidoPorElErp: true },
+        })
+        continue
+      }
       const cab = {}
       const poner = (campo, viejo, nuevo) => { cab[campo] = { old: viejo, new: nuevo } }
       if (r.external_source !== 'stel' || r.external_id !== String(s.id)) {

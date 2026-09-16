@@ -438,6 +438,23 @@ async function main() {
   cmp('los documentos del ERP se clasifican ERP_ISSUED / POST_CUTOVER', [propios.length, true],
     [clasificadosPropios.length, clasificadosPropios.every((x) => x.clasificacion === 'ERP_ISSUED / POST_CUTOVER' && x.accion === 'no corresponde a STEL')])
   cmp('y el plan no propone nada sobre ellos', [0, 0, 0], [planC.documentos.length, planC.pendientesBorrado.length, planC.productos.length])
+  // 4 · Mismo número en los dos sistemas pero documentos distintos: colisión.
+  // Pasó de verdad con PDV01320 el 2026-09-16. El plan tiene que bloquearla, no
+  // "vincular" el documento del ERP al de STEL como si fueran el mismo.
+  const propiaNum = propia.number
+  const stelColision = {
+    leidoEn: new Date().toISOString(),
+    docs: {
+      quote: [{ id: 990001, 'full-reference': propiaNum, date: HOY, 'creation-date': HOY, 'utc-last-modification-date': HOY, 'account-id': 1, 'document-state-id': 1, 'currency-code': 'USD', 'subtotal-amount': 100, 'tax-total-amount': 21, 'total-amount': 121, 'discount-percentage': 0, 'primary-tax-enabled': true, lines: [] }],
+      order: [], delivery: [],
+    },
+    padresExternos: { quote: [], order: [] }, estados: [{ id: 1, name: 'Pendiente' }], clientes: [], productos: [],
+  }
+  const { plan: planCol } = planificarE2(stelColision, reactC, { categoriaRevisionId: C.cat, listaBaseId: C.lista, aprobados: { borrados: [] } })
+  const colision = planCol.bloqueados.find((b) => b.motivo === 'COLISION_NUMERO_ERP_VS_STEL')
+  cmp('un número compartido con un documento del ERP se bloquea', [true, propiaNum, true], [Boolean(colision), colision?.numero, colision?.react?.emitidoPorElErp])
+  cmp('y el plan no propone tocar ese documento', 0, planCol.documentos.filter((d) => d.numero === propiaNum).length)
+
   const importada = ok(await s.from('sales_quotes').select('number').eq('company_id', C.E).not('imported_at', 'is', null).limit(1), 'importada')
   if (importada.length) {
     const fila = soloEnReact.find((x) => x.numero === importada[0].number)
