@@ -220,7 +220,7 @@ function columnasDetalle(tipo: TipoDocumento): string {
   // global, percepción y validez; la entrega no tiene forma de pago.
   const propios =
     tipo === 'cotizacion'
-      ? ', payment_terms, valid_until, discount_pct, perception_pct'
+      ? ', payment_terms, valid_until, discount_pct, perception_pct, price_list_id'
       : tipo === 'pedido'
         ? ', payment_terms'
         : ''
@@ -233,6 +233,7 @@ function columnasDetalle(tipo: TipoDocumento): string {
     title, currency_code, exchange_rate, subtotal, tax_amount, total,
     ${c.campoEstado}${segundo}${propios}, needs_review, review_reason, number_outlier,
     series_code, imported_at, external_source, created_at, updated_at, notes,
+    contact_id, salesperson_id,
     customers!customer_id ( id, legal_name, trade_name ),
     contacto:customer_contacts!contact_id ( full_name, role, email, phone ),
     creador:profiles!created_by ( full_name )${vendedor}${origen}
@@ -333,6 +334,9 @@ export async function obtenerDocumento(
     clienteId: f.customers?.id ?? null,
     clienteNombre: nombreCliente(f.customers),
     contactoNombre: f.contacto?.full_name ?? null,
+    contactoId: (f['contact_id'] as string | null) ?? null,
+    vendedorId: (f['salesperson_id'] as string | null) ?? null,
+    listaPrecioId: (f['price_list_id'] as string | null) ?? null,
     contactoRol: f.contacto?.role ?? null,
     contactoEmail: f.contacto?.email ?? null,
     contactoTelefono: f.contacto?.phone ?? null,

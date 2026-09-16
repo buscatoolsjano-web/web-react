@@ -99,7 +99,7 @@ export async function listarEventos(
     action: string
     from_status: string | null
     to_status: string | null
-    diff: Record<string, { from: unknown; to: unknown }> | null
+    diff: Record<string, unknown> | null
     created_at: string
     actor: { full_name: string | null } | null
   }

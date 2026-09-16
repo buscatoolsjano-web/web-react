@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { DocumentoDetalle, LineaDocumento, Relacionados } from '../types'
@@ -21,7 +21,22 @@ const estado = vi.hoisted((): {
   doc: unknown
   relacionados: unknown
   eventos: unknown[]
-} => ({ rol: 'admin', stel: {}, doc: null, relacionados: null, eventos: [] }))
+  contactos: unknown[]
+  tarifas: unknown[]
+  vendedores: unknown[]
+} => ({ rol: 'admin', stel: {}, doc: null, relacionados: null, eventos: [], contactos: [], tarifas: [], vendedores: [] }))
+const espias = vi.hoisted(() => ({
+  // Tipado con la firma real: sin eso `mock.calls[0]` es una tupla vacía y no
+  // se puede afirmar nada sobre los argumentos.
+  guardar: vi.fn(
+    (
+      _quoteId: string,
+      _esperado: string,
+      _cabecera: Record<string, string | number | null>,
+      _lineas: Record<string, unknown>[],
+    ) => Promise.resolve({ actualizadoEn: 'x', cambiosCabecera: 1, lineasTocadas: 0 }),
+  ),
+}))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
 vi.mock('@/features/empresa/useEmpresa', () => ({
@@ -36,6 +51,16 @@ vi.mock('../hooks/useDocumentos', () => ({
   useDocumento: () => ({ data: estado.doc, isPending: false, error: null }),
   useRelacionados: () => ({ data: estado.relacionados, isPending: false }),
   useTrazabilidad: () => ({ data: estado.eventos, isPending: false, error: null }),
+  // Fase 15 E2: las opciones del editor.
+  useContactos: () => ({ data: estado.contactos, isPending: false }),
+  useTarifas: () => ({ data: estado.tarifas, isPending: false }),
+  useVendedores: () => ({ data: estado.vendedores, isPending: false }),
+}))
+// El guardado es el único camino de escritura; se espía para probar que NO se
+// llama hasta apretar «Guardar cambios».
+vi.mock('../services/cotizaciones', async (real) => ({
+  ...(await real<Record<string, unknown>>()),
+  guardarCotizacion: espias.guardar,
 }))
 vi.mock('../services/adjuntos', () => ({
   listarAdjuntos: () => Promise.resolve([]),
@@ -74,6 +99,9 @@ const cotizacion = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle => ({
   clienteId: 'c9',
   clienteNombre: 'Consulta MercadoLibre',
   contactoNombre: null,
+  contactoId: null,
+  vendedorId: null,
+  listaPrecioId: null,
   contactoRol: null,
   contactoEmail: null,
   contactoTelefono: null,
@@ -130,6 +158,10 @@ beforeEach(() => {
   estado.doc = cotizacion()
   estado.relacionados = sinRelacionados
   estado.eventos = []
+  estado.contactos = []
+  estado.tarifas = []
+  estado.vendedores = []
+  espias.guardar.mockClear()
 })
 
 describe('Cotización · shell documental', () => {
@@ -230,14 +262,79 @@ describe('Cotización · acciones', () => {
     expect(screen.getByRole('button', { name: 'Ver / Imprimir' })).toBeInTheDocument()
   })
 
-  it('editar sigue guardando al salir del campo, y la pantalla no promete un Descartar que no existe', () => {
+  it('Editar abre el modo edición con Guardar y Descartar, y nada más', () => {
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
 
-    expect(screen.getByText(/Los cambios se guardan solos al salir de cada campo/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Descartar/ })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Guardar cambios' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Terminar edición' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
+    // Las acciones incompatibles con un borrador a medias no se ofrecen.
+    for (const nombre of ['Generar pedido', 'Marcar aceptada', 'Duplicar', 'Ver / Imprimir', 'Eliminar']) {
+      expect(screen.queryByRole('button', { name: nombre })).toBeNull()
+    }
+  })
+
+  it('sin cambios, Guardar está apagado', () => {
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+    expect(screen.getByText(/Sin cambios todavía/)).toBeInTheDocument()
+  })
+
+  it('NO se escribe nada hasta apretar Guardar', () => {
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
+
+    const titulo = screen.getByLabelText(/Título/)
+    fireEvent.change(titulo, { target: { value: 'ZZ nuevo título' } })
+
+    // El corazón de E2: se editó, y la base no se tocó.
+    expect(espias.guardar).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled()
+    expect(screen.getByText(/Hay cambios sin guardar/)).toBeInTheDocument()
+  })
+
+  it('Guardar manda UNA sola llamada, con el testigo de concurrencia', async () => {
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
+    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ nuevo título' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    // La mutación es asíncrona: la llamada llega después del clic.
+    await waitFor(() => expect(espias.guardar).toHaveBeenCalledTimes(1))
+    const [quoteId, esperado, cabecera] = espias.guardar.mock.calls[0]!
+    expect(quoteId).toBe('q1')
+    expect(esperado).toBe('2026-09-16T12:30:00.000Z')
+    expect(cabecera).toEqual({ title: 'ZZ nuevo título' })
+  })
+
+  it('Descartar con cambios pide confirmación y no escribe', () => {
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
+    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ otro' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar' }))
+
+    expect(screen.getByRole('alertdialog', { name: 'Hay cambios sin guardar' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar cambios' }))
+
+    expect(espias.guardar).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument()
+  })
+
+  it('cambiar de pestaña NO descarta el borrador', () => {
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
+    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ sobrevive' } })
+
+    fireEvent.click(screen.getByRole('tab', { name: /Líneas/ }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
+
+    expect(screen.getByLabelText(/Título/)).toHaveValue('ZZ sobrevive')
+    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled()
   })
 })
 

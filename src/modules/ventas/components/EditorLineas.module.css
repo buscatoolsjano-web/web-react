@@ -171,3 +171,142 @@
   text-align: center;
   color: var(--text-soft);
 }
+
+/* ── Fase 15 · E2 ───────────────────────────────────────────────────────── */
+
+/* La descripción comercial: una caja que crece, no un input de una línea. */
+.descripcion {
+  width: 100%;
+  min-width: 10rem;
+  padding: var(--space-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  resize: vertical;
+}
+
+.descripcion:hover {
+  border-color: var(--border);
+}
+
+.descripcion:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -1px;
+  background: var(--surface);
+}
+
+.descripcion[readonly] {
+  background: transparent;
+  cursor: default;
+}
+
+/* Tarjetas por debajo de 900px.
+
+   El `min-width: 46rem` de la tabla existía para que las columnas no bailaran
+   mientras se escribe, pero en un teléfono obligaba a scrollear de costado
+   para llegar al precio — la deuda que documentó la E0. Acá la tabla deja de
+   ser tabla y cada línea pasa a ser una tarjeta con sus rótulos.
+
+   El corte es 900 y no 767 como el resto del sistema: son diez columnas, y a
+   768 «Producto» quedaba en una palabra por renglón. */
+@media (max-width: 899px) {
+  .scroll {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+  .tabla {
+    min-width: 0;
+  }
+  .tabla thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .tabla,
+  .tabla tbody,
+  .tabla tr,
+  .tabla td {
+    display: block;
+  }
+  .tabla tbody {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .tabla tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .tabla td {
+    display: grid;
+    gap: 2px;
+    padding: 0;
+    border: 0;
+  }
+  /* El rótulo de cada campo, que en la tabla lo daba el encabezado. */
+  .tabla td::before {
+    content: attr(data-label);
+    color: var(--text-soft);
+    font-size: var(--text-xs);
+  }
+  .tabla td.num {
+    display: none;
+  }
+  .celdaProducto,
+  .celdaDescripcion,
+  .celdaSku,
+  .celdaCapitulo,
+  .acciones {
+    grid-column: 1 / -1;
+  }
+  .celdaProducto { order: 1; }
+  .celdaSku { order: 2; }
+  .celdaDescripcion { order: 3; }
+  .celdaCantidad { order: 4; }
+  .celdaPrecio { order: 5; }
+  .celdaDto { order: 6; }
+  .celdaImpuesto { order: 7; }
+  .celdaSubtotal {
+    order: 8;
+    grid-column: 1 / -1;
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border);
+    font-weight: 600;
+  }
+  .acciones {
+    order: 9;
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+  .acciones::before {
+    content: none;
+  }
+  /* En la tarjeta los controles llenan el ancho y llegan al objetivo táctil. */
+  .texto,
+  .sku,
+  .numero,
+  .select,
+  .descripcion {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+    border-color: var(--border);
+  }
+  .numero {
+    text-align: left;
+  }
+  .vacio {
+    grid-column: 1 / -1;
+  }
+}

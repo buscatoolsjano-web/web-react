@@ -5709,6 +5709,18 @@ export type Database = {
           total_count: number
         }[]
       }
+      // Fase 15 · E2. Guarda cabecera, lineas y auditoria de una cotizacion en
+      // una transaccion. SECURITY DEFINER: valida al actor, el estado, la
+      // concurrencia y cada campo adentro.
+      guardar_cotizacion: {
+        Args: {
+          p_quote: string
+          p_esperado: string
+          p_cabecera: Json
+          p_lineas: Json
+        }
+        Returns: Json
+      }
       asignar_conversacion_whatsapp: {
         Args: {
           p_conversacion: string

@@ -116,6 +116,11 @@ export interface DocumentoDetalle {
   clienteId: string | null
   clienteNombre: string
   contactoNombre: string | null
+  /** Los ids que necesita el editor para preseleccionar en los desplegables. */
+  contactoId: string | null
+  vendedorId: string | null
+  /** Sólo cotizaciones: con qué lista de precios se cotizó. */
+  listaPrecioId: string | null
   /** Cargo, correo y teléfono del contacto, cuando el contacto existe. */
   contactoRol: string | null
   contactoEmail: string | null

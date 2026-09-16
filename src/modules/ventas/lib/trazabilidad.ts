@@ -15,7 +15,11 @@ export interface EventoAuditoria {
   accion: string
   desde: string | null
   hasta: string | null
-  diff: Record<string, { from: unknown; to: unknown }> | null
+  /**
+   * Los campos que cambiaron. Cada clave trae un `{ from, to }`, salvo
+   * `lineas`, que desde la Fase 15 · E2 es una lista de cambios de línea.
+   */
+  diff: Record<string, unknown> | null
   /** Nombre de quien lo hizo; `null` cuando lo escribió un proceso. */
   actor: string | null
   /** `timestamptz` tal como vuelve de la base. */
@@ -40,13 +44,43 @@ const TITULO: Record<string, string> = {
   cancelled: 'Cancelado',
 }
 
-/** Los campos que audita `esSensible`, con el nombre que usa la gente. */
+/** Los campos auditados, con el nombre que usa la gente. */
 const CAMPO: Record<string, string> = {
   unit_price: 'Precio unitario',
   quantity: 'Cantidad',
   quantity_ordered: 'Cantidad pedida',
   discount_pct: 'Descuento',
   perception_pct: 'Percepción',
+  // Fase 15 · E2: los de la cabecera que ahora se editan.
+  title: 'Título',
+  customer_id: 'Cliente',
+  contact_id: 'Contacto',
+  salesperson_id: 'Vendedor',
+  price_list_id: 'Tarifa',
+  payment_terms: 'Forma de pago',
+  currency_code: 'Moneda',
+  quote_date: 'Fecha',
+  valid_until: 'Válida hasta',
+  exchange_rate: 'Tipo de cambio',
+  notes: 'Observaciones',
+  description_snapshot: 'Descripción',
+  tax_treatment: 'Impuesto',
+}
+
+/**
+ * Los campos que guardan una referencia.
+ *
+ * De estos NO se muestra el valor: es un uuid, y un uuid en pantalla no le
+ * dice nada a nadie. Se cuenta qué pasó —se asignó, se cambió, se quitó— que
+ * es la información que hay.
+ */
+const REFERENCIAS = new Set(['customer_id', 'contact_id', 'salesperson_id', 'price_list_id'])
+
+function cambioDeReferencia(campo: string, from: unknown, to: unknown): string {
+  const nombre = nombreDeCampo(campo)
+  if (from === null || from === undefined) return `${nombre}: se asignó`
+  if (to === null || to === undefined) return `${nombre}: se quitó`
+  return `${nombre}: cambió`
 }
 
 /** Un campo que todavía no tiene nombre propio se muestra legible, nunca crudo. */
@@ -80,6 +114,36 @@ export function formatearMomento(iso: string): string {
   }).format(d)
 }
 
+/** Un cambio de línea, tal como lo guarda `guardar_cotizacion`. */
+interface CambioDeLinea {
+  accion?: string
+  linea?: number
+  producto?: string
+  cantidad?: number
+  precio?: number
+  cambios?: Record<string, { from: unknown; to: unknown }>
+}
+
+/**
+ * Una línea agregada, modificada o eliminada, en una sola frase.
+ *
+ * El número de línea y el SKU alcanzan para encontrarla; el uuid no aporta
+ * nada a quien lee el historial.
+ */
+function textoDeLinea(l: CambioDeLinea): string {
+  const donde = `Línea ${l.linea ?? '?'}${l.producto ? ` (${l.producto})` : ''}`
+  if (l.accion === 'agregada') {
+    return `${donde}: agregada, ${valor(l.cantidad)} × ${valor(l.precio)}`
+  }
+  if (l.accion === 'eliminada') {
+    return `${donde}: eliminada (era ${valor(l.cantidad)} × ${valor(l.precio)})`
+  }
+  const partes = Object.entries(l.cambios ?? {}).map(
+    ([k, c]) => `${nombreDeCampo(k).toLowerCase()} ${valor(c.from)} → ${valor(c.to)}`,
+  )
+  return partes.length > 0 ? `${donde}: ${partes.join(', ')}` : `${donde}: modificada`
+}
+
 export function presentarEvento(e: EventoAuditoria, tipo: TipoDocumento): EventoPresentable {
   const detalle: string[] = []
 
@@ -92,8 +156,19 @@ export function presentarEvento(e: EventoAuditoria, tipo: TipoDocumento): Evento
     else if (hasta) detalle.push(`Estado: ${hasta}`)
   }
 
-  for (const [clave, cambio] of Object.entries(e.diff ?? {})) {
-    if (!cambio || typeof cambio !== 'object') continue
+  for (const [clave, crudo] of Object.entries(e.diff ?? {})) {
+    // Los cambios de líneas vienen aparte, como lista (Fase 15 · E2).
+    if (clave === 'lineas' && Array.isArray(crudo)) {
+      for (const l of crudo as CambioDeLinea[]) detalle.push(textoDeLinea(l))
+      continue
+    }
+    // Cualquier otra forma sería el payload crudo: no se muestra.
+    if (!crudo || typeof crudo !== 'object' || Array.isArray(crudo)) continue
+    const cambio = crudo as { from: unknown; to: unknown }
+    if (REFERENCIAS.has(clave)) {
+      detalle.push(cambioDeReferencia(clave, cambio.from, cambio.to))
+      continue
+    }
     detalle.push(`${nombreDeCampo(clave)}: ${valor(cambio.from)} → ${valor(cambio.to)}`)
   }
 

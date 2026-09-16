@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { listarClientes } from '../services/clientes'
 import { listarEventos, type EntidadAuditable } from '../services/auditoria'
+import { contactosDeCliente, tarifasDeEmpresa, vendedoresDeEmpresa } from '../services/opciones'
 import { listarDocumentos, monedasUsadas, obtenerDocumento } from '../services/documentos'
 import { documentosRelacionados, evidenciaDeEntrega } from '../services/relacionados'
 import { disponibilidadDeProductos } from '../services/stock'
@@ -155,5 +156,52 @@ export function useTrazabilidad(tipo: TipoDocumento, id: string | undefined, hab
     queryFn: () => listarEventos(companyId!, ENTIDAD_DE[tipo], id!),
     enabled: companyId !== null && !!id && habilitado,
     staleTime: 30_000,
+  })
+}
+
+// ── Opciones del editor (Fase 15 · E2) ─────────────────────────────────────
+
+/**
+ * Los contactos del cliente elegido.
+ *
+ * Se piden cuando hay cliente y nada más. Sin `customerId` no se consulta:
+ * traer los 87 contactos de la empresa para filtrar tres en el navegador es
+ * exactamente el patrón que dejó al sistema anterior sin ancho de banda.
+ */
+export function useContactos(customerId: string | null) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery({
+    queryKey: ['ventas', companyId, 'contactos', customerId],
+    queryFn: () => contactosDeCliente(companyId!, customerId!),
+    enabled: companyId !== null && !!customerId,
+    staleTime: 5 * 60_000,
+  })
+}
+
+/** Las listas de precios de la empresa. Son pocas y cambian poco. */
+export function useTarifas(habilitado = true) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery({
+    queryKey: ['ventas', companyId, 'tarifas'],
+    queryFn: () => tarifasDeEmpresa(companyId!),
+    enabled: companyId !== null && habilitado,
+    staleTime: 10 * 60_000,
+  })
+}
+
+/** A quién se le puede asignar la venta. */
+export function useVendedores(habilitado = true) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery({
+    queryKey: ['ventas', companyId, 'vendedores'],
+    queryFn: () => vendedoresDeEmpresa(companyId!),
+    enabled: companyId !== null && habilitado,
+    staleTime: 10 * 60_000,
   })
 }

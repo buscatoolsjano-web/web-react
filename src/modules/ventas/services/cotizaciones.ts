@@ -1,5 +1,5 @@
 import { supabase } from '@/services/supabase/client'
-import type { TablesUpdate } from '@/types/database.types'
+import type { Json, TablesUpdate } from '@/types/database.types'
 import { registrarEvento, type Editabilidad } from './auditoria'
 import type { LineaDocumento } from '../types'
 import { exigirMoneda } from '../lib/moneda'
@@ -217,4 +217,89 @@ export function editabilidad(estado: string, esInterno: boolean): Editabilidad {
 /** Las líneas del editor, ordenadas y con su identidad propia. */
 export function ordenarLineas(lineas: readonly LineaDocumento[]): LineaDocumento[] {
   return [...lineas].sort((a, b) => (a.numeroLinea ?? 0) - (b.numeroLinea ?? 0))
+}
+
+// ── Guardado atómico (Fase 15 · E2) ────────────────────────────────────────
+
+/** Los códigos que puede levantar `guardar_cotizacion`, con su texto. */
+export const MOTIVOS_GUARDADO: Record<string, string> = {
+  CONFLICTO_DE_EDICION:
+    'Alguien más guardó esta cotización mientras la editabas. Recargá para ver los cambios; lo tuyo no se perdió.',
+  ESTADO_NO_EDITABLE: 'La cotización ya está cerrada y no se puede modificar.',
+  SIN_PERMISO: 'Tu rol no edita cotizaciones.',
+  COTIZACION_INEXISTENTE: 'La cotización ya no existe.',
+  CLIENTE_INVALIDO: 'El cliente elegido no es válido.',
+  CONTACTO_DE_OTRO_CLIENTE: 'El contacto elegido es de otro cliente.',
+  VENDEDOR_INVALIDO: 'El vendedor elegido no es de esta empresa.',
+  TARIFA_INVALIDA: 'La tarifa elegida no es de esta empresa.',
+  TARIFA_OTRA_MONEDA: 'La tarifa está en otra moneda que el documento. Elegí una compatible o cambiá la moneda.',
+  PRODUCTO_INVALIDO: 'Una de las líneas tiene un producto que no es del catálogo de esta empresa.',
+  CANTIDAD_INVALIDA: 'Una línea tiene cantidad cero.',
+  DESCUENTO_INVALIDO: 'Un descuento está fuera del rango 0–100 %.',
+  PRECIO_INVALIDO: 'Un precio es negativo.',
+  LINEA_AJENA: 'Una de las líneas no pertenece a esta cotización.',
+  CAMPO_NO_PERMITIDO: 'Se intentó guardar un campo que no se puede editar.',
+}
+
+export class FalloDeGuardado extends Error {
+  constructor(
+    readonly codigo: string,
+    mensaje: string,
+  ) {
+    super(mensaje)
+    this.name = 'FalloDeGuardado'
+  }
+  /** Un conflicto se resuelve recargando, no reintentando. */
+  get esConflicto(): boolean {
+    return this.codigo === 'CONFLICTO_DE_EDICION'
+  }
+}
+
+export interface ResultadoGuardado {
+  /** El nuevo testigo de concurrencia: se guarda para la próxima edición. */
+  actualizadoEn: string
+  cambiosCabecera: number
+  lineasTocadas: number
+}
+
+/**
+ * Guarda cabecera y líneas de una cotización en UNA transacción.
+ *
+ * Es el único camino de escritura del editor. El navegador no arma updates
+ * sueltos: manda el estado deseado y el servidor decide qué cambió, valida
+ * todo y escribe o no escribe nada.
+ *
+ * `esperado` es el `updated_at` que se leyó al entrar en edición. Si alguien
+ * guardó en el medio, la base corta con `CONFLICTO_DE_EDICION` en vez de
+ * pisarlo.
+ */
+export async function guardarCotizacion(
+  quoteId: string,
+  esperado: string,
+  cabecera: Record<string, string | number | null>,
+  lineas: Record<string, unknown>[],
+): Promise<ResultadoGuardado> {
+  const { data, error } = await supabase.rpc('guardar_cotizacion', {
+    p_quote: quoteId,
+    p_esperado: esperado,
+    // Los dos viajan como `jsonb`. El tipo generado es `Json`, que no acepta
+    // un `Record<string, unknown>` directo; el contenido lo valida la base.
+    p_cabecera: cabecera as unknown as Json,
+    p_lineas: lineas as unknown as Json,
+  })
+
+  if (error) {
+    const codigo = Object.keys(MOTIVOS_GUARDADO).find((c) => error.message.includes(c))
+    throw new FalloDeGuardado(
+      codigo ?? 'error_interno',
+      codigo ? MOTIVOS_GUARDADO[codigo]! : 'No se pudo guardar la cotización.',
+    )
+  }
+
+  const r = (data ?? {}) as { updated_at?: string; cambios_cabecera?: number; lineas_tocadas?: number }
+  return {
+    actualizadoEn: r.updated_at ?? '',
+    cambiosCabecera: r.cambios_cabecera ?? 0,
+    lineasTocadas: r.lineas_tocadas ?? 0,
+  }
 }

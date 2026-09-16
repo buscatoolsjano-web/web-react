@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -8,6 +8,7 @@ import { Icon } from '@/components/icons/Icon'
 import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
 import { ActionBar } from '@/components/document/ActionBar'
 import { DocumentHeader } from '@/components/document/DocumentHeader'
 import { DocumentTabs } from '@/components/document/DocumentTabs'
@@ -20,8 +21,8 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { useAccionesDocumento } from '../components/AccionesDocumento'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
-import { CabeceraCotizacion, type CampoCabecera, type ValoresCabecera } from '../components/CabeceraCotizacion'
 import { ChipEstado } from '../components/ChipEstado'
+import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { InformacionDocumento } from '../components/InformacionDocumento'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
@@ -30,84 +31,78 @@ import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TablaLineas } from '../components/TablaLineas'
 import { TotalesDocumento } from '../components/TotalesDocumento'
+import {
+  agregarLinea,
+  aPayload,
+  cambiarCampo,
+  cambiarCliente,
+  cambiarLinea as cambiarLineaBorrador,
+  cambiarMoneda,
+  comoLineasDocumento,
+  crearBorrador,
+  hayCambios,
+  moverLinea,
+  quitarLinea,
+  type Borrador,
+  type CampoCabecera,
+} from '../lib/borrador'
 import { mensajeErrorVentas, motivoBloqueo, type DocTypeVentas } from '../lib/autoridad'
 import { escribeVentas } from '../lib/permisos'
 import { presentarEstado } from '../lib/estados'
 import { formatearFecha, formatearImporte } from '../lib/formato'
-import { lineaCapitulo, lineaDeProducto, lineaLibre } from '../lib/lineaNueva'
 import { presentarOrigen } from '../lib/origen'
 import { tasaDe } from '../lib/tratamientos'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
-import { useDocumento, useRelacionados } from '../hooks/useDocumentos'
-import { esSensible, registrarEvento } from '../services/auditoria'
 import {
-  actualizarCabecera,
-  actualizarLinea,
-  agregarLinea,
+  useContactos,
+  useDocumento,
+  useRelacionados,
+  useTarifas,
+  useVendedores,
+} from '../hooks/useDocumentos'
+import {
+  FalloDeGuardado,
   cambiarEstado,
   editabilidad,
-  eliminarLinea,
-  intercambiarOrden,
+  guardarCotizacion,
   ordenarLineas,
-  type LineaNueva,
 } from '../services/cotizaciones'
 import { convertirCotizacionEnPedido } from '../services/pedidos'
-import type { DocumentoDetalle, LineaDocumento } from '../types'
+import type { DocumentoDetalle } from '../types'
 import editor from './EditorCotizacion.module.css'
-
-/** Los campos de la cabecera que se guardan, y con qué columna. */
-const COLUMNA: Record<CampoCabecera, string> = {
-  customerId: 'customer_id',
-  titulo: 'title',
-  fecha: 'quote_date',
-  validaHasta: 'valid_until',
-  moneda: 'currency_code',
-  tipoCambio: 'exchange_rate',
-  formaPago: 'payment_terms',
-  descuentoPct: 'discount_pct',
-  percepcionPct: 'perception_pct',
-  notas: 'notes',
-}
-
-const TEXTO: CampoCabecera[] = ['titulo', 'formaPago', 'notas']
-const NUMERO: CampoCabecera[] = ['tipoCambio', 'descuentoPct', 'percepcionPct']
-
-const texto = (n: number | null) => (n === null ? '' : String(n))
-
-function aValores(d: DocumentoDetalle): ValoresCabecera {
-  return {
-    customerId: d.clienteId ?? '',
-    titulo: d.titulo ?? '',
-    fecha: d.fecha.slice(0, 10),
-    validaHasta: d.validaHasta?.slice(0, 10) ?? '',
-    moneda: d.moneda ?? '',
-    tipoCambio: texto(d.tipoCambio),
-    formaPago: d.formaPago ?? '',
-    descuentoPct: texto(d.descuentoPct),
-    percepcionPct: texto(d.percepcionPct),
-    notas: d.notas ?? '',
-  }
-}
 
 /** Las pestañas del documento. Líneas primero: es lo que se mira siempre. */
 const PESTANAS = ['lineas', 'informacion', 'adjuntos', 'relacionados', 'trazabilidad'] as const
 type Pestana = (typeof PESTANAS)[number]
 
+/** El campo del editor de líneas → el campo del borrador. */
+const CAMPO_BORRADOR = {
+  sku_snapshot: 'sku',
+  name_snapshot: 'nombre',
+  description_snapshot: 'descripcion',
+  quantity: 'cantidad',
+  unit_price: 'precioUnitario',
+  discount_pct: 'descuentoPct',
+  tax_treatment: 'tratamientoImpuesto',
+  tax_rate_snapshot: 'tasaImpuesto',
+} as const
+
 /**
  * Detalle y edición de una cotización.
  *
- * Fase 15 E1 · la pantalla pasa a tener la forma común de los tres
- * documentos: identidad arriba, acciones a la vista debajo, y el contenido
- * repartido en pestañas con Líneas como la primera. Lo que antes era un scroll
- * de seis secciones apiladas ahora abre mostrando lo único que se mira siempre.
+ * Fase 15 · E2 · **la edición ya no escribe al vuelo**. Al entrar en Editar se
+ * toma un snapshot; todo lo que se toca vive en un borrador en memoria, y
+ * recién «Guardar cambios» lo manda —cabecera, líneas y auditoría— en UNA
+ * transacción. «Descartar» no hace ni un pedido de escritura: suelta el
+ * borrador y vuelve lo del servidor.
  *
- * Lo que NO cambió, a propósito: cada cambio se sigue guardando solo, en
- * cuanto el control pierde el foco y sólo si el valor cambió. No hay Guardar
- * ni Descartar porque **todavía no hay transacción que descartar** — eso es la
- * E2. Mientras tanto la pantalla lo dice en vez de prometerlo.
+ * Eso es lo que hace honesto el «Descartar» que la E1 no podía ofrecer, y lo
+ * que permite registrar el valor ANTERIOR de cada cambio: antes se perdía
+ * porque el valor viejo ya estaba pisado cuando se quería auditar.
  *
- * Los totales que se ven vuelven siempre del servidor: los calcula un trigger,
- * no el navegador.
+ * Los totales que se ven vuelven siempre del servidor. Mientras se edita se
+ * muestra una previsualización con la misma fórmula, y al guardar manda el
+ * servidor.
  */
 export function CotizacionDetallePage() {
   const { id } = useParams<{ id: string }>()
@@ -117,9 +112,17 @@ export function CotizacionDetallePage() {
   const { data: doc, isPending, error } = useDocumento('cotizacion', id)
   const relacionados = useRelacionados('cotizacion', id)
 
-  const [modoEdicion, setModoEdicion] = useState(false)
+  // `original` es el snapshot con el que se entró; `borrador` es lo que se
+  // está editando. Los dos en `null` significa modo lectura.
+  const [original, setOriginal] = useState<Borrador | null>(null)
+  const [borrador, setBorrador] = useState<Borrador | null>(null)
   const [buscando, setBuscando] = useState(false)
   const [ultimoError, setUltimoError] = useState<string | null>(null)
+  const [conflicto, setConflicto] = useState(false)
+  const [avisoContacto, setAvisoContacto] = useState(false)
+  const [avisoTarifa, setAvisoTarifa] = useState(false)
+  const [confirmarSalida, setConfirmarSalida] = useState(false)
+  const [guardado, setGuardado] = useState(false)
   const [pestana, setPestana] = useTabDeUrl<Pestana>(PESTANAS, 'lineas')
   const idPestanas = useId()
 
@@ -133,7 +136,8 @@ export function CotizacionDetallePage() {
   const stelCotizacion = autoridad.stel('quote')
   const stelPedido = autoridad.stel('sales_order')
   const permiso = editabilidad(doc?.estado ?? '', escribe)
-  const editando = modoEdicion && permiso.editable
+  const editando = borrador !== null
+  const sucio = borrador !== null && original !== null && hayCambios(borrador, original)
 
   // Un solo texto de autoridad por pantalla: el del banner. Los botones
   // bloqueados lo referencian en vez de repetirlo debajo de la barra.
@@ -141,11 +145,25 @@ export function CotizacionDetallePage() {
   const hayBanner = esInterno && (stelCotizacion || stelPedido)
   const describePorBloqueo = hayBanner ? idMotivo : undefined
 
+  // Las opciones de los desplegables se piden sólo al entrar en edición.
+  const tarifas = useTarifas(editando)
+  const vendedores = useVendedores(editando)
+  const contactos = useContactos(editando ? borrador.cabecera.customerId || null : null)
+
+  // Cerrar la pestaña con cambios sin guardar avisa. Sólo si hay cambios: un
+  // `beforeunload` permanente es ruido que la gente aprende a ignorar.
+  useEffect(() => {
+    if (!sucio) return
+    const avisar = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener('beforeunload', avisar)
+    return () => window.removeEventListener('beforeunload', avisar)
+  }, [sucio])
+
   const refrescar = () =>
     queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId, 'cotizacion'] })
 
-  const guardar = useMutation({
-    mutationFn: async (fn: () => Promise<void>) => fn(),
+  const transicion = useMutation({
+    mutationFn: ({ hasta }: { hasta: string }) => cambiarEstado(doc!.id, doc!.estado, hasta),
     onSuccess: () => {
       setUltimoError(null)
       void refrescar()
@@ -170,13 +188,59 @@ export function CotizacionDetallePage() {
     onError: (e: Error) => setUltimoError(mensajeErrorVentas(e)),
   })
 
+  /** El ÚNICO camino de escritura del editor. */
+  const guardar = useMutation({
+    mutationFn: async () => {
+      const payload = aPayload(borrador!, original!)
+      return guardarCotizacion(doc!.id, borrador!.esperado, payload.cabecera, payload.lineas)
+    },
+    onSuccess: () => {
+      setUltimoError(null)
+      setConflicto(false)
+      setBorrador(null)
+      setOriginal(null)
+      setGuardado(true)
+      void refrescar()
+      void queryClient.invalidateQueries({
+        queryKey: ['ventas', activa?.companyId, 'cotizacion', 'trazabilidad', id],
+      })
+    },
+    onError: (e: Error) => {
+      // El borrador NO se toca: si el guardado falla, lo escrito sigue ahí.
+      if (e instanceof FalloDeGuardado && e.esConflicto) setConflicto(true)
+      setUltimoError(e.message)
+    },
+  })
+
   const lineas = useMemo(() => (doc ? ordenarLineas(doc.lineas) : []), [doc])
   // La cotización ya tiene pedido si el panel de relacionados encontró uno.
   const yaTienePedido = (relacionados.data?.pedidos.length ?? 0) > 0
 
-  // Un solo mensaje de autoridad por pantalla: el del banner. Duplicar lo
-  // referencia en vez de repetirlo.
-  const acciones = useAccionesDocumento(doc, { idMotivoAutoridad: describePorBloqueo })
+  // Mientras se edita, las acciones del documento no se ofrecen: duplicar o
+  // cancelar con un borrador a medias es perder el borrador.
+  const acciones = useAccionesDocumento(editando ? null : doc, {
+    idMotivoAutoridad: describePorBloqueo,
+  })
+
+  const abrirEdicion = useCallback((d: DocumentoDetalle) => {
+    const b = crearBorrador(d, ordenarLineas(d.lineas))
+    setOriginal(b)
+    setBorrador(b)
+    setUltimoError(null)
+    setConflicto(false)
+    setAvisoContacto(false)
+    setAvisoTarifa(false)
+    setGuardado(false)
+  }, [])
+
+  const descartar = useCallback(() => {
+    // Ni un pedido de escritura: se suelta el borrador y vuelve lo del servidor.
+    setBorrador(null)
+    setOriginal(null)
+    setUltimoError(null)
+    setConflicto(false)
+    setConfirmarSalida(false)
+  }, [])
 
   if (isPending) {
     return (
@@ -206,90 +270,64 @@ export function CotizacionDetallePage() {
     )
   }
 
-  const valores = aValores(doc)
-
-  const cambiarCampo = (campo: CampoCabecera, valor: string) => {
-    const columna = COLUMNA[campo]
-    let valorFinal: string | number | null = valor
-    if (NUMERO.includes(campo)) {
-      const t = valor.trim()
-      valorFinal = t === '' ? null : Number(t.replace(',', '.'))
-      if (valorFinal !== null && !Number.isFinite(valorFinal)) return
-    } else if (TEXTO.includes(campo)) {
-      valorFinal = valor.trim() === '' ? null : valor
-    } else if (valor === '') {
-      valorFinal = null
-    }
-
-    guardar.mutate(async () => {
-      await actualizarCabecera(doc.id, { [columna]: valorFinal })
-      // Un cambio de precio o de descuento en un documento YA ENVIADO es un
-      // hecho comercial, no un guardado técnico: queda registrado.
-      if (doc.estado === 'sent' && esSensible(columna)) {
-        await registrarEvento('sales_quote', doc.id, 'updated_sensitive_fields', null, null, {
-          [columna]: { from: null, to: valorFinal },
-        })
+  // Lo que se dibuja: el borrador mientras se edita, el servidor si no.
+  const lineasVisibles = borrador ? comoLineasDocumento(borrador) : lineas
+  const docVisible: DocumentoDetalle = borrador
+    ? {
+        ...doc,
+        moneda: borrador.cabecera.moneda,
+        // PREVISUALIZACIÓN con la misma fórmula que el servidor. El impuesto y
+        // el total se dejan en null a propósito: dependen del descuento global
+        // y de la percepción, y mostrar una cifra propia sería inventar un
+        // total que la base no dijo.
+        subtotal: lineasVisibles.reduce(
+          (s, l) =>
+            s +
+            (l.tipoLinea === 'chapter'
+              ? 0
+              : l.cantidad * (l.precioUnitario ?? 0) * (1 - (l.descuentoPct ?? 0) / 100)),
+          0,
+        ),
+        impuesto: null,
+        total: null,
       }
+    : doc
+
+  const cambiarCampoCabecera = (campo: CampoCabecera, valor: string) => {
+    setBorrador((b) => (b ? cambiarCampo(b, campo, valor) : b))
+  }
+
+  const elegirCliente = (customerId: string) => {
+    setBorrador((b) => {
+      if (!b) return b
+      const r = cambiarCliente(b, customerId)
+      setAvisoContacto(r.contactoLimpiado)
+      return r.borrador
     })
   }
 
-  const cambiarLinea = (lineaId: string, campo: CampoLinea, valor: string | number | null) => {
-    const linea = lineas.find((l) => l.id === lineaId)
-    const cambios: Record<string, string | number | null> = { [campo]: valor }
-    if (campo === 'tax_treatment') {
-      const tasa = tasaDe(String(valor))
-      if (tasa !== null) cambios['tax_rate_snapshot'] = tasa
-    }
-    guardar.mutate(async () => {
-      await actualizarLinea(lineaId, cambios)
-      if (doc.estado === 'sent' && esSensible(campo) && linea) {
-        const antes =
-          campo === 'unit_price' ? linea.precioUnitario
-          : campo === 'quantity' ? linea.cantidad
-          : linea.descuentoPct
-        await registrarEvento('sales_quote', doc.id, 'updated_sensitive_fields', null, null, {
-          [campo]: { from: antes, to: valor },
-        })
-      }
+  const elegirMoneda = (moneda: string) => {
+    setBorrador((b) => {
+      if (!b) return b
+      const actual = tarifas.data?.find((t) => t.id === b.cabecera.listaPrecioId)
+      const r = cambiarMoneda(b, moneda, actual?.moneda ?? null)
+      setAvisoTarifa(r.tarifaLimpiada)
+      return r.borrador
     })
   }
 
-  const proximoNumeroDeLinea = () =>
-    lineas.reduce((max, l) => Math.max(max, l.numeroLinea ?? 0), 0) + 1
-
-  const insertar = (nueva: LineaDocumento) => {
-    if (!activa) return
-    const l: LineaNueva = {
-      tipoLinea: nueva.tipoLinea,
-      productId: nueva.productId,
-      sku: nueva.sku,
-      nombre: nueva.nombre,
-      descripcion: nueva.descripcion,
-      marca: null,
-      cantidad: nueva.cantidad,
-      precioUnitario: nueva.precioUnitario ?? 0,
-      precioLista: null,
-      descuentoPct: nueva.descuentoPct ?? 0,
-      tratamientoImpuesto: nueva.tratamientoImpuesto ?? 'vat_21',
-      tasaImpuesto: nueva.tasaImpuesto ?? 0,
-    }
-    guardar.mutate(() =>
-      agregarLinea(activa.companyId, doc.id, nueva.numeroLinea ?? proximoNumeroDeLinea(), l),
-    )
-  }
-
-  const moverLinea = (lineaId: string, direccion: -1 | 1) => {
-    const i = lineas.findIndex((l) => l.id === lineaId)
-    const j = i + direccion
-    const a = lineas[i]
-    const b = lineas[j]
-    if (!a || !b || a.numeroLinea === null || b.numeroLinea === null) return
-    guardar.mutate(() =>
-      intercambiarOrden(
-        { id: a.id, numeroLinea: a.numeroLinea! },
-        { id: b.id, numeroLinea: b.numeroLinea! },
-      ),
-    )
+  const cambiarLinea = (clave: string, campo: CampoLinea, valor: string | number | null) => {
+    setBorrador((b) => {
+      if (!b) return b
+      let siguiente = cambiarLineaBorrador(b, clave, CAMPO_BORRADOR[campo], valor)
+      // Cambiar el tratamiento arrastra su alícuota, salvo «otra», que la
+      // escribe quien cotiza.
+      if (campo === 'tax_treatment') {
+        const tasa = tasaDe(String(valor))
+        if (tasa !== null) siguiente = cambiarLineaBorrador(siguiente, clave, 'tasaImpuesto', tasa)
+      }
+      return siguiente
+    })
   }
 
   // Los tipos cuya emisión se ofrece en esta barra y está bloqueada: un motivo.
@@ -298,17 +336,12 @@ export function CotizacionDetallePage() {
     ...(escribe && stelPedido && doc.estado !== 'rejected' && !yaTienePedido ? (['sales_order'] as const) : []),
   ]
 
-  const transicion = (hasta: string) =>
-    guardar.mutate(() => cambiarEstado(doc.id, doc.estado, hasta))
-
   const origen = presentarOrigen({
     externalSource: doc.externalSource,
     esHistorico: doc.esHistorico,
     serie: doc.serie,
   })
 
-  // Un borrador todavía no se envió: su paso siguiente es enviarlo. Ya
-  // enviada o aceptada, el paso siguiente es el pedido.
   const esBorrador = doc.estado === 'draft'
 
   const botonGenerarPedido = escribe && doc.estado !== 'rejected' ? (
@@ -325,19 +358,19 @@ export function CotizacionDetallePage() {
     </Button>
   ) : null
 
-  const botonMarcarEnviada = escribe && esBorrador ? (
-    <Button
-      icon={<Icon name="arrow-right" size={16} />}
-      disabled={stelCotizacion || autoridad.cargando}
-      aria-describedby={stelCotizacion ? describePorBloqueo : undefined}
-      onClick={() => transicion('sent')}
-    >
-      Marcar como enviada
-    </Button>
-  ) : null
+  const nueva = (over: Partial<Parameters<typeof agregarLinea>[1]> = {}) =>
+    setBorrador((b) =>
+      b
+        ? agregarLinea(b, {
+            tipoLinea: 'item', productId: null, sku: null, nombre: null, descripcion: null,
+            cantidad: 1, precioUnitario: 0, descuentoPct: 0,
+            tratamientoImpuesto: 'vat_21', tasaImpuesto: 21, ...over,
+          })
+        : b,
+    )
 
   const pestanas = [
-    { key: 'lineas' as const, label: 'Líneas', count: lineas.length },
+    { key: 'lineas' as const, label: 'Líneas', count: lineasVisibles.length },
     { key: 'informacion' as const, label: 'Información' },
     { key: 'adjuntos' as const, label: 'Adjuntos' },
     { key: 'relacionados' as const, label: 'Relacionados' },
@@ -355,16 +388,10 @@ export function CotizacionDetallePage() {
             {o.texto}
           </Badge>
         ))}
-        aviso={
-          guardar.isPending ? (
-            <span className={editor.guardando} role="status">
-              <Spinner size={16} /> Guardando…
-            </span>
-          ) : null
-        }
+        aviso={editando ? <Badge tone="info">Editando</Badge> : null}
         cliente={doc.clienteNombre}
         fecha={formatearFecha(doc.fecha)}
-        titulo={doc.titulo}
+        titulo={borrador ? borrador.cabecera.titulo : doc.titulo}
         total={formatearImporte(doc.total, doc.moneda)}
       />
 
@@ -378,77 +405,143 @@ export function CotizacionDetallePage() {
       {hayBanner ? (
         <AvisoAutoridadStel
           idDetalle={idMotivo}
-          detalle={`${motivoBloqueo(...(tiposBloqueados.length > 0 ? tiposBloqueados : (['quote'] as const)))} Podés consultar, editar el borrador, imprimir y exportar.`}
+          detalle={`${motivoBloqueo(...(tiposBloqueados.length > 0 ? tiposBloqueados : (['quote'] as const)))} Podés consultar, editar y guardar, imprimir y exportar.`}
         />
       ) : null}
 
-      {ultimoError ? (
+      {conflicto ? (
+        <Alert
+          tone="warning"
+          role="alert"
+          title="Este documento cambió mientras lo estabas editando"
+          action={
+            <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
+              Recargar
+            </Button>
+          }
+        >
+          <p>
+            Alguien más lo guardó, así que para no pisar su trabajo no se guardó nada.{' '}
+            <strong>Lo que escribiste sigue en pantalla</strong>: anotá lo que haga falta antes de
+            recargar.
+          </p>
+        </Alert>
+      ) : null}
+
+      {ultimoError && !conflicto ? (
         <Alert tone="danger" role="alert" title="No se pudo completar la acción">
           <p>{ultimoError}</p>
         </Alert>
       ) : null}
 
-      <ActionBar
-        primary={esBorrador ? botonMarcarEnviada : botonGenerarPedido}
-        secondary={
-          <>
-            {permiso.editable ? (
-              <Button
-                variant={editando ? 'primary' : 'secondary'}
-                icon={<Icon name={editando ? 'check' : 'edit'} size={16} />}
-                onClick={() => setModoEdicion((v) => !v)}
-              >
-                {editando ? 'Terminar edición' : 'Editar'}
-              </Button>
-            ) : null}
-            {/* En borrador «Generar pedido» baja a secundaria, pero sigue
-                existiendo con las mismas condiciones que antes. */}
-            {esBorrador ? botonGenerarPedido : null}
-            {escribe && doc.estado === 'sent' ? (
-              <Button
-                variant="secondary"
-                disabled={stelCotizacion || autoridad.cargando}
-                aria-describedby={stelCotizacion ? describePorBloqueo : undefined}
-                onClick={() => transicion('accepted')}
-              >
-                Marcar aceptada
-              </Button>
-            ) : null}
-            {acciones.secundarias}
-          </>
-        }
-        more={
-          escribe && doc.estado === 'sent' ? (
-            <MoreMenu>
-              <Button variant="secondary" onClick={() => transicion('rejected')}>
-                Marcar rechazada
-              </Button>
-            </MoreMenu>
-          ) : null
-        }
-        danger={acciones.peligro}
-        note={
-          <>
-            {editando ? (
-              <p>
-                Los cambios se guardan solos al salir de cada campo. Todavía no hay «Guardar» ni
-                «Descartar»: lo que escribís, queda escrito.
-              </p>
-            ) : null}
-            {!permiso.editable && permiso.motivo ? (
-              <p className={editor.candado}>
-                <Icon name="alert-circle" size={16} /> {permiso.motivo}
-              </p>
-            ) : null}
-            {acciones.motivo}
-            {acciones.error ? (
-              <p className={editor.error} role="alert">
-                {acciones.error}
-              </p>
-            ) : null}
-          </>
-        }
-      />
+      {guardado && !editando ? (
+        <Alert tone="success" role="status" title="Cambios guardados">
+          <p>La cotización y sus líneas se guardaron juntas.</p>
+        </Alert>
+      ) : null}
+
+      {editando ? (
+        // En edición la barra tiene DOS acciones y nada más. Generar pedido,
+        // cambiar de estado, duplicar o cancelar no se ofrecen: hacerlas con un
+        // borrador a medias es perderlo.
+        <ActionBar
+          primary={
+            <Button
+              icon={<Icon name="check" size={16} />}
+              loading={guardar.isPending}
+              disabled={!sucio || guardar.isPending}
+              onClick={() => guardar.mutate()}
+            >
+              {guardar.isPending ? 'Guardando…' : 'Guardar cambios'}
+            </Button>
+          }
+          secondary={
+            <Button
+              variant="secondary"
+              disabled={guardar.isPending}
+              onClick={() => (sucio ? setConfirmarSalida(true) : descartar())}
+            >
+              Descartar
+            </Button>
+          }
+          note={
+            <p>
+              {sucio
+                ? 'Hay cambios sin guardar. No se escribe nada hasta que aprietes «Guardar cambios».'
+                : 'Sin cambios todavía. Lo que edites no se escribe hasta que lo guardes.'}
+            </p>
+          }
+        />
+      ) : (
+        <ActionBar
+          primary={
+            esBorrador ? (
+              escribe ? (
+                <Button
+                  icon={<Icon name="arrow-right" size={16} />}
+                  disabled={stelCotizacion || autoridad.cargando}
+                  aria-describedby={stelCotizacion ? describePorBloqueo : undefined}
+                  onClick={() => transicion.mutate({ hasta: 'sent' })}
+                >
+                  Marcar como enviada
+                </Button>
+              ) : null
+            ) : (
+              botonGenerarPedido
+            )
+          }
+          secondary={
+            <>
+              {permiso.editable ? (
+                <Button
+                  variant="secondary"
+                  icon={<Icon name="edit" size={16} />}
+                  onClick={() => abrirEdicion(doc)}
+                >
+                  Editar
+                </Button>
+              ) : null}
+              {esBorrador ? botonGenerarPedido : null}
+              {escribe && doc.estado === 'sent' ? (
+                <Button
+                  variant="secondary"
+                  disabled={stelCotizacion || autoridad.cargando}
+                  aria-describedby={stelCotizacion ? describePorBloqueo : undefined}
+                  onClick={() => transicion.mutate({ hasta: 'accepted' })}
+                >
+                  Marcar aceptada
+                </Button>
+              ) : null}
+              {acciones.secundarias}
+            </>
+          }
+          more={
+            escribe && doc.estado === 'sent' ? (
+              <MoreMenu>
+                <Button variant="secondary" onClick={() => transicion.mutate({ hasta: 'rejected' })}>
+                  Marcar rechazada
+                </Button>
+              </MoreMenu>
+            ) : null
+          }
+          danger={acciones.peligro}
+          note={
+            <>
+              {!permiso.editable && permiso.motivo ? (
+                <p className={editor.candado}>
+                  <Icon name="alert-circle" size={16} /> {permiso.motivo}
+                </p>
+              ) : null}
+              {acciones.motivo}
+              {acciones.error ? (
+                <p className={editor.error} role="alert">
+                  {acciones.error}
+                </p>
+              ) : null}
+            </>
+          }
+        />
+      )}
 
       <DocumentTabs
         id={idPestanas}
@@ -466,10 +559,10 @@ export function CotizacionDetallePage() {
                   <Button variant="secondary" size="sm" icon={<Icon name="search" size={16} />} onClick={() => setBuscando(true)}>
                     Añadir producto
                   </Button>
-                  <Button variant="secondary" size="sm" icon={<Icon name="plus" size={16} />} onClick={() => insertar(lineaLibre(proximoNumeroDeLinea()))}>
+                  <Button variant="secondary" size="sm" icon={<Icon name="plus" size={16} />} onClick={() => nueva()}>
                     Nueva línea
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => insertar(lineaCapitulo(proximoNumeroDeLinea()))}>
+                  <Button variant="ghost" size="sm" onClick={() => nueva({ tipoLinea: 'chapter', nombre: 'Capítulo', tasaImpuesto: 0 })}>
                     Nuevo capítulo
                   </Button>
                 </>
@@ -481,34 +574,36 @@ export function CotizacionDetallePage() {
                 {buscando ? (
                   <div className={editor.selector}>
                     <SelectorProducto
-                      moneda={doc.moneda ?? ''}
+                      moneda={borrador.cabecera.moneda}
                       onCerrar={() => setBuscando(false)}
                       onElegir={(p, precio) => {
-                        insertar(lineaDeProducto(p, precio, proximoNumeroDeLinea()))
+                        // La tarifa SUGIERE el precio de la línea nueva. Las
+                        // que ya estaban no se tocan.
+                        nueva({ productId: p.id, sku: p.sku, nombre: p.nombre, precioUnitario: precio ?? 0 })
                         setBuscando(false)
                       }}
                     />
                   </div>
                 ) : null}
                 <EditorLineas
-                  lineas={lineas}
-                  moneda={doc.moneda ?? ''}
+                  lineas={lineasVisibles}
+                  moneda={borrador.cabecera.moneda}
                   editable
                   onCambiar={cambiarLinea}
-                  onEliminar={(lineaId) => guardar.mutate(() => eliminarLinea(lineaId))}
-                  onMover={moverLinea}
+                  onEliminar={(clave) => setBorrador((b) => (b ? quitarLinea(b, clave) : b))}
+                  onMover={(clave, d) => setBorrador((b) => (b ? moverLinea(b, clave, d) : b))}
                 />
               </>
             ) : (
-              <TablaLineas lineas={lineas} moneda={doc.moneda} tipo="cotizacion" />
+              <TablaLineas lineas={lineasVisibles} moneda={doc.moneda} tipo="cotizacion" />
             )}
 
             <TotalesDocumento
-              doc={doc}
-              lineas={lineas}
+              doc={docVisible}
+              lineas={lineasVisibles}
               nota={
                 editando
-                  ? 'Los totales los calcula el servidor a partir de las líneas, el descuento global y la percepción. El navegador no los inventa.'
+                  ? 'Previsualización. Los totales definitivos los calcula el servidor al guardar, a partir de las líneas, el descuento global y la percepción.'
                   : undefined
               }
             />
@@ -518,7 +613,18 @@ export function CotizacionDetallePage() {
         {pestana === 'informacion' ? (
           <DocSection title="Información de la cotización">
             {editando ? (
-              <CabeceraCotizacion valores={valores} editable monedaEditable={false} onCambiar={cambiarCampo} />
+              <EditorCabecera
+                valores={borrador.cabecera}
+                contactos={contactos.data ?? []}
+                tarifas={tarifas.data ?? []}
+                vendedores={vendedores.data ?? []}
+                cargandoContactos={contactos.isPending && borrador.cabecera.customerId !== ''}
+                avisoContacto={avisoContacto}
+                avisoTarifa={avisoTarifa}
+                onCambiar={cambiarCampoCabecera}
+                onCambiarCliente={elegirCliente}
+                onCambiarMoneda={elegirMoneda}
+              />
             ) : (
               <InformacionDocumento doc={doc} />
             )}
@@ -543,6 +649,17 @@ export function CotizacionDetallePage() {
           </DocSection>
         ) : null}
       </DocumentTabs>
+
+      <ConfirmDialog
+        open={confirmarSalida}
+        tone="danger"
+        title="Hay cambios sin guardar"
+        description="Si descartás, se pierde lo que editaste y el documento vuelve a como estaba."
+        confirmLabel="Descartar cambios"
+        cancelLabel="Seguir editando"
+        onCancel={() => setConfirmarSalida(false)}
+        onConfirm={descartar}
+      />
 
       {acciones.capas}
     </div>

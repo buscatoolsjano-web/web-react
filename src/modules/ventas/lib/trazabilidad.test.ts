@@ -42,6 +42,43 @@ describe('presentarEvento', () => {
     expect(presentarEvento(evento({ actor: null }), 'cotizacion').quien).toBe('Proceso del sistema')
   })
 
+  it('los cambios de líneas se leen como frases, no como JSON (Fase 15 E2)', () => {
+    const e = presentarEvento(
+      evento({
+        diff: {
+          title: { from: 'Viejo', to: 'Nuevo' },
+          lineas: [
+            { accion: 'modificada', linea: 1, producto: 'ZZ-100', cambios: { quantity: { from: 4, to: 6 } } },
+            { accion: 'eliminada', linea: 2, producto: 'ZZ-200', cantidad: 1, precio: 450 },
+            { accion: 'agregada', linea: 3, producto: 'ZZ-300', cantidad: 2, precio: 80 },
+          ],
+        },
+      }),
+      'cotizacion',
+    )
+    expect(e.detalle).toEqual([
+      'Título: Viejo → Nuevo',
+      'Línea 1 (ZZ-100): cantidad 4 → 6',
+      'Línea 2 (ZZ-200): eliminada (era 1 × 450)',
+      'Línea 3 (ZZ-300): agregada, 2 × 80',
+    ])
+  })
+
+  it('un campo que guarda una referencia NO muestra el uuid', () => {
+    const e = presentarEvento(
+      evento({
+        diff: {
+          contact_id: { from: null, to: '4684d90d-d2a4-40b0-9236-dcb42dbd6fc6' },
+          price_list_id: { from: 'f1bbcd24-cf8b-4814-b0d5-99d6ee4abd03', to: null },
+          salesperson_id: { from: 'a', to: 'b' },
+        },
+      }),
+      'cotizacion',
+    )
+    expect(e.detalle).toEqual(['Contacto: se asignó', 'Tarifa: se quitó', 'Vendedor: cambió'])
+    expect(e.detalle.join(' ')).not.toContain('4684d90d')
+  })
+
   it('una acción todavía sin traducción se muestra legible, no en crudo', () => {
     expect(presentarEvento(evento({ accion: 'stock_reserved' }), 'pedido').titulo).toBe('Stock reserved')
   })
