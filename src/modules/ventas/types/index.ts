@@ -121,6 +121,8 @@ export interface DocumentoDetalle {
   vendedorId: string | null
   /** Sólo cotizaciones: con qué lista de precios se cotizó. */
   listaPrecioId: string | null
+  /** El nombre de esa lista, para mostrarlo sin pedir las tarifas aparte. */
+  listaPrecioNombre: string | null
   /** Cargo, correo y teléfono del contacto, cuando el contacto existe. */
   contactoRol: string | null
   contactoEmail: string | null

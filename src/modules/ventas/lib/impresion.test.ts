@@ -37,6 +37,7 @@ const doc = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle => ({
   contactoId: null,
   vendedorId: null,
   listaPrecioId: null,
+  listaPrecioNombre: null,
   contactoRol: null,
   contactoEmail: null,
   contactoTelefono: null,

@@ -216,6 +216,9 @@ function columnasDetalle(tipo: TipoDocumento): string {
   const origen = c.fkOrigen ? `, origen:${c.fkOrigen.tabla}!${c.fkOrigen.columna} ( id, number )` : ''
   const vendedor = c.tieneVendedor ? ', vendedor:profiles!salesperson_id ( full_name )' : ''
   const segundo = tipo === 'pedido' ? ', fulfillment_status' : ''
+  // La tarifa con la que se cotizó (Fase 15 · E2). Sólo la cotización la
+  // guarda, y el nombre viaja en la MISMA consulta: no agrega un viaje.
+  const tarifa = tipo === 'cotizacion' ? ', tarifa:price_lists!price_list_id ( name, currency_code )' : ''
   // Cada documento tiene los suyos: sólo la cotización lleva descuento
   // global, percepción y validez; la entrega no tiene forma de pago.
   const propios =
@@ -236,7 +239,7 @@ function columnasDetalle(tipo: TipoDocumento): string {
     contact_id, salesperson_id,
     customers!customer_id ( id, legal_name, trade_name ),
     contacto:customer_contacts!contact_id ( full_name, role, email, phone ),
-    creador:profiles!created_by ( full_name )${vendedor}${origen}
+    creador:profiles!created_by ( full_name )${vendedor}${origen}${tarifa}
   `
 }
 
@@ -313,6 +316,7 @@ export async function obtenerDocumento(
     created_at: string
     updated_at: string
     contacto: { full_name: string | null; role: string | null; email: string | null; phone: string | null } | null
+    tarifa?: { name: string | null; currency_code: string | null } | null
     creador: { full_name: string | null } | null
   }
 
@@ -337,6 +341,7 @@ export async function obtenerDocumento(
     contactoId: (f['contact_id'] as string | null) ?? null,
     vendedorId: (f['salesperson_id'] as string | null) ?? null,
     listaPrecioId: (f['price_list_id'] as string | null) ?? null,
+    listaPrecioNombre: f.tarifa?.name ?? null,
     contactoRol: f.contacto?.role ?? null,
     contactoEmail: f.contacto?.email ?? null,
     contactoTelefono: f.contacto?.phone ?? null,

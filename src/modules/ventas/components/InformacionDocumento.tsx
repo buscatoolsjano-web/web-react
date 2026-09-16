@@ -33,11 +33,10 @@ function contacto(doc: DocumentoDetalle) {
  * - Un dato **opcional y vacío** tampoco se muestra: el tipo de cambio de un
  *   documento en pesos no es un olvido.
  *
- * Falta la tarifa: hoy el documento no guarda con qué lista de precios se
- * cotizó (`price_list_id` existe en el cliente, no en el documento). Mostrar
- * la lista actual del cliente sería atribuirle al documento una tarifa que
- * quizá no es la que se usó, así que no se muestra nada. Es el gap de schema
- * que E2 tiene que cerrar.
+ * La tarifa ya se muestra: E2 le dio al documento su propio `price_list_id`.
+ * En los documentos anteriores queda vacío y se dice así —«Sin tarifa
+ * registrada»—, que es distinto de inventarle la lista actual del cliente:
+ * esa es la de hoy, no necesariamente con la que se cotizó.
  */
 export function InformacionDocumento({ doc }: InformacionDocumentoProps) {
   const esCotizacion = doc.tipo === 'cotizacion'
@@ -54,6 +53,10 @@ export function InformacionDocumento({ doc }: InformacionDocumentoProps) {
     { label: 'Vendedor', value: doc.vendedor ?? <Missing /> },
     tienePagos && { label: 'Forma de pago', value: doc.formaPago ?? <Missing /> },
     { label: 'Moneda', value: doc.moneda ?? <Missing>Sin moneda</Missing> },
+    esCotizacion && {
+      label: 'Tarifa',
+      value: doc.listaPrecioNombre ?? <Missing>Sin tarifa registrada</Missing>,
+    },
     doc.tipoCambio !== null && { label: 'Tipo de cambio', value: doc.tipoCambio },
     { label: 'Serie', value: doc.serie ?? '—' },
     esCotizacion && { label: 'Válida hasta', value: doc.validaHasta ? formatearFecha(doc.validaHasta) : <Missing /> },

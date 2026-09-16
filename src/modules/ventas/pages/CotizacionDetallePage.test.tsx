@@ -102,6 +102,7 @@ const cotizacion = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle => ({
   contactoId: null,
   vendedorId: null,
   listaPrecioId: null,
+  listaPrecioNombre: null,
   contactoRol: null,
   contactoEmail: null,
   contactoTelefono: null,
@@ -362,17 +363,28 @@ describe('Cotización · acciones', () => {
 })
 
 describe('Cotización · pestañas', () => {
-  it('Información muestra lo que falta como faltante y no inventa la tarifa', () => {
+  it('Información muestra lo que falta como faltante, y la tarifa vacía se dice así', () => {
     montar()
     fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
 
     expect(screen.getByText('Sin contacto asignado')).toBeInTheDocument()
     // Vendedor y forma de pago: decisiones de negocio tomadas, hoy vacías.
     expect(screen.getAllByText('Sin registrar').length).toBeGreaterThanOrEqual(2)
-    // La tarifa no se persiste en el documento: no se muestra nada inferido.
-    expect(screen.queryByText('Tarifa')).toBeNull()
+    // Fase 15 · E2: el documento sí guarda su tarifa. Sin ella, se dice que
+    // no quedó registrada, que no es lo mismo que inferir la del cliente.
+    expect(screen.getByText('Tarifa')).toBeInTheDocument()
+    expect(screen.getByText('Sin tarifa registrada')).toBeInTheDocument()
     // Una vez como badge en la cabecera y otra como dato en Información.
     expect(screen.getAllByText(/Migrado desde STEL/).length).toBeGreaterThan(0)
+  })
+
+  it('con tarifa registrada, Información muestra su nombre (Fase 15 E2)', () => {
+    estado.doc = cotizacion({ listaPrecioId: 'pl1', listaPrecioNombre: 'Mayorista' })
+    montar()
+    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
+
+    expect(screen.getByText('Mayorista')).toBeInTheDocument()
+    expect(screen.queryByText('Sin tarifa registrada')).toBeNull()
   })
 
   it('Información muestra el contacto con sus datos cuando existe', () => {

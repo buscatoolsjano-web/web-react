@@ -115,7 +115,9 @@ hasta ahora la lista de precios vivía sólo en `customers.default_price_list_id
 **actual** y no dice con qué lista se cotizó en su momento. Por eso E1 se negó a mostrar una
 tarifa en el documento.
 
-- Los 306 documentos históricos quedan en `NULL`, que se lee «sin tarifa registrada». Rellenarlos
+- Los 306 documentos históricos quedan en `NULL`. La pestaña Información lo dice con esas
+  palabras —**«Sin tarifa registrada»**—, que no es lo mismo que mostrar la lista actual del
+  cliente: esa es la de hoy, no necesariamente con la que se cotizó. Rellenarlos
   por intuición sería inventar.
 - **No** se agrega a `sales_orders` ni a `deliveries`: hoy no los edita nadie y serían dos
   columnas siempre vacías. El `unit_price` de cada línea ya viaja como snapshot al convertir, así
