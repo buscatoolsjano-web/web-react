@@ -11,12 +11,14 @@ import { ErrorState } from '@/components/feedback/ErrorState'
 import { Field } from '@/components/forms/Field'
 import { Input } from '@/components/forms/controls'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { useInformeWhatsapp } from '../hooks/useWhatsapp'
-import { puedeUsarWhatsapp } from '../lib/permisos'
+import { useInformeGuardado, useInformeWhatsapp } from '../hooks/useWhatsapp'
+import { puedeAsignar, puedeUsarWhatsapp } from '../lib/permisos'
 import {
+  ATAJOS_PERIODO,
   ETIQUETA_ACTOR,
   ETIQUETA_ESTADO_CONVERSACION,
   agruparConversaciones,
+  atajoPeriodo,
   compromisosVencidos,
   diaLocal,
   fechaCorta,
@@ -55,6 +57,11 @@ const enlace = (conversacion: string, mensaje?: string) =>
  * mensajes, resúmenes y sugerencias—. Abrir el informe NO llama a la IA ni
  * escribe nada, y no manda nada a nadie.
  *
+ * Fase 16 · E3: si el período tiene un snapshot guardado (informes
+ * programados), administración ve ESE snapshot y se dice cuándo se generó. Si
+ * no hay, se calcula en vivo como siempre. Un vendedor ve siempre el informe en
+ * vivo de lo suyo: los snapshots son de toda la empresa.
+ *
  * Cada persona ve el informe de lo que puede ver: un vendedor, el de sus
  * conversaciones asignadas. No se mezclan empresas.
  *
@@ -69,7 +76,18 @@ export function InformeWhatsappPage() {
   const [agrupar, setAgrupar] = useState<Agrupacion>('contacto')
 
   const periodo = useMemo(() => (vista === 'diario' ? periodoDiario(dia) : periodoSemanal(dia)), [vista, dia])
-  const informe = useInformeWhatsapp(periodo.desde, periodo.hasta)
+  const administracion = puedeAsignar(activa?.rol)
+  const guardado = useInformeGuardado(vista === 'diario' ? 'daily' : 'weekly', periodo.desde, periodo.hasta, administracion)
+  // En vivo sólo si no hay snapshot (o si el rol no los ve): no se piden los dos.
+  const usarVivo = !administracion || (guardado.isSuccess && guardado.data === null) || guardado.isError
+  const vivo = useInformeWhatsapp(periodo.desde, periodo.hasta, usarVivo)
+  const snapshot = administracion ? (guardado.data ?? null) : null
+  const informe = snapshot
+    ? { data: snapshot.informe, isPending: false as const, error: null, refetch: guardado.refetch }
+    : administracion && guardado.isPending
+      ? { data: undefined, isPending: true as const, error: null, refetch: guardado.refetch }
+      : vivo
+  const hoy = diaLocal(new Date())
 
   if (!puedeUsarWhatsapp(activa?.rol)) {
     return (
@@ -104,6 +122,27 @@ export function InformeWhatsappPage() {
       />
 
       <TabPanel tabsId={tabsId} tabKey={vista} className={styles.panel}>
+        <div className={styles.atajos} role="group" aria-label="Períodos rápidos">
+          {ATAJOS_PERIODO.map((a) => {
+            const destino = atajoPeriodo(a.clave, hoy)
+            const activo = destino.vista === vista && (vista === 'diario' ? destino.dia === dia : periodoSemanal(destino.dia).desde === periodo.desde)
+            return (
+              <Button
+                key={a.clave}
+                variant={activo ? 'primary' : 'secondary'}
+                size="sm"
+                aria-pressed={activo}
+                onClick={() => {
+                  setVista(destino.vista)
+                  setDia(destino.dia)
+                }}
+              >
+                {a.etiqueta}
+              </Button>
+            )
+          })}
+        </div>
+
         <div className={styles.controles}>
           <div className={styles.navegacion}>
             <Button
@@ -129,6 +168,20 @@ export function InformeWhatsappPage() {
           </div>
           <p className={styles.periodo}>{periodo.etiqueta}</p>
         </div>
+        {!informe.isPending && !informe.error ? (
+          <p className={styles.origen} role="status">
+            {snapshot ? (
+              <>
+                <Badge tone="neutral" outline>Informe guardado</Badge> Generado {momento(snapshot.generadoEn)}, con los datos hasta
+                ese momento.
+              </>
+            ) : (
+              <>
+                <Badge tone="neutral" outline>En vivo</Badge> Calculado ahora con los datos actuales.
+              </>
+            )}
+          </p>
+        ) : null}
 
         {informe.isPending ? (
           <SkeletonRows rows={4} columns={3} label="Armando el informe…" />

@@ -17,6 +17,11 @@ export function puedeUsarWhatsapp(rol: string | null | undefined): boolean {
   return !!rol && (ROLES_WHATSAPP as readonly string[]).includes(rol)
 }
 
+/** Configurar la IA de WhatsApp y ver su uso y costo es sólo de admin (Fase 16 · E3). */
+export function puedeConfigurarIA(rol: string | null | undefined): boolean {
+  return rol === 'admin'
+}
+
 /** Asignar y desasignar es de admin y employee: la RPC valida lo mismo. */
 export const ROLES_ASIGNAN = ['admin', 'employee'] as const
 

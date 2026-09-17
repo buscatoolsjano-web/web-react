@@ -18,6 +18,7 @@ import {
   MAX_MENSAJES_POR_ANALISIS,
   SalidaInvalida,
   calcularCostoOpenAI,
+  cortarEnSalienteEnCamino,
   parsearSalida,
   textoParaIA,
   validarResultado,
@@ -37,6 +38,10 @@ export type EstadoAnalisis =
   | 'reciente'
   | 'no_soportado'
   | 'obsoleto'
+  /** La empresa tiene la IA apagada (kill switch): no se llamó a nadie. */
+  | 'desactivada'
+  /** Se alcanzó un límite diario de análisis o de costo: no se llamó a nadie. */
+  | 'limite'
   | 'error'
 
 export interface ResultadoAnalisis {
@@ -73,7 +78,7 @@ export async function analizarConversacion(o: OpcionesAnalisis): Promise<Resulta
   // llamaron a nadie: es lo que permite contar llamadas reales por proveedor.
   const metricasBase = { requested_by: o.solicitadoPor, provider: o.proveedor.nombre }
 
-  const registrar = async (estado: 'error' | 'sin_cambios', codigo: string | null, extra: Record<string, unknown> = {}) => {
+  const registrar = async (estado: 'error' | 'sin_cambios' | 'omitido', codigo: string | null, extra: Record<string, unknown> = {}) => {
     await o.admin.rpc('registrar_corrida_ia_whatsapp', {
       p_conversacion: o.conversacionId,
       p_estado: estado,
@@ -134,12 +139,33 @@ export async function analizarConversacion(o: OpcionesAnalisis): Promise<Resulta
     // contacto. Mandárselo al modelo es hacerle creer que se dijo algo que
     // no se dijo: un «te mando mañana» fallido se volvería un compromiso.
     // El envío fallido ya es una señal de atención por regla, sin IA.
-    .filter((f) => f.direction === 'in' || f.status === 'sent')
     .reverse()
+    // Un saliente todavía en camino (pending/sending) no se manda NI se salta:
+    // el análisis corta justo antes. Si se saltara, el checkpoint avanzaría
+    // por encima y ese mensaje —que puede salir un segundo después— no se
+    // analizaría nunca. Cuando pase a `sent`, la cola lo vuelve a pedir.
+    // Uno trabado hace más de EN_CAMINO_MAX_MIN minutos se trata como no enviado.
+    .filter(cortarEnSalienteEnCamino(ahora()))
+    // Un saliente que falló —o que todavía no salió— NUNCA le llegó al
+    // contacto. Mandárselo al modelo es hacerle creer que se dijo algo que
+    // no se dijo: un «te mando mañana» fallido se volvería un compromiso.
+    // El envío fallido ya es una señal de atención por regla, sin IA.
+    .filter((f) => f.direction === 'in' || f.status === 'sent')
 
   if (nuevas.length === 0) {
     await registrar('sin_cambios', null)
     return { estado: 'sin_cambios' }
+  }
+
+  // Guardas de uso, justo antes de gastar: IA apagada o límite diario. Una
+  // corrida `omitido` queda registrada (se ve en el panel) sin tocar el resumen.
+  const { data: uso, error: eUso } = await o.admin.rpc('verificar_uso_ia_whatsapp', { p_conversacion: o.conversacionId })
+  if (eUso) return { estado: 'error', codigo: 'guardado' }
+  const guarda = (uso ?? {}) as { permitido?: boolean; motivo?: string | null }
+  if (!guarda.permitido) {
+    const motivo = guarda.motivo ?? 'ia_desactivada'
+    await registrar('omitido', motivo)
+    return { estado: motivo === 'ia_desactivada' ? 'desactivada' : 'limite', codigo: motivo }
   }
 
   // 4 · Lo abierto, para que no lo repita. Sólo el texto.

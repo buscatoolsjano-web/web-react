@@ -9,9 +9,11 @@ import {
   listarCorridasIA,
   listarItemsIA,
   obtenerInforme,
+  obtenerInformeGuardado,
   obtenerResumenIA,
   senalesDeAtencion,
 } from '../services/ia'
+import { obtenerConfigIA, obtenerMetricasIA, obtenerModoIA } from '../services/configIA'
 import type { FiltroBandeja } from '../types'
 
 /**
@@ -166,13 +168,70 @@ export function useSenales(conversaciones: readonly string[]) {
   })
 }
 
-export function useInformeWhatsapp(desde: string, hasta: string) {
+export function useInformeWhatsapp(desde: string, hasta: string, habilitado = true) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
   return useQuery({
     queryKey: ['whatsapp', companyId, 'informe', desde, hasta],
     queryFn: () => obtenerInforme(companyId!, desde, hasta),
-    enabled: companyId !== null,
+    enabled: habilitado && companyId !== null,
     staleTime: 60_000,
+  })
+}
+
+/**
+ * El snapshot guardado de un período (sólo administración). `habilitado` es
+ * false para otros roles: no tiene sentido pedir lo que la RLS no les muestra.
+ */
+export function useInformeGuardado(tipo: 'daily' | 'weekly', desde: string, hasta: string, habilitado: boolean) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  return useQuery({
+    queryKey: ['whatsapp', companyId, 'informe-guardado', tipo, desde, hasta],
+    queryFn: () => obtenerInformeGuardado(companyId!, tipo, desde, hasta),
+    enabled: habilitado && companyId !== null,
+    staleTime: 5 * 60_000,
+  })
+}
+
+// ── Configuración de la IA (Fase 16 · E3) ─────────────────────────────────
+
+export const clavesIA = {
+  config: (companyId: string | null) => ['whatsapp', companyId, 'config-ia'] as const,
+  metricas: (companyId: string | null) => ['whatsapp', companyId, 'metricas-ia'] as const,
+  modo: (companyId: string | null) => ['whatsapp', companyId, 'modo-ia'] as const,
+}
+
+export function useConfigIA(habilitado: boolean) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  return useQuery({
+    queryKey: clavesIA.config(companyId),
+    queryFn: () => obtenerConfigIA(companyId!),
+    enabled: habilitado && companyId !== null,
+    staleTime: 60_000,
+  })
+}
+
+/** Sin intervalo: se lee al entrar y con «Actualizar». */
+export function useMetricasIA(habilitado: boolean) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  return useQuery({
+    queryKey: clavesIA.metricas(companyId),
+    queryFn: () => obtenerMetricasIA(companyId!),
+    enabled: habilitado && companyId !== null,
+    staleTime: 60_000,
+  })
+}
+
+export function useModoIA() {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  return useQuery({
+    queryKey: clavesIA.modo(companyId),
+    queryFn: () => obtenerModoIA(companyId!),
+    enabled: companyId !== null,
+    staleTime: 5 * 60_000,
   })
 }

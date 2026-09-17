@@ -11,17 +11,25 @@ import type { InformeWhatsapp } from '../lib/ia'
 const estado = vi.hoisted((): {
   rol: string
   informe: { data?: unknown; isPending: boolean; error: Error | null }
-  pedidos: { desde: string; hasta: string }[]
-} => ({ rol: 'admin', informe: { isPending: false, error: null }, pedidos: [] }))
+  pedidos: { desde: string; hasta: string; habilitado: boolean }[]
+  guardado: unknown
+  pedidosGuardado: { tipo: string; desde: string; hasta: string; habilitado: boolean }[]
+} => ({ rol: 'admin', informe: { isPending: false, error: null }, pedidos: [], guardado: null, pedidosGuardado: [] }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({ activa: { companyId: 'c1', companyName: 'ZZ', rol: estado.rol, esInterno: true, customerId: null } }),
 }))
 vi.mock('../hooks/useWhatsapp', () => ({
-  useInformeWhatsapp: (desde: string, hasta: string) => {
-    estado.pedidos.push({ desde, hasta })
+  useInformeWhatsapp: (desde: string, hasta: string, habilitado = true) => {
+    estado.pedidos.push({ desde, hasta, habilitado })
     return { ...estado.informe, refetch: vi.fn() }
+  },
+  useInformeGuardado: (tipo: string, desde: string, hasta: string, habilitado: boolean) => {
+    estado.pedidosGuardado.push({ tipo, desde, hasta, habilitado })
+    return habilitado
+      ? { data: estado.guardado, isPending: false, isSuccess: true, isError: false, refetch: vi.fn() }
+      : { data: undefined, isPending: true, isSuccess: false, isError: false, refetch: vi.fn() }
   },
 }))
 
@@ -63,6 +71,8 @@ beforeEach(() => {
   estado.rol = 'admin'
   estado.informe = { data: informe(), isPending: false, error: null }
   estado.pedidos = []
+  estado.guardado = null
+  estado.pedidosGuardado = []
 })
 
 describe('Informe de WhatsApp', () => {
@@ -132,6 +142,51 @@ describe('Informe de WhatsApp', () => {
     estado.informe = { isPending: false, error: new Error('Tu rol no tiene acceso a los informes de WhatsApp.') }
     montar()
     expect(screen.getByText('No se pudo armar el informe.')).toBeInTheDocument()
+  })
+
+  it('atajos: hoy, ayer, semana actual y semana anterior', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-17T15:00:00Z')) // jueves 17/09, 12:00 en Argentina
+    try {
+      montar()
+      fireEvent.click(screen.getByRole('button', { name: 'Ayer' }))
+      expect(estado.pedidos.at(-1)!.desde).toBe('2026-09-16T03:00:00.000Z')
+      expect(screen.getByRole('button', { name: 'Ayer' })).toHaveAttribute('aria-pressed', 'true')
+      fireEvent.click(screen.getByRole('button', { name: 'Semana anterior' }))
+      expect(estado.pedidos.at(-1)!.desde).toBe('2026-09-07T03:00:00.000Z')
+      expect(estado.pedidos.at(-1)!.hasta).toBe('2026-09-14T03:00:00.000Z')
+      fireEvent.click(screen.getByRole('button', { name: 'Semana actual' }))
+      expect(estado.pedidos.at(-1)!.desde).toBe('2026-09-14T03:00:00.000Z')
+      fireEvent.click(screen.getByRole('button', { name: 'Hoy' }))
+      expect(estado.pedidos.at(-1)!.desde).toBe('2026-09-17T03:00:00.000Z')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('administración: si hay informe guardado usa ESE, dice cuándo se generó y no calcula en vivo', () => {
+    estado.informe = { isPending: true, error: null }
+    estado.guardado = { informe: informe(), generadoEn: '2026-09-17T11:00:00Z', corte: '2026-09-17T11:00:00Z' }
+    montar()
+    expect(screen.getByText('Informe guardado')).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Totales del período' })).toBeInTheDocument()
+    expect(estado.pedidos.at(-1)!.habilitado).toBe(false)
+    expect(estado.pedidosGuardado.at(-1)!.tipo).toBe('daily')
+  })
+
+  it('administración sin informe guardado: calcula en vivo y lo dice', () => {
+    montar()
+    expect(screen.getByText('En vivo')).toBeInTheDocument()
+    expect(estado.pedidos.at(-1)!.habilitado).toBe(true)
+  })
+
+  it('un vendedor no pide informes guardados (son de toda la empresa): siempre en vivo', () => {
+    estado.rol = 'salesperson'
+    estado.guardado = { informe: informe(), generadoEn: '2026-09-17T11:00:00Z', corte: '2026-09-17T11:00:00Z' }
+    montar()
+    expect(estado.pedidosGuardado.every((x) => !x.habilitado)).toBe(true)
+    expect(screen.getByText('En vivo')).toBeInTheDocument()
+    expect(screen.queryByText('Informe guardado')).toBeNull()
   })
 
   it('un técnico no ve el informe', () => {

@@ -43,6 +43,7 @@ const item = (p: Partial<ItemIA> = {}): ItemIA => ({
 
 const montar = (p: Partial<PanelIAProps> = {}) => {
   const props: PanelIAProps = {
+    modo: 'manual',
     resumen: resumen(),
     items: [item()],
     cargando: false,
@@ -140,5 +141,26 @@ describe('PanelIA', () => {
   it('una sugerencia sin fecha no muestra ninguna', () => {
     montar({ items: [item({ venceEn: null })] })
     expect(screen.queryByText(/17\/09/)).toBeNull()
+  })
+
+  it('dice el modo de la IA de la empresa', () => {
+    montar({ modo: 'automatica', resumen: null, items: [] })
+    expect(screen.getByText('IA automática')).toBeInTheDocument()
+    expect(screen.getByText(/Se analiza sola cuando hay mensajes nuevos/)).toBeInTheDocument()
+  })
+
+  it('con la IA desactivada no se puede pedir un análisis, y lo ya analizado sigue visible', () => {
+    const props = montar({ modo: 'desactivada' })
+    const boton = screen.getByRole('button', { name: /Actualizar resumen/ })
+    expect(boton).toBeDisabled()
+    fireEvent.click(boton)
+    expect(props.onActualizar).not.toHaveBeenCalled()
+    expect(screen.getByText(/está desactivada para esta empresa/)).toBeInTheDocument()
+    expect(screen.getByText('ZZ El contacto pidió precio del torquímetro.')).toBeInTheDocument()
+  })
+
+  it('mientras no se sabe el modo, el botón no se bloquea', () => {
+    montar({ modo: null })
+    expect(screen.getByRole('button', { name: /Actualizar resumen/ })).toBeEnabled()
   })
 })

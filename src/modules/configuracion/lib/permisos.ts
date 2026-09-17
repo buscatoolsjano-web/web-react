@@ -12,6 +12,7 @@
  *   · Listas de precios y Atributos: admin y employee leen; nadie edita (Entrega 3).
  *   · Marcas y Categorías: admin administra; employee lee (Entrega 3).
  *   · Auditoría: sólo admin, sólo lectura (Entrega 4).
+ *   · WhatsApp · IA: sólo admin (Fase 16 · E3).
  */
 export const ROLES_CONFIGURACION = ['admin', 'employee'] as const
 
@@ -24,6 +25,7 @@ export const SECCIONES_CONFIGURACION = [
   { to: '/configuracion/categorias', label: 'Categorías', roles: ['admin', 'employee'] },
   { to: '/configuracion/atributos', label: 'Atributos', roles: ['admin', 'employee'] },
   { to: '/configuracion/auditoria', label: 'Auditoría', roles: ['admin'] },
+  { to: '/configuracion/whatsapp-ia', label: 'WhatsApp · IA', roles: ['admin'] },
 ] as const
 
 export function puedeVerConfiguracion(rol: string | null | undefined): boolean {

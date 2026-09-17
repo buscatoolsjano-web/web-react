@@ -194,6 +194,8 @@ const TEXTO_ESTADO: Record<string, string> = {
   no_soportado: 'Los grupos todavía no se analizan.',
   conversacion_inexistente: 'La conversación ya no existe o no tenés acceso.',
   sin_sesion: 'Tu sesión venció. Volvé a entrar.',
+  desactivada: 'La IA de WhatsApp está desactivada para esta empresa. Un administrador la puede encender en Configuración.',
+  limite: 'Se alcanzó el límite diario de análisis con IA de la empresa. Mañana vuelve a estar disponible.',
 }
 
 /**
@@ -242,7 +244,7 @@ export async function pedirAnalisis(conversacionId: string, completo = false): P
   throw new FalloAnalisis(TEXTO_ESTADO[clave] ?? 'No se pudo actualizar el resumen. El anterior se mantiene.')
 }
 
-interface FilaInforme {
+export interface FilaInforme {
   desde: string
   hasta: string
   totales: Record<string, number>
@@ -273,7 +275,11 @@ export async function obtenerInforme(companyId: string, desde: string, hasta: st
       error.message.includes('SIN_PERMISO') ? 'Tu rol no tiene acceso a los informes de WhatsApp.' : 'No se pudo armar el informe.',
     )
   }
-  const f = data as unknown as FilaInforme
+  return aInforme(data as unknown as FilaInforme)
+}
+
+/** El payload del informe —en vivo o guardado— tiene la misma forma. */
+export function aInforme(f: FilaInforme): InformeWhatsapp {
   const t = (k: string) => Number(f.totales[k] ?? 0)
   return {
     desde: f.desde,
@@ -309,4 +315,33 @@ export async function obtenerInforme(companyId: string, desde: string, hasta: st
     temas: f.temas,
     porAsignado: f.por_asignado.map((p) => ({ asignadoId: p.asignado_id, asignado: p.asignado, conversaciones: p.conversaciones })),
   }
+}
+
+export interface InformeGuardado {
+  informe: InformeWhatsapp
+  generadoEn: string
+  corte: string
+}
+
+/**
+ * El snapshot guardado de un período, si existe. Sólo administración los ve
+ * (RLS): para cualquier otro rol vuelve null y la pantalla usa el informe en
+ * vivo. Leerlo no escribe nada ni llama a la IA.
+ */
+export async function obtenerInformeGuardado(
+  companyId: string,
+  tipo: 'daily' | 'weekly',
+  desde: string,
+  hasta: string,
+): Promise<InformeGuardado | null> {
+  const { data, error } = await supabase
+    .from('whatsapp_ai_reports')
+    .select('payload, generated_at, source_cutoff')
+    .eq('company_id', companyId)
+    .eq('type', tipo)
+    .eq('period_start', desde)
+    .eq('period_end', hasta)
+    .maybeSingle()
+  if (error || !data) return null
+  return { informe: aInforme(data.payload as unknown as FilaInforme), generadoEn: data.generated_at, corte: data.source_cutoff }
 }

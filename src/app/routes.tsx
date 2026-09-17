@@ -242,6 +242,9 @@ const CategoriasPage = lazyConRecarga(() =>
 const AtributosPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/AtributosPage').then((m) => ({ default: m.AtributosPage })),
 )
+const ConfigIAWhatsappPage = lazyConRecarga(() =>
+  import('@/modules/whatsapp/pages/ConfigIAWhatsappPage').then((m) => ({ default: m.ConfigIAWhatsappPage })),
+)
 const AuditoriaPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/AuditoriaPage').then((m) => ({ default: m.AuditoriaPage })),
 )
@@ -401,6 +404,8 @@ export const routes: RouteObject[] = [
           { path: 'atributos', element: conSuspense(<AtributosPage />) },
           // Entrega 4: auditoría de Configuración, sólo admin y sólo lectura.
           { path: 'auditoria', element: conSuspense(<AuditoriaPage />) },
+          // Fase 16 · E3: IA de WhatsApp (modo, límites, informes, uso). Sólo admin; la RPC lo vuelve a validar.
+          { path: 'whatsapp-ia', element: conSuspense(<ConfigIAWhatsappPage />) },
         ],
       },
 

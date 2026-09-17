@@ -200,6 +200,25 @@ export function periodoDiario(dia: string): Periodo {
   }
 }
 
+export type AtajoPeriodo = 'hoy' | 'ayer' | 'semana_actual' | 'semana_anterior'
+
+export const ATAJOS_PERIODO: { clave: AtajoPeriodo; etiqueta: string }[] = [
+  { clave: 'hoy', etiqueta: 'Hoy' },
+  { clave: 'ayer', etiqueta: 'Ayer' },
+  { clave: 'semana_actual', etiqueta: 'Semana actual' },
+  { clave: 'semana_anterior', etiqueta: 'Semana anterior' },
+]
+
+/** A qué vista y día lleva cada atajo, contado desde el día de hoy en Argentina. */
+export function atajoPeriodo(clave: AtajoPeriodo, hoy: string): { vista: 'diario' | 'semanal'; dia: string } {
+  switch (clave) {
+    case 'hoy': return { vista: 'diario', dia: hoy }
+    case 'ayer': return { vista: 'diario', dia: sumarDias(hoy, -1) }
+    case 'semana_actual': return { vista: 'semanal', dia: hoy }
+    case 'semana_anterior': return { vista: 'semanal', dia: sumarDias(hoy, -7) }
+  }
+}
+
 /** La semana de lunes a lunes que contiene el día. */
 export function periodoSemanal(dia: string): Periodo {
   const [a, m, d] = dia.split('-').map(Number) as [number, number, number]

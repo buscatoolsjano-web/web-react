@@ -5011,6 +5011,72 @@ export type Database = {
         ]
       }
       // Fase 16 · E2: la capa de IA de WhatsApp.
+      whatsapp_ai_analysis_queue: {
+        Row: {
+          attempts: number
+          company_id: string
+          conversation_id: string
+          created_at: string
+          done_at: string | null
+          last_error: string | null
+          last_processed_message_id: string | null
+          lock_requested_at: string | null
+          locked_at: string | null
+          locked_by: string | null
+          not_before: string
+          requested_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          company_id: string
+          conversation_id: string
+          created_at?: string
+          done_at?: string | null
+          last_error?: string | null
+          last_processed_message_id?: string | null
+          lock_requested_at?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          not_before?: string
+          requested_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          company_id?: string
+          conversation_id?: string
+          created_at?: string
+          done_at?: string | null
+          last_error?: string | null
+          last_processed_message_id?: string | null
+          lock_requested_at?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          not_before?: string
+          requested_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_ai_analysis_queue_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_ai_analysis_queue_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_ai_items: {
         Row: {
           actor: string
@@ -5097,6 +5163,50 @@ export type Database = {
           },
         ]
       }
+      whatsapp_ai_reports: {
+        Row: {
+          company_id: string
+          generated_at: string
+          id: number
+          payload: Json
+          period_end: string
+          period_start: string
+          source_cutoff: string
+          type: string
+          version: number
+        }
+        Insert: {
+          company_id: string
+          generated_at?: string
+          id?: never
+          payload: Json
+          period_end: string
+          period_start: string
+          source_cutoff: string
+          type: string
+          version?: number
+        }
+        Update: {
+          company_id?: string
+          generated_at?: string
+          id?: never
+          payload?: Json
+          period_end?: string
+          period_start?: string
+          source_cutoff?: string
+          type?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_ai_reports_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_ai_runs: {
         Row: {
           cached_tokens: number | null
@@ -5176,6 +5286,72 @@ export type Database = {
           {
             foreignKeyName: "whatsapp_ai_runs_requested_by_fkey"
             columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_ai_settings: {
+        Row: {
+          analysis_debounce_seconds: number
+          auto_analyze: boolean
+          company_id: string
+          daily_report_enabled: boolean
+          daily_report_time: string | null
+          enabled: boolean
+          max_daily_analyses: number | null
+          max_daily_cost_usd: number | null
+          timezone: string
+          updated_at: string
+          updated_by: string | null
+          weekly_report_day: number | null
+          weekly_report_enabled: boolean
+          weekly_report_time: string | null
+        }
+        Insert: {
+          analysis_debounce_seconds?: number
+          auto_analyze?: boolean
+          company_id: string
+          daily_report_enabled?: boolean
+          daily_report_time?: string | null
+          enabled?: boolean
+          max_daily_analyses?: number | null
+          max_daily_cost_usd?: number | null
+          timezone?: string
+          updated_at?: string
+          updated_by?: string | null
+          weekly_report_day?: number | null
+          weekly_report_enabled?: boolean
+          weekly_report_time?: string | null
+        }
+        Update: {
+          analysis_debounce_seconds?: number
+          auto_analyze?: boolean
+          company_id?: string
+          daily_report_enabled?: boolean
+          daily_report_time?: string | null
+          enabled?: boolean
+          max_daily_analyses?: number | null
+          max_daily_cost_usd?: number | null
+          timezone?: string
+          updated_at?: string
+          updated_by?: string | null
+          weekly_report_day?: number | null
+          weekly_report_enabled?: boolean
+          weekly_report_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_ai_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_ai_settings_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -5718,9 +5894,48 @@ export type Database = {
         }
         Returns: Json
       }
+      completar_analisis_whatsapp: {
+        Args: {
+          p_ahora?: string
+          p_codigo?: string
+          p_conversacion: string
+          p_locked_at: string
+          p_resultado: string
+        }
+        Returns: string
+      }
+      config_ia_whatsapp: { Args: { p_company: string }; Returns: Json }
       confirmar_entrega: { Args: { p_delivery: string }; Returns: Json }
       confirmar_recepcion: { Args: { p_receipt: string }; Returns: Json }
       duplicar_pedido_compra: { Args: { p_order: string }; Returns: string }
+      estado_ia_whatsapp: { Args: { p_company: string }; Returns: Json }
+      generar_informe_whatsapp: {
+        Args: {
+          p_company: string
+          p_desde: string
+          p_hasta: string
+          p_tipo: string
+        }
+        Returns: Json
+      }
+      generar_informes_programados_whatsapp: {
+        Args: { p_ahora?: string }
+        Returns: number
+      }
+      guardar_config_ia_whatsapp: {
+        Args: { p_company: string; p_config: Json; p_version: string }
+        Returns: Json
+      }
+      metricas_ia_whatsapp: { Args: { p_company: string }; Returns: Json }
+      reclamar_analisis_whatsapp: {
+        Args: {
+          p_ahora?: string
+          p_empresa?: string
+          p_limite: number
+          p_worker: string
+        }
+        Returns: Json
+      }
       registrar_factura_proveedor: { Args: { p_invoice: string }; Returns: Json }
       aprobar_cotizacion_mantenimiento: {
         Args: {
@@ -5817,6 +6032,10 @@ export type Database = {
           pendiente: number
           borradores: string[]
         }[]
+      }
+      reintentar_analisis_whatsapp: {
+        Args: { p_conversacion: string }
+        Returns: string
       }
       ultimo_precio_compra: {
         Args: {
@@ -6114,6 +6333,14 @@ export type Database = {
       cambiar_estado_email: {
         Args: { p_account: string; p_thread: string; p_estado: string }
         Returns: Database["public"]["Tables"]["email_thread_state"]["Row"]
+      }
+      validar_token_worker_ia_whatsapp: {
+        Args: { p_token: string }
+        Returns: boolean
+      }
+      verificar_uso_ia_whatsapp: {
+        Args: { p_conversacion: string }
+        Returns: Json
       }
       vincular_cliente_email: {
         Args: {

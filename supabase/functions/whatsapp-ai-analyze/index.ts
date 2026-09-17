@@ -3,8 +3,9 @@
  *
  *   POST { conversation_id, completo? }
  *
- * A demanda: lo dispara una persona con «Actualizar resumen». No hay
- * disparador automático, ni por mensaje ni por horario (Fase 16 · E2).
+ * A demanda: lo dispara una persona con «Actualizar resumen». El análisis
+ * automático NO pasa por acá: lo hace `whatsapp-ai-worker` desde la cola
+ * (Fase 16 · E3), con el mismo `analisis.ts` y las mismas guardas.
  *
  * Orden de cada pedido:
  *   1. JWT verificado (verify_jwt) y usuario resuelto;
@@ -61,6 +62,8 @@ const STATUS: Record<string, number> = {
   sin_cambios: 200,
   reciente: 200,
   obsoleto: 409,
+  desactivada: 403,
+  limite: 429,
   no_soportado: 422,
   error: 502,
 }

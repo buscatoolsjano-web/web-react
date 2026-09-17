@@ -1,0 +1,155 @@
+/* Configuración → WhatsApp · IA (Fase 16 · E3).
+
+   Tarjetas apiladas; en angosto todo pasa a una columna. Números en tinta de
+   texto, los indicadores con ícono y palabra (Alert), nunca sólo color. */
+
+.pagina {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.tarjeta {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  min-width: 0;
+}
+
+.titulo {
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+/* `legend` no respeta el gap de grid: se separa a mano. */
+legend.titulo {
+  float: left;
+  width: 100%;
+  margin-bottom: var(--space-1);
+}
+
+.subtitulo {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.nota {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  overflow-wrap: anywhere;
+}
+
+.grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.datos {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.datos dt {
+  color: var(--color-text-soft);
+}
+
+.datos dd {
+  margin: 0;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.barra {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.alertas {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.periodos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: var(--space-3);
+}
+
+.periodo {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.fallidos {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fallido {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--color-border);
+  min-width: 0;
+}
+
+.fallidoTexto {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+
+.enlace {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  color: var(--color-primary-text);
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.enlace:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}

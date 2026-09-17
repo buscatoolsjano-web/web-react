@@ -15,9 +15,12 @@ import {
   type ItemIA,
   type ResumenIA,
 } from '../lib/ia'
+import { ETIQUETA_MODO, type ModoIA } from '../lib/configIA'
 import styles from './Whatsapp.module.css'
 
 export interface PanelIAProps {
+  /** Modo de la IA de la empresa. null mientras se lee: no se bloquea el botón por las dudas. */
+  modo: ModoIA | null
   resumen: ResumenIA | null
   items: readonly ItemIA[]
   cargando: boolean
@@ -47,6 +50,7 @@ export interface PanelIAProps {
  *    anterior sigue en pantalla.
  */
 export function PanelIA({
+  modo,
   resumen,
   items,
   cargando,
@@ -70,6 +74,7 @@ export function PanelIA({
 
   const secciones = seccionesIA(items).filter((s) => s.items.length > 0)
   const conResumen = resumen !== null && resumen.resumen !== null
+  const desactivada = modo === 'desactivada'
 
   return (
     <div className={styles.ia}>
@@ -81,10 +86,16 @@ export function PanelIA({
       <section className={styles.bloque} aria-labelledby="ia-resumen">
         <div className={styles.iaCabecera}>
           <h3 id="ia-resumen" className={styles.bloqueTitulo}>Resumen</h3>
+          {modo ? (
+            <Badge tone={modo === 'automatica' ? 'success' : modo === 'manual' ? 'info' : 'neutral'} outline>
+              {ETIQUETA_MODO[modo]}
+            </Badge>
+          ) : null}
           <Button
             variant="secondary"
             size="sm"
             loading={analizando}
+            disabled={desactivada}
             icon={<Icon name="refresh" size={16} />}
             onClick={onActualizar}
           >
@@ -92,6 +103,11 @@ export function PanelIA({
           </Button>
         </div>
 
+        {desactivada ? (
+          <p className={styles.iaNota}>
+            La IA de WhatsApp está desactivada para esta empresa: no se hacen análisis nuevos. Lo ya analizado sigue visible.
+          </p>
+        ) : null}
         {errorAnalisis ? (
           <Alert tone="warning" role="alert" title="No se pudo actualizar">
             <p>{errorAnalisis}</p>
@@ -121,7 +137,8 @@ export function PanelIA({
           </>
         ) : (
           <p className={styles.sinVinculo}>
-            Esta conversación todavía no se analizó. El análisis es a pedido: no corre solo.
+            Esta conversación todavía no se analizó.{' '}
+            {modo === 'automatica' ? 'Se analiza sola cuando hay mensajes nuevos.' : 'El análisis es a pedido: no corre solo.'}
           </p>
         )}
       </section>

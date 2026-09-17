@@ -31,6 +31,7 @@ import {
   useCorridasIA,
   useItemsIA,
   useMensajes,
+  useModoIA,
   useRealtimeWhatsapp,
   useResumenIA,
   useSenales,
@@ -77,6 +78,7 @@ export function WhatsappPage() {
   // La IA se lee sólo si alguien mira la pestaña; los ítems también alimentan
   // el contador de la pestaña, así que ésos sí se piden al abrir.
   const resumenIA = useResumenIA(pestana === 'ia' ? abierta : null)
+  const modoIA = useModoIA()
   const itemsIA = useItemsIA(abierta)
   const corridasIA = useCorridasIA(abierta, pestana === 'actividad' && asigna)
   const idsVisibles = useMemo(() => (conversaciones.data ?? []).map((c) => c.id), [conversaciones.data])
@@ -289,6 +291,7 @@ export function WhatsappPage() {
               }
               ia={
                 <PanelIA
+                  modo={modoIA.data ?? null}
                   resumen={resumenIA.data ?? null}
                   items={itemsIA.data ?? []}
                   cargando={resumenIA.isPending || itemsIA.isPending}

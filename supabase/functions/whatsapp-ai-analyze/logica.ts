@@ -176,7 +176,7 @@ Reglas:
    - follow_up: algo a lo que hay que volver más adelante.
 6. confidence entre 0 y 1: qué tan explícito es en el texto. Una decisión dudosa va con confianza baja, no se afirma.
 7. No repitas items que ya figuran como abiertos.
-8. summary: 2 a 4 oraciones sobre el estado actual. topics: hasta 5 temas cortos.
+8. summary: 2 a 4 oraciones sobre el estado actual. topics: hasta 5 temas cortos. Si hay resumen previo, el summary nuevo lo REEMPLAZA: conservá lo que sigue vigente del previo (plazos, condiciones, datos informados) y sumá lo nuevo.
 9. conversation_state: "esperando_empresa" si el contacto espera respuesta nuestra, "esperando_contacto" si esperamos al contacto, "en_curso" si está activa sin espera clara, "cerrada" si terminó.
 10. requires_attention: true si hay una pregunta sin responder, un reclamo o un pedido pendiente de Buscatools.
 11. Si no hay nada accionable, items es una lista vacía. Es un resultado válido.
@@ -847,4 +847,37 @@ export function proveedorOpenAI(cliente: ClienteOpenAI, cfg: ConfigOpenAI): Prov
       }
     },
   }
+}
+
+// ── Análisis automático (Fase 16 · E3) ────────────────────────────────────
+
+/** Minutos que un saliente puede estar en camino antes de tratarlo como no enviado. */
+export const EN_CAMINO_MAX_MIN = 15
+
+type FilaMensajeEnCamino = { direction: string; status: string; ordenado_en: string }
+
+/**
+ * Filtro con estado para una lista YA ordenada de más viejo a más nuevo: deja
+ * pasar todo hasta el primer saliente en camino (pending/sending, reciente) y
+ * nada después. Así el checkpoint nunca queda por encima de un mensaje que
+ * todavía puede salir.
+ */
+export function cortarEnSalienteEnCamino(ahoraMs: number): (f: FilaMensajeEnCamino) => boolean {
+  let cortado = false
+  return (f) => {
+    if (cortado) return false
+    const enCamino = f.direction === 'out' && (f.status === 'pending' || f.status === 'sending')
+      && ahoraMs - new Date(f.ordenado_en).getTime() < EN_CAMINO_MAX_MIN * 60_000
+    if (enCamino) cortado = true
+    return !cortado
+  }
+}
+
+export type EstadoAnalisisCola =
+  | 'ok' | 'sin_cambios' | 'reciente' | 'no_soportado' | 'obsoleto' | 'desactivada' | 'limite' | 'error'
+
+/** Lo que devolvió el análisis, en el vocabulario de la cola (`completar_analisis_whatsapp`). */
+export function resultadoParaCola(r: { estado: EstadoAnalisisCola; codigo?: string | undefined }): { resultado: string; codigo: string | null } {
+  if (r.estado === 'error') return { resultado: 'error', codigo: r.codigo ?? 'worker_excepcion' }
+  return { resultado: r.estado, codigo: r.codigo ?? null }
 }

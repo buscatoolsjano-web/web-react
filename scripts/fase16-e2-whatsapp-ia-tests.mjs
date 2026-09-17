@@ -134,6 +134,11 @@ async function main() {
     slug: `${MARCA}-b-${sello}`, name: 'ZZ W16E2 B', legal_name: 'ZZ W16E2 B SA', default_currency: 'ARS',
   }).select('id').single(), 'empresa B')
   creados.empresas.push(empresaB.id)
+  // E3: la IA nace apagada por empresa. Estas pruebas son del análisis, así que
+  // las dos empresas de fixture la tienen habilitada (manual, sin automática).
+  ok(await s.from('whatsapp_ai_settings').upsert([
+    { company_id: empresa.id, enabled: true }, { company_id: empresaB.id, enabled: true },
+  ]), 'IA habilitada en el fixture')
 
   const PHONE_A = `${MARCA}-a-${sello}`
   const PHONE_B = `${MARCA}-b-${sello}`
