@@ -5010,6 +5010,232 @@ export type Database = {
           },
         ]
       }
+      // Fase 16 · E2: la capa de IA de WhatsApp.
+      whatsapp_ai_items: {
+        Row: {
+          actor: string
+          assigned_user_id: string | null
+          company_id: string
+          confidence: number
+          conversation_id: string
+          description: string
+          due_at: string | null
+          fingerprint: string
+          generated_at: string
+          id: string
+          model: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          source_message_ids: string[]
+          status: string
+          type: string
+        }
+        Insert: {
+          actor?: string
+          assigned_user_id?: string | null
+          company_id: string
+          confidence: number
+          conversation_id: string
+          description: string
+          due_at?: string | null
+          fingerprint: string
+          generated_at?: string
+          id?: string
+          model?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source_message_ids: string[]
+          status?: string
+          type: string
+        }
+        Update: {
+          actor?: string
+          assigned_user_id?: string | null
+          company_id?: string
+          confidence?: number
+          conversation_id?: string
+          description?: string
+          due_at?: string | null
+          fingerprint?: string
+          generated_at?: string
+          id?: string
+          model?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source_message_ids?: string[]
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_ai_items_assigned_user_id_fkey"
+            columns: ["assigned_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_ai_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_ai_items_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_ai_items_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_ai_runs: {
+        Row: {
+          company_id: string
+          conversation_id: string
+          created_at: string
+          duration_ms: number | null
+          error_code: string | null
+          id: number
+          input_tokens: number | null
+          items_discarded: number
+          items_saved: number
+          messages_sent: number
+          model: string | null
+          output_tokens: number | null
+          requested_by: string | null
+          status: string
+        }
+        Insert: {
+          company_id: string
+          conversation_id: string
+          created_at?: string
+          duration_ms?: number | null
+          error_code?: string | null
+          id?: never
+          input_tokens?: number | null
+          items_discarded?: number
+          items_saved?: number
+          messages_sent?: number
+          model?: string | null
+          output_tokens?: number | null
+          requested_by?: string | null
+          status: string
+        }
+        Update: {
+          company_id?: string
+          conversation_id?: string
+          created_at?: string
+          duration_ms?: number | null
+          error_code?: string | null
+          id?: never
+          input_tokens?: number | null
+          items_discarded?: number
+          items_saved?: number
+          messages_sent?: number
+          model?: string | null
+          output_tokens?: number | null
+          requested_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_ai_runs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_ai_runs_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_ai_runs_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_conversation_ai_summary: {
+        Row: {
+          analyses_count: number
+          company_id: string
+          conversation_id: string
+          conversation_state: string | null
+          generated_at: string | null
+          last_analyzed_message_at: string | null
+          last_analyzed_message_id: string | null
+          last_error: string | null
+          model: string | null
+          requires_attention: boolean
+          status: string
+          summary: string | null
+          topics: string[]
+          updated_at: string
+        }
+        Insert: {
+          analyses_count?: number
+          company_id: string
+          conversation_id: string
+          conversation_state?: string | null
+          generated_at?: string | null
+          last_analyzed_message_at?: string | null
+          last_analyzed_message_id?: string | null
+          last_error?: string | null
+          model?: string | null
+          requires_attention?: boolean
+          status?: string
+          summary?: string | null
+          topics?: string[]
+          updated_at?: string
+        }
+        Update: {
+          analyses_count?: number
+          company_id?: string
+          conversation_id?: string
+          conversation_state?: string | null
+          generated_at?: string | null
+          last_analyzed_message_at?: string | null
+          last_analyzed_message_id?: string | null
+          last_error?: string | null
+          model?: string | null
+          requires_attention?: boolean
+          status?: string
+          summary?: string | null
+          topics?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversation_ai_summary_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversation_ai_summary_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_conversation_reads: {
         Row: {
           conversation_id: string
@@ -5049,9 +5275,11 @@ export type Database = {
           archived_at: string | null
           assigned_to: string | null
           company_id: string
+          conversation_type: string
           created_at: string
           customer_contact_id: string | null
           customer_id: string | null
+          group_name: string | null
           id: string
           last_inbound_at: string | null
           last_message_at: string | null
@@ -5062,6 +5290,7 @@ export type Database = {
           phone_raw: string | null
           profile_name: string | null
           provider_contact_id: string
+          provider_group_id: string | null
           service_window_expires_at: string | null
           updated_at: string
           vinculo_origen: string | null
@@ -5071,17 +5300,23 @@ export type Database = {
           archived_at?: string | null
           assigned_to?: string | null
           company_id: string
+          conversation_type?: string
           created_at?: string
           customer_contact_id?: string | null
           customer_id?: string | null
+          group_name?: string | null
           id?: string
+          last_inbound_at?: string | null
           last_message_at?: string | null
           last_message_dir?: string | null
           last_message_preview?: string | null
+          last_outbound_at?: string | null
           phone_e164?: string | null
           phone_raw?: string | null
           profile_name?: string | null
           provider_contact_id: string
+          provider_group_id?: string | null
+          service_window_expires_at?: string | null
           updated_at?: string
           vinculo_origen?: string | null
         }
@@ -5090,17 +5325,23 @@ export type Database = {
           archived_at?: string | null
           assigned_to?: string | null
           company_id?: string
+          conversation_type?: string
           created_at?: string
           customer_contact_id?: string | null
           customer_id?: string | null
+          group_name?: string | null
           id?: string
+          last_inbound_at?: string | null
           last_message_at?: string | null
           last_message_dir?: string | null
           last_message_preview?: string | null
+          last_outbound_at?: string | null
           phone_e164?: string | null
           phone_raw?: string | null
           profile_name?: string | null
           provider_contact_id?: string
+          provider_group_id?: string | null
+          service_window_expires_at?: string | null
           updated_at?: string
           vinculo_origen?: string | null
         }
@@ -5252,6 +5493,8 @@ export type Database = {
           read_at: string | null
           received_at: string | null
           reply_to_provider_id: string | null
+          sender_name: string | null
+          sender_wa_id: string | null
           sent_at: string | null
           status: string
           text_body: string | null
@@ -5283,6 +5526,8 @@ export type Database = {
           read_at?: string | null
           received_at?: string | null
           reply_to_provider_id?: string | null
+          sender_name?: string | null
+          sender_wa_id?: string | null
           sent_at?: string | null
           status?: string
           text_body?: string | null
@@ -5314,6 +5559,8 @@ export type Database = {
           read_at?: string | null
           received_at?: string | null
           reply_to_provider_id?: string | null
+          sender_name?: string | null
+          sender_wa_id?: string | null
           sent_at?: string | null
           status?: string
           text_body?: string | null
@@ -5731,6 +5978,47 @@ export type Database = {
       marcar_conversacion_leida_whatsapp: {
         Args: { p_conversacion: string }
         Returns: undefined
+      }
+      // Fase 16 · E2: IA e informes de WhatsApp.
+      guardar_analisis_whatsapp: {
+        Args: {
+          p_conversacion: string
+          p_hasta_mensaje: string
+          p_metricas: Json
+          p_modelo: string
+          p_resultado: Json
+        }
+        Returns: Json
+      }
+      informe_whatsapp: {
+        Args: {
+          p_company: string
+          p_desde: string
+          p_hasta: string
+          p_horas?: number
+        }
+        Returns: Json
+      }
+      registrar_corrida_ia_whatsapp: {
+        Args: {
+          p_conversacion: string
+          p_error_code: string
+          p_estado: string
+          p_metricas: Json
+          p_modelo: string
+        }
+        Returns: undefined
+      }
+      resolver_item_ia_whatsapp: {
+        Args: { p_estado: string; p_item: string }
+        Returns: Json
+      }
+      senales_atencion_whatsapp: {
+        Args: { p_conversaciones: string[]; p_horas?: number }
+        Returns: {
+          conversation_id: string
+          motivos: string[]
+        }[]
       }
       no_leidos_whatsapp: {
         Args: { p_conversaciones: string[] }

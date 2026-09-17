@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Icon } from '@/components/icons/Icon'
+import { LinkButton } from '@/components/ui/LinkButton'
 import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
@@ -13,12 +15,26 @@ import { cx } from '@/utils/cx'
 import { Chat } from '../components/Chat'
 import { ListaConversaciones } from '../components/ListaConversaciones'
 import { PanelCliente } from '../components/PanelCliente'
+import { PanelActividad } from '../components/PanelActividad'
+import { PanelContexto, type PestanaContexto } from '../components/PanelContexto'
+import { PanelIA } from '../components/PanelIA'
 import styles from '../components/Whatsapp.module.css'
 import { nombreVisible } from '../lib/nombre'
 import { puedeAsignar, puedeUsarWhatsapp } from '../lib/permisos'
 import { asignar, marcarLeida } from '../services/conversaciones'
 import { FalloDeEnvio, enviarTexto } from '../services/mensajes'
-import { useConversacion, useConversaciones, useMensajes, useRealtimeWhatsapp } from '../hooks/useWhatsapp'
+import { FalloAnalisis, pedirAnalisis, resolverItemIA } from '../services/ia'
+import type { EstadoItemIA } from '../lib/ia'
+import {
+  useConversacion,
+  useConversaciones,
+  useCorridasIA,
+  useItemsIA,
+  useMensajes,
+  useRealtimeWhatsapp,
+  useResumenIA,
+  useSenales,
+} from '../hooks/useWhatsapp'
 import type { FiltroBandeja } from '../types'
 
 /**
@@ -37,7 +53,15 @@ export function WhatsappPage() {
   const queryClient = useQueryClient()
 
   const [filtro, setFiltro] = useState<FiltroBandeja>('todos')
-  const [abierta, setAbierta] = useState<string | null>(null)
+  // Un enlace desde el informe abre la conversación y lleva al mensaje fuente:
+  // /whatsapp?conversacion=<id>&mensaje=<id>
+  const [params, setParams] = useSearchParams()
+  const [abierta, setAbierta] = useState<string | null>(() => params.get('conversacion'))
+  const [pestana, setPestana] = useState<PestanaContexto>(() => (params.get('mensaje') ? 'ia' : 'contacto'))
+  const [resaltado, setResaltado] = useState<string | null>(() => params.get('mensaje'))
+  const [pedidoResaltado, setPedidoResaltado] = useState(0)
+  const [avisoIA, setAvisoIA] = useState<string | null>(null)
+  const [errorIA, setErrorIA] = useState<string | null>(null)
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null)
   const [enviosOk, setEnviosOk] = useState(0)
 
@@ -49,6 +73,21 @@ export function WhatsappPage() {
   const conversacion = useConversacion(abierta)
   const mensajes = useMensajes(abierta)
   const canal = useRealtimeWhatsapp(abierta)
+
+  // La IA se lee sólo si alguien mira la pestaña; los ítems también alimentan
+  // el contador de la pestaña, así que ésos sí se piden al abrir.
+  const resumenIA = useResumenIA(pestana === 'ia' ? abierta : null)
+  const itemsIA = useItemsIA(abierta)
+  const corridasIA = useCorridasIA(abierta, pestana === 'actividad' && asigna)
+  const idsVisibles = useMemo(() => (conversaciones.data ?? []).map((c) => c.id), [conversaciones.data])
+  const senales = useSenales(idsVisibles)
+
+  // Los parámetros del enlace se consumen una vez: quedarse en la URL haría
+  // que volver a la bandeja reabra siempre la misma conversación.
+  useEffect(() => {
+    if (params.has('conversacion') || params.has('mensaje')) setParams({}, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sólo al montar
+  }, [])
 
   // Abrir una conversación la marca leída PARA ESTA PERSONA. En el sistema
   // anterior el contador era global: si alguien abría un chat, se apagaba
@@ -79,6 +118,46 @@ export function WhatsappPage() {
       setErrorEnvio(e instanceof FalloDeEnvio ? e.message : 'No se pudo enviar el mensaje.'),
   })
 
+  const analizar = useMutation({
+    mutationFn: () => pedirAnalisis(abierta!),
+    onMutate: () => {
+      setErrorIA(null)
+      setAvisoIA(null)
+    },
+    onSuccess: (r) => {
+      setAvisoIA(
+        r.estado === 'sin_cambios'
+          ? 'No hay mensajes nuevos desde el último análisis.'
+          : r.estado === 'reciente'
+            ? 'Se analizó hace instantes; se muestra ese resultado.'
+            : r.estado === 'ok'
+              ? `Resumen actualizado${r.nuevos > 0 ? ` · ${r.nuevos} sugerencia(s) nueva(s)` : ''}.`
+              : null,
+      )
+      void queryClient.invalidateQueries({ queryKey: ['whatsapp', activa?.companyId, 'ia'] })
+      void queryClient.invalidateQueries({ queryKey: ['whatsapp', activa?.companyId, 'senales'] })
+    },
+    // El resumen anterior NO se toca: sólo se avisa.
+    onError: (e: Error) => setErrorIA(e instanceof FalloAnalisis ? e.message : 'No se pudo actualizar el resumen.'),
+  })
+
+  const resolver = useMutation({
+    mutationFn: ({ id, estado }: { id: string; estado: EstadoItemIA }) => resolverItemIA(id, estado),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['whatsapp', activa?.companyId, 'ia', 'items', abierta] })
+      void queryClient.invalidateQueries({ queryKey: ['whatsapp', activa?.companyId, 'senales'] })
+    },
+    onError: (e: Error) => setErrorIA(e.message),
+  })
+
+  const elegir = (id: string | null) => {
+    setErrorEnvio(null)
+    setErrorIA(null)
+    setAvisoIA(null)
+    setResaltado(null)
+    setAbierta(id)
+  }
+
   const cambiarAsignacion = useMutation({
     mutationFn: (usuario: string | null) => asignar(abierta!, usuario),
     onSuccess: () => {
@@ -108,6 +187,11 @@ export function WhatsappPage() {
       <PageHeader
         title="WhatsApp"
         subtitle="Conversaciones del número de la empresa"
+        actions={
+          <LinkButton to="/whatsapp/informes" variant="secondary" size="sm" icon={<Icon name="bar-chart" size={16} />}>
+            Informes
+          </LinkButton>
+        }
         status={
           canal === 'conectado' ? (
             <Badge tone="success" dot>En vivo</Badge>
@@ -137,10 +221,8 @@ export function WhatsappPage() {
             seleccionada={abierta}
             filtro={filtro}
             onFiltro={setFiltro}
-            onElegir={(id) => {
-              setErrorEnvio(null)
-              setAbierta(id)
-            }}
+            onElegir={elegir}
+            senales={senales.data}
           />
         </div>
 
@@ -161,7 +243,7 @@ export function WhatsappPage() {
                   size="sm"
                   className={styles.volver}
                   icon={<Icon name="arrow-left" size={16} />}
-                  onClick={() => setAbierta(null)}
+                  onClick={() => elegir(null)}
                 >
                   Conversaciones
                 </Button>
@@ -179,6 +261,11 @@ export function WhatsappPage() {
                 enviosOk={enviosOk}
                 onEnviar={(texto) => enviar.mutate({ texto })}
                 onCerrarError={() => setErrorEnvio(null)}
+                resaltado={resaltado}
+                pedidoResaltado={pedidoResaltado}
+                onFuenteFaltante={() =>
+                  setAvisoIA('El mensaje de origen es anterior a los mensajes cargados o ya no está disponible.')
+                }
               />
             </>
           )}
@@ -186,12 +273,46 @@ export function WhatsappPage() {
 
         {detalle ? (
           <div className={styles.panelContexto}>
-            <PanelCliente
-              conversacion={detalle}
-              puedeAsignar={asigna}
-              usuarioId={usuarioId}
-              asignando={cambiarAsignacion.isPending}
-              onAsignar={(u) => cambiarAsignacion.mutate(u)}
+            <PanelContexto
+              pestana={pestana}
+              onPestana={setPestana}
+              abiertos={(itemsIA.data ?? []).filter((i) => i.estado === 'open').length}
+              senales={(senales.data?.[detalle.id] ?? []).length}
+              contacto={
+                <PanelCliente
+                  conversacion={detalle}
+                  puedeAsignar={asigna}
+                  usuarioId={usuarioId}
+                  asignando={cambiarAsignacion.isPending}
+                  onAsignar={(u) => cambiarAsignacion.mutate(u)}
+                />
+              }
+              ia={
+                <PanelIA
+                  resumen={resumenIA.data ?? null}
+                  items={itemsIA.data ?? []}
+                  cargando={resumenIA.isPending || itemsIA.isPending}
+                  errorLectura={resumenIA.error?.message ?? itemsIA.error?.message ?? null}
+                  errorAnalisis={errorIA}
+                  aviso={avisoIA}
+                  analizando={analizar.isPending}
+                  resolviendo={resolver.isPending ? (resolver.variables?.id ?? null) : null}
+                  onActualizar={() => analizar.mutate()}
+                  onResolver={(id, estado) => resolver.mutate({ id, estado })}
+                  onIrAFuente={(mensajeId) => {
+                    setAvisoIA(null)
+                    setResaltado(mensajeId)
+                    setPedidoResaltado((n) => n + 1)
+                  }}
+                />
+              }
+              actividad={
+                <PanelActividad
+                  motivos={senales.data?.[detalle.id] ?? []}
+                  corridas={asigna ? (corridasIA.data ?? []) : null}
+                  cargando={corridasIA.isPending && asigna}
+                />
+              }
             />
           </div>
         ) : null}

@@ -257,6 +257,21 @@
   justify-content: flex-end;
 }
 
+/* La fuente de una sugerencia de la IA: se marca con borde, no sólo con color. */
+.burbujaResaltada .burbuja {
+  outline: 2px solid var(--color-warning);
+  outline-offset: 2px;
+}
+
+.burbujaFila:focus-visible {
+  outline: none;
+}
+
+.burbujaFila:focus-visible .burbuja {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
 .burbuja {
   max-width: min(42rem, 80%);
   padding: var(--space-2) var(--space-3);
@@ -400,9 +415,20 @@
 
 /* ── Contexto del cliente ─────────────────────────────────────────────── */
 .contexto {
-  display: grid;
-  align-content: start;
-  gap: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Las pestañas quedan fijas arriba; el contenido scrollea debajo. */
+.contextoPestanas {
+  flex: none;
+  padding: 0 var(--space-2);
+}
+
+.contextoCuerpo {
+  flex: 1;
+  min-height: 0;
   padding: var(--space-3);
   overflow-y: auto;
 }
@@ -456,6 +482,103 @@
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
   border-radius: var(--radius-sm);
+}
+
+/* ── IA (Fase 16 · E2) ─────────────────────────────────────────────────── */
+.ia {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.iaAviso {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-info-soft);
+  color: var(--color-info-text);
+  font-size: var(--text-xs);
+}
+
+.iaCabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.iaResumen {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.iaNota,
+.iaPie {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+}
+
+.iaEtiquetas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.iaCuenta {
+  font-weight: var(--weight-regular);
+  color: var(--color-text-muted);
+}
+
+.iaItems,
+.iaMotivos {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.iaMotivos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.iaItem {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  min-width: 0;
+}
+
+.iaItemTexto {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.iaAcciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.itemAtencion {
+  display: inline-flex;
 }
 
 /* ── Responsive ───────────────────────────────────────────────────────── */

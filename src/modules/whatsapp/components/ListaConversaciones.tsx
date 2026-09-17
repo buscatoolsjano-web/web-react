@@ -4,6 +4,7 @@ import { EmptyState } from '@/components/feedback/EmptyState'
 import { cx } from '@/utils/cx'
 import { nombreVisible } from '../lib/nombre'
 import { presentarVentana } from '../lib/ventana'
+import { presentarMotivos, type MotivoAtencion } from '../lib/ia'
 import { FILTROS, type ConversacionListado, type FiltroBandeja } from '../types'
 import styles from './Whatsapp.module.css'
 
@@ -14,6 +15,8 @@ export interface ListaConversacionesProps {
   filtro: FiltroBandeja
   onFiltro: (f: FiltroBandeja) => void
   onElegir: (id: string) => void
+  /** Señales de atención por conversación (reglas + IA). Una consulta para toda la lista. */
+  senales?: Readonly<Record<string, readonly MotivoAtencion[]>> | undefined
 }
 
 /** `HH:mm` si es de hoy, `DD/MM` si no. Lo que se mira de un vistazo. */
@@ -34,6 +37,7 @@ export function ListaConversaciones({
   filtro,
   onFiltro,
   onElegir,
+  senales,
 }: ListaConversacionesProps) {
   return (
     <div className={styles.lista}>
@@ -100,6 +104,18 @@ export function ListaConversaciones({
                     {c.clienteNombre ? null : <Badge tone="neutral" outline>Sin vincular</Badge>}
                     {c.asignadoNombre ? <Badge tone="info">{c.asignadoNombre}</Badge> : null}
                     {ventana.estado === 'cerrada' ? <Badge tone="warning">Ventana cerrada</Badge> : null}
+                    {/* La señal dice POR QUÉ, no sólo que sí: el motivo principal a la
+                        vista y el resto para lectores de pantalla. */}
+                    {(() => {
+                      const motivos = presentarMotivos(senales?.[c.id] ?? [])
+                      if (motivos.length === 0) return null
+                      return (
+                        <span className={styles.itemAtencion}>
+                          <Badge tone="warning" dot>{motivos[0]}</Badge>
+                          {motivos.length > 1 ? <span className="sr-only">. También: {motivos.slice(1).join(', ')}</span> : null}
+                        </span>
+                      )
+                    })()}
                   </span>
                 </button>
               </li>

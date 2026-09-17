@@ -5,6 +5,13 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { listarConversaciones, obtenerConversacion } from '../services/conversaciones'
 import { listarMensajes } from '../services/mensajes'
 import { suscribirWhatsapp, type EstadoCanal } from '../services/realtime'
+import {
+  listarCorridasIA,
+  listarItemsIA,
+  obtenerInforme,
+  obtenerResumenIA,
+  senalesDeAtencion,
+} from '../services/ia'
 import type { FiltroBandeja } from '../types'
 
 /**
@@ -72,8 +79,12 @@ export function useRealtimeWhatsapp(conversacionAbierta: string | null): EstadoC
   useEffect(() => {
     if (!companyId) return
 
-    const invalidarListado = () =>
+    // Un mensaje nuevo cambia la bandeja Y sus señales de atención; las dos
+    // se recalculan juntas, con una consulta cada una.
+    const invalidarListado = () => {
       void queryClient.invalidateQueries({ queryKey: ['whatsapp', companyId, 'conversaciones'] })
+      void queryClient.invalidateQueries({ queryKey: ['whatsapp', companyId, 'senales'] })
+    }
 
     return suscribirWhatsapp(companyId, {
       mensaje: (c) => {
@@ -101,4 +112,67 @@ export function useRealtimeWhatsapp(conversacionAbierta: string | null): EstadoC
   }, [companyId, conversacionAbierta, queryClient])
 
   return estado
+}
+
+// ── IA (Fase 16 · E2) ─────────────────────────────────────────────────────
+//
+// Ninguna de estas consultas se repite por intervalo ni se recalcula por
+// render: el resumen y los ítems se leen al abrir la conversación y se
+// invalidan cuando alguien pide un análisis o resuelve una sugerencia.
+
+export function useResumenIA(conversacionId: string | null) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  return useQuery({
+    queryKey: ['whatsapp', companyId, 'ia', 'resumen', conversacionId],
+    queryFn: () => obtenerResumenIA(conversacionId!),
+    enabled: companyId !== null && !!conversacionId,
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useItemsIA(conversacionId: string | null) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  return useQuery({
+    queryKey: ['whatsapp', companyId, 'ia', 'items', conversacionId],
+    queryFn: () => listarItemsIA(conversacionId!),
+    enabled: companyId !== null && !!conversacionId,
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useCorridasIA(conversacionId: string | null, habilitado: boolean) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  return useQuery({
+    queryKey: ['whatsapp', companyId, 'ia', 'corridas', conversacionId],
+    queryFn: () => listarCorridasIA(conversacionId!),
+    enabled: habilitado && companyId !== null && !!conversacionId,
+    staleTime: 60_000,
+  })
+}
+
+/** Señales de toda la bandeja visible en UNA consulta. */
+export function useSenales(conversaciones: readonly string[]) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const clave = [...conversaciones].sort().join(',')
+  return useQuery({
+    queryKey: ['whatsapp', companyId, 'senales', clave],
+    queryFn: () => senalesDeAtencion(conversaciones),
+    enabled: companyId !== null && conversaciones.length > 0,
+    staleTime: 60_000,
+  })
+}
+
+export function useInformeWhatsapp(desde: string, hasta: string) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  return useQuery({
+    queryKey: ['whatsapp', companyId, 'informe', desde, hasta],
+    queryFn: () => obtenerInforme(companyId!, desde, hasta),
+    enabled: companyId !== null,
+    staleTime: 60_000,
+  })
 }

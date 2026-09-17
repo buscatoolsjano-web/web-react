@@ -21,7 +21,18 @@ export interface ChatProps {
   enviosOk: number
   onEnviar: (texto: string) => void
   onCerrarError: () => void
+  /**
+   * Mensaje a mostrar y resaltar: la fuente de una sugerencia de la IA. Si no
+   * está entre los mensajes cargados, se avisa con `onFuenteFaltante`.
+   */
+  resaltado?: string | null | undefined
+  /** Cambia en cada pedido, para volver a llevar al mismo mensaje. */
+  pedidoResaltado?: number | undefined
+  onFuenteFaltante?: (() => void) | undefined
 }
+
+/** El id DOM de un mensaje del hilo. */
+const idDeMensaje = (id: string) => `wa-msg-${id}`
 
 /** `lunes 16 de septiembre` para separar los días del hilo. */
 function dia(iso: string): string {
@@ -68,12 +79,17 @@ function Adjunto({ m }: { m: Mensaje }) {
   )
 }
 
-function Burbuja({ m }: { m: Mensaje }) {
+function Burbuja({ m, resaltada }: { m: Mensaje; resaltada: boolean }) {
   const salida = m.direccion === 'out'
   const estado = presentarEstado(m.estadoVisible)
 
   return (
-    <li className={cx(styles.burbujaFila, salida && styles.burbujaSalida)}>
+    <li
+      id={idDeMensaje(m.id)}
+      // Enfocable sólo por código: al ir a la fuente, el foco llega al mensaje.
+      tabIndex={-1}
+      className={cx(styles.burbujaFila, salida && styles.burbujaSalida, resaltada && styles.burbujaResaltada)}
+    >
       <div className={cx(styles.burbuja, salida ? styles.burbujaOut : styles.burbujaIn)}>
         {m.respondeA ? <p className={styles.respuesta}>En respuesta a un mensaje anterior</p> : null}
 
@@ -114,6 +130,9 @@ export function Chat({
   enviosOk,
   onEnviar,
   onCerrarError,
+  resaltado = null,
+  pedidoResaltado = 0,
+  onFuenteFaltante,
 }: ChatProps) {
   const [texto, setTexto] = useState('')
   const finDelHilo = useRef<HTMLDivElement>(null)
@@ -124,6 +143,19 @@ export function Chat({
   useEffect(() => {
     finDelHilo.current?.scrollIntoView({ block: 'end' })
   }, [mensajes.length])
+
+  // Ir a la fuente de una sugerencia: centrar el mensaje y darle el foco.
+  useEffect(() => {
+    if (!resaltado || cargando) return
+    const el = document.getElementById(idDeMensaje(resaltado))
+    if (!el) {
+      onFuenteFaltante?.()
+      return
+    }
+    el.scrollIntoView?.({ block: 'center' })
+    el.focus({ preventScroll: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sólo al pedir, no cuando cambia el callback
+  }, [resaltado, pedidoResaltado, cargando])
 
   const escribible = puedeEnviar && ventana.puedeEscribir
 
@@ -163,7 +195,7 @@ export function Chat({
                       <span>{dia(m.ordenadoEn)}</span>
                     </li>
                   ) : null}
-                  <Burbuja m={m} />
+                  <Burbuja m={m} resaltada={m.id === resaltado} />
                 </Fragment>
               )
             })}

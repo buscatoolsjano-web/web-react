@@ -209,6 +209,9 @@ const EmailHiloPage = lazyConRecarga(() =>
 const WhatsappPage = lazyConRecarga(() =>
   import('@/modules/whatsapp/pages/WhatsappPage').then((m) => ({ default: m.WhatsappPage })),
 )
+const InformeWhatsappPage = lazyConRecarga(() =>
+  import('@/modules/whatsapp/pages/InformeWhatsappPage').then((m) => ({ default: m.InformeWhatsappPage })),
+)
 const InformesPage = lazyConRecarga(() =>
   import('@/modules/informes/pages/InformesPage').then((m) => ({ default: m.InformesPage })),
 )
@@ -369,6 +372,10 @@ export const routes: RouteObject[] = [
       // WhatsApp (Fase 16). Admin, employee y vendedor: el vendedor sólo ve
       // las conversaciones que tiene asignadas, y eso lo decide la RLS.
       { path: 'whatsapp', element: privada(<WhatsappPage />) },
+      // Fase 16 · E2: informes diario y semanal, con la visibilidad de WhatsApp
+      // (el vendedor ve el de sus conversaciones). No es el módulo Informes:
+      // ése es de admin y employee, y éste respeta la asignación.
+      { path: 'whatsapp/informes', element: privada(<InformeWhatsappPage />) },
 
       // Informes v1: actividad comercial agregada en el servidor. Admin y
       // employee; la página y la RPC lo validan, el menú sólo no lo ofrece.

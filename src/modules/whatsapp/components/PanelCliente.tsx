@@ -39,9 +39,11 @@ export function PanelCliente({
   const esMio = c.asignadoA !== null && c.asignadoA === usuarioId
 
   return (
-    <aside className={styles.contexto} aria-label="Contexto del cliente">
+    // El <aside> y las pestañas los pone PanelContexto: esto es el contenido
+    // de la pestaña «Contacto».
+    <div className={styles.ia}>
       <section className={styles.bloque}>
-        <h2 className={styles.bloqueTitulo}>Contacto</h2>
+        <h3 className={styles.bloqueTitulo}>Contacto</h3>
         <MetaList
           items={[
             { label: 'Perfil de WhatsApp', value: c.perfil ?? <Missing>Sin nombre</Missing> },
@@ -51,7 +53,7 @@ export function PanelCliente({
       </section>
 
       <section className={styles.bloque}>
-        <h2 className={styles.bloqueTitulo}>Cliente</h2>
+        <h3 className={styles.bloqueTitulo}>Cliente</h3>
         {c.clienteId ? (
           <>
             <MetaList
@@ -89,7 +91,7 @@ export function PanelCliente({
       </section>
 
       <section className={styles.bloque}>
-        <h2 className={styles.bloqueTitulo}>Asignación</h2>
+        <h3 className={styles.bloqueTitulo}>Asignación</h3>
         <p className={styles.asignado}>
           {c.asignadoNombre ? `A cargo: ${c.asignadoNombre}` : 'Sin asignar'}
         </p>
@@ -108,6 +110,6 @@ export function PanelCliente({
           </div>
         ) : null}
       </section>
-    </aside>
+    </div>
   )
 }
