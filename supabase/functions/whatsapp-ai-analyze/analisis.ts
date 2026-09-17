@@ -17,6 +17,7 @@ import {
   FalloProveedor,
   MAX_MENSAJES_POR_ANALISIS,
   SalidaInvalida,
+  calcularCostoOpenAI,
   parsearSalida,
   textoParaIA,
   validarResultado,
@@ -64,7 +65,9 @@ export async function analizarConversacion(o: OpcionesAnalisis): Promise<Resulta
   const ahora = o.ahora ?? Date.now
   const zona = o.zonaHoraria ?? 'America/Argentina/Buenos_Aires'
   const inicio = ahora()
-  const metricasBase = { requested_by: o.solicitadoPor }
+  // El proveedor va en CADA corrida, también en las fallidas y en las que no
+  // llamaron a nadie: es lo que permite contar llamadas reales por proveedor.
+  const metricasBase = { requested_by: o.solicitadoPor, provider: o.proveedor.nombre }
 
   const registrar = async (estado: 'error' | 'sin_cambios', codigo: string | null, extra: Record<string, unknown> = {}) => {
     await o.admin.rpc('registrar_corrida_ia_whatsapp', {
@@ -170,10 +173,15 @@ export async function analizarConversacion(o: OpcionesAnalisis): Promise<Resulta
     return { estado: 'error', codigo, mensajesEnviados: mensajes.length }
   }
 
+  // Uso y costo de la llamada. Sin texto: ni prompt, ni respuesta, ni mensajes.
+  const costo = o.proveedor.nombre === 'openai' ? calcularCostoOpenAI(respuesta.modelo, respuesta.uso) : null
   const metricasUso = {
     messages_sent: mensajes.length,
     input_tokens: respuesta.uso.inputTokens,
     output_tokens: respuesta.uso.outputTokens,
+    cached_tokens: respuesta.uso.cachedTokens ?? null,
+    reasoning_tokens: respuesta.uso.reasoningTokens ?? null,
+    estimated_cost_usd: costo?.totalUsd ?? null,
   }
 
   // 7 · Validación. Una salida entera inválida no toca el resumen previo.

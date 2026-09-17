@@ -28,7 +28,7 @@ import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'node:crypto'
 
 const { analizarConversacion } = await import('../supabase/functions/whatsapp-ai-analyze/analisis.ts')
-const { proveedorFalso, FalloProveedor } = await import('../supabase/functions/whatsapp-ai-analyze/logica.ts')
+const { proveedorFalso, FalloProveedor, proveedorOpenAI } = await import('../supabase/functions/whatsapp-ai-analyze/logica.ts')
 
 const BASE = process.env.VITE_SUPABASE_URL
 const PUB = process.env.VITE_SUPABASE_ANON_KEY
@@ -270,6 +270,34 @@ async function main() {
   cmp('el checkpoint es el último mensaje analizado', true, sumB.last_analyzed_message_id !== null)
   const { data: runsA } = await s.from('whatsapp_ai_runs').select('status, messages_sent').eq('conversation_id', A)
   cmp('cada análisis deja una corrida medida', 'ok/2', runsA.map((r) => `${r.status}/${r.messages_sent}`).join(','))
+  const { data: provA } = await s.from('whatsapp_ai_runs').select('provider, estimated_cost_usd').eq('conversation_id', A)
+  cmp('la corrida registra el proveedor, y el falso no tiene costo', 'falso/null', provA.map((r) => `${r.provider}/${r.estimated_cost_usd}`).join(','))
+
+  // E2.5 · el adaptador OpenAI de verdad, con un cliente MOCK: circuito completo sin red.
+  const clienteMock = (respuestaOError) => ({
+    models: { retrieve: () => Promise.resolve({ id: 'gpt-5.6-luna' }) },
+    responses: { create: () => respuestaOError instanceof Error ? Promise.reject(respuestaOError) : Promise.resolve(respuestaOError) },
+  })
+  const respuestaMock = (e) => ({
+    model: 'gpt-5.6-luna-2026-07-09', status: 'completed', incomplete_details: null,
+    output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify({
+      summary: 'ZZ resumen mock', topics: ['Mock'], conversation_state: 'en_curso', requires_attention: false,
+      items: [{ type: 'important', description: 'ZZ dato mock', actor: 'unknown', due_at: null, source_message_ids: ['m1'], confidence: 0.9 }],
+    }) }] }],
+    usage: { input_tokens: 1200, input_tokens_details: { cached_tokens: 200 }, output_tokens: 500, output_tokens_details: { reasoning_tokens: 150 } },
+  })
+  const Gm = (await entrante(PHONE_A, '5491100000099', 'ZZ mensaje para el mock', 0.5, 'ZZ Mock OpenAI')).conversation_id
+  const rOk = await correr(Gm, { proveedor: proveedorOpenAI(clienteMock(respuestaMock()), { modelo: 'gpt-5.6-luna', esfuerzo: 'low' }) })
+  cmp('OpenAI (mock): el circuito completo guarda', 'ok/1', `${rOk.estado}/${rOk.itemsNuevos}`)
+  const { data: runOk } = await s.from('whatsapp_ai_runs').select('provider, model, input_tokens, output_tokens, cached_tokens, reasoning_tokens, estimated_cost_usd').eq('conversation_id', Gm).single()
+  cmp('OpenAI (mock): la corrida guarda proveedor, modelo que respondió y tokens desglosados', 'openai/gpt-5.6-luna-2026-07-09/1200/500/200/150', [runOk.provider, runOk.model, runOk.input_tokens, runOk.output_tokens, runOk.cached_tokens, runOk.reasoning_tokens].join('/'))
+  cmp('OpenAI (mock): costo con precios verificados (1000×0,20 + 200×0,02 + 500×1,20 por MTok)', 0.000804, Number(runOk.estimated_cost_usd))
+  const e401 = Object.assign(new (class AuthenticationError extends Error {})('x'), { status: 401 })
+  await entrante(PHONE_A, '5491100000099', 'ZZ segundo mensaje para el mock', 0.2, 'ZZ Mock OpenAI')
+  const rAuth = await correr(Gm, { proveedor: proveedorOpenAI(clienteMock(e401), { modelo: 'gpt-5.6-luna', esfuerzo: 'low' }), ahora: () => reloj + 120_000 })
+  cmp('OpenAI (mock): un 401 es un error saneado, sin tocar el resumen', 'error/proveedor_auth/ZZ resumen mock', `${rAuth.estado}/${rAuth.codigo}/${(await resumen(Gm)).summary}`)
+  const { data: runErr } = await s.from('whatsapp_ai_runs').select('provider, error_code').eq('conversation_id', Gm).eq('status', 'error').single()
+  cmp('OpenAI (mock): la corrida fallida también registra el proveedor', 'openai/proveedor_auth', `${runErr.provider}/${runErr.error_code}`)
 
   // Debounce e incremental.
   cmp('reanalizar enseguida: «reciente», no llama al proveedor', 'reciente', (await correr(B)).estado)
@@ -469,12 +497,12 @@ async function main() {
   const runsAntes = await cuenta('whatsapp_ai_runs')
 
   const infAdmin = ok(await admin.c.rpc('informe_whatsapp', { p_company: empresa.id, p_desde: desde, p_hasta: hasta }), 'informe admin')
-  cmp('el admin ve las 7 conversaciones activas de su empresa', 7, infAdmin.totales.conversaciones_activas)
+  cmp('el admin ve las 8 conversaciones activas de su empresa', 8, infAdmin.totales.conversaciones_activas)
   cmp('los errores de envío del período', 1, infAdmin.totales.errores_envio)
   cmp('una decisión en el período', 1, infAdmin.totales.decisiones)
   cmp('vencido sólo el de ayer: el de hoy y el de mañana todavía no', 1, infAdmin.totales.compromisos_vencidos)
   cmp('la conversación de otra empresa no aparece', false, infAdmin.conversaciones.some((c) => c.id === XB))
-  cmp('todos los ítems son de su empresa', true, infAdmin.items.every((i) => [A, B, C, D, E, F, G].includes(i.conversation_id)))
+  cmp('todos los ítems son de su empresa', true, infAdmin.items.every((i) => [A, B, C, D, E, F, G, Gm].includes(i.conversation_id)))
   cmp('por asignado: sólo cuenta conversaciones, sin puntajes', true, infAdmin.por_asignado.every((p) => Object.keys(p).sort().join(',') === 'asignado,asignado_id,conversaciones'))
 
   const infVend = ok(await vend1.c.rpc('informe_whatsapp', { p_company: empresa.id, p_desde: desde, p_hasta: hasta }), 'informe vend1')

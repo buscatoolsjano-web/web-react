@@ -34,6 +34,10 @@ const admin = createClient(URL_BASE, CLAVE_SERVICIO, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
 
+// Uno por worker: la verificación del modelo se hace una vez, no en cada
+// pedido. Un cambio de secrets levanta workers nuevos, con la config nueva.
+const proveedor = proveedorConfigurado()
+
 function cors(origen: string | null): Record<string, string> {
   if (!origen || !ORIGENES_PERMITIDOS.includes(origen)) return { Vary: 'Origin' }
   return {
@@ -97,14 +101,14 @@ Deno.serve(async (req) => {
 
   const r = await analizarConversacion({
     admin,
-    proveedor: proveedorConfigurado(),
+    proveedor,
     conversacionId: pedido.conversationId,
     completo: pedido.completo,
     solicitadoPor: sesion.user.id,
   })
 
   console.log(JSON.stringify({
-    fn: 'whatsapp-ai-analyze', estado: r.estado, codigo: r.codigo ?? null,
+    fn: 'whatsapp-ai-analyze', proveedor: proveedor.nombre, estado: r.estado, codigo: r.codigo ?? null,
     mensajes: r.mensajesEnviados ?? 0, items_nuevos: r.itemsNuevos ?? 0,
     descartados: r.itemsDescartados ?? 0, alias_inventados: r.aliasInventados ?? 0,
     ms: r.duracionMs ?? null,

@@ -6,17 +6,37 @@
  *
  * Elegir proveedor es configuración, no código:
  *
- *   WHATSAPP_AI_PROVIDER = anthropic | falso     (default: falso)
- *   ANTHROPIC_API_KEY    = …                     (sólo con anthropic)
- *   WHATSAPP_AI_MODEL    = claude-opus-5         (default)
- *   WHATSAPP_AI_EFFORT   = low | medium | high   (default: medium)
+ *   WHATSAPP_AI_PROVIDER = openai | anthropic | falso   (default: falso)
+ *
+ *   openai (piloto real, Fase 16 · E2.5):
+ *     OPENAI_API_KEY     = …
+ *     WHATSAPP_AI_MODEL  = gpt-5.6-luna | gpt-5.6-terra  (default: gpt-5.6-luna)
+ *     WHATSAPP_AI_EFFORT = none | low | medium           (default: low)
+ *     Sólo modelos con precio verificado en PRECIOS_OPENAI; cualquier otro
+ *     valor deja la función sin configurar en vez de usar un modelo a ciegas.
+ *
+ *   anthropic (opcional, sin usar):
+ *     ANTHROPIC_API_KEY  = …
+ *     WHATSAPP_AI_MODEL  = claude-opus-5                 (default)
+ *     WHATSAPP_AI_EFFORT = low | medium | high           (default: medium)
+ *
+ * El modelo y el endpoint NUNCA vienen del navegador.
  *
  * El default es `falso` A PROPÓSITO: una función desplegada sin configurar no
  * manda conversaciones a ningún tercero. Encender la IA real es una decisión
  * explícita, con su secret.
  */
 import Anthropic from 'npm:@anthropic-ai/sdk@0.126.0'
+import OpenAI from 'npm:openai@7.17.0'
 import {
+  ESFUERZOS_OPENAI,
+  MODELO_OPENAI_POR_DEFECTO,
+  PRECIOS_OPENAI,
+  REINTENTOS_OPENAI,
+  TIMEOUT_OPENAI_MS,
+  proveedorOpenAI,
+  type ClienteOpenAI,
+  type EsfuerzoOpenAI,
   ESQUEMA_SALIDA,
   FalloProveedor,
   INSTRUCCIONES,
@@ -90,10 +110,28 @@ function proveedorAnthropic(apiKey: string, modelo: string, esfuerzo: string): P
   }
 }
 
+const sinConfigurar = (nombre: string, detalle: string): ProveedorIA => ({
+  nombre,
+  analizar: () => Promise.reject(new FalloProveedor('sin_configurar', detalle)),
+})
+
 /** El proveedor configurado. Sin configuración: el falso, nunca uno real. */
 export function proveedorConfigurado(): ProveedorIA {
   const nombre = (Deno.env.get('WHATSAPP_AI_PROVIDER') ?? 'falso').trim()
   if (nombre === 'falso') return proveedorFalso
+  if (nombre === 'openai') {
+    const clave = Deno.env.get('OPENAI_API_KEY')
+    if (!clave) return sinConfigurar('openai', 'falta la clave del proveedor')
+    const modelo = (Deno.env.get('WHATSAPP_AI_MODEL') ?? MODELO_OPENAI_POR_DEFECTO).trim()
+    if (!(modelo in PRECIOS_OPENAI)) return sinConfigurar('openai', 'modelo no habilitado')
+    const esfuerzo = (Deno.env.get('WHATSAPP_AI_EFFORT') ?? 'low').trim()
+    if (!(ESFUERZOS_OPENAI as readonly string[]).includes(esfuerzo)) return sinConfigurar('openai', 'esfuerzo no habilitado')
+    // Timeout por intento y UN reintento, sólo para errores transitorios
+    // (conexión, 408, 409, 429, 5xx). Una salida inválida o una negativa son
+    // respuestas 200: no se reintentan.
+    const cliente = new OpenAI({ apiKey: clave, timeout: TIMEOUT_OPENAI_MS, maxRetries: REINTENTOS_OPENAI })
+    return proveedorOpenAI(cliente as unknown as ClienteOpenAI, { modelo, esfuerzo: esfuerzo as EsfuerzoOpenAI })
+  }
   if (nombre === 'anthropic') {
     const clave = Deno.env.get('ANTHROPIC_API_KEY')
     if (!clave) {

@@ -5099,11 +5099,13 @@ export type Database = {
       }
       whatsapp_ai_runs: {
         Row: {
+          cached_tokens: number | null
           company_id: string
           conversation_id: string
           created_at: string
           duration_ms: number | null
           error_code: string | null
+          estimated_cost_usd: number | null
           id: number
           input_tokens: number | null
           items_discarded: number
@@ -5111,15 +5113,19 @@ export type Database = {
           messages_sent: number
           model: string | null
           output_tokens: number | null
+          provider: string | null
+          reasoning_tokens: number | null
           requested_by: string | null
           status: string
         }
         Insert: {
+          cached_tokens?: number | null
           company_id: string
           conversation_id: string
           created_at?: string
           duration_ms?: number | null
           error_code?: string | null
+          estimated_cost_usd?: number | null
           id?: never
           input_tokens?: number | null
           items_discarded?: number
@@ -5127,15 +5133,19 @@ export type Database = {
           messages_sent?: number
           model?: string | null
           output_tokens?: number | null
+          provider?: string | null
+          reasoning_tokens?: number | null
           requested_by?: string | null
           status: string
         }
         Update: {
+          cached_tokens?: number | null
           company_id?: string
           conversation_id?: string
           created_at?: string
           duration_ms?: number | null
           error_code?: string | null
+          estimated_cost_usd?: number | null
           id?: never
           input_tokens?: number | null
           items_discarded?: number
@@ -5143,6 +5153,8 @@ export type Database = {
           messages_sent?: number
           model?: string | null
           output_tokens?: number | null
+          provider?: string | null
+          reasoning_tokens?: number | null
           requested_by?: string | null
           status?: string
         }
