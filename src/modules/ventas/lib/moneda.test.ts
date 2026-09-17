@@ -18,7 +18,10 @@ describe('moneda del documento (Fase 14 E3)', () => {
   })
 
   it('un precio de lista en otra moneda no se sugiere (FX_POLICY = UNDEFINED)', () => {
-    const p = { id: 'x', sku: 'A', nombre: 'A', marca: null, precio: 100, monedaPrecio: 'USD' }
+    const p = {
+      id: 'x', sku: 'A', nombre: 'A', marca: null, precio: 100,
+      monedaPrecio: 'USD', tarifaId: 'l1', tarifaNombre: 'ZZ Lista',
+    }
     expect(precioSugerido(p, 'USD')).toBe(100)
     expect(precioSugerido(p, 'ARS')).toBeNull()
     expect(precioSugerido(p, '')).toBeNull()

@@ -73,14 +73,51 @@ function filaLinea(companyId: string, quoteId: string, lineNo: number, l: LineaN
   }
 }
 
+export interface CotizacionCreada {
+  id: string
+  numero: string
+  total: number
+  lineas: number
+}
+
 /**
- * Crea la cotización con sus líneas.
+ * Crea la cotización con sus líneas, en UNA transacción del servidor.
  *
- * El número se pide RECIÉN ACÁ, cuando el documento se guarda de verdad. Si
- * se pidiera al abrir el editor, cada borrador abandonado se comería un
- * número de la serie.
+ * Fase 15 · E3. Antes esto eran cuatro viajes desde el navegador —número,
+ * cabecera, líneas, auditoría—: si fallaba el segundo quedaba un número
+ * consumido, y si fallaba el tercero, una cotización sin líneas. Ahora
+ * `crear_cotizacion` valida cliente, contacto, vendedor, tarifa y moneda,
+ * reserva el número, inserta todo, calcula los totales y audita; si algo falla,
+ * no queda nada (tampoco el número).
  */
 export async function crearCotizacion(
+  companyId: string,
+  cabecera: Record<string, string | number | null>,
+  lineas: readonly Record<string, unknown>[],
+): Promise<CotizacionCreada> {
+  // Antes de llamar: sin moneda no se crea nada. El servidor lo vuelve a exigir.
+  const moneda = cabecera['currency_code']
+  exigirMoneda(typeof moneda === 'string' ? moneda : null)
+
+  const { data, error } = await supabase.rpc('crear_cotizacion', {
+    p_company: companyId,
+    p_cabecera: cabecera as unknown as Json,
+    p_lineas: lineas as unknown as Json,
+  })
+  if (error) {
+    const codigo = Object.keys(MOTIVOS_GUARDADO).find((c) => error.message.includes(c))
+    throw new FalloDeGuardado(
+      codigo ?? 'error_interno',
+      codigo ? MOTIVOS_GUARDADO[codigo]! : 'No se pudo crear la cotización.',
+    )
+  }
+
+  const r = data as unknown as { id: string; number: string; total: number | string; lineas: number }
+  return { id: r.id, numero: r.number, total: Number(r.total ?? 0), lineas: r.lineas }
+}
+
+/** El alta de E1, que insertaba desde el navegador. La usa sólo el pedido. */
+export async function crearCotizacionLegacy(
   cab: CabeceraNueva,
   lineas: readonly LineaNueva[],
 ): Promise<string> {
@@ -239,6 +276,11 @@ export const MOTIVOS_GUARDADO: Record<string, string> = {
   PRECIO_INVALIDO: 'Un precio es negativo.',
   LINEA_AJENA: 'Una de las líneas no pertenece a esta cotización.',
   CAMPO_NO_PERMITIDO: 'Se intentó guardar un campo que no se puede editar.',
+  // Sólo del alta (Fase 15 · E3).
+  CLIENTE_REQUERIDO: 'Elegí un cliente antes de crear la cotización.',
+  DOCUMENT_CURRENCY_REQUIRED: 'Elegí la moneda del documento antes de crear la cotización.',
+  SIN_SERIE: 'La empresa no tiene una serie de numeración para cotizaciones.',
+  external_numbering_authority: 'La numeración de cotizaciones todavía la administra STEL: no se puede crear desde el ERP.',
 }
 
 export class FalloDeGuardado extends Error {

@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
-  agregarLinea,
   aPayload,
+  aPayloadCreacion,
+  agregarLinea,
+  borradorNuevo,
   cambiarCampo,
   cambiarCliente,
   cambiarLinea,
   cambiarMoneda,
   comoLineasDocumento,
   crearBorrador,
+  faltaParaCrear,
   hayCambios,
   moverLinea,
   proximoNumero,
@@ -238,5 +241,72 @@ describe('previsualización', () => {
     const ls = comoLineasDocumento(b)
     expect(ls).toHaveLength(2)
     expect(ls[0]!.cantidad).toBe(7)
+  })
+})
+
+describe('alta de cotización (Fase 15 · E3)', () => {
+  it('el borrador nuevo nace vacío: sin moneda, sin cliente y sin líneas', () => {
+    const b = borradorNuevo('2026-09-17', '30 DIAS')
+    expect(b.cabecera.moneda).toBe('')
+    expect(b.cabecera.customerId).toBe('')
+    expect(b.cabecera.fecha).toBe('2026-09-17')
+    expect(b.cabecera.formaPago).toBe('30 DIAS')
+    expect(b.lineas).toEqual([])
+    // Sin documento previo no hay testigo de concurrencia que controlar.
+    expect(b.esperado).toBe('')
+  })
+
+  it('no se puede crear sin cliente ni sin moneda, y lo dice en palabras', () => {
+    const b = borradorNuevo('2026-09-17')
+    expect(faltaParaCrear(b)).toEqual(['Elegí un cliente.', 'Elegí la moneda del documento.'])
+    expect(faltaParaCrear(cambiarCampo(b, 'customerId', 'c1'))).toEqual(['Elegí la moneda del documento.'])
+    expect(faltaParaCrear(cambiarCampo(cambiarCampo(b, 'customerId', 'c1'), 'moneda', 'USD'))).toEqual([])
+  })
+
+  it('el payload del alta lleva la cabecera COMPLETA, con null en lo vacío', () => {
+    let b = borradorNuevo('2026-09-17')
+    b = cambiarCampo(b, 'customerId', 'c1')
+    b = cambiarCampo(b, 'moneda', 'USD')
+    b = cambiarCampo(b, 'listaPrecioId', 'lista-mayorista')
+    b = cambiarCampo(b, 'vendedorId', 'u1')
+    const { cabecera } = aPayloadCreacion(b)
+    expect(cabecera).toEqual({
+      customer_id: 'c1',
+      contact_id: null,
+      salesperson_id: 'u1',
+      price_list_id: 'lista-mayorista',
+      title: null,
+      quote_date: '2026-09-17',
+      valid_until: null,
+      currency_code: 'USD',
+      exchange_rate: null,
+      payment_terms: null,
+      discount_pct: null,
+      perception_pct: null,
+      notes: null,
+    })
+  })
+
+  it('las líneas del alta van sin id y renumeradas desde 1', () => {
+    let b = borradorNuevo('2026-09-17')
+    b = agregarLinea(b, {
+      tipoLinea: 'item', productId: 'p1', sku: 'A', nombre: 'A', descripcion: null,
+      cantidad: 2, precioUnitario: 10, descuentoPct: 0, tratamientoImpuesto: 'vat_21', tasaImpuesto: 21,
+    })
+    b = agregarLinea(b, {
+      tipoLinea: 'item', productId: 'p2', sku: 'B', nombre: 'B', descripcion: null,
+      cantidad: 1, precioUnitario: 5, descuentoPct: 0, tratamientoImpuesto: 'vat_21', tasaImpuesto: 21,
+    })
+    const { lineas } = aPayloadCreacion(b)
+    expect(lineas.map((l) => l['line_no'])).toEqual([1, 2])
+    expect(lineas.every((l) => !('id' in l))).toBe(true)
+  })
+
+  it('el alta tampoco manda campos de sistema', () => {
+    const b = cambiarCampo(borradorNuevo('2026-09-17'), 'customerId', 'c1')
+    const claves = Object.keys(aPayloadCreacion(b).cabecera)
+    for (const prohibido of ['company_id', 'number', 'series_code', 'status', 'created_by', 'imported_at', 'external_id', 'subtotal', 'tax_amount', 'total']) {
+      expect(claves).not.toContain(prohibido)
+    }
   })
 })

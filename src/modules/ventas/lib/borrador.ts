@@ -105,6 +105,47 @@ export function crearBorrador(doc: DocumentoDetalle, lineas: readonly LineaDocum
   }
 }
 
+/**
+ * El borrador de una cotización que TODAVÍA NO EXISTE (Fase 15 · E3).
+ *
+ * Es el mismo `Borrador` del editor: los mismos campos, los mismos cambios y
+ * el mismo «no se escribe nada hasta Guardar». Lo único distinto es que no hay
+ * documento previo, así que `esperado` va vacío: no hay concurrencia que
+ * controlar contra una fila que no existe.
+ *
+ * Sin moneda por defecto y sin vendedor «el que está mirando»: los dos son
+ * datos del negocio y se eligen.
+ */
+export function borradorNuevo(hoy: string, formaPago = ''): Borrador {
+  return {
+    cabecera: {
+      customerId: '',
+      contactoId: '',
+      vendedorId: '',
+      listaPrecioId: '',
+      titulo: '',
+      fecha: hoy,
+      validaHasta: '',
+      moneda: '',
+      tipoCambio: '',
+      formaPago,
+      descuentoPct: '',
+      percepcionPct: '',
+      notas: '',
+    },
+    lineas: [],
+    esperado: '',
+  }
+}
+
+/** Lo que falta para poder crear. Vacío: se puede guardar. */
+export function faltaParaCrear(b: Borrador): string[] {
+  const falta: string[] = []
+  if (b.cabecera.customerId === '') falta.push('Elegí un cliente.')
+  if (b.cabecera.moneda === '') falta.push('Elegí la moneda del documento.')
+  return falta
+}
+
 // ── Cambios ────────────────────────────────────────────────────────────────
 
 export function cambiarCampo(b: Borrador, campo: CampoCabecera, valor: string): Borrador {
@@ -285,6 +326,41 @@ export function aPayload(actual: Borrador, original: Borrador): PayloadGuardado 
     lineas: actual.lineas.map((l) => ({
       id: l.id,
       line_no: l.numeroLinea,
+      line_type: l.tipoLinea,
+      product_id: l.productId,
+      sku_snapshot: l.sku,
+      name_snapshot: l.nombre,
+      description_snapshot: l.descripcion,
+      quantity: Number(l.cantidad),
+      unit_price: Number(l.precioUnitario),
+      discount_pct: Number(l.descuentoPct),
+      tax_treatment: l.tratamientoImpuesto,
+      tax_rate_snapshot: Number(l.tasaImpuesto),
+    })),
+  }
+}
+
+/**
+ * Lo que se le manda a `crear_cotizacion`.
+ *
+ * A diferencia del guardado, acá va la cabecera COMPLETA: no hay documento
+ * previo del que heredar lo que falte. Los vacíos viajan como `null` (menos
+ * cliente y moneda, que son obligatorios y los valida el servidor), y las
+ * líneas van sin `id` porque todavía no existen.
+ *
+ * Sigue sin viajar nada de sistema: ni empresa, ni número, ni serie, ni
+ * estado, ni totales. Eso lo pone el servidor.
+ */
+export function aPayloadCreacion(b: Borrador): PayloadGuardado {
+  const cabecera: Record<string, string | number | null> = {}
+  for (const k of Object.keys(b.cabecera) as CampoCabecera[]) {
+    cabecera[COLUMNA[k]] = valorDeCampo(k, b.cabecera[k])
+  }
+
+  return {
+    cabecera,
+    lineas: b.lineas.map((l, i) => ({
+      line_no: i + 1,
       line_type: l.tipoLinea,
       product_id: l.productId,
       sku_snapshot: l.sku,

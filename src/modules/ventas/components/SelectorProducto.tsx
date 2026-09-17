@@ -1,13 +1,21 @@
 import { useEffect, useId, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { buscarProductos, precioSugerido, type ProductoParaLinea } from '../services/productosParaLinea'
+import {
+  buscarProductos,
+  motivoPrecio,
+  precioSugerido,
+  textoMotivoPrecio,
+  type ProductoParaLinea,
+} from '../services/productosParaLinea'
 import { formatearImporte } from '../lib/formato'
 import { IconButton } from '@/components/ui/IconButton'
 import styles from './SelectorProducto.module.css'
 
 export interface SelectorProductoProps {
   moneda: string
+  /** La tarifa del documento. `null`: la lista por defecto de la empresa. */
+  listaPrecioId?: string | null
   onElegir: (p: ProductoParaLinea, precio: number | null) => void
   onCerrar: () => void
 }
@@ -18,7 +26,7 @@ export interface SelectorProductoProps {
  * El legacy tenía `PRODUCTOS`, un array global con los 21.775 productos, y
  * filtraba en memoria. Acá cada tecla —debounceada— pide como mucho 20 filas.
  */
-export function SelectorProducto({ moneda, onElegir, onCerrar }: SelectorProductoProps) {
+export function SelectorProducto({ moneda, listaPrecioId = null, onElegir, onCerrar }: SelectorProductoProps) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
   const [texto, setTexto] = useState('')
@@ -33,8 +41,8 @@ export function SelectorProducto({ moneda, onElegir, onCerrar }: SelectorProduct
   }, [texto])
 
   const { data, isFetching, error } = useQuery({
-    queryKey: ['ventas', companyId, 'buscar-producto', consulta],
-    queryFn: () => buscarProductos(companyId!, consulta),
+    queryKey: ['ventas', companyId, 'buscar-producto', consulta, listaPrecioId],
+    queryFn: () => buscarProductos(companyId!, consulta, { listaPrecioId }),
     enabled: companyId !== null && consulta.trim().length >= 2,
     staleTime: 30_000,
   })
@@ -74,6 +82,8 @@ export function SelectorProducto({ moneda, onElegir, onCerrar }: SelectorProduct
         <ul className={styles.lista}>
           {(data ?? []).map((p) => {
             const precio = precioSugerido(p, moneda)
+            const motivo = motivoPrecio(p, moneda)
+            const aviso = textoMotivoPrecio(motivo, p, moneda)
             return (
               <li key={p.id}>
                 <button
@@ -87,16 +97,15 @@ export function SelectorProducto({ moneda, onElegir, onCerrar }: SelectorProduct
                   <span className={styles.precio}>
                     {precio !== null ? (
                       formatearImporte(precio, moneda)
-                    ) : p.precio !== null ? (
+                    ) : motivo === 'otra_moneda' && p.precio !== null ? (
                       // Hay precio, pero en otra moneda: no se convierte sin
                       // un tipo de cambio confirmado.
-                      <span className={styles.otraMoneda} title={`Precio en ${p.monedaPrecio ?? 'otra moneda'}: no se aplica a un documento en ${moneda}`}>
-                        {formatearImporte(p.precio, p.monedaPrecio)}
-                      </span>
+                      <span className={styles.otraMoneda}>{formatearImporte(p.precio, p.monedaPrecio)}</span>
                     ) : (
                       <span className={styles.sinPrecio}>Sin precio</span>
                     )}
                   </span>
+                  {aviso ? <span className={styles.aviso}>{aviso}</span> : null}
                 </button>
               </li>
             )

@@ -4270,6 +4270,7 @@ export type Database = {
           original_number: string | null
           payment_terms: string | null
           perception_pct: number | null
+          price_list_id: string | null
           quote_date: string
           review_reason: string | null
           salesperson_id: string | null
@@ -4307,6 +4308,7 @@ export type Database = {
           original_number?: string | null
           payment_terms?: string | null
           perception_pct?: number | null
+          price_list_id?: string | null
           quote_date: string
           review_reason?: string | null
           salesperson_id?: string | null
@@ -4344,6 +4346,7 @@ export type Database = {
           original_number?: string | null
           payment_terms?: string | null
           perception_pct?: number | null
+          price_list_id?: string | null
           quote_date?: string
           review_reason?: string | null
           salesperson_id?: string | null
@@ -4399,6 +4402,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_quotes_price_list_id_fkey"
+            columns: ["price_list_id"]
+            isOneToOne: false
+            referencedRelation: "price_lists"
             referencedColumns: ["id"]
           },
           {
@@ -5907,6 +5917,10 @@ export type Database = {
       config_ia_whatsapp: { Args: { p_company: string }; Returns: Json }
       confirmar_entrega: { Args: { p_delivery: string }; Returns: Json }
       confirmar_recepcion: { Args: { p_receipt: string }; Returns: Json }
+      crear_cotizacion: {
+        Args: { p_cabecera: Json; p_company: string; p_lineas: Json }
+        Returns: Json
+      }
       duplicar_pedido_compra: { Args: { p_order: string }; Returns: string }
       estado_ia_whatsapp: { Args: { p_company: string }; Returns: Json }
       generar_informe_whatsapp: {

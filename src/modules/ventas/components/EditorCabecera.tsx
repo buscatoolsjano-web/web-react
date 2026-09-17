@@ -124,6 +124,10 @@ export function EditorCabecera({
 
           <Field label="Moneda" help="Cambiarla puede dejar la tarifa incompatible.">
             <Select value={valores.moneda} required onChange={(e) => onCambiarMoneda(e.target.value)}>
+              {/* Fase 14 · E3: sin moneda por defecto. En un documento que ya la
+                  tiene esta opción no aparece; en el alta es lo primero que hay
+                  que elegir y se dice así. */}
+              {valores.moneda === '' ? <option value="">Elegí la moneda</option> : null}
               {MONEDAS.map((m) => (
                 <option key={m} value={m}>
                   {m}
@@ -138,9 +142,11 @@ export function EditorCabecera({
             help={
               avisoTarifa
                 ? 'Cambió la moneda y la tarifa anterior estaba en otra: se quitó.'
-                : ocultas > 0
-                  ? `Sólo las tarifas en ${valores.moneda}. Queda registrada en el documento; no cambia ningún precio.`
-                  : 'Queda registrada en el documento. No cambia ningún precio: el buscador de productos sigue sugiriendo el de la lista por defecto.'
+                : valores.moneda === ''
+                  ? 'Elegí primero la moneda: sólo se ofrecen las tarifas de esa moneda.'
+                  : ocultas > 0
+                  ? `Sólo las tarifas en ${valores.moneda}. Es la que sugiere el precio de las líneas nuevas.`
+                  : 'Sugiere el precio de cada línea nueva. Las líneas ya cargadas no cambian, ni siquiera si después se cambia la tarifa.'
             }
           >
             <Select value={valores.listaPrecioId} onChange={(e) => onCambiar('listaPrecioId', e.target.value)}>

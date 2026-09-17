@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Link, RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { DocumentoDetalle, LineaDocumento, Relacionados } from '../types'
 import type { EventoAuditoria } from '../lib/trazabilidad'
@@ -142,16 +142,32 @@ const sinRelacionados: Relacionados = {
   pagos: [],
 }
 
-const montar = (ruta = '/ventas/cotizaciones/q1') =>
-  render(
+/**
+ * Un data router de verdad (como el de la aplicación, `createHashRouter`): el
+ * bloqueo de navegación con cambios sin guardar (Fase 15 · E3) usa
+ * `useBlocker`, que sólo existe ahí.
+ */
+const montar = (ruta = '/ventas/cotizaciones/q1', extra?: React.ReactNode) => {
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/ventas/cotizaciones/:id',
+        element: (
+          <>
+            {extra}
+            <CotizacionDetallePage />
+          </>
+        ),
+      },
+    ],
+    { initialEntries: [ruta] },
+  )
+  return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={[ruta]}>
-        <Routes>
-          <Route path="/ventas/cotizaciones/:id" element={<CotizacionDetallePage />} />
-        </Routes>
-      </MemoryRouter>
+      <RouterProvider router={router} />
     </QueryClientProvider>,
   )
+}
 
 beforeEach(() => {
   estado.rol = 'admin'
@@ -325,22 +341,26 @@ describe('Cotización · acciones', () => {
     expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument()
   })
 
-  it('irse a otra cotización cierra la edición: el borrador no viaja', async () => {
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/ventas/cotizaciones/q1']}>
-          <Link to="/ventas/cotizaciones/q2">ir a otra</Link>
-          <Routes>
-            <Route path="/ventas/cotizaciones/:id" element={<CotizacionDetallePage />} />
-          </Routes>
-        </MemoryRouter>
-      </QueryClientProvider>,
-    )
+  it('irse a otra cotización con cambios PREGUNTA antes de perder el borrador', async () => {
+    montar('/ventas/cotizaciones/q1', <Link to="/ventas/cotizaciones/q2">ir a otra</Link>)
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
     fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ borrador de q1' } })
 
+    // Primer intento: se frena y se explica.
     fireEvent.click(screen.getByRole('link', { name: 'ir a otra' }))
+    const dialogo = await screen.findByRole('alertdialog', { name: 'Hay cambios sin guardar' })
+    expect(within(dialogo).getByText(/los cambios que hiciste se van a perder/)).toBeInTheDocument()
+
+    // «Seguir editando»: se queda y el borrador sigue.
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Seguir editando' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    expect(screen.getByLabelText(/Título/)).toHaveValue('ZZ borrador de q1')
+    expect(espias.guardar).not.toHaveBeenCalled()
+
+    // «Descartar y salir»: recién ahí se navega.
+    fireEvent.click(screen.getByRole('link', { name: 'ir a otra' }))
+    fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Descartar y salir' }))
 
     // El documento nuevo abre en lectura, sin el borrador del anterior.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument())
@@ -348,7 +368,22 @@ describe('Cotización · acciones', () => {
     expect(espias.guardar).not.toHaveBeenCalled()
   })
 
-  it('cambiar de pestaña NO descarta el borrador', () => {
+  it('con la edición cerrada, navegar no pregunta nada', async () => {
+    montar('/ventas/cotizaciones/q1', <Link to="/ventas/cotizaciones/q2">ir a otra</Link>)
+    fireEvent.click(screen.getByRole('link', { name: 'ir a otra' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument())
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  it('editar sin tocar nada tampoco pregunta: no hay cambios que perder', async () => {
+    montar('/ventas/cotizaciones/q1', <Link to="/ventas/cotizaciones/q2">ir a otra</Link>)
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    fireEvent.click(screen.getByRole('link', { name: 'ir a otra' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument())
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  it('cambiar de pestaña NO descarta el borrador ni pregunta', () => {
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
     fireEvent.click(screen.getByRole('tab', { name: 'Información' }))

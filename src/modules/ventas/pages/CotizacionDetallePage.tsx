@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { useCallback, useId, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -9,6 +9,8 @@ import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { DialogoCambiosSinGuardar } from '@/components/modals/DialogoCambiosSinGuardar'
+import { useSalidaConCambios } from '@/hooks/useSalidaConCambios'
 import { ActionBar } from '@/components/document/ActionBar'
 import { DocumentHeader } from '@/components/document/DocumentHeader'
 import { DocumentTabs } from '@/components/document/DocumentTabs'
@@ -161,14 +163,10 @@ function Detalle() {
   const contactos = useContactos(editando ? borrador.cabecera.customerId || null : null)
 
 
-  // Cerrar la pestaña con cambios sin guardar avisa. Sólo si hay cambios: un
-  // `beforeunload` permanente es ruido que la gente aprende a ignorar.
-  useEffect(() => {
-    if (!sucio) return
-    const avisar = (e: BeforeUnloadEvent) => e.preventDefault()
-    window.addEventListener('beforeunload', avisar)
-    return () => window.removeEventListener('beforeunload', avisar)
-  }, [sucio])
+  // Salir con cambios sin guardar pregunta: otra cotización, el menú, el
+  // breadcrumb, atrás/adelante del navegador y también cerrar la pestaña.
+  // Cambiar de pestaña interna no navega, así que no pregunta nada.
+  const salida = useSalidaConCambios(sucio)
 
   const refrescar = () =>
     queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId, 'cotizacion'] })
@@ -586,10 +584,12 @@ function Detalle() {
                   <div className={editor.selector}>
                     <SelectorProducto
                       moneda={borrador.cabecera.moneda}
+                      listaPrecioId={borrador.cabecera.listaPrecioId || null}
                       onCerrar={() => setBuscando(false)}
                       onElegir={(p, precio) => {
-                        // La tarifa SUGIERE el precio de la línea nueva. Las
-                        // que ya estaban no se tocan.
+                        // La tarifa del documento SUGIERE el precio de la
+                        // línea nueva. Las que ya estaban no se tocan, ni
+                        // siquiera si después cambia la tarifa.
                         nueva({ productId: p.id, sku: p.sku, nombre: p.nombre, precioUnitario: precio ?? 0 })
                         setBuscando(false)
                       }}
@@ -660,6 +660,12 @@ function Detalle() {
           </DocSection>
         ) : null}
       </DocumentTabs>
+
+      <DialogoCambiosSinGuardar
+        open={salida.preguntando}
+        onSalir={salida.salir}
+        onQuedarse={salida.quedarse}
+      />
 
       <ConfirmDialog
         open={confirmarSalida}

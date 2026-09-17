@@ -134,3 +134,12 @@
   font-size: var(--text-sm);
   color: var(--text-soft);
 }
+
+/* Por qué una línea entraría sin precio (Fase 15 · E3). */
+.aviso {
+  grid-column: 1 / -1;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  text-align: left;
+  overflow-wrap: anywhere;
+}

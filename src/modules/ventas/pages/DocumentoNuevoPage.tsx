@@ -18,7 +18,7 @@ import { SelectorProducto } from '../components/SelectorProducto'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { DOC_TYPE_DE, MENSAJES_WORKFLOW, mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
 import { escribeVentas } from '../lib/permisos'
-import { crearCotizacion, type LineaNueva } from '../services/cotizaciones'
+import { crearCotizacionLegacy, type LineaNueva } from '../services/cotizaciones'
 import { crearPedido } from '../services/pedidos'
 import { lineaCapitulo, lineaDeProducto, lineaLibre, mover, renumerar } from '../lib/lineaNueva'
 import { tasaDe } from '../lib/tratamientos'
@@ -157,8 +157,11 @@ export function DocumentoNuevoPage({ tipo }: DocumentoNuevoProps) {
       }
       const filas = renumerar(lineas).map(aLinea)
 
+      // La cotización tiene su propia pantalla desde la Fase 15 · E3
+      // (`CotizacionNuevaPage`), con borrador y alta atómica. Acá queda el
+      // pedido, que se migra en E4.
       return tipo === 'cotizacion'
-        ? crearCotizacion({ ...comun, validaHasta: cab.validaHasta || null }, filas)
+        ? crearCotizacionLegacy({ ...comun, validaHasta: cab.validaHasta || null }, filas)
         : crearPedido({ ...comun, origen: 'manual', quoteId: null }, filas)
     },
     onSuccess: (id) => {

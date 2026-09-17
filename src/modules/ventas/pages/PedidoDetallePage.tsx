@@ -466,6 +466,7 @@ export function PedidoDetallePage() {
               <div className={editor.selector}>
                 <SelectorProducto
                   moneda={doc.moneda ?? ''}
+                  listaPrecioId={doc.listaPrecioId ?? null}
                   onCerrar={() => setBuscando(false)}
                   onElegir={(p, precio) => {
                     insertar(lineaDeProducto(p, precio, proximoNumeroDeLinea()))

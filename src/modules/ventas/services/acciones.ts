@@ -1,6 +1,7 @@
 import { supabase } from '@/services/supabase/client'
 import { aCsv } from '../lib/csv'
 import { registrarEvento } from './auditoria'
+import { crearCotizacion } from './cotizaciones'
 import { listarDocumentos } from './documentos'
 import type { DocumentoListado, FiltrosVentas, TipoDocumento } from '../types'
 
@@ -41,38 +42,24 @@ export async function duplicarDocumento(
   // `commercial_status`) y con una tabla dinámica supabase-js pierde el tipo
   // y deja de avisar si falta una columna obligatoria.
   if (tipo === 'cotizacion') {
+    // Fase 15 · E3: la copia va por `crear_cotizacion`, el MISMO camino que el
+    // alta. Antes se armaba desde el navegador en cuatro pasos y se perdían la
+    // tarifa y el vendedor. Se copia lo comercial —cliente, contacto,
+    // vendedor, tarifa, moneda, condiciones y líneas con sus snapshots— y NADA
+    // de identidad: número, serie, estado, external_id, imported_at,
+    // relaciones ni auditoría. La copia nace borrador, con su propio número, y
+    // la crea el servidor en una sola transacción.
     const { data: o, error } = await supabase
       .from('sales_quotes')
       .select(
-        `customer_id, contact_id, title, currency_code, exchange_rate,
-         payment_terms, notes, discount_pct, perception_pct`,
+        `customer_id, contact_id, salesperson_id, price_list_id, title,
+         currency_code, exchange_rate, payment_terms, notes,
+         discount_pct, perception_pct`,
       )
       .eq('company_id', companyId)
       .eq('id', id)
       .single()
     if (error) throw new Error(`No se pudo leer la cotización: ${error.message}`)
-
-    const { data: copia, error: eIns } = await supabase
-      .from('sales_quotes')
-      .insert({
-        company_id: companyId,
-        number: await numeroNuevo('quote'),
-        series_code: 'COTI',
-        customer_id: o.customer_id,
-        contact_id: o.contact_id,
-        title: o.title,
-        quote_date: hoy,
-        currency_code: o.currency_code,
-        exchange_rate: o.exchange_rate,
-        payment_terms: o.payment_terms,
-        notes: o.notes,
-        discount_pct: o.discount_pct,
-        perception_pct: o.perception_pct,
-        status: 'draft',
-      })
-      .select('id')
-      .single()
-    if (eIns) throw new Error(`No se pudo duplicar: ${eIns.message}`)
 
     const { data: lineas, error: eL } = await supabase
       .from('sales_quote_lines')
@@ -86,14 +73,37 @@ export async function duplicarDocumento(
       .order('line_no')
     if (eL) throw new Error(`No se pudieron leer las líneas: ${eL.message}`)
 
-    if ((lineas ?? []).length > 0) {
-      const { error: eIL } = await supabase.from('sales_quote_lines').insert(
-        (lineas ?? []).map((l) => ({ ...l, company_id: companyId, quote_id: copia.id })),
-      )
-      if (eIL) throw new Error(`No se pudieron copiar las líneas: ${eIL.message}`)
-    }
-
-    await registrarEvento('sales_quote', copia.id, 'created', null, 'draft', null)
+    const copia = await crearCotizacion(
+      companyId,
+      {
+        customer_id: o.customer_id,
+        contact_id: o.contact_id,
+        salesperson_id: o.salesperson_id,
+        price_list_id: o.price_list_id,
+        title: o.title,
+        quote_date: hoy,
+        currency_code: o.currency_code,
+        exchange_rate: o.exchange_rate,
+        payment_terms: o.payment_terms,
+        notes: o.notes,
+        discount_pct: o.discount_pct,
+        perception_pct: o.perception_pct,
+      },
+      (lineas ?? []).map((l) => ({
+        line_type: l.line_type,
+        product_id: l.product_id,
+        sku_snapshot: l.sku_snapshot,
+        name_snapshot: l.name_snapshot,
+        description_snapshot: l.description_snapshot,
+        brand_snapshot: l.brand_snapshot,
+        quantity: l.quantity,
+        unit_price: l.unit_price,
+        list_price_snapshot: l.list_price_snapshot,
+        discount_pct: l.discount_pct,
+        tax_treatment: l.tax_treatment,
+        tax_rate_snapshot: l.tax_rate_snapshot,
+      })),
+    )
     return copia.id
   }
 
