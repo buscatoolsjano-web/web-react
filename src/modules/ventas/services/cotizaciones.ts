@@ -21,21 +21,6 @@ export type CambiosLinea = TablesUpdate<'sales_quote_lines'>
  *     que es otra cosa.
  */
 
-export interface CabeceraNueva {
-  companyId: string
-  customerId: string
-  contactId: string | null
-  titulo: string | null
-  fecha: string
-  validaHasta: string | null
-  moneda: string
-  tipoCambio: number | null
-  formaPago: string | null
-  notas: string | null
-  descuentoPct: number | null
-  percepcionPct: number | null
-}
-
 export interface LineaNueva {
   tipoLinea: 'item' | 'service' | 'chapter'
   productId: string | null
@@ -114,54 +99,6 @@ export async function crearCotizacion(
 
   const r = data as unknown as { id: string; number: string; total: number | string; lineas: number }
   return { id: r.id, numero: r.number, total: Number(r.total ?? 0), lineas: r.lineas }
-}
-
-/** El alta de E1, que insertaba desde el navegador. La usa sólo el pedido. */
-export async function crearCotizacionLegacy(
-  cab: CabeceraNueva,
-  lineas: readonly LineaNueva[],
-): Promise<string> {
-  // Antes del número: un guardado sin moneda no quema un número de la serie.
-  exigirMoneda(cab.moneda)
-  const { data: numero, error: eNum } = await supabase.rpc('next_document_number', {
-    p_company: cab.companyId,
-    p_doc_type: 'quote',
-  })
-  if (eNum) throw new Error(`No se pudo obtener el número: ${eNum.message}`)
-  if (!numero) throw new Error('La numeración no devolvió ningún número')
-
-  const { data, error } = await supabase
-    .from('sales_quotes')
-    .insert({
-      company_id: cab.companyId,
-      number: numero,
-      series_code: 'COTI',
-      customer_id: cab.customerId,
-      contact_id: cab.contactId,
-      title: cab.titulo,
-      quote_date: cab.fecha,
-      valid_until: cab.validaHasta,
-      currency_code: cab.moneda,
-      exchange_rate: cab.tipoCambio,
-      payment_terms: cab.formaPago,
-      notes: cab.notas,
-      discount_pct: cab.descuentoPct,
-      perception_pct: cab.percepcionPct,
-      status: 'draft',
-    })
-    .select('id')
-    .single()
-  if (error) throw new Error(`No se pudo crear la cotización: ${error.message}`)
-
-  if (lineas.length > 0) {
-    const { error: eL } = await supabase
-      .from('sales_quote_lines')
-      .insert(lineas.map((l, i) => filaLinea(cab.companyId, data.id, i + 1, l)))
-    if (eL) throw new Error(`No se pudieron guardar las líneas: ${eL.message}`)
-  }
-
-  await registrarEvento('sales_quote', data.id, 'created', null, 'draft', null)
-  return data.id
 }
 
 /** Un solo campo de la cabecera. Se llama sólo si el valor cambió de verdad. */

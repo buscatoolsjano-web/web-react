@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { Link, RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type * as ServicioCotizaciones from '../services/cotizaciones'
 import type { DocumentoDetalle, LineaDocumento, Relacionados } from '../types'
 import type { EventoAuditoria } from '../lib/trazabilidad'
 
@@ -36,6 +37,9 @@ const espias = vi.hoisted(() => ({
       _lineas: Record<string, unknown>[],
     ) => Promise.resolve({ actualizadoEn: 'x', cambiosCabecera: 1, lineasTocadas: 0 }),
   ),
+  convertir: vi.fn((_quoteId: string, _esperado: string | null) =>
+    Promise.resolve({ id: 'o-nuevo', numero: 'PDV01330', total: 484, lineas: 1 }),
+  ),
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
@@ -61,6 +65,11 @@ vi.mock('../hooks/useDocumentos', () => ({
 vi.mock('../services/cotizaciones', async (real) => ({
   ...(await real<Record<string, unknown>>()),
   guardarCotizacion: espias.guardar,
+}))
+// Fase 15 · E4: la conversión a pedido es UNA transacción del servidor.
+vi.mock('../services/pedidos', async (real) => ({
+  ...(await real<Record<string, unknown>>()),
+  convertirCotizacionEnPedido: espias.convertir,
 }))
 vi.mock('../services/adjuntos', () => ({
   listarAdjuntos: () => Promise.resolve([]),
@@ -159,6 +168,7 @@ const montar = (ruta = '/ventas/cotizaciones/q1', extra?: React.ReactNode) => {
           </>
         ),
       },
+      { path: '/ventas/pedidos/:id', element: <p>detalle del pedido</p> },
     ],
     { initialEntries: [ruta] },
   )
@@ -179,6 +189,80 @@ beforeEach(() => {
   estado.tarifas = []
   estado.vendedores = []
   espias.guardar.mockClear()
+  espias.convertir.mockClear()
+})
+
+/**
+ * Cotización → pedido (Fase 15 · E4).
+ *
+ * Antes eran cuatro escrituras desde el navegador; ahora es una sola llamada
+ * que hereda el snapshot comercial aprobado. Lo que se prueba acá es el
+ * contrato del botón: una llamada con el testigo, el motivo cuando no se
+ * puede, y que la cotización no se toque.
+ */
+describe('Cotización · convertir en pedido', () => {
+  it('convierte en UNA llamada, con el testigo de concurrencia, y abre el pedido', async () => {
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Generar pedido' }))
+
+    await waitFor(() => expect(espias.convertir).toHaveBeenCalledTimes(1))
+    expect(espias.convertir.mock.calls[0]).toEqual(['q1', '2026-09-16T12:30:00.000Z'])
+    // La cotización no se guarda ni cambia de estado al convertir.
+    expect(espias.guardar).not.toHaveBeenCalled()
+    expect(await screen.findByText('detalle del pedido', undefined, { timeout: 8000 })).toBeInTheDocument()
+  })
+
+  it('dos clics seguidos no generan dos pedidos', async () => {
+    let resolver: (v: { id: string; numero: string; total: number; lineas: number }) => void = () => {}
+    espias.convertir.mockImplementationOnce(
+      () => new Promise((r) => { resolver = r }),
+    )
+    montar()
+    const boton = screen.getByRole('button', { name: 'Generar pedido' })
+    fireEvent.click(boton)
+    await waitFor(() => expect(screen.getByRole('button', { name: /Generando/ })).toBeDisabled())
+    fireEvent.click(screen.getByRole('button', { name: /Generando/ }))
+
+    expect(espias.convertir).toHaveBeenCalledTimes(1)
+    resolver({ id: 'o-nuevo', numero: 'PDV01330', total: 484, lineas: 1 })
+    expect(await screen.findByText('detalle del pedido', undefined, { timeout: 8000 })).toBeInTheDocument()
+  })
+
+  it('una cotización que ya tiene pedido no vuelve a convertirse', () => {
+    estado.relacionados = {
+      ...sinRelacionados,
+      pedidos: [
+        { tipo: 'pedido', id: 'o1', numero: 'PDV01321', fecha: '2026-09-16', estado: 'confirmed', moneda: 'ARS', total: 484 },
+      ],
+    }
+    montar()
+    const boton = screen.getByRole('button', { name: 'Ya tiene pedido' })
+    expect(boton).toBeDisabled()
+    fireEvent.click(boton)
+    expect(espias.convertir).not.toHaveBeenCalled()
+  })
+
+  it('con la numeración de pedidos en STEL no se convierte, y se explica', () => {
+    estado.stel = { sales_order: true }
+    montar()
+    const boton = screen.getByRole('button', { name: 'Generar pedido' })
+    expect(boton).toBeDisabled()
+    expect(boton).toHaveAccessibleDescription(/Emisión desde el ERP bloqueada/)
+    fireEvent.click(boton)
+    expect(espias.convertir).not.toHaveBeenCalled()
+  })
+
+  it('si el servidor rechaza la conversión, se dice en castellano y no se navega', async () => {
+    const { FalloDeGuardado } = await vi.importActual<typeof ServicioCotizaciones>('../services/cotizaciones')
+    espias.convertir.mockRejectedValueOnce(
+      new FalloDeGuardado('PEDIDO_YA_EXISTE', 'Esta cotización ya tiene un pedido.'),
+    )
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Generar pedido' }))
+
+    expect(await screen.findByText('Esta cotización ya tiene un pedido.')).toBeInTheDocument()
+    expect(screen.queryByText('detalle del pedido')).not.toBeInTheDocument()
+  })
 })
 
 describe('Cotización · shell documental', () => {

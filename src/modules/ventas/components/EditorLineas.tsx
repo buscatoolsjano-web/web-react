@@ -20,6 +20,8 @@ export interface EditorLineasProps {
   moneda: string
   /** `false` deja la tabla en sólo lectura sin cambiar el layout. */
   editable: boolean
+  /** Cómo se nombra el documento en el rótulo para lectores de pantalla. */
+  documento?: 'de la cotización' | 'del pedido' | undefined
   onCambiar: (lineaId: string, campo: CampoLinea, valor: string | number | null) => void
   onEliminar: (lineaId: string) => void
   onMover: (lineaId: string, direccion: -1 | 1) => void
@@ -53,6 +55,7 @@ export function EditorLineas({
   lineas,
   moneda,
   editable,
+  documento = 'de la cotización',
   onCambiar,
   onEliminar,
   onMover,
@@ -60,7 +63,7 @@ export function EditorLineas({
   return (
     <div className={styles.scroll}>
       <table className={styles.tabla}>
-        <caption className="sr-only">Líneas de la cotización, en edición</caption>
+        <caption className="sr-only">Líneas {documento}, en edición</caption>
         <thead>
           <tr>
             <th scope="col" className={styles.num}>#</th>

@@ -82,6 +82,25 @@ function aLineaBorrador(l: LineaDocumento): LineaBorrador {
   }
 }
 
+/**
+ * Las columnas del PEDIDO. Son casi las mismas que las de la cotización, con
+ * dos diferencias: la fecha es `order_date` y no hay validez.
+ */
+const COLUMNA_PEDIDO: Partial<Record<CampoCabecera, string>> = {
+  customerId: 'customer_id',
+  contactoId: 'contact_id',
+  vendedorId: 'salesperson_id',
+  listaPrecioId: 'price_list_id',
+  titulo: 'title',
+  fecha: 'order_date',
+  moneda: 'currency_code',
+  tipoCambio: 'exchange_rate',
+  formaPago: 'payment_terms',
+  descuentoPct: 'discount_pct',
+  percepcionPct: 'perception_pct',
+  notas: 'notes',
+}
+
 /** El estado exacto del documento al entrar en edición. Es lo que restaura Descartar. */
 export function crearBorrador(doc: DocumentoDetalle, lineas: readonly LineaDocumento[]): Borrador {
   return {
@@ -373,6 +392,32 @@ export function aPayloadCreacion(b: Borrador): PayloadGuardado {
       tax_rate_snapshot: Number(l.tasaImpuesto),
     })),
   }
+}
+
+/**
+ * Lo que se le manda a `guardar_pedido`: sólo la cabecera que cambió, con los
+ * nombres de `sales_orders`, y las líneas completas. La validez no existe en
+ * el pedido, así que ni siquiera se ofrece.
+ */
+export function aPayloadPedido(actual: Borrador, original: Borrador): PayloadGuardado {
+  const cabecera: Record<string, string | number | null> = {}
+  for (const k of Object.keys(actual.cabecera) as CampoCabecera[]) {
+    const columna = COLUMNA_PEDIDO[k]
+    if (columna && actual.cabecera[k] !== original.cabecera[k]) {
+      cabecera[columna] = valorDeCampo(k, actual.cabecera[k])
+    }
+  }
+  return { cabecera, lineas: aPayload(actual, original).lineas }
+}
+
+/** Lo que se le manda a `crear_pedido`: la cabecera completa y líneas sin id. */
+export function aPayloadCreacionPedido(b: Borrador): PayloadGuardado {
+  const cabecera: Record<string, string | number | null> = {}
+  for (const k of Object.keys(b.cabecera) as CampoCabecera[]) {
+    const columna = COLUMNA_PEDIDO[k]
+    if (columna) cabecera[columna] = valorDeCampo(k, b.cabecera[k])
+  }
+  return { cabecera, lineas: aPayloadCreacion(b).lineas }
 }
 
 /** Las líneas del borrador con la forma que espera la tabla de lectura. */

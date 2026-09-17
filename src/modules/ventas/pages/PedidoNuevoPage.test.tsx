@@ -4,15 +4,16 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { Link, RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type * as ServicioCotizaciones from '../services/cotizaciones'
+import type * as ServicioPedidos from '../services/pedidos'
 import type * as ServicioProductos from '../services/productosParaLinea'
 
 /**
- * Alta de cotización (Fase 15 · E3).
+ * Alta de pedido manual (Fase 15 · E4).
  *
- * Se mockean los datos y la RPC de creación; el borrador, la validación, la
- * autoridad y los permisos son los de producción. Lo que importa probar:
- * **antes de «Crear cotización» no se escribe nada**, lo que se manda es lo
- * que se cargó, y salir con cambios pregunta.
+ * La misma prueba que el alta de cotización, porque es la misma pantalla: el
+ * borrador vive en memoria y **nada se escribe hasta apretar «Crear pedido»**.
+ * Lo propio del pedido: no hay «Válida hasta», y la numeración bloqueada es la
+ * de `sales_order`.
  */
 const estado = vi.hoisted((): {
   rol: string
@@ -40,7 +41,7 @@ const espias = vi.hoisted(() => ({
       _companyId: string,
       _cabecera: Record<string, string | number | null>,
       _lineas: Record<string, unknown>[],
-    ) => Promise.resolve({ id: 'q-nueva', numero: 'COTI02630', total: 121, lineas: 1 }),
+    ) => Promise.resolve({ id: 'pdv-nuevo', numero: 'PDV01330', total: 121, lineas: 1 }),
   ),
   buscar: vi.fn((_c: string, _t: string, _o?: { listaPrecioId?: string | null }) => Promise.resolve(estado.productos)),
 }))
@@ -64,33 +65,33 @@ vi.mock('../components/BuscadorCliente', () => ({
     </button>
   ),
 }))
-vi.mock('../services/cotizaciones', async () => {
-  const real = await vi.importActual<typeof ServicioCotizaciones>('../services/cotizaciones')
-  return { ...real, crearCotizacion: espias.crear }
+vi.mock('../services/pedidos', async () => {
+  const real = await vi.importActual<typeof ServicioPedidos>('../services/pedidos')
+  return { ...real, crearPedido: espias.crear }
 })
 vi.mock('../services/productosParaLinea', async () => {
   const real = await vi.importActual<typeof ServicioProductos>('../services/productosParaLinea')
   return { ...real, buscarProductos: espias.buscar }
 })
 
-const { CotizacionNuevaPage } = await import('./CotizacionNuevaPage')
+const { PedidoNuevoPage } = await import('./PedidoNuevoPage')
 
 const montar = (extra?: React.ReactNode) => {
   const router = createMemoryRouter(
     [
       {
-        path: '/ventas/cotizaciones/nueva',
+        path: '/ventas/pedidos/nuevo',
         element: (
           <>
             {extra}
-            <CotizacionNuevaPage />
+            <PedidoNuevoPage />
           </>
         ),
       },
-      { path: '/ventas/cotizaciones/:id', element: <p>detalle de la cotización</p> },
-      { path: '/ventas/cotizaciones', element: <p>listado</p> },
+      { path: '/ventas/pedidos/:id', element: <p>detalle del pedido</p> },
+      { path: '/ventas/pedidos', element: <p>listado</p> },
     ],
-    { initialEntries: ['/ventas/cotizaciones/nueva'] },
+    { initialEntries: ['/ventas/pedidos/nuevo'] },
   )
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
@@ -99,7 +100,7 @@ const montar = (extra?: React.ReactNode) => {
   )
 }
 
-/** Deja el alta en condiciones de guardar: cliente y moneda. */
+/** Deja el alta en condiciones de crear: cliente y moneda. */
 const completarMinimo = () => {
   fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
   fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
@@ -113,12 +114,12 @@ beforeEach(() => {
   espias.buscar.mockClear()
 })
 
-describe('Nueva cotización · borrador', () => {
+describe('Nuevo pedido · borrador', () => {
   it('nace sin moneda y sin número, y no se puede crear hasta elegir cliente y moneda', () => {
     montar()
-    expect(screen.getByRole('heading', { level: 1, name: 'Nueva cotización' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Nuevo pedido' })).toBeInTheDocument()
     expect(screen.getByLabelText('Moneda')).toHaveValue('')
-    const crear = screen.getByRole('button', { name: 'Crear cotización' })
+    const crear = screen.getByRole('button', { name: 'Crear pedido' })
     expect(crear).toBeDisabled()
     expect(screen.getByText(/Elegí un cliente\./)).toBeInTheDocument()
     expect(screen.getByText(/Elegí la moneda del documento\./)).toBeInTheDocument()
@@ -126,15 +127,22 @@ describe('Nueva cotización · borrador', () => {
     expect(espias.crear).not.toHaveBeenCalled()
   })
 
-  it('cargar la cotización entera NO escribe nada hasta apretar Crear', () => {
+  it('el pedido no tiene fecha de validez: el campo no existe', () => {
+    montar()
+    expect(screen.getByLabelText('Fecha')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Válida hasta/)).toBeNull()
+  })
+
+  it('cargar el pedido entero NO escribe nada hasta apretar Crear', () => {
     montar()
     completarMinimo()
+    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ pedido directo' } })
     fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
     fireEvent.change(screen.getAllByLabelText(/Cantidad/)[0]!, { target: { value: '3' } })
     expect(espias.crear).not.toHaveBeenCalled()
   })
 
-  it('crea en UNA llamada, con lo cargado y sin campos de sistema, y abre el documento', async () => {
+  it('crea en UNA llamada, con lo cargado y sin campos de sistema, y abre el pedido', async () => {
     montar()
     completarMinimo()
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'mayorista' } })
@@ -143,7 +151,7 @@ describe('Nueva cotización · borrador', () => {
     fireEvent.change(screen.getAllByLabelText(/Cantidad/)[0]!, { target: { value: '2' } })
     fireEvent.change(screen.getAllByLabelText(/Precio/)[0]!, { target: { value: '50' } })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
 
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
     const [empresa, cabecera, lineas] = espias.crear.mock.calls[0]!
@@ -154,29 +162,34 @@ describe('Nueva cotización · borrador', () => {
       price_list_id: 'mayorista',
       salesperson_id: 'u1',
     })
-    for (const prohibido of ['company_id', 'number', 'series_code', 'status', 'created_by', 'subtotal', 'total']) {
+    // La fecha del pedido es `order_date`, no `quote_date`.
+    expect(Object.keys(cabecera)).toContain('order_date')
+    for (const prohibido of [
+      'company_id', 'number', 'series_code', 'status', 'commercial_status',
+      'created_by', 'quote_id', 'source', 'subtotal', 'total', 'valid_until',
+    ]) {
       expect(Object.keys(cabecera)).not.toContain(prohibido)
     }
     expect(lineas).toHaveLength(1)
     expect(lineas[0]).toMatchObject({ line_no: 1, quantity: 2, unit_price: 50 })
-    expect(await screen.findByText('detalle de la cotización', undefined, { timeout: 8000 })).toBeInTheDocument()
+    expect(await screen.findByText('detalle del pedido', undefined, { timeout: 8000 })).toBeInTheDocument()
   })
 
   it('un error del servidor se muestra en castellano y no navega', async () => {
-    const { FalloDeGuardado } = await import('../services/cotizaciones')
+    const { FalloDeGuardado } = await vi.importActual<typeof ServicioCotizaciones>('../services/cotizaciones')
     espias.crear.mockRejectedValueOnce(new FalloDeGuardado('CLIENTE_INVALIDO', 'El cliente no es de esta empresa.'))
     montar()
     completarMinimo()
-    fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('El cliente no es de esta empresa.')
-    expect(screen.queryByText('detalle de la cotización')).not.toBeInTheDocument()
+    expect(screen.queryByText('detalle del pedido')).not.toBeInTheDocument()
   })
 
-  it('con la numeración en STEL no se puede crear, y se dice por qué', () => {
-    estado.stel = { quote: true }
+  it('con la numeración de pedidos en STEL no se puede crear, y se dice por qué', () => {
+    estado.stel = { sales_order: true }
     montar()
     completarMinimo()
-    expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Crear pedido' })).toBeDisabled()
     expect(screen.getAllByText(/STEL/).length).toBeGreaterThan(0)
   })
 
@@ -184,12 +197,12 @@ describe('Nueva cotización · borrador', () => {
     estado.rol = 'salesperson'
     montar()
     expect(screen.getByRole('heading', { level: 1, name: /no crea documentos de venta/ })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Crear cotización' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Crear pedido' })).not.toBeInTheDocument()
   })
 })
 
-describe('Nueva cotización · tarifa y precio sugerido', () => {
-  it('el buscador recibe la tarifa del documento', async () => {
+describe('Nuevo pedido · tarifa y precio sugerido', () => {
+  it('el buscador de productos recibe la tarifa del pedido', async () => {
     montar()
     completarMinimo()
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'mayorista' } })
@@ -199,7 +212,7 @@ describe('Nueva cotización · tarifa y precio sugerido', () => {
     expect(espias.buscar.mock.calls.at(-1)![2]).toEqual({ listaPrecioId: 'mayorista' })
   })
 
-  it('sólo se ofrecen tarifas de la moneda del documento', () => {
+  it('sólo se ofrecen tarifas de la moneda del pedido', () => {
     montar()
     completarMinimo()
     const tarifa = screen.getByLabelText(/Tarifa/)
@@ -209,22 +222,22 @@ describe('Nueva cotización · tarifa y precio sugerido', () => {
   })
 })
 
-describe('Nueva cotización · salir con cambios', () => {
+describe('Nuevo pedido · salir con cambios', () => {
   it('con el borrador vacío se puede salir sin preguntar', async () => {
-    montar(<Link to="/ventas/cotizaciones">volver</Link>)
+    montar(<Link to="/ventas/pedidos">volver</Link>)
     fireEvent.click(screen.getByRole('link', { name: 'volver' }))
     expect(await screen.findByText('listado')).toBeInTheDocument()
   })
 
   it('con datos cargados pregunta antes de perderlos', async () => {
-    montar(<Link to="/ventas/cotizaciones">volver</Link>)
+    montar(<Link to="/ventas/pedidos">volver</Link>)
     completarMinimo()
     fireEvent.click(screen.getByRole('link', { name: 'volver' }))
 
     const dialogo = await screen.findByRole('alertdialog', { name: 'Hay cambios sin guardar' })
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Seguir editando' }))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
-    expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Crear pedido' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('link', { name: 'volver' }))
     fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Descartar y salir' }))
@@ -232,11 +245,11 @@ describe('Nueva cotización · salir con cambios', () => {
     expect(espias.crear).not.toHaveBeenCalled()
   })
 
-  it('después de crear, navegar al documento no pregunta nada', async () => {
+  it('después de crear, navegar al pedido no pregunta nada', async () => {
     montar()
     completarMinimo()
-    fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
-    expect(await screen.findByText('detalle de la cotización', undefined, { timeout: 8000 })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
+    expect(await screen.findByText('detalle del pedido', undefined, { timeout: 8000 })).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 })

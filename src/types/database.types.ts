@@ -3979,6 +3979,7 @@ export type Database = {
           payment_terms: string | null
           perception_pct: number | null
           po_id: string | null
+          price_list_id: string | null
           quote_id: string | null
           review_reason: string | null
           salesperson_id: string | null
@@ -4022,6 +4023,7 @@ export type Database = {
           payment_terms?: string | null
           perception_pct?: number | null
           po_id?: string | null
+          price_list_id?: string | null
           quote_id?: string | null
           review_reason?: string | null
           salesperson_id?: string | null
@@ -4065,6 +4067,7 @@ export type Database = {
           payment_terms?: string | null
           perception_pct?: number | null
           po_id?: string | null
+          price_list_id?: string | null
           quote_id?: string | null
           review_reason?: string | null
           salesperson_id?: string | null
@@ -4126,6 +4129,13 @@ export type Database = {
             columns: ["po_id"]
             isOneToOne: false
             referencedRelation: "customer_purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_price_list_id_fkey"
+            columns: ["price_list_id"]
+            isOneToOne: false
+            referencedRelation: "price_lists"
             referencedColumns: ["id"]
           },
           {
@@ -5917,7 +5927,15 @@ export type Database = {
       config_ia_whatsapp: { Args: { p_company: string }; Returns: Json }
       confirmar_entrega: { Args: { p_delivery: string }; Returns: Json }
       confirmar_recepcion: { Args: { p_receipt: string }; Returns: Json }
+      convertir_cotizacion_en_pedido: {
+        Args: { p_esperado?: string; p_quote: string }
+        Returns: Json
+      }
       crear_cotizacion: {
+        Args: { p_cabecera: Json; p_company: string; p_lineas: Json }
+        Returns: Json
+      }
+      crear_pedido: {
         Args: { p_cabecera: Json; p_company: string; p_lineas: Json }
         Returns: Json
       }
@@ -5938,6 +5956,15 @@ export type Database = {
       }
       guardar_config_ia_whatsapp: {
         Args: { p_company: string; p_config: Json; p_version: string }
+        Returns: Json
+      }
+      guardar_pedido: {
+        Args: {
+          p_cabecera: Json
+          p_esperado: string
+          p_lineas: Json
+          p_order: string
+        }
         Returns: Json
       }
       metricas_ia_whatsapp: { Args: { p_company: string }; Returns: Json }

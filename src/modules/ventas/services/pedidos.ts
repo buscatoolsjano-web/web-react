@@ -1,11 +1,8 @@
 import { supabase } from '@/services/supabase/client'
-import type { TablesUpdate } from '@/types/database.types'
+import type { Json } from '@/types/database.types'
 import { registrarEvento, type Editabilidad } from './auditoria'
-import type { LineaNueva } from './cotizaciones'
+import { FalloDeGuardado } from './cotizaciones'
 import { exigirMoneda } from '../lib/moneda'
-
-export type CambiosPedido = TablesUpdate<'sales_orders'>
-export type CambiosLineaPedido = TablesUpdate<'sales_order_lines'>
 
 /**
  * Escritura de pedidos.
@@ -17,222 +14,134 @@ export type CambiosLineaPedido = TablesUpdate<'sales_order_lines'>
  * tiene las líneas congeladas.
  */
 
-export interface CabeceraPedidoNueva {
-  companyId: string
-  customerId: string
-  contactId: string | null
-  titulo: string | null
-  fecha: string
-  moneda: string
-  tipoCambio: number | null
-  formaPago: string | null
-  notas: string | null
-  descuentoPct: number | null
-  percepcionPct: number | null
-  /** De dónde salió el pedido; `quote` cuando viene de una cotización. */
-  origen: 'quote' | 'manual'
-  quoteId: string | null
-}
-
-function filaLinea(companyId: string, orderId: string, lineNo: number, l: LineaNueva) {
-  return {
-    company_id: companyId,
-    order_id: orderId,
-    line_no: lineNo,
-    line_type: l.tipoLinea,
-    product_id: l.productId,
-    sku_snapshot: l.sku,
-    name_snapshot: l.nombre,
-    description_snapshot: l.descripcion,
-    // Un capítulo lleva 1 y precio 0: hay un `check (quantity_ordered <> 0)`
-    // y el trigger de totales lo excluye por `line_type`.
-    quantity_ordered: l.tipoLinea === 'chapter' ? 1 : l.cantidad,
-    unit_price: l.tipoLinea === 'chapter' ? 0 : l.precioUnitario,
-    list_price_snapshot: l.precioLista,
-    discount_pct: l.tipoLinea === 'chapter' ? 0 : l.descuentoPct,
-    tax_treatment: l.tipoLinea === 'chapter' ? 'not_taxed' : l.tratamientoImpuesto,
-    tax_rate_snapshot: l.tipoLinea === 'chapter' ? 0 : l.tasaImpuesto,
-  }
-}
-
-async function proximoNumero(companyId: string): Promise<string> {
-  const { data, error } = await supabase.rpc('next_document_number', {
-    p_company: companyId,
-    p_doc_type: 'sales_order',
-  })
-  if (error) throw new Error(`No se pudo obtener el número: ${error.message}`)
-  if (!data) throw new Error('La numeración no devolvió ningún número')
-  return data
-}
-
-export async function crearPedido(
-  cab: CabeceraPedidoNueva,
-  lineas: readonly LineaNueva[],
-): Promise<string> {
-  exigirMoneda(cab.moneda)
-  const numero = await proximoNumero(cab.companyId)
-
-  const { data, error } = await supabase
-    .from('sales_orders')
-    .insert({
-      company_id: cab.companyId,
-      number: numero,
-      series_code: 'PDV',
-      customer_id: cab.customerId,
-      contact_id: cab.contactId,
-      quote_id: cab.quoteId,
-      origin: cab.origen,
-      title: cab.titulo,
-      order_date: cab.fecha,
-      currency_code: cab.moneda,
-      exchange_rate: cab.tipoCambio,
-      payment_terms: cab.formaPago,
-      notes: cab.notas,
-      discount_pct: cab.descuentoPct,
-      perception_pct: cab.percepcionPct,
-      commercial_status: 'draft',
-    })
-    .select('id')
-    .single()
-  if (error) {
-    // El índice único sobre (company_id, quote_id) es lo que impide convertir
-    // dos veces la misma cotización. Se traduce a algo legible.
-    if (error.code === '23505' && error.message.includes('uq_sales_orders_quote')) {
-      throw new Error('Esa cotización ya tiene un pedido.')
-    }
-    throw new Error(`No se pudo crear el pedido: ${error.message}`)
-  }
-
-  if (lineas.length > 0) {
-    const { error: eL } = await supabase
-      .from('sales_order_lines')
-      .insert(lineas.map((l, i) => filaLinea(cab.companyId, data.id, i + 1, l)))
-    if (eL) throw new Error(`No se pudieron guardar las líneas: ${eL.message}`)
-  }
-
-  await registrarEvento('sales_order', data.id, 'created', null, 'draft', null)
-  return data.id
+export interface PedidoCreado {
+  id: string
+  numero: string
+  total: number
+  lineas: number
 }
 
 /**
- * Cotización → pedido.
+ * Crea el pedido con sus líneas, en UNA transacción del servidor.
  *
- * Copia los snapshots de la cotización tal como están y enlaza por
- * `quote_id`. **La cotización original no se toca**: no cambia de estado, no
- * se marca, no se modifica. Si además hay que darla por aceptada, eso es una
- * acción aparte que la persona decide.
+ * Fase 15 · E4, gemela de `crearCotizacion`. Antes eran cuatro viajes desde el
+ * navegador —número, cabecera, líneas, auditoría—: si fallaba el segundo
+ * quedaba un número consumido y si fallaba el tercero, un pedido sin líneas.
+ * `crear_pedido` valida cliente, contacto, vendedor, tarifa y moneda, reserva
+ * el número, inserta todo, calcula los totales y audita.
+ */
+export async function crearPedido(
+  companyId: string,
+  cabecera: Record<string, string | number | null>,
+  lineas: readonly Record<string, unknown>[],
+): Promise<PedidoCreado> {
+  const moneda = cabecera['currency_code']
+  exigirMoneda(typeof moneda === 'string' ? moneda : null)
+
+  const { data, error } = await supabase.rpc('crear_pedido', {
+    p_company: companyId,
+    p_cabecera: cabecera as unknown as Json,
+    p_lineas: lineas as unknown as Json,
+  })
+  if (error) throw falloDePedido(error.message, 'No se pudo crear el pedido.')
+
+  const r = data as unknown as { id: string; number: string; total: number | string; lineas: number }
+  return { id: r.id, numero: r.number, total: Number(r.total ?? 0), lineas: r.lineas }
+}
+
+/**
+ * Cotización → pedido, en UNA transacción del servidor.
  *
- * El vínculo es una clave foránea, no el texto del número: el legacy guardaba
- * `fromCotizacion: 'COTI02520'` como string y por eso Stage 2 tuvo que
- * reconstruir 132 relaciones a mano.
+ * El pedido hereda el SNAPSHOT COMERCIAL APROBADO: precios, descuentos,
+ * impuestos y descripciones de la cotización, tal como quedaron. La tarifa se
+ * copia como dato y NO se vuelve a consultar: si cambió después de cotizar, el
+ * pedido derivado no se entera.
+ *
+ * **La cotización no se toca**: no cambia de estado ni se marca. Si además hay
+ * que darla por aceptada, es una acción aparte que decide la persona.
+ *
+ * Idempotencia: la cotización se bloquea en la transacción y el índice único
+ * sobre (company_id, quote_id) remata. Dos clics dejan UN pedido.
  */
 export async function convertirCotizacionEnPedido(
-  companyId: string,
   quoteId: string,
-): Promise<string> {
-  const { data: cot, error } = await supabase
-    .from('sales_quotes')
-    .select(
-      `id, customer_id, contact_id, title, currency_code, exchange_rate,
-       payment_terms, notes, discount_pct, perception_pct, status`,
-    )
-    .eq('company_id', companyId)
-    .eq('id', quoteId)
-    .maybeSingle()
-  if (error) throw new Error(`No se pudo leer la cotización: ${error.message}`)
-  if (!cot) throw new Error('La cotización no existe o no tenés acceso.')
-  if (cot.status === 'rejected') throw new Error('Una cotización rechazada no se convierte.')
+  esperado: string | null = null,
+): Promise<PedidoCreado> {
+  const { data, error } = await supabase.rpc('convertir_cotizacion_en_pedido', {
+    p_quote: quoteId,
+    p_esperado: esperado as string,
+  })
+  if (error) throw falloDePedido(error.message, 'No se pudo generar el pedido.')
 
-  const { data: lineas, error: eL } = await supabase
-    .from('sales_quote_lines')
-    .select(
-      `line_no, line_type, product_id, sku_snapshot, name_snapshot,
-       description_snapshot, quantity, unit_price, list_price_snapshot,
-       discount_pct, tax_treatment, tax_rate_snapshot`,
-    )
-    .eq('company_id', companyId)
-    .eq('quote_id', quoteId)
-    .order('line_no')
-  if (eL) throw new Error(`No se pudieron leer las líneas: ${eL.message}`)
-
-  const hoy = new Date().toISOString().slice(0, 10)
-  return crearPedido(
-    {
-      companyId,
-      customerId: cot.customer_id,
-      contactId: cot.contact_id,
-      titulo: cot.title,
-      fecha: hoy,
-      // Fase 14 E3: la moneda del documento fuente manda. Sin moneda no se convierte
-      // (antes caía en USD sin que nadie la eligiera).
-      moneda: exigirMoneda(cot.currency_code),
-      tipoCambio: cot.exchange_rate === null ? null : Number(cot.exchange_rate),
-      formaPago: cot.payment_terms,
-      notas: cot.notes,
-      descuentoPct: cot.discount_pct === null ? null : Number(cot.discount_pct),
-      percepcionPct: cot.perception_pct === null ? null : Number(cot.perception_pct),
-      origen: 'quote',
-      quoteId,
-    },
-    (lineas ?? []).map((l) => ({
-      tipoLinea: l.line_type as LineaNueva['tipoLinea'],
-      productId: l.product_id,
-      sku: l.sku_snapshot,
-      nombre: l.name_snapshot,
-      descripcion: l.description_snapshot,
-      marca: null,
-      cantidad: Number(l.quantity),
-      precioUnitario: Number(l.unit_price),
-      precioLista: l.list_price_snapshot === null ? null : Number(l.list_price_snapshot),
-      descuentoPct: Number(l.discount_pct ?? 0),
-      tratamientoImpuesto: l.tax_treatment ?? 'vat_21',
-      tasaImpuesto: Number(l.tax_rate_snapshot ?? 0),
-    })),
-  )
+  const r = data as unknown as { id: string; number: string; total: number | string; lineas: number }
+  return { id: r.id, numero: r.number, total: Number(r.total ?? 0), lineas: r.lineas }
 }
 
-export async function actualizarCabeceraPedido(
+export interface ResultadoGuardadoPedido {
+  actualizadoEn: string
+  cambiosCabecera: number
+  lineasTocadas: number
+}
+
+/**
+ * Guarda cabecera y líneas del pedido en UNA transacción.
+ *
+ * Es el único camino de escritura del editor: el navegador manda el estado
+ * deseado con el testigo de concurrencia y el servidor decide qué cambió,
+ * valida, renumera las líneas, recalcula los totales y audita el antes y el
+ * después.
+ */
+export async function guardarPedido(
   orderId: string,
-  cambios: CambiosPedido,
-): Promise<void> {
-  const { error } = await supabase.from('sales_orders').update(cambios).eq('id', orderId)
-  if (error) throw new Error(`No se pudo guardar: ${error.message}`)
+  esperado: string,
+  cabecera: Record<string, string | number | null>,
+  lineas: readonly Record<string, unknown>[],
+): Promise<ResultadoGuardadoPedido> {
+  const { data, error } = await supabase.rpc('guardar_pedido', {
+    p_order: orderId,
+    p_esperado: esperado,
+    p_cabecera: cabecera as unknown as Json,
+    p_lineas: lineas as unknown as Json,
+  })
+  if (error) throw falloDePedido(error.message, 'No se pudo guardar el pedido.')
+
+  const r = (data ?? {}) as { updated_at?: string; cambios_cabecera?: number; lineas_tocadas?: number }
+  return {
+    actualizadoEn: r.updated_at ?? '',
+    cambiosCabecera: r.cambios_cabecera ?? 0,
+    lineasTocadas: r.lineas_tocadas ?? 0,
+  }
 }
 
-export async function agregarLineaPedido(
-  companyId: string,
-  orderId: string,
-  lineNo: number,
-  l: LineaNueva,
-): Promise<void> {
-  const { error } = await supabase
-    .from('sales_order_lines')
-    .insert(filaLinea(companyId, orderId, lineNo, l))
-  if (error) throw new Error(`No se pudo agregar la línea: ${error.message}`)
+const MOTIVOS_PEDIDO: Record<string, string> = {
+  CONFLICTO_DE_EDICION: 'Otra persona guardó cambios mientras editabas. Recargá para ver la versión actual.',
+  PEDIDO_INEXISTENTE: 'El pedido ya no existe.',
+  ESTADO_NO_EDITABLE: 'El pedido está cancelado y no se puede modificar.',
+  PEDIDO_CON_ENTREGAS: 'El pedido ya tiene entregas: sus líneas no se modifican.',
+  SIN_PERMISO: 'Tu rol no edita pedidos.',
+  CLIENTE_REQUERIDO: 'Elegí un cliente antes de crear el pedido.',
+  CLIENTE_INVALIDO: 'El cliente no es de esta empresa.',
+  CONTACTO_DE_OTRO_CLIENTE: 'El contacto elegido es de otro cliente.',
+  VENDEDOR_INVALIDO: 'El vendedor no es de esta empresa.',
+  TARIFA_INVALIDA: 'La tarifa no es de esta empresa.',
+  TARIFA_OTRA_MONEDA: 'La tarifa está en otra moneda que el documento.',
+  DOCUMENT_CURRENCY_REQUIRED: 'Elegí la moneda del documento.',
+  CANTIDAD_INVALIDA: 'Una línea quedó con cantidad cero.',
+  DESCUENTO_INVALIDO: 'Un descuento está fuera de rango (0 a 100).',
+  PRECIO_INVALIDO: 'Un precio es negativo.',
+  PRODUCTO_INVALIDO: 'Un producto no es de esta empresa.',
+  LINEA_AJENA: 'Una de las líneas no pertenece a este pedido.',
+  CAMPO_NO_PERMITIDO: 'Se intentó guardar un campo que no se puede editar.',
+  PEDIDO_YA_EXISTE: 'Esa cotización ya tiene un pedido.',
+  COTIZACION_RECHAZADA: 'Una cotización rechazada no se convierte.',
+  COTIZACION_INEXISTENTE: 'La cotización ya no existe o no tenés acceso.',
+  SIN_SERIE: 'La empresa no tiene una serie de numeración para pedidos.',
+  external_numbering_authority: 'La numeración de pedidos todavía la administra STEL: no se puede emitir desde el ERP.',
 }
 
-export async function actualizarLineaPedido(
-  lineaId: string,
-  cambios: CambiosLineaPedido,
-): Promise<void> {
-  const { error } = await supabase.from('sales_order_lines').update(cambios).eq('id', lineaId)
-  if (error) throw new Error(`No se pudo guardar la línea: ${error.message}`)
-}
-
-export async function eliminarLineaPedido(lineaId: string): Promise<void> {
-  const { error } = await supabase.from('sales_order_lines').delete().eq('id', lineaId)
-  if (error) throw new Error(`No se pudo borrar la línea: ${error.message}`)
-}
-
-/** Ver el comentario de `intercambiarOrden` en cotizaciones.ts. */
-export async function intercambiarOrdenPedido(
-  a: { id: string; numeroLinea: number },
-  b: { id: string; numeroLinea: number },
-): Promise<void> {
-  const provisorio = Math.max(a.numeroLinea, b.numeroLinea) + 1000
-  await actualizarLineaPedido(a.id, { line_no: provisorio })
-  await actualizarLineaPedido(b.id, { line_no: a.numeroLinea })
-  await actualizarLineaPedido(a.id, { line_no: b.numeroLinea })
+function falloDePedido(mensaje: string, porDefecto: string): FalloDeGuardado {
+  const codigo = Object.keys(MOTIVOS_PEDIDO).find((c) => mensaje.includes(c))
+  return new FalloDeGuardado(codigo ?? 'error_interno', codigo ? MOTIVOS_PEDIDO[codigo]! : porDefecto)
 }
 
 export async function cambiarEstadoPedido(

@@ -218,14 +218,15 @@ function columnasDetalle(tipo: TipoDocumento): string {
   const segundo = tipo === 'pedido' ? ', fulfillment_status' : ''
   // La tarifa con la que se cotizó (Fase 15 · E2). Sólo la cotización la
   // guarda, y el nombre viaja en la MISMA consulta: no agrega un viaje.
-  const tarifa = tipo === 'cotizacion' ? ', tarifa:price_lists!price_list_id ( name, currency_code )' : ''
+  // Fase 15 · E4: el pedido también guarda con qué tarifa se vendió.
+  const tarifa = tipo === 'entrega' ? '' : ', tarifa:price_lists!price_list_id ( name, currency_code )'
   // Cada documento tiene los suyos: sólo la cotización lleva descuento
   // global, percepción y validez; la entrega no tiene forma de pago.
   const propios =
     tipo === 'cotizacion'
       ? ', payment_terms, valid_until, discount_pct, perception_pct, price_list_id'
       : tipo === 'pedido'
-        ? ', payment_terms'
+        ? ', payment_terms, discount_pct, perception_pct, price_list_id'
         : ''
   // `external_source` distingue lo que vino de STEL de lo que emitió el ERP;
   // `created_at`/`updated_at` y quién creó el documento son la ficha técnica

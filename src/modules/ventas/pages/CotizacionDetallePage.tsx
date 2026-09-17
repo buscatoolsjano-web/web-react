@@ -188,11 +188,14 @@ function Detalle() {
    * apretando a la vez sólo crean uno, y la segunda recibe el error.
    */
   const convertir = useMutation({
-    mutationFn: () => convertirCotizacionEnPedido(activa!.companyId, id!),
-    onSuccess: (pedidoId) => {
+    // Fase 15 · E4: una sola transacción del servidor. El pedido hereda el
+    // snapshot aprobado —precios, descuentos, impuestos, tarifa y vendedor— y
+    // la cotización no se toca.
+    mutationFn: () => convertirCotizacionEnPedido(id!, doc?.actualizadoEn ?? null),
+    onSuccess: (pedido) => {
       setUltimoError(null)
       void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
-      void navegar(`/ventas/pedidos/${pedidoId}`)
+      void navegar(`/ventas/pedidos/${pedido.id}`)
     },
     onError: (e: Error) => setUltimoError(mensajeErrorVentas(e)),
   })

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   aPayload,
   aPayloadCreacion,
+  aPayloadCreacionPedido,
+  aPayloadPedido,
   agregarLinea,
   borradorNuevo,
   cambiarCampo,
@@ -308,5 +310,84 @@ describe('alta de cotización (Fase 15 · E3)', () => {
     for (const prohibido of ['company_id', 'number', 'series_code', 'status', 'created_by', 'imported_at', 'external_id', 'subtotal', 'tax_amount', 'total']) {
       expect(claves).not.toContain(prohibido)
     }
+  })
+})
+
+/**
+ * El pedido (Fase 15 · E4) usa el MISMO borrador que la cotización, pero sus
+ * columnas son las de `sales_orders`: la fecha es `order_date` y la validez no
+ * existe. Que un solo mapa distinto alcance es el punto: lo demás se comparte.
+ */
+describe('payload del pedido', () => {
+  it('traduce la fecha a order_date y nunca manda valid_until', () => {
+    const b = base()
+    const cambiado = cambiarCampo(cambiarCampo(b, 'fecha', '2026-10-01'), 'validaHasta', '2026-12-31')
+    const { cabecera } = aPayloadPedido(cambiado, b)
+    expect(cabecera).toEqual({ order_date: '2026-10-01' })
+    expect(Object.keys(cabecera)).not.toContain('valid_until')
+    expect(Object.keys(cabecera)).not.toContain('quote_date')
+  })
+
+  it('manda sólo lo que cambió, igual que la cotización', () => {
+    const b = base()
+    const { cabecera } = aPayloadPedido(cambiarCampo(b, 'titulo', 'Otro'), b)
+    expect(cabecera).toEqual({ title: 'Otro' })
+  })
+
+  it('sin cambios de cabecera el payload va vacío, pero las líneas viajan enteras', () => {
+    const b = base()
+    const p = aPayloadPedido(b, b)
+    expect(p.cabecera).toEqual({})
+    expect(p.lineas).toHaveLength(2)
+    expect(p.lineas[0]).toMatchObject({ id: 'l1', line_no: 1, quantity: 2, unit_price: 100 })
+  })
+
+  it('el alta del pedido manda la cabecera completa con las columnas del pedido', () => {
+    let b = borradorNuevo('2026-09-17', '30 DIAS')
+    b = cambiarCampo(b, 'customerId', 'c1')
+    b = cambiarCampo(b, 'moneda', 'USD')
+    b = cambiarCampo(b, 'listaPrecioId', 'pl-usd')
+    const { cabecera } = aPayloadCreacionPedido(b)
+    expect(cabecera).toEqual({
+      customer_id: 'c1',
+      contact_id: null,
+      salesperson_id: null,
+      price_list_id: 'pl-usd',
+      title: null,
+      order_date: '2026-09-17',
+      currency_code: 'USD',
+      exchange_rate: null,
+      payment_terms: '30 DIAS',
+      discount_pct: null,
+      perception_pct: null,
+      notes: null,
+    })
+  })
+
+  it('el alta del pedido no manda campos de sistema ni el vínculo con la cotización', () => {
+    const b = cambiarCampo(borradorNuevo('2026-09-17'), 'customerId', 'c1')
+    const claves = Object.keys(aPayloadCreacionPedido(b).cabecera)
+    for (const prohibido of [
+      'company_id', 'number', 'series_code', 'status', 'commercial_status', 'created_by',
+      'quote_id', 'source', 'imported_at', 'external_id', 'subtotal', 'tax_amount', 'total',
+    ]) {
+      expect(claves).not.toContain(prohibido)
+    }
+  })
+
+  it('las líneas del alta del pedido van sin id y renumeradas desde 1', () => {
+    let b = borradorNuevo('2026-09-17')
+    b = agregarLinea(b, {
+      tipoLinea: 'item', productId: 'p1', sku: 'A', nombre: 'A', descripcion: null,
+      cantidad: 3, precioUnitario: 10, descuentoPct: 0, tratamientoImpuesto: 'vat_21', tasaImpuesto: 21,
+    })
+    b = agregarLinea(b, {
+      tipoLinea: 'chapter', productId: null, sku: null, nombre: 'Capítulo', descripcion: null,
+      cantidad: 1, precioUnitario: 0, descuentoPct: 0, tratamientoImpuesto: 'not_taxed', tasaImpuesto: 0,
+    })
+    const { lineas } = aPayloadCreacionPedido(b)
+    expect(lineas.map((l) => l['line_no'])).toEqual([1, 2])
+    expect(lineas.every((l) => !('id' in l))).toBe(true)
+    expect(lineas[0]).toMatchObject({ quantity: 3, unit_price: 10 })
   })
 })

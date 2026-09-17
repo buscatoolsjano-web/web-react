@@ -17,6 +17,8 @@ export interface EditorCabeceraProps {
   avisoContacto: boolean
   /** El cambio de moneda dejó la tarifa incompatible. */
   avisoTarifa: boolean
+  /** El pedido no tiene fecha de validez; la cotización sí. */
+  mostrarValidez?: boolean | undefined
   onCambiar: (campo: CampoCabecera, valor: string) => void
   onCambiarCliente: (customerId: string) => void
   onCambiarMoneda: (moneda: string) => void
@@ -43,6 +45,7 @@ export function EditorCabecera({
   cargandoContactos,
   avisoContacto,
   avisoTarifa,
+  mostrarValidez = true,
   onCambiar,
   onCambiarCliente,
   onCambiarMoneda,
@@ -118,9 +121,11 @@ export function EditorCabecera({
             <Input type="date" value={valores.fecha} onChange={(e) => onCambiar('fecha', e.target.value)} />
           </Field>
 
-          <Field label="Válida hasta" optional>
-            <Input type="date" value={valores.validaHasta} onChange={(e) => onCambiar('validaHasta', e.target.value)} />
-          </Field>
+          {mostrarValidez ? (
+            <Field label="Válida hasta" optional>
+              <Input type="date" value={valores.validaHasta} onChange={(e) => onCambiar('validaHasta', e.target.value)} />
+            </Field>
+          ) : null}
 
           <Field label="Moneda" help="Cambiarla puede dejar la tarifa incompatible.">
             <Select value={valores.moneda} required onChange={(e) => onCambiarMoneda(e.target.value)}>

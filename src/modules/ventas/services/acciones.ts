@@ -2,6 +2,7 @@ import { supabase } from '@/services/supabase/client'
 import { aCsv } from '../lib/csv'
 import { registrarEvento } from './auditoria'
 import { crearCotizacion } from './cotizaciones'
+import { crearPedido } from './pedidos'
 import { listarDocumentos } from './documentos'
 import type { DocumentoListado, FiltrosVentas, TipoDocumento } from '../types'
 
@@ -27,15 +28,7 @@ export async function duplicarDocumento(
 ): Promise<string> {
   const hoy = new Date().toISOString().slice(0, 10)
 
-  const numeroNuevo = async (docType: 'quote' | 'sales_order') => {
-    const { data, error } = await supabase.rpc('next_document_number', {
-      p_company: companyId,
-      p_doc_type: docType,
-    })
-    if (error) throw new Error(`No se pudo obtener el número: ${error.message}`)
-    if (!data) throw new Error('La numeración no devolvió ningún número')
-    return data
-  }
+
 
   // Las dos ramas están escritas aparte a propósito: los nombres de columna
   // difieren (`quantity` contra `quantity_ordered`, `status` contra
@@ -107,43 +100,23 @@ export async function duplicarDocumento(
     return copia.id
   }
 
+  // Fase 15 · E4: la copia del pedido va por `crear_pedido`, el MISMO camino
+  // que el alta. Copia lo comercial —cliente, contacto, vendedor, tarifa,
+  // moneda, condiciones y líneas con sus snapshots— y NADA de identidad:
+  // número, serie, estado, external_id, imported_at, entregas, facturas,
+  // auditoría ni el vínculo con la cotización (dos pedidos no pueden apuntar a
+  // la misma; el índice único lo impide). La copia nace borrador y manual.
   const { data: o, error } = await supabase
     .from('sales_orders')
     .select(
-      `customer_id, contact_id, title, currency_code, exchange_rate,
-       payment_terms, notes, discount_pct, perception_pct`,
+      `customer_id, contact_id, salesperson_id, price_list_id, title,
+       currency_code, exchange_rate, payment_terms, notes,
+       discount_pct, perception_pct`,
     )
     .eq('company_id', companyId)
     .eq('id', id)
     .single()
   if (error) throw new Error(`No se pudo leer el pedido: ${error.message}`)
-
-  const { data: copia, error: eIns } = await supabase
-    .from('sales_orders')
-    .insert({
-      company_id: companyId,
-      number: await numeroNuevo('sales_order'),
-      series_code: 'PDV',
-      customer_id: o.customer_id,
-      contact_id: o.contact_id,
-      title: o.title,
-      order_date: hoy,
-      currency_code: o.currency_code,
-      exchange_rate: o.exchange_rate,
-      payment_terms: o.payment_terms,
-      notes: o.notes,
-      discount_pct: o.discount_pct,
-      perception_pct: o.perception_pct,
-      commercial_status: 'draft',
-      // La copia NO hereda de dónde vino el original: `quote_id` queda en
-      // null y el origen pasa a ser manual. Copiar el vínculo haría que dos
-      // pedidos apuntaran a la misma cotización, que es justo lo que el
-      // índice único impide.
-      origin: 'manual',
-    })
-    .select('id')
-    .single()
-  if (eIns) throw new Error(`No se pudo duplicar: ${eIns.message}`)
 
   const { data: lineas, error: eL } = await supabase
     .from('sales_order_lines')
@@ -157,14 +130,36 @@ export async function duplicarDocumento(
     .order('line_no')
   if (eL) throw new Error(`No se pudieron leer las líneas: ${eL.message}`)
 
-  if ((lineas ?? []).length > 0) {
-    const { error: eIL } = await supabase.from('sales_order_lines').insert(
-      (lineas ?? []).map((l) => ({ ...l, company_id: companyId, order_id: copia.id })),
-    )
-    if (eIL) throw new Error(`No se pudieron copiar las líneas: ${eIL.message}`)
-  }
-
-  await registrarEvento('sales_order', copia.id, 'created', null, 'draft', null)
+  const copia = await crearPedido(
+    companyId,
+    {
+      customer_id: o.customer_id,
+      contact_id: o.contact_id,
+      salesperson_id: o.salesperson_id,
+      price_list_id: o.price_list_id,
+      title: o.title,
+      order_date: hoy,
+      currency_code: o.currency_code,
+      exchange_rate: o.exchange_rate,
+      payment_terms: o.payment_terms,
+      notes: o.notes,
+      discount_pct: o.discount_pct,
+      perception_pct: o.perception_pct,
+    },
+    (lineas ?? []).map((l) => ({
+      line_type: l.line_type,
+      product_id: l.product_id,
+      sku_snapshot: l.sku_snapshot,
+      name_snapshot: l.name_snapshot,
+      description_snapshot: l.description_snapshot,
+      quantity: l.quantity_ordered,
+      unit_price: l.unit_price,
+      list_price_snapshot: l.list_price_snapshot,
+      discount_pct: l.discount_pct,
+      tax_treatment: l.tax_treatment,
+      tax_rate_snapshot: l.tax_rate_snapshot,
+    })),
+  )
   return copia.id
 }
 
