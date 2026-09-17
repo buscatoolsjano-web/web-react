@@ -108,7 +108,7 @@ export async function analizarConversacion(o: OpcionesAnalisis): Promise<Resulta
   const incremental = !o.completo && resumen?.last_analyzed_message_at
   let q = o.admin
     .from('whatsapp_messages')
-    .select('id, direction, message_type, text_body, caption, ordenado_en')
+    .select('id, direction, message_type, text_body, caption, ordenado_en, status')
     .eq('conversation_id', o.conversacionId)
   if (incremental) q = q.gte('ordenado_en', resumen.last_analyzed_message_at)
   // Los ÚLTIMOS N, no los primeros: de una conversación larga importa lo reciente.
@@ -120,9 +120,14 @@ export async function analizarConversacion(o: OpcionesAnalisis): Promise<Resulta
 
   const nuevas = ((filas ?? []) as {
     id: string; direction: string; message_type: string
-    text_body: string | null; caption: string | null; ordenado_en: string
+    text_body: string | null; caption: string | null; ordenado_en: string; status: string
   }[])
     .filter((f) => !incremental || f.id !== resumen.last_analyzed_message_id)
+    // Un saliente que falló —o que todavía no salió— NUNCA le llegó al
+    // contacto. Mandárselo al modelo es hacerle creer que se dijo algo que
+    // no se dijo: un «te mando mañana» fallido se volvería un compromiso.
+    // El envío fallido ya es una señal de atención por regla, sin IA.
+    .filter((f) => f.direction === 'in' || f.status === 'sent')
     .reverse()
 
   if (nuevas.length === 0) {

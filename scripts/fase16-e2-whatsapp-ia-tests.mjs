@@ -234,6 +234,17 @@ async function main() {
   const rF = await correr(F)
   cmp('C, D, E y F analizan', 'ok,ok,ok,ok', [rC, rD, rE, rF].map((r) => r.estado).join(','))
 
+  // Un saliente fallido nunca le llegó al contacto: no es parte de la charla.
+  cmp('F: el saliente fallido NO se cuenta como mensaje enviado al modelo', 1, rF.mensajesEnviados)
+  let vistoPorModelo = null
+  const espia = {
+    nombre: 'prueba-espia',
+    analizar: (e) => { vistoPorModelo = e.mensajes.map((m) => `${m.autor}:${m.texto}`); return proveedorFalso.analizar(e) },
+  }
+  // Un reloj propio para saltar el debounce de F sin mover el de las demás.
+  await correr(F, { proveedor: espia, completo: true, ahora: () => reloj + 60_000 })
+  cmp('F: el proveedor recibió sólo el entrante, no el texto del envío fallido', 'contacto:Hola', (vistoPorModelo ?? []).join('|'))
+
   const items = async (conv) => (await s.from('whatsapp_ai_items').select('*').eq('conversation_id', conv)).data ?? []
   const resumen = async (conv) => (await s.from('whatsapp_conversation_ai_summary').select('*').eq('conversation_id', conv).single()).data
 
