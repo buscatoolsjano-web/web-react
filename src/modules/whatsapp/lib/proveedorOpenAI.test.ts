@@ -8,6 +8,7 @@ import {
   SalidaInvalida,
   calcularCostoOpenAI,
   clasificarErrorOpenAI,
+  esPedidoDeVerificacion,
   fechasNombradas,
   modeloBase,
   parsearSalida,
@@ -291,5 +292,38 @@ describe('fechas relativas', () => {
     expect(INSTRUCCIONES).toMatch(/cuando pueda/)
     expect(INSTRUCCIONES).toMatch(/intención .* NO es un compromiso/)
     expect(INSTRUCCIONES).toMatch(/español/)
+  })
+})
+
+describe('verificación del modelo sin contenido', () => {
+  it('sólo {verificar_modelo:true} y nada más activa el modo', () => {
+    expect(esPedidoDeVerificacion({ verificar_modelo: true })).toBe(true)
+    expect(esPedidoDeVerificacion({ verificar_modelo: 'true' })).toBe(false)
+    expect(esPedidoDeVerificacion({ verificar_modelo: true, conversation_id: 'x' })).toBe(false)
+    expect(esPedidoDeVerificacion(null)).toBe(false)
+    expect(esPedidoDeVerificacion([true])).toBe(false)
+  })
+
+  it('disponible: consulta la Models API y NO llama a responses', async () => {
+    const c = mockCliente(() => Promise.reject(new Error('no debería llamarse')))
+    const v = await proveedorOpenAI(c, cfg).verificarModelo!()
+    expect(v).toEqual({ modelo: 'gpt-5.6-luna', disponible: true, codigo: null })
+    expect(c.models.retrieve).toHaveBeenCalledWith('gpt-5.6-luna')
+    expect(c.responses.create).not.toHaveBeenCalled()
+  })
+
+  it('404 → no disponible, sin excepción y sin mensaje del proveedor', async () => {
+    const c = mockCliente(() => Promise.resolve(respuesta()), () => Promise.reject(errorSdk('NotFoundError', 404)))
+    const v = await proveedorOpenAI(c, cfg).verificarModelo!()
+    expect(v).toEqual({ modelo: 'gpt-5.6-luna', disponible: false, codigo: 'modelo_no_disponible' })
+    expect(c.responses.create).not.toHaveBeenCalled()
+  })
+
+  it('verificado una vez, el análisis no vuelve a consultar el modelo', async () => {
+    const c = mockCliente(() => Promise.resolve(respuesta()))
+    const prov = proveedorOpenAI(c, cfg)
+    await prov.verificarModelo!()
+    await prov.analizar(entrada())
+    expect(c.models.retrieve).toHaveBeenCalledTimes(1)
   })
 })

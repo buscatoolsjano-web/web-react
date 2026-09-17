@@ -466,6 +466,17 @@ export interface RespuestaProveedor {
 export interface ProveedorIA {
   readonly nombre: string
   analizar(entrada: EntradaAnalisis): Promise<RespuestaProveedor>
+  /**
+   * Confirma que el modelo configurado existe para este proyecto SIN mandar
+   * contenido. Opcional: el proveedor falso no lo necesita.
+   */
+  verificarModelo?(): Promise<VerificacionModelo>
+}
+
+export interface VerificacionModelo {
+  modelo: string
+  disponible: boolean
+  codigo: CodigoFalloProveedor | null
 }
 
 export type CodigoFalloProveedor =
@@ -586,6 +597,14 @@ export type PedidoAnalisis = { conversationId: string; completo: boolean }
  * Cuerpo cerrado. `company_id` NO se acepta: la empresa sale de la
  * conversación, y la conversación se lee con el JWT de quien pide.
  */
+/**
+ * `{ "verificar_modelo": true }` y NADA más: el modo que consulta al proveedor
+ * si el modelo existe, sin tocar ninguna conversación.
+ */
+export function esPedidoDeVerificacion(cuerpo: unknown): boolean {
+  return esObjeto(cuerpo) && Object.keys(cuerpo).length === 1 && cuerpo.verificar_modelo === true
+}
+
 export function validarPedidoAnalisis(cuerpo: unknown): PedidoAnalisis | { error: string; campo?: string } {
   if (!esObjeto(cuerpo)) return { error: 'datos_invalidos' }
   for (const k of Object.keys(cuerpo)) {
@@ -757,17 +776,25 @@ export interface ConfigOpenAI {
 export function proveedorOpenAI(cliente: ClienteOpenAI, cfg: ConfigOpenAI): ProveedorIA {
   let modeloVerificado = false
 
+  // Sólo la Models API: ni instrucciones, ni mensajes, ni nombres.
+  const verificarModelo = async (): Promise<VerificacionModelo> => {
+    try {
+      await cliente.models.retrieve(cfg.modelo)
+      modeloVerificado = true
+      return { modelo: cfg.modelo, disponible: true, codigo: null }
+    } catch (e) {
+      const codigo = clasificarErrorOpenAI(e)
+      return { modelo: cfg.modelo, disponible: false, codigo: codigo === 'rechazo' ? 'modelo_no_disponible' : codigo }
+    }
+  }
+
   return {
     nombre: 'openai',
+    verificarModelo,
     async analizar(entrada: EntradaAnalisis): Promise<RespuestaProveedor> {
       if (!modeloVerificado) {
-        try {
-          await cliente.models.retrieve(cfg.modelo)
-          modeloVerificado = true
-        } catch (e) {
-          const codigo = clasificarErrorOpenAI(e)
-          throw new FalloProveedor(codigo === 'rechazo' ? 'modelo_no_disponible' : codigo, 'no se pudo verificar el modelo')
-        }
+        const v = await verificarModelo()
+        if (!v.disponible) throw new FalloProveedor(v.codigo ?? 'modelo_no_disponible', 'no se pudo verificar el modelo')
       }
 
       let respuesta: unknown

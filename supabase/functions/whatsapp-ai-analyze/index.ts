@@ -20,7 +20,7 @@
  * ni el prompt, ni la respuesta del modelo, ni la clave del proveedor.
  */
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { validarPedidoAnalisis } from './logica.ts'
+import { esPedidoDeVerificacion, validarPedidoAnalisis } from './logica.ts'
 import { analizarConversacion } from './analisis.ts'
 import { proveedorConfigurado } from './proveedor.ts'
 
@@ -88,6 +88,25 @@ Deno.serve(async (req) => {
   } catch {
     return responder(origen, 400, { error: 'datos_invalidos' })
   }
+  // Verificación del modelo: sin conversación y sin contenido. Sólo admin y
+  // employee de alguna empresa con WhatsApp (lo mismo que ve las corridas).
+  if (esPedidoDeVerificacion(cuerpo)) {
+    const { data: membresia } = await comoUsuario
+      .from('company_memberships')
+      .select('role')
+      .eq('user_id', sesion.user.id)
+      .eq('status', 'active')
+      .in('role', ['admin', 'employee'])
+      .limit(1)
+    if (!membresia || membresia.length === 0) return responder(origen, 403, { error: 'sin_permiso' })
+    if (!proveedor.verificarModelo) {
+      return responder(origen, 200, { proveedor: proveedor.nombre, verificable: false })
+    }
+    const v = await proveedor.verificarModelo()
+    console.log(JSON.stringify({ fn: 'whatsapp-ai-analyze', evento: 'verificar_modelo', proveedor: proveedor.nombre, disponible: v.disponible, codigo: v.codigo }))
+    return responder(origen, 200, { proveedor: proveedor.nombre, modelo: v.modelo, disponible: v.disponible, codigo: v.codigo })
+  }
+
   const pedido = validarPedidoAnalisis(cuerpo)
   if ('error' in pedido) return responder(origen, 400, pedido)
 
