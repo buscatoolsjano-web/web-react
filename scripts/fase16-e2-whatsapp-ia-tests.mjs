@@ -307,6 +307,7 @@ async function main() {
   reloj += 60_000
   const rB2 = await correr(B)
   cmp('con un mensaje nuevo: incremental, manda SÓLO ese mensaje', 'ok/1', `${rB2.estado}/${rB2.mensajesEnviados}`)
+  cmp('incremental: va el resumen previo y 0 mensajes viejos reenviados', 'true/0', `${rB2.resumenPrevioIncluido}/${rB2.mensajesViejosReenviados}`)
   cmp('reanalizar no duplicó el pendiente de B', 1, (await items(B)).filter((i) => i.type === 'pending').length)
   cmp('el resumen de B ya no marca atención', false, (await resumen(B)).requires_attention)
 

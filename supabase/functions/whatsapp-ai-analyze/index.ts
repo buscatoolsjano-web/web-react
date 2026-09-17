@@ -128,7 +128,9 @@ Deno.serve(async (req) => {
 
   console.log(JSON.stringify({
     fn: 'whatsapp-ai-analyze', proveedor: proveedor.nombre, estado: r.estado, codigo: r.codigo ?? null,
-    mensajes: r.mensajesEnviados ?? 0, items_nuevos: r.itemsNuevos ?? 0,
+    mensajes: r.mensajesEnviados ?? 0, resumen_previo: r.resumenPrevioIncluido ?? null,
+    viejos_reenviados: r.mensajesViejosReenviados ?? null, items_nuevos: r.itemsNuevos ?? 0,
+    items_repetidos: r.itemsRepetidos ?? 0,
     descartados: r.itemsDescartados ?? 0, alias_inventados: r.aliasInventados ?? 0,
     ms: r.duracionMs ?? null,
   }))

@@ -48,6 +48,10 @@ export interface ResultadoAnalisis {
   aliasInventados?: number
   fechasDescartadas?: number
   mensajesEnviados?: number
+  /** Si el modelo recibió el resumen previo (análisis incremental). */
+  resumenPrevioIncluido?: boolean
+  /** Mensajes enviados que ya estaban cubiertos por el checkpoint. Debe ser 0. */
+  mensajesViejosReenviados?: number
   duracionMs?: number
 }
 
@@ -163,6 +167,14 @@ export async function analizarConversacion(o: OpcionesAnalisis): Promise<Resulta
     zonaHoraria: zona,
   }
 
+  // Evidencia del incremental, sin texto: cuántos de los mensajes que salen
+  // ya estaban cubiertos por el checkpoint (debe ser 0) y si va el resumen.
+  const corte = incremental ? new Date(resumen.last_analyzed_message_at).getTime() : null
+  const evidencia = {
+    resumenPrevioIncluido: entrada.resumenPrevio !== null,
+    mensajesViejosReenviados: corte === null ? 0 : nuevas.filter((f) => new Date(f.ordenado_en).getTime() <= corte).length,
+  }
+
   // 6 · El proveedor.
   let respuesta
   try {
@@ -227,6 +239,7 @@ export async function analizarConversacion(o: OpcionesAnalisis): Promise<Resulta
     aliasInventados: informe.aliasInventados.length,
     fechasDescartadas: informe.fechasDescartadas,
     mensajesEnviados: mensajes.length,
+    ...evidencia,
     duracionMs: ahora() - inicio,
   }
 }
