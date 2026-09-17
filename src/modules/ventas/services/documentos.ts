@@ -227,7 +227,8 @@ function columnasDetalle(tipo: TipoDocumento): string {
       ? ', payment_terms, valid_until, discount_pct, perception_pct, price_list_id'
       : tipo === 'pedido'
         ? ', payment_terms, discount_pct, perception_pct, price_list_id'
-        : ''
+        : // El remito no tiene forma de pago; sí transporte y seguimiento.
+          ', carrier, tracking'
   // `external_source` distingue lo que vino de STEL de lo que emitió el ERP;
   // `created_at`/`updated_at` y quién creó el documento son la ficha técnica
   // que la pestaña Información muestra al pie. Son columnas de la MISMA
@@ -237,7 +238,7 @@ function columnasDetalle(tipo: TipoDocumento): string {
     title, currency_code, exchange_rate, subtotal, tax_amount, total,
     ${c.campoEstado}${segundo}${propios}, needs_review, review_reason, number_outlier,
     series_code, imported_at, external_source, created_at, updated_at, notes,
-    contact_id, salesperson_id,
+    contact_id${c.tieneVendedor ? ', salesperson_id' : ''},
     customers!customer_id ( id, legal_name, trade_name ),
     contacto:customer_contacts!contact_id ( full_name, role, email, phone ),
     creador:profiles!created_by ( full_name )${vendedor}${origen}${tarifa}
@@ -251,11 +252,12 @@ const COLUMNAS_LINEA: Record<TipoDocumento, string> = {
   pedido: `id, line_no, line_type, product_id, sku_snapshot, name_snapshot,
     description_snapshot, quantity_ordered, unit_price, discount_pct,
     tax_treatment, tax_rate_snapshot`,
-  // `delivery_lines` no tiene `line_no` ni descripción: el legacy nunca los
-  // guardó. Los precios existen desde Stage 3 y están en NULL en las 600
-  // líneas históricas.
-  entrega: `id, product_id, sku_snapshot, name_snapshot, quantity, order_line_id,
-    unit_price, discount_pct, tax_treatment, tax_rate_snapshot`,
+  // Fase 15 · E5: `delivery_lines` ya tiene `line_no` y descripción propia. El
+  // orden dejó de ser el del `id`, que no era ningún orden. Los precios existen
+  // desde Stage 3 y están en NULL en las 600 líneas históricas.
+  entrega: `id, line_no, product_id, sku_snapshot, name_snapshot,
+    description_snapshot, quantity, order_line_id, unit_price, discount_pct,
+    tax_treatment, tax_rate_snapshot`,
 }
 
 type FilaLinea = Record<string, unknown> & {
@@ -270,9 +272,9 @@ function aLinea(tipo: TipoDocumento, f: FilaLinea, indice: number): LineaDocumen
   const cantidad = tipo === 'pedido' ? f['quantity_ordered'] : f['quantity']
   return {
     id: f.id,
-    // La entrega no tiene número de línea en el modelo; se usa el orden de
-    // llegada sólo para mostrar, nunca para relacionar nada.
-    numeroLinea: tipo === 'entrega' ? indice + 1 : (aNumero(f['line_no']) ?? null),
+    // Fase 15 · E5: el remito también tiene su número de línea. El índice sólo
+    // queda de respaldo por si alguna línea histórica quedara sin numerar.
+    numeroLinea: aNumero(f['line_no']) ?? indice + 1,
     tipoLinea: (f['line_type'] as LineaDocumento['tipoLinea']) ?? 'item',
     productId: f.product_id,
     sku: f.sku_snapshot,
@@ -326,7 +328,7 @@ export async function obtenerDocumento(
     .select(COLUMNAS_LINEA[tipo])
     .eq('company_id', companyId)
     .eq(c.fkLinea, id)
-    .order(tipo === 'entrega' ? 'id' : 'line_no', { ascending: true })
+    .order('line_no', { ascending: true })
   if (errorLineas) throw new Error(`No se pudieron leer las líneas: ${errorLineas.message}`)
 
   return {
@@ -355,6 +357,9 @@ export async function obtenerDocumento(
     serie: f.series_code,
     notas: f.notes,
     formaPago: f.payment_terms ?? null,
+    // Fase 15 · E5: el remito sí sabe quién lo llevó y con qué seguimiento.
+    transporte: (f['carrier'] as string | null) ?? null,
+    seguimiento: (f['tracking'] as string | null) ?? null,
     validaHasta: f.valid_until ?? null,
     descuentoPct: aNumero(f.discount_pct),
     percepcionPct: aNumero(f.perception_pct),

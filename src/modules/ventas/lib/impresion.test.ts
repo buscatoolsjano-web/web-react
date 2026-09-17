@@ -50,6 +50,8 @@ const doc = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle => ({
   serie: 'COTI',
   notas: null,
   formaPago: null,
+  transporte: null,
+  seguimiento: null,
   validaHasta: null,
   descuentoPct: null,
   percepcionPct: null,

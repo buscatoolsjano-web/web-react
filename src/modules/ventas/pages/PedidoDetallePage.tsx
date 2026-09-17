@@ -194,12 +194,12 @@ function Detalle() {
 
   const crearRemito = useMutation({
     mutationFn: ({ cantidades, fecha }: { cantidades: Map<string, number>; fecha: string }) =>
-      crearEntregaDesdePedido(activa!.companyId, id!, cantidades, paraEntregar.data ?? [], fecha),
-    onSuccess: (entregaId) => {
+      crearEntregaDesdePedido(id!, cantidades, fecha),
+    onSuccess: (remito) => {
       setGenerando(false)
       setErrorRemito(null)
       void refrescar()
-      void navegar(`/ventas/entregas/${entregaId}`)
+      void navegar(`/ventas/entregas/${remito.id}`)
     },
     onError: (e: Error) => setErrorRemito(mensajeErrorVentas(e)),
   })

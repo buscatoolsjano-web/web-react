@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabase/client'
-import { registrarEvento } from './auditoria'
+import type { Json } from '@/types/database.types'
+import { FalloDeGuardado } from './cotizaciones'
 
 /**
  * Entregas / remitos.
@@ -115,104 +116,127 @@ export async function lineasParaEntregar(
   })
 }
 
+/** Los motivos de la base, en castellano y sin jerga. */
+export const MOTIVOS_REMITO: Record<string, string> = {
+  CONFLICTO_DE_EDICION:
+    'Alguien más guardó este remito mientras lo editabas. Recargá para ver los cambios; lo tuyo no se perdió.',
+  PEDIDO_TOTALMENTE_ENTREGADO: 'Este pedido ya está entregado por completo: no queda nada pendiente.',
+  PEDIDO_NO_CONFIRMADO: 'El pedido todavía no está confirmado: primero confirmalo.',
+  PEDIDO_CANCELADO: 'El pedido está cancelado.',
+  PEDIDO_INEXISTENTE: 'No encontramos el pedido.',
+  SOBREENTREGA: 'Se quiso entregar más de lo que queda pendiente.',
+  CANTIDAD_INVALIDA: 'Las cantidades tienen que ser mayores que cero.',
+  LINEA_DE_OTRO_PEDIDO: 'Una línea no pertenece a este pedido.',
+  LINEA_DE_OTRO_REMITO: 'Una línea no pertenece a este remito.',
+  LINEA_SIN_PEDIDO: 'Una línea no dice de qué línea del pedido sale.',
+  LINEA_CON_SERIES: 'Esa línea tiene números de serie cargados: primero hay que quitarlos.',
+  LINEA_FACTURADA: 'Esa línea ya está facturada y no se modifica.',
+  SIN_LINEAS: 'Un remito sin líneas no es un remito.',
+  SIN_DEPOSITO: 'La empresa no tiene ningún depósito configurado.',
+  SIN_SERIE: 'La empresa no tiene una serie de numeración para remitos.',
+  REMITO_DESPACHADO: 'El remito ya fue despachado: movió stock y no se modifica.',
+  REMITO_CANCELADO: 'El remito está cancelado.',
+  REMITO_HISTORICO: 'Es un remito migrado del sistema anterior: no se edita.',
+  REMITO_INEXISTENTE: 'No encontramos el remito.',
+  CAMPO_NO_EDITABLE: 'Se intentó cambiar un campo que no se edita.',
+  CONTACTO_DE_OTRO_CLIENTE: 'Ese contacto es de otro cliente.',
+  SIN_PERMISO_EMPRESA: 'Tu rol no emite ni edita remitos.',
+  external_numbering_authority:
+    'La numeración de remitos todavía la administra STEL: no se puede emitir desde el ERP.',
+}
+
+function falloDeRemito(mensaje: string, porDefecto: string): FalloDeGuardado {
+  const codigo = Object.keys(MOTIVOS_REMITO).find((c) => mensaje.includes(c))
+  return new FalloDeGuardado(codigo ?? 'error_interno', codigo ? MOTIVOS_REMITO[codigo]! : porDefecto)
+}
+
+export interface RemitoCreado {
+  id: string
+  numero: string
+  lineas: number
+}
+
 /**
- * Crea el remito con las cantidades elegidas.
+ * Crea el remito con las cantidades elegidas (Fase 15 · E5).
  *
- * Nace en `draft`: **no mueve stock**. El stock se descuenta al confirmar, en
- * una sola operación atómica del servidor.
+ * Una sola llamada: `crear_remito_desde_pedido` bloquea el pedido, recalcula
+ * el pendiente **en la base**, valida cantidad por cantidad, pide el número,
+ * inserta cabecera y líneas con sus snapshots y lo audita. Antes eran cinco
+ * viajes desde el navegador y, si una línea fallaba, el navegador borraba el
+ * remito a mano.
  *
- * La serie es siempre `RT`. `RT-ML` existe en el modelo y en los cuatro
- * remitos históricos, pero no tiene secuencia sembrada: pedirla devolvería
- * `no_data_found`. Por eso no se ofrece como opción.
+ * El lock del pedido es lo que impide la sobreentrega concurrente: dos
+ * personas remitando el mismo pendiente se serializan y la segunda recibe un
+ * motivo, no un remito de más.
+ *
+ * Nace en `draft`: **no mueve stock**. Eso pasa al despachar.
  */
 export async function crearEntregaDesdePedido(
-  companyId: string,
   orderId: string,
   cantidades: Map<string, number>,
-  lineas: readonly LineaParaEntregar[],
   fecha: string,
-): Promise<string> {
-  const aEntregar = lineas.filter((l) => (cantidades.get(l.orderLineId) ?? 0) > 0)
-  if (aEntregar.length === 0) throw new Error('No hay ninguna cantidad para entregar.')
+  esperado: string | null = null,
+): Promise<RemitoCreado> {
+  const lineas = [...cantidades.entries()]
+    .filter(([, cantidad]) => cantidad > 0)
+    .map(([order_line_id, quantity]) => ({ order_line_id, quantity }))
 
-  const excedida = aEntregar.find((l) => (cantidades.get(l.orderLineId) ?? 0) > l.pendiente)
-  if (excedida) {
-    throw new Error(
-      `${excedida.sku ?? 'Una línea'} tiene ${excedida.pendiente} pendiente y se quiso entregar ${
-        cantidades.get(excedida.orderLineId) ?? 0
-      }.`,
-    )
-  }
-
-  const { data: pedido, error: eP } = await supabase
-    .from('sales_orders')
-    .select('customer_id, contact_id, title, currency_code, exchange_rate, notes')
-    .eq('company_id', companyId)
-    .eq('id', orderId)
-    .single()
-  if (eP) throw new Error(`No se pudo leer el pedido: ${eP.message}`)
-
-  const { data: deposito, error: eD } = await supabase
-    .from('warehouses')
-    .select('id')
-    .eq('company_id', companyId)
-    .limit(1)
-    .single()
-  if (eD) throw new Error(`No hay depósito configurado: ${eD.message}`)
-
-  const { data: numero, error: eN } = await supabase.rpc('next_document_number', {
-    p_company: companyId,
-    p_doc_type: 'delivery',
+  const { data, error } = await supabase.rpc('crear_remito_desde_pedido', {
+    p_order: orderId,
+    p_lineas: lineas,
+    p_fecha: fecha,
+    ...(esperado !== null && { p_esperado: esperado }),
   })
-  if (eN) throw new Error(`No se pudo obtener el número: ${eN.message}`)
-  if (!numero) throw new Error('La numeración no devolvió ningún número')
+  if (error) throw falloDeRemito(error.message, 'No se pudo generar el remito.')
 
-  const { data: entrega, error } = await supabase
-    .from('deliveries')
-    .insert({
-      company_id: companyId,
-      number: numero,
-      series_code: 'RT',
-      order_id: orderId,
-      customer_id: pedido.customer_id,
-      contact_id: pedido.contact_id,
-      title: pedido.title,
-      delivery_date: fecha,
-      currency_code: pedido.currency_code,
-      exchange_rate: pedido.exchange_rate,
-      status: 'draft',
-    })
-    .select('id')
-    .single()
-  if (error) throw new Error(`No se pudo crear el remito: ${error.message}`)
+  const r = data as unknown as { id: string; number: string; lineas: number }
+  return { id: r.id, numero: r.number, lineas: r.lineas }
+}
 
-  // El snapshot se copia de la línea del pedido, no del catálogo: el precio
-  // que vale es el que se acordó, no el de hoy.
-  const { error: eL } = await supabase.from('delivery_lines').insert(
-    aEntregar.map((l) => ({
-      company_id: companyId,
-      delivery_id: entrega.id,
-      order_line_id: l.orderLineId,
-      product_id: l.productId,
-      sku_snapshot: l.sku,
-      name_snapshot: l.nombre,
-      quantity: cantidades.get(l.orderLineId)!,
-      warehouse_id: deposito.id,
-      unit_price: l.precioUnitario,
-      discount_pct: l.descuentoPct,
-      tax_treatment: l.tratamientoImpuesto,
-      tax_rate_snapshot: l.tasaImpuesto,
-    })),
-  )
-  if (eL) {
-    // La línea la rechazó un trigger (por ejemplo, sobreentrega): el remito
-    // vacío no puede quedar dando vueltas.
-    await supabase.from('deliveries').delete().eq('id', entrega.id)
-    throw new Error(eL.message)
+export interface LineaRemitoGuardada {
+  id?: string | null
+  order_line_id?: string | null
+  quantity: number
+  description_snapshot?: string | null
+}
+
+export interface ResultadoGuardadoRemito {
+  actualizadoEn: string
+  cambiosCabecera: number
+  lineasTocadas: number
+}
+
+/**
+ * Guarda un remito EN BORRADOR: cabecera y líneas, en una transacción.
+ *
+ * Mismo contrato que `guardar_pedido`: whitelist de campos, testigo de
+ * concurrencia y todo o nada. Un remito despachado no llega acá —la base lo
+ * rechaza— porque ya movió stock.
+ */
+export async function guardarRemito(
+  deliveryId: string,
+  esperado: string,
+  cabecera: Record<string, string | number | null>,
+  lineas: readonly LineaRemitoGuardada[],
+): Promise<ResultadoGuardadoRemito> {
+  const { data, error } = await supabase.rpc('guardar_remito', {
+    p_delivery: deliveryId,
+    p_esperado: esperado,
+    p_cabecera: cabecera,
+    p_lineas: lineas as unknown as Json,
+  })
+  if (error) throw falloDeRemito(error.message, 'No se pudo guardar el remito.')
+
+  const r = data as unknown as {
+    actualizado_en: string
+    cambios_cabecera: number
+    lineas_tocadas: number
   }
-
-  await registrarEvento('delivery', entrega.id, 'created', null, 'draft', null)
-  return entrega.id
+  return {
+    actualizadoEn: r.actualizado_en,
+    cambiosCabecera: r.cambios_cabecera,
+    lineasTocadas: r.lineas_tocadas,
+  }
 }
 
 export interface ResultadoConfirmacion {
@@ -251,13 +275,40 @@ export async function confirmarEntrega(deliveryId: string): Promise<ResultadoCon
   }
 }
 
-/** Qué se puede hacer con un remito según su estado. */
+/**
+ * Qué se puede hacer con un remito según su estado (Fase 15 · E5).
+ *
+ * El borrador se edita y se despacha. Lo despachado ya movió stock: ni se
+ * edita ni se cancela, y eso lo impone la base, no la pantalla.
+ */
 export function editabilidadEntrega(
   estado: string,
   esInterno: boolean,
-): { confirmable: boolean; motivo: string | null } {
-  if (!esInterno) return { confirmable: false, motivo: 'Tu rol no despacha remitos: es de administradores y empleados.' }
-  if (estado === 'draft') return { confirmable: true, motivo: null }
-  if (estado === 'cancelled') return { confirmable: false, motivo: 'El remito está cancelado.' }
-  return { confirmable: false, motivo: 'El remito ya fue despachado.' }
+  esHistorico = false,
+): { confirmable: boolean; editable: boolean; motivo: string | null } {
+  if (!esInterno) {
+    return {
+      confirmable: false,
+      editable: false,
+      motivo: 'Tu rol no despacha remitos: es de administradores y empleados.',
+    }
+  }
+  if (estado === 'cancelled') {
+    return { confirmable: false, editable: false, motivo: 'El remito está cancelado.' }
+  }
+  if (estado !== 'draft') {
+    return {
+      confirmable: false,
+      editable: false,
+      motivo: 'El remito ya fue despachado: movió stock y no se modifica.',
+    }
+  }
+  if (esHistorico) {
+    return {
+      confirmable: true,
+      editable: false,
+      motivo: 'Es un remito migrado del sistema anterior: se consulta, no se edita.',
+    }
+  }
+  return { confirmable: true, editable: true, motivo: null }
 }

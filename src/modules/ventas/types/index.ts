@@ -136,6 +136,9 @@ export interface DocumentoDetalle {
   serie: string | null
   notas: string | null
   formaPago: string | null
+  /** Sólo remitos (Fase 15 · E5). */
+  transporte: string | null
+  seguimiento: string | null
   /** Sólo cotizaciones. */
   validaHasta: string | null
   descuentoPct: number | null

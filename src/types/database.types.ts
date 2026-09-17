@@ -1144,8 +1144,10 @@ export type Database = {
           company_id: string
           created_at: string
           delivery_id: string
+          description_snapshot: string | null
           discount_pct: number | null
           id: string
+          line_no: number | null
           name_snapshot: string | null
           notes: string | null
           order_line_id: string | null
@@ -1161,8 +1163,10 @@ export type Database = {
           company_id: string
           created_at?: string
           delivery_id: string
+          description_snapshot?: string | null
           discount_pct?: number | null
           id?: string
+          line_no?: number | null
           name_snapshot?: string | null
           notes?: string | null
           order_line_id?: string | null
@@ -1178,8 +1182,10 @@ export type Database = {
           company_id?: string
           created_at?: string
           delivery_id?: string
+          description_snapshot?: string | null
           discount_pct?: number | null
           id?: string
+          line_no?: number | null
           name_snapshot?: string | null
           notes?: string | null
           order_line_id?: string | null
@@ -5939,6 +5945,15 @@ export type Database = {
         Args: { p_cabecera: Json; p_company: string; p_lineas: Json }
         Returns: Json
       }
+      crear_remito_desde_pedido: {
+        Args: {
+          p_esperado?: string
+          p_fecha?: string
+          p_lineas: Json
+          p_order: string
+        }
+        Returns: Json
+      }
       duplicar_pedido_compra: { Args: { p_order: string }; Returns: string }
       estado_ia_whatsapp: { Args: { p_company: string }; Returns: Json }
       generar_informe_whatsapp: {
@@ -5956,6 +5971,15 @@ export type Database = {
       }
       guardar_config_ia_whatsapp: {
         Args: { p_company: string; p_config: Json; p_version: string }
+        Returns: Json
+      }
+      guardar_remito: {
+        Args: {
+          p_cabecera: Json
+          p_delivery: string
+          p_esperado: string
+          p_lineas: Json
+        }
         Returns: Json
       }
       guardar_pedido: {

@@ -49,6 +49,19 @@ const espias = vi.hoisted(() => ({
   ),
   cambiarEstado: vi.fn((_id: string, _desde: string, _hasta: string) => Promise.resolve()),
   buscar: vi.fn((_c: string, _t: string, _o?: { listaPrecioId?: string | null }) => Promise.resolve([])),
+  // Fase 15 · E5: generar el remito es UNA llamada al servidor.
+  remitar: vi.fn((_orderId: string, _cantidades: Map<string, number>, _fecha: string) =>
+    Promise.resolve({ id: 'rem-1', numero: 'RT00001322', lineas: 1 }),
+  ),
+  pendientes: vi.fn((_c: string, _o: string) =>
+    Promise.resolve([
+      {
+        orderLineId: 'ol1', productId: 'p1', sku: 'PRO10022', nombre: 'Candado de bloqueo LOTO',
+        descripcion: null, pedida: 4, entregada: 1, pendiente: 3, precioUnitario: 100,
+        descuentoPct: 0, tratamientoImpuesto: 'vat_21', tasaImpuesto: 21, stockLibre: 9,
+      },
+    ]),
+  ),
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
@@ -76,6 +89,11 @@ vi.mock('../services/pedidos', async (real) => ({
   ...(await real<Record<string, unknown>>()),
   guardarPedido: espias.guardar,
   cambiarEstadoPedido: espias.cambiarEstado,
+}))
+vi.mock('../services/entregas', async (real) => ({
+  ...(await real<Record<string, unknown>>()),
+  crearEntregaDesdePedido: espias.remitar,
+  lineasParaEntregar: espias.pendientes,
 }))
 vi.mock('../services/productosParaLinea', async () => {
   const real = await vi.importActual<typeof ServicioProductos>('../services/productosParaLinea')
@@ -141,6 +159,8 @@ const pedido = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle => ({
   serie: 'PDV',
   notas: null,
   formaPago: null,
+  transporte: null,
+  seguimiento: null,
   validaHasta: null,
   descuentoPct: null,
   percepcionPct: null,
@@ -205,6 +225,8 @@ beforeEach(() => {
   espias.guardar.mockClear()
   espias.cambiarEstado.mockClear()
   espias.buscar.mockClear()
+  espias.remitar.mockClear()
+  espias.pendientes.mockClear()
 })
 
 describe('Pedido · shell documental', () => {
@@ -534,5 +556,96 @@ describe('Pedido · pestañas', () => {
     montar()
     fireEvent.click(screen.getByRole('tab', { name: 'Adjuntos' }))
     expect(await screen.findByText('Sin archivos adjuntos.')).toBeInTheDocument()
+  })
+})
+
+/**
+ * Pedido → remito (Fase 15 · E5).
+ *
+ * Desde el pedido, el modal ofrece lo PENDIENTE —no lo pedido— y generar es
+ * una sola llamada al servidor, que vuelve a calcular el pendiente y bloquea
+ * la sobreentrega. La pantalla no escribe nada hasta ese botón.
+ */
+describe('Pedido · generar remito', () => {
+  const confirmado = () => {
+    estado.doc = pedido({ estado: 'confirmed' })
+  }
+
+  it('el modal ofrece el pendiente, no lo pedido', async () => {
+    confirmado()
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Generar nota de entrega' }))
+
+    const dialogo = await screen.findByRole('dialog', { name: 'Generar nota de entrega' })
+    expect(await within(dialogo).findByLabelText(/Cantidad a entregar de PRO10022/)).toHaveValue(3)
+    expect(espias.remitar).not.toHaveBeenCalled()
+  })
+
+  it('generar es UNA llamada con las cantidades elegidas', async () => {
+    confirmado()
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Generar nota de entrega' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Generar nota de entrega' })
+    fireEvent.change(await within(dialogo).findByLabelText(/Cantidad a entregar de PRO10022/), { target: { value: '2' } })
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Generar remito' }))
+
+    await waitFor(() => expect(espias.remitar).toHaveBeenCalledTimes(1))
+    const [orderId, cantidades] = espias.remitar.mock.calls[0]!
+    expect(orderId).toBe('o1')
+    expect([...cantidades.entries()]).toEqual([['ol1', 2]])
+    // Generar un remito no guarda el pedido ni cambia su estado.
+    expect(espias.guardar).not.toHaveBeenCalled()
+    expect(espias.cambiarEstado).not.toHaveBeenCalled()
+  })
+
+  it('no se puede pedir más que el pendiente', async () => {
+    confirmado()
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Generar nota de entrega' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Generar nota de entrega' })
+    const campo = await within(dialogo).findByLabelText(/Cantidad a entregar de PRO10022/)
+    expect(campo).toHaveAttribute('max', '3')
+    fireEvent.change(campo, { target: { value: '9' } })
+    expect(campo).toHaveValue(3)
+  })
+
+  it('un pedido sin pendiente lo dice, en vez de generar un remito vacío', async () => {
+    confirmado()
+    espias.pendientes.mockResolvedValueOnce([
+      {
+        orderLineId: 'ol1', productId: 'p1', sku: 'PRO10022', nombre: 'Candado de bloqueo LOTO',
+        descripcion: null, pedida: 4, entregada: 4, pendiente: 0, precioUnitario: 100,
+        descuentoPct: 0, tratamientoImpuesto: 'vat_21', tasaImpuesto: 21, stockLibre: 9,
+      },
+    ])
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Generar nota de entrega' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Generar nota de entrega' })
+    expect(await within(dialogo).findByText(/ya está entregado por completo/)).toBeInTheDocument()
+    expect(within(dialogo).getByRole('button', { name: 'Generar remito' })).toBeDisabled()
+  })
+
+  it('si el servidor rechaza, se dice en castellano y no se navega', async () => {
+    const { FalloDeGuardado } = await vi.importActual<typeof ServicioCotizaciones>('../services/cotizaciones')
+    espias.remitar.mockRejectedValueOnce(
+      new FalloDeGuardado('SOBREENTREGA', 'Se quiso entregar más de lo que queda pendiente.'),
+    )
+    confirmado()
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Generar nota de entrega' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Generar nota de entrega' })
+    await within(dialogo).findByLabelText(/Cantidad a entregar de PRO10022/)
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Generar remito' }))
+
+    expect(await within(dialogo).findByText('Se quiso entregar más de lo que queda pendiente.')).toBeInTheDocument()
+  })
+
+  it('con la numeración de entregas en STEL no se ofrece generar', () => {
+    confirmado()
+    estado.stel = { delivery: true }
+    montar()
+    expect(screen.getByRole('button', { name: 'Generar nota de entrega' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Generar nota de entrega' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
