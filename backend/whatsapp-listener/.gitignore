@@ -1,0 +1,6 @@
+node_modules
+dist
+
+# El estado de sesión de WhatsApp (Baileys). Son credenciales: quien tenga esta
+# carpeta puede hablar por la cuenta. NUNCA se commitea.
+.whatsapp-auth/

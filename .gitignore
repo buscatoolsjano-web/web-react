@@ -61,3 +61,9 @@ scripts/output/
 
 # Scratch del CLI de Supabase (versión cacheada, ids de link). No es código.
 supabase/.temp/
+
+# Fase 18: el estado de sesión del listener de WhatsApp. No es una config: son
+# las credenciales de la cuenta vinculada. Quien tenga la carpeta puede hablar
+# por ella y leer los grupos. Se ignora en cualquier ubicación.
+.whatsapp-auth/
+**/.whatsapp-auth/
