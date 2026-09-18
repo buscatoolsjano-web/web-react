@@ -64,8 +64,13 @@ async function principal(): Promise<void> {
     throw e
   }
 
-  const usaBaileys = (process.env['WHATSAPP_TRANSPORTE'] ?? 'mock').trim() === 'baileys'
-  const usaSupabase = (process.env['WHATSAPP_REPOSITORIO'] ?? 'memoria').trim() === 'supabase'
+  // Por argumento además de por variable de entorno: `WHATSAPP_TRANSPORTE=…`
+  // se escribe distinto en bash, en PowerShell y en cmd, y esto se va a correr
+  // a mano desde una terminal antes de existir en ningún servidor.
+  const usaBaileys =
+    process.argv.includes('--baileys') ||
+    (process.env['WHATSAPP_TRANSPORTE'] ?? 'mock').trim() === 'baileys'
+  const usaSupabase = config.repositorio === 'supabase'
   const soloGrupos = process.argv.includes('--grupos')
 
   const politica = politicaDesdeEntorno(config)
