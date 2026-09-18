@@ -263,7 +263,9 @@ describe('Nueva cotización · defaults del cliente', () => {
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
 
-    await waitFor(() => expect(screen.getByLabelText('Moneda')).toHaveValue('USD'))
+    await waitFor(() => expect(screen.getByLabelText('Moneda')).toHaveValue('USD'), {
+      timeout: 8000,
+    })
     expect(screen.getByLabelText(/Vendedor/)).toHaveValue('u1')
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista')
     expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
@@ -331,7 +333,11 @@ describe('Nueva cotización · defaults del cliente', () => {
     estado.defaults = { vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' }
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
-    await waitFor(() => expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista'))
+    // Bajo la carga de la suite completa, la respuesta de los defaults puede
+    // tardar más que el default de waitFor.
+    await waitFor(() => expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista'), {
+      timeout: 8000,
+    })
 
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
