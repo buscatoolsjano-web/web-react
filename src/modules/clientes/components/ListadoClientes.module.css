@@ -82,3 +82,33 @@
     color: var(--color-text-soft);
   }
 }
+
+/* La fila con la ficha rápida abierta.
+   Se distingue de `seleccionada` (el checkbox de exportación) con una barra
+   al costado y no sólo con color de fondo: son dos estados distintos que
+   pueden convivir en la misma fila, y con dos fondos parecidos no se sabría
+   cuál es cuál. */
+.abierta {
+  background: var(--color-primary-soft);
+  box-shadow: inset 3px 0 0 0 var(--primary);
+}
+
+/* Con la ficha rápida abierta el listado pierde hasta 520 px de ancho.
+   En vez de dejar que la tabla se scrollee de costado, se esconden las mismas
+   columnas que ya se esconden en tablet: nombre comercial, dominio y rubro
+   están en la ficha, que es justo lo que se está mirando al lado.
+   Desde 1620 px vuelven solas: ahí entran el panel y la tabla entera. */
+@media (max-width: 1619px) {
+  .compacto .soloAncho,
+  .compacto .soloMedio {
+    display: none;
+  }
+
+  /* Y el email se recorta antes: con la ficha al lado, 16rem de email dejaban
+     la tabla 66 px más ancha que su caja y obligaban a scrollear de costado
+     para ver nada nuevo. */
+  .compacto .recorte {
+    max-width: 10rem;
+  }
+}
+

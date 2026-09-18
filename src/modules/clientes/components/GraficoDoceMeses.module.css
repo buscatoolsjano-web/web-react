@@ -1,0 +1,235 @@
+/* Las tres series, con color propio y explícito.
+   La primera versión sacaba «pedido» de `--primary` y «entregado» de
+   `--color-success`, que parecía lo correcto —usar los tokens— y estaba mal:
+   `--primary` cambia con el preset de apariencia, y en «grafito» vale
+   #94a3b8, exactamente el gris que tenía «cotizado». Dos series del mismo
+   color. Una paleta categórica no puede depender del acento del tema, porque
+   el acento puede caer en cualquier lado.
+   El color tampoco es la única señal: hay leyenda, orden fijo de las barras y
+   la tabla de «Ver los números». */
+.wrap {
+  --serie-cotizado: #64748b;
+  --serie-pedido: #2563eb;
+  --serie-entregado: #15803d;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+[data-theme='dark'] .wrap {
+  --serie-cotizado: #94a3b8;
+  --serie-pedido: #60a5fa;
+  --serie-entregado: #4ade80;
+}
+
+.controles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.grupo {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.chip,
+.chipActivo {
+  min-height: 44px;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.chipActivo {
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--color-on-primary);
+}
+
+.chip:focus-visible,
+.chipActivo:focus-visible,
+.select:focus-visible,
+.summary:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.selector {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+.selectorLabel {
+  white-space: nowrap;
+}
+
+.select {
+  min-height: 44px;
+  font-size: var(--text-sm);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+}
+
+.leyendaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.muestra {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.grafico {
+  width: 100%;
+  height: 180px;
+  display: block;
+  overflow: visible;
+}
+
+.eje {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+/* La zona de hover de cada mes: invisible hasta que el puntero pasa. */
+.zona {
+  fill: transparent;
+}
+
+.zona:hover {
+  fill: var(--surface-alt);
+}
+
+.cotizado {
+  fill: var(--serie-cotizado);
+  background: var(--serie-cotizado);
+}
+
+.pedido {
+  fill: var(--serie-pedido);
+  background: var(--serie-pedido);
+}
+
+.entregado {
+  fill: var(--serie-entregado);
+  background: var(--serie-entregado);
+}
+
+.etiquetaMes {
+  fill: var(--text-soft);
+  font-size: 11px;
+}
+
+.pie {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.detalle {
+  font-size: var(--text-sm);
+}
+
+.summary {
+  cursor: pointer;
+  color: var(--color-primary-text);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-top: var(--space-2);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--space-1) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.tabla thead th {
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.tabla tbody tr:last-child td,
+.tabla tbody tr:last-child th {
+  border-bottom: none;
+}
+
+.mes {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.derecha {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nota {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 767px) {
+  .grafico {
+    height: 150px;
+  }
+}

@@ -13,24 +13,38 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { permisosDe } from '../lib/permisos'
 import { FiltrosClientes } from '../components/FiltrosClientes'
 import { ListadoClientes } from '../components/ListadoClientes'
+import { PanelLateralCliente } from '../components/PanelLateralCliente'
 import { Paginador } from '../components/Paginador'
 import { useClientes } from '../hooks/useClientes'
+import { useClienteSeleccionado } from '../hooks/useClienteSeleccionado'
 import { useFiltrosClientes } from '../hooks/useFiltrosClientes'
 import { aCsv, descargarCsv } from '../lib/csv'
 import { exportarClientes } from '../services/clientes'
 import type { OrdenClientes } from '../types'
+import styles from './ClientesPage.module.css'
 
 const CLIENTE: Sustantivo = { singular: 'cliente', plural: 'clientes' }
 
 /**
- * El maestro de clientes.
+ * El maestro de clientes, en dos columnas.
  *
  * Todo pasa por el servidor: filtros, orden, página y el total exacto. El
  * legacy tenía los 988 en memoria y filtraba con `_clientes_applyFilters`
  * sobre el array entero para mostrar 25.
+ *
+ * Fase 19 · E1: hacer click en un cliente **no sale del listado**. Abre una
+ * ficha rápida al costado, y desde ahí se puede pasar a la ficha completa. La
+ * diferencia se nota cuando hay que mirar cinco clientes seguidos: con la
+ * navegación de antes eran cinco idas y cinco vueltas, cada una perdiendo la
+ * posición del scroll.
+ *
+ * Los KPIs se piden **sólo para el cliente abierto**. El listado sigue siendo
+ * una consulta: un maestro de 1.010 filas que pidiera los números de cada una
+ * sería un N+1 de manual.
  */
 export function ClientesPage() {
   const { filtros, aplicar, limpiar, hayFiltros } = useFiltrosClientes()
+  const { seleccionado, seleccionar, cerrar } = useClienteSeleccionado()
   const { data, isPending, isFetching, error, refetch } = useClientes(filtros)
   const { activa } = useEmpresa()
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
@@ -168,29 +182,36 @@ export function ClientesPage() {
           />
         )
       ) : (
-        <>
-          <ListadoClientes
-            filas={filas}
-            orden={filtros.orden}
-            direccion={filtros.direccion}
-            onOrdenar={ordenar}
-            cargando={isPending}
-            seleccionados={seleccionados}
-            onSeleccionar={marcar}
-            onSeleccionarTodos={marcarTodos}
-          />
-          {total > 0 ? (
-            <Paginador
-              pagina={filtros.pagina}
-              porPagina={filtros.porPagina}
-              total={total}
-              cargando={isFetching}
-              sustantivo={CLIENTE}
-              onIr={(pagina) => aplicar({ pagina })}
-              onTamano={(porPagina) => aplicar({ porPagina })}
+        <div className={seleccionado ? styles.conPanel : undefined}>
+          <div className={styles.listado}>
+            <ListadoClientes
+              filas={filas}
+              orden={filtros.orden}
+              direccion={filtros.direccion}
+              onOrdenar={ordenar}
+              cargando={isPending}
+              seleccionados={seleccionados}
+              onSeleccionar={marcar}
+              onSeleccionarTodos={marcarTodos}
+              abierto={seleccionado}
+              onAbrirFicha={seleccionar}
             />
+            {total > 0 ? (
+              <Paginador
+                pagina={filtros.pagina}
+                porPagina={filtros.porPagina}
+                total={total}
+                cargando={isFetching}
+                sustantivo={CLIENTE}
+                onIr={(pagina) => aplicar({ pagina })}
+                onTamano={(porPagina) => aplicar({ porPagina })}
+              />
+            ) : null}
+          </div>
+          {seleccionado ? (
+            <PanelLateralCliente clienteId={seleccionado} onCerrar={cerrar} />
           ) : null}
-        </>
+        </div>
       )}
     </div>
   )

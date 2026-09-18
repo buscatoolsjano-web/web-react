@@ -65,6 +65,24 @@ export function escribirFiltros(f: FiltrosClientes): URLSearchParams {
 
 export const TAMANOS_DE_PAGINA = TAMANOS
 
+/**
+ * Parámetros de la URL que NO son filtros y hay que conservar.
+ *
+ * `cliente` es la ficha rápida abierta (Fase 19 · E1). `escribirFiltros`
+ * construye una query nueva desde cero —a propósito, para que la URL quede
+ * corta— y sin esto, cambiar de página o de orden con el panel abierto lo
+ * cerraría de golpe.
+ */
+const CONSERVADOS = ['cliente'] as const
+
+function conservar(previos: URLSearchParams, nuevos: URLSearchParams): URLSearchParams {
+  for (const clave of CONSERVADOS) {
+    const valor = previos.get(clave)
+    if (valor) nuevos.set(clave, valor)
+  }
+  return nuevos
+}
+
 export function useFiltrosClientes() {
   const [params, setParams] = useSearchParams()
   const filtros = useMemo(() => leerFiltros(params), [params])
@@ -75,14 +93,15 @@ export function useFiltrosClientes() {
       // Cualquier cambio que no sea la página propia vuelve a la primera: si
       // no, filtrar estando en la página 9 deja la lista vacía sin explicación.
       if (cambios.pagina === undefined) siguiente.pagina = 1
-      setParams(escribirFiltros(siguiente), { replace: true })
+      setParams(conservar(params, escribirFiltros(siguiente)), { replace: true })
     },
     [params, setParams],
   )
 
   const limpiar = useCallback(() => {
-    setParams(new URLSearchParams(), { replace: true })
-  }, [setParams])
+    // Limpiar FILTROS no cierra la ficha: el cliente elegido no es un filtro.
+    setParams(conservar(params, new URLSearchParams()), { replace: true })
+  }, [params, setParams])
 
   const hayFiltros =
     filtros.q.trim() !== '' ||

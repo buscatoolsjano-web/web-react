@@ -1,0 +1,311 @@
+.ficha {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.estado {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+}
+
+/* ── Cabecera ─────────────────────────────────────────────────────────── */
+
+.cabecera {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.avatar {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  display: grid;
+  place-items: center;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.identidad {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.nombre {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.razonSocial,
+.meta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  font-variant-numeric: tabular-nums;
+}
+
+.estados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+}
+
+/* ── Contacto ─────────────────────────────────────────────────────────── */
+
+.contacto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--surface-alt);
+  border-radius: var(--radius-md);
+}
+
+.contacto dt {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.contacto dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+
+.rol {
+  color: var(--text-soft);
+}
+
+.enlace {
+  color: var(--color-primary-text);
+}
+
+.vacio {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* ── Acciones ─────────────────────────────────────────────────────────── */
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.motivo {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ── Secciones ────────────────────────────────────────────────────────── */
+
+.seccion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.tituloSeccion {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* ── KPIs ─────────────────────────────────────────────────────────────── */
+
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-2);
+}
+
+.tarjeta {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.tarjetaTitulo {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+}
+
+.tarjetaFila {
+  display: flex;
+  flex-direction: column;
+}
+
+.tarjetaValor {
+  font-size: var(--text-base);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.tarjetaSecundario,
+.tarjetaVacio {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.tarjetaVacio {
+  color: var(--text-muted);
+}
+
+/* La variación NO depende sólo del color: lleva flecha y texto. */
+.sube,
+.baja,
+.neutra {
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.sube {
+  color: var(--success);
+}
+
+.baja {
+  color: var(--danger);
+}
+
+.neutra {
+  color: var(--text-muted);
+}
+
+/* ── Recientes ────────────────────────────────────────────────────────── */
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px var(--space-2);
+  align-items: baseline;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-width: 0;
+}
+
+.itemEnlace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: inherit;
+}
+
+.itemTitulo {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.itemNumero {
+  font-weight: 600;
+  color: var(--color-primary-text);
+  overflow-wrap: anywhere;
+}
+
+.itemMeta {
+  grid-column: 1;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.itemEstado {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  justify-content: flex-end;
+  align-content: center;
+}
+
+.pie {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ── Productos ────────────────────────────────────────────────────────── */
+
+.productos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.producto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sku {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.productoNombre {
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.productoMeta {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.origen {
+  color: var(--text-muted);
+}

@@ -6257,6 +6257,10 @@ export type Database = {
         Args: { p_company: string; p_doc_type: string; p_series?: string }
         Returns: string
       }
+      resumen_cliente_360: {
+        Args: { p_customer: string; p_meses?: number | null }
+        Returns: Json
+      }
       resumen_cliente: {
         Args: { p_customer: string }
         Returns: {

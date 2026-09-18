@@ -1,0 +1,75 @@
+/* ── Desde 1280 px: panel al costado ──────────────────────────────────── */
+
+/* El ancho es fluido entre 380 y 520 px, con un tope del 38 % del viewport:
+   el listado tiene que seguir siendo usable, que es la razón de que el panel
+   exista en vez de navegar. */
+.panel {
+  position: sticky;
+  top: var(--space-4);
+  align-self: start;
+  /* `flex: none` y no sólo `width`: dentro de un contenedor flex el ancho es
+     una sugerencia, y sin esto el listado —que es más ancho que su columna—
+     le come 170 px al panel y lo deja en 350. */
+  flex: none;
+  width: clamp(380px, 38vw, 520px);
+  max-height: calc(100vh - var(--space-8));
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+
+.barra {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-2) 0;
+  flex: none;
+}
+
+/* Scroll propio: el panel se mueve solo, sin arrastrar el listado. */
+.cuerpo {
+  overflow-y: auto;
+  padding: 0 var(--space-4) var(--space-4);
+  min-height: 0;
+}
+
+/* ── Hasta 1279 px: hoja a pantalla completa ──────────────────────────── */
+
+.fondo {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--color-overlay);
+  display: flex;
+}
+
+.hoja {
+  background: var(--surface);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hoja:focus-visible {
+  outline: none;
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  /* En tablet y laptop angosta la hoja se centra y respira. */
+  .fondo {
+    padding: var(--space-6);
+  }
+
+  .hoja {
+    margin: 0 auto;
+    max-width: 640px;
+    height: 100%;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+  }
+}

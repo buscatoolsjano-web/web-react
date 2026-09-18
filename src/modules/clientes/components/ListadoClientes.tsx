@@ -17,6 +17,28 @@ export interface ListadoClientesProps {
   seleccionados: ReadonlySet<string>
   onSeleccionar: (id: string, marcado: boolean) => void
   onSeleccionarTodos: (marcado: boolean) => void
+  /** El cliente con la ficha rápida abierta. */
+  abierto?: string | null
+  /** Abrir la ficha rápida en vez de navegar a la ficha completa. */
+  onAbrirFicha?: (id: string) => void
+}
+
+/**
+ * Click en el nombre: abre la ficha rápida, **sin dejar de ser un link**.
+ *
+ * El `href` a `/clientes/:id` se conserva y sólo se intercepta el click
+ * simple. Así siguen funcionando Ctrl+click, el botón del medio, «abrir en
+ * pestaña nueva» y el hover que muestra la URL abajo — que es lo que se pierde
+ * siempre que alguien reemplaza un link por un `<button onClick>`.
+ */
+function interceptar(onAbrir: ((id: string) => void) | undefined, id: string) {
+  return (e: React.MouseEvent) => {
+    if (!onAbrir) return
+    if (e.defaultPrevented || e.button !== 0) return
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    e.preventDefault()
+    onAbrir(id)
+  }
 }
 
 const COLUMNAS: { clave: OrdenClientes; etiqueta: string }[] = [
@@ -53,6 +75,8 @@ export function ListadoClientes({
   seleccionados,
   onSeleccionar,
   onSeleccionarTodos,
+  abierto = null,
+  onAbrirFicha,
 }: ListadoClientesProps) {
   const isMobile = useIsMobile()
   const todosMarcados = filas.length > 0 && filas.every((c) => seleccionados.has(c.id))
@@ -73,7 +97,12 @@ export function ListadoClientes({
           const emails = resumenEmails(c.emails)
           return (
             <li key={c.id}>
-              <Link to={`/clientes/${c.id}`} className={tabla.tarjeta}>
+              <Link
+                to={`/clientes/${c.id}`}
+                className={tabla.tarjeta}
+                aria-current={c.id === abierto ? 'true' : undefined}
+                onClick={interceptar(onAbrirFicha, c.id)}
+              >
                 <span className={tabla.tarjetaTitulo}>{nombreVisible(c.razonSocial, c.nombreComercial)}</span>
                 <span className={tabla.tarjetaDerecha}>
                   {c.referencia ? <span className={styles.referencia}>{c.referencia}</span> : null}
@@ -110,7 +139,7 @@ export function ListadoClientes({
   }
 
   return (
-    <div className={tabla.contenedor}>
+    <div className={abierto ? `${tabla.contenedor} ${styles.compacto}` : tabla.contenedor}>
       <table className={tabla.tabla}>
         <thead>
           <tr>
@@ -151,7 +180,16 @@ export function ListadoClientes({
           {filas.map((c) => {
             const emails = resumenEmails(c.emails)
             return (
-              <tr key={c.id} className={seleccionados.has(c.id) ? tabla.seleccionada : undefined}>
+              <tr
+                key={c.id}
+                className={
+                  c.id === abierto
+                    ? styles.abierta
+                    : seleccionados.has(c.id)
+                      ? tabla.seleccionada
+                      : undefined
+                }
+              >
                 <td className={tabla.check}>
                   <input
                     type="checkbox"
@@ -162,7 +200,12 @@ export function ListadoClientes({
                 </td>
                 <td className={`${tabla.nowrap} ${tabla.secundario}`}>{c.referencia ?? '—'}</td>
                 <td className={styles.colNombre}>
-                  <Link to={`/clientes/${c.id}`} className={c.dadoDeBaja ? `${tabla.enlace} ${styles.baja}` : tabla.enlace}>
+                  <Link
+                    to={`/clientes/${c.id}`}
+                    className={c.dadoDeBaja ? `${tabla.enlace} ${styles.baja}` : tabla.enlace}
+                    aria-current={c.id === abierto ? 'true' : undefined}
+                    onClick={interceptar(onAbrirFicha, c.id)}
+                  >
                     {c.razonSocial}
                   </Link>
                   {c.nombreComercial ? <span className={styles.soloTablet}>{c.nombreComercial}</span> : null}

@@ -357,3 +357,105 @@ export interface ClienteDetalle {
 
 /** Re-export para que las pantallas no importen del servicio. */
 export type { AdjuntoCliente } from '../services/adjuntos'
+
+// ── Fase 19 · E1: la ficha rápida ──────────────────────────────────────────
+
+/**
+ * Las claves de KPI que devuelve `resumen_cliente_360`.
+ *
+ * Son un tipo cerrado a propósito: si el día de mañana la función devuelve una
+ * clave nueva, la pantalla no la va a mostrar sola —hay que decidir dónde va y
+ * cómo se llama— y eso es mejor que una tarjeta que aparece sin que nadie la
+ * haya diseñado.
+ */
+export type ClaveKpi =
+  | 'vendido_mes'
+  | 'vendido_mes_anterior'
+  | 'cotizado_mes'
+  | 'cotizado_mes_anterior'
+  | 'cotizaciones_abiertas'
+  | 'pedidos_por_entregar'
+
+export interface ValorKpi {
+  clave: ClaveKpi
+  /** `null` = documentos que no dicen su moneda. Nunca se suma con otra. */
+  moneda: string | null
+  documentos: number
+  importe: number
+}
+
+export interface ContactoRapido {
+  id: string
+  nombre: string
+  rol: string | null
+  email: string | null
+  telefono: string | null
+}
+
+export interface DocumentoReciente {
+  tipo: TipoDeDocumento
+  id: string
+  numero: string | null
+  fecha: string | null
+  estado: string | null
+  /** Sólo en pedidos: `pending`, `partially_delivered`, `delivered`… */
+  entrega: string | null
+  moneda: string | null
+  total: number | null
+}
+
+export interface ProductoReciente {
+  productId: string | null
+  sku: string | null
+  nombre: string | null
+  /** De dónde salió el precio: un pedido pesa más que una cotización. */
+  origen: 'cotizacion' | 'pedido'
+  fecha: string | null
+  cantidad: number | null
+  precio: number | null
+  moneda: string | null
+}
+
+export interface Cliente360 {
+  cliente: {
+    id: string
+    referencia: string | null
+    razonSocial: string
+    nombreComercial: string | null
+    cuit: string | null
+    rubro: string | null
+    tipo: string | null
+    estado: string | null
+    dadoDeBaja: boolean
+    necesitaRevision: boolean
+    motivosRevision: string[]
+    emails: string[]
+    telefono: string | null
+    esHistorico: boolean
+  }
+  comercial: {
+    vendedorId: string | null
+    vendedor: string | null
+    moneda: string | null
+    condicionDePago: string | null
+    tarifaId: string | null
+    tarifa: string | null
+    contacto: ContactoRapido | null
+  }
+  kpis: {
+    /** Primer día del mes en curso, `YYYY-MM-DD`. */
+    mes: string
+    mesAnterior: string
+    valores: ValorKpi[]
+  }
+  meses: ActividadMensual[]
+  recientes: DocumentoReciente[]
+  productos: ProductoReciente[]
+  totales: {
+    cotizaciones: number
+    pedidos: number
+    entregas: number
+    ultimaActividad: string | null
+    documentos12m: number
+  }
+}
