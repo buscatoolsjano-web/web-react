@@ -1,8 +1,10 @@
+import { Link } from 'react-router-dom'
 import { MetaList, Missing, type MetaItem } from '@/components/document/DocSection'
-import { formatearFecha } from '../lib/formato'
+import docUi from '@/components/document/Document.module.css'
+import { formatearDomicilio, formatearFecha } from '../lib/formato'
 import { presentarOrigen } from '../lib/origen'
 import { formatearMomento } from '../lib/trazabilidad'
-import type { DocumentoDetalle } from '../types'
+import { RUTA_DE, type DocumentoDetalle } from '../types'
 
 export interface InformacionDocumentoProps {
   doc: DocumentoDetalle
@@ -20,8 +22,20 @@ function contacto(doc: DocumentoDetalle) {
   )
 }
 
+/** Cómo se llama el documento del que salió éste. */
+const ETIQUETA_ORIGEN: Record<string, string> = {
+  cotizacion: 'Cotización de origen',
+  pedido: 'Pedido de origen',
+  entrega: 'Remito de origen',
+}
+
 /**
  * Todo lo que no es la identidad del documento ni sus líneas.
+ *
+ * Es **el mismo componente para los tres documentos** (Fase 15 · E6): hasta E5
+ * la cotización usaba éste y el pedido y el remito tenían cada uno su lista
+ * escrita a mano, con etiquetas que no coincidían («Fecha del pedido» acá,
+ * «Fecha» allá) y datos que faltaban en uno y sobraban en otro.
  *
  * Qué entra y qué no:
  *
@@ -29,18 +43,21 @@ function contacto(doc: DocumentoDetalle) {
  *   («Sin registrar»): contacto, vendedor y forma de pago son decisiones de
  *   negocio tomadas, y verlos vacíos es justamente la información.
  * - Un dato que **no corresponde** al tipo no se muestra: el remito no tiene
- *   forma de pago, y una fila vacía sugeriría que se olvidaron de cargarla.
+ *   forma de pago ni vendedor, y una fila vacía sugeriría que se olvidaron de
+ *   cargarla.
  * - Un dato **opcional y vacío** tampoco se muestra: el tipo de cambio de un
- *   documento en pesos no es un olvido.
+ *   documento en pesos no es un olvido, y el transporte de un remito que se
+ *   entregó en mano tampoco.
  *
- * La tarifa ya se muestra: E2 le dio al documento su propio `price_list_id`.
- * En los documentos anteriores queda vacío y se dice así —«Sin tarifa
- * registrada»—, que es distinto de inventarle la lista actual del cliente:
- * esa es la de hoy, no necesariamente con la que se cotizó.
+ * La tarifa se muestra en la cotización (E2) y en el pedido (E4). En los
+ * documentos anteriores queda vacía y se dice así —«Sin tarifa registrada»—,
+ * que es distinto de inventarle la lista actual del cliente: esa es la de hoy,
+ * no necesariamente con la que se vendió.
  */
 export function InformacionDocumento({ doc }: InformacionDocumentoProps) {
   const esCotizacion = doc.tipo === 'cotizacion'
-  const tienePagos = doc.tipo !== 'entrega'
+  const esEntrega = doc.tipo === 'entrega'
+  const comercial = !esEntrega
   const origen = presentarOrigen({
     externalSource: doc.externalSource,
     esHistorico: doc.esHistorico,
@@ -50,16 +67,46 @@ export function InformacionDocumento({ doc }: InformacionDocumentoProps) {
   const items: (MetaItem | null | false)[] = [
     { label: 'Cliente', value: doc.clienteNombre },
     { label: 'Contacto', value: contacto(doc) },
-    { label: 'Vendedor', value: doc.vendedor ?? <Missing /> },
-    tienePagos && { label: 'Forma de pago', value: doc.formaPago ?? <Missing /> },
+    comercial && { label: 'Vendedor', value: doc.vendedor ?? <Missing /> },
+    comercial && { label: 'Forma de pago', value: doc.formaPago ?? <Missing /> },
     { label: 'Moneda', value: doc.moneda ?? <Missing>Sin moneda</Missing> },
-    esCotizacion && {
+    comercial && {
       label: 'Tarifa',
       value: doc.listaPrecioNombre ?? <Missing>Sin tarifa registrada</Missing>,
     },
     doc.tipoCambio !== null && { label: 'Tipo de cambio', value: doc.tipoCambio },
     { label: 'Serie', value: doc.serie ?? '—' },
-    esCotizacion && { label: 'Válida hasta', value: doc.validaHasta ? formatearFecha(doc.validaHasta) : <Missing /> },
+    esCotizacion && {
+      label: 'Válida hasta',
+      value: doc.validaHasta ? formatearFecha(doc.validaHasta) : <Missing />,
+    },
+    // Fase 15 · E6: el domicilio congelado al emitir el remito. Si no quedó
+    // registrado se dice; NO se muestra el domicilio de hoy del cliente, que
+    // es otra información.
+    esEntrega && {
+      label: 'Dirección de entrega',
+      value: formatearDomicilio(doc.domicilioEntrega) ?? <Missing>Sin domicilio registrado</Missing>,
+      wide: true,
+    },
+    esEntrega && doc.transporte ? { label: 'Transporte', value: doc.transporte } : null,
+    esEntrega && doc.seguimiento ? { label: 'Seguimiento', value: doc.seguimiento } : null,
+    // De dónde salió el documento. La fila se muestra AUNQUE no tenga origen:
+    // que un remito no venga de un pedido, o que un pedido sea manual, es un
+    // dato del negocio —y en el histórico hay 37 remitos así—, no un olvido.
+    doc.origen
+      ? {
+          label: ETIQUETA_ORIGEN[doc.origen.tipo] ?? 'Documento de origen',
+          value: (
+            <Link to={`${RUTA_DE[doc.origen.tipo]}/${doc.origen.id}`} className={docUi.enlace}>
+              {doc.origen.numero}
+            </Link>
+          ),
+        }
+      : esEntrega
+        ? { label: 'Pedido de origen', value: <Missing>Sin pedido relacionado</Missing> }
+        : doc.tipo === 'pedido'
+          ? { label: 'Cotización de origen', value: <Missing>Sin cotización: pedido manual</Missing> }
+          : null,
     {
       label: 'Origen',
       value: (

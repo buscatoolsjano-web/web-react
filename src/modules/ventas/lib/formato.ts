@@ -1,3 +1,5 @@
+import type { DomicilioSnapshot } from '../types'
+
 /**
  * Formato de importes y fechas de Ventas.
  *
@@ -39,4 +41,20 @@ export function formatearFecha(iso: string | null): string {
   const [a, m, d] = partes
   if (!a || !m || !d) return iso
   return `${d}/${m}/${a}`
+}
+
+/**
+ * El domicilio de entrega congelado, en una línea (Fase 15 · E6).
+ *
+ * Devuelve `null` cuando no hay snapshot: quien llama decide qué decir. No se
+ * completa con el domicilio actual del cliente —ese es el punto del snapshot—
+ * ni se inventan comas alrededor de campos vacíos.
+ */
+export function formatearDomicilio(d: DomicilioSnapshot | null | undefined): string | null {
+  if (!d) return null
+  const calle = d.street?.trim()
+  const localidad = [d.city?.trim(), d.state?.trim()].filter(Boolean).join(', ')
+  const cierre = [d.postal_code?.trim(), d.country_code?.trim()].filter(Boolean).join(' ')
+  const partes = [calle, localidad, cierre].filter((p) => p && p !== '')
+  return partes.length > 0 ? partes.join(' · ') : null
 }

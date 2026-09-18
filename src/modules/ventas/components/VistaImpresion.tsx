@@ -142,6 +142,14 @@ export function VistaImpresion({ doc, empresa, opciones }: VistaImpresionProps) 
             <strong>{doc.formaPago}</strong>
           </div>
         ) : null}
+        {/* Fase 15 · E6: en el remito, adónde se entregó. Sólo si quedó
+            registrado al emitirlo. */}
+        {doc.domicilioEntrega ? (
+          <div>
+            <span className={styles.etiqueta}>Dirección de entrega</span>
+            <strong>{doc.domicilioEntrega}</strong>
+          </div>
+        ) : null}
         {doc.moneda ? (
           <div>
             <span className={styles.etiqueta}>Moneda</span>

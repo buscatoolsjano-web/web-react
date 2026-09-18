@@ -36,10 +36,48 @@ export interface Adjunto {
   clase: string | null
   ruta: string
   subidoEn: string
+  /** Quién lo subió. `null` en los que no tienen autor registrado. */
+  subidoPor: string | null
 }
 
-/** 20 MB: el mismo límite que tiene el bucket. */
+/** 20 MB: el mismo límite que tiene el bucket, y ahora también un trigger. */
 export const LIMITE_BYTES = 20 * 1024 * 1024
+
+/**
+ * Los tipos que acepta el bucket (Fase 15 · E6).
+ *
+ * Es la MISMA lista que `allowed_mime_types` en Storage. Se repite acá para
+ * poder decirlo en castellano antes de subir 20 MB y que el servidor conteste
+ * `mime type not supported`. El que manda sigue siendo el servidor.
+ */
+export const TIPOS_PERMITIDOS = [
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'text/plain',
+  'text/csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+] as const
+
+export const TIPOS_ACEPTADOS = TIPOS_PERMITIDOS.join(',')
+
+/** Lo que dice el servidor → lo que lee una persona. */
+const MOTIVOS: Record<string, string> = {
+  DOCUMENTO_INEXISTENTE: 'Ese documento no existe en esta empresa.',
+  RUTA_INVALIDA: 'La ruta del archivo no corresponde a este documento.',
+  ARCHIVO_DEMASIADO_GRANDE: 'El archivo supera los 20 MB.',
+  'mime type': 'Ese tipo de archivo no se acepta. Se pueden subir PDF, imágenes, planillas o texto.',
+  'exceeded the maximum allowed size': 'El archivo supera los 20 MB.',
+  'row-level security': 'Tu rol no puede adjuntar archivos en este documento.',
+  Duplicate: 'Ya hay un archivo con esa ruta. Probá de nuevo.',
+}
+
+function enCastellano(mensaje: string, porDefecto: string): Error {
+  const clave = Object.keys(MOTIVOS).find((c) => mensaje.includes(c))
+  return new Error(clave ? MOTIVOS[clave]! : porDefecto)
+}
 
 /**
  * Adjuntos de un documento.
@@ -56,14 +94,27 @@ export async function listarAdjuntos(
 ): Promise<Adjunto[]> {
   const { data, error } = await supabase
     .from('attachments')
-    .select('id, file_name, mime_type, bytes, kind, storage_path, created_at')
+    .select(
+      `id, file_name, mime_type, bytes, kind, storage_path, created_at,
+       subidor:profiles!uploaded_by ( full_name )`,
+    )
     .eq('company_id', companyId)
     .eq('entity_type', ENTIDAD[tipo])
     .eq('entity_id', documentoId)
     .order('created_at', { ascending: false })
   if (error) throw new Error(`No se pudieron leer los adjuntos: ${error.message}`)
 
-  return (data ?? []).map((a) => ({
+  const filas = (data ?? []) as unknown as (Omit<Adjunto, 'subidoPor'> & {
+    file_name: string | null
+    mime_type: string | null
+    bytes: number | string | null
+    kind: string | null
+    storage_path: string
+    created_at: string
+    subidor: { full_name: string | null } | null
+  })[]
+
+  return filas.map((a) => ({
     id: a.id,
     nombre: a.file_name ?? '(sin nombre)',
     tipoMime: a.mime_type,
@@ -71,6 +122,7 @@ export async function listarAdjuntos(
     clase: a.kind,
     ruta: a.storage_path,
     subidoEn: a.created_at,
+    subidoPor: a.subidor?.full_name ?? null,
   }))
 }
 
@@ -99,8 +151,16 @@ export async function subirAdjunto(
   archivo: File,
   clase = 'other',
 ): Promise<void> {
+  if (archivo.size === 0) {
+    throw new Error('El archivo está vacío.')
+  }
   if (archivo.size > LIMITE_BYTES) {
     throw new Error(`El archivo pesa ${(archivo.size / 1024 / 1024).toFixed(1)} MB y el máximo es 20 MB.`)
+  }
+  // El tipo lo declara el navegador y se puede mentir: por eso el bucket lo
+  // vuelve a mirar. Acá sólo se evita el viaje inútil.
+  if (archivo.type !== '' && !(TIPOS_PERMITIDOS as readonly string[]).includes(archivo.type)) {
+    throw new Error('Ese tipo de archivo no se acepta. Se pueden subir PDF, imágenes, planillas o texto.')
   }
 
   const ruta = `${companyId}/${ENTIDAD[tipo]}/${documentoId}/${crypto.randomUUID()}-${rutaSegura(archivo.name)}`
@@ -109,7 +169,7 @@ export async function subirAdjunto(
     contentType: archivo.type || 'application/octet-stream',
     upsert: false,
   })
-  if (eSubida) throw new Error(`No se pudo subir el archivo: ${eSubida.message}`)
+  if (eSubida) throw enCastellano(eSubida.message, 'No se pudo subir el archivo.')
 
   const { error } = await supabase.from('attachments').insert({
     company_id: companyId,
@@ -122,8 +182,10 @@ export async function subirAdjunto(
     kind: clase,
   })
   if (error) {
+    // La fila no entró (un trigger, RLS o el documento no existe): el archivo
+    // que ya subió no puede quedar dando vueltas sin dueño.
     await supabase.storage.from(BUCKET).remove([ruta])
-    throw new Error(`No se pudo registrar el adjunto: ${error.message}`)
+    throw enCastellano(error.message, 'No se pudo registrar el adjunto.')
   }
 }
 
@@ -140,12 +202,27 @@ export async function urlDeDescarga(ruta: string): Promise<string> {
   return data.signedUrl
 }
 
+/**
+ * Borra un adjunto.
+ *
+ * El orden es a propósito: **primero la fila, después el archivo**. Si se
+ * cayera en el medio, lo que queda es un archivo sin referencia —basura que se
+ * limpia— y no una fila que promete un archivo que ya no está. La fila es la
+ * que se muestra; el archivo, el que se descarga.
+ *
+ * Si el borrado del archivo falla, la fila ya no está y el adjunto desaparece
+ * de la pantalla: se avisa, porque alguien va a tener que limpiar el bucket.
+ */
 export async function borrarAdjunto(id: string, ruta: string): Promise<void> {
   const { error } = await supabase.from('attachments').delete().eq('id', id)
-  if (error) throw new Error(`No se pudo borrar el adjunto: ${error.message}`)
-  // Si el archivo queda, es basura sin referencia; si la fila queda sin
-  // archivo, es un adjunto roto. Por eso primero la fila.
-  await supabase.storage.from(BUCKET).remove([ruta])
+  if (error) throw enCastellano(error.message, 'No se pudo borrar el adjunto.')
+
+  const { error: eArchivo } = await supabase.storage.from(BUCKET).remove([ruta])
+  if (eArchivo) {
+    throw new Error(
+      'El adjunto se quitó del documento, pero el archivo quedó en el almacenamiento. Avisá a soporte.',
+    )
+  }
 }
 
 export function formatearBytes(n: number | null): string {

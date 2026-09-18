@@ -106,6 +106,16 @@ export interface LineaDocumento {
   ordenLineaId: string | null
 }
 
+/** El domicilio tal como estaba cuando se emitió el remito. */
+export interface DomicilioSnapshot {
+  street?: string | null
+  city?: string | null
+  state?: string | null
+  postal_code?: string | null
+  country_code?: string | null
+  notes?: string | null
+}
+
 export interface DocumentoDetalle {
   id: string
   tipo: TipoDocumento
@@ -139,6 +149,12 @@ export interface DocumentoDetalle {
   /** Sólo remitos (Fase 15 · E5). */
   transporte: string | null
   seguimiento: string | null
+  /**
+   * Domicilio de entrega **congelado al crear el remito** (Fase 15 · E6).
+   * `null` cuando no se registró: el remito histórico no dice adónde fue, y
+   * mostrar el domicilio de hoy sería inventarlo.
+   */
+  domicilioEntrega: DomicilioSnapshot | null
   /** Sólo cotizaciones. */
   validaHasta: string | null
   descuentoPct: number | null

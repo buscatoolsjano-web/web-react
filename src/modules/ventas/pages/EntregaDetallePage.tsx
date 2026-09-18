@@ -1,5 +1,5 @@
 import { useCallback, useId, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -10,7 +10,7 @@ import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { ActionBar } from '@/components/document/ActionBar'
-import { DocSection, MetaList, Missing, Totals } from '@/components/document/DocSection'
+import { DocSection, Totals } from '@/components/document/DocSection'
 import { DocumentHeader } from '@/components/document/DocumentHeader'
 import { DocumentTabs } from '@/components/document/DocumentTabs'
 import { useTabDeUrl } from '@/components/document/useTabDeUrl'
@@ -25,6 +25,7 @@ import { useAccionesDocumento } from '../components/AccionesDocumento'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { ChipEstado } from '../components/ChipEstado'
+import { InformacionDocumento } from '../components/InformacionDocumento'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
@@ -612,30 +613,7 @@ function Detalle() {
                 </Field>
               </div>
             ) : (
-              <MetaList
-                items={[
-                  { label: 'Cliente', value: doc.clienteNombre },
-                  { label: 'Contacto', value: doc.contactoNombre ?? <Missing /> },
-                  { label: 'Fecha', value: formatearFecha(doc.fecha) },
-                  { label: 'Moneda', value: doc.moneda ?? <Missing /> },
-                  { label: 'Serie', value: doc.serie ?? <Missing /> },
-                  {
-                    label: 'Pedido de origen',
-                    value: doc.origen ? (
-                      <Link to={`/ventas/pedidos/${doc.origen.id}`} className={docUi.enlace}>
-                        {doc.origen.numero}
-                      </Link>
-                    ) : (
-                      'Sin pedido relacionado'
-                    ),
-                  },
-                  doc.transporte ? { label: 'Transporte', value: doc.transporte } : null,
-                  doc.seguimiento ? { label: 'Seguimiento', value: doc.seguimiento } : null,
-                  doc.notas ? { label: 'Notas', value: doc.notas, wide: true } : null,
-                  { label: 'Creado por', value: doc.creadoPor ?? <Missing /> },
-                  { label: 'Creado', value: formatearFecha(doc.creadoEn) },
-                ]}
-              />
+              <InformacionDocumento doc={doc} />
             )}
           </DocSection>
         ) : null}

@@ -100,12 +100,16 @@ export async function documentosRelacionados(
   } else {
     const { data } = await supabase
       .from('deliveries')
-      .select('order_id')
+      .select('order_id, source_quote_id')
       .eq('company_id', companyId)
       .eq('id', id)
       .maybeSingle()
     const orderId = data?.order_id ?? null
     if (orderId) pedidoIds = [orderId]
+    // Fase 15 · E6: hay 11 remitos que no salen de un pedido pero sí apuntan a
+    // una cotización (`source_quote_id`; el CHECK impide que tengan los dos).
+    // Antes ese remito se mostraba sin ningún origen, como si no tuviera.
+    else if (data?.source_quote_id) cotizacionIds = [data.source_quote_id]
   }
 
   // Pedidos de la cotización
@@ -147,6 +151,20 @@ export async function documentosRelacionados(
         fila('cotizacion', f, f.quote_date, f.status),
       )
     }
+  }
+
+  // La cotización de un remito que no pasó por un pedido. Se pide sólo si no
+  // la trajo el camino del pedido: dos consultas para lo mismo no.
+  if (tipo === 'entrega' && r.cotizaciones.length === 0 && cotizacionIds.length > 0) {
+    const { data, error } = await supabase
+      .from('sales_quotes')
+      .select(COLS_COT)
+      .eq('company_id', companyId)
+      .in('id', cotizacionIds)
+    if (error) throw new Error(`Relacionados (cotización): ${error.message}`)
+    r.cotizaciones = ((data ?? []) as unknown as FilaCot[]).map((f) =>
+      fila('cotizacion', f, f.quote_date, f.status),
+    )
   }
 
   // Entregas de esos pedidos
@@ -191,6 +209,34 @@ export async function documentosRelacionados(
       moneda: f.currency_code,
       total: f.total === null ? null : Number(f.total),
     }))
+  }
+
+  // Cobranzas: se llega por las imputaciones de las facturas. La consulta sólo
+  // se hace si hay facturas —hoy no hay ninguna—: preguntar por las cobranzas
+  // de una lista vacía es un viaje al servidor para que conteste «nada».
+  if (r.facturas.length > 0) {
+    const { data } = await supabase
+      .from('payment_allocations')
+      .select('amount, pago:payments!payment_id ( id, payment_date, amount, currency_code, method )')
+      .eq('company_id', companyId)
+      .in('invoice_id', r.facturas.map((f) => f.id))
+    const filas = (data ?? []) as unknown as {
+      pago: { id: string; payment_date: string; amount: number | string | null; currency_code: string | null; method: string | null } | null
+    }[]
+    const vistos = new Set<string>()
+    r.pagos = filas.flatMap((x) => {
+      if (!x.pago || vistos.has(x.pago.id)) return []
+      vistos.add(x.pago.id)
+      return [{
+        tipo: 'pago' as const,
+        id: x.pago.id,
+        numero: x.pago.method ?? 'Cobranza',
+        fecha: x.pago.payment_date,
+        estado: 'registrado',
+        moneda: x.pago.currency_code,
+        total: x.pago.amount === null ? null : Number(x.pago.amount),
+      }]
+    })
   }
 
   return r

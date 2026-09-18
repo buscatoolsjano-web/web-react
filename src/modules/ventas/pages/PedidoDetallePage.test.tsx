@@ -99,12 +99,14 @@ vi.mock('../services/productosParaLinea', async () => {
   const real = await vi.importActual<typeof ServicioProductos>('../services/productosParaLinea')
   return { ...real, buscarProductos: espias.buscar }
 })
-vi.mock('../services/adjuntos', () => ({
+// El panel usa además `CLASES` y `TIPOS_ACEPTADOS`, que son datos, no
+// escrituras: se dejan los de producción y se mockea sólo lo que toca la red.
+vi.mock('../services/adjuntos', async (real) => ({
+  ...(await real<Record<string, unknown>>()),
   listarAdjuntos: () => Promise.resolve([]),
   subirAdjunto: vi.fn(),
   borrarAdjunto: vi.fn(),
   urlDeDescarga: vi.fn(),
-  formatearBytes: (n: number) => `${n} B`,
 }))
 vi.mock('../components/BuscadorCliente', () => ({
   BuscadorCliente: ({ onElegir }: { onElegir: (id: string | null) => void }) => (
@@ -161,6 +163,7 @@ const pedido = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle => ({
   formaPago: null,
   transporte: null,
   seguimiento: null,
+  domicilioEntrega: null,
   validaHasta: null,
   descuentoPct: null,
   percepcionPct: null,

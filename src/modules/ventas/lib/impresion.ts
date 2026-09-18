@@ -1,3 +1,4 @@
+import { formatearDomicilio } from './formato'
 import type { DocumentoDetalle, LineaDocumento, TipoDocumento } from '../types'
 
 /**
@@ -100,6 +101,8 @@ export interface DocumentoImprimible {
   contacto: string | null
   moneda: string | null
   formaPago: string | null
+  /** Sólo el remito: el domicilio congelado al emitirlo (Fase 15 · E6). */
+  domicilioEntrega: string | null
   notas: string | null
   lineas: LineaImpresa[]
   subtotal: number | null
@@ -138,6 +141,9 @@ export function construirImprimible(
     contacto: doc.contactoNombre,
     moneda: doc.moneda,
     formaPago: doc.formaPago,
+    // El remito dice adónde fue. Si no se registró, no se pone la dirección
+    // de hoy del cliente: no es la misma información.
+    domicilioEntrega: doc.tipo === 'entrega' ? formatearDomicilio(doc.domicilioEntrega) : null,
     notas: doc.notas,
     lineas: doc.lineas.map((l, i) => {
       // El "precio con impuestos incluidos" usa la alícuota de LA LÍNEA, no

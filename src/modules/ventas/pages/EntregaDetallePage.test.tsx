@@ -62,12 +62,14 @@ vi.mock('../services/entregas', async (real) => ({
   confirmarEntrega: espias.confirmar,
   lineasParaEntregar: espias.pendientes,
 }))
-vi.mock('../services/adjuntos', () => ({
+// El panel usa además `CLASES` y `TIPOS_ACEPTADOS`, que son datos, no
+// escrituras: se dejan los de producción y se mockea sólo lo que toca la red.
+vi.mock('../services/adjuntos', async (real) => ({
+  ...(await real<Record<string, unknown>>()),
   listarAdjuntos: () => Promise.resolve([]),
   subirAdjunto: vi.fn(),
   borrarAdjunto: vi.fn(),
   urlDeDescarga: vi.fn(),
-  formatearBytes: (n: number) => `${n} B`,
 }))
 
 const { EntregaDetallePage } = await import('./EntregaDetallePage')
@@ -117,6 +119,7 @@ const remito = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle => ({
   formaPago: null,
   transporte: null,
   seguimiento: null,
+  domicilioEntrega: null,
   validaHasta: null,
   descuentoPct: null,
   percepcionPct: null,

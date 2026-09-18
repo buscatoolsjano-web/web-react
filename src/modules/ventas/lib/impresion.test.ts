@@ -52,6 +52,7 @@ const doc = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle => ({
   formaPago: null,
   transporte: null,
   seguimiento: null,
+  domicilioEntrega: null,
   validaHasta: null,
   descuentoPct: null,
   percepcionPct: null,
@@ -162,5 +163,60 @@ describe('nombreDeArchivo', () => {
   it('saca los caracteres que no valen en un nombre de archivo', () => {
     const d = construirImprimible(doc({ clienteNombre: 'A/B: C*D?' }), opts())
     expect(nombreDeArchivo(d, 'csv')).not.toMatch(/[\\/:*?"<>|]/)
+  })
+})
+
+/**
+ * La vista previa de los tres documentos (Fase 15 · E6).
+ *
+ * El mismo componente imprime cotización, pedido y remito. Lo que cambia es
+ * el título y lo que cada uno tiene para decir; lo que NO cambia es que todo
+ * sale de los snapshots del documento.
+ */
+describe('los tres documentos', () => {
+  const opciones: OpcionesImpresion = { formato: 'valorado', preciosConImpuestos: false, papel: 'A4' }
+
+  it('cada tipo se titula como corresponde', () => {
+    expect(construirImprimible(doc(), opciones).titulo).toBe('COTIZACIÓN DE VENTA')
+    expect(construirImprimible(doc({ tipo: 'pedido' }), opciones).titulo).toBe('PEDIDO DE VENTA')
+    expect(construirImprimible(doc({ tipo: 'entrega' }), opciones).titulo).toBe('NOTA DE ENTREGA')
+  })
+
+  it('el remito imprime la dirección a la que se entregó', () => {
+    const r = construirImprimible(
+      doc({
+        tipo: 'entrega',
+        domicilioEntrega: { street: 'Av. Siempreviva 742', city: 'Springfield', postal_code: 'B1636' },
+      }),
+      opciones,
+    )
+    expect(r.domicilioEntrega).toBe('Av. Siempreviva 742 · Springfield · B1636')
+  })
+
+  it('un remito sin domicilio registrado no inventa ninguno', () => {
+    expect(construirImprimible(doc({ tipo: 'entrega' }), opciones).domicilioEntrega).toBeNull()
+  })
+
+  it('la cotización y el pedido no llevan dirección de entrega', () => {
+    const conDomicilio = { street: 'Av. Siempreviva 742' }
+    expect(construirImprimible(doc({ domicilioEntrega: conDomicilio }), opciones).domicilioEntrega).toBeNull()
+    expect(
+      construirImprimible(doc({ tipo: 'pedido', domicilioEntrega: conDomicilio }), opciones).domicilioEntrega,
+    ).toBeNull()
+  })
+
+  it('«sin valorar» imprime un remito sin un solo precio', () => {
+    const sinValorar: OpcionesImpresion = { ...opciones, formato: 'sin-valorar' }
+    const ver = queMostrar(sinValorar.formato)
+    expect([ver.precios, ver.impuestos, ver.totales]).toEqual([false, false, false])
+    // El modelo igual trae el precio del snapshot: lo que decide qué se pinta
+    // es `queMostrar`, y así el mismo documento se imprime valorado o no sin
+    // volver a consultar nada.
+    expect(construirImprimible(doc({ tipo: 'entrega' }), sinValorar).lineas[0]!.precio).toBe(100)
+  })
+
+  it('el nombre del archivo sale de la fecha, el número y el cliente', () => {
+    const r = construirImprimible(doc({ tipo: 'entrega', numero: 'RT00001433' }), opciones)
+    expect(nombreDeArchivo(r, 'pdf')).toBe('2026-01-06 - RT00001433 - Grupo Mirgor.pdf')
   })
 })

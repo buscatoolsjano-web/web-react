@@ -2,6 +2,7 @@ import { supabase } from '@/services/supabase/client'
 import { separarMotivos } from '../lib/estados'
 import type {
   DocumentoDetalle,
+  DomicilioSnapshot,
   DocumentoListado,
   LineaDocumento,
   PaginaDeDocumentos,
@@ -228,7 +229,7 @@ function columnasDetalle(tipo: TipoDocumento): string {
       : tipo === 'pedido'
         ? ', payment_terms, discount_pct, perception_pct, price_list_id'
         : // El remito no tiene forma de pago; sí transporte y seguimiento.
-          ', carrier, tracking'
+          ', carrier, tracking, delivery_address_snapshot'
   // `external_source` distingue lo que vino de STEL de lo que emitió el ERP;
   // `created_at`/`updated_at` y quién creó el documento son la ficha técnica
   // que la pestaña Información muestra al pie. Son columnas de la MISMA
@@ -360,6 +361,9 @@ export async function obtenerDocumento(
     // Fase 15 · E5: el remito sí sabe quién lo llevó y con qué seguimiento.
     transporte: (f['carrier'] as string | null) ?? null,
     seguimiento: (f['tracking'] as string | null) ?? null,
+    // Fase 15 · E6: el domicilio congelado. Nunca se completa con el actual
+    // del cliente: si no está, es que no se registró.
+    domicilioEntrega: (f['delivery_address_snapshot'] as DomicilioSnapshot | null) ?? null,
     validaHasta: f.valid_until ?? null,
     descuentoPct: aNumero(f.discount_pct),
     percepcionPct: aNumero(f.perception_pct),

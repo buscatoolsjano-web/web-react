@@ -127,3 +127,19 @@
   font-size: var(--text-sm);
   color: var(--danger);
 }
+
+/* Fase 15 · E6: el selector de clase va en la misma fila que el botón, y en
+   mobile ocupa todo el ancho para que el toque sea cómodo. */
+.clase {
+  min-width: 12rem;
+  flex: 0 1 auto;
+}
+
+@media (max-width: 560px) {
+  .clase {
+    flex: 1 1 100%;
+  }
+  .acciones > button {
+    flex: 1 1 100%;
+  }
+}
