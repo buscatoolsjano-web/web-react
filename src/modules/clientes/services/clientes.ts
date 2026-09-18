@@ -201,7 +201,9 @@ const COLUMNAS_DETALLE = `
   email_domains, industry, phone, customer_type, status, payment_terms,
   default_currency, discount_pct, credit_limit, notes, imported_at,
   legacy_source, needs_review, review_reason, deleted_at, created_at,
-  vendedor:profiles!salesperson_id ( full_name )
+  updated_at, salesperson_id, default_price_list_id,
+  vendedor:profiles!salesperson_id ( full_name ),
+  tarifa:price_lists!default_price_list_id ( name )
 `
 
 interface FilaDetalle extends FilaListado {
@@ -215,7 +217,11 @@ interface FilaDetalle extends FilaListado {
   notes: string | null
   legacy_source: string | null
   created_at: string
+  updated_at: string
+  salesperson_id: string | null
+  default_price_list_id: string | null
   vendedor: { full_name: string | null } | null
+  tarifa: { name: string | null } | null
 }
 
 function aNumero(v: number | string | null): number | null {
@@ -256,6 +262,9 @@ export async function obtenerCliente(
     descuentoPct: aNumero(f.discount_pct) ?? 0,
     limiteDeCredito: aNumero(f.credit_limit),
     vendedor: f.vendedor?.full_name ?? null,
+    vendedorId: f.salesperson_id,
+    tarifaId: f.default_price_list_id,
+    tarifaNombre: f.tarifa?.name ?? null,
     notas: f.notes,
     esHistorico: f.imported_at !== null,
     origenLegacy: f.legacy_source,
@@ -263,6 +272,7 @@ export async function obtenerCliente(
     motivosRevision: separarMotivos(f.review_reason),
     dadoDeBaja: f.deleted_at !== null,
     creadoEn: f.created_at,
+    actualizadoEn: f.updated_at,
   }
 }
 
@@ -413,4 +423,44 @@ export async function relacionadosDeCliente(
       estado: c.status,
     })),
   }
+}
+
+// ── Opciones comerciales (Fase 17 · E1) ────────────────────────────────────
+
+export interface OpcionCliente {
+  id: string
+  nombre: string
+}
+
+/**
+ * A quién se le puede asignar un cliente.
+ *
+ * Los roles internos que venden, activos, de ESTA empresa: es exactamente el
+ * conjunto que acepta `guardar_cliente`, que rechaza cualquier otro con
+ * `VENDEDOR_INVALIDO`. Ofrecer más sería ofrecer un error.
+ */
+export async function vendedoresDeEmpresa(companyId: string): Promise<OpcionCliente[]> {
+  const { data, error } = await supabase
+    .from('company_memberships')
+    .select('user_id, profiles!user_id ( full_name )')
+    .eq('company_id', companyId)
+    .eq('status', 'active')
+    .in('role', ['admin', 'employee', 'salesperson'])
+  if (error) throw new Error(`No se pudieron leer los vendedores: ${error.message}`)
+
+  return ((data ?? []) as unknown as { user_id: string; profiles: { full_name: string | null } | null }[])
+    .map((m) => ({ id: m.user_id, nombre: m.profiles?.full_name ?? 'Sin nombre' }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+}
+
+/** Las listas de precios de la empresa. Son cuatro; no hace falta paginar. */
+export async function tarifasDeEmpresa(companyId: string): Promise<OpcionCliente[]> {
+  const { data, error } = await supabase
+    .from('price_lists')
+    .select('id, name')
+    .eq('company_id', companyId)
+    .order('is_default', { ascending: false })
+    .order('name')
+  if (error) throw new Error(`No se pudieron leer las tarifas: ${error.message}`)
+  return (data ?? []).map((p) => ({ id: p.id, nombre: p.name }))
 }

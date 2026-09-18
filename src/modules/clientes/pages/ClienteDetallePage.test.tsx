@@ -1,17 +1,32 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { Link, RouterProvider, createMemoryRouter } from 'react-router-dom'
 import type { ClienteDetalle, ContactoCliente, DireccionCliente } from '../types'
+import type { DatosCliente } from '../lib/validacion'
 
 const estado = vi.hoisted(() => ({
   rol: 'admin',
   cliente: null as unknown as ClienteDetalle,
   contactos: [] as ContactoCliente[],
   direcciones: [] as DireccionCliente[],
+  vendedores: [] as { id: string; nombre: string }[],
+  tarifas: [] as { id: string; nombre: string }[],
+  errorGuardar: null as Error | null,
 }))
-const mutaciones = vi.hoisted(() => ({ dar: vi.fn(), reactivar: vi.fn(), guardar: vi.fn(), revision: vi.fn() }))
+const mutaciones = vi.hoisted(() => ({
+  dar: vi.fn(),
+  reactivar: vi.fn(),
+  // Tipada con la firma real: sin eso `mock.calls[0]` es una tupla vacía y no
+  // se puede afirmar nada sobre lo que se mandó.
+  guardar: vi.fn((_payload: { esperado: string; datos: DatosCliente }) => undefined),
+  revision: vi.fn(),
+}))
 
+// La ficha importa `FalloDeCliente` del servicio, y el servicio importa el
+// cliente de Supabase, que exige `.env` al importarse: sin este mock la suite
+// aislada —la que corre como si no existiera `.env`— se cae.
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({ activa: { companyId: 'c1', companyName: 'ZZ', rol: estado.rol, esInterno: true, customerId: null } }),
 }))
@@ -20,9 +35,11 @@ vi.mock('../hooks/useClientes', () => ({
   useContactos: () => ({ data: estado.contactos, isPending: false }),
   useHistorial: () => ({ data: [], isPending: false }),
   useRelacionados: () => ({ data: { direcciones: estado.direcciones, candidatosDeOc: [] }, isPending: false }),
+  // Fase 17 · E1: vendedores y tarifas de los dos desplegables comerciales.
+  useOpcionesComerciales: () => ({ vendedores: estado.vendedores, tarifas: estado.tarifas }),
 }))
 vi.mock('../hooks/useEdicionClientes', () => ({
-  useActualizarCliente: () => ({ mutate: mutaciones.guardar, isPending: false, error: null }),
+  useActualizarCliente: () => ({ mutate: mutaciones.guardar, isPending: false, error: estado.errorGuardar }),
   useBajaCliente: () => ({ dar: { mutate: mutaciones.dar, isPending: false, error: null }, reactivar: { mutate: mutaciones.reactivar, isPending: false, error: null } }),
   useResolverRevision: () => ({ mutate: mutaciones.revision, isPending: false, error: null }),
 }))
@@ -61,22 +78,44 @@ const base: ClienteDetalle = {
   necesitaRevision: false,
   motivosRevision: [],
   dadoDeBaja: false,
+  vendedorId: null,
+  tarifaId: null,
+  tarifaNombre: null,
+  actualizadoEn: '2026-09-17T13:00:00.000Z',
   creadoEn: '2026-09-01T00:00:00Z',
 }
 
-const montar = () =>
-  render(
-    <MemoryRouter initialEntries={['/clientes/c1']}>
-      <Routes>
-        <Route path="/clientes/:id" element={<ClienteDetallePage />} />
-      </Routes>
-    </MemoryRouter>,
+/**
+ * Un data router de verdad (como el de la aplicación, `createHashRouter`): el
+ * aviso al salir con cambios sin guardar (Fase 17 · E1) usa `useBlocker`, que
+ * sólo existe ahí.
+ */
+const montar = (extra?: React.ReactNode) => {
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/clientes/:id',
+        element: (
+          <>
+            {extra}
+            <ClienteDetallePage />
+          </>
+        ),
+      },
+      { path: '/clientes', element: <p>listado</p> },
+    ],
+    { initialEntries: ['/clientes/c1'] },
   )
+  return render(<RouterProvider router={router} />)
+}
 
 beforeEach(() => {
   estado.rol = 'admin'
   estado.cliente = { ...base }
   estado.contactos = [{ id: 'k1', nombre: 'ZZ Ana', cargo: 'Compras', email: null, telefono: null, fax: null, esPrincipal: true, notas: null }]
+  estado.errorGuardar = null
+  estado.vendedores = [{ id: 'u1', nombre: 'ZZ Vendedora' }]
+  estado.tarifas = [{ id: 'pl1', nombre: 'ZZ Mayorista' }]
   estado.direcciones = [{ id: 'd1', tipo: 'both', calle: 'ZZ Calle 1', ciudad: null, provincia: null, codigoPostal: null, pais: 'AR', notas: null, esPrincipal: true, texto: 'ZZ Calle 1, AR' }]
   vi.clearAllMocks()
 })
@@ -147,5 +186,143 @@ describe('Ficha del cliente (Fase 13 · E4)', () => {
     expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Reactivar' }))
     expect(mutaciones.reactivar).toHaveBeenCalled()
+  })
+})
+
+/**
+ * La edición segura (Fase 17 · E1).
+ *
+ * Lo que se prueba es el contrato nuevo: que el guardado mande el testigo de
+ * concurrencia, que no se ofrezca guardar lo que no cambió, que descartar
+ * pregunte, que salir con cambios avise y que un conflicto conserve lo escrito.
+ */
+describe('Ficha del cliente · edición segura (Fase 17 · E1)', () => {
+  const abrirEdicion = () => fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+
+  it('sin tocar nada, Guardar está apagado: no se manda un guardado vacío', () => {
+    montar()
+    abrirEdicion()
+    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+    expect(mutaciones.guardar).not.toHaveBeenCalled()
+  })
+
+  it('Guardar manda UNA llamada con el testigo de concurrencia', () => {
+    montar()
+    abrirEdicion()
+    fireEvent.change(screen.getByLabelText(/Teléfono/), { target: { value: '011 4444-0000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(mutaciones.guardar).toHaveBeenCalledTimes(1)
+    const [payload] = mutaciones.guardar.mock.calls[0]!
+    expect(payload.esperado).toBe('2026-09-17T13:00:00.000Z')
+    expect(payload.datos.telefono).toBe('011 4444-0000')
+  })
+
+  it('el vendedor y la tarifa se eligen y viajan en el mismo guardado', () => {
+    montar()
+    abrirEdicion()
+    fireEvent.change(screen.getByLabelText(/Vendedor asignado/), { target: { value: 'u1' } })
+    fireEvent.change(screen.getByLabelText(/Tarifa por defecto/), { target: { value: 'pl1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    const [payload] = mutaciones.guardar.mock.calls[0]!
+    expect(payload.datos.vendedorId).toBe('u1')
+    expect(payload.datos.tarifaId).toBe('pl1')
+  })
+
+  it('se dice que la tarifa todavía no cambia los precios de los documentos', () => {
+    montar()
+    abrirEdicion()
+    expect(screen.getByText(/Todavía no cambia los precios de los documentos/)).toBeInTheDocument()
+  })
+
+  it('quien no administra la ficha no ve vendedor ni tarifa', () => {
+    estado.rol = 'salesperson'
+    montar()
+    abrirEdicion()
+    expect(screen.queryByLabelText(/Vendedor asignado/)).toBeNull()
+    expect(screen.queryByLabelText(/Tarifa por defecto/)).toBeNull()
+    // Pero sí puede editar el resto de la ficha.
+    expect(screen.getByLabelText(/Teléfono/)).toBeInTheDocument()
+  })
+
+  it('Cancelar con cambios pregunta antes de perderlos, y no guarda', () => {
+    montar()
+    abrirEdicion()
+    fireEvent.change(screen.getByLabelText(/Teléfono/), { target: { value: '011 9999-9999' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    const dialogo = screen.getByRole('alertdialog', { name: 'Hay cambios sin guardar' })
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Descartar cambios' }))
+
+    expect(mutaciones.guardar).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument()
+  })
+
+  it('Cancelar sin cambios cierra derecho, sin preguntar', () => {
+    montar()
+    abrirEdicion()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument()
+  })
+
+  it('cambiar de pestaña NO pregunta: no se navega a ningún lado', () => {
+    montar()
+    abrirEdicion()
+    fireEvent.change(screen.getByLabelText(/Teléfono/), { target: { value: '011 1212-1212' } })
+    fireEvent.click(screen.getByRole('tab', { name: /Contactos/ }))
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+  })
+
+  it('irse del cliente con cambios PREGUNTA antes de perder el borrador', async () => {
+    montar(<Link to="/clientes">volver al listado</Link>)
+    abrirEdicion()
+    fireEvent.change(screen.getByLabelText(/Teléfono/), { target: { value: '011 3333-3333' } })
+
+    fireEvent.click(screen.getByRole('link', { name: 'volver al listado' }))
+    const dialogo = await screen.findByRole('alertdialog', { name: 'Hay cambios sin guardar' })
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Seguir editando' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    expect(screen.getByLabelText(/Teléfono/)).toHaveValue('011 3333-3333')
+
+    fireEvent.click(screen.getByRole('link', { name: 'volver al listado' }))
+    fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Descartar y salir' }))
+    expect(await screen.findByText('listado')).toBeInTheDocument()
+    expect(mutaciones.guardar).not.toHaveBeenCalled()
+  })
+
+  it('sin editar, navegar no pregunta nada', async () => {
+    montar(<Link to="/clientes">volver al listado</Link>)
+    fireEvent.click(screen.getByRole('link', { name: 'volver al listado' }))
+    expect(await screen.findByText('listado')).toBeInTheDocument()
+  })
+})
+
+describe('Ficha del cliente · conflicto de edición (Fase 17 · E1)', () => {
+  it('un conflicto se explica aparte y conserva lo escrito', async () => {
+    const { FalloDeCliente } = await import('../services/edicion')
+    estado.errorGuardar = new FalloDeCliente(
+      'CONFLICTO_DE_EDICION',
+      'Alguien más guardó este cliente mientras lo editabas.',
+    )
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+
+    expect(screen.getByText('Este cliente cambió mientras lo editabas')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Recargar' })).toBeInTheDocument()
+    // El formulario sigue en pantalla: lo escrito no se pierde.
+    expect(screen.getByLabelText(/Teléfono/)).toBeInTheDocument()
+    // Y no se repite el mensaje crudo abajo del formulario.
+    expect(screen.queryByText('Alguien más guardó este cliente mientras lo editabas.')).toBeNull()
+  })
+
+  it('un error común sí se muestra donde estaba', async () => {
+    const { FalloDeCliente } = await import('../services/edicion')
+    estado.errorGuardar = new FalloDeCliente('CUIT_INVALIDO', 'El CUIT tiene que tener 11 dígitos.')
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    expect(screen.getByText('El CUIT tiene que tener 11 dígitos.')).toBeInTheDocument()
+    expect(screen.queryByText('Este cliente cambió mientras lo editabas')).toBeNull()
   })
 })

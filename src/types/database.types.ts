@@ -5969,6 +5969,14 @@ export type Database = {
         Args: { p_ahora?: string }
         Returns: number
       }
+      guardar_cliente: {
+        Args: {
+          p_customer: string
+          p_datos: Json
+          p_esperado: string
+        }
+        Returns: Json
+      }
       guardar_config_ia_whatsapp: {
         Args: { p_company: string; p_config: Json; p_version: string }
         Returns: Json

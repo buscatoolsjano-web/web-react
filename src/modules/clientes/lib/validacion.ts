@@ -71,6 +71,9 @@ export interface DatosCliente {
   tipo: string
   condicionDePago: string
   monedaPorDefecto: string
+  /** Fase 17 · E1: defaults comerciales. Vacío = sin asignar. */
+  vendedorId: string
+  tarifaId: string
   notas: string
 }
 
@@ -85,6 +88,8 @@ export const CLIENTE_VACIO: DatosCliente = {
   tipo: 'business',
   condicionDePago: '',
   monedaPorDefecto: '',
+  vendedorId: '',
+  tarifaId: '',
   notas: '',
 }
 

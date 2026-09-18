@@ -7,6 +7,8 @@ import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { DialogoCambiosSinGuardar } from '@/components/modals/DialogoCambiosSinGuardar'
+import { useSalidaConCambios } from '@/hooks/useSalidaConCambios'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { LinkButton } from '@/components/ui/LinkButton'
@@ -26,12 +28,19 @@ import { explicarMotivo } from '../lib/motivos'
 import { formatearCuit, formatearFecha, nombreVisible } from '../lib/formato'
 import { permisosDe } from '../lib/permisos'
 import type { DatosCliente } from '../lib/validacion'
-import { useCliente, useContactos, useHistorial, useRelacionados } from '../hooks/useClientes'
+import {
+  useCliente,
+  useContactos,
+  useHistorial,
+  useOpcionesComerciales,
+  useRelacionados,
+} from '../hooks/useClientes'
 import {
   useActualizarCliente,
   useBajaCliente,
   useResolverRevision,
 } from '../hooks/useEdicionClientes'
+import { FalloDeCliente } from '../services/edicion'
 import type { ClienteDetalle } from '../types'
 import styles from './ClienteDetallePage.module.css'
 
@@ -56,6 +65,8 @@ function aFormulario(c: ClienteDetalle): DatosCliente {
     tipo: c.tipo,
     condicionDePago: c.condicionDePago ?? '',
     monedaPorDefecto: c.monedaPorDefecto ?? '',
+    vendedorId: c.vendedorId ?? '',
+    tarifaId: c.tarifaId ?? '',
     notas: c.notas ?? '',
   }
 }
@@ -93,8 +104,16 @@ export function ClienteDetallePage() {
   const relacionados = useRelacionados(id)
   const [pestana, setPestana] = useState<Pestana>('informacion')
   const [editando, setEditando] = useState(false)
+  // Lo informa el formulario: acá sólo se usa para el aviso al salir y para
+  // preguntar antes de descartar.
+  const [sucio, setSucio] = useState(false)
+  const [confirmandoDescarte, setConfirmandoDescarte] = useState(false)
   const [confirmandoBaja, setConfirmandoBaja] = useState(false)
   const idPestanas = useId()
+  // Salir con cambios pregunta: otro cliente, el menú, atrás del navegador o
+  // cerrar la pestaña. Cambiar de pestaña interna NO navega y no pregunta.
+  const salida = useSalidaConCambios(editando && sucio)
+  const opciones = useOpcionesComerciales(editando && permisos.editarContactos)
 
   const guardar = useActualizarCliente(id ?? '')
   const baja = useBajaCliente(id ?? '')
@@ -131,6 +150,12 @@ export function ClienteDetallePage() {
         />
       </div>
     )
+  }
+
+  const cerrarEdicion = () => {
+    setEditando(false)
+    setSucio(false)
+    setConfirmandoDescarte(false)
   }
 
   const nombre = nombreVisible(cliente.razonSocial, cliente.nombreComercial)
@@ -312,15 +337,47 @@ export function ClienteDetallePage() {
         <TabPanel tabsId={idPestanas} tabKey={pestana}>
           {pestana === 'informacion' && editando ? (
             <DocSection title="Editar datos del cliente">
+              {guardar.error instanceof FalloDeCliente && guardar.error.esConflicto ? (
+                <Alert
+                  tone="warning"
+                  role="alert"
+                  title="Este cliente cambió mientras lo editabas"
+                  action={
+                    <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
+                      Recargar
+                    </Button>
+                  }
+                >
+                  <p>
+                    Alguien más lo guardó, así que para no pisar su trabajo no se guardó nada.{' '}
+                    <strong>Lo que escribiste sigue en pantalla</strong>: anotá lo que haga falta
+                    antes de recargar.
+                  </p>
+                </Alert>
+              ) : null}
+
               <FormularioCliente
                 valores={aFormulario(cliente)}
                 cuitOriginal={cliente.cuit}
                 referencia={cliente.referencia}
                 guardando={guardar.isPending}
-                errorAlGuardar={guardar.error?.message ?? null}
+                errorAlGuardar={
+                  guardar.error instanceof FalloDeCliente && guardar.error.esConflicto
+                    ? null
+                    : (guardar.error?.message ?? null)
+                }
                 etiquetaGuardar="Guardar cambios"
-                onGuardar={(datos) => guardar.mutate(datos, { onSuccess: () => setEditando(false) })}
-                onCancelar={() => setEditando(false)}
+                vendedores={opciones.vendedores}
+                tarifas={opciones.tarifas}
+                puedeAsignar={permisos.editarContactos}
+                onCambioSucio={setSucio}
+                onGuardar={(datos) =>
+                  guardar.mutate(
+                    { esperado: cliente.actualizadoEn, datos },
+                    { onSuccess: () => cerrarEdicion() },
+                  )
+                }
+                onCancelar={() => (sucio ? setConfirmandoDescarte(true) : cerrarEdicion())}
               />
             </DocSection>
           ) : null}
@@ -393,6 +450,23 @@ export function ClienteDetallePage() {
           {pestana === 'relacionados' ? <PanelRelacionados datos={relacionados.data} cargando={relacionados.isPending} /> : null}
         </TabPanel>
       </div>
+
+      <DialogoCambiosSinGuardar
+        open={salida.preguntando}
+        onSalir={salida.salir}
+        onQuedarse={salida.quedarse}
+      />
+
+      <ConfirmDialog
+        open={confirmandoDescarte}
+        tone="danger"
+        title="Hay cambios sin guardar"
+        description="Si descartás, se pierde lo que editaste y el cliente vuelve a como estaba."
+        confirmLabel="Descartar cambios"
+        cancelLabel="Seguir editando"
+        onCancel={() => setConfirmandoDescarte(false)}
+        onConfirm={cerrarEdicion}
+      />
 
       <ConfirmDialog
         open={confirmandoBaja}

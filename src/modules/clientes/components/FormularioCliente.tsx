@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Field } from '@/components/forms/Field'
 import { Input, Select, Textarea } from '@/components/forms/controls'
 import { Alert } from '@/components/feedback/Alert'
@@ -21,6 +21,16 @@ export interface FormularioClienteProps {
   guardando: boolean
   errorAlGuardar?: string | null
   etiquetaGuardar: string
+  /**
+   * Vendedores y tarifas de la empresa (Fase 17 · E1). Vacío o `undefined`
+   * esconde esos dos campos: sin opciones, un desplegable vacío no ayuda.
+   */
+  vendedores?: readonly { id: string; nombre: string }[] | undefined
+  tarifas?: readonly { id: string; nombre: string }[] | undefined
+  /** `false` deja vendedor y tarifa en sólo lectura: los asigna admin/employee. */
+  puedeAsignar?: boolean | undefined
+  /** Avisa a la página si hay cambios sin guardar, para el aviso al salir. */
+  onCambioSucio?: ((sucio: boolean) => void) | undefined
   onGuardar: (datos: DatosCliente) => void
   onCancelar: () => void
 }
@@ -47,6 +57,10 @@ export function FormularioCliente({
   guardando,
   errorAlGuardar = null,
   etiquetaGuardar,
+  vendedores,
+  tarifas,
+  puedeAsignar = false,
+  onCambioSucio,
   onGuardar,
   onCancelar,
 }: FormularioClienteProps) {
@@ -54,6 +68,18 @@ export function FormularioCliente({
   const [datos, setDatos] = useState<DatosCliente>(valores)
   const [errores, setErrores] = useState<ErrorDeCampo[]>([])
   const [intentado, setIntentado] = useState(false)
+
+  // Qué cambió respecto de lo que se abrió. Sirve para dos cosas: no ofrecer
+  // «Guardar» cuando no hay nada que guardar —así el servidor no recibe un
+  // guardado vacío— y avisar antes de salir perdiendo lo escrito.
+  const sucio = JSON.stringify(datos) !== JSON.stringify(valores)
+
+  // El aviso al padre va en un efecto y no durante el render: cambiar el
+  // estado de OTRO componente mientras éste se dibuja es justo lo que React
+  // avisa por consola, y con razón.
+  useEffect(() => {
+    onCambioSucio?.(sucio)
+  }, [sucio, onCambioSucio])
 
   const cambiar = <K extends keyof DatosCliente>(campo: K, valor: DatosCliente[K]) => {
     const siguiente = { ...datos, [campo]: valor }
@@ -162,6 +188,43 @@ export function FormularioCliente({
             ))}
           </datalist>
           {texto('condicionDePago', 'Condición de pago')}
+          {/* Fase 17 · E1: el vendedor y la tarifa del cliente se editan acá.
+              Todavía NO sugieren nada al crear documentos —eso es E2—: por
+              ahora son la ficha del cliente, no una regla de Ventas. */}
+          {puedeAsignar && (vendedores?.length ?? 0) > 0 ? (
+            <Field label="Vendedor asignado" id={`${id}-vendedor`} optional>
+              <Select
+                value={datos.vendedorId}
+                onChange={(e) => cambiar('vendedorId', e.target.value)}
+              >
+                <option value="">Sin asignar</option>
+                {(vendedores ?? []).map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.nombre}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
+
+          {puedeAsignar && (tarifas?.length ?? 0) > 0 ? (
+            <Field
+              label="Tarifa por defecto"
+              id={`${id}-tarifa`}
+              optional
+              help="Queda registrada en el cliente. Todavía no cambia los precios de los documentos."
+            >
+              <Select value={datos.tarifaId} onChange={(e) => cambiar('tarifaId', e.target.value)}>
+                <option value="">Sin tarifa</option>
+                {(tarifas ?? []).map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
+
           <Field label="Moneda por defecto" id={`${id}-moneda`}>
             <Select value={datos.monedaPorDefecto} onChange={(e) => cambiar('monedaPorDefecto', e.target.value)}>
               <option value="">Sin definir</option>
@@ -189,7 +252,7 @@ export function FormularioCliente({
       ) : null}
 
       <div className={styles.acciones}>
-        <Button type="submit" variant="primary" loading={guardando}>
+        <Button type="submit" variant="primary" loading={guardando} disabled={!sucio || guardando}>
           {guardando ? 'Guardando…' : etiquetaGuardar}
         </Button>
         <Button variant="ghost" onClick={onCancelar} disabled={guardando}>

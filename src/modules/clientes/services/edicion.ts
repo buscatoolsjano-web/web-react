@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import type { Json } from '@/types/database.types'
 import type { DatosCliente, DatosContacto, DatosDireccion } from '../lib/validacion'
 import { normalizarDominios, normalizarEmails } from '../lib/validacion'
 
@@ -65,22 +66,78 @@ export async function crearCliente(
   return { id: data.id, referencia: data.legacy_ref }
 }
 
+/** Lo que dice el servidor → lo que lee una persona (Fase 17 · E1). */
+export const MOTIVOS_CLIENTE: Record<string, string> = {
+  CONFLICTO_DE_EDICION:
+    'Alguien más guardó este cliente mientras lo editabas. Recargá para ver los cambios; lo tuyo no se perdió.',
+  CLIENTE_DADO_DE_BAJA: 'El cliente está dado de baja: primero reactivalo.',
+  CLIENTE_INEXISTENTE: 'No encontramos el cliente.',
+  SIN_PERMISO: 'Tu rol no edita este cliente.',
+  CAMPO_NO_EDITABLE: 'Se intentó cambiar un campo que no se edita.',
+  RAZON_SOCIAL_REQUERIDA: 'La razón social no puede quedar vacía.',
+  TIPO_INVALIDO: 'El tipo de cliente no es válido.',
+  CUIT_INVALIDO: 'El CUIT tiene que tener 11 dígitos.',
+  VENDEDOR_INVALIDO: 'Ese usuario no puede ser vendedor de esta empresa.',
+  VENDEDOR_NO_EDITABLE: 'Un vendedor no puede reasignar su propio cliente.',
+  TARIFA_INVALIDA: 'Esa tarifa no es de esta empresa.',
+  MONEDA_INVALIDA: 'Esa moneda no existe.',
+  uq_customers_cuit_norm: 'Ese CUIT ya lo tiene otro cliente de la empresa.',
+  idx_customers_taxid: 'Ese CUIT ya lo tiene otro cliente de la empresa.',
+}
+
+/** Un fallo con su código, para que la pantalla sepa si fue un conflicto. */
+export class FalloDeCliente extends Error {
+  constructor(
+    readonly codigo: string,
+    mensaje: string,
+  ) {
+    super(mensaje)
+    this.name = 'FalloDeCliente'
+  }
+  /** Un conflicto se resuelve recargando, no reintentando. */
+  get esConflicto(): boolean {
+    return this.codigo === 'CONFLICTO_DE_EDICION'
+  }
+}
+
+function falloDeCliente(mensaje: string): FalloDeCliente {
+  const codigo = Object.keys(MOTIVOS_CLIENTE).find((c) => mensaje.includes(c))
+  return new FalloDeCliente(
+    codigo ?? 'error_interno',
+    codigo ? MOTIVOS_CLIENTE[codigo]! : 'No se pudo guardar el cliente.',
+  )
+}
+
+export interface ResultadoGuardadoCliente {
+  /** El nuevo testigo de concurrencia: se guarda para la próxima edición. */
+  actualizadoEn: string
+  campos: number
+  sinCambios: boolean
+}
+
 /**
- * Edición.
+ * Guarda el cliente en UNA transacción (Fase 17 · E1).
  *
- * `legacy_ref` NO se toca: es la referencia con la que el cliente figura en
- * los papeles del sistema anterior. Tampoco se tocan `needs_review` ni
- * `review_reason`: los recalcula el trigger, y sólo se caen los motivos que
- * la edición realmente resuelve.
+ * Es el único camino de escritura de la ficha. Antes era un `update` armado en
+ * el navegador: sin testigo de concurrencia —gana el último que guarda—, sin
+ * validar el vendedor ni la tarifa, y sin dejar rastro de qué cambió.
+ *
+ * `esperado` es el `updated_at` que se leyó al entrar en edición. Si alguien
+ * guardó en el medio, el servidor corta con `CONFLICTO_DE_EDICION` en vez de
+ * pisarlo, y el borrador queda intacto en pantalla.
+ *
+ * Se manda la whitelist completa y el servidor calcula qué cambió: guardar sin
+ * cambios contesta `sinCambios` y no toca ni `updated_at` ni la auditoría.
  */
-export async function actualizarCliente(
-  companyId: string,
-  id: string,
+export async function guardarCliente(
+  clienteId: string,
+  esperado: string,
   datos: DatosCliente,
-): Promise<void> {
-  const { error } = await supabase
-    .from('customers')
-    .update({
+): Promise<ResultadoGuardadoCliente> {
+  const { data, error } = await supabase.rpc('guardar_cliente', {
+    p_customer: clienteId,
+    p_esperado: esperado,
+    p_datos: {
       legal_name: datos.razonSocial.trim(),
       trade_name: vacioANulo(datos.nombreComercial),
       tax_id: vacioANulo(datos.cuit),
@@ -91,11 +148,19 @@ export async function actualizarCliente(
       customer_type: datos.tipo,
       payment_terms: vacioANulo(datos.condicionDePago),
       default_currency: vacioANulo(datos.monedaPorDefecto),
+      salesperson_id: vacioANulo(datos.vendedorId),
+      default_price_list_id: vacioANulo(datos.tarifaId),
       notes: vacioANulo(datos.notas),
-    })
-    .eq('company_id', companyId)
-    .eq('id', id)
-  if (error) throw new Error(traducir(error.message, error.code))
+    } as unknown as Json,
+  })
+  if (error) throw falloDeCliente(error.message)
+
+  const r = data as unknown as {
+    actualizado_en: string
+    campos: number
+    sin_cambios: boolean
+  }
+  return { actualizadoEn: r.actualizado_en, campos: r.campos, sinCambios: r.sin_cambios }
 }
 
 /**

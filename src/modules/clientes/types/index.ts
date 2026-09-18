@@ -236,6 +236,10 @@ export interface ClienteDetalle {
   descuentoPct: number
   limiteDeCredito: number | null
   vendedor: string | null
+  /** El id del vendedor: lo necesita el formulario, el nombre es para mostrar. */
+  vendedorId: string | null
+  tarifaId: string | null
+  tarifaNombre: string | null
   notas: string | null
   esHistorico: boolean
   origenLegacy: string | null
@@ -243,6 +247,8 @@ export interface ClienteDetalle {
   motivosRevision: string[]
   dadoDeBaja: boolean
   creadoEn: string
+  /** Testigo de concurrencia: se manda al guardar y el servidor lo compara. */
+  actualizadoEn: string
 }
 
 export interface RelacionadosCliente {

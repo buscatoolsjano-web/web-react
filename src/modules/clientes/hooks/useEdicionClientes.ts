@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import {
-  actualizarCliente,
+  guardarCliente,
   actualizarContacto,
   actualizarDireccion,
   borrarContacto,
@@ -52,13 +52,21 @@ export function useCrearCliente() {
   })
 }
 
+/**
+ * El guardado de la ficha (Fase 17 · E1).
+ *
+ * Una sola RPC con el testigo de concurrencia. Lo que se invalida es lo que
+ * quedó viejo: la ficha, el listado, los rubros y la caché de Ventas —que
+ * muestra el nombre del cliente en cada documento por FK—.
+ */
 export function useActualizarCliente(clienteId: string) {
   const { activa } = useEmpresa()
   const qc = useQueryClient()
   const companyId = activa?.companyId ?? null
 
   return useMutation({
-    mutationFn: (datos: DatosCliente) => actualizarCliente(companyId!, clienteId, datos),
+    mutationFn: ({ esperado, datos }: { esperado: string; datos: DatosCliente }) =>
+      guardarCliente(clienteId, esperado, datos),
     onSuccess: () => {
       const k = clavesDelCliente(companyId, clienteId)
       void qc.invalidateQueries({ queryKey: k.detalle })

@@ -7,6 +7,8 @@ import {
   obtenerCliente,
   relacionadosDeCliente,
   rubrosUsados,
+  tarifasDeEmpresa,
+  vendedoresDeEmpresa,
 } from '../services/clientes'
 import type {
   ClienteDetalle,
@@ -97,4 +99,28 @@ export function useRubros() {
     enabled: companyId !== null,
     staleTime: 5 * 60_000,
   })
+}
+
+/**
+ * Vendedores y tarifas de la empresa, para los dos desplegables comerciales
+ * de la ficha (Fase 17 · E1). Se piden una sola vez y se cachean: cambian
+ * cuando alguien entra o sale del equipo, no cuando se edita un cliente.
+ */
+export function useOpcionesComerciales(habilitado: boolean) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  const vendedores = useQuery({
+    queryKey: ['clientes', companyId, 'vendedores'],
+    queryFn: () => vendedoresDeEmpresa(companyId!),
+    enabled: habilitado && companyId !== null,
+    staleTime: 10 * 60_000,
+  })
+  const tarifas = useQuery({
+    queryKey: ['clientes', companyId, 'tarifas'],
+    queryFn: () => tarifasDeEmpresa(companyId!),
+    enabled: habilitado && companyId !== null,
+    staleTime: 10 * 60_000,
+  })
+  return { vendedores: vendedores.data ?? [], tarifas: tarifas.data ?? [] }
 }
