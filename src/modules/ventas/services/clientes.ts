@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import type { DefaultsComerciales } from '../lib/defaults'
 
 export interface ClienteOpcion {
   id: string
@@ -104,5 +105,37 @@ export async function nombreDeCliente(
     id: data.id,
     nombre: data.trade_name?.trim() || data.legal_name?.trim() || 'Sin nombre',
     dadoDeBaja: data.deleted_at !== null,
+  }
+}
+
+/**
+ * Los defaults comerciales del cliente (Fase 17 · E2).
+ *
+ * Cuatro columnas de `customers` en **una** consulta. No se trae la ficha
+ * entera —ni contactos, ni direcciones, ni historial— porque para sugerir el
+ * vendedor y la tarifa de un documento nuevo eso no hace falta.
+ *
+ * Quien decide si el default se aplica es `aplicarDefaults`, con las listas de
+ * tarifas y vendedores que la pantalla ya tiene cargadas: así no hay una
+ * consulta por campo ni una validación que el servidor tenga que repetir.
+ */
+export async function defaultsDeCliente(
+  companyId: string,
+  customerId: string,
+): Promise<DefaultsComerciales | null> {
+  const { data, error } = await supabase
+    .from('customers')
+    .select('salesperson_id, default_price_list_id, payment_terms, default_currency')
+    .eq('company_id', companyId)
+    .eq('id', customerId)
+    .maybeSingle()
+  if (error) throw new Error(`No se pudieron leer los datos del cliente: ${error.message}`)
+  if (!data) return null
+
+  return {
+    vendedorId: data.salesperson_id,
+    tarifaId: data.default_price_list_id,
+    formaPago: data.payment_terms,
+    moneda: data.default_currency,
   }
 }

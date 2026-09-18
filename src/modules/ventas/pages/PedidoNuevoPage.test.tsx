@@ -22,6 +22,7 @@ const estado = vi.hoisted((): {
   vendedores: { id: string; nombre: string }[]
   contactos: { id: string; nombre: string; rol: string | null }[]
   productos: unknown[]
+  defaults: { vendedorId: string | null; tarifaId: string | null; formaPago: string | null; moneda: string | null } | null
 } => ({
   rol: 'admin',
   stel: {},
@@ -33,6 +34,7 @@ const estado = vi.hoisted((): {
   vendedores: [{ id: 'u1', nombre: 'ZZ Vendedora' }],
   contactos: [{ id: 'k1', nombre: 'ZZ Contacto', rol: 'Compras' }],
   productos: [],
+  defaults: null,
 }))
 
 const espias = vi.hoisted(() => ({
@@ -44,6 +46,7 @@ const espias = vi.hoisted(() => ({
     ) => Promise.resolve({ id: 'pdv-nuevo', numero: 'PDV01330', total: 121, lineas: 1 }),
   ),
   buscar: vi.fn((_c: string, _t: string, _o?: { listaPrecioId?: string | null }) => Promise.resolve(estado.productos)),
+  defaults: vi.fn((_c: string, _id: string) => Promise.resolve(estado.defaults)),
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
@@ -64,6 +67,10 @@ vi.mock('../components/BuscadorCliente', () => ({
       elegir cliente
     </button>
   ),
+}))
+vi.mock('../services/clientes', async (real) => ({
+  ...(await real<Record<string, unknown>>()),
+  defaultsDeCliente: espias.defaults,
 }))
 vi.mock('../services/pedidos', async () => {
   const real = await vi.importActual<typeof ServicioPedidos>('../services/pedidos')
@@ -112,6 +119,8 @@ beforeEach(() => {
   estado.productos = []
   espias.crear.mockClear()
   espias.buscar.mockClear()
+  espias.defaults.mockClear()
+  estado.defaults = null
 })
 
 describe('Nuevo pedido · borrador', () => {
@@ -251,5 +260,51 @@ describe('Nuevo pedido · salir con cambios', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
     expect(await screen.findByText('detalle del pedido', undefined, { timeout: 8000 })).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * Los defaults del cliente en el alta del pedido (Fase 17 · E2).
+ *
+ * El pedido manual se comporta igual que la cotización. El pedido que nace de
+ * una cotización NO pasa por acá: conserva el snapshot aprobado, y eso lo
+ * prueba la suite de la conversión.
+ */
+describe('Nuevo pedido · defaults del cliente', () => {
+  it('al elegir el cliente completa vendedor, tarifa, forma de pago y moneda', async () => {
+    estado.defaults = { vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' }
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+
+    await waitFor(() => expect(screen.getByLabelText('Moneda')).toHaveValue('USD'))
+    expect(screen.getByLabelText(/Vendedor/)).toHaveValue('u1')
+    expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista')
+    expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
+  })
+
+  it('y lo sugerido queda congelado en el pedido al crearlo', async () => {
+    estado.defaults = { vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' }
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    await waitFor(() => expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
+    await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
+    const [, cabecera] = espias.crear.mock.calls[0]!
+    expect(cabecera).toMatchObject({
+      salesperson_id: 'u1',
+      price_list_id: 'mayorista',
+      payment_terms: '60 días',
+      currency_code: 'USD',
+    })
+  })
+
+  it('un cliente sin defaults no rompe nada', async () => {
+    estado.defaults = { vendedorId: null, tarifaId: null, formaPago: null, moneda: null }
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    await waitFor(() => expect(espias.defaults).toHaveBeenCalled())
+    expect(screen.getByLabelText('Moneda')).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Crear pedido' })).toBeDisabled()
   })
 })

@@ -21,6 +21,7 @@ const estado = vi.hoisted((): {
   vendedores: { id: string; nombre: string }[]
   contactos: { id: string; nombre: string; rol: string | null }[]
   productos: unknown[]
+  defaults: { vendedorId: string | null; tarifaId: string | null; formaPago: string | null; moneda: string | null } | null
 } => ({
   rol: 'admin',
   stel: {},
@@ -32,6 +33,7 @@ const estado = vi.hoisted((): {
   vendedores: [{ id: 'u1', nombre: 'ZZ Vendedora' }],
   contactos: [{ id: 'k1', nombre: 'ZZ Contacto', rol: 'Compras' }],
   productos: [],
+  defaults: null,
 }))
 
 const espias = vi.hoisted(() => ({
@@ -43,6 +45,7 @@ const espias = vi.hoisted(() => ({
     ) => Promise.resolve({ id: 'q-nueva', numero: 'COTI02630', total: 121, lineas: 1 }),
   ),
   buscar: vi.fn((_c: string, _t: string, _o?: { listaPrecioId?: string | null }) => Promise.resolve(estado.productos)),
+  defaults: vi.fn((_c: string, _id: string) => Promise.resolve(estado.defaults)),
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
@@ -63,6 +66,10 @@ vi.mock('../components/BuscadorCliente', () => ({
       elegir cliente
     </button>
   ),
+}))
+vi.mock('../services/clientes', async (real) => ({
+  ...(await real<Record<string, unknown>>()),
+  defaultsDeCliente: espias.defaults,
 }))
 vi.mock('../services/cotizaciones', async () => {
   const real = await vi.importActual<typeof ServicioCotizaciones>('../services/cotizaciones')
@@ -111,6 +118,8 @@ beforeEach(() => {
   estado.productos = []
   espias.crear.mockClear()
   espias.buscar.mockClear()
+  espias.defaults.mockClear()
+  estado.defaults = null
 })
 
 describe('Nueva cotización · borrador', () => {
@@ -238,5 +247,102 @@ describe('Nueva cotización · salir con cambios', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     expect(await screen.findByText('detalle de la cotización', undefined, { timeout: 8000 })).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * Los defaults del cliente en el alta (Fase 17 · E2).
+ *
+ * El cliente sugiere; la persona decide. Estas pruebas miran justamente el
+ * borde: qué se completa solo, qué NO se pisa y qué se explica cuando un
+ * default no se puede aplicar.
+ */
+describe('Nueva cotización · defaults del cliente', () => {
+  it('al elegir el cliente completa vendedor, tarifa, forma de pago y moneda', async () => {
+    estado.defaults = { vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' }
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+
+    await waitFor(() => expect(screen.getByLabelText('Moneda')).toHaveValue('USD'))
+    expect(screen.getByLabelText(/Vendedor/)).toHaveValue('u1')
+    expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista')
+    expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
+    expect(espias.defaults).toHaveBeenCalledTimes(1)
+  })
+
+  it('un cliente sin defaults deja el formulario como estaba', async () => {
+    estado.defaults = { vendedorId: null, tarifaId: null, formaPago: null, moneda: null }
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+
+    await waitFor(() => expect(espias.defaults).toHaveBeenCalled())
+    expect(screen.getByLabelText('Moneda')).toHaveValue('')
+    expect(screen.getByLabelText(/Vendedor/)).toHaveValue('')
+    expect(screen.getByLabelText(/Tarifa/)).toHaveValue('')
+    expect(screen.queryByText(/Sobre los datos del cliente/)).toBeNull()
+  })
+
+  it('una tarifa del cliente en otra moneda no se aplica, y se dice por qué', async () => {
+    estado.defaults = { vendedorId: null, tarifaId: 'lista-ars', formaPago: null, moneda: 'USD' }
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+
+    expect(await screen.findByText(/está en ARS y el documento en USD/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Tarifa/)).toHaveValue('')
+  })
+
+  it('un vendedor que ya no está en la empresa no se aplica, y se avisa', async () => {
+    estado.defaults = { vendedorId: 'se-fue', tarifaId: null, formaPago: null, moneda: 'USD' }
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+
+    expect(await screen.findByText(/vendedor predeterminado del cliente ya no está disponible/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Vendedor/)).toHaveValue('')
+  })
+
+  it('lo que eligió la persona NO se pisa al elegir el cliente', async () => {
+    estado.defaults = { vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' }
+    montar()
+    fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
+    fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'lista-usd' } })
+    fireEvent.change(screen.getByLabelText(/Forma de pago/), { target: { value: 'Contra entrega' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    await waitFor(() => expect(espias.defaults).toHaveBeenCalled())
+
+    expect(screen.getByLabelText(/Tarifa/)).toHaveValue('lista-usd')
+    expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('Contra entrega')
+    // El vendedor no se tocó a mano: ése sí se sugiere.
+    expect(screen.getByLabelText(/Vendedor/)).toHaveValue('u1')
+  })
+
+  it('la tarifa del cliente espera a la moneda y entra cuando se elige', async () => {
+    estado.defaults = { vendedorId: null, tarifaId: 'mayorista', formaPago: null, moneda: null }
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    await waitFor(() => expect(espias.defaults).toHaveBeenCalled())
+    expect(screen.getByLabelText(/Tarifa/)).toHaveValue('')
+
+    fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
+    expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista')
+  })
+
+  it('lo sugerido se guarda como cualquier otro valor: el documento lo congela', async () => {
+    estado.defaults = { vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' }
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    await waitFor(() => expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
+    await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
+
+    const [, cabecera] = espias.crear.mock.calls[0]!
+    expect(cabecera).toMatchObject({
+      customer_id: 'cliente-1',
+      salesperson_id: 'u1',
+      price_list_id: 'mayorista',
+      payment_terms: '60 días',
+      currency_code: 'USD',
+    })
   })
 })

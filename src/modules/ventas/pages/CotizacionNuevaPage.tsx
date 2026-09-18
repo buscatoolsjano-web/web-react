@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -19,6 +19,7 @@ import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TotalesDocumento } from '../components/TotalesDocumento'
 import { useContactos, useTarifas, useVendedores } from '../hooks/useDocumentos'
+import { defaultsDeCliente } from '../services/clientes'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { DOC_TYPE_DE, mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
 import {
@@ -37,6 +38,11 @@ import {
   type Borrador,
   type CampoCabecera,
 } from '../lib/borrador'
+import {
+  aplicarDefaults,
+  type CampoSugerible,
+  type DefaultsComerciales,
+} from '../lib/defaults'
 import { escribeVentas } from '../lib/permisos'
 import { tasaDe } from '../lib/tratamientos'
 import { crearCotizacion } from '../services/cotizaciones'
@@ -89,6 +95,26 @@ export function CotizacionNuevaPage() {
   const [buscando, setBuscando] = useState(false)
   const [avisoContacto, setAvisoContacto] = useState(false)
   const [avisoTarifa, setAvisoTarifa] = useState(false)
+  // Fase 17 · E2. `tocados` es la memoria de lo que eligió la persona: el
+  // default de un cliente nunca pisa un campo que ya tocó. `defaults` se
+  // guarda para volver a evaluarlo cuando aparece la moneda.
+  const [tocados, setTocados] = useState<ReadonlySet<CampoSugerible>>(new Set())
+  const [defaults, setDefaults] = useState<DefaultsComerciales | null>(null)
+  const [avisosCliente, setAvisosCliente] = useState<string[]>([])
+  // Si se cambia de cliente dos veces seguidas, la respuesta que llega tarde
+  // no tiene que pisar a la del cliente que quedó elegido.
+  const pedidoDeDefaults = useRef(0)
+
+  // Leer los defaults es una ida al servidor, y mientras tanto la persona
+  // sigue escribiendo. Estas dos referencias guardan el último estado para que
+  // la respuesta se aplique sobre lo que hay AHORA y no sobre lo que había
+  // cuando se pidió: si no, el valor que acaban de elegir se pierde.
+  const borradorAlDia = useRef(b)
+  const tocadosAlDia = useRef(tocados)
+  useEffect(() => {
+    borradorAlDia.current = b
+    tocadosAlDia.current = tocados
+  })
 
   const escribe = escribeVentas(activa?.rol)
   const autoridad = useAutoridadNumeracion()
@@ -118,22 +144,62 @@ export function CotizacionNuevaPage() {
   const lineasVisibles = comoLineasDocumento(b)
   const falta = faltaParaCrear(b)
 
-  const cambiarCampoCabecera = (campo: CampoCabecera, valor: string) => setB((x) => cambiarCampo(x, campo, valor))
+  const SUGERIBLES: CampoCabecera[] = ['vendedorId', 'listaPrecioId', 'formaPago', 'moneda']
 
-  const elegirCliente = (customerId: string) =>
-    setB((x) => {
-      const r = cambiarCliente(x, customerId)
-      setAvisoContacto(r.contactoLimpiado)
-      return r.borrador
-    })
+  const cambiarCampoCabecera = (campo: CampoCabecera, valor: string) => {
+    // Lo que se cambia a mano queda marcado y deja de sugerirse.
+    if (SUGERIBLES.includes(campo)) {
+      setTocados((t) => new Set([...t, campo as CampoSugerible]))
+    }
+    setB((x) => cambiarCampo(x, campo, valor))
+  }
 
-  const elegirMoneda = (moneda: string) =>
-    setB((x) => {
-      const actual = tarifas.data?.find((t) => t.id === x.cabecera.listaPrecioId)
-      const r = cambiarMoneda(x, moneda, actual?.moneda ?? null)
-      setAvisoTarifa(r.tarifaLimpiada)
-      return r.borrador
-    })
+  const opcionesValidas = () => ({
+    tarifas: tarifas.data ?? [],
+    vendedores: vendedores.data ?? [],
+  })
+
+  const elegirCliente = (customerId: string) => {
+    const r = cambiarCliente(b, customerId)
+    setAvisoContacto(r.contactoLimpiado)
+    setB(r.borrador)
+
+    if (customerId === '' || !activa) {
+      setDefaults(null)
+      setAvisosCliente([])
+      return
+    }
+
+    // Una sola consulta, de cuatro columnas: el cliente sugiere vendedor,
+    // tarifa, forma de pago y moneda. Nada de traer la ficha entera.
+    const turno = ++pedidoDeDefaults.current
+    void defaultsDeCliente(activa.companyId, customerId)
+      .then((d) => {
+        if (turno !== pedidoDeDefaults.current) return
+        setDefaults(d)
+        const ap = aplicarDefaults(borradorAlDia.current, d, tocadosAlDia.current, opcionesValidas())
+        setAvisosCliente(ap.avisos)
+        setB(ap.borrador)
+      })
+      .catch(() => {
+        // Que no se puedan leer los defaults no impide cargar el documento.
+        if (turno === pedidoDeDefaults.current) setAvisosCliente([])
+      })
+  }
+
+  const elegirMoneda = (moneda: string) => {
+    const actual = tarifas.data?.find((t) => t.id === b.cabecera.listaPrecioId)
+    const r = cambiarMoneda(b, moneda, actual?.moneda ?? null)
+    setAvisoTarifa(r.tarifaLimpiada)
+
+    // Con la moneda ya elegida, la tarifa del cliente puede entrar —o quedar
+    // descartada por incompatible, que también se dice.
+    const conMoneda = new Set<CampoSugerible>([...tocados, 'moneda'])
+    setTocados(conMoneda)
+    const ap = aplicarDefaults(r.borrador, defaults, conMoneda, opcionesValidas())
+    setAvisosCliente(ap.avisos)
+    setB(ap.borrador)
+  }
 
   const cambiarLinea = (clave: string, campo: CampoLinea, valor: string | number | null) =>
     setB((x) => {
@@ -199,6 +265,18 @@ export function CotizacionNuevaPage() {
       />
 
       {stel ? <AvisoAutoridadStel detalle={motivoBloqueo(DOC_TYPE_DE['cotizacion'])} /> : null}
+
+      {/* Fase 17 · E2: cuando un default del cliente no se puede aplicar, se
+          dice por qué. Nunca se aplica un reemplazo en silencio. */}
+      {avisosCliente.length > 0 ? (
+        <Alert tone="info" role="status" title="Sobre los datos del cliente">
+          <ul>
+            {avisosCliente.map((a) => (
+              <li key={a}>{a}</li>
+            ))}
+          </ul>
+        </Alert>
+      ) : null}
 
       <DocSection title="Datos del documento">
         <EditorCabecera

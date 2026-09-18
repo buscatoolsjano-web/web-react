@@ -453,14 +453,23 @@ export async function vendedoresDeEmpresa(companyId: string): Promise<OpcionClie
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
 }
 
-/** Las listas de precios de la empresa. Son cuatro; no hace falta paginar. */
+/**
+ * Las listas de precios de la empresa. Son cuatro; no hace falta paginar.
+ *
+ * Se muestra la moneda junto al nombre: una tarifa en dólares sobre un cliente
+ * que factura en pesos no va a servir para sugerir nada, y conviene verlo al
+ * elegirla y no al crear el documento.
+ */
 export async function tarifasDeEmpresa(companyId: string): Promise<OpcionCliente[]> {
   const { data, error } = await supabase
     .from('price_lists')
-    .select('id, name')
+    .select('id, name, currency_code')
     .eq('company_id', companyId)
     .order('is_default', { ascending: false })
     .order('name')
   if (error) throw new Error(`No se pudieron leer las tarifas: ${error.message}`)
-  return (data ?? []).map((p) => ({ id: p.id, nombre: p.name }))
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    nombre: p.currency_code ? `${p.name} · ${p.currency_code}` : p.name,
+  }))
 }

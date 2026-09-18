@@ -395,6 +395,13 @@ export function ClienteDetallePage() {
                   { label: 'Condición de pago', value: cliente.condicionDePago ?? <Missing>No definida</Missing> },
                   { label: 'Moneda por defecto', value: cliente.monedaPorDefecto ?? <Missing>No definida</Missing> },
                   { label: 'Vendedor asignado', value: cliente.vendedor ?? <Missing>No asignado</Missing> },
+                  // Fase 17 · E2: la tarifa del cliente ya se ve y se edita, y
+                  // desde ahora sugiere la del documento nuevo. Los documentos
+                  // ya emitidos conservan la suya.
+                  {
+                    label: 'Tarifa por defecto',
+                    value: cliente.tarifaNombre ?? <Missing>Sin tarifa</Missing>,
+                  },
                   { label: 'Alta', value: formatearFecha(cliente.creadoEn) },
                   cliente.nombreLegacy && cliente.nombreLegacy !== cliente.razonSocial
                     ? { label: 'Nombre en el sistema anterior', value: cliente.nombreLegacy }
