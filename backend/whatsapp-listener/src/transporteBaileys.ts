@@ -94,7 +94,10 @@ export class TransporteBaileys implements Transporte {
     this.conexion = 'reconectando'
 
     socket.ev.on('creds.update', () => void saveCreds())
-    socket.ev.on('messages.upsert', (u) => void this.alLlegarMensajes(u.messages as MensajeCrudo[]))
+    socket.ev.on(
+      'messages.upsert',
+      (u) => void this.alLlegarMensajes(u.messages as MensajeCrudo[], u.type),
+    )
     socket.ev.on('groups.upsert', (grupos) => this.recordarNombres(grupos))
     socket.ev.on('groups.update', (grupos) => this.recordarNombres(grupos))
 
@@ -108,6 +111,15 @@ export class TransporteBaileys implements Transporte {
       }
 
       socket.ev.on('connection.update', (u) => {
+        // El estado de la conexión, sin nada más. Sirve para saber si el
+        // socket llegó a «online» de verdad o se quedó a mitad de camino.
+        if (u.connection || u.receivedPendingNotifications !== undefined) {
+          this.opciones.registro.evento('info', 'conexion', {
+            estado: u.connection ?? '(sin cambio)',
+            pendientesRecibidos: u.receivedPendingNotifications ?? false,
+          })
+        }
+
         if (u.qr) {
           this.conexion = 'requiere_autenticacion'
           this.opciones.registro.evento('aviso', 'qr_pendiente')
@@ -189,7 +201,14 @@ export class TransporteBaileys implements Transporte {
    * evento de protocolo que no nos importa. Se traduce todo acá y la decisión
    * de guardar o no la toma la política, que no sabe de WhatsApp.
    */
-  private async alLlegarMensajes(mensajes: readonly MensajeCrudo[]): Promise<void> {
+  private async alLlegarMensajes(mensajes: readonly MensajeCrudo[], tipo = '?'): Promise<void> {
+    // Cuántos llegaron y cuántos se pudieron traducir. Sin esto, «no se guardó
+    // nada» significa a la vez «la política lo rechazó» y «no llegó nada», que
+    // son dos problemas opuestos: uno es el sistema funcionando y el otro es el
+    // sistema sordo. Son números, no contenido.
+    this.opciones.registro.evento('info', 'upsert', { total: mensajes.length, tipo })
+    let traducidos = 0
+
     for (const crudo of mensajes) {
       try {
         const contexto = {
@@ -199,17 +218,42 @@ export class TransporteBaileys implements Transporte {
 
         const protocolo = protocoloDe(crudo, contexto)
         if (protocolo) {
+          traducidos += 1
           await this.emitir({ clase: protocolo.clase, datos: protocolo.datos } as Evento)
           continue
         }
 
         const mensaje = normalizarMensaje(crudo, contexto)
-        if (mensaje) await this.emitir({ clase: 'mensaje', datos: mensaje })
+        if (mensaje) {
+          traducidos += 1
+          await this.emitir({ clase: 'mensaje', datos: mensaje })
+        } else {
+          // Un mensaje que no se pudo traducir se DICE, y se dice CON QUÉ FORMA
+          // venía. Callarlo es cómo se llega a «no se guardó nada» sin saber
+          // por qué: puede ser un evento de sistema, o puede ser que la
+          // librería cambió de forma y nos quedamos sordos sin enterarnos.
+          //
+          // De la llave sale la FORMA, nunca el valor: qué campos trae, de qué
+          // tipo, y el sufijo del jid (`@g.us`, `@s.whatsapp.net`, `@lid`).
+          // Con eso alcanza para diagnosticar y no se filtra ni un número.
+          this.opciones.registro.evento('aviso', 'sin_traducir', {
+            claves: Object.keys(crudo.message ?? {}).join(','),
+            conMensaje: crudo.message !== null && crudo.message !== undefined,
+            llave: formaDeLlave(crudo.key),
+          })
+        }
       } catch (e) {
         // Un mensaje con una forma inesperada no puede tirar el listener: se
         // cuenta y se sigue. Con una librería no oficial esto va a pasar.
         this.opciones.registro.evento('error', 'normalizacion_fallida', { detalle: sanearError(e) })
       }
+    }
+
+    if (traducidos !== mensajes.length) {
+      this.opciones.registro.evento('aviso', 'upsert_parcial', {
+        recibidos: mensajes.length,
+        traducidos,
+      })
     }
   }
 
@@ -225,6 +269,27 @@ export class TransporteBaileys implements Transporte {
  * nombre de `DisconnectReason` porque un número suelto en un log no dice nada,
  * y porque `debeReintentar` entiende los dos.
  */
+/**
+ * La FORMA de una llave de mensaje, para diagnosticar sin filtrar nada.
+ *
+ * `campo:tipo` para cada campo presente, y para los jid sólo el servidor
+ * —`@g.us`, `@s.whatsapp.net`, `@lid`—, que es lo que distingue un grupo de un
+ * privado y el direccionamiento nuevo del viejo. Ni un número, ni un id.
+ */
+export function formaDeLlave(llave: object | null | undefined): string {
+  if (!llave) return '(sin llave)'
+  const servidor = (v: unknown) => (typeof v === 'string' ? `@${v.split('@')[1] ?? '(sin @)'}` : typeof v)
+  const partes = Object.entries(llave as Record<string, unknown>).map(([k, v]) => {
+    if (v === null || v === undefined) return `${k}:null`
+    if (k.toLowerCase().includes('jid') || k === 'participant' || k === 'participantAlt') {
+      return `${k}:${servidor(v)}`
+    }
+    if (typeof v === 'string') return `${k}:str(${v.length})`
+    return `${k}:${typeof v}`
+  })
+  return partes.join(' ')
+}
+
 export function motivoDeCierre(error: unknown): string {
   // Se lee la forma, no la clase: `Boom` es una dependencia de Baileys, no
   // nuestra, y hacer `instanceof` contra el paquete de otro se rompe el día que

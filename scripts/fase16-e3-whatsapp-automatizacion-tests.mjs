@@ -159,9 +159,34 @@ async function main() {
 
   const { data: prodSet } = await s.from('whatsapp_ai_settings').select('*').in('company_id', prodIds)
   cmp('las empresas de producción tienen su fila de configuración', prodIds.length, prodSet.length)
-  cmp('producción: IA, automática e informes apagados', true,
-    prodSet.every((x) => !x.enabled && !x.auto_analyze && !x.daily_report_enabled && !x.weekly_report_enabled))
-  cmp('producción: nada en la cola', 0, baseProd.cola)
+
+  /**
+   * Acá había dos afirmaciones que dejaron de ser ciertas, y no por un error:
+   * «producción: IA, automática e informes apagados» y «producción: nada en la
+   * cola». El piloto real con OpenAI (Fase 16 · E2.5, 2026-09-17) encendió la
+   * IA de Buscatools a propósito y dejó su trabajo `done` en la cola.
+   *
+   * Lo que este test tiene que proteger NO es que producción esté apagada
+   * —eso es una decisión del negocio, y cambió— sino que **esta corrida no la
+   * toque**. Así que se guarda el estado real al empezar y se compara al
+   * terminar. Bajar el `enabled` de producción para que el test pase sería
+   * arreglar el termómetro en vez del paciente.
+   *
+   * El default seguro sigue probado donde corresponde: en la comprobación de
+   * abajo, sobre una empresa nueva.
+   */
+  const configProdAntes = JSON.stringify(
+    [...prodSet].sort((a, b) => a.company_id.localeCompare(b.company_id)),
+  )
+
+  // Y una invariante que sí vale siempre: que no haya trabajos trabados.
+  const { count: trabados } = await s
+    .from('whatsapp_ai_analysis_queue')
+    .select('*', { count: 'exact', head: true })
+    .in('company_id', prodIds)
+    .eq('status', 'processing')
+    .lt('locked_at', new Date(Date.now() - 10 * 60_000).toISOString())
+  cmp('producción: ningún trabajo trabado en la cola', 0, trabados ?? 0)
 
   // ── Fixture ──────────────────────────────────────────────────────────────
   const sello = Date.now()
@@ -726,7 +751,10 @@ async function main() {
   }
   cmp('producción idéntica al baseline', JSON.stringify(baseProd), JSON.stringify(despues))
   const { data: prodSet2 } = await s.from('whatsapp_ai_settings').select('*').in('company_id', prodIds)
-  cmp('producción sigue apagada', true, prodSet2.every((x) => !x.enabled && !x.auto_analyze && !x.daily_report_enabled && !x.weekly_report_enabled))
+  // No «sigue apagada» —puede estar encendida por decisión de negocio— sino
+  // «sigue exactamente como estaba antes de esta corrida».
+  cmp('la configuración de producción quedó intacta', configProdAntes,
+    JSON.stringify([...prodSet2].sort((a, b) => a.company_id.localeCompare(b.company_id))))
 }
 
 main()

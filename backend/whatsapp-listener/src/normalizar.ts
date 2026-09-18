@@ -93,6 +93,23 @@ export function autorDe(llave: LlaveCruda, jidDeLaCuenta: string | null): string
   return normalizarJid(preferido ?? (llave.fromMe ? jidDeLaCuenta : null))
 }
 
+/**
+ * ¿El mensaje trae este campo, de verdad?
+ *
+ * **`clave in objeto` no sirve acá.** Baileys entrega instancias de protobufjs,
+ * y protobufjs declara TODOS los campos del mensaje en el prototipo con valor
+ * `null`. Con `in`, un mensaje de texto común «tiene» `imageMessage`,
+ * `protocolMessage` y todo lo demás, y el normalizador termina descartando
+ * mensajes reales o tratando un texto como si fuera una foto.
+ *
+ * Se mira el VALOR. Es la diferencia entre «el campo está declarado» y «el
+ * campo está puesto», y es toda la diferencia.
+ */
+function tiene(objeto: Record<string, unknown>, clave: string): boolean {
+  const v = objeto[clave]
+  return v !== null && v !== undefined
+}
+
 /** Envoltorios que WhatsApp pone alrededor del mensaje de verdad. */
 const ENVOLTORIOS = [
   'ephemeralMessage',
@@ -109,7 +126,7 @@ export function desenvolver(
 ): Record<string, unknown> | null {
   let actual = contenido ?? null
   for (let i = 0; i < 5 && actual; i += 1) {
-    const clave = ENVOLTORIOS.find((e) => e in actual!)
+    const clave = ENVOLTORIOS.find((e) => tiene(actual!, e))
     if (!clave) break
     const adentro = (actual[clave] as { message?: Record<string, unknown> } | null)?.message
     if (!adentro) break
@@ -166,12 +183,12 @@ export function contenidoDe(
   const m = desenvolver(contenidoCrudo)
   if (!m) return null
 
-  const claveMedia = Object.keys(MEDIA).find((k) => k in m)
-  const claveTexto = Object.keys(TEXTO).find((k) => k in m)
+  const claveMedia = Object.keys(MEDIA).find((k) => tiene(m, k))
+  const claveTexto = Object.keys(TEXTO).find((k) => tiene(m, k))
 
   let contexto: Record<string, unknown> | null = null
   if (claveMedia) contexto = (m[claveMedia] as Record<string, unknown>)['contextInfo'] as Record<string, unknown> | null
-  if (!contexto && 'extendedTextMessage' in m) {
+  if (!contexto && tiene(m, 'extendedTextMessage')) {
     contexto = (m['extendedTextMessage'] as Record<string, unknown>)['contextInfo'] as Record<string, unknown> | null
   }
   const respondeA = comoTexto(contexto?.['stanzaId'])
@@ -198,7 +215,8 @@ export function contenidoDe(
 
   // Ubicación, contacto, encuesta, reacción, llamada… Se reconoce el tipo para
   // poder contarlo, pero sin texto ni adjunto la política lo va a descartar.
-  const clave = Object.keys(m).find((k) => k.endsWith('Message')) ?? 'desconocido'
+  //  y no el prototipo: sólo los campos realmente puestos.
+  const clave = Object.keys(m).find((k) => k.endsWith('Message') && tiene(m, k)) ?? 'desconocido'
   return { tipo: clave.replace(/Message$/, '').toLowerCase(), texto: null, media: null, respondeA }
 }
 
@@ -227,8 +245,8 @@ export function normalizarMensaje(
   const desenvuelto = desenvolver(crudo.message)
   if (!desenvuelto) return null
   // Los eventos de protocolo no son mensajes: tienen su propia función.
-  if ('protocolMessage' in desenvuelto) return null
-  if ('senderKeyDistributionMessage' in desenvuelto && Object.keys(desenvuelto).length === 1) return null
+  if (tiene(desenvuelto, 'protocolMessage')) return null
+  if (tiene(desenvuelto, 'senderKeyDistributionMessage') && Object.keys(desenvuelto).length === 1) return null
 
   const contenido = contenidoDe(crudo.message, idExterno)
   if (!contenido) return null

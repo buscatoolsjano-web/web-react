@@ -209,9 +209,26 @@ async function main() {
   const { data: tipos } = await s.from('whatsapp_conversations').select('conversation_type, provider_group_id')
     .in('company_id', [empresa.id, empresaB.id])
   cmp('las conversaciones nuevas nacen individuales', true, tipos.every((t) => t.conversation_type === 'individual' && t.provider_group_id === null))
-  const { count: noIndividuales } = await s.from('whatsapp_conversations').select('*', { count: 'exact', head: true })
+  /**
+   * Acá decía «ninguna conversación de producción cambió de tipo», esperando
+   * cero grupos. Era cierto cuando se escribió: la Fase 16 preparó el modelo de
+   * grupos pero nada podía escribirlos. Desde la Fase 18 · E1B sí: el listener
+   * del 2186 ingiere el grupo piloto, y ese grupo es un resultado buscado, no
+   * una regresión.
+   *
+   * Lo que se prueba ahora es lo que siempre se quiso probar: que **las
+   * conversaciones de grupo que existan estén bien formadas**. El CHECK
+   * `chk_wa_conv_tipo` exige `provider_group_id` y `provider_contact_id =
+   * 'group:' || provider_group_id`, y eso vale para todas, hoy y mañana.
+   */
+  const { data: grupos } = await s.from('whatsapp_conversations')
+    .select('conversation_type, provider_group_id, provider_contact_id')
     .neq('conversation_type', 'individual')
-  cmp('ninguna conversación de producción cambió de tipo', 0, noIndividuales)
+  cmp('toda conversación de grupo está bien formada', true,
+    (grupos ?? []).every((g) =>
+      g.conversation_type === 'group' &&
+      !!g.provider_group_id &&
+      g.provider_contact_id === `group:${g.provider_group_id}`))
 
   rechaza('un grupo sin provider_group_id no entra',
     await s.from('whatsapp_conversations').update({ conversation_type: 'group' }).eq('id', A), 'chk_wa_conv_tipo')

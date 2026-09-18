@@ -244,6 +244,122 @@ describe('El mensaje entero', () => {
   })
 })
 
+/**
+ * Los mensajes REALES no son objetos literales.
+ *
+ * Baileys entrega instancias de protobufjs, y protobufjs declara **todos** los
+ * campos del mensaje en el PROTOTIPO con valor `null`. O sea: `'imageMessage'
+ * in mensaje` da `true` para un mensaje de texto, y `'protocolMessage' in
+ * mensaje` también.
+ *
+ * Esto costó tres mensajes de prueba reales: el evento llegaba, la llave estaba
+ * completa, y el normalizador lo descartaba en silencio. Los tests de arriba
+ * pasaban porque un objeto literal no tiene ese prototipo — el mock no tenía
+ * justo la propiedad del objeto real que importaba.
+ */
+const CAMPOS_DEL_PROTO = [
+  'conversation', 'extendedTextMessage', 'imageMessage', 'videoMessage', 'audioMessage',
+  'documentMessage', 'stickerMessage', 'protocolMessage', 'ephemeralMessage',
+  'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension',
+  'documentWithCaptionMessage', 'editedMessage', 'senderKeyDistributionMessage',
+  'messageContextInfo', 'reactionMessage', 'locationMessage', 'contactMessage',
+]
+
+/** Un mensaje con la forma real: los campos sin usar viven en el prototipo, en null. */
+function comoProtobuf(campos: Record<string, unknown>): Record<string, unknown> {
+  const prototipo: Record<string, unknown> = {}
+  for (const c of CAMPOS_DEL_PROTO) prototipo[c] = null
+  return Object.assign(Object.create(prototipo) as Record<string, unknown>, campos)
+}
+
+describe('Mensajes con forma de protobuf (los de verdad)', () => {
+  /** La llave real observada el 18/09: grupo, LID, con el jid de teléfono al lado. */
+  const llaveReal = {
+    remoteJid: GRUPO,
+    remoteJidAlt: null,
+    fromMe: false,
+    id: 'ABCDEF0123456789ABCDEF',
+    participant: '183746372@lid',
+    participantAlt: JANO,
+    addressingMode: 'lid',
+  }
+
+  it('el prototipo miente: los campos sin usar existen y valen null', () => {
+    const m = comoProtobuf({ conversation: 'hola' })
+    expect('imageMessage' in m).toBe(true)
+    expect(m['imageMessage']).toBeNull()
+    expect(Object.keys(m)).toEqual(['conversation'])
+  })
+
+  it('un texto de grupo se normaliza: NO se descarta', () => {
+    const m = normalizarMensaje(
+      { key: llaveReal, messageTimestamp: 1789700000, pushName: 'Jano',
+        message: comoProtobuf({ conversation: 'mensaje antes de allowlist tres', messageContextInfo: {} }) },
+      ctx,
+    )
+    expect(m).not.toBeNull()
+    expect(m?.chat.tipo).toBe('grupo')
+    expect(m?.autor.idExterno).toBe(JANO)
+  })
+
+  it('y es TEXTO, no una imagen', () => {
+    const m = normalizarMensaje(
+      { key: llaveReal, message: comoProtobuf({ conversation: 'hola', messageContextInfo: {} }) },
+      ctx,
+    )
+    expect(m?.tipoDeMensaje).toBe('texto')
+    expect(m?.texto).toBe('hola')
+    expect(m?.media).toBeNull()
+  })
+
+  it('desenvolver no desenvuelve un envoltorio que vale null', () => {
+    const m = comoProtobuf({ conversation: 'hola' })
+    expect(desenvolver(m)).toBe(m)
+  })
+
+  it('contenidoDe no confunde el prototipo con un adjunto', () => {
+    const c = contenidoDe(comoProtobuf({ conversation: 'hola' }), 'W1')
+    expect(c?.tipo).toBe('texto')
+    expect(c?.media).toBeNull()
+    expect(c?.respondeA).toBeNull()
+  })
+
+  it('una imagen de verdad sigue siendo una imagen', () => {
+    const c = contenidoDe(
+      comoProtobuf({ imageMessage: { mimetype: 'image/jpeg', fileLength: 1234, caption: 'ojo' } }),
+      'W2',
+    )
+    expect(c?.tipo).toBe('imagen')
+    expect(c?.media?.mime).toBe('image/jpeg')
+  })
+
+  it('una respuesta con extendedTextMessage conserva a quién cita', () => {
+    const c = contenidoDe(
+      comoProtobuf({ extendedTextMessage: { text: 'Sí', contextInfo: { stanzaId: 'ORIGINAL' } } }),
+      'W3',
+    )
+    expect(c?.texto).toBe('Sí')
+    expect(c?.respondeA).toBe('ORIGINAL')
+  })
+
+  it('un borrado de verdad se sigue detectando', () => {
+    const r = protocoloDe(
+      { key: llaveReal, messageTimestamp: 1789700000,
+        message: comoProtobuf({ protocolMessage: { type: 0, key: { id: 'ORIGINAL' } } }) },
+      ctx,
+    )
+    expect(r?.clase).toBe('borrado')
+    expect(r?.datos.idExterno).toBe('ORIGINAL')
+  })
+
+  it('un mensaje efímero de verdad sí se desenvuelve', () => {
+    const m = comoProtobuf({
+      ephemeralMessage: { message: comoProtobuf({ conversation: 'secreto' }) },
+    })
+    expect(contenidoDe(m, 'W4')?.texto).toBe('secreto')
+  })
+})
+
 describe('Ediciones y borrados', () => {
   it('un borrado apunta al mensaje ORIGINAL, no al sobre', () => {
     const r = protocoloDe(
