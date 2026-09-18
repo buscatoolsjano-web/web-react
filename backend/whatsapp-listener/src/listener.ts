@@ -18,6 +18,7 @@ export class Listener {
   private estadoActual: EstadoDeConexion = 'desconectado'
   private intentos = 0
   private ultimoEventoEn: Date | null = null
+  private ultimoMotivo: string | null = null
   private detenido = false
   private temporizador: ReturnType<typeof setTimeout> | null = null
 
@@ -51,7 +52,23 @@ export class Listener {
     return this.ultimoEventoEn?.toISOString() ?? null
   }
 
+  /** El último motivo de caída, saneado. Para `/health`, no para decidir nada. */
+  get motivo(): string | null {
+    return this.ultimoMotivo
+  }
+
+  /**
+   * Qué contestar.
+   *
+   * «Apagado» tapa el estado real sólo cuando no hay nada que atender. Si la
+   * sesión pide vincularse o la conexión se está reintentando, eso gana: son
+   * las dos cosas que necesitan que alguien haga algo, y esconderlas detrás
+   * del kill switch sería un healthcheck que miente en verde.
+   */
   estado(): EstadoDeConexion {
+    if (this.estadoActual === 'requiere_autenticacion' || this.estadoActual === 'reconectando') {
+      return this.estadoActual
+    }
     if (!this.politica().listenerHabilitado) return 'apagado'
     return this.estadoActual
   }
@@ -81,11 +98,13 @@ export class Listener {
       // La sesión se cerró del otro lado. Reintentar no la va a reabrir, y
       // machacar la puerta con un cliente no oficial es cómo se gana un baneo.
       this.estadoActual = 'requiere_autenticacion'
+      this.ultimoMotivo = sanearError(motivo)
       this.registro.evento('error', 'sesion_invalida', { detalle: sanearError(motivo) })
       return
     }
 
     this.intentos += 1
+    this.ultimoMotivo = sanearError(motivo)
     this.estadoActual = 'reconectando'
     const espera = esperaDeReintento(this.intentos)
     this.registro.evento('aviso', 'reconectando', { intento: this.intentos, esperaMs: espera })

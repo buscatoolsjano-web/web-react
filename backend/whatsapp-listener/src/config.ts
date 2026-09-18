@@ -13,6 +13,16 @@
  */
 
 export interface Config {
+  /**
+   * Dónde se guarda lo que se observa.
+   *
+   * `memoria` es el default y no necesita ni Supabase ni cuenta: sirve para
+   * vincular el teléfono y mirar qué llega **antes** de que exista una sola
+   * fila en la base. Conectar un dispositivo y decidir dónde se guardan los
+   * mensajes son dos cosas distintas, y pedir las cuatro variables para poder
+   * escanear un QR obligaría a inventar valores de mentira.
+   */
+  repositorio: 'memoria' | 'supabase'
   supabaseUrl: string
   /** Sólo del lado del servidor. Nunca llega al navegador. */
   supabaseServiceRoleKey: string
@@ -47,14 +57,20 @@ const OBLIGATORIAS = [
  * apagado»— y por la misma razón.
  */
 export function leerConfig(entorno: NodeJS.ProcessEnv = process.env): Config {
-  const faltantes = OBLIGATORIAS.filter((k) => !(entorno[k] ?? '').trim())
+  const repositorio =
+    (entorno['WHATSAPP_REPOSITORIO'] ?? 'memoria').trim() === 'supabase' ? 'supabase' : 'memoria'
+
+  // Las cuatro variables son de la BASE, no de la conexión: se exigen cuando
+  // se va a escribir de verdad, y no antes.
+  const faltantes = repositorio === 'supabase' ? OBLIGATORIAS.filter((k) => !(entorno[k] ?? '').trim()) : []
   if (faltantes.length > 0) throw new ConfigInvalida(faltantes)
 
   return {
-    supabaseUrl: entorno['SUPABASE_URL']!.trim(),
-    supabaseServiceRoleKey: entorno['SUPABASE_SERVICE_ROLE_KEY']!.trim(),
-    companyId: entorno['INTERNAL_WHATSAPP_COMPANY_ID']!.trim(),
-    accountId: entorno['INTERNAL_WHATSAPP_ACCOUNT_ID']!.trim(),
+    repositorio,
+    supabaseUrl: (entorno['SUPABASE_URL'] ?? '').trim(),
+    supabaseServiceRoleKey: (entorno['SUPABASE_SERVICE_ROLE_KEY'] ?? '').trim(),
+    companyId: (entorno['INTERNAL_WHATSAPP_COMPANY_ID'] ?? '').trim(),
+    accountId: (entorno['INTERNAL_WHATSAPP_ACCOUNT_ID'] ?? '').trim(),
     listenerHabilitado: (entorno['LISTENER_ENABLED'] ?? '').trim().toLowerCase() === 'true',
     rutaDeSesion: (entorno['WHATSAPP_AUTH_DIR'] ?? '.whatsapp-auth').trim(),
     puertoDeSalud: Number((entorno['HEALTH_PORT'] ?? '8081').trim()) || 8081,
@@ -64,9 +80,9 @@ export function leerConfig(entorno: NodeJS.ProcessEnv = process.env): Config {
 /** La config, sin secretos, para poder loguearla al arrancar. */
 export function configParaLog(c: Config): Record<string, string | number | boolean> {
   return {
-    supabaseUrl: new URL(c.supabaseUrl).host,
-    companyId: `${c.companyId.slice(0, 8)}…`,
-    accountId: `${c.accountId.slice(0, 8)}…`,
+    supabaseUrl: c.supabaseUrl === '' ? '(sin base)' : new URL(c.supabaseUrl).host,
+    companyId: c.companyId === '' ? '(sin empresa)' : `${c.companyId.slice(0, 8)}…`,
+    accountId: c.accountId === '' ? '(sin cuenta)' : `${c.accountId.slice(0, 8)}…`,
     listenerHabilitado: c.listenerHabilitado,
     puertoDeSalud: c.puertoDeSalud,
   }

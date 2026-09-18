@@ -56,4 +56,32 @@ describe('Cuándo NO hay que reintentar', () => {
       expect(debeReintentar(motivo)).toBe(false)
     }
   })
+
+  /**
+   * Los códigos reales de `DisconnectReason` de Baileys. Se prueban por
+   * nombre y por número porque el motivo llega de las dos formas según por
+   * dónde pase.
+   */
+  it('los motivos definitivos de la librería tampoco se reintentan', () => {
+    for (const motivo of [
+      'loggedOut', '401',
+      'forbidden', '403',
+      'connectionReplaced', '440',
+      'multideviceMismatch', '411',
+      'badSession', '500',
+    ]) {
+      expect(debeReintentar(motivo), motivo).toBe(false)
+    }
+  })
+
+  it('«restartRequired» SÍ se reintenta: es lo normal justo después de vincular', () => {
+    expect(debeReintentar('restartRequired')).toBe(true)
+    expect(debeReintentar('515')).toBe(true)
+  })
+
+  it('y las caídas pasajeras de la librería también', () => {
+    for (const motivo of ['connectionClosed', '428', 'connectionLost', '408', 'timedOut', 'unavailableService', '503']) {
+      expect(debeReintentar(motivo), motivo).toBe(true)
+    }
+  })
 })

@@ -16,6 +16,10 @@ export interface Salud {
   ultimoEvento: string | null
   gruposActivos: number
   contadores: Contadores
+  /** Por qué se cortó la última vez. Saneado: nunca trae número ni token. */
+  motivo?: string | null
+  /** La cuenta vinculada, OFUSCADA. Para saber que es la que tiene que ser. */
+  cuenta?: string | null
 }
 
 export function cuerpoDeSalud(s: Salud): string {

@@ -33,6 +33,40 @@ export function esperaDeReintento(intento: number, azar: () => number = Math.ran
  * es golpear la puerta. Ésa requiere vincular de nuevo, y eso lo hace una
  * persona.
  */
+/**
+ * Las caídas que NO se arreglan reintentando.
+ *
+ * Los nombres salen de `DisconnectReason` de Baileys y los códigos también,
+ * porque el motivo llega de las dos formas según por dónde pase:
+ *
+ * - **401 `loggedOut`** — alguien desvinculó el dispositivo desde el teléfono.
+ * - **403 `forbidden`** — la cuenta está bloqueada. Reintentar contra un baneo
+ *   es la mejor forma de confirmarlo.
+ * - **440 `connectionReplaced`** — otra instancia tomó la sesión. Si las dos
+ *   reintentan, se turnan para echarse hasta que WhatsApp corte por su cuenta.
+ * - **411 `multideviceMismatch`** y **500 `badSession`** — la sesión quedó
+ *   inservible; hay que vincular de nuevo.
+ *
+ * `515 restartRequired` **no** está en la lista, y es importante: es lo normal
+ * justo después de vincular, y ahí hay que reconectar sí o sí.
+ */
+const DEFINITIVOS = [
+  'loggedout',
+  'logout',
+  'unauthorized',
+  '401',
+  'forbidden',
+  '403',
+  'connectionreplaced',
+  '440',
+  'multidevicemismatch',
+  '411',
+  'badsession',
+  '500',
+  'sesioninvalida',
+  'banned',
+]
+
 export function debeReintentar(motivo: string): boolean {
   // Se normaliza antes de comparar porque el mismo motivo llega escrito de
   // varias formas según de dónde salga: `loggedOut` es el nombre de la constante
@@ -40,6 +74,5 @@ export function debeReintentar(motivo: string): boolean {
   // error. Buscar sólo una de las tres es no encontrar ninguna el día que
   // importa.
   const m = motivo.toLowerCase().replace(/[\s_-]/g, '')
-  const definitivos = ['loggedout', 'logout', 'unauthorized', '401', 'sesioninvalida', 'banned']
-  return !definitivos.some((d) => m.includes(d))
+  return !DEFINITIVOS.some((d) => m.includes(d))
 }
