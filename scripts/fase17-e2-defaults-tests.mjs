@@ -234,6 +234,30 @@ async function main() {
     Object.keys(auditCliente[0]?.diff ?? {}).sort().join(','))
   cmp('y la tarifa vieja registrada', listaUsdA.id, auditCliente[0]?.diff?.default_price_list_id?.from)
 
+  // La tarifa no es obligatoria: un cliente puede quedarse sin ninguna, y
+  // entonces el documento nuevo simplemente no recibe sugerencia.
+  const antesDeQuitar = await leerCliente(clienteA.id)
+  const gQuitar = ok(await admin.c.rpc('guardar_cliente', {
+    p_customer: clienteA.id,
+    p_esperado: antesDeQuitar.updated_at,
+    p_datos: { default_price_list_id: null },
+  }), 'quitar la tarifa')
+  cmp('se le puede quitar la tarifa al cliente', 1, gQuitar.campos)
+  cmp('y queda sin ninguna', 'null', String((await leerCliente(clienteA.id)).default_price_list_id))
+  const auditQuitar = ok(await s.from('sales_audit').select('*')
+    .eq('entity_id', clienteA.id).eq('action', 'updated').order('created_at', { ascending: false }), 'auditoría')
+  cmp('el quite queda auditado con su antes', listaUsdB.id,
+    auditQuitar[0]?.diff?.default_price_list_id?.from)
+  cmp('la cotización de antes SIGUE con su tarifa', listaUsdA.id, (await cotizacion(q1.id)).price_list_id)
+
+  // Se la devolvemos para lo que sigue.
+  const trasQuitar = await leerCliente(clienteA.id)
+  ok(await admin.c.rpc('guardar_cliente', {
+    p_customer: clienteA.id,
+    p_esperado: trasQuitar.updated_at,
+    p_datos: { default_price_list_id: listaUsdB.id },
+  }), 'devolver la tarifa')
+
   // ── 3 · La conversión conserva el snapshot ───────────────────────────────
   seccion('3 · Cotización → pedido: manda la cotización, no el cliente')
 

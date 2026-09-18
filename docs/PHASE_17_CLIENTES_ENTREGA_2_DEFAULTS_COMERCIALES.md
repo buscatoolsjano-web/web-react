@@ -102,7 +102,7 @@ deja **un solo evento `updated`** con el antes y el después de los cuatro campo
 
 | Suite | Resultado |
 |---|---|
-| `scripts/fase17-e2-defaults-tests.mjs` (base real) | **23 PASS · 0 fallos** |
+| `scripts/fase17-e2-defaults-tests.mjs` (base real) | **27 PASS · 0 fallos** |
 | `scripts/fase17-e1-clientes-tests.mjs` (regresión E1) | 0 fallos |
 | `npm test` / `npm run test:isolated` | 1479 tests, 127 archivos |
 | `npm run lint`, `npx tsc -b`, `npm run build` | limpio |
@@ -114,7 +114,7 @@ cambio de cliente, e inválido que no se conserva— más 7 en `CotizacionNuevaP
 
 De la base: `la cotización NO cambió` y `ni siquiera se tocó su updated_at` después de cambiarle los
 cuatro defaults al cliente; `pero un documento nuevo ya recibiría la tarifa nueva`; `el pedido hereda
-la tarifa de la COTIZACIÓN`; `la copia repite la tarifa del original`; `una tarifa en otra moneda que
+la tarifa de la COTIZACIÓN`; `la copia repite la tarifa del original`; `se le puede quitar la tarifa al cliente` y `la cotización de antes SIGUE con su tarifa`; `una tarifa en otra moneda que
 la del documento — TARIFA_OTRA_MONEDA`; `producción idéntica al baseline`.
 
 ## 9 · Verificación en el navegador
