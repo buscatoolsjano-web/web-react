@@ -105,6 +105,7 @@ async function principal(): Promise<void> {
   const desde = new Date().toISOString()
   const salud = servidorDeSalud(config.puertoDeSalud, () => ({
     estado: listener.estado(),
+    conexion: listener.conexion,
     desde,
     ultimoEvento: listener.ultimoEvento,
     gruposActivos: politica.grupos.filter((g) => g.habilitado).length,

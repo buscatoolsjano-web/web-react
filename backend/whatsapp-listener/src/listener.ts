@@ -52,6 +52,18 @@ export class Listener {
     return this.ultimoEventoEn?.toISOString() ?? null
   }
 
+  /**
+   * El estado REAL del socket, sin el filtro del kill switch.
+   *
+   * Existe porque «apagado» y «nunca se conectó» se veían igual en `/health`, y
+   * son dos cosas muy distintas: una es normal y la otra hay que atenderla.
+   * Apareció mirando el healthcheck justo después de vincular el teléfono: la
+   * cuenta estaba conectada y la pantalla decía lo mismo que si no lo estuviera.
+   */
+  get conexion(): EstadoDeConexion {
+    return this.estadoActual
+  }
+
   /** El último motivo de caída, saneado. Para `/health`, no para decidir nada. */
   get motivo(): string | null {
     return this.ultimoMotivo
@@ -80,6 +92,7 @@ export class Listener {
     await this.transporte.conectar()
     this.estadoActual = this.transporte.estado()
     this.intentos = 0
+    if (this.estadoActual === 'conectado') this.ultimoMotivo = null
     this.registro.evento('info', 'listener_conectado', { estado: this.estado() })
   }
 
@@ -116,6 +129,7 @@ export class Listener {
       await this.transporte.conectar()
       this.estadoActual = this.transporte.estado()
       this.intentos = 0
+      if (this.estadoActual === 'conectado') this.ultimoMotivo = null
       this.registro.evento('info', 'reconectado')
     } catch (e) {
       this.registro.evento('error', 'reconexion_fallida', { detalle: sanearError(e) })
