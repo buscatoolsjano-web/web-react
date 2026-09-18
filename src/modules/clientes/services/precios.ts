@@ -89,6 +89,7 @@ interface FilaUltimo {
   ultimo_precio: number | string | null
   ultima_fecha: string | null
   ultimo_documento: string | null
+  ultimo_documento_id: string | null
   ultimo_tipo: string
   precio_anterior: number | string | null
   veces: number | string
@@ -119,6 +120,7 @@ export async function ultimosPrecios(
     ultimoPrecio: aNumero(f.ultimo_precio),
     ultimaFecha: f.ultima_fecha,
     ultimoDocumento: f.ultimo_documento,
+    ultimoDocumentoId: f.ultimo_documento_id,
     ultimoTipo: aTipo(f.ultimo_tipo),
     precioAnterior: aNumero(f.precio_anterior),
     veces: aNumero(f.veces) ?? 0,

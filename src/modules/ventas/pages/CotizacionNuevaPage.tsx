@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ActionBar } from '@/components/document/ActionBar'
@@ -89,7 +89,22 @@ export function CotizacionNuevaPage() {
   const navegar = useNavigate()
   const queryClient = useQueryClient()
 
-  const inicial = useMemo(() => borradorNuevo(hoyLocal(), FORMA_PAGO_HABITUAL), [])
+  /**
+   * El cliente puede venir puesto en la URL (Fase 17 · E4).
+   *
+   * Es como se llega desde «Nueva cotización» o «Nuevo pedido» en la ficha del
+   * cliente. Entra en el borrador **inicial**, no por un efecto: así el
+   * documento nace con el cliente puesto en vez de empezar vacío y cambiar, y
+   * llegar con el cliente ya elegido no cuenta como «cambios sin guardar».
+   */
+  const [parametros] = useSearchParams()
+  const clienteDeLaUrl = parametros.get('cliente')
+  const inicial = useMemo(() => {
+    const vacio = borradorNuevo(hoyLocal(), FORMA_PAGO_HABITUAL)
+    return clienteDeLaUrl ? cambiarCliente(vacio, clienteDeLaUrl).borrador : vacio
+    // Sólo al montar: cambiar de cliente después no vuelve a mirar la URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [b, setB] = useState<Borrador>(inicial)
   const [buscando, setBuscando] = useState(false)
   const [avisoContacto, setAvisoContacto] = useState(false)
@@ -158,11 +173,14 @@ export function CotizacionNuevaPage() {
     vendedores: vendedores.data ?? [],
   })
 
-  const elegirCliente = (customerId: string) => {
-    const r = cambiarCliente(b, customerId)
-    setAvisoContacto(r.contactoLimpiado)
-    setB(r.borrador)
-
+  /**
+   * Pide los defaults del cliente y los aplica cuando llegan.
+   *
+   * Está separado de `elegirCliente` porque hay dos caminos hasta acá: elegir
+   * un cliente a mano, y llegar con uno puesto en la URL. Los dos tienen que
+   * terminar en la MISMA regla —la de E2 y E3—, no en dos copias.
+   */
+  const pedirDefaults = (customerId: string) => {
     if (customerId === '' || !activa) {
       setDefaults(null)
       setAvisosCliente([])
@@ -185,6 +203,23 @@ export function CotizacionNuevaPage() {
         if (turno === pedidoDeDefaults.current) setAvisosCliente([])
       })
   }
+
+  const elegirCliente = (customerId: string) => {
+    const r = cambiarCliente(b, customerId)
+    setAvisoContacto(r.contactoLimpiado)
+    setB(r.borrador)
+    pedirDefaults(customerId)
+  }
+
+  // Los defaults del cliente que vino en la URL: una sola vez, al montar. El
+  // `setState` ocurre dentro del `.then()`, no en el cuerpo del efecto.
+  const yaPedidos = useRef(false)
+  useEffect(() => {
+    if (yaPedidos.current || !clienteDeLaUrl || !activa) return
+    yaPedidos.current = true
+    pedirDefaults(clienteDeLaUrl)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clienteDeLaUrl, activa])
 
   const elegirMoneda = (moneda: string) => {
     const actual = tarifas.data?.find((t) => t.id === b.cabecera.listaPrecioId)

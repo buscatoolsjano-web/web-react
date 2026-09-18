@@ -1,0 +1,44 @@
+/* Adjuntos del cliente (Fase 17 · E4). */
+.wrap {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* La barra de subida: el tipo y el botón en una fila, la ayuda debajo. */
+.subida {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.subida > :first-child {
+  min-width: 12rem;
+}
+
+/* El input real: se dispara desde el botón, que sí se ve como el resto. */
+.archivo {
+  display: none;
+}
+
+.ayuda {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.peligro {
+  color: var(--color-danger);
+}

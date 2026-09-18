@@ -14,6 +14,7 @@ const estado = vi.hoisted(() => ({
   tarifas: [] as { id: string; nombre: string }[],
   errorGuardar: null as Error | null,
   usuarioId: 'u-admin',
+  resumen: null as { cotizaciones: number; pedidos: number; entregas: number } | null,
 }))
 const mutaciones = vi.hoisted(() => ({
   dar: vi.fn(),
@@ -39,10 +40,15 @@ vi.mock('@/features/empresa/useEmpresa', () => ({
 vi.mock('../hooks/useClientes', () => ({
   useCliente: () => ({ data: estado.cliente, isPending: false, isFetching: false, error: null, refetch: vi.fn() }),
   useContactos: () => ({ data: estado.contactos, isPending: false }),
-  useHistorial: () => ({ data: [], isPending: false }),
-  useRelacionados: () => ({ data: { direcciones: estado.direcciones, candidatosDeOc: [] }, isPending: false }),
+  // Fase 17 · E4: cada pestaña tiene su consulta y se pide cuando se abre.
+  useHistorial: () => ({ data: { filas: [], total: 0 }, isPending: false, isFetching: false }),
+  useDirecciones: () => ({ data: estado.direcciones, isPending: false, refetch: vi.fn() }),
+  useCandidatosDeOc: () => ({ data: [], isPending: false }),
   // Fase 17 · E1: vendedores y tarifas de los dos desplegables comerciales.
   useOpcionesComerciales: () => ({ vendedores: estado.vendedores, tarifas: estado.tarifas }),
+}))
+vi.mock('../hooks/useResumen', () => ({
+  useResumenCliente: () => ({ data: estado.resumen, isPending: false }),
 }))
 vi.mock('../hooks/useEdicionClientes', () => ({
   useActualizarCliente: () => ({ mutate: mutaciones.guardar, isPending: false, error: estado.errorGuardar }),
@@ -56,7 +62,9 @@ vi.mock('../components/EditorDirecciones', () => ({ EditorDirecciones: () => <p>
 vi.mock('../components/PanelMemoria', () => ({ PanelMemoria: () => <p>memoria</p> }))
 vi.mock('../components/PanelPrecios', () => ({ PanelPrecios: () => <p>precios</p> }))
 vi.mock('../components/PanelHistorial', () => ({ PanelHistorial: () => <p>historial</p> }))
-vi.mock('../components/PanelRelacionados', () => ({ PanelRelacionados: () => <p>relacionados</p> }))
+vi.mock('../components/PanelProductos', () => ({ PanelProductos: () => <p>productos</p> }))
+vi.mock('../components/PanelAdjuntos', () => ({ PanelAdjuntos: () => <p>adjuntos</p> }))
+vi.mock('../components/PanelTrazabilidad', () => ({ PanelTrazabilidad: () => <p>trazabilidad</p> }))
 
 const { ClienteDetallePage } = await import('./ClienteDetallePage')
 
@@ -121,6 +129,7 @@ beforeEach(() => {
   estado.contactos = [{ id: 'k1', nombre: 'ZZ Ana', cargo: 'Compras', email: null, telefono: null, fax: null, esPrincipal: true, notas: null, activo: true, actualizadoEn: '2026-01-01T00:00:00Z' }]
   estado.errorGuardar = null
   estado.usuarioId = 'u-admin'
+  estado.resumen = { cotizaciones: 2, pedidos: 1, entregas: 0 }
   estado.vendedores = [{ id: 'u1', nombre: 'ZZ Vendedora' }]
   estado.tarifas = [{ id: 'pl1', nombre: 'ZZ Mayorista' }]
   estado.direcciones = [{ id: 'd1', tipo: 'both', calle: 'ZZ Calle 1', ciudad: null, provincia: null, codigoPostal: null, pais: 'AR', notas: null, esPrincipal: true, texto: 'ZZ Calle 1, AR', activo: true, actualizadoEn: '2026-01-01T00:00:00Z' }]
@@ -147,7 +156,7 @@ describe('Ficha del cliente (Fase 13 · E4)', () => {
     estado.contactos = []
     estado.direcciones = []
     const { container } = montar()
-    for (const t of ['Sin contactos', 'Sin emails', 'Sin teléfono', 'Sin CUIT', 'Sin direcciones', 'Sin rubro', 'Sin dominios', 'Sin notas']) {
+    for (const t of ['Sin contacto principal', 'Sin emails', 'Sin teléfono', 'Sin CUIT', 'Sin direcciones', 'Sin vendedor asignado', 'Sin rubro', 'Sin dominios', 'Sin notas']) {
       expect(screen.getByText(t)).toBeInTheDocument()
     }
     expect(container).not.toHaveTextContent(/undefined|null|NaN/)

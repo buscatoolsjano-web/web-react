@@ -1,12 +1,14 @@
 import { supabase } from '@/services/supabase/client'
 import type {
+  CandidatoDeOc,
   ClienteDetalle,
   ClienteListado,
   ContactoCliente,
+  DireccionCliente,
   DocumentoDeCliente,
   FiltrosClientes,
   PaginaDeClientes,
-  RelacionadosCliente,
+  PaginaDeDocumentos,
 } from '../types'
 
 /**
@@ -307,132 +309,122 @@ export async function contactosDeCliente(
 }
 
 /**
- * El historial del cliente.
+ * El historial documental del cliente, paginado (Fase 17 · E4).
  *
- * Por `customer_id`, que es una FK real. El legacy lo resolvía con
- * `getDocumentosCliente`, que comparaba el NOMBRE del cliente normalizado
- * contra el nombre guardado en cada documento: bastaba corregir una tilde
- * para que un cliente perdiera su historia.
- *
- * Se traen los últimos de cada tipo. No es el listado de Ventas: para ver
- * todos, la ficha enlaza al listado filtrado por este cliente.
+ * Antes eran TRES consultas desde el navegador con `limit 200` cada una,
+ * unidas y ordenadas en memoria: los 258 documentos de Grupo Mirgor viajaban
+ * al abrir la ficha aunque nadie mirara la pestaña. Ahora es **una** consulta
+ * —`documentos_del_cliente`, un UNION del lado del servidor— que devuelve la
+ * página pedida y, en la misma pasada, cuántos hay en total.
  */
 export async function documentosDeCliente(
-  companyId: string,
   clienteId: string,
-  tope = 200,
-): Promise<DocumentoDeCliente[]> {
-  const consultas = [
-    {
-      tabla: 'sales_quotes' as const,
-      tipo: 'cotizacion' as const,
-      fecha: 'quote_date',
-      estado: 'status',
-    },
-    {
-      tabla: 'sales_orders' as const,
-      tipo: 'pedido' as const,
-      fecha: 'order_date',
-      estado: 'commercial_status',
-    },
-    {
-      tabla: 'deliveries' as const,
-      tipo: 'entrega' as const,
-      fecha: 'delivery_date',
-      estado: 'status',
-    },
-  ]
+  opciones: { tipo?: string | null; pagina?: number; porPagina?: number } = {},
+): Promise<PaginaDeDocumentos> {
+  const porPagina = opciones.porPagina ?? 25
+  const pagina = opciones.pagina ?? 1
 
-  const partes = await Promise.all(
-    consultas.map(async (c) => {
-      const { data, error } = await supabase
-        .from(c.tabla)
-        .select(`id, number, original_number, ${c.fecha}, ${c.estado}, currency_code, total`)
-        .eq('company_id', companyId)
-        .eq('customer_id', clienteId)
-        .order(c.fecha, { ascending: false })
-        .limit(tope)
-      if (error) throw new Error(`No se pudo leer ${c.tabla}: ${error.message}`)
-      return ((data ?? []) as unknown as Record<string, unknown>[]).map((f) => ({
-        id: String(f['id']),
-        tipo: c.tipo,
-        // Para el histórico se muestra el número original literal, que es el
-        // que figura en el papel que tiene el cliente.
-        numero: String(f['original_number'] ?? f['number']),
-        fecha: typeof f[c.fecha] === 'string' ? (f[c.fecha] as string) : '',
-        estado: typeof f[c.estado] === 'string' ? (f[c.estado] as string) : '',
-        moneda: typeof f['currency_code'] === 'string' ? f['currency_code'] : null,
-        total: aNumero(f['total'] as number | string | null),
-      }))
-    }),
-  )
+  const { data, error } = await supabase.rpc('documentos_del_cliente', {
+    p_customer: clienteId,
+    p_tipo: opciones.tipo ?? null,
+    p_limit: porPagina,
+    p_offset: (pagina - 1) * porPagina,
+  })
+  if (error) throw new Error(`No se pudo leer el historial: ${error.message}`)
 
-  return partes.flat().sort((a, b) => b.fecha.localeCompare(a.fecha))
+  const filas = (data ?? []) as unknown as {
+    tipo: string
+    documento_id: string
+    numero: string | null
+    fecha: string | null
+    estado: string | null
+    moneda: string | null
+    total: number | string | null
+    total_filas: number | string
+  }[]
+
+  return {
+    filas: filas.map((f) => ({
+      id: f.documento_id,
+      tipo: f.tipo as DocumentoDeCliente['tipo'],
+      // En el histórico se muestra el número original literal, que es el que
+      // figura en el papel que tiene el cliente.
+      numero: f.numero ?? '',
+      fecha: f.fecha ?? '',
+      estado: f.estado ?? '',
+      moneda: f.moneda,
+      total: aNumero(f.total),
+    })),
+    total: filas.length > 0 ? (Number(filas[0]!.total_filas) || 0) : 0,
+  }
 }
 
 /**
- * Lo demás que cuelga del cliente.
+ * Las direcciones del cliente (Fase 17 · E4: consulta propia).
  *
- * Direcciones y candidatos de orden de compra. Las dos tablas existen y
- * tienen `customer_id`; la de direcciones está vacía hasta que alguien las
- * cargue desde la ficha.
- *
- * Los alias de producto salían de acá y ahora tienen su propia pestaña y su
- * propio servicio: dejaron de ser «algo relacionado» para ser la memoria de
- * productos, que se edita.
+ * Venía junto con los candidatos de orden de compra en `relacionadosDeCliente`.
+ * Se separó porque la ficha necesita la dirección principal **siempre** —va en
+ * la cabecera— y los candidatos de OC casi nunca: son 134 filas repartidas en
+ * 19 de los 1.010 clientes. Pedirlos juntos era pagar los dos por uno.
  */
-export async function relacionadosDeCliente(
+export async function direccionesDeCliente(
   companyId: string,
   clienteId: string,
-): Promise<RelacionadosCliente> {
-  const [dir, oc] = await Promise.all([
-    supabase
-      .from('customer_addresses')
-      .select(
-        'id, kind, is_default, street, city, state, postal_code, country_code, notes, active, updated_at',
-      )
-      .eq('company_id', companyId)
-      .eq('customer_id', clienteId)
-      .order('active', { ascending: false })
-      .order('is_default', { ascending: false })
-      .order('kind', { ascending: true }),
-    supabase
-      .from('customer_po_candidates')
-      .select('id, candidate, source_type, doc_count, status, created_at')
-      .eq('company_id', companyId)
-      .eq('customer_id', clienteId)
-      .order('doc_count', { ascending: false })
-      .limit(50),
-  ])
+): Promise<DireccionCliente[]> {
+  const { data, error } = await supabase
+    .from('customer_addresses')
+    .select(
+      'id, kind, is_default, street, city, state, postal_code, country_code, notes, active, updated_at',
+    )
+    .eq('company_id', companyId)
+    .eq('customer_id', clienteId)
+    .order('active', { ascending: false })
+    .order('is_default', { ascending: false })
+    .order('kind', { ascending: true })
+  if (error) throw new Error(`No se pudieron leer las direcciones: ${error.message}`)
 
-  if (dir.error) throw new Error(`No se pudieron leer las direcciones: ${dir.error.message}`)
-  if (oc.error) throw new Error(`No se pudieron leer las OC: ${oc.error.message}`)
+  return (data ?? []).map((d) => ({
+    id: d.id,
+    tipo: d.kind,
+    calle: d.street ?? '',
+    ciudad: d.city,
+    provincia: d.state,
+    codigoPostal: d.postal_code,
+    pais: d.country_code,
+    notas: d.notes,
+    esPrincipal: d.is_default,
+    texto: [d.street, d.city, d.state, d.postal_code, d.country_code]
+      .map((p) => (p ?? '').trim())
+      .filter((p) => p !== '')
+      .join(', '),
+    activo: d.active,
+    actualizadoEn: d.updated_at,
+  }))
+}
 
-  return {
-    direcciones: (dir.data ?? []).map((d) => ({
-      id: d.id,
-      tipo: d.kind,
-      calle: d.street ?? '',
-      ciudad: d.city,
-      provincia: d.state,
-      codigoPostal: d.postal_code,
-      pais: d.country_code,
-      notas: d.notes,
-      esPrincipal: d.is_default,
-      texto: [d.street, d.city, d.state, d.postal_code, d.country_code]
-        .map((p) => (p ?? '').trim())
-        .filter((p) => p !== '')
-        .join(', '),
-      activo: d.active,
-      actualizadoEn: d.updated_at,
-    })),
-    candidatosDeOc: (oc.data ?? []).map((c) => ({
-      id: c.id,
-      archivo: c.candidate,
-      detectadoEn: c.created_at,
-      estado: c.status,
-    })),
-  }
+/**
+ * Los candidatos de orden de compra que detectó la migración leyendo los
+ * documentos. Ninguna OC se crea sola a partir de ellos.
+ */
+export async function candidatosDeOc(
+  companyId: string,
+  clienteId: string,
+): Promise<CandidatoDeOc[]> {
+  const { data, error } = await supabase
+    .from('customer_po_candidates')
+    .select('id, candidate, source_type, doc_count, status, created_at')
+    .eq('company_id', companyId)
+    .eq('customer_id', clienteId)
+    .order('doc_count', { ascending: false })
+    .limit(50)
+  if (error) throw new Error(`No se pudieron leer las OC: ${error.message}`)
+
+  return (data ?? []).map((c) => ({
+    id: c.id,
+    archivo: c.candidate,
+    detectadoEn: c.created_at,
+    estado: c.status,
+  }))
 }
 
 // ── Opciones comerciales (Fase 17 · E1) ────────────────────────────────────

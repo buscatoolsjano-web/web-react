@@ -1,0 +1,59 @@
+/* La trazabilidad del cliente: una lista semántica, no una tabla. */
+.wrap {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.linea {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cada evento es una tarjeta con una línea vertical a la izquierda: leído de
+   arriba abajo es una historia, y en mobile no necesita columnas. */
+.item {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-brand-500);
+  border-radius: var(--radius-lg);
+}
+
+.titulo {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.detalles {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+}
+
+.detalles li {
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.paginas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DocSection } from '@/components/document/DocSection'
+import { Field } from '@/components/forms/Field'
+import { Select } from '@/components/forms/controls'
 import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { SkeletonRows } from '@/components/ui/Skeleton'
@@ -46,11 +48,35 @@ export function PanelPrecios({ clienteId }: PanelPreciosProps) {
   const [pagina, setPagina] = useState(1)
   const [porPagina, setPorPagina] = useState(25)
   const [moneda, setMoneda] = useState<string | null>(null)
+  /**
+   * Fase 17 · E4: filtrar las líneas por producto.
+   *
+   * `usePreciosHistoricos` ya aceptaba el producto y la pantalla le pasaba
+   * `null`: el filtro existía del lado del servidor y no había forma de usarlo.
+   * Con 772 líneas en el cliente más grande, buscar un precio era paginar.
+   */
+  const [producto, setProducto] = useState<string | null>(null)
 
   const ultimos = useUltimosPrecios(clienteId)
-  const historial = usePreciosHistoricos(clienteId, pagina, porPagina, null)
+  const historial = usePreciosHistoricos(clienteId, pagina, porPagina, producto)
+
+  const elegirProducto = (id: string | null) => {
+    setProducto(id)
+    // Filtrar y quedarse en la página 7 deja la tabla vacía sin decir por qué.
+    setPagina(1)
+  }
 
   const monedas = [...new Set((ultimos.data ?? []).map((u) => u.moneda ?? ''))].sort()
+
+  // El desplegable de productos se arma con lo que YA se cargó arriba: son
+  // exactamente los productos que este cliente tuvo. Cero consultas nuevas.
+  const productos = [
+    ...new Map(
+      (ultimos.data ?? [])
+        .filter((u) => u.productId !== null)
+        .map((u) => [u.productId!, u.sku ? `${u.sku} · ${u.nombre ?? ''}` : (u.nombre ?? u.productId!)]),
+    ).entries(),
+  ].sort((a, b) => a[1].localeCompare(b[1], 'es'))
   const resumen = (ultimos.data ?? []).filter(
     (u) => moneda === null || (u.moneda ?? '') === moneda,
   )
@@ -148,9 +174,16 @@ export function PanelPrecios({ clienteId }: PanelPreciosProps) {
                     </td>
                     <td className={tabla.nowrap}>{formatearFecha(u.ultimaFecha)}</td>
                     <td className={tabla.nowrap}>
-                      <Link className={tabla.enlace} to={RUTA[u.ultimoTipo]}>
-                        {u.ultimoDocumento ?? '—'}
-                      </Link>
+                      {u.ultimoDocumentoId ? (
+                        <Link
+                          className={tabla.enlace}
+                          to={`${RUTA[u.ultimoTipo]}/${u.ultimoDocumentoId}`}
+                        >
+                          {u.ultimoDocumento ?? 'Ver'}
+                        </Link>
+                      ) : (
+                        (u.ultimoDocumento ?? '—')
+                      )}
                     </td>
                     <td className={tabla.num}>{u.veces}</td>
                   </tr>
@@ -162,6 +195,24 @@ export function PanelPrecios({ clienteId }: PanelPreciosProps) {
       </DocSection>
 
       <DocSection title="Todas las líneas con precio">
+        {productos.length > 1 ? (
+          <div className={styles.filtro}>
+            <Field label="Producto" id="filtro-producto-precios" optional>
+              <Select
+                value={producto ?? ''}
+                onChange={(e) => elegirProducto(e.target.value === '' ? null : e.target.value)}
+              >
+                <option value="">Todos los productos</option>
+                {productos.map(([id, etiqueta]) => (
+                  <option key={id} value={id}>
+                    {etiqueta}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+        ) : null}
+
         <div className={tabla.contenedor}>
           <table className={tabla.tabla}>
             <thead>

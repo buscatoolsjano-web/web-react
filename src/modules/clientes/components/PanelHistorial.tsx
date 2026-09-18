@@ -10,14 +10,33 @@ import { GraficoActividad } from './GraficoActividad'
 import { useActividadMensual, useTotalesPorMoneda } from '../hooks/useResumen'
 import { etiquetaDeEstado } from '../lib/estados'
 import { formatearFecha, formatearImporte } from '../lib/formato'
-import type { DocumentoDeCliente, TipoDeDocumento } from '../types'
+import { Paginador } from './Paginador'
+import type { CandidatoDeOc, DocumentoDeCliente, TipoDeDocumento } from '../types'
 import styles from './PanelHistorial.module.css'
 
 export interface PanelHistorialProps {
   clienteId: string
+  /** La PÁGINA de documentos, no todos: la paginación es del servidor. */
   documentos: readonly DocumentoDeCliente[]
+  /** Cuántos hay en total, para el paginador. */
+  total: number
+  pagina: number
+  porPagina: number
   cargando: boolean
+  /** Cambiando de página: la tabla anterior sigue visible, atenuada. */
+  recargando?: boolean
+  /**
+   * Los candidatos de orden de compra que detectó la migración. Vivían en una
+   * pestaña propia («Relacionados») que estaba vacía para 991 de los 1.010
+   * clientes; son papeles del cliente que aparecieron en sus documentos, así
+   * que su lugar es acá.
+   */
+  candidatosDeOc: readonly CandidatoDeOc[]
+  onPagina: (pagina: number) => void
+  onTamano: (porPagina: number) => void
 }
+
+const DOCUMENTO = { singular: 'documento', plural: 'documentos' }
 
 const RUTA: Record<TipoDeDocumento, string> = {
   cotizacion: '/ventas/cotizaciones',
@@ -53,15 +72,26 @@ const PLURAL: Record<TipoDeDocumento, string> = {
  * Fase 13 · E4: tres secciones (importes, actividad, documentos) con la tabla
  * común y el estado como `Badge`.
  */
-export function PanelHistorial({ clienteId, documentos, cargando }: PanelHistorialProps) {
+export function PanelHistorial({
+  clienteId,
+  documentos,
+  total,
+  pagina,
+  porPagina,
+  cargando,
+  recargando = false,
+  candidatosDeOc,
+  onPagina,
+  onTamano,
+}: PanelHistorialProps) {
   const totales = useTotalesPorMoneda(clienteId)
   const actividad = useActividadMensual(clienteId, 12)
 
-  const porTipo = {
-    cotizacion: documentos.filter((d) => d.tipo === 'cotizacion').length,
-    pedido: documentos.filter((d) => d.tipo === 'pedido').length,
-    entrega: documentos.filter((d) => d.tipo === 'entrega').length,
-  }
+  // Fase 17 · E4: contar sobre `documentos` contaría la PÁGINA. Los totales
+  // por tipo salen de la misma consulta que los importes, que el servidor
+  // calcula sobre todos los documentos del cliente.
+  const porTipo = { cotizacion: 0, pedido: 0, entrega: 0 }
+  for (const t of totales.data ?? []) porTipo[t.tipo] += t.documentos
 
   // Una caja por moneda, con el desglose por tipo adentro. La moneda manda
   // sobre el tipo porque es lo que hace que dos importes sean comparables.
@@ -83,7 +113,7 @@ export function PanelHistorial({ clienteId, documentos, cargando }: PanelHistori
 
   if (cargando) return <SkeletonRows rows={4} columns={5} label="Cargando historial…" />
 
-  if (documentos.length === 0) {
+  if (documentos.length === 0 && pagina === 1) {
     return (
       <EmptyState
         compact
@@ -180,7 +210,36 @@ export function PanelHistorial({ clienteId, documentos, cargando }: PanelHistori
             </tbody>
           </table>
         </div>
+        <Paginador
+          pagina={pagina}
+          porPagina={porPagina}
+          total={total}
+          cargando={recargando}
+          sustantivo={DOCUMENTO}
+          onIr={onPagina}
+          onTamano={onTamano}
+        />
       </DocSection>
+
+      {candidatosDeOc.length > 0 ? (
+        <DocSection title={`Órdenes de compra detectadas (${candidatosDeOc.length})`}>
+          <p className={styles.aclaracion}>
+            Números de orden de compra que la migración encontró escritos en los documentos de este
+            cliente. Ninguna orden se crea sola a partir de ellos.
+          </p>
+          <ul className={styles.candidatos}>
+            {candidatosDeOc.map((c) => (
+              <li key={c.id}>
+                <Icon name="paperclip" size={16} />
+                <span className={styles.candidato}>{c.archivo ?? '—'}</span>
+                <span className={styles.lineaDocs}>
+                  {c.estado ?? 'Sin estado'} · {formatearFecha(c.detectadoEn)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </DocSection>
+      ) : null}
     </div>
   )
 }

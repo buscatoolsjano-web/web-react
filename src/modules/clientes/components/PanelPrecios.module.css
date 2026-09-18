@@ -77,3 +77,12 @@
     min-height: var(--touch-target);
   }
 }
+
+/* Fase 17 · E4: el filtro por producto sobre las líneas. */
+.filtro {
+  margin-bottom: var(--space-3);
+}
+
+.filtro > * {
+  max-width: min(32rem, 100%);
+}

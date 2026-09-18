@@ -82,3 +82,26 @@
   outline-offset: var(--focus-offset);
   border-radius: var(--radius-sm);
 }
+
+/* Fase 17 · E4: las órdenes de compra detectadas, que vivían en su propia
+   pestaña y estaban vacías para el 98% de los clientes. */
+.candidatos {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.candidatos li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.candidato {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}

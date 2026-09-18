@@ -1,0 +1,35 @@
+/* Qué compra el cliente (Fase 17 · E4). */
+.wrap {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.filtros > * {
+  min-width: min(18rem, 100%);
+}
+
+/* «en 3 pedidos»: acompaña a la cantidad sin competir con ella. */
+.docs {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: normal;
+}
+
+.nada {
+  color: var(--color-text-muted);
+}
+
+/* Fecha, enlace y tipo del último documento, en una fila que envuelve. */
+.ultima {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

@@ -295,7 +295,11 @@ describe('Nuevo pedido · defaults del cliente', () => {
     estado.defaults = { vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' }
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
-    await waitFor(() => expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista'))
+    // Bajo la carga de la suite completa, la respuesta de los defaults puede
+    // tardar más que el default de waitFor.
+    await waitFor(() => expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista'), {
+      timeout: 8000,
+    })
 
     fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))

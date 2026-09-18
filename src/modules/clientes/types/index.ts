@@ -164,6 +164,8 @@ export interface UltimoPrecio {
   ultimoPrecio: number | null
   ultimaFecha: string | null
   ultimoDocumento: string | null
+  /** Fase 17 · E4: el id, para que el número sea un enlace al documento. */
+  ultimoDocumentoId: string | null
   ultimoTipo: 'cotizacion' | 'pedido'
   precioAnterior: number | null
   veces: number
@@ -230,6 +232,60 @@ export interface DocumentoDeCliente {
   total: number | null
 }
 
+/** Una página del historial documental (Fase 17 · E4). */
+export interface PaginaDeDocumentos {
+  filas: DocumentoDeCliente[]
+  /** El total ANTES de paginar, que calcula la misma consulta. */
+  total: number
+}
+
+/**
+ * Qué compra este cliente (Fase 17 · E4).
+ *
+ * Una fila por producto **y por moneda**, igual que el último precio: un
+ * producto cotizado en USD y en ARS son dos respuestas y no una mezclada.
+ *
+ * Lo cotizado y lo pedido van SEPARADOS y nunca se suman: una cotización es
+ * una pregunta y un pedido es una compra.
+ */
+export interface ProductoDelCliente {
+  productId: string | null
+  sku: string | null
+  nombre: string | null
+  moneda: string | null
+  cotizaciones: number
+  pedidos: number
+  cantidadCotizada: number | null
+  cantidadPedida: number | null
+  ultimaFecha: string | null
+  ultimoTipo: 'cotizacion' | 'pedido'
+  ultimoDocumentoId: string | null
+  ultimoNumero: string | null
+  ultimaCantidad: number | null
+  ultimoPrecio: number | null
+}
+
+export interface PaginaDeProductos {
+  filas: ProductoDelCliente[]
+  total: number
+}
+
+/**
+ * Un evento de la trazabilidad, tal como está en `sales_audit` (Fase 17 · E4).
+ *
+ * Se guarda crudo y se traduce a castellano en `lib/trazabilidad.ts`: la
+ * pantalla no tiene por qué saber que `is_default` quiere decir «principal».
+ */
+export interface EventoDeCliente {
+  id: string
+  accion: string
+  desde: string | null
+  hasta: string | null
+  diff: Record<string, unknown> | null
+  cuando: string
+  quien: string | null
+}
+
 export interface ClienteDetalle {
   id: string
   referencia: string | null
@@ -263,7 +319,6 @@ export interface ClienteDetalle {
   actualizadoEn: string
 }
 
-export interface RelacionadosCliente {
-  direcciones: DireccionCliente[]
-  candidatosDeOc: CandidatoDeOc[]
-}
+
+/** Re-export para que las pantallas no importen del servicio. */
+export type { AdjuntoCliente } from '../services/adjuntos'

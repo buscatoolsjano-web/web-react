@@ -43,3 +43,21 @@ export function formatearCuit(cuit: string | null): string {
 export function nombreVisible(razonSocial: string, nombreComercial: string | null): string {
   return nombreComercial?.trim() || razonSocial.trim() || 'Sin nombre'
 }
+
+/**
+ * `2026-09-16T14:32:10Z` → `16/09/2026 11:32`, en la hora de quien mira.
+ *
+ * La trazabilidad (Fase 17 · E4) necesita la hora: dos cambios del mismo día
+ * se distinguen por ella, y saber que algo pasó «el martes» no alcanza.
+ */
+export function formatearMomento(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return new Intl.DateTimeFormat('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d)
+}

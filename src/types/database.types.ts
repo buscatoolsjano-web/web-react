@@ -6001,6 +6001,49 @@ export type Database = {
         }
         Returns: Json
       }
+      documentos_del_cliente: {
+        Args: {
+          p_customer: string
+          p_limit?: number
+          p_offset?: number
+          p_tipo?: string | null
+        }
+        Returns: {
+          tipo: string
+          documento_id: string
+          numero: string | null
+          fecha: string | null
+          estado: string | null
+          moneda: string | null
+          total: number | null
+          total_filas: number
+        }[]
+      }
+      productos_del_cliente: {
+        Args: {
+          p_customer: string
+          p_limit?: number
+          p_offset?: number
+          p_texto?: string | null
+        }
+        Returns: {
+          product_id: string | null
+          sku: string | null
+          nombre: string | null
+          moneda: string | null
+          cotizaciones: number
+          pedidos: number
+          cantidad_cotizada: number | null
+          cantidad_pedida: number | null
+          ultima_fecha: string | null
+          ultimo_tipo: string
+          ultimo_documento_id: string | null
+          ultimo_numero: string | null
+          ultima_cantidad: number | null
+          ultimo_precio: number | null
+          total_filas: number
+        }[]
+      }
       guardar_cliente: {
         Args: {
           p_customer: string

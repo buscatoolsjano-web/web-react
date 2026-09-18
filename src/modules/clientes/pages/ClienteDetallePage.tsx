@@ -18,11 +18,13 @@ import { Icon } from '@/components/icons/Icon'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { EditorContactos } from '../components/EditorContactos'
 import { EditorDirecciones } from '../components/EditorDirecciones'
+import { PanelAdjuntos } from '../components/PanelAdjuntos'
+import { PanelProductos } from '../components/PanelProductos'
+import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
 import { FormularioCliente } from '../components/FormularioCliente'
 import { PanelHistorial } from '../components/PanelHistorial'
 import { PanelMemoria } from '../components/PanelMemoria'
 import { PanelPrecios } from '../components/PanelPrecios'
-import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelResumen } from '../components/PanelResumen'
 import { explicarMotivo } from '../lib/motivos'
 import { formatearCuit, formatearFecha, nombreVisible } from '../lib/formato'
@@ -30,12 +32,14 @@ import { useAuth } from '@/features/auth/useAuth'
 import { permisosDe } from '../lib/permisos'
 import type { DatosCliente } from '../lib/validacion'
 import {
+  useCandidatosDeOc,
   useCliente,
   useContactos,
+  useDirecciones,
   useHistorial,
   useOpcionesComerciales,
-  useRelacionados,
 } from '../hooks/useClientes'
+import { useResumenCliente } from '../hooks/useResumen'
 import {
   useActualizarCliente,
   useBajaCliente,
@@ -49,10 +53,12 @@ type Pestana =
   | 'informacion'
   | 'contactos'
   | 'direcciones'
+  | 'productos'
   | 'memoria'
   | 'precios'
   | 'historial'
-  | 'relacionados'
+  | 'adjuntos'
+  | 'trazabilidad'
 
 function aFormulario(c: ClienteDetalle): DatosCliente {
   return {
@@ -77,7 +83,7 @@ function aFormulario(c: ClienteDetalle): DatosCliente {
  *
  * El legacy tenía cinco pestañas: Información, Contactos, Memoria de
  * productos, Precios e Historial. Están las cinco, más Direcciones —que en el
- * legacy no existían estructuradas— y Relacionados.
+ * legacy no existían estructuradas—, Productos, Adjuntos y Trazabilidad.
  *
  * **Precios** no es la pestaña del legacy: aquélla leía un caché en
  * `localStorage` que se escribía al guardar cada cotización y no guardaba la
@@ -89,8 +95,12 @@ function aFormulario(c: ClienteDetalle): DatosCliente {
  *   1. identidad (encabezado: nombre, referencia, estado, acciones);
  *   2. contacto (contacto principal, emails, teléfono, CUIT, dirección);
  *   3. actividad (el resumen que calcula el servidor);
- *   4. pestañas para lo que tiene contenido propio: datos comerciales,
- *      contactos, direcciones, memoria, precios, historial y relacionados.
+ *   4. pestañas para lo que tiene contenido propio.
+ *
+ * Fase 17 · E4: cada pestaña pide sus datos **cuando se abre**. Antes, abrir
+ * la ficha disparaba todo —incluidos los 258 documentos del cliente más
+ * grande— se mirara lo que se mirara. Lo único que sale al abrir es lo que se
+ * ve al abrir: la ficha, los contactos, las direcciones y el resumen.
  *
  * Los datos de contacto y comerciales se muestran como lista de definiciones
  * (no parecen campos) y un dato faltante se dice («Sin CUIT»), no se deja vacío.
@@ -106,9 +116,16 @@ export function ClienteDetallePage() {
   // por él: se pasa null y el vendedor no ve los botones hasta que llegue.
   const permisos = permisosDe(activa, cliente ?? null, user?.id ?? null)
   const contactos = useContactos(id)
-  const historial = useHistorial(id)
-  const relacionados = useRelacionados(id)
+  const direccionesConsulta = useDirecciones(id)
+  // La misma consulta que usa el panel «Actividad»: React Query la comparte por
+  // clave, así que pedirla acá para el contador de la pestaña no agrega un
+  // viaje. Lo que evitaría traer 258 documentos sólo para contarlos.
+  const resumen = useResumenCliente(id)
   const [pestana, setPestana] = useState<Pestana>('informacion')
+  // Fase 17 · E4: el historial tiene su propia paginación, del lado del
+  // servidor. Vive acá porque el panel es de presentación.
+  const [paginaHistorial, setPaginaHistorial] = useState(1)
+  const [porPaginaHistorial, setPorPaginaHistorial] = useState(25)
   const [editando, setEditando] = useState(false)
   // Lo informa el formulario: acá sólo se usa para el aviso al salir y para
   // preguntar antes de descartar.
@@ -120,6 +137,16 @@ export function ClienteDetallePage() {
   // cerrar la pestaña. Cambiar de pestaña interna NO navega y no pregunta.
   const salida = useSalidaConCambios(editando && sucio)
   const opciones = useOpcionesComerciales(editando && permisos.editarContactos)
+
+  // Las consultas de cada pestaña salen cuando la pestaña se abre. Abrir la
+  // ficha de un cliente con 258 documentos ya no los trae para no mostrarlos.
+  const historial = useHistorial(id, {
+    pagina: paginaHistorial,
+    porPagina: porPaginaHistorial,
+    tipo: null,
+    habilitado: pestana === 'historial',
+  })
+  const oc = useCandidatosDeOc(id, pestana === 'historial')
 
   const guardar = useActualizarCliente(id ?? '')
   const baja = useBajaCliente(id ?? '')
@@ -171,21 +198,61 @@ export function ClienteDetallePage() {
   // quien ya no atiende.
   const activos = (contactos.data ?? []).filter((c) => c.activo)
   const principal = activos.find((c) => c.esPrincipal) ?? activos[0] ?? null
-  const direcciones = relacionados.data?.direcciones ?? []
-  const direccionPrincipal = direcciones.find((d) => d.esPrincipal) ?? direcciones[0] ?? null
+  const direcciones = direccionesConsulta.data ?? []
+  /**
+   * La dirección que la ficha muestra arriba: la **principal de entrega**, y
+   * sólo ésa. No se cae en «la primera que haya»: mostrar un domicilio
+   * cualquiera como si fuera el del cliente es peor que no mostrar ninguno, y
+   * desde E3 además puede estar dado de baja.
+   */
+  const direccionPrincipal =
+    direcciones.find((d) => d.activo && d.esPrincipal && (d.tipo === 'shipping' || d.tipo === 'both')) ??
+    direcciones.find((d) => d.activo && d.esPrincipal) ??
+    null
+
+  // El contador del historial sale del RESUMEN, que ya está cargado: pedir los
+  // documentos sólo para poder decir cuántos son sería volver al problema.
+  const documentos = resumen.data
+    ? resumen.data.cotizaciones + resumen.data.pedidos + resumen.data.entregas
+    : undefined
 
   const pestanas = [
     { key: 'informacion' as const, label: 'Datos comerciales' },
     { key: 'contactos' as const, label: 'Contactos', count: contactos.data?.length },
     { key: 'direcciones' as const, label: 'Direcciones', count: direcciones.length },
-    { key: 'memoria' as const, label: 'Memoria de productos' },
+    { key: 'productos' as const, label: 'Productos' },
+    { key: 'memoria' as const, label: 'Cómo los llama' },
     { key: 'precios' as const, label: 'Precios' },
-    { key: 'historial' as const, label: 'Historial', count: historial.data?.length },
-    { key: 'relacionados' as const, label: 'Relacionados' },
+    { key: 'historial' as const, label: 'Historial', count: documentos },
+    { key: 'adjuntos' as const, label: 'Adjuntos' },
+    { key: 'trazabilidad' as const, label: 'Trazabilidad' },
   ]
 
+  /**
+   * Un documento nuevo **desde el cliente** (Fase 17 · E4).
+   *
+   * Lo único que se pasa es el cliente, en la URL. Los defaults comerciales
+   * —vendedor, tarifa, forma de pago, moneda— los aplica Ventas con el
+   * mecanismo de E2, y el contacto y el domicilio con el de E3. Copiarlos
+   * desde acá sería tener dos lugares donde vive la misma regla, y el día que
+   * cambie uno, el otro miente.
+   *
+   * No se promete que se vaya a poder crear: si la numeración de ese tipo de
+   * documento la administra STEL, la pantalla de Ventas lo dice y bloquea. Esto
+   * lleva hasta ahí con el cliente puesto, que es todo lo que puede saber.
+   */
   const acciones = editando ? undefined : (
     <>
+      {!cliente.dadoDeBaja ? (
+        <>
+          <LinkButton variant="secondary" to={`/ventas/cotizaciones/nueva?cliente=${cliente.id}`}>
+            Nueva cotización
+          </LinkButton>
+          <LinkButton variant="secondary" to={`/ventas/pedidos/nuevo?cliente=${cliente.id}`}>
+            Nuevo pedido
+          </LinkButton>
+        </>
+      ) : null}
       {permisos.darDeBaja && cliente.dadoDeBaja ? (
         <Button variant="secondary" loading={baja.reactivar.isPending} onClick={() => baja.reactivar.mutate()}>
           {baja.reactivar.isPending ? 'Reactivando…' : 'Reactivar'}
@@ -300,7 +367,9 @@ export function ClienteDetallePage() {
                     {principal.cargo ? <span className={styles.secundario}> · {principal.cargo}</span> : null}
                   </>
                 ) : (
-                  <Missing>Sin contactos</Missing>
+                  // No se elige uno cualquiera entre los que haya: si nadie
+                  // marcó el principal, lo honesto es decirlo.
+                  <Missing>Sin contacto principal</Missing>
                 ),
               },
               {
@@ -321,14 +390,20 @@ export function ClienteDetallePage() {
                   ),
               },
               { label: 'Teléfono', value: cliente.telefono ?? <Missing>Sin teléfono</Missing> },
+              {
+                label: 'Vendedor',
+                value: cliente.vendedor ?? <Missing>Sin vendedor asignado</Missing>,
+              },
               { label: 'CUIT', value: cliente.cuit ? <span className={styles.numero}>{formatearCuit(cliente.cuit)}</span> : <Missing>Sin CUIT</Missing> },
               {
                 label: 'Dirección principal',
                 wide: true,
-                value: relacionados.isPending ? (
+                value: direccionesConsulta.isPending ? (
                   <Missing>Cargando…</Missing>
                 ) : direccionPrincipal ? (
                   direccionPrincipal.texto || <Missing>Sin datos</Missing>
+                ) : direcciones.length > 0 ? (
+                  <Missing>Ninguna marcada como principal</Missing>
                 ) : (
                   <Missing>Sin direcciones</Missing>
                 ),
@@ -451,11 +526,13 @@ export function ClienteDetallePage() {
             <EditorDirecciones
               clienteId={cliente.id}
               direcciones={direcciones}
-              cargando={relacionados.isPending}
+              cargando={direccionesConsulta.isPending}
               puedeEditar={permisos.editarDirecciones && !cliente.dadoDeBaja}
-              onRecargar={() => void relacionados.refetch()}
+              onRecargar={() => void direccionesConsulta.refetch()}
             />
           ) : null}
+
+          {pestana === 'productos' ? <PanelProductos clienteId={cliente.id} /> : null}
 
           {pestana === 'memoria' ? (
             <PanelMemoria clienteId={cliente.id} puedeEditar={permisos.editarMemoria && !cliente.dadoDeBaja} />
@@ -464,10 +541,33 @@ export function ClienteDetallePage() {
           {pestana === 'precios' ? <PanelPrecios clienteId={cliente.id} /> : null}
 
           {pestana === 'historial' ? (
-            <PanelHistorial clienteId={cliente.id} documentos={historial.data ?? []} cargando={historial.isPending} />
+            <PanelHistorial
+              clienteId={cliente.id}
+              documentos={historial.data?.filas ?? []}
+              total={historial.data?.total ?? 0}
+              pagina={paginaHistorial}
+              porPagina={porPaginaHistorial}
+              cargando={historial.isPending}
+              recargando={historial.isFetching}
+              candidatosDeOc={oc.data ?? []}
+              onPagina={setPaginaHistorial}
+              onTamano={(n: number) => {
+                setPorPaginaHistorial(n)
+                setPaginaHistorial(1)
+              }}
+            />
           ) : null}
 
-          {pestana === 'relacionados' ? <PanelRelacionados datos={relacionados.data} cargando={relacionados.isPending} /> : null}
+          {pestana === 'adjuntos' ? (
+            <PanelAdjuntos
+              clienteId={cliente.id}
+              // Un cliente dado de baja se lee, pero no se le sube ni se le
+              // borra nada. Es la misma regla que aplica la policy.
+              puedeEditar={permisos.editarContactos && !cliente.dadoDeBaja}
+            />
+          ) : null}
+
+          {pestana === 'trazabilidad' ? <PanelTrazabilidad clienteId={cliente.id} /> : null}
         </TabPanel>
       </div>
 

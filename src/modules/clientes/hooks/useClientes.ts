@@ -1,22 +1,30 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import {
+  candidatosDeOc,
   contactosDeCliente,
+  direccionesDeCliente,
   documentosDeCliente,
   listarClientes,
   obtenerCliente,
-  relacionadosDeCliente,
   rubrosUsados,
   tarifasDeEmpresa,
   vendedoresDeEmpresa,
 } from '../services/clientes'
+import { productosDelCliente } from '../services/productos'
+import { eventosDeCliente } from '../services/trazabilidad'
+import { listarAdjuntos } from '../services/adjuntos'
 import type {
+  AdjuntoCliente,
+  CandidatoDeOc,
   ClienteDetalle,
   ContactoCliente,
-  DocumentoDeCliente,
+  DireccionCliente,
+  EventoDeCliente,
   FiltrosClientes,
   PaginaDeClientes,
-  RelacionadosCliente,
+  PaginaDeDocumentos,
+  PaginaDeProductos,
 } from '../types'
 
 /**
@@ -65,26 +73,116 @@ export function useContactos(clienteId: string | undefined) {
   })
 }
 
-export function useHistorial(clienteId: string | undefined) {
+/**
+ * El historial documental, paginado (Fase 17 · E4).
+ *
+ * `habilitado` es lo que hace que la consulta **no** salga hasta que alguien
+ * abre la pestaña: abrir la ficha de Grupo Mirgor ya no trae sus 258
+ * documentos para no mostrarlos.
+ */
+export function useHistorial(
+  clienteId: string | undefined,
+  opciones: { pagina: number; porPagina: number; tipo: string | null; habilitado: boolean },
+) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const { pagina, porPagina, tipo, habilitado } = opciones
+
+  return useQuery<PaginaDeDocumentos>({
+    queryKey: ['clientes', companyId, 'historial', clienteId, tipo, pagina, porPagina],
+    queryFn: () => documentosDeCliente(clienteId!, { tipo, pagina, porPagina }),
+    enabled: habilitado && companyId !== null && !!clienteId,
+    // Cambiar de página no tiene que parpadear en blanco, pero la página de
+    // OTRO cliente no se muestra jamás bajo este encabezado.
+    placeholderData: (previa, consultaPrevia) =>
+      consultaPrevia?.queryKey[3] === clienteId ? previa : undefined,
+    staleTime: 30_000,
+  })
+}
+
+/**
+ * Las direcciones. Se piden **siempre**: la principal va en la cabecera.
+ * Son pocas por cliente y la consulta es una sola.
+ */
+export function useDirecciones(clienteId: string | undefined) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
 
-  return useQuery<DocumentoDeCliente[]>({
-    queryKey: ['clientes', companyId, 'historial', clienteId],
-    queryFn: () => documentosDeCliente(companyId!, clienteId!),
+  return useQuery<DireccionCliente[]>({
+    queryKey: ['clientes', companyId, 'direcciones', clienteId],
+    queryFn: () => direccionesDeCliente(companyId!, clienteId!),
     enabled: companyId !== null && !!clienteId,
     staleTime: 30_000,
   })
 }
 
-export function useRelacionados(clienteId: string | undefined) {
+/**
+ * Los candidatos de orden de compra. Lazy: existen en 19 clientes de 1.010, y
+ * pedirlos al abrir cada ficha era pagar por algo que el 98% no tiene.
+ */
+export function useCandidatosDeOc(clienteId: string | undefined, habilitado: boolean) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
 
-  return useQuery<RelacionadosCliente>({
-    queryKey: ['clientes', companyId, 'relacionados', clienteId],
-    queryFn: () => relacionadosDeCliente(companyId!, clienteId!),
-    enabled: companyId !== null && !!clienteId,
+  return useQuery<CandidatoDeOc[]>({
+    queryKey: ['clientes', companyId, 'oc', clienteId],
+    queryFn: () => candidatosDeOc(companyId!, clienteId!),
+    enabled: habilitado && companyId !== null && !!clienteId,
+    staleTime: 5 * 60_000,
+  })
+}
+
+/** Qué compra el cliente (Fase 17 · E4). Lazy y paginado. */
+export function useProductosDelCliente(
+  clienteId: string | undefined,
+  opciones: { texto: string; pagina: number; porPagina: number; habilitado: boolean },
+) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const { texto, pagina, porPagina, habilitado } = opciones
+
+  return useQuery<PaginaDeProductos>({
+    queryKey: ['clientes', companyId, 'productos', clienteId, texto, pagina, porPagina],
+    queryFn: () => productosDelCliente(clienteId!, { texto, pagina, porPagina }),
+    enabled: habilitado && companyId !== null && !!clienteId,
+    placeholderData: (previa, consultaPrevia) =>
+      consultaPrevia?.queryKey[3] === clienteId ? previa : undefined,
+    staleTime: 60_000,
+  })
+}
+
+/** La trazabilidad. Lazy: es la pestaña que menos se abre. */
+export function useTrazabilidad(
+  clienteId: string | undefined,
+  opciones: { pagina: number; porPagina: number; habilitado: boolean },
+) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const { pagina, porPagina, habilitado } = opciones
+
+  return useQuery<{ eventos: EventoDeCliente[]; hayMas: boolean }>({
+    queryKey: ['clientes', companyId, 'trazabilidad', clienteId, pagina, porPagina],
+    queryFn: () =>
+      eventosDeCliente(companyId!, clienteId!, {
+        limite: porPagina,
+        desplazamiento: (pagina - 1) * porPagina,
+      }),
+    enabled: habilitado && companyId !== null && !!clienteId,
+    placeholderData: (previa, consultaPrevia) =>
+      consultaPrevia?.queryKey[3] === clienteId ? previa : undefined,
+    staleTime: 30_000,
+  })
+}
+
+/** Los adjuntos del cliente. Lazy. */
+export function useAdjuntosDeCliente(clienteId: string | undefined, habilitado: boolean) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery<AdjuntoCliente[]>({
+    queryKey: ['clientes', companyId, 'adjuntos', clienteId],
+    queryFn: () => listarAdjuntos(companyId!, clienteId!),
+    enabled: habilitado && companyId !== null && !!clienteId,
     staleTime: 30_000,
   })
 }
