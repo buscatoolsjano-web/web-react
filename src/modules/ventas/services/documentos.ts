@@ -221,13 +221,21 @@ function columnasDetalle(tipo: TipoDocumento): string {
   // guarda, y el nombre viaja en la MISMA consulta: no agrega un viaje.
   // Fase 15 · E4: el pedido también guarda con qué tarifa se vendió.
   const tarifa = tipo === 'entrega' ? '' : ', tarifa:price_lists!price_list_id ( name, currency_code )'
+  // Fase 17 · E3: el domicilio elegido en el pedido, en la MISMA consulta. La
+  // cotización no tiene la columna y el remito ya tiene su snapshot.
+  const entrega =
+    tipo === 'pedido'
+      ? 'entrega:customer_addresses!shipping_address_id ( street, city, state, postal_code, country_code, notes ),'
+      : ''
   // Cada documento tiene los suyos: sólo la cotización lleva descuento
   // global, percepción y validez; la entrega no tiene forma de pago.
   const propios =
     tipo === 'cotizacion'
       ? ', payment_terms, valid_until, discount_pct, perception_pct, price_list_id'
       : tipo === 'pedido'
-        ? ', payment_terms, discount_pct, perception_pct, price_list_id'
+        ? // Fase 17 · E3: el pedido elige a qué domicilio se entrega, y el
+          // remito lo congela al emitirse.
+          ', payment_terms, discount_pct, perception_pct, price_list_id, shipping_address_id'
         : // El remito no tiene forma de pago; sí transporte y seguimiento.
           ', carrier, tracking, delivery_address_snapshot'
   // `external_source` distingue lo que vino de STEL de lo que emitió el ERP;
@@ -241,7 +249,7 @@ function columnasDetalle(tipo: TipoDocumento): string {
     series_code, imported_at, external_source, created_at, updated_at, notes,
     contact_id${c.tieneVendedor ? ', salesperson_id' : ''},
     customers!customer_id ( id, legal_name, trade_name ),
-    contacto:customer_contacts!contact_id ( full_name, role, email, phone ),
+    contacto:customer_contacts!contact_id ( full_name, role, email, phone ),${entrega}
     creador:profiles!created_by ( full_name )${vendedor}${origen}${tarifa}
   `
 }
@@ -345,6 +353,7 @@ export async function obtenerDocumento(
     contactoId: (f['contact_id'] as string | null) ?? null,
     vendedorId: (f['salesperson_id'] as string | null) ?? null,
     listaPrecioId: (f['price_list_id'] as string | null) ?? null,
+    direccionEntregaId: (f['shipping_address_id'] as string | null) ?? null,
     listaPrecioNombre: f.tarifa?.name ?? null,
     contactoRol: f.contacto?.role ?? null,
     contactoEmail: f.contacto?.email ?? null,
@@ -364,6 +373,7 @@ export async function obtenerDocumento(
     // Fase 15 · E6: el domicilio congelado. Nunca se completa con el actual
     // del cliente: si no está, es que no se registró.
     domicilioEntrega: (f['delivery_address_snapshot'] as DomicilioSnapshot | null) ?? null,
+    domicilioElegido: (f['entrega'] as DomicilioSnapshot | null) ?? null,
     validaHasta: f.valid_until ?? null,
     descuentoPct: aNumero(f.discount_pct),
     percepcionPct: aNumero(f.perception_pct),

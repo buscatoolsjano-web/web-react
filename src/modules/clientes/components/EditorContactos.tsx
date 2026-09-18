@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { Icon } from '@/components/icons/Icon'
 import { useContactosEdicion } from '../hooks/useEdicionClientes'
+import { FalloDeAgenda } from '../services/edicion'
 import { CONTACTO_VACIO, validarContacto, type DatosContacto } from '../lib/validacion'
 import type { ContactoCliente } from '../types'
 import styles from './EditorContactos.module.css'
@@ -17,8 +18,10 @@ export interface EditorContactosProps {
   clienteId: string
   contactos: readonly ContactoCliente[]
   cargando: boolean
-  /** Lo decide el rol; lo IMPIDE la policy `contacts_write`. */
+  /** Lo decide el rol y el cliente; lo IMPIDE `app.puede_administrar_cliente`. */
   puedeEditar: boolean
+  /** Para volver a leer la lista cuando hubo un conflicto de edición. */
+  onRecargar?: () => void
 }
 
 function aDatos(c: ContactoCliente): DatosContacto {
@@ -30,57 +33,77 @@ function aDatos(c: ContactoCliente): DatosContacto {
     fax: c.fax ?? '',
     esPrincipal: c.esPrincipal,
     notas: c.notas ?? '',
+    activo: c.activo,
   }
 }
 
 /**
- * Los contactos del cliente, con alta, edición y borrado.
+ * Los contactos del cliente.
  *
  * La relación es siempre `customer_id`, que es NOT NULL: no existe la opción
  * de guardar un contacto «de tal empresa» escribiendo el nombre, que es como
  * los tenía el legacy y por qué renombrar un cliente le perdía la agenda.
  *
- * Un contacto **sí** se borra de verdad: no tiene documentos colgando. El que
- * no se borra nunca es el cliente. Fase 13 · E4: el borrado pide confirmación
- * en un `ConfirmDialog` (antes, «Confirmar borrado / No» en línea).
+ * Fase 17 · E3, tres cambios de fondo:
+ *
+ * - **Una sola escritura.** Antes eran dos —bajar el principal anterior y
+ *   después guardar— y entre las dos el cliente podía quedar sin ninguno.
+ *   Ahora es `guardar_contacto`, una transacción.
+ * - **Concurrencia.** Se manda el `updated_at` que se leyó. Si alguien guardó
+ *   en el medio, el servidor corta y la pantalla ofrece recargar; el borrador
+ *   queda intacto.
+ * - **Desactivar en vez de borrar.** Un contacto que figura en documentos
+ *   emitidos no se borra: se desactiva. Deja de ofrecerse en los documentos
+ *   nuevos y los viejos lo siguen nombrando.
  */
 export function EditorContactos({
   clienteId,
   contactos,
   cargando,
   puedeEditar,
+  onRecargar,
 }: EditorContactosProps) {
   const id = useId()
-  const { crear, actualizar, borrar } = useContactosEdicion(clienteId)
+  const { guardar, borrar } = useContactosEdicion(clienteId)
   const [editando, setEditando] = useState<string | null>(null)
+  const [esperado, setEsperado] = useState<string | null>(null)
   const [datos, setDatos] = useState<DatosContacto>(CONTACTO_VACIO)
   const [errores, setErrores] = useState<string[]>([])
   const [confirmando, setConfirmando] = useState<ContactoCliente | null>(null)
 
   const abrirNuevo = () => {
-    setDatos({ ...CONTACTO_VACIO, esPrincipal: contactos.length === 0 })
+    setDatos({ ...CONTACTO_VACIO, esPrincipal: contactos.filter((c) => c.activo).length === 0 })
     setErrores([])
+    setEsperado(null)
     setEditando('nuevo')
   }
 
   const abrirEdicion = (c: ContactoCliente) => {
     setDatos(aDatos(c))
     setErrores([])
+    setEsperado(c.actualizadoEn)
     setEditando(c.id)
   }
 
-  const guardar = (e: React.FormEvent) => {
+  const enviar = (e: React.FormEvent) => {
     e.preventDefault()
     const encontrados = validarContacto(datos)
     setErrores(encontrados)
     if (encontrados.length > 0) return
-    const alTerminar = { onSuccess: () => setEditando(null) }
-    if (editando === 'nuevo') crear.mutate(datos, alTerminar)
-    else if (editando) actualizar.mutate({ id: editando, datos }, alTerminar)
+    guardar.mutate(
+      { id: editando === 'nuevo' ? null : editando, esperado, datos },
+      { onSuccess: () => setEditando(null) },
+    )
   }
 
-  const guardando = crear.isPending || actualizar.isPending
-  const errorAlGuardar = crear.error?.message ?? actualizar.error?.message ?? null
+  /** Activar o desactivar desde la fila: un solo campo, sin abrir el formulario. */
+  const cambiarActivo = (c: ContactoCliente, activo: boolean) => {
+    guardar.mutate({ id: c.id, esperado: c.actualizadoEn, datos: { ...aDatos(c), activo } })
+  }
+
+  const fallo = guardar.error ?? borrar.error
+  const esConflicto = fallo instanceof FalloDeAgenda && fallo.esConflicto
+  const referenciado = borrar.error instanceof FalloDeAgenda && borrar.error.esReferenciado
 
   const campo = (
     clave: keyof DatosContacto,
@@ -90,14 +113,18 @@ export function EditorContactos({
     const { requerido = false, ...resto } = extra
     return (
       <Field label={etiqueta} required={requerido} id={`${id}-${clave}`}>
-        <Input value={String(datos[clave] ?? '')} onChange={(e) => setDatos({ ...datos, [clave]: e.target.value })} {...resto} />
+        <Input
+          value={String(datos[clave] ?? '')}
+          onChange={(e) => setDatos({ ...datos, [clave]: e.target.value })}
+          {...resto}
+        />
       </Field>
     )
   }
 
   /** El mismo formulario para el alta y para la edición. */
   const formulario = (etiquetaBoton: string) => (
-    <form className={styles.form} onSubmit={guardar} noValidate>
+    <form className={styles.form} onSubmit={enviar} noValidate>
       <div className={styles.grilla}>
         {campo('nombre', 'Nombre', { requerido: true, autoFocus: true })}
         {campo('cargo', 'Cargo')}
@@ -105,20 +132,49 @@ export function EditorContactos({
         {campo('telefono', 'Teléfono', { type: 'tel' })}
         {campo('fax', 'Fax')}
       </div>
-      <Checkbox label="Contacto principal" checked={datos.esPrincipal} onChange={(e) => setDatos({ ...datos, esPrincipal: e.target.checked })} />
-      {errores.length > 0 || errorAlGuardar ? (
-        <Alert tone="danger" role="alert" title={errorAlGuardar ? 'No se pudo guardar' : 'Revisá el contacto'}>
+      <Checkbox
+        label="Contacto principal"
+        help="Es el que se sugiere al armar una cotización o un pedido nuevo. Sólo puede haber uno."
+        checked={datos.esPrincipal}
+        disabled={!datos.activo}
+        onChange={(e) => setDatos({ ...datos, esPrincipal: e.target.checked })}
+      />
+      {editando !== 'nuevo' ? (
+        <Checkbox
+          label="Activo"
+          help="Desactivado deja de ofrecerse en documentos nuevos; los ya emitidos lo siguen nombrando."
+          checked={datos.activo}
+          onChange={(e) =>
+            setDatos({
+              ...datos,
+              activo: e.target.checked,
+              esPrincipal: e.target.checked ? datos.esPrincipal : false,
+            })
+          }
+        />
+      ) : null}
+      {errores.length > 0 || guardar.error ? (
+        <Alert
+          tone="danger"
+          role="alert"
+          title={guardar.error ? 'No se pudo guardar' : 'Revisá el contacto'}
+        >
           {errores.map((m) => (
             <p key={m}>{m}</p>
           ))}
-          {errorAlGuardar ? <p>{errorAlGuardar}</p> : null}
+          {guardar.error ? <p>{guardar.error.message}</p> : null}
+          {esConflicto && onRecargar ? (
+            <Button variant="secondary" size="sm" onClick={onRecargar}>
+              Recargar
+            </Button>
+          ) : null}
         </Alert>
       ) : null}
       <div className={styles.acciones}>
-        <Button type="submit" variant="primary" loading={guardando}>
-          {guardando ? 'Guardando…' : etiquetaBoton}
+        <Button type="submit" variant="primary" loading={guardar.isPending}>
+          {guardar.isPending ? 'Guardando…' : etiquetaBoton}
         </Button>
-        <Button variant="ghost" onClick={() => setEditando(null)} disabled={guardando}>
+        <Button variant="ghost" onClick={() => setEditando(null)} disabled={guardar.isPending}>
           Cancelar
         </Button>
       </div>
@@ -146,10 +202,11 @@ export function EditorContactos({
               {formulario('Guardar')}
             </li>
           ) : (
-            <li key={c.id} className={styles.item}>
+            <li key={c.id} className={c.activo ? styles.item : `${styles.item} ${styles.inactivo}`}>
               <div className={styles.cabecera}>
                 <span className={styles.nombre}>{c.nombre}</span>
                 {c.esPrincipal ? <Badge tone="brand">Principal</Badge> : null}
+                {c.activo ? null : <Badge tone="neutral">Desactivado</Badge>}
               </div>
               {c.cargo ? <span className={styles.secundario}>{c.cargo}</span> : null}
               <div className={styles.datos}>
@@ -170,10 +227,40 @@ export function EditorContactos({
               {c.notas ? <p className={styles.notas}>{c.notas}</p> : null}
               {puedeEditar ? (
                 <div className={styles.acciones}>
-                  <Button variant="secondary" size="sm" icon={<Icon name="edit" size={16} />} onClick={() => abrirEdicion(c)}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<Icon name="edit" size={16} />}
+                    onClick={() => abrirEdicion(c)}
+                  >
                     Editar
                   </Button>
-                  <Button variant="ghost" size="sm" className={styles.peligro} icon={<Icon name="trash" size={16} />} onClick={() => setConfirmando(c)}>
+                  {c.activo ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => cambiarActivo(c, false)}
+                      disabled={guardar.isPending}
+                    >
+                      Desactivar
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => cambiarActivo(c, true)}
+                      disabled={guardar.isPending}
+                    >
+                      Reactivar
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={styles.peligro}
+                    icon={<Icon name="trash" size={16} />}
+                    onClick={() => setConfirmando(c)}
+                  >
                     Borrar
                   </Button>
                 </div>
@@ -182,7 +269,9 @@ export function EditorContactos({
           ),
         )}
 
-        {editando === 'nuevo' ? <li className={styles.itemForm}>{formulario('Agregar contacto')}</li> : null}
+        {editando === 'nuevo' ? (
+          <li className={styles.itemForm}>{formulario('Agregar contacto')}</li>
+        ) : null}
       </ul>
 
       {borrar.error ? (
@@ -191,8 +280,24 @@ export function EditorContactos({
         </Alert>
       ) : null}
 
+      {editando === null && guardar.error ? (
+        <Alert tone="danger" role="alert" title="No se pudo guardar el contacto">
+          <p>{guardar.error.message}</p>
+          {esConflicto && onRecargar ? (
+            <Button variant="secondary" size="sm" onClick={onRecargar}>
+              Recargar
+            </Button>
+          ) : null}
+        </Alert>
+      ) : null}
+
       {puedeEditar && editando === null ? (
-        <Button variant="secondary" className={styles.agregar} icon={<Icon name="plus" size={16} />} onClick={abrirNuevo}>
+        <Button
+          variant="secondary"
+          className={styles.agregar}
+          icon={<Icon name="plus" size={16} />}
+          onClick={abrirNuevo}
+        >
           Agregar contacto
         </Button>
       ) : null}
@@ -201,18 +306,35 @@ export function EditorContactos({
         open={confirmando !== null}
         tone="danger"
         title={`¿Borrar el contacto ${confirmando?.nombre ?? ''}?`}
-        description="Se borra de la ficha del cliente. No se puede deshacer."
-        confirmLabel="Borrar contacto"
+        description={
+          referenciado
+            ? 'Figura en documentos ya emitidos, así que no se puede borrar. Lo que corresponde es desactivarlo.'
+            : 'Si figura en algún documento no se va a poder borrar: en ese caso, desactivalo.'
+        }
+        confirmLabel={referenciado ? 'Desactivarlo' : 'Borrar contacto'}
         cancelLabel="Volver"
-        busy={borrar.isPending}
+        busy={borrar.isPending || guardar.isPending}
         onConfirm={() => {
           if (!confirmando) return
+          if (referenciado) {
+            cambiarActivo(confirmando, false)
+            setConfirmando(null)
+            borrar.reset()
+            return
+          }
           borrar.mutate(confirmando.id, {
             onSuccess: () => setConfirmando(null),
-            onError: () => setConfirmando(null),
+            // Si no se pudo borrar porque está referenciado, el diálogo queda
+            // abierto y cambia de oferta: desactivarlo.
+            onError: (e) => {
+              if (!(e instanceof FalloDeAgenda && e.esReferenciado)) setConfirmando(null)
+            },
           })
         }}
-        onCancel={() => setConfirmando(null)}
+        onCancel={() => {
+          setConfirmando(null)
+          borrar.reset()
+        }}
       />
     </div>
   )

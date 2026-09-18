@@ -153,6 +153,8 @@ export interface DatosContacto {
   fax: string
   esPrincipal: boolean
   notas: string
+  /** Fase 17 · E3: un contacto desactivado no se ofrece en documentos nuevos. */
+  activo: boolean
 }
 
 export const CONTACTO_VACIO: DatosContacto = {
@@ -163,6 +165,7 @@ export const CONTACTO_VACIO: DatosContacto = {
   fax: '',
   esPrincipal: false,
   notas: '',
+  activo: true,
 }
 
 export function validarContacto(datos: DatosContacto): string[] {
@@ -170,6 +173,11 @@ export function validarContacto(datos: DatosContacto): string[] {
   if (datos.nombre.trim() === '') errores.push('El nombre del contacto es obligatorio.')
   if (datos.email.trim() !== '' && !esEmail(datos.email)) {
     errores.push(`«${datos.email.trim()}» no parece un email.`)
+  }
+  // Es la misma regla que aplica el servidor: un contacto desactivado no puede
+  // quedar como principal, porque el principal es al que se le escribe.
+  if (!datos.activo && datos.esPrincipal) {
+    errores.push('Un contacto desactivado no puede ser el principal.')
   }
   return errores
 }
@@ -198,6 +206,8 @@ export interface DatosDireccion {
   pais: string
   notas: string
   esPrincipal: boolean
+  /** Fase 17 · E3. */
+  activo: boolean
 }
 
 export const DIRECCION_VACIA: DatosDireccion = {
@@ -209,6 +219,7 @@ export const DIRECCION_VACIA: DatosDireccion = {
   pais: '',
   notas: '',
   esPrincipal: false,
+  activo: true,
 }
 
 export function validarDireccion(datos: DatosDireccion): string[] {
@@ -222,6 +233,9 @@ export function validarDireccion(datos: DatosDireccion): string[] {
   const pais = datos.pais.trim()
   if (pais !== '' && !/^[A-Za-z]{2}$/.test(pais)) {
     errores.push('El país va con su código de dos letras: AR, BR, UY…')
+  }
+  if (!datos.activo && datos.esPrincipal) {
+    errores.push('Una dirección desactivada no puede ser la principal.')
   }
   return errores
 }

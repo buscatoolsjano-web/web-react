@@ -2,13 +2,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import {
   guardarCliente,
-  actualizarContacto,
-  actualizarDireccion,
+  guardarContacto,
+  guardarDireccion,
   borrarContacto,
   borrarDireccion,
   crearCliente,
-  crearContacto,
-  crearDireccion,
   darDeBajaCliente,
   reactivarCliente,
   resolverRevision,
@@ -119,49 +117,61 @@ export function useResolverRevision(clienteId: string) {
   })
 }
 
+/**
+ * Contactos (Fase 17 · E3).
+ *
+ * Una sola mutación `guardar` para el alta y la edición, porque del otro lado
+ * es una sola RPC: `id` nulo es un alta. `esperado` es el testigo de
+ * concurrencia que se leyó al abrir el formulario.
+ *
+ * Guardar un contacto también invalida Ventas: el contacto principal es el que
+ * se sugiere al armar un documento nuevo, y desactivar uno lo saca del
+ * desplegable.
+ */
 export function useContactosEdicion(clienteId: string) {
   const { activa } = useEmpresa()
   const qc = useQueryClient()
   const companyId = activa?.companyId ?? null
-  const invalidar = () =>
+  const invalidar = () => {
     void qc.invalidateQueries({ queryKey: clavesDelCliente(companyId, clienteId).contactos })
+    void qc.invalidateQueries({ queryKey: ['ventas', companyId, 'contactos', clienteId] })
+    void qc.invalidateQueries({ queryKey: ['ventas', companyId, 'defaults', clienteId] })
+  }
 
   return {
-    crear: useMutation({
-      mutationFn: (datos: DatosContacto) => crearContacto(companyId!, clienteId, datos),
-      onSuccess: invalidar,
-    }),
-    actualizar: useMutation({
-      mutationFn: (v: { id: string; datos: DatosContacto }) =>
-        actualizarContacto(companyId!, clienteId, v.id, v.datos),
+    guardar: useMutation({
+      mutationFn: (v: { id: string | null; esperado: string | null; datos: DatosContacto }) =>
+        guardarContacto(clienteId, v.id, v.esperado, v.datos),
       onSuccess: invalidar,
     }),
     borrar: useMutation({
-      mutationFn: (id: string) => borrarContacto(companyId!, id),
+      mutationFn: (id: string) => borrarContacto(id),
       onSuccess: invalidar,
     }),
   }
 }
 
+/** Direcciones (Fase 17 · E3). Lo mismo, con la principal resuelta por tipo. */
 export function useDireccionesEdicion(clienteId: string) {
   const { activa } = useEmpresa()
   const qc = useQueryClient()
   const companyId = activa?.companyId ?? null
-  const invalidar = () =>
+  const invalidar = () => {
     void qc.invalidateQueries({ queryKey: clavesDelCliente(companyId, clienteId).relacionados })
+    // La dirección de entrega se elige en el pedido: si acá se agrega, se
+    // desactiva o se cambia la principal, ese desplegable quedó viejo.
+    void qc.invalidateQueries({ queryKey: ['ventas', companyId, 'direcciones', clienteId] })
+    void qc.invalidateQueries({ queryKey: ['ventas', companyId, 'defaults', clienteId] })
+  }
 
   return {
-    crear: useMutation({
-      mutationFn: (datos: DatosDireccion) => crearDireccion(companyId!, clienteId, datos),
-      onSuccess: invalidar,
-    }),
-    actualizar: useMutation({
-      mutationFn: (v: { id: string; datos: DatosDireccion }) =>
-        actualizarDireccion(companyId!, clienteId, v.id, v.datos),
+    guardar: useMutation({
+      mutationFn: (v: { id: string | null; esperado: string | null; datos: DatosDireccion }) =>
+        guardarDireccion(clienteId, v.id, v.esperado, v.datos),
       onSuccess: invalidar,
     }),
     borrar: useMutation({
-      mutationFn: (id: string) => borrarDireccion(companyId!, id),
+      mutationFn: (id: string) => borrarDireccion(id),
       onSuccess: invalidar,
     }),
   }

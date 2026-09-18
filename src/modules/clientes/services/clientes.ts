@@ -282,9 +282,12 @@ export async function contactosDeCliente(
 ): Promise<ContactoCliente[]> {
   const { data, error } = await supabase
     .from('customer_contacts')
-    .select('id, full_name, role, email, phone, fax, is_default, notes')
+    .select('id, full_name, role, email, phone, fax, is_default, notes, active, updated_at')
     .eq('company_id', companyId)
     .eq('customer_id', clienteId)
+    // Los activos primero, y entre ellos el principal: es el orden en el que
+    // alguien los busca. Los desactivados quedan al final, visibles.
+    .order('active', { ascending: false })
     .order('is_default', { ascending: false })
     .order('full_name', { ascending: true })
   if (error) throw new Error(`No se pudieron leer los contactos: ${error.message}`)
@@ -298,6 +301,8 @@ export async function contactosDeCliente(
     fax: c.fax?.trim() || null,
     esPrincipal: c.is_default,
     notas: c.notes,
+    activo: c.active,
+    actualizadoEn: c.updated_at,
   }))
 }
 
@@ -383,9 +388,12 @@ export async function relacionadosDeCliente(
   const [dir, oc] = await Promise.all([
     supabase
       .from('customer_addresses')
-      .select('id, kind, is_default, street, city, state, postal_code, country_code, notes')
+      .select(
+        'id, kind, is_default, street, city, state, postal_code, country_code, notes, active, updated_at',
+      )
       .eq('company_id', companyId)
       .eq('customer_id', clienteId)
+      .order('active', { ascending: false })
       .order('is_default', { ascending: false })
       .order('kind', { ascending: true }),
     supabase
@@ -415,6 +423,8 @@ export async function relacionadosDeCliente(
         .map((p) => (p ?? '').trim())
         .filter((p) => p !== '')
         .join(', '),
+      activo: d.active,
+      actualizadoEn: d.updated_at,
     })),
     candidatosDeOc: (oc.data ?? []).map((c) => ({
       id: c.id,

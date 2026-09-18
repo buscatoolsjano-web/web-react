@@ -28,16 +28,51 @@ describe('permisosDe', () => {
     expect(permisosDe(membresia('employee'))).toEqual(permisosDe(membresia('admin')))
   })
 
-  it('salesperson crea y edita clientes pero NO contactos ni direcciones', () => {
+  it('salesperson crea y edita clientes; sin saber de qué cliente, no administra su agenda', () => {
     const p = permisosDe(membresia('salesperson'))
     expect(p.crearCliente).toBe(true)
     expect(p.editarCliente).toBe(true)
-    // `contacts_write` y `addresses_write` usan
-    // `app.current_writer_company_ids()`, que es admin y employee.
+    // Sin el cliente no se puede saber si es el suyo, y no se adivina.
     expect(p.editarContactos).toBe(false)
     expect(p.editarDirecciones).toBe(false)
     expect(p.editarMemoria).toBe(false)
     expect(p.resolverRevision).toBe(false)
+  })
+
+  // Fase 17 · E3: `app.puede_administrar_cliente()` dejó entrar al vendedor del
+  // cliente. Lo de abajo es exactamente esa regla, del lado de los botones.
+  it('salesperson administra la agenda de SU cliente', () => {
+    const p = permisosDe(membresia('salesperson'), { vendedorId: 'u1' }, 'u1')
+    expect(p.editarContactos).toBe(true)
+    expect(p.editarDirecciones).toBe(true)
+    // La memoria de productos y la revisión siguen siendo de admin y employee.
+    expect(p.editarMemoria).toBe(false)
+    expect(p.resolverRevision).toBe(false)
+  })
+
+  it('pero no la de un cliente de otro vendedor, ni de uno sin vendedor', () => {
+    expect(permisosDe(membresia('salesperson'), { vendedorId: 'u2' }, 'u1').editarContactos).toBe(
+      false,
+    )
+    expect(permisosDe(membresia('salesperson'), { vendedorId: null }, 'u1').editarContactos).toBe(
+      false,
+    )
+    // Y si no se sabe quién está mirando, tampoco.
+    expect(permisosDe(membresia('salesperson'), { vendedorId: 'u1' }, null).editarContactos).toBe(
+      false,
+    )
+  })
+
+  it('al admin no le cambia nada que el cliente sea de otro vendedor', () => {
+    const p = permisosDe(membresia('admin'), { vendedorId: 'u2' }, 'u1')
+    expect(p.editarContactos).toBe(true)
+    expect(p.editarDirecciones).toBe(true)
+  })
+
+  it('el técnico no administra la agenda ni de un cliente que tuviera asignado', () => {
+    expect(permisosDe(membresia('technician'), { vendedorId: 'u1' }, 'u1').editarContactos).toBe(
+      false,
+    )
   })
 
   it('los roles externos no escriben nada', () => {

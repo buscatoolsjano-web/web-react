@@ -25,6 +25,7 @@ const estado = vi.hoisted((): {
   relacionados: unknown
   eventos: unknown[]
   contactos: unknown[]
+  direcciones: unknown[]
   tarifas: unknown[]
   vendedores: unknown[]
 } => ({
@@ -34,6 +35,7 @@ const estado = vi.hoisted((): {
   relacionados: null,
   eventos: [],
   contactos: [],
+  direcciones: [],
   tarifas: [],
   vendedores: [],
 }))
@@ -80,6 +82,8 @@ vi.mock('../hooks/useDocumentos', () => ({
   usePendientes: () => ({ data: undefined, isPending: false }),
   useDisponibilidad: () => ({ data: undefined, isPending: false }),
   useContactos: () => ({ data: estado.contactos, isPending: false }),
+  // Fase 17 · E3: los domicilios de entrega del cliente.
+  useDireccionesEntrega: () => ({ data: estado.direcciones, isPending: false }),
   useTarifas: () => ({ data: estado.tarifas, isPending: false }),
   useVendedores: () => ({ data: estado.vendedores, isPending: false }),
 }))
@@ -164,6 +168,7 @@ const pedido = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle => ({
   transporte: null,
   seguimiento: null,
   domicilioEntrega: null,
+  domicilioElegido: null,
   validaHasta: null,
   descuentoPct: null,
   percepcionPct: null,
@@ -272,6 +277,50 @@ describe('Pedido · edición por borrador', () => {
     for (const nombre of ['Confirmar pedido', 'Duplicar', 'Ver / Imprimir', 'Eliminar']) {
       expect(screen.queryByRole('button', { name: nombre })).toBeNull()
     }
+  })
+
+  // Fase 17 · E3: el domicilio de entrega también se corrige en el pedido, y
+  // viaja por el mismo camino que todo lo demás —una sola llamada, con testigo—.
+  it('cambiar el domicilio de entrega viaja en el mismo guardado', async () => {
+    estado.direcciones = [
+      { id: 'd1', texto: 'Av. Siempreviva 742', esPrincipal: true, activa: true },
+      { id: 'd2', texto: 'Depósito Norte', esPrincipal: false, activa: true },
+    ]
+    montar()
+    editar()
+    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
+    fireEvent.change(screen.getByLabelText(/Entregar en/), { target: { value: 'd2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    await waitFor(() => expect(espias.guardar).toHaveBeenCalledTimes(1))
+    const [, , cabecera] = espias.guardar.mock.calls[0]!
+    expect(cabecera).toEqual({ shipping_address_id: 'd2' })
+  })
+
+  it('quitar el domicilio manda null: el remito volverá a usar el principal del cliente', async () => {
+    estado.direcciones = [{ id: 'd1', texto: 'Av. Siempreviva 742', esPrincipal: true, activa: true }]
+    estado.doc = pedido({ direccionEntregaId: 'd1' })
+    montar()
+    editar()
+    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
+    expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1')
+    fireEvent.change(screen.getByLabelText(/Entregar en/), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    await waitFor(() => expect(espias.guardar).toHaveBeenCalledTimes(1))
+    expect(espias.guardar.mock.calls[0]![2]).toEqual({ shipping_address_id: null })
+  })
+
+  it('un domicilio desactivado que el pedido YA nombra se sigue mostrando, marcado', () => {
+    estado.direcciones = [{ id: 'd1', texto: 'La de antes', esPrincipal: false, activa: false }]
+    estado.doc = pedido({ direccionEntregaId: 'd1' })
+    montar()
+    editar()
+    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
+    // Esconderla dejaría el desplegable en blanco y guardar borraría el dato
+    // sin que nadie lo pidiera.
+    expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1')
+    expect(screen.getByRole('option', { name: /La de antes \(desactivada\)/ })).toBeInTheDocument()
   })
 
   it('sin cambios, Guardar está apagado', () => {

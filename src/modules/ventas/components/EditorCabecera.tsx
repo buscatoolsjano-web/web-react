@@ -3,13 +3,24 @@ import { Input, Select, Textarea } from '@/components/forms/controls'
 import { Button } from '@/components/ui/Button'
 import { MONEDAS_DOCUMENTO as MONEDAS } from '../lib/moneda'
 import type { CabeceraBorrador, CampoCabecera } from '../lib/borrador'
-import type { OpcionContacto, OpcionTarifa, OpcionVendedor } from '../services/opciones'
+import type {
+  OpcionContacto,
+  OpcionDireccion,
+  OpcionTarifa,
+  OpcionVendedor,
+} from '../services/opciones'
 import { BuscadorCliente } from './BuscadorCliente'
 import styles from './CabeceraCotizacion.module.css'
 
 export interface EditorCabeceraProps {
   valores: CabeceraBorrador
   contactos: readonly OpcionContacto[]
+  /**
+   * Los domicilios de entrega del cliente (Fase 17 · E3). Sin la prop no se
+   * muestra el campo: la cotización no entrega nada, el pedido sí.
+   */
+  direcciones?: readonly OpcionDireccion[] | undefined
+  cargandoDirecciones?: boolean | undefined
   tarifas: readonly OpcionTarifa[]
   vendedores: readonly OpcionVendedor[]
   cargandoContactos: boolean
@@ -38,6 +49,8 @@ const PERCEPCION_HABITUAL = '2.5'
  * precios vivía sólo en el cliente y no decía con cuál se había cotizado.
  */
 export function EditorCabecera({
+  direcciones,
+  cargandoDirecciones = false,
   valores,
   contactos,
   tarifas,
@@ -55,6 +68,14 @@ export function EditorCabecera({
   // exigiría un tipo de cambio que nadie definió, y la base la rechaza.
   const compatibles = tarifas.filter((t) => t.moneda === valores.moneda)
   const ocultas = tarifas.length - compatibles.length
+  // Un contacto o una dirección desactivados no se ofrecen… salvo que el
+  // documento ya los nombre. En ese caso se muestran, marcados: esconderlos
+  // haría que el desplegable quedara en blanco y que guardar borrara el dato
+  // sin que nadie lo pidiera.
+  const contactosVisibles = contactos.filter((c) => c.activo || c.id === valores.contactoId)
+  const direccionesVisibles = (direcciones ?? []).filter(
+    (d) => d.activa || d.id === valores.direccionEntregaId,
+  )
 
   return (
     <div className={styles.bloques}>
@@ -89,13 +110,43 @@ export function EditorCabecera({
               onChange={(e) => onCambiar('contactoId', e.target.value)}
             >
               <option value="">Sin contacto</option>
-              {contactos.map((c) => (
+              {contactosVisibles.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.rol ? `${c.nombre} · ${c.rol}` : c.nombre}
+                  {`${c.rol ? `${c.nombre} · ${c.rol}` : c.nombre}${c.activo ? '' : ' (desactivado)'}`}
                 </option>
               ))}
             </Select>
           </Field>
+
+          {direcciones ? (
+            <Field
+              label="Entregar en"
+              optional
+              className={styles.ancho}
+              help={
+                valores.customerId !== '' &&
+                direccionesVisibles.length === 0 &&
+                !cargandoDirecciones
+                  ? 'Este cliente no tiene domicilios de entrega cargados. Se cargan en su ficha.'
+                  : valores.direccionEntregaId === '' && direccionesVisibles.length > 0
+                    ? 'Sin elegir, el remito usa el domicilio principal del cliente en el momento de emitirlo.'
+                    : undefined
+              }
+            >
+              <Select
+                value={valores.direccionEntregaId}
+                disabled={valores.customerId === '' || cargandoDirecciones}
+                onChange={(e) => onCambiar('direccionEntregaId', e.target.value)}
+              >
+                <option value="">Domicilio principal del cliente</option>
+                {direccionesVisibles.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {`${d.texto}${d.activa ? '' : ' (desactivada)'}`}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
 
           <Field label="Título" optional className={styles.ancho}>
             <Input value={valores.titulo} onChange={(e) => onCambiar('titulo', e.target.value)} />

@@ -18,7 +18,12 @@ import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TotalesDocumento } from '../components/TotalesDocumento'
-import { useContactos, useTarifas, useVendedores } from '../hooks/useDocumentos'
+import {
+  useContactos,
+  useDireccionesEntrega,
+  useTarifas,
+  useVendedores,
+} from '../hooks/useDocumentos'
 import { defaultsDeCliente } from '../services/clientes'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { DOC_TYPE_DE, mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
@@ -40,7 +45,7 @@ import {
 } from '../lib/borrador'
 import {
   aplicarDefaults,
-  type CampoSugerible,
+  sugerirDeLaAgenda,
   type DefaultsComerciales,
 } from '../lib/defaults'
 import { escribeVentas } from '../lib/permisos'
@@ -90,7 +95,7 @@ export function PedidoNuevoPage() {
   // Fase 17 · E2. `tocados` es la memoria de lo que eligió la persona: el
   // default de un cliente nunca pisa un campo que ya tocó. `defaults` se
   // guarda para volver a evaluarlo cuando aparece la moneda.
-  const [tocados, setTocados] = useState<ReadonlySet<CampoSugerible>>(new Set())
+  const [tocados, setTocados] = useState<ReadonlySet<CampoCabecera>>(new Set())
   const [defaults, setDefaults] = useState<DefaultsComerciales | null>(null)
   const [avisosCliente, setAvisosCliente] = useState<string[]>([])
   // Si se cambia de cliente dos veces seguidas, la respuesta que llega tarde
@@ -115,6 +120,25 @@ export function PedidoNuevoPage() {
   const tarifas = useTarifas(escribe)
   const vendedores = useVendedores(escribe)
   const contactos = useContactos(b.cabecera.customerId || null)
+  const direcciones = useDireccionesEntrega(b.cabecera.customerId || null)
+
+  // Fase 17 · E3: el contacto principal y el domicilio de entrega principal se
+  // sugieren cuando llegan las dos listas, que la pantalla ya pedía para sus
+  // desplegables —no cuesta ninguna consulta más—. Va en su propio efecto y no
+  // dentro de `aplicarDefaults` porque son respuestas distintas y ninguna tiene
+  // por qué esperar a la otra. Sólo llena lo que está vacío y nadie tocó, así
+  // que correr de más no pisa nada.
+  useEffect(() => {
+    const r = sugerirDeLaAgenda(
+      borradorAlDia.current,
+      { contactos: contactos.data ?? [], direcciones: direcciones.data ?? [] },
+      tocadosAlDia.current,
+    )
+    if (r.aplicados.length > 0) setB(r.borrador)
+    // El cliente entra en las dependencias a propósito: las listas pueden
+    // llegar ANTES de que se elija el cliente, y la sugerencia recién tiene
+    // sentido cuando hay cliente.
+  }, [b.cabecera.customerId, contactos.data, direcciones.data])
 
   const crear = useMutation({
     mutationFn: () => {
@@ -133,12 +157,19 @@ export function PedidoNuevoPage() {
   const lineasVisibles = comoLineasDocumento(b)
   const falta = faltaParaCrear(b)
 
-  const SUGERIBLES: CampoCabecera[] = ['vendedorId', 'listaPrecioId', 'formaPago', 'moneda']
+  const SUGERIBLES: CampoCabecera[] = [
+    'vendedorId',
+    'listaPrecioId',
+    'formaPago',
+    'moneda',
+    'contactoId',
+    'direccionEntregaId',
+  ]
 
   const cambiarCampoCabecera = (campo: CampoCabecera, valor: string) => {
     // Lo que se cambia a mano queda marcado y deja de sugerirse.
     if (SUGERIBLES.includes(campo)) {
-      setTocados((t) => new Set([...t, campo as CampoSugerible]))
+      setTocados((t) => new Set([...t, campo]))
     }
     setB((x) => cambiarCampo(x, campo, valor))
   }
@@ -183,7 +214,7 @@ export function PedidoNuevoPage() {
 
     // Con la moneda ya elegida, la tarifa del cliente puede entrar —o quedar
     // descartada por incompatible, que también se dice.
-    const conMoneda = new Set<CampoSugerible>([...tocados, 'moneda'])
+    const conMoneda = new Set<CampoCabecera>([...tocados, 'moneda'])
     setTocados(conMoneda)
     const ap = aplicarDefaults(r.borrador, defaults, conMoneda, opcionesValidas())
     setAvisosCliente(ap.avisos)
@@ -268,6 +299,8 @@ export function PedidoNuevoPage() {
         <EditorCabecera
           valores={b.cabecera}
           contactos={contactos.data ?? []}
+          direcciones={direcciones.data ?? []}
+          cargandoDirecciones={direcciones.isPending && b.cabecera.customerId !== ''}
           tarifas={tarifas.data ?? []}
           vendedores={vendedores.data ?? []}
           cargandoContactos={contactos.isPending && b.cabecera.customerId !== ''}

@@ -351,6 +351,9 @@ describe('payload del pedido', () => {
     expect(cabecera).toEqual({
       customer_id: 'c1',
       contact_id: null,
+      // Fase 17 · E3: el pedido manda a qué domicilio se entrega; sin elegir va
+      // en null y el remito cae en el principal del cliente al emitirse.
+      shipping_address_id: null,
       salesperson_id: null,
       price_list_id: 'pl-usd',
       title: null,

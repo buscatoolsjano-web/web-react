@@ -274,6 +274,7 @@ export type Database = {
       customer_addresses: {
         Row: {
           city: string | null
+          active: boolean
           company_id: string
           country_code: string | null
           created_at: string
@@ -291,6 +292,7 @@ export type Database = {
         }
         Insert: {
           city?: string | null
+          active?: boolean
           company_id: string
           country_code?: string | null
           created_at?: string
@@ -308,6 +310,7 @@ export type Database = {
         }
         Update: {
           city?: string | null
+          active?: boolean
           company_id?: string
           country_code?: string | null
           created_at?: string
@@ -356,6 +359,7 @@ export type Database = {
       }
       customer_contacts: {
         Row: {
+          active: boolean
           company_id: string
           created_at: string
           created_by: string | null
@@ -372,6 +376,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          active?: boolean
           company_id: string
           created_at?: string
           created_by?: string | null
@@ -388,6 +393,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          active?: boolean
           company_id?: string
           created_at?: string
           created_by?: string | null
@@ -5968,6 +5974,32 @@ export type Database = {
       generar_informes_programados_whatsapp: {
         Args: { p_ahora?: string }
         Returns: number
+      }
+      borrar_contacto: {
+        Args: { p_contacto: string }
+        Returns: Json
+      }
+      borrar_direccion: {
+        Args: { p_direccion: string }
+        Returns: Json
+      }
+      guardar_contacto: {
+        Args: {
+          p_contacto: string | null
+          p_customer: string
+          p_datos: Json
+          p_esperado: string | null
+        }
+        Returns: Json
+      }
+      guardar_direccion: {
+        Args: {
+          p_customer: string
+          p_datos: Json
+          p_direccion: string | null
+          p_esperado: string | null
+        }
+        Returns: Json
       }
       guardar_cliente: {
         Args: {

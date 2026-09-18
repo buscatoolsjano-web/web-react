@@ -26,6 +26,7 @@ import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelResumen } from '../components/PanelResumen'
 import { explicarMotivo } from '../lib/motivos'
 import { formatearCuit, formatearFecha, nombreVisible } from '../lib/formato'
+import { useAuth } from '@/features/auth/useAuth'
 import { permisosDe } from '../lib/permisos'
 import type { DatosCliente } from '../lib/validacion'
 import {
@@ -97,8 +98,13 @@ function aFormulario(c: ClienteDetalle): DatosCliente {
 export function ClienteDetallePage() {
   const { id } = useParams<{ id: string }>()
   const { activa } = useEmpresa()
-  const permisos = permisosDe(activa)
+  const { user } = useAuth()
   const { data: cliente, isPending, isFetching, error, refetch } = useCliente(id)
+  // La agenda del cliente —contactos y direcciones— la administra también el
+  // vendedor que lo tiene asignado (Fase 17 · E3), así que el permiso depende
+  // del cliente y no sólo del rol. Mientras el cliente no cargó, no se decide
+  // por él: se pasa null y el vendedor no ve los botones hasta que llegue.
+  const permisos = permisosDe(activa, cliente ?? null, user?.id ?? null)
   const contactos = useContactos(id)
   const historial = useHistorial(id)
   const relacionados = useRelacionados(id)
@@ -159,7 +165,12 @@ export function ClienteDetallePage() {
   }
 
   const nombre = nombreVisible(cliente.razonSocial, cliente.nombreComercial)
-  const principal = (contactos.data ?? []).find((c) => c.esPrincipal) ?? contactos.data?.[0] ?? null
+  // El contacto que la ficha muestra arriba. Fase 17 · E3: entre los ACTIVOS,
+  // porque desde esta entrega hay contactos dados de baja y mostrar a uno de
+  // ellos como la cara del cliente sería decirle a alguien que le escriba a
+  // quien ya no atiende.
+  const activos = (contactos.data ?? []).filter((c) => c.activo)
+  const principal = activos.find((c) => c.esPrincipal) ?? activos[0] ?? null
   const direcciones = relacionados.data?.direcciones ?? []
   const direccionPrincipal = direcciones.find((d) => d.esPrincipal) ?? direcciones[0] ?? null
 
@@ -432,6 +443,7 @@ export function ClienteDetallePage() {
               contactos={contactos.data ?? []}
               cargando={contactos.isPending}
               puedeEditar={permisos.editarContactos && !cliente.dadoDeBaja}
+              onRecargar={() => void contactos.refetch()}
             />
           ) : null}
 
@@ -441,6 +453,7 @@ export function ClienteDetallePage() {
               direcciones={direcciones}
               cargando={relacionados.isPending}
               puedeEditar={permisos.editarDirecciones && !cliente.dadoDeBaja}
+              onRecargar={() => void relacionados.refetch()}
             />
           ) : null}
 

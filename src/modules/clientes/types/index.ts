@@ -67,11 +67,19 @@ export interface ContactoCliente {
   fax: string | null
   esPrincipal: boolean
   notas: string | null
+  /**
+   * Fase 17 · E3. Un contacto que ya figura en documentos no se borra: se
+   * desactiva. Deja de ofrecerse en los documentos nuevos y los viejos lo
+   * siguen nombrando igual.
+   */
+  activo: boolean
+  /** Testigo de concurrencia: el `updated_at` que se leyó. */
+  actualizadoEn: string
 }
 
 export interface DireccionCliente {
   id: string
-  /** `shipping` | `billing` | `both`, tal como los acepta el CHECK. */
+  /** `shipping` | `billing` | `both` | `other`, tal como los acepta el CHECK. */
   tipo: string
   calle: string
   ciudad: string | null
@@ -83,6 +91,10 @@ export interface DireccionCliente {
   esPrincipal: boolean
   /** La dirección en una línea, para mostrarla sin armarla en cada lugar. */
   texto: string
+  /** Fase 17 · E3: igual que en los contactos, se desactiva y no se borra. */
+  activo: boolean
+  /** Testigo de concurrencia. */
+  actualizadoEn: string
 }
 
 export interface AliasDeProducto {

@@ -15,6 +15,14 @@ import type { DocumentoDetalle, LineaDocumento } from '../types'
 export interface CabeceraBorrador {
   customerId: string
   contactoId: string
+  /**
+   * La dirección de entrega del PEDIDO (Fase 17 · E3). Vacío = sin elegir, y
+   * entonces el remito cae en la principal del cliente al emitirse.
+   *
+   * La cotización no la tiene: es la promesa de un precio, no de una entrega.
+   * Para ella este campo queda siempre vacío y no se manda.
+   */
+  direccionEntregaId: string
   vendedorId: string
   listaPrecioId: string
   titulo: string
@@ -89,6 +97,7 @@ function aLineaBorrador(l: LineaDocumento): LineaBorrador {
 const COLUMNA_PEDIDO: Partial<Record<CampoCabecera, string>> = {
   customerId: 'customer_id',
   contactoId: 'contact_id',
+  direccionEntregaId: 'shipping_address_id',
   vendedorId: 'salesperson_id',
   listaPrecioId: 'price_list_id',
   titulo: 'title',
@@ -107,6 +116,7 @@ export function crearBorrador(doc: DocumentoDetalle, lineas: readonly LineaDocum
     cabecera: {
       customerId: doc.clienteId ?? '',
       contactoId: doc.contactoId ?? '',
+      direccionEntregaId: doc.direccionEntregaId ?? '',
       vendedorId: doc.vendedorId ?? '',
       listaPrecioId: doc.listaPrecioId ?? '',
       titulo: doc.titulo ?? '',
@@ -140,6 +150,7 @@ export function borradorNuevo(hoy: string, formaPago = ''): Borrador {
     cabecera: {
       customerId: '',
       contactoId: '',
+      direccionEntregaId: '',
       vendedorId: '',
       listaPrecioId: '',
       titulo: '',
@@ -179,6 +190,9 @@ export function cambiarCampo(b: Borrador, campo: CampoCabecera, valor: string): 
  * (`CONTACTO_DE_OTRO_CLIENTE`) y, peor, la pantalla mostraría un nombre que ya
  * no corresponde. Se limpia acá y la UI lo avisa.
  *
+ * Con la dirección de entrega pasa lo mismo y es peor: mandar la mercadería al
+ * domicilio de otro cliente. También se limpia (Fase 17 · E3).
+ *
  * Lo que NO se toca son las líneas: los precios ya cargados son del documento,
  * no del cliente.
  */
@@ -186,7 +200,10 @@ export function cambiarCliente(b: Borrador, customerId: string): { borrador: Bor
   if (b.cabecera.customerId === customerId) return { borrador: b, contactoLimpiado: false }
   const habia = b.cabecera.contactoId !== ''
   return {
-    borrador: { ...b, cabecera: { ...b.cabecera, customerId, contactoId: '' } },
+    borrador: {
+      ...b,
+      cabecera: { ...b.cabecera, customerId, contactoId: '', direccionEntregaId: '' },
+    },
     contactoLimpiado: habia,
   }
 }
@@ -289,8 +306,14 @@ export function hayCambios(actual: Borrador, original: Borrador): boolean {
 
 // ── Payload ────────────────────────────────────────────────────────────────
 
-/** Las columnas reales, en el orden en que las espera la RPC. */
-const COLUMNA: Record<CampoCabecera, string> = {
+/**
+ * Las columnas reales de la COTIZACIÓN.
+ *
+ * Es parcial porque hay campos del borrador que la cotización no tiene: la
+ * dirección de entrega es del pedido. Un campo sin columna no se manda, y no
+ * hace falta acordarse de excluirlo en cada payload.
+ */
+const COLUMNA: Partial<Record<CampoCabecera, string>> = {
   customerId: 'customer_id',
   contactoId: 'contact_id',
   vendedorId: 'salesperson_id',
@@ -335,8 +358,9 @@ export interface PayloadGuardado {
 export function aPayload(actual: Borrador, original: Borrador): PayloadGuardado {
   const cabecera: Record<string, string | number | null> = {}
   for (const k of Object.keys(actual.cabecera) as CampoCabecera[]) {
-    if (actual.cabecera[k] !== original.cabecera[k]) {
-      cabecera[COLUMNA[k]] = valorDeCampo(k, actual.cabecera[k])
+    const columna = COLUMNA[k]
+    if (columna && actual.cabecera[k] !== original.cabecera[k]) {
+      cabecera[columna] = valorDeCampo(k, actual.cabecera[k])
     }
   }
 
@@ -373,7 +397,8 @@ export function aPayload(actual: Borrador, original: Borrador): PayloadGuardado 
 export function aPayloadCreacion(b: Borrador): PayloadGuardado {
   const cabecera: Record<string, string | number | null> = {}
   for (const k of Object.keys(b.cabecera) as CampoCabecera[]) {
-    cabecera[COLUMNA[k]] = valorDeCampo(k, b.cabecera[k])
+    const columna = COLUMNA[k]
+    if (columna) cabecera[columna] = valorDeCampo(k, b.cabecera[k])
   }
 
   return {

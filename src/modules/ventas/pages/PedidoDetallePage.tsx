@@ -36,6 +36,7 @@ import { TablaLineas } from '../components/TablaLineas'
 import { TotalesDocumento } from '../components/TotalesDocumento'
 import {
   useContactos,
+  useDireccionesEntrega,
   useDisponibilidad,
   useDocumento,
   usePendientes,
@@ -146,6 +147,9 @@ function Detalle() {
   const tarifas = useTarifas(editando)
   const vendedores = useVendedores(editando)
   const contactos = useContactos(editando ? borrador.cabecera.customerId || null : null)
+  // Fase 17 · E3. Igual que los contactos: sólo se piden en modo edición, que
+  // es cuando hay un desplegable que llenar.
+  const direcciones = useDireccionesEntrega(editando ? borrador.cabecera.customerId || null : null)
 
   // Salir con cambios pregunta: otro pedido, el menú, atrás del navegador o
   // cerrar la pestaña. Cambiar de pestaña interna no navega y no pregunta.
@@ -549,6 +553,8 @@ function Detalle() {
               <EditorCabecera
                 valores={borrador.cabecera}
                 contactos={contactos.data ?? []}
+                direcciones={direcciones.data ?? []}
+                cargandoDirecciones={direcciones.isPending && borrador.cabecera.customerId !== ''}
                 tarifas={tarifas.data ?? []}
                 vendedores={vendedores.data ?? []}
                 cargandoContactos={contactos.isPending && borrador.cabecera.customerId !== ''}

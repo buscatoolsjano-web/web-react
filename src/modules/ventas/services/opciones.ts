@@ -12,6 +12,14 @@ export interface OpcionContacto {
   id: string
   nombre: string
   rol: string | null
+  /** Fase 17 · E3: el que se sugiere en un documento nuevo. */
+  esPrincipal: boolean
+  /**
+   * Fase 17 · E3. Los desactivados **se traen igual**: si un documento ya
+   * emitido nombra a uno, el desplegable tiene que poder mostrarlo. Lo que no
+   * se hace es ofrecerlo para elegir; de eso se ocupa la pantalla.
+   */
+  activo: boolean
 }
 
 /**
@@ -23,13 +31,61 @@ export interface OpcionContacto {
 export async function contactosDeCliente(companyId: string, customerId: string): Promise<OpcionContacto[]> {
   const { data, error } = await supabase
     .from('customer_contacts')
-    .select('id, full_name, role')
+    .select('id, full_name, role, is_default, active')
     .eq('company_id', companyId)
     .eq('customer_id', customerId)
+    .order('active', { ascending: false })
     .order('is_default', { ascending: false })
     .order('full_name')
   if (error) throw new Error(`No se pudieron leer los contactos: ${error.message}`)
-  return (data ?? []).map((c) => ({ id: c.id, nombre: c.full_name, rol: c.role }))
+  return (data ?? []).map((c) => ({
+    id: c.id,
+    nombre: c.full_name,
+    rol: c.role,
+    esPrincipal: c.is_default,
+    activo: c.active,
+  }))
+}
+
+export interface OpcionDireccion {
+  id: string
+  /** La dirección en una línea: es como se elige y como se lee. */
+  texto: string
+  esPrincipal: boolean
+  activa: boolean
+}
+
+/**
+ * Los domicilios a los que se le puede entregar a un cliente (Fase 17 · E3).
+ *
+ * Sólo los de tipo entrega —o los dos— porque un domicilio de facturación no
+ * es un lugar donde se descarga mercadería; `app.validar_direccion_envio` lo
+ * rechaza y acá no se ofrece. Las desactivadas se traen para poder mostrar la
+ * que un pedido viejo ya nombra, no para elegirla.
+ */
+export async function direccionesDeEntrega(
+  companyId: string,
+  customerId: string,
+): Promise<OpcionDireccion[]> {
+  const { data, error } = await supabase
+    .from('customer_addresses')
+    .select('id, street, city, state, postal_code, country_code, is_default, active')
+    .eq('company_id', companyId)
+    .eq('customer_id', customerId)
+    .in('kind', ['shipping', 'both'])
+    .order('active', { ascending: false })
+    .order('is_default', { ascending: false })
+  if (error) throw new Error(`No se pudieron leer las direcciones: ${error.message}`)
+  return (data ?? []).map((d) => ({
+    id: d.id,
+    texto:
+      [d.street, d.city, d.state, d.postal_code, d.country_code]
+        .map((p) => (p ?? '').trim())
+        .filter((p) => p !== '')
+        .join(', ') || 'Sin detalle',
+    esPrincipal: d.is_default,
+    activa: d.active,
+  }))
 }
 
 export interface OpcionTarifa {

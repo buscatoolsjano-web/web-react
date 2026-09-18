@@ -76,7 +76,9 @@ const VACIO: DefaultsComerciales = {
 export function aplicarDefaults(
   b: Borrador,
   defaults: DefaultsComerciales | null,
-  tocados: ReadonlySet<CampoSugerible>,
+  // Basta con que sea un conjunto de campos de cabecera: acá sólo se pregunta
+  // si un campo fue tocado, y quien llama puede tener además los de la agenda.
+  tocados: ReadonlySet<CampoCabecera>,
   opciones: OpcionesValidas,
 ): ResultadoDefaults {
   const d = defaults ?? VACIO
@@ -157,4 +159,60 @@ export function aplicarDefaults(
   }
 
   return { borrador: { ...b, cabecera }, aplicados, avisos }
+}
+
+// ── La agenda del cliente (Fase 17 · E3) ───────────────────────────────────
+
+/**
+ * El contacto y el domicilio no son columnas de `customers`: son filas de su
+ * agenda. Por eso no vienen en `DefaultsComerciales` ni cuestan una consulta
+ * aparte —la pantalla ya tiene las dos listas cargadas para sus desplegables—
+ * y se sugieren con esta función, que es la misma regla escrita una sola vez.
+ */
+export interface AgendaDelCliente {
+  contactos: readonly { id: string; esPrincipal: boolean; activo: boolean }[]
+  /** Sólo los domicilios a los que se puede entregar. */
+  direcciones: readonly { id: string; esPrincipal: boolean; activa: boolean }[]
+}
+
+export type CampoDeAgenda = Extract<CampoCabecera, 'contactoId' | 'direccionEntregaId'>
+
+/**
+ * Sugiere el contacto principal y el domicilio de entrega principal.
+ *
+ * Es deliberadamente más conservadora que `aplicarDefaults`: llena un campo
+ * sólo si está **vacío** y nadie lo tocó. Nunca reemplaza una elección, ni
+ * siquiera una que vino de otro cliente —de eso se ocupa `cambiarCliente`, que
+ * limpia los dos campos al cambiar de cliente—.
+ *
+ * Un contacto o un domicilio desactivado no se sugiere: sigue en la lista para
+ * que un documento que ya lo nombra pueda mostrarlo, y nada más.
+ *
+ * Si el cliente no tiene principal, no se elige «el primero que haya»: se deja
+ * vacío. Adivinar a quién se le manda una entrega es peor que no poner nada.
+ */
+export function sugerirDeLaAgenda(
+  b: Borrador,
+  agenda: AgendaDelCliente,
+  tocados: ReadonlySet<CampoCabecera>,
+): { borrador: Borrador; aplicados: CampoDeAgenda[] } {
+  if (b.cabecera.customerId === '') return { borrador: b, aplicados: [] }
+
+  const cabecera = { ...b.cabecera }
+  const aplicados: CampoDeAgenda[] = []
+
+  const contacto = agenda.contactos.find((c) => c.esPrincipal && c.activo)
+  if (contacto && cabecera.contactoId === '' && !tocados.has('contactoId')) {
+    cabecera.contactoId = contacto.id
+    aplicados.push('contactoId')
+  }
+
+  const direccion = agenda.direcciones.find((d) => d.esPrincipal && d.activa)
+  if (direccion && cabecera.direccionEntregaId === '' && !tocados.has('direccionEntregaId')) {
+    cabecera.direccionEntregaId = direccion.id
+    aplicados.push('direccionEntregaId')
+  }
+
+  if (aplicados.length === 0) return { borrador: b, aplicados }
+  return { borrador: { ...b, cabecera }, aplicados }
 }

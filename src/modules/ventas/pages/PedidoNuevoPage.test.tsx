@@ -20,7 +20,8 @@ const estado = vi.hoisted((): {
   stel: Record<string, boolean>
   tarifas: { id: string; nombre: string; moneda: string }[]
   vendedores: { id: string; nombre: string }[]
-  contactos: { id: string; nombre: string; rol: string | null }[]
+  contactos: { id: string; nombre: string; rol: string | null; esPrincipal: boolean; activo: boolean }[]
+  direcciones: { id: string; texto: string; esPrincipal: boolean; activa: boolean }[]
   productos: unknown[]
   defaults: { vendedorId: string | null; tarifaId: string | null; formaPago: string | null; moneda: string | null } | null
 } => ({
@@ -32,7 +33,8 @@ const estado = vi.hoisted((): {
     { id: 'lista-ars', nombre: 'Lista ARS', moneda: 'ARS' },
   ],
   vendedores: [{ id: 'u1', nombre: 'ZZ Vendedora' }],
-  contactos: [{ id: 'k1', nombre: 'ZZ Contacto', rol: 'Compras' }],
+  contactos: [{ id: 'k1', nombre: 'ZZ Contacto', rol: 'Compras', esPrincipal: false, activo: true }],
+  direcciones: [],
   productos: [],
   defaults: null,
 }))
@@ -60,12 +62,19 @@ vi.mock('../hooks/useDocumentos', () => ({
   useTarifas: () => ({ data: estado.tarifas, isPending: false }),
   useVendedores: () => ({ data: estado.vendedores, isPending: false }),
   useContactos: () => ({ data: estado.contactos, isPending: false }),
+  // Fase 17 · E3: los domicilios de entrega del cliente.
+  useDireccionesEntrega: () => ({ data: estado.direcciones, isPending: false }),
 }))
 vi.mock('../components/BuscadorCliente', () => ({
   BuscadorCliente: ({ onElegir }: { onElegir: (id: string | null) => void }) => (
-    <button type="button" onClick={() => onElegir('cliente-1')}>
-      elegir cliente
-    </button>
+    <>
+      <button type="button" onClick={() => onElegir('cliente-1')}>
+        elegir cliente
+      </button>
+      <button type="button" onClick={() => onElegir('cliente-2')}>
+        otro cliente
+      </button>
+    </>
   ),
 }))
 vi.mock('../services/clientes', async (real) => ({
@@ -306,5 +315,105 @@ describe('Nuevo pedido · defaults del cliente', () => {
     await waitFor(() => expect(espias.defaults).toHaveBeenCalled())
     expect(screen.getByLabelText('Moneda')).toHaveValue('')
     expect(screen.getByRole('button', { name: 'Crear pedido' })).toBeDisabled()
+  })
+})
+
+/**
+ * Fase 17 · E3: el contacto principal y el domicilio de entrega.
+ *
+ * El domicilio es el dato que decide **a dónde va la mercadería**, así que las
+ * pruebas miran lo que viaja en `crear_pedido`, no lo que se ve en pantalla.
+ */
+describe('Nuevo pedido · contacto y domicilio de entrega (Fase 17 · E3)', () => {
+  it('al elegir el cliente entra su contacto principal y su domicilio principal', async () => {
+    estado.contactos = [
+      { id: 'k1', nombre: 'ZZ Ana', rol: 'Compras', esPrincipal: true, activo: true },
+      { id: 'k2', nombre: 'ZZ Beto', rol: null, esPrincipal: false, activo: true },
+    ]
+    estado.direcciones = [
+      { id: 'd1', texto: 'Av. Siempreviva 742', esPrincipal: true, activa: true },
+      { id: 'd2', texto: 'Otra 1', esPrincipal: false, activa: true },
+    ]
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+
+    await waitFor(() => expect(screen.getByLabelText(/Contacto/)).toHaveValue('k1'))
+    expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1')
+  })
+
+  it('el domicilio elegido viaja en la creación, y sin elegir va en null', async () => {
+    estado.direcciones = [
+      { id: 'd1', texto: 'Av. Siempreviva 742', esPrincipal: true, activa: true },
+      { id: 'd2', texto: 'Depósito Norte', esPrincipal: false, activa: true },
+    ]
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    await waitFor(() => expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1'))
+
+    // La persona elige otro domicilio: eso es lo que tiene que viajar.
+    fireEvent.change(screen.getByLabelText(/Entregar en/), { target: { value: 'd2' } })
+    fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
+
+    await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
+    expect(espias.crear.mock.calls[0]![1]).toMatchObject({ shipping_address_id: 'd2' })
+  })
+
+  it('«domicilio principal del cliente» es una elección válida: viaja en null', async () => {
+    estado.direcciones = [{ id: 'd1', texto: 'Av. Siempreviva 742', esPrincipal: true, activa: true }]
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    await waitFor(() => expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1'))
+
+    fireEvent.change(screen.getByLabelText(/Entregar en/), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
+
+    await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
+    expect(espias.crear.mock.calls[0]![1]).toMatchObject({ shipping_address_id: null })
+  })
+
+  it('lo que la persona eligió NO se pisa cuando llega la lista', async () => {
+    estado.contactos = [{ id: 'k1', nombre: 'ZZ Ana', rol: null, esPrincipal: true, activo: true }]
+    estado.direcciones = [
+      { id: 'd1', texto: 'Principal', esPrincipal: true, activa: true },
+      { id: 'd2', texto: 'Depósito', esPrincipal: false, activa: true },
+    ]
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    await waitFor(() => expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1'))
+
+    fireEvent.change(screen.getByLabelText(/Entregar en/), { target: { value: 'd2' } })
+    fireEvent.change(screen.getByLabelText(/Contacto/), { target: { value: '' } })
+    // Un re-render no vuelve a sugerir: la sugerencia sólo llena lo vacío y no
+    // tocado, y estos dos campos ya son una decisión.
+    fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
+    expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d2')
+    expect(screen.getByLabelText(/Contacto/)).toHaveValue('')
+  })
+
+  it('un principal desactivado no se sugiere ni se ofrece para elegir', async () => {
+    estado.contactos = [{ id: 'k1', nombre: 'ZZ Ana', rol: null, esPrincipal: true, activo: false }]
+    estado.direcciones = [{ id: 'd1', texto: 'Vieja', esPrincipal: true, activa: false }]
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    await waitFor(() => expect(espias.defaults).toHaveBeenCalled())
+
+    expect(screen.getByLabelText(/Contacto/)).toHaveValue('')
+    expect(screen.getByLabelText(/Entregar en/)).toHaveValue('')
+    // Y no están entre las opciones: en un documento nuevo no se ofrecen.
+    expect(screen.queryByRole('option', { name: /ZZ Ana/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Vieja/ })).not.toBeInTheDocument()
+  })
+
+  it('cambiar de cliente se lleva el domicilio del anterior', async () => {
+    estado.direcciones = [{ id: 'd1', texto: 'Del primero', esPrincipal: true, activa: true }]
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    await waitFor(() => expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1'))
+
+    estado.direcciones = []
+    fireEvent.click(screen.getByRole('button', { name: 'otro cliente' }))
+    await waitFor(() => expect(screen.getByLabelText(/Entregar en/)).toHaveValue(''))
   })
 })

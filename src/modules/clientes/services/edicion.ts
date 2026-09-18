@@ -8,8 +8,10 @@ import { normalizarDominios, normalizarEmails } from '../lib/validacion'
  *
  * Nada de esto decide quién puede hacerlo: eso es RLS. `customers` deja
  * insertar y editar a admin, employee y salesperson —el vendedor, sólo los
- * suyos—; `customer_contacts` y `customer_addresses` sólo a admin y employee.
- * Un rol externo choca contra la policy, no contra un botón escondido.
+ * suyos—, y desde la entrega 3 `customer_contacts` y `customer_addresses`
+ * siguen exactamente la misma regla: quien puede editar al cliente administra
+ * su agenda. Un rol externo choca contra la policy, no contra un botón
+ * escondido.
  */
 
 const vacioANulo = (s: string): string | null => {
@@ -213,159 +215,158 @@ export async function resolverRevision(
   return r?.motivos_restantes ?? []
 }
 
-// ── Contactos ──────────────────────────────────────────────────────────────
+// ── La agenda del cliente: contactos y direcciones ─────────────────────────
 
-function filaContacto(companyId: string, clienteId: string, d: DatosContacto) {
-  return {
-    company_id: companyId,
-    // La relación es SIEMPRE por id. En el legacy un contacto guardaba el
-    // nombre de la empresa en un campo de texto.
-    customer_id: clienteId,
-    full_name: d.nombre.trim(),
-    role: vacioANulo(d.cargo),
-    email: vacioANulo(d.email.toLowerCase()),
-    phone: vacioANulo(d.telefono),
-    fax: vacioANulo(d.fax),
-    is_default: d.esPrincipal,
-    notes: vacioANulo(d.notas),
+/**
+ * Lo que dice el servidor sobre la agenda → lo que lee una persona.
+ *
+ * Va aparte de `MOTIVOS_CLIENTE` porque hay códigos que significan otra cosa
+ * acá: `TIPO_INVALIDO` en un cliente es el tipo de cliente y en una dirección
+ * es el tipo de dirección.
+ */
+export const MOTIVOS_AGENDA: Record<string, string> = {
+  CONFLICTO_DE_EDICION:
+    'Alguien más lo guardó mientras lo editabas. Recargá para ver los cambios; lo tuyo no se perdió.',
+  SIN_PERMISO: 'Tu rol no administra la agenda de este cliente.',
+  CAMPO_NO_EDITABLE: 'Se intentó cambiar un campo que no se edita.',
+  CLIENTE_INEXISTENTE: 'No encontramos el cliente.',
+  CONTACTO_INEXISTENTE: 'Ese contacto ya no existe: recargá la ficha.',
+  DIRECCION_INEXISTENTE: 'Esa dirección ya no existe: recargá la ficha.',
+  CONTACTO_DE_OTRO_CLIENTE: 'Ese contacto no es de este cliente.',
+  DIRECCION_DE_OTRO_CLIENTE: 'Esa dirección no es de este cliente.',
+  CONTACTO_REFERENCIADO:
+    'Este contacto figura en documentos ya emitidos, así que no se borra. Desactivalo: deja de ofrecerse en documentos nuevos y los viejos lo siguen nombrando.',
+  DIRECCION_REFERENCIADA:
+    'Esta dirección figura en pedidos ya emitidos, así que no se borra. Desactivala: deja de ofrecerse y los pedidos viejos la siguen nombrando.',
+  NOMBRE_REQUERIDO: 'El nombre del contacto no puede quedar vacío.',
+  CALLE_REQUERIDA: 'La calle no puede quedar vacía.',
+  TIPO_INVALIDO: 'Ese tipo de dirección no es válido.',
+  PAIS_INVALIDO: 'El país va con su código de dos letras: AR, BR, UY…',
+}
+
+/** Un fallo de la agenda, con su código: la pantalla decide qué ofrecer. */
+export class FalloDeAgenda extends Error {
+  constructor(
+    readonly codigo: string,
+    mensaje: string,
+  ) {
+    super(mensaje)
+    this.name = 'FalloDeAgenda'
+  }
+  /** Un conflicto se resuelve recargando, no reintentando. */
+  get esConflicto(): boolean {
+    return this.codigo === 'CONFLICTO_DE_EDICION'
+  }
+  /** Referenciado: no se borra, se desactiva. La pantalla lo ofrece. */
+  get esReferenciado(): boolean {
+    return this.codigo === 'CONTACTO_REFERENCIADO' || this.codigo === 'DIRECCION_REFERENCIADA'
   }
 }
 
-export async function crearContacto(
-  companyId: string,
-  clienteId: string,
-  datos: DatosContacto,
-): Promise<string> {
-  if (datos.esPrincipal) await bajarPrincipalContacto(companyId, clienteId, null)
-  const { data, error } = await supabase
-    .from('customer_contacts')
-    .insert(filaContacto(companyId, clienteId, datos))
-    .select('id')
-    .single()
-  if (error) throw new Error(traducir(error.message, error.code))
-  return data.id
+function falloDeAgenda(mensaje: string, porDefecto: string): FalloDeAgenda {
+  const codigo = Object.keys(MOTIVOS_AGENDA).find((c) => mensaje.includes(c))
+  return new FalloDeAgenda(codigo ?? 'error_interno', codigo ? MOTIVOS_AGENDA[codigo]! : porDefecto)
 }
 
-export async function actualizarContacto(
-  companyId: string,
-  clienteId: string,
-  id: string,
-  datos: DatosContacto,
-): Promise<void> {
-  if (datos.esPrincipal) await bajarPrincipalContacto(companyId, clienteId, id)
-  const { error } = await supabase
-    .from('customer_contacts')
-    .update(filaContacto(companyId, clienteId, datos))
-    .eq('company_id', companyId)
-    .eq('id', id)
-  if (error) throw new Error(traducir(error.message, error.code))
+export interface ResultadoAgenda {
+  id: string
+  /** El nuevo testigo de concurrencia. */
+  actualizadoEn: string
+  campos: number
+  sinCambios: boolean
 }
 
-export async function borrarContacto(companyId: string, id: string): Promise<void> {
-  const { error } = await supabase
-    .from('customer_contacts')
-    .delete()
-    .eq('company_id', companyId)
-    .eq('id', id)
-  if (error) throw new Error(`No se pudo borrar el contacto: ${error.message}`)
+function leerResultado(data: unknown): ResultadoAgenda {
+  const r = data as { id: string; actualizado_en: string; campos: number; sin_cambios: boolean }
+  return {
+    id: r.id,
+    actualizadoEn: r.actualizado_en,
+    campos: r.campos,
+    sinCambios: r.sin_cambios,
+  }
 }
 
 /**
- * Un solo contacto principal por cliente.
+ * Guarda un contacto en UNA transacción (Fase 17 · E3).
  *
- * Lo garantiza `uq_customer_contact_default`, un índice único parcial. Acá se
- * baja el anterior ANTES de marcar el nuevo, porque si no el índice rechaza
- * el insert y la persona ve un error de base en vez de que funcione.
+ * Antes eran dos escrituras desde el navegador: primero bajar el principal
+ * anterior y después insertar el nuevo. Entre las dos, el cliente podía quedar
+ * **sin ningún principal** —si la segunda fallaba— o con dos, si dos personas
+ * marcaban a la vez. Ahora el principal se resuelve dentro de la misma
+ * transacción que el alta.
+ *
+ * `esperado` es el `updated_at` que se leyó al abrir el formulario: null en un
+ * alta. Si alguien guardó en el medio, el servidor corta con
+ * `CONFLICTO_DE_EDICION` en vez de pisarlo.
  */
-async function bajarPrincipalContacto(
-  companyId: string,
+export async function guardarContacto(
   clienteId: string,
-  exceptoId: string | null,
-): Promise<void> {
-  let q = supabase
-    .from('customer_contacts')
-    .update({ is_default: false })
-    .eq('company_id', companyId)
-    .eq('customer_id', clienteId)
-    .eq('is_default', true)
-  if (exceptoId) q = q.neq('id', exceptoId)
-  const { error } = await q
-  if (error) throw new Error(`No se pudo cambiar el contacto principal: ${error.message}`)
+  contactoId: string | null,
+  esperado: string | null,
+  datos: DatosContacto,
+): Promise<ResultadoAgenda> {
+  const { data, error } = await supabase.rpc('guardar_contacto', {
+    p_customer: clienteId,
+    p_contacto: contactoId,
+    p_esperado: esperado,
+    p_datos: {
+      full_name: datos.nombre.trim(),
+      role: vacioANulo(datos.cargo),
+      email: vacioANulo(datos.email.toLowerCase()),
+      phone: vacioANulo(datos.telefono),
+      fax: vacioANulo(datos.fax),
+      notes: vacioANulo(datos.notas),
+      is_default: datos.esPrincipal,
+      active: datos.activo,
+    } as unknown as Json,
+  })
+  if (error) throw falloDeAgenda(error.message, 'No se pudo guardar el contacto.')
+  return leerResultado(data)
 }
 
-// ── Direcciones ────────────────────────────────────────────────────────────
-
-function filaDireccion(companyId: string, clienteId: string, d: DatosDireccion) {
-  return {
-    company_id: companyId,
-    customer_id: clienteId,
-    kind: d.tipo,
-    street: d.calle.trim(),
-    city: vacioANulo(d.ciudad),
-    state: vacioANulo(d.provincia),
-    postal_code: vacioANulo(d.codigoPostal),
-    country_code: vacioANulo(d.pais.toUpperCase()),
-    notes: vacioANulo(d.notas),
-    is_default: d.esPrincipal,
-  }
+/**
+ * Borra un contacto, si nadie lo nombra.
+ *
+ * El servidor mira cotizaciones, pedidos, remitos, órdenes de compra del
+ * cliente, conversaciones de WhatsApp e hilos de email. Si aparece en alguno,
+ * corta con `CONTACTO_REFERENCIADO`: un documento emitido no puede quedar
+ * apuntando a una fila que ya no existe. Para eso está desactivarlo.
+ */
+export async function borrarContacto(contactoId: string): Promise<void> {
+  const { error } = await supabase.rpc('borrar_contacto', { p_contacto: contactoId })
+  if (error) throw falloDeAgenda(error.message, 'No se pudo borrar el contacto.')
 }
 
-export async function crearDireccion(
-  companyId: string,
+/** Igual que el contacto, con la principal resuelta **por tipo**. */
+export async function guardarDireccion(
   clienteId: string,
+  direccionId: string | null,
+  esperado: string | null,
   datos: DatosDireccion,
-): Promise<string> {
-  if (datos.esPrincipal) await bajarPrincipalDireccion(companyId, clienteId, datos.tipo, null)
-  const { data, error } = await supabase
-    .from('customer_addresses')
-    .insert(filaDireccion(companyId, clienteId, datos))
-    .select('id')
-    .single()
-  if (error) throw new Error(traducir(error.message, error.code))
-  return data.id
+): Promise<ResultadoAgenda> {
+  const { data, error } = await supabase.rpc('guardar_direccion', {
+    p_customer: clienteId,
+    p_direccion: direccionId,
+    p_esperado: esperado,
+    p_datos: {
+      kind: datos.tipo,
+      street: datos.calle.trim(),
+      city: vacioANulo(datos.ciudad),
+      state: vacioANulo(datos.provincia),
+      postal_code: vacioANulo(datos.codigoPostal),
+      country_code: vacioANulo(datos.pais.toUpperCase()),
+      notes: vacioANulo(datos.notas),
+      is_default: datos.esPrincipal,
+      active: datos.activo,
+    } as unknown as Json,
+  })
+  if (error) throw falloDeAgenda(error.message, 'No se pudo guardar la dirección.')
+  return leerResultado(data)
 }
 
-export async function actualizarDireccion(
-  companyId: string,
-  clienteId: string,
-  id: string,
-  datos: DatosDireccion,
-): Promise<void> {
-  if (datos.esPrincipal) await bajarPrincipalDireccion(companyId, clienteId, datos.tipo, id)
-  const { error } = await supabase
-    .from('customer_addresses')
-    .update(filaDireccion(companyId, clienteId, datos))
-    .eq('company_id', companyId)
-    .eq('id', id)
-  if (error) throw new Error(traducir(error.message, error.code))
-}
-
-export async function borrarDireccion(companyId: string, id: string): Promise<void> {
-  const { error } = await supabase
-    .from('customer_addresses')
-    .delete()
-    .eq('company_id', companyId)
-    .eq('id', id)
-  if (error) throw new Error(`No se pudo borrar la dirección: ${error.message}`)
-}
-
-/** Una principal por cliente **y por tipo**: así está el índice único. */
-async function bajarPrincipalDireccion(
-  companyId: string,
-  clienteId: string,
-  tipo: string,
-  exceptoId: string | null,
-): Promise<void> {
-  let q = supabase
-    .from('customer_addresses')
-    .update({ is_default: false })
-    .eq('company_id', companyId)
-    .eq('customer_id', clienteId)
-    .eq('kind', tipo)
-    .eq('is_default', true)
-  if (exceptoId) q = q.neq('id', exceptoId)
-  const { error } = await q
-  if (error) throw new Error(`No se pudo cambiar la dirección principal: ${error.message}`)
+export async function borrarDireccion(direccionId: string): Promise<void> {
+  const { error } = await supabase.rpc('borrar_direccion', { p_direccion: direccionId })
+  if (error) throw falloDeAgenda(error.message, 'No se pudo borrar la dirección.')
 }
 
 /**
@@ -382,9 +383,6 @@ function traducir(mensaje: string, codigo?: string): string {
     }
     if (mensaje.includes('customers_legacy')) {
       return 'Esa referencia CLI ya está en uso.'
-    }
-    if (mensaje.includes('contact_default') || mensaje.includes('addr_default')) {
-      return 'Ya hay otro marcado como principal.'
     }
     return `Ese dato ya existe: ${mensaje}`
   }

@@ -128,6 +128,8 @@ export interface DocumentoDetalle {
   contactoNombre: string | null
   /** Los ids que necesita el editor para preseleccionar en los desplegables. */
   contactoId: string | null
+  /** Sólo el pedido: la dirección de entrega elegida (Fase 17 · E3). */
+  direccionEntregaId?: string | null
   vendedorId: string | null
   /** Sólo cotizaciones: con qué lista de precios se cotizó. */
   listaPrecioId: string | null
@@ -154,7 +156,14 @@ export interface DocumentoDetalle {
    * `null` cuando no se registró: el remito histórico no dice adónde fue, y
    * mostrar el domicilio de hoy sería inventarlo.
    */
+  /** Sólo remitos: el domicilio **congelado** al emitir (Fase 15 · E6). */
   domicilioEntrega: DomicilioSnapshot | null
+  /**
+   * Sólo pedidos: el domicilio **elegido**, que se lee del cliente cada vez
+   * (Fase 17 · E3). No es un snapshot: si el cliente se muda, esto cambia. Lo
+   * que no cambia es el remito ya emitido.
+   */
+  domicilioElegido: DomicilioSnapshot | null
   /** Sólo cotizaciones. */
   validaHasta: string | null
   descuentoPct: number | null

@@ -57,6 +57,7 @@ const ETIQUETA_ORIGEN: Record<string, string> = {
 export function InformacionDocumento({ doc }: InformacionDocumentoProps) {
   const esCotizacion = doc.tipo === 'cotizacion'
   const esEntrega = doc.tipo === 'entrega'
+  const esPedido = doc.tipo === 'pedido'
   const comercial = !esEntrega
   const origen = presentarOrigen({
     externalSource: doc.externalSource,
@@ -86,6 +87,17 @@ export function InformacionDocumento({ doc }: InformacionDocumentoProps) {
     esEntrega && {
       label: 'Dirección de entrega',
       value: formatearDomicilio(doc.domicilioEntrega) ?? <Missing>Sin domicilio registrado</Missing>,
+      wide: true,
+    },
+    // Fase 17 · E3: en el pedido es el domicilio ELEGIDO, que todavía se puede
+    // cambiar. Sin elegir no se muestra el del cliente de hoy: se dice que el
+    // remito va a usar el principal en el momento de emitirlo, que es lo que
+    // efectivamente va a pasar.
+    esPedido && {
+      label: 'Entregar en',
+      value: formatearDomicilio(doc.domicilioElegido) ?? (
+        <Missing>Sin elegir: el remito usará el domicilio principal del cliente</Missing>
+      ),
       wide: true,
     },
     esEntrega && doc.transporte ? { label: 'Transporte', value: doc.transporte } : null,

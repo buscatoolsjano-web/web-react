@@ -40,7 +40,6 @@ import {
 } from '../lib/borrador'
 import {
   aplicarDefaults,
-  type CampoSugerible,
   type DefaultsComerciales,
 } from '../lib/defaults'
 import { escribeVentas } from '../lib/permisos'
@@ -98,7 +97,7 @@ export function CotizacionNuevaPage() {
   // Fase 17 · E2. `tocados` es la memoria de lo que eligió la persona: el
   // default de un cliente nunca pisa un campo que ya tocó. `defaults` se
   // guarda para volver a evaluarlo cuando aparece la moneda.
-  const [tocados, setTocados] = useState<ReadonlySet<CampoSugerible>>(new Set())
+  const [tocados, setTocados] = useState<ReadonlySet<CampoCabecera>>(new Set())
   const [defaults, setDefaults] = useState<DefaultsComerciales | null>(null)
   const [avisosCliente, setAvisosCliente] = useState<string[]>([])
   // Si se cambia de cliente dos veces seguidas, la respuesta que llega tarde
@@ -149,7 +148,7 @@ export function CotizacionNuevaPage() {
   const cambiarCampoCabecera = (campo: CampoCabecera, valor: string) => {
     // Lo que se cambia a mano queda marcado y deja de sugerirse.
     if (SUGERIBLES.includes(campo)) {
-      setTocados((t) => new Set([...t, campo as CampoSugerible]))
+      setTocados((t) => new Set([...t, campo]))
     }
     setB((x) => cambiarCampo(x, campo, valor))
   }
@@ -194,7 +193,7 @@ export function CotizacionNuevaPage() {
 
     // Con la moneda ya elegida, la tarifa del cliente puede entrar —o quedar
     // descartada por incompatible, que también se dice.
-    const conMoneda = new Set<CampoSugerible>([...tocados, 'moneda'])
+    const conMoneda = new Set<CampoCabecera>([...tocados, 'moneda'])
     setTocados(conMoneda)
     const ap = aplicarDefaults(r.borrador, defaults, conMoneda, opcionesValidas())
     setAvisosCliente(ap.avisos)

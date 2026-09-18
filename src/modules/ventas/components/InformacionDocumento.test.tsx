@@ -42,6 +42,7 @@ const doc = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle => ({
     transporte: null,
     seguimiento: null,
     domicilioEntrega: null,
+    domicilioElegido: null,
     validaHasta: null,
     descuentoPct: null,
     percepcionPct: null,

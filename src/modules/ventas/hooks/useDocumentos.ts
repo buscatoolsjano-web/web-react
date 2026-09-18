@@ -2,7 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { listarClientes } from '../services/clientes'
 import { listarEventos, type EntidadAuditable } from '../services/auditoria'
-import { contactosDeCliente, tarifasDeEmpresa, vendedoresDeEmpresa } from '../services/opciones'
+import {
+  contactosDeCliente,
+  direccionesDeEntrega,
+  tarifasDeEmpresa,
+  vendedoresDeEmpresa,
+} from '../services/opciones'
 import { listarDocumentos, monedasUsadas, obtenerDocumento } from '../services/documentos'
 import { documentosRelacionados, evidenciaDeEntrega } from '../services/relacionados'
 import { disponibilidadDeProductos } from '../services/stock'
@@ -175,6 +180,25 @@ export function useContactos(customerId: string | null) {
   return useQuery({
     queryKey: ['ventas', companyId, 'contactos', customerId],
     queryFn: () => contactosDeCliente(companyId!, customerId!),
+    enabled: companyId !== null && !!customerId,
+    staleTime: 5 * 60_000,
+  })
+}
+
+/**
+ * Los domicilios de entrega del cliente elegido (Fase 17 · E3).
+ *
+ * Igual que los contactos: sólo con cliente, y una consulta acotada. La clave
+ * de caché es la que invalida la ficha del cliente cuando alguien agrega,
+ * desactiva o cambia la principal.
+ */
+export function useDireccionesEntrega(customerId: string | null) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery({
+    queryKey: ['ventas', companyId, 'direcciones', customerId],
+    queryFn: () => direccionesDeEntrega(companyId!, customerId!),
     enabled: companyId !== null && !!customerId,
     staleTime: 5 * 60_000,
   })

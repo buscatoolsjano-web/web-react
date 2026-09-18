@@ -13,6 +13,7 @@ const estado = vi.hoisted(() => ({
   vendedores: [] as { id: string; nombre: string }[],
   tarifas: [] as { id: string; nombre: string }[],
   errorGuardar: null as Error | null,
+  usuarioId: 'u-admin',
 }))
 const mutaciones = vi.hoisted(() => ({
   dar: vi.fn(),
@@ -27,6 +28,11 @@ const mutaciones = vi.hoisted(() => ({
 // cliente de Supabase, que exige `.env` al importarse: sin este mock la suite
 // aislada —la que corre como si no existiera `.env`— se cae.
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+// Fase 17 · E3: la agenda del cliente la administra también el vendedor que
+// lo tiene asignado, así que la página necesita saber quién está mirando.
+vi.mock('@/features/auth/useAuth', () => ({
+  useAuth: () => ({ user: { id: estado.usuarioId }, session: null, cargando: false, salir: vi.fn() }),
+}))
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({ activa: { companyId: 'c1', companyName: 'ZZ', rol: estado.rol, esInterno: true, customerId: null } }),
 }))
@@ -112,11 +118,12 @@ const montar = (extra?: React.ReactNode) => {
 beforeEach(() => {
   estado.rol = 'admin'
   estado.cliente = { ...base }
-  estado.contactos = [{ id: 'k1', nombre: 'ZZ Ana', cargo: 'Compras', email: null, telefono: null, fax: null, esPrincipal: true, notas: null }]
+  estado.contactos = [{ id: 'k1', nombre: 'ZZ Ana', cargo: 'Compras', email: null, telefono: null, fax: null, esPrincipal: true, notas: null, activo: true, actualizadoEn: '2026-01-01T00:00:00Z' }]
   estado.errorGuardar = null
+  estado.usuarioId = 'u-admin'
   estado.vendedores = [{ id: 'u1', nombre: 'ZZ Vendedora' }]
   estado.tarifas = [{ id: 'pl1', nombre: 'ZZ Mayorista' }]
-  estado.direcciones = [{ id: 'd1', tipo: 'both', calle: 'ZZ Calle 1', ciudad: null, provincia: null, codigoPostal: null, pais: 'AR', notas: null, esPrincipal: true, texto: 'ZZ Calle 1, AR' }]
+  estado.direcciones = [{ id: 'd1', tipo: 'both', calle: 'ZZ Calle 1', ciudad: null, provincia: null, codigoPostal: null, pais: 'AR', notas: null, esPrincipal: true, texto: 'ZZ Calle 1, AR', activo: true, actualizadoEn: '2026-01-01T00:00:00Z' }]
   vi.clearAllMocks()
 })
 

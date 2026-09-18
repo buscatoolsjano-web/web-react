@@ -122,3 +122,14 @@
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: var(--space-3) var(--space-4);
 }
+
+/* Fase 17 · E3: lo desactivado se ve, pero se ve apagado. Nunca se esconde:
+   alguien tiene que poder reactivarlo, y su ausencia sería un misterio. */
+.inactivo {
+  background: var(--color-surface-sunken);
+  border-style: dashed;
+}
+
+.inactivo .nombre {
+  color: var(--color-text-muted);
+}
