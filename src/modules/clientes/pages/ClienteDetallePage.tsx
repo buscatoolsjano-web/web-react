@@ -332,7 +332,15 @@ export function ClienteDetallePage() {
       ) : null}
 
       {cliente.necesitaRevision ? (
-        <Alert tone="warning" title="Este cliente quedó marcado para revisión">
+        <Alert
+          tone="warning"
+          title="Este cliente quedó marcado para revisión"
+          action={
+            <LinkButton variant="secondary" to="/clientes/revisar">
+              Ver todos los marcados
+            </LinkButton>
+          }
+        >
           <ul className={styles.motivos}>
             {cliente.motivosRevision.map((m) => (
               <li key={m}>

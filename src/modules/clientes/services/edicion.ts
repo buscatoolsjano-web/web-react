@@ -20,52 +20,75 @@ const vacioANulo = (s: string): string | null => {
 }
 
 /**
- * Alta de cliente.
+ * Alta de cliente, en UNA transacción (Fase 17 · E5).
  *
- * La referencia `CLI00001` la da el servidor con `next_document_number`, la
- * misma función que numera cotizaciones, pedidos y remitos: un UPDATE con
- * bloqueo de fila, no un `MAX+1` calculado en el navegador como hacía
- * `nextClienteRef`. El uuid sigue siendo la identidad; la referencia es un
- * dato más.
+ * Antes eran dos viajes desde el navegador: pedir la referencia `CLI00001` con
+ * `next_document_number` y después insertar. Si el insert fallaba, **el número
+ * quedaba consumido** y se perdía. Ahora todo pasa dentro de `crear_cliente`:
+ * la numeración corre en la misma transacción y, si algo falla, el contador
+ * vuelve atrás con el resto. No quedan huecos.
  *
- * El número se pide **antes** del insert. Si el insert falla, ese número se
- * pierde —queda un hueco— y está bien: repetir una referencia es peor que
- * saltearla, y es exactamente lo que hace la numeración de Ventas.
+ * El contacto y la dirección son opcionales y van en el mismo viaje: o entra
+ * el cliente con lo que se cargó, o no entra nada. Un cliente creado a medias
+ * —sin el contacto que la persona escribió— es peor que un error.
  */
+export interface AltaDeCliente {
+  datos: DatosCliente
+  /** Opcional: si viene, nace como contacto principal. */
+  contacto?: DatosContacto | null
+  /** Opcional: si viene, nace como principal de su tipo. */
+  direccion?: DatosDireccion | null
+}
+
 export async function crearCliente(
   companyId: string,
-  datos: DatosCliente,
+  alta: AltaDeCliente,
 ): Promise<{ id: string; referencia: string | null }> {
-  const { data: referencia, error: eNum } = await supabase.rpc('next_document_number', {
-    p_company: companyId,
-    p_doc_type: 'customer',
-  })
-  if (eNum) throw new Error(`No se pudo asignar la referencia: ${eNum.message}`)
+  const { datos, contacto, direccion } = alta
 
-  const { data, error } = await supabase
-    .from('customers')
-    .insert({
-      company_id: companyId,
-      legacy_ref: referencia,
+  const { data, error } = await supabase.rpc('crear_cliente', {
+    p_company: companyId,
+    p_datos: {
       legal_name: datos.razonSocial.trim(),
       trade_name: vacioANulo(datos.nombreComercial),
       tax_id: vacioANulo(datos.cuit),
       emails: normalizarEmails(datos.emails),
-      // NOT NULL con default `{}`: un cliente sin dominios lleva array vacío.
       email_domains: normalizarDominios(datos.dominios),
       industry: vacioANulo(datos.rubro),
       phone: vacioANulo(datos.telefono),
       customer_type: datos.tipo,
       payment_terms: vacioANulo(datos.condicionDePago),
       default_currency: vacioANulo(datos.monedaPorDefecto),
+      salesperson_id: vacioANulo(datos.vendedorId),
+      default_price_list_id: vacioANulo(datos.tarifaId),
       notes: vacioANulo(datos.notas),
-      status: 'active',
-    })
-    .select('id, legacy_ref')
-    .single()
+    } as unknown as Json,
+    p_contacto: contacto
+      ? ({
+          full_name: contacto.nombre.trim(),
+          role: vacioANulo(contacto.cargo),
+          email: vacioANulo(contacto.email.toLowerCase()),
+          phone: vacioANulo(contacto.telefono),
+          fax: vacioANulo(contacto.fax),
+          notes: vacioANulo(contacto.notas),
+        })
+      : null,
+    p_direccion: direccion
+      ? ({
+          kind: direccion.tipo,
+          street: direccion.calle.trim(),
+          city: vacioANulo(direccion.ciudad),
+          state: vacioANulo(direccion.provincia),
+          postal_code: vacioANulo(direccion.codigoPostal),
+          country_code: vacioANulo(direccion.pais.toUpperCase()),
+          notes: vacioANulo(direccion.notas),
+        })
+      : null,
+  })
+  if (error) throw falloDeCliente(error.message)
 
-  if (error) throw new Error(traducir(error.message, error.code))
-  return { id: data.id, referencia: data.legacy_ref }
+  const r = data as unknown as { id: string; referencia: string | null }
+  return { id: r.id, referencia: r.referencia }
 }
 
 /** Lo que dice el servidor → lo que lee una persona (Fase 17 · E1). */
@@ -74,6 +97,8 @@ export const MOTIVOS_CLIENTE: Record<string, string> = {
     'Alguien más guardó este cliente mientras lo editabas. Recargá para ver los cambios; lo tuyo no se perdió.',
   CLIENTE_DADO_DE_BAJA: 'El cliente está dado de baja: primero reactivalo.',
   CLIENTE_INEXISTENTE: 'No encontramos el cliente.',
+  CLIENTE_DUPLICADO:
+    'Ya hay un cliente con ese CUIT en esta empresa. Buscalo en el listado en vez de crear otro.',
   SIN_PERMISO: 'Tu rol no edita este cliente.',
   CAMPO_NO_EDITABLE: 'Se intentó cambiar un campo que no se edita.',
   RAZON_SOCIAL_REQUERIDA: 'La razón social no puede quedar vacía.',
@@ -369,25 +394,3 @@ export async function borrarDireccion(direccionId: string): Promise<void> {
   if (error) throw falloDeAgenda(error.message, 'No se pudo borrar la dirección.')
 }
 
-/**
- * El error de Postgres, en castellano.
- *
- * Un 23505 sobre el índice del CUIT no es «duplicate key value violates unique
- * constraint»: es «ese CUIT ya lo tiene otro cliente», que es lo que la
- * persona necesita leer para saber qué hacer.
- */
-function traducir(mensaje: string, codigo?: string): string {
-  if (codigo === '23505') {
-    if (mensaje.includes('cuit_norm') || mensaje.includes('taxid')) {
-      return 'Ese CUIT ya lo tiene otro cliente de esta empresa.'
-    }
-    if (mensaje.includes('customers_legacy')) {
-      return 'Esa referencia CLI ya está en uso.'
-    }
-    return `Ese dato ya existe: ${mensaje}`
-  }
-  if (codigo === '42501') {
-    return 'No tenés permiso para hacer este cambio.'
-  }
-  return mensaje
-}

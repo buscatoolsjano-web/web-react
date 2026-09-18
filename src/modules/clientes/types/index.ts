@@ -97,6 +97,41 @@ export interface DireccionCliente {
   actualizadoEn: string
 }
 
+/**
+ * Un cliente que se parece al que se está cargando (Fase 17 · E5).
+ *
+ * `fuerza` dice cuánto pesa la coincidencia, y con eso la pantalla decide si
+ * bloquea o sólo avisa:
+ *
+ *   · `fuerte` — el mismo CUIT. No es un parecido: es el mismo contribuyente,
+ *                y la base no va a dejar crear el segundo.
+ *   · `media`  — el mismo email o el mismo teléfono. Pasa de verdad —diez
+ *                grupos de clientes comparten email en producción— y no
+ *                siempre es un duplicado: una casa matriz y su sucursal.
+ *   · `debil`  — el nombre se parece. **Nunca** bloquea.
+ */
+export interface ClienteSimilar {
+  id: string
+  razonSocial: string
+  nombreComercial: string | null
+  cuit: string | null
+  referencia: string | null
+  emails: string[]
+  telefono: string | null
+  dadoDeBaja: boolean
+  necesitaRevision: boolean
+  motivo: 'CUIT' | 'EMAIL' | 'TELEFONO' | 'NOMBRE'
+  fuerza: 'fuerte' | 'media' | 'debil'
+  /** 0 a 1. Sólo significa algo para el motivo `NOMBRE`. */
+  parecido: number
+}
+
+/** Una página de la cola de revisión (Fase 17 · E5). */
+export interface PaginaDeRevision {
+  filas: ClienteListado[]
+  total: number
+}
+
 export interface AliasDeProducto {
   id: string
   /** El código con el que el cliente pide el producto, si lo usa. */

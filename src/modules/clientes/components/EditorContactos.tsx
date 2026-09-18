@@ -183,8 +183,22 @@ export function EditorContactos({
 
   if (cargando) return <SkeletonRows rows={3} columns={2} label="Cargando contactos…" />
 
+  // Fase 17 · E5. Los 87 contactos migrados quedaron sin principal y **no se
+  // marcó ninguno por script**: quién atiende a cada cliente no lo sabe una
+  // migración. Lo que sí corresponde es decirlo donde se puede arreglar.
+  const hayActivos = contactos.some((c) => c.activo)
+  const sinPrincipal = hayActivos && !contactos.some((c) => c.activo && c.esPrincipal)
+
   return (
     <div className={styles.wrap}>
+      {sinPrincipal ? (
+        <Alert tone="info" role="status" title="Este cliente no tiene un contacto principal">
+          <p>
+            El principal es el que se propone al armar una cotización o un pedido nuevo.
+            {puedeEditar ? ' Marcalo con «Editar» en el contacto que corresponda.' : ''}
+          </p>
+        </Alert>
+      ) : null}
       {contactos.length === 0 && editando === null ? (
         <EmptyState
           compact

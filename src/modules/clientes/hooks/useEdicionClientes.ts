@@ -11,6 +11,7 @@ import {
   reactivarCliente,
   resolverRevision,
 } from '../services/edicion'
+import type { AltaDeCliente } from '../services/edicion'
 import type { DatosCliente, DatosContacto, DatosDireccion } from '../lib/validacion'
 
 /**
@@ -37,7 +38,7 @@ export function useCrearCliente() {
   const companyId = activa?.companyId ?? null
 
   return useMutation({
-    mutationFn: (datos: DatosCliente) => crearCliente(companyId!, datos),
+    mutationFn: (alta: AltaDeCliente) => crearCliente(companyId!, alta),
     onSuccess: () => {
       const k = clavesDelCliente(companyId)
       void qc.invalidateQueries({ queryKey: k.listado })

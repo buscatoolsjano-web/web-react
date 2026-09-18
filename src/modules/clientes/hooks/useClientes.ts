@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { FILTROS_INICIALES } from '../types'
 import {
   candidatosDeOc,
   contactosDeCliente,
@@ -14,8 +15,14 @@ import {
 import { productosDelCliente } from '../services/productos'
 import { eventosDeCliente } from '../services/trazabilidad'
 import { listarAdjuntos } from '../services/adjuntos'
+import {
+  clientesSimilares,
+  valeLaPenaBuscar,
+  type EntradaDeBusqueda,
+} from '../services/duplicados'
 import type {
   AdjuntoCliente,
+  ClienteSimilar,
   CandidatoDeOc,
   ClienteDetalle,
   ContactoCliente,
@@ -184,6 +191,64 @@ export function useAdjuntosDeCliente(clienteId: string | undefined, habilitado: 
     queryFn: () => listarAdjuntos(companyId!, clienteId!),
     enabled: habilitado && companyId !== null && !!clienteId,
     staleTime: 30_000,
+  })
+}
+
+/**
+ * La cola de revisión (Fase 17 · E5).
+ *
+ * Es el mismo listado de siempre con `soloRevision`, paginado del lado del
+ * servidor: no se traen los 1.010 clientes para filtrar 40 en el navegador, y
+ * el día que sean 400 la pantalla no cambia.
+ */
+export function useColaDeRevision(opciones: { pagina: number; porPagina: number }) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const { pagina, porPagina } = opciones
+
+  return useQuery<PaginaDeClientes>({
+    queryKey: ['clientes', companyId, 'revision', pagina, porPagina],
+    queryFn: () =>
+      listarClientes(companyId!, {
+        ...FILTROS_INICIALES,
+        soloRevision: true,
+        pagina,
+        porPagina,
+      }),
+    enabled: companyId !== null,
+    placeholderData: (previa, consultaPrevia) =>
+      consultaPrevia?.queryKey[1] === companyId ? previa : undefined,
+    staleTime: 30_000,
+  })
+}
+
+/**
+ * Clientes que se parecen al que se está cargando (Fase 17 · E5).
+ *
+ * No sale hasta que hay algo con lo que buscar —un CUIT completo, un email, un
+ * teléfono de seis dígitos o cuatro letras de nombre—, así que escribir la
+ * primera letra no dispara nada. La caché guarda por entrada exacta: volver a
+ * un valor ya consultado no vuelve a preguntar.
+ */
+export function useClientesSimilares(entrada: EntradaDeBusqueda) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const habilitado = companyId !== null && valeLaPenaBuscar(entrada)
+
+  return useQuery<ClienteSimilar[]>({
+    queryKey: [
+      'clientes',
+      companyId,
+      'similares',
+      entrada.nombre ?? '',
+      entrada.cuit ?? '',
+      entrada.email ?? '',
+      entrada.telefono ?? '',
+      entrada.excluir ?? '',
+    ],
+    queryFn: () => clientesSimilares(companyId!, entrada),
+    enabled: habilitado,
+    staleTime: 60_000,
   })
 }
 

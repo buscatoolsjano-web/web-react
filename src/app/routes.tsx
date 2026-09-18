@@ -110,6 +110,11 @@ const ClientesPage = lazyConRecarga(() =>
 const ClienteNuevoPage = lazyConRecarga(() =>
   import('@/modules/clientes/pages/ClienteNuevoPage').then((m) => ({ default: m.ClienteNuevoPage })),
 )
+const ClientesRevisarPage = lazyConRecarga(() =>
+  import('@/modules/clientes/pages/ClientesRevisarPage').then((m) => ({
+    default: m.ClientesRevisarPage,
+  })),
+)
 const ClienteDetallePage = lazyConRecarga(() =>
   import('@/modules/clientes/pages/ClienteDetallePage').then((m) => ({
     default: m.ClienteDetallePage,
@@ -326,6 +331,7 @@ export const routes: RouteObject[] = [
       { path: 'clientes', element: privada(<ClientesPage />) },
       // `nuevo` antes que `:id`: si no, React Router lo tomaría como un id.
       { path: 'clientes/nuevo', element: privada(<ClienteNuevoPage />) },
+      { path: 'clientes/revisar', element: privada(<ClientesRevisarPage />) },
       { path: 'clientes/:id', element: privada(<ClienteDetallePage />) },
 
       // Compras. Igual que Ventas, la sección sola no tiene pantalla propia:

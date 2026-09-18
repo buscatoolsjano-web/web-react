@@ -111,6 +111,9 @@ export function ClientesPage() {
           Limpiar selección
         </Button>
       ) : null}
+      <LinkButton to="/clientes/revisar" variant="secondary">
+        Revisar
+      </LinkButton>
       {permisos.crearCliente ? (
         <LinkButton to="/clientes/nuevo" variant="primary" icon={<Icon name="plus" size={16} />}>
           Nuevo cliente

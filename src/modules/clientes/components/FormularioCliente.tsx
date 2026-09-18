@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import { Field } from '@/components/forms/Field'
 import { Input, Select, Textarea } from '@/components/forms/controls'
 import { Alert } from '@/components/feedback/Alert'
@@ -31,6 +31,22 @@ export interface FormularioClienteProps {
   puedeAsignar?: boolean | undefined
   /** Avisa a la página si hay cambios sin guardar, para el aviso al salir. */
   onCambioSucio?: ((sucio: boolean) => void) | undefined
+  /**
+   * Lo que hay escrito ahora mismo (Fase 17 · E5). El alta lo usa para buscar
+   * clientes parecidos mientras se escribe, sin duplicar el estado del
+   * formulario en la página.
+   */
+  onCambioDatos?: ((datos: DatosCliente) => void) | undefined
+  /**
+   * Secciones propias de quien usa el formulario (Fase 17 · E5): el alta mete
+   * acá el contacto y la dirección iniciales. Va antes de los botones, que son
+   * los que cierran el formulario.
+   */
+  extra?: ReactNode
+  /** `true` apaga el botón de guardar aunque haya cambios: lo decide la página. */
+  bloqueado?: boolean | undefined
+  /** Por qué está bloqueado, si lo está. */
+  motivoBloqueo?: ReactNode
   onGuardar: (datos: DatosCliente) => void
   onCancelar: () => void
 }
@@ -41,10 +57,10 @@ const MONEDAS = ['USD', 'ARS', 'EUR'] as const
 /**
  * Alta y edición del cliente.
  *
- * Los campos son los que **existen de verdad** en `customers`. No hay
- * «vendedor asignado» ni «lista de precios» editables acá: la columna existe
- * pero el legacy nunca la usó por cliente, y ponerle un desplegable sería
- * invitar a inventar un dato que después nadie sabe de dónde salió.
+ * Los campos son los que **existen de verdad** en `customers`. Desde la Fase
+ * 17 · E1 el vendedor y la tarifa también se editan acá —son los defaults
+ * comerciales que E2 sugiere al armar un documento— y sólo para quien puede
+ * asignarlos.
  *
  * Fase 13 · E4: los mismos campos y la misma validación, agrupados en
  * Identidad, Contacto, Datos comerciales y Notas, con el patrón `Field`.
@@ -61,6 +77,10 @@ export function FormularioCliente({
   tarifas,
   puedeAsignar = false,
   onCambioSucio,
+  onCambioDatos,
+  extra,
+  bloqueado = false,
+  motivoBloqueo,
   onGuardar,
   onCancelar,
 }: FormularioClienteProps) {
@@ -80,6 +100,11 @@ export function FormularioCliente({
   useEffect(() => {
     onCambioSucio?.(sucio)
   }, [sucio, onCambioSucio])
+
+  // Lo mismo para los valores: en un efecto, no durante el render.
+  useEffect(() => {
+    onCambioDatos?.(datos)
+  }, [datos, onCambioDatos])
 
   const cambiar = <K extends keyof DatosCliente>(campo: K, valor: DatosCliente[K]) => {
     const siguiente = { ...datos, [campo]: valor }
@@ -245,14 +270,27 @@ export function FormularioCliente({
         </Field>
       </fieldset>
 
+      {extra}
+
       {errorAlGuardar ? (
         <Alert tone="danger" role="alert" title="No se pudo guardar">
           <p>{errorAlGuardar}</p>
         </Alert>
       ) : null}
 
+      {bloqueado && motivoBloqueo ? (
+        <Alert tone="warning" role="alert" title="No se puede crear">
+          {motivoBloqueo}
+        </Alert>
+      ) : null}
+
       <div className={styles.acciones}>
-        <Button type="submit" variant="primary" loading={guardando} disabled={!sucio || guardando}>
+        <Button
+          type="submit"
+          variant="primary"
+          loading={guardando}
+          disabled={!sucio || guardando || bloqueado}
+        >
           {guardando ? 'Guardando…' : etiquetaGuardar}
         </Button>
         <Button variant="ghost" onClick={onCancelar} disabled={guardando}>

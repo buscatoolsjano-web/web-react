@@ -6044,6 +6044,40 @@ export type Database = {
           total_filas: number
         }[]
       }
+      clientes_similares: {
+        Args: {
+          p_company: string
+          p_cuit?: string | null
+          p_email?: string | null
+          p_excluir?: string | null
+          p_limite?: number
+          p_nombre?: string | null
+          p_telefono?: string | null
+        }
+        Returns: {
+          id: string
+          legal_name: string
+          trade_name: string | null
+          tax_id: string | null
+          legacy_ref: string | null
+          emails: string[] | null
+          phone: string | null
+          deleted_at: string | null
+          needs_review: boolean
+          motivo: string
+          fuerza: string
+          parecido: number
+        }[]
+      }
+      crear_cliente: {
+        Args: {
+          p_company: string
+          p_contacto?: Json | null
+          p_datos: Json
+          p_direccion?: Json | null
+        }
+        Returns: Json
+      }
       guardar_cliente: {
         Args: {
           p_customer: string
