@@ -1,4 +1,5 @@
 import qr from 'qrcode-terminal'
+import { AllowlistSupabase, PoliticaViva } from './allowlist.js'
 import { leerConfig, configParaLog, ConfigInvalida, type Config } from './config.js'
 import { Listener } from './listener.js'
 import type { Politica } from './politica.js'
@@ -27,6 +28,13 @@ import { TransporteBaileys } from './transporteBaileys.js'
  * para poder elegir cuál autorizar.
  */
 
+/**
+ * La allowlist del entorno: **sólo para el modo local sin base**.
+ *
+ * Con `WHATSAPP_REPOSITORIO=supabase` la fuente de verdad es la tabla
+ * `whatsapp_group_allowlist` y esta variable se ignora. Queda para poder
+ * probar el transporte de mentira sin levantar nada.
+ */
 function politicaDesdeEntorno(config: Config, entorno = process.env): Politica {
   const crudo = (entorno['WHATSAPP_GROUPS_ALLOWLIST'] ?? '').trim()
   const ids = crudo === '' ? [] : crudo.split(',').map((s) => s.trim()).filter(Boolean)
@@ -73,10 +81,22 @@ async function principal(): Promise<void> {
   const usaSupabase = config.repositorio === 'supabase'
   const soloGrupos = process.argv.includes('--grupos')
 
-  const politica = politicaDesdeEntorno(config)
+  // Con base, la allowlist se lee de la tabla y se refresca sola: habilitar o
+  // deshabilitar un grupo NO requiere reiniciar el proceso, que además pierde
+  // los mensajes que lleguen durante el reconnect.
+  const viva = usaSupabase
+    ? new PoliticaViva(
+        new AllowlistSupabase(config),
+        { listenerHabilitado: config.listenerHabilitado },
+        registroDeConsola,
+      )
+    : null
+  const deEntorno = politicaDesdeEntorno(config)
+  const politica = () => viva?.politica() ?? deEntorno
+
   registroDeConsola.evento('info', 'arrancando', {
     ...configParaLog(config),
-    gruposAutorizados: politica.grupos.length,
+    allowlist: viva ? 'supabase' : 'entorno',
     transporte: usaBaileys ? 'baileys' : 'mock',
     repositorio: usaSupabase ? 'supabase' : 'memoria',
   })
@@ -100,7 +120,7 @@ async function principal(): Promise<void> {
     ? new RepositorioSupabase(config)
     : new RepositorioEnMemoria()
 
-  const listener = new Listener(transporte, repositorio, () => politica, registroDeConsola)
+  const listener = new Listener(transporte, repositorio, politica, registroDeConsola)
 
   const desde = new Date().toISOString()
   const salud = servidorDeSalud(config.puertoDeSalud, () => ({
@@ -108,11 +128,18 @@ async function principal(): Promise<void> {
     conexion: listener.conexion,
     desde,
     ultimoEvento: listener.ultimoEvento,
-    gruposActivos: politica.grupos.filter((g) => g.habilitado).length,
+    gruposActivos: politica().grupos.filter((g) => g.habilitado).length,
     contadores: listener.contadores,
+    ultimaConexion: listener.ultimaConexion,
+    allowlistLeidaEn: viva?.leidoEn ?? null,
+    errores: listener.contadores.errores,
     motivo: listener.motivo,
     cuenta: baileys?.cuenta ?? null,
   }))
+
+  // La allowlist ANTES de conectar: si el proceso arrancara escuchando sin
+  // saber qué está autorizado, el primer mensaje entraría a ciegas.
+  if (viva) await viva.iniciar()
 
   await listener.iniciar()
 
@@ -131,6 +158,7 @@ async function principal(): Promise<void> {
     void (async () => {
       registroDeConsola.evento('info', 'cerrando', { senal })
       salud.close()
+      viva?.detener()
       await listener.detener()
       process.exit(0)
     })()

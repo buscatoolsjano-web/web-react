@@ -19,6 +19,7 @@ export class Listener {
   private intentos = 0
   private ultimoEventoEn: Date | null = null
   private ultimoMotivo: string | null = null
+  private ultimaConexionEn: Date | null = null
   private detenido = false
   private temporizador: ReturnType<typeof setTimeout> | null = null
 
@@ -46,6 +47,11 @@ export class Listener {
 
   get contadores() {
     return this.ingesta.contadores
+  }
+
+  /** Cuándo se conectó por última vez. Para el monitoreo. */
+  get ultimaConexion(): string | null {
+    return this.ultimaConexionEn?.toISOString() ?? null
   }
 
   get ultimoEvento(): string | null {
@@ -92,7 +98,7 @@ export class Listener {
     await this.transporte.conectar()
     this.estadoActual = this.transporte.estado()
     this.intentos = 0
-    if (this.estadoActual === 'conectado') this.ultimoMotivo = null
+    if (this.estadoActual === 'conectado') { this.ultimoMotivo = null; this.ultimaConexionEn = new Date() }
     this.registro.evento('info', 'listener_conectado', { estado: this.estado() })
   }
 
@@ -129,7 +135,7 @@ export class Listener {
       await this.transporte.conectar()
       this.estadoActual = this.transporte.estado()
       this.intentos = 0
-      if (this.estadoActual === 'conectado') this.ultimoMotivo = null
+      if (this.estadoActual === 'conectado') { this.ultimoMotivo = null; this.ultimaConexionEn = new Date() }
       this.registro.evento('info', 'reconectado')
     } catch (e) {
       this.registro.evento('error', 'reconexion_fallida', { detalle: sanearError(e) })

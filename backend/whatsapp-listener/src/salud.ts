@@ -18,6 +18,12 @@ export interface Salud {
   contadores: Contadores
   /** El socket, sin el filtro del kill switch: «apagado» no dice si está conectado. */
   conexion?: EstadoDeConexion
+  /** Cuándo se conectó por última vez. */
+  ultimaConexion?: string | null
+  /** Cuándo se leyó bien la allowlist. Si se atrasa, la ingesta se va a cortar. */
+  allowlistLeidaEn?: string | null
+  /** Cuántos eventos fallaron. Un número, no un stack. */
+  errores?: number
   /** Por qué se cortó la última vez. Saneado: nunca trae número ni token. */
   motivo?: string | null
   /** La cuenta vinculada, OFUSCADA. Para saber que es la que tiene que ser. */

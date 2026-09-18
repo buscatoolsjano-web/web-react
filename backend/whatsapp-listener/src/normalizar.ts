@@ -34,6 +34,16 @@ export interface MensajeCrudo {
   /** Cómo se llama HOY quien escribió. No es identidad. */
   pushName?: string | null
   message?: Record<string, unknown> | null
+  /**
+   * Por qué este «mensaje» no tiene contenido.
+   *
+   * WhatsApp usa la misma estructura para los mensajes y para los avisos del
+   * sistema —«Fulano se unió», «cambió el código de seguridad»—, y también para
+   * los que no se pudieron descifrar (`CIPHERTEXT`, el 2). Distinguirlos es la
+   * diferencia entre «esto no era un mensaje» y «esto era un mensaje y lo
+   * perdimos».
+   */
+  messageStubType?: number | string | null
 }
 
 export function aMilisegundos(t: MarcaDeTiempo): number | null {

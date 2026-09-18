@@ -98,6 +98,7 @@ export class TransporteBaileys implements Transporte {
       'messages.upsert',
       (u) => void this.alLlegarMensajes(u.messages as MensajeCrudo[], u.type),
     )
+    socket.ev.on('messages.update', (u) => void this.alActualizarMensajes(u))
     socket.ev.on('groups.upsert', (grupos) => this.recordarNombres(grupos))
     socket.ev.on('groups.update', (grupos) => this.recordarNombres(grupos))
 
@@ -201,6 +202,79 @@ export class TransporteBaileys implements Transporte {
    * evento de protocolo que no nos importa. Se traduce todo acá y la decisión
    * de guardar o no la toma la política, que no sabe de WhatsApp.
    */
+  /**
+   * Un mensaje que llegó DESPUÉS, ya descifrado.
+   *
+   * Cuando Baileys no puede descifrar algo, emite igual un upsert con
+   * `messageStubType = CIPHERTEXT` y sin contenido, y pide un reenvío. Ese
+   * reenvío vuelve como **otro upsert**, no como una actualización con
+   * contenido — así que este camino casi nunca se usa. Está igual porque «casi
+   * nunca» no es «nunca», y porque perder un mensaje en silencio es justo lo
+   * que costó tres pruebas reales encontrar la vez pasada.
+   *
+   * No puede duplicar: si el mensaje ya entró, la RPC contesta `duplicado` por
+   * el índice único de `provider_message_id`.
+   */
+  private async alActualizarMensajes(
+    actualizaciones: readonly { key: unknown; update?: Record<string, unknown> }[],
+  ): Promise<void> {
+    for (const a of actualizaciones) {
+      const contenido = a.update?.['message'] as Record<string, unknown> | null | undefined
+      if (contenido === null || contenido === undefined) {
+        // Acuses de recibo, lecturas, errores de envío: no son nuestro asunto.
+        this.opciones.registro.evento('info', 'actualizacion_ignorada', {
+          claves: Object.keys(a.update ?? {}).join(','),
+        })
+        continue
+      }
+      this.opciones.registro.evento('aviso', 'mensaje_diferido', {
+        claves: Object.keys(contenido).join(','),
+      })
+      await this.traducirYEmitir({
+        key: a.key as MensajeCrudo['key'],
+        message: contenido,
+        messageTimestamp: a.update?.['messageTimestamp'] as MensajeCrudo['messageTimestamp'],
+        pushName: (a.update?.['pushName'] as string | null) ?? null,
+      })
+    }
+  }
+
+  /**
+   * Traduce un mensaje crudo y lo emite. Devuelve si se pudo.
+   *
+   * Lo comparten el camino normal y el de los mensajes diferidos: si la
+   * traducción vive en dos lugares, tarde o temprano se arreglan distinto.
+   */
+  private async traducirYEmitir(crudo: MensajeCrudo): Promise<boolean> {
+    const contexto = {
+      jidDeLaCuenta: this.jidDeLaCuenta,
+      nombreDeGrupo: this.nombres.get(normalizarJid(crudo.key.remoteJid) ?? '') ?? null,
+    }
+
+    const protocolo = protocoloDe(crudo, contexto)
+    if (protocolo) {
+      await this.emitir({ clase: protocolo.clase, datos: protocolo.datos } as Evento)
+      return true
+    }
+
+    const mensaje = normalizarMensaje(crudo, contexto)
+    if (mensaje) {
+      await this.emitir({ clase: 'mensaje', datos: mensaje })
+      return true
+    }
+
+    // Un mensaje que no se pudo traducir se DICE, y se dice CON QUÉ FORMA
+    // venía. `stub` es lo que separa «esto era un aviso del sistema» de «esto
+    // era un mensaje y no lo pudimos descifrar».
+    this.opciones.registro.evento('aviso', 'sin_traducir', {
+      claves: Object.keys(crudo.message ?? {}).join(','),
+      conMensaje: crudo.message !== null && crudo.message !== undefined,
+      stub: crudo.messageStubType ?? '(ninguno)',
+      llave: formaDeLlave(crudo.key),
+    })
+    return false
+  }
+
   private async alLlegarMensajes(mensajes: readonly MensajeCrudo[], tipo = '?'): Promise<void> {
     // Cuántos llegaron y cuántos se pudieron traducir. Sin esto, «no se guardó
     // nada» significa a la vez «la política lo rechazó» y «no llegó nada», que
@@ -211,40 +285,10 @@ export class TransporteBaileys implements Transporte {
 
     for (const crudo of mensajes) {
       try {
-        const contexto = {
-          jidDeLaCuenta: this.jidDeLaCuenta,
-          nombreDeGrupo: this.nombres.get(normalizarJid(crudo.key.remoteJid) ?? '') ?? null,
-        }
-
-        const protocolo = protocoloDe(crudo, contexto)
-        if (protocolo) {
-          traducidos += 1
-          await this.emitir({ clase: protocolo.clase, datos: protocolo.datos } as Evento)
-          continue
-        }
-
-        const mensaje = normalizarMensaje(crudo, contexto)
-        if (mensaje) {
-          traducidos += 1
-          await this.emitir({ clase: 'mensaje', datos: mensaje })
-        } else {
-          // Un mensaje que no se pudo traducir se DICE, y se dice CON QUÉ FORMA
-          // venía. Callarlo es cómo se llega a «no se guardó nada» sin saber
-          // por qué: puede ser un evento de sistema, o puede ser que la
-          // librería cambió de forma y nos quedamos sordos sin enterarnos.
-          //
-          // De la llave sale la FORMA, nunca el valor: qué campos trae, de qué
-          // tipo, y el sufijo del jid (`@g.us`, `@s.whatsapp.net`, `@lid`).
-          // Con eso alcanza para diagnosticar y no se filtra ni un número.
-          this.opciones.registro.evento('aviso', 'sin_traducir', {
-            claves: Object.keys(crudo.message ?? {}).join(','),
-            conMensaje: crudo.message !== null && crudo.message !== undefined,
-            llave: formaDeLlave(crudo.key),
-          })
-        }
+        if (await this.traducirYEmitir(crudo)) traducidos += 1
       } catch (e) {
         // Un mensaje con una forma inesperada no puede tirar el listener: se
-        // cuenta y se sigue. Con una librería no oficial esto va a pasar.
+        // cuenta y se sigue. Con una libreria no oficial esto va a pasar.
         this.opciones.registro.evento('error', 'normalizacion_fallida', { detalle: sanearError(e) })
       }
     }

@@ -1,0 +1,59 @@
+# Fly.io — la alternativa si no se quiere administrar una máquina.
+#
+# ⚠️ LO MÁS IMPORTANTE DE ESTE ARCHIVO son las tres líneas que garantizan UNA
+# SOLA máquina. WhatsApp permite una sesión por dispositivo vinculado: si dos
+# procesos levantan la misma sesión, se echan mutuamente (`connectionReplaced`,
+# 440) y se turnan para reconectar hasta que WhatsApp corta por su cuenta. Con
+# un cliente no oficial, eso es exactamente cómo se pierde el número.
+#
+#   fly volumes create whatsapp_auth --size 1 --region eze
+#   fly secrets set SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
+#                   INTERNAL_WHATSAPP_COMPANY_ID=... INTERNAL_WHATSAPP_ACCOUNT_ID=...
+#   fly deploy
+
+app = "buscatools-listener"
+primary_region = "eze"
+
+[build]
+  dockerfile = "../Dockerfile"
+
+[env]
+  HEALTH_PORT = "8081"
+  WHATSAPP_AUTH_DIR = "/datos/whatsapp-auth"
+  # `LISTENER_ENABLED` NO va acá: se pone como secreto, para poder apagar la
+  # ingesta sin tocar el repositorio.
+
+# El volumen con la sesión. Sin esto, cada deploy pide un QR nuevo.
+[mounts]
+  source = "whatsapp_auth"
+  destination = "/datos"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+[deploy]
+  # `immediate` y no `rolling`: rolling levanta la máquina nueva ANTES de bajar
+  # la vieja, y por unos segundos habría dos sesiones peleándose.
+  strategy = "immediate"
+
+[[services]]
+  internal_port = 8081
+  protocol = "tcp"
+  # Una sola máquina, siempre encendida, sin autoescalado.
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 1
+
+  # El healthcheck NO se expone a internet: el listener no sirve nada público.
+  # Sólo lo consulta Fly desde adentro.
+  [[services.tcp_checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "30s"
+
+[[restart]]
+  # Reinicia al caerse, con espera. Igual que en systemd: el backoff del
+  # proceso no sirve si el orquestador lo relanza al instante.
+  policy = "always"
+  retries = 5

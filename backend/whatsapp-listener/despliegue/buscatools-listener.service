@@ -1,0 +1,63 @@
+# Unidad de systemd para el listener, en un VPS Linux.
+#
+#   sudo cp buscatools-listener.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now buscatools-listener
+#
+# Los secretos NO van acá: van en /etc/buscatools/listener.env, con permisos
+# 600 y dueño root. Este archivo se puede leer; ése no.
+
+[Unit]
+Description=Listener de WhatsApp interno (Buscatools)
+Documentation=https://github.com/buscatoolsjano-web/web-react/blob/main/docs/PHASE_18_WHATSAPP_INTERNO_E1C_DESPLIEGUE.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=buscatools
+Group=buscatools
+WorkingDirectory=/opt/buscatools/listener
+
+# El archivo de entorno con los secretos. `chmod 600`, dueño root.
+EnvironmentFile=/etc/buscatools/listener.env
+
+# La sesión vive fuera del código desplegado: un `git pull` o un redeploy no
+# la puede pisar, y por eso un reinicio no pide QR.
+Environment=WHATSAPP_AUTH_DIR=/var/lib/buscatools/whatsapp-auth
+Environment=NODE_ENV=production
+
+ExecStart=/usr/bin/node dist/index.js --baileys
+
+# Reinicio siempre, y CON ESPERA. Un listener que se reinicia en bucle contra
+# WhatsApp es la forma más rápida de que el número quede marcado: el backoff
+# del proceso no sirve de nada si systemd lo relanza cada 100 ms.
+Restart=always
+RestartSec=15s
+# Si se cae cinco veces en cinco minutos, se deja caído: algo pasa y hay que
+# mirarlo, no insistir.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Apagado limpio: el proceso cierra el socket sin desvincular la sesión.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Endurecimiento: el proceso sólo necesita leer su código y escribir la sesión.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/buscatools/whatsapp-auth
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+# Los logs van a journald. Nunca llevan contenido de mensajes: eso lo garantiza
+# el código (`registro.ts` y `registroParaBaileys.ts`), no la configuración.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=buscatools-listener
+
+[Install]
+WantedBy=multi-user.target
