@@ -18,7 +18,9 @@ import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TotalesDocumento } from '../components/TotalesDocumento'
-import { useContactos, useTarifas, useVendedores } from '../hooks/useDocumentos'
+import { VistaPreviaBorrador } from '../components/VistaPreviaBorrador'
+import { useContactos, useNombreDeCliente, useTarifas, useVendedores } from '../hooks/useDocumentos'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { defaultsDeCliente } from '../services/clientes'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { DOC_TYPE_DE, mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
@@ -107,6 +109,17 @@ export function CotizacionNuevaPage() {
   }, [])
   const [b, setB] = useState<Borrador>(inicial)
   const [buscando, setBuscando] = useState(false)
+  /**
+   * La vista previa (Fase 19 · E3).
+   *
+   * Desde 1440 px entra al lado del editor y se muestra sola: es ahí donde
+   * hay lugar para una hoja A4 sin achicar el formulario. Abajo de eso es un
+   * panel que se abre, porque partir la pantalla en dos columnas angostas no
+   * ayuda a nadie.
+   */
+  const pantallaAncha = useMediaQuery('(min-width: 1440px)')
+  const [previaAbierta, setPreviaAbierta] = useState(false)
+  const verPrevia = pantallaAncha || previaAbierta
   const [avisoContacto, setAvisoContacto] = useState(false)
   const [avisoTarifa, setAvisoTarifa] = useState(false)
   // Fase 17 · E2. `tocados` es la memoria de lo que eligió la persona: el
@@ -143,6 +156,8 @@ export function CotizacionNuevaPage() {
   const tarifas = useTarifas(escribe)
   const vendedores = useVendedores(escribe)
   const contactos = useContactos(b.cabecera.customerId || null)
+  // Misma clave que usa el buscador de cliente: sale de la caché.
+  const clienteElegido = useNombreDeCliente(b.cabecera.customerId || null)
 
   /**
    * El alta recibe el payload COMO VARIABLE, no lo saca del estado.
@@ -170,6 +185,10 @@ export function CotizacionNuevaPage() {
   const salida = useSalidaConCambios(sucio)
 
   const lineasVisibles = comoLineasDocumento(b)
+  // Para la vista previa: el documento se imprime con NOMBRES, no con ids.
+  const nombreDelCliente = clienteElegido.data?.nombre ?? '(cliente sin elegir)'
+  const nombreDelContacto =
+    (contactos.data ?? []).find((c) => c.id === b.cabecera.contactoId)?.nombre ?? null
   const falta = faltaParaCrear(b)
 
   const SUGERIBLES: CampoCabecera[] = ['vendedorId', 'listaPrecioId', 'formaPago', 'moneda']
@@ -355,6 +374,9 @@ export function CotizacionNuevaPage() {
         </Alert>
       ) : null}
 
+      <div className={verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
+        <div className={editor.columnaEditor}>
+
       <DocSection title="Datos del documento">
         <EditorCabecera
           valores={b.cabecera}
@@ -418,6 +440,25 @@ export function CotizacionNuevaPage() {
         />
       </DocSection>
 
+        </div>
+
+        {verPrevia ? (
+          <div className={editor.columnaPrevia}>
+            <VistaPreviaBorrador
+              tipo="cotizacion"
+              fecha={b.cabecera.fecha}
+              cliente={nombreDelCliente}
+              contacto={nombreDelContacto}
+              moneda={b.cabecera.moneda || null}
+              formaPago={b.cabecera.formaPago || null}
+              notas={b.cabecera.notas || null}
+              lineas={lineasVisibles}
+              ajustarAlAncho={pantallaAncha}
+            />
+          </div>
+        ) : null}
+      </div>
+
       {crear.error ? (
         <Alert tone="danger" role="alert" title="No se pudo crear la cotización">
           <p>{mensajeErrorVentas(crear.error)}</p>
@@ -438,9 +479,22 @@ export function CotizacionNuevaPage() {
           </Button>
         }
         secondary={
-          <LinkButton to="/ventas/cotizaciones" variant="ghost">
-            Cancelar
-          </LinkButton>
+          <>
+            {/* Con pantalla ancha la previa ya está al lado: el botón sobra. */}
+            {!pantallaAncha ? (
+              <Button
+                variant="secondary"
+                icon={<Icon name="eye" size={16} />}
+                onClick={() => setPreviaAbierta((v) => !v)}
+                aria-expanded={previaAbierta}
+              >
+                {previaAbierta ? 'Ocultar vista previa' : 'Vista previa'}
+              </Button>
+            ) : null}
+            <LinkButton to="/ventas/cotizaciones" variant="ghost">
+              Cancelar
+            </LinkButton>
+          </>
         }
         note={
           stel ? (

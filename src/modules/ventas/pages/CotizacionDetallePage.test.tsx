@@ -43,6 +43,18 @@ const espias = vi.hoisted(() => ({
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+// La ficha rápida es de Clientes y trae sus propias consultas: acá sólo
+// importa que la cotización la abra, no lo que la ficha muestre adentro.
+vi.mock('@/modules/clientes/components/PanelLateralCliente', () => ({
+  PanelLateralCliente: ({ clienteId, onCerrar }: { clienteId: string; onCerrar: () => void }) => (
+    <aside aria-label="Ficha rápida">
+      <p>ficha rápida de {clienteId}</p>
+      <button type="button" onClick={onCerrar}>
+        Cerrar la ficha
+      </button>
+    </aside>
+  ),
+}))
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({
     activa: { companyId: 'c1', companyName: 'ZZ Pruebas', rol: estado.rol, esInterno: true, customerId: null },
@@ -579,5 +591,47 @@ describe('Cotización · pestañas', () => {
   it('un enlace con la pestaña abre directo en esa pestaña', () => {
     montar('/ventas/cotizaciones/q1?tab=relacionados')
     expect(screen.getByRole('tab', { name: 'Relacionados' })).toHaveAttribute('aria-selected', 'true')
+  })
+})
+
+describe('Cotización · ficha rápida del cliente (Fase 19 · E3)', () => {
+  // `estado.doc` está declarado `unknown` en este archivo; acá se estrecha una
+  // sola vez en vez de castear en cada aserción.
+  const doc = () => estado.doc as DocumentoDetalle
+  const abrirInformacion = () => {
+    fireEvent.click(screen.getByRole('tab', { name: /Información/ }))
+  }
+
+  it('el cliente es un botón que abre la ficha sin salir del documento', () => {
+    montar()
+    abrirInformacion()
+    const boton = screen.getByRole('button', { name: doc().clienteNombre })
+    fireEvent.click(boton)
+
+    expect(screen.getByRole('complementary', { name: 'Ficha rápida' })).toBeInTheDocument()
+    expect(screen.getByText(`ficha rápida de ${doc().clienteId}`)).toBeInTheDocument()
+    // Sigue siendo la pantalla de la cotización: no se navegó a Clientes.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(doc().numero)
+  })
+
+  it('se cierra y el documento sigue ahí', () => {
+    montar()
+    abrirInformacion()
+    fireEvent.click(screen.getByRole('button', { name: doc().clienteNombre }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar la ficha' }))
+
+    expect(screen.queryByRole('complementary', { name: 'Ficha rápida' })).toBeNull()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(doc().numero)
+  })
+
+  /** Sin cliente no hay ficha que abrir: se muestra el nombre y nada más. */
+  it('un documento sin cliente no ofrece el botón', () => {
+    estado.doc = { ...doc(), clienteId: null }
+    montar()
+    abrirInformacion()
+    // Acotado al panel: el nombre del cliente también está en el encabezado.
+    const panel = screen.getByRole('tabpanel')
+    expect(within(panel).queryByRole('button', { name: doc().clienteNombre })).toBeNull()
+    expect(within(panel).getByText(doc().clienteNombre)).toBeInTheDocument()
   })
 })

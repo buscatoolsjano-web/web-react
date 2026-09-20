@@ -38,3 +38,26 @@
 .selector {
   margin-bottom: var(--space-4);
 }
+
+/* ── Vista previa junto al editor (Fase 19 · E3) ─────────────────────────
+   Sólo desde 1440 px: es el ancho donde una hoja A4 entra al lado del
+   formulario sin dejar a ninguno de los dos estrecho. Abajo de eso la previa
+   se abre con un botón y ocupa el ancho completo. */
+.conPrevia {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 34rem);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.columnaEditor {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.columnaPrevia {
+  min-width: 0;
+  position: sticky;
+  top: var(--space-4);
+}

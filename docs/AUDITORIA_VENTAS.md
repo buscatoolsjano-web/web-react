@@ -262,3 +262,68 @@ Arreglado pasando el payload **como variable de la mutación**, armado en el
 Por eso E2 **no** deriva progreso por línea. El filtro de pendientes usa el estado
 que el servidor mantiene, que sí es confiable: 0 pedidos marcados `pending` tienen
 todas sus líneas completas.
+
+---
+
+## 9 · E3 · La cotización
+
+### El fallo intermitente: NO reproducido
+
+Se persiguió como pedía el §1, sin subir timeouts ni silenciar nada.
+
+| | |
+|---|---|
+| corridas del módulo tras el arreglo del payload | **57** |
+| fallos observados | **1**, antes de instrumentar |
+| corridas **instrumentadas** | **45** (30 + 15) |
+| fallos con instrumentación | **0** |
+
+La instrumentación quedó puesta: el espía del alta captura **lo que se ve en
+pantalla en el instante en que se dispara la mutación**, y la aserción compara
+las dos mitades juntas. Si vuelve a pasar, el mensaje del fallo va a decir qué
+mostraba la pantalla y qué se mandó, que es exactamente lo que faltó la primera
+vez.
+
+**No se declara causa raíz de algo que no se reprodujo.** Lo que sí se corrigió,
+con causa demostrada, fueron dos bugs distintos: el de E1 (los defaults
+aplicados sobre un borrador viejo) y el de E2 (`mutationFn` cerrando sobre el
+estado). El segundo explica el síntoma exacto que se veía —payload prístino con
+cliente puesto— y desde entonces no volvió a verse.
+
+**Por eso no se creó la cotización piloto.** La regla del §1 es «no avanzar a
+piloto real si `FAILURES_AFTER_FIX > 0`», y hubo 1. Crear un documento real en
+producción es de las cosas que no conviene apurar con una puerta a medio cerrar.
+
+### Vista previa en vivo
+
+Se arma desde el borrador en memoria, **sin guardar nada**, con el MISMO
+`VistaImpresion` que imprime el documento ya creado: no hay dos formatos. Lo que
+la previa no puede saber, lo dice en vez de inventarlo —«N° a asignar al crear»,
+y el total definitivo lo calcula el servidor con el descuento global y la
+percepción—.
+
+Desde 1440 px va al lado del editor y no hay botón que apretar; abajo de eso se
+abre con «Vista previa». Al costado la hoja A4 (794 px) no entra en la columna de
+544, así que se la achica en bloque —no se re-maqueta— para que se vea entera: una
+previsualización que obliga a scrollear en horizontal no previsualiza nada.
+
+La única consulta que agrega es la del membrete, y usa la **misma clave** que el
+modal de impresión: si ya se imprimió algo, sale de la caché. El nombre del
+cliente también: misma clave que `BuscadorCliente`.
+
+### Ficha rápida del cliente
+
+El nombre del cliente en la pestaña «Información» es ahora un botón que abre la
+ficha 360 **sin salir de la cotización**. Es el mismo `PanelLateralCliente` que
+usa el listado de Clientes, no una copia: se había dejado suelto en la Fase 19 · E1
+justamente para esto. Verificado en producción sobre COTI02629.
+
+### Lo que ya estaba bien y no se tocó
+
+- **El pipeline (§16) ya existe**: `PanelRelacionados` muestra cotización → pedido
+  → entregas **siempre**, incluso vacías, porque «que un documento NO tenga pedido
+  es información»; y NO muestra facturas ni cobranzas, que tienen cero filas. Es
+  exactamente lo que pedía el prompt.
+- **El detalle ya conserva la pestaña en la URL** (`?tab=informacion`).
+- **La impresión ya es una sola fuente**: un árbol de React y una hoja `@media
+  print`. No se agregó ninguna librería de PDF.

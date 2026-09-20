@@ -1,0 +1,71 @@
+/* La vista previa del borrador (Fase 19 · E3).
+   La hoja es la de `VistaImpresion`, que está pensada para A4; acá se la
+   escala para que entre en la columna sin recortarla ni maquetarla de nuevo. */
+.panel {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.aclaracion {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* El contenedor recorta y desplaza; la hoja adentro conserva su ancho de
+   papel. Sin esto, una hoja A4 dentro de una columna de 480 px desborda la
+   página entera. */
+.hoja {
+  overflow: auto;
+  max-height: calc(100vh - 14rem);
+  padding: var(--space-3);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* La hoja de impresión siempre se ve clara, como el papel, incluso con la
+   aplicación en oscuro: es una previsualización de lo que sale impreso. */
+.hoja > * {
+  margin: 0 auto;
+}
+
+@media print {
+  /* Al imprimir desde acá sale sólo la hoja, sin los controles. */
+  .controles,
+  .aclaracion {
+    display: none;
+  }
+
+  .hoja {
+    overflow: visible;
+    max-height: none;
+    padding: 0;
+    background: none;
+    border: 0;
+  }
+}
+
+/* Al lado del editor la hoja A4 (210 mm ≈ 794 px) no entra en la columna, y
+   una vista previa que obliga a scrollear en horizontal no previsualiza nada.
+   Se la achica en bloque —no se re-maqueta— para que se vea la hoja entera y
+   siga siendo LA MISMA hoja que se imprime. */
+.achicada > * {
+  transform: scale(0.66);
+  transform-origin: top left;
+  /* El alto sobrante que deja el `scale`: sin esto queda un hueco enorme
+     debajo, porque la transformación no cambia el espacio reservado. */
+  margin-bottom: -34%;
+}
+
+.achicada {
+  overflow-x: hidden;
+}

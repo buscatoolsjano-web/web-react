@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { MetaList, Missing, type MetaItem } from '@/components/document/DocSection'
 import docUi from '@/components/document/Document.module.css'
+import styles from './InformacionDocumento.module.css'
 import { formatearDomicilio, formatearFecha } from '../lib/formato'
 import { presentarOrigen } from '../lib/origen'
 import { formatearMomento } from '../lib/trazabilidad'
@@ -8,6 +9,13 @@ import { RUTA_DE, type DocumentoDetalle } from '../types'
 
 export interface InformacionDocumentoProps {
   doc: DocumentoDetalle
+  /**
+   * Abrir la ficha rápida del cliente sin salir del documento.
+   *
+   * Opcional a propósito: el componente lo usan los tres documentos y sólo
+   * los que tienen a dónde llevar lo pasan.
+   */
+  onVerCliente?: () => void
 }
 
 /** El contacto, con lo que haya cargado de él. */
@@ -54,7 +62,7 @@ const ETIQUETA_ORIGEN: Record<string, string> = {
  * que es distinto de inventarle la lista actual del cliente: esa es la de hoy,
  * no necesariamente con la que se vendió.
  */
-export function InformacionDocumento({ doc }: InformacionDocumentoProps) {
+export function InformacionDocumento({ doc, onVerCliente }: InformacionDocumentoProps) {
   const esCotizacion = doc.tipo === 'cotizacion'
   const esEntrega = doc.tipo === 'entrega'
   const esPedido = doc.tipo === 'pedido'
@@ -66,7 +74,20 @@ export function InformacionDocumento({ doc }: InformacionDocumentoProps) {
   })
 
   const items: (MetaItem | null | false)[] = [
-    { label: 'Cliente', value: doc.clienteNombre },
+    {
+      label: 'Cliente',
+      // Fase 19 · E3: con un modo de abrir la ficha rápida, el nombre deja de
+      // ser texto. Sin él sigue siendo texto: el componente lo usan tres
+      // documentos y no todos tienen a dónde llevar.
+      value:
+        onVerCliente && doc.clienteId ? (
+          <button type="button" className={styles.cliente} onClick={onVerCliente}>
+            {doc.clienteNombre}
+          </button>
+        ) : (
+          doc.clienteNombre
+        ),
+    },
     { label: 'Contacto', value: contacto(doc) },
     comercial && { label: 'Vendedor', value: doc.vendedor ?? <Missing /> },
     comercial && { label: 'Forma de pago', value: doc.formaPago ?? <Missing /> },

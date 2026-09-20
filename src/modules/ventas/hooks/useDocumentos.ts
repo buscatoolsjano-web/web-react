@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { listarClientes } from '../services/clientes'
+import { listarClientes, nombreDeCliente } from '../services/clientes'
 import { listarEventos, type EntidadAuditable } from '../services/auditoria'
 import {
   contactosDeCliente,
@@ -233,5 +233,24 @@ export function useVendedores(habilitado = true) {
     queryFn: () => vendedoresDeEmpresa(companyId!),
     enabled: companyId !== null && habilitado,
     staleTime: 10 * 60_000,
+  })
+}
+
+/**
+ * El nombre del cliente elegido (Fase 19 · E3).
+ *
+ * Usa **exactamente la misma clave** que `BuscadorCliente`, así que cuando la
+ * pantalla ya lo mostró, esto sale de la caché y no pide nada. Hace falta
+ * porque el borrador guarda el id y el documento se imprime con el nombre.
+ */
+export function useNombreDeCliente(customerId: string | null) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery({
+    queryKey: ['ventas', companyId, 'cliente', customerId],
+    queryFn: () => nombreDeCliente(companyId!, customerId!),
+    enabled: companyId !== null && customerId !== null,
+    staleTime: 5 * 60_000,
   })
 }

@@ -1,0 +1,22 @@
+/* El cliente como disparador de la ficha rápida (Fase 19 · E3).
+   Parece un enlace pero es un botón: no navega, abre un panel al costado. */
+.cliente {
+  padding: 0;
+  color: var(--color-primary-text);
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.cliente:hover {
+  text-decoration: underline;
+}
+
+.cliente:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+  border-radius: var(--radius-sm);
+}

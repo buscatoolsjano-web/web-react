@@ -27,6 +27,7 @@ import { ChipEstado } from '../components/ChipEstado'
 import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { InformacionDocumento } from '../components/InformacionDocumento'
+import { PanelLateralCliente } from '@/modules/clientes/components/PanelLateralCliente'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
@@ -148,6 +149,13 @@ function Detalle() {
   const autoridad = useAutoridadNumeracion()
   // El listado como estaba, si se llegó desde él (Fase 19 · E2).
   const volver = useVolverAlListado('cotizacion', 'Cotizaciones')
+  /**
+   * La ficha rápida del cliente, sin salir de la cotización (Fase 19 · E3).
+   *
+   * Es el MISMO componente que abre el listado de Clientes, no una copia: la
+   * ficha ya se había dejado suelta en la Fase 19 · E1 justamente para esto.
+   */
+  const [viendoCliente, setViendoCliente] = useState(false)
   const stelCotizacion = autoridad.stel('quote')
   const stelPedido = autoridad.stel('sales_order')
   const permiso = editabilidad(doc?.estado ?? '', escribe)
@@ -643,7 +651,7 @@ function Detalle() {
                 onCambiarMoneda={elegirMoneda}
               />
             ) : (
-              <InformacionDocumento doc={doc} />
+              <InformacionDocumento doc={doc} onVerCliente={() => setViendoCliente(true)} />
             )}
           </DocSection>
         ) : null}
@@ -685,6 +693,10 @@ function Detalle() {
       />
 
       {acciones.capas}
+
+      {viendoCliente && doc.clienteId ? (
+        <PanelLateralCliente clienteId={doc.clienteId} onCerrar={() => setViendoCliente(false)} />
+      ) : null}
     </div>
   )
 }

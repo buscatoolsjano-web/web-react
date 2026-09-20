@@ -184,3 +184,75 @@ export function nombreDeArchivo(doc: DocumentoImprimible, extension: string): st
     extension
   )
 }
+
+/**
+ * El documento a imprimir armado desde un BORRADOR, sin guardarlo
+ * (Fase 19 · E3).
+ *
+ * Es la misma estructura que `construirImprimible` y por lo tanto el mismo
+ * `VistaImpresion`: **no hay dos formatos del documento**, que era el problema
+ * del legacy —una plantilla para la pantalla y otra para el papel, que
+ * divergían—.
+ *
+ * Dos diferencias, y las dos son honestas:
+ *
+ * - **no hay número**: lo asigna el servidor al crear, así que se dice eso en
+ *   vez de inventar uno o dejar el lugar vacío;
+ * - **los totales son del borrador**: se calculan acá como previsualización.
+ *   `impuesto` y `total` van en `null` a propósito —los calcula el servidor con
+ *   el descuento global y la percepción—, igual que en el bloque de totales de
+ *   la pantalla de alta.
+ */
+export function imprimibleDelBorrador(
+  tipo: TipoDocumento,
+  datos: {
+    fecha: string
+    cliente: string
+    contacto: string | null
+    moneda: string | null
+    formaPago: string | null
+    notas: string | null
+    lineas: readonly LineaDocumento[]
+  },
+  opciones: OpcionesImpresion,
+): DocumentoImprimible {
+  const ver = queMostrar(opciones.formato)
+  let subtotal = 0
+
+  const lineas: LineaImpresa[] = datos.lineas.map((l, i) => {
+    const factor = opciones.preciosConImpuestos ? 1 + (l.tasaImpuesto ?? 0) / 100 : 1
+    const sub = subtotalDeLinea(l, factor)
+    if (l.tipoLinea !== 'chapter' && sub !== null) subtotal += sub
+    return {
+      id: l.id,
+      esCapitulo: l.tipoLinea === 'chapter',
+      numero: l.numeroLinea ?? i + 1,
+      sku: l.sku,
+      nombre: l.nombre,
+      descripcion: l.descripcion,
+      cantidad: l.cantidad,
+      precio: l.precioUnitario === null ? null : l.precioUnitario * factor,
+      descuentoPct: l.descuentoPct ?? 0,
+      subtotal: sub,
+    }
+  })
+
+  return {
+    titulo: ver.proForma ? 'PRO FORMA' : TITULO_DE[tipo],
+    numero: 'a asignar al crear',
+    fecha: datos.fecha,
+    cliente: datos.cliente,
+    contacto: datos.contacto,
+    moneda: datos.moneda,
+    formaPago: datos.formaPago,
+    domicilioEntrega: null,
+    notas: datos.notas,
+    lineas,
+    subtotal: lineas.length === 0 ? null : subtotal,
+    impuesto: null,
+    total: null,
+    origen: null,
+    // Un borrador nunca es histórico: el histórico es lo que migró.
+    esHistorico: false,
+  }
+}

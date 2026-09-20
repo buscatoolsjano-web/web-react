@@ -21,6 +21,7 @@ const estado = vi.hoisted((): {
   vendedores: { id: string; nombre: string }[]
   contactos: { id: string; nombre: string; rol: string | null }[]
   productos: unknown[]
+  pantallaAncha: boolean
   defaults: { vendedorId: string | null; tarifaId: string | null; formaPago: string | null; moneda: string | null } | null
 } => ({
   rol: 'admin',
@@ -33,8 +34,32 @@ const estado = vi.hoisted((): {
   vendedores: [{ id: 'u1', nombre: 'ZZ Vendedora' }],
   contactos: [{ id: 'k1', nombre: 'ZZ Contacto', rol: 'Compras' }],
   productos: [],
+  pantallaAncha: false,
   defaults: null,
 }))
+
+/**
+ * Lo que se ve en pantalla en el instante en que se dispara el alta.
+ *
+ * Fase 19 · E3: si alguna vez lo que se manda no coincide con lo que la
+ * persona está viendo, el fallo tiene que decir LAS DOS COSAS. Sin esto el
+ * mensaje era «esperaba mayorista, recibí null» y no se sabía si el problema
+ * era aplicar los defaults o leer el borrador.
+ */
+let pantallaAlCrear: Record<string, string> | null = null
+
+const leerPantalla = (): Record<string, string> => {
+  const valor = (re: RegExp | string) => {
+    const el = screen.queryByLabelText(re)
+    return el instanceof HTMLSelectElement || el instanceof HTMLInputElement ? el.value : '(no está)'
+  }
+  return {
+    moneda: valor('Moneda'),
+    vendedor: valor(/Vendedor/),
+    tarifa: valor(/Tarifa/),
+    formaPago: valor(/Forma de pago/),
+  }
+}
 
 const espias = vi.hoisted(() => ({
   crear: vi.fn(
@@ -49,6 +74,11 @@ const espias = vi.hoisted(() => ({
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+// La vista previa al lado del editor depende del ancho (Fase 19 · E3).
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useIsMobile: () => false,
+  useMediaQuery: () => estado.pantallaAncha,
+}))
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({ activa: { companyId: 'c1', companyName: 'ZZ', rol: estado.rol, esInterno: true, customerId: null } }),
 }))
@@ -59,6 +89,8 @@ vi.mock('../hooks/useDocumentos', () => ({
   useTarifas: () => ({ data: estado.tarifas, isPending: false }),
   useVendedores: () => ({ data: estado.vendedores, isPending: false }),
   useContactos: () => ({ data: estado.contactos, isPending: false }),
+  useNombreDeCliente: (id: string | null) =>
+    ({ data: id === null ? undefined : { id, nombre: 'ZZ Cliente Uno' }, isPending: false }),
 }))
 vi.mock('../components/BuscadorCliente', () => ({
   BuscadorCliente: ({ onElegir }: { onElegir: (id: string | null) => void }) => (
@@ -123,6 +155,7 @@ beforeEach(() => {
   estado.rol = 'admin'
   estado.stel = {}
   estado.productos = []
+  estado.pantallaAncha = false
   espias.crear.mockClear()
   espias.buscar.mockClear()
   espias.defaults.mockClear()
@@ -353,16 +386,26 @@ describe('Nueva cotización · defaults del cliente', () => {
     expect(screen.getByLabelText(/Vendedor/)).toHaveValue('u1')
     expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
 
+    espias.crear.mockImplementationOnce((_c, cab, _l) => {
+      pantallaAlCrear = leerPantalla()
+      void cab
+      return Promise.resolve({ id: 'q-nueva', numero: 'COTI02630', total: 121, lineas: 1 })
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
 
     const [, cabecera] = espias.crear.mock.calls[0]!
-    expect(cabecera).toMatchObject({
-      customer_id: 'cliente-1',
-      salesperson_id: 'u1',
-      price_list_id: 'mayorista',
-      payment_terms: '60 días',
-      currency_code: 'USD',
+    // Las dos mitades en la MISMA aserción: si divergen, el mensaje del fallo
+    // muestra qué se veía y qué se mandó.
+    expect({ pantalla: pantallaAlCrear, cabecera }).toMatchObject({
+      pantalla: { moneda: 'USD', vendedor: 'u1', tarifa: 'mayorista', formaPago: '60 días' },
+      cabecera: {
+        customer_id: 'cliente-1',
+        salesperson_id: 'u1',
+        price_list_id: 'mayorista',
+        payment_terms: '60 días',
+        currency_code: 'USD',
+      },
     })
   })
 })
@@ -502,5 +545,61 @@ describe('Nueva cotización · cambio de cliente rápido', () => {
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('lista-usd')
     expect(screen.getByLabelText(/Vendedor/)).toHaveValue('u1')
     expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
+  })
+})
+
+describe('Nueva cotización · vista previa del borrador', () => {
+  it('no se muestra sola en pantalla angosta: se ofrece un botón', () => {
+    montar()
+    expect(screen.queryByRole('region', { name: 'Vista previa del documento' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Vista previa' })).toBeInTheDocument()
+  })
+
+  it('el botón la abre y la cierra, sin guardar nada', () => {
+    montar()
+    completarMinimo()
+    fireEvent.click(screen.getByRole('button', { name: 'Vista previa' }))
+
+    expect(screen.getByRole('region', { name: 'Vista previa del documento' })).toBeInTheDocument()
+    // Lo que importa de una previsualización: que no escriba.
+    expect(espias.crear).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar vista previa' }))
+    expect(screen.queryByRole('region', { name: 'Vista previa del documento' })).toBeNull()
+  })
+
+  it('en pantalla ancha va al lado del editor y no hay botón que apretar', () => {
+    estado.pantallaAncha = true
+    montar()
+    expect(screen.getByRole('region', { name: 'Vista previa del documento' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Vista previa' })).toBeNull()
+  })
+
+  it('muestra el borrador: cliente por nombre, líneas y moneda', () => {
+    estado.pantallaAncha = true
+    montar()
+    completarMinimo()
+    fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
+    fireEvent.change(screen.getAllByLabelText(/Cantidad/)[0]!, { target: { value: '3' } })
+    fireEvent.change(screen.getAllByLabelText(/Precio/)[0]!, { target: { value: '100' } })
+
+    const previa = screen.getByRole('region', { name: 'Vista previa del documento' })
+    // El id no: el documento se imprime con el NOMBRE del cliente.
+    expect(within(previa).getByText(/ZZ Cliente Uno/)).toBeInTheDocument()
+    expect(within(previa).queryByText('cliente-1')).toBeNull()
+    expect(within(previa).getAllByText(/USD/).length).toBeGreaterThan(0)
+  })
+
+  /**
+   * Lo que la previa NO puede saber tiene que decirlo, no inventarlo: el
+   * número y el total definitivo los pone el servidor al crear.
+   */
+  it('no inventa el número ni el total definitivo', () => {
+    estado.pantallaAncha = true
+    montar()
+    completarMinimo()
+    const previa = screen.getByRole('region', { name: 'Vista previa del documento' })
+    expect(within(previa).getByText(/a asignar al crear/)).toBeInTheDocument()
+    expect(within(previa).getByText(/El número y el total definitivo los pone el servidor/)).toBeInTheDocument()
   })
 })
