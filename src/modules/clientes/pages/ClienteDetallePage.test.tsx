@@ -16,6 +16,9 @@ const estado = vi.hoisted(() => ({
   usuarioId: 'u-admin',
   // Fase 19 · E2: la ficha y la ficha rápida leen la MISMA función.
   resumen: null as { totales: { cotizaciones: number; pedidos: number; entregas: number } } | null,
+  // Fase 19 · E2: qué tipos numera STEL. Por defecto ninguno.
+  stel: [] as string[],
+  autoridadCargando: false,
 }))
 const mutaciones = vi.hoisted(() => ({
   dar: vi.fn(),
@@ -47,6 +50,14 @@ vi.mock('../hooks/useClientes', () => ({
   useCandidatosDeOc: () => ({ data: [], isPending: false }),
   // Fase 17 · E1: vendedores y tarifas de los dos desplegables comerciales.
   useOpcionesComerciales: () => ({ vendedores: estado.vendedores, tarifas: estado.tarifas }),
+}))
+// La ficha comparte con Ventas la regla de quién puede emitir: si la
+// numeración la administra STEL, el ERP no crea el documento.
+vi.mock('@/modules/ventas/hooks/useAutoridadNumeracion', () => ({
+  useAutoridadNumeracion: () => ({
+    stel: (t: string) => estado.stel.includes(t),
+    cargando: estado.autoridadCargando,
+  }),
 }))
 vi.mock('../hooks/useCliente360', () => ({
   useCliente360: () => ({ data: estado.resumen, isPending: false, error: null }),
@@ -134,6 +145,8 @@ beforeEach(() => {
   estado.vendedores = [{ id: 'u1', nombre: 'ZZ Vendedora' }]
   estado.tarifas = [{ id: 'pl1', nombre: 'ZZ Mayorista' }]
   estado.direcciones = [{ id: 'd1', tipo: 'both', calle: 'ZZ Calle 1', ciudad: null, provincia: null, codigoPostal: null, pais: 'AR', notas: null, esPrincipal: true, texto: 'ZZ Calle 1, AR', activo: true, actualizadoEn: '2026-01-01T00:00:00Z' }]
+  estado.stel = []
+  estado.autoridadCargando = false
   vi.clearAllMocks()
 })
 
@@ -341,5 +354,70 @@ describe('Ficha del cliente · conflicto de edición (Fase 17 · E1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
     expect(screen.getByText('El CUIT tiene que tener 11 dígitos.')).toBeInTheDocument()
     expect(screen.queryByText('Este cliente cambió mientras lo editabas')).toBeNull()
+  })
+})
+
+describe('Ficha del cliente · emitir desde la ficha (Fase 19 · E2)', () => {
+  it('con la numeración en el ERP, los dos botones llevan al alta con el cliente puesto', () => {
+    montar()
+    expect(screen.getByRole('link', { name: 'Nueva cotización' })).toHaveAttribute(
+      'href',
+      '/ventas/cotizaciones/nueva?cliente=c1',
+    )
+    expect(screen.getByRole('link', { name: 'Nuevo pedido' })).toHaveAttribute(
+      'href',
+      '/ventas/pedidos/nuevo?cliente=c1',
+    )
+    expect(screen.queryByText(/Emisión desde el ERP bloqueada/)).toBeNull()
+  })
+
+  /**
+   * La regresión: hasta la Fase 19 · E2 éstos eran dos links sueltos. Con STEL
+   * numerando se podía llegar a la pantalla de alta, armar la cotización
+   * entera y recién ahí encontrarse con «Crear cotización» deshabilitado.
+   */
+  it('si STEL numera las cotizaciones, el botón no es un link: está deshabilitado y dice por qué', () => {
+    estado.stel = ['quote']
+    montar()
+    const boton = screen.getByRole('button', { name: 'Nueva cotización' })
+    expect(boton).toBeDisabled()
+    const motivo = screen.getByText(/Emisión desde el ERP bloqueada: STEL numera las cotizaciones/)
+    expect(boton).toHaveAttribute('aria-describedby', motivo.id)
+    // El pedido no está bloqueado: sigue siendo un link.
+    expect(screen.getByRole('link', { name: 'Nuevo pedido' })).toBeInTheDocument()
+  })
+
+  it('con los dos tipos bloqueados, el motivo es UNA línea que los nombra a los dos', () => {
+    estado.stel = ['quote', 'sales_order']
+    montar()
+    expect(screen.getByRole('button', { name: 'Nueva cotización' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Nuevo pedido' })).toBeDisabled()
+    expect(
+      screen.getAllByText(
+        'Emisión desde el ERP bloqueada: STEL numera las cotizaciones y los pedidos de esta empresa.',
+      ),
+    ).toHaveLength(1)
+  })
+
+  it('mientras no se leyó la autoridad no se inventa un motivo: deshabilitados y sin texto', () => {
+    estado.autoridadCargando = true
+    montar()
+    expect(screen.getByRole('button', { name: 'Nueva cotización' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Nuevo pedido' })).toBeDisabled()
+    expect(screen.queryByText(/Emisión desde el ERP bloqueada/)).toBeNull()
+  })
+
+  /**
+   * `salesperson` administra la ficha del cliente pero NO escribe en Ventas
+   * (`quotes_write` es admin + employee). Es el rol que hacía visible el
+   * problema: veía los dos botones y la base lo rechazaba.
+   */
+  it('quien no escribe en Ventas no ve las acciones de emisión, como en el listado de Ventas', () => {
+    estado.rol = 'salesperson'
+    montar()
+    expect(screen.queryByRole('link', { name: 'Nueva cotización' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Nueva cotización' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Nuevo pedido' })).toBeNull()
+    expect(screen.queryByText(/Emisión desde el ERP bloqueada/)).toBeNull()
   })
 })

@@ -16,6 +16,9 @@ import { Spinner } from '@/components/ui/Spinner'
 import { TabPanel, Tabs } from '@/components/ui/Tabs'
 import { Icon } from '@/components/icons/Icon'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { useAutoridadNumeracion } from '@/modules/ventas/hooks/useAutoridadNumeracion'
+import { motivoBloqueo, type DocTypeVentas } from '@/modules/ventas/lib/autoridad'
+import { escribeVentas } from '@/modules/ventas/lib/permisos'
 import { EditorContactos } from '../components/EditorContactos'
 import { EditorDirecciones } from '../components/EditorDirecciones'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
@@ -59,6 +62,9 @@ type Pestana =
   | 'historial'
   | 'adjuntos'
   | 'trazabilidad'
+
+/** El id del motivo, para que los botones deshabilitados lo nombren. */
+const MOTIVO_STEL = 'cliente-motivo-stel'
 
 function aFormulario(c: ClienteDetalle): DatosCliente {
   return {
@@ -121,6 +127,18 @@ export function ClienteDetallePage() {
   // clave, así que pedirla acá para el contador de la pestaña no agrega un
   // viaje. Lo que evitaría traer 258 documentos sólo para contarlos.
   const resumen = useCliente360(id ?? null)
+  /**
+   * Quién puede emitir, y qué está bloqueado.
+   *
+   * La misma regla que ya aplican el listado de Ventas y la ficha rápida. Acá
+   * faltaba: «Nueva cotización» y «Nuevo pedido» eran dos links sueltos, y con
+   * STEL numerando se podía armar la cotización entera —cliente, líneas,
+   * precios— para encontrarse con que «Crear cotización» estaba deshabilitado.
+   * Un botón que lleva a una pantalla que la base va a rechazar no es una
+   * acción, es una trampa; y era la MISMA acción que la ficha rápida, a dos
+   * clicks de distancia, sí deshabilitaba y explicaba.
+   */
+  const autoridadVentas = useAutoridadNumeracion()
   const [pestana, setPestana] = useState<Pestana>('informacion')
   // Fase 17 · E4: el historial tiene su propia paginación, del lado del
   // servidor. Vive acá porque el panel es de presentación.
@@ -239,20 +257,40 @@ export function ClienteDetallePage() {
    * desde acá sería tener dos lugares donde vive la misma regla, y el día que
    * cambie uno, el otro miente.
    *
-   * No se promete que se vaya a poder crear: si la numeración de ese tipo de
-   * documento la administra STEL, la pantalla de Ventas lo dice y bloquea. Esto
-   * lleva hasta ahí con el cliente puesto, que es todo lo que puede saber.
+   * Lo que sí se promete es que se va a poder crear. Hasta la Fase 19 · E2 no:
+   * el comentario que estaba acá decía que la pantalla de Ventas «lo dice y
+   * bloquea», y era verdad —pero recién al final, después de elegir cliente,
+   * cargar líneas y precios—. Quien decide es la base; quién la consulta
+   * ANTES, acá, es este bloque.
    */
+  const puedeVender = escribeVentas(activa?.rol)
+  // Mientras no se sabe, las acciones se muestran deshabilitadas y SIN motivo:
+  // no se inventa un bloqueo que todavía no se leyó.
+  const bloqueados: DocTypeVentas[] = []
+  if (autoridadVentas.stel('quote')) bloqueados.push('quote')
+  if (autoridadVentas.stel('sales_order')) bloqueados.push('sales_order')
+  const hayMotivo = puedeVender && !cliente.dadoDeBaja && bloqueados.length > 0
+  const emitir = (docType: DocTypeVentas, etiqueta: string, ruta: string) =>
+    autoridadVentas.stel(docType) || autoridadVentas.cargando ? (
+      <Button
+        variant="secondary"
+        disabled
+        {...(hayMotivo && autoridadVentas.stel(docType) ? { 'aria-describedby': MOTIVO_STEL } : {})}
+      >
+        {etiqueta}
+      </Button>
+    ) : (
+      <LinkButton variant="secondary" to={ruta}>
+        {etiqueta}
+      </LinkButton>
+    )
+
   const acciones = editando ? undefined : (
     <>
-      {!cliente.dadoDeBaja ? (
+      {!cliente.dadoDeBaja && puedeVender ? (
         <>
-          <LinkButton variant="secondary" to={`/ventas/cotizaciones/nueva?cliente=${cliente.id}`}>
-            Nueva cotización
-          </LinkButton>
-          <LinkButton variant="secondary" to={`/ventas/pedidos/nuevo?cliente=${cliente.id}`}>
-            Nuevo pedido
-          </LinkButton>
+          {emitir('quote', 'Nueva cotización', `/ventas/cotizaciones/nueva?cliente=${cliente.id}`)}
+          {emitir('sales_order', 'Nuevo pedido', `/ventas/pedidos/nuevo?cliente=${cliente.id}`)}
         </>
       ) : null}
       {permisos.darDeBaja && cliente.dadoDeBaja ? (
@@ -317,6 +355,12 @@ export function ClienteDetallePage() {
         }
         actions={acciones}
       />
+
+      {hayMotivo ? (
+        <p id={MOTIVO_STEL} className={doc.motivo}>
+          {motivoBloqueo(...bloqueados)}
+        </p>
+      ) : null}
 
       {cliente.dadoDeBaja ? (
         <Alert tone="neutral" title="Cliente dado de baja">
