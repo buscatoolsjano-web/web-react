@@ -327,3 +327,75 @@ justamente para esto. Verificado en producción sobre COTI02629.
 - **El detalle ya conserva la pestaña en la URL** (`?tab=informacion`).
 - **La impresión ya es una sola fuente**: un árbol de React y una hoja `@media
   print`. No se agregó ninguna librería de PDF.
+
+---
+
+## 10 · El piloto COT-ERP no se puede crear con el flujo actual
+
+Autorizado el piloto, el preflight pasó entero:
+
+| | |
+|---|---|
+| autoridad general `quote` | `STEL` |
+| serie `quote/COT-ERP` | **`ERP`** |
+| serie `quote/COTI` | sin fila → cae a la general (`STEL`) |
+| secuencia `COTI` / `COT-ERP` | 2630 / 1 (`COT-ERP` con `is_default=false`) |
+| baseline | 306 cotizaciones · 1.032 líneas · 172 pedidos · 193 entregas · 381 movimientos · 0 reservas |
+
+**Y ahí se frenó.** `crear_cotizacion` no acepta la serie:
+
+```sql
+k_permitidos constant text[] := array[
+  'customer_id', 'contact_id', 'quote_date', 'title', 'salesperson_id',
+  'payment_terms', 'currency_code', 'price_list_id', 'notes',
+  'valid_until', 'exchange_rate', 'discount_pct', 'perception_pct'
+];              -- ← `series_code` NO está
+
+select ds.series_code into v_serie
+  from document_sequences ds
+ where ds.company_id = p_company and ds.doc_type = 'quote' and ds.is_default;
+v_numero := next_document_number(p_company, 'quote', '');   -- ← serie vacía
+```
+
+Toma **siempre la serie por defecto** —COTI— y pide el número con serie vacía.
+Como COTI resuelve a STEL, el alta queda bloqueada, que es justamente lo que se
+ve en pantalla. **No hay forma de emitir en COT-ERP desde el flujo React.**
+
+### Lo que falta es poco, y el resto ya está hecho
+
+`next_document_number(p_company, p_doc_type, p_series)` **ya acepta la serie** y
+**ya exige la autoridad de esa serie**:
+
+```sql
+select series_code into v_serie
+  from document_sequences
+ where company_id = p_company and doc_type = p_doc_type
+   and case when coalesce(p_series,'') = '' then is_default else series_code = p_series end;
+perform app.exigir_emision_erp(p_company, p_doc_type, v_serie);
+```
+
+Y el trigger `guardar_autoridad_numeracion` vuelve a exigirlo al insertar, con
+`new.series_code`. O sea: **la base ya sabe permitir COT-ERP y seguir bloqueando
+COTI**. Lo único que falta es que la RPC deje elegir.
+
+### El cambio exacto que haría falta (NO aplicado)
+
+En `crear_cotizacion`, tres líneas:
+
+1. agregar `'series_code'` a `k_permitidos`;
+2. `v_serie := coalesce(nullif(p_cabecera->>'series_code',''), <la de is_default>)`,
+   validando que exista en `document_sequences` para esa empresa y tipo —si no,
+   `SERIE_INVALIDA`—;
+3. pasar `v_serie` a `next_document_number` en vez de `''`.
+
+Garantías que **no** cambian: la autoridad general sigue decidiendo para quien no
+manda serie; COTI sigue en STEL y sigue siendo la serie por defecto; quien pida
+COTI explícitamente sigue bloqueado; el permiso sigue siendo `admin`/`employee`.
+
+En la interfaz: un selector de serie que **sólo aparece si la empresa tiene más de
+una serie para el tipo**, con la serie por defecto preseleccionada. Nadie cae en
+COT-ERP sin elegirla.
+
+**STOP.** Es una RPC `security definer` del camino de numeración, y tocarla no
+estaba autorizado: la autorización era crear un piloto asumiendo que el flujo lo
+permitía, y no lo permite.
