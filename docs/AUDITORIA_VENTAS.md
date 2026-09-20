@@ -399,3 +399,63 @@ COT-ERP sin elegirla.
 **STOP.** Es una RPC `security definer` del camino de numeración, y tocarla no
 estaba autorizado: la autorización era crear un piloto asumiendo que el flujo lo
 permitía, y no lo permite.
+
+---
+
+## 11 · Serie explícita en `crear_cotizacion` — propuesta (NO aplicada)
+
+SQL completo en [`scripts/fase19-e3-serie-explicita.sql`](../scripts/fase19-e3-serie-explicita.sql),
+con la función entera propuesta, las invariantes previas, la verificación
+posterior y el rollback.
+
+### El diff, en tres puntos
+
+1. `k_permitidos` suma `'series_code'`.
+2. El bloque que resolvía la serie distingue dos casos. **Las dos condiciones
+   que importan van en el `where`** —`company_id = p_company` y
+   `doc_type = 'quote'`—, así que una serie de otra empresa o de otro tipo de
+   documento no aparece y cae en `SERIE_INVALIDA`.
+3. `next_document_number(p_company, 'quote', '')` pasa a recibir `v_serie`.
+
+El punto 3 además **corrige una inconsistencia que ya existía**: hoy el número
+lo da la serie que `next_document_number` resuelve por `is_default`, y el
+`series_code` que se guarda lo resolvió antes la función por su cuenta. Son dos
+lecturas distintas de lo mismo; pasando la serie ya resuelta salen por fuerza de
+la misma.
+
+### El doble cinturón no se toca
+
+`next_document_number` exige `app.exigir_emision_erp(company, doc_type, serie)`
+sobre la serie resuelta, y el trigger `guardar_autoridad_numeracion` lo vuelve a
+exigir al insertar con `new.series_code`. **La función no mira la autoridad**:
+resuelve la serie y deja que los dos guardianes decidan, que es lo que ya hacían.
+
+### Conducta esperada
+
+| Llamada | Resultado |
+|---|---|
+| sin `series_code` | COTI → STEL → **bloqueado, igual que hoy** |
+| `series_code = 'COTI'` | COTI → STEL → **bloqueado** |
+| `series_code = 'COT-ERP'` | ERP → **permitido** |
+| serie inexistente | `SERIE_INVALIDA` |
+| serie de otra empresa | `SERIE_INVALIDA` |
+| serie de otro `doc_type` | `SERIE_INVALIDA` |
+| `anon` / `salesperson` / `technician` | `SIN_PERMISO`, sin cambios |
+
+### El selector necesita un objeto más, y conviene decirlo
+
+`document_sequences` **no es legible desde el navegador**: no tiene grant para
+`authenticated` ni ninguna policy. Sin una RPC de lectura no hay forma de listar
+las series en la pantalla, así que el selector **no sale gratis**.
+
+La propuesta agrega `series_de_documento(p_company, p_doc_type)`, modelada igual
+que las dos RPC de autoridad que ya existen: sólo lectura, `security definer`,
+misma puerta (`current_internal_company_ids()`), `execute` sólo para
+`authenticated`. Devuelve `series_code`, `is_default` y la **autoridad efectiva**,
+que es lo que permite rotular «COTI — STEL» y «COT-ERP — ERP» como pedía el §16.
+
+No amplía lo que alguien puede ver: devuelve la configuración de su propia
+empresa, que `autoridad_numeracion_series` ya devuelve en parte.
+
+**Es una decisión aparte.** Si preferís no sumar el objeto, el selector no se
+puede hacer y el piloto necesitaría otra vía.
