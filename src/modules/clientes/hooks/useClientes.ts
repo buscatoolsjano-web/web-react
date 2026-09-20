@@ -6,6 +6,7 @@ import {
   contactosDeCliente,
   direccionesDeCliente,
   documentosDeCliente,
+  gruposCuitLegacy,
   listarClientes,
   obtenerCliente,
   rubrosUsados,
@@ -219,6 +220,30 @@ export function useColaDeRevision(opciones: { pagina: number; porPagina: number 
     placeholderData: (previa, consultaPrevia) =>
       consultaPrevia?.queryKey[1] === companyId ? previa : undefined,
     staleTime: 30_000,
+  })
+}
+
+/**
+ * El CUIT del sistema anterior de los clientes que la cola está mostrando
+ * (Fase 19 · E3B).
+ *
+ * Va después de la cola y sólo con los ids de ESA página: no se traen las
+ * evidencias de todos los clientes para mostrar 25. Con la cola vacía no sale
+ * ninguna consulta.
+ *
+ * La clave incluye los ids, así que cambiar de página pide lo suyo y volver
+ * atrás lo encuentra en caché.
+ */
+export function useGruposCuitLegacy(clienteIds: readonly string[]) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const ids = [...clienteIds].sort()
+
+  return useQuery({
+    queryKey: ['clientes', companyId, 'cuit-legacy', ids],
+    queryFn: () => gruposCuitLegacy(ids),
+    enabled: companyId !== null && ids.length > 0,
+    staleTime: 5 * 60_000,
   })
 }
 

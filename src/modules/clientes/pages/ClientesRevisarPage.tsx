@@ -11,16 +11,20 @@ import { LinkButton } from '@/components/ui/LinkButton'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { Icon } from '@/components/icons/Icon'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { ConflictoCuitLegacy } from '../components/ConflictoCuitLegacy'
 import { Paginador } from '../components/Paginador'
-import { useColaDeRevision } from '../hooks/useClientes'
+import { useColaDeRevision, useGruposCuitLegacy } from '../hooks/useClientes'
 import { useResolverRevision } from '../hooks/useEdicionClientes'
 import { permisosDe } from '../lib/permisos'
 import { explicarMotivo } from '../lib/motivos'
 import { formatearCuit, nombreVisible } from '../lib/formato'
-import type { ClienteListado } from '../types'
+import type { ClienteListado, GrupoCuitLegacy } from '../types'
 import styles from './ClientesRevisarPage.module.css'
 
 const CLIENTE = { singular: 'cliente', plural: 'clientes' }
+
+/** El motivo que esta entrega aprendió a explicar. */
+const MOTIVO_CUIT = 'CUIT_REPETIDO_EN_LEGACY'
 
 /**
  * La cola de revisión (Fase 17 · E5).
@@ -48,6 +52,16 @@ export function ClientesRevisarPage() {
 
   const filas = cola.data?.filas ?? []
   const total = cola.data?.total ?? 0
+
+  /**
+   * El CUIT del sistema anterior, sólo para los de ESTA página y sólo para
+   * los que chocaron por CUIT. Con la cola sin ese motivo no sale ninguna
+   * consulta, y la cola sigue mostrándose igual aunque ésta falle: la
+   * evidencia es un detalle del motivo, no la pantalla.
+   */
+  const conChoque = filas.filter((c) => c.motivosRevision.includes(MOTIVO_CUIT)).map((c) => c.id)
+  const grupos = useGruposCuitLegacy(conChoque)
+  const porCliente = new Map((grupos.data ?? []).map((g) => [g.clienteId, g]))
 
   return (
     <div className={doc.pagina}>
@@ -87,6 +101,8 @@ export function ClientesRevisarPage() {
                 puedeResolver={permisos.resolverRevision}
                 resolviendo={resolviendo === c.id}
                 onResolviendo={setResolviendo}
+                grupoCuit={porCliente.get(c.id)}
+                cargandoCuit={grupos.isPending && conChoque.includes(c.id)}
               />
             ))}
           </ul>
@@ -114,9 +130,19 @@ interface FilaProps {
   puedeResolver: boolean
   resolviendo: boolean
   onResolviendo: (id: string | null) => void
+  /** La evidencia del CUIT legacy, si el cliente chocó por CUIT y existe. */
+  grupoCuit?: GrupoCuitLegacy | undefined
+  cargandoCuit?: boolean
 }
 
-function FilaDeRevision({ cliente, puedeResolver, resolviendo, onResolviendo }: FilaProps) {
+function FilaDeRevision({
+  cliente,
+  puedeResolver,
+  resolviendo,
+  onResolviendo,
+  grupoCuit,
+  cargandoCuit = false,
+}: FilaProps) {
   const resolver = useResolverRevision(cliente.id)
 
   return (
@@ -141,20 +167,31 @@ function FilaDeRevision({ cliente, puedeResolver, resolviendo, onResolviendo }: 
       <ul className={styles.motivos}>
         {cliente.motivosRevision.map((m) => (
           <li key={m} className={styles.motivo}>
-            <Icon name="info" size={16} />
-            <span>{explicarMotivo(m)}</span>
-            {puedeResolver ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                loading={resolver.isPending && resolviendo}
-                onClick={() => {
-                  onResolviendo(cliente.id)
-                  resolver.mutate([m], { onSettled: () => onResolviendo(null) })
-                }}
-              >
-                Dar por revisado
-              </Button>
+            <div className={styles.motivoLinea}>
+              <Icon name="info" size={16} />
+              <span>{explicarMotivo(m)}</span>
+              {puedeResolver ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={resolver.isPending && resolviendo}
+                  onClick={() => {
+                    onResolviendo(cliente.id)
+                    resolver.mutate([m], { onSettled: () => onResolviendo(null) })
+                  }}
+                >
+                  Dar por revisado
+                </Button>
+              ) : null}
+            </div>
+            {/* La evidencia va pegada AL MOTIVO que la necesita, no al pie de
+                la tarjeta: es lo que ese renglón está afirmando. */}
+            {m === MOTIVO_CUIT ? (
+              <ConflictoCuitLegacy
+                cuitVigente={cliente.cuit}
+                grupo={grupoCuit}
+                cargando={cargandoCuit}
+              />
             ) : null}
           </li>
         ))}

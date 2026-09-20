@@ -7,6 +7,7 @@ import type {
   DireccionCliente,
   DocumentoDeCliente,
   FiltrosClientes,
+  GrupoCuitLegacy,
   PaginaDeClientes,
   PaginaDeDocumentos,
 } from '../types'
@@ -495,5 +496,59 @@ export async function tarifasDeEmpresa(companyId: string): Promise<OpcionCliente
   return (data ?? []).map((p) => ({
     id: p.id,
     nombre: p.currency_code ? `${p.name} · ${p.currency_code}` : p.name,
+  }))
+}
+
+/**
+ * El CUIT que el sistema anterior tenía para estos clientes, y con qué otras
+ * fichas lo compartía (Fase 19 · E3B).
+ *
+ * Contesta lo que la cola de revisión no podía contestar: el motivo
+ * `CUIT_REPETIDO_EN_LEGACY` decía que hubo un choque, pero el número se había
+ * perdido en la migración y la tarjeta mostraba «sin CUIT» al lado.
+ *
+ * Tres cosas que no hace, y son deliberadas:
+ *
+ * 1. **No normaliza al guardar.** `crudo` es el valor tal cual venía; el mismo
+ *    número aparece en el legacy escrito de tres formas distintas, y una de
+ *    ellas tiene el guión mal puesto. Esa forma es parte de la evidencia.
+ * 2. **No decide.** Devuelve las fichas del grupo; ninguna es «la buena».
+ * 3. **No amplía lo que se puede ver.** La función es `security invoker`, así
+ *    que arrastra la RLS de `customers`: un vendedor no ve acá el CUIT legacy
+ *    de un cliente que no tiene asignado.
+ */
+export async function gruposCuitLegacy(clienteIds: readonly string[]): Promise<GrupoCuitLegacy[]> {
+  if (clienteIds.length === 0) return []
+  const { data, error } = await supabase.rpc('grupos_cuit_legacy', {
+    p_customers: [...clienteIds],
+  })
+  if (error) throw new Error(`No se pudo leer el CUIT del sistema anterior: ${error.message}`)
+
+  type Fila = {
+    customer_id: string
+    legacy_tax_id_raw: string
+    cuit_normalizado: string
+    fichas: {
+      id: string
+      razon_social: string
+      nombre_comercial: string | null
+      referencia: string | null
+      cuit: string | null
+      dado_de_baja: boolean
+    }[]
+  }
+
+  return ((data ?? []) as Fila[]).map((f) => ({
+    clienteId: f.customer_id,
+    crudo: f.legacy_tax_id_raw,
+    normalizado: f.cuit_normalizado,
+    fichas: (f.fichas ?? []).map((h) => ({
+      id: h.id,
+      razonSocial: h.razon_social,
+      nombreComercial: h.nombre_comercial,
+      referencia: h.referencia,
+      cuit: h.cuit,
+      dadoDeBaja: h.dado_de_baja,
+    })),
   }))
 }

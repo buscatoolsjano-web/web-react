@@ -440,6 +440,38 @@ export type Database = {
           },
         ]
       }
+      customer_legacy_tax_ids: {
+        Row: {
+          created_at: string
+          customer_id: string
+          legacy_ref: string
+          legacy_tax_id_raw: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          legacy_ref: string
+          legacy_tax_id_raw: string
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          legacy_ref?: string
+          legacy_tax_id_raw?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_legacy_tax_ids_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_po_candidates: {
         Row: {
           candidate: string
@@ -6077,6 +6109,15 @@ export type Database = {
           p_direccion?: Json | null
         }
         Returns: Json
+      }
+      grupos_cuit_legacy: {
+        Args: { p_customers: string[] }
+        Returns: {
+          cuit_normalizado: string
+          customer_id: string
+          fichas: Json
+          legacy_tax_id_raw: string
+        }[]
       }
       guardar_cliente: {
         Args: {

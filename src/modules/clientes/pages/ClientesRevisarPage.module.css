@@ -57,7 +57,15 @@
   list-style: none;
 }
 
+/* Fase 19 · E3B: un motivo puede traer evidencia debajo (el CUIT legacy), así
+   que deja de ser una línea y pasa a ser la línea MÁS lo que la sustenta. */
 .motivo {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.motivoLinea {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -65,7 +73,7 @@
   min-width: 0;
 }
 
-.motivo > span {
+.motivoLinea > span {
   flex: 1 1 14rem;
   min-width: 0;
 }

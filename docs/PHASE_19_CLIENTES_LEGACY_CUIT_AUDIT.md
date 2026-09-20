@@ -216,8 +216,11 @@ por sí solo.
 
 ## 8 · Backfill (`BACKFILL_ROWS_PROPOSED = 31`, `IDEMPOTENT = sí`)
 
-SQL completo y listo, **sin ejecutar**, en
-[`scripts/fase19-e3b-legacy-cuit.sql`](../scripts/fase19-e3b-legacy-cuit.sql).
+SQL completo y listo, **sin ejecutar**, preparado en su momento como
+`scripts/fase19-e3b-legacy-cuit.sql`. **Ese archivo ya no está**: la sección 15
+explica por qué este plan no se pudo aplicar y la 16, qué se aplicó en su lugar.
+Conservarlo habría dejado en el repo un SQL que propone una columna que se
+descartó.
 
 - Un `UPDATE ... FROM (values ...)` explícito **por UUID**, con las 31 filas escritas
   a mano. Sin `join` por nombre, sin `like`, sin similitud.
@@ -424,3 +427,87 @@ una tabla más es una tabla más. El contenido, la fuente, el valor crudo, la
 idempotencia, los tests y la interfaz propuesta son los mismos.
 
 **Esto necesita una decisión nueva: no está dentro de lo aprobado.**
+
+---
+
+## 16 · Aplicado el 20/09/2026 — tabla aparte
+
+Autorizada la opción C, se aplicó en **una única sentencia `DO`** (una sola
+sentencia es atómica pase lo que pase con el runner: cualquier `raise exception`
+deshace también el `create table`), con **23 invariantes verificadas antes del
+commit**.
+
+### Lo que quedó
+
+```sql
+create table public.customer_legacy_tax_ids (
+  customer_id       uuid primary key references customers(id) on delete cascade,
+  legacy_tax_id_raw text not null check (btrim(legacy_tax_id_raw) <> ''),
+  legacy_ref        text not null,
+  source            text not null default 'maestro_clientes_html',
+  created_at        timestamptz not null default now()
+);
+```
+
+Tres decisiones, con su motivo:
+
+- **`customer_id` es la PK.** La evidencia demostró un CUIT legacy por cliente
+  (31 fichas, 31 referencias, un `cif` cada una). Una relación 1:N sería diseñar
+  para un caso que los datos no tienen, y además no impediría duplicar.
+- **No lleva `company_id`,** aunque todas las otras tablas `customer_*` lo tienen.
+  Ésas lo llevan porque **sus policies filtran por él**; ésta se subordina al
+  cliente, así que `company_id` sería una copia de un dato que vive en `customers`
+  y que podría quedar desalineada. Se omitió por la misma razón por la que en E2
+  no se guardó un CUIT normalizado.
+- **`legacy_ref` sí aporta:** es la clave exacta con la que se hizo el cruce, y
+  permite rehacerlo contra el HTML sin volver a auditar nada.
+
+### Permisos y RLS
+
+```sql
+revoke all on customer_legacy_tax_ids from public, anon, authenticated;
+grant select on customer_legacy_tax_ids to authenticated;
+alter table customer_legacy_tax_ids enable row level security;
+create policy legacy_tax_ids_select on customer_legacy_tax_ids
+  for select to authenticated
+  using (exists (select 1 from customers c
+                  where c.id = customer_legacy_tax_ids.customer_id));
+```
+
+**El `revoke` no es decorativo.** En este proyecto los *default ACL* de `public`
+otorgan TODO (`arwdDxtm`) a `anon`, `authenticated` y `service_role` sobre
+cualquier tabla nueva: sin esa línea la evidencia habría nacido **escribible por
+`anon`**. Quedó `{postgres=arwdDxtm, service_role=arwdDxtm, authenticated=r}`.
+
+Sin `grant` de escritura **no hace falta ninguna policy de escritura**: la tabla
+no se edita desde la aplicación, la escribe una migración.
+
+El `exists` se evalúa como el usuario que consulta, así que arrastra
+`customers_select` entera —incluida la parte que limita al vendedor a sus
+clientes—. Sin `security definer` en ninguna parte.
+
+> **Hallazgo aparte, no corregido:** `customer_po_candidates` resuelve su
+> visibilidad con `company_id in current_internal_company_ids()`, que es **más
+> débil** que `customers_select`: un vendedor ve candidatos de OC de clientes
+> que no tiene asignados. No se tocó —es de otra entrega y otra decisión—, pero
+> queda anotado.
+
+### La lectura
+
+`grupos_cuit_legacy(uuid[])`, `security invoker`, sin `anon`. Devuelve el crudo y
+las otras fichas del mismo CUIT **normalizado**. La normalización vive sólo acá:
+nada normalizado se guarda.
+
+Se le pasan **únicamente los ids de la página que se está mirando**, así que el
+navegador nunca recibe las 31 evidencias para mostrar 25 filas.
+
+### Verificado
+
+31 evidencias, 15 grupos, 31/31 idénticas a la fuente. Y lo que **no** se movió:
+`customers` 1010, `needs_review` 40, los tres md5 (`updated_at`, `review_reason`,
+`tax_id`) idénticos a la baseline, `max(updated_at)` en 16/09, `sales_audit` en 2,
+documentos 306/172/193. Ninguna revisión se resolvió.
+
+`scripts/fase19-e3b-legacy-cuit-tests.mjs` lo vuelve a comprobar contra
+producción, con sesiones reales para la RLS, y coteja las 31 contra el HTML del
+sistema anterior si se le pasa la ruta.

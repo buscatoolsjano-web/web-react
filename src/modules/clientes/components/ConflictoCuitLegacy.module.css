@@ -1,0 +1,103 @@
+/* La evidencia del CUIT legacy dentro de la tarjeta de revisión
+   (Fase 19 · E3B). Va embebida: no es otra tarjeta, es el detalle del motivo
+   que está justo arriba. */
+.caja {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  /* `surface-alt` y no `surface`: la evidencia va DENTRO de la tarjeta de
+     revisión, y con el mismo fondo que ella no se distinguiría del motivo. */
+  background: var(--surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.comparacion {
+  display: grid;
+  /* Los dos CUIT uno al lado del otro desde que entran, y uno debajo del otro
+     en el teléfono: compararlos es todo el punto de este bloque. */
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.comparacion dt {
+  color: var(--color-text-soft);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.comparacion dd {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* El crudo se destaca porque es el dato que la pantalla no podía dar antes. */
+.crudo {
+  font-weight: 600;
+}
+
+.vacio {
+  color: var(--color-text-muted);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.tituloFichas {
+  margin: 0;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.fichas {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ficha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+
+.enlace {
+  color: var(--color-primary-text);
+  font-weight: 500;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.enlace:hover {
+  text-decoration: underline;
+}
+
+.fichaMeta {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.nota,
+.sinEvidencia {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.sinEvidencia svg {
+  flex: none;
+  margin-top: 0.15em;
+}

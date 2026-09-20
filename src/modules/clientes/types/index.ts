@@ -461,3 +461,34 @@ export interface Cliente360 {
     productosDistintos: number
   }
 }
+
+/**
+ * Una ficha que compartía el CUIT en el sistema anterior (Fase 19 · E3B).
+ *
+ * Es la otra parte del conflicto que la migración no pudo decidir: no es un
+ * duplicado confirmado ni un cliente «a fusionar», es la ficha que tenía
+ * escrito el mismo número.
+ */
+export interface FichaDelGrupoLegacy {
+  id: string
+  razonSocial: string
+  nombreComercial: string | null
+  referencia: string | null
+  /** El CUIT VIGENTE de esa otra ficha, que casi siempre es `null`. */
+  cuit: string | null
+  dadoDeBaja: boolean
+}
+
+/**
+ * La evidencia del CUIT que el sistema anterior tenía para un cliente.
+ *
+ * `crudo` se muestra tal como venía —con guiones, sin ellos o mal formado—:
+ * esa forma ES la evidencia. `normalizado` sólo existe para comparar, se
+ * calcula al leer y no está guardado en ninguna parte.
+ */
+export interface GrupoCuitLegacy {
+  clienteId: string
+  crudo: string
+  normalizado: string
+  fichas: FichaDelGrupoLegacy[]
+}
