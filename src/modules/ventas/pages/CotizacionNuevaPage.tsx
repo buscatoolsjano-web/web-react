@@ -119,16 +119,22 @@ export function CotizacionNuevaPage() {
   // no tiene que pisar a la del cliente que quedó elegido.
   const pedidoDeDefaults = useRef(0)
 
-  // Leer los defaults es una ida al servidor, y mientras tanto la persona
-  // sigue escribiendo. Estas dos referencias guardan el último estado para que
-  // la respuesta se aplique sobre lo que hay AHORA y no sobre lo que había
-  // cuando se pidió: si no, el valor que acaban de elegir se pierde.
-  const borradorAlDia = useRef(b)
-  const tocadosAlDia = useRef(tocados)
-  useEffect(() => {
-    borradorAlDia.current = b
-    tocadosAlDia.current = tocados
-  })
+  /**
+   * Los defaults que llegaron y todavía no se aplicaron.
+   *
+   * Hasta la Fase 19 · E1 la respuesta se aplicaba dentro del `.then()`, sobre
+   * un borrador guardado en una referencia que un efecto sincronizaba. El
+   * problema no era que la respuesta llegara **tarde**: era que llegaba
+   * **temprano**. Un efecto pasivo React lo agenda, no lo corre en el acto, así
+   * que una promesa ya resuelta gana la carrera, la referencia todavía apunta
+   * al borrador ANTERIOR al click, y el `setB` que venía después pisaba el
+   * cliente recién elegido con uno vacío.
+   *
+   * Acá se aplican en un efecto. Un efecto corre **después del commit**, así
+   * que ve el borrador de verdad; no hay referencia que pueda quedar vieja
+   * porque no hay referencia.
+   */
+  const porAplicar = useRef<DefaultsComerciales | null | undefined>(undefined)
 
   const escribe = escribeVentas(activa?.rol)
   const autoridad = useAutoridadNumeracion()
@@ -193,10 +199,9 @@ export function CotizacionNuevaPage() {
     void defaultsDeCliente(activa.companyId, customerId)
       .then((d) => {
         if (turno !== pedidoDeDefaults.current) return
+        // Sólo se anota lo que llegó. Aplicarlo es del efecto de abajo.
+        porAplicar.current = d
         setDefaults(d)
-        const ap = aplicarDefaults(borradorAlDia.current, d, tocadosAlDia.current, opcionesValidas())
-        setAvisosCliente(ap.avisos)
-        setB(ap.borrador)
       })
       .catch(() => {
         // Que no se puedan leer los defaults no impide cargar el documento.
@@ -205,11 +210,40 @@ export function CotizacionNuevaPage() {
   }
 
   const elegirCliente = (customerId: string) => {
-    const r = cambiarCliente(b, customerId)
-    setAvisoContacto(r.contactoLimpiado)
-    setB(r.borrador)
+    // Funcional: entre este click y el commit puede resolverse la promesa de
+    // los defaults, y el borrador del que hay que partir es el de React, no
+    // el que este render tenía en la mano.
+    setB((prev) => {
+      const r = cambiarCliente(prev, customerId)
+      setAvisoContacto(r.contactoLimpiado)
+      return r.borrador
+    })
     pedirDefaults(customerId)
   }
+
+  /**
+   * Aplica los defaults que hayan llegado, sobre el borrador ya confirmado.
+   *
+   * También corre cuando llegan las tarifas o los vendedores: si los defaults
+   * del cliente ganan la carrera a esas listas —el caso del cliente que viene
+   * en la URL, donde las tres consultas salen juntas—, la tarifa sugerida se
+   * descartaba por «no existe en la empresa» y encima se avisaba. Reintentar
+   * cuando la lista aparece es barato: `aplicarDefaults` es pura y sólo llena
+   * lo que está vacío y nadie tocó.
+   */
+  useEffect(() => {
+    const d = porAplicar.current
+    if (d === undefined) return
+    const ap = aplicarDefaults(b, d, tocados, opcionesValidas())
+    // Se deja anotado mientras las listas no estén: recién cuando llegan se
+    // da por aplicado y se deja de reintentar.
+    if (tarifas.data && vendedores.data) porAplicar.current = undefined
+    setAvisosCliente(ap.avisos)
+    setB(ap.borrador)
+    // `b` y `tocados` NO van en las dependencias: el efecto no tiene que
+    // volver a correr porque la persona escribió, sólo cuando llega algo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaults, tarifas.data, vendedores.data])
 
   // Los defaults del cliente que vino en la URL: una sola vez, al montar. El
   // `setState` ocurre dentro del `.then()`, no en el cuerpo del efecto.

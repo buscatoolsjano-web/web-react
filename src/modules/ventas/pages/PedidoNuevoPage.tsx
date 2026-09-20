@@ -117,16 +117,22 @@ export function PedidoNuevoPage() {
   // no tiene que pisar a la del cliente que quedó elegido.
   const pedidoDeDefaults = useRef(0)
 
-  // Leer los defaults es una ida al servidor, y mientras tanto la persona
-  // sigue escribiendo. Estas dos referencias guardan el último estado para que
-  // la respuesta se aplique sobre lo que hay AHORA y no sobre lo que había
-  // cuando se pidió: si no, el valor que acaban de elegir se pierde.
-  const borradorAlDia = useRef(b)
-  const tocadosAlDia = useRef(tocados)
-  useEffect(() => {
-    borradorAlDia.current = b
-    tocadosAlDia.current = tocados
-  })
+  /**
+   * Los defaults que llegaron y todavía no se aplicaron.
+   *
+   * Hasta la Fase 19 · E1 la respuesta se aplicaba dentro del `.then()`, sobre
+   * un borrador guardado en una referencia que un efecto sincronizaba. El
+   * problema no era que la respuesta llegara **tarde**: era que llegaba
+   * **temprano**. Un efecto pasivo React lo agenda, no lo corre en el acto, así
+   * que una promesa ya resuelta gana la carrera, la referencia todavía apunta
+   * al borrador ANTERIOR al click, y el `setB` que venía después pisaba el
+   * cliente recién elegido con uno vacío.
+   *
+   * Acá se aplican en un efecto, que corre **después del commit** y por lo
+   * tanto ve el borrador de verdad. Es el mismo arreglo que en «Nueva
+   * cotización»: son la misma pantalla con distinto documento.
+   */
+  const porAplicar = useRef<DefaultsComerciales | null | undefined>(undefined)
 
   const escribe = escribeVentas(activa?.rol)
   const autoridad = useAutoridadNumeracion()
@@ -143,16 +149,36 @@ export function PedidoNuevoPage() {
   // dentro de `aplicarDefaults` porque son respuestas distintas y ninguna tiene
   // por qué esperar a la otra. Sólo llena lo que está vacío y nadie tocó, así
   // que correr de más no pisa nada.
+  const agendaSugerida = useRef('')
   useEffect(() => {
+    // Una vez por combinación de cliente y listas. La guarda no es cosmética:
+    // acá `b` se lee directo —un efecto corre DESPUÉS del commit, así que es
+    // el borrador confirmado— y sin ella un `setB` derivado de `b` podría
+    // encadenar renders.
+    const firma = `${b.cabecera.customerId}|${contactos.data?.length ?? -1}|${direcciones.data?.length ?? -1}`
+    if (agendaSugerida.current === firma) return
+    agendaSugerida.current = firma
+
     const r = sugerirDeLaAgenda(
-      borradorAlDia.current,
+      b,
       { contactos: contactos.data ?? [], direcciones: direcciones.data ?? [] },
-      tocadosAlDia.current,
+      tocados,
     )
-    if (r.aplicados.length > 0) setB(r.borrador)
+    if (r.aplicados.length === 0) return
+    // La regla avisa de renders encadenados porque el valor sale de `b` y `b`
+    // está en las dependencias. El encadenamiento lo corta `agendaSugerida`:
+    // por cada combinación de cliente y listas esto corre UNA vez. Antes la
+    // regla no saltaba porque el borrador venía de una referencia —la misma
+    // que se quedaba vieja en el `.then()` de los defaults—, así que el
+    // silencio era el síntoma, no la solución.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setB(r.borrador)
     // El cliente entra en las dependencias a propósito: las listas pueden
     // llegar ANTES de que se elija el cliente, y la sugerencia recién tiene
-    // sentido cuando hay cliente.
+    // sentido cuando hay cliente. `tocados` NO entra: que la persona marque un
+    // campo no es motivo para volver a sugerir, y si entrara, limpiar el
+    // contacto a mano lo haría reaparecer en el acto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [b.cabecera.customerId, contactos.data, direcciones.data])
 
   const crear = useMutation({
@@ -214,10 +240,9 @@ export function PedidoNuevoPage() {
     void defaultsDeCliente(activa.companyId, customerId)
       .then((d) => {
         if (turno !== pedidoDeDefaults.current) return
+        // Sólo se anota lo que llegó. Aplicarlo es del efecto de abajo.
+        porAplicar.current = d
         setDefaults(d)
-        const ap = aplicarDefaults(borradorAlDia.current, d, tocadosAlDia.current, opcionesValidas())
-        setAvisosCliente(ap.avisos)
-        setB(ap.borrador)
       })
       .catch(() => {
         // Que no se puedan leer los defaults no impide cargar el documento.
@@ -226,11 +251,35 @@ export function PedidoNuevoPage() {
   }
 
   const elegirCliente = (customerId: string) => {
-    const r = cambiarCliente(b, customerId)
-    setAvisoContacto(r.contactoLimpiado)
-    setB(r.borrador)
+    // Funcional: entre este click y el commit puede resolverse la promesa de
+    // los defaults, y el borrador del que hay que partir es el de React.
+    setB((prev) => {
+      const r = cambiarCliente(prev, customerId)
+      setAvisoContacto(r.contactoLimpiado)
+      return r.borrador
+    })
     pedirDefaults(customerId)
   }
+
+  /**
+   * Aplica los defaults que hayan llegado, sobre el borrador ya confirmado.
+   *
+   * También corre cuando llegan las tarifas o los vendedores: si los defaults
+   * del cliente ganan la carrera a esas listas —el caso del cliente que viene
+   * en la URL, donde las consultas salen juntas—, la tarifa sugerida se
+   * descartaba por «no existe en la empresa» y encima se avisaba.
+   */
+  useEffect(() => {
+    const d = porAplicar.current
+    if (d === undefined) return
+    const ap = aplicarDefaults(b, d, tocados, opcionesValidas())
+    if (tarifas.data && vendedores.data) porAplicar.current = undefined
+    setAvisosCliente(ap.avisos)
+    setB(ap.borrador)
+    // `b` y `tocados` NO van en las dependencias: el efecto no tiene que
+    // volver a correr porque la persona escribió, sólo cuando llega algo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaults, tarifas.data, vendedores.data])
 
   // Los defaults del cliente que vino en la URL: una sola vez, al montar. El
   // `setState` ocurre dentro del `.then()`, no en el cuerpo del efecto.

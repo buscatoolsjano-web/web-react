@@ -295,11 +295,9 @@ describe('Nuevo pedido · defaults del cliente', () => {
     estado.defaults = { vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' }
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
-    // Bajo la carga de la suite completa, la respuesta de los defaults puede
-    // tardar más que el default de waitFor.
-    await waitFor(() => expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista'), {
-      timeout: 8000,
-    })
+    // Sin margen extra: el timeout de 8 s que había acá tapaba la carrera de
+    // `aplicarDefaults`, que la Fase 19 · E1 corrigió. Si vuelve, esto falla.
+    await waitFor(() => expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
@@ -419,5 +417,61 @@ describe('Nuevo pedido · contacto y domicilio de entrega (Fase 17 · E3)', () =
     estado.direcciones = []
     fireEvent.click(screen.getByRole('button', { name: 'otro cliente' }))
     await waitFor(() => expect(screen.getByLabelText(/Entregar en/)).toHaveValue(''))
+  })
+})
+
+/**
+ * Fase 19 · E1 — la misma carrera que «Nueva cotización», en su gemela.
+ *
+ * `respuestaInmediata` lleva al extremo, de forma determinista, la ventana en
+ * la que una promesa ya resuelta gana contra un efecto pasivo: React agenda
+ * los efectos, no los corre en el acto. Con la implementación vieja los
+ * defaults se calculaban sobre el borrador ANTERIOR al click y lo que se
+ * perdía era el cliente recién elegido.
+ */
+const respuestaInmediata = <T,>(valor: T): Promise<T> =>
+  ({
+    then(cb?: (v: T) => unknown) {
+      cb?.(valor)
+      return respuestaInmediata(valor)
+    },
+    catch() {
+      return respuestaInmediata(valor)
+    },
+    finally() {
+      return respuestaInmediata(valor)
+    },
+  }) as unknown as Promise<T>
+
+describe('Nuevo pedido · defaults que llegan antes de que React confirme', () => {
+  it('el cliente elegido NO se pierde cuando la respuesta gana la carrera', () => {
+    estado.defaults = { vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' }
+    espias.defaults.mockImplementationOnce(() => respuestaInmediata(estado.defaults))
+    montar()
+
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+
+    expect(screen.getByRole('button', { name: 'Crear pedido' })).toBeEnabled()
+    expect(screen.getByLabelText('Moneda')).toHaveValue('USD')
+    expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista')
+  })
+
+  it('lo que se manda al servidor lleva cliente Y defaults', async () => {
+    estado.defaults = { vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' }
+    espias.defaults.mockImplementationOnce(() => respuestaInmediata(estado.defaults))
+    montar()
+
+    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
+    await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
+
+    const [, cabecera] = espias.crear.mock.calls[0]!
+    expect(cabecera).toMatchObject({
+      customer_id: 'cliente-1',
+      salesperson_id: 'u1',
+      price_list_id: 'mayorista',
+      payment_terms: '60 días',
+      currency_code: 'USD',
+    })
   })
 })
