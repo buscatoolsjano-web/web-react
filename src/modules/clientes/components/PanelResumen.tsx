@@ -1,7 +1,9 @@
-import { useResumenCliente } from '../hooks/useResumen'
 import { Alert } from '@/components/feedback/Alert'
 import { SkeletonRows } from '@/components/ui/Skeleton'
+import { useCliente360 } from '../hooks/useCliente360'
+import { nombreDelMes } from '../lib/kpis'
 import { formatearFecha } from '../lib/formato'
+import { KpisComerciales } from './KpisComerciales'
 import styles from './PanelResumen.module.css'
 
 export interface PanelResumenProps {
@@ -9,64 +11,77 @@ export interface PanelResumenProps {
 }
 
 /**
- * El panel rápido, arriba de las pestañas (Fase 13 · E4: dentro de la sección
- * «Actividad»; la ayuda de cada métrica va como title y también para lectores
- * de pantalla, que un title solo no alcanza).
+ * La sección «Actividad» de la ficha completa.
  *
- * En el legacy se abría desde el listado (`abrirClienteQuickPanel`); acá vive
- * en la ficha, que es donde se termina mirando al cliente. Son los mismos
- * números **menos uno**: el importe único que sumaba ARS, USD y EUR. Los
- * importes están en Historial, separados por moneda.
+ * Hasta la Fase 19 · E2 esto mostraba seis contadores —cotizaciones, pedidos,
+ * entregas, última actividad, productos, documentos del año— y **ningún
+ * importe**. La ficha rápida, a un click de distancia, sí los mostraba y
+ * separados por moneda. Dos respuestas distintas a «cuánto compra este
+ * cliente», en la misma pantalla.
  *
- * Nada de lo que se muestra acá se calcula en el navegador: es una sola
- * función SQL.
+ * Ahora las dos leen `resumen_cliente_360` y comparten las tarjetas. De paso,
+ * abrir la ficha pasó de tres consultas a una: los contadores, los importes por
+ * moneda y la serie del gráfico venían en tres RPC distintas y ahora vienen
+ * juntas.
+ *
+ * Los contadores del histórico se quedan: son la memoria larga del cliente y
+ * contestan otra pregunta —«hace cuánto que trabajamos con éste»— que los KPI
+ * del mes no contestan.
  */
 export function PanelResumen({ clienteId }: PanelResumenProps) {
-  const { data, isPending, error } = useResumenCliente(clienteId)
+  const { data, isPending, error } = useCliente360(clienteId)
 
   if (error) {
     return (
-      <Alert tone="danger" role="alert" title="No se pudo leer el resumen">
+      <Alert tone="danger" role="alert" title="No se pudo leer la actividad">
         <p>{error.message}</p>
       </Alert>
     )
   }
 
-  if (isPending) return <SkeletonRows rows={2} columns={3} label="Cargando el resumen…" />
+  if (isPending) return <SkeletonRows rows={3} columns={4} label="Cargando la actividad…" />
   if (!data) return null
 
-  const metricas: { etiqueta: string; valor: string; ayuda?: string }[] = [
-    { etiqueta: 'Cotizaciones', valor: String(data.cotizaciones) },
-    { etiqueta: 'Pedidos', valor: String(data.pedidos) },
-    { etiqueta: 'Entregas', valor: String(data.entregas) },
+  const { totales, kpis } = data
+
+  const historico: { etiqueta: string; valor: string; ayuda?: string }[] = [
+    { etiqueta: 'Cotizaciones', valor: String(totales.cotizaciones) },
+    { etiqueta: 'Pedidos', valor: String(totales.pedidos) },
+    { etiqueta: 'Entregas', valor: String(totales.entregas) },
     {
       etiqueta: 'Última actividad',
-      valor: formatearFecha(data.ultimaActividad),
+      valor: formatearFecha(totales.ultimaActividad),
       ayuda: 'El documento más reciente, de cualquier tipo',
     },
     {
       etiqueta: 'Productos distintos',
-      valor: String(data.productosDistintos),
+      valor: String(totales.productosDistintos),
       ayuda: 'Cotizados o pedidos alguna vez',
     },
     {
       etiqueta: 'Documentos 12 meses',
-      valor: String(data.documentos12m),
+      valor: String(totales.documentos12m),
       ayuda: 'Cotizaciones, pedidos y entregas del último año',
     },
   ]
 
   return (
-    <dl className={styles.tira}>
-      {metricas.map((m) => (
-        <div key={m.etiqueta} className={styles.metrica} title={m.ayuda}>
-          <dt className={styles.etiqueta}>{m.etiqueta}</dt>
-          <dd className={styles.valor}>
-            {m.valor}
-            {m.ayuda ? <span className="sr-only">. {m.ayuda}</span> : null}
-          </dd>
-        </div>
-      ))}
-    </dl>
+    <div className={styles.wrap}>
+      <h4 className={styles.titulo}>En {nombreDelMes(kpis.mes)}</h4>
+      <KpisComerciales valores={kpis.valores} mes={kpis.mes} />
+
+      <h4 className={styles.titulo}>Histórico</h4>
+      <dl className={styles.tira}>
+        {historico.map((m) => (
+          <div key={m.etiqueta} className={styles.metrica} title={m.ayuda}>
+            <dt className={styles.etiqueta}>{m.etiqueta}</dt>
+            <dd className={styles.valor}>
+              {m.valor}
+              {m.ayuda ? <span className="sr-only">. {m.ayuda}</span> : null}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   )
 }

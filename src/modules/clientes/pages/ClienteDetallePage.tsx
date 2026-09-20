@@ -39,7 +39,7 @@ import {
   useHistorial,
   useOpcionesComerciales,
 } from '../hooks/useClientes'
-import { useResumenCliente } from '../hooks/useResumen'
+import { useCliente360 } from '../hooks/useCliente360'
 import {
   useActualizarCliente,
   useBajaCliente,
@@ -120,7 +120,7 @@ export function ClienteDetallePage() {
   // La misma consulta que usa el panel «Actividad»: React Query la comparte por
   // clave, así que pedirla acá para el contador de la pestaña no agrega un
   // viaje. Lo que evitaría traer 258 documentos sólo para contarlos.
-  const resumen = useResumenCliente(id)
+  const resumen = useCliente360(id ?? null)
   const [pestana, setPestana] = useState<Pestana>('informacion')
   // Fase 17 · E4: el historial tiene su propia paginación, del lado del
   // servidor. Vive acá porque el panel es de presentación.
@@ -213,7 +213,9 @@ export function ClienteDetallePage() {
   // El contador del historial sale del RESUMEN, que ya está cargado: pedir los
   // documentos sólo para poder decir cuántos son sería volver al problema.
   const documentos = resumen.data
-    ? resumen.data.cotizaciones + resumen.data.pedidos + resumen.data.entregas
+    ? resumen.data.totales.cotizaciones +
+      resumen.data.totales.pedidos +
+      resumen.data.totales.entregas
     : undefined
 
   const pestanas = [

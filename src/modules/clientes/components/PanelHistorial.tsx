@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/Badge'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { Icon } from '@/components/icons/Icon'
 import tabla from '@/components/tables/Tabla.module.css'
-import { GraficoActividad } from './GraficoActividad'
-import { useActividadMensual, useTotalesPorMoneda } from '../hooks/useResumen'
+import { GraficoDoceMeses } from './GraficoDoceMeses'
+import { useCliente360 } from '../hooks/useCliente360'
+import { useTotalesPorMoneda } from '../hooks/useResumen'
 import { etiquetaDeEstado } from '../lib/estados'
 import { formatearFecha, formatearImporte } from '../lib/formato'
 import { Paginador } from './Paginador'
@@ -85,7 +86,12 @@ export function PanelHistorial({
   onTamano,
 }: PanelHistorialProps) {
   const totales = useTotalesPorMoneda(clienteId)
-  const actividad = useActividadMensual(clienteId, 12)
+  // La serie del gráfico ya vino con la ficha: `resumen_cliente_360` la trae y
+  // React Query la tiene cacheada desde que se abrió la pantalla. Pedirla otra
+  // vez con `actividad_mensual_cliente` era un viaje por un dato que ya estaba
+  // en memoria — y además dibujaba una serie por vez, mientras que la ficha
+  // rápida mostraba las tres. Dos gráficos distintos del mismo cliente.
+  const ficha = useCliente360(clienteId)
 
   // Fase 17 · E4: contar sobre `documentos` contaría la PÁGINA. Los totales
   // por tipo salen de la misma consulta que los importes, que el servidor
@@ -160,7 +166,7 @@ export function PanelHistorial({
       </DocSection>
 
       <DocSection title="Últimos doce meses">
-        <GraficoActividad filas={actividad.data ?? []} cargando={actividad.isPending} />
+        <GraficoDoceMeses filas={ficha.data?.meses ?? []} cargando={ficha.isPending} />
       </DocSection>
 
       <DocSection

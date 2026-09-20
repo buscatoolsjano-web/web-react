@@ -14,7 +14,8 @@ const estado = vi.hoisted(() => ({
   tarifas: [] as { id: string; nombre: string }[],
   errorGuardar: null as Error | null,
   usuarioId: 'u-admin',
-  resumen: null as { cotizaciones: number; pedidos: number; entregas: number } | null,
+  // Fase 19 · E2: la ficha y la ficha rápida leen la MISMA función.
+  resumen: null as { totales: { cotizaciones: number; pedidos: number; entregas: number } } | null,
 }))
 const mutaciones = vi.hoisted(() => ({
   dar: vi.fn(),
@@ -47,8 +48,8 @@ vi.mock('../hooks/useClientes', () => ({
   // Fase 17 · E1: vendedores y tarifas de los dos desplegables comerciales.
   useOpcionesComerciales: () => ({ vendedores: estado.vendedores, tarifas: estado.tarifas }),
 }))
-vi.mock('../hooks/useResumen', () => ({
-  useResumenCliente: () => ({ data: estado.resumen, isPending: false }),
+vi.mock('../hooks/useCliente360', () => ({
+  useCliente360: () => ({ data: estado.resumen, isPending: false, error: null }),
 }))
 vi.mock('../hooks/useEdicionClientes', () => ({
   useActualizarCliente: () => ({ mutate: mutaciones.guardar, isPending: false, error: estado.errorGuardar }),
@@ -129,7 +130,7 @@ beforeEach(() => {
   estado.contactos = [{ id: 'k1', nombre: 'ZZ Ana', cargo: 'Compras', email: null, telefono: null, fax: null, esPrincipal: true, notas: null, activo: true, actualizadoEn: '2026-01-01T00:00:00Z' }]
   estado.errorGuardar = null
   estado.usuarioId = 'u-admin'
-  estado.resumen = { cotizaciones: 2, pedidos: 1, entregas: 0 }
+  estado.resumen = { totales: { cotizaciones: 2, pedidos: 1, entregas: 0 } }
   estado.vendedores = [{ id: 'u1', nombre: 'ZZ Vendedora' }]
   estado.tarifas = [{ id: 'pl1', nombre: 'ZZ Mayorista' }]
   estado.direcciones = [{ id: 'd1', tipo: 'both', calle: 'ZZ Calle 1', ciudad: null, provincia: null, codigoPostal: null, pais: 'AR', notas: null, esPrincipal: true, texto: 'ZZ Calle 1, AR', activo: true, actualizadoEn: '2026-01-01T00:00:00Z' }]

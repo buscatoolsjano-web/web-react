@@ -457,5 +457,7 @@ export interface Cliente360 {
     entregas: number
     ultimaActividad: string | null
     documentos12m: number
+    /** Cotizados o pedidos alguna vez, por product_id o por SKU. */
+    productosDistintos: number
   }
 }

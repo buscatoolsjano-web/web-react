@@ -11,10 +11,11 @@ import { escribeVentas } from '@/modules/ventas/lib/permisos'
 import { motivoBloqueo } from '@/modules/ventas/lib/autoridad'
 import { useAutoridadNumeracion } from '@/modules/ventas/hooks/useAutoridadNumeracion'
 import { useCliente360 } from '../hooks/useCliente360'
-import { comparar, documentosDe, formatearVariacion, nombreDelMes, porMoneda } from '../lib/kpis'
+import { nombreDelMes } from '../lib/kpis'
 import { formatearCuit, formatearFecha, formatearImporte, nombreVisible } from '../lib/formato'
 import type { Cliente360, DocumentoReciente, TipoDeDocumento } from '../types'
 import { GraficoDoceMeses } from './GraficoDoceMeses'
+import { KpisComerciales } from './KpisComerciales'
 import styles from './FichaRapidaCliente.module.css'
 
 export interface FichaRapidaClienteProps {
@@ -154,11 +155,6 @@ function Contenido({ data, tituloId, copiado, setCopiado, stel, cargandoAutorida
     }
   }
 
-  const vendido = comparar(kpis.valores, 'vendido_mes', 'vendido_mes_anterior')
-  const cotizado = comparar(kpis.valores, 'cotizado_mes', 'cotizado_mes_anterior')
-  const abiertas = porMoneda(kpis.valores, 'cotizaciones_abiertas')
-  const porEntregar = porMoneda(kpis.valores, 'pedidos_por_entregar')
-
   return (
     <div className={styles.ficha}>
       {/* ── Cabecera ───────────────────────────────────────────────────── */}
@@ -262,30 +258,7 @@ function Contenido({ data, tituloId, copiado, setCopiado, stel, cargandoAutorida
         <h3 className={styles.tituloSeccion} id="ficha-kpis">
           En {mes}
         </h3>
-        <div className={styles.tarjetas}>
-          <Kpi
-            titulo="Pedidos confirmados"
-            ayuda="Pedidos con estado confirmado en el mes. No incluye cotizaciones ni facturas."
-            filas={vendido}
-          />
-          <Kpi
-            titulo="Cotizado"
-            ayuda="Cotizaciones emitidas en el mes, aceptadas o no."
-            filas={cotizado}
-          />
-          <Pendiente
-            titulo="Cotizaciones abiertas"
-            ayuda="Enviadas o en borrador, de cualquier fecha: todavía puede pasar algo con ellas."
-            documentos={documentosDe(kpis.valores, 'cotizaciones_abiertas')}
-            filas={abiertas}
-          />
-          <Pendiente
-            titulo="Pedidos por entregar"
-            ayuda="Confirmados y todavía no entregados del todo."
-            documentos={documentosDe(kpis.valores, 'pedidos_por_entregar')}
-            filas={porEntregar}
-          />
-        </div>
+        <KpisComerciales valores={kpis.valores} mes={kpis.mes} />
       </section>
 
       {/* ── Doce meses ─────────────────────────────────────────────────── */}
@@ -368,74 +341,5 @@ function Reciente({ doc }: { doc: DocumentoReciente }) {
         ) : null}
       </span>
     </li>
-  )
-}
-
-interface KpiProps {
-  titulo: string
-  ayuda: string
-  filas: ReturnType<typeof comparar>
-}
-
-/**
- * Una tarjeta de KPI con su comparación.
- *
- * Una fila por moneda. Con una sola moneda —el caso normal— se ve un solo
- * importe y no parece un informe; con dos se ven las dos, y en ningún caso se
- * suman.
- */
-function Kpi({ titulo, ayuda, filas }: KpiProps) {
-  return (
-    <div className={styles.tarjeta}>
-      <p className={styles.tarjetaTitulo} title={ayuda}>
-        {titulo}
-        <span className="sr-only">. {ayuda}</span>
-      </p>
-      {filas.length === 0 ? (
-        <p className={styles.tarjetaVacio}>Sin movimientos</p>
-      ) : (
-        filas.map((f) => (
-          <div key={f.moneda ?? 'sin'} className={styles.tarjetaFila}>
-            <span className={styles.tarjetaValor}>{formatearImporte(f.actual, f.moneda)}</span>
-            <span className={claseVariacion(f.variacion.clase)}>
-              {/* La flecha es decorativa: el texto ya dice si subió o bajó. */}
-              {f.variacion.clase === 'sube' ? <span aria-hidden="true">▲ </span> : null}
-              {f.variacion.clase === 'baja' ? <span aria-hidden="true">▼ </span> : null}
-              {formatearVariacion(f.variacion)}
-            </span>
-          </div>
-        ))
-      )}
-    </div>
-  )
-}
-
-function claseVariacion(clase: string): string {
-  if (clase === 'sube') return styles.sube!
-  if (clase === 'baja') return styles.baja!
-  return styles.neutra!
-}
-
-interface PendienteProps {
-  titulo: string
-  ayuda: string
-  documentos: number
-  filas: { moneda: string | null; documentos: number; importe: number }[]
-}
-
-function Pendiente({ titulo, ayuda, documentos, filas }: PendienteProps) {
-  return (
-    <div className={styles.tarjeta}>
-      <p className={styles.tarjetaTitulo} title={ayuda}>
-        {titulo}
-        <span className="sr-only">. {ayuda}</span>
-      </p>
-      <p className={styles.tarjetaValor}>{documentos}</p>
-      {filas.map((f) => (
-        <p key={f.moneda ?? 'sin'} className={styles.tarjetaSecundario}>
-          {formatearImporte(f.importe, f.moneda)}
-        </p>
-      ))}
-    </div>
   )
 }

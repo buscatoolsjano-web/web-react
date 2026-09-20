@@ -106,6 +106,7 @@ const ficha = (cambios: Partial<Cliente360> = {}): Cliente360 => ({
     entregas: 80,
     ultimaActividad: '2026-09-10',
     documentos12m: 42,
+    productosDistintos: 397,
   },
   ...cambios,
 })
@@ -125,7 +126,7 @@ const vacia = (): Cliente360 =>
     meses: [],
     recientes: [],
     productos: [],
-    totales: { cotizaciones: 0, pedidos: 0, entregas: 0, ultimaActividad: null, documentos12m: 0 },
+    totales: { cotizaciones: 0, pedidos: 0, entregas: 0, ultimaActividad: null, documentos12m: 0, productosDistintos: 0 },
   })
 
 const montar = (clienteId = 'cli-1') =>

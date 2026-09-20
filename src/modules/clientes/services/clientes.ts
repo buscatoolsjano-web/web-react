@@ -74,32 +74,54 @@ function aFila(f: FilaListado): ClienteListado {
 /**
  * Búsqueda libre.
  *
- * Busca en razón social, nombre comercial, referencia y CUIT. Los emails y
- * los dominios son arrays y no entran en un `ilike`, así que se resuelven
- * aparte con `cs` (contains) cuando el texto parece uno de los dos.
+ * Todo el texto del cliente vive en `search_text`, una columna generada que la
+ * base mantiene sola: razón social, nombre comercial, nombre del sistema
+ * anterior, referencia y CUIT —con guiones y sin ellos—, en minúsculas y **sin
+ * tildes**.
+ *
+ * Lo de las tildes no es un detalle de prolijidad. Antes esto buscaba con
+ * `ilike` sobre cinco columnas, y `ilike` distingue acentos: buscar
+ * «metalurgica» devolvía 6 clientes y «metalúrgica» devolvía 4, existiendo 11.
+ * Quien escribe como se teclea —sin tilde— no encontraba a cuatro de ellos, y
+ * la pantalla no daba ninguna señal de que existieran. 77 razones sociales
+ * llevan tilde.
+ *
+ * Los emails y los dominios son arrays y no entran en un `like`, así que se
+ * resuelven aparte con `cs` (contains) cuando el texto parece uno de los dos.
  *
  * La coma y los paréntesis se sacan del patrón: PostgREST usa la coma para
  * separar las condiciones de un `or` y el texto se le mete adentro.
  */
+export function normalizarBusqueda(texto: string): string {
+  // Mismo criterio que la columna generada de la base: si acá y allá se
+  // normalizara distinto, la búsqueda no encontraría lo que está guardado.
+  return texto
+    .trim()
+    .replace(/[,()*]/g, '')
+    .toLowerCase()
+    .replace(/[áàâä]/g, 'a')
+    .replace(/[éèêë]/g, 'e')
+    .replace(/[íìîï]/g, 'i')
+    .replace(/[óòôö]/g, 'o')
+    .replace(/[úùûü]/g, 'u')
+    .replace(/ñ/g, 'n')
+}
+
 function condicionDeBusqueda(texto: string): string | null {
-  const limpio = texto.trim().replace(/[,()*]/g, '')
+  const limpio = normalizarBusqueda(texto)
   if (limpio === '') return null
-  const patron = `%${limpio}%`
-  // El CUIT se guarda con guiones o sin ellos según de dónde vino, así que se
-  // busca también por los dígitos sueltos.
+
+  const condiciones = [`search_text.ilike.%${limpio}%`]
+
+  // El CUIT se escribe con guiones o sin ellos: los dígitos sueltos ya están
+  // dentro de `search_text`, así que alcanza con preguntar por ellos.
   const digitos = limpio.replace(/\D/g, '')
-  const condiciones = [
-    `legal_name.ilike.${patron}`,
-    `trade_name.ilike.${patron}`,
-    `legacy_ref.ilike.${patron}`,
-    `tax_id.ilike.${patron}`,
-    `legacy_name.ilike.${patron}`,
-  ]
-  if (digitos.length >= 8) condiciones.push(`tax_id.ilike.%${digitos}%`)
+  if (digitos.length >= 8) condiciones.push(`search_text.ilike.%${digitos}%`)
+
   if (limpio.includes('@') || limpio.includes('.')) {
     // `emails` y `email_domains` son text[]: se pregunta por pertenencia
     // exacta del valor en minúsculas, que es como los guardó la migración.
-    const valor = limpio.toLowerCase().replace(/^@/, '')
+    const valor = limpio.replace(/^@/, '')
     condiciones.push(`emails.cs.{"${valor}"}`)
     condiciones.push(`email_domains.cs.{"${valor}"}`)
   }

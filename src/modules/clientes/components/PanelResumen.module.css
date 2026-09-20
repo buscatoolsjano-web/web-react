@@ -32,3 +32,25 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Fase 19 · E2: la sección ahora tiene dos bloques —el mes y el histórico— y
+   necesita separarlos con un título cada uno. */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.titulo {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.wrap > .titulo:first-child {
+  margin-top: 0;
+}

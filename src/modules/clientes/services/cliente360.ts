@@ -172,6 +172,7 @@ export function mapearCliente360(json: unknown): Cliente360 | null {
       entregas: aNumero(tot['entregas']),
       ultimaActividad: aTexto(tot['ultima_actividad']),
       documentos12m: aNumero(tot['documentos_12m']),
+      productosDistintos: aNumero(tot['productos_distintos']),
     },
   }
 }
