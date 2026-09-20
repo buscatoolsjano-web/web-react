@@ -25,7 +25,24 @@ const estado = vi.hoisted((): {
   contactos: unknown[]
   tarifas: unknown[]
   vendedores: unknown[]
-} => ({ rol: 'admin', stel: {}, doc: null, relacionados: null, eventos: [], contactos: [], tarifas: [], vendedores: [] }))
+  /**
+   * Las series configuradas, si el caso las necesita distintas de lo normal.
+   * En `null` se derivan de la autoridad general —que es lo que pasa en
+   * producción con `COTI`, que no tiene fila propia de autoridad—, así que
+   * poner `stel` alcanza para el caso corriente.
+   */
+  series: { codigo: string; esPorDefecto: boolean; autoridad: string }[] | null
+} => ({
+  rol: 'admin',
+  stel: {},
+  doc: null,
+  relacionados: null,
+  eventos: [],
+  contactos: [],
+  tarifas: [],
+  vendedores: [],
+  series: null,
+}))
 const espias = vi.hoisted(() => ({
   // Tipado con la firma real: sin eso `mock.calls[0]` es una tupla vacía y no
   // se puede afirmar nada sobre los argumentos.
@@ -71,6 +88,13 @@ vi.mock('../hooks/useDocumentos', () => ({
   useContactos: () => ({ data: estado.contactos, isPending: false }),
   useTarifas: () => ({ data: estado.tarifas, isPending: false }),
   useVendedores: () => ({ data: estado.vendedores, isPending: false }),
+  // Fase 19 · E3: la autoridad de la serie del documento.
+  useSeries: () => ({
+    data:
+      estado.series ??
+      [{ codigo: 'COTI', esPorDefecto: true, autoridad: estado.stel['quote'] ? 'STEL' : 'ERP' }],
+    isPending: false,
+  }),
 }))
 // El guardado es el único camino de escritura; se espía para probar que NO se
 // llama hasta apretar «Guardar cambios».
@@ -206,6 +230,7 @@ beforeEach(() => {
   estado.contactos = []
   estado.tarifas = []
   estado.vendedores = []
+  estado.series = null
   espias.guardar.mockClear()
   espias.convertir.mockClear()
 })
@@ -352,6 +377,47 @@ describe('Cotización · acciones', () => {
     montar()
     expect(screen.getAllByTestId('aviso-autoridad-stel')).toHaveLength(1)
     expect(screen.getAllByText(/Emisión desde el ERP bloqueada/)).toHaveLength(1)
+  })
+
+  /**
+   * Fase 19 · E3 · el piloto `COT-ERP`.
+   *
+   * La autoridad GENERAL de `quote` es STEL y la de la serie `COT-ERP` es ERP.
+   * El detalle miraba la general, así que el piloto —que el ERP numeró— se
+   * abría diciendo que STEL numeraba «este documento» y con las acciones de la
+   * cotización bloqueadas. Lo que manda es la serie DEL documento.
+   */
+  const dosSeries = [
+    { codigo: 'COTI', esPorDefecto: true, autoridad: 'STEL' },
+    { codigo: 'COT-ERP', esPorDefecto: false, autoridad: 'ERP' },
+  ]
+
+  it('la serie del documento manda sobre la autoridad general del tipo', () => {
+    estado.stel = { quote: true, sales_order: true }
+    estado.series = dosSeries
+    estado.doc = cotizacion({ serie: 'COT-ERP', numero: 'COT-ERP00001' })
+    montar()
+
+    // Ni el motivo ni el título pueden hablar de las cotizaciones: esta la
+    // numeró el ERP.
+    expect(screen.queryByText(/STEL numera las cotizaciones/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Marcar aceptada' })).toBeEnabled()
+    // El pedido que saldría de acá nace con la serie por defecto de pedidos,
+    // que sigue en STEL: ese bloqueo se mantiene, con su motivo.
+    const generar = screen.getByRole('button', { name: 'Generar pedido' })
+    expect(generar).toBeDisabled()
+    expect(generar).toHaveAccessibleDescription(/STEL numera los pedidos/)
+    expect(screen.getByText(/numeración de los documentos que salen de este/)).toBeVisible()
+  })
+
+  it('una cotización de la serie que STEL numera sigue bloqueada', () => {
+    estado.stel = { quote: true, sales_order: true }
+    estado.series = dosSeries
+    estado.doc = cotizacion({ serie: 'COTI' })
+    montar()
+
+    expect(screen.getByRole('button', { name: 'Marcar aceptada' })).toBeDisabled()
+    expect(screen.getByText(/STEL numera las cotizaciones y los pedidos/)).toBeVisible()
   })
 
   it('«Marcar rechazada» vive en «Más», y la principal nunca', () => {

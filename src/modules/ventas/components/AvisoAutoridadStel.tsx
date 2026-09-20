@@ -5,6 +5,12 @@ export interface AvisoAutoridadStelProps {
   /** Qué sigue funcionando en esta pantalla. */
   detalle: string
   /**
+   * El título, si el de siempre no aplica. Fase 19 · E3: un documento que el
+   * ERP sí numera —serie `COT-ERP`— no puede anunciar que STEL numera «este
+   * documento» sólo porque el pedido que saldría de él siga en STEL.
+   */
+  titulo?: string | undefined
+  /**
    * Id del párrafo, para que los botones bloqueados lo referencien con
    * `aria-describedby` en vez de repetir el motivo debajo de la barra.
    */
@@ -21,9 +27,9 @@ export interface AvisoAutoridadStelProps {
  * hecho se contaba dos veces —acá y otra vez debajo de la barra de acciones—,
  * así que ahora los botones deshabilitados apuntan a este párrafo.
  */
-export function AvisoAutoridadStel({ detalle, idDetalle }: AvisoAutoridadStelProps) {
+export function AvisoAutoridadStel({ detalle, idDetalle, titulo }: AvisoAutoridadStelProps) {
   return (
-    <Alert tone="warning" title={TITULO_BANNER_STEL} data-testid="aviso-autoridad-stel">
+    <Alert tone="warning" title={titulo ?? TITULO_BANNER_STEL} data-testid="aviso-autoridad-stel">
       <p id={idDetalle}>{detalle}</p>
     </Alert>
   )

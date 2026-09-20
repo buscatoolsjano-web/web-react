@@ -26,6 +26,14 @@ export const MENSAJE_AUTORIDAD_EXTERNA =
 
 export const TITULO_BANNER_STEL = 'STEL sigue administrando la numeración de este documento.'
 
+/**
+ * Fase 19 · E3: cuando lo que STEL numera NO es este documento sino el que
+ * saldría de él —una cotización en serie ERP que todavía no puede generar
+ * pedido—, decir «este documento» es falso.
+ */
+export const TITULO_BANNER_STEL_DERIVADOS =
+  'STEL sigue administrando la numeración de los documentos que salen de este.'
+
 const PLURAL: Record<DocTypeVentas, string> = {
   quote: 'las cotizaciones',
   sales_order: 'los pedidos',

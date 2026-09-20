@@ -402,7 +402,7 @@ permitía, y no lo permite.
 
 ---
 
-## 11 · Serie explícita en `crear_cotizacion` — propuesta (NO aplicada)
+## 11 · Serie explícita en `crear_cotizacion` — propuesta (aplicada, ver §12)
 
 SQL completo en [`scripts/fase19-e3-serie-explicita.sql`](../scripts/fase19-e3-serie-explicita.sql),
 con la función entera propuesta, las invariantes previas, la verificación
@@ -459,3 +459,71 @@ empresa, que `autoridad_numeracion_series` ya devuelve en parte.
 
 **Es una decisión aparte.** Si preferís no sumar el objeto, el selector no se
 puede hacer y el piloto necesitaría otra vía.
+
+---
+
+## 12 · El piloto COT-ERP00001 — lo que probó y los dos defectos que destapó
+
+Aplicadas `crear_cotizacion` (serie explícita) y `series_de_documento`, corridos
+los casos A–T y con el selector de serie en el alta, se creó **un solo**
+documento desde el React real:
+
+| Clave | Valor |
+| --- | --- |
+| `PILOT_QUOTE_ID` | `cd384ad9-3a88-4020-8ba8-40e8ee9454b6` |
+| `PILOT_QUOTE_NUMBER` | `COT-ERP00001` |
+| Cliente | El Gitano (`c95a5a2a-…`), USD, 1 línea, total 157,91 |
+| Efectos | COTI sigue en 2630; COT-ERP 1 → 2; 0 pedidos, 0 remitos, 0 movimientos de stock, 0 llamadas a STEL |
+
+Lo que el documento probó en pantalla: cabecera, líneas, totales, las cinco
+pestañas, la ficha rápida del cliente, la vista previa y la impresión, el
+listado filtrado por serie y el pipeline del inicio (el piloto es borrador, así
+que **no** entra en «cotizaciones abiertas», que cuenta enviadas y aceptadas).
+
+La edición segura se probó sobre `notes` —un campo que no mueve plata—: se
+escribió, se verificó `persisted == UI` y el evento de auditoría
+(`notes: null → …`), y después se devolvió a `null`. Los totales, el estado y la
+línea quedaron intactos; el documento se conserva como evidencia.
+
+La **concurrencia optimista** se probó con dos pestañas sobre el MISMO piloto:
+la que guardó primero escribió, y la que tenía el snapshot viejo recibió «Este
+documento cambió mientras lo estabas editando», **no escribió nada** y conservó
+en pantalla lo que la persona había tipeado. La base quedó con el valor de la
+primera.
+
+### Defecto 1 — el detalle miraba la autoridad general, no la de su serie
+
+`CotizacionDetallePage` resolvía el bloqueo con `autoridad.stel('quote')`, que es
+la autoridad **general** del tipo. El alta ya elegía por serie desde el §4 de la
+aprobación; el detalle no. Resultado: el piloto —numerado por el ERP— se abría
+con el banner «STEL sigue administrando la numeración de este documento» y con
+«Marcar como enviada» y «Marcar aceptada» deshabilitadas sin motivo real.
+
+Ahora manda la serie **del documento**, con la autoridad efectiva que devuelve
+`series_de_documento`. Si la serie no estuviera en la configuración se cae a la
+autoridad general: no se inventa un permiso que la base no dio. El pedido que
+saldría de la cotización sigue mirando la autoridad general de `sales_order`,
+porque `convertirCotizacionEnPedido` **no** elige serie: nace con la de por
+defecto, que sigue en STEL. Por eso «Generar pedido» sigue bloqueado, y el
+título del banner ahora dice que lo que STEL numera son *los documentos que
+salen de este*.
+
+### Defecto 2 — la trazabilidad titulaba «precios o cantidades» cualquier edición
+
+El servidor guarda toda la edición con la misma acción
+(`updated_sensitive_fields`). La pantalla la rotulaba siempre «Cambio en precios
+o cantidades», así que el cambio de una observación aparecía en el historial como
+si se hubiera tocado la plata. Ahora el título sale del diff: sólo se anuncia un
+cambio de importes si lo hubo —un campo de importe, o una línea agregada o
+eliminada—; el resto es «Cambio en el documento». El detalle de cada cambio no
+cambió.
+
+### Queda abierto (NO aplicado): las puertas de entrada al alta
+
+`Nueva cotización` sigue bloqueada en el listado, en la ficha rápida y en la
+ficha del cliente porque miran la autoridad **general**, que es STEL. Con el
+selector de serie, entrar al alta ya no implica poder emitir: la serie por
+defecto (`COTI`) deja el botón «Crear» bloqueado con su explicación, y sólo
+`COT-ERP` —elegida a propósito— habilita. Abrir esas puertas es **una decisión
+tuya**, no un arreglo: amplía a toda la empresa la posibilidad de crear
+documentos en la serie piloto. Queda anotado, sin tocar.

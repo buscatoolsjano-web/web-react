@@ -68,6 +68,42 @@ const CAMPO: Record<string, string> = {
 }
 
 /**
+ * Los campos que mueven la plata (Fase 19 · E3).
+ *
+ * El servidor guarda TODA la edición con la misma acción —
+ * `updated_sensitive_fields`—, así que el título hay que sacarlo de lo que
+ * cambió: anunciar «Cambio en precios o cantidades» en una edición que sólo
+ * tocó las observaciones le miente a quien lee el historial.
+ */
+const CAMPOS_DE_IMPORTE = new Set([
+  'unit_price',
+  'quantity',
+  'quantity_ordered',
+  'discount_pct',
+  'perception_pct',
+  'exchange_rate',
+  'currency_code',
+  'tax_treatment',
+  'tax_rate_snapshot',
+])
+
+function tocaImportes(diff: Record<string, unknown> | null): boolean {
+  for (const [clave, crudo] of Object.entries(diff ?? {})) {
+    if (clave === 'lineas' && Array.isArray(crudo)) {
+      for (const l of crudo as CambioDeLinea[]) {
+        // Agregar o quitar una línea mueve el total siempre; modificarla,
+        // sólo si lo que cambió fue un importe.
+        if (l.accion === 'agregada' || l.accion === 'eliminada') return true
+        if (Object.keys(l.cambios ?? {}).some((k) => CAMPOS_DE_IMPORTE.has(k))) return true
+      }
+      continue
+    }
+    if (CAMPOS_DE_IMPORTE.has(clave)) return true
+  }
+  return false
+}
+
+/**
  * Los campos que guardan una referencia.
  *
  * De estos NO se muestra el valor: es un uuid, y un uuid en pantalla no le
@@ -144,6 +180,14 @@ function textoDeLinea(l: CambioDeLinea): string {
   return partes.length > 0 ? `${donde}: ${partes.join(', ')}` : `${donde}: modificada`
 }
 
+/** El título del evento; la edición se titula por lo que cambió. */
+function titulo(e: EventoAuditoria): string {
+  if (e.accion === 'updated_sensitive_fields') {
+    return tocaImportes(e.diff) ? TITULO[e.accion]! : 'Cambio en el documento'
+  }
+  return TITULO[e.accion] ?? nombreDeCampo(e.accion)
+}
+
 export function presentarEvento(e: EventoAuditoria, tipo: TipoDocumento): EventoPresentable {
   const detalle: string[] = []
 
@@ -174,7 +218,7 @@ export function presentarEvento(e: EventoAuditoria, tipo: TipoDocumento): Evento
 
   return {
     id: e.id,
-    titulo: TITULO[e.accion] ?? nombreDeCampo(e.accion),
+    titulo: titulo(e),
     detalle,
     cuando: formatearMomento(e.fecha),
     // Sin actor el evento lo escribió una función de negocio, no una persona.

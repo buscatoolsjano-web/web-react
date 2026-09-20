@@ -7,6 +7,8 @@ import { DocSection } from '@/components/document/DocSection'
 import docUi from '@/components/document/Document.module.css'
 import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
+import { Field } from '@/components/forms/Field'
+import { Select } from '@/components/forms/controls'
 import { Button } from '@/components/ui/Button'
 import { LinkButton } from '@/components/ui/LinkButton'
 import { Icon } from '@/components/icons/Icon'
@@ -19,7 +21,7 @@ import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TotalesDocumento } from '../components/TotalesDocumento'
 import { VistaPreviaBorrador } from '../components/VistaPreviaBorrador'
-import { useContactos, useNombreDeCliente, useTarifas, useVendedores } from '../hooks/useDocumentos'
+import { useContactos, useNombreDeCliente, useSeries, useTarifas, useVendedores } from '../hooks/useDocumentos'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { defaultsDeCliente } from '../services/clientes'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
@@ -151,7 +153,26 @@ export function CotizacionNuevaPage() {
 
   const escribe = escribeVentas(activa?.rol)
   const autoridad = useAutoridadNumeracion()
-  const stel = autoridad.stel(DOC_TYPE_DE['cotizacion'])
+
+  /**
+   * La serie del documento (Fase 19 · E3).
+   *
+   * El borrador nace con la serie vacía, que significa «la que la empresa
+   * tenga por defecto»: así el payload de quien no elige nada es idéntico al
+   * de antes. El desplegable igual muestra la de siempre seleccionada, para
+   * que se vea cuál es.
+   *
+   * Lo que bloquea la emisión pasa a ser la autoridad de ESTA serie y no la
+   * general: es lo que permite que COT-ERP se pueda emitir mientras COTI
+   * sigue bloqueada.
+   */
+  const series = useSeries('cotizacion', escribe)
+  const porDefecto = (series.data ?? []).find((x) => x.esPorDefecto) ?? null
+  const serieVisible = b.cabecera.serie || porDefecto?.codigo || ''
+  const serieElegida = (series.data ?? []).find((x) => x.codigo === serieVisible) ?? null
+  // Mientras las series no llegaron se usa la autoridad general, que es lo
+   // que se hacía siempre: no se desbloquea nada por no saber.
+  const stel = serieElegida ? serieElegida.autoridad === 'STEL' : autoridad.stel(DOC_TYPE_DE['cotizacion'])
 
   const tarifas = useTarifas(escribe)
   const vendedores = useVendedores(escribe)
@@ -378,6 +399,30 @@ export function CotizacionNuevaPage() {
         <div className={editor.columnaEditor}>
 
       <DocSection title="Datos del documento">
+        {/* El selector de serie sólo aparece si la empresa tiene más de una:
+            con una sola no hay nada que elegir y sería ruido. Arranca SIEMPRE
+            en la que está por defecto —en Buscatools, COTI, que sigue
+            bloqueada por STEL—; a COT-ERP se llega eligiéndola. */}
+        {(series.data ?? []).length > 1 ? (
+          <div className={editor.serie}>
+            <Field
+              label="Serie"
+              help="Define qué numeración lleva el documento. Una serie que numera STEL no se puede emitir desde el ERP."
+            >
+              <Select
+                value={serieVisible}
+                onChange={(e) => setB((x) => cambiarCampo(x, 'serie', e.target.value))}
+              >
+                {(series.data ?? []).map((x) => (
+                  <option key={x.codigo} value={x.codigo}>
+                    {x.codigo} — {x.autoridad === 'ERP' ? 'se emite desde el ERP' : 'la numera STEL'}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+        ) : null}
+
         <EditorCabecera
           valores={b.cabecera}
           contactos={contactos.data ?? []}

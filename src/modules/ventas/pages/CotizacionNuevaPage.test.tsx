@@ -22,6 +22,7 @@ const estado = vi.hoisted((): {
   contactos: { id: string; nombre: string; rol: string | null }[]
   productos: unknown[]
   pantallaAncha: boolean
+  series: { codigo: string; esPorDefecto: boolean; autoridad: 'ERP' | 'STEL' }[]
   defaults: { vendedorId: string | null; tarifaId: string | null; formaPago: string | null; moneda: string | null } | null
 } => ({
   rol: 'admin',
@@ -35,6 +36,7 @@ const estado = vi.hoisted((): {
   contactos: [{ id: 'k1', nombre: 'ZZ Contacto', rol: 'Compras' }],
   productos: [],
   pantallaAncha: false,
+  series: [],
   defaults: null,
 }))
 
@@ -89,6 +91,7 @@ vi.mock('../hooks/useDocumentos', () => ({
   useTarifas: () => ({ data: estado.tarifas, isPending: false }),
   useVendedores: () => ({ data: estado.vendedores, isPending: false }),
   useContactos: () => ({ data: estado.contactos, isPending: false }),
+  useSeries: () => ({ data: estado.series, isPending: false }),
   useNombreDeCliente: (id: string | null) =>
     ({ data: id === null ? undefined : { id, nombre: 'ZZ Cliente Uno' }, isPending: false }),
 }))
@@ -156,6 +159,7 @@ beforeEach(() => {
   estado.stel = {}
   estado.productos = []
   estado.pantallaAncha = false
+  estado.series = []
   espias.crear.mockClear()
   espias.buscar.mockClear()
   espias.defaults.mockClear()
@@ -601,5 +605,85 @@ describe('Nueva cotización · vista previa del borrador', () => {
     const previa = screen.getByRole('region', { name: 'Vista previa del documento' })
     expect(within(previa).getByText(/a asignar al crear/)).toBeInTheDocument()
     expect(within(previa).getByText(/El número y el total definitivo los pone el servidor/)).toBeInTheDocument()
+  })
+})
+
+describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
+  const DOS = [
+    { codigo: 'COTI', esPorDefecto: true, autoridad: 'STEL' as const },
+    { codigo: 'COT-ERP', esPorDefecto: false, autoridad: 'ERP' as const },
+  ]
+
+  it('con una sola serie no aparece: no hay nada que elegir', () => {
+    estado.series = [{ codigo: 'COTI', esPorDefecto: true, autoridad: 'ERP' }]
+    montar()
+    expect(screen.queryByLabelText('Serie')).toBeNull()
+  })
+
+  it('con dos, arranca SIEMPRE en la que está por defecto', () => {
+    estado.series = DOS
+    montar()
+    expect(screen.getByLabelText('Serie')).toHaveValue('COTI')
+  })
+
+  /** Lo que bloquea es la autoridad de la serie elegida, no la general. */
+  it('la serie por defecto es STEL: no se puede crear y se dice por qué', () => {
+    estado.series = DOS
+    montar()
+    completarMinimo()
+    expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeDisabled()
+    // Aparece dos veces —el cartel de arriba y la nota del botón—, que es
+    // como venía de la Fase 12.
+    expect(screen.getAllByText(/Emisión desde el ERP bloqueada/).length).toBeGreaterThan(0)
+  })
+
+  it('eligiendo la serie ERP se habilita, y recién ahí', () => {
+    estado.series = DOS
+    montar()
+    completarMinimo()
+    expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'COT-ERP' } })
+    expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeEnabled()
+    expect(screen.queryByText(/Emisión desde el ERP bloqueada/)).toBeNull()
+  })
+
+  it('sin elegir nada, el payload NO lleva serie: el servidor resuelve la de siempre', async () => {
+    estado.series = DOS
+    // La serie por defecto es ERP en este caso, para poder llegar a crear.
+    estado.series = [
+      { codigo: 'COTI', esPorDefecto: true, autoridad: 'ERP' },
+      { codigo: 'COT-ERP', esPorDefecto: false, autoridad: 'ERP' },
+    ]
+    montar()
+    completarMinimo()
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
+    await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
+
+    const [, cabecera] = espias.crear.mock.calls[0]!
+    expect(Object.keys(cabecera)).not.toContain('series_code')
+  })
+
+  it('eligiendo una serie, el payload la lleva exactamente', async () => {
+    estado.series = [
+      { codigo: 'COTI', esPorDefecto: true, autoridad: 'ERP' },
+      { codigo: 'COT-ERP', esPorDefecto: false, autoridad: 'ERP' },
+    ]
+    montar()
+    completarMinimo()
+    fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'COT-ERP' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
+    await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
+
+    const [, cabecera] = espias.crear.mock.calls[0]!
+    expect(cabecera).toMatchObject({ series_code: 'COT-ERP' })
+  })
+
+  it('el desplegable dice qué numera cada serie', () => {
+    estado.series = DOS
+    montar()
+    const opciones = [...screen.getByLabelText('Serie').querySelectorAll('option')].map((o) => o.textContent)
+    expect(opciones[0]).toMatch(/COTI.*STEL/)
+    expect(opciones[1]).toMatch(/COT-ERP.*ERP/)
   })
 })

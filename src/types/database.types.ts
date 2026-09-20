@@ -6313,6 +6313,14 @@ export type Database = {
           documentos_12m: number
         }[]
       }
+      series_de_documento: {
+        Args: { p_company: string; p_doc_type: string }
+        Returns: {
+          authority: string
+          is_default: boolean
+          series_code: string
+        }[]
+      }
       totales_por_moneda_cliente: {
         Args: { p_customer: string }
         Returns: {

@@ -49,7 +49,12 @@ import {
   type Borrador,
   type CampoCabecera,
 } from '../lib/borrador'
-import { mensajeErrorVentas, motivoBloqueo, type DocTypeVentas } from '../lib/autoridad'
+import {
+  mensajeErrorVentas,
+  motivoBloqueo,
+  TITULO_BANNER_STEL_DERIVADOS,
+  type DocTypeVentas,
+} from '../lib/autoridad'
 import { escribeVentas } from '../lib/permisos'
 import { presentarEstado } from '../lib/estados'
 import { formatearFecha, formatearImporte } from '../lib/formato'
@@ -61,6 +66,7 @@ import {
   useContactos,
   useDocumento,
   useRelacionados,
+  useSeries,
   useTarifas,
   useVendedores,
 } from '../hooks/useDocumentos'
@@ -156,7 +162,26 @@ function Detalle() {
    * ficha ya se había dejado suelta en la Fase 19 · E1 justamente para esto.
    */
   const [viendoCliente, setViendoCliente] = useState(false)
-  const stelCotizacion = autoridad.stel('quote')
+  /**
+   * Fase 19 · E3: la autoridad que importa acá es la de LA SERIE DE ESTE
+   * documento, no la general del tipo.
+   *
+   * `COT-ERP` numera en el ERP aunque `COTI` —la serie por defecto— la siga
+   * numerando STEL: el piloto se abría con el banner de STEL y las acciones
+   * bloqueadas sin que le correspondiera. El alta ya elegía por serie; el
+   * detalle seguía mirando lo general.
+   *
+   * Si la serie del documento no está en la configuración no se inventa nada:
+   * se cae a la autoridad general, que es el comportamiento conservador.
+   */
+  const seriesCotizacion = useSeries('cotizacion', esInterno)
+  const autoridadDeLaSerie =
+    (seriesCotizacion.data ?? []).find((s) => s.codigo === doc?.serie)?.autoridad ?? null
+  const stelCotizacion =
+    autoridadDeLaSerie !== null ? autoridadDeLaSerie === 'STEL' : autoridad.stel('quote')
+  // El pedido que saldría de acá nace con la serie POR DEFECTO de pedidos
+  // —`convertirCotizacionEnPedido` no elige serie—, así que lo que lo bloquea
+  // es la autoridad general de `sales_order`, no la serie de la cotización.
   const stelPedido = autoridad.stel('sales_order')
   const permiso = editabilidad(doc?.estado ?? '', escribe)
   const editando = borrador !== null
@@ -358,6 +383,14 @@ function Detalle() {
     ...(escribe && stelCotizacion && (doc.estado === 'draft' || doc.estado === 'sent') ? (['quote'] as const) : []),
     ...(escribe && stelPedido && doc.estado !== 'rejected' && !yaTienePedido ? (['sales_order'] as const) : []),
   ]
+  // Y los que STEL numera, se ofrezcan o no en la barra: es lo que cuenta el
+  // banner cuando no hay ninguna acción bloqueada a la vista (sólo lectura, o
+  // un estado sin acciones). Antes caía a «cotizaciones» por defecto, que con
+  // una serie ERP era falso.
+  const tiposConAutoridadStel: DocTypeVentas[] = [
+    ...(stelCotizacion ? (['quote'] as const) : []),
+    ...(stelPedido ? (['sales_order'] as const) : []),
+  ]
 
   const origen = presentarOrigen({
     externalSource: doc.externalSource,
@@ -428,7 +461,10 @@ function Detalle() {
       {hayBanner ? (
         <AvisoAutoridadStel
           idDetalle={idMotivo}
-          detalle={`${motivoBloqueo(...(tiposBloqueados.length > 0 ? tiposBloqueados : (['quote'] as const)))} Podés consultar, editar y guardar, imprimir y exportar.`}
+          // Si la serie de ESTA cotización la numera el ERP, lo que sigue en
+          // STEL es el pedido que saldría de ella, no ella.
+          {...(stelCotizacion ? {} : { titulo: TITULO_BANNER_STEL_DERIVADOS })}
+          detalle={`${motivoBloqueo(...(tiposBloqueados.length > 0 ? tiposBloqueados : tiposConAutoridadStel))} Podés consultar, editar y guardar, imprimir y exportar.`}
         />
       ) : null}
 

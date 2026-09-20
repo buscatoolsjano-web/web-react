@@ -79,6 +79,42 @@ describe('presentarEvento', () => {
     expect(e.detalle.join(' ')).not.toContain('4684d90d')
   })
 
+  /**
+   * Fase 19 · E3, visto en el piloto: el servidor guarda toda la edición con
+   * la misma acción, así que el título lo decide el diff.
+   */
+  describe('el título de una edición dice lo que cambió', () => {
+    it('una edición que no toca importes no se anuncia como de precios', () => {
+      const e = presentarEvento(
+        evento({ diff: { notes: { from: null, to: 'Retira el lunes' } } }),
+        'cotizacion',
+      )
+      expect(e.titulo).toBe('Cambio en el documento')
+      expect(e.detalle).toEqual(['Observaciones: sin valor → Retira el lunes'])
+    })
+
+    it('un precio, una cantidad o una línea nueva sí', () => {
+      const precio = evento({ diff: { lineas: [{ linea: 1, producto: 'ZZ-100', cambios: { unit_price: { from: 100, to: 120 } } }] } })
+      const linea = evento({ diff: { lineas: [{ linea: 2, producto: 'ZZ-200', accion: 'agregada', cantidad: 1, precio: 50 }] } })
+      const global = evento({ diff: { discount_pct: { from: 0, to: 5 } } })
+      for (const e of [precio, linea, global]) {
+        expect(presentarEvento(e, 'cotizacion').titulo).toBe('Cambio en precios o cantidades')
+      }
+    })
+
+    it('mover sólo la descripción de una línea tampoco es un cambio de importes', () => {
+      const e = presentarEvento(
+        evento({
+          diff: {
+            lineas: [{ linea: 1, producto: 'ZZ-100', cambios: { description_snapshot: { from: 'a', to: 'b' } } }],
+          },
+        }),
+        'cotizacion',
+      )
+      expect(e.titulo).toBe('Cambio en el documento')
+    })
+  })
+
   it('una acción todavía sin traducción se muestra legible, no en crudo', () => {
     expect(presentarEvento(evento({ accion: 'stock_reserved' }), 'pedido').titulo).toBe('Stock reserved')
   })

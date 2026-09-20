@@ -61,3 +61,10 @@
   position: sticky;
   top: var(--space-4);
 }
+
+/* El selector de serie (Fase 19 · E3). Va arriba de la cabecera y acotado:
+   es una decisión chica que se toma una vez, no un campo más del formulario. */
+.serie {
+  max-width: 28rem;
+  margin-bottom: var(--space-4);
+}

@@ -34,6 +34,15 @@ export interface CabeceraBorrador {
   descuentoPct: string
   percepcionPct: string
   notas: string
+  /**
+   * La serie del documento (Fase 19 · E3).
+   *
+   * Vacío significa «la que la empresa tenga por defecto», que es lo que
+   * pasaba siempre hasta ahora. Sólo se manda si la persona eligió otra, y
+   * sólo en el ALTA: una vez creado, el documento tiene su serie y no se
+   * cambia.
+   */
+  serie: string
 }
 
 export type CampoCabecera = keyof CabeceraBorrador
@@ -128,6 +137,10 @@ export function crearBorrador(doc: DocumentoDetalle, lineas: readonly LineaDocum
       descuentoPct: texto(doc.descuentoPct),
       percepcionPct: texto(doc.percepcionPct),
       notas: doc.notas ?? '',
+      // La serie del documento ya creado: se conserva para que `hayCambios`
+      // no la vea como una diferencia, pero la edición no la manda ni la
+      // cambia —`guardar_cotizacion` ni siquiera la acepta—.
+      serie: doc.serie ?? '',
     },
     lineas: [...lineas].sort((a, b) => (a.numeroLinea ?? 0) - (b.numeroLinea ?? 0)).map(aLineaBorrador),
     esperado: doc.actualizadoEn,
@@ -162,6 +175,7 @@ export function borradorNuevo(hoy: string, formaPago = ''): Borrador {
       descuentoPct: '',
       percepcionPct: '',
       notas: '',
+      serie: '',
     },
     lineas: [],
     esperado: '',
@@ -400,6 +414,12 @@ export function aPayloadCreacion(b: Borrador): PayloadGuardado {
     const columna = COLUMNA[k]
     if (columna) cabecera[columna] = valorDeCampo(k, b.cabecera[k])
   }
+
+  // La serie va SÓLO si se eligió una, y SÓLO acá: `guardar_cotizacion` no la
+  // acepta —un documento no cambia de serie— y `COLUMNA` la comparten el alta
+  // y la edición. Sin elegir, el payload es idéntico al de antes de la
+  // Fase 19 · E3 y el servidor resuelve la serie por defecto como siempre.
+  if (b.cabecera.serie !== '') cabecera['series_code'] = b.cabecera.serie
 
   return {
     cabecera,

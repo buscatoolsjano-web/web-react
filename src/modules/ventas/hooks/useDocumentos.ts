@@ -8,7 +8,12 @@ import {
   tarifasDeEmpresa,
   vendedoresDeEmpresa,
 } from '../services/opciones'
-import { facetasDeDocumentos, listarDocumentos, obtenerDocumento } from '../services/documentos'
+import {
+  facetasDeDocumentos,
+  listarDocumentos,
+  obtenerDocumento,
+  seriesDeDocumento,
+} from '../services/documentos'
 import { documentosRelacionados, evidenciaDeEntrega } from '../services/relacionados'
 import { disponibilidadDeProductos } from '../services/stock'
 import { calcularPendientes, type ResultadoPendientes } from '../lib/pendientes'
@@ -252,5 +257,23 @@ export function useNombreDeCliente(customerId: string | null) {
     queryFn: () => nombreDeCliente(companyId!, customerId!),
     enabled: companyId !== null && customerId !== null,
     staleTime: 5 * 60_000,
+  })
+}
+
+/**
+ * Las series del tipo de documento, para el selector del alta (Fase 19 · E3).
+ *
+ * Cambian una vez cada varios meses: se cachean largo. Sólo se pide para quien
+ * puede escribir, que es el único que puede llegar a elegir una.
+ */
+export function useSeries(tipo: TipoDocumento, habilitado: boolean) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery({
+    queryKey: ['ventas', companyId, tipo, 'series'],
+    queryFn: () => seriesDeDocumento(tipo, companyId!),
+    enabled: companyId !== null && habilitado,
+    staleTime: 30 * 60_000,
   })
 }

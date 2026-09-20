@@ -441,3 +441,37 @@ export async function facetasDeDocumentos(
   }
   return { monedas: [...monedas].sort(), series: [...series].sort() }
 }
+
+/** Una serie configurada para un tipo de documento, con su autoridad. */
+export interface SerieDeDocumento {
+  codigo: string
+  esPorDefecto: boolean
+  /** `ERP` = se puede emitir desde acá. `STEL` = la numera el sistema anterior. */
+  autoridad: 'ERP' | 'STEL'
+}
+
+/**
+ * Las series configuradas para este tipo de documento (Fase 19 · E3).
+ *
+ * Va por RPC y no leyendo `document_sequences` porque esa tabla **no es
+ * legible desde el navegador**: no tiene grant para `authenticated` ni ninguna
+ * policy. `series_de_documento` es `security definer` y verifica la pertenencia
+ * a la empresa adentro, antes de devolver una sola fila.
+ */
+export async function seriesDeDocumento(
+  tipo: TipoDocumento,
+  companyId: string,
+): Promise<SerieDeDocumento[]> {
+  const DOC_TYPE = { cotizacion: 'quote', pedido: 'sales_order', entrega: 'delivery' } as const
+  const { data, error } = await supabase.rpc('series_de_documento', {
+    p_company: companyId,
+    p_doc_type: DOC_TYPE[tipo],
+  })
+  if (error) throw new Error(`No se pudieron leer las series: ${error.message}`)
+
+  return ((data ?? []) as { series_code: string; is_default: boolean; authority: string }[]).map((f) => ({
+    codigo: f.series_code,
+    esPorDefecto: f.is_default,
+    autoridad: f.authority === 'ERP' ? 'ERP' : 'STEL',
+  }))
+}
