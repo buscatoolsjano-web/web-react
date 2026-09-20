@@ -349,3 +349,78 @@ NEXT_ACTION = esperar aprobación de Juan para aplicar columna + backfill
 Antes de tocar nada quiero tu visto bueno sobre tres cosas: el **nombre**
 (`legacy_tax_id_raw` o `legacy_cuit_raw`), **RAW sola** sin columna normalizada, y
 la **estrategia de `session_replication_role`** para no mover `updated_at`.
+
+---
+
+## 15 · Intento de aplicación del 20/09/2026 — ABORTADO
+
+Con las tres decisiones aprobadas, se intentó aplicar columna + backfill en una
+**única sentencia `DO`** (una sola sentencia es atómica pase lo que pase con el
+runner: cualquier `raise exception` deshace también el `ALTER`).
+
+Falló en el paso 0, antes de tocar nada:
+
+```
+ERROR: 42501: permission denied to set parameter "session_replication_role"
+CONTEXT: SQL statement "SELECT set_config('session_replication_role','replica',true)"
+         PL/pgSQL function inline_code_block line 14 at PERFORM
+```
+
+**Estado después del intento: idéntico al de antes.** Verificado:
+
+| | valor | ¿igual a la baseline? |
+|---|---|---|
+| columna `legacy_tax_id_raw` | no existe | — |
+| `customers` / `needs_review` | 1010 / 40 | sí |
+| `max(updated_at)` | 2026-09-16 00:01:50.325964+00 | sí |
+| md5 `updated_at` | `accded6d2617819116efcf4141be66fc` | sí |
+| md5 `review_reason` | `661ba49eefdabf55fbf640c4f3a54535` | sí |
+| md5 `tax_id` | `d47cdbe6a6fad70a30dd71a18a6b2a18` | sí |
+| `sales_audit` | 2 | sí |
+| cotizaciones / pedidos / entregas | 306 / 172 / 193 | sí |
+| migración registrada en `schema_migrations` | 0 | — |
+
+### Por qué no es un problema de permisos que se pueda pedir
+
+`session_replication_role` es un parámetro **sólo de superusuario**, y
+`pg_parameter_acl` no tiene ninguna entrada para él: nadie recibió `GRANT SET`.
+El único superusuario del proyecto es `supabase_admin`, que es interno de Supabase.
+No hay ruta —ni por el runner de migraciones, ni por la clave de servicio, que va
+por PostgREST y ni siquiera abre una sesión SQL propia—.
+
+**El plan A no es «difícil»: es imposible en esta plataforma.** Y el plan B
+(`alter table ... disable trigger trg_customers_touch`) no está autorizado.
+
+### Opción C, para decidir: la evidencia en su propia tabla
+
+Antes de pedir autorización para el plan B conviene mirar una tercera forma, que
+sale mejor en todos los ejes que motivaron la discusión:
+
+```sql
+create table customer_legacy_tax_ids (
+  customer_id uuid primary key references customers(id) on delete cascade,
+  legacy_tax_id_raw text not null,
+  legacy_ref text not null,
+  source text not null default 'maestro_clientes_html',
+  recorded_at timestamptz not null default now()
+);
+```
+
+| | columna en `customers` | tabla aparte |
+|---|---|---|
+| `updated_at` de los 31 | hay que neutralizar un trigger | **ni se toca: no hay UPDATE sobre `customers`** |
+| `review_reason` / `needs_review` | hay que neutralizar un trigger | **no corre ningún trigger** |
+| `sales_audit` | hay que neutralizar un trigger | **no corre ningún trigger** |
+| permiso especial | **superusuario (imposible)** | ninguno |
+| rollback | `drop column` | `drop table` |
+| visibilidad | hereda la fila | una policy `exists (select 1 from customers c where c.id = customer_id)`, que **es** `customers_select` |
+| costo | ninguno | un `join` en la cola de revisión |
+
+Es estrictamente más segura: el riesgo que motivó toda la sección 7 —un trigger
+`BEFORE UPDATE` que corre sin condición— **desaparece porque no hay UPDATE**.
+
+Lo que se pierde: `customers.legacy_tax_id_raw` era un nombre más simple de leer, y
+una tabla más es una tabla más. El contenido, la fuente, el valor crudo, la
+idempotencia, los tests y la interfaz propuesta son los mismos.
+
+**Esto necesita una decisión nueva: no está dentro de lo aprobado.**
