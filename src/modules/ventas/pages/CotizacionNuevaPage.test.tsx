@@ -346,6 +346,12 @@ describe('Nueva cotización · defaults del cliente', () => {
     // Sin margen extra: el timeout de 8 s que había acá tapaba la carrera de
     // `aplicarDefaults`, que la Fase 19 · E1 corrigió. Si vuelve, esto falla.
     await waitFor(() => expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista'))
+    // Los cuatro en pantalla ANTES de crear: si lo que se manda no coincide
+    // con esto, el problema no es la aplicación de los defaults sino lo que
+    // el alta lee del borrador.
+    expect(screen.getByLabelText('Moneda')).toHaveValue('USD')
+    expect(screen.getByLabelText(/Vendedor/)).toHaveValue('u1')
+    expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
 
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
@@ -460,9 +466,11 @@ describe('Nueva cotización · cambio de cliente rápido', () => {
     // Llega la del SEGUNDO y después, tarde, la del primero.
     await act(async () => {
       segunda.resolver({ vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' })
+      await segunda.promesa
     })
     await act(async () => {
       primera.resolver({ vendedorId: null, tarifaId: 'lista-ars', formaPago: 'Contra entrega', moneda: 'ARS' })
+      await primera.promesa
     })
 
     // Gana el último cliente elegido, no la última respuesta en llegar.
@@ -487,6 +495,7 @@ describe('Nueva cotización · cambio de cliente rápido', () => {
 
     await act(async () => {
       tarde.resolver({ vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' })
+      await tarde.promesa
     })
 
     // Lo elegido a mano manda; lo que nadie tocó, se sugiere.

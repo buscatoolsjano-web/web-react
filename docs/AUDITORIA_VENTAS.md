@@ -159,7 +159,25 @@ Estado actual y resultado esperado:
 | `document_numbering_authority` para `quote` | `STEL` | **`STEL`** (no se toca) |
 | `document_sequences` `quote/COTI` | `next=2630` | **`next=2630`** (no se toca) |
 
-**STOP.** No se escribió nada. Hace falta tu autorización específica.
+**APLICADO el 20/09/2026** con autorización explícita, en una sola sentencia `DO` con **20
+invariantes verificadas antes del commit**. Resultado medido después:
+
+| | |
+|---|---|
+| autoridad general de `quote` | `STEL` |
+| filas por serie | `delivery/RT-ML=STEL` · `quote/COT-ERP=ERP` |
+| secuencias de `quote` | `COT-ERP next=1` · `COTI next=2630 (default)` |
+| documentos cot./ped./entr. | 306 / 172 / 193 (sin cambios) |
+| `stock_movements` | 381 (sin cambios) |
+
+`is_default=false` en COT-ERP es lo que impide que se vuelva la serie por defecto:
+un documento que no pide serie sigue tomando COTI.
+
+El primer intento **abortó solo**: una invariante mía estaba mal escrita —afirmaba
+cero filas por serie para la empresa, cuando `delivery/RT-ML` ya existía y es de
+ella—. No se escribió nada y se corrigió la afirmación, no el dato.
+
+**Todavía NO se creó ninguna cotización piloto**: eso es de E3.
 
 ## 7 · Orden de entregas propuesto
 
@@ -177,3 +195,70 @@ Mantengo el que pediste, con una corrección que la auditoría justifica:
 
 E6 podría adelantarse: la ficha rápida ya existe y no depende de E2–E5. Si querés
 valor visible antes, es la de mejor relación esfuerzo/resultado.
+
+---
+
+## 8 · E2 · Lo aplicado en las listas
+
+### Filtros
+
+| Filtro | Estado | Por qué |
+|---|---|---|
+| búsqueda, período, cliente, estado, moneda, observaciones | ya estaban | — |
+| **serie** | **nuevo** | sólo aparece si el documento tiene más de una serie en uso. Hoy: entregas (`RT` 188 · `RT-ML` 5). En cotizaciones aparecerá cuando `COT-ERP` tenga documentos, que es justo cuando hay que distinguir el piloto de lo productivo |
+| **origen** | **nuevo** | pedidos: 152 desde cotización / **20 a mano**. Entregas: 156 desde pedido / **37 a mano**. No existe en cotizaciones: son el principio de la cadena |
+| **pendientes de entrega** | **nuevo**, sólo pedidos | **27**. Es trabajo pendiente de verdad |
+| ~~vendedor~~ | **rechazado** | 0 de 306 cotizaciones y 0 de 172 pedidos tienen vendedor |
+
+Verificado contra producción, y los números coinciden con la auditoría: 27 · 20 · 152 · 37 · 188 · 5.
+
+«Pendiente de entrega» pregunta por `fulfillment_status <> 'delivered'` y no por
+`= 'pending'`, para que un futuro «entregado en parte» siga contando como pendiente.
+
+### El regreso al listado
+
+El «← Pedidos» del detalle era una ruta fija, así que perdía filtros, página y
+orden. El «atrás» del navegador sí los conservaba —viven en la URL desde la Fase
+15—, con lo cual **el botón de la pantalla era peor que el del navegador**.
+
+Ahora el listado le pasa su query string al detalle por el `state` del router, y
+el detalle vuelve a donde estaba. Va en el `state` y **no** en el `href` del
+documento a propósito: la URL de un pedido tiene que seguir siendo
+`/ventas/pedidos/<id>` y nada más, para poder compartirla sin arrastrar el filtro
+de quien la abrió. Quien llega por un link directo no trae `state` y vuelve al
+listado sin filtros, que es lo correcto: nunca estuvo en uno.
+
+Verificado: desde `?pendiente=1&page=2&orden=total&dir=asc`, abrir un pedido y
+mirar el link de vuelta devuelve esa misma cadena.
+
+### Un segundo bug de la misma familia
+
+Buscando por qué seguía fallando un test 1 de cada 6, apareció otro, **distinto
+del de E1 y también de producción**:
+
+```js
+const crear = useMutation({
+  mutationFn: () => {
+    const payload = aPayloadCreacion(b)   // ← cierra sobre el estado
+```
+
+React Query v5 fija las opciones del observer **en un efecto**. Apretar «Crear
+cotización» en el mismo tick en que entran los defaults del cliente mandaba el
+borrador del render anterior: **la pantalla mostraba la moneda y la tarifa, y el
+documento se creaba sin ninguna de las dos**. El test lo demuestra ahora
+afirmando los cuatro valores en pantalla justo antes de crear.
+
+Arreglado pasando el payload **como variable de la mutación**, armado en el
+`onClick`, que sí es del render que la persona está viendo.
+
+### Qué se puede afirmar y qué no
+
+| | |
+|---|---|
+| **Confiable** | el total por tipo y estado; el conteo de pendientes por `fulfillment_status`; el origen por la FK; la serie |
+| **No confiable hoy** | el avance **por línea** en documentos migrados: 147 de 631 líneas de entrega no tienen `order_line_id` |
+| **No se afirma** | que un pedido «delivered» esté realmente completo línea por línea: en 29 casos no hay con qué comprobarlo |
+
+Por eso E2 **no** deriva progreso por línea. El filtro de pendientes usa el estado
+que el servidor mantiene, que sí es confiable: 0 pedidos marcados `pending` tienen
+todas sus líneas completas.

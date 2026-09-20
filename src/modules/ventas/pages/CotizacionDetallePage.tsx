@@ -55,6 +55,7 @@ import { formatearFecha, formatearImporte } from '../lib/formato'
 import { presentarOrigen } from '../lib/origen'
 import { tasaDe } from '../lib/tratamientos'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
+import { useVolverAlListado } from '../hooks/useVolverAlListado'
 import {
   useContactos,
   useDocumento,
@@ -145,6 +146,8 @@ function Detalle() {
   // Fase 12 E2.5: enviar/aceptar la cotización y generar el pedido son
   // emisiones. Con STEL como autoridad las bloquea la base; acá se anticipa.
   const autoridad = useAutoridadNumeracion()
+  // El listado como estaba, si se llegó desde él (Fase 19 · E2).
+  const volver = useVolverAlListado('cotizacion', 'Cotizaciones')
   const stelCotizacion = autoridad.stel('quote')
   const stelPedido = autoridad.stel('sales_order')
   const permiso = editabilidad(doc?.estado ?? '', escribe)
@@ -392,7 +395,7 @@ function Detalle() {
   return (
     <div className={docUi.pagina}>
       <DocumentHeader
-        back={{ to: '/ventas/cotizaciones', label: 'Cotizaciones' }}
+        back={volver}
         numero={doc.numero}
         estados={<ChipEstado estado={presentarEstado('cotizacion', doc.estado)} />}
         origen={origen.map((o) => (

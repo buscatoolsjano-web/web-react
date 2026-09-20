@@ -144,11 +144,19 @@ export function CotizacionNuevaPage() {
   const vendedores = useVendedores(escribe)
   const contactos = useContactos(b.cabecera.customerId || null)
 
+  /**
+   * El alta recibe el payload COMO VARIABLE, no lo saca del estado.
+   *
+   * Cerrando sobre `b`, lo que se manda es el borrador del render en el que
+   * React Query fijó las opciones del observer —y v5 las fija en un EFECTO—.
+   * Apretar «Crear» en el mismo tick en que entran los defaults del cliente
+   * mandaba el borrador anterior: la pantalla mostraba la tarifa y la moneda,
+   * y el documento se creaba sin ninguna de las dos. Armar el payload en el
+   * `onClick` lo toma del render que la persona está viendo.
+   */
   const crear = useMutation({
-    mutationFn: () => {
-      const payload = aPayloadCreacion(b)
-      return crearCotizacion(activa!.companyId, payload.cabecera, payload.lineas)
-    },
+    mutationFn: (payload: ReturnType<typeof aPayloadCreacion>) =>
+      crearCotizacion(activa!.companyId, payload.cabecera, payload.lineas),
     onSuccess: (r) => {
       void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
       // `replace`: volver atrás no tiene que traer de nuevo el formulario vacío.
@@ -210,14 +218,15 @@ export function CotizacionNuevaPage() {
   }
 
   const elegirCliente = (customerId: string) => {
-    // Funcional: entre este click y el commit puede resolverse la promesa de
-    // los defaults, y el borrador del que hay que partir es el de React, no
-    // el que este render tenía en la mano.
-    setB((prev) => {
-      const r = cambiarCliente(prev, customerId)
-      setAvisoContacto(r.contactoLimpiado)
-      return r.borrador
-    })
+    // Directo y no funcional: desde que los defaults se aplican en un efecto
+    // —y un efecto corre después del commit— nadie más escribe el borrador
+    // entre este click y el commit. Con la forma funcional habría que llamar
+    // a `setAvisoContacto` DENTRO del updater, que es un efecto dentro de una
+    // función que tiene que ser pura: React puede volver a ejecutarla y el
+    // aviso se dispararía de nuevo o se perdería lo aplicado en el medio.
+    const r = cambiarCliente(b, customerId)
+    setAvisoContacto(r.contactoLimpiado)
+    setB(r.borrador)
     pedirDefaults(customerId)
   }
 
@@ -420,7 +429,7 @@ export function CotizacionNuevaPage() {
         primary={
           <Button
             icon={<Icon name="check" size={16} />}
-            onClick={() => crear.mutate()}
+            onClick={() => crear.mutate(aPayloadCreacion(b))}
             loading={crear.isPending}
             disabled={falta.length > 0 || stel || autoridad.cargando}
             aria-describedby={stel || falta.length > 0 ? 'motivo-crear' : undefined}

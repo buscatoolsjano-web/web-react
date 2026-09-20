@@ -11,7 +11,10 @@ describe('leerFiltros', () => {
 
   it('lee todos los filtros', () => {
     const f = leerFiltros(
-      url('q=COTI02251&cliente=abc&estado=sent&moneda=USD&desde=2026-01-01&hasta=2026-06-30&revision=1&page=3&per=50&orden=total&dir=asc'),
+      url(
+        'q=COTI02251&cliente=abc&estado=sent&moneda=USD&desde=2026-01-01&hasta=2026-06-30&revision=1' +
+          '&serie=COT-ERP&origen=sin&pendiente=1&page=3&per=50&orden=total&dir=asc',
+      ),
     )
     expect(f).toEqual({
       q: 'COTI02251',
@@ -21,6 +24,9 @@ describe('leerFiltros', () => {
       desde: '2026-01-01',
       hasta: '2026-06-30',
       soloRevision: true,
+      serie: 'COT-ERP',
+      origen: 'sin',
+      pendienteDeEntrega: true,
       pagina: 3,
       porPagina: 50,
       orden: 'total',
@@ -29,11 +35,13 @@ describe('leerFiltros', () => {
   })
 
   it('descarta valores inválidos en vez de romper', () => {
-    const f = leerFiltros(url('page=-2&per=999&orden=inventado&dir=zzz'))
+    const f = leerFiltros(url('page=-2&per=999&orden=inventado&dir=zzz&origen=cualquiera'))
     expect(f.pagina).toBe(1)
     expect(f.porPagina).toBe(FILTROS_INICIALES.porPagina)
     expect(f.orden).toBe(FILTROS_INICIALES.orden)
     expect(f.direccion).toBe(FILTROS_INICIALES.direccion)
+    // El origen sólo acepta `con` y `sin`; cualquier otra cosa es «sin filtro».
+    expect(f.origen).toBeNull()
   })
 })
 
@@ -51,6 +59,9 @@ describe('escribirFiltros', () => {
       desde: '2026-02-01',
       hasta: null,
       soloRevision: true,
+      serie: 'COT-ERP',
+      origen: 'sin',
+      pendienteDeEntrega: true,
       pagina: 4,
       porPagina: 100,
       orden: 'cliente',

@@ -26,7 +26,7 @@ vi.mock('../hooks/useFiltrosVentas', () => ({
 }))
 vi.mock('../hooks/useDocumentos', () => ({
   useClientes: () => ({ data: [] }),
-  useMonedas: () => ({ data: ['USD'] }),
+  useFacetas: () => ({ data: { monedas: ['USD'], series: ['COTI'] } }),
   useDocumentos: () =>
     estado.error
       ? { data: undefined, isPending: false, isFetching: false, error: new Error('red'), refetch: llamadas.refetch }

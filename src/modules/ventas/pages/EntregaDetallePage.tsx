@@ -32,6 +32,7 @@ import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
 import { TablaLineas } from '../components/TablaLineas'
 import { useContactos, useDocumento, useRelacionados } from '../hooks/useDocumentos'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
+import { useVolverAlListado } from '../hooks/useVolverAlListado'
 import { mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
 import {
   aPayloadRemito,
@@ -98,6 +99,8 @@ function Detalle() {
   const esInterno = activa?.esInterno ?? false
   const escribe = escribeVentas(activa?.rol)
   const autoridad = useAutoridadNumeracion()
+  // El listado como estaba, si se llegó desde él (Fase 19 · E2).
+  const volver = useVolverAlListado('entrega', 'Notas de entrega')
   const stelEntrega = autoridad.stel('delivery')
 
   const editando = borrador !== null
@@ -273,7 +276,7 @@ function Detalle() {
   return (
     <div className={docUi.pagina}>
       <DocumentHeader
-        back={{ to: '/ventas/entregas', label: 'Notas de entrega' }}
+        back={volver}
         numero={doc.numero}
         estados={
           <>

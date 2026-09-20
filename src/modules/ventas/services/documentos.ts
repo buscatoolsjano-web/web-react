@@ -185,6 +185,22 @@ export async function listarDocumentos(
   if (filtros.desde) q = q.gte(c.campoFecha, filtros.desde)
   if (filtros.hasta) q = q.lte(c.campoFecha, filtros.hasta)
   if (filtros.soloRevision) q = q.eq('needs_review', true)
+  if (filtros.serie) q = q.eq('series_code', filtros.serie)
+  // El origen es la FK al documento anterior. En cotizaciones no existe, así
+  // que el filtro no se ofrece y acá tampoco se aplica.
+  if (filtros.origen && c.fkOrigen) {
+    q = filtros.origen === 'con' ? q.not(c.fkOrigen.columna, 'is', null) : q.is(c.fkOrigen.columna, null)
+  }
+  // «Pendiente de entrega» es del pedido y sale de su `fulfillment_status`.
+  // Se pregunta por «distinto de entregado» y no por «igual a pendiente»
+  // para que un futuro «entregado en parte» siga contando como pendiente.
+  if (filtros.pendienteDeEntrega && tipo === 'pedido') {
+    // Tipado como `string` a propósito, igual que `campoEstado`: con el nombre
+    // literal, TypeScript lo busca en las TRES tablas del union y
+    // `fulfillment_status` sólo existe en `sales_orders`.
+    const campo: string = 'fulfillment_status'
+    q = q.neq(campo, 'delivered')
+  }
 
   const columnaOrden = {
     fecha: c.campoFecha,
@@ -397,20 +413,31 @@ export async function obtenerDocumento(
 }
 
 /** Las monedas que existen de verdad en los documentos, para el filtro. */
-export async function monedasUsadas(
+/**
+ * Las monedas y las series que este tipo de documento tiene EN USO.
+ *
+ * Las dos salen del mismo recorrido: antes esto leía `currency_code` de todas
+ * las filas para quedarse con tres valores, y la serie habría sido un segundo
+ * recorrido idéntico. Una consulta, dos filtros.
+ *
+ * Se ofrecen sólo los valores que existen: un desplegable con una serie que
+ * no usó ningún documento deja al listado vacío sin explicar por qué.
+ */
+export async function facetasDeDocumentos(
   tipo: TipoDocumento,
   companyId: string,
-): Promise<string[]> {
+): Promise<{ monedas: string[]; series: string[] }> {
   const { data, error } = await supabase
     .from(CONFIG[tipo].tabla)
-    .select('currency_code')
+    .select('currency_code, series_code')
     .eq('company_id', companyId)
-    .not('currency_code', 'is', null)
-  if (error) throw new Error(`No se pudieron leer las monedas: ${error.message}`)
+  if (error) throw new Error(`No se pudieron leer las monedas y series: ${error.message}`)
 
-  const set = new Set<string>()
-  for (const f of (data ?? []) as { currency_code: string | null }[]) {
-    if (f.currency_code) set.add(f.currency_code)
+  const monedas = new Set<string>()
+  const series = new Set<string>()
+  for (const f of (data ?? []) as { currency_code: string | null; series_code: string | null }[]) {
+    if (f.currency_code) monedas.add(f.currency_code)
+    if (f.series_code) series.add(f.series_code)
   }
-  return [...set].sort()
+  return { monedas: [...monedas].sort(), series: [...series].sort() }
 }

@@ -66,6 +66,20 @@ export interface FiltrosVentas {
   hasta: string | null
   /** Sólo los que quedaron marcados para revisión en la migración. */
   soloRevision: boolean
+  /**
+   * La serie del documento (`COTI`, `COT-ERP`, `RT`, `RT-ML`).
+   *
+   * Fase 19 · E2: con la serie piloto conviviendo con la productiva, es lo
+   * que separa las cotizaciones de prueba de las de verdad.
+   */
+  serie: string | null
+  /**
+   * De dónde salió: `con` (viene de un documento anterior) o `sin` (se
+   * cargó a mano). Sólo pedidos y entregas; una cotización no tiene origen.
+   */
+  origen: 'con' | 'sin' | null
+  /** Sólo pedidos: los que todavía tienen algo sin entregar. */
+  pendienteDeEntrega: boolean
   pagina: number
   porPagina: number
   orden: OrdenVentas
@@ -80,6 +94,9 @@ export const FILTROS_INICIALES: FiltrosVentas = {
   desde: null,
   hasta: null,
   soloRevision: false,
+  serie: null,
+  origen: null,
+  pendienteDeEntrega: false,
   pagina: 1,
   porPagina: 25,
   orden: 'fecha',

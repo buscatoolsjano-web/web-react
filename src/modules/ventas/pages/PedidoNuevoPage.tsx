@@ -181,11 +181,15 @@ export function PedidoNuevoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [b.cabecera.customerId, contactos.data, direcciones.data])
 
+  /**
+   * El alta recibe el payload COMO VARIABLE, no lo saca del estado: ver el
+   * comentario gemelo en «Nueva cotización». React Query v5 fija las opciones
+   * del observer en un efecto, así que un `mutationFn` que cierra sobre `b`
+   * puede mandar el borrador del render anterior.
+   */
   const crear = useMutation({
-    mutationFn: () => {
-      const payload = aPayloadCreacionPedido(b)
-      return crearPedido(activa!.companyId, payload.cabecera, payload.lineas)
-    },
+    mutationFn: (payload: ReturnType<typeof aPayloadCreacionPedido>) =>
+      crearPedido(activa!.companyId, payload.cabecera, payload.lineas),
     onSuccess: (r) => {
       void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
       void navegar(`/ventas/pedidos/${r.id}`, { replace: true })
@@ -251,13 +255,13 @@ export function PedidoNuevoPage() {
   }
 
   const elegirCliente = (customerId: string) => {
-    // Funcional: entre este click y el commit puede resolverse la promesa de
-    // los defaults, y el borrador del que hay que partir es el de React.
-    setB((prev) => {
-      const r = cambiarCliente(prev, customerId)
-      setAvisoContacto(r.contactoLimpiado)
-      return r.borrador
-    })
+    // Directo y no funcional: desde que los defaults se aplican en un efecto
+    // nadie más escribe el borrador entre este click y el commit, y con la
+    // forma funcional habría que llamar a `setAvisoContacto` dentro de un
+    // updater, que tiene que ser puro.
+    const r = cambiarCliente(b, customerId)
+    setAvisoContacto(r.contactoLimpiado)
+    setB(r.borrador)
     pedirDefaults(customerId)
   }
 
@@ -455,7 +459,7 @@ export function PedidoNuevoPage() {
         primary={
           <Button
             icon={<Icon name="check" size={16} />}
-            onClick={() => crear.mutate()}
+            onClick={() => crear.mutate(aPayloadCreacionPedido(b))}
             loading={crear.isPending}
             disabled={falta.length > 0 || stel || autoridad.cargando}
             aria-describedby={stel || falta.length > 0 ? 'motivo-crear-pedido' : undefined}

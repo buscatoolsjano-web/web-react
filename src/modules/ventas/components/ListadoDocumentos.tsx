@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { Icon } from '@/components/icons/Icon'
 import { SkeletonRows } from '@/components/ui/Skeleton'
@@ -54,6 +54,12 @@ export function ListadoDocumentos({
   onSeleccionarTodos,
 }: ListadoDocumentosProps) {
   const isMobile = useIsMobile()
+  // Se le pasa al detalle el listado tal como está —filtros, página y orden—
+  // para que su «volver» no devuelva a la página 1 sin filtros. Va en el
+  // `state` y no en el `href`: la URL de un documento tiene que seguir siendo
+  // compartible sin arrastrar el filtro de quien lo abrió.
+  const { search } = useLocation()
+  const vuelta = search === '' ? undefined : { volverA: search }
   const haySeleccion = onSeleccionar !== undefined && seleccionados !== undefined
   const todosMarcados = haySeleccion && filas.length > 0 && filas.every((d) => seleccionados.has(d.id))
 
@@ -71,7 +77,7 @@ export function ListadoDocumentos({
       <ul className={tabla.tarjetas}>
         {filas.map((d) => (
           <li key={d.id}>
-            <Link to={`${RUTA_DE[d.tipo]}/${d.id}`} className={tabla.tarjeta}>
+            <Link to={`${RUTA_DE[d.tipo]}/${d.id}`} state={vuelta} className={tabla.tarjeta}>
               <span className={tabla.tarjetaTitulo}>{d.numero}</span>
               <span className={tabla.tarjetaDerecha}>
                 <ChipEstado estado={presentarEstado(d.tipo, d.estado)} />
@@ -151,7 +157,7 @@ export function ListadoDocumentos({
                 </td>
               ) : null}
               <td className={tabla.nowrap}>
-                <Link to={`${RUTA_DE[d.tipo]}/${d.id}`} className={tabla.enlace}>
+                <Link to={`${RUTA_DE[d.tipo]}/${d.id}`} state={vuelta} className={tabla.enlace}>
                   {d.numero}
                 </Link>
                 {d.necesitaRevision ? (

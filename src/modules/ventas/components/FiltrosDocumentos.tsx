@@ -3,7 +3,7 @@ import { FilterBar } from '@/components/filters/FilterBar'
 import { Field } from '@/components/forms/Field'
 import { Checkbox, Input, Select } from '@/components/forms/controls'
 import { estadosDisponibles } from '../lib/estados'
-import { useClientes, useMonedas } from '../hooks/useDocumentos'
+import { useClientes, useFacetas } from '../hooks/useDocumentos'
 import type { FiltrosVentas, TipoDocumento } from '../types'
 
 export interface FiltrosDocumentosProps {
@@ -16,7 +16,7 @@ export interface FiltrosDocumentosProps {
 
 /** Filtros aplicados además de la búsqueda (para el contador en mobile). */
 function contarActivos(f: FiltrosVentas): number {
-  return [f.clienteId, f.estado, f.moneda, f.desde, f.hasta, f.soloRevision].filter(Boolean).length
+  return [f.clienteId, f.estado, f.moneda, f.desde, f.hasta, f.soloRevision, f.serie, f.origen, f.pendienteDeEntrega].filter(Boolean).length
 }
 
 /**
@@ -36,7 +36,7 @@ export function FiltrosDocumentos({
   onLimpiar,
 }: FiltrosDocumentosProps) {
   const clientes = useClientes()
-  const monedas = useMonedas(tipo)
+  const facetas = useFacetas(tipo)
 
   // El número se escribe letra por letra: se espera a que la persona pare de
   // tipear antes de pedirle nada al servidor.
@@ -97,7 +97,7 @@ export function FiltrosDocumentos({
       <Field label="Moneda" hideLabel>
         <Select value={filtros.moneda ?? ''} onChange={(e) => onAplicar({ moneda: e.target.value || null })}>
           <option value="">Todas las monedas</option>
-          {(monedas.data ?? []).map((m) => (
+          {(facetas.data?.monedas ?? []).map((m) => (
             <option key={m} value={m}>
               {m}
             </option>
@@ -112,6 +112,42 @@ export function FiltrosDocumentos({
       <Field label="Hasta">
         <Input type="date" value={filtros.hasta ?? ''} onChange={(e) => onAplicar({ hasta: e.target.value || null })} />
       </Field>
+
+      {/* La serie sólo se ofrece si hay más de una: con una sola, el
+          desplegable no separa nada. En cotizaciones aparece el día que la
+          serie piloto COT-ERP tenga documentos, que es justo cuando hace
+          falta distinguirlos de los productivos. */}
+      {(facetas.data?.series ?? []).length > 1 ? (
+        <Field label="Serie" hideLabel>
+          <Select value={filtros.serie ?? ''} onChange={(e) => onAplicar({ serie: e.target.value || null })}>
+            <option value="">Todas las series</option>
+            {(facetas.data?.series ?? []).map((x) => (
+              <option key={x} value={x}>
+                Serie {x}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      ) : null}
+
+      {/* El origen no existe en cotizaciones: son el principio de la cadena. */}
+      {tipo !== 'cotizacion' ? (
+        <Field label="Origen" hideLabel>
+          <Select value={filtros.origen ?? ''} onChange={(e) => onAplicar({ origen: (e.target.value || null) as 'con' | 'sin' | null })}>
+            <option value="">Con y sin origen</option>
+            <option value="con">{tipo === 'pedido' ? 'Desde una cotización' : 'Desde un pedido'}</option>
+            <option value="sin">Cargado a mano</option>
+          </Select>
+        </Field>
+      ) : null}
+
+      {tipo === 'pedido' ? (
+        <Checkbox
+          label="Pendientes de entrega"
+          checked={filtros.pendienteDeEntrega}
+          onChange={(e) => onAplicar({ pendienteDeEntrega: e.target.checked })}
+        />
+      ) : null}
 
       <Checkbox label="Sólo con observaciones" checked={filtros.soloRevision} onChange={(e) => onAplicar({ soloRevision: e.target.checked })} />
     </FilterBar>

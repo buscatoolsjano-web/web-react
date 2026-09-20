@@ -45,6 +45,7 @@ import {
   useVendedores,
 } from '../hooks/useDocumentos'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
+import { useVolverAlListado } from '../hooks/useVolverAlListado'
 import { mensajeErrorVentas, motivoBloqueo, type DocTypeVentas } from '../lib/autoridad'
 import {
   agregarLinea,
@@ -132,6 +133,8 @@ function Detalle() {
   const esInterno = activa?.esInterno ?? false
   const escribe = escribeVentas(activa?.rol)
   const autoridad = useAutoridadNumeracion()
+  // El listado como estaba, si se llegó desde él (Fase 19 · E2).
+  const volver = useVolverAlListado('pedido', 'Pedidos')
   const stelPedido = autoridad.stel('sales_order')
   const stelEntrega = autoridad.stel('delivery')
 
@@ -332,7 +335,7 @@ function Detalle() {
   return (
     <div className={docUi.pagina}>
       <DocumentHeader
-        back={{ to: '/ventas/pedidos', label: 'Pedidos' }}
+        back={volver}
         numero={doc.numero}
         estados={
           <>

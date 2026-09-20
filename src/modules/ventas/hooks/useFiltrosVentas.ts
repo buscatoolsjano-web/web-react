@@ -28,6 +28,10 @@ function aOrden(v: string | null): OrdenVentas {
     : FILTROS_INICIALES.orden
 }
 
+function aOrigen(v: string | null): 'con' | 'sin' | null {
+  return v === 'con' || v === 'sin' ? v : null
+}
+
 function aDireccion(v: string | null): DireccionOrden {
   return v === 'asc' ? 'asc' : 'desc'
 }
@@ -42,6 +46,9 @@ export function leerFiltros(params: URLSearchParams): FiltrosVentas {
     desde: params.get('desde'),
     hasta: params.get('hasta'),
     soloRevision: params.get('revision') === '1',
+    serie: params.get('serie'),
+    origen: aOrigen(params.get('origen')),
+    pendienteDeEntrega: params.get('pendiente') === '1',
     pagina: aEntero(params.get('page'), 1),
     porPagina: (TAMANOS as readonly number[]).includes(porPagina)
       ? porPagina
@@ -62,6 +69,9 @@ export function escribirFiltros(f: FiltrosVentas): URLSearchParams {
   if (f.desde) p.set('desde', f.desde)
   if (f.hasta) p.set('hasta', f.hasta)
   if (f.soloRevision) p.set('revision', '1')
+  if (f.serie) p.set('serie', f.serie)
+  if (f.origen) p.set('origen', f.origen)
+  if (f.pendienteDeEntrega) p.set('pendiente', '1')
   if (f.pagina > 1) p.set('page', String(f.pagina))
   if (f.porPagina !== FILTROS_INICIALES.porPagina) p.set('per', String(f.porPagina))
   if (f.orden !== FILTROS_INICIALES.orden) p.set('orden', f.orden)
@@ -97,6 +107,9 @@ export function useFiltrosVentas() {
     filtros.moneda !== null ||
     filtros.desde !== null ||
     filtros.hasta !== null ||
+    filtros.serie !== null ||
+    filtros.origen !== null ||
+    filtros.pendienteDeEntrega ||
     filtros.soloRevision
 
   return { filtros, aplicar, limpiar, hayFiltros }

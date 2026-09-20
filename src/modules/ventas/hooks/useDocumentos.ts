@@ -8,7 +8,7 @@ import {
   tarifasDeEmpresa,
   vendedoresDeEmpresa,
 } from '../services/opciones'
-import { listarDocumentos, monedasUsadas, obtenerDocumento } from '../services/documentos'
+import { facetasDeDocumentos, listarDocumentos, obtenerDocumento } from '../services/documentos'
 import { documentosRelacionados, evidenciaDeEntrega } from '../services/relacionados'
 import { disponibilidadDeProductos } from '../services/stock'
 import { calcularPendientes, type ResultadoPendientes } from '../lib/pendientes'
@@ -78,13 +78,19 @@ export function useClientes() {
   })
 }
 
-export function useMonedas(tipo: TipoDocumento) {
+/**
+ * Las monedas y las series EN USO, para los dos desplegables.
+ *
+ * Una sola consulta para los dos: antes `useMonedas` recorría la tabla para
+ * quedarse con tres monedas, y la serie habría sido un recorrido idéntico.
+ */
+export function useFacetas(tipo: TipoDocumento) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
 
   return useQuery({
-    queryKey: ['ventas', companyId, tipo, 'monedas'],
-    queryFn: () => monedasUsadas(tipo, companyId!),
+    queryKey: ['ventas', companyId, tipo, 'facetas'],
+    queryFn: () => facetasDeDocumentos(tipo, companyId!),
     enabled: companyId !== null,
     staleTime: 5 * 60_000,
   })
