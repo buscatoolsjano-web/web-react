@@ -120,8 +120,13 @@ export interface DocumentoImprimible {
   contacto: string | null
   moneda: string | null
   formaPago: string | null
+  /** Quién lo emitió, cuando el documento lo tiene cargado. */
+  vendedor: string | null
   /** Sólo el remito: el domicilio congelado al emitirlo (Fase 15 · E6). */
   domicilioEntrega: string | null
+  /** Sólo el remito, y sólo lo que se haya registrado al emitirlo. */
+  transporte: string | null
+  seguimiento: string | null
   notas: string | null
   lineas: LineaImpresa[]
   subtotal: number | null
@@ -165,9 +170,12 @@ export function construirImprimible(
     contacto: doc.contactoNombre,
     moneda: doc.moneda,
     formaPago: doc.formaPago,
+    vendedor: doc.vendedor,
     // El remito dice adónde fue. Si no se registró, no se pone la dirección
     // de hoy del cliente: no es la misma información.
     domicilioEntrega: doc.tipo === 'entrega' ? formatearDomicilio(doc.domicilioEntrega) : null,
+    transporte: doc.tipo === 'entrega' ? doc.transporte : null,
+    seguimiento: doc.tipo === 'entrega' ? doc.seguimiento : null,
     notas: doc.notas,
     lineas: doc.lineas.map((l, i) => {
       // El "precio con impuestos incluidos" usa la alícuota de LA LÍNEA, no
@@ -279,7 +287,12 @@ export function imprimibleDelBorrador(
     contacto: datos.contacto,
     moneda: datos.moneda,
     formaPago: datos.formaPago,
+    // El borrador no tiene vendedor ni datos de envío todavía: los pone el
+    // documento cuando se crea, no la pantalla que lo está armando.
+    vendedor: null,
     domicilioEntrega: null,
+    transporte: null,
+    seguimiento: null,
     notas: datos.notas,
     lineas,
     subtotal: lineas.length === 0 ? null : subtotal,

@@ -969,6 +969,14 @@ posiciones; lo que cambia son las etiquetas y los datos.
   relleno vuelve a crecer: con una hoja los totales quedan abajo, con varias el
   mínimo ya está cumplido y no agrega nada.
 
+### Los campos que el documento muestra
+
+Además de número, fecha, forma de pago, moneda y origen, la hoja imprime el
+**vendedor** cuando el documento lo tiene, y el **transporte** y el
+**seguimiento** cuando son de un remito y quedaron registrados al emitirlo. No
+se imprime ninguna etiqueta vacía: un campo que no está no deja hueco ni raya,
+salvo el CUIT del cliente, que es parte fija del bloque.
+
 ### Lo que no se tocó
 
 Ninguna lógica comercial. El documento **muestra** los snapshots que ya

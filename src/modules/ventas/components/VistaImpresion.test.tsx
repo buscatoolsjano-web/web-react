@@ -50,7 +50,10 @@ const doc = (p: Partial<DocumentoImprimible> = {}): DocumentoImprimible => ({
   contacto: null,
   moneda: 'USD',
   formaPago: '30 DIAS F/F con ECHEQ',
+  vendedor: null,
   domicilioEntrega: null,
+  transporte: null,
+  seguimiento: null,
   notas: null,
   lineas: [linea()],
   subtotal: 200,
@@ -174,13 +177,20 @@ describe('El documento impreso', () => {
     })
   })
 
-  it('el remito no inventa un domicilio: sólo muestra el que quedó registrado', () => {
-    const { unmount } = montar(doc({ tipo: 'entrega', titulo: 'NOTA DE ENTREGA' }))
-    expect(screen.queryByText('Entregar en:')).toBeNull()
+  it('el remito no inventa campos: sólo muestra lo que quedó registrado', () => {
+    const remito = { tipo: 'entrega', titulo: 'NOTA DE ENTREGA' } as const
+    const { unmount } = montar(doc(remito))
+    for (const etiqueta of ['Entregar en:', 'Transporte:', 'Seguimiento:']) {
+      expect(screen.queryByText(etiqueta)).toBeNull()
+    }
     unmount()
 
-    montar(doc({ tipo: 'entrega', titulo: 'NOTA DE ENTREGA', domicilioEntrega: 'Calle Falsa 123' }))
+    montar(
+      doc({ ...remito, domicilioEntrega: 'Calle Falsa 123', transporte: 'Andreani', seguimiento: 'AB1234' }),
+    )
     expect(screen.getByText('Entregar en:')).toBeInTheDocument()
+    expect(screen.getByText('Andreani')).toBeInTheDocument()
+    expect(screen.getByText('AB1234')).toBeInTheDocument()
   })
 
   it('dentro del documento no hay ningún control del ERP', () => {

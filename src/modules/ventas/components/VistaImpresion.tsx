@@ -169,6 +169,25 @@ export function VistaImpresion({ doc, empresa, opciones }: VistaImpresionProps) 
                 <dd>{doc.origen}</dd>
               </>
             ) : null}
+            {doc.vendedor ? (
+              <>
+                <dt>Vendedor:</dt>
+                <dd>{doc.vendedor}</dd>
+              </>
+            ) : null}
+            {/* Del remito, sólo lo que se registró al emitirlo. */}
+            {doc.transporte ? (
+              <>
+                <dt>Transporte:</dt>
+                <dd>{doc.transporte}</dd>
+              </>
+            ) : null}
+            {doc.seguimiento ? (
+              <>
+                <dt>Seguimiento:</dt>
+                <dd>{doc.seguimiento}</dd>
+              </>
+            ) : null}
           </dl>
         </div>
         <div>
