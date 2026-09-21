@@ -20,6 +20,8 @@ const estado = vi.hoisted(() => ({
   stel: [] as string[],
   // Fase 19 · E3: ¿hay una serie de cotización que numere el ERP?
   serieErp: false,
+  // Fase 19 · E5: lo mismo para el pedido, que desde la E4 también elige serie.
+  serieErpPedido: false,
   autoridadCargando: false,
 }))
 const mutaciones = vi.hoisted(() => ({
@@ -68,7 +70,10 @@ vi.mock('@/modules/ventas/hooks/useAutoridadNumeracion', () => ({
  */
 vi.mock('@/modules/ventas/hooks/useAperturaDeAlta', () => ({
   useAperturaDeAlta: (tipo: string) => ({
-    abierta: tipo === 'cotizacion' ? estado.serieErp || !estado.stel.includes('quote') : !estado.stel.includes('sales_order'),
+    abierta:
+      tipo === 'cotizacion'
+        ? estado.serieErp || !estado.stel.includes('quote')
+        : estado.serieErpPedido || !estado.stel.includes('sales_order'),
     cargando: estado.autoridadCargando,
   }),
 }))
@@ -160,6 +165,7 @@ beforeEach(() => {
   estado.direcciones = [{ id: 'd1', tipo: 'both', calle: 'ZZ Calle 1', ciudad: null, provincia: null, codigoPostal: null, pais: 'AR', notas: null, esPrincipal: true, texto: 'ZZ Calle 1, AR', activo: true, actualizadoEn: '2026-01-01T00:00:00Z' }]
   estado.stel = []
   estado.serieErp = false
+  estado.serieErpPedido = false
   estado.autoridadCargando = false
   vi.clearAllMocks()
 })
@@ -430,6 +436,23 @@ describe('Ficha del cliente · emitir desde la ficha (Fase 19 · E2)', () => {
     expect(screen.getByRole('button', { name: 'Nuevo pedido' })).toBeDisabled()
     // Y el motivo que queda nombra sólo lo que sigue bloqueado.
     expect(screen.getByText(/Emisión desde el ERP bloqueada: STEL numera los pedidos/)).toBeInTheDocument()
+  })
+
+  /**
+   * Fase 19 · E5: el alta de pedido también elige serie desde la E4, así que su
+   * puerta se abre con la misma regla. Antes el selector existía en una
+   * pantalla a la que desde acá no se llegaba.
+   */
+  it('con serie del ERP, «Nuevo pedido» también lleva al alta con el cliente', () => {
+    estado.stel = ['quote', 'sales_order']
+    estado.serieErp = true
+    estado.serieErpPedido = true
+    montar()
+    expect(screen.getByRole('link', { name: 'Nuevo pedido' })).toHaveAttribute(
+      'href',
+      '/ventas/pedidos/nuevo?cliente=c1',
+    )
+    expect(screen.queryByText(/Emisión desde el ERP bloqueada/)).toBeNull()
   })
 
   it('un rol sin permiso no gana ninguna acción porque exista la serie del ERP', () => {

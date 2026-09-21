@@ -8,10 +8,12 @@ import { useSeries } from './useDocumentos'
  *
  * Abrir el alta de un tipo que NO tiene selector sería llevar a alguien a un
  * formulario que nunca va a poder guardar: ahí la autoridad general sigue
- * siendo la puerta. Cuando el alta de pedidos o remitos gane su selector, se
- * agrega acá y la puerta se abre sola.
+ * siendo la puerta.
+ *
+ * El alta de pedidos ganó su selector en la Fase 19 · E4. El remito no: no
+ * tiene serie del ERP ni selector, así que sigue afuera.
  */
-const ALTA_CON_SELECTOR: TipoDocumento[] = ['cotizacion']
+const ALTA_CON_SELECTOR: TipoDocumento[] = ['cotizacion', 'pedido']
 
 export interface AperturaDeAlta {
   /** Se puede ABRIR el formulario: navegar hasta él no emite nada. */

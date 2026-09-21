@@ -73,11 +73,15 @@ vi.mock('../hooks/useDocumentos', () => ({
 
 const { ListadoPage } = await import('./ListadoPage')
 
-function montar() {
+function montar(tipo: 'cotizacion' | 'pedido' = 'cotizacion') {
   return render(
     <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter>
-        <ListadoPage tipo="cotizacion" titulo="Cotizaciones" etiquetaOrigen={null} rutaNuevo="/ventas/cotizaciones/nueva" etiquetaNuevo="Nueva cotización" />
+        {tipo === 'pedido' ? (
+          <ListadoPage tipo="pedido" titulo="Pedidos" etiquetaOrigen={null} rutaNuevo="/ventas/pedidos/nuevo" etiquetaNuevo="Nuevo pedido" />
+        ) : (
+          <ListadoPage tipo="cotizacion" titulo="Cotizaciones" etiquetaOrigen={null} rutaNuevo="/ventas/cotizaciones/nueva" etiquetaNuevo="Nueva cotización" />
+        )}
       </MemoryRouter>
     </QueryClientProvider>,
   )
@@ -171,6 +175,32 @@ describe('Listado de Ventas: la puerta del alta con una serie del ERP', () => {
     estado.filas = 0
     montar()
     expect(screen.getAllByRole('link', { name: 'Nueva cotización' }).length).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * Fase 19 · E5: el alta de PEDIDO también elige serie desde la E4, así que su
+ * puerta se abre con la misma regla. El selector existía en una pantalla a la
+ * que desde el listado no se llegaba.
+ */
+describe('Listado de Pedidos: la puerta del alta', () => {
+  it('con una serie del ERP, «Nuevo pedido» lleva al alta', () => {
+    estado.stel = true
+    estado.series = [
+      { codigo: 'PDV', esPorDefecto: true, autoridad: 'STEL' },
+      { codigo: 'PDV-ERP', esPorDefecto: false, autoridad: 'ERP' },
+    ]
+    montar('pedido')
+    expect(screen.getByRole('link', { name: 'Nuevo pedido' })).toHaveAttribute('href', '/ventas/pedidos/nuevo')
+    expect(screen.getByTestId('aviso-autoridad-stel')).toHaveTextContent(/elegir una serie del ERP al crear/)
+  })
+
+  it('sin ninguna serie del ERP sigue cerrada', () => {
+    estado.stel = true
+    estado.series = [{ codigo: 'PDV', esPorDefecto: true, autoridad: 'STEL' }]
+    montar('pedido')
+    expect(screen.getByRole('button', { name: 'Nuevo pedido' })).toBeDisabled()
+    expect(document.getElementById('motivo-nueva')).toHaveTextContent(/STEL numera los pedidos/)
   })
 })
 

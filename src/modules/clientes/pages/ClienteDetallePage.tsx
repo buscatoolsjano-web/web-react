@@ -146,6 +146,10 @@ export function ClienteDetallePage() {
    * cotización: abrir el alta no emite, y ahí la serie elegida decide.
    */
   const apertura = useAperturaDeAlta('cotizacion', escribeVentas(activa?.rol))
+  // Fase 19 · E5: el alta de pedido también elige serie desde la E4, así que
+  // la puerta se abre con la misma regla. Antes el selector existía en una
+  // pantalla a la que desde acá no se llegaba.
+  const aperturaPedido = useAperturaDeAlta('pedido', escribeVentas(activa?.rol))
   const [pestana, setPestana] = useState<Pestana>('informacion')
   // Fase 17 · E4: el historial tiene su propia paginación, del lado del
   // servidor. Vive acá porque el panel es de presentación.
@@ -278,10 +282,12 @@ export function ClienteDetallePage() {
   // Abrir el alta no emite nada, y adentro decide la serie elegida: con la de
   // por defecto, «Crear» sigue bloqueado y esa pantalla lo explica.
   if (!apertura.abierta) bloqueados.push('quote')
-  if (autoridadVentas.stel('sales_order')) bloqueados.push('sales_order')
+  if (!aperturaPedido.abierta) bloqueados.push('sales_order')
   const hayMotivo = puedeVender && !cliente.dadoDeBaja && bloqueados.length > 0
-  const cerrado = (docType: DocTypeVentas) =>
-    docType === 'quote' ? !apertura.abierta || apertura.cargando : autoridadVentas.stel(docType)
+  const cerrado = (docType: DocTypeVentas) => {
+    const a = docType === 'quote' ? apertura : aperturaPedido
+    return !a.abierta || a.cargando
+  }
   const emitir = (docType: DocTypeVentas, etiqueta: string, ruta: string) =>
     cerrado(docType) || autoridadVentas.cargando ? (
       <Button
