@@ -2665,6 +2665,367 @@ export type Database = {
           },
         ]
       }
+      maintenance_service_chains: {
+        Row: {
+          amount: number | null
+          amount_attribution: string
+          asset_count: number
+          chain_class: string
+          company_id: string
+          confidence: string
+          currency_code: string | null
+          customer_id: string | null
+          delivered_at: string | null
+          external_id: string
+          external_source: string
+          id: string
+          imported_at: string
+          invoiced: boolean | null
+          label: string
+          last_synced_at: string | null
+          quotation_status: string
+          received_at: string
+          status: string
+          stel_status_raw: string
+          technician_name_raw: string | null
+        }
+        Insert: {
+          amount?: number | null
+          amount_attribution: string
+          asset_count: number
+          chain_class: string
+          company_id: string
+          confidence: string
+          currency_code?: string | null
+          customer_id?: string | null
+          delivered_at?: string | null
+          external_id: string
+          external_source?: string
+          id?: string
+          imported_at?: string
+          invoiced?: boolean | null
+          label: string
+          last_synced_at?: string | null
+          quotation_status: string
+          received_at: string
+          status: string
+          stel_status_raw: string
+          technician_name_raw?: string | null
+        }
+        Update: {
+          amount?: number | null
+          amount_attribution?: string
+          asset_count?: number
+          chain_class?: string
+          company_id?: string
+          confidence?: string
+          currency_code?: string | null
+          customer_id?: string | null
+          delivered_at?: string | null
+          external_id?: string
+          external_source?: string
+          id?: string
+          imported_at?: string
+          invoiced?: boolean | null
+          label?: string
+          last_synced_at?: string | null
+          quotation_status?: string
+          received_at?: string
+          status?: string
+          stel_status_raw?: string
+          technician_name_raw?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_service_chains_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_service_chains_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "maintenance_service_chains_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_service_history: {
+        Row: {
+          amount: number | null
+          amount_attribution: string
+          asset_id: string
+          chain_id: string
+          closing_notes: string | null
+          company_id: string
+          currency_code: string | null
+          customer_id: string | null
+          delivered_at: string | null
+          diagnosis_notes: string | null
+          external_id: string
+          external_source: string
+          id: string
+          imported_at: string
+          invoiced: boolean | null
+          last_synced_at: string | null
+          quotation_status: string
+          received_at: string
+          repair_notes: string | null
+          status: string
+          stel_status_raw: string
+          technician_name_raw: string | null
+          title: string | null
+        }
+        Insert: {
+          amount?: number | null
+          amount_attribution: string
+          asset_id: string
+          chain_id: string
+          closing_notes?: string | null
+          company_id: string
+          currency_code?: string | null
+          customer_id?: string | null
+          delivered_at?: string | null
+          diagnosis_notes?: string | null
+          external_id: string
+          external_source?: string
+          id?: string
+          imported_at?: string
+          invoiced?: boolean | null
+          last_synced_at?: string | null
+          quotation_status: string
+          received_at: string
+          repair_notes?: string | null
+          status: string
+          stel_status_raw: string
+          technician_name_raw?: string | null
+          title?: string | null
+        }
+        Update: {
+          amount?: number | null
+          amount_attribution?: string
+          asset_id?: string
+          chain_id?: string
+          closing_notes?: string | null
+          company_id?: string
+          currency_code?: string | null
+          customer_id?: string | null
+          delivered_at?: string | null
+          diagnosis_notes?: string | null
+          external_id?: string
+          external_source?: string
+          id?: string
+          imported_at?: string
+          invoiced?: boolean | null
+          last_synced_at?: string | null
+          quotation_status?: string
+          received_at?: string
+          repair_notes?: string | null
+          status?: string
+          stel_status_raw?: string
+          technician_name_raw?: string | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_service_history_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_service_history_chain_id_fkey"
+            columns: ["chain_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_service_chains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_service_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_service_history_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "maintenance_service_history_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_service_source_documents: {
+        Row: {
+          chain_id: string
+          company_id: string
+          created_at: string
+          currency_code: string | null
+          doc_date: string
+          doc_kind: string
+          external_id: string
+          external_source: string
+          id: string
+          parent_external_id: string | null
+          pdf_path: string | null
+          reference: string
+          stel_status: string | null
+          total_amount: number | null
+        }
+        Insert: {
+          chain_id: string
+          company_id: string
+          created_at?: string
+          currency_code?: string | null
+          doc_date: string
+          doc_kind: string
+          external_id: string
+          external_source?: string
+          id?: string
+          parent_external_id?: string | null
+          pdf_path?: string | null
+          reference: string
+          stel_status?: string | null
+          total_amount?: number | null
+        }
+        Update: {
+          chain_id?: string
+          company_id?: string
+          created_at?: string
+          currency_code?: string | null
+          doc_date?: string
+          doc_kind?: string
+          external_id?: string
+          external_source?: string
+          id?: string
+          parent_external_id?: string | null
+          pdf_path?: string | null
+          reference?: string
+          stel_status?: string | null
+          total_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_service_source_documents_chain_id_fkey"
+            columns: ["chain_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_service_chains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_service_source_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_service_source_documents_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      maintenance_service_source_lines: {
+        Row: {
+          amount: number | null
+          company_id: string
+          created_at: string
+          currency_code: string | null
+          description: string | null
+          external_id: string | null
+          id: string
+          line_no: number
+          line_type: string
+          matched_product_id: string | null
+          quantity: number | null
+          sku: string | null
+          source_document_id: string
+          unit_price: number | null
+        }
+        Insert: {
+          amount?: number | null
+          company_id: string
+          created_at?: string
+          currency_code?: string | null
+          description?: string | null
+          external_id?: string | null
+          id?: string
+          line_no: number
+          line_type: string
+          matched_product_id?: string | null
+          quantity?: number | null
+          sku?: string | null
+          source_document_id: string
+          unit_price?: number | null
+        }
+        Update: {
+          amount?: number | null
+          company_id?: string
+          created_at?: string
+          currency_code?: string | null
+          description?: string | null
+          external_id?: string | null
+          id?: string
+          line_no?: number
+          line_type?: string
+          matched_product_id?: string | null
+          quantity?: number | null
+          sku?: string | null
+          source_document_id?: string
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_service_source_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_service_source_lines_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "maintenance_service_source_lines_matched_product_id_fkey"
+            columns: ["matched_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_service_source_lines_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_service_source_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_allocations: {
         Row: {
           amount: number

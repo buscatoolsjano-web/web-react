@@ -1,4 +1,4 @@
-/* Los cuatro números del parque. La franja de arriba del legacy, con la
+/* Los números del parque. La franja de arriba del legacy, con la
    tipografía y las cajas de la web nueva. */
 
 .barra {
@@ -35,8 +35,14 @@
   background: #a855f7;
 }
 
-.tarjeta[data-kpi='servicios']::before {
+.tarjeta[data-kpi='trabajo-actual']::before {
   background: #f59e0b;
+}
+
+/* El historial importado lleva un color propio y apagado: es historia, no
+   trabajo, y no tiene que competir con el número del taller. */
+.tarjeta[data-kpi='historial']::before {
+  background: var(--text-muted);
 }
 
 .valor {
@@ -54,6 +60,15 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted);
+}
+
+/* La aclaración de qué son esos 200: sin ella, el número invita a leerlo como
+   trabajo pendiente. */
+.detalle {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--text-soft);
 }
 
 /* Mientras carga, un hueso del alto del número: la barra no cambia de alto

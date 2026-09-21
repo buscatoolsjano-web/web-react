@@ -5,10 +5,10 @@
  * llamada nueva, y no existe método para escribir en STEL. En la base escribe
  * únicamente en las cuatro tablas del historial, y sólo con `--aplicar`:
  *
- *   maintenance_service_chains            41 filas — el evento de STEL
- *   maintenance_service_source_documents  82 filas — los papeles que lo prueban
+ *   maintenance_service_chains            36 filas — el evento de STEL
+ *   maintenance_service_source_documents  76 filas — los papeles que lo prueban
  *   maintenance_service_history          200 filas — el evento por equipo
- *   maintenance_service_source_lines     285 filas — lo que decía cada documento
+ *   maintenance_service_source_lines     263 filas — lo que decía cada documento
  *
  * NO toca `maintenance_orders`, ni cotizaciones, ni repuestos operativos, ni
  * chequeos, ni mediciones, ni stock, ni reservas.
@@ -241,13 +241,33 @@ fs.writeFileSync(
 // ── 5 · Escribir, sólo con --aplicar ───────────────────────────────────────
 const sinAuxiliares = (fila) => Object.fromEntries(Object.entries(fila).filter(([k]) => !k.startsWith('_')))
 
-/** Inserta sólo las claves que todavía no están: la segunda corrida inserta 0. */
-async function insertarFaltantes(tabla, filas, clave) {
+/**
+ * Inserta sólo las claves que todavía no están: la segunda corrida inserta 0.
+ *
+ * Y si una clave que ya existe trae hoy otro contenido, se detiene. Pisar en
+ * silencio una fila distinta sería lo peor que puede hacer un importador de
+ * historia: nadie se enteraría de que el pasado cambió.
+ */
+async function insertarFaltantes(tabla, filas, clave, comparar = []) {
   if (filas.length === 0) return { insertadas: 0, existentes: 0 }
-  const existentes = new Set(
-    (await traerTodo(tabla, `${clave}`)).map((f) => String(f[clave])),
-  )
-  const nuevas = filas.filter((f) => !existentes.has(String(f[clave])))
+  const columnas = [clave, ...comparar].join(', ')
+  const previas = new Map((await traerTodo(tabla, columnas)).map((f) => [String(f[clave]), f]))
+
+  const conflictos = []
+  for (const f of filas) {
+    const vieja = previas.get(String(f[clave]))
+    if (!vieja) continue
+    for (const campo of comparar) {
+      const a = vieja[campo] ?? null
+      const b = f[campo] ?? null
+      if (String(a) !== String(b)) conflictos.push(`${f[clave]}.${campo}: guardado «${a}», ahora «${b}»`)
+    }
+  }
+  if (conflictos.length > 0) {
+    throw new Error(`${tabla}: ${conflictos.length} identidades con contenido distinto\n    ${conflictos.slice(0, 5).join('\n    ')}`)
+  }
+
+  const nuevas = filas.filter((f) => !previas.has(String(f[clave])))
   if (nuevas.length === 0) return { insertadas: 0, existentes: filas.length }
   for (let i = 0; i < nuevas.length; i += 200) {
     const lote = nuevas.slice(i, i + 200).map(sinAuxiliares)
@@ -272,7 +292,7 @@ if (!APLICAR) {
 }
 
 console.log('\n4 · Escribiendo…')
-const rc = await insertarFaltantes(TABLAS.cadenas, filasCadenas, 'external_id')
+const rc = await insertarFaltantes(TABLAS.cadenas, filasCadenas, 'external_id', ['status', 'quotation_status', 'received_at', 'delivered_at', 'asset_count', 'amount'])
 console.log(`    cadenas: ${rc.insertadas} nuevas · ${rc.existentes} ya estaban`)
 
 // Los hijos necesitan el id que generó la base, y se lo piden por la clave externa.
@@ -281,6 +301,7 @@ const rd = await insertarFaltantes(
   TABLAS.documentos,
   filasDocumentos.map((f) => ({ ...f, chain_id: idDeCadena.get(f._cadena) })),
   'external_id',
+  ['doc_kind', 'reference', 'doc_date', 'stel_status', 'total_amount'],
 )
 console.log(`    documentos: ${rd.insertadas} nuevos · ${rd.existentes} ya estaban`)
 
@@ -288,6 +309,7 @@ const rs = await insertarFaltantes(
   TABLAS.servicios,
   filasServicios.map((f) => ({ ...f, chain_id: idDeCadena.get(f._cadena) })),
   'external_id',
+  ['asset_id', 'status', 'quotation_status', 'received_at', 'delivered_at', 'amount', 'amount_attribution'],
 )
 console.log(`    servicios: ${rs.insertadas} nuevos · ${rs.existentes} ya estaban`)
 

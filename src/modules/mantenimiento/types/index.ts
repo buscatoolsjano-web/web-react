@@ -30,6 +30,8 @@ export interface ActivoListado {
   dadoDeBaja: boolean
   /** Cuántas órdenes tiene. Se deriva contando, no con un contador guardado. */
   ordenes: number
+  /** Cuántos servicios históricos importados de STEL. No son órdenes. */
+  historial: number
   creadoEn: string
 }
 
@@ -51,6 +53,13 @@ export interface ActivoDetalle extends ActivoListado {
   } | null
   autor: string | null
   actualizadoEn: string
+  /**
+   * El último servicio del historial importado de STEL, si hay alguno.
+   *
+   * No es trabajo en curso: es lo último que se le hizo a este equipo según
+   * los papeles que quedaron en STEL.
+   */
+  historialUltimo: { fecha: string; referencia: string } | null
   /**
    * De dónde vino el equipo (Fase 20 · E1).
    *
@@ -128,6 +137,16 @@ export interface ResumenActivos {
   sinCliente: number
   sinSerie: number
   ordenes: number
+  /**
+   * El historial importado de STEL, contado aparte del trabajo del ERP.
+   *
+   * `historialPresupuesto` son servicios cuyo presupuesto quedó pendiente EN
+   * STEL. No es trabajo pendiente de hoy y la pantalla tiene que decirlo así.
+   */
+  historial: number
+  conHistorial: number
+  historialCerrado: number
+  historialPresupuesto: number
   clientes: { id: string; nombre: string; equipos: number }[]
   marcas: { valor: string; equipos: number }[]
   modelos: { valor: string; equipos: number }[]
@@ -438,4 +457,73 @@ export interface EventoDeMantenimiento {
 export interface Tecnico {
   id: string
   nombre: string
+}
+
+// ── Historial de servicio importado de STEL (Fase 20 · E2) ─────────────────
+//
+// Esto NO es trabajo del sistema nuevo: es historia cerrada, de sólo lectura,
+// y por eso no comparte tipos con las órdenes. Mezclarlos invitaría a sumar
+// dos cosas distintas en el mismo número.
+
+/** El estado con el que terminó un servicio histórico. */
+export type EstadoHistorico = 'closed' | 'open_quote' | 'in_progress'
+
+/** Un documento de STEL que prueba el servicio. Es de la cadena, no del equipo. */
+export interface DocumentoFuente {
+  id: string
+  tipo: 'estimate' | 'work_order' | 'delivery_note'
+  referencia: string
+  fecha: string
+  estadoStel: string | null
+  moneda: string | null
+  total: number | null
+  pdf: string | null
+  lineas: LineaFuente[]
+}
+
+/** Una línea de un documento, tal como venía. */
+export interface LineaFuente {
+  id: string
+  tipo: 'product' | 'service' | 'section'
+  sku: string | null
+  descripcion: string | null
+  cantidad: number | null
+  precioUnitario: number | null
+  importe: number | null
+  moneda: string | null
+  /** El producto del catálogo, si el SKU emparejó exacto. Nunca por nombre. */
+  productoId: string | null
+}
+
+/**
+ * Un servicio histórico visto desde UN equipo.
+ *
+ * `importeAtribuible` es la diferencia que importa: con un solo equipo en la
+ * cadena el importe es de este equipo; compartido, no se reparte y no se
+ * muestra como costo suyo.
+ */
+export interface ServicioHistorico {
+  id: string
+  cadenaId: string
+  activoId: string
+  referencia: string
+  estado: EstadoHistorico
+  cotizacion: 'approved' | 'pending'
+  facturado: boolean | null
+  ingreso: string
+  entrega: string | null
+  titulo: string | null
+  diagnostico: string | null
+  trabajo: string | null
+  cierre: string | null
+  tecnico: string | null
+  moneda: string | null
+  importe: number | null
+  importeAtribuible: 'asset' | 'shared' | 'unknown'
+  estadoStel: string
+  /** Cuántos equipos compartieron este mismo servicio. 1 = sólo éste. */
+  equiposEnElServicio: number
+  /** El importe del documento de la cadena, como contexto cuando es compartido. */
+  importeDeLaCadena: number | null
+  documentos: DocumentoFuente[]
 }

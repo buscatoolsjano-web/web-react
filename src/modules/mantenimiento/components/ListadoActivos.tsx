@@ -137,6 +137,7 @@ export function ListadoActivos({
                 {a.dueno ?? 'sin dueño asignado'}
                 {' · '}
                 {a.ordenes === 0 ? 'sin órdenes' : contar(a.ordenes, ORDENES)}
+                {a.historial > 0 ? ` · historial: ${a.historial}` : ''}
               </span>
               <span className={`${tabla.tarjetaTexto} ${styles.accionTarjeta}`}>
                 {a.dadoDeBaja ? <ChipBaja dadoDeBaja={a.dadoDeBaja} /> : <span />}
@@ -184,6 +185,12 @@ export function ListadoActivos({
             <th scope="col" className={`${tabla.num} ${styles.ocultaBajo1280Tambien}`}>
               Órdenes
             </th>
+            {/* Dos números distintos y a propósito separados: «Órdenes» es
+                trabajo del sistema nuevo, «Historial» es lo que se importó de
+                STEL. Sumarlos diría que hay trabajo en curso que no hay. */}
+            <th scope="col" className={`${tabla.num} ${styles.ocultaBajo1280Tambien}`}>
+              Historial
+            </th>
             <th scope="col" className={styles.ocultaBajo1280Tambien}>
               Estado
             </th>
@@ -228,6 +235,7 @@ export function ListadoActivos({
               </th>
               <th scope="col" className={styles.ocultaBajo1280} />
               <th scope="col" className={styles.ocultaBajo1280} />
+              <th scope="col" className={styles.ocultaBajo1280Tambien} />
               <th scope="col" className={styles.ocultaBajo1280Tambien} />
               <th scope="col" className={styles.ocultaBajo1280Tambien} />
               <th scope="col" className={styles.accion} />
@@ -287,6 +295,7 @@ export function ListadoActivos({
               <td className={`${tabla.nowrap} ${styles.ocultaBajo1280}`}>{formatearFecha(a.creadoEn)}</td>
               <td className={`${styles.recorta} ${styles.ocultaBajo1280}`}>{a.tipo ?? '—'}</td>
               <td className={`${tabla.num} ${styles.ocultaBajo1280Tambien}`}>{a.ordenes}</td>
+              <td className={`${tabla.num} ${styles.ocultaBajo1280Tambien}`}>{a.historial}</td>
               <td className={styles.ocultaBajo1280Tambien}>
                 <ChipBaja dadoDeBaja={a.dadoDeBaja} />
               </td>

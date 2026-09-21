@@ -37,6 +37,7 @@ const activo = (p: Partial<ActivoListado> = {}): ActivoListado => ({
   bajoContrato: false,
   dadoDeBaja: false,
   ordenes: 0,
+  historial: 0,
   creadoEn: '2026-09-21',
   ...p,
 })
@@ -87,9 +88,23 @@ describe('La fila del equipo', () => {
   })
 
   it('sin órdenes muestra 0, que es el dato: no se inventa un historial', () => {
-    montar([activo({ ordenes: 0 })])
+    montar([activo({ ordenes: 0, historial: 0 })])
     const fila = screen.getByText('ACT00339').closest('tr')!
-    expect(within(fila).getByText('0')).toBeInTheDocument()
+    // Dos ceros y no uno: órdenes del ERP e historial de STEL son columnas
+    // distintas, y las dos están en cero de verdad.
+    expect(within(fila).getAllByText('0')).toHaveLength(2)
+  })
+
+  it('el trabajo del ERP y el historial de STEL son dos números separados', () => {
+    montar([activo({ ordenes: 0, historial: 6 })])
+    const fila = screen.getByText('ACT00339').closest('tr')!
+    const numeros = within(fila)
+      .getAllByRole('cell')
+      .map((c) => c.textContent)
+    // Nunca aparece la suma: sumarlos diría que hay seis servicios en curso.
+    expect(numeros).toContain('0')
+    expect(numeros).toContain('6')
+    expect(numeros).not.toContain('6 servicios')
   })
 })
 

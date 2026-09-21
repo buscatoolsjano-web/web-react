@@ -145,14 +145,22 @@
   }
 }
 
-/* El serial es lo que más ancho pedía: `nowrap` lo dejaba tomar 317 px de los
-   721 disponibles a 1024. Se lo deja cortar —tiene guiones, corta bien— y por
-   debajo de 1280 se guardan las dos columnas que hoy no dicen nada y que
-   igual están en la ficha rápida: la cuenta de órdenes y el estado. */
+/* El serial es lo que más ancho pide: con `nowrap` se lleva 317 px él solo, y
+   con eso la tabla desbordaba la PÁGINA —no su caja— a 1280 y a 1440, no sólo
+   a 1024. Se lo deja cortar en todos los anchos: tiene guiones y corta bien,
+   y el ancho de la tabla baja de 1.453 a ~1.290 px. Medido a 1280: la página
+   dejó de scrollear de costado.
+
+   Por debajo de 1280 se guardan además las tres columnas que hoy repiten lo
+   que ya está en la ficha rápida: órdenes, historial y estado. */
+.serieCelda {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: 12rem;
+}
+
 @media (max-width: 1279px) {
   .serieCelda {
-    white-space: normal;
-    overflow-wrap: anywhere;
     max-width: 9rem;
   }
 

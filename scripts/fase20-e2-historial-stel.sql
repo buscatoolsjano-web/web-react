@@ -11,14 +11,19 @@
 --
 -- El modelo sigue la forma real del dato, que la auditoría midió:
 --
---   CADENA      (41)  el evento de STEL: presupuesto → orden → remito.
+--   CADENA      (36)  el evento de STEL: presupuesto → orden → remito.
 --                     Se encadenan por parent-document-id, un ID real.
---   DOCUMENTOS  (82)  los papeles que prueban el evento. Van una sola vez:
+--   DOCUMENTOS  (76)  los papeles que prueban el evento. Van una sola vez:
 --                     un remito de 13 equipos es UN documento, no trece.
 --   SERVICIOS  (200)  el evento visto desde cada equipo. Una fila por
 --                     (cadena × equipo), porque el historial que le importa a
 --                     alguien es el de SU llave de impulso.
---   LÍNEAS     (285)  lo que decía cada documento, tal cual, como evidencia.
+--   LÍNEAS     (263)  lo que decía cada documento, tal cual, como evidencia.
+--
+-- STEL tiene 41 cadenas y 82 documentos: 5 cadenas (6 documentos, 22 líneas)
+-- no tienen ningún equipo vinculado y quedan afuera a propósito, porque la
+-- historia se lee desde el equipo y esas seis no aparecerían en ninguna ficha.
+-- Están documentadas una por una en la auditoría.
 --
 -- Una regla entra como CHECK y no como costumbre: el importe sólo puede estar
 -- cargado si es atribuible a un equipo. Se midió que las unidades de las
@@ -144,7 +149,7 @@ create index if not exists idx_msh_cadena
   on public.maintenance_service_history (chain_id);
 
 comment on table public.maintenance_service_history is
-  'Un servicio histórico atribuido a UN equipo. 41 cadenas de STEL sobre 132 equipos dan 200 filas: el mismo evento se ve una vez por equipo.';
+  'Un servicio histórico atribuido a UN equipo. 36 cadenas de STEL sobre 132 equipos dan 200 filas: el mismo evento se ve una vez por equipo.';
 comment on column public.maintenance_service_history.diagnosis_notes is
   'Nulo en lo importado: STEL no guarda diagnóstico. No se rellena con el texto del trabajo.';
 
@@ -201,7 +206,7 @@ create policy mant_hist_select on public.maintenance_service_history
   for select to authenticated
   using (
     company_id in (select unnest(app.current_maintenance_company_ids()))
-    and exists (select 1 from public.maintenance_assets a where a.id = asset_id)
+    and exists (select 1 from public.maintenance_assets a where a.id = maintenance_service_history.asset_id)
   );
 
 drop policy if exists mant_cadenas_select on public.maintenance_service_chains;
@@ -209,7 +214,12 @@ create policy mant_cadenas_select on public.maintenance_service_chains
   for select to authenticated
   using (
     company_id in (select unnest(app.current_maintenance_company_ids()))
-    and exists (select 1 from public.maintenance_service_history h where h.chain_id = id)
+    -- La columna se califica con el nombre de la tabla, y no es un adorno:
+    -- `maintenance_service_history` también tiene una columna `id`, así que un
+    -- `= id` suelto se resuelve contra ELLA y la condición nunca da verdadero.
+    -- Sin RLS que falle: simplemente no se ve ninguna cadena, ningún documento
+    -- y ninguna línea. Se encontró mirando la pantalla, no leyendo el SQL.
+    and exists (select 1 from public.maintenance_service_history h where h.chain_id = maintenance_service_chains.id)
   );
 
 drop policy if exists mant_docs_select on public.maintenance_service_source_documents;
@@ -217,7 +227,7 @@ create policy mant_docs_select on public.maintenance_service_source_documents
   for select to authenticated
   using (
     company_id in (select unnest(app.current_maintenance_company_ids()))
-    and exists (select 1 from public.maintenance_service_chains c where c.id = chain_id)
+    and exists (select 1 from public.maintenance_service_chains c where c.id = maintenance_service_source_documents.chain_id)
   );
 
 drop policy if exists mant_lineas_select on public.maintenance_service_source_lines;
@@ -225,8 +235,18 @@ create policy mant_lineas_select on public.maintenance_service_source_lines
   for select to authenticated
   using (
     company_id in (select unnest(app.current_maintenance_company_ids()))
-    and exists (select 1 from public.maintenance_service_source_documents d where d.id = source_document_id)
+    and exists (select 1 from public.maintenance_service_source_documents d where d.id = maintenance_service_source_lines.source_document_id)
   );
+
+-- Revocar ANTES de dar. Supabase tiene privilegios por defecto que le dan
+-- todo a `anon` y a `authenticated` sobre cualquier tabla que nazca en
+-- `public`: sin este revoke, «sólo lectura» sería una intención y no una
+-- regla, y lo único que estaría frenando un DELETE sería la ausencia de una
+-- policy. El invariante de abajo falla la migración si esto no se cumple.
+revoke all on public.maintenance_service_chains           from anon, authenticated;
+revoke all on public.maintenance_service_source_documents from anon, authenticated;
+revoke all on public.maintenance_service_history          from anon, authenticated;
+revoke all on public.maintenance_service_source_lines     from anon, authenticated;
 
 grant select on public.maintenance_service_chains           to authenticated;
 grant select on public.maintenance_service_source_documents to authenticated;
@@ -265,17 +285,21 @@ begin
      where tablename = t and cmd <> 'SELECT';
     if escribe > 0 then raise exception 'La tabla % tiene % policy de escritura: la historia es read-only', t, escribe; end if;
 
-    -- Igual que en el resto del módulo, lo que impide leer a anon es la RLS;
-    -- lo que no puede pasar es que una policy se lo habilite.
+    -- Acá se es más estricto que en el resto del módulo, y a propósito: anon
+    -- no tiene policy NI grant. Ninguna de las dos cosas.
     select count(*) into anon_policy from pg_policies
      where tablename = t and 'anon' = any(roles);
     if anon_policy > 0 then raise exception 'Hay % policy que le dan acceso a anon en %', anon_policy, t; end if;
 
-    -- Y que `authenticated` no tenga con qué escribir aunque apareciera una policy.
+    select count(*) into grants from information_schema.role_table_grants
+     where table_schema = 'public' and table_name = t and grantee = 'anon';
+    if grants > 0 then raise exception '% le da % permisos a anon', t, grants; end if;
+
+    -- Y `authenticated` no tiene con qué escribir aunque apareciera una policy.
     select count(*) into grants from information_schema.role_table_grants
      where table_schema = 'public' and table_name = t and grantee = 'authenticated'
-       and privilege_type in ('INSERT','UPDATE','DELETE');
-    if grants > 0 then raise exception '% le da % permisos de escritura a authenticated', t, grants; end if;
+       and privilege_type <> 'SELECT';
+    if grants > 0 then raise exception '% le da % permisos que no son SELECT a authenticated', t, grants; end if;
 
     -- Sin triggers: esto es historia, no una máquina de estados.
     select count(*) into trigs from pg_trigger g

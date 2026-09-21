@@ -88,13 +88,25 @@ export function CabeceraActivo({ activo }: CabeceraActivoProps) {
           <dt>Modelo</dt>
           <dd>{activo.modelo ?? <span className={styles.vacio}>Sin modelo</span>}</dd>
         </div>
+        {/* Dos cosas distintas y rotuladas: el trabajo del ERP y el historial
+            que se importó de STEL. «Servicios» a secas las mezclaba. */}
         <div>
-          <dt>Servicios</dt>
+          <dt>Trabajo actual</dt>
           <dd>
             {activo.ordenes === 0 ? (
-              <span className={styles.vacio}>Sin servicios registrados</span>
+              <span className={styles.vacio}>Sin órdenes abiertas</span>
             ) : (
               `${activo.ordenes} ${activo.ordenes === 1 ? 'orden' : 'órdenes'}`
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Historial STEL</dt>
+          <dd>
+            {activo.historial === 0 ? (
+              <span className={styles.vacio}>Sin historial importado</span>
+            ) : (
+              `${activo.historial} ${activo.historial === 1 ? 'servicio' : 'servicios'}`
             )}
           </dd>
         </div>

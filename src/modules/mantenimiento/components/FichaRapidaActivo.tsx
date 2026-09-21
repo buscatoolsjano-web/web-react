@@ -69,7 +69,7 @@ export function FichaRapidaActivo({ activoId, tituloId }: FichaRapidaActivoProps
             </Badge>
           ) : null}
           {data.bajoContrato ? <Badge tone="success">Bajo contrato</Badge> : null}
-          {data.ordenes === 0 ? <Badge tone="neutral">Sin servicios</Badge> : null}
+          {data.ordenes === 0 && data.historial === 0 ? <Badge tone="neutral">Sin servicios</Badge> : null}
         </p>
       </header>
 
@@ -87,13 +87,33 @@ export function FichaRapidaActivo({ activoId, tituloId }: FichaRapidaActivoProps
             {data.serie ?? <span className={styles.vacio}>Sin número de serie</span>}
           </dd>
         </div>
+        {/* Dos filas y no una: «Trabajo actual» son órdenes del ERP nuevo y
+            «Historial STEL» es lo que se importó. Un servicio de 2024 no es
+            trabajo de hoy, y un solo número los confundiría. */}
         <div>
-          <dt>Servicios</dt>
+          <dt>Trabajo actual</dt>
           <dd>
             {data.ordenes === 0 ? (
-              <span className={styles.vacio}>Sin servicios registrados</span>
+              <span className={styles.vacio}>Sin órdenes abiertas</span>
             ) : (
               `${data.ordenes} ${data.ordenes === 1 ? 'orden' : 'órdenes'}`
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Historial STEL</dt>
+          <dd>
+            {data.historial === 0 ? (
+              <span className={styles.vacio}>Sin historial importado</span>
+            ) : (
+              <>
+                {data.historial === 1 ? '1 servicio' : `${data.historial} servicios`}
+                {data.historialUltimo ? (
+                  <span className={styles.ciudad}>
+                    último: {formatearFecha(data.historialUltimo.fecha)} · {data.historialUltimo.referencia}
+                  </span>
+                ) : null}
+              </>
             )}
           </dd>
         </div>
@@ -134,6 +154,11 @@ export function FichaRapidaActivo({ activoId, tituloId }: FichaRapidaActivoProps
         <LinkButton to={`/mantenimiento/activos/${data.id}`} variant="primary">
           Abrir ficha
         </LinkButton>
+        {data.historial > 0 ? (
+          <LinkButton to={`/mantenimiento/activos/${data.id}?tab=servicios`} variant="secondary">
+            Ver historial
+          </LinkButton>
+        ) : null}
         {permisos.crear ? (
           <LinkButton
             to={`/mantenimiento/ordenes/nueva?activo=${data.id}`}

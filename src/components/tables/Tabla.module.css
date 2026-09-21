@@ -6,8 +6,17 @@
      <div className={tabla.contenedor}><table className={tabla.tabla}>…
    ───────────────────────────────────────────────────────────────────────── */
 
-/* La tabla scrollea dentro de su caja: el body nunca scrollea en horizontal. */
+/* La tabla scrollea dentro de su caja: el body nunca scrollea en horizontal.
+
+   `position: relative` no es decorativo y costó encontrarlo: los `sr-only` que
+   hay dentro de las tablas están en `position: absolute`, y sin un ancestro
+   posicionado su bloque contenedor es el viewport. Quedaban a la derecha del
+   todo —en una tabla de 1.220 px dentro de una caja de 977— y estiraban el
+   DOCUMENTO, así que la página entera scrolleaba de costado aunque la tabla
+   clipeara perfecto. Medido en Mantenimiento a 1280: 118 px de scroll
+   horizontal antes, 0 después. */
 .contenedor {
+  position: relative;
   overflow-x: auto;
   background: var(--color-surface);
   border: 1px solid var(--color-border);

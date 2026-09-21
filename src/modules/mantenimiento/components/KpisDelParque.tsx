@@ -7,20 +7,22 @@ export interface KpisDelParqueProps {
 }
 
 /**
- * Los cuatro números del parque de equipos.
+ * Los números del parque de equipos.
  *
- * Son los mismos cuatro del panel de la web anterior —Activos · Modelos ·
- * Clientes · Servicios— con una diferencia que importa: **acá dicen lo que
- * realmente cuentan**.
+ * Son los del panel de la web anterior —Activos · Modelos · Clientes ·
+ * Servicios— con una diferencia que importa: **acá dicen lo que realmente
+ * cuentan**.
  *
- * «Modelos» cuenta **textos de modelo distintos**, no modelos. Los 358
- * equipos traen 102 textos para unos 60 modelos reales: el mismo aparece como
+ * «Modelos» cuenta **textos de modelo distintos**, no modelos. Los 358 equipos
+ * traen 102 textos para unos 60 modelos reales: el mismo aparece como
  * `ASM18-12-PC`, `ASM18-12- PC` y `ASM 18-12-PC`. Decir «102 modelos» sería
- * falso y decir «60» sería inventado, así que se dice qué se está contando y
- * se deja la normalización para cuando se audite en serio.
+ * falso y decir «60» sería inventado, así que se dice qué se está contando.
  *
- * «Servicios» son las órdenes de mantenimiento cargadas. Hoy son 0 y se
- * muestra 0: los 82 documentos de servicio de STEL no se importaron todavía.
+ * Y la separación que manda desde la Fase 20 · E2: **trabajo actual e historial
+ * importado son dos números distintos**. Las órdenes son lo que el taller tiene
+ * abierto en el ERP; el historial son los servicios que quedaron registrados en
+ * STEL y se importaron. Un presupuesto que allá quedó pendiente en 2023 no es
+ * trabajo pendiente de hoy, así que no se suman y el rótulo lo dice.
  */
 export function KpisDelParque({ resumen, cargando }: KpisDelParqueProps) {
   const tarjetas = [
@@ -33,10 +35,19 @@ export function KpisDelParque({ resumen, cargando }: KpisDelParqueProps) {
     },
     { clave: 'clientes', valor: resumen?.clientes.length, etiqueta: 'Clientes', nota: null },
     {
-      clave: 'servicios',
+      clave: 'trabajo-actual',
       valor: resumen?.ordenes,
-      etiqueta: 'Servicios',
-      nota: 'Órdenes de mantenimiento registradas en el ERP',
+      etiqueta: 'Trabajo actual',
+      nota: 'Órdenes de mantenimiento abiertas en el ERP. No incluye el historial importado.',
+    },
+    {
+      clave: 'historial',
+      valor: resumen?.historial,
+      etiqueta: 'Historial STEL',
+      nota: 'Servicios importados de STEL. Es historia cerrada, de sólo lectura.',
+      detalle: resumen
+        ? `sobre ${resumen.conHistorial} equipos · ${resumen.historialCerrado} entregados · ${resumen.historialPresupuesto} quedaron con presupuesto pendiente en STEL`
+        : null,
     },
   ]
 
@@ -51,6 +62,7 @@ export function KpisDelParque({ resumen, cargando }: KpisDelParqueProps) {
             {t.etiqueta}
             {t.nota ? <span className="sr-only">. {t.nota}</span> : null}
           </p>
+          {'detalle' in t && t.detalle ? <p className={styles.detalle}>{t.detalle}</p> : null}
         </div>
       ))}
     </section>

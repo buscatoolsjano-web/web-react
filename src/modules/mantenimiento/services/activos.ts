@@ -34,6 +34,7 @@ const COLUMNAS = `
   dueno:customers!owner_customer_id ( legal_name ),
   producto:products!product_id ( sku ),
   maintenance_orders ( id ),
+  historial:maintenance_service_history ( id ),
   imagenes:maintenance_asset_images ( id, url, storage_path, position )
 `
 
@@ -56,6 +57,7 @@ interface Fila {
   dueno: { legal_name: string } | null
   producto: { sku: string } | null
   maintenance_orders: { id: string }[] | null
+  historial: { id: string }[] | null
   imagenes: { id: string; url: string | null; storage_path: string | null; position: number }[] | null
 }
 
@@ -92,6 +94,7 @@ const aFila = (f: Fila): ActivoListado => ({
   bajoContrato: f.under_contract,
   dadoDeBaja: f.deleted_at !== null,
   ordenes: (f.maintenance_orders ?? []).length,
+  historial: (f.historial ?? []).length,
   creadoEn: f.created_at,
 })
 
@@ -193,7 +196,7 @@ export async function resumenDeActivos(companyId: string): Promise<ResumenActivo
   const { data, error } = await supabase
     .from('maintenance_assets')
     .select(
-      'owner_customer_id, brand_text, model_text, serial_normalized, dueno:customers!owner_customer_id(legal_name), maintenance_orders(id)',
+      'owner_customer_id, brand_text, model_text, serial_normalized, dueno:customers!owner_customer_id(legal_name), maintenance_orders(id), historial:maintenance_service_history(id, status)',
     )
     .eq('company_id', companyId)
     .is('deleted_at', null)
@@ -206,6 +209,7 @@ export async function resumenDeActivos(companyId: string): Promise<ResumenActivo
     serial_normalized: string | null
     dueno: { legal_name: string } | null
     maintenance_orders: { id: string }[] | null
+    historial: { id: string; status: string }[] | null
   }
   const filas = (data ?? []) as unknown as FilaResumen[]
 
@@ -215,6 +219,10 @@ export async function resumenDeActivos(companyId: string): Promise<ResumenActivo
   let sinCliente = 0
   let sinSerie = 0
   let ordenes = 0
+  let historial = 0
+  let conHistorial = 0
+  let historialCerrado = 0
+  let historialPresupuesto = 0
 
   for (const f of filas) {
     if (f.owner_customer_id) {
@@ -230,6 +238,11 @@ export async function resumenDeActivos(companyId: string): Promise<ResumenActivo
     if (f.brand_text) marcas.set(f.brand_text, (marcas.get(f.brand_text) ?? 0) + 1)
     if (f.model_text) modelos.set(f.model_text, (modelos.get(f.model_text) ?? 0) + 1)
     ordenes += (f.maintenance_orders ?? []).length
+    const suyos = f.historial ?? []
+    historial += suyos.length
+    if (suyos.length > 0) conHistorial += 1
+    historialCerrado += suyos.filter((h) => h.status === 'closed').length
+    historialPresupuesto += suyos.filter((h) => h.status === 'open_quote').length
   }
 
   const porEquipos = <T extends { equipos: number }>(a: T, b: T) => b.equipos - a.equipos
@@ -238,6 +251,12 @@ export async function resumenDeActivos(companyId: string): Promise<ResumenActivo
     sinCliente,
     sinSerie,
     ordenes,
+    // El historial importado de STEL se cuenta aparte del trabajo del ERP:
+    // sumarlos diría que hay 200 servicios en curso, y no hay ninguno.
+    historial,
+    conHistorial,
+    historialCerrado,
+    historialPresupuesto,
     // Los clientes, por cantidad de equipos: dos concentran el 77 % del parque
     // y tienen que quedar arriba del desplegable.
     clientes: [...clientes.values()].sort(porEquipos),
@@ -254,6 +273,7 @@ export async function obtenerActivo(
     .from('maintenance_assets')
     .select(
       `${COLUMNAS}, state, warranty_start, warranty_end, notes, description, address_text,
+       servicios:maintenance_service_history ( received_at, cadena:maintenance_service_chains!chain_id ( label ) ),
        delivery_serial_id, updated_at,
        external_source, external_id, last_synced_at,
        autor:profiles!created_by ( full_name ),
@@ -283,6 +303,7 @@ export async function obtenerActivo(
     external_id: string | null
     last_synced_at: string | null
     autor: { full_name: string | null } | null
+    servicios: { received_at: string; cadena: { label: string } | null }[] | null
     procedencia: {
       serial_number: string
       delivery_date: string
@@ -311,6 +332,11 @@ export async function obtenerActivo(
       : null,
     autor: f.autor?.full_name ?? null,
     actualizadoEn: f.updated_at,
+    // El último servicio del historial importado, calculado de lo que ya vino
+    // embebido: la ficha rápida no hace una consulta más para mostrarlo.
+    historialUltimo: [...(f.servicios ?? [])]
+      .sort((a, b) => b.received_at.localeCompare(a.received_at))
+      .map((x) => ({ fecha: x.received_at, referencia: x.cadena?.label ?? '—' }))[0] ?? null,
     origen:
       f.external_source && f.external_id
         ? { sistema: f.external_source, idExterno: f.external_id, sincronizado: f.last_synced_at }

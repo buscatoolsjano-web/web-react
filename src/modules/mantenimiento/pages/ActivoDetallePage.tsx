@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -20,12 +20,14 @@ import { formatearFecha, formatearFechaHora } from '../lib/formato'
 import { FormularioActivo } from '../components/FormularioActivo'
 import { ListadoOrdenes } from '../components/ListadoOrdenes'
 import { PanelHistorial } from '../components/PanelHistorial'
+import { TimelineServicios } from '../components/TimelineServicios'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { CabeceraActivo } from '../components/CabeceraActivo'
 import { GaleriaActivo } from '../components/GaleriaActivo'
 import { ChipBaja } from '../components/ChipEstado'
 import { useActivo, useGuardarActivo, useHistorialDeActivo } from '../hooks/useActivos'
 import { useOrdenes } from '../hooks/useOrdenes'
+import { useHistorialDeServicio } from '../hooks/useHistorialServicio'
 import { obtenerClienteBreve, obtenerProductoBreve } from '../services/catalogo'
 import { CLASES_EQUIPO } from '../services/adjuntos'
 import { FILTROS_ORDENES_INICIALES } from '../types'
@@ -34,7 +36,7 @@ import styles from './Pagina.module.css'
 
 const ID_PESTANAS = 'ficha-equipo'
 
-type Pestana = 'datos' | 'ordenes' | 'imagenes' | 'archivos' | 'historial'
+type Pestana = 'datos' | 'ordenes' | 'servicios' | 'imagenes' | 'archivos' | 'historial'
 
 /**
  * La ficha de un equipo.
@@ -55,7 +57,11 @@ export function ActivoDetallePage() {
   const companyId = activa?.companyId ?? null
   const permisos = permisosDe(activa)
 
-  const [pestana, setPestana] = useState<Pestana>('datos')
+  // «Ver historial» desde la ficha rápida abre directo la pestaña. Es la única
+  // pestaña que se puede pedir por URL porque es la única a la que se llega
+  // desde otra pantalla.
+  const [params] = useSearchParams()
+  const [pestana, setPestana] = useState<Pestana>(params.get('tab') === 'servicios' ? 'servicios' : 'datos')
   const [editando, setEditando] = useState(false)
   const [confirmandoBaja, setConfirmandoBaja] = useState(false)
 
@@ -65,6 +71,12 @@ export function ActivoDetallePage() {
 
   // Las órdenes de este equipo, sin paginar de más: son pocas por equipo.
   const ordenes = useOrdenes({ ...FILTROS_ORDENES_INICIALES, activoId: id, porPagina: 100 })
+
+  // El historial de STEL es otra cosa que las órdenes: es trabajo cerrado que
+  // se importó, no trabajo del sistema nuevo. El conteo entra con la ficha
+  // —una consulta liviana, para poder rotular la pestaña— y el detalle recién
+  // cuando alguien la abre.
+  const servicios = useHistorialDeServicio(id, pestana === 'servicios')
 
   // El cliente y el producto ya elegidos, para que el formulario los muestre
   // sin obligar a buscarlos de nuevo.
@@ -150,6 +162,7 @@ export function ActivoDetallePage() {
   const pestanas: TabItem<Pestana>[] = [
     { key: 'datos', label: 'Datos' },
     { key: 'ordenes', label: 'Órdenes', count: ordenes.data?.total ?? 0 },
+    { key: 'servicios', label: 'Servicios', count: activo.historial },
     { key: 'imagenes', label: 'Imágenes', count: activo.imagenes.length },
     { key: 'archivos', label: 'Archivos' },
     { key: 'historial', label: 'Historial' },
@@ -346,6 +359,20 @@ export function ActivoDetallePage() {
               <p className={styles.nota}>
                 El cliente de cada orden es el que tenía el equipo cuando entró, no necesariamente el
                 dueño de hoy.
+              </p>
+            </>
+          ) : null}
+
+          {pestana === 'servicios' ? (
+            <>
+              {servicios.error ? (
+                <ErrorState compact title="No se pudo leer el historial de servicio." description={servicios.error.message} />
+              ) : (
+                <TimelineServicios servicios={servicios.data ?? []} cargando={servicios.isPending} />
+              )}
+              <p className={styles.nota}>
+                Historial importado de STEL, de sólo lectura. No es trabajo en curso: un presupuesto
+                que quedó pendiente allá no es un servicio pendiente hoy.
               </p>
             </>
           ) : null}
