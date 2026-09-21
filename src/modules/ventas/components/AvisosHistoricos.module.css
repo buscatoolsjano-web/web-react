@@ -1,0 +1,15 @@
+/* Lo que la migración marcó y ya no pasa: se cuenta, no se grita. */
+.resuelto {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+}
+
+.resueltoSolo {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+}

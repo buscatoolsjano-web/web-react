@@ -67,6 +67,18 @@ const espias = vi.hoisted(() => ({
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+// La ficha rápida es de Clientes y trae sus propias consultas: acá sólo
+// importa que el pedido la abra.
+vi.mock('@/modules/clientes/components/PanelLateralCliente', () => ({
+  PanelLateralCliente: ({ clienteId, onCerrar }: { clienteId: string; onCerrar: () => void }) => (
+    <aside aria-label="Ficha rápida">
+      <p>ficha rápida de {clienteId}</p>
+      <button type="button" onClick={onCerrar}>
+        Cerrar la ficha
+      </button>
+    </aside>
+  ),
+}))
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({
     activa: { companyId: 'c1', companyName: 'ZZ Pruebas', rol: estado.rol, esInterno: true, customerId: null },
@@ -618,6 +630,70 @@ describe('Pedido · pestañas', () => {
  * una sola llamada al servidor, que vuelve a calcular el pendiente y bloquea
  * la sobreentrega. La pantalla no escribe nada hasta ese botón.
  */
+/**
+ * Fase 19 · E4 · los avisos de la migración contra el dato de hoy.
+ *
+ * El caso es PDV01315, de producción: avisaba «Sin moneda», «Algún producto no
+ * está en el catálogo», «Los totales no cierran» y «Sin cotización de origen»
+ * con moneda, productos resueltos, totales cerrados y su cotización enlazada.
+ */
+describe('Pedido · avisos de la migración', () => {
+  it('lo que el dato desmiente NO se anuncia como una observación de hoy', () => {
+    estado.doc = pedido({
+      esHistorico: true,
+      necesitaRevision: true,
+      motivosRevision: ['MISSING_CURRENCY', 'UNRESOLVED_SKU', 'TOTALS_DO_NOT_CLOSE', 'NO_QUOTE_LINK'],
+      origen: { tipo: 'cotizacion', id: 'q1', numero: 'COTI02280' },
+    })
+    montar()
+
+    expect(screen.queryByText('Documento histórico con observaciones')).toBeNull()
+    const nota = screen.getByTestId('avisos-historicos-resueltos')
+    expect(nota).toHaveTextContent(/los datos de hoy ya no lo dicen/i)
+    // Y no se esconde que sigue marcado: el informe lo sigue listando.
+    expect(nota).toHaveTextContent(/cola de revisión/i)
+  })
+
+  it('lo que sigue pasando se sigue avisando, y lo que no, se cuenta aparte', () => {
+    estado.doc = pedido({
+      esHistorico: true,
+      motivosRevision: ['NO_EXCHANGE_RATE', 'MISSING_CURRENCY'],
+    })
+    montar()
+
+    const aviso = screen.getByText('Documento histórico con observaciones').closest('div')!
+    expect(aviso).toHaveTextContent('Sin tipo de cambio')
+    expect(within(aviso).queryByRole('listitem', { name: 'Sin moneda' })).toBeNull()
+    expect(aviso).toHaveTextContent(/pero eso ya no pasa/i)
+  })
+
+  it('un total que de verdad no cierra se sigue avisando', () => {
+    estado.doc = pedido({ esHistorico: true, total: 999, motivosRevision: ['TOTALS_DO_NOT_CLOSE'] })
+    montar()
+    expect(screen.getByText('Los totales no cierran')).toBeInTheDocument()
+  })
+})
+
+/**
+ * Fase 19 · E4: la ficha rápida del cliente, sin salir del pedido. Es el mismo
+ * componente que abre el listado de Clientes y la cotización.
+ */
+describe('Pedido · ficha rápida del cliente', () => {
+  it('el nombre del cliente abre la ficha, y se puede cerrar sin perder el pedido', () => {
+    montar()
+    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Consulta MercadoLibre' }))
+
+    expect(screen.getByRole('complementary', { name: 'Ficha rápida' })).toBeInTheDocument()
+    expect(screen.getByText('ficha rápida de c9')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar la ficha' }))
+    expect(screen.queryByRole('complementary', { name: 'Ficha rápida' })).toBeNull()
+    // El pedido sigue donde estaba: abrir la ficha no navega a ningún lado.
+    expect(screen.getByRole('heading', { level: 1, name: /PDV/ })).toBeInTheDocument()
+  })
+})
+
 describe('Pedido · generar remito', () => {
   const confirmado = () => {
     estado.doc = pedido({ estado: 'confirmed' })

@@ -28,6 +28,7 @@ import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalEntregaParcial } from '../components/ModalEntregaParcial'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { PanelPendientes } from '../components/PanelPendientes'
+import { PanelLateralCliente } from '@/modules/clientes/components/PanelLateralCliente'
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelStock } from '../components/PanelStock'
 import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
@@ -124,6 +125,8 @@ function Detalle() {
   const [avisoContacto, setAvisoContacto] = useState(false)
   const [avisoTarifa, setAvisoTarifa] = useState(false)
   const [confirmarSalida, setConfirmarSalida] = useState(false)
+  /** La ficha rápida del cliente, sin salir del documento (Fase 19 · E4). */
+  const [viendoCliente, setViendoCliente] = useState(false)
   const [guardado, setGuardado] = useState(false)
   const [generando, setGenerando] = useState(false)
   const [errorRemito, setErrorRemito] = useState<string | null>(null)
@@ -357,12 +360,7 @@ function Detalle() {
         total={formatearImporte(doc.total, doc.moneda)}
       />
 
-      <AvisosHistoricos
-        motivos={doc.motivosRevision}
-        numeroFueraDeSerie={doc.numeroFueraDeSerie}
-        numeroSospechado={doc.numeroSospechado}
-        esHistorico={doc.esHistorico}
-      />
+      <AvisosHistoricos documento={doc} />
 
       {hayBanner ? (
         <AvisoAutoridadStel
@@ -569,7 +567,7 @@ function Detalle() {
                 onCambiarMoneda={elegirMoneda}
               />
             ) : (
-              <InformacionDocumento doc={doc} />
+              <InformacionDocumento doc={doc} onVerCliente={() => setViendoCliente(true)} />
             )}
           </DocSection>
         ) : null}
@@ -636,6 +634,13 @@ function Detalle() {
       />
 
       {acciones.capas}
+
+      {/* Fase 19 · E4: la MISMA ficha rápida que abre el listado de Clientes
+          y la cotización. Mirar con quién se está tratando no puede costar
+          perder el pedido de vista. */}
+      {viendoCliente && doc.clienteId ? (
+        <PanelLateralCliente clienteId={doc.clienteId} onCerrar={() => setViendoCliente(false)} />
+      ) : null}
     </div>
   )
 }

@@ -27,6 +27,7 @@ import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { ChipEstado } from '../components/ChipEstado'
 import { InformacionDocumento } from '../components/InformacionDocumento'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
+import { PanelLateralCliente } from '@/modules/clientes/components/PanelLateralCliente'
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
 import { TablaLineas } from '../components/TablaLineas'
@@ -92,6 +93,8 @@ function Detalle() {
   const [conflicto, setConflicto] = useState(false)
   const [resultado, setResultado] = useState<string | null>(null)
   const [confirmarSalida, setConfirmarSalida] = useState(false)
+  /** La ficha rápida del cliente, sin salir del documento (Fase 19 · E4). */
+  const [viendoCliente, setViendoCliente] = useState(false)
   const [aAgregar, setAAgregar] = useState('')
   const [pestana, setPestana] = useTabDeUrl<Pestana>(PESTANAS, 'lineas')
   const idPestanas = useId()
@@ -306,12 +309,7 @@ function Detalle() {
         total={formatearImporte(doc.total, doc.moneda)}
       />
 
-      <AvisosHistoricos
-        motivos={doc.motivosRevision}
-        numeroFueraDeSerie={doc.numeroFueraDeSerie}
-        numeroSospechado={doc.numeroSospechado}
-        esHistorico={doc.esHistorico}
-      />
+      <AvisosHistoricos documento={doc} />
 
       {esInterno && stelEntrega ? (
         <AvisoAutoridadStel
@@ -616,7 +614,7 @@ function Detalle() {
                 </Field>
               </div>
             ) : (
-              <InformacionDocumento doc={doc} />
+              <InformacionDocumento doc={doc} onVerCliente={() => setViendoCliente(true)} />
             )}
           </DocSection>
         ) : null}
@@ -654,6 +652,13 @@ function Detalle() {
       />
 
       {acciones.capas}
+
+      {/* Fase 19 · E4: la MISMA ficha rápida que abre el listado de Clientes
+          y la cotización. Mirar con quién se está tratando no puede costar
+          perder el remito de vista. */}
+      {viendoCliente && doc.clienteId ? (
+        <PanelLateralCliente clienteId={doc.clienteId} onCerrar={() => setViendoCliente(false)} />
+      ) : null}
     </div>
   )
 }

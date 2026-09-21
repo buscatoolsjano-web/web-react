@@ -451,12 +451,7 @@ function Detalle() {
         total={formatearImporte(doc.total, doc.moneda)}
       />
 
-      <AvisosHistoricos
-        motivos={doc.motivosRevision}
-        numeroFueraDeSerie={doc.numeroFueraDeSerie}
-        numeroSospechado={doc.numeroSospechado}
-        esHistorico={doc.esHistorico}
-      />
+      <AvisosHistoricos documento={doc} />
 
       {hayBanner ? (
         <AvisoAutoridadStel

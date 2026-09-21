@@ -564,3 +564,77 @@ pago «30 DIAS F/F con ECHEQ»), la serie arranca en `COTI` con «Crear»
 bloqueado, elegir `COT-ERP` lo habilita y volver a `COTI` lo vuelve a
 bloquear. **No se creó ningún documento**: `COTI` sigue en 2630 y `COT-ERP`
 en 2.
+
+---
+
+## 14 · E4 · Pedidos — auditoría antes de tocar UX
+
+### La limitación equivalente, medida
+
+| | |
+|---|---|
+| autoridad general `sales_order` | **STEL** |
+| series de pedido configuradas | **una sola: `PDV`, por defecto, STEL** |
+| series de pedido que numere el ERP | **ninguna** |
+
+Por eso «Nuevo pedido» sigue cerrado y no es una inconsistencia con la
+cotización: no hay ninguna serie que elegir. Crear una serie piloto de pedido
+**no está autorizado y no se hizo**. Sin ella, todo lo que sigue se puede
+mejorar sin emitir ni un pedido real, que es justamente lo que pedía el §9.
+
+### Los datos con los que hay que trabajar
+
+| | |
+|---|---|
+| pedidos | 172 (171 migrados, 1 nativo) |
+| `confirmed` + `delivered` | 145 |
+| `confirmed` + `pending` | 26 |
+| `draft` + `pending` | 1 |
+| con cotización de origen | 152 de 172 |
+| líneas de pedido | 600 |
+| remitos enlazados a un pedido | 156 de 193 |
+
+`fulfillment_status` es binario en la práctica: **no existe ningún `partial`**.
+El avance fino sigue siendo el del §4 —derivar por línea sólo donde el vínculo
+existe—, y eso ya está resuelto en `PanelPendientes`, que distingue «no consta
+entrega» de «no entregado» y se planta cuando las líneas no se pueden asociar.
+Verificado en PDV01315: dice *«2 líneas de entrega no se pudieron asociar… no
+se calcula el pendiente por línea»* en vez de inventar un número.
+
+### El hallazgo: 138 avisos que el propio dato desmiente
+
+`review_reason` es **una foto del día de la migración**, y las tres pantallas de
+detalle la repetían como si fuera un hecho de hoy:
+
+| motivo | marcados | ya NO es cierto |
+| --- | --- | --- |
+| `MISSING_CURRENCY` | 17 (6 cot. + 11 ped.) | **17** — todos tienen moneda |
+| `UNRESOLVED_SKU` | 59 (39 + 20) | **59** — ninguna línea quedó sin producto |
+| `TOTALS_DO_NOT_CLOSE` | 51 (19 + 32) | **48** — cierran con la fórmula del ERP |
+| `NO_QUOTE_LINK` | 34 pedidos | **14** — tienen su cotización enlazada |
+| `NO_EXCHANGE_RATE` | 75 (48 + 27) | 0 — **sigue siendo cierto** |
+
+El caso que lo destapó es PDV01315: avisaba las cuatro cosas —sin moneda, sin
+producto, totales que no cierran, sin cotización— teniendo moneda USD, las dos
+líneas resueltas, su cotización enlazada… y un impuesto de cabecera que **sí**
+contradice a las líneas (las dos al 0 % contra USD 138,64 de impuesto). O sea:
+tres avisos falsos y uno verdadero, todos con el mismo tono.
+
+`revisarMotivos` contrasta cada motivo con el documento y separa lo vigente de
+lo resuelto. **No corrige ningún dato histórico** —los totales guardados se
+siguen mostrando tal cual, que es la regla de la Fase 4—: sólo deja de afirmar
+en presente lo que el dato desmiente. Lo que no se sabe verificar desde el
+documento queda **vigente**: no se declara resuelto lo que no se miró, y sin
+precio en alguna línea —las 600 líneas de entrega históricas— tampoco se
+declara nada.
+
+La pantalla tampoco esconde la otra mitad: el documento **sigue marcado para
+revisar**, y lo dice, porque el informe lo sigue listando.
+
+### Queda para decidir (NO aplicado, necesita STOP)
+
+- **Limpiar `needs_review` / `review_reason`** de los 138 avisos que ya no
+  aplican es un `UPDATE` sobre documentos productivos. No se hizo. Mientras
+  tanto la cola de revisión sigue contando lo mismo que antes, que es
+  consistente con lo que se ve en pantalla.
+- **Serie piloto de pedido**: no se creó ni se propuso todavía.
