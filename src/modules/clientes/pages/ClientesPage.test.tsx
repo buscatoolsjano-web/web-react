@@ -195,3 +195,91 @@ describe('Ficha rápida desde el listado (Fase 19 · E1)', () => {
     expect(screen.queryByRole('complementary')).toBeNull()
   })
 })
+
+/**
+ * Fase 19 · E7 — la fila entera, y el panel encima.
+ *
+ * Dos cambios que se prueban acá porque son del listado y no de la ficha:
+ * que cualquier parte de la fila abra el panel —sin pisar a los controles que
+ * viven adentro— y que abrirlo no toque la tabla.
+ */
+describe('La fila entera abre la ficha (Fase 19 · E7)', () => {
+  const fila = (n: number) => screen.getByText(`CLI0000${n}`).closest('tr')!
+
+  it('el click en una celda cualquiera abre la ficha, no sólo el del nombre', async () => {
+    estado.filas = [cliente(1)]
+    montar()
+    // El CUIT: una celda de texto, sin ningún link adentro.
+    fireEvent.click(screen.getByText('30-71234567-1'))
+    expect(await screen.findByRole('complementary')).toBeInTheDocument()
+    await waitFor(() => expect(ficha360).toHaveBeenCalledWith('c1', 12))
+  })
+
+  it('el click en el espacio vacío de la fila también', async () => {
+    estado.filas = [cliente(1)]
+    montar()
+    fireEvent.click(fila(1))
+    expect(await screen.findByRole('complementary')).toBeInTheDocument()
+  })
+
+  it('pero el checkbox de exportar NO abre nada: marca y punto', async () => {
+    estado.filas = [cliente(1)]
+    montar()
+    const check = screen.getByRole('checkbox', { name: /Seleccionar ZZ Cliente 1 SA/ })
+    fireEvent.click(check)
+    expect(check).toBeChecked()
+    await waitFor(() => expect(ficha360).not.toHaveBeenCalled())
+    expect(screen.queryByRole('complementary')).toBeNull()
+  })
+
+  it('con un modificador no se intercepta: Ctrl+click sobre la fila no abre el panel', () => {
+    estado.filas = [cliente(1)]
+    montar()
+    fireEvent.click(fila(1), { ctrlKey: true })
+    expect(screen.queryByRole('complementary')).toBeNull()
+  })
+
+  it('con el teclado: la fila se enfoca y Enter o Espacio la abren', async () => {
+    estado.filas = [cliente(1)]
+    montar()
+    expect(fila(1)).toHaveAttribute('tabindex', '0')
+    fireEvent.keyDown(fila(1), { key: 'Enter' })
+    expect(await screen.findByRole('complementary')).toBeInTheDocument()
+  })
+
+  it('Espacio sobre el checkbox enfocado es del checkbox, no de la fila', async () => {
+    estado.filas = [cliente(1)]
+    montar()
+    const check = screen.getByRole('checkbox', { name: /Seleccionar ZZ Cliente 1 SA/ })
+    fireEvent.keyDown(check, { key: ' ' })
+    await waitFor(() => expect(ficha360).not.toHaveBeenCalled())
+  })
+
+  it('la fila abierta se marca a sí misma, para saber qué se está mirando', async () => {
+    estado.filas = [cliente(1), cliente(2)]
+    montar('/clientes?cliente=c2')
+    await screen.findByRole('complementary')
+    expect(fila(2)).toHaveAttribute('aria-current', 'true')
+    expect(fila(1)).not.toHaveAttribute('aria-current')
+  })
+
+  /**
+   * El panel se superpone: la tabla queda igual.
+   *
+   * En jsdom no hay layout —todo mide cero— así que lo que se puede afirmar
+   * es lo que CAUSA el reacomodo: que el contenedor de la tabla no cambie de
+   * clases al abrir el panel, y que el panel no sea hermano de la tabla
+   * dentro de un flex. La medición real está en el informe de la entrega:
+   * 1135 px con el panel cerrado y 1135 con el panel abierto, a 1440.
+   */
+  it('abrir el panel no le cambia una clase a la tabla', async () => {
+    estado.filas = [cliente(1)]
+    const { unmount } = montar()
+    const antes = screen.getByRole('table').parentElement!.className
+    unmount()
+
+    montar('/clientes?cliente=c1')
+    await screen.findByRole('complementary')
+    expect(screen.getByRole('table').parentElement!.className).toBe(antes)
+  })
+})

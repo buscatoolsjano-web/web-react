@@ -1,0 +1,66 @@
+/* Las tarjetas compactas: lo que se lee después del KPI.
+   Dos columnas en el cajón angosto, cuatro cuando hay lugar. La grilla no se
+   define por breakpoint sino por el ancho disponible: el mismo componente se
+   usa adentro de un cajón de 520 px y de una hoja de 375. */
+.grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: var(--space-2);
+}
+
+.tarjeta {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  /* Dos líneas como mucho, y siempre las mismas dos: las cuatro tarjetas
+     tienen que quedar del mismo alto aunque un título sea más largo. */
+  min-height: 2.4em;
+}
+
+.valor {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xl);
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Un cero es un dato y se muestra, pero no compite con los números que sí
+   tienen algo adentro. */
+.valorCero {
+  composes: valor;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.valorTexto {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.valorVacio {
+  composes: valorTexto;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.detalle {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}

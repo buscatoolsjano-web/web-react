@@ -65,6 +65,7 @@ const ficha = (cambios: Partial<Cliente360> = {}): Cliente360 => ({
       { clave: 'vendido_mes', moneda: 'USD', documentos: 2, importe: 6606.84 },
       { clave: 'vendido_mes_anterior', moneda: 'USD', documentos: 1, importe: 5589 },
       { clave: 'cotizado_mes', moneda: 'USD', documentos: 3, importe: 9000 },
+      { clave: 'cotizado_mes_anterior', moneda: 'USD', documentos: 2, importe: 7612.19 },
       { clave: 'cotizaciones_abiertas', moneda: 'USD', documentos: 4, importe: 12000 },
       { clave: 'pedidos_por_entregar', moneda: 'USD', documentos: 1, importe: 800 },
     ],
@@ -156,7 +157,7 @@ describe('Un cliente con datos', () => {
     montar()
 
     expect(await screen.findByRole('heading', { name: 'ZZ Mirgor SA' })).toBeInTheDocument()
-    expect(screen.getByText('30-71234567-1 · CLI00001 · Electrónica')).toBeInTheDocument()
+    expect(screen.getByText('CLI00001 · 30-71234567-1 · Electrónica')).toBeInTheDocument()
     expect(screen.getByText('ZZ Ana')).toBeInTheDocument()
     expect(screen.getByText('ZZ Vendedor')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Abrir ficha' })).toHaveAttribute('href', '/clientes/cli-1')
@@ -203,13 +204,24 @@ describe('Un cliente con datos', () => {
   })
 })
 
-describe('Monedas', () => {
-  /**
-   * Las consultas se acotan a la sección de KPIs: los mismos importes también
-   * aparecen en la tabla accesible del gráfico, y ahí estar repetidos está
-   * bien. Lo que se prueba acá es qué dicen las tarjetas.
-   */
-  const tarjetas = async () => screen.findByRole('region', { name: /En septiembre/ })
+/**
+ * El KPI protagonista (Fase 19 · E7).
+ *
+ * Es «cotizado» y no «vendido» ni «facturado»: no hay fuente fiscal
+ * productiva, y un número con la etiqueta equivocada se usa para decidir
+ * igual que uno correcto.
+ */
+describe('Cotizado este mes', () => {
+  const bloque = async () => screen.findByRole('region', { name: /Cotizado en septiembre/ })
+
+  it('es el número grande de la ficha, con su moneda', async () => {
+    servicio.cliente360.mockResolvedValue(ficha())
+    montar()
+    const kpi = within(await bloque())
+    expect(kpi.getByText('USD 9.000,00')).toBeInTheDocument()
+    // Y no se le dice «vendido» ni «facturado» a algo que son cotizaciones.
+    expect(document.body).not.toHaveTextContent(/Facturado|Vendido este mes/i)
+  })
 
   it('con dos monedas muestra las dos, NUNCA la suma', async () => {
     servicio.cliente360.mockResolvedValue(
@@ -218,17 +230,17 @@ describe('Monedas', () => {
           mes: '2026-09-01',
           mesAnterior: '2026-08-01',
           valores: [
-            { clave: 'vendido_mes', moneda: 'USD', documentos: 1, importe: 6606.84 },
-            { clave: 'vendido_mes', moneda: 'ARS', documentos: 1, importe: 1_240_000 },
+            { clave: 'cotizado_mes', moneda: 'USD', documentos: 1, importe: 6606.84 },
+            { clave: 'cotizado_mes', moneda: 'ARS', documentos: 1, importe: 1_240_000 },
           ],
         },
       }),
     )
     montar()
 
-    const kpis = within(await tarjetas())
-    expect(kpis.getByText('USD 6.606,84')).toBeInTheDocument()
-    expect(kpis.getByText('ARS 1.240.000,00')).toBeInTheDocument()
+    const kpi = within(await bloque())
+    expect(kpi.getByText('USD 6.606,84')).toBeInTheDocument()
+    expect(kpi.getByText('ARS 1.240.000,00')).toBeInTheDocument()
     // 1.246.606,84 sería la suma. No puede estar en ningún lado de la pantalla.
     expect(screen.queryByText(/1\.246\.606/)).not.toBeInTheDocument()
   })
@@ -236,17 +248,44 @@ describe('Monedas', () => {
   it('con una sola moneda no complica la pantalla', async () => {
     servicio.cliente360.mockResolvedValue(ficha())
     montar()
-    const kpis = within(await tarjetas())
-    expect(kpis.getByText('USD 6.606,84')).toBeInTheDocument()
-    expect(kpis.queryByText(/ARS/)).not.toBeInTheDocument()
+    const kpi = within(await bloque())
+    expect(kpi.queryByText(/ARS/)).not.toBeInTheDocument()
+  })
+
+  it('sin cotizaciones este mes lo dice, y no inventa un cero', async () => {
+    servicio.cliente360.mockResolvedValue(
+      ficha({ kpis: { mes: '2026-09-01', mesAnterior: '2026-08-01', valores: [] } }),
+    )
+    montar()
+    const kpi = within(await bloque())
+    expect(kpi.getByText('Sin cotizaciones este mes')).toBeInTheDocument()
+    expect(kpi.queryByText('USD 0,00')).not.toBeInTheDocument()
   })
 })
 
 describe('La comparación con el mes anterior', () => {
-  it('muestra la variación cuando hay con qué comparar', async () => {
+  it('dice cuánto subió y contra qué mes, no sólo con color', async () => {
     servicio.cliente360.mockResolvedValue(ficha())
     montar()
-    expect(await screen.findByText(/\+18,2 %/)).toBeInTheDocument()
+    // 9.000 contra 7.612,19 es +18,2 %. Y se nombra el mes: «vs. agosto».
+    expect(await screen.findByText(/\+18,2 % vs\. agosto/)).toBeInTheDocument()
+  })
+
+  it('cuando baja también se lee, sin depender del rojo', async () => {
+    servicio.cliente360.mockResolvedValue(
+      ficha({
+        kpis: {
+          mes: '2026-09-01',
+          mesAnterior: '2026-08-01',
+          valores: [
+            { clave: 'cotizado_mes', moneda: 'USD', documentos: 1, importe: 5000 },
+            { clave: 'cotizado_mes_anterior', moneda: 'USD', documentos: 2, importe: 10000 },
+          ],
+        },
+      }),
+    )
+    montar()
+    expect(await screen.findByText(/−50 % vs\. agosto/)).toBeInTheDocument()
   })
 
   it('el mes anterior en cero NO se muestra como infinito ni como +100 %', async () => {
@@ -255,7 +294,7 @@ describe('La comparación con el mes anterior', () => {
         kpis: {
           mes: '2026-09-01',
           mesAnterior: '2026-08-01',
-          valores: [{ clave: 'vendido_mes', moneda: 'USD', documentos: 1, importe: 5000 }],
+          valores: [{ clave: 'cotizado_mes', moneda: 'USD', documentos: 1, importe: 5000 }],
         },
       }),
     )
@@ -265,17 +304,73 @@ describe('La comparación con el mes anterior', () => {
   })
 })
 
+describe('Las tarjetas de pendientes', () => {
+  it('cuentan documentos y muestran los importes por moneda', async () => {
+    servicio.cliente360.mockResolvedValue(ficha())
+    montar()
+    await screen.findByRole('heading', { name: 'ZZ Mirgor SA' })
+    expect(screen.getByText('Cotizaciones abiertas')).toBeInTheDocument()
+    expect(screen.getByText('4')).toBeInTheDocument()
+    expect(screen.getByText('USD 12.000,00')).toBeInTheDocument()
+    expect(screen.getByText('Pedidos por entregar')).toBeInTheDocument()
+  })
+
+  /**
+   * Acá se prueba que la tarjeta diga hace cuánto **y** de qué documento; la
+   * cuenta de días es de `haceCuanto`, y se prueba con fechas fijas en
+   * `formato.test.ts`. Congelar el reloj con `vi.useFakeTimers` acá rompería
+   * los `findBy*`, que esperan con temporizadores.
+   */
+  it('la última actividad se dice en tiempo, y con qué documento fue', async () => {
+    servicio.cliente360.mockResolvedValue(ficha())
+    montar()
+    await screen.findByRole('heading', { name: 'ZZ Mirgor SA' })
+    expect(screen.getByText('Última actividad')).toBeInTheDocument()
+    expect(screen.getByText(/^(Hoy|Ayer|Hace |Con fecha futura)/)).toBeInTheDocument()
+    expect(screen.getByText(/Cotización COTI02543 · 10\/09\/2026/)).toBeInTheDocument()
+  })
+})
+
+describe('El histórico reciente', () => {
+  it('cada documento es un link a su detalle', async () => {
+    servicio.cliente360.mockResolvedValue(ficha())
+    montar()
+    expect(await screen.findByRole('link', { name: /COTI02543/ })).toHaveAttribute(
+      'href',
+      '/ventas/cotizaciones/q1',
+    )
+    expect(screen.getByRole('link', { name: /PDV01321/ })).toHaveAttribute('href', '/ventas/pedidos/o1')
+  })
+
+  it('no mezcla monedas: cada línea lleva la suya', async () => {
+    servicio.cliente360.mockResolvedValue(
+      ficha({
+        recientes: [
+          { tipo: 'cotizacion', id: 'q1', numero: 'COTI1', fecha: '2026-09-10', estado: 'sent', entrega: null, moneda: 'USD', total: 100 },
+          { tipo: 'cotizacion', id: 'q2', numero: 'COTI2', fecha: '2026-09-09', estado: 'sent', entrega: null, moneda: 'ARS', total: 200 },
+        ],
+      }),
+    )
+    montar()
+    expect(await screen.findByText('USD 100,00')).toBeInTheDocument()
+    expect(screen.getByText('ARS 200,00')).toBeInTheDocument()
+    expect(screen.queryByText(/^300/)).not.toBeInTheDocument()
+  })
+})
+
 describe('Un cliente sin nada', () => {
-  it('no rompe, y lo dice con palabras', async () => {
+  it('no muestra un tablero en cero: lo dice con palabras y deja las acciones', async () => {
     servicio.cliente360.mockResolvedValue(vacia())
     montar()
 
     expect(await screen.findByRole('heading', { name: 'ZZ Mirgor SA' })).toBeInTheDocument()
-    expect(screen.getByText('Todavía no tiene documentos.')).toBeInTheDocument()
-    expect(screen.getByText('Todavía no cotizó ni pidió ningún producto.')).toBeInTheDocument()
+    expect(screen.getByText('Sin actividad comercial registrada')).toBeInTheDocument()
     expect(screen.getByText('Sin contacto principal')).toBeInTheDocument()
     expect(screen.getByText('Sin asignar')).toBeInTheDocument()
-    expect(screen.getAllByText('Sin movimientos').length).toBeGreaterThan(0)
+    expect(screen.getByRole('link', { name: 'Abrir ficha' })).toBeInTheDocument()
+    // Ni un cero suelto, ni un gráfico vacío, ni un importe inventado.
+    expect(screen.queryByText(/USD|ARS/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /Cotizado en/ })).toBeNull()
   })
 })
 

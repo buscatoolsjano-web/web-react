@@ -43,7 +43,7 @@
 
 .nombre {
   margin: 0;
-  font-size: var(--text-lg);
+  font-size: var(--text-xl);
   font-weight: 600;
   line-height: 1.25;
   overflow-wrap: anywhere;
@@ -109,14 +109,6 @@
   font-size: var(--text-sm);
 }
 
-/* ── Acciones ─────────────────────────────────────────────────────────── */
-
-.acciones {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
 .motivo {
   margin: 0;
   font-size: var(--text-xs);
@@ -139,63 +131,6 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted);
-}
-
-/* ── Recientes ────────────────────────────────────────────────────────── */
-
-.lista {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.item {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 2px var(--space-2);
-  align-items: baseline;
-  padding: var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  min-width: 0;
-}
-
-.itemEnlace {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  color: inherit;
-}
-
-.itemTitulo {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-
-.itemNumero {
-  font-weight: 600;
-  color: var(--color-primary-text);
-  overflow-wrap: anywhere;
-}
-
-.itemMeta {
-  grid-column: 1;
-  font-size: var(--text-sm);
-  color: var(--text-soft);
-  font-variant-numeric: tabular-nums;
-}
-
-.itemEstado {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  justify-content: flex-end;
-  align-content: center;
 }
 
 .pie {
@@ -240,4 +175,51 @@
 
 .origen {
   color: var(--text-muted);
+}
+
+/* ── Identidad: el contacto, compacto ─────────────────────────────────── */
+
+.contactoNombre {
+  font-weight: 600;
+}
+
+/* ── El cliente sin un solo documento ─────────────────────────────────── */
+
+/* Ni tablero en cero ni pantalla vacía: se dice lo que pasa y se deja a la
+   vista lo único accionable, que son los botones de abajo. */
+.sinActividad {
+  padding: var(--space-4);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-alt);
+}
+
+.sinActividadTitulo {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.sinActividadTexto {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+/* ── Acciones, pegadas abajo ──────────────────────────────────────────── */
+
+/* El panel es largo: si las acciones se van con el scroll, «Nueva cotización»
+   deja de existir para quien esté mirando el gráfico. Quedan apoyadas en el
+   piso del cajón. */
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  position: sticky;
+  bottom: calc(var(--space-4) * -1);
+  padding: var(--space-3) 0;
+  margin-top: auto;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 1;
 }

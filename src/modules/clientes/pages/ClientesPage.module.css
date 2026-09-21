@@ -5,22 +5,9 @@
   min-width: 0;
 }
 
-/* Master/detail sólo desde 1280 px.
-   Abajo de eso la ficha se muestra como hoja a pantalla completa (lo resuelve
-   `PanelLateralCliente`), así que acá el listado ocupa todo: dos columnas en
-   1024 px dejaban el listado en 316 px —medido— y eso no es un listado. */
-@media (min-width: 1280px) {
-  .conPanel {
-    display: flex;
-    gap: var(--space-4);
-    align-items: flex-start;
-  }
-
-  /* El listado cede el ancho que necesita el panel, pero no desaparece:
-     `min-width: 0` es lo que permite que la tabla se encoja en vez de
-     desbordar el contenedor. */
-  .conPanel .listado {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-}
+/* Fase 19 · E7: acá NO hay nada que repartir.
+   La ficha rápida se superpone (`position: fixed`, en
+   `PanelLateralCliente.module.css`), así que el listado ocupa el mismo ancho
+   con el panel abierto y cerrado. Antes esto era un `display: flex` de dos
+   columnas y abrir la ficha dejaba la tabla en 625 px de los 1135 que tenía:
+   columnas recalculadas y la fila que se estaba mirando corrida de lugar. */

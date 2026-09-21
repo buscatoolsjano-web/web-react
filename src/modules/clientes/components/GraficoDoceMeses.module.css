@@ -1,16 +1,14 @@
-/* Las tres series, con color propio y explícito.
-   La primera versión sacaba «pedido» de `--primary` y «entregado» de
-   `--color-success`, que parecía lo correcto —usar los tokens— y estaba mal:
-   `--primary` cambia con el preset de apariencia, y en «grafito» vale
-   #94a3b8, exactamente el gris que tenía «cotizado». Dos series del mismo
-   color. Una paleta categórica no puede depender del acento del tema, porque
-   el acento puede caer en cualquier lado.
-   El color tampoco es la única señal: hay leyenda, orden fijo de las barras y
-   la tabla de «Ver los números». */
+/* Una serie por vez, con color propio y explícito.
+   El color de las barras NO sale del acento del tema: el acento cambia con el
+   preset de apariencia y en «grafito» vale #94a3b8, el mismo gris que el
+   texto secundario. Una barra tiene que verse igual de legible con cualquier
+   tema.
+   Y el color no es la única señal: está el título, la escala escrita, el
+   tooltip de cada mes y la tabla de «Ver los números». */
 .wrap {
-  --serie-cotizado: #64748b;
-  --serie-pedido: #2563eb;
-  --serie-entregado: #15803d;
+  --barra: #64748b;
+  --barra-sube: #15803d;
+  --barra-baja: #b91c1c;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -18,9 +16,9 @@
 }
 
 [data-theme='dark'] .wrap {
-  --serie-cotizado: #94a3b8;
-  --serie-pedido: #60a5fa;
-  --serie-entregado: #4ade80;
+  --barra: #94a3b8;
+  --barra-sube: #4ade80;
+  --barra-baja: #f87171;
 }
 
 .controles {
@@ -94,30 +92,6 @@
   font-weight: 600;
 }
 
-.leyenda {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-xs);
-  color: var(--text-soft);
-}
-
-.leyendaItem {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.muestra {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  display: inline-block;
-}
-
 .grafico {
   width: 100%;
   height: 180px;
@@ -139,19 +113,44 @@
   fill: var(--surface-alt);
 }
 
-.cotizado {
-  fill: var(--serie-cotizado);
-  background: var(--serie-cotizado);
+/* Las once barras anteriores son del mismo color: la forma cuenta la
+   historia, no la paleta. */
+.barra {
+  fill: var(--barra);
 }
 
-.pedido {
-  fill: var(--serie-pedido);
-  background: var(--serie-pedido);
+/* Un mes sin movimientos deja su resto sobre el eje: «no hubo nada» y «no hay
+   dato» no se pueden ver igual. */
+.vacia {
+  fill: var(--border);
 }
 
-.entregado {
-  fill: var(--serie-entregado);
-  background: var(--serie-entregado);
+/* El mes en curso, y SÓLO ése, se pinta según la dirección contra el mes
+   anterior. Verde es que subió, rojo que bajó: es la dirección de la métrica,
+   no un juicio sobre el cliente. */
+.sube {
+  fill: var(--barra-sube);
+}
+
+.baja {
+  fill: var(--barra-baja);
+}
+
+.neutra {
+  fill: var(--barra);
+}
+
+.etiquetaActual {
+  fill: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.escala {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .etiquetaMes {

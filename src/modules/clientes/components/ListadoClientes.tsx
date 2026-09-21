@@ -41,6 +41,47 @@ function interceptar(onAbrir: ((id: string) => void) | undefined, id: string) {
   }
 }
 
+/**
+ * Los controles que se manejan solos.
+ *
+ * Un click acá adentro es del control, no de la fila: marcar el checkbox de
+ * exportar no puede abrir la ficha, y el link del nombre ya la abre por su
+ * cuenta (conservando Ctrl+click y «abrir en pestaña nueva»).
+ */
+const CONTROLES = 'a, button, input, select, textarea, label, [role="button"], [role="link"]'
+
+/**
+ * Fase 19 · E7: **la fila entera abre la ficha rápida.**
+ *
+ * Antes había que acertarle al nombre. El resto de la fila —la referencia, el
+ * CUIT, el email, el espacio vacío— no hacía nada, y eso no se ve: se
+ * descubre haciendo click y que no pase nada.
+ */
+function filaClickeable(onAbrir: ((id: string) => void) | undefined, id: string) {
+  if (!onAbrir) return {}
+  return {
+    // Enfocable, para que Enter y Espacio también abran (§1).
+    tabIndex: 0,
+    onClick: (e: React.MouseEvent<HTMLTableRowElement>) => {
+      if (e.defaultPrevented || e.button !== 0) return
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+      if ((e.target as HTMLElement).closest(CONTROLES)) return
+      // Seleccionar un CUIT para copiarlo termina en un click sobre la fila.
+      // Abrir el panel ahí sería robarle la selección a quien la hizo.
+      if ((window.getSelection()?.toString() ?? '') !== '') return
+      e.currentTarget.focus()
+      onAbrir(id)
+    },
+    onKeyDown: (e: React.KeyboardEvent<HTMLTableRowElement>) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return
+      // Con el foco en el checkbox manda el checkbox: Espacio lo marca.
+      if (e.target !== e.currentTarget) return
+      e.preventDefault()
+      onAbrir(id)
+    },
+  }
+}
+
 const COLUMNAS: { clave: OrdenClientes; etiqueta: string }[] = [
   { clave: 'referencia', etiqueta: 'Referencia' },
   { clave: 'nombre', etiqueta: 'Nombre jurídico' },
@@ -139,7 +180,7 @@ export function ListadoClientes({
   }
 
   return (
-    <div className={abierto ? `${tabla.contenedor} ${styles.compacto}` : tabla.contenedor}>
+    <div className={tabla.contenedor}>
       <table className={tabla.tabla}>
         <thead>
           <tr>
@@ -182,13 +223,19 @@ export function ListadoClientes({
             return (
               <tr
                 key={c.id}
-                className={
+                data-fila-cliente={c.id}
+                aria-current={c.id === abierto ? 'true' : undefined}
+                className={[
+                  onAbrirFicha ? styles.fila : '',
                   c.id === abierto
                     ? styles.abierta
                     : seleccionados.has(c.id)
                       ? tabla.seleccionada
-                      : undefined
-                }
+                      : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                {...filaClickeable(onAbrirFicha, c.id)}
               >
                 <td className={tabla.check}>
                   <input

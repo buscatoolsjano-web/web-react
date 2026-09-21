@@ -1,0 +1,85 @@
+/* El KPI protagonista: lo que se lee en el primer segundo. */
+
+.bloque {
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-alt);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* Grande de verdad: es el número que tiene que entrar por los ojos antes de
+   que empiece la lectura. `clamp` porque en 375 px un tipo de 34 px con
+   «ARS 3.236.750,00» adentro se parte en tres líneas. */
+.importe {
+  margin: var(--space-1) 0 0;
+  font-size: clamp(1.75rem, 5vw, 2.25rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.sinMovimiento {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.comparacion {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.comparacionCompacta {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+/* La segunda moneda no compite con la primera, pero se lee entera. */
+.otraMoneda {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--border);
+}
+
+.otroImporte {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dejoDeComprar {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* El color dice la dirección, nunca si el cliente es bueno o malo. */
+.sube {
+  color: var(--color-success-text);
+}
+
+.baja {
+  color: var(--color-danger-text);
+}
+
+.neutra {
+  color: var(--text-muted);
+}

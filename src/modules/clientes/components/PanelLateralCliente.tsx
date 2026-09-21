@@ -11,30 +11,35 @@ export interface PanelLateralClienteProps {
 }
 
 /**
- * El envoltorio de la ficha rápida. Dos formas, una por tamaño de pantalla, y
- * la diferencia entre las dos no es cosmética:
+ * El envoltorio de la ficha rápida: un cajón **superpuesto** al listado.
  *
- * - **desde 1280 px** es un panel al costado que convive con el listado. NO es
- *   un modal: la lista se sigue viendo, se puede seguir filtrando y se puede
- *   clickear otra fila sin cerrar nada. Por eso no atrapa el foco ni deja el
- *   resto de la página `inert` — hacerlo en un panel no modal es un error de
- *   accesibilidad, no una precaución.
- * - **abajo de 1280 px** es una hoja a pantalla completa, y ahí sí es modal:
- *   tapa la lista, así que el foco tiene que quedar adentro y el fondo tiene
- *   que estar inerte.
+ * Fase 19 · E7. Lo importante no es que esté a la derecha: es que no le quita
+ * ancho a la tabla. Antes era una columna, y abrir la ficha reacomodaba el
+ * listado entero —columnas recalculadas, emails recortados, la fila que se
+ * estaba mirando corrida de lugar—. Un panel que existe para no perder el
+ * contexto no puede destruirlo al abrirse.
  *
- * En los dos casos Escape cierra y el foco vuelve a donde estaba.
+ * Dos formas, y la diferencia no es cosmética:
+ *
+ * - **desde 1024 px** es un cajón que se apoya sobre el listado y lo deja ver.
+ *   NO es un modal: se puede seguir filtrando y clickear otra fila sin cerrar
+ *   nada, así que no atrapa el foco ni deja el resto `inert` —hacer eso en un
+ *   panel no modal es un error de accesibilidad, no una precaución.
+ * - **abajo de 1024 px** tapa el listado, y ahí sí es modal: el foco queda
+ *   adentro y el fondo, inerte.
+ *
+ * En los dos casos Escape cierra y el foco vuelve a la fila.
  */
 export function PanelLateralCliente({ clienteId, onCerrar }: PanelLateralClienteProps) {
-  const esAncho = useMediaQuery('(min-width: 1280px)')
+  const esAncho = useMediaQuery('(min-width: 1024px)')
   return esAncho ? (
-    <PanelDeCostado clienteId={clienteId} onCerrar={onCerrar} />
+    <Cajon clienteId={clienteId} onCerrar={onCerrar} />
   ) : (
     <HojaCompleta clienteId={clienteId} onCerrar={onCerrar} />
   )
 }
 
-function PanelDeCostado({ clienteId, onCerrar }: PanelLateralClienteProps) {
+function Cajon({ clienteId, onCerrar }: PanelLateralClienteProps) {
   const idTitulo = useId()
   const caja = useRef<HTMLElement>(null)
   const cerrar = useRef(onCerrar)
@@ -42,12 +47,16 @@ function PanelDeCostado({ clienteId, onCerrar }: PanelLateralClienteProps) {
     cerrar.current = onCerrar
   })
 
-  // Escape cierra, pero sólo si el foco está dentro del panel: si está en la
-  // lista, Escape es de la lista (por ejemplo, para limpiar una búsqueda).
+  /**
+   * Escape cierra desde cualquier lado.
+   *
+   * También con el foco en la lista: el panel está tapando parte de la
+   * pantalla, y quien lo quiere sacar no tiene por qué haber entrado en él
+   * primero. Es la tecla de «sacame esto de encima».
+   */
   useEffect(() => {
     const alTeclado = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      if (!caja.current?.contains(document.activeElement)) return
+      if (e.key !== 'Escape' || e.defaultPrevented) return
       e.preventDefault()
       cerrar.current()
     }
@@ -78,8 +87,10 @@ function PanelDeCostado({ clienteId, onCerrar }: PanelLateralClienteProps) {
       // `complementary` y no `dialog`: acompaña al listado, no lo interrumpe.
       role="complementary"
       tabIndex={-1}
+      data-panel-cliente
     >
       <div className={styles.barra}>
+        <span className={styles.titulo}>Ficha rápida</span>
         <IconButton icon="x" aria-label="Cerrar la ficha rápida" onClick={onCerrar} />
       </div>
       <div className={styles.cuerpo}>
@@ -103,8 +114,10 @@ function HojaCompleta({ clienteId, onCerrar }: PanelLateralClienteProps) {
         aria-modal="true"
         aria-labelledby={idTitulo}
         tabIndex={-1}
+        data-panel-cliente
       >
         <div className={styles.barra}>
+          <span className={styles.titulo}>Ficha rápida</span>
           <IconButton icon="x" aria-label="Cerrar la ficha rápida" onClick={onCerrar} />
         </div>
         <div className={styles.cuerpo}>

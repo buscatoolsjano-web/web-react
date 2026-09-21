@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatearCuit, formatearFecha, formatearImporte, nombreVisible } from './formato'
+import { formatearCuit, formatearFecha, formatearImporte, nombreVisible, haceCuanto } from './formato'
 
 describe('formatearImporte', () => {
   it('un total nulo es una raya, nunca un cero', () => {
@@ -57,5 +57,42 @@ describe('nombreVisible', () => {
   it('sin nombre comercial usa la razón social', () => {
     expect(nombreVisible('Acme S.A.', null)).toBe('Acme S.A.')
     expect(nombreVisible('Acme S.A.', '   ')).toBe('Acme S.A.')
+  })
+})
+
+/**
+ * `haceCuanto` (Fase 19 · E7) — la antigüedad de la última actividad.
+ *
+ * El «hoy» se pasa por parámetro: una función que lea el reloj por dentro no
+ * se puede probar sin congelarlo, y congelar el reloj rompe los `findBy*` de
+ * los tests de componentes.
+ */
+describe('haceCuanto', () => {
+  const hoy = new Date(2026, 8, 21) // 21/09/2026, hora local
+
+  it('los primeros días se dicen con palabras', () => {
+    expect(haceCuanto('2026-09-21', hoy)).toBe('Hoy')
+    expect(haceCuanto('2026-09-20', hoy)).toBe('Ayer')
+    expect(haceCuanto('2026-09-07', hoy)).toBe('Hace 14 días')
+  })
+
+  it('pasado el mes se cuenta en meses: «hace 340 días» no se entiende', () => {
+    expect(haceCuanto('2026-08-01', hoy)).toBe('Hace 2 meses')
+    expect(haceCuanto('2026-07-23', hoy)).toBe('Hace 2 meses')
+    expect(haceCuanto('2025-11-21', hoy)).toBe('Hace 10 meses')
+  })
+
+  it('más de un año se redondea hacia abajo, sin prometer precisión', () => {
+    expect(haceCuanto('2024-06-15', hoy)).toBe('Hace más de 2 años')
+  })
+
+  /** Una cotización cargada con fecha de mañana existe, y «hace −1 días» no. */
+  it('una fecha futura se dice, no se calcula', () => {
+    expect(haceCuanto('2026-09-30', hoy)).toBe('Con fecha futura')
+  })
+
+  it('sin fecha no hay antigüedad que mostrar', () => {
+    expect(haceCuanto(null, hoy)).toBeNull()
+    expect(haceCuanto('', hoy)).toBeNull()
   })
 })

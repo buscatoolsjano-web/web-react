@@ -45,6 +45,34 @@ export function nombreVisible(razonSocial: string, nombreComercial: string | nul
 }
 
 /**
+ * `2026-09-07` → `Hace 14 días`. La antigüedad de la última actividad.
+ *
+ * La fecha la da el servidor; acá sólo se la cuenta contra hoy, que es
+ * presentación. Se dice en días hasta el mes y en meses después: «hace 340
+ * días» obliga a dividir mentalmente por treinta para entender que hace casi
+ * un año que este cliente no compra.
+ */
+export function haceCuanto(iso: string | null, hoy = new Date()): string | null {
+  if (!iso) return null
+  const partes = iso.slice(0, 10).split('-').map(Number)
+  const [a, m, d] = partes
+  if (!a || !m || !d) return null
+  const dias = Math.round(
+    (Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()) - Date.UTC(a, m - 1, d)) / 86_400_000,
+  )
+  // Un documento con fecha futura existe —una cotización cargada con fecha de
+  // mañana— y decir «hace −1 días» sería peor que decir la fecha.
+  if (dias < 0) return 'Con fecha futura'
+  if (dias === 0) return 'Hoy'
+  if (dias === 1) return 'Ayer'
+  if (dias < 31) return `Hace ${dias} días`
+  const meses = Math.round(dias / 30.44)
+  if (meses < 12) return `Hace ${meses} ${meses === 1 ? 'mes' : 'meses'}`
+  const anios = Math.floor(dias / 365.25)
+  return `Hace más de ${anios} ${anios === 1 ? 'año' : 'años'}`
+}
+
+/**
  * `2026-09-16T14:32:10Z` → `16/09/2026 11:32`, en la hora de quien mira.
  *
  * La trazabilidad (Fase 17 · E4) necesita la hora: dos cambios del mismo día

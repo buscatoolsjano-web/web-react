@@ -182,7 +182,7 @@ export function ClientesPage() {
           />
         )
       ) : (
-        <div className={seleccionado ? styles.conPanel : undefined}>
+        <>
           <div className={styles.listado}>
             <ListadoClientes
               filas={filas}
@@ -211,7 +211,7 @@ export function ClientesPage() {
           {seleccionado ? (
             <PanelLateralCliente clienteId={seleccionado} onCerrar={cerrar} />
           ) : null}
-        </div>
+        </>
       )}
     </div>
   )

@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { SkeletonRows } from '@/components/ui/Skeleton'
-import { etiquetaDeMes, mesesHasta, monedasDe, serieDe, type Medida } from '../lib/actividad'
+import { etiquetaDeMes, mesesHasta, monedasDe, serieDe } from '../lib/actividad'
+import { variacion } from '../lib/kpis'
 import { formatearImporte } from '../lib/formato'
 import type { ActividadMensual, TipoDeDocumento } from '../types'
 import styles from './GraficoDoceMeses.module.css'
@@ -8,109 +9,120 @@ import styles from './GraficoDoceMeses.module.css'
 export interface GraficoDoceMesesProps {
   filas: readonly ActividadMensual[]
   cargando: boolean
-  /** Para que dos gráficos en la misma pantalla no compartan estado. */
   meses?: number
 }
 
 interface Serie {
   tipo: TipoDeDocumento
   etiqueta: string
-  clase: string
+  /** Cómo se cuentan los documentos de esta serie en el tooltip. */
+  unidad: [string, string]
 }
 
 /**
  * Las tres series, y qué significa cada una.
  *
- * Esto es lo que el gráfico de la web anterior no decía: mostraba una sola
- * línea de «ventas» sin aclarar si eran cotizaciones, pedidos o entregas, y
- * sumaba las monedas. Una cotización no es una venta —es una oferta que el
- * cliente todavía no aceptó— y llamarle venta infla el número sin que nadie
- * mienta a propósito.
+ * Se mira **una por vez**. El gráfico anterior dibujaba las tres juntas, con
+ * tres colores y treinta y seis barras de 4 px en un panel de 520: se veía
+ * movimiento, no se leía una tendencia. Y lo que se quiere contestar en un
+ * segundo —«¿subió o bajó lo que le cotizamos?»— es de una sola serie.
+ *
+ * Cotizado es la que viene elegida: es la que tiene datos en todos los
+ * clientes y la que mide el esfuerzo comercial. Un pedido depende de que el
+ * cliente acepte; una cotización, de nosotros.
  */
 const SERIES: Serie[] = [
-  { tipo: 'cotizacion', etiqueta: 'Cotizado', clase: styles.cotizado! },
-  { tipo: 'pedido', etiqueta: 'Pedido', clase: styles.pedido! },
-  { tipo: 'entrega', etiqueta: 'Entregado', clase: styles.entregado! },
+  { tipo: 'cotizacion', etiqueta: 'Cotizado', unidad: ['cotización', 'cotizaciones'] },
+  { tipo: 'pedido', etiqueta: 'Pedidos', unidad: ['pedido', 'pedidos'] },
+  { tipo: 'entrega', etiqueta: 'Entregas', unidad: ['entrega', 'entregas'] },
 ]
 
-const MEDIDAS: { valor: Medida; etiqueta: string }[] = [
-  { valor: 'importe', etiqueta: 'Importe' },
-  { valor: 'documentos', etiqueta: 'Documentos' },
+const MESES_LARGOS = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
+
+/** `2026-09-01` → `Septiembre 2026`, para el tooltip, que tiene lugar. */
+function mesLargo(mes: string): string {
+  const [a, m] = mes.split('-').map(Number)
+  return `${MESES_LARGOS[(m ?? 1) - 1] ?? mes} ${a ?? ''}`.trim()
+}
 
 /**
- * Doce meses, las tres series juntas y UNA moneda por vez.
+ * Doce meses, UNA serie y UNA moneda.
  *
- * SVG a mano, sin librería de gráficos: son treinta y seis barras. Traer
- * Recharts o similar para esto suma cientos de kB al bundle de un módulo que
- * ya se carga aparte, y habría que volver a resolver igual el tema difícil,
- * que no es dibujar: es no mezclar monedas ni conceptos.
+ * SVG a mano, sin librería de gráficos: son doce barras. Traer Recharts suma
+ * cientos de kB a un módulo que ya se carga aparte, y habría que resolver
+ * igual lo difícil, que no es dibujar: es no mezclar monedas ni conceptos.
  *
  * El eje de las monedas no se negocia: **nunca hay dos monedas en el mismo
- * gráfico**. Si el cliente compra en pesos y en dólares, se elige cuál se
+ * gráfico**. Si el cliente compra en pesos y en dólares se elige cuál se
  * mira. Una barra que sume ARS con USD no es un número más grande: es un
  * número que no existe.
+ *
+ * El color se usa una sola vez, en el mes en curso, y dice si viene arriba o
+ * abajo del mes anterior. Pintar las doce barras de verde y rojo haría un
+ * semáforo del que no se lee nada.
  */
 export function GraficoDoceMeses({ filas, cargando, meses = 12 }: GraficoDoceMesesProps) {
   const id = useId()
-  const [medida, setMedida] = useState<Medida>('importe')
+  const [tipo, setTipo] = useState<TipoDeDocumento>('cotizacion')
   const [moneda, setMoneda] = useState<string | null | undefined>(undefined)
 
   const monedas = monedasDe(filas)
-  // La moneda por defecto es la que más documentos tiene; después manda lo
-  // que la persona haya elegido.
+  // Por defecto, la moneda con más documentos; después manda lo que se eligió.
   const monedaActiva = moneda === undefined ? (monedas[0] ?? null) : moneda
+  const serie = SERIES.find((s) => s.tipo === tipo)!
 
   if (cargando) return <SkeletonRows rows={3} columns={4} label="Cargando la actividad…" />
   if (filas.length === 0) {
-    return <p className={styles.nota}>Sin documentos en los últimos {meses} meses.</p>
+    return (
+      <p className={styles.nota}>
+        Sin documentos en los últimos {meses} meses. El gráfico aparece con el primero.
+      </p>
+    )
   }
 
   const clavesDeMes = mesesHasta(new Date(), meses)
-  const series = SERIES.map((s) => ({
-    ...s,
-    puntos: serieDe(filas, { tipo: s.tipo, moneda: monedaActiva, medida, meses: clavesDeMes }),
-  }))
-  const maximo = Math.max(...series.flatMap((s) => s.puntos.map((p) => p.valor)), 0)
+  const importes = serieDe(filas, { tipo, moneda: monedaActiva, medida: 'importe', meses: clavesDeMes })
+  const documentos = serieDe(filas, { tipo, moneda: monedaActiva, medida: 'documentos', meses: clavesDeMes })
+  const maximo = Math.max(...importes.map((p) => p.valor), 0)
+  const ultimo = importes.length - 1
+  const actual = importes[ultimo]?.valor ?? 0
+  const previo = importes[ultimo - 1]?.valor ?? 0
+  const direccion = variacion(actual, previo).clase
+
+  const etiquetaMoneda = monedaActiva ?? 'sin moneda'
+  const titulo = `${serie.etiqueta} por mes en ${etiquetaMoneda}`
+
+  const cuantos = (n: number) => `${n} ${n === 1 ? serie.unidad[0] : serie.unidad[1]}`
+  const detalle = (i: number) => {
+    const imp = importes[i]?.valor ?? 0
+    const docs = documentos[i]?.valor ?? 0
+    if (docs === 0) return `${mesLargo(clavesDeMes[i]!)} · sin movimientos`
+    return `${mesLargo(clavesDeMes[i]!)} · ${formatearImporte(imp, monedaActiva)} · ${cuantos(docs)}`
+  }
 
   const ANCHO = 720
-  const ALTO = 210
+  const ALTO = 200
   const PIE = 26
   const util = ALTO - PIE
   const paso = ANCHO / clavesDeMes.length
-  const ancho = Math.min((paso - 8) / SERIES.length, 14)
-
-  const etiquetaMoneda = monedaActiva ?? 'sin moneda'
-  const titulo =
-    medida === 'documentos'
-      ? `Documentos por mes (${etiquetaMoneda})`
-      : `Importe por mes en ${etiquetaMoneda}`
-
-  const legible = (v: number) =>
-    medida === 'documentos'
-      ? `${v} documento${v === 1 ? '' : 's'}`
-      : formatearImporte(v, monedaActiva)
-
-  /** El texto del tooltip de un mes: las tres series juntas. */
-  const detalleDelMes = (i: number) =>
-    [
-      etiquetaDeMes(clavesDeMes[i]!),
-      ...series.map((s) => `${s.etiqueta}: ${legible(s.puntos[i]?.valor ?? 0)}`),
-    ].join(' · ')
+  const ancho = Math.min(paso - 10, 34)
 
   return (
     <div className={styles.wrap}>
       <div className={styles.controles}>
-        <div className={styles.grupo} role="group" aria-label="Qué se mide">
-          {MEDIDAS.map((m) => (
+        <div className={styles.grupo} role="group" aria-label="Qué se mira">
+          {SERIES.map((s) => (
             <button
-              key={m.valor}
+              key={s.tipo}
               type="button"
-              className={m.valor === medida ? styles.chipActivo : styles.chip}
-              aria-pressed={m.valor === medida}
-              onClick={() => setMedida(m.valor)}
+              className={s.tipo === tipo ? styles.chipActivo : styles.chip}
+              aria-pressed={s.tipo === tipo}
+              onClick={() => setTipo(s.tipo)}
             >
-              {m.etiqueta}
+              {s.etiqueta}
             </button>
           ))}
         </div>
@@ -137,79 +149,79 @@ export function GraficoDoceMeses({ filas, cargando, meses = 12 }: GraficoDoceMes
         {titulo}
       </p>
 
-      {/* La leyenda va SIEMPRE con dos o más series: el color solo no alcanza
-          para saber qué es cada barra, y en impresión o con daltonismo no
-          queda nada. */}
-      <ul className={styles.leyenda}>
-        {series.map((s) => (
-          <li key={s.tipo} className={styles.leyendaItem}>
-            <span className={`${styles.muestra} ${s.clase}`} aria-hidden="true" />
-            {s.etiqueta}
-          </li>
-        ))}
-      </ul>
-
       {maximo === 0 ? (
-        <p className={styles.nota}>No hay movimientos en {etiquetaMoneda} en este período.</p>
+        <p className={styles.nota}>
+          No hay {serie.etiqueta.toLowerCase()} en {etiquetaMoneda} en este período.
+        </p>
       ) : (
-        <svg
-          className={styles.grafico}
-          viewBox={`0 0 ${ANCHO} ${ALTO}`}
-          role="img"
-          aria-labelledby={`${id}-titulo`}
-          preserveAspectRatio="none"
-        >
-          <line x1="0" y1={util} x2={ANCHO} y2={util} className={styles.eje} />
-          {clavesDeMes.map((mes, i) => {
-            const base = i * paso + (paso - ancho * SERIES.length) / 2
-            return (
-              <g key={mes}>
-                {/* Una zona de hover por MES, no por barra: el tooltip cuenta
-                    las tres series de ese mes, que es la pregunta real. */}
-                <rect
-                  x={i * paso}
-                  y={0}
-                  width={paso}
-                  height={util}
-                  className={styles.zona}
-                >
-                  <title>{detalleDelMes(i)}</title>
-                </rect>
-                {series.map((s, j) => {
-                  const valor = s.puntos[i]?.valor ?? 0
-                  const alto = maximo === 0 ? 0 : (valor / maximo) * (util - 8)
-                  if (valor <= 0) return null
-                  return (
+        <>
+          {/* La escala, dicha. Un mes enorme achata a los otros once y eso no
+              se puede esconder normalizando en silencio: se muestra cuánto
+              vale el techo del gráfico. */}
+          <p className={styles.escala}>
+            Escala: 0 — {formatearImporte(maximo, monedaActiva)}
+          </p>
+
+          <svg
+            className={styles.grafico}
+            viewBox={`0 0 ${ANCHO} ${ALTO}`}
+            role="img"
+            aria-labelledby={`${id}-titulo`}
+            preserveAspectRatio="none"
+          >
+            <line x1="0" y1={util} x2={ANCHO} y2={util} className={styles.eje} />
+            {clavesDeMes.map((mes, i) => {
+              const valor = importes[i]?.valor ?? 0
+              const alto = (valor / maximo) * (util - 10)
+              const esActual = i === ultimo
+              const clase = esActual ? `${styles.barra} ${claseDireccion(direccion)}` : styles.barra
+              return (
+                <g key={mes}>
+                  <rect x={i * paso} y={0} width={paso} height={util} className={styles.zona}>
+                    <title>{detalle(i)}</title>
+                  </rect>
+                  {valor > 0 ? (
                     <rect
-                      key={s.tipo}
-                      x={base + j * ancho}
-                      y={util - alto}
-                      width={Math.max(ancho - 2, 2)}
-                      height={alto}
-                      className={s.clase}
+                      x={i * paso + (paso - ancho) / 2}
+                      y={util - Math.max(alto, 2)}
+                      width={ancho}
+                      height={Math.max(alto, 2)}
+                      rx="2"
+                      className={clase}
                     >
-                      <title>
-                        {etiquetaDeMes(mes)} · {s.etiqueta}: {legible(valor)}
-                      </title>
+                      <title>{detalle(i)}</title>
                     </rect>
-                  )
-                })}
-                <text
-                  x={i * paso + paso / 2}
-                  y={ALTO - 8}
-                  className={styles.etiquetaMes}
-                  textAnchor="middle"
-                >
-                  {etiquetaDeMes(mes)}
-                </text>
-              </g>
-            )
-          })}
-        </svg>
+                  ) : (
+                    // Un mes sin movimientos no se dibuja vacío: se marca con
+                    // un resto sobre el eje. «No hubo nada» y «no hay dato»
+                    // se ven igual si no se dice cuál es cuál.
+                    <rect
+                      x={i * paso + (paso - ancho) / 2}
+                      y={util - 2}
+                      width={ancho}
+                      height="2"
+                      className={styles.vacia}
+                    >
+                      <title>{detalle(i)}</title>
+                    </rect>
+                  )}
+                  <text
+                    x={i * paso + paso / 2}
+                    y={ALTO - 8}
+                    className={esActual ? styles.etiquetaActual : styles.etiquetaMes}
+                    textAnchor="middle"
+                  >
+                    {etiquetaDeMes(mes)}
+                  </text>
+                </g>
+              )
+            })}
+          </svg>
+        </>
       )}
 
       {/* El mismo dato en texto. Un gráfico no es accesible por sí solo, y en
-          375 px una tabla se lee mejor que treinta y seis barras finitas. */}
+          375 px una tabla se lee mejor que doce barras finitas. */}
       <details className={styles.detalle}>
         <summary className={styles.summary}>Ver los números</summary>
         <div className={styles.scroll}>
@@ -218,11 +230,12 @@ export function GraficoDoceMeses({ filas, cargando, meses = 12 }: GraficoDoceMes
             <thead>
               <tr>
                 <th scope="col">Mes</th>
-                {series.map((s) => (
-                  <th key={s.tipo} scope="col" className={styles.derecha}>
-                    {s.etiqueta}
-                  </th>
-                ))}
+                <th scope="col" className={styles.derecha}>
+                  Importe
+                </th>
+                <th scope="col" className={styles.derecha}>
+                  Documentos
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -231,11 +244,10 @@ export function GraficoDoceMeses({ filas, cargando, meses = 12 }: GraficoDoceMes
                   <th scope="row" className={styles.mes}>
                     {etiquetaDeMes(mes)}
                   </th>
-                  {series.map((s) => (
-                    <td key={s.tipo} className={styles.derecha}>
-                      {legible(s.puntos[i]?.valor ?? 0)}
-                    </td>
-                  ))}
+                  <td className={styles.derecha}>
+                    {formatearImporte(importes[i]?.valor ?? 0, monedaActiva)}
+                  </td>
+                  <td className={styles.derecha}>{documentos[i]?.valor ?? 0}</td>
                 </tr>
               ))}
             </tbody>
@@ -244,9 +256,15 @@ export function GraficoDoceMeses({ filas, cargando, meses = 12 }: GraficoDoceMes
       </details>
 
       <p className={styles.pie}>
-        Cada barra es un mes, un tipo de documento y <strong>una sola moneda</strong>. No se suman
-        entre sí.
+        Cada barra es un mes de <strong>{serie.etiqueta.toLowerCase()}</strong> en{' '}
+        <strong>{etiquetaMoneda}</strong>. Las monedas no se suman entre sí.
       </p>
     </div>
   )
+}
+
+function claseDireccion(clase: string): string {
+  if (clase === 'sube') return styles.sube!
+  if (clase === 'baja') return styles.baja!
+  return styles.neutra!
 }

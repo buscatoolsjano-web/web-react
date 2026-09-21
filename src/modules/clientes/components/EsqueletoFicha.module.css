@@ -1,0 +1,129 @@
+/* El esqueleto copia la geometría de la ficha: mismas cajas, mismos altos,
+   mismos espacios. Cuando llegan los datos no salta nada de lugar. */
+
+.ficha {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.hueso {
+  display: block;
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+  animation: latir 1.4s ease-in-out infinite;
+}
+
+@keyframes latir {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Sin animación cuando la persona pidió que no la haya: un parpadeo constante
+   en media pantalla es exactamente lo que `prefers-reduced-motion` evita. */
+@media (prefers-reduced-motion: reduce) {
+  .hueso {
+    animation: none;
+  }
+}
+
+.cabecera {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.identidad {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.nombre {
+  height: 1.4rem;
+  width: min(70%, 16rem);
+}
+
+.meta {
+  height: 0.85rem;
+  width: min(45%, 11rem);
+}
+
+.contacto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.linea {
+  height: 0.85rem;
+  width: 60%;
+}
+
+.linea:nth-child(2) {
+  width: 40%;
+}
+
+.linea:nth-child(3) {
+  width: 48%;
+}
+
+/* El KPI protagonista: la caja completa, con su importe grande adentro. */
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.kpiTitulo {
+  height: 0.75rem;
+  width: 10rem;
+}
+
+.kpiImporte {
+  height: 2.25rem;
+  width: min(65%, 14rem);
+}
+
+.kpiVariacion {
+  height: 0.9rem;
+  width: 9rem;
+}
+
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: var(--space-2);
+}
+
+.tarjeta {
+  height: 5.5rem;
+}
+
+.grafico {
+  height: 180px;
+}
+
+.historico {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fila {
+  height: 2.25rem;
+}

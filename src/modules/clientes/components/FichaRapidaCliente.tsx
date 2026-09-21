@@ -1,22 +1,22 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { Alert } from '@/components/feedback/Alert'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { LinkButton } from '@/components/ui/LinkButton'
-import { SkeletonRows } from '@/components/ui/Skeleton'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { escribeVentas } from '@/modules/ventas/lib/permisos'
 import { motivoBloqueo } from '@/modules/ventas/lib/autoridad'
 import { useAperturaDeAlta, type AperturaDeAlta } from '@/modules/ventas/hooks/useAperturaDeAlta'
 import { useAutoridadNumeracion } from '@/modules/ventas/hooks/useAutoridadNumeracion'
 import { useCliente360 } from '../hooks/useCliente360'
-import { nombreDelMes } from '../lib/kpis'
 import { formatearCuit, formatearFecha, formatearImporte, nombreVisible } from '../lib/formato'
-import type { Cliente360, DocumentoReciente, TipoDeDocumento } from '../types'
+import type { Cliente360 } from '../types'
+import { EsqueletoFicha } from './EsqueletoFicha'
 import { GraficoDoceMeses } from './GraficoDoceMeses'
-import { KpisComerciales } from './KpisComerciales'
+import { HistorialReciente } from './HistorialReciente'
+import { KpiProtagonista } from './KpiProtagonista'
+import { TarjetasDelCliente } from './TarjetasDelCliente'
 import styles from './FichaRapidaCliente.module.css'
 
 export interface FichaRapidaClienteProps {
@@ -25,54 +25,25 @@ export interface FichaRapidaClienteProps {
   tituloId?: string
 }
 
-const RUTA: Record<TipoDeDocumento, string> = {
-  cotizacion: '/ventas/cotizaciones',
-  pedido: '/ventas/pedidos',
-  entrega: '/ventas/entregas',
-}
-
-const TITULO_DOC: Record<TipoDeDocumento, string> = {
-  cotizacion: 'Última cotización',
-  pedido: 'Último pedido',
-  entrega: 'Última nota de entrega',
-}
-
-/** Los estados que devuelve la base, en castellano y sin inventar ninguno. */
-const ESTADO: Record<string, string> = {
-  draft: 'Borrador',
-  sent: 'Enviada',
-  accepted: 'Aceptada',
-  rejected: 'Rechazada',
-  expired: 'Vencida',
-  confirmed: 'Confirmado',
-  cancelled: 'Cancelado',
-  pending: 'Pendiente',
-  partially_reserved: 'Reservado en parte',
-  reserved: 'Reservado',
-  partially_delivered: 'Entregado en parte',
-  delivered: 'Entregado',
-  shipped: 'Despachado',
-}
-
-const tono = (estado: string | null): 'neutral' | 'success' | 'warning' | 'danger' => {
-  if (estado === 'accepted' || estado === 'confirmed' || estado === 'delivered') return 'success'
-  if (estado === 'rejected' || estado === 'cancelled' || estado === 'expired') return 'danger'
-  if (estado === 'sent' || estado === 'pending' || estado === 'partially_delivered') return 'warning'
-  return 'neutral'
-}
-
 /** La inicial del nombre. Un avatar sin foto es una letra, no un ícono genérico. */
 function inicial(nombre: string): string {
   return (nombre.trim()[0] ?? '?').toUpperCase()
 }
 
 /**
- * La ficha rápida de un cliente.
+ * La ficha rápida: un tablero comercial del cliente, no una planilla de datos.
  *
- * Contesta siete preguntas en cinco segundos —quién es, cuánto compra, qué
- * está pasando, qué compró, qué queda pendiente, quién lo atiende y cómo llego
- * a la ficha completa— y **no es la ficha completa comprimida**: no edita, no
- * tiene nueve pestañas y no trae el historial entero.
+ * Fase 19 · E7. La pregunta que tiene que contestar no es «¿están todos los
+ * campos?» sino **«¿entiendo a este cliente en un segundo?»**, y por eso lo
+ * que manda es la jerarquía:
+ *
+ *   1 segundo  · quién es y cuánto le cotizamos este mes, con la tendencia;
+ *   3 segundos · qué quedó abierto, qué falta entregar, hace cuánto que no aparece;
+ *   10 segundos· el gráfico de doce meses y los últimos documentos.
+ *
+ * La versión anterior tenía los mismos datos y ninguna jerarquía: cuatro
+ * tarjetas del mismo tamaño, tres líneas de contacto arriba de todo y los
+ * importes al final. Se podía leer, pero había que leerla entera.
  *
  * Es un componente suelto a propósito. Hoy lo abre el listado de Clientes;
  * mañana lo abren la cotización, el pedido, el remito y la bandeja de
@@ -104,13 +75,10 @@ export function FichaRapidaCliente({ clienteId, tituloId }: FichaRapidaClientePr
     )
   }
 
-  if (isPending) {
-    return (
-      <div className={styles.estado}>
-        <SkeletonRows rows={6} columns={2} label="Cargando la ficha del cliente…" />
-      </div>
-    )
-  }
+  // El esqueleto tiene la MISMA geometría que la ficha: encabezado, KPI,
+  // tarjetas, gráfico e histórico. Un spinner centrado haría saltar todo de
+  // lugar cuando llegan los datos.
+  if (isPending) return <EsqueletoFicha tituloId={tituloId} />
 
   if (data === null) {
     return (
@@ -150,10 +118,26 @@ interface ContenidoProps {
   rol: string | null
 }
 
-function Contenido({ data, tituloId, copiado, setCopiado, stel, cargandoAutoridad, apertura, rol }: ContenidoProps) {
+function Contenido({
+  data,
+  tituloId,
+  copiado,
+  setCopiado,
+  stel,
+  cargandoAutoridad,
+  apertura,
+  rol,
+}: ContenidoProps) {
   const { cliente, comercial, kpis, totales } = data
   const nombre = nombreVisible(cliente.razonSocial, cliente.nombreComercial)
-  const mes = nombreDelMes(kpis.mes)
+  /**
+   * Un cliente sin un solo documento no es un tablero en cero.
+   *
+   * Mostrarle «USD 0 · 0 · 0 · 0» y un gráfico vacío hace pensar que la
+   * pantalla se rompió, y encima esconde lo único que importa de un cliente
+   * así: quién es y qué se puede hacer con él.
+   */
+  const sinActividad = totales.ultimaActividad === null && data.recientes.length === 0
 
   // «Nuevo pedido» NO está: la Fase 19 habilita primero la cotización (§40) y
   // un botón que lleva a una pantalla que la base va a rechazar no es una
@@ -177,7 +161,7 @@ function Contenido({ data, tituloId, copiado, setCopiado, stel, cargandoAutorida
 
   return (
     <div className={styles.ficha}>
-      {/* ── Cabecera ───────────────────────────────────────────────────── */}
+      {/* ── 1 · identidad ──────────────────────────────────────────────── */}
       <header className={styles.cabecera}>
         <span className={styles.avatar} aria-hidden="true">
           {inicial(nombre)}
@@ -190,8 +174,10 @@ function Contenido({ data, tituloId, copiado, setCopiado, stel, cargandoAutorida
             <p className={styles.razonSocial}>{cliente.razonSocial}</p>
           ) : null}
           <p className={styles.meta}>
-            {formatearCuit(cliente.cuit)}
-            {cliente.referencia ? ` · ${cliente.referencia}` : ''}
+            {/* «Sin CUIT» y no una raya: en la línea de identidad una raya se
+                lee como un separador más, no como un dato que falta. */}
+            {cliente.referencia ?? 'Sin referencia'} ·{' '}
+            {cliente.cuit ? formatearCuit(cliente.cuit) : 'Sin CUIT'}
             {cliente.rubro ? ` · ${cliente.rubro}` : ''}
           </p>
           {cliente.dadoDeBaja || cliente.necesitaRevision ? (
@@ -211,14 +197,15 @@ function Contenido({ data, tituloId, copiado, setCopiado, stel, cargandoAutorida
         </div>
       </header>
 
+      {/* Lo administrativo va compacto y en una línea: es necesario, no es lo
+          que se viene a mirar. Antes se llevaba tres filas arriba del todo. */}
       <dl className={styles.contacto}>
         <div>
           <dt>Contacto</dt>
           <dd>
             {comercial.contacto ? (
               <>
-                {comercial.contacto.nombre}
-                {comercial.contacto.rol ? <span className={styles.rol}> · {comercial.contacto.rol}</span> : null}
+                <span className={styles.contactoNombre}>{comercial.contacto.nombre}</span>
                 {comercial.contacto.email ? (
                   <a className={styles.enlace} href={`mailto:${comercial.contacto.email}`}>
                     {comercial.contacto.email}
@@ -240,7 +227,74 @@ function Contenido({ data, tituloId, copiado, setCopiado, stel, cargandoAutorida
         </div>
       </dl>
 
-      {/* ── Acciones ───────────────────────────────────────────────────── */}
+      {sinActividad ? (
+        <section className={styles.sinActividad}>
+          <p className={styles.sinActividadTitulo}>Sin actividad comercial registrada</p>
+          <p className={styles.sinActividadTexto}>
+            Este cliente todavía no tiene cotizaciones, pedidos ni notas de entrega. Cuando tenga
+            el primero, acá van a aparecer el cotizado del mes, la tendencia y los documentos.
+          </p>
+        </section>
+      ) : (
+        <>
+          {/* ── 2 · el número protagonista ───────────────────────────────── */}
+          <KpiProtagonista valores={kpis.valores} mes={kpis.mes} mesAnterior={kpis.mesAnterior} />
+
+          {/* ── 3 · pendientes y oportunidades ───────────────────────────── */}
+          <TarjetasDelCliente data={data} />
+
+          {/* ── 4 · tendencia ────────────────────────────────────────────── */}
+          <section className={styles.seccion} aria-labelledby="ficha-grafico">
+            <h3 className={styles.tituloSeccion} id="ficha-grafico">
+              Actividad · últimos 12 meses
+            </h3>
+            <GraficoDoceMeses filas={data.meses} cargando={false} />
+          </section>
+
+          {/* ── 5 · histórico reciente ───────────────────────────────────── */}
+          <section className={styles.seccion} aria-labelledby="ficha-recientes">
+            <h3 className={styles.tituloSeccion} id="ficha-recientes">
+              Histórico reciente
+            </h3>
+            <HistorialReciente documentos={data.recientes} />
+            <p className={styles.pie}>
+              En total: {totales.cotizaciones} cotizaciones · {totales.pedidos} pedidos ·{' '}
+              {totales.entregas} entregas. Última actividad{' '}
+              {formatearFecha(totales.ultimaActividad)}.
+            </p>
+          </section>
+
+          {/* ── 6 · productos ────────────────────────────────────────────── */}
+          {data.productos.length > 0 ? (
+            <section className={styles.seccion} aria-labelledby="ficha-productos">
+              <h3 className={styles.tituloSeccion} id="ficha-productos">
+                Últimos productos
+              </h3>
+              <ul className={styles.productos}>
+                {data.productos.map((p) => (
+                  <li key={`${p.productId ?? p.sku}`} className={styles.producto}>
+                    <span className={styles.sku}>{p.sku ?? '—'}</span>
+                    <span className={styles.productoNombre}>{p.nombre ?? 'Sin nombre'}</span>
+                    <span className={styles.productoMeta}>
+                      {formatearFecha(p.fecha)}
+                      {p.cantidad !== null ? ` · ${p.cantidad} u.` : ''}
+                      {p.precio !== null ? ` · ${formatearImporte(p.precio, p.moneda)}` : ''}
+                      {/* De dónde salió el precio importa: uno cerrado en un
+                          pedido no es lo mismo que uno ofrecido en una
+                          cotización. */}
+                      <span className={styles.origen}>
+                        {p.origen === 'pedido' ? ' (pedido)' : ' (cotizado)'}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </>
+      )}
+
+      {/* ── 7 · acciones ───────────────────────────────────────────────── */}
       <div className={styles.acciones}>
         <LinkButton to={`/clientes/${cliente.id}`} variant="primary">
           Abrir ficha
@@ -256,7 +310,12 @@ function Contenido({ data, tituloId, copiado, setCopiado, stel, cargandoAutorida
           </LinkButton>
         ) : null}
         {puedeVender && cotizacionBloqueada ? (
-          <Button variant="secondary" icon={<Icon name="plus" size={16} />} disabled aria-describedby="ficha-motivo-stel">
+          <Button
+            variant="secondary"
+            icon={<Icon name="plus" size={16} />}
+            disabled
+            aria-describedby="ficha-motivo-stel"
+          >
             Nueva cotización
           </Button>
         ) : null}
@@ -274,94 +333,6 @@ function Contenido({ data, tituloId, copiado, setCopiado, stel, cargandoAutorida
             : 'La serie por defecto la numera STEL: para emitir desde el ERP hay que elegir una serie del ERP al crear.'}
         </p>
       ) : null}
-
-      {/* ── KPIs ───────────────────────────────────────────────────────── */}
-      <section className={styles.seccion} aria-labelledby="ficha-kpis">
-        <h3 className={styles.tituloSeccion} id="ficha-kpis">
-          En {mes}
-        </h3>
-        <KpisComerciales valores={kpis.valores} mes={kpis.mes} />
-      </section>
-
-      {/* ── Doce meses ─────────────────────────────────────────────────── */}
-      <section className={styles.seccion} aria-labelledby="ficha-grafico">
-        <h3 className={styles.tituloSeccion} id="ficha-grafico">
-          Últimos doce meses
-        </h3>
-        <GraficoDoceMeses filas={data.meses} cargando={false} />
-      </section>
-
-      {/* ── Actividad reciente ─────────────────────────────────────────── */}
-      <section className={styles.seccion} aria-labelledby="ficha-recientes">
-        <h3 className={styles.tituloSeccion} id="ficha-recientes">
-          Actividad reciente
-        </h3>
-        {data.recientes.length === 0 ? (
-          <p className={styles.vacio}>Todavía no tiene documentos.</p>
-        ) : (
-          <ul className={styles.lista}>
-            {data.recientes.map((d) => (
-              <Reciente key={`${d.tipo}-${d.id}`} doc={d} />
-            ))}
-          </ul>
-        )}
-        <p className={styles.pie}>
-          {totales.cotizaciones} cotizaciones · {totales.pedidos} pedidos · {totales.entregas}{' '}
-          entregas · última actividad {formatearFecha(totales.ultimaActividad)}
-        </p>
-      </section>
-
-      {/* ── Productos ──────────────────────────────────────────────────── */}
-      <section className={styles.seccion} aria-labelledby="ficha-productos">
-        <h3 className={styles.tituloSeccion} id="ficha-productos">
-          Productos
-        </h3>
-        {data.productos.length === 0 ? (
-          <p className={styles.vacio}>Todavía no cotizó ni pidió ningún producto.</p>
-        ) : (
-          <ul className={styles.productos}>
-            {data.productos.map((p) => (
-              <li key={`${p.productId ?? p.sku}`} className={styles.producto}>
-                <span className={styles.sku}>{p.sku ?? '—'}</span>
-                <span className={styles.productoNombre}>{p.nombre ?? 'Sin nombre'}</span>
-                <span className={styles.productoMeta}>
-                  {formatearFecha(p.fecha)}
-                  {p.cantidad !== null ? ` · ${p.cantidad} u.` : ''}
-                  {p.precio !== null ? ` · ${formatearImporte(p.precio, p.moneda)}` : ''}
-                  {/* De dónde salió el precio importa: uno cerrado en un pedido
-                      no es lo mismo que uno ofrecido en una cotización. */}
-                  <span className={styles.origen}>
-                    {p.origen === 'pedido' ? ' (pedido)' : ' (cotizado)'}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
     </div>
-  )
-}
-
-function Reciente({ doc }: { doc: DocumentoReciente }) {
-  return (
-    <li className={styles.item}>
-      <Link to={`${RUTA[doc.tipo]}/${doc.id}`} className={styles.itemEnlace}>
-        <span className={styles.itemTitulo}>{TITULO_DOC[doc.tipo]}</span>
-        <span className={styles.itemNumero}>{doc.numero ?? 'Sin número'}</span>
-      </Link>
-      <span className={styles.itemMeta}>
-        {formatearFecha(doc.fecha)}
-        {doc.total !== null ? ` · ${formatearImporte(doc.total, doc.moneda)}` : ''}
-      </span>
-      <span className={styles.itemEstado}>
-        <Badge tone={tono(doc.estado)}>{ESTADO[doc.estado ?? ''] ?? doc.estado ?? '—'}</Badge>
-        {doc.tipo === 'pedido' && doc.entrega ? (
-          <Badge tone={tono(doc.entrega)} outline>
-            {ESTADO[doc.entrega] ?? doc.entrega}
-          </Badge>
-        ) : null}
-      </span>
-    </li>
   )
 }
