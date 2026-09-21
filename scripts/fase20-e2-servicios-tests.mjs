@@ -9,14 +9,20 @@
  *   node scripts/fase20-e2-servicios-tests.mjs
  */
 import {
+  aFilaDeCadena,
+  aFilaDeDocumento,
+  aFilaDeLinea,
+  aFilaDeServicio,
   activosDe,
   armarCadenas,
   claseDeCadena,
   claveDeServicio,
   clasificarLinea,
+  documentosDe,
   estadoDeServicio,
   importesAtribuibles,
   textoTecnico,
+  tipoDeDocumento,
   tipoYId,
 } from './lib/fase20-e2-servicios.mjs'
 
@@ -163,23 +169,37 @@ console.log('\nESTADO — leído de los documentos, no adivinado\n')
 prueba('con remito, el servicio terminó y el equipo volvió', () => {
   const ch = armarCadenas({ estimates: [est(100)], orders: [ort(200, 100)], deliveryNotes: [rem(300, 200)] })[0]
   const e = estadoDeServicio(ch)
-  igual([e.status, e.stage, e.quote_status], ['closed', 'closing', 'approved'])
+  igual([e.status, e.quotation_status], ['closed', 'approved'])
   igual(e.received_at, '2024-03-01')
   igual(e.delivered_at, '2024-03-20')
+  igual(e.invoiced, true)
   igual(e.confianza, 'alta')
 })
 
 prueba('con orden y sin remito, el equipo todavía no volvió', () => {
   const ch = armarCadenas({ estimates: [est(100)], orders: [ort(200, 100)], deliveryNotes: [] })[0]
   const e = estadoDeServicio(ch)
-  igual([e.status, e.stage, e.quote_status], ['open', 'repair', 'approved'])
+  igual([e.status, e.quotation_status], ['in_progress', 'approved'])
   igual(e.delivered_at, null)
 })
 
 prueba('un presupuesto pendiente nunca se aprobó', () => {
   const ch = armarCadenas({ estimates: [est(100)], orders: [], deliveryNotes: [] })[0]
   const e = estadoDeServicio(ch)
-  igual([e.status, e.stage, e.quote_status], ['open', 'quotation', 'pending'])
+  igual([e.status, e.quotation_status], ['open_quote', 'pending'])
+})
+
+prueba('el estado histórico NO habla el vocabulario de maintenance_orders', () => {
+  const ch = armarCadenas({ estimates: [est(100)], orders: [ort(200, 100)], deliveryNotes: [rem(300, 200)] })[0]
+  const e = estadoDeServicio(ch)
+  for (const campo of ['stage', 'quote_status', 'torque_required', 'repair_required', 'on_hold']) {
+    if (campo in e) throw new Error(`sobra el campo ${campo}: ese es el modelo del trabajo vivo`)
+  }
+})
+
+prueba('se conserva el estado crudo de STEL para poder auditar la traducción', () => {
+  const ch = armarCadenas({ estimates: [est(100)], orders: [ort(200, 100)], deliveryNotes: [rem(300, 200)] })[0]
+  igual(estadoDeServicio(ch).stel_status_raw, 'Presupuesto Pendiente + Orden Cerrada + Remito Facturada')
 })
 
 prueba('un presupuesto CERRADO sin orden ni remito no se importa: STEL no dice si se ganó', () => {
@@ -195,8 +215,7 @@ prueba('«rechazada» no existe: no hay dato en STEL que lo diga', () => {
     armarCadenas({ estimates: [est(100)], orders: [ort(200, 100)], deliveryNotes: [rem(300, 200)] })[0],
   ]
   for (const ch of casos) {
-    const e = estadoDeServicio(ch)
-    if (e.quote_status === 'rejected') throw new Error('se inventó un rechazo')
+    if (estadoDeServicio(ch).quotation_status === 'rejected') throw new Error('se inventó un rechazo')
   }
 })
 
@@ -207,14 +226,14 @@ prueba('un estado de STEL que no conocemos frena el servicio, no lo aproxima', (
   if (!/desconocido/.test(e.motivo)) throw new Error(`motivo poco claro: ${e.motivo}`)
 })
 
-prueba('el torque nunca se marca como requerido: STEL no trae ninguna medición', () => {
-  const ch = armarCadenas({ estimates: [est(100)], orders: [ort(200, 100)], deliveryNotes: [rem(300, 200)] })[0]
-  igual(estadoDeServicio(ch).torque_required, false)
-})
-
-prueba('no hay nada equivalente a «En espera»: on_hold queda en falso', () => {
-  const ch = armarCadenas({ estimates: [est(100)], orders: [], deliveryNotes: [] })[0]
-  igual(estadoDeServicio(ch).on_hold, false)
+prueba('los tres estados posibles son los que la base acepta, y nada más', () => {
+  const casos = [
+    armarCadenas({ estimates: [est(100)], orders: [], deliveryNotes: [] })[0],
+    armarCadenas({ estimates: [est(100)], orders: [ort(200, 100)], deliveryNotes: [] })[0],
+    armarCadenas({ estimates: [est(100)], orders: [ort(200, 100)], deliveryNotes: [rem(300, 200)] })[0],
+  ]
+  const vistos = casos.map((ch) => estadoDeServicio(ch).status)
+  igual(vistos, ['open_quote', 'in_progress', 'closed'])
 })
 
 console.log('\nLÍNEAS E IMPORTES\n')
@@ -275,6 +294,196 @@ prueba('tipoYId lee el path de STEL y no se cuelga con basura', () => {
   igual(tipoYId(P('workEstimates/23822940')), ['workEstimates', 23822940])
   igual(tipoYId(null), null)
   igual(tipoYId('cualquier cosa'), null)
+})
+
+console.log('\nFILAS — el modelo de cuatro tablas (opción C)\n')
+
+const conEquipos = (n) => {
+  const assets = Array.from({ length: n }, (_, i) => ({ id: 1000 + i }))
+  return armarCadenas({
+    estimates: [est(100, { assets, 'document-state-id': 831765, 'subtotal-amount': 100000, 'total-amount': 121000 })],
+    orders: [ort(200, 100, { assets, 'assignee-id': 25664 })],
+    deliveryNotes: [rem(300, 200, 'workOrders', { assets, 'total-amount': 121000 })],
+  })[0]
+}
+const CTX = { companyId: 'emp-1', nombrePorEmpleado: new Map([[25664, 'NICOLAS']]) }
+
+prueba('una cadena de 7 equipos da 1 cadena, 3 documentos y 7 servicios', () => {
+  const ch = conEquipos(7)
+  igual(activosDe(ch).length, 7)
+  igual(documentosDe(ch).length, 3, 'documentos:')
+  const servicios = activosDe(ch).map((a) => aFilaDeServicio(ch, a, { ...CTX, assetId: `act-${a}` }))
+  igual(servicios.length, 7)
+  igual(new Set(servicios.map((s) => s.external_id)).size, 7, 'claves distintas:')
+})
+
+prueba('los documentos NO se duplican por equipo: la clave es del documento', () => {
+  const ch = conEquipos(13)
+  const docs = documentosDe(ch).map((d) => aFilaDeDocumento(ch, d, CTX))
+  igual(docs.length, 3)
+  igual(
+    docs.map((d) => d.external_id),
+    ['we100', 'wo200', 'wd300'],
+  )
+  igual(
+    docs.map((d) => d.doc_kind),
+    ['estimate', 'work_order', 'delivery_note'],
+  )
+})
+
+prueba('el encadenamiento queda escrito en la fila del documento', () => {
+  const ch = conEquipos(2)
+  const docs = documentosDe(ch).map((d) => aFilaDeDocumento(ch, d, CTX))
+  igual(
+    docs.map((d) => d.parent_external_id),
+    [null, 'we100', 'wo200'],
+  )
+})
+
+prueba('con UN equipo el importe es del equipo', () => {
+  const s = aFilaDeServicio(conEquipos(1), 1000, { ...CTX, assetId: 'act-1' })
+  igual([s.amount, s.amount_attribution], [121000, 'asset'])
+})
+
+prueba('con VARIOS equipos el servicio no lleva importe, y lo dice', () => {
+  const ch = conEquipos(7)
+  for (const a of activosDe(ch)) {
+    const s = aFilaDeServicio(ch, a, { ...CTX, assetId: `act-${a}` })
+    igual([s.amount, s.amount_attribution], [null, 'shared'], `equipo ${a}:`)
+  }
+})
+
+prueba('el importe compartido igual se guarda, pero en la cadena: es del documento', () => {
+  const c = aFilaDeCadena(conEquipos(7), CTX)
+  igual([c.amount, c.amount_attribution, c.asset_count], [121000, 'shared', 7])
+})
+
+prueba('la cadena y el servicio tienen identidades distintas y estables', () => {
+  const ch = conEquipos(3)
+  igual(aFilaDeCadena(ch, CTX).external_id, 'we100')
+  igual(aFilaDeServicio(ch, 1002, { ...CTX, assetId: 'act-3' }).external_id, 'we100#1002')
+})
+
+prueba('segunda corrida: las mismas entradas dan las mismas claves', () => {
+  const a = conEquipos(4)
+  const b = conEquipos(4)
+  igual(aFilaDeCadena(a, CTX).external_id, aFilaDeCadena(b, CTX).external_id)
+  igual(
+    activosDe(a).map((x) => aFilaDeServicio(a, x, { ...CTX, assetId: 'x' }).external_id),
+    activosDe(b).map((x) => aFilaDeServicio(b, x, { ...CTX, assetId: 'x' }).external_id),
+  )
+})
+
+prueba('la clase de la cadena se guarda con el código que acepta la base', () => {
+  igual(aFilaDeCadena(conEquipos(1), CTX).chain_class, 'complete')
+  const soloEst = armarCadenas({ estimates: [est(100, { assets: [{ id: 1 }] })], orders: [], deliveryNotes: [] })[0]
+  igual(aFilaDeCadena(soloEst, CTX).chain_class, 'estimate_only')
+  const soloRem = armarCadenas({ estimates: [], orders: [], deliveryNotes: [rem(300, null)] })[0]
+  igual(aFilaDeCadena(soloRem, CTX).chain_class, 'delivery_only')
+})
+
+prueba('falta la orden de trabajo: se importa igual y NO se inventa una', () => {
+  const ch = armarCadenas({
+    estimates: [est(100, { assets: [{ id: 1 }], 'document-state-id': 831765 })],
+    orders: [],
+    deliveryNotes: [rem(300, 100, 'workEstimates', { assets: [{ id: 1 }] })],
+  })[0]
+  const c = aFilaDeCadena(ch, CTX)
+  igual([c.chain_class, c.status, c.quotation_status], ['estimate_delivery', 'closed', 'approved'])
+  igual(documentosDe(ch).some((d) => tipoDeDocumento(ch, d) === 'work_order'), false, 'no hay ORT:')
+})
+
+prueba('falta el presupuesto: la cotización no se declara aprobada', () => {
+  const ch = armarCadenas({ estimates: [], orders: [], deliveryNotes: [rem(300, null, 'workOrders', { assets: [{ id: 1 }] })] })[0]
+  const c = aFilaDeCadena(ch, CTX)
+  igual([c.chain_class, c.status, c.quotation_status], ['delivery_only', 'closed', 'pending'])
+})
+
+prueba('falta el remito: no hay fecha de entrega inventada', () => {
+  const ch = armarCadenas({ estimates: [est(100, { 'document-state-id': 831765 })], orders: [ort(200, 100)], deliveryNotes: [] })[0]
+  const c = aFilaDeCadena(ch, CTX)
+  igual([c.chain_class, c.status, c.delivered_at, c.invoiced], ['estimate_order', 'in_progress', null, false])
+})
+
+prueba('el diagnóstico queda NULO: STEL no tiene diagnóstico', () => {
+  igual(aFilaDeServicio(conEquipos(1), 1000, { ...CTX, assetId: 'act-1' }).diagnosis_notes, null)
+})
+
+prueba('el trabajo realizado sale de las líneas, con el documento del que vino', () => {
+  const ch = armarCadenas({
+    estimates: [],
+    orders: [
+      ort(200, null, {
+        assets: [{ id: 1 }],
+        title: 'SERVICIO DE MANTENIMIENTO',
+        lines: [
+          {
+            id: 9,
+            'line-type': 'ITEM',
+            'item-path': P('services/9'),
+            'item-name': 'MANO DE OBRA',
+            'item-description': 'CAMBIO DE RODAMIENTOS',
+          },
+        ],
+      }),
+    ],
+    deliveryNotes: [],
+  })[0]
+  const s = aFilaDeServicio(ch, 1, { ...CTX, assetId: 'act-1' })
+  igual(s.title, 'SERVICIO DE MANTENIMIENTO')
+  igual(s.repair_notes, '[ORT00200] MANO DE OBRA\nCAMBIO DE RODAMIENTOS')
+})
+
+prueba('el técnico se guarda como texto crudo, sin inventar un perfil', () => {
+  igual(aFilaDeServicio(conEquipos(1), 1000, { ...CTX, assetId: 'act-1' }).technician_name_raw, 'NICOLAS')
+  const sinNombre = aFilaDeServicio(conEquipos(1), 1000, { companyId: 'emp-1', assetId: 'act-1', nombrePorEmpleado: new Map() })
+  igual(sinNombre.technician_name_raw, 'empleado 25664', 'un id sin nombre no se borra:')
+})
+
+prueba('una línea de producto guarda el SKU y el producto emparejado', () => {
+  const l = {
+    id: 55,
+    'line-type': 'ITEM',
+    'item-path': P('products/7'),
+    'item-reference': 'FI.REP.596500007',
+    'item-name': 'FILTER',
+    units: 2,
+    'item-base-price': 100,
+    'total-amount': 200,
+  }
+  igual(aFilaDeLinea(l, 1, { companyId: 'emp-1', matchedProductId: 'prod-1', monedaDelDocumento: 'ARS' }), {
+    company_id: 'emp-1',
+    external_id: '55',
+    line_no: 1,
+    line_type: 'product',
+    sku: 'FI.REP.596500007',
+    description: 'FILTER',
+    quantity: 2,
+    unit_price: 100,
+    amount: 200,
+    currency_code: 'ARS',
+    matched_product_id: 'prod-1',
+  })
+})
+
+prueba('una línea sin match entra igual, con el producto en nulo', () => {
+  const l = { id: 56, 'line-type': 'ITEM', 'item-path': P('products/7'), 'item-reference': 'PRO09777', 'item-name': 'ASW18-60-PC Reparada' }
+  igual(aFilaDeLinea(l, 2, { companyId: 'emp-1' }).matched_product_id, null)
+})
+
+prueba('una sección con texto se conserva: ahí está el detalle del servicio', () => {
+  const l = { id: 57, 'line-type': 'SECTION', 'item-name': 'Detalle del servicio', 'item-description': '- ASM18-8 N/S 014223 …' }
+  const fila = aFilaDeLinea(l, 3, { companyId: 'emp-1' })
+  igual(fila.line_type, 'section')
+  igual(fila.sku, null, 'una sección no tiene SKU:')
+  if (!fila.description) throw new Error('se perdió el texto de la sección')
+})
+
+prueba('ninguna fila de línea habla de stock ni de depósito', () => {
+  const fila = aFilaDeLinea({ id: 1, 'line-type': 'ITEM', 'item-path': P('products/7') }, 1, { companyId: 'e' })
+  for (const campo of ['warehouse_id', 'stock_movement_id', 'consumed_at']) {
+    if (campo in fila) throw new Error(`sobra ${campo}: esto es historia, no consumo`)
+  }
 })
 
 console.log(`\n${pasaron} pasaron · ${fallaron} fallaron\n`)
