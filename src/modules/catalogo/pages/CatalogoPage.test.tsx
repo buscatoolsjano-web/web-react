@@ -23,6 +23,9 @@ vi.mock('../hooks/useFiltrosCatalogo', () => ({
 vi.mock('../hooks/useCatalogoFacetas', () => ({
   useListasDePrecios: () => ({ listas: [{ id: 'l1', nombre: 'Lista general', moneda: 'USD', esPorDefecto: true }], porDefecto: { id: 'l1', nombre: 'Lista general', moneda: 'USD', esPorDefecto: true }, puedeElegir: false, cargando: false }),
   useFacetas: () => ({ data: { total: estado.total, categorias: [], subtipos: [], marcas: [], atributos: [] }, isFetching: false }),
+  // Fase 21 · E1: las etiquetas de los atributos, para el modal y la ficha
+  // al vuelo. Acá no importa su contenido.
+  useDefinicionesDeAtributos: () => ({ data: [] }),
 }))
 vi.mock('../hooks/useProductos', () => ({
   useProductos: () =>

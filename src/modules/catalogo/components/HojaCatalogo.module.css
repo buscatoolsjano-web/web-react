@@ -1,0 +1,63 @@
+/* La hoja del catálogo: se pide, no se descarga sola. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.boton {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.boton:hover {
+  background: var(--surface-alt);
+}
+
+.boton:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+/* La página entra en el ancho útil y conserva su proporción. */
+.marco {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #fff;
+}
+
+.marco:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.pagina {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.nota,
+.vacio {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

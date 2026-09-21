@@ -1,9 +1,20 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { construirPlanDeConsulta, hayBusqueda } from '../lib/planDeConsulta'
-import { consultarProductos, obtenerProductoPorSku } from '../services/productos'
+import {
+  consultarProductos,
+  obtenerProductoPorId,
+  obtenerProductoPorSku,
+  relacionadosDe,
+} from '../services/productos'
 import { obtenerDisponibilidad } from '../services/disponibilidad'
-import type { FiltrosCatalogo, PaginaDeProductos, ProductoDetalle } from '../types'
+import { movimientosDeProducto } from '../services/movimientos'
+import type {
+  FiltrosCatalogo,
+  PaginaDeProductos,
+  ProductoDetalle,
+  ProductoListado,
+} from '../types'
 
 /**
  * Una página del catálogo.
@@ -104,5 +115,70 @@ export function useProducto(
     queryFn: () => obtenerProductoPorSku(companyId!, sku!, priceListId, esInterno),
     enabled: companyId !== null && !!sku && listaResuelta,
     staleTime: 30_000,
+  })
+}
+
+/**
+ * El producto del modal, por uuid (Fase 21 · E1).
+ *
+ * La clave incluye la lista de precios: el modal tiene que mostrar el precio
+ * de la lista que está elegida en el catálogo, y cambiar de lista tiene que
+ * cambiar el número —no quedarse con el de la lista anterior porque el
+ * producto «ya estaba cacheado».
+ */
+export function useProductoPorId(
+  id: string | null,
+  priceListId: string | null,
+  listaResuelta: boolean,
+) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const esInterno = activa?.esInterno ?? false
+
+  return useQuery<ProductoDetalle | null>({
+    queryKey: ['catalogo', companyId, 'producto-id', id, priceListId, esInterno],
+    queryFn: () => obtenerProductoPorId(companyId!, id!, priceListId, esInterno),
+    enabled: companyId !== null && id !== null && listaResuelta,
+    staleTime: 60_000,
+  })
+}
+
+/**
+ * Los hermanos del producto: misma marca, serie y tipo.
+ *
+ * Se piden **sólo cuando hay un producto abierto**, nunca por fila del
+ * listado. Con `staleTime` largo: la familia de un producto no cambia
+ * mientras alguien la mira.
+ */
+export function useRelacionados(
+  producto: ProductoDetalle | null | undefined,
+  priceListId: string | null,
+) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery<ProductoListado[]>({
+    queryKey: ['catalogo', companyId, 'relacionados', producto?.id, priceListId],
+    queryFn: () => relacionadosDe(companyId!, producto!, priceListId),
+    enabled: companyId !== null && !!producto,
+    staleTime: 5 * 60_000,
+  })
+}
+
+/**
+ * El historial de stock del producto abierto.
+ *
+ * `enabled` lo controla quien llama: se pide cuando la sección se abre, no
+ * cuando se abre el producto.
+ */
+export function useMovimientos(productId: string | null, habilitado: boolean, limite = 15) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery({
+    queryKey: ['catalogo', companyId, 'movimientos', productId, limite],
+    queryFn: () => movimientosDeProducto(companyId!, productId!, limite),
+    enabled: companyId !== null && productId !== null && habilitado,
+    staleTime: 60_000,
   })
 }

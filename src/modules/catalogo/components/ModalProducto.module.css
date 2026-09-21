@@ -1,0 +1,222 @@
+/* ════════════════════════════════════════════════════════════════════════
+   EL PRODUCTO, ENCIMA DEL CATÁLOGO
+   ════════════════════════════════════════════════════════════════════════
+
+   El catálogo queda atrás, oscurecido pero visible: la pista de que no se
+   fue a ninguna parte y que cerrar devuelve todo como estaba. */
+
+.fondo {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--color-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: min(960px, 100%);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.modal:focus-visible {
+  outline: none;
+}
+
+/* En el teléfono ocupa todo: un modal centrado con márgenes deja una tira
+   de catálogo inútil a los costados. */
+@media (max-width: 767px) {
+  .fondo {
+    padding: 0;
+  }
+
+  .modal {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+}
+
+/* La barra queda fija: el SKU es lo que identifica al producto y tiene que
+   estar a la vista aunque se esté mirando el historial. */
+.barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+
+.sku {
+  /* Tabulares, no monoespaciada: el sistema no tiene una fuente mono como
+     token y el SKU lo que necesita es que los dígitos no bailen. */
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-base);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.accionesBarra {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.cuerpo {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-height: 0;
+}
+
+/* ── 1 · identidad ─────────────────────────────────────────────────────── */
+
+.identidad {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 767px) {
+  .identidad {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Una foto de 220 px, no media pantalla: la información tiene que ganar. */
+.foto {
+  width: 220px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-alt);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.datos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.nombre {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.descripcion {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+.estados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+/* Grilla densa: es lo que el sistema anterior hacía bien. */
+.ficha {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+
+.dato dt {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.dato dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* ── 2 · comercial ─────────────────────────────────────────────────────── */
+
+.comercial {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: baseline;
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.rotulo {
+  display: block;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.precioValor {
+  font-size: var(--text-xl);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.stockDato strong {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Un stock negativo se dice con el número y el color, nunca con una alarma. */
+.negativo {
+  color: var(--color-danger-text);
+}
+
+/* ── Secciones ─────────────────────────────────────────────────────────── */
+
+.seccion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.tituloSeccion {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--border);
+}

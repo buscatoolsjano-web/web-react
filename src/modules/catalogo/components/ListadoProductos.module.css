@@ -183,3 +183,17 @@
   font-size: var(--text-xs);
   color: var(--color-text-soft);
 }
+
+/* ── Fase 21 · E1: la fila abre el producto encima del catálogo ────────── */
+
+/* La fila enfocable: se llega con Tab y se abre con Enter. */
+.fila:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -2px;
+}
+
+/* La fila del producto abierto, para no perderla detrás del modal. */
+.abierta {
+  background: var(--color-primary-soft);
+  box-shadow: inset 3px 0 0 0 var(--primary);
+}

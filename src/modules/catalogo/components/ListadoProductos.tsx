@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { Badge } from '@/components/ui/Badge'
@@ -5,8 +6,9 @@ import { SkeletonRows } from '@/components/ui/Skeleton'
 import tabla from '@/components/tables/Tabla.module.css'
 import { DisponibilidadBadge, PrecioCelda, StockCelda } from './Celdas'
 import { ImagenProducto } from './ImagenProducto'
+import { PopoverProducto } from './PopoverProducto'
 import { atributosDestacados } from '../lib/destacados'
-import type { ProductoListado } from '../types'
+import type { DefinicionAtributo, ProductoListado } from '../types'
 import styles from './ListadoProductos.module.css'
 
 export interface ListadoProductosProps {
@@ -18,6 +20,53 @@ export interface ListadoProductosProps {
   /** Unidades de los atributos, para que «1» se lea «1 kg» en las tarjetas. */
   unidades: ReadonlyMap<string, string | null>
   cargando: boolean
+  /** Abrir el producto en el modal, sin salir del catálogo. */
+  onAbrirProducto?: (id: string) => void
+  /** El producto con el modal abierto, para marcar su fila. */
+  abierto?: string | null
+  /** Para la ficha al vuelo: las etiquetas de los atributos. */
+  definiciones?: readonly DefinicionAtributo[]
+}
+
+/**
+ * Los controles que se manejan solos. Un click acá adentro es del control:
+ * el link del nombre navega, y mañana el carrito agregará al carrito.
+ */
+const CONTROLES = 'a, button, input, select, textarea, label, [role="button"], [role="link"]'
+
+/**
+ * Fase 21 · E1: **la fila entera abre el producto en el modal.**
+ *
+ * Antes navegaba a la página del producto y volver costaba re-armar la búsqueda,
+ * los filtros, la página y el scroll. Ahora abre encima. Si no hay modal
+ * —la ficha completa, por ejemplo— sigue navegando, que es el comportamiento
+ * de antes.
+ */
+function filaClickeable(
+  id: string,
+  onAbrir: ((id: string) => void) | undefined,
+  navegar: () => void,
+) {
+  const abrir = () => (onAbrir ? onAbrir(id) : navegar())
+  return {
+    tabIndex: 0,
+    onClick: (e: React.MouseEvent<HTMLTableRowElement>) => {
+      if (e.defaultPrevented || e.button !== 0) return
+      // Ctrl, Cmd y Shift son del navegador: abrir en pestaña o seleccionar.
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+      if ((e.target as HTMLElement).closest(CONTROLES)) return
+      // Seleccionar un SKU para copiarlo termina en un click sobre la fila.
+      if ((window.getSelection()?.toString() ?? '') !== '') return
+      e.currentTarget.focus()
+      abrir()
+    },
+    onKeyDown: (e: React.KeyboardEvent<HTMLTableRowElement>) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return
+      if (e.target !== e.currentTarget) return
+      e.preventDefault()
+      abrir()
+    },
+  }
 }
 
 const rutaProducto = (sku: string) => `/catalogo/${encodeURIComponent(sku)}`
@@ -54,9 +103,46 @@ function Estados({ producto }: { producto: ProductoListado }) {
  * también abre el producto con el mouse, como antes. No hay acciones dentro de
  * la fila que ese click pueda pisar.
  */
-export function ListadoProductos({ productos, esInterno, moneda, disponibilidad, unidades, cargando }: ListadoProductosProps) {
+export function ListadoProductos({
+  productos,
+  esInterno,
+  moneda,
+  disponibilidad,
+  unidades,
+  cargando,
+  onAbrirProducto,
+  abierto = null,
+  definiciones = [],
+}: ListadoProductosProps) {
   const isMobile = useIsMobile()
   const navigate = useNavigate()
+
+  /**
+   * La ficha al vuelo (§11).
+   *
+   * Con un retardo de 250 ms: pasar el mouse por encima de veinte filas
+   * camino al buscador no puede abrir veinte fichas. No pide datos —usa los
+   * de la fila— así que abrirla es gratis.
+   */
+  const [popover, setPopover] = useState<{ producto: ProductoListado; ancla: DOMRect } | null>(
+    null,
+  )
+  const timer = useRef<number | null>(null)
+
+  const abrirPopover = (producto: ProductoListado, el: HTMLElement) => {
+    if (timer.current !== null) window.clearTimeout(timer.current)
+    const ancla = el.getBoundingClientRect()
+    timer.current = window.setTimeout(() => setPopover({ producto, ancla }), 250)
+  }
+
+  const cerrarPopover = () => {
+    if (timer.current !== null) window.clearTimeout(timer.current)
+    setPopover(null)
+  }
+
+  // Si la lista cambia debajo del mouse —otra página, otro filtro— la ficha
+  // abierta ya no corresponde a nada.
+  useEffect(() => cerrarPopover, [])
 
   if (cargando && productos.length === 0) {
     return (
@@ -152,8 +238,20 @@ export function ListadoProductos({ productos, esInterno, moneda, disponibilidad,
         </thead>
         <tbody>
           {productos.map((p) => (
-            <tr key={p.id} className={styles.fila} onClick={() => void navigate(rutaProducto(p.sku))}>
-              <td className={styles.colImagen}>
+            <tr
+              key={p.id}
+              data-fila-producto={p.id}
+              aria-current={p.id === abierto ? 'true' : undefined}
+              className={p.id === abierto ? `${styles.fila} ${styles.abierta}` : styles.fila}
+              {...filaClickeable(p.id, onAbrirProducto, () => void navigate(rutaProducto(p.sku)))}
+            >
+              <td
+                className={styles.colImagen}
+                // La ficha al vuelo es de la IMAGEN, no de la fila: pasar por
+                // encima del listado entero no puede tapar lo que se lee.
+                onMouseEnter={(e) => abrirPopover(p, e.currentTarget)}
+                onMouseLeave={cerrarPopover}
+              >
                 <ImagenProducto imagen={p.imagen} alt="" tamano="thumb" />
               </td>
               <td className={tabla.nowrap}>
@@ -183,6 +281,15 @@ export function ListadoProductos({ productos, esInterno, moneda, disponibilidad,
           ))}
         </tbody>
       </table>
+      {popover && !isMobile ? (
+        <PopoverProducto
+          producto={popover.producto}
+          ancla={popover.ancla}
+          moneda={moneda}
+          esInterno={esInterno}
+          definiciones={definiciones}
+        />
+      ) : null}
     </div>
   )
 }

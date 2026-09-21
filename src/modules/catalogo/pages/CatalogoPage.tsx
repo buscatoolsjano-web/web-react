@@ -15,9 +15,15 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { FiltrosActivos, PanelFacetas } from '../components/PanelFacetas'
 import { ListadoProductos } from '../components/ListadoProductos'
-import { useFacetas, useListasDePrecios } from '../hooks/useCatalogoFacetas'
+import { ModalProducto } from '../components/ModalProducto'
+import {
+  useDefinicionesDeAtributos,
+  useFacetas,
+  useListasDePrecios,
+} from '../hooks/useCatalogoFacetas'
 import { useDisponibilidad, useProductos } from '../hooks/useProductos'
 import { useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
+import { useProductoSeleccionado } from '../hooks/useProductoSeleccionado'
 import { contarFiltrosActivos } from '../lib/planDeConsulta'
 import { debePropagarBusqueda } from '../lib/busquedaDiferida'
 import { OPCIONES_POR_PAGINA } from '../types'
@@ -92,6 +98,14 @@ export function CatalogoPage() {
 
   const idsPagina = useMemo(() => productos.map((p) => p.id), [productos])
   const { data: disponibilidad } = useDisponibilidad(idsPagina)
+
+  // Las etiquetas y unidades de los atributos: las usan el modal y la ficha
+  // al vuelo para no mostrar nunca el jsonb crudo.
+  const { data: definiciones = [] } = useDefinicionesDeAtributos(companyId)
+
+  // Qué producto está abierto vive en la URL, al lado de la búsqueda y los
+  // filtros: cerrar no toca nada de lo demás.
+  const { seleccionado, abrir, cerrar } = useProductoSeleccionado()
 
   const activos = contarFiltrosActivos(filtros)
   const hayFiltros = activos > 0 || filtros.q !== ''
@@ -189,6 +203,9 @@ export function CatalogoPage() {
             disponibilidad={disponibilidad}
             unidades={unidades}
             cargando={isPending}
+            onAbrirProducto={abrir}
+            abierto={seleccionado}
+            definiciones={definiciones}
           />
           {total > 0 ? (
             <Pagination
@@ -205,6 +222,21 @@ export function CatalogoPage() {
           ) : null}
         </>
       )}
+
+      {/* El producto va encima del catálogo, no en otra pantalla: la
+          búsqueda, los filtros, la página y el scroll quedan atrás intactos
+          porque nadie los tocó. */}
+      {seleccionado ? (
+        <ModalProducto
+          productoId={seleccionado}
+          priceListId={listaEfectiva?.id ?? null}
+          listaResuelta={!listasCargando}
+          moneda={moneda}
+          definiciones={definiciones}
+          onCerrar={cerrar}
+          onAbrirOtro={abrir}
+        />
+      ) : null}
     </div>
   )
 }

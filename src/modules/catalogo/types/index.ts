@@ -169,3 +169,34 @@ export interface Facetas {
   subtipos: OpcionFaceta[]
   atributos: FacetaAtributo[]
 }
+
+// ── Fase 21 · E1: lo que el modal del producto necesita ────────────────────
+
+/**
+ * Un movimiento de stock del producto. **Sólo lectura**: el catálogo mira el
+ * historial, nunca lo escribe.
+ */
+export interface MovimientoDeStock {
+  id: string
+  fecha: string
+  /** `opening_balance`, `sale_delivery`, `adjustment`… tal como los guarda la base. */
+  tipo: string
+  /** Positiva entra, negativa sale. El signo es el dato, no el color. */
+  cantidad: number
+  origenTipo: string | null
+  origenId: string | null
+  notas: string | null
+}
+
+/**
+ * La hoja del catálogo donde aparece el producto.
+ *
+ * `imagenUrl` es la página escaneada cuando existe; `catalogo` + `pagina`, el
+ * dato que traía el sistema anterior. Puede haber una sin la otra.
+ */
+export interface HojaDeCatalogo {
+  catalogo: string | null
+  pagina: number | null
+  familia: number | null
+  imagenUrl: string | null
+}

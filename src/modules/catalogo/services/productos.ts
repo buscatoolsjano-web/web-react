@@ -254,6 +254,101 @@ export async function consultarProductos(
  * mismo SKU puede existir en Buscatools y en Torquetools: la empresa activa
  * determina cuál se consulta.
  */
+/**
+ * El producto por su uuid, para el modal del catálogo (Fase 21 · E1).
+ *
+ * Misma consulta que por SKU —mismas columnas, misma lista de precios, mismo
+ * `esInterno`— cambiando sólo por dónde se lo busca. El modal usa el uuid
+ * porque es lo que viaja en la URL (`?producto=<uuid>`): un SKU puede tener
+ * barras y eñes y termina escapado tres veces.
+ */
+export async function obtenerProductoPorId(
+  companyId: string,
+  id: string,
+  priceListId: string | null,
+  esInterno: boolean,
+): Promise<ProductoDetalle | null> {
+  let q = supabase
+    .from('products')
+    .select(esInterno ? COLUMNAS_DETALLE_INTERNO : COLUMNAS_DETALLE)
+    .eq('company_id', companyId)
+    .eq('id', id)
+    .is('deleted_at', null)
+
+  if (priceListId) q = q.eq('product_prices.price_list_id', priceListId)
+
+  const { data, error } = await q
+    .order('position', { referencedTable: 'product_images', ascending: true })
+    .maybeSingle()
+  if (error) throw new Error(`No se pudo leer el producto: ${error.message}`)
+  if (!data) return null
+
+  return mapearDetalle(data as unknown as FilaProductoDetalle)
+}
+
+/**
+ * Los productos hermanos: **misma marca, misma serie y mismo tipo**.
+ *
+ * Las tres son columnas reales del producto, no una semejanza de nombres. Un
+ * `SP.2520/8B` («SPEEDRILL · Adaptador · Adaptador») trae a sus vecinos de
+ * medida, que es exactamente lo que el sistema anterior mostraba como
+ * «productos relacionados» —y lo que alguien busca cuando tiene el de 8 en la
+ * mano y necesita el de 10.
+ *
+ * NO se relaciona por parecido de texto. Si el producto no tiene serie o no
+ * tiene tipo, no hay familia y no se muestra nada: es preferible una sección
+ * vacía a una lista de productos que no son variantes de éste.
+ */
+export async function relacionadosDe(
+  companyId: string,
+  producto: Pick<ProductoDetalle, 'id' | 'sku' | 'serie' | 'tipo' | 'marca'>,
+  priceListId: string | null,
+  limite = 8,
+): Promise<ProductoListado[]> {
+  if (!producto.marca || !producto.serie || !producto.tipo) return []
+
+  let q = supabase
+    .from('products')
+    .select(COLUMNAS_LISTADO)
+    .eq('company_id', companyId)
+    .eq('brand_id', producto.marca.id)
+    .eq('series', producto.serie)
+    .eq('product_type', producto.tipo)
+    .neq('id', producto.id)
+    .is('deleted_at', null)
+
+  if (priceListId) q = q.eq('product_prices.price_list_id', priceListId)
+
+  // Se piden más de los que se muestran: los de la misma familia de SKU se
+  // ordenan primero acá abajo, y con `limit` justo podrían quedar afuera.
+  const { data, error } = await q.order('sku', { ascending: true }).limit(limite * 6)
+  if (error) throw new Error(`No se pudieron leer los relacionados: ${error.message}`)
+
+  const familia = familiaDeSku(producto.sku)
+  return (data ?? [])
+    .map((f) => mapearListado(f as unknown as FilaProducto))
+    .sort((a, b) => {
+      // Primero los de la misma raíz de SKU —`SP.2520/8B` y `SP.2520/10B` son
+      // el mismo producto en otra medida—, después el resto de la serie.
+      const ma = familia !== null && familiaDeSku(a.sku) === familia ? 0 : 1
+      const mb = familia !== null && familiaDeSku(b.sku) === familia ? 0 : 1
+      return ma !== mb ? ma - mb : a.sku.localeCompare(b.sku, 'es', { numeric: true })
+    })
+    .slice(0, limite)
+}
+
+/**
+ * La raíz del código del fabricante: `SP.2520/8B` → `SP.2520`.
+ *
+ * Sin barra no hay familia. No es una heurística sobre el nombre: es la
+ * numeración de parte del propio fabricante, donde lo que va después de la
+ * barra es la medida o la variante.
+ */
+export function familiaDeSku(sku: string): string | null {
+  const i = sku.lastIndexOf('/')
+  return i > 0 ? sku.slice(0, i) : null
+}
+
 export async function obtenerProductoPorSku(
   companyId: string,
   sku: string,

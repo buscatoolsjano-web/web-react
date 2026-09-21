@@ -7,8 +7,26 @@ import {
   type RangoNumerico,
 } from '../types'
 
-/** Claves reservadas del querystring; el resto se interpreta como atributo. */
-const RESERVADAS = new Set(['q', 'marca', 'cat', 'tipo', 'serie', 'page', 'per', 'orden'])
+/**
+ * Claves reservadas del querystring; el resto se interpreta como atributo.
+ *
+ * `producto` está acá por una razón concreta: es el uuid del producto abierto
+ * en el modal (Fase 21 · E1) y vive en la misma URL que los filtros. Sin
+ * reservarlo, el catálogo lo tomaba como un filtro de atributo llamado
+ * «producto» y el listado de atrás se vaciaba —el modal se veía bien y la
+ * lista quedaba en cero, que es de los errores que sólo se ven mirando.
+ */
+const RESERVADAS = new Set([
+  'q',
+  'marca',
+  'cat',
+  'tipo',
+  'serie',
+  'page',
+  'per',
+  'orden',
+  'producto',
+])
 
 /**
  * Prefijo de los rangos numéricos: `rango.largo.min=25`.
