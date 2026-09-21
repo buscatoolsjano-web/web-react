@@ -124,7 +124,7 @@ vi.mock('../services/productosParaLinea', async () => {
 
 const { CotizacionNuevaPage } = await import('./CotizacionNuevaPage')
 
-const montar = (extra?: React.ReactNode) => {
+const montar = (extra?: React.ReactNode, entrada = '/ventas/cotizaciones/nueva') => {
   const router = createMemoryRouter(
     [
       {
@@ -139,7 +139,7 @@ const montar = (extra?: React.ReactNode) => {
       { path: '/ventas/cotizaciones/:id', element: <p>detalle de la cotización</p> },
       { path: '/ventas/cotizaciones', element: <p>listado</p> },
     ],
-    { initialEntries: ['/ventas/cotizaciones/nueva'] },
+    { initialEntries: [entrada] },
   )
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
@@ -677,6 +677,59 @@ describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
 
     const [, cabecera] = espias.crear.mock.calls[0]!
     expect(cabecera).toMatchObject({ series_code: 'COT-ERP' })
+  })
+
+  /** Fase 19 · E3 · §7-H: volver a la serie de STEL vuelve a bloquear. */
+  it('volver a la serie por defecto vuelve a bloquear', () => {
+    estado.series = DOS
+    montar()
+    completarMinimo()
+    fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'COT-ERP' } })
+    expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeEnabled()
+
+    fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'COTI' } })
+    expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeDisabled()
+    expect(screen.getAllByText(/Emisión desde el ERP bloqueada/).length).toBeGreaterThan(0)
+  })
+
+  /**
+   * §7-I: abrir la pantalla no escribe. Es lo que hace honesto abrir las
+   * puertas de entrada: llegar hasta acá no consume un número ni crea nada.
+   */
+  it('abrir la pantalla no crea nada, ni siquiera con la serie ERP elegida', async () => {
+    estado.series = DOS
+    montar()
+    completarMinimo()
+    fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'COT-ERP' } })
+    await act(async () => {})
+    expect(espias.crear).not.toHaveBeenCalled()
+  })
+
+  /**
+   * §7-D: se llega desde la ficha del cliente, y ese cliente es el que viaja.
+   * La serie arranca igual en la de por defecto: entrar desde un cliente no
+   * elige COT-ERP por nadie.
+   */
+  it('entrando desde un cliente, ese cliente viaja en el payload y la serie arranca en la de por defecto', async () => {
+    estado.series = DOS
+    montar(undefined, '/ventas/cotizaciones/nueva?cliente=c9')
+    expect(screen.getByLabelText('Serie')).toHaveValue('COTI')
+    expect(espias.crear).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
+    fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'COT-ERP' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
+    await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
+
+    const [, cabecera] = espias.crear.mock.calls[0]!
+    expect(cabecera).toMatchObject({ customer_id: 'c9', series_code: 'COT-ERP' })
+  })
+
+  it('el motivo nombra LA SERIE y dice qué hacer, no habla del tipo entero', () => {
+    estado.series = DOS
+    montar()
+    expect(screen.getAllByText(/la serie COTI la numera STEL/i).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/STEL numera las cotizaciones de esta empresa/)).toBeNull()
   })
 
   it('el desplegable dice qué numera cada serie', () => {

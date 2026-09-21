@@ -34,6 +34,24 @@ export const TITULO_BANNER_STEL = 'STEL sigue administrando la numeración de es
 export const TITULO_BANNER_STEL_DERIVADOS =
   'STEL sigue administrando la numeración de los documentos que salen de este.'
 
+/**
+ * Fase 19 · E3: en una pantalla donde el alta SÍ se puede abrir, lo que STEL
+ * administra es la numeración de la serie por defecto, no la de todo.
+ */
+export const TITULO_BANNER_STEL_SERIE_DEFECTO =
+  'STEL sigue administrando la numeración de la serie por defecto.'
+
+/**
+ * El motivo cuando lo que bloquea es LA SERIE elegida, no el tipo entero.
+ *
+ * Fase 19 · E3: con una serie del ERP disponible, decir «STEL numera las
+ * cotizaciones de esta empresa» es falso y además deja sin salida a quien
+ * puede elegir otra serie ahí mismo.
+ */
+export function motivoSerieStel(serie: string): string {
+  return `Emisión desde el ERP bloqueada: la serie ${serie} la numera STEL. Elegí una serie que se emita desde el ERP.`
+}
+
 const PLURAL: Record<DocTypeVentas, string> = {
   quote: 'las cotizaciones',
   sales_order: 'los pedidos',

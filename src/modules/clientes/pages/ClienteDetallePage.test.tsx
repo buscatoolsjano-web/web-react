@@ -18,6 +18,8 @@ const estado = vi.hoisted(() => ({
   resumen: null as { totales: { cotizaciones: number; pedidos: number; entregas: number } } | null,
   // Fase 19 · E2: qué tipos numera STEL. Por defecto ninguno.
   stel: [] as string[],
+  // Fase 19 · E3: ¿hay una serie de cotización que numere el ERP?
+  serieErp: false,
   autoridadCargando: false,
 }))
 const mutaciones = vi.hoisted(() => ({
@@ -56,6 +58,17 @@ vi.mock('../hooks/useClientes', () => ({
 vi.mock('@/modules/ventas/hooks/useAutoridadNumeracion', () => ({
   useAutoridadNumeracion: () => ({
     stel: (t: string) => estado.stel.includes(t),
+    cargando: estado.autoridadCargando,
+  }),
+}))
+/**
+ * Fase 19 · E3: abrir el alta no lo decide la autoridad general sino si hay
+ * una serie que el ERP numere. Sin serie ERP —el estado por defecto— la
+ * puerta se comporta como antes.
+ */
+vi.mock('@/modules/ventas/hooks/useAperturaDeAlta', () => ({
+  useAperturaDeAlta: (tipo: string) => ({
+    abierta: tipo === 'cotizacion' ? estado.serieErp || !estado.stel.includes('quote') : !estado.stel.includes('sales_order'),
     cargando: estado.autoridadCargando,
   }),
 }))
@@ -146,6 +159,7 @@ beforeEach(() => {
   estado.tarifas = [{ id: 'pl1', nombre: 'ZZ Mayorista' }]
   estado.direcciones = [{ id: 'd1', tipo: 'both', calle: 'ZZ Calle 1', ciudad: null, provincia: null, codigoPostal: null, pais: 'AR', notas: null, esPrincipal: true, texto: 'ZZ Calle 1, AR', activo: true, actualizadoEn: '2026-01-01T00:00:00Z' }]
   estado.stel = []
+  estado.serieErp = false
   estado.autoridadCargando = false
   vi.clearAllMocks()
 })
@@ -397,6 +411,34 @@ describe('Ficha del cliente · emitir desde la ficha (Fase 19 · E2)', () => {
         'Emisión desde el ERP bloqueada: STEL numera las cotizaciones y los pedidos de esta empresa.',
       ),
     ).toHaveLength(1)
+  })
+
+  /**
+   * Fase 19 · E3 · §7-A/B/D. Con una serie que el ERP numera, la cotización
+   * vuelve a ser un link: abrir el alta no emite nada, y adentro decide la
+   * serie elegida. El pedido NO: no tiene ninguna serie del ERP todavía.
+   */
+  it.each(['admin', 'employee'])('%s: con una serie del ERP, «Nueva cotización» vuelve a llevar al alta con el cliente', (rol) => {
+    estado.rol = rol
+    estado.stel = ['quote', 'sales_order']
+    estado.serieErp = true
+    montar()
+    expect(screen.getByRole('link', { name: 'Nueva cotización' })).toHaveAttribute(
+      'href',
+      '/ventas/cotizaciones/nueva?cliente=c1',
+    )
+    expect(screen.getByRole('button', { name: 'Nuevo pedido' })).toBeDisabled()
+    // Y el motivo que queda nombra sólo lo que sigue bloqueado.
+    expect(screen.getByText(/Emisión desde el ERP bloqueada: STEL numera los pedidos/)).toBeInTheDocument()
+  })
+
+  it('un rol sin permiso no gana ninguna acción porque exista la serie del ERP', () => {
+    estado.rol = 'salesperson'
+    estado.stel = ['quote']
+    estado.serieErp = true
+    montar()
+    expect(screen.queryByRole('link', { name: 'Nueva cotización' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Nueva cotización' })).toBeNull()
   })
 
   it('mientras no se leyó la autoridad no se inventa un motivo: deshabilitados y sin texto', () => {

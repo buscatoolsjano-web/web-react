@@ -4,7 +4,20 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-const estado = vi.hoisted(() => ({ rol: 'admin', stel: false, cargandoAutoridad: false, movil: false, filas: 2, error: false, hayFiltros: false }))
+const estado = vi.hoisted(() => ({
+  rol: 'admin',
+  stel: false,
+  cargandoAutoridad: false,
+  movil: false,
+  filas: 2,
+  error: false,
+  hayFiltros: false,
+  // Fase 19 · E3: las series del tipo, con su autoridad efectiva. Sin ninguna
+  // que numere el ERP —el caso de los pedidos y los remitos— la puerta del
+  // alta sigue cerrada por la autoridad general.
+  series: [] as { codigo: string; esPorDefecto: boolean; autoridad: string }[],
+  seriesPendientes: false,
+}))
 const llamadas = vi.hoisted(() => ({ aplicar: vi.fn(), limpiar: vi.fn(), refetch: vi.fn() }))
 
 vi.mock('@/features/empresa/useEmpresa', () => ({
@@ -26,6 +39,7 @@ vi.mock('../hooks/useFiltrosVentas', () => ({
 }))
 vi.mock('../hooks/useDocumentos', () => ({
   useClientes: () => ({ data: [] }),
+  useSeries: () => ({ data: estado.series, isPending: estado.seriesPendientes }),
   useFacetas: () => ({ data: { monedas: ['USD'], series: ['COTI'] } }),
   useDocumentos: () =>
     estado.error
@@ -70,7 +84,7 @@ function montar() {
 }
 
 beforeEach(() => {
-  Object.assign(estado, { rol: 'admin', stel: false, cargandoAutoridad: false, movil: false, filas: 2, error: false, hayFiltros: false })
+  Object.assign(estado, { rol: 'admin', stel: false, cargandoAutoridad: false, movil: false, filas: 2, error: false, hayFiltros: false, series: [], seriesPendientes: false })
   vi.clearAllMocks()
 })
 
@@ -96,6 +110,67 @@ describe('Listado de Ventas: acción «Nueva» según el rol (Fase 13)', () => {
     expect(nueva).toBeDisabled()
     expect(nueva).toHaveAttribute('aria-describedby', 'motivo-nueva')
     expect(document.getElementById('motivo-nueva')).toHaveTextContent(/STEL numera las cotizaciones/)
+  })
+})
+
+/**
+ * Fase 19 · E3 · §7-A/B/C. La autoridad decide si se puede CREAR, no si se
+ * puede ABRIR el alta: con una serie que el ERP numera, el botón lleva al
+ * formulario y ahí decide la serie elegida.
+ */
+describe('Listado de Ventas: la puerta del alta con una serie del ERP', () => {
+  const DOS = [
+    { codigo: 'COTI', esPorDefecto: true, autoridad: 'STEL' },
+    { codigo: 'COT-ERP', esPorDefecto: false, autoridad: 'ERP' },
+  ]
+
+  it.each(['admin', 'employee'])('%s entra al alta aunque la serie por defecto la numere STEL', (rol) => {
+    estado.rol = rol
+    estado.stel = true
+    estado.series = DOS
+    montar()
+    expect(screen.getByRole('link', { name: 'Nueva cotización' })).toHaveAttribute('href', '/ventas/cotizaciones/nueva')
+    expect(screen.queryByRole('button', { name: 'Nueva cotización' })).toBeNull()
+    // Y el cartel no puede seguir diciendo que crear está bloqueado.
+    const aviso = screen.getByTestId('aviso-autoridad-stel')
+    expect(aviso).toHaveTextContent(/elegir una serie del ERP al crear/)
+    // Y el título tampoco puede decir que STEL administra todo.
+    expect(aviso).toHaveTextContent('STEL sigue administrando la numeración de la serie por defecto.')
+    expect(document.getElementById('motivo-nueva')).toBeNull()
+  })
+
+  it.each(['salesperson', 'technician', 'customer'])('%s sigue sin acción de alta: la serie no cambia los roles', (rol) => {
+    estado.rol = rol
+    estado.stel = true
+    estado.series = DOS
+    montar()
+    expect(screen.queryByRole('link', { name: 'Nueva cotización' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Nueva cotización' })).toBeNull()
+  })
+
+  it('sin ninguna serie del ERP la puerta sigue cerrada, con su motivo', () => {
+    estado.stel = true
+    estado.series = [{ codigo: 'COTI', esPorDefecto: true, autoridad: 'STEL' }]
+    montar()
+    const nueva = screen.getByRole('button', { name: 'Nueva cotización' })
+    expect(nueva).toBeDisabled()
+    expect(document.getElementById('motivo-nueva')).toHaveTextContent(/STEL numera las cotizaciones/)
+  })
+
+  it('mientras las series no llegaron no se promete nada: deshabilitada y sin motivo', () => {
+    estado.stel = true
+    estado.seriesPendientes = true
+    montar()
+    expect(screen.getByRole('button', { name: 'Nueva cotización' })).toBeDisabled()
+    expect(document.getElementById('motivo-nueva')).toBeNull()
+  })
+
+  it('el vacío también invita a crear cuando la puerta está abierta', () => {
+    estado.stel = true
+    estado.series = DOS
+    estado.filas = 0
+    montar()
+    expect(screen.getAllByRole('link', { name: 'Nueva cotización' }).length).toBeGreaterThan(0)
   })
 })
 

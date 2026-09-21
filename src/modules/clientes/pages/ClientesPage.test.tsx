@@ -19,6 +19,10 @@ vi.mock('../services/cliente360', () => ({ cliente360: ficha360 }))
 vi.mock('@/modules/ventas/hooks/useAutoridadNumeracion', () => ({
   useAutoridadNumeracion: () => ({ stel: () => true, cargando: false }),
 }))
+// Fase 19 · E3: sin serie del ERP configurada, la puerta del alta sigue cerrada.
+vi.mock('@/modules/ventas/hooks/useAperturaDeAlta', () => ({
+  useAperturaDeAlta: () => ({ abierta: false, cargando: false }),
+}))
 vi.mock('../hooks/useFiltrosClientes', () => ({
   TAMANOS_DE_PAGINA: [10, 25, 50, 100],
   useFiltrosClientes: () => ({

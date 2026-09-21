@@ -518,7 +518,7 @@ cambio de importes si lo hubo —un campo de importe, o una línea agregada o
 eliminada—; el resto es «Cambio en el documento». El detalle de cada cambio no
 cambió.
 
-### Queda abierto (NO aplicado): las puertas de entrada al alta
+### Las puertas de entrada al alta (aplicado, ver §13)
 
 `Nueva cotización` sigue bloqueada en el listado, en la ficha rápida y en la
 ficha del cliente porque miran la autoridad **general**, que es STEL. Con el
@@ -527,3 +527,40 @@ defecto (`COTI`) deja el botón «Crear» bloqueado con su explicación, y sólo
 `COT-ERP` —elegida a propósito— habilita. Abrir esas puertas es **una decisión
 tuya**, no un arreglo: amplía a toda la empresa la posibilidad de crear
 documentos en la serie piloto. Queda anotado, sin tocar.
+
+---
+
+## 13 · Las puertas de entrada al alta de cotización
+
+Autorizado abrirlas, se abrieron las tres: el listado de cotizaciones, la ficha
+rápida del cliente y la ficha completa. La regla nueva es una sola frase: **la
+autoridad decide si se puede CREAR, no si se puede ABRIR el formulario.**
+
+Vive en un solo lugar, `useAperturaDeAlta(tipo, habilitado)`:
+
+1. sin bloqueo general, se abre como siempre;
+2. con bloqueo general, se abre **sólo si hay una serie que el ERP numere** —y
+   sólo para los tipos cuya alta sabe elegir serie, que hoy es la cotización;
+3. mientras las series no llegaron, la acción se muestra deshabilitada **y sin
+   motivo**: no se promete lo que todavía no se leyó.
+
+Por eso el pedido sigue cerrado y se explica solo: `sales_order` no tiene
+ninguna serie del ERP, así que abrir su alta sería llevar a alguien a un
+formulario que nunca va a poder guardar. El día que tenga una, y un selector
+que la ofrezca, la puerta se abre sola.
+
+**Los roles no se tocaron.** Quien no podía crear sigue sin ver la acción: la
+serie no reparte permisos.
+
+Lo que también cambió son los textos, porque con la puerta abierta el cartel de
+antes era falso. Donde el alta se puede abrir, el banner del listado dice que
+STEL administra **la serie por defecto**, y el alta, cuando bloquea, nombra la
+serie y dice qué hacer: «la serie COTI la numera STEL. Elegí una serie que se
+emita desde el ERP». La ficha rápida y la ficha del cliente hacen lo mismo.
+
+Verificado en sesión real, escritorio y 375 px: los tres CTA llevan al alta con
+el cliente puesto cuando corresponde, los defaults del cliente entran (forma de
+pago «30 DIAS F/F con ECHEQ»), la serie arranca en `COTI` con «Crear»
+bloqueado, elegir `COT-ERP` lo habilita y volver a `COTI` lo vuelve a
+bloquear. **No se creó ningún documento**: `COTI` sigue en 2630 y `COT-ERP`
+en 2.

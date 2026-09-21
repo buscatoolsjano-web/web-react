@@ -9,6 +9,7 @@ import { SkeletonRows } from '@/components/ui/Skeleton'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { escribeVentas } from '@/modules/ventas/lib/permisos'
 import { motivoBloqueo } from '@/modules/ventas/lib/autoridad'
+import { useAperturaDeAlta, type AperturaDeAlta } from '@/modules/ventas/hooks/useAperturaDeAlta'
 import { useAutoridadNumeracion } from '@/modules/ventas/hooks/useAutoridadNumeracion'
 import { useCliente360 } from '../hooks/useCliente360'
 import { nombreDelMes } from '../lib/kpis'
@@ -81,6 +82,11 @@ export function FichaRapidaCliente({ clienteId, tituloId }: FichaRapidaClientePr
   const { data, isPending, error, refetch, isFetching } = useCliente360(clienteId)
   const { activa } = useEmpresa()
   const autoridad = useAutoridadNumeracion()
+  /**
+   * Fase 19 · E3: abrir el alta no emite nada, así que la puerta ya no la
+   * cierra la autoridad general. Adentro decide la serie elegida.
+   */
+  const apertura = useAperturaDeAlta('cotizacion', escribeVentas(activa?.rol))
   const [copiado, setCopiado] = useState(false)
 
   if (error) {
@@ -119,7 +125,18 @@ export function FichaRapidaCliente({ clienteId, tituloId }: FichaRapidaClientePr
     )
   }
 
-  return <Contenido data={data} tituloId={tituloId} copiado={copiado} setCopiado={setCopiado} stel={autoridad.stel} cargandoAutoridad={autoridad.cargando} rol={activa?.rol ?? null} />
+  return (
+    <Contenido
+      data={data}
+      tituloId={tituloId}
+      copiado={copiado}
+      setCopiado={setCopiado}
+      stel={autoridad.stel}
+      cargandoAutoridad={autoridad.cargando}
+      apertura={apertura}
+      rol={activa?.rol ?? null}
+    />
+  )
 }
 
 interface ContenidoProps {
@@ -129,10 +146,11 @@ interface ContenidoProps {
   setCopiado: (v: boolean) => void
   stel: (d: 'quote' | 'sales_order' | 'delivery') => boolean
   cargandoAutoridad: boolean
+  apertura: AperturaDeAlta
   rol: string | null
 }
 
-function Contenido({ data, tituloId, copiado, setCopiado, stel, cargandoAutoridad, rol }: ContenidoProps) {
+function Contenido({ data, tituloId, copiado, setCopiado, stel, cargandoAutoridad, apertura, rol }: ContenidoProps) {
   const { cliente, comercial, kpis, totales } = data
   const nombre = nombreVisible(cliente.razonSocial, cliente.nombreComercial)
   const mes = nombreDelMes(kpis.mes)
@@ -141,7 +159,9 @@ function Contenido({ data, tituloId, copiado, setCopiado, stel, cargandoAutorida
   // un botón que lleva a una pantalla que la base va a rechazar no es una
   // acción, es una trampa.
   const puedeVender = escribeVentas(rol)
-  const cotizacionBloqueada = stel('quote') || cargandoAutoridad
+  // Fase 19 · E3: se abre si hay una serie que el ERP numere. Con la de por
+  // defecto, el «Crear» del alta sigue bloqueado y lo explica ahí.
+  const cotizacionBloqueada = !apertura.abierta || apertura.cargando || cargandoAutoridad
 
   const copiarCuit = async () => {
     if (!cliente.cuit) return
@@ -249,7 +269,9 @@ function Contenido({ data, tituloId, copiado, setCopiado, stel, cargandoAutorida
       </div>
       {puedeVender && stel('quote') ? (
         <p id="ficha-motivo-stel" className={styles.motivo}>
-          {motivoBloqueo('quote', 'sales_order')}
+          {cotizacionBloqueada
+            ? motivoBloqueo('quote', 'sales_order')
+            : 'La serie por defecto la numera STEL: para emitir desde el ERP hay que elegir una serie del ERP al crear.'}
         </p>
       ) : null}
 

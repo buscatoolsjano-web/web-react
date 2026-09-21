@@ -8,6 +8,8 @@ import type { Cliente360 } from '../types'
 const estado = vi.hoisted(() => ({
   rol: 'admin',
   stel: false,
+  // Fase 19 · E3: ¿hay una serie de cotización que numere el ERP?
+  serieErp: false,
   cargandoAutoridad: false,
 }))
 const servicio = vi.hoisted(() => ({ cliente360: vi.fn() }))
@@ -19,6 +21,11 @@ vi.mock('@/features/empresa/useEmpresa', () => ({
 }))
 vi.mock('@/modules/ventas/hooks/useAutoridadNumeracion', () => ({
   useAutoridadNumeracion: () => ({ stel: () => estado.stel, cargando: estado.cargandoAutoridad }),
+}))
+// Fase 19 · E3: la puerta del alta la decide si hay una serie del ERP, no la
+// autoridad general del tipo.
+vi.mock('@/modules/ventas/hooks/useAperturaDeAlta', () => ({
+  useAperturaDeAlta: () => ({ abierta: estado.serieErp || !estado.stel, cargando: estado.cargandoAutoridad }),
 }))
 vi.mock('../services/cliente360', () => servicio)
 
@@ -139,7 +146,7 @@ const montar = (clienteId = 'cli-1') =>
   )
 
 beforeEach(() => {
-  Object.assign(estado, { rol: 'admin', stel: false, cargandoAutoridad: false })
+  Object.assign(estado, { rol: 'admin', stel: false, serieErp: false, cargandoAutoridad: false })
   vi.clearAllMocks()
 })
 
@@ -318,6 +325,32 @@ describe('Quién puede crear, y cuándo', () => {
     expect(screen.getByText(/STEL numera/)).toBeInTheDocument()
     // Y no queda un link paralelo que sí funcione.
     expect(screen.queryByRole('link', { name: /Nueva cotización/ })).not.toBeInTheDocument()
+  })
+
+  /** Fase 19 · E3 · §7-A/D: con serie del ERP vuelve a ser un link, con el cliente. */
+  it('con una serie del ERP, «Nueva cotización» lleva al alta con el cliente puesto', async () => {
+    estado.stel = true
+    estado.serieErp = true
+    servicio.cliente360.mockResolvedValue(ficha())
+    montar()
+
+    const link = await screen.findByRole('link', { name: /Nueva cotización/ })
+    expect(link.getAttribute('href')).toContain('/ventas/cotizaciones/nueva?cliente=')
+    expect(screen.queryByRole('button', { name: /Nueva cotización/ })).not.toBeInTheDocument()
+    // Y el texto que queda no puede contradecir al botón.
+    expect(screen.queryByText(/STEL numera las cotizaciones y los pedidos/)).toBeNull()
+    expect(screen.getByText(/elegir una serie del ERP al crear/)).toBeInTheDocument()
+  })
+
+  it('un rol sin permiso tampoco la ve con la serie del ERP disponible', async () => {
+    estado.rol = 'salesperson'
+    estado.stel = true
+    estado.serieErp = true
+    servicio.cliente360.mockResolvedValue(ficha())
+    montar()
+    await screen.findByRole('heading', { name: 'ZZ Mirgor SA' })
+    expect(screen.queryByRole('link', { name: /Nueva cotización/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Nueva cotización/ })).not.toBeInTheDocument()
   })
 
   it('mientras no se sabe la autoridad, no se ofrece crear', async () => {

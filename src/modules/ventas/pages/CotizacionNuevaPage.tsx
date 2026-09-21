@@ -25,7 +25,7 @@ import { useContactos, useNombreDeCliente, useSeries, useTarifas, useVendedores 
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { defaultsDeCliente } from '../services/clientes'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
-import { DOC_TYPE_DE, mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
+import { DOC_TYPE_DE, mensajeErrorVentas, motivoBloqueo, motivoSerieStel } from '../lib/autoridad'
 import {
   aPayloadCreacion,
   agregarLinea,
@@ -173,6 +173,12 @@ export function CotizacionNuevaPage() {
   // Mientras las series no llegaron se usa la autoridad general, que es lo
    // que se hacía siempre: no se desbloquea nada por no saber.
   const stel = serieElegida ? serieElegida.autoridad === 'STEL' : autoridad.stel(DOC_TYPE_DE['cotizacion'])
+  // Si hay de dónde elegir, el motivo habla de LA SERIE y dice qué hacer; si
+  // no, del tipo, que es todo lo que hay para decir.
+  const motivo =
+    serieElegida && (series.data ?? []).length > 1
+      ? motivoSerieStel(serieElegida.codigo)
+      : motivoBloqueo(DOC_TYPE_DE['cotizacion'])
 
   const tarifas = useTarifas(escribe)
   const vendedores = useVendedores(escribe)
@@ -381,7 +387,7 @@ export function CotizacionNuevaPage() {
         subtitle="Se arma acá y se guarda de una sola vez. El número lo asigna el servidor al crearla."
       />
 
-      {stel ? <AvisoAutoridadStel detalle={motivoBloqueo(DOC_TYPE_DE['cotizacion'])} /> : null}
+      {stel ? <AvisoAutoridadStel detalle={motivo} /> : null}
 
       {/* Fase 17 · E2: cuando un default del cliente no se puede aplicar, se
           dice por qué. Nunca se aplica un reemplazo en silencio. */}
@@ -543,7 +549,7 @@ export function CotizacionNuevaPage() {
         }
         note={
           stel ? (
-            <p id="motivo-crear">{motivoBloqueo(DOC_TYPE_DE['cotizacion'])}</p>
+            <p id="motivo-crear">{motivo}</p>
           ) : falta.length > 0 ? (
             <p id="motivo-crear">{falta.join(' ')}</p>
           ) : null

@@ -14,10 +14,11 @@ import doc from '@/components/document/Document.module.css'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { FiltrosDocumentos } from '../components/FiltrosDocumentos'
 import { ListadoDocumentos } from '../components/ListadoDocumentos'
+import { useAperturaDeAlta } from '../hooks/useAperturaDeAlta'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { useDocumentos } from '../hooks/useDocumentos'
 import { TAMANOS_DE_PAGINA, useFiltrosVentas } from '../hooks/useFiltrosVentas'
-import { DOC_TYPE_DE, motivoBloqueo } from '../lib/autoridad'
+import { DOC_TYPE_DE, motivoBloqueo, TITULO_BANNER_STEL_SERIE_DEFECTO } from '../lib/autoridad'
 import { aCsv, descargarCsv } from '../lib/csv'
 import { escribeVentas } from '../lib/permisos'
 import { exportarCsv } from '../services/acciones'
@@ -53,6 +54,14 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaN
   const autoridad = useAutoridadNumeracion()
   const docType = DOC_TYPE_DE[tipo]
   const stel = autoridad.stel(docType)
+  /**
+   * Fase 19 · E3: la autoridad decide si se puede CREAR, no si se puede ABRIR
+   * el alta. Con una serie del ERP configurada —`COT-ERP`— el botón lleva al
+   * formulario, donde la serie elegida decide: con la de por defecto «Crear»
+   * sigue bloqueado con su motivo.
+   */
+  const apertura = useAperturaDeAlta(tipo, puedeCrear)
+  const abreElAlta = apertura.abierta && !apertura.cargando
   const etiquetas = ETIQUETA_DE[tipo]
 
   const ordenar = (columna: OrdenVentas) => {
@@ -128,16 +137,16 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaN
           Limpiar selección
         </Button>
       ) : null}
-      {puedeCrear && !stel && !autoridad.cargando ? (
+      {puedeCrear && abreElAlta ? (
         <LinkButton to={rutaNuevo} variant="primary" icon={<Icon name="plus" size={16} />}>
           {etiquetaNuevo}
         </LinkButton>
       ) : null}
-      {puedeCrear && (stel || autoridad.cargando) ? (
+      {puedeCrear && !abreElAlta ? (
         <Button
           icon={<Icon name="plus" size={16} />}
           disabled
-          aria-describedby={stel ? 'motivo-nueva' : undefined}
+          aria-describedby={stel && !apertura.cargando ? 'motivo-nueva' : undefined}
         >
           {etiquetaNuevo}
         </Button>
@@ -154,9 +163,18 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaN
       />
 
       {stel ? (
-        <AvisoAutoridadStel detalle="Podés consultar, buscar, filtrar y exportar. Crear, emitir, confirmar o despachar desde el ERP está bloqueado hasta completar la migración." />
+        // Con el alta abierta el banner NO puede decir que crear está
+        // bloqueado: lo que está en STEL es la serie por defecto (Fase 19 · E3).
+        <AvisoAutoridadStel
+          {...(abreElAlta ? { titulo: TITULO_BANNER_STEL_SERIE_DEFECTO } : {})}
+          detalle={
+            abreElAlta
+              ? 'Podés consultar, buscar, filtrar y exportar. La serie por defecto la numera STEL: para emitir desde el ERP hay que elegir una serie del ERP al crear.'
+              : 'Podés consultar, buscar, filtrar y exportar. Crear, emitir, confirmar o despachar desde el ERP está bloqueado hasta completar la migración.'
+          }
+        />
       ) : null}
-      {puedeCrear && stel ? (
+      {puedeCrear && stel && !abreElAlta && !apertura.cargando ? (
         <p id="motivo-nueva" className={doc.motivo}>
           {motivoBloqueo(docType)}
         </p>
@@ -200,7 +218,7 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaN
             icon="inbox"
             title={`Todavía no hay ${etiquetas.plural}`}
             action={
-              puedeCrear && !stel && !autoridad.cargando ? (
+              puedeCrear && abreElAlta ? (
                 <LinkButton to={rutaNuevo} variant="primary" icon={<Icon name="plus" size={16} />}>
                   {etiquetaNuevo}
                 </LinkButton>

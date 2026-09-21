@@ -16,6 +16,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { TabPanel, Tabs } from '@/components/ui/Tabs'
 import { Icon } from '@/components/icons/Icon'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { useAperturaDeAlta } from '@/modules/ventas/hooks/useAperturaDeAlta'
 import { useAutoridadNumeracion } from '@/modules/ventas/hooks/useAutoridadNumeracion'
 import { motivoBloqueo, type DocTypeVentas } from '@/modules/ventas/lib/autoridad'
 import { escribeVentas } from '@/modules/ventas/lib/permisos'
@@ -139,6 +140,12 @@ export function ClienteDetallePage() {
    * clicks de distancia, sí deshabilitaba y explicaba.
    */
   const autoridadVentas = useAutoridadNumeracion()
+  /**
+   * Fase 19 · E3: la trampa era el botón que llevaba a una pantalla que la
+   * base iba a rechazar. Con el selector de serie ya no es el caso para la
+   * cotización: abrir el alta no emite, y ahí la serie elegida decide.
+   */
+  const apertura = useAperturaDeAlta('cotizacion', escribeVentas(activa?.rol))
   const [pestana, setPestana] = useState<Pestana>('informacion')
   // Fase 17 · E4: el historial tiene su propia paginación, del lado del
   // servidor. Vive acá porque el panel es de presentación.
@@ -267,15 +274,20 @@ export function ClienteDetallePage() {
   // Mientras no se sabe, las acciones se muestran deshabilitadas y SIN motivo:
   // no se inventa un bloqueo que todavía no se leyó.
   const bloqueados: DocTypeVentas[] = []
-  if (autoridadVentas.stel('quote')) bloqueados.push('quote')
+  // Fase 19 · E3: la cotización ya no se cierra por la autoridad general.
+  // Abrir el alta no emite nada, y adentro decide la serie elegida: con la de
+  // por defecto, «Crear» sigue bloqueado y esa pantalla lo explica.
+  if (!apertura.abierta) bloqueados.push('quote')
   if (autoridadVentas.stel('sales_order')) bloqueados.push('sales_order')
   const hayMotivo = puedeVender && !cliente.dadoDeBaja && bloqueados.length > 0
+  const cerrado = (docType: DocTypeVentas) =>
+    docType === 'quote' ? !apertura.abierta || apertura.cargando : autoridadVentas.stel(docType)
   const emitir = (docType: DocTypeVentas, etiqueta: string, ruta: string) =>
-    autoridadVentas.stel(docType) || autoridadVentas.cargando ? (
+    cerrado(docType) || autoridadVentas.cargando ? (
       <Button
         variant="secondary"
         disabled
-        {...(hayMotivo && autoridadVentas.stel(docType) ? { 'aria-describedby': MOTIVO_STEL } : {})}
+        {...(hayMotivo && cerrado(docType) ? { 'aria-describedby': MOTIVO_STEL } : {})}
       >
         {etiqueta}
       </Button>
