@@ -6,8 +6,9 @@ import { SkeletonRows } from '@/components/ui/Skeleton'
 import { contar } from '@/components/tables/rango'
 import tabla from '@/components/tables/Tabla.module.css'
 import { formatearFecha } from '../lib/formato'
+import { BuscadorDeColumna } from './BuscadorDeColumna'
 import { ChipBaja } from './ChipEstado'
-import type { ActivoListado, OrdenActivos } from '../types'
+import type { ActivoListado, FiltrosActivos, OrdenActivos } from '../types'
 import styles from './Listado.module.css'
 
 export interface ListadoActivosProps {
@@ -20,6 +21,9 @@ export interface ListadoActivosProps {
   abierto?: string | null
   /** Abrir la ficha rápida en vez de navegar a la ficha completa. */
   onAbrirFicha?: (id: string) => void
+  /** Los filtros por columna. Sin esto, la fila de búsqueda no se dibuja. */
+  filtros?: Pick<FiltrosActivos, 'ref' | 'ident' | 'serieTexto' | 'clienteTexto'>
+  onFiltrar?: (cambios: Partial<FiltrosActivos>) => void
 }
 
 const COLUMNAS: { clave: OrdenActivos; etiqueta: string; clase?: string | undefined }[] = [
@@ -88,6 +92,8 @@ export function ListadoActivos({
   cargando,
   abierto = null,
   onAbrirFicha,
+  filtros,
+  onFiltrar,
 }: ListadoActivosProps) {
   const isMobile = useIsMobile()
 
@@ -178,6 +184,47 @@ export function ListadoActivos({
               <span className="sr-only">Acciones</span>
             </th>
           </tr>
+          {/* La fila de búsqueda, como en el sistema anterior: una cajita por
+              columna. Se busca dentro de la columna, que es como se busca una
+              herramienta —«las que tengan RZ0 en el identificador»— y no en un
+              buscador general que mezcla la referencia con la marca. */}
+          {filtros && onFiltrar ? (
+            <tr className={styles.filaBuscar}>
+              <th scope="col">
+                <BuscadorDeColumna
+                  columna="Referencia"
+                  valor={filtros.ref}
+                  onCambiar={(ref) => onFiltrar({ ref })}
+                />
+              </th>
+              <th scope="col">
+                <BuscadorDeColumna
+                  columna="Nº de serie"
+                  valor={filtros.serieTexto}
+                  onCambiar={(serieTexto) => onFiltrar({ serieTexto })}
+                />
+              </th>
+              <th scope="col" className={styles.ocultaBajo1024}>
+                <BuscadorDeColumna
+                  columna="Identificador"
+                  valor={filtros.ident}
+                  onCambiar={(ident) => onFiltrar({ ident })}
+                />
+              </th>
+              <th scope="col">
+                <BuscadorDeColumna
+                  columna="Cliente"
+                  valor={filtros.clienteTexto}
+                  onCambiar={(clienteTexto) => onFiltrar({ clienteTexto })}
+                />
+              </th>
+              <th scope="col" className={styles.ocultaBajo1280} />
+              <th scope="col" className={styles.ocultaBajo1280} />
+              <th scope="col" className={styles.ocultaBajo1280Tambien} />
+              <th scope="col" className={styles.ocultaBajo1280Tambien} />
+              <th scope="col" className={styles.accion} />
+            </tr>
+          ) : null}
         </thead>
         <tbody>
           {filas.map((a) => (

@@ -44,6 +44,10 @@ export function leerFiltros(params: URLSearchParams): FiltrosActivos {
     clienteId: params.get('cli'),
     productoId: params.get('prod'),
     tipo: params.get('tipo') ?? '',
+    ref: params.get('ref') ?? '',
+    ident: params.get('ident') ?? '',
+    serieTexto: params.get('serie_q') ?? '',
+    clienteTexto: params.get('cli_q') ?? '',
     marca: params.get('marca') ?? '',
     modelo: params.get('modelo') ?? '',
     serie: deLista(params.get('serie'), SERIES),
@@ -66,6 +70,10 @@ export function escribirFiltros(f: FiltrosActivos): URLSearchParams {
   if (f.clienteId) p.set('cli', f.clienteId)
   if (f.productoId) p.set('prod', f.productoId)
   if (f.tipo !== '') p.set('tipo', f.tipo)
+  if (f.ref.trim() !== '') p.set('ref', f.ref.trim())
+  if (f.ident.trim() !== '') p.set('ident', f.ident.trim())
+  if (f.serieTexto.trim() !== '') p.set('serie_q', f.serieTexto.trim())
+  if (f.clienteTexto.trim() !== '') p.set('cli_q', f.clienteTexto.trim())
   if (f.marca !== '') p.set('marca', f.marca)
   if (f.modelo !== '') p.set('modelo', f.modelo)
   if (f.serie !== '') p.set('serie', f.serie)
@@ -101,6 +109,10 @@ export function useFiltrosActivos() {
     filtros.clienteId !== null ||
     filtros.productoId !== null ||
     filtros.tipo !== '' ||
+    filtros.ref.trim() !== '' ||
+    filtros.ident.trim() !== '' ||
+    filtros.serieTexto.trim() !== '' ||
+    filtros.clienteTexto.trim() !== '' ||
     filtros.marca !== '' ||
     filtros.modelo !== '' ||
     filtros.serie !== '' ||

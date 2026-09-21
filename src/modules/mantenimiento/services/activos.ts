@@ -76,14 +76,38 @@ const aFila = (f: Fila): ActivoListado => ({
   creadoEn: f.created_at,
 })
 
+/** Lo que PostgREST no tolera en un `ilike`. */
+const paraBuscar = (s: string) => s.trim().replace(/[,()*%]/g, '')
+
 export async function listarActivos(
   companyId: string,
   filtros: FiltrosActivos,
 ): Promise<PaginaDeActivos> {
+  // Buscar por cliente obliga a que el join sea INNER: con el join normal,
+  // PostgREST filtra la fila embebida y devuelve el equipo igual, con el
+  // cliente en nulo. El listado mostraría equipos que no coinciden.
+  const cliente = paraBuscar(filtros.clienteTexto)
+  const columnas =
+    cliente === ''
+      ? COLUMNAS
+      : COLUMNAS.replace(
+          'dueno:customers!owner_customer_id (',
+          'dueno:customers!owner_customer_id!inner (',
+        )
+
   let q = supabase
     .from('maintenance_assets')
-    .select(COLUMNAS, { count: 'exact' })
+    .select(columnas, { count: 'exact' })
     .eq('company_id', companyId)
+
+  // ── Los filtros por columna, como en STEL ───────────────────────────────
+  const ref = paraBuscar(filtros.ref)
+  const ident = paraBuscar(filtros.ident)
+  const serie = paraBuscar(filtros.serieTexto)
+  if (ref !== '') q = q.ilike('reference', `%${ref}%`)
+  if (ident !== '') q = q.ilike('identifier', `%${ident}%`)
+  if (serie !== '') q = q.ilike('serial_number', `%${serie}%`)
+  if (cliente !== '') q = q.ilike('customers.legal_name', `%${cliente}%`)
 
   // La coma y los paréntesis rompen la sintaxis de PostgREST.
   const texto = filtros.q.trim().replace(/[,()*]/g, '')

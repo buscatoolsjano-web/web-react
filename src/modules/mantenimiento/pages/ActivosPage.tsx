@@ -150,6 +150,8 @@ export function ActivosPage() {
             cargando={isPending}
             abierto={seleccionado}
             onAbrirFicha={seleccionar}
+            filtros={filtros}
+            onFiltrar={aplicar}
           />
           <Paginador
             pagina={filtros.pagina}

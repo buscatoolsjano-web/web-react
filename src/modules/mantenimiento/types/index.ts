@@ -65,6 +65,14 @@ export interface FiltrosActivos {
   clienteId: string | null
   productoId: string | null
   tipo: string
+  /**
+   * Los filtros por columna, como en STEL: una cajita debajo de cada
+   * encabezado. Conviven con el buscador general, que busca en todas.
+   */
+  ref: string
+  ident: string
+  serieTexto: string
+  clienteTexto: string
   /** La marca y el modelo, tal como vinieron del origen (Fase 20 · E1). */
   marca: string
   modelo: string
@@ -85,6 +93,10 @@ export const FILTROS_ACTIVOS_INICIALES: FiltrosActivos = {
   clienteId: null,
   productoId: null,
   tipo: '',
+  ref: '',
+  ident: '',
+  serieTexto: '',
+  clienteTexto: '',
   marca: '',
   modelo: '',
   serie: '',
