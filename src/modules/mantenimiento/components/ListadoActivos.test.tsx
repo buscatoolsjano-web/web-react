@@ -21,7 +21,9 @@ const { ListadoActivos } = await import('./ListadoActivos')
 const activo = (p: Partial<ActivoListado> = {}): ActivoListado => ({
   id: 'a1',
   referencia: 'ACT00339',
+  nombre: 'FIAM 26C8A S/N 2307232',
   identificador: 'P037 - ASM10-9 PC',
+  imagen: null,
   serie: 'V00129',
   serieNormalizada: 'V00129',
   duenoId: 'c1',

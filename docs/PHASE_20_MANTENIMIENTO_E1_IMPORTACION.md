@@ -142,3 +142,61 @@ decisión sobre el estado «En espera».
 
 Y una auditoría aparte: **las equivalencias de modelo**. 102 textos, ~60 modelos. El dato
 original ya está guardado; lo que falta es el modelo normalizado **al lado**, nunca encima.
+
+---
+
+## 6 · E1b — la foto, el nombre y la ficha como la del sistema anterior
+
+Tres columnas más y una tabla, con la misma convención de siempre:
+
+```sql
+alter table maintenance_assets
+  add column name         text,   -- «FIAM 26C8A S/N 2307232»
+  add column description  text,   -- el relato largo del taller
+  add column address_text text;   -- «Calle / Dirección»
+
+create table maintenance_asset_images (
+  id, company_id, asset_id, external_id, position, url, storage_path, created_at,
+  unique (asset_id, external_id) where external_id is not null
+);
+```
+
+`name` **no es** `identifier`: en STEL son campos distintos y los 358 equipos
+tienen nombre mientras que 333 tienen identificador. Un control de la migración
+paró la primera aplicación —pedía que `anon` no tuviera ni el grant— y se
+ajustó: las ocho tablas del módulo tienen el grant por defecto de Supabase y lo
+que protege es la RLS, así que el control pasó a verificar **que ninguna policy
+le dé acceso a anon**, que es lo que de verdad importa.
+
+| completado | |
+|---|---|
+| nombre | 358 |
+| descripción | 252 |
+| dirección | 354 |
+| fotos | **914**, de **329** equipos |
+| campos ya escritos a mano que se respetaron | 0 (no había ninguno) |
+
+El sincronizador **sólo completa lo vacío**: si alguien edita el nombre en el
+ERP, la próxima corrida no lo pisa —lo cuenta y lo reporta—. Segunda corrida:
+0 equipos, 0 fotos.
+
+### Dónde viven las fotos, hoy
+
+En el servidor de STEL, con el token en la URL. `storage_path` está en la tabla
+y hoy es **nulo en las 914**: mientras lo sea, la foto no es nuestra. Si STEL
+se da de baja o rota el token, los 329 equipos se quedan sin imagen. La copia
+a nuestro almacenamiento es lo primero de E2 y no cambia ninguna pantalla:
+`fotoPrincipal()` es el único lugar que decide de dónde sale la imagen.
+
+### La pantalla
+
+- **Listado**: columna de foto (el hueco existe siempre; 29 equipos no tienen
+  y muestran el ícono), el nombre debajo de la referencia, y una **cajita de
+  «Buscar» por columna** —referencia, serie, identificador y cliente— como en
+  el sistema anterior. Buscar por cliente usa un join **inner**: con el join
+  normal PostgREST devuelve el equipo igual, con el cliente en nulo.
+- **Ficha**: título `ACT00372 · FIAM 26C8A S/N 2307232`, cabecera con los diez
+  datos en grilla, la imagen principal a la derecha y el estado de la garantía
+  en un badge —**calculado, no guardado**: un campo guardado se desactualiza
+  solo el día que vence—. Pestañas: Datos · Órdenes · **Imágenes** · Archivos ·
+  Historial.

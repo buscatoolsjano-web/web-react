@@ -21,6 +21,8 @@ import { FormularioActivo } from '../components/FormularioActivo'
 import { ListadoOrdenes } from '../components/ListadoOrdenes'
 import { PanelHistorial } from '../components/PanelHistorial'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
+import { CabeceraActivo } from '../components/CabeceraActivo'
+import { GaleriaActivo } from '../components/GaleriaActivo'
 import { ChipBaja } from '../components/ChipEstado'
 import { useActivo, useGuardarActivo, useHistorialDeActivo } from '../hooks/useActivos'
 import { useOrdenes } from '../hooks/useOrdenes'
@@ -32,7 +34,7 @@ import styles from './Pagina.module.css'
 
 const ID_PESTANAS = 'ficha-equipo'
 
-type Pestana = 'datos' | 'ordenes' | 'archivos' | 'historial'
+type Pestana = 'datos' | 'ordenes' | 'imagenes' | 'archivos' | 'historial'
 
 /**
  * La ficha de un equipo.
@@ -148,6 +150,7 @@ export function ActivoDetallePage() {
   const pestanas: TabItem<Pestana>[] = [
     { key: 'datos', label: 'Datos' },
     { key: 'ordenes', label: 'Órdenes', count: ordenes.data?.total ?? 0 },
+    { key: 'imagenes', label: 'Imágenes', count: activo.imagenes.length },
     { key: 'archivos', label: 'Archivos' },
     { key: 'historial', label: 'Historial' },
   ]
@@ -156,7 +159,7 @@ export function ActivoDetallePage() {
     <div className={doc.pagina}>
       <PageHeader
         back={{ to: '/mantenimiento/activos', label: 'Equipos' }}
-        title={activo.referencia}
+        title={activo.nombre ? `${activo.referencia} · ${activo.nombre}` : activo.referencia}
         subtitle={
           <>
             {activo.modelo ?? activo.tipo ?? 'Sin modelo cargado'}
@@ -227,6 +230,8 @@ export function ActivoDetallePage() {
           <p>La baja es lógica: sus órdenes lo siguen nombrando y el historial queda intacto.</p>
         </Alert>
       ) : null}
+
+      <CabeceraActivo activo={activo} />
 
       <div>
         <Tabs id={ID_PESTANAS} label="Secciones del equipo" items={pestanas} value={pestana} onChange={setPestana} />
@@ -309,6 +314,12 @@ export function ActivoDetallePage() {
                   )}
                 </DocSection>
 
+                {activo.descripcion ? (
+                  <DocSection title="Descripción">
+                    <p className={styles.notas}>{activo.descripcion}</p>
+                  </DocSection>
+                ) : null}
+
                 {activo.notas ? (
                   <DocSection title="Notas">
                     <p className={styles.notas}>{activo.notas}</p>
@@ -342,6 +353,8 @@ export function ActivoDetallePage() {
           {/* La pestaña monta el panel sólo cuando se abre: listar los adjuntos
               es una consulta más, y la mayoría de las visitas a un equipo son
               para mirar sus órdenes. */}
+          {pestana === 'imagenes' ? <GaleriaActivo imagenes={activo.imagenes} /> : null}
+
           {pestana === 'archivos' ? (
             <PanelAdjuntos
               entidad="maintenance_asset"

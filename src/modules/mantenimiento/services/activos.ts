@@ -28,17 +28,19 @@ const vacioANulo = (s: string): string | null => {
 }
 
 const COLUMNAS = `
-  id, reference, identifier, serial_number, serial_normalized, owner_customer_id,
+  id, reference, name, identifier, serial_number, serial_normalized, owner_customer_id,
   product_id, asset_type, brand_text, model_text, city, under_contract,
   deleted_at, created_at,
   dueno:customers!owner_customer_id ( legal_name ),
   producto:products!product_id ( sku ),
-  maintenance_orders ( id )
+  maintenance_orders ( id ),
+  imagenes:maintenance_asset_images ( id, url, storage_path, position )
 `
 
 interface Fila {
   id: string
   reference: string
+  name: string | null
   identifier: string | null
   serial_number: string | null
   serial_normalized: string | null
@@ -54,12 +56,29 @@ interface Fila {
   dueno: { legal_name: string } | null
   producto: { sku: string } | null
   maintenance_orders: { id: string }[] | null
+  imagenes: { id: string; url: string | null; storage_path: string | null; position: number }[] | null
+}
+
+/**
+ * La foto principal es la de menor posición.
+ *
+ * Mientras la foto no esté copiada a nuestro almacenamiento vive en el
+ * servidor de STEL y se muestra desde ahí. Cuando se copien, éste es
+ * el único lugar que hay que cambiar.
+ */
+function fotoPrincipal(
+  imgs: { url: string | null; storage_path: string | null; position: number }[] | null,
+): string | null {
+  const ordenadas = [...(imgs ?? [])].sort((a, b) => a.position - b.position)
+  return ordenadas.find((i) => i.url)?.url ?? null
 }
 
 const aFila = (f: Fila): ActivoListado => ({
   id: f.id,
   referencia: f.reference,
+  nombre: f.name,
   identificador: f.identifier,
+  imagen: fotoPrincipal(f.imagenes),
   serie: f.serial_number,
   serieNormalizada: f.serial_normalized,
   duenoId: f.owner_customer_id,
@@ -234,7 +253,8 @@ export async function obtenerActivo(
   const { data, error } = await supabase
     .from('maintenance_assets')
     .select(
-      `${COLUMNAS}, state, warranty_start, warranty_end, notes, delivery_serial_id, updated_at,
+      `${COLUMNAS}, state, warranty_start, warranty_end, notes, description, address_text,
+       delivery_serial_id, updated_at,
        external_source, external_id, last_synced_at,
        autor:profiles!created_by ( full_name ),
        procedencia:delivery_serials!delivery_serial_id (
@@ -255,6 +275,8 @@ export async function obtenerActivo(
     warranty_start: string | null
     warranty_end: string | null
     notes: string | null
+    description: string | null
+    address_text: string | null
     delivery_serial_id: string | null
     updated_at: string
     external_source: string | null
@@ -274,6 +296,11 @@ export async function obtenerActivo(
     garantiaDesde: f.warranty_start,
     garantiaHasta: f.warranty_end,
     notas: f.notes,
+    descripcion: f.description,
+    direccion: f.address_text,
+    imagenes: [...(f.imagenes ?? [])]
+      .sort((a, b) => a.position - b.position)
+      .flatMap((i) => (i.url ? [{ id: i.id, url: i.url }] : [])),
     entregaSerialId: f.delivery_serial_id,
     procedencia: f.procedencia
       ? {

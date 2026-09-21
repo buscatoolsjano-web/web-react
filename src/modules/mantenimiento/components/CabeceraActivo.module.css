@@ -1,0 +1,117 @@
+/* La cabecera de la ficha: datos a la izquierda, foto a la derecha. */
+
+.cabecera {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-4);
+  align-items: start;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+/* En mobile la foto va arriba: en el taller se la mira primero. */
+@media (max-width: 767px) {
+  .cabecera {
+    grid-template-columns: 1fr;
+  }
+
+  .figura {
+    order: -1;
+    justify-self: center;
+  }
+}
+
+/* Dos columnas de campos, como en el sistema anterior: el equipo a la
+   izquierda, el cliente y la garantía a la derecha. */
+.datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+  min-width: 0;
+}
+
+.datos dt {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.datos dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  overflow-wrap: anywhere;
+}
+
+.serie {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.fechas {
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+
+.vacio {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.figura {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pieFoto {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+/* Caja fija: con foto o sin foto la cabecera mide lo mismo. */
+.marco {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160px;
+  height: 160px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-alt);
+}
+
+.foto {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sinFoto {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.masFotos {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  max-width: 160px;
+}

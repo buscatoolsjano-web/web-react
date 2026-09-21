@@ -8,6 +8,7 @@ import tabla from '@/components/tables/Tabla.module.css'
 import { formatearFecha } from '../lib/formato'
 import { BuscadorDeColumna } from './BuscadorDeColumna'
 import { ChipBaja } from './ChipEstado'
+import { Miniatura } from './Miniatura'
 import type { ActivoListado, FiltrosActivos, OrdenActivos } from '../types'
 import styles from './Listado.module.css'
 
@@ -155,6 +156,12 @@ export function ListadoActivos({
       <table className={tabla.tabla}>
         <thead>
           <tr>
+            {/* La foto primero, como en el sistema anterior: en un parque de
+                358 herramientas parecidas, la imagen identifica más rápido
+                que cualquier texto. */}
+            <th scope="col" className={styles.colFoto}>
+              <span className="sr-only">Imagen</span>
+            </th>
             {COLUMNAS.map((c) => {
               const activa = orden === c.clave
               return (
@@ -190,6 +197,7 @@ export function ListadoActivos({
               buscador general que mezcla la referencia con la marca. */}
           {filtros && onFiltrar ? (
             <tr className={styles.filaBuscar}>
+              <th scope="col" className={styles.colFoto} />
               <th scope="col">
                 <BuscadorDeColumna
                   columna="Referencia"
@@ -237,13 +245,21 @@ export function ListadoActivos({
                 .join(' ')}
               {...filaClickeable(onAbrirFicha, a.id)}
             >
+              <td className={styles.colFoto}>
+                <Miniatura url={a.imagen} alt={a.nombre ?? a.referencia} />
+              </td>
               <td className={styles.colEquipo}>
                 <Link to={`/mantenimiento/activos/${a.id}`} className={tabla.enlace}>
                   {a.referencia}
                 </Link>
                 {/* La etiqueta con la que el taller lo llama: «P037 - ASM10-9
                     PC». Sin ella la fila es una referencia y un serial. */}
-                {a.identificador ? (
+                {a.nombre ? (
+                  <span className={styles.nombreEquipo} title={a.nombre}>
+                    {a.nombre}
+                  </span>
+                ) : null}
+                {a.identificador && a.identificador !== a.nombre ? (
                   <span className={styles.etiqueta} title={a.identificador}>
                     {a.identificador}
                   </span>

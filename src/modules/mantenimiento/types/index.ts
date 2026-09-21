@@ -10,7 +10,11 @@
 export interface ActivoListado {
   id: string
   referencia: string
+  /** El nombre del equipo, como lo escribe el taller. Distinto de la etiqueta. */
+  nombre: string | null
   identificador: string | null
+  /** La foto principal: la de menor posición. Puede no haber ninguna. */
+  imagen: string | null
   serie: string | null
   /** Normalizado por la base: mayúsculas sin espacios ni guiones. */
   serieNormalizada: string | null
@@ -34,6 +38,10 @@ export interface ActivoDetalle extends ActivoListado {
   garantiaDesde: string | null
   garantiaHasta: string | null
   notas: string | null
+  descripcion: string | null
+  direccion: string | null
+  /** Todas las fotos, en orden. La primera es la principal. */
+  imagenes: { id: string; url: string }[]
   entregaSerialId: string | null
   /** La procedencia, si el equipo salió de una entrega nuestra. */
   procedencia: {

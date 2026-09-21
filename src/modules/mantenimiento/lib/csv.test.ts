@@ -5,7 +5,9 @@ import type { ActivoListado, OrdenListado } from '../types'
 const EQUIPO: ActivoListado = {
   id: 'a1',
   referencia: 'EQ00001',
+  nombre: null,
   identificador: null,
+  imagen: null,
   serie: 'FEIN-88231-A',
   serieNormalizada: 'FEIN88231A',
   duenoId: 'c1',
