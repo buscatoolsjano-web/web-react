@@ -12,6 +12,16 @@ const servicios = vi.hoisted(() => ({
   duplicar: vi.fn(() => Promise.resolve('nuevo')),
 }))
 
+// El componente lee las series del tipo para saber en qué serie saldría el
+// documento que Duplicar crearía (Fase 19 · E5). Eso arrastra el cliente de
+// Supabase, que exige entorno al importarse.
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+vi.mock('../hooks/useDocumentos', () => ({
+  useSeries: () => ({
+    data: [{ codigo: 'PDV', esPorDefecto: true, autoridad: estado.stel ? 'STEL' : 'ERP' }],
+    isPending: false,
+  }),
+}))
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({ activa: { companyId: 'c1', companyName: 'ZZ', rol: estado.rol, esInterno: true, customerId: null } }),
 }))
@@ -94,12 +104,18 @@ describe('Acciones del documento (Fase 13)', () => {
     expect(servicios.cancelar).not.toHaveBeenCalled()
   })
 
-  it('STEL: Duplicar deshabilitado con su motivo visible', () => {
+  /**
+   * Fase 19 · E5: el motivo habla del documento que se CREARÍA, no del que se
+   * está mirando. Duplicar saca el nuevo en la serie por defecto.
+   */
+  it('STEL: Duplicar deshabilitado, y el motivo nombra la serie del documento nuevo', () => {
     estado.stel = true
     montar()
     const duplicar = screen.getByRole('button', { name: 'Duplicar' })
     expect(duplicar).toBeDisabled()
-    expect(document.getElementById(duplicar.getAttribute('aria-describedby')!)).toHaveTextContent(/STEL numera los pedidos/)
+    const motivo = document.getElementById(duplicar.getAttribute('aria-describedby')!)
+    expect(motivo).toHaveTextContent(/El pedido nuevo saldría en la serie PDV, que numera STEL/)
+    expect(motivo).toHaveTextContent(/Este documento no se toca/)
   })
 
   it.each(['shipped', 'delivered'])('Fase 14 E3: remito %s no ofrece Cancelar y explica por qué', (est) => {

@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest'
-import { normalizarBusqueda } from './clientes'
+import { describe, expect, it, vi } from 'vitest'
+
+// `normalizarBusqueda` es una función pura, pero vive en el módulo del
+// servicio, que importa el cliente de Supabase y con él `getEnv()`. Sin este
+// mock el test exige variables de entorno y se cae en la suite aislada —y en
+// CI, que tampoco las tiene—. Es el bug del ADR-019, otra vez.
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+
+const { normalizarBusqueda } = await import('./clientes')
 
 /**
  * La normalización del texto de búsqueda.
