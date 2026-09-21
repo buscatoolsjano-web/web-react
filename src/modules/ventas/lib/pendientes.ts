@@ -37,12 +37,23 @@ export interface LineaPedidoParaCalculo {
 export interface LineaEntregaParaCalculo {
   ordenLineaId: string | null
   cantidad: number
+  /**
+   * `true` si el remito YA se despachó (Fase 19 · E5).
+   *
+   * Un remito en borrador no entregó nada: no movió una sola unidad de stock.
+   * Contarlo como entregado era decir que la mercadería salió cuando todavía
+   * está en el depósito. Se cuenta aparte, y el pendiente no lo descuenta.
+   */
+  despachada: boolean
 }
 
 export interface PendientePorLinea {
   lineaId: string
   pedido: number
+  /** Lo que SALIÓ: sólo remitos despachados. */
   entregado: number
+  /** Lo comprometido en remitos en borrador, que todavía no salió. */
+  enBorrador: number
   /** Nunca negativo. El exceso se informa aparte. */
   pendiente: number
   /** Cuánto se entregó DE MÁS. 0 en el caso normal. */
@@ -99,6 +110,7 @@ export function calcularPendientes({
         lineaId: l.id,
         pedido: l.cantidadPedida,
         entregado: 0,
+        enBorrador: 0,
         pendiente: l.cantidadPedida,
         exceso: 0,
       })),
@@ -120,18 +132,24 @@ export function calcularPendientes({
   }
 
   const entregadoPorLinea = new Map<string, number>()
+  const borradorPorLinea = new Map<string, number>()
   for (const l of lineasEntrega) {
     if (l.ordenLineaId === null) continue
-    entregadoPorLinea.set(l.ordenLineaId, (entregadoPorLinea.get(l.ordenLineaId) ?? 0) + l.cantidad)
+    const mapa = l.despachada ? entregadoPorLinea : borradorPorLinea
+    mapa.set(l.ordenLineaId, (mapa.get(l.ordenLineaId) ?? 0) + l.cantidad)
   }
 
   const porLinea = lineasPedido.map((l) => {
     const entregado = entregadoPorLinea.get(l.id) ?? 0
+    const enBorrador = borradorPorLinea.get(l.id) ?? 0
+    // El pendiente se mide contra lo que SALIÓ. Lo que está en un borrador se
+    // muestra aparte: todavía se puede editar o descartar.
     const diferencia = l.cantidadPedida - entregado
     return {
       lineaId: l.id,
       pedido: l.cantidadPedida,
       entregado,
+      enBorrador,
       pendiente: diferencia > 0 ? diferencia : 0,
       exceso: diferencia < 0 ? -diferencia : 0,
     }

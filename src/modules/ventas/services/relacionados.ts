@@ -242,6 +242,9 @@ export async function documentosRelacionados(
   return r
 }
 
+/** Los estados en los que la mercadería YA salió del depósito. */
+const DESPACHADOS = new Set(['shipped', 'delivered'])
+
 /**
  * Lo que hace falta para calcular el pendiente de un pedido.
  *
@@ -254,29 +257,41 @@ export async function evidenciaDeEntrega(
   pedidoId: string,
   customerId: string | null,
 ): Promise<{
-  lineasEntrega: { ordenLineaId: string | null; cantidad: number }[]
+  lineasEntrega: { ordenLineaId: string | null; cantidad: number; despachada: boolean }[]
   hayEntregasEnlazadas: boolean
   hayRemitosHuerfanosDelCliente: boolean
 }> {
+  // El estado viene con cada remito: un borrador no entregó nada, y hay que
+  // poder contarlo aparte (Fase 19 · E5). Los cancelados no cuentan para nada:
+  // es la misma regla que usa el servidor para el pendiente.
   const { data: entregas, error } = await supabase
     .from('deliveries')
-    .select('id')
+    .select('id, status')
     .eq('company_id', companyId)
     .eq('order_id', pedidoId)
+    .neq('status', 'cancelled')
   if (error) throw new Error(`Entregas del pedido: ${error.message}`)
 
-  const ids = ((entregas ?? []) as { id: string }[]).map((e) => e.id)
+  const estados = new Map<string, string>(
+    ((entregas ?? []) as { id: string; status: string }[]).map((e) => [e.id, e.status]),
+  )
+  const ids = [...estados.keys()]
 
-  let lineasEntrega: { ordenLineaId: string | null; cantidad: number }[] = []
+  let lineasEntrega: { ordenLineaId: string | null; cantidad: number; despachada: boolean }[] = []
   if (ids.length > 0) {
     const { data, error: e2 } = await supabase
       .from('delivery_lines')
-      .select('order_line_id, quantity')
+      .select('order_line_id, quantity, delivery_id')
       .eq('company_id', companyId)
       .in('delivery_id', ids)
     if (e2) throw new Error(`Líneas de entrega: ${e2.message}`)
-    lineasEntrega = ((data ?? []) as { order_line_id: string | null; quantity: number | string }[])
-      .map((l) => ({ ordenLineaId: l.order_line_id, cantidad: Number(l.quantity) }))
+    lineasEntrega = (
+      (data ?? []) as { order_line_id: string | null; quantity: number | string; delivery_id: string }[]
+    ).map((l) => ({
+      ordenLineaId: l.order_line_id,
+      cantidad: Number(l.quantity),
+      despachada: DESPACHADOS.has(estados.get(l.delivery_id) ?? ''),
+    }))
   }
 
   let hayHuerfanos = false
@@ -297,4 +312,116 @@ export async function evidenciaDeEntrega(
     hayEntregasEnlazadas: ids.length > 0,
     hayRemitosHuerfanosDelCliente: hayHuerfanos,
   }
+}
+
+/** Una línea del pedido, vista desde un remito concreto (Fase 19 · E5). */
+export interface AvanceDeLinea {
+  lineaPedidoId: string
+  sku: string | null
+  nombre: string | null
+  pedido: number
+  /** Lo que salió en OTROS remitos ya despachados. */
+  yaEntregado: number
+  /** Lo que lleva ESTE remito. */
+  estaEntrega: number
+  /** Lo que quedaría pendiente si este remito se despacha. */
+  pendienteDespues: number
+}
+
+export interface AvanceDelRemito {
+  lineas: AvanceDeLinea[]
+  /** Líneas de ESTE remito que no están enlazadas a una línea del pedido. */
+  sinEnlazar: number
+  /** Otros remitos del pedido con alguna línea sin enlazar: el reparto no es confiable. */
+  repartoDudoso: boolean
+}
+
+/**
+ * Pedido / ya entregado / esta entrega / pendiente después.
+ *
+ * Los cuatro números que hacen falta para mirar un remito sin tener que abrir
+ * el pedido. Se calculan sólo donde el vínculo por línea existe: si alguna
+ * línea de entrega no está enlazada —147 de las 631 migradas—, el reparto por
+ * línea deja de ser confiable y se dice, en vez de inventarlo.
+ */
+export async function avanceDelRemito(
+  companyId: string,
+  remitoId: string,
+  pedidoId: string,
+): Promise<AvanceDelRemito> {
+  const { data: lineasPedido, error } = await supabase
+    .from('sales_order_lines')
+    .select('id, sku_snapshot, name_snapshot, quantity_ordered, line_type')
+    .eq('company_id', companyId)
+    .eq('order_id', pedidoId)
+    .order('line_no')
+  if (error) throw new Error(`Líneas del pedido: ${error.message}`)
+
+  const { data: entregas, error: e2 } = await supabase
+    .from('deliveries')
+    .select('id, status')
+    .eq('company_id', companyId)
+    .eq('order_id', pedidoId)
+    .neq('status', 'cancelled')
+  if (e2) throw new Error(`Entregas del pedido: ${e2.message}`)
+
+  const estados = new Map<string, string>(
+    ((entregas ?? []) as { id: string; status: string }[]).map((e) => [e.id, e.status]),
+  )
+
+  const { data: lineasEntrega, error: e3 } = await supabase
+    .from('delivery_lines')
+    .select('order_line_id, quantity, delivery_id')
+    .eq('company_id', companyId)
+    .in('delivery_id', [...estados.keys()])
+  if (e3) throw new Error(`Líneas de entrega: ${e3.message}`)
+
+  const filas = (lineasEntrega ?? []) as {
+    order_line_id: string | null
+    quantity: number | string
+    delivery_id: string
+  }[]
+
+  const ya = new Map<string, number>()
+  const esta = new Map<string, number>()
+  let sinEnlazar = 0
+  let repartoDudoso = false
+  for (const l of filas) {
+    if (l.order_line_id === null) {
+      if (l.delivery_id === remitoId) sinEnlazar += 1
+      else repartoDudoso = true
+      continue
+    }
+    const cantidad = Number(l.quantity)
+    if (l.delivery_id === remitoId) {
+      esta.set(l.order_line_id, (esta.get(l.order_line_id) ?? 0) + cantidad)
+    } else if (DESPACHADOS.has(estados.get(l.delivery_id) ?? '')) {
+      ya.set(l.order_line_id, (ya.get(l.order_line_id) ?? 0) + cantidad)
+    }
+  }
+
+  const lineas = ((lineasPedido ?? []) as {
+    id: string
+    sku_snapshot: string | null
+    name_snapshot: string | null
+    quantity_ordered: number | string
+    line_type: string | null
+  }[])
+    .filter((l) => l.line_type !== 'chapter')
+    .map((l) => {
+      const pedido = Number(l.quantity_ordered)
+      const yaEntregado = ya.get(l.id) ?? 0
+      const estaEntrega = esta.get(l.id) ?? 0
+      return {
+        lineaPedidoId: l.id,
+        sku: l.sku_snapshot,
+        nombre: l.name_snapshot,
+        pedido,
+        yaEntregado,
+        estaEntrega,
+        pendienteDespues: Math.max(pedido - yaEntregado - estaEntrega, 0),
+      }
+    })
+
+  return { lineas, sinEnlazar, repartoDudoso }
 }

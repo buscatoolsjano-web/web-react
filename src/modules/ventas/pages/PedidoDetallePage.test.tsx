@@ -747,6 +747,33 @@ describe('Pedido · la serie del documento', () => {
     expect(screen.getByText(/numeración de los documentos que salen de este/)).toBeVisible()
   })
 
+  /**
+   * Fase 19 · E5 · dos autoridades distintas, dos mensajes distintos.
+   *
+   * El documento actual lo administra el ERP; el que Duplicar crearía saldría
+   * en la serie por defecto, que sigue en STEL. Antes las dos cosas se
+   * explicaban con la misma frase y parecía que el pedido tampoco se podía
+   * tocar.
+   */
+  it('separa la autoridad de ESTE pedido de la del que se crearía', () => {
+    estado.stel = { sales_order: true, delivery: true }
+    estado.series = DOS
+    estado.doc = pedido({ serie: 'PDV-ERP', numero: 'PDV-ERP00001', estado: 'draft' })
+    montar()
+
+    // Este documento: se confirma.
+    expect(screen.getByRole('button', { name: 'Confirmar pedido' })).toBeEnabled()
+
+    // El que se crearía: bloqueado, y el motivo nombra la serie del NUEVO.
+    const duplicar = screen.getByRole('button', { name: 'Duplicar' })
+    expect(duplicar).toBeDisabled()
+    const motivo = screen.getByText(/El pedido nuevo saldría en la serie PDV, que numera STEL/)
+    expect(duplicar).toHaveAttribute('aria-describedby', motivo.id)
+    expect(motivo).toHaveTextContent(/Este documento no se toca/)
+    // Y ya no se dice en una sola frase que STEL numera «los pedidos».
+    expect(screen.queryByText('Emisión desde el ERP bloqueada: STEL numera los pedidos de esta empresa.')).toBeNull()
+  })
+
   it('un pedido de la serie que STEL numera sigue bloqueado', () => {
     estado.stel = { sales_order: true, delivery: true }
     estado.series = DOS

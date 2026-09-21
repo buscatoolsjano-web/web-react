@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { calcularPendientes } from './pendientes'
 
 const linea = (id: string, cantidadPedida: number) => ({ id, cantidadPedida })
-const entrega = (ordenLineaId: string | null, cantidad: number) => ({ ordenLineaId, cantidad })
+/** Una línea de entrega YA despachada, que es el caso del histórico. */
+const entrega = (ordenLineaId: string | null, cantidad: number, despachada = true) => ({
+  ordenLineaId,
+  cantidad,
+  despachada,
+})
 
 describe('calcularPendientes', () => {
   it('reconstruye por línea cuando todas las líneas de entrega están enlazadas', () => {
@@ -15,8 +20,8 @@ describe('calcularPendientes', () => {
 
     expect(r.estado).toBe('RECONSTRUIDO')
     expect(r.porLinea).toEqual([
-      { lineaId: 'a', pedido: 100, entregado: 70, pendiente: 30, exceso: 0 },
-      { lineaId: 'b', pedido: 10, entregado: 10, pendiente: 0, exceso: 0 },
+      { lineaId: 'a', pedido: 100, entregado: 70, enBorrador: 0, pendiente: 30, exceso: 0 },
+      { lineaId: 'b', pedido: 10, entregado: 10, enBorrador: 0, pendiente: 0, exceso: 0 },
     ])
     expect(r.hayExceso).toBe(false)
   })
@@ -44,7 +49,7 @@ describe('calcularPendientes', () => {
 
     expect(r.estado).toBe('RECONSTRUIDO')
     expect(r.porLinea).toEqual([
-      { lineaId: 'a', pedido: 100, entregado: 0, pendiente: 100, exceso: 0 },
+      { lineaId: 'a', pedido: 100, entregado: 0, enBorrador: 0, pendiente: 100, exceso: 0 },
     ])
   })
 
@@ -76,6 +81,7 @@ describe('calcularPendientes', () => {
       lineaId: 'a',
       pedido: 1,
       entregado: 2,
+      enBorrador: 0,
       pendiente: 0,
       exceso: 1,
     })
@@ -94,6 +100,62 @@ describe('calcularPendientes', () => {
     expect(r.porLinea[0]?.exceso).toBe(3)
   })
 
+  /**
+   * Fase 19 · E5 · un remito en BORRADOR no entregó nada.
+   *
+   * No movió una sola unidad de stock: contarlo como entregado sería decir
+   * que la mercadería salió del depósito cuando sigue adentro.
+   */
+  describe('el remito en borrador', () => {
+    it('no cuenta como entregado, y el pendiente sigue entero', () => {
+      const r = calcularPendientes({
+        lineasPedido: [linea('a', 1)],
+        lineasEntrega: [entrega('a', 1, false)],
+        hayEntregasEnlazadas: true,
+        hayRemitosHuerfanosDelCliente: false,
+      })
+
+      expect(r.porLinea[0]).toEqual({
+        lineaId: 'a',
+        pedido: 1,
+        entregado: 0,
+        enBorrador: 1,
+        pendiente: 1,
+        exceso: 0,
+      })
+    })
+
+    it('se cuenta aparte de lo que ya salió', () => {
+      const r = calcularPendientes({
+        lineasPedido: [linea('a', 10)],
+        lineasEntrega: [entrega('a', 4), entrega('a', 6, false)],
+        hayEntregasEnlazadas: true,
+        hayRemitosHuerfanosDelCliente: false,
+      })
+
+      expect(r.porLinea[0]).toEqual({
+        lineaId: 'a',
+        pedido: 10,
+        entregado: 4,
+        enBorrador: 6,
+        pendiente: 6,
+        exceso: 0,
+      })
+    })
+
+    it('un borrador por encima de lo pedido NO se anuncia como exceso: todavía no salió', () => {
+      const r = calcularPendientes({
+        lineasPedido: [linea('a', 1)],
+        lineasEntrega: [entrega('a', 1), entrega('a', 1, false)],
+        hayEntregasEnlazadas: true,
+        hayRemitosHuerfanosDelCliente: false,
+      })
+
+      expect(r.porLinea[0]).toMatchObject({ entregado: 1, enBorrador: 1, pendiente: 0, exceso: 0 })
+      expect(r.hayExceso).toBe(false)
+    })
+  })
+
   it('una línea del pedido sin ninguna entrega queda pendiente entera', () => {
     const r = calcularPendientes({
       lineasPedido: [linea('a', 5), linea('b', 8)],
@@ -106,6 +168,7 @@ describe('calcularPendientes', () => {
       lineaId: 'b',
       pedido: 8,
       entregado: 0,
+      enBorrador: 0,
       pendiente: 8,
       exceso: 0,
     })

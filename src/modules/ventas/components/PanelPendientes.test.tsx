@@ -31,7 +31,7 @@ describe('<PanelPendientes>', () => {
   it('muestra pedido, entregado y pendiente cuando hay evidencia', () => {
     const r: ResultadoPendientes = {
       estado: 'RECONSTRUIDO',
-      porLinea: [{ lineaId: 'a', pedido: 100, entregado: 70, pendiente: 30, exceso: 0 }],
+      porLinea: [{ lineaId: 'a', pedido: 100, entregado: 70, enBorrador: 0, pendiente: 30, exceso: 0 }],
       lineasSinEnlazar: 0,
       hayExceso: false,
     }
@@ -75,7 +75,7 @@ describe('<PanelPendientes>', () => {
   it('el exceso se muestra como inconsistencia y el pendiente no queda negativo', () => {
     const r: ResultadoPendientes = {
       estado: 'RECONSTRUIDO',
-      porLinea: [{ lineaId: 'a', pedido: 1, entregado: 2, pendiente: 0, exceso: 1 }],
+      porLinea: [{ lineaId: 'a', pedido: 1, entregado: 2, enBorrador: 0, pendiente: 0, exceso: 1 }],
       lineasSinEnlazar: 0,
       hayExceso: true,
     }

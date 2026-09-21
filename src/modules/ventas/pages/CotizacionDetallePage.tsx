@@ -295,7 +295,6 @@ function Detalle() {
   // Mientras se edita, las acciones del documento no se ofrecen: duplicar o
   // cancelar con un borrador a medias es perder el borrador.
   const acciones = useAccionesDocumento(editando ? null : doc, {
-    idMotivoAutoridad: describePorBloqueo,
   })
 
   const abrirEdicion = useCallback((d: DocumentoDetalle) => {

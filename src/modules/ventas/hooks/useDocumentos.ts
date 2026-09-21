@@ -15,7 +15,7 @@ import {
   revisionDeDocumento,
   seriesDeDocumento,
 } from '../services/documentos'
-import { documentosRelacionados, evidenciaDeEntrega } from '../services/relacionados'
+import { documentosRelacionados, avanceDelRemito, evidenciaDeEntrega } from '../services/relacionados'
 import { disponibilidadDeProductos } from '../services/stock'
 import { calcularPendientes, type ResultadoPendientes } from '../lib/pendientes'
 import type {
@@ -293,6 +293,24 @@ export function useRevision(tipo: TipoDocumento, id: string | undefined) {
     queryKey: ['ventas', companyId, tipo, id, 'revision'],
     queryFn: () => revisionDeDocumento(tipo, id!),
     enabled: companyId !== null && id !== undefined,
+    staleTime: 60_000,
+  })
+}
+
+/**
+ * El avance del pedido visto desde un remito (Fase 19 · E5).
+ *
+ * Sólo tiene sentido con un pedido de origen: un remito suelto —42 en el
+ * histórico— no tiene contra qué compararse.
+ */
+export function useAvanceDeRemito(remitoId: string | undefined, pedidoId: string | null | undefined) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery({
+    queryKey: ['ventas', companyId, 'entrega', remitoId, 'avance', pedidoId],
+    queryFn: () => avanceDelRemito(companyId!, remitoId!, pedidoId!),
+    enabled: companyId !== null && remitoId !== undefined && !!pedidoId,
     staleTime: 60_000,
   })
 }

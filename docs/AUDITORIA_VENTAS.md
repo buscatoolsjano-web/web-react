@@ -777,3 +777,92 @@ regla del §4 para lo migrado: donde falta `order_line_id`, no se inventa.
    guarda `accion: 'copiada'` y el presentador no la conocía, así que caía en
    el texto por defecto. Copiar no es modificar: ahora dice «copiada de la
    cotización, 1 × 130,5».
+
+---
+
+## 17 · E5 · Remitos — auditoría, y el stock como límite
+
+### La autoridad, medida
+
+| | |
+|---|---|
+| autoridad general `delivery` | **STEL** |
+| serie por defecto | **RT** (prefix RT, padding 10, next **1434**, 188 remitos) |
+| `RT-ML` | autoridad **STEL** por fila propia — y **no tiene fila en `document_sequences`**: existe como autoridad y en 5 documentos, pero no como secuencia, así que el selector no la lista |
+| otras series de remito | ninguna |
+| `RT-ERP` | **no existe** |
+
+Los 193 remitos son todos migrados y todos despachados: **cero borradores** y
+cero cancelados en producción.
+
+### Las tres cosas que hace un remito, separadas
+
+| | mueve stock | quién lo permite |
+|---|---|---|
+| **A · crear borrador** (`crear_remito_desde_pedido`) | **no** | `app.exigir_emision_erp(company,'delivery', serie)` — la serie, antes de numerar |
+| **B · editar borrador** (`guardar_remito`) | **no** | el documento tiene que seguir en `draft` |
+| **C · confirmar** (`confirmar_entrega`) | **sí** | `app.exigir_emision_erp(company,'delivery')` — **la autoridad GENERAL, sin serie** |
+
+Ese último renglón es el hallazgo: `confirmar_entrega` llama a la versión de
+**dos** argumentos, que pasa `null` como serie y por lo tanto mira la autoridad
+general. Con `RT-ERP` creada, el borrador se podría crear pero **no se podría
+despachar**. Los dos cambios van juntos o no va ninguno.
+
+### `confirmar_entrega`, con precisión
+
+- exige `draft`; `cancelled` da error; cualquier otro estado devuelve
+  `ya_confirmada: true` **sin mover nada**;
+- toma `select … for update` sobre el remito: dos confirmaciones simultáneas se
+  serializan y la segunda ve `shipped`;
+- inserta **un `stock_movements` por línea con producto**, `movement_type =
+  'sale_delivery'`, cantidad **negativa**, depósito el de la línea (o el
+  primero de la empresa). Las líneas sin producto —las históricas— no generan
+  movimiento;
+- `app.apply_stock_movement` suma ese movimiento a `stock_balances`, así que el
+  saldo baja en el mismo momento;
+- consume las reservas del pedido en orden de creación, borrando y reinsertando
+  el resto;
+- pasa el remito a `shipped` a través de `app.workflow_ctx`, que es lo único
+  que deja pasar al trigger de estado;
+- recalcula `fulfillment_status` del pedido con `app.derivar_cumplimiento`, que
+  cuenta **sólo** remitos `shipped`/`delivered`;
+- audita `shipped`, y además `stock_consumed` y `reservation_released` cuando
+  corresponde.
+
+Medido en el fixture `zz-e5r` (nada de producción): borrador → **0**
+movimientos, **0** reservas, saldo intacto y pedido `pending`. Confirmar → un
+movimiento de **−4**, saldo −4, pedido `partially_delivered`. Confirmar de
+nuevo → `ya_confirmada`, sin movimientos nuevos. Dos confirmaciones a la vez →
+**un** solo movimiento. 10 → 4 + 6 → `delivered` y saldo −10. 11 sobre 10 →
+`SOBREENTREGA`. Dos borradores de 6 sobre un pedido de 10 → entra **uno**. Un
+remito despachado **no se borra** («ya movió stock: borrarlo no devolvería las
+unidades»); uno en borrador sí. Y con la serie en STEL **no se puede crear ni
+el borrador**.
+
+### El borrador dejó de contar como entregado
+
+`evidenciaDeEntrega` traía las líneas de **todas** las entregas sin mirar el
+estado, así que un remito en borrador aparecía como entregado en la pantalla
+del pedido. No entregó nada: no movió una unidad. Ahora el pendiente se mide
+contra lo que **salió**, y lo que está en un borrador se cuenta en su propia
+columna, que sólo aparece cuando hay alguno.
+
+En el remito, los cuatro números del §11: **Pedido · Ya entregado · Esta
+entrega · Pendiente después**. Con la misma regla de siempre: si alguna línea
+no está enlazada —147 de las 631 migradas—, no se calcula nada y se dice.
+
+### Dos autoridades, dos mensajes
+
+El pedido piloto podía confirmarse y al lado decía «STEL numera los pedidos de
+esta empresa», que era el motivo de **Duplicar**. Ahora cada acción explica lo
+suyo: lo que gobierna al documento actual es la autoridad de **su** serie, y lo
+que gobierna a Duplicar o a Generar remito es la del documento que **crearían**
+— «El pedido nuevo saldría en la serie PDV, que numera STEL. Este documento no
+se toca».
+
+### Para el piloto de remito, cuando se autorice
+
+`PDV-ERP00001` está en **borrador**, y `crear_remito_desde_pedido` exige el
+pedido `confirmed`. Antes de cualquier remito hay que confirmar ese pedido, que
+es una acción de emisión sobre una serie del ERP —permitida— pero que **cambia
+el estado del piloto**: entra en el mismo STOP.

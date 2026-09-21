@@ -58,6 +58,9 @@ export function PanelPendientes({ lineas, resultado, cargando }: PanelPendientes
 
   const porLinea = new Map(resultado.porLinea.map((p) => [p.lineaId, p]))
   const visibles = lineas.filter((l) => l.tipoLinea !== 'chapter')
+  // La columna del borrador sólo aparece cuando hay un remito sin despachar:
+  // si no hay ninguno, sería una columna de ceros (Fase 19 · E5).
+  const hayBorradores = resultado.porLinea.some((p) => p.enBorrador > 0)
 
   return (
     <>
@@ -82,6 +85,11 @@ export function PanelPendientes({ lineas, resultado, cargando }: PanelPendientes
               <th scope="col" className={styles.derecha}>
                 Entregado
               </th>
+              {hayBorradores ? (
+                <th scope="col" className={styles.derecha}>
+                  En remito sin despachar
+                </th>
+              ) : null}
               <th scope="col" className={styles.derecha}>
                 Pendiente
               </th>
@@ -98,6 +106,11 @@ export function PanelPendientes({ lineas, resultado, cargando }: PanelPendientes
                   </td>
                   <td className={styles.derecha} data-etiqueta="Pedido">{formatearCantidad(p?.pedido ?? l.cantidad)}</td>
                   <td className={styles.derecha} data-etiqueta="Entregado">{formatearCantidad(p?.entregado ?? 0)}</td>
+                  {hayBorradores ? (
+                    <td className={styles.derecha} data-etiqueta="En remito sin despachar">
+                      {formatearCantidad(p?.enBorrador ?? 0)}
+                    </td>
+                  ) : null}
                   <td className={styles.derecha} data-etiqueta="Pendiente">
                     {p && p.exceso > 0 ? (
                       <span className={styles.marcaExceso}>
@@ -113,6 +126,12 @@ export function PanelPendientes({ lineas, resultado, cargando }: PanelPendientes
           </tbody>
         </table>
       </div>
+      {hayBorradores ? (
+        <p className={styles.nota}>
+          Lo que está en un remito sin despachar <strong>todavía no salió</strong>: no movió stock y
+          sigue contando como pendiente hasta que el remito se confirme.
+        </p>
+      ) : null}
     </>
   )
 }

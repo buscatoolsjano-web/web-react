@@ -30,8 +30,15 @@ import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { PanelLateralCliente } from '@/modules/clientes/components/PanelLateralCliente'
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
+import { PanelAvanceRemito } from '../components/PanelAvanceRemito'
 import { TablaLineas } from '../components/TablaLineas'
-import { useContactos, useDocumento, useRelacionados, useRevision } from '../hooks/useDocumentos'
+import {
+  useAvanceDeRemito,
+  useContactos,
+  useDocumento,
+  useRelacionados,
+  useRevision,
+} from '../hooks/useDocumentos'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { useVolverAlListado } from '../hooks/useVolverAlListado'
 import { mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
@@ -88,6 +95,8 @@ function Detalle() {
   const relacionados = useRelacionados('entrega', id)
   // Los motivos de revisión, clasificados por el servidor (Fase 19 · E4).
   const revision = useRevision('entrega', id)
+  // El avance del pedido visto desde este remito (Fase 19 · E5).
+  const avance = useAvanceDeRemito(id, doc?.origen?.tipo === 'pedido' ? doc.origen.id : null)
 
   const [borrador, setBorrador] = useState<BorradorRemito | null>(null)
   const [original, setOriginal] = useState<BorradorRemito | null>(null)
@@ -564,6 +573,19 @@ function Detalle() {
                 ]}
               />
             )}
+          </DocSection>
+        ) : null}
+
+        {/* Fase 19 · E5: los cuatro números contra el pedido, sin salir del
+            remito. Sólo con pedido de origen: uno suelto no tiene contra qué
+            compararse. */}
+        {pestana === 'lineas' && !editando && doc.origen?.tipo === 'pedido' ? (
+          <DocSection title="Avance del pedido">
+            <PanelAvanceRemito
+              avance={avance.data}
+              cargando={avance.isPending}
+              despachado={doc.estado === 'shipped' || doc.estado === 'delivered'}
+            />
           </DocSection>
         ) : null}
 

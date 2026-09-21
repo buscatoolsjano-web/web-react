@@ -23,10 +23,12 @@ const estado = vi.hoisted((): {
   relacionados: unknown
   /** Lo que devuelve la vista del servidor; sin definir = todavía no llegó. */
   revision: { historicos: string[]; activos: string[]; resueltos: string[]; noVerificables: string[]; requiereAtencion: boolean } | undefined
+  series: { codigo: string; esPorDefecto: boolean; autoridad: string }[] | null
+  avance: { lineas: unknown[]; sinEnlazar: number; repartoDudoso: boolean } | undefined
   eventos: unknown[]
   contactos: unknown[]
   pendientes: unknown[]
-} => ({ rol: 'admin', stel: {}, doc: null, relacionados: null, revision: undefined, eventos: [], contactos: [], pendientes: [] }))
+} => ({ rol: 'admin', stel: {}, doc: null, relacionados: null, revision: undefined, series: null, avance: undefined, eventos: [], contactos: [], pendientes: [] }))
 
 const espias = vi.hoisted(() => ({
   guardar: vi.fn(
@@ -57,6 +59,19 @@ vi.mock('../hooks/useDocumentos', () => ({
   useRelacionados: () => ({ data: estado.relacionados, isPending: false }),
   // Fase 19 · E4: la clasificación de los motivos la hace el servidor.
   useRevision: () => ({ data: estado.revision, isPending: false }),
+  // Fase 19 · E5: el avance contra el pedido.
+  useAvanceDeRemito: () => ({ data: estado.avance, isPending: false }),
+  // Fase 19 · E5: las series del tipo. Sin fila propia, la autoridad general.
+  useSeries: (tipo: string) => ({
+    data:
+      estado.series ??
+      [{
+        codigo: tipo === 'entrega' ? 'RT' : 'PDV',
+        esPorDefecto: true,
+        autoridad: estado.stel[tipo === 'entrega' ? 'delivery' : 'sales_order'] ? 'STEL' : 'ERP',
+      }],
+    isPending: false,
+  }),
   useTrazabilidad: () => ({ data: estado.eventos, isPending: false, error: null }),
   useContactos: () => ({ data: estado.contactos, isPending: false }),
 }))
@@ -473,5 +488,48 @@ describe('Remito · edición del borrador', () => {
     editar()
     expect(screen.queryByLabelText(/Precio/)).toBeNull()
     expect(screen.getByText(/un remito dice qué se entrega, no a qué precio se vendió/)).toBeInTheDocument()
+  })
+})
+
+/**
+ * Fase 19 · E5 · los cuatro números del remito contra su pedido.
+ *
+ * Lo que está en un remito sin despachar todavía no salió: se cuenta en «esta
+ * entrega», no en «ya entregado».
+ */
+describe('Remito · avance del pedido', () => {
+  const AVANCE = {
+    lineas: [
+      { lineaPedidoId: 'ol1', sku: 'ZZ-1', nombre: 'Producto', pedido: 10, yaEntregado: 4, estaEntrega: 6, pendienteDespues: 0 },
+    ],
+    sinEnlazar: 0,
+    repartoDudoso: false,
+  }
+
+  it('muestra pedido, ya entregado, esta entrega y lo que quedaría pendiente', () => {
+    estado.doc = remito({ origen: { tipo: 'pedido', id: 'o1', numero: 'PDV00010' } })
+    estado.avance = AVANCE
+    montar()
+
+    const seccion = screen.getByRole('heading', { name: 'Avance del pedido' }).closest('section')!
+    expect(within(seccion).getByRole('columnheader', { name: 'Ya entregado' })).toBeInTheDocument()
+    expect(within(seccion).getByRole('columnheader', { name: 'Esta entrega' })).toBeInTheDocument()
+    expect(within(seccion).getByRole('columnheader', { name: 'Pendiente después' })).toBeInTheDocument()
+    expect(seccion).toHaveTextContent(/todavía no salió/)
+  })
+
+  it('sin pedido de origen no hay contra qué comparar: no se muestra', () => {
+    estado.doc = remito({ origen: null })
+    estado.avance = AVANCE
+    montar()
+    expect(screen.queryByRole('heading', { name: 'Avance del pedido' })).toBeNull()
+  })
+
+  it('con líneas sin enlazar NO inventa el reparto', () => {
+    estado.doc = remito({ origen: { tipo: 'pedido', id: 'o1', numero: 'PDV00010' } })
+    estado.avance = { lineas: [], sinEnlazar: 2, repartoDudoso: false }
+    montar()
+    expect(screen.getByText('Avance no reconstruido')).toBeInTheDocument()
+    expect(screen.getByText(/No se calcula el avance por línea/)).toBeInTheDocument()
   })
 })

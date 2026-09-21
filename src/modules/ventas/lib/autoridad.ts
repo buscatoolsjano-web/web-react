@@ -52,6 +52,25 @@ export function motivoSerieStel(serie: string): string {
   return `Emisión desde el ERP bloqueada: la serie ${serie} la numera STEL. Elegí una serie que se emita desde el ERP.`
 }
 
+/**
+ * El motivo cuando lo bloqueado NO es este documento sino el que la acción
+ * CREARÍA (Fase 19 · E5).
+ *
+ * Duplicar un pedido de la serie `PDV-ERP` crea uno nuevo en la serie por
+ * defecto, que puede estar en STEL. Explicarlo con el mismo cartel del
+ * documento actual decía dos cosas distintas con una sola frase: parecía que
+ * el pedido que se está mirando tampoco se podía tocar.
+ */
+export function motivoDelDocumentoNuevo(tipo: DocTypeVentas, serie: string): string {
+  return `${SINGULAR_NUEVO[tipo]} saldría en la serie ${serie}, que numera STEL. Este documento no se toca.`
+}
+
+const SINGULAR_NUEVO: Record<DocTypeVentas, string> = {
+  quote: 'La cotización nueva',
+  sales_order: 'El pedido nuevo',
+  delivery: 'La nota de entrega nueva',
+}
+
 const PLURAL: Record<DocTypeVentas, string> = {
   quote: 'las cotizaciones',
   sales_order: 'los pedidos',

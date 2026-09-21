@@ -6,20 +6,29 @@ import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
-import { DOC_TYPE_DE, MENSAJES_WORKFLOW, mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
+import {
+  DOC_TYPE_DE,
+  MENSAJES_WORKFLOW,
+  mensajeErrorVentas,
+  motivoBloqueo,
+  motivoDelDocumentoNuevo,
+} from '../lib/autoridad'
+import { useSeries } from '../hooks/useDocumentos'
 import { escribeVentas } from '../lib/permisos'
 import { borrarDocumento, cancelarDocumento, duplicarDocumento } from '../services/acciones'
 import { ETIQUETA_DE, RUTA_DE, type DocumentoDetalle } from '../types'
 import { ModalImpresion } from './ModalImpresion'
 
+/**
+ * Fase 19 · E5: ya no hay opciones.
+ *
+ * Existía `idMotivoAutoridad` para que «Duplicar» apuntara al cartel de la
+ * pantalla en vez de repetir la frase. Pero ese cartel habla del documento
+ * que se está mirando y «Duplicar» habla del que se crearía: apuntar al mismo
+ * texto hacía parecer que el documento actual tampoco se podía tocar.
+ */
 export interface OpcionesAcciones {
-  /**
-   * Id del texto que ya explica el bloqueo de autoridad en la pantalla.
-   *
-   * Cuando la página muestra el banner de STEL, «Duplicar» lo referencia con
-   * `aria-describedby` en vez de repetir la misma frase debajo de la barra:
-   * un solo mensaje de autoridad por pantalla (Fase 15 E1).
-   */
+  /** @deprecated ya no se usa; el motivo de Duplicar es propio. */
   idMotivoAutoridad?: string | undefined
 }
 
@@ -51,7 +60,7 @@ export interface AccionesDocumento {
  */
 export function useAccionesDocumento(
   doc: DocumentoDetalle | null | undefined,
-  opciones: OpcionesAcciones = {},
+  _opciones: OpcionesAcciones = {},
 ): AccionesDocumento {
   const { activa } = useEmpresa()
   const navegar = useNavigate()
@@ -63,7 +72,19 @@ export function useAccionesDocumento(
   const escribe = escribeVentas(activa?.rol)
   // Fase 12 E2.5: duplicar consume la numeración del tipo del documento.
   const autoridad = useAutoridadNumeracion()
-  const stelDuplicar = doc ? autoridad.stel(DOC_TYPE_DE[doc.tipo]) : false
+  /**
+   * Duplicar crea un documento NUEVO, y el nuevo sale en la serie POR
+   * DEFECTO: `duplicarDocumento` va por `crear_*` sin elegir serie. Así que
+   * lo que lo bloquea es la autoridad de ESA serie, no la del documento que
+   * se está mirando (Fase 19 · E5).
+   */
+  const series = useSeries(doc?.tipo ?? 'cotizacion', escribe && !!doc)
+  const serieDelNuevo = (series.data ?? []).find((x) => x.esPorDefecto) ?? null
+  const stelDuplicar = serieDelNuevo
+    ? serieDelNuevo.autoridad === 'STEL'
+    : doc
+      ? autoridad.stel(DOC_TYPE_DE[doc.tipo])
+      : false
   const refrescar = () =>
     queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
 
@@ -113,10 +134,10 @@ export function useAccionesDocumento(
   const cerrado =
     doc.estado === 'rejected' || doc.estado === 'cancelled' || doc.estado === 'accepted' || remitoDespachado
   const sePuedeDuplicar = escribe && doc.tipo !== 'entrega'
-  // Si la página ya explica el bloqueo de autoridad, se apunta a ESE texto;
-  // si no, esta barra escribe el suyo.
+  // El motivo de Duplicar es SIEMPRE suyo, aunque la pantalla tenga su propio
+  // cartel de autoridad: son dos cosas distintas —este documento y el que se
+  // crearía—, y meterlas en una sola frase confundía las dos.
   const idPropio = `motivo-duplicar-${doc.id}`
-  const idMotivo = opciones.idMotivoAutoridad ?? idPropio
   const nombre = ETIQUETA_DE[doc.tipo].singular
 
   return {
@@ -130,7 +151,7 @@ export function useAccionesDocumento(
             variant="secondary"
             loading={duplicar.isPending}
             disabled={stelDuplicar || autoridad.cargando}
-            aria-describedby={stelDuplicar ? idMotivo : undefined}
+            aria-describedby={stelDuplicar ? idPropio : undefined}
             onClick={() => duplicar.mutate()}
           >
             {duplicar.isPending ? 'Duplicando…' : 'Duplicar'}
@@ -155,8 +176,12 @@ export function useAccionesDocumento(
       ) : null,
     motivo: (
       <>
-        {sePuedeDuplicar && stelDuplicar && !opciones.idMotivoAutoridad ? (
-          <p id={idPropio}>{motivoBloqueo(DOC_TYPE_DE[doc.tipo])}</p>
+        {sePuedeDuplicar && stelDuplicar ? (
+          <p id={idPropio}>
+            {serieDelNuevo
+              ? motivoDelDocumentoNuevo(DOC_TYPE_DE[doc.tipo], serieDelNuevo.codigo)
+              : motivoBloqueo(DOC_TYPE_DE[doc.tipo])}
+          </p>
         ) : null}
         {escribe && remitoDespachado ? <p>{MENSAJES_WORKFLOW.DELIVERY_ALREADY_DISPATCHED}</p> : null}
       </>
