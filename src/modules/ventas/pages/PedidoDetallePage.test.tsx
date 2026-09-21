@@ -26,6 +26,8 @@ const estado = vi.hoisted((): {
   /** Lo que devuelve la vista del servidor; sin definir = todavía no llegó. */
   revision: { historicos: string[]; activos: string[]; resueltos: string[]; noVerificables: string[]; requiereAtencion: boolean } | undefined
   series: { codigo: string; esPorDefecto: boolean; autoridad: string }[] | null
+  /** Las series de REMITO, para elegir en cuál sale el que se genere (E5). */
+  seriesRemito: { codigo: string; esPorDefecto: boolean; autoridad: string }[] | null
   eventos: unknown[]
   contactos: unknown[]
   direcciones: unknown[]
@@ -38,6 +40,7 @@ const estado = vi.hoisted((): {
   relacionados: null,
   revision: undefined,
   series: null,
+  seriesRemito: null,
   eventos: [],
   contactos: [],
   direcciones: [],
@@ -96,10 +99,13 @@ vi.mock('../hooks/useDocumentos', () => ({
   useDocumento: () => ({ data: estado.doc, isPending: false, error: null }),
   useRelacionados: () => ({ data: estado.relacionados, isPending: false }),
   // Fase 19 · E4: la autoridad de la serie del documento.
-  useSeries: () => ({
+  useSeries: (tipo: string) => ({
     data:
-      estado.series ??
-      [{ codigo: 'PDV', esPorDefecto: true, autoridad: estado.stel['sales_order'] ? 'STEL' : 'ERP' }],
+      tipo === 'entrega'
+        ? (estado.seriesRemito ??
+            [{ codigo: 'RT', esPorDefecto: true, autoridad: estado.stel['delivery'] ? 'STEL' : 'ERP' }])
+        : (estado.series ??
+            [{ codigo: 'PDV', esPorDefecto: true, autoridad: estado.stel['sales_order'] ? 'STEL' : 'ERP' }]),
     isPending: false,
   }),
   // Fase 19 · E4: la clasificación de los motivos la hace el servidor.
@@ -714,6 +720,7 @@ describe('Pedido · avisos de la migración', () => {
     estado.doc = pedido({ esHistorico: true, motivosRevision: ['MISSING_CURRENCY'] })
     estado.revision = undefined
   estado.series = null
+  estado.seriesRemito = null
     montar()
     expect(screen.getByText('Sin moneda')).toBeInTheDocument()
   })
@@ -874,12 +881,55 @@ describe('Pedido · generar remito', () => {
     expect(await within(dialogo).findByText('Se quiso entregar más de lo que queda pendiente.')).toBeInTheDocument()
   })
 
-  it('con la numeración de entregas en STEL no se ofrece generar', () => {
+  it('sin NINGUNA serie de remito del ERP no se ofrece generar', () => {
     confirmado()
     estado.stel = { delivery: true }
     montar()
     expect(screen.getByRole('button', { name: 'Generar nota de entrega' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Generar nota de entrega' }))
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  /**
+   * Fase 19 · E5: abrir el diálogo no emite nada, así que con una serie del
+   * ERP disponible el botón abre. Lo que decide es la serie elegida adentro,
+   * y RT —la de por defecto— deja «Generar remito» bloqueado.
+   */
+  it('con una serie del ERP abre el diálogo, con RT puesta y el generar bloqueado', async () => {
+    confirmado()
+    estado.stel = { delivery: true }
+    estado.seriesRemito = [
+      { codigo: 'RT', esPorDefecto: true, autoridad: 'STEL' },
+      { codigo: 'RT-ERP', esPorDefecto: false, autoridad: 'ERP' },
+    ]
+    montar()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generar nota de entrega' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Generar nota de entrega' })
+    expect(await within(dialogo).findByLabelText('Serie del remito')).toHaveValue('RT')
+    expect(within(dialogo).getByRole('button', { name: 'Generar remito' })).toBeDisabled()
+    expect(within(dialogo).getByText(/la serie RT la numera STEL/i)).toBeInTheDocument()
+    expect(espias.remitar).not.toHaveBeenCalled()
+  })
+
+  it('eligiendo la serie del ERP se habilita, y la serie viaja en la llamada', async () => {
+    confirmado()
+    estado.stel = { delivery: true }
+    estado.seriesRemito = [
+      { codigo: 'RT', esPorDefecto: true, autoridad: 'STEL' },
+      { codigo: 'RT-ERP', esPorDefecto: false, autoridad: 'ERP' },
+    ]
+    montar()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generar nota de entrega' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Generar nota de entrega' })
+    fireEvent.change(await within(dialogo).findByLabelText('Serie del remito'), { target: { value: 'RT-ERP' } })
+
+    const generar = within(dialogo).getByRole('button', { name: 'Generar remito' })
+    expect(generar).toBeEnabled()
+    fireEvent.click(generar)
+
+    await waitFor(() => expect(espias.remitar).toHaveBeenCalledTimes(1))
+    expect(espias.remitar.mock.calls[0]!.at(-1)).toBe('RT-ERP')
   })
 })

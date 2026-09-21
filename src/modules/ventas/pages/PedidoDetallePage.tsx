@@ -156,13 +156,28 @@ function Detalle() {
    * lo conservador.
    */
   const seriesPedido = useSeries('pedido', esInterno)
+  // Las series de REMITO, para elegir en cuál sale el que se genere acá
+  // (Fase 19 · E5). Abrir el diálogo no emite nada; lo que emite es confirmar.
+  const seriesRemito = useSeries('entrega', esInterno && escribe)
   const autoridadDeLaSerie =
     (seriesPedido.data ?? []).find((x) => x.codigo === doc?.serie)?.autoridad ?? null
   const stelPedido =
     autoridadDeLaSerie !== null ? autoridadDeLaSerie === 'STEL' : autoridad.stel('sales_order')
-  // El remito que saldría de acá nace con la serie POR DEFECTO de remitos, así
-  // que lo que lo bloquea es la autoridad general de `delivery`.
-  const stelEntrega = autoridad.stel('delivery')
+  /**
+   * Generar el remito (Fase 19 · E5).
+   *
+   * Abrir el diálogo no emite nada: lo que cierra el botón ya no es la
+   * autoridad general sino que NINGUNA serie de remito se emita desde el ERP.
+   * Adentro decide la serie elegida, y con la de por defecto —RT, que numera
+   * STEL— el «Generar remito» queda bloqueado con su motivo.
+   *
+   * Ojo: esto habilita CREAR el borrador. Despachar sigue bloqueado por la
+   * autoridad general, que es donde está el stock.
+   */
+  const stelEntrega =
+    (seriesRemito.data ?? []).length > 1
+      ? !(seriesRemito.data ?? []).some((x) => x.autoridad === 'ERP')
+      : autoridad.stel('delivery')
 
   const lineas = useMemo(() => (doc ? ordenarLineas(doc.lineas) : []), [doc])
   const productIds = useMemo(() => lineas.flatMap((l) => (l.productId ? [l.productId] : [])), [lineas])
@@ -227,8 +242,8 @@ function Detalle() {
   })
 
   const crearRemito = useMutation({
-    mutationFn: ({ cantidades, fecha }: { cantidades: Map<string, number>; fecha: string }) =>
-      crearEntregaDesdePedido(id!, cantidades, fecha),
+    mutationFn: ({ cantidades, fecha, serie }: { cantidades: Map<string, number>; fecha: string; serie: string }) =>
+      crearEntregaDesdePedido(id!, cantidades, fecha, null, serie),
     onSuccess: (remito) => {
       setGenerando(false)
       setErrorRemito(null)
@@ -642,7 +657,8 @@ function Detalle() {
           guardando={crearRemito.isPending}
           error={errorRemito}
           onCerrar={() => setGenerando(false)}
-          onConfirmar={(cantidades, fecha) => crearRemito.mutate({ cantidades, fecha })}
+          series={seriesRemito.data ?? []}
+          onConfirmar={(cantidades, fecha, serie) => crearRemito.mutate({ cantidades, fecha, serie })}
         />
       ) : null}
 

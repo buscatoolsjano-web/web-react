@@ -176,6 +176,7 @@ export async function crearEntregaDesdePedido(
   cantidades: Map<string, number>,
   fecha: string,
   esperado: string | null = null,
+  serie: string | null = null,
 ): Promise<RemitoCreado> {
   const lineas = [...cantidades.entries()]
     .filter(([, cantidad]) => cantidad > 0)
@@ -186,6 +187,9 @@ export async function crearEntregaDesdePedido(
     p_lineas: lineas,
     p_fecha: fecha,
     ...(esperado !== null && { p_esperado: esperado }),
+    // Fase 19 · E5: sólo si se eligió. Sin serie el servidor resuelve la de
+    // por defecto, exactamente como antes.
+    ...(serie !== null && serie !== '' && { p_serie: serie }),
   })
   if (error) throw falloDeRemito(error.message, 'No se pudo generar el remito.')
 

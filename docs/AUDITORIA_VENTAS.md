@@ -866,3 +866,58 @@ se toca».
 pedido `confirmed`. Antes de cualquier remito hay que confirmar ese pedido, que
 es una acción de emisión sobre una serie del ERP —permitida— pero que **cambia
 el estado del piloto**: entra en el mismo STOP.
+
+---
+
+## 18 · E5 · La cadena completa, hasta el borde del stock
+
+`COT-ERP00001 → PDV-ERP00001 confirmado → RT-ERP00001 en borrador`, y ni un
+gramo de stock movido. Lo que sigue —despachar— necesita un cambio que **no se
+hizo** y una autorización aparte.
+
+### Lo aplicado
+
+| | |
+|---|---|
+| `PDV-ERP00001` | pasó a **confirmed** desde el React real. Stock 381 → 381, reservas 0, remitos 193 |
+| `RT-ERP` | `document_sequences` (prefix RT-ERP, padding 5, next 1, **is_default false**) + autoridad de serie `ERP`, con 13 invariantes verificadas antes del commit |
+| `crear_remito_desde_pedido` | acepta `p_serie` opcional: sin serie, la de por defecto; con serie, se resuelve con `company_id` y `doc_type` fijados, `SERIE_INVALIDA` si no existe, número de esa serie y `series_code` en la auditoría |
+| `confirmar_entrega` | **NO se tocó** |
+
+Dos cosas que salieron mal en el camino y se corrigieron:
+
+1. **`CREATE OR REPLACE` con un parámetro más no reemplaza: crea otra
+   función.** Quedaron la de 4 argumentos y la de 5, y una llamada con 4 las
+   satisface a las dos — PostgreSQL la habría rechazado por ambigua. Se borró
+   la vieja, con una guarda que verifica primero que la nueva existe.
+2. **La función nueva nació con `execute` para PUBLIC**, que en Supabase
+   incluye `anon`. La versión anterior lo había revocado en la Fase 15. Se
+   restauró igual, y no es cosmético: adentro, el control de empresa es
+   `if auth.uid() is not null and …`, así que sin sesión ese `if` no protege
+   nada; quien protege es el grant.
+
+### El piloto
+
+| Clave | Valor |
+| --- | --- |
+| `PILOT_DELIVERY_ID` | `2dd12a2d-3a4d-41c0-a15d-ec04ee6bd42b` |
+| `PILOT_DELIVERY_NUMBER` | `RT-ERP00001` · serie RT-ERP · estado **draft** |
+| origen | `PDV-ERP00001` (y por él, `COT-ERP00001`) |
+| línea | 4134200 × 1, enlazada a la línea del pedido, depósito asignado |
+| domicilio | `null` → la pantalla dice **«Sin domicilio registrado»**: el cliente no tiene ninguno y no se inventa |
+| efectos | remitos 193 → **194** · líneas 631 → **632** · movimientos **381 → 381** · reservas **0 → 0** · saldos del producto: **sin filas, igual que antes** |
+| el pedido | sigue en `confirmed/pending`: un borrador **no** lo pone entregado |
+| secuencias | RT **1434 → 1434** · RT-ERP **1 → 2** · PDV, PDV-ERP y COTI intactas |
+
+En pantalla: los cuatro números del avance —pedido 1, ya entregado 0, esta
+entrega 1, pendiente después 0— con la nota de que **todavía no salió**;
+relacionados muestra la cadena entera; la vista previa imprime `RT-ERP00001`
+con su pedido de origen; la ficha rápida del cliente abre sin salir; y a 375 px
+no hay desborde.
+
+### El gate
+
+**«Confirmar y despachar» está deshabilitado**, con su motivo. No por una
+decisión de la pantalla: `confirmar_entrega` sigue preguntando por la autoridad
+**general** de `delivery`, que es STEL. Mientras esa función no cambie, el
+piloto no puede mover stock ni por accidente.

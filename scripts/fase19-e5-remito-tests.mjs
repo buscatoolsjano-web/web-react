@@ -104,9 +104,10 @@ const barrerRestos = async () => {
 }
 
 /** Crea el remito en borrador; no rompe el script si falla. */
-const crearRemito = async (cliente, order, lineas) => {
+const crearRemito = async (cliente, order, lineas, serie = null) => {
   const r = await cliente.rpc('crear_remito_desde_pedido', {
     p_order: order, p_lineas: lineas, p_fecha: null, p_esperado: null,
+    ...(serie !== null && { p_serie: serie }),
   })
   return r.error ? { ok: false, codigo: r.error.message } : { ok: true, datos: r.data }
 }
@@ -315,6 +316,64 @@ async function main() {
   cmp('L · y no quedó ningún remito', 0, await contar('deliveries', { company_id: T }))
 
   // ── Producción, sólo lectura ────────────────────────────────────────────
+  // ── D–H · la serie explícita (Fase 19 · E5) ─────────────────────────────
+  seccion('D–H · la serie explícita del remito')
+  // La empresa T tiene los remitos en STEL y ahora también una serie del ERP,
+  // igual que Buscatools con RT y RT-ERP.
+  ok(await s.from('document_sequences').insert(
+    { company_id: T, doc_type: 'delivery', series_code: 'ZZTERP', prefix: 'ZZTERP', padding: 5, next_number: 1, is_default: false },
+  ), 'serie ERP de T')
+  ok(await s.from('document_numbering_authority_series').insert(
+    { company_id: T, doc_type: 'delivery', series_code: 'ZZTERP', authority: 'ERP', reason: 'fixture zz-e5r: serie piloto de remito' },
+  ), 'autoridad de la serie de T')
+
+  const pT2 = await pedidoConfirmado(adminT.c, T, clienteT, 5)
+  const sinSerieT = await crearRemito(adminT.c, pT2.id, [{ order_line_id: pT2.lineaId, quantity: 1 }])
+  cmp('D · sin serie sigue yendo a la de por defecto, y queda bloqueada', false, sinSerieT.ok)
+  if (!sinSerieT.ok) contiene('D · por la autoridad', sinSerieT.codigo, 'external_numbering_authority')
+
+  const conStelT = await crearRemito(adminT.c, pT2.id, [{ order_line_id: pT2.lineaId, quantity: 1 }], 'ZZTR')
+  cmp('E · la serie de STEL explícita también', false, conStelT.ok)
+
+  const conErpT = await crearRemito(adminT.c, pT2.id, [{ order_line_id: pT2.lineaId, quantity: 1 }], 'ZZTERP')
+  cmp('F · la serie del ERP explícita crea el borrador', true, conErpT.ok)
+  if (conErpT.ok) {
+    cmp('F · y numera en ella', 'ZZTERP00001', conErpT.datos.number)
+    const rem = ok(await s.from('deliveries').select('status, series_code').eq('id', conErpT.datos.id).single(), 'remito T')
+    cmp('F · nace en borrador', 'draft', rem.status)
+    cmp('F · con su serie guardada', 'ZZTERP', rem.series_code)
+    cmp('I · y sin mover stock', 0, await contar('stock_movements', { company_id: T }))
+    cmp('J · el pedido sigue sin entregar', 'pending',
+      (ok(await s.from('sales_orders').select('fulfillment_status').eq('id', pT2.id).single(), 'pedido T')).fulfillment_status)
+    const aud = ok(await s.from('sales_audit').select('diff').eq('entity_id', conErpT.datos.id).single(), 'auditoría')
+    cmp('F · la auditoría guarda la serie', 'ZZTERP', aud.diff?.series_code)
+  }
+
+  cmp('K · la serie por defecto no se movió', 1,
+    (ok(await s.from('document_sequences').select('next_number')
+      .eq('company_id', T).eq('doc_type', 'delivery').eq('series_code', 'ZZTR').single(), 'ZZTR')).next_number)
+  cmp('L · la serie del ERP avanzó UNA sola vez', 2,
+    (ok(await s.from('document_sequences').select('next_number')
+      .eq('company_id', T).eq('doc_type', 'delivery').eq('series_code', 'ZZTERP').single(), 'ZZTERP')).next_number)
+
+  const inexistente = await crearRemito(adminT.c, pT2.id, [{ order_line_id: pT2.lineaId, quantity: 1 }], 'NO-EXISTE')
+  cmp('G · serie inexistente', false, inexistente.ok)
+  if (!inexistente.ok) contiene('G · SERIE_INVALIDA', inexistente.codigo, 'SERIE_INVALIDA')
+
+  const ajenaSerie = await crearRemito(adminT.c, pT2.id, [{ order_line_id: pT2.lineaId, quantity: 1 }], 'ZZR')
+  cmp('H · serie de otra empresa', false, ajenaSerie.ok)
+  if (!ajenaSerie.ok) contiene('H · SERIE_INVALIDA', ajenaSerie.codigo, 'SERIE_INVALIDA')
+
+  const otroTipoSerie = await crearRemito(adminT.c, pT2.id, [{ order_line_id: pT2.lineaId, quantity: 1 }], 'ZZTP')
+  cmp('H · serie de otro tipo de documento', false, otroTipoSerie.ok)
+
+  const anonSerie = await crearRemito(sesion(), pT2.id, [{ order_line_id: pT2.lineaId, quantity: 1 }], 'ZZTERP')
+  cmp('N · anónimo rechazado', false, anonSerie.ok)
+
+  const sobreEnSerie = await crearRemito(adminT.c, pT2.id, [{ order_line_id: pT2.lineaId, quantity: 99 }], 'ZZTERP')
+  cmp('M · la sobreentrega se frena igual con serie explícita', false, sobreEnSerie.ok)
+  if (!sobreEnSerie.ok) contiene('M · SOBREENTREGA', sobreEnSerie.codigo, 'SOBREENTREGA')
+
   seccion('Producción (sólo lectura)')
   const prod = {
     remitos: await contar('deliveries', { company_id: BUSCATOOLS }),
@@ -323,12 +382,20 @@ async function main() {
     pedidos: await contar('sales_orders', { company_id: BUSCATOOLS }),
   }
   console.log(`    remitos ${prod.remitos} · movimientos ${prod.movimientos} · reservas ${prod.reservas} · pedidos ${prod.pedidos}`)
-  cmp('producción: 193 remitos', 193, prod.remitos)
+  // 194 desde el piloto RT-ERP00001, que queda en borrador y no movió stock.
+  cmp('producción: 194 remitos (193 migrados + el piloto en borrador)', 194, prod.remitos)
   cmp('producción: 381 movimientos', 381, prod.movimientos)
   cmp('producción: 0 reservas', 0, prod.reservas)
   const rtErp = ok(await s.from('document_sequences').select('series_code')
     .eq('company_id', BUSCATOOLS).eq('doc_type', 'delivery'), 'series de remito')
-  cmp('producción: NO existe RT-ERP', false, rtErp.some((x) => x.series_code === 'RT-ERP'))
+  cmp('producción: RT-ERP existe y NO es la de por defecto', true,
+    rtErp.some((x) => x.series_code === 'RT-ERP'))
+  const rtProd = ok(await s.from('document_sequences').select('series_code, next_number, is_default')
+    .eq('company_id', BUSCATOOLS).eq('doc_type', 'delivery'), 'series de remito')
+  cmp('producción: RT sigue en 1434 y por defecto', '1434/true',
+    (() => { const r = rtProd.find((x) => x.series_code === 'RT'); return `${r?.next_number}/${r?.is_default}` })())
+  cmp('producción: RT-ERP no es la de por defecto', false,
+    rtProd.find((x) => x.series_code === 'RT-ERP')?.is_default)
 
   seccion('Limpieza')
   await limpiar()

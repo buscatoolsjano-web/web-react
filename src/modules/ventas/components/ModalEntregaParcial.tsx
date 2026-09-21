@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react'
 import { Dialog } from '@/components/modals/Dialog'
 import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/forms/Field'
-import { Input } from '@/components/forms/controls'
+import { Input, Select } from '@/components/forms/controls'
 import { Alert } from '@/components/feedback/Alert'
 import { Spinner } from '@/components/ui/Spinner'
+import { motivoSerieStel } from '../lib/autoridad'
 import { formatearCantidad } from '../lib/formato'
+import type { SerieDeDocumento } from '../services/documentos'
 import type { LineaParaEntregar } from '../services/entregas'
 import styles from './ModalEntregaParcial.module.css'
 
@@ -14,7 +16,13 @@ export interface ModalEntregaParcialProps {
   cargando: boolean
   guardando: boolean
   error: string | null
-  onConfirmar: (cantidades: Map<string, number>, fecha: string) => void
+  /**
+   * Las series de remito configuradas (Fase 19 · E5). Con una sola no se
+   * ofrece nada: no hay qué elegir. Con más, el remito sale en la que se elija
+   * y la de por defecto viene puesta.
+   */
+  series: readonly SerieDeDocumento[]
+  onConfirmar: (cantidades: Map<string, number>, fecha: string, serie: string) => void
   onCerrar: () => void
 }
 
@@ -41,12 +49,20 @@ export function ModalEntregaParcial({
   cargando,
   guardando,
   error,
+  series,
   onConfirmar,
   onCerrar,
 }: ModalEntregaParcialProps) {
   const conPendiente = useMemo(() => lineas.filter((l) => l.pendiente > 0), [lineas])
   const [cantidades, setCantidades] = useState<Map<string, number>>(new Map())
   const [fecha, setFecha] = useState(HOY)
+  // La serie. Arranca SIEMPRE en la de por defecto —en Buscatools, RT, que
+  // numera STEL—; a RT-ERP se llega eligiéndola.
+  const [serie, setSerie] = useState('')
+  const porDefecto = series.find((x) => x.esPorDefecto) ?? null
+  const serieVisible = serie || porDefecto?.codigo || ''
+  const serieElegida = series.find((x) => x.codigo === serieVisible) ?? null
+  const serieBloquea = serieElegida?.autoridad === 'STEL'
 
   // Arranca con todo el pendiente cargado, que es el caso habitual: entregar
   // todo lo que falta. Ajustar hacia abajo es un caso, no el punto de partida.
@@ -83,8 +99,9 @@ export function ModalEntregaParcial({
           </Button>
           <Button
             loading={guardando}
-            disabled={total <= 0 || conPendiente.length === 0}
-            onClick={() => onConfirmar(cantidades, fecha)}
+            disabled={total <= 0 || conPendiente.length === 0 || serieBloquea}
+            aria-describedby={serieBloquea ? 'motivo-serie-remito' : undefined}
+            onClick={() => onConfirmar(cantidades, fecha, serieVisible)}
           >
             {guardando ? 'Generando…' : 'Generar remito'}
           </Button>
@@ -102,6 +119,27 @@ export function ModalEntregaParcial({
             </p>
           ) : (
             <>
+              {series.length > 1 ? (
+                <Field
+                  label="Serie del remito"
+                  className={styles.fecha}
+                  help="Define qué numeración lleva el remito. Una serie que numera STEL no se puede emitir desde el ERP."
+                >
+                  <Select value={serieVisible} onChange={(e) => setSerie(e.target.value)}>
+                    {series.map((x) => (
+                      <option key={x.codigo} value={x.codigo}>
+                        {x.codigo} — {x.autoridad === 'ERP' ? 'se emite desde el ERP' : 'la numera STEL'}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              ) : null}
+              {serieBloquea ? (
+                <p id="motivo-serie-remito" className={styles.nota}>
+                  {motivoSerieStel(serieVisible)}
+                </p>
+              ) : null}
+
               <Field label="Fecha del remito" className={styles.fecha}>
                 <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
               </Field>
