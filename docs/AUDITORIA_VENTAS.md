@@ -1011,6 +1011,28 @@ Además de número, fecha, forma de pago, moneda y origen, la hoja imprime el
 se imprime ninguna etiqueta vacía: un campo que no está no deja hueco ni raya,
 salvo el CUIT del cliente, que es parte fija del bloque.
 
+### Impreso de verdad, no simulado
+
+La verificación final no se hizo mirando la pantalla: se imprimió con el motor
+de Chrome —el mismo que usa «Guardar como PDF»— tomando el DOM real de la
+aplicación y sus hojas de estilo.
+
+| documento | páginas | qué se comprobó |
+| --- | --- | --- |
+| `COTI02543`, 5 líneas, ARS | **1 de 1** | sin página en blanco de más, TOTAL en la franja inferior, pie abajo |
+| `COTI02417`, 33 líneas, USD | **3** | ninguna fila partida entre páginas, **el encabezado naranja de la tabla se repite en cada hoja**, el cierre entero en la última |
+
+Los dos defectos de arriba —el ancho de 1.000.000 px y los totales sin anclar—
+sólo se vieron acá. En la vista previa los dos documentos se veían bien.
+
+**Lo que queda distinto en documentos de varias páginas:** los totales caen
+justo después de la última línea, no en la franja inferior de la última hoja.
+En una hoja sola sí quedan abajo. Anclarlos también con varias hojas pide
+calcular en JavaScript un alto múltiplo de la página, y un píxel de más
+agregaría una hoja en blanco a un documento de un cliente. Lo importante es que
+**la vista previa y el papel muestran lo mismo**: no se ve una cosa y se
+imprime otra.
+
 ### Lo que no se tocó
 
 Ninguna lógica comercial. El documento **muestra** los snapshots que ya
