@@ -101,7 +101,14 @@ export function actividadDelMes(a: ActividadComercial): ActividadTipo[] {
   })
 }
 
-/** Documentos del mes marcados para revisar, y cuántos de ellos no tienen moneda. */
+/**
+ * Documentos del mes que REQUIEREN ATENCIÓN HOY, y cuántos de ellos no tienen
+ * moneda.
+ *
+ * Fase 19 · E4: lo que cuenta el servidor ya no es `needs_review` —la foto de
+ * la migración— sino la clasificación de `revision_de_documentos`. El nombre
+ * del campo no cambió para no tocar el contrato del informe.
+ */
 export function revisionDelMes(a: ActividadComercial): { enRevision: number; sinMoneda: number } {
   return a.kpis.reduce(
     (s, k) => ({ enRevision: s.enRevision + k.enRevisionActual, sinMoneda: s.sinMoneda + k.sinMonedaEnRevisionActual }),

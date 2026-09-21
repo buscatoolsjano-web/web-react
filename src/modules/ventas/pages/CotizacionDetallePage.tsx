@@ -66,6 +66,7 @@ import {
   useContactos,
   useDocumento,
   useRelacionados,
+  useRevision,
   useSeries,
   useTarifas,
   useVendedores,
@@ -131,6 +132,8 @@ function Detalle() {
   const queryClient = useQueryClient()
   const { data: doc, isPending, error } = useDocumento('cotizacion', id)
   const relacionados = useRelacionados('cotizacion', id)
+  // Los motivos de revisión, clasificados por el servidor (Fase 19 · E4).
+  const revision = useRevision('cotizacion', id)
 
   // `original` es el snapshot con el que se entró; `borrador` es lo que se
   // está editando. Los dos en `null` significa modo lectura.
@@ -451,7 +454,7 @@ function Detalle() {
         total={formatearImporte(doc.total, doc.moneda)}
       />
 
-      <AvisosHistoricos documento={doc} />
+      <AvisosHistoricos documento={doc} revision={revision.data} />
 
       {hayBanner ? (
         <AvisoAutoridadStel
@@ -695,7 +698,7 @@ function Detalle() {
 
         {pestana === 'relacionados' ? (
           <DocSection title="Documentos relacionados">
-            <PanelRelacionados relacionados={relacionados.data} cargando={relacionados.isPending} idActual={doc.id} />
+            <PanelRelacionados relacionados={relacionados.data} cargando={relacionados.isPending} idActual={doc.id} tipoActual="cotizacion" />
           </DocSection>
         ) : null}
 

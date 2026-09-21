@@ -638,3 +638,93 @@ revisar**, y lo dice, porque el informe lo sigue listando.
   tanto la cola de revisión sigue contando lo mismo que antes, que es
   consistente con lo que se ve en pantalla.
 - **Serie piloto de pedido**: no se creó ni se propuso todavía.
+
+---
+
+## 15 · E4 · La revisión, en un solo lugar (aplicado, sólo lectura)
+
+### Dónde vive la regla
+
+Se auditaron las tres opciones. **Vista**, no RPC:
+
+| | |
+|---|---|
+| RPC de lectura | sirve al detalle, pero el informe no la puede *unir* a sus propias consultas: habría que volver a escribir la regla adentro del informe. |
+| Columna almacenada | exige escribir en los documentos —y mantener eso al día con cada edición—. Justo lo que no se quiere. |
+| **Vista** | la lee el navegador por PostgREST **y** la une el informe en SQL. Una sola definición, dos consumidores. |
+
+`public.revision_de_documentos`, `security_invoker = true`: no es una puerta,
+cada quien ve lo que su RLS ya le deja ver. Devuelve por documento:
+
+```
+historical_reasons        lo que marcó la migración, tal cual
+active_reasons            STILL_TRUE
+resolved_since_migration  RESOLVED_BY_CURRENT_DATA
+unverifiable_reasons      UNVERIFIABLE
+requires_attention_now    ¿queda algo activo o sin verificar?
+```
+
+**`requires_attention_now` deja de pedir atención SÓLO cuando cada motivo se
+pudo desmentir.** La falta de evidencia nunca se convierte en «resuelto»: sin
+líneas, sin precio en alguna línea, o con un motivo que cuenta *cómo* se
+migró, el resultado es `UNVERIFIABLE` y eso sigue pidiendo una mirada.
+
+Lo que NO se tocó: `review_reason`, `needs_review`, `updated_at`,
+`sales_audit`, importes ni líneas. Cero escrituras.
+
+### Las reglas, una por motivo
+
+| motivo | resuelto cuando… |
+|---|---|
+| `MISSING_CURRENCY` | el documento tiene moneda |
+| `NO_EXCHANGE_RATE` | tiene tipo de cambio |
+| `UNRESOLVED_SKU` | ninguna línea de ítem quedó sin producto (un capítulo no cuenta) |
+| `NO_QUOTE_LINK` / `NO_ORDER_LINK` | el vínculo existe hoy |
+| `NUMBER_OUTLIER` | `number_outlier` ya no está marcado |
+| `TOTALS_DO_NOT_CLOSE` | subtotal, impuesto **y** total coinciden con la fórmula del ERP (± 0,02) |
+| el resto | nunca: es historia, y como historia se deja |
+
+La fórmula es la misma del ERP —neto de línea → descuento global → IVA por
+línea → percepción—, y por eso un documento **nacido en el ERP no puede tener
+totales que no cierren**: el trigger los recalcula. Sólo lo migrado los tiene,
+que es exactamente lo que el motivo describe.
+
+### Medido, antes y después
+
+Buscatools, los 672 documentos de Ventas:
+
+| | |
+|---|---|
+| `RAW_HISTORICAL_REVIEW_COUNT` (marcados en la migración) | **241** |
+| `CURRENT_ACTIONABLE_REVIEW_COUNT` (piden atención hoy) | **219** |
+| `RESOLVED_HISTORICAL_ONLY` (todo desmentido) | **22** |
+| `UNVERIFIABLE_COUNT` (con algo que no se puede comprobar) | **20** |
+
+Y el contador del inicio, que es el del mes:
+
+| | antes | después |
+|---|---|---|
+| documentos del mes | 80 | 80 |
+| «para revisar» | **49** | **45** |
+| sólo historia | — | 4 |
+| con algo no verificable | — | 3 |
+
+Bajan pocos porque `NO_EXCHANGE_RATE` —75 documentos— **sigue siendo cierto**.
+Eso es lo correcto: el contador no tiene que bajar, tiene que ser verdad.
+
+El título del inicio dice ahora «requieren atención» y no «marcados para
+revisar»: son cosas distintas y la que se cuenta es la primera.
+
+### En el detalle
+
+El documento sigue diciendo que se marcó en la migración —el informe lo sigue
+listando y esconderlo sería mentir por omisión—, pero la advertencia principal
+es lo que sigue aplicando hoy. Si todo quedó desmentido, no hay banner
+alarmista: una línea que lo cuenta como lo que es, pasado.
+
+### Relacionados
+
+Un documento ya no se muestra relacionado consigo mismo: «Cotización — No hay»
+en la pantalla de una cotización no era información. La regla es semántica y
+vale para los tres tipos; si existe OTRO documento del mismo tipo, la sección
+aparece igual.

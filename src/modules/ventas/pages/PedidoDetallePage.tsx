@@ -42,6 +42,7 @@ import {
   useDocumento,
   usePendientes,
   useRelacionados,
+  useRevision,
   useTarifas,
   useVendedores,
 } from '../hooks/useDocumentos'
@@ -115,6 +116,8 @@ function Detalle() {
   const queryClient = useQueryClient()
   const { data: doc, isPending, error } = useDocumento('pedido', id)
   const relacionados = useRelacionados('pedido', id)
+  // Los motivos de revisión, clasificados por el servidor (Fase 19 · E4).
+  const revision = useRevision('pedido', id)
   const pendientes = usePendientes(doc)
 
   const [original, setOriginal] = useState<Borrador | null>(null)
@@ -360,7 +363,7 @@ function Detalle() {
         total={formatearImporte(doc.total, doc.moneda)}
       />
 
-      <AvisosHistoricos documento={doc} />
+      <AvisosHistoricos documento={doc} revision={revision.data} />
 
       {hayBanner ? (
         <AvisoAutoridadStel
@@ -598,7 +601,7 @@ function Detalle() {
 
         {pestana === 'relacionados' ? (
           <DocSection title="Relacionados">
-            <PanelRelacionados relacionados={relacionados.data} cargando={relacionados.isPending} idActual={doc.id} />
+            <PanelRelacionados relacionados={relacionados.data} cargando={relacionados.isPending} idActual={doc.id} tipoActual="pedido" />
           </DocSection>
         ) : null}
 

@@ -21,6 +21,8 @@ const estado = vi.hoisted((): {
   stel: Record<string, boolean>
   doc: unknown
   relacionados: unknown
+  /** Lo que devuelve la vista del servidor; sin definir = todavía no llegó. */
+  revision: { historicos: string[]; activos: string[]; resueltos: string[]; noVerificables: string[]; requiereAtencion: boolean } | undefined
   eventos: unknown[]
   contactos: unknown[]
   tarifas: unknown[]
@@ -37,6 +39,7 @@ const estado = vi.hoisted((): {
   stel: {},
   doc: null,
   relacionados: null,
+  revision: undefined,
   eventos: [],
   contactos: [],
   tarifas: [],
@@ -83,6 +86,8 @@ vi.mock('../hooks/useAutoridadNumeracion', () => ({
 vi.mock('../hooks/useDocumentos', () => ({
   useDocumento: () => ({ data: estado.doc, isPending: false, error: null }),
   useRelacionados: () => ({ data: estado.relacionados, isPending: false }),
+  // Fase 19 · E4: la clasificación de los motivos la hace el servidor.
+  useRevision: () => ({ data: estado.revision, isPending: false }),
   useTrazabilidad: () => ({ data: estado.eventos, isPending: false, error: null }),
   // Fase 15 E2: las opciones del editor.
   useContactos: () => ({ data: estado.contactos, isPending: false }),

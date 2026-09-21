@@ -137,7 +137,7 @@ describe('Inicio por rol', () => {
     montar()
     expect(screen.getByText('STEL numera cotizaciones, pedidos y notas de entrega')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ver numeración' })).toHaveAttribute('href', '/configuracion/numeracion')
-    expect(screen.getByText('2 documentos del mes marcados para revisar')).toBeInTheDocument()
+    expect(screen.getByText('2 documentos del mes requieren atención')).toBeInTheDocument()
     expect(screen.getByText(/1 no tiene moneda/)).toBeInTheDocument()
   })
 

@@ -12,6 +12,7 @@ import {
   facetasDeDocumentos,
   listarDocumentos,
   obtenerDocumento,
+  revisionDeDocumento,
   seriesDeDocumento,
 } from '../services/documentos'
 import { documentosRelacionados, evidenciaDeEntrega } from '../services/relacionados'
@@ -275,5 +276,23 @@ export function useSeries(tipo: TipoDocumento, habilitado: boolean) {
     queryFn: () => seriesDeDocumento(tipo, companyId!),
     enabled: companyId !== null && habilitado,
     staleTime: 30 * 60_000,
+  })
+}
+
+/**
+ * La revisión del documento, tal como la clasifica el servidor (Fase 19 · E4).
+ *
+ * Cambia sólo cuando cambia el documento: se cachea con la misma llave del
+ * detalle para que volver a abrirlo no la vuelva a pedir.
+ */
+export function useRevision(tipo: TipoDocumento, id: string | undefined) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery({
+    queryKey: ['ventas', companyId, tipo, id, 'revision'],
+    queryFn: () => revisionDeDocumento(tipo, id!),
+    enabled: companyId !== null && id !== undefined,
+    staleTime: 60_000,
   })
 }

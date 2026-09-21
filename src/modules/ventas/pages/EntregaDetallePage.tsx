@@ -31,7 +31,7 @@ import { PanelLateralCliente } from '@/modules/clientes/components/PanelLateralC
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
 import { TablaLineas } from '../components/TablaLineas'
-import { useContactos, useDocumento, useRelacionados } from '../hooks/useDocumentos'
+import { useContactos, useDocumento, useRelacionados, useRevision } from '../hooks/useDocumentos'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { useVolverAlListado } from '../hooks/useVolverAlListado'
 import { mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
@@ -86,6 +86,8 @@ function Detalle() {
   const queryClient = useQueryClient()
   const { data: doc, isPending, error } = useDocumento('entrega', id)
   const relacionados = useRelacionados('entrega', id)
+  // Los motivos de revisión, clasificados por el servidor (Fase 19 · E4).
+  const revision = useRevision('entrega', id)
 
   const [borrador, setBorrador] = useState<BorradorRemito | null>(null)
   const [original, setOriginal] = useState<BorradorRemito | null>(null)
@@ -309,7 +311,7 @@ function Detalle() {
         total={formatearImporte(doc.total, doc.moneda)}
       />
 
-      <AvisosHistoricos documento={doc} />
+      <AvisosHistoricos documento={doc} revision={revision.data} />
 
       {esInterno && stelEntrega ? (
         <AvisoAutoridadStel
@@ -627,7 +629,7 @@ function Detalle() {
 
         {pestana === 'relacionados' ? (
           <DocSection title="Relacionados">
-            <PanelRelacionados relacionados={relacionados.data} cargando={relacionados.isPending} idActual={doc.id} />
+            <PanelRelacionados relacionados={relacionados.data} cargando={relacionados.isPending} idActual={doc.id} tipoActual="entrega" />
           </DocSection>
         ) : null}
 

@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabase/client'
 import { separarMotivos } from '../lib/estados'
+import { DOC_TYPE_DE } from '../lib/autoridad'
 import type {
   DocumentoDetalle,
   DomicilioSnapshot,
@@ -474,4 +475,46 @@ export async function seriesDeDocumento(
     esPorDefecto: f.is_default,
     autoridad: f.authority === 'ERP' ? 'ERP' : 'STEL',
   }))
+}
+
+/**
+ * La revisión de un documento, clasificada por el servidor (Fase 19 · E4).
+ *
+ * `review_reason` es la foto del día de la migración y se conserva intacta.
+ * Lo que dice si un motivo **sigue pasando hoy** es la vista
+ * `revision_de_documentos`, y esa definición vive en un solo lugar: la misma
+ * que cuenta el inicio y los informes. Acá no se vuelve a decidir nada.
+ */
+export interface RevisionDeDocumento {
+  /** Lo que marcó la migración, tal cual quedó guardado. */
+  historicos: string[]
+  /** Lo que todavía se puede demostrar con el documento de hoy. */
+  activos: string[]
+  /** Lo que el dato de hoy desmiente. */
+  resueltos: string[]
+  /** Lo que no se puede comprobar desde el documento. Nunca es «resuelto». */
+  noVerificables: string[]
+  /** `true` si queda algo activo o sin verificar. */
+  requiereAtencion: boolean
+}
+
+export async function revisionDeDocumento(
+  tipo: TipoDocumento,
+  documentoId: string,
+): Promise<RevisionDeDocumento> {
+  const { data, error } = await supabase
+    .from('revision_de_documentos')
+    .select('historical_reasons, active_reasons, resolved_since_migration, unverifiable_reasons, requires_attention_now')
+    .eq('doc_type', DOC_TYPE_DE[tipo])
+    .eq('document_id', documentoId)
+    .maybeSingle()
+  if (error) throw new Error(`No se pudo leer la revisión del documento: ${error.message}`)
+
+  return {
+    historicos: data?.historical_reasons ?? [],
+    activos: data?.active_reasons ?? [],
+    resueltos: data?.resolved_since_migration ?? [],
+    noVerificables: data?.unverifiable_reasons ?? [],
+    requiereAtencion: data?.requires_attention_now ?? false,
+  }
 }

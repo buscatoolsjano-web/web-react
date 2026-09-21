@@ -5944,6 +5944,23 @@ export type Database = {
           },
         ]
       }
+      revision_de_documentos: {
+        Row: {
+          active_reasons: string[] | null
+          company_id: string | null
+          doc_type: string | null
+          document_id: string | null
+          fecha: string | null
+          historical_reasons: string[] | null
+          marked_in_migration: boolean | null
+          numero: string | null
+          requires_attention_now: boolean | null
+          resolved_since_migration: string[] | null
+          tipo: string | null
+          unverifiable_reasons: string[] | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       catalog_facets: {

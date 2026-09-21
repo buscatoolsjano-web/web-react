@@ -23,6 +23,8 @@ const estado = vi.hoisted((): {
   stel: Record<string, boolean>
   doc: unknown
   relacionados: unknown
+  /** Lo que devuelve la vista del servidor; sin definir = todavía no llegó. */
+  revision: { historicos: string[]; activos: string[]; resueltos: string[]; noVerificables: string[]; requiereAtencion: boolean } | undefined
   eventos: unknown[]
   contactos: unknown[]
   direcciones: unknown[]
@@ -33,6 +35,7 @@ const estado = vi.hoisted((): {
   stel: {},
   doc: null,
   relacionados: null,
+  revision: undefined,
   eventos: [],
   contactos: [],
   direcciones: [],
@@ -90,6 +93,8 @@ vi.mock('../hooks/useAutoridadNumeracion', () => ({
 vi.mock('../hooks/useDocumentos', () => ({
   useDocumento: () => ({ data: estado.doc, isPending: false, error: null }),
   useRelacionados: () => ({ data: estado.relacionados, isPending: false }),
+  // Fase 19 · E4: la clasificación de los motivos la hace el servidor.
+  useRevision: () => ({ data: estado.revision, isPending: false }),
   useTrazabilidad: () => ({ data: estado.eventos, isPending: false, error: null }),
   usePendientes: () => ({ data: undefined, isPending: false }),
   useDisponibilidad: () => ({ data: undefined, isPending: false }),
@@ -638,39 +643,69 @@ describe('Pedido · pestañas', () => {
  * con moneda, productos resueltos, totales cerrados y su cotización enlazada.
  */
 describe('Pedido · avisos de la migración', () => {
-  it('lo que el dato desmiente NO se anuncia como una observación de hoy', () => {
-    estado.doc = pedido({
-      esHistorico: true,
-      necesitaRevision: true,
-      motivosRevision: ['MISSING_CURRENCY', 'UNRESOLVED_SKU', 'TOTALS_DO_NOT_CLOSE', 'NO_QUOTE_LINK'],
-      origen: { tipo: 'cotizacion', id: 'q1', numero: 'COTI02280' },
-    })
+  /**
+   * Los valores son los que devuelve la vista `revision_de_documentos` para
+   * PDV01315, medidos en producción: tres motivos que el dato desmiente y el
+   * de los totales, que sigue siendo cierto porque sus dos líneas al 0 % no
+   * dan los USD 138,64 de impuesto de la cabecera.
+   */
+  const PDV01315 = {
+    historicos: ['MISSING_CURRENCY', 'NO_QUOTE_LINK', 'TOTALS_DO_NOT_CLOSE', 'UNRESOLVED_SKU'],
+    activos: ['TOTALS_DO_NOT_CLOSE'],
+    resueltos: ['MISSING_CURRENCY', 'NO_QUOTE_LINK', 'UNRESOLVED_SKU'],
+    noVerificables: [],
+    requiereAtencion: true,
+  }
+
+  it('lo que sigue pasando se avisa, y lo que el dato desmiente se cuenta aparte', () => {
+    estado.doc = pedido({ esHistorico: true, necesitaRevision: true, motivosRevision: PDV01315.historicos })
+    estado.revision = PDV01315
+    montar()
+
+    const aviso = screen.getByText('Documento histórico con observaciones').closest('div')!
+    expect(within(aviso).getByRole('listitem')).toHaveTextContent('Los totales no cierran')
+    expect(aviso).toHaveTextContent(/pero eso ya no pasa/i)
+    expect(aviso).toHaveTextContent(/sin moneda/i)
+  })
+
+  it('con TODO desmentido no se muestra una advertencia, y no se esconde que sigue en la cola', () => {
+    estado.doc = pedido({ esHistorico: true, necesitaRevision: true, motivosRevision: ['MISSING_CURRENCY'] })
+    estado.revision = {
+      historicos: ['MISSING_CURRENCY'],
+      activos: [],
+      resueltos: ['MISSING_CURRENCY'],
+      noVerificables: [],
+      requiereAtencion: false,
+    }
     montar()
 
     expect(screen.queryByText('Documento histórico con observaciones')).toBeNull()
     const nota = screen.getByTestId('avisos-historicos-resueltos')
     expect(nota).toHaveTextContent(/los datos de hoy ya no lo dicen/i)
-    // Y no se esconde que sigue marcado: el informe lo sigue listando.
     expect(nota).toHaveTextContent(/cola de revisión/i)
   })
 
-  it('lo que sigue pasando se sigue avisando, y lo que no, se cuenta aparte', () => {
-    estado.doc = pedido({
-      esHistorico: true,
-      motivosRevision: ['NO_EXCHANGE_RATE', 'MISSING_CURRENCY'],
-    })
+  /** Falta de evidencia no es «resuelto»: se sigue avisando. */
+  it('un motivo que no se puede verificar se sigue mostrando como observación', () => {
+    estado.doc = pedido({ esHistorico: true, motivosRevision: ['DELIVERED_BY_ARRAY_INDEX'] })
+    estado.revision = {
+      historicos: ['DELIVERED_BY_ARRAY_INDEX'],
+      activos: [],
+      resueltos: [],
+      noVerificables: ['DELIVERED_BY_ARRAY_INDEX'],
+      requiereAtencion: true,
+    }
     montar()
-
-    const aviso = screen.getByText('Documento histórico con observaciones').closest('div')!
-    expect(aviso).toHaveTextContent('Sin tipo de cambio')
-    expect(within(aviso).queryByRole('listitem', { name: 'Sin moneda' })).toBeNull()
-    expect(aviso).toHaveTextContent(/pero eso ya no pasa/i)
+    expect(screen.getByText('Entregas registradas por posición')).toBeInTheDocument()
+    expect(screen.queryByTestId('avisos-historicos-resueltos')).toBeNull()
   })
 
-  it('un total que de verdad no cierra se sigue avisando', () => {
-    estado.doc = pedido({ esHistorico: true, total: 999, motivosRevision: ['TOTALS_DO_NOT_CLOSE'] })
+  /** Mientras la clasificación no llegó no se apaga nada: se muestra lo guardado. */
+  it('sin la respuesta del servidor se muestran los motivos históricos tal cual', () => {
+    estado.doc = pedido({ esHistorico: true, motivosRevision: ['MISSING_CURRENCY'] })
+    estado.revision = undefined
     montar()
-    expect(screen.getByText('Los totales no cierran')).toBeInTheDocument()
+    expect(screen.getByText('Sin moneda')).toBeInTheDocument()
   })
 })
 

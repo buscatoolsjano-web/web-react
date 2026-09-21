@@ -102,7 +102,10 @@ export function VistaOperativa() {
       {revision && revision.enRevision > 0 ? (
         <Alert
           tone="info"
-          title={`${contar(revision.enRevision, { singular: 'documento del mes marcado', plural: 'documentos del mes marcados' })} para revisar`}
+          // Fase 19 · E4: cuenta lo que REQUIERE ATENCIÓN HOY, no lo que la
+          // migración marcó. Son cosas distintas —del mes, 49 contra 45— y el
+          // título tiene que decir la que se está contando.
+          title={`${contar(revision.enRevision, { singular: 'documento del mes requiere', plural: 'documentos del mes requieren' })} atención`}
           action={
             <LinkButton to="/informes" variant="secondary" size="sm">
               Ver informe
@@ -112,7 +115,7 @@ export function VistaOperativa() {
           <p>
             {revision.sinMoneda > 0
               ? `${revision.sinMoneda} ${revision.sinMoneda === 1 ? 'no tiene' : 'no tienen'} moneda: sus importes se muestran aparte, sin asignarles una.`
-              : 'Vienen de la migración con algún dato a revisar.'}
+              : 'Vienen de la migración con algo que todavía se verifica en el documento.'}
           </p>
         </Alert>
       ) : null}

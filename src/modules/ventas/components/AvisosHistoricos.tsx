@@ -1,12 +1,21 @@
 import { Alert } from '@/components/feedback/Alert'
 import { presentarMotivo } from '../lib/estados'
-import { revisarMotivos } from '../lib/revision'
+import type { RevisionDeDocumento } from '../services/documentos'
 import type { DocumentoDetalle } from '../types'
 import styles from './AvisosHistoricos.module.css'
 
 export interface AvisosHistoricosProps {
-  /** El documento entero: los avisos se contrastan con sus propios datos. */
   documento: DocumentoDetalle
+  /**
+   * La clasificación del servidor. Mientras no llegó se muestran los motivos
+   * históricos tal como están: es lo que se hacía antes, y no promete nada.
+   */
+  revision: RevisionDeDocumento | undefined
+}
+
+/** «sin moneda, sin tipo de cambio» a partir de los códigos del servidor. */
+function lista(motivos: readonly string[]): string {
+  return motivos.map((m) => presentarMotivo(m).toLowerCase()).join(', ')
 }
 
 /**
@@ -18,27 +27,29 @@ export interface AvisosHistoricosProps {
  * muestra el número literal y la sospecha aparte, nunca en su lugar.
  *
  * Fase 19 · E4: esa regla no autoriza a repetir como presente algo que el
- * propio dato desmiente. `review_reason` es la foto del día de la migración,
- * y 138 avisos ya no eran ciertos —moneda que ahora está, productos que se
- * resolvieron, totales que cierran, pedidos que sí tienen su cotización—. Lo
- * que ya no pasa se cuenta aparte, y **como pasado**; el documento sigue
- * marcado para revisar hasta que alguien lo saque de la cola.
+ * propio dato desmiente. `review_reason` es la foto del día de la migración y
+ * se conserva entera; quién decide si un motivo sigue pasando es el servidor
+ * —la vista `revision_de_documentos`—, el MISMO que cuenta el inicio y los
+ * informes. Acá no se clasifica nada: sólo se elige cómo contarlo.
+ *
+ * Lo que no se puede comprobar desde el documento **no se declara resuelto**:
+ * se muestra como lo que es, algo que sigue pidiendo una mirada.
  */
-export function AvisosHistoricos({ documento }: AvisosHistoricosProps) {
-  const { vigentes, resueltos } = revisarMotivos(documento)
+export function AvisosHistoricos({ documento, revision }: AvisosHistoricosProps) {
+  const historicos = revision?.historicos ?? documento.motivosRevision
+  const activos = revision ? [...revision.activos, ...revision.noVerificables] : historicos
+  const resueltos = revision?.resueltos ?? []
   const hayNumero = documento.numeroFueraDeSerie && documento.numeroSospechado !== null
-  if (vigentes.length === 0 && resueltos.length === 0 && !documento.numeroFueraDeSerie) return null
 
-  // Sin nada vigente el documento no tiene observaciones HOY: lo que queda es
+  if (historicos.length === 0 && !documento.numeroFueraDeSerie) return null
+
+  // Sin nada vigente el documento no tiene un problema HOY: lo que queda es
   // contar de dónde viene, y eso no es una advertencia.
-  const soloHistoria = vigentes.length === 0 && !documento.numeroFueraDeSerie
-
-  if (soloHistoria) {
+  if (activos.length === 0 && !documento.numeroFueraDeSerie) {
     return (
       <p className={styles.resueltoSolo} data-testid="avisos-historicos-resueltos">
-        La migración marcó este documento para revisar por{' '}
-        <strong>{resueltos.map(presentarMotivo).join(', ').toLowerCase()}</strong>, pero los datos de
-        hoy ya no lo dicen. Sigue en la cola de revisión hasta que alguien lo saque.
+        Durante la migración se marcó para revisión por <strong>{lista(resueltos)}</strong>, pero los
+        datos de hoy ya no lo dicen. Sigue en la cola de revisión hasta que alguien lo saque.
       </p>
     )
   }
@@ -48,9 +59,9 @@ export function AvisosHistoricos({ documento }: AvisosHistoricosProps) {
       tone="warning"
       title={documento.esHistorico ? 'Documento histórico con observaciones' : 'Documento con observaciones'}
     >
-      {vigentes.length > 0 ? (
+      {activos.length > 0 ? (
         <ul>
-          {vigentes.map((m) => (
+          {activos.map((m) => (
             <li key={m}>{presentarMotivo(m)}</li>
           ))}
         </ul>
@@ -64,8 +75,7 @@ export function AvisosHistoricos({ documento }: AvisosHistoricosProps) {
       ) : null}
       {resueltos.length > 0 ? (
         <p className={styles.resuelto}>
-          La migración también marcó{' '}
-          <strong>{resueltos.map(presentarMotivo).join(', ').toLowerCase()}</strong>, pero eso ya no
+          Durante la migración también se marcó <strong>{lista(resueltos)}</strong>, pero eso ya no
           pasa: los datos de hoy lo desmienten.
         </p>
       ) : null}

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { presentarEstado } from '../lib/estados'
 import { formatearFecha, formatearImporte } from '../lib/formato'
-import { RUTA_DE, type DocumentoRelacionado, type Relacionados } from '../types'
+import { RUTA_DE, type DocumentoRelacionado, type Relacionados, type TipoDocumento } from '../types'
 import styles from './PanelRelacionados.module.css'
 
 export interface PanelRelacionadosProps {
@@ -9,6 +9,8 @@ export interface PanelRelacionadosProps {
   cargando: boolean
   /** Para no listar el documento que se está mirando como relacionado de sí mismo. */
   idActual: string
+  /** El tipo del documento que se está mirando (Fase 19 · E4). */
+  tipoActual: TipoDocumento
 }
 
 interface Seccion {
@@ -24,6 +26,13 @@ interface Seccion {
    * tablas—, así que una sección vacía sólo prometería una pantalla que no hay.
    */
   siempre: boolean
+}
+
+/** El tipo del documento → la sección que sería «él mismo». */
+const SECCION_DEL_TIPO: Record<TipoDocumento, keyof Relacionados> = {
+  cotizacion: 'cotizaciones',
+  pedido: 'pedidos',
+  entrega: 'entregas',
 }
 
 const SECCIONES: Seccion[] = [
@@ -66,15 +75,19 @@ function Fila({ d, navegable }: { d: DocumentoRelacionado; navegable: boolean })
  * Las secciones vacías **se muestran igual**. «No hay facturas» es
  * información; esconder la sección haría parecer que el concepto no existe.
  */
-export function PanelRelacionados({ relacionados, cargando, idActual }: PanelRelacionadosProps) {
+export function PanelRelacionados({ relacionados, cargando, idActual, tipoActual }: PanelRelacionadosProps) {
   if (cargando || !relacionados) {
     return <p className={styles.nota}>Buscando documentos relacionados…</p>
   }
 
+  // Fase 19 · E4: la sección del PROPIO tipo sólo aparece si tiene algo que
+  // mostrar. «Cotización — No hay» en la pantalla de una cotización no es
+  // información: es el documento relacionado consigo mismo, y vacío.
+  const propia = SECCION_DEL_TIPO[tipoActual]
   const visibles = SECCIONES.map((s) => ({
     ...s,
     items: relacionados[s.clave].filter((d) => d.id !== idActual),
-  })).filter((s) => s.siempre || s.items.length > 0)
+  })).filter((s) => (s.siempre && s.clave !== propia) || s.items.length > 0)
 
   return (
     <div className={styles.grilla}>
