@@ -64,6 +64,22 @@ describe('presentarEvento', () => {
     ])
   })
 
+  /** Fase 19 · E4: la conversión copia líneas; copiar no es modificar. */
+  it('una línea copiada de la cotización se cuenta como copiada', () => {
+    const e = presentarEvento(
+      evento({
+        accion: 'created',
+        hasta: 'draft',
+        diff: {
+          lineas: [{ linea: 1, producto: '4134200', accion: 'copiada', cantidad: 1, precio: 130.5 }],
+        },
+      }),
+      'pedido',
+    )
+    expect(e.detalle).toContain('Línea 1 (4134200): copiada de la cotización, 1 × 130,5')
+    expect(e.detalle.join(' ')).not.toContain('modificada')
+  })
+
   it('un campo que guarda una referencia NO muestra el uuid', () => {
     const e = presentarEvento(
       evento({

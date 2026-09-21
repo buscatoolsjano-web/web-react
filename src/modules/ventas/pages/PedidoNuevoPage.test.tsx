@@ -24,9 +24,12 @@ const estado = vi.hoisted((): {
   direcciones: { id: string; texto: string; esPrincipal: boolean; activa: boolean }[]
   productos: unknown[]
   defaults: { vendedorId: string | null; tarifaId: string | null; formaPago: string | null; moneda: string | null } | null
+  /** Fase 19 · E4: las series de pedido, con su autoridad efectiva. */
+  series: { codigo: string; esPorDefecto: boolean; autoridad: string }[] | null
 } => ({
   rol: 'admin',
   stel: {},
+  series: null,
   tarifas: [
     { id: 'lista-usd', nombre: 'Lista base', moneda: 'USD' },
     { id: 'mayorista', nombre: 'Mayorista', moneda: 'USD' },
@@ -60,6 +63,14 @@ vi.mock('../hooks/useAutoridadNumeracion', () => ({
 }))
 vi.mock('../hooks/useDocumentos', () => ({
   useTarifas: () => ({ data: estado.tarifas, isPending: false }),
+  // Sin series propias se deriva de la autoridad general: es lo que pasa con
+  // PDV, que no tiene fila de autoridad por serie.
+  useSeries: () => ({
+    data:
+      estado.series ??
+      [{ codigo: 'PDV', esPorDefecto: true, autoridad: estado.stel['sales_order'] ? 'STEL' : 'ERP' }],
+    isPending: false,
+  }),
   useVendedores: () => ({ data: estado.vendedores, isPending: false }),
   useContactos: () => ({ data: estado.contactos, isPending: false }),
   // Fase 17 · E3: los domicilios de entrega del cliente.
@@ -125,6 +136,7 @@ const completarMinimo = () => {
 beforeEach(() => {
   estado.rol = 'admin'
   estado.stel = {}
+  estado.series = null
   estado.productos = []
   espias.crear.mockClear()
   espias.buscar.mockClear()
@@ -209,6 +221,66 @@ describe('Nuevo pedido · borrador', () => {
     completarMinimo()
     expect(screen.getByRole('button', { name: 'Crear pedido' })).toBeDisabled()
     expect(screen.getAllByText(/STEL/).length).toBeGreaterThan(0)
+  })
+
+  /**
+   * Fase 19 · E4 · el selector de serie, igual que en la cotización.
+   *
+   * En Buscatools son PDV —por defecto, que numera STEL— y PDV-ERP. A la
+   * segunda se llega eligiéndola: nunca se seleziona sola.
+   */
+  describe('la serie del pedido', () => {
+    const DOS = [
+      { codigo: 'PDV', esPorDefecto: true, autoridad: 'STEL' },
+      { codigo: 'PDV-ERP', esPorDefecto: false, autoridad: 'ERP' },
+    ]
+
+    it('con una sola serie no aparece: no hay nada que elegir', () => {
+      estado.series = [{ codigo: 'PDV', esPorDefecto: true, autoridad: 'ERP' }]
+      montar()
+      expect(screen.queryByLabelText('Serie')).toBeNull()
+    })
+
+    it('con dos, arranca SIEMPRE en la que está por defecto, y esa bloquea', () => {
+      estado.series = DOS
+      montar()
+      completarMinimo()
+      expect(screen.getByLabelText('Serie')).toHaveValue('PDV')
+      expect(screen.getByRole('button', { name: 'Crear pedido' })).toBeDisabled()
+      expect(screen.getAllByText(/la serie PDV la numera STEL/i).length).toBeGreaterThan(0)
+    })
+
+    it('eligiendo la serie del ERP se habilita, y volver a la otra vuelve a bloquear', () => {
+      estado.series = DOS
+      montar()
+      completarMinimo()
+      fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'PDV-ERP' } })
+      expect(screen.getByRole('button', { name: 'Crear pedido' })).toBeEnabled()
+
+      fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'PDV' } })
+      expect(screen.getByRole('button', { name: 'Crear pedido' })).toBeDisabled()
+    })
+
+    it('la serie elegida viaja en el payload; sin elegir, no viaja nada', async () => {
+      estado.series = [
+        { codigo: 'PDV', esPorDefecto: true, autoridad: 'ERP' },
+        { codigo: 'PDV-ERP', esPorDefecto: false, autoridad: 'ERP' },
+      ]
+      const { unmount } = montar()
+      completarMinimo()
+      fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
+      await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
+      expect(Object.keys(espias.crear.mock.calls[0]![1])).not.toContain('series_code')
+      unmount()
+      espias.crear.mockClear()
+
+      montar()
+      completarMinimo()
+      fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'PDV-ERP' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
+      await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
+      expect(espias.crear.mock.calls[0]![1]).toMatchObject({ series_code: 'PDV-ERP' })
+    })
   })
 
   it('quien no escribe no ve el formulario', () => {

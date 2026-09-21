@@ -728,3 +728,52 @@ Un documento ya no se muestra relacionado consigo mismo: «Cotización — No ha
 en la pantalla de una cotización no era información. La regla es semántica y
 vale para los tres tipos; si existe OTRO documento del mismo tipo, la sección
 aparece igual.
+
+---
+
+## 16 · E4 · El pedido también elige serie, y el piloto PDV-ERP00001
+
+### Lo aplicado
+
+| | |
+|---|---|
+| `PDV-ERP` | `document_sequences` (prefix PDV-ERP, padding 5, next 1, **is_default false**) + `document_numbering_authority_series` con `authority='ERP'` |
+| `crear_pedido` | acepta `series_code`: el mismo cambio de `crear_cotizacion` —whitelist, resolución con `company_id` y `doc_type` fijados, `SERIE_INVALIDA`, número con la serie ya resuelta, `series_code` en la auditoría— |
+| conversión | `app.convertir_cotizacion_a_pedido(quote, esperado, serie)` interna y compartida; `convertir_cotizacion_en_pedido` **sin cambios de firma ni semántica** llama con serie nula; `convertir_cotizacion_en_pedido_en_serie` es una función NUEVA que **exige** la serie |
+
+Sin sobrecargas: nombres distintos y cantidades de parámetros distintas, así que
+ninguna llamada queda ambigua. La interna vive en `app`, que PostgREST no
+expone, y sólo la puede ejecutar el dueño; las públicas son `security definer`
+con `search_path` fijo y `execute` sólo para `authenticated`.
+
+La autoridad no se mira en ninguna de las tres: la exigen
+`next_document_number` y el trigger `guardar_autoridad_numeracion`, cada uno
+por su lado. Un `insert` directo en una serie de STEL lo sigue frenando el
+trigger (caso L).
+
+### El piloto
+
+| Clave | Valor |
+| --- | --- |
+| `PILOT_ORDER_ID` | `a9c4f651-f047-4724-998d-9419fc44144d` |
+| `PILOT_ORDER_NUMBER` | `PDV-ERP00001` |
+| origen | `COT-ERP00001` (`origin='quote'`, `quote_id` enlazado) |
+| snapshot | precio 130,50 · cantidad 1 · descuento 0 · `vat_21`/21 · `quote_line_id` enlazado — **idénticos a la cotización** |
+| efectos | 172 → **173** pedidos · 193 remitos · 381 movimientos · 0 reservas · PDV **1321 → 1321** · PDV-ERP **1 → 2** · COTI 2630 |
+| la cotización | intacta: mismo `updated_at`, sigue en borrador |
+
+El pendiente por línea del piloto **sí es exacto** —pedido 1, entregado 0,
+pendiente 1— porque la trazabilidad estructural está completa. Eso no cambia la
+regla del §4 para lo migrado: donde falta `order_line_id`, no se inventa.
+
+### Dos defectos que destapó el piloto
+
+1. **El detalle del pedido miraba la autoridad general**, igual que le pasaba a
+   la cotización en E3: `PDV-ERP00001` se abría diciendo que STEL numeraba
+   «este documento» y con «Confirmar pedido» bloqueado. Ahora manda la serie
+   del documento, y lo que sigue en STEL —el remito que saldría de él— se
+   nombra como lo que es.
+2. **La trazabilidad decía «modificada» en cada línea copiada.** La conversión
+   guarda `accion: 'copiada'` y el presentador no la conocía, así que caía en
+   el texto por defecto. Copiar no es modificar: ahora dice «copiada de la
+   cotización, 1 × 130,5».

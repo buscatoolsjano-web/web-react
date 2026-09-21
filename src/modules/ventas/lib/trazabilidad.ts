@@ -174,6 +174,11 @@ function textoDeLinea(l: CambioDeLinea): string {
   if (l.accion === 'eliminada') {
     return `${donde}: eliminada (era ${valor(l.cantidad)} × ${valor(l.precio)})`
   }
+  // Fase 19 · E4: la conversión cotización → pedido copia cada línea con su
+  // snapshot. Sin esta rama caía en «modificada», que es justo lo que NO pasó.
+  if (l.accion === 'copiada') {
+    return `${donde}: copiada de la cotización, ${valor(l.cantidad)} × ${valor(l.precio)}`
+  }
   const partes = Object.entries(l.cambios ?? {}).map(
     ([k, c]) => `${nombreDeCampo(k).toLowerCase()} ${valor(c.from)} → ${valor(c.to)}`,
   )

@@ -13,6 +13,11 @@ export interface ConfirmDialogProps {
   tone?: 'default' | 'danger' | undefined
   /** Mientras la acción corre: botón en loading y el diálogo no se cierra. */
   busy?: boolean | undefined
+  /**
+   * El confirmar deshabilitado, con lo que hay adentro explicando por qué.
+   * Para diálogos donde se elige algo y la elección puede no ser válida.
+   */
+  confirmDisabled?: boolean | undefined
   onConfirm: () => void
   onCancel: () => void
   children?: ReactNode | undefined
@@ -27,6 +32,7 @@ export function ConfirmDialog({
   cancelLabel = 'Cancelar',
   tone = 'default',
   busy = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
   children,
@@ -52,7 +58,13 @@ export function ConfirmDialog({
           <Button ref={cancelar} variant="secondary" onClick={onCancel} disabled={busy}>
             {cancelLabel}
           </Button>
-          <Button ref={confirmar} variant={peligro ? 'danger' : 'primary'} onClick={onConfirm} loading={busy}>
+          <Button
+            ref={confirmar}
+            variant={peligro ? 'danger' : 'primary'}
+            onClick={onConfirm}
+            loading={busy}
+            disabled={confirmDisabled}
+          >
             {confirmLabel}
           </Button>
         </>

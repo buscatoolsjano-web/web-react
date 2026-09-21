@@ -15,18 +15,21 @@ import { useSalidaConCambios } from '@/hooks/useSalidaConCambios'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { EditorCabecera } from '../components/EditorCabecera'
+import { Field } from '@/components/forms/Field'
+import { Select } from '@/components/forms/controls'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TotalesDocumento } from '../components/TotalesDocumento'
 import {
   useContactos,
   useDireccionesEntrega,
+  useSeries,
   useTarifas,
   useVendedores,
 } from '../hooks/useDocumentos'
 import { defaultsDeCliente } from '../services/clientes'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
-import { DOC_TYPE_DE, mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
+import { DOC_TYPE_DE, mensajeErrorVentas, motivoBloqueo, motivoSerieStel } from '../lib/autoridad'
 import {
   aPayloadCreacionPedido,
   agregarLinea,
@@ -136,7 +139,26 @@ export function PedidoNuevoPage() {
 
   const escribe = escribeVentas(activa?.rol)
   const autoridad = useAutoridadNumeracion()
-  const stel = autoridad.stel(DOC_TYPE_DE['pedido'])
+  /**
+   * La serie del documento (Fase 19 · E4).
+   *
+   * Igual que en «Nueva cotización»: el borrador nace con la serie vacía, que
+   * significa «la que la empresa tenga por defecto», y lo que bloquea la
+   * emisión pasa a ser la autoridad de ESTA serie y no la general del tipo.
+   * A `PDV-ERP` se llega eligiéndola; nunca se selecciona sola.
+   */
+  const series = useSeries('pedido', escribe)
+  const porDefecto = (series.data ?? []).find((x) => x.esPorDefecto) ?? null
+  const serieVisible = b.cabecera.serie || porDefecto?.codigo || ''
+  const serieElegida = (series.data ?? []).find((x) => x.codigo === serieVisible) ?? null
+  // Mientras las series no llegaron se usa la autoridad general, que es lo
+  // conservador: no se promete una emisión que la base puede rechazar.
+  const stel = serieElegida ? serieElegida.autoridad === 'STEL' : autoridad.stel(DOC_TYPE_DE['pedido'])
+  // Si hay de dónde elegir, el motivo habla de LA SERIE y dice qué hacer.
+  const motivo =
+    serieElegida && (series.data ?? []).length > 1
+      ? motivoSerieStel(serieElegida.codigo)
+      : motivoBloqueo(DOC_TYPE_DE['pedido'])
 
   const tarifas = useTarifas(escribe)
   const vendedores = useVendedores(escribe)
@@ -369,7 +391,7 @@ export function PedidoNuevoPage() {
         subtitle="Se arma acá y se guarda de una sola vez. El número lo asigna el servidor al crearlo."
       />
 
-      {stel ? <AvisoAutoridadStel detalle={motivoBloqueo(DOC_TYPE_DE['pedido'])} /> : null}
+      {stel ? <AvisoAutoridadStel detalle={motivo} /> : null}
 
       {/* Fase 17 · E2: cuando un default del cliente no se puede aplicar, se
           dice por qué. Nunca se aplica un reemplazo en silencio. */}
@@ -384,6 +406,28 @@ export function PedidoNuevoPage() {
       ) : null}
 
       <DocSection title="Datos del documento">
+        {/* Sólo aparece si la empresa tiene más de una serie: con una sola no
+            hay nada que elegir y sería ruido. Arranca SIEMPRE en la que está
+            por defecto —en Buscatools, PDV, que sigue bloqueada por STEL—. */}
+        {(series.data ?? []).length > 1 ? (
+          <div className={editor.serie}>
+            <Field
+              label="Serie"
+              help="Define qué numeración lleva el documento. Una serie que numera STEL no se puede emitir desde el ERP."
+            >
+              <Select
+                value={serieVisible}
+                onChange={(e) => setB((x) => cambiarCampo(x, 'serie', e.target.value))}
+              >
+                {(series.data ?? []).map((x) => (
+                  <option key={x.codigo} value={x.codigo}>
+                    {x.codigo} — {x.autoridad === 'ERP' ? 'se emite desde el ERP' : 'la numera STEL'}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+        ) : null}
         <EditorCabecera
           valores={b.cabecera}
           contactos={contactos.data ?? []}
@@ -474,7 +518,7 @@ export function PedidoNuevoPage() {
         }
         note={
           stel ? (
-            <p id="motivo-crear-pedido">{motivoBloqueo(DOC_TYPE_DE['pedido'])}</p>
+            <p id="motivo-crear-pedido">{motivo}</p>
           ) : falta.length > 0 ? (
             <p id="motivo-crear-pedido">{falta.join(' ')}</p>
           ) : null

@@ -5992,6 +5992,10 @@ export type Database = {
         Args: { p_esperado?: string; p_quote: string }
         Returns: Json
       }
+      convertir_cotizacion_en_pedido_en_serie: {
+        Args: { p_esperado: string; p_quote: string; p_serie: string }
+        Returns: Json
+      }
       crear_cotizacion: {
         Args: { p_cabecera: Json; p_company: string; p_lineas: Json }
         Returns: Json

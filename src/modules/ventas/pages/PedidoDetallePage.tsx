@@ -43,12 +43,18 @@ import {
   usePendientes,
   useRelacionados,
   useRevision,
+  useSeries,
   useTarifas,
   useVendedores,
 } from '../hooks/useDocumentos'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { useVolverAlListado } from '../hooks/useVolverAlListado'
-import { mensajeErrorVentas, motivoBloqueo, type DocTypeVentas } from '../lib/autoridad'
+import {
+  mensajeErrorVentas,
+  motivoBloqueo,
+  TITULO_BANNER_STEL_DERIVADOS,
+  type DocTypeVentas,
+} from '../lib/autoridad'
 import {
   agregarLinea,
   aPayloadPedido,
@@ -141,7 +147,21 @@ function Detalle() {
   const autoridad = useAutoridadNumeracion()
   // El listado como estaba, si se llegó desde él (Fase 19 · E2).
   const volver = useVolverAlListado('pedido', 'Pedidos')
-  const stelPedido = autoridad.stel('sales_order')
+  /**
+   * Fase 19 · E4: la autoridad que importa es la de LA SERIE DE ESTE pedido,
+   * no la general del tipo. `PDV-ERP` numera en el ERP aunque `PDV` —la serie
+   * por defecto— la siga numerando STEL, y el piloto se abría diciendo que
+   * STEL numeraba «este documento». Es el mismo arreglo que se hizo en la
+   * cotización; si la serie no está configurada, se cae a la general, que es
+   * lo conservador.
+   */
+  const seriesPedido = useSeries('pedido', esInterno)
+  const autoridadDeLaSerie =
+    (seriesPedido.data ?? []).find((x) => x.codigo === doc?.serie)?.autoridad ?? null
+  const stelPedido =
+    autoridadDeLaSerie !== null ? autoridadDeLaSerie === 'STEL' : autoridad.stel('sales_order')
+  // El remito que saldría de acá nace con la serie POR DEFECTO de remitos, así
+  // que lo que lo bloquea es la autoridad general de `delivery`.
   const stelEntrega = autoridad.stel('delivery')
 
   const lineas = useMemo(() => (doc ? ordenarLineas(doc.lineas) : []), [doc])
@@ -368,6 +388,9 @@ function Detalle() {
       {hayBanner ? (
         <AvisoAutoridadStel
           idDetalle={idMotivo}
+          // Si la serie de ESTE pedido la numera el ERP, lo que sigue en STEL
+          // es el remito que saldría de él, no él.
+          {...(stelPedido ? {} : { titulo: TITULO_BANNER_STEL_DERIVADOS })}
           detalle={`${motivoBloqueo(...tiposBloqueados)} Podés consultar, editar y guardar, imprimir y exportar.`}
         />
       ) : null}

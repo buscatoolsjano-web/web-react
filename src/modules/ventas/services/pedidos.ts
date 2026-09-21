@@ -77,6 +77,31 @@ export async function convertirCotizacionEnPedido(
   return { id: r.id, numero: r.number, total: Number(r.total ?? 0), lineas: r.lineas }
 }
 
+/**
+ * La misma conversión, con la serie del pedido elegida a mano (Fase 19 · E4).
+ *
+ * Es una función DISTINTA en el servidor, no un parámetro más de la de
+ * siempre: `convertir_cotizacion_en_pedido` conserva su firma y su
+ * semántica, y las dos comparten la implementación interna. La serie acá es
+ * obligatoria —el servidor rechaza una vacía—: esta puerta existe justamente
+ * para elegirla.
+ */
+export async function convertirCotizacionEnPedidoEnSerie(
+  quoteId: string,
+  esperado: string | null,
+  serie: string,
+): Promise<PedidoCreado> {
+  const { data, error } = await supabase.rpc('convertir_cotizacion_en_pedido_en_serie', {
+    p_quote: quoteId,
+    p_esperado: esperado as string,
+    p_serie: serie,
+  })
+  if (error) throw falloDePedido(error.message, 'No se pudo generar el pedido.')
+
+  const r = data as unknown as { id: string; number: string; total: number | string; lineas: number }
+  return { id: r.id, numero: r.number, total: Number(r.total ?? 0), lineas: r.lineas }
+}
+
 export interface ResultadoGuardadoPedido {
   actualizadoEn: string
   cambiosCabecera: number

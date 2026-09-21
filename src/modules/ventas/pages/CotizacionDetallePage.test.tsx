@@ -34,6 +34,8 @@ const estado = vi.hoisted((): {
    * poner `stel` alcanza para el caso corriente.
    */
   series: { codigo: string; esPorDefecto: boolean; autoridad: string }[] | null
+  /** Las series de PEDIDO, para elegir en qué serie se genera (Fase 19 · E4). */
+  seriesPedido: { codigo: string; esPorDefecto: boolean; autoridad: string }[] | null
 } => ({
   rol: 'admin',
   stel: {},
@@ -45,6 +47,7 @@ const estado = vi.hoisted((): {
   tarifas: [],
   vendedores: [],
   series: null,
+  seriesPedido: null,
 }))
 const espias = vi.hoisted(() => ({
   // Tipado con la firma real: sin eso `mock.calls[0]` es una tupla vacía y no
@@ -59,6 +62,9 @@ const espias = vi.hoisted(() => ({
   ),
   convertir: vi.fn((_quoteId: string, _esperado: string | null) =>
     Promise.resolve({ id: 'o-nuevo', numero: 'PDV01330', total: 484, lineas: 1 }),
+  ),
+  convertirEnSerie: vi.fn((_quoteId: string, _esperado: string | null, _serie: string) =>
+    Promise.resolve({ id: 'o-erp', numero: 'PDV-ERP00001', total: 484, lineas: 1 }),
   ),
 }))
 
@@ -93,11 +99,14 @@ vi.mock('../hooks/useDocumentos', () => ({
   useContactos: () => ({ data: estado.contactos, isPending: false }),
   useTarifas: () => ({ data: estado.tarifas, isPending: false }),
   useVendedores: () => ({ data: estado.vendedores, isPending: false }),
-  // Fase 19 · E3: la autoridad de la serie del documento.
-  useSeries: () => ({
+  // Fase 19 · E3/E4: la autoridad de la serie, por tipo de documento.
+  useSeries: (tipo: string) => ({
     data:
-      estado.series ??
-      [{ codigo: 'COTI', esPorDefecto: true, autoridad: estado.stel['quote'] ? 'STEL' : 'ERP' }],
+      tipo === 'pedido'
+        ? (estado.seriesPedido ??
+            [{ codigo: 'PDV', esPorDefecto: true, autoridad: estado.stel['sales_order'] ? 'STEL' : 'ERP' }])
+        : (estado.series ??
+            [{ codigo: 'COTI', esPorDefecto: true, autoridad: estado.stel['quote'] ? 'STEL' : 'ERP' }]),
     isPending: false,
   }),
 }))
@@ -111,6 +120,7 @@ vi.mock('../services/cotizaciones', async (real) => ({
 vi.mock('../services/pedidos', async (real) => ({
   ...(await real<Record<string, unknown>>()),
   convertirCotizacionEnPedido: espias.convertir,
+  convertirCotizacionEnPedidoEnSerie: espias.convertirEnSerie,
 }))
 // El panel usa además `CLASES` y `TIPOS_ACEPTADOS`, que son datos, no
 // escrituras: se dejan los de producción y se mockea sólo lo que toca la red.
@@ -236,8 +246,10 @@ beforeEach(() => {
   estado.tarifas = []
   estado.vendedores = []
   estado.series = null
+  estado.seriesPedido = null
   espias.guardar.mockClear()
   espias.convertir.mockClear()
+  espias.convertirEnSerie.mockClear()
 })
 
 /**
@@ -423,6 +435,71 @@ describe('Cotización · acciones', () => {
 
     expect(screen.getByRole('button', { name: 'Marcar aceptada' })).toBeDisabled()
     expect(screen.getByText(/STEL numera las cotizaciones y los pedidos/)).toBeVisible()
+  })
+
+  /**
+   * Fase 19 · E4 · en qué serie sale el pedido.
+   *
+   * Preguntar no emite nada: por eso el botón se abre aunque la serie por
+   * defecto de pedidos sea de STEL. Lo que no se puede es CONFIRMAR con ella.
+   */
+  describe('generar el pedido eligiendo la serie', () => {
+    const DOS_PEDIDO = [
+      { codigo: 'PDV', esPorDefecto: true, autoridad: 'STEL' },
+      { codigo: 'PDV-ERP', esPorDefecto: false, autoridad: 'ERP' },
+    ]
+
+    it('con una sola serie convierte derecho, por la función de siempre', async () => {
+      estado.stel = {}
+      montar()
+      fireEvent.click(screen.getByRole('button', { name: 'Generar pedido' }))
+      await waitFor(() => expect(espias.convertir).toHaveBeenCalledTimes(1))
+      expect(espias.convertirEnSerie).not.toHaveBeenCalled()
+    })
+
+    it('con dos, pregunta en cuál: PDV preseleccionada y el confirmar bloqueado', () => {
+      estado.stel = { quote: true, sales_order: true }
+      estado.seriesPedido = DOS_PEDIDO
+      montar()
+
+      const generar = screen.getByRole('button', { name: 'Generar pedido' })
+      expect(generar).toBeEnabled()
+      fireEvent.click(generar)
+
+      expect(screen.getByLabelText('Serie del pedido')).toHaveValue('PDV')
+      const confirmar = screen.getAllByRole('button', { name: 'Generar pedido' }).at(-1)!
+      expect(confirmar).toBeDisabled()
+      expect(screen.getByText(/la serie PDV la numera STEL/i)).toBeInTheDocument()
+      expect(espias.convertir).not.toHaveBeenCalled()
+      expect(espias.convertirEnSerie).not.toHaveBeenCalled()
+    })
+
+    it('eligiendo la serie del ERP se habilita, y convierte EN ESA serie', async () => {
+      estado.stel = { quote: true, sales_order: true }
+      estado.seriesPedido = DOS_PEDIDO
+      montar()
+      fireEvent.click(screen.getByRole('button', { name: 'Generar pedido' }))
+      fireEvent.change(screen.getByLabelText('Serie del pedido'), { target: { value: 'PDV-ERP' } })
+
+      const confirmar = screen.getAllByRole('button', { name: 'Generar pedido' }).at(-1)!
+      expect(confirmar).toBeEnabled()
+      fireEvent.click(confirmar)
+
+      await waitFor(() => expect(espias.convertirEnSerie).toHaveBeenCalledTimes(1))
+      expect(espias.convertirEnSerie.mock.calls[0]![2]).toBe('PDV-ERP')
+      // La puerta vieja no se usa cuando se eligió serie.
+      expect(espias.convertir).not.toHaveBeenCalled()
+    })
+
+    it('si NINGUNA serie de pedido emite desde el ERP, el botón sigue bloqueado', () => {
+      estado.stel = { quote: true, sales_order: true }
+      estado.seriesPedido = [
+        { codigo: 'PDV', esPorDefecto: true, autoridad: 'STEL' },
+        { codigo: 'PDV-VIEJA', esPorDefecto: false, autoridad: 'STEL' },
+      ]
+      montar()
+      expect(screen.getByRole('button', { name: 'Generar pedido' })).toBeDisabled()
+    })
   })
 
   it('«Marcar rechazada» vive en «Más», y la principal nunca', () => {

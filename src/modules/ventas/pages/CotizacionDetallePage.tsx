@@ -9,6 +9,8 @@ import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { Field } from '@/components/forms/Field'
+import { Select } from '@/components/forms/controls'
 import { DialogoCambiosSinGuardar } from '@/components/modals/DialogoCambiosSinGuardar'
 import { useSalidaConCambios } from '@/hooks/useSalidaConCambios'
 import { ActionBar } from '@/components/document/ActionBar'
@@ -52,6 +54,7 @@ import {
 import {
   mensajeErrorVentas,
   motivoBloqueo,
+  motivoSerieStel,
   TITULO_BANNER_STEL_DERIVADOS,
   type DocTypeVentas,
 } from '../lib/autoridad'
@@ -78,7 +81,7 @@ import {
   guardarCotizacion,
   ordenarLineas,
 } from '../services/cotizaciones'
-import { convertirCotizacionEnPedido } from '../services/pedidos'
+import { convertirCotizacionEnPedido, convertirCotizacionEnPedidoEnSerie } from '../services/pedidos'
 import type { DocumentoDetalle } from '../types'
 import editor from './EditorCotizacion.module.css'
 
@@ -182,10 +185,27 @@ function Detalle() {
     (seriesCotizacion.data ?? []).find((s) => s.codigo === doc?.serie)?.autoridad ?? null
   const stelCotizacion =
     autoridadDeLaSerie !== null ? autoridadDeLaSerie === 'STEL' : autoridad.stel('quote')
-  // El pedido que saldría de acá nace con la serie POR DEFECTO de pedidos
-  // —`convertirCotizacionEnPedido` no elige serie—, así que lo que lo bloquea
-  // es la autoridad general de `sales_order`, no la serie de la cotización.
-  const stelPedido = autoridad.stel('sales_order')
+  /**
+   * Las series de PEDIDO (Fase 19 · E4).
+   *
+   * Si la empresa tiene más de una, generar el pedido pasa a preguntar en cuál
+   * se emite: abrir esa pregunta no emite nada, así que lo que cierra el botón
+   * ya no es la autoridad general sino que NINGUNA serie de pedido se emita
+   * desde el ERP. Con una sola serie, todo queda como estaba.
+   */
+  const seriesPedido = useSeries('pedido', esInterno && escribe)
+  const hayQueElegirSerie = (seriesPedido.data ?? []).length > 1
+  const seriePedidoPorDefecto = (seriesPedido.data ?? []).find((x) => x.esPorDefecto) ?? null
+  const stelPedido = hayQueElegirSerie
+    ? !(seriesPedido.data ?? []).some((x) => x.autoridad === 'ERP')
+    : autoridad.stel('sales_order')
+  // Cuál se elige. Arranca SIEMPRE en la de por defecto: a `PDV-ERP` se llega
+  // eligiéndola, nunca sola.
+  const [eligiendoSerie, setEligiendoSerie] = useState(false)
+  const [serieDestino, setSerieDestino] = useState('')
+  const serieDestinoVisible = serieDestino || seriePedidoPorDefecto?.codigo || ''
+  const serieDestinoElegida =
+    (seriesPedido.data ?? []).find((x) => x.codigo === serieDestinoVisible) ?? null
   const permiso = editabilidad(doc?.estado ?? '', escribe)
   const editando = borrador !== null
   const sucio = borrador !== null && original !== null && hayCambios(borrador, original)
@@ -230,9 +250,14 @@ function Detalle() {
     // Fase 15 · E4: una sola transacción del servidor. El pedido hereda el
     // snapshot aprobado —precios, descuentos, impuestos, tarifa y vendedor— y
     // la cotización no se toca.
-    mutationFn: () => convertirCotizacionEnPedido(id!, doc?.actualizadoEn ?? null),
+    // Con serie elegida va por la puerta nueva; sin ella, por la de siempre.
+    mutationFn: (serie: string | null) =>
+      serie === null
+        ? convertirCotizacionEnPedido(id!, doc?.actualizadoEn ?? null)
+        : convertirCotizacionEnPedidoEnSerie(id!, doc?.actualizadoEn ?? null, serie),
     onSuccess: (pedido) => {
       setUltimoError(null)
+      setEligiendoSerie(false)
       void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
       void navegar(`/ventas/pedidos/${pedido.id}`)
     },
@@ -409,7 +434,7 @@ function Detalle() {
       icon={yaTienePedido ? <Icon name="check" size={16} /> : <Icon name="arrow-right" size={16} />}
       loading={convertir.isPending}
       disabled={yaTienePedido || stelPedido || autoridad.cargando}
-      onClick={() => convertir.mutate()}
+      onClick={() => (hayQueElegirSerie ? setEligiendoSerie(true) : convertir.mutate(null))}
       title={yaTienePedido ? 'Esta cotización ya tiene un pedido' : undefined}
       aria-describedby={stelPedido && !yaTienePedido ? describePorBloqueo : undefined}
     >
@@ -727,6 +752,36 @@ function Detalle() {
       />
 
       {acciones.capas}
+
+      {/* Fase 19 · E4: en qué serie sale el pedido. Preguntar no emite nada;
+          lo que emite es confirmar, y con una serie de STEL no se puede. */}
+      <ConfirmDialog
+        open={eligiendoSerie}
+        title="¿En qué serie se emite el pedido?"
+        description="El pedido hereda el snapshot aprobado de la cotización. Lo único que se elige acá es la numeración."
+        confirmLabel="Generar pedido"
+        cancelLabel="Cancelar"
+        busy={convertir.isPending}
+        confirmDisabled={serieDestinoElegida?.autoridad === 'STEL'}
+        onConfirm={() => convertir.mutate(serieDestinoVisible)}
+        onCancel={() => setEligiendoSerie(false)}
+      >
+        <Field
+          label="Serie del pedido"
+          help="Una serie que numera STEL no se puede emitir desde el ERP."
+        >
+          <Select value={serieDestinoVisible} onChange={(e) => setSerieDestino(e.target.value)}>
+            {(seriesPedido.data ?? []).map((x) => (
+              <option key={x.codigo} value={x.codigo}>
+                {x.codigo} — {x.autoridad === 'ERP' ? 'se emite desde el ERP' : 'la numera STEL'}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        {serieDestinoElegida?.autoridad === 'STEL' ? (
+          <p>{motivoSerieStel(serieDestinoElegida.codigo)}</p>
+        ) : null}
+      </ConfirmDialog>
 
       {viendoCliente && doc.clienteId ? (
         <PanelLateralCliente clienteId={doc.clienteId} onCerrar={() => setViendoCliente(false)} />

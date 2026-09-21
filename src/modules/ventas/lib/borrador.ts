@@ -462,6 +462,12 @@ export function aPayloadCreacionPedido(b: Borrador): PayloadGuardado {
     const columna = COLUMNA_PEDIDO[k]
     if (columna) cabecera[columna] = valorDeCampo(k, b.cabecera[k])
   }
+
+  // La serie, igual que en la cotización (Fase 19 · E4): sólo si se eligió, y
+  // sólo en el alta. `guardar_pedido` no la acepta —un documento no cambia de
+  // serie— y `COLUMNA_PEDIDO` la comparten el alta y la edición.
+  if (b.cabecera.serie !== '') cabecera['series_code'] = b.cabecera.serie
+
   return { cabecera, lineas: aPayloadCreacion(b).lineas }
 }
 

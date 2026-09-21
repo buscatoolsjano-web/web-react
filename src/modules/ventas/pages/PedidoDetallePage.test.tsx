@@ -25,6 +25,7 @@ const estado = vi.hoisted((): {
   relacionados: unknown
   /** Lo que devuelve la vista del servidor; sin definir = todavía no llegó. */
   revision: { historicos: string[]; activos: string[]; resueltos: string[]; noVerificables: string[]; requiereAtencion: boolean } | undefined
+  series: { codigo: string; esPorDefecto: boolean; autoridad: string }[] | null
   eventos: unknown[]
   contactos: unknown[]
   direcciones: unknown[]
@@ -36,6 +37,7 @@ const estado = vi.hoisted((): {
   doc: null,
   relacionados: null,
   revision: undefined,
+  series: null,
   eventos: [],
   contactos: [],
   direcciones: [],
@@ -93,6 +95,13 @@ vi.mock('../hooks/useAutoridadNumeracion', () => ({
 vi.mock('../hooks/useDocumentos', () => ({
   useDocumento: () => ({ data: estado.doc, isPending: false, error: null }),
   useRelacionados: () => ({ data: estado.relacionados, isPending: false }),
+  // Fase 19 · E4: la autoridad de la serie del documento.
+  useSeries: () => ({
+    data:
+      estado.series ??
+      [{ codigo: 'PDV', esPorDefecto: true, autoridad: estado.stel['sales_order'] ? 'STEL' : 'ERP' }],
+    isPending: false,
+  }),
   // Fase 19 · E4: la clasificación de los motivos la hace el servidor.
   useRevision: () => ({ data: estado.revision, isPending: false }),
   useTrazabilidad: () => ({ data: estado.eventos, isPending: false, error: null }),
@@ -704,6 +713,7 @@ describe('Pedido · avisos de la migración', () => {
   it('sin la respuesta del servidor se muestran los motivos históricos tal cual', () => {
     estado.doc = pedido({ esHistorico: true, motivosRevision: ['MISSING_CURRENCY'] })
     estado.revision = undefined
+  estado.series = null
     montar()
     expect(screen.getByText('Sin moneda')).toBeInTheDocument()
   })
@@ -713,6 +723,40 @@ describe('Pedido · avisos de la migración', () => {
  * Fase 19 · E4: la ficha rápida del cliente, sin salir del pedido. Es el mismo
  * componente que abre el listado de Clientes y la cotización.
  */
+/**
+ * Fase 19 · E4 · la serie del pedido manda sobre la autoridad general.
+ *
+ * Es el mismo caso que en la cotización, visto en el piloto PDV-ERP00001: el
+ * documento lo numeró el ERP y la pantalla decía que lo numeraba STEL.
+ */
+describe('Pedido · la serie del documento', () => {
+  const DOS = [
+    { codigo: 'PDV', esPorDefecto: true, autoridad: 'STEL' },
+    { codigo: 'PDV-ERP', esPorDefecto: false, autoridad: 'ERP' },
+  ]
+
+  it('un pedido de la serie del ERP no se anuncia como numerado por STEL', () => {
+    estado.stel = { sales_order: true, delivery: true }
+    estado.series = DOS
+    estado.doc = pedido({ serie: 'PDV-ERP', numero: 'PDV-ERP00001', estado: 'draft' })
+    montar()
+
+    expect(screen.queryByText(/STEL numera los pedidos y las notas de entrega/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Confirmar pedido' })).toBeEnabled()
+    // Lo que sigue en STEL es el remito que saldría de él, y así se dice.
+    expect(screen.getByText(/numeración de los documentos que salen de este/)).toBeVisible()
+  })
+
+  it('un pedido de la serie que STEL numera sigue bloqueado', () => {
+    estado.stel = { sales_order: true, delivery: true }
+    estado.series = DOS
+    estado.doc = pedido({ serie: 'PDV', estado: 'draft' })
+    montar()
+    expect(screen.getByRole('button', { name: 'Confirmar pedido' })).toBeDisabled()
+    expect(screen.getByText(/STEL numera los pedidos y las notas de entrega/)).toBeVisible()
+  })
+})
+
 describe('Pedido · ficha rápida del cliente', () => {
   it('el nombre del cliente abre la ficha, y se puede cerrar sin perder el pedido', () => {
     montar()
