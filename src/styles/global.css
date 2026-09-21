@@ -47,10 +47,30 @@
     padding: 0;
     margin: 0;
     background: #fff;
+    /* En pantalla es un flex que centra la hoja; en papel tiene que ser flujo
+       normal. Como flex, la hoja queda con un ancho indefinido (el contenedor
+       se achica al contenido y el contenido pide el 100 % del contenedor) y
+       el navegador resuelve ese ciclo con un ancho absurdo. */
+    display: block;
   }
 
   body[data-imprimiendo] [data-no-imprimir],
   body[data-imprimiendo] [data-no-imprimir] * {
     visibility: hidden !important;
+  }
+
+  /* La vista previa ESCALA la hoja para que entre en la pantalla (Fase 19 ·
+     E6). En papel esa escala no va: se imprime a tamaño real. */
+  body[data-imprimiendo] [data-escalador] {
+    /* 100 %, no `auto`: el ancho del papel lo define @page y tiene que bajar
+       por la cadena hasta la hoja como una medida concreta. */
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  body[data-imprimiendo] [data-en-escala] {
+    transform: none !important;
+    box-shadow: none !important;
+    width: 100%;
   }
 }

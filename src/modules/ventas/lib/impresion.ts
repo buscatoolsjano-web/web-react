@@ -34,12 +34,21 @@ export interface OpcionesImpresion {
   /** Los precios de la línea ya incluyen el impuesto. */
   preciosConImpuestos: boolean
   papel: 'A4' | 'carta'
+  /**
+   * El documento lleva la foto del producto (Fase 19 · E6).
+   *
+   * Es una decisión del FORMATO, no de cada línea: cuando está en `true`, la
+   * columna de la foto existe en TODAS las filas aunque el producto no tenga
+   * imagen. Un producto con foto y uno sin foto no pueden mover las columnas.
+   */
+  conFotos: boolean
 }
 
 export const OPCIONES_INICIALES: OpcionesImpresion = {
   formato: 'valorado',
   preciosConImpuestos: false,
   papel: 'A4',
+  conFotos: false,
 }
 
 /** Qué muestra cada formato. Es la misma tabla del legacy, explícita. */
@@ -91,13 +100,23 @@ export interface LineaImpresa {
   precio: number | null
   descuentoPct: number
   subtotal: number | null
+  /** La alícuota de la línea, que el legacy muestra en la columna IMP. */
+  impuestoPct: number | null
+  /** La foto del producto, si el formato las lleva y el producto tiene una. */
+  foto: string | null
 }
 
 export interface DocumentoImprimible {
+  /** El tipo real, para las etiquetas propias de cada documento. */
+  tipo: TipoDocumento
   titulo: string
+  /** El título comercial del documento, debajo del tipo. */
+  subtitulo: string | null
   numero: string
   fecha: string
   cliente: string
+  /** El CUIT del cliente, cuando está cargado. */
+  clienteCuit: string | null
   contacto: string | null
   moneda: string | null
   formaPago: string | null
@@ -130,14 +149,19 @@ function subtotalDeLinea(l: LineaDocumento, factorImpuesto: number): number | nu
 export function construirImprimible(
   doc: DocumentoDetalle,
   opciones: OpcionesImpresion,
+  /** Foto por producto. Sólo se pide cuando el formato las lleva. */
+  fotos?: ReadonlyMap<string, string>,
 ): DocumentoImprimible {
   const ver = queMostrar(opciones.formato)
 
   return {
+    tipo: doc.tipo,
     titulo: ver.proForma ? 'PRO FORMA' : TITULO_DE[doc.tipo],
+    subtitulo: doc.titulo,
     numero: doc.numero,
     fecha: doc.fecha,
     cliente: doc.clienteNombre,
+    clienteCuit: doc.clienteCuit,
     contacto: doc.contactoNombre,
     moneda: doc.moneda,
     formaPago: doc.formaPago,
@@ -161,6 +185,8 @@ export function construirImprimible(
         precio: l.precioUnitario === null ? null : l.precioUnitario * factor,
         descuentoPct: l.descuentoPct ?? 0,
         subtotal: subtotalDeLinea(l, factor),
+        impuestoPct: l.tasaImpuesto,
+        foto: opciones.conFotos && l.productId ? (fotos?.get(l.productId) ?? null) : null,
       }
     }),
     subtotal: doc.subtotal,
@@ -208,6 +234,8 @@ export function imprimibleDelBorrador(
   datos: {
     fecha: string
     cliente: string
+    clienteCuit?: string | null
+    titulo?: string | null
     contacto: string | null
     moneda: string | null
     formaPago: string | null
@@ -234,14 +262,20 @@ export function imprimibleDelBorrador(
       precio: l.precioUnitario === null ? null : l.precioUnitario * factor,
       descuentoPct: l.descuentoPct ?? 0,
       subtotal: sub,
+      impuestoPct: l.tasaImpuesto,
+      // El borrador todavía no consulta fotos: no hay documento que imprimir.
+      foto: null,
     }
   })
 
   return {
+    tipo,
     titulo: ver.proForma ? 'PRO FORMA' : TITULO_DE[tipo],
+    subtitulo: datos.titulo ?? null,
     numero: 'a asignar al crear',
     fecha: datos.fecha,
     cliente: datos.cliente,
+    clienteCuit: datos.clienteCuit ?? null,
     contacto: datos.contacto,
     moneda: datos.moneda,
     formaPago: datos.formaPago,

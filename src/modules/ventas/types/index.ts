@@ -142,6 +142,8 @@ export interface DocumentoDetalle {
   fecha: string
   clienteId: string | null
   clienteNombre: string
+  /** Para el documento impreso: el CUIT del cliente, si lo tiene cargado. */
+  clienteCuit: string | null
   contactoNombre: string | null
   /** Los ids que necesita el editor para preseleccionar en los desplegables. */
   contactoId: string | null

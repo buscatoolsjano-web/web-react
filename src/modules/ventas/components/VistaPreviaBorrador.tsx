@@ -75,7 +75,7 @@ export function VistaPreviaBorrador({
     color: '#1f2937',
   }
 
-  const opciones = { formato, preciosConImpuestos: conImpuestos, papel: OPCIONES_INICIALES.papel }
+  const opciones = { formato, preciosConImpuestos: conImpuestos, papel: OPCIONES_INICIALES.papel, conFotos: false }
   const doc = imprimibleDelBorrador(tipo, { fecha, cliente, contacto, moneda, formaPago, notas, lineas }, opciones)
 
   return (

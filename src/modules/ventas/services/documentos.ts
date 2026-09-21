@@ -72,6 +72,8 @@ interface FilaCliente {
   id: string
   legal_name: string | null
   trade_name: string | null
+  /** Sólo el detalle lo pide: el documento impreso lleva el CUIT del cliente. */
+  tax_id?: string | null
 }
 
 function nombreCliente(c: FilaCliente | null): string {
@@ -265,7 +267,7 @@ function columnasDetalle(tipo: TipoDocumento): string {
     ${c.campoEstado}${segundo}${propios}, needs_review, review_reason, number_outlier,
     series_code, imported_at, external_source, created_at, updated_at, notes,
     contact_id${c.tieneVendedor ? ', salesperson_id' : ''},
-    customers!customer_id ( id, legal_name, trade_name ),
+    customers!customer_id ( id, legal_name, trade_name, tax_id ),
     contacto:customer_contacts!contact_id ( full_name, role, email, phone ),${entrega}
     creador:profiles!created_by ( full_name )${vendedor}${origen}${tarifa}
   `
@@ -366,6 +368,7 @@ export async function obtenerDocumento(
     fecha: aTexto(f[c.campoFecha]),
     clienteId: f.customers?.id ?? null,
     clienteNombre: nombreCliente(f.customers),
+    clienteCuit: f.customers?.tax_id ?? null,
     contactoNombre: f.contacto?.full_name ?? null,
     contactoId: (f['contact_id'] as string | null) ?? null,
     vendedorId: (f['salesperson_id'] as string | null) ?? null,
@@ -517,4 +520,41 @@ export async function revisionDeDocumento(
     noVerificables: data?.unverifiable_reasons ?? [],
     requiereAtencion: data?.requires_attention_now ?? false,
   }
+}
+
+/**
+ * La foto principal de cada producto, para el documento impreso (Fase 19 · E6).
+ *
+ * Se pide SÓLO cuando el formato lleva fotos: un documento sin fotos no paga
+ * esta consulta. Devuelve la miniatura si existe —pesa menos y alcanza para
+ * 16 mm de papel— y si no, la imagen original.
+ */
+export async function fotosDeProductos(
+  companyId: string,
+  productoIds: readonly string[],
+): Promise<Map<string, string>> {
+  const ids = [...new Set(productoIds)]
+  if (ids.length === 0) return new Map()
+
+  const { data, error } = await supabase
+    .from('product_images')
+    .select('product_id, thumb_url, source_url, is_primary')
+    .eq('company_id', companyId)
+    .in('product_id', ids)
+    .order('is_primary', { ascending: false })
+  if (error) throw new Error(`No se pudieron leer las fotos: ${error.message}`)
+
+  const fotos = new Map<string, string>()
+  for (const f of (data ?? []) as {
+    product_id: string
+    thumb_url: string | null
+    source_url: string | null
+  }[]) {
+    // La primera de cada producto gana: vienen ordenadas con la principal
+    // adelante.
+    if (fotos.has(f.product_id)) continue
+    const url = f.thumb_url ?? f.source_url
+    if (url) fotos.set(f.product_id, url)
+  }
+  return fotos
 }

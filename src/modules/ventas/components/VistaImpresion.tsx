@@ -8,6 +8,16 @@ export interface VistaImpresionProps {
   opciones: OpcionesImpresion
 }
 
+/** El logo real, servido desde `public/brand`. Es el mismo del ERP. */
+const LOGO = `${import.meta.env.BASE_URL}brand/buscatools-logo.png`
+
+/** El nombre del bloque de datos, por tipo de documento. */
+const BLOQUE_DE: Record<DocumentoImprimible['tipo'], string> = {
+  cotizacion: 'Datos de la cotización',
+  pedido: 'Datos del pedido',
+  entrega: 'Datos de la entrega',
+}
+
 /**
  * El documento, tal como se imprime.
  *
@@ -16,6 +26,11 @@ export interface VistaImpresionProps {
  * que la previsualización y el PDF salían de dos caminos parecidos pero no
  * idénticos, y se ve una cosa y se imprime otra. Acá hay un solo árbol de
  * React y una hoja `@media print`: lo que se ve es literalmente lo que sale.
+ *
+ * Fase 19 · E6: y es UNA sola composición para los tres documentos. La
+ * cotización, el pedido y el remito no tienen plantillas distintas: tienen los
+ * mismos bloques en las mismas posiciones, con las etiquetas y las columnas
+ * que le corresponden a cada uno. Lo que cambia son los datos.
  */
 export function VistaImpresion({ doc, empresa, opciones }: VistaImpresionProps) {
   const ver = queMostrar(opciones.formato)
@@ -25,7 +40,7 @@ export function VistaImpresion({ doc, empresa, opciones }: VistaImpresionProps) 
     return (
       <div className={`${styles.hoja} ${styles.ticket}`} data-impresion="ticket">
         <div className={styles.tHeader}>
-          <div className={styles.tLogo}>{empresa.nombre.toUpperCase()}</div>
+          <img src={LOGO} alt={empresa.nombre} className={styles.tLogoImg} />
           <div className={styles.tEmpresa}>
             {empresa.razonSocial ? <div>{empresa.razonSocial}</div> : null}
             {empresa.cuit ? <div>CUIT {empresa.cuit}</div> : null}
@@ -98,96 +113,152 @@ export function VistaImpresion({ doc, empresa, opciones }: VistaImpresionProps) 
     )
   }
 
+  const columnas = 3 + (opciones.conFotos ? 1 : 0) + (ver.precios ? 3 : 0) + (ver.impuestos ? 1 : 0)
+
   return (
     <div
       className={`${styles.hoja} ${opciones.papel === 'carta' ? styles.carta : styles.a4}`}
       data-impresion="hoja"
     >
-      <header className={styles.encabezado} style={{ borderColor: empresa.color }}>
-        <div>
-          <div className={styles.marca} style={{ color: empresa.color }}>
-            {empresa.nombre.toUpperCase()}
-          </div>
-          <div className={styles.empresa}>
-            {empresa.razonSocial ? <div>{empresa.razonSocial}</div> : null}
-            {empresa.cuit ? <div>CUIT {empresa.cuit}</div> : null}
-            {empresa.direccion ? <div>{empresa.direccion}</div> : null}
-            {empresa.telefono ? <div>Tel.: {empresa.telefono}</div> : null}
-            {empresa.email ? <div>{empresa.email}</div> : null}
-          </div>
+      {/* ── A · la empresa ──────────────────────────────────────────── */}
+      <header className={styles.encabezado}>
+        <div className={styles.cajaLogo}>
+          <img src={LOGO} alt={empresa.nombre} className={styles.logo} width={1400} height={673} />
         </div>
-        <div className={styles.identidad}>
-          <div className={styles.tipoDoc} style={{ background: empresa.color }}>
-            {doc.titulo}
-          </div>
-          <div className={styles.numero}>N° {doc.numero}</div>
-          <div className={styles.fecha}>{formatearFecha(doc.fecha)}</div>
+        <div className={styles.empresa}>
+          {empresa.razonSocial ? <strong>{empresa.razonSocial}</strong> : null}
+          {empresa.direccion ? <div>{empresa.direccion}</div> : null}
+          {empresa.cuit ? <div>{empresa.cuit}</div> : null}
+        </div>
+        <div className={styles.empresaContacto}>
+          {empresa.email ? <div>{empresa.email}</div> : null}
+          {empresa.web ? <div>{empresa.web}</div> : null}
+          {empresa.telefono ? <div>Tel.: {empresa.telefono}</div> : null}
         </div>
       </header>
+      <div className={styles.reglaNaranja} />
 
-      <section className={styles.datos}>
+      {/* ── B · el documento ────────────────────────────────────────── */}
+      <h1 className={styles.titulo}>{doc.titulo}</h1>
+      <p className={styles.subtitulo}>{doc.subtitulo ?? ''}</p>
+
+      {/* ── C · datos del documento y del cliente ───────────────────── */}
+      <section className={styles.bloques}>
         <div>
-          <span className={styles.etiqueta}>Cliente</span>
-          <strong>{doc.cliente}</strong>
+          <h2 className={styles.tituloBloque}>{BLOQUE_DE[doc.tipo]}</h2>
+          <dl className={styles.campos}>
+            <dt>Número:</dt>
+            <dd>{doc.numero}</dd>
+            <dt>Fecha:</dt>
+            <dd>{formatearFecha(doc.fecha)}</dd>
+            {doc.formaPago ? (
+              <>
+                <dt>Forma de pago:</dt>
+                <dd>{doc.formaPago}</dd>
+              </>
+            ) : null}
+            {doc.moneda ? (
+              <>
+                <dt>Moneda:</dt>
+                <dd>{doc.moneda}</dd>
+              </>
+            ) : null}
+            {doc.origen ? (
+              <>
+                <dt>Origen:</dt>
+                <dd>{doc.origen}</dd>
+              </>
+            ) : null}
+          </dl>
         </div>
-        {doc.contacto ? (
-          <div>
-            <span className={styles.etiqueta}>Contacto</span>
-            <strong>{doc.contacto}</strong>
-          </div>
-        ) : null}
-        {doc.formaPago ? (
-          <div>
-            <span className={styles.etiqueta}>Forma de pago</span>
-            <strong>{doc.formaPago}</strong>
-          </div>
-        ) : null}
-        {/* Fase 15 · E6: en el remito, adónde se entregó. Sólo si quedó
-            registrado al emitirlo. */}
-        {doc.domicilioEntrega ? (
-          <div>
-            <span className={styles.etiqueta}>Dirección de entrega</span>
-            <strong>{doc.domicilioEntrega}</strong>
-          </div>
-        ) : null}
-        {doc.moneda ? (
-          <div>
-            <span className={styles.etiqueta}>Moneda</span>
-            <strong>{doc.moneda}</strong>
-          </div>
-        ) : null}
-        {doc.origen ? (
-          <div>
-            <span className={styles.etiqueta}>Origen</span>
-            <strong>{doc.origen}</strong>
-          </div>
-        ) : null}
+        <div>
+          <h2 className={styles.tituloBloque}>Datos del cliente</h2>
+          <dl className={styles.campos}>
+            <dt>Cliente:</dt>
+            <dd>{doc.cliente}</dd>
+            <dt>CUIT:</dt>
+            <dd>{doc.clienteCuit ?? '—'}</dd>
+            {doc.contacto ? (
+              <>
+                <dt>Contacto:</dt>
+                <dd>{doc.contacto}</dd>
+              </>
+            ) : null}
+            {/* Sólo el remito, y sólo si quedó registrado al emitirlo. */}
+            {doc.domicilioEntrega ? (
+              <>
+                <dt>Entregar en:</dt>
+                <dd>{doc.domicilioEntrega}</dd>
+              </>
+            ) : null}
+          </dl>
+        </div>
       </section>
 
+      {/* ── D · productos ───────────────────────────────────────────── */}
       <table className={styles.tabla}>
+        <colgroup>
+          {opciones.conFotos ? <col style={{ width: '18mm' }} /> : null}
+          <col style={{ width: '24mm' }} />
+          <col />
+          <col style={{ width: '16mm' }} />
+          {ver.precios ? <col style={{ width: '24mm' }} /> : null}
+          {ver.precios ? <col style={{ width: '16mm' }} /> : null}
+          {ver.precios ? <col style={{ width: '26mm' }} /> : null}
+          {ver.impuestos ? <col style={{ width: '18mm' }} /> : null}
+        </colgroup>
         <thead>
           <tr>
-            <th className={styles.col1}>#</th>
-            <th>Referencia</th>
-            <th>Descripción</th>
-            <th className={styles.num}>Uds.</th>
-            {ver.precios ? <th className={styles.num}>Precio</th> : null}
-            {ver.precios ? <th className={styles.num}>% Dto.</th> : null}
-            {ver.precios ? <th className={styles.num}>Subtotal</th> : null}
+            {opciones.conFotos ? <th scope="col">Foto</th> : null}
+            <th scope="col">Ref.</th>
+            <th scope="col">Nombre / descripción</th>
+            <th scope="col" className={styles.num}>
+              Uds.
+            </th>
+            {ver.precios ? (
+              <th scope="col" className={styles.num}>
+                Precio
+              </th>
+            ) : null}
+            {ver.precios ? (
+              <th scope="col" className={styles.num}>
+                % Dto.
+              </th>
+            ) : null}
+            {ver.precios ? (
+              <th scope="col" className={styles.num}>
+                Subtotal
+              </th>
+            ) : null}
+            {/* La alícuota por línea, como el documento del sistema anterior. */}
+            {ver.impuestos ? (
+              <th scope="col" className={styles.num}>
+                Imp.
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
           {doc.lineas.map((l) =>
             l.esCapitulo ? (
               <tr key={l.id} className={styles.capitulo}>
-                <td colSpan={ver.precios ? 7 : 4}>{l.nombre}</td>
+                <td colSpan={columnas}>{l.nombre}</td>
               </tr>
             ) : (
               <tr key={l.id}>
-                <td className={styles.col1}>{l.numero}</td>
+                {/* El hueco de la foto existe en TODAS las filas cuando el
+                    formato las lleva: con imagen se usa, sin imagen queda
+                    vacío. Así las columnas no se mueven de una fila a otra. */}
+                {opciones.conFotos ? (
+                  <td className={styles.celdaFoto}>
+                    <div className={styles.marcoFoto}>
+                      {l.foto ? <img src={l.foto} alt="" className={styles.foto} loading="lazy" /> : null}
+                    </div>
+                  </td>
+                ) : null}
                 <td className={styles.sku}>{l.sku ?? '—'}</td>
                 <td>
-                  <div>{l.nombre ?? '—'}</div>
+                  <div className={styles.nombre}>{l.nombre ?? '—'}</div>
                   {l.descripcion && l.descripcion !== l.nombre ? (
                     <div className={styles.desc}>{l.descripcion}</div>
                   ) : null}
@@ -204,40 +275,55 @@ export function VistaImpresion({ doc, empresa, opciones }: VistaImpresionProps) 
                     <b>{formatearImporte(l.subtotal, moneda)}</b>
                   </td>
                 ) : null}
+                {ver.impuestos ? (
+                  <td className={styles.num}>
+                    {l.impuestoPct === null ? '—' : `IVA ${formatearCantidad(l.impuestoPct)} %`}
+                  </td>
+                ) : null}
               </tr>
             ),
           )}
         </tbody>
       </table>
 
-      {ver.totales ? (
-        <section className={styles.totales}>
-          <div>
-            <span>Subtotal</span>
-            <b>{formatearImporte(doc.subtotal, moneda)}</b>
-          </div>
-          {ver.impuestos ? (
-            <div>
-              <span>Impuestos y percepciones</span>
-              <b>{formatearImporte(doc.impuesto, moneda)}</b>
-            </div>
+      {/* ── E · el relleno que ancla el cierre abajo ────────────────── */}
+      <div className={styles.relleno} />
+
+      {/* ── F · observaciones y totales ─────────────────────────────── */}
+      <section className={styles.cierre}>
+        <div>
+          {doc.notas ? (
+            <>
+              <div className={styles.tituloObs}>Observaciones</div>
+              <div className={styles.observaciones}>{doc.notas}</div>
+            </>
           ) : null}
-          <div className={styles.granTotal}>
-            <span>TOTAL</span>
-            <b>{formatearImporte(doc.total, moneda)}</b>
+        </div>
+        {ver.totales ? (
+          <div className={styles.totales}>
+            <div>
+              <span>Subtotal</span>
+              <b>{formatearImporte(doc.subtotal, moneda)}</b>
+            </div>
+            {ver.impuestos ? (
+              <div>
+                <span>Impuestos y percepciones</span>
+                <b>{formatearImporte(doc.impuesto, moneda)}</b>
+              </div>
+            ) : null}
+            <div className={styles.granTotal}>
+              <span>TOTAL</span>
+              <b>{formatearImporte(doc.total, moneda)}</b>
+            </div>
           </div>
-        </section>
-      ) : null}
+        ) : (
+          <div />
+        )}
+      </section>
 
-      {doc.notas ? (
-        <section className={styles.observaciones}>
-          <span className={styles.etiqueta}>Observaciones</span>
-          <p>{doc.notas}</p>
-        </section>
-      ) : null}
-
+      {/* ── G · pie ─────────────────────────────────────────────────── */}
       <footer className={styles.pie}>
-        {empresa.web ? <span>{empresa.web}</span> : null}
+        <span>{empresa.web ?? ''}</span>
         {doc.esHistorico ? (
           <span className={styles.historico}>Documento migrado del sistema anterior</span>
         ) : null}

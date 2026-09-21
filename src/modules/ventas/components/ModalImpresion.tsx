@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useModalAccesible } from '@/components/modals/useModalAccesible'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -14,6 +14,7 @@ import {
   type OpcionesImpresion,
 } from '../lib/impresion'
 import { datosDeEmpresa } from '../services/empresa'
+import { fotosDeProductos } from '../services/documentos'
 import type { DocumentoDetalle } from '../types'
 import { VistaImpresion } from './VistaImpresion'
 import styles from './ModalImpresion.module.css'
@@ -23,6 +24,9 @@ export interface ModalImpresionProps {
   onCerrar: () => void
 }
 
+/** Los saltos del zoom manual, como en el sistema anterior. */
+const ZOOMS = [0.5, 0.65, 0.8, 0.9, 1, 1.25, 1.5] as const
+
 /**
  * Vista previa e impresión.
  *
@@ -30,6 +34,12 @@ export interface ModalImpresionProps {
  * componente que el navegador manda a la impresora. El legacy generaba un
  * string de HTML y lo escribía en un iframe, con una previsualización que
  * salía de un camino parecido pero no idéntico.
+ *
+ * Fase 19 · E6 · **la hoja no se adapta a la pantalla: se escala.** El
+ * documento mide siempre lo que mide un A4; lo que cambia con el tamaño de la
+ * ventana es el `transform: scale` de la previsualización, que no toca la
+ * composición. Antes, por debajo de 800 px, la hoja cambiaba de layout y se
+ * veía una cosa distinta de la que se imprimía.
  *
  * Al imprimir se marca el `<body>`: la hoja de estilos global esconde todo lo
  * demás y deja sólo el documento.
@@ -50,13 +60,85 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
     staleTime: 10 * 60_000,
   })
 
+  // Las fotos sólo se piden si el formato las lleva.
+  const idsDeProducto = doc.lineas.map((l) => l.productId).filter((x): x is string => x !== null)
+  const { data: fotos } = useQuery({
+    queryKey: ['ventas', activa?.companyId, 'fotos-impresion', doc.id],
+    queryFn: () => fotosDeProductos(activa!.companyId, idsDeProducto),
+    enabled: !!activa && opciones.conFotos && idsDeProducto.length > 0,
+    staleTime: 10 * 60_000,
+  })
+
   const empresa: EmpresaImpresion = empresaDb ?? {
     nombre: activa?.companyName ?? '',
     razonSocial: null, cuit: null, direccion: null,
     telefono: null, email: null, web: null, color: '#f37021',
   }
 
-  const imprimible = construirImprimible(doc, opciones)
+  const imprimible = construirImprimible(doc, opciones, fotos)
+
+  // ── La escala de la previsualización ──────────────────────────────────
+  //
+  // `null` = ajustar a lo que haya; un número = el zoom que pidió la persona.
+  const [zoom, setZoom] = useState<number | null>(null)
+  const [escala, setEscala] = useState(1)
+  const marco = useRef<HTMLDivElement>(null)
+  const hoja = useRef<HTMLDivElement>(null)
+  /**
+   * Lo que mide la hoja SIN escalar, en estado.
+   *
+   * Se guarda en vez de leerlo del ref al dibujar: durante el render el ref
+   * todavía tiene la medida del render anterior, así que la caja de afuera
+   * quedaría un paso atrás de la hoja de adentro.
+   */
+  const [medida, setMedida] = useState({ ancho: 0, alto: 0 })
+
+  // Las medidas reales del papel: el alto de UNA página sale de ellas.
+  const papelAncho = opciones.papel === 'carta' ? 216 : 210
+  const papelAlto = opciones.papel === 'carta' ? 279 : 297
+
+  const medir = useCallback(() => {
+    const m = marco.current
+    const h = hoja.current?.firstElementChild as HTMLElement | null
+    if (!m || !h) return
+    const anchoHoja = h.offsetWidth
+    const altoHoja = h.offsetHeight
+    if (anchoHoja === 0) return
+    setMedida((p) => (p.ancho === anchoHoja && p.alto === altoHoja ? p : { ancho: anchoHoja, alto: altoHoja }))
+    // «Ajustar» entra UNA PÁGINA entera, no el documento entero: con 33
+    // líneas, entrar todo de una significaría mirarlo al 32 %. La página se
+    // ve completa y el resto se desplaza, como en el sistema anterior.
+    const altoDePagina = anchoHoja * (papelAlto / papelAncho)
+    const cabeEnAncho = (m.clientWidth - 24) / anchoHoja
+    const cabeEnAlto = (m.clientHeight - 24) / Math.min(altoHoja, altoDePagina)
+    setEscala(zoom ?? Math.min(cabeEnAncho, cabeEnAlto, 1))
+  }, [zoom, papelAlto, papelAncho])
+
+  useLayoutEffect(medir, [medir, opciones, imprimible.lineas.length])
+
+  useEffect(() => {
+    const m = marco.current
+    if (!m || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(medir)
+    ro.observe(m)
+    return () => ro.disconnect()
+  }, [medir])
+
+  const { ancho, alto } = medida
+
+  // Los cortes de página, en píxeles del documento sin escalar.
+  const altoPagina = ancho > 0 ? ancho * (papelAlto / papelAncho) : 0
+  const cortes =
+    altoPagina > 0 && alto > altoPagina
+      ? Array.from({ length: Math.ceil(alto / altoPagina) - 1 }, (_, i) => (i + 1) * altoPagina)
+      : []
+
+  const cambiarZoom = (paso: number) => {
+    const actual = zoom ?? escala
+    const i = ZOOMS.findIndex((z) => z >= actual - 0.001)
+    const siguiente = ZOOMS[Math.min(Math.max((i < 0 ? ZOOMS.length - 1 : i) + paso, 0), ZOOMS.length - 1)]
+    setZoom(siguiente ?? 1)
+  }
 
   const imprimir = () => {
     document.body.dataset['imprimiendo'] = 'si'
@@ -73,11 +155,23 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
 
   return (
     <div className={styles.fondo}>
+      {/* El tamaño del papel es una opción, y `@page` no se puede cambiar con
+          una clase: se inyecta. Los márgenes los pone la página, no la hoja,
+          así que en papel el documento no arrastra su propio padding. */}
+      <style>{`@page { size: ${opciones.formato === 'ticket' ? '80mm auto' : opciones.papel === 'carta' ? 'Letter' : 'A4'}; margin: ${opciones.formato === 'ticket' ? '4mm' : '12mm'}; }`}</style>
       <div ref={caja} className={styles.caja} role="dialog" aria-modal="true" aria-labelledby={idTitulo} tabIndex={-1}>
         <header className={styles.cabecera} data-no-imprimir>
           <h2 id={idTitulo} className={styles.titulo}>
             Vista previa <span className={styles.ref}>{doc.numero}</span>
           </h2>
+          <div className={styles.zoom}>
+            <IconButton icon="minus" aria-label="Alejar" onClick={() => cambiarZoom(-1)} />
+            <span className={styles.escala}>{Math.round(escala * 100)}%</span>
+            <IconButton icon="plus" aria-label="Acercar" onClick={() => cambiarZoom(1)} />
+            <Button variant="ghost" size="sm" onClick={() => setZoom(null)}>
+              Ajustar
+            </Button>
+          </div>
           <IconButton icon="x" aria-label="Cerrar" onClick={onCerrar} />
         </header>
 
@@ -111,6 +205,19 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
               Precios con impuestos incluidos
             </label>
 
+            {/* La foto es del FORMATO, no de cada línea: cuando está activada,
+                el hueco existe en todas las filas aunque el producto no tenga
+                imagen, y las columnas no se mueven. */}
+            <label className={styles.check}>
+              <input
+                type="checkbox"
+                checked={opciones.conFotos}
+                disabled={opciones.formato === 'ticket'}
+                onChange={(e) => setOpciones((o) => ({ ...o, conFotos: e.target.checked }))}
+              />
+              Con foto del producto
+            </label>
+
             <label className={styles.campo}>
               <span>Papel</span>
               <select
@@ -135,8 +242,28 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
             </p>
           </aside>
 
-          <div className={styles.previa} data-previa-impresion>
-            <VistaImpresion doc={imprimible} empresa={empresa} opciones={opciones} />
+          <div className={styles.previa} data-previa-impresion ref={marco}>
+            {/* La caja toma el tamaño YA escalado: así no queda una hoja
+                chiquita flotando adentro de un contenedor enorme. */}
+            <div
+              data-escalador
+              className={styles.escalador}
+              style={ancho > 0 ? { width: ancho * escala, height: alto * escala } : undefined}
+            >
+              {/* Dónde corta cada página. Es una guía de la vista previa, no
+                  parte del documento: no se imprime ni vive dentro de la hoja. */}
+              {cortes.map((y) => (
+                <div key={y} className={styles.corte} style={{ top: y * escala }} />
+              ))}
+              <div
+                ref={hoja}
+                data-en-escala
+                className={styles.enEscala}
+                style={{ transform: `scale(${escala})` }}
+              >
+                <VistaImpresion doc={imprimible} empresa={empresa} opciones={opciones} />
+              </div>
+            </div>
           </div>
         </div>
       </div>

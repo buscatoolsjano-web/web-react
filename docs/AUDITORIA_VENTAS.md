@@ -921,3 +921,57 @@ no hay desborde.
 decisión de la pantalla: `confirmar_entrega` sigue preguntando por la autoridad
 **general** de `delivery`, que es STEL. Mientras esa función no cambie, el
 piloto no puede mover stock ni por accidente.
+
+## 19 · E6 · El documento impreso, como sistema único
+
+Los tres documentos —cotización, pedido y remito— dejan de tener plantillas
+distintas. Tienen **una sola composición**, con las mismas zonas en las mismas
+posiciones; lo que cambia son las etiquetas y los datos.
+
+| zona | qué lleva |
+| --- | --- |
+| A | logo real de BUSCATOOLS + razón social, domicilio, CUIT, contacto |
+| B | tipo de documento (COTIZACIÓN DE VENTA / PEDIDO DE VENTA / NOTA DE ENTREGA) + título comercial |
+| C | «Datos de la cotización · del pedido · de la entrega» y «Datos del cliente» |
+| D | la grilla de productos, con columnas de ancho fijo |
+| E | el relleno que empuja el cierre abajo |
+| F | observaciones + totales |
+| G | pie |
+
+### Lo que se rompía antes y ahora no
+
+1. **La hoja se adaptaba al ancho del navegador.** Por debajo de 800 px el
+   documento cambiaba de layout: se veía una cosa y se imprimía otra. Ahora la
+   hoja mide siempre un A4 (794 × 1123 px a 96 dpi) y la vista previa la
+   **escala** con un `transform`, que no toca la composición. Medido: 56 % a
+   1024 y a 1280, 67 % a 1440, 82 % a 1920, 27 % a 375 — misma hoja, mismo
+   layout, sin desborde horizontal en el teléfono.
+2. **La previsualización y la impresión salían de caminos distintos** (el
+   sistema anterior escribía un string de HTML en un iframe). Ahora es el mismo
+   árbol de React con una hoja `@media print`.
+3. **Las columnas se movían entre filas.** La foto es una decisión del formato,
+   no de cada línea: cuando está activada, el hueco existe en todas las filas
+   aunque el producto no tenga imagen.
+4. **Los totales flotaban donde terminara la tabla.** La zona E los ancla
+   abajo, con uno o con treinta y tres productos.
+
+### Dos defectos que destapó la verificación
+
+- **La hoja impresa medía 1.000.000 px de ancho.** Al cancelar la escala de la
+  vista previa, la hoja quedaba con ancho indefinido dentro de un contenedor
+  flex que se achica al contenido, y el navegador resolvía el ciclo con un
+  número absurdo: en papel habría salido recortada. En impresión el contenedor
+  pasa a flujo normal y el ancho baja por la cadena como 100 %.
+- **En papel los totales no quedaban abajo.** El relleno estaba congelado para
+  que no empujara el cierre a una página vacía, así que imprimía los totales
+  pegados a la última línea: distinto de lo que mostraba la vista previa. La
+  hoja impresa ahora pide `min-height: 100vh` —el alto de la página— y el
+  relleno vuelve a crecer: con una hoja los totales quedan abajo, con varias el
+  mínimo ya está cumplido y no agrega nada.
+
+### Lo que no se tocó
+
+Ninguna lógica comercial. El documento **muestra** los snapshots que ya
+estaban: no recalcula un total, no consulta el precio actual del producto, no
+inventa un domicilio de entrega que no se haya registrado, y no dibuja ningún
+control del ERP adentro de la hoja.

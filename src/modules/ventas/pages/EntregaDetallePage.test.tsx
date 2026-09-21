@@ -119,6 +119,7 @@ const remito = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle => ({
   fecha: '2026-09-18',
   clienteId: 'c9',
   clienteNombre: 'Consulta MercadoLibre',
+  clienteCuit: null,
   contactoNombre: null,
   contactoId: null,
   vendedorId: null,

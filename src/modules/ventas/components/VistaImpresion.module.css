@@ -1,16 +1,45 @@
-/* La hoja se ve igual en pantalla y en papel: es el mismo árbol de React con
-   una hoja @media print, no un HTML aparte escrito en un iframe. Por eso
-   fuerza fondo blanco y texto negro incluso en tema oscuro — el papel no
-   tiene tema. */
+/* ════════════════════════════════════════════════════════════════════════
+   EL PAPEL
+   ════════════════════════════════════════════════════════════════════════
+
+   Fase 19 · E6. La hoja tiene UN tamaño y UN layout: los de un A4. No se
+   adapta al ancho del navegador — eso era lo que hacía que el mismo documento
+   se viera distinto en la pantalla y en el papel. La vista previa lo ESCALA
+   con un `transform`, que no toca la composición.
+
+   El papel tampoco tiene tema: fondo blanco y texto negro aunque el ERP esté
+   en oscuro, y los colores se escriben literales, sin variables del tema.
+
+   El documento es una columna de ZONAS con alturas predecibles:
+
+     A · encabezado de empresa      (logo + datos)
+     B · título del documento       (tipo + título comercial)
+     C · datos del documento / cliente
+     D · productos
+     E · relleno flexible           ← lo que empuja los totales abajo
+     F · observaciones + totales
+     G · pie
+
+   La zona E es la regla 13: con uno o con siete productos, los totales
+   quedan SIEMPRE en la franja inferior de la última página. */
+
 .hoja {
+  --naranja: #f37021;
+  --tinta: #1a1a1a;
+  --tinta-suave: #555;
+  --linea: #d8d8d8;
+
   background: #fff;
-  color: #111;
+  color: var(--tinta);
   color-scheme: light;
-  padding: 14mm 12mm;
-  font-size: 11px;
-  line-height: 1.45;
   box-sizing: border-box;
   margin: 0 auto;
+  padding: 12mm 12mm 10mm;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 9.5pt;
+  line-height: 1.35;
+  display: flex;
+  flex-direction: column;
 }
 
 .a4 {
@@ -23,179 +52,290 @@
   min-height: 279mm;
 }
 
-/* En pantalla chica la hoja se escala para que entre sin scroll horizontal:
-   el ancho es en milímetros porque tiene que salir bien en papel, pero mirarla
-   en un teléfono no debería obligar a arrastrar. */
-@media (max-width: 800px) {
-  .hoja {
-    width: 100%;
-    min-width: 0;
-    min-height: 0;
-    padding: var(--space-4);
-    font-size: 12px;
-  }
-}
+/* ── A · encabezado de empresa ─────────────────────────────────────────── */
 
 .encabezado {
+  display: grid;
+  grid-template-columns: 62mm 1fr auto;
+  align-items: start;
+  gap: 6mm;
+  padding-bottom: 4mm;
+}
+
+/* Caja fija para el logo: el asset conserva su proporción adentro y nunca
+   mueve al resto, tenga el tamaño que tenga. */
+.cajaLogo {
+  width: 62mm;
+  height: 20mm;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8mm;
-  border-bottom: 2px solid #f37021;
-  padding-bottom: 5mm;
-  margin-bottom: 6mm;
+  align-items: center;
 }
 
-.marca {
-  font-size: 22px;
-  font-weight: 900;
-  letter-spacing: 1px;
+.logo {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
 }
 
-.empresa {
-  margin-top: 2mm;
-  font-size: 10px;
-  color: #444;
+.empresa,
+.empresaContacto {
+  font-size: 8pt;
+  line-height: 1.45;
+  color: var(--tinta-suave);
 }
 
-.identidad {
-  text-align: right;
+.empresa strong {
+  display: block;
+  color: var(--tinta);
+  font-size: 8.5pt;
+}
+
+.empresaContacto {
+  text-align: left;
   white-space: nowrap;
 }
 
-.tipoDoc {
-  display: inline-block;
-  color: #fff;
+.reglaNaranja {
+  height: 2px;
+  background: var(--naranja);
+}
+
+/* ── B · título del documento ──────────────────────────────────────────── */
+
+.titulo {
+  text-align: center;
+  font-size: 16pt;
   font-weight: 800;
-  letter-spacing: 1px;
-  padding: 2mm 4mm;
-  border-radius: 3px;
-  font-size: 12px;
-}
-
-.numero {
-  margin-top: 2mm;
-  font-size: 14px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-
-.fecha {
-  font-size: 10px;
-  color: #444;
-}
-
-.datos {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(38mm, 1fr));
-  gap: 3mm 6mm;
-  margin-bottom: 6mm;
-  padding-bottom: 4mm;
-  border-bottom: 1px solid #ddd;
-}
-
-.etiqueta {
-  display: block;
-  font-size: 8px;
+  letter-spacing: 0.04em;
+  margin: 4mm 0 0;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #777;
 }
+
+.subtitulo {
+  text-align: center;
+  font-size: 8.5pt;
+  color: var(--tinta-suave);
+  margin: 1mm 0 0;
+  /* Dos líneas como mucho: un título largo no puede empujar la tabla. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 4mm;
+}
+
+/* ── C · datos del documento y del cliente ─────────────────────────────── */
+
+.bloques {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8mm;
+  margin-top: 5mm;
+}
+
+.tituloBloque {
+  color: var(--naranja);
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--naranja);
+  padding-bottom: 1mm;
+  margin-bottom: 2mm;
+}
+
+.campos {
+  display: grid;
+  grid-template-columns: 26mm 1fr;
+  gap: 0.8mm 2mm;
+  font-size: 8.5pt;
+  /* Alto mínimo: que un cliente con pocos datos no suba la tabla. */
+  min-height: 16mm;
+  align-content: start;
+}
+
+.campos dt {
+  color: var(--tinta-suave);
+}
+
+.campos dd {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* ── D · productos ─────────────────────────────────────────────────────── */
 
 .tabla {
   width: 100%;
   border-collapse: collapse;
-  font-size: 10px;
+  table-layout: fixed;
+  margin-top: 5mm;
+  font-size: 8.5pt;
 }
 
-.tabla th {
-  background: #f2f2f2;
+.tabla thead th {
+  color: var(--naranja);
   text-align: left;
-  padding: 2mm;
-  border-bottom: 1px solid #bbb;
-  font-size: 8.5px;
+  font-size: 7.5pt;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--naranja);
+  padding: 0 1.5mm 1.2mm;
 }
 
 .tabla td {
-  padding: 2mm;
+  padding: 1.5mm;
   border-bottom: 1px solid #eee;
   vertical-align: top;
 }
 
-.col1 {
-  width: 8mm;
-  color: #999;
-  text-align: right;
+/* Regla 11: la fila tiene un alto mínimo propio, con foto o sin ella. */
+.tabla tbody tr {
+  min-height: 9mm;
 }
 
-.sku {
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.desc {
-  color: #666;
-  font-size: 9px;
-  margin-top: 1mm;
+.tabla tbody td {
+  height: 9mm;
 }
 
 .num {
   text-align: right;
-  white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sku {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.nombre {
+  font-weight: 600;
+}
+
+.desc {
+  color: var(--tinta-suave);
+  font-size: 7.5pt;
+  margin-top: 0.5mm;
+  /* Crece, pero acotado: tres líneas. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Regla 10: el hueco de la foto existe SIEMPRE que el formato las lleve.
+   Con imagen se usa; sin imagen queda vacío, y la descripción no lo invade. */
+.celdaFoto {
+  width: 18mm;
+  padding: 1mm;
+}
+
+.marcoFoto {
+  width: 16mm;
+  height: 16mm;
+  border: 1px solid var(--linea);
+  border-radius: 1mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #fff;
+}
+
+.foto {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .capitulo td {
-  background: #f8f8f8;
-  font-weight: 800;
+  background: #faf6f2;
+  color: var(--naranja);
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  font-size: 9.5px;
+  font-size: 8pt;
+}
+
+/* ── E · el relleno que ancla los totales abajo ────────────────────────── */
+
+.relleno {
+  flex: 1 1 auto;
+  min-height: 8mm;
+}
+
+/* ── F · observaciones y totales ───────────────────────────────────────── */
+
+.cierre {
+  display: grid;
+  grid-template-columns: 1fr 72mm;
+  gap: 8mm;
+  align-items: end;
+  margin-top: 4mm;
+  break-inside: avoid;
+}
+
+.observaciones {
+  font-size: 8pt;
+  color: var(--tinta-suave);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  /* Acotadas: las observaciones no empujan los totales fuera de la hoja. */
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tituloObs {
+  color: var(--naranja);
+  font-size: 7.5pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 1mm;
 }
 
 .totales {
-  margin: 5mm 0 0 auto;
-  width: 70mm;
-  font-size: 11px;
+  font-size: 9pt;
 }
 
 .totales > div {
   display: flex;
   justify-content: space-between;
-  padding: 1.5mm 0;
+  gap: 4mm;
+  padding: 1mm 0;
+}
+
+.totales b {
+  font-variant-numeric: tabular-nums;
 }
 
 .granTotal {
-  border-top: 2px solid #111;
-  margin-top: 1.5mm;
-  padding-top: 2mm !important;
-  font-size: 13px;
+  border-top: 2px solid var(--naranja);
+  margin-top: 1mm;
+  padding-top: 1.5mm !important;
+  font-size: 11.5pt;
   font-weight: 800;
 }
 
-.observaciones {
-  margin-top: 6mm;
-  padding-top: 3mm;
-  border-top: 1px solid #ddd;
-}
-
-.observaciones p {
-  margin: 1mm 0 0;
-  white-space: pre-wrap;
-  font-size: 10px;
-}
+/* ── G · pie ───────────────────────────────────────────────────────────── */
 
 .pie {
-  margin-top: 8mm;
-  padding-top: 3mm;
-  border-top: 1px solid #ddd;
+  margin-top: 5mm;
+  padding-top: 2mm;
+  border-top: 1px solid var(--linea);
   display: flex;
   justify-content: space-between;
   gap: 4mm;
-  font-size: 9px;
-  color: #777;
+  font-size: 7.5pt;
+  color: var(--tinta-suave);
 }
 
 .historico {
@@ -210,6 +350,7 @@
   padding: 6mm 5mm;
   font-family: 'Courier New', 'Lucida Console', monospace;
   font-size: 11px;
+  display: block;
 }
 
 .tHeader {
@@ -218,11 +359,10 @@
   border-bottom: 2px dashed #000;
 }
 
-.tLogo {
-  font-size: 20px;
-  font-weight: 900;
-  letter-spacing: 1px;
-  font-family: Arial, sans-serif;
+.tLogoImg {
+  max-width: 46mm;
+  max-height: 14mm;
+  object-fit: contain;
 }
 
 .tEmpresa {
@@ -316,25 +456,45 @@
 /* ── Impresión ────────────────────────────────────────────────────────── */
 @media print {
   .hoja {
-    width: auto;
-    min-height: 0;
+    /* El papel ya lo define @page: la hoja ocupa la caja de impresión y no
+       arrastra el ancho en milímetros, que sumado al margen daría una página
+       de más. Es 100 % y no `auto` a propósito: con `auto` el ancho queda
+       indefinido y el navegador lo resuelve con un número enorme. */
+    width: 100%;
+    /* El alto de UNA página, en las unidades de la página impresa: mientras el
+       documento entre en una hoja, la franja de abajo se reserva igual que en
+       la vista previa y los totales quedan ahí. Si el documento ocupa más,
+       el mínimo ya está cumplido y no agrega nada. */
+    min-height: 100vh;
     padding: 0;
     margin: 0;
-    font-size: 11px;
   }
 
   .ticket {
-    width: 80mm;
-    padding: 4mm;
+    width: 100%;
+    min-height: 0;
+    padding: 0;
   }
 
-  /* Que una fila no se parta entre dos páginas. */
-  .tabla tr {
-    break-inside: avoid;
-  }
-
+  /* Regla 16: una fila no se parte entre dos páginas, y el cierre tampoco. */
+  .tabla tr,
+  .cierre,
   .totales,
-  .observaciones {
+  .pie {
     break-inside: avoid;
+  }
+
+  /* El encabezado de la tabla se repite en cada página: es el mecanismo del
+     navegador, y es el que funciona sin librerías de paginado. */
+  .tabla thead {
+    display: table-header-group;
+  }
+
+  .relleno {
+    /* Crece igual que en pantalla, pero contra el alto de la página: con eso
+       un documento de una hoja imprime los totales abajo, como se vieron en
+       la vista previa. Con varias hojas no hay espacio libre que repartir y
+       el relleno se queda en su mínimo, sin empujar nada a una página vacía. */
+    min-height: 6mm;
   }
 }

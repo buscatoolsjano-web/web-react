@@ -33,6 +33,7 @@ const doc = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle => ({
   fecha: '2026-01-06',
   clienteId: 'c1',
   clienteNombre: 'Grupo Mirgor',
+  clienteCuit: null,
   contactoNombre: null,
   contactoId: null,
   vendedorId: null,
@@ -77,6 +78,7 @@ const opts = (p: Partial<OpcionesImpresion> = {}): OpcionesImpresion => ({
   formato: 'valorado',
   preciosConImpuestos: false,
   papel: 'A4',
+  conFotos: false,
   ...p,
 })
 
@@ -175,7 +177,7 @@ describe('nombreDeArchivo', () => {
  * sale de los snapshots del documento.
  */
 describe('los tres documentos', () => {
-  const opciones: OpcionesImpresion = { formato: 'valorado', preciosConImpuestos: false, papel: 'A4' }
+  const opciones: OpcionesImpresion = { formato: 'valorado', preciosConImpuestos: false, papel: 'A4', conFotos: false }
 
   it('cada tipo se titula como corresponde', () => {
     expect(construirImprimible(doc(), opciones).titulo).toBe('COTIZACIÓN DE VENTA')
