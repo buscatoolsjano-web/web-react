@@ -1,0 +1,53 @@
+/* Los atajos del listado. Píldoras, como en el panel anterior, pero con el
+   contorno y la tipografía de la web nueva. */
+
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip,
+.chipActivo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* 44 px de alto: en el taller se toca con el dedo, y a veces con guante. */
+  min-height: 44px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-soft);
+}
+
+.chip:hover {
+  background: var(--surface-alt);
+}
+
+.chipActivo {
+  border: 2px solid var(--primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+  font-weight: 700;
+}
+
+.chip:focus-visible,
+.chipActivo:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+/* El número es el que hace útil al chip: dice cuántos hay antes de tocarlo. */
+.cuenta {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: var(--text-xs);
+  opacity: 0.85;
+}

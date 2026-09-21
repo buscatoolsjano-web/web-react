@@ -8,6 +8,7 @@ import {
   listarActivos,
   obtenerActivo,
   reactivarActivo,
+  resumenDeActivos,
   tiposUsados,
   type DatosActivo,
 } from '../services/activos'
@@ -18,6 +19,7 @@ import type {
   EventoDeMantenimiento,
   FiltrosActivos,
   PaginaDeActivos,
+  ResumenActivos,
 } from '../types'
 
 /**
@@ -50,6 +52,25 @@ export function useActivo(id: string | undefined) {
     queryFn: () => obtenerActivo(companyId!, id!),
     enabled: companyId !== null && !!id,
     staleTime: 30_000,
+  })
+}
+
+/**
+ * El resumen del parque: los números de arriba y las opciones de los filtros.
+ *
+ * Una sola consulta para las dos cosas, y con `staleTime` largo: el parque no
+ * cambia mientras alguien filtra. Abrir la pantalla son **dos** viajes —el
+ * resumen y la página del listado—, no uno por número.
+ */
+export function useResumenActivos() {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery<ResumenActivos>({
+    queryKey: ['mantenimiento', companyId, 'resumen-activos'],
+    queryFn: () => resumenDeActivos(companyId!),
+    enabled: companyId !== null,
+    staleTime: 5 * 60_000,
   })
 }
 

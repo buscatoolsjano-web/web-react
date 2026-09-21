@@ -189,7 +189,7 @@ de modelos y sin inventar `product_id`.
 |---|---|
 | con serie | 354 de 358 |
 | `MISSING_SERIAL` | **4** |
-| `DUPLICATE_SERIALS` | **10** activos en **7** grupos de serie normalizada (algunos difieren sólo en espacios o guiones) |
+| `DUPLICATE_SERIALS` | **10** activos en **5** grupos de serie normalizada, con **7** escrituras distintas (varios difieren sólo en espacios o guiones). *Corregido en E1: acá decía «7 grupos», que eran las escrituras, no los grupos.* |
 | `AMBIGUOUS` | **0** (ningún CUIT ni referencia resolvió a dos clientes) |
 
 ---
@@ -273,7 +273,7 @@ UNMATCHED_CUSTOMERS          = 2 (sin cuenta en STEL)
 MATCHED_MODELS               = 0
 UNMATCHED_MODELS             = 350 (+8 sin modelo) · 102 textos distintos · 13 marcas
 MISSING_SERIAL               = 4
-DUPLICATE_SERIALS            = 10 activos en 7 grupos
+DUPLICATE_SERIALS            = 10 activos en 5 grupos normalizados (7 escrituras distintas)
 AMBIGUOUS                    = 0
 WOULD_INSERT                 = 358
 WOULD_UPDATE                 = 0

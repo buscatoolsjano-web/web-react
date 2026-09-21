@@ -16,6 +16,7 @@ import { TAMANOS_DE_PAGINA } from '../lib/paginas'
  */
 
 const ESTADOS = ['activo', 'baja']
+const SERIES = ['con', 'sin']
 
 function aEntero(v: string | null, porDefecto: number): number {
   const n = Number(v)
@@ -43,6 +44,10 @@ export function leerFiltros(params: URLSearchParams): FiltrosActivos {
     clienteId: params.get('cli'),
     productoId: params.get('prod'),
     tipo: params.get('tipo') ?? '',
+    marca: params.get('marca') ?? '',
+    modelo: params.get('modelo') ?? '',
+    serie: deLista(params.get('serie'), SERIES),
+    sinCliente: params.get('sincli') === '1',
     estado: deLista(params.get('estado'), ESTADOS),
     pagina: aEntero(params.get('page'), 1),
     porPagina: (TAMANOS_DE_PAGINA as readonly number[]).includes(porPagina)
@@ -61,6 +66,10 @@ export function escribirFiltros(f: FiltrosActivos): URLSearchParams {
   if (f.clienteId) p.set('cli', f.clienteId)
   if (f.productoId) p.set('prod', f.productoId)
   if (f.tipo !== '') p.set('tipo', f.tipo)
+  if (f.marca !== '') p.set('marca', f.marca)
+  if (f.modelo !== '') p.set('modelo', f.modelo)
+  if (f.serie !== '') p.set('serie', f.serie)
+  if (f.sinCliente) p.set('sincli', '1')
   if (f.estado !== '') p.set('estado', f.estado)
   if (f.pagina > 1) p.set('page', String(f.pagina))
   if (f.porPagina !== FILTROS_ACTIVOS_INICIALES.porPagina) p.set('per', String(f.porPagina))
@@ -92,6 +101,10 @@ export function useFiltrosActivos() {
     filtros.clienteId !== null ||
     filtros.productoId !== null ||
     filtros.tipo !== '' ||
+    filtros.marca !== '' ||
+    filtros.modelo !== '' ||
+    filtros.serie !== '' ||
+    filtros.sinCliente ||
     filtros.estado !== ''
 
   return { filtros, aplicar, limpiar, hayFiltros }

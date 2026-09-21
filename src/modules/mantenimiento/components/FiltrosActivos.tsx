@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { FilterBar } from '@/components/filters/FilterBar'
 import { Field } from '@/components/forms/Field'
 import { Input, Select } from '@/components/forms/controls'
-import { useTiposDeActivo } from '../hooks/useActivos'
+import { useResumenActivos, useTiposDeActivo } from '../hooks/useActivos'
 import type { FiltrosActivos as Filtros } from '../types'
 
 export interface FiltrosActivosProps {
@@ -19,9 +19,12 @@ export interface FiltrosActivosProps {
  * que realmente se cargaron**, no una lista inventada: un filtro que no
  * devuelve nada no le sirve a nadie.
  *
- * No hay filtro de cliente en un `<select>`: son 1.010 y sería el desplegable
- * gigante que hubo que sacar de Ventas. Se filtra por cliente entrando desde
- * la ficha del cliente o del equipo, que es cuando hace falta.
+ * **El cliente sí va en un `<select>`, y en Clientes no.** No es una
+ * inconsistencia: el maestro tiene 1.010 clientes y ahí el desplegable sería
+ * el que hubo que sacar de Ventas, pero equipos tienen **dieciséis**, y dos de
+ * ellos concentran 141 y 134 de los 358. Filtrar por cliente es lo primero que
+ * se hace en esta pantalla. El desplegable dice además cuántos equipos tiene
+ * cada uno, que es lo que ayuda a elegir.
  *
  * En mobile los controles se pliegan detrás de un botón que dice cuántos hay
  * puestos (lo hace `FilterBar`); el buscador queda siempre a la vista porque
@@ -29,9 +32,16 @@ export interface FiltrosActivosProps {
  */
 
 function contarActivos(f: Filtros): number {
-  return [f.clienteId !== null, f.productoId !== null, f.tipo !== '', f.estado !== ''].filter(
-    Boolean,
-  ).length
+  return [
+    f.clienteId !== null,
+    f.productoId !== null,
+    f.tipo !== '',
+    f.marca !== '',
+    f.modelo !== '',
+    f.serie !== '',
+    f.sinCliente,
+    f.estado !== '',
+  ].filter(Boolean).length
 }
 
 export function FiltrosActivos({
@@ -41,6 +51,7 @@ export function FiltrosActivos({
   onLimpiar,
 }: FiltrosActivosProps) {
   const tipos = useTiposDeActivo()
+  const resumen = useResumenActivos()
 
   const [texto, setTexto] = useState(filtros.q)
 
@@ -66,11 +77,54 @@ export function FiltrosActivos({
       hasFilters={hayFiltros}
       onClear={onLimpiar}
       search={
-        <Field label="Buscar por serie, referencia o etiqueta" hideLabel>
-          <Input type="search" placeholder="Serie, referencia EQ000… o etiqueta" value={texto} onChange={(e) => setTexto(e.target.value)} />
+        <Field label="Buscar por serie, referencia, etiqueta, marca o modelo" hideLabel>
+          <Input type="search" placeholder="Serie, referencia ACT000…, etiqueta, marca o modelo" value={texto} onChange={(e) => setTexto(e.target.value)} />
         </Field>
       }
     >
+      {/* El cliente es el filtro de primer nivel: dieciséis clientes tienen
+          los 358 equipos, y dos de ellos tienen 141 y 134. Acá un desplegable
+          SÍ sirve —el de Clientes tiene 1.010 y por eso no lo tiene—, y dice
+          cuántos equipos hay en cada uno. */}
+      <Field label="Cliente" hideLabel>
+        <Select
+          value={filtros.clienteId ?? ''}
+          onChange={(e) => onAplicar({ clienteId: e.target.value === '' ? null : e.target.value, sinCliente: false })}
+        >
+          <option value="">Todos los clientes</option>
+          {(resumen.data?.clientes ?? []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nombre} ({c.equipos})
+            </option>
+          ))}
+        </Select>
+      </Field>
+
+      <Field label="Marca" hideLabel>
+        <Select value={filtros.marca} onChange={(e) => onAplicar({ marca: e.target.value })}>
+          <option value="">Todas las marcas</option>
+          {(resumen.data?.marcas ?? []).map((m) => (
+            <option key={m.valor} value={m.valor}>
+              {m.valor} ({m.equipos})
+            </option>
+          ))}
+        </Select>
+      </Field>
+
+      {/* El modelo es el texto tal como vino: no se agrupan variantes de
+          escritura todavía, así que el desplegable puede tener el mismo
+          modelo dos veces. Es el dato real y se ve como es. */}
+      <Field label="Modelo" hideLabel>
+        <Select value={filtros.modelo} onChange={(e) => onAplicar({ modelo: e.target.value })}>
+          <option value="">Todos los modelos</option>
+          {(resumen.data?.modelos ?? []).map((m) => (
+            <option key={m.valor} value={m.valor}>
+              {m.valor} ({m.equipos})
+            </option>
+          ))}
+        </Select>
+      </Field>
+
       <Field label="Tipo de equipo" hideLabel>
         <Select value={filtros.tipo} onChange={(e) => onAplicar({ tipo: e.target.value })}>
           <option value="">Todos los tipos</option>

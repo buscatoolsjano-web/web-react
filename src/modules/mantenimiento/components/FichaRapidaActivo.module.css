@@ -1,0 +1,118 @@
+/* La ficha rápida del equipo. Misma jerarquía que la de Clientes: identidad
+   arriba, datos en grilla, acciones abajo y apoyadas. */
+
+.ficha {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.cabecera {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.referencia {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-primary-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.nombre {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.marca {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+.estados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+}
+
+.datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--surface-alt);
+  border-radius: var(--radius);
+}
+
+.datos dt {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.datos dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+
+/* El serial se lee de a un carácter: se busca comparándolo con la chapa del
+   equipo, no leyéndolo de corrido. */
+.serie {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.ciudad {
+  font-weight: 400;
+  color: var(--text-soft);
+  font-size: var(--text-xs);
+}
+
+.vacio {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.notas {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  position: sticky;
+  bottom: calc(var(--space-4) * -1);
+  margin-top: auto;
+  padding: var(--space-3) 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+/* La procedencia: presente, chiquita y sin protagonismo. */
+.origen {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}

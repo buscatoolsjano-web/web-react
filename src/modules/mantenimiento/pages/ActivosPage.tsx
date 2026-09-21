@@ -11,9 +11,13 @@ import { contar } from '@/components/tables/rango'
 import doc from '@/components/document/Document.module.css'
 import { permisosDe } from '../lib/permisos'
 import { FiltrosActivos } from '../components/FiltrosActivos'
+import { ChipsDeActivos } from '../components/ChipsDeActivos'
+import { KpisDelParque } from '../components/KpisDelParque'
 import { ListadoActivos } from '../components/ListadoActivos'
+import { PanelLateralActivo } from '../components/PanelLateralActivo'
 import { Paginador } from '../components/Paginador'
-import { useActivos } from '../hooks/useActivos'
+import { useActivos, useResumenActivos } from '../hooks/useActivos'
+import { useActivoSeleccionado } from '../hooks/useActivoSeleccionado'
 import { useFiltrosActivos } from '../hooks/useFiltrosActivos'
 import { descargarCsv, equiposACsv } from '../lib/csv'
 import { exportarActivos } from '../services/activos'
@@ -37,6 +41,8 @@ const hoy = () => new Date().toISOString().slice(0, 10)
 export function ActivosPage() {
   const { filtros, aplicar, limpiar, hayFiltros } = useFiltrosActivos()
   const { data, isPending, isFetching, error, refetch } = useActivos(filtros)
+  const resumen = useResumenActivos()
+  const { seleccionado, seleccionar, cerrar } = useActivoSeleccionado()
   const { activa } = useEmpresa()
   const permisos = permisosDe(activa)
 
@@ -100,12 +106,16 @@ export function ActivosPage() {
         }
       />
 
+      <KpisDelParque resumen={resumen.data} cargando={resumen.isPending} />
+
       <FiltrosActivos
         filtros={filtros}
         hayFiltros={hayFiltros}
         onAplicar={aplicar}
         onLimpiar={limpiar}
       />
+
+      <ChipsDeActivos filtros={filtros} resumen={resumen.data} onAplicar={aplicar} />
 
       {exportar.error ? (
         <Alert tone="danger" role="alert" title="No se pudo exportar">
@@ -138,6 +148,8 @@ export function ActivosPage() {
             direccion={filtros.direccion}
             onOrdenar={ordenar}
             cargando={isPending}
+            abierto={seleccionado}
+            onAbrirFicha={seleccionar}
           />
           <Paginador
             pagina={filtros.pagina}
@@ -148,6 +160,10 @@ export function ActivosPage() {
             onTamano={(porPagina) => aplicar({ porPagina })}
             sustantivo={EQUIPOS}
           />
+          {/* El cajón se superpone: la tabla de atrás no cambia de ancho. */}
+          {seleccionado ? (
+            <PanelLateralActivo activoId={seleccionado} onCerrar={cerrar} />
+          ) : null}
         </>
       )}
     </div>

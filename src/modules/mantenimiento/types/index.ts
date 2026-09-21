@@ -43,6 +43,13 @@ export interface ActivoDetalle extends ActivoListado {
   } | null
   autor: string | null
   actualizadoEn: string
+  /**
+   * De dónde vino el equipo (Fase 20 · E1).
+   *
+   * Nulo si lo cargó alguien en el ERP. No es protagonista en pantalla —al
+   * taller no le importa de qué sistema salió— pero tiene que poder saberse.
+   */
+  origen: { sistema: string; idExterno: string; sincronizado: string | null } | null
 }
 
 export interface PaginaDeActivos {
@@ -53,11 +60,18 @@ export interface PaginaDeActivos {
 export type OrdenActivos = 'referencia' | 'serie' | 'cliente' | 'modelo' | 'alta'
 
 export interface FiltrosActivos {
-  /** Serie, referencia o identificador. */
+  /** Serie, referencia, identificador, marca o modelo. */
   q: string
   clienteId: string | null
   productoId: string | null
   tipo: string
+  /** La marca y el modelo, tal como vinieron del origen (Fase 20 · E1). */
+  marca: string
+  modelo: string
+  /** `''` todos · `con` · `sin`. */
+  serie: string
+  /** Sólo los equipos que no tienen dueño cargado. */
+  sinCliente: boolean
   /** `''` todos · `activo` · `baja`. */
   estado: string
   pagina: number
@@ -71,11 +85,32 @@ export const FILTROS_ACTIVOS_INICIALES: FiltrosActivos = {
   clienteId: null,
   productoId: null,
   tipo: '',
+  marca: '',
+  modelo: '',
+  serie: '',
+  sinCliente: false,
   estado: '',
   pagina: 1,
   porPagina: 25,
   orden: 'alta',
   direccion: 'desc',
+}
+
+/**
+ * El resumen del parque de equipos (Fase 20 · E1).
+ *
+ * Sale de UNA consulta y sirve para dos cosas: los números de arriba y las
+ * opciones de los filtros. Pedir los clientes, las marcas y los modelos por
+ * separado serían tres viajes por el mismo dato.
+ */
+export interface ResumenActivos {
+  total: number
+  sinCliente: number
+  sinSerie: number
+  ordenes: number
+  clientes: { id: string; nombre: string; equipos: number }[]
+  marcas: { valor: string; equipos: number }[]
+  modelos: { valor: string; equipos: number }[]
 }
 
 /** Otro equipo con el mismo serial normalizado. Se avisa, no se bloquea. */

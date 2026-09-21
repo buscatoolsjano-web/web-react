@@ -30,3 +30,133 @@
     display: none;
   }
 }
+
+/* ── Fase 20 · E1: la fila entera abre la ficha ────────────────────────── */
+
+.fila {
+  cursor: pointer;
+}
+
+.fila:hover {
+  background: var(--surface-alt);
+}
+
+.fila:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -2px;
+}
+
+/* La fila con la ficha abierta: barra al costado además del fondo, para que
+   se distinga de la fila que está simplemente bajo el puntero. */
+.abierta {
+  background: var(--color-primary-soft);
+  box-shadow: inset 3px 0 0 0 var(--primary);
+}
+
+/* La columna del botón «Servicio»: lo justo para que no se corte. */
+.accion {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* La celda del equipo: referencia arriba, etiqueta del taller abajo. */
+.colEquipo {
+  min-width: 11rem;
+}
+
+.etiqueta {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Marca arriba, modelo abajo: la marca agrupa y el modelo identifica. */
+.marca {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--color-text-soft);
+}
+
+.modelo {
+  display: block;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── La tarjeta del taller (mobile) ────────────────────────────────────── */
+
+/* El serial se lee de la chapa del equipo y se compara carácter por carácter:
+   en el teléfono va más grande que el resto de la meta. */
+.serieTarjeta {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* La acción, abajo y a la derecha, con el alto de toque completo. */
+.accionTarjeta {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* ── Que la tabla entre, sin llevarse la página de costado ─────────────── */
+
+/* Con la columna de «Servicio» la tabla pide 1.104 px, y a 1024 eso hacía
+   scrollear la PÁGINA entera —no la tabla adentro de su caja—, que es el
+   defecto que Clientes no tiene. Por debajo de 1280 se achica lo que puede
+   achicarse: la etiqueta del equipo y los textos largos. */
+@media (max-width: 1279px) {
+  .colEquipo {
+    min-width: 7.5rem;
+  }
+
+  .etiqueta {
+    max-width: 8rem;
+  }
+
+  .recorta {
+    max-width: 9rem;
+  }
+
+  .modelo {
+    max-width: 9rem;
+  }
+}
+
+/* Y por debajo de 1024 la etiqueta del taller se va: está en la ficha rápida,
+   que se abre tocando la fila. */
+@media (max-width: 1023px) {
+  .etiqueta {
+    display: none;
+  }
+}
+
+/* El serial es lo que más ancho pedía: `nowrap` lo dejaba tomar 317 px de los
+   721 disponibles a 1024. Se lo deja cortar —tiene guiones, corta bien— y por
+   debajo de 1280 se guardan las dos columnas que hoy no dicen nada y que
+   igual están en la ficha rápida: la cuenta de órdenes y el estado. */
+@media (max-width: 1279px) {
+  .serieCelda {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    max-width: 9rem;
+  }
+
+  .ocultaBajo1280Tambien {
+    display: none;
+  }
+}

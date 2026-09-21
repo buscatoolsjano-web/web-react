@@ -5,6 +5,7 @@ import type {
   DuplicadoDeSerial,
   FiltrosActivos,
   PaginaDeActivos,
+  ResumenActivos,
 } from '../types'
 
 /**
@@ -87,15 +88,29 @@ export async function listarActivos(
   // La coma y los paréntesis rompen la sintaxis de PostgREST.
   const texto = filtros.q.trim().replace(/[,()*]/g, '')
   if (texto !== '') {
-    // Se busca por las tres cosas con las que alguien identifica una
-    // herramienta en el mostrador: la referencia, el serial y la etiqueta.
+    // Con lo que alguien identifica una herramienta en el mostrador: la
+    // referencia, el serial, la etiqueta y —desde que los equipos vienen de
+    // STEL— la marca y el modelo, que es como los nombra el taller.
     q = q.or(
-      `reference.ilike.%${texto}%,serial_number.ilike.%${texto}%,identifier.ilike.%${texto}%`,
+      [
+        `reference.ilike.%${texto}%`,
+        `serial_number.ilike.%${texto}%`,
+        `identifier.ilike.%${texto}%`,
+        `brand_text.ilike.%${texto}%`,
+        `model_text.ilike.%${texto}%`,
+      ].join(','),
     )
   }
   if (filtros.clienteId) q = q.eq('owner_customer_id', filtros.clienteId)
   if (filtros.productoId) q = q.eq('product_id', filtros.productoId)
   if (filtros.tipo) q = q.eq('asset_type', filtros.tipo)
+  if (filtros.marca) q = q.eq('brand_text', filtros.marca)
+  if (filtros.modelo) q = q.eq('model_text', filtros.modelo)
+  // El serial vacío y el nulo son la misma ausencia: cuatro equipos entraron
+  // de STEL sin serie y tienen que salir en «Sin serie».
+  if (filtros.serie === 'con') q = q.not('serial_normalized', 'is', null)
+  if (filtros.serie === 'sin') q = q.is('serial_normalized', null)
+  if (filtros.sinCliente) q = q.is('owner_customer_id', null)
   if (filtros.estado === 'activo') q = q.is('deleted_at', null)
   if (filtros.estado === 'baja') q = q.not('deleted_at', 'is', null)
 
@@ -120,6 +135,74 @@ export async function listarActivos(
   return { filas: ((data ?? []) as unknown as Fila[]).map(aFila), total: count ?? 0 }
 }
 
+/**
+ * El resumen del parque, en UNA consulta (Fase 20 · E1).
+ *
+ * Sirve para los números de arriba **y** para las opciones de los filtros: los
+ * clientes que tienen equipos, las marcas y los modelos que existen de verdad.
+ * Pedirlos por separado serían cuatro viajes por el mismo dato.
+ *
+ * Trae una fila por equipo vivo —358 hoy— con cinco columnas. Si el parque
+ * creciera a decenas de miles habría que moverlo a una función del servidor;
+ * con este tamaño, traerlo entero es más barato que cuatro agregaciones.
+ */
+export async function resumenDeActivos(companyId: string): Promise<ResumenActivos> {
+  const { data, error } = await supabase
+    .from('maintenance_assets')
+    .select(
+      'owner_customer_id, brand_text, model_text, serial_normalized, dueno:customers!owner_customer_id(legal_name), maintenance_orders(id)',
+    )
+    .eq('company_id', companyId)
+    .is('deleted_at', null)
+  if (error) throw new Error(`No se pudo leer el resumen de equipos: ${error.message}`)
+
+  type FilaResumen = {
+    owner_customer_id: string | null
+    brand_text: string | null
+    model_text: string | null
+    serial_normalized: string | null
+    dueno: { legal_name: string } | null
+    maintenance_orders: { id: string }[] | null
+  }
+  const filas = (data ?? []) as unknown as FilaResumen[]
+
+  const clientes = new Map<string, { id: string; nombre: string; equipos: number }>()
+  const marcas = new Map<string, number>()
+  const modelos = new Map<string, number>()
+  let sinCliente = 0
+  let sinSerie = 0
+  let ordenes = 0
+
+  for (const f of filas) {
+    if (f.owner_customer_id) {
+      const previo = clientes.get(f.owner_customer_id)
+      if (previo) previo.equipos += 1
+      else clientes.set(f.owner_customer_id, {
+        id: f.owner_customer_id,
+        nombre: f.dueno?.legal_name ?? 'Sin nombre',
+        equipos: 1,
+      })
+    } else sinCliente += 1
+    if (!f.serial_normalized) sinSerie += 1
+    if (f.brand_text) marcas.set(f.brand_text, (marcas.get(f.brand_text) ?? 0) + 1)
+    if (f.model_text) modelos.set(f.model_text, (modelos.get(f.model_text) ?? 0) + 1)
+    ordenes += (f.maintenance_orders ?? []).length
+  }
+
+  const porEquipos = <T extends { equipos: number }>(a: T, b: T) => b.equipos - a.equipos
+  return {
+    total: filas.length,
+    sinCliente,
+    sinSerie,
+    ordenes,
+    // Los clientes, por cantidad de equipos: dos concentran el 77 % del parque
+    // y tienen que quedar arriba del desplegable.
+    clientes: [...clientes.values()].sort(porEquipos),
+    marcas: [...marcas.entries()].map(([valor, equipos]) => ({ valor, equipos })).sort(porEquipos),
+    modelos: [...modelos.entries()].map(([valor, equipos]) => ({ valor, equipos })).sort(porEquipos),
+  }
+}
+
 export async function obtenerActivo(
   companyId: string,
   id: string,
@@ -128,6 +211,7 @@ export async function obtenerActivo(
     .from('maintenance_assets')
     .select(
       `${COLUMNAS}, state, warranty_start, warranty_end, notes, delivery_serial_id, updated_at,
+       external_source, external_id, last_synced_at,
        autor:profiles!created_by ( full_name ),
        procedencia:delivery_serials!delivery_serial_id (
          serial_number, delivery_date,
@@ -149,6 +233,9 @@ export async function obtenerActivo(
     notes: string | null
     delivery_serial_id: string | null
     updated_at: string
+    external_source: string | null
+    external_id: string | null
+    last_synced_at: string | null
     autor: { full_name: string | null } | null
     procedencia: {
       serial_number: string
@@ -173,6 +260,10 @@ export async function obtenerActivo(
       : null,
     autor: f.autor?.full_name ?? null,
     actualizadoEn: f.updated_at,
+    origen:
+      f.external_source && f.external_id
+        ? { sistema: f.external_source, idExterno: f.external_id, sincronizado: f.last_synced_at }
+        : null,
   }
 }
 
