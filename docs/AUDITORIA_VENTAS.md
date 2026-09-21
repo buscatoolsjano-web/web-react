@@ -922,6 +922,40 @@ decisión de la pantalla: `confirmar_entrega` sigue preguntando por la autoridad
 **general** de `delivery`, que es STEL. Mientras esa función no cambie, el
 piloto no puede mover stock ni por accidente.
 
+### E5 cierra en DRAFT — el último gate queda fuera por decisión de Juan
+
+**E5 está aprobada hasta el borrador, y ahí se detiene.** No es que falte
+trabajo: es una decisión tomada, y queda escrita para que dentro de seis meses
+se entienda por qué la cadena termina donde termina.
+
+Lo que queda como evidencia, sin tocar:
+
+| documento | estado |
+| --- | --- |
+| `COT-ERP00001` | cotización piloto, emitida por el ERP |
+| `PDV-ERP00001` | pedido **confirmado**, convertido desde esa cotización |
+| `RT-ERP00001` | remito en **borrador**, creado desde ese pedido |
+
+El gate pendiente es uno solo, y son tres cosas encadenadas:
+
+1. **`confirmar_entrega`** — hoy exige la autoridad **general** de `delivery`,
+   que es STEL, y por eso el botón está bloqueado;
+2. **la autoridad por serie del remito** — hacer que la función mire la serie
+   del documento (`RT-ERP`) como ya hace `crear_remito_desde_pedido`, en vez de
+   la general;
+3. **el movimiento físico de stock** — lo que esa confirmación dispara: salida
+   de mercadería, saldos y reservas.
+
+**No está autorizado nada de eso.** Concretamente: no se modifica
+`confirmar_entrega`, no se despacha `RT-ERP00001`, no se mueve stock y no se
+crean reservas. El cambio está escrito y sin aplicar en
+`scripts/fase19-e5-rt-erp.sql` (parte 2.b), esperando una autorización propia.
+
+La razón de fondo es la misma de toda la fase: **la autoridad del documento que
+existe es una cosa y la autoridad de lo que una acción crearía es otra.**
+`RT-ERP00001` puede existir en borrador sin que el ERP tenga permiso para mover
+el stock de la empresa.
+
 ## 19 · E6 · El documento impreso, como sistema único
 
 Los tres documentos —cotización, pedido y remito— dejan de tener plantillas
