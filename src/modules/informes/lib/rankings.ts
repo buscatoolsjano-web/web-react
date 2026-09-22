@@ -84,3 +84,20 @@ export function enlaceFicha(f: Pick<FilaRanking, 'cliente_id' | 'producto_id' | 
 export function archivoRanking(p: ParametrosRanking, mes: string): string {
   return nombreArchivo([p.dimension, p.fuente, p.medida === 'cantidad' ? 'cantidad' : p.moneda, p.periodo, mes])
 }
+
+/**
+ * Qué ficha abre una fila del ranking, si abre alguna.
+ *
+ * Es el par de `enlaceFicha`: ésa dice adónde ir, ésta dice qué mostrar
+ * encima. Las dos miran lo mismo, así que una fila enlazable es siempre una
+ * fila abrible —y las que no lo son (un cliente sin vincular, una línea
+ * histórica sin producto del catálogo) no son ni una cosa ni la otra: no hay
+ * ficha que abrir.
+ */
+export function fichaDeFila(
+  f: Pick<FilaRanking, 'cliente_id' | 'producto_id' | 'codigo' | 'vinculado'>,
+): { tipo: 'cliente' | 'producto'; id: string } | null {
+  if (f.cliente_id) return { tipo: 'cliente', id: f.cliente_id }
+  if (f.producto_id && f.vinculado && f.codigo) return { tipo: 'producto', id: f.producto_id }
+  return null
+}

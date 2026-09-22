@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { ErrorState } from '@/components/feedback/ErrorState'
@@ -7,11 +7,14 @@ import { Button } from '@/components/ui/Button'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { Icon } from '@/components/icons/Icon'
 import { useRanking } from '../hooks/useActividad'
+import { FichaDesdeInforme } from './FichaDesdeInforme'
+import { clickDeFicha, type FichaAbierta } from '../lib/ficha'
 import { formatearImporte } from '../lib/actividad'
 import { descargarCsv, rankingACsv } from '../lib/csv'
 import {
   archivoRanking,
   enlaceFicha,
+  fichaDeFila,
   esAtipica,
   ETIQUETA_FUENTE,
   medidasPosibles,
@@ -68,6 +71,10 @@ export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, eti
     mutationFn: () => exportarRanking(companyId!, mes, p),
     onSuccess: (todas) => descargarCsv(archivoRanking(p, mesEfectivo), rankingACsv(p, todas)),
   })
+
+  // Qué ficha está abierta encima del informe. No va a la URL: el informe
+  // sí, la ficha es de ida y vuelta.
+  const [ficha, setFicha] = useState<FichaAbierta | null>(null)
 
   const cambiar = onCambiar
 
@@ -172,7 +179,7 @@ export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, eti
               </thead>
               <tbody>
                 {filas.map((f) => (
-                  <FilaDeRanking key={f.clave} f={f} p={p} documentos={fuente.documentos} />
+                  <FilaDeRanking key={f.clave} f={f} p={p} documentos={fuente.documentos} onAbrirFicha={setFicha} />
                 ))}
               </tbody>
             </table>
@@ -197,12 +204,24 @@ export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, eti
           ) : null}
         </div>
       </div>
+      <FichaDesdeInforme ficha={ficha} onCerrar={() => setFicha(null)} />
     </section>
   )
 }
 
-function FilaDeRanking({ f, p, documentos }: { f: FilaRanking; p: ParametrosRanking; documentos: string }) {
+function FilaDeRanking({
+  f,
+  p,
+  documentos,
+  onAbrirFicha,
+}: {
+  f: FilaRanking
+  p: ParametrosRanking
+  documentos: string
+  onAbrirFicha: (ficha: FichaAbierta) => void
+}) {
   const enlace = enlaceFicha(f)
+  const ficha = fichaDeFila(f)
   const atipica = esAtipica(f)
   return (
     <tr className={f.moneda === SIN_MONEDA ? styles.filaSinMoneda : undefined}>
@@ -210,7 +229,20 @@ function FilaDeRanking({ f, p, documentos }: { f: FilaRanking; p: ParametrosRank
         <span className={styles.importe}>{f.posicion}</span>
       </td>
       <th scope="row" className={styles.categoria}>
-        {enlace ? <Link to={enlace} className={styles.enlaceTabla}>{f.etiqueta}</Link> : f.etiqueta}
+        {/* Sigue siendo un enlace de verdad: ctrl/cmd-click abre la ficha
+            completa en otra pestaña. El click común la abre encima del
+            informe, que es lo que uno quiere el 95% de las veces. */}
+        {enlace ? (
+          <Link
+            to={enlace}
+            className={styles.enlaceTabla}
+            onClick={ficha ? clickDeFicha(() => onAbrirFicha(ficha)) : undefined}
+          >
+            {f.etiqueta}
+          </Link>
+        ) : (
+          f.etiqueta
+        )}
         {f.codigo ? <span className={styles.docs}>{f.codigo}</span> : null}
         <span className={styles.marcas}>
           {atipica ? (
