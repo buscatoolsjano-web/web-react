@@ -67,3 +67,4 @@ supabase/.temp/
 # por ella y leer los grupos. Se ignora en cualquier ubicación.
 .whatsapp-auth/
 **/.whatsapp-auth/
+.cache-legacy-productos.json
