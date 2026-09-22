@@ -1,0 +1,400 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Dashboard (Fase 21 · E2).
+
+   La jerarquía es el diseño: lo primero que se lee es el cotizado del mes,
+   después lo que hay que ir a resolver, y recién al final el detalle. Por eso
+   las tarjetas NO pesan todas lo mismo —doce cards iguales no son una
+   jerarquía, son una lista— y el color se gasta en pocos lugares.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.periodo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.periodoTexto {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+.periodoMes {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ── B · Situación del mes ─────────────────────────────────────────────── */
+
+.situacion {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr;
+  gap: var(--space-3);
+  align-items: start;
+  margin-bottom: var(--space-5);
+}
+
+.kpiProtagonista,
+.kpiSecundario {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+/* El protagonista se distingue por tamaño y por una línea de acento arriba,
+   no por un fondo de color: el número tiene que ser lo más visible. */
+.kpiProtagonista {
+  position: relative;
+  overflow: hidden;
+}
+
+.kpiProtagonista::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--primary);
+}
+
+.kpiCabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.kpiTitulo {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.kpiEnlace {
+  font-size: var(--text-xs);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.kpiCuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.kpiMonedas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.kpiMoneda {
+  min-width: 0;
+}
+
+.kpiImporte {
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  font-size: var(--text-lg);
+}
+
+.kpiProtagonista .kpiImporte {
+  font-size: clamp(1.6rem, 3.2vw, 2.25rem);
+}
+
+.kpiDocumentos {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+/* La variación NUNCA es sólo color: flecha + texto. Quien no distingue
+   verde de rojo lee exactamente lo mismo. */
+.kpiVariacion {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.kpiVariacion[data-direccion='sube'] {
+  color: var(--color-success-text, var(--text));
+}
+
+.kpiVariacion[data-direccion='baja'] {
+  color: var(--color-danger-text, var(--text));
+}
+
+.kpiFlecha {
+  font-weight: 700;
+}
+
+.kpiPeriodo {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.kpiVacio {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* ── C · Atención hoy ──────────────────────────────────────────────────── */
+
+.seccion {
+  margin-bottom: var(--space-5);
+}
+
+.seccionCabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.seccionTitulo {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.seccionCabecera .seccionTitulo {
+  margin-bottom: 0;
+}
+
+.enlaceSeccion {
+  font-size: var(--text-sm);
+  color: var(--accent);
+}
+
+.atencion {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--space-3);
+}
+
+.tarjeta {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: var(--space-3) var(--space-4);
+  min-width: 0;
+}
+
+.tarjetaIcono {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.tarjetaValor {
+  margin: var(--space-1) 0 0;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.tarjetaTitulo {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.tarjetaDetalle {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  line-height: 1.4;
+}
+
+.tarjetaEnlace {
+  display: inline-block;
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--accent);
+}
+
+.verDetalle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.verDetalle:hover {
+  text-decoration: underline;
+}
+
+.listaRevision {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.filaRevision {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text);
+}
+
+.filaRevision:hover {
+  text-decoration: underline;
+}
+
+.revisionNumero {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.revisionTipo,
+.revisionFecha {
+  color: var(--text-soft);
+}
+
+.revisionResto {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ── E · Últimos documentos ────────────────────────────────────────────── */
+
+.documentos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.documentos li + li .documento {
+  border-top: 1px solid var(--border);
+}
+
+.documento {
+  display: grid;
+  grid-template-columns: 6.5rem 5.5rem 8rem 1fr auto auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  color: var(--text);
+  min-width: 0;
+}
+
+.documento:hover {
+  background: var(--surface-alt);
+}
+
+.docFecha,
+.docNumero,
+.docImporte {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.docTipo {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+}
+
+.docNumero {
+  font-weight: 600;
+}
+
+.docCliente {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.docImporte {
+  text-align: right;
+  font-weight: 600;
+}
+
+.vacio,
+.aviso {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+.aviso {
+  margin-bottom: var(--space-2);
+  color: var(--text-muted);
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+
+/* En 375 el orden es el de la lectura: el cotizado primero, entero, y recién
+   después los secundarios. Nada de tres columnas de 100 px. */
+@media (max-width: 1023px) {
+  .situacion {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .kpiProtagonista {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .situacion {
+    grid-template-columns: 1fr;
+  }
+
+  .documento {
+    grid-template-columns: 1fr auto;
+    row-gap: var(--space-1);
+  }
+
+  .docTipo,
+  .docCliente {
+    grid-column: 1 / -1;
+  }
+
+  .docEstado {
+    grid-column: 1;
+  }
+
+  .docImporte {
+    grid-column: 2;
+  }
+}

@@ -1,85 +1,137 @@
-import { useId } from 'react'
-import { Link } from 'react-router-dom'
 import { Alert } from '@/components/feedback/Alert'
-import { EmptyState } from '@/components/feedback/EmptyState'
-import { ErrorState } from '@/components/feedback/ErrorState'
 import { LinkButton } from '@/components/ui/LinkButton'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { contar } from '@/components/tables/rango'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { useBandeja, useCuentas } from '@/modules/emails/hooks/useEmails'
 import { puedeUsarEmails } from '@/modules/emails/lib/permisos'
 import { FILTROS_INICIALES as FILTROS_EMAILS } from '@/modules/emails/types'
 import { useActividad, usePipeline } from '@/modules/informes/hooks/useActividad'
-import { ErrorInforme } from '@/modules/informes/services/actividad'
 import { puedeVerConfiguracion } from '@/modules/configuracion/lib/permisos'
-import { useOrdenes } from '@/modules/mantenimiento/hooks/useOrdenes'
-import { permisosDe as permisosMantenimiento } from '@/modules/mantenimiento/lib/permisos'
-import { FILTROS_ORDENES_INICIALES } from '@/modules/mantenimiento/types'
 import { useAutoridadNumeracion } from '@/modules/ventas/hooks/useAutoridadNumeracion'
+import { useDocumentos } from '@/modules/ventas/hooks/useDocumentos'
+import { FILTROS_INICIALES as FILTROS_VENTAS } from '@/modules/ventas/types'
 import type { DocTypeVentas } from '@/modules/ventas/lib/autoridad'
-import {
-  ETIQUETA_TIPO,
-  actividadDelMes,
-  cotizacionesAbiertas,
-  pedidosPendientes,
-  revisionDelMes,
-  textoAutoridadStel,
-} from '../lib/inicio'
-import { ListaMonedas, TarjetaMetrica } from './TarjetaMetrica'
-import styles from './Inicio.module.css'
+import { cotizacionesAbiertas, textoAutoridadStel } from '../lib/inicio'
+import { avisoDeMesParcial, etiquetaDeTramo, mesLargo } from '../lib/panel'
+import { useAtencion, useUltimosDocumentos } from '../hooks/useDashboard'
+import { AtencionHoy, type TarjetaAtencion } from './AtencionHoy'
+import { EvolucionComercial } from './EvolucionComercial'
+import { KpiComercial } from './KpiComercial'
+import { UltimosDocumentos } from './UltimosDocumentos'
+import styles from './Panel.module.css'
 
-// Mismas claves de filtro que los listados: la caché se comparte con ellos.
-const ORDENES_ABIERTAS = { ...FILTROS_ORDENES_INICIALES, estado: 'open', porPagina: 10 }
 const EMAILS_PENDIENTES = { ...FILTROS_EMAILS, estado: 'pendiente' as const, porPagina: 1 }
+
+/**
+ * Los pedidos por entregar salen del MISMO listado al que lleva la tarjeta.
+ *
+ * No del pipeline, y el motivo se midió: el pipeline los clasifica por lo
+ * entregado de cada LÍNEA y da 18, mientras el estado de cumplimiento del
+ * servidor dice 28. Las líneas migradas tienen huecos, así que el número
+ * bueno es el del encabezado. Y como se pide con los mismos filtros que el
+ * destino, la tarjeta y la lista no pueden discrepar: es la misma consulta y
+ * la misma caché.
+ */
+const PEDIDOS_PENDIENTES = { ...FILTROS_VENTAS, pendienteDeEntrega: true, porPagina: 1 }
 const TIPOS_STEL: readonly DocTypeVentas[] = ['quote', 'sales_order', 'delivery']
 
 /**
- * Inicio de admin y employee: el estado de HOY de la operación.
+ * El Dashboard de admin y employee (Fase 21 · E2).
  *
- * Fuentes (todas ya existentes, sin consultas nuevas):
- *   · `informe_pipeline_comercial`: cotizaciones abiertas y pedidos pendientes
- *     por moneda — la misma RPC y la misma caché que Informes;
- *   · `informe_actividad_comercial`: lo emitido en el mes y lo marcado para
- *     revisar;
- *   · el listado de órdenes de Mantenimiento filtrado por «abierta»;
- *   · la bandeja de Emails filtrada por «pendiente» (sólo con cuenta);
- *   · la autoridad de numeración de Ventas (STEL).
+ * Seis bloques en este orden, y nada más: período · situación del mes ·
+ * atención hoy · evolución · últimos documentos · accesos. El orden ES el
+ * diseño: en un segundo se lee el cotizado, en tres lo que hay que resolver.
+ *
+ * Lo comercial sale de `informe_actividad_comercial` y
+ * `informe_pipeline_comercial` —las mismas dos RPC y las mismas claves de
+ * caché que Informes—, así que la comparación de períodos equivalentes y la
+ * serie de doce meses **no costaron ni una consulta nueva**: ya venían ahí.
+ *
+ * Cada bloque carga, falla y se vacía por su cuenta: que el gráfico no lea no
+ * puede dejar en blanco los pendientes del día.
  */
 export function VistaOperativa() {
   const { activa } = useEmpresa()
   const rol = activa?.rol ?? null
-  const idActividad = useId()
 
-  const pipeline = usePipeline(null)
   const actividad = useActividad(null)
-  const ordenes = useOrdenes(ORDENES_ABIERTAS)
+  const pipeline = usePipeline(null)
+  const atencion = useAtencion()
   const cuentas = useCuentas()
   const bandeja = useBandeja(EMAILS_PENDIENTES)
   const autoridad = useAutoridadNumeracion()
+  const ultimos = useUltimosDocumentos(8)
+  const porEntregar = useDocumentos('pedido', PEDIDOS_PENDIENTES)
 
-  const verMantenimiento = permisosMantenimiento(activa).ver
   const verEmails = puedeUsarEmails(rol) && (cuentas.data?.length ?? 0) > 0
-
-  const abiertas = pipeline.data ? cotizacionesAbiertas(pipeline.data) : null
-  const pendientes = pipeline.data ? pedidosPendientes(pipeline.data) : null
-  const delMes = actividad.data ? actividadDelMes(actividad.data) : null
-  const revision = actividad.data ? revisionDelMes(actividad.data) : null
   const tiposStel = autoridad.cargando ? [] : TIPOS_STEL.filter((t) => autoridad.stel(t))
 
-  const cargandoAlgo = pipeline.isPending || actividad.isPending || (verMantenimiento && ordenes.isPending) || cuentas.isPending
-  // «Empresa sin actividad»: todo leyó bien y todo está en cero. Recién ahí se
-  // reemplazan las tarjetas por un mensaje; nunca 4 ceros seguidos.
-  const sinActividad =
-    !cargandoAlgo &&
-    !pipeline.error &&
-    !actividad.error &&
-    !ordenes.error &&
-    abiertas?.documentos === 0 &&
-    pendientes?.documentos === 0 &&
-    (delMes ?? []).every((t) => t.documentos === 0) &&
-    (!verMantenimiento || (ordenes.data?.total ?? 0) === 0) &&
-    (!verEmails || (bandeja.data?.total ?? 0) === 0)
+  const abiertas = pipeline.data ? cotizacionesAbiertas(pipeline.data) : null
+  const aceptadasSinPedido = (pipeline.data?.abiertas ?? []).reduce((s, a) => s + a.aceptadas, 0)
+
+  const tarjetas: TarjetaAtencion[] = [
+    {
+      clave: 'cotizaciones',
+      icono: 'cart',
+      titulo: 'Cotizaciones abiertas',
+      valor: abiertas?.documentos ?? null,
+      // El listado no tiene un filtro «abiertas»: el que existe es por estado.
+      // Se dice el número entero y se dice cuál de los dos muestra el link, en
+      // vez de mandar a una lista que no coincide con el número de arriba.
+      detalle: abiertas ? `Enviadas o aceptadas, sin pedido · ${aceptadasSinPedido} aceptadas sin pedido` : null,
+      destino: '/ventas/cotizaciones?estado=sent',
+      etiquetaDestino: abiertas ? `Ver las ${abiertas.documentos - aceptadasSinPedido} pendientes` : 'Ver pendientes',
+      cargando: pipeline.isPending,
+      error: !!pipeline.error,
+      onReintentar: () => void pipeline.refetch(),
+    },
+    {
+      clave: 'pedidos',
+      icono: 'truck',
+      titulo: 'Pedidos por entregar',
+      valor: porEntregar.data?.total ?? null,
+      detalle: 'Confirmados y todavía sin entregar del todo.',
+      destino: '/ventas/pedidos?pendiente=1',
+      etiquetaDestino: 'Ver pedidos pendientes',
+      cargando: porEntregar.isPending,
+      error: !!porEntregar.error,
+      onReintentar: () => void porEntregar.refetch(),
+    },
+    {
+      clave: 'revision',
+      icono: 'alert-triangle',
+      titulo: 'Documentos que requieren atención',
+      valor: atencion.data?.total ?? null,
+      detalle: atencion.data
+        ? atencion.data.conNoVerificable > 0
+          ? `${atencion.data.conNoVerificable} tienen algún motivo que no se puede verificar desde el documento.`
+          : 'Motivos que todavía se comprueban en el documento de hoy.'
+        : null,
+      destino: '/informes',
+      etiquetaDestino: 'Ver el informe',
+      cargando: atencion.isPending,
+      error: !!atencion.error,
+      onReintentar: () => void atencion.refetch(),
+    },
+    ...(verEmails
+      ? [
+          {
+            clave: 'emails',
+            icono: 'mail' as const,
+            titulo: 'Emails pendientes',
+            valor: bandeja.data?.total ?? null,
+            detalle: bandeja.data && bandeja.data.totalSinLeer > 0 ? `${bandeja.data.totalSinLeer} sin leer.` : null,
+            destino: '/emails?estado=pendiente',
+            etiquetaDestino: 'Ver la bandeja',
+            cargando: bandeja.isPending,
+            error: !!bandeja.error,
+            onReintentar: () => void bandeja.refetch(),
+          },
+        ]
+      : []),
+  ]
+
+  const tramo = actividad.data?.actual
+  const parcial = tramo ? avisoDeMesParcial(tramo) : null
 
   return (
     <>
@@ -99,134 +151,68 @@ export function VistaOperativa() {
         </Alert>
       ) : null}
 
-      {revision && revision.enRevision > 0 ? (
-        <Alert
-          tone="info"
-          // Fase 19 · E4: cuenta lo que REQUIERE ATENCIÓN HOY, no lo que la
-          // migración marcó. Son cosas distintas —del mes, 49 contra 45— y el
-          // título tiene que decir la que se está contando.
-          title={`${contar(revision.enRevision, { singular: 'documento del mes requiere', plural: 'documentos del mes requieren' })} atención`}
-          action={
-            <LinkButton to="/informes" variant="secondary" size="sm">
-              Ver informe
-            </LinkButton>
-          }
-        >
-          <p>
-            {revision.sinMoneda > 0
-              ? `${revision.sinMoneda} ${revision.sinMoneda === 1 ? 'no tiene' : 'no tienen'} moneda: sus importes se muestran aparte, sin asignarles una.`
-              : 'Vienen de la migración con algo que todavía se verifica en el documento.'}
+      {/* A · El período, explícito. Un mes a medias se dice que está a medias:
+          si no, «bajó 22 %» parece un derrumbe y son ocho días que faltan. */}
+      <div className={styles.periodo}>
+        <p className={styles.periodoTexto}>
+          <span className={styles.periodoMes}>{tramo ? mesLargo(tramo.desde) : '…'}</span>
+          {parcial ? ` · ${parcial}` : ''}
+        </p>
+        {actividad.data ? (
+          <p className={styles.periodoTexto}>
+            Se compara {etiquetaDeTramo(actividad.data.actual)} contra {etiquetaDeTramo(actividad.data.anterior)}
           </p>
-        </Alert>
-      ) : null}
+        ) : null}
+      </div>
 
-      {sinActividad ? (
-        <EmptyState
-          icon="inbox"
-          title="Aún no hay actividad registrada"
-          description="Cuando haya cotizaciones, pedidos, órdenes de servicio o correos pendientes, se van a ver acá. Mientras tanto, empezá desde los accesos rápidos."
+      {/* B · Situación del mes: un protagonista y dos secundarios. */}
+      <div className={styles.situacion}>
+        <KpiComercial
+          actividad={actividad.data}
+          tipo="cotizaciones"
+          protagonista
+          destino="/ventas/cotizaciones"
+          cargando={actividad.isPending}
+          error={!!actividad.error}
+          onReintentar={() => void actividad.refetch()}
         />
-      ) : (
-        <>
-          <section className={styles.seccion} aria-label="Pendientes de hoy">
-            <div className={styles.metricas}>
-              <TarjetaMetrica
-                titulo="Cotizaciones abiertas"
-                icono="cart"
-                valor={abiertas?.documentos ?? null}
-                unidad={abiertas ? (abiertas.documentos === 1 ? 'cotización' : 'cotizaciones') : undefined}
-                cargando={pipeline.isPending}
-                error={!!pipeline.error}
-                onReintentar={() => void pipeline.refetch()}
-                enlace={{ to: '/ventas/cotizaciones', label: 'Ver cotizaciones' }}
-              >
-                <p className={styles.metricaNota}>Enviadas o aceptadas, sin pedido.</p>
-                <ListaMonedas filas={abiertas?.porMoneda ?? []} etiqueta="Importe abierto por moneda" />
-              </TarjetaMetrica>
+        <KpiComercial
+          actividad={actividad.data}
+          tipo="pedidos"
+          destino="/ventas/pedidos"
+          cargando={actividad.isPending}
+          error={!!actividad.error}
+          onReintentar={() => void actividad.refetch()}
+        />
+        <KpiComercial
+          actividad={actividad.data}
+          tipo="entregas"
+          destino="/ventas/entregas"
+          cargando={actividad.isPending}
+          error={!!actividad.error}
+          onReintentar={() => void actividad.refetch()}
+        />
+      </div>
 
-              <TarjetaMetrica
-                titulo="Pedidos por entregar"
-                icono="truck"
-                valor={pendientes?.documentos ?? null}
-                unidad={pendientes ? (pendientes.documentos === 1 ? 'pedido' : 'pedidos') : undefined}
-                cargando={pipeline.isPending}
-                error={!!pipeline.error}
-                onReintentar={() => void pipeline.refetch()}
-                enlace={{ to: '/ventas/pedidos', label: 'Ver pedidos' }}
-              >
-                <p className={styles.metricaNota}>Sin entregar o con entrega parcial.</p>
-                <ListaMonedas filas={pendientes?.porMoneda ?? []} etiqueta="Importe pendiente por moneda" />
-              </TarjetaMetrica>
+      {/* C */}
+      <AtencionHoy tarjetas={tarjetas} atencion={atencion.data} />
 
-              {verMantenimiento ? (
-                <TarjetaMetrica
-                  titulo="Órdenes de servicio abiertas"
-                  icono="wrench"
-                  valor={ordenes.data?.total ?? null}
-                  unidad={ordenes.data ? (ordenes.data.total === 1 ? 'orden' : 'órdenes') : undefined}
-                  cargando={ordenes.isPending}
-                  error={!!ordenes.error}
-                  onReintentar={() => void ordenes.refetch()}
-                  enlace={{ to: '/mantenimiento/ordenes?estado=open', label: 'Ver órdenes' }}
-                />
-              ) : null}
+      {/* D */}
+      <EvolucionComercial
+        actividad={actividad.data}
+        cargando={actividad.isPending}
+        error={!!actividad.error}
+        onReintentar={() => void actividad.refetch()}
+      />
 
-              {verEmails ? (
-                <TarjetaMetrica
-                  titulo="Emails pendientes"
-                  icono="mail"
-                  valor={bandeja.data?.total ?? null}
-                  unidad={bandeja.data ? (bandeja.data.total === 1 ? 'hilo' : 'hilos') : undefined}
-                  cargando={bandeja.isPending}
-                  error={!!bandeja.error}
-                  onReintentar={() => void bandeja.refetch()}
-                  enlace={{ to: '/emails?estado=pendiente', label: 'Ver bandeja' }}
-                >
-                  {bandeja.data && bandeja.data.totalSinLeer > 0 ? <p className={styles.metricaNota}>{contar(bandeja.data.totalSinLeer, { singular: 'sin leer', plural: 'sin leer' })}</p> : null}
-                </TarjetaMetrica>
-              ) : null}
-            </div>
-          </section>
-
-          <section className={styles.seccion} aria-labelledby={idActividad}>
-            <div className={styles.seccionCabecera}>
-              <h2 id={idActividad} className={styles.seccionTitulo}>
-                Emitido este mes
-              </h2>
-              <Link to="/informes" className={styles.enlaceSeccion}>
-                Ver informe completo
-              </Link>
-            </div>
-            {actividad.isPending ? (
-              <div className={styles.actividad}>
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className={styles.actividadTipo}>
-                    <Skeleton width="50%" />
-                    <Skeleton width="30%" height="1.5rem" />
-                  </div>
-                ))}
-              </div>
-            ) : actividad.error ? (
-              <ErrorState
-                compact
-                title={actividad.error instanceof ErrorInforme ? actividad.error.message : 'No se pudo leer la actividad del mes.'}
-                onRetry={actividad.error instanceof ErrorInforme && actividad.error.codigo !== 'desconocido' ? undefined : () => void actividad.refetch()}
-                retrying={actividad.isFetching}
-              />
-            ) : (
-              <ul className={styles.actividad}>
-                {(delMes ?? []).map((t) => (
-                  <li key={t.tipo} className={styles.actividadTipo}>
-                    <span className={styles.actividadNombre}>{ETIQUETA_TIPO[t.tipo].plural[0]!.toUpperCase() + ETIQUETA_TIPO[t.tipo].plural.slice(1)}</span>
-                    <span className={styles.actividadValor}>{contar(t.documentos, ETIQUETA_TIPO[t.tipo])}</span>
-                    <ListaMonedas filas={t.porMoneda} etiqueta={`Importe de ${ETIQUETA_TIPO[t.tipo].plural} por moneda`} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </>
-      )}
+      {/* E */}
+      <UltimosDocumentos
+        documentos={ultimos.documentos}
+        cargando={ultimos.cargando}
+        error={!!ultimos.error}
+        parcial={ultimos.parcial}
+        onReintentar={ultimos.reintentar}
+      />
     </>
   )
 }

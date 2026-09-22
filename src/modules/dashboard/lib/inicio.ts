@@ -1,6 +1,6 @@
 import type { IconName } from '@/components/icons/Icon'
 import { navegacionPara } from '@/layouts/navegacion'
-import { SIN_MONEDA, type ActividadComercial, type Moneda, type PipelineComercial, type TipoActividad } from '@/modules/informes/types'
+import { SIN_MONEDA, type Moneda, type PipelineComercial } from '@/modules/informes/types'
 
 /**
  * Reglas del Inicio (Fase 13 · E6). Todo es presentación de datos que ya
@@ -68,58 +68,6 @@ export interface ResumenMonedas {
 export function cotizacionesAbiertas(p: PipelineComercial): ResumenMonedas {
   const porMoneda = ordenar(p.abiertas.map((a) => ({ moneda: a.moneda, documentos: a.documentos, importe: a.importe })))
   return { documentos: porMoneda.reduce((s, m) => s + m.documentos, 0), porMoneda }
-}
-
-/** Pedidos pendientes de entrega (sin entrega + entrega parcial), por moneda. */
-export function pedidosPendientes(p: PipelineComercial): ResumenMonedas {
-  const porMoneda = ordenar(
-    p.pendientes.map((m) => ({
-      moneda: m.moneda,
-      documentos: m.sinEntrega.documentos + m.parcial.documentos,
-      importe: m.sinEntrega.importe + m.parcial.importe,
-    })),
-  ).filter((m) => m.documentos > 0)
-  return { documentos: porMoneda.reduce((s, m) => s + m.documentos, 0), porMoneda }
-}
-
-export interface ActividadTipo {
-  tipo: TipoActividad
-  documentos: number
-  porMoneda: ImporteMoneda[]
-}
-
-const ORDEN_TIPOS: readonly TipoActividad[] = ['cotizaciones', 'pedidos', 'entregas']
-
-/** Lo emitido en el mes en curso, por tipo y moneda (los ceros no se listan). */
-export function actividadDelMes(a: ActividadComercial): ActividadTipo[] {
-  return ORDEN_TIPOS.map((tipo) => {
-    const kpi = a.kpis.find((k) => k.tipo === tipo)
-    const porMoneda = ordenar(
-      (kpi?.monedas ?? []).filter((m) => m.actual.documentos > 0).map((m) => ({ moneda: m.moneda, documentos: m.actual.documentos, importe: m.actual.importe })),
-    )
-    return { tipo, documentos: kpi?.documentosActual ?? 0, porMoneda }
-  })
-}
-
-/**
- * Documentos del mes que REQUIEREN ATENCIÓN HOY, y cuántos de ellos no tienen
- * moneda.
- *
- * Fase 19 · E4: lo que cuenta el servidor ya no es `needs_review` —la foto de
- * la migración— sino la clasificación de `revision_de_documentos`. El nombre
- * del campo no cambió para no tocar el contrato del informe.
- */
-export function revisionDelMes(a: ActividadComercial): { enRevision: number; sinMoneda: number } {
-  return a.kpis.reduce(
-    (s, k) => ({ enRevision: s.enRevision + k.enRevisionActual, sinMoneda: s.sinMoneda + k.sinMonedaEnRevisionActual }),
-    { enRevision: 0, sinMoneda: 0 },
-  )
-}
-
-export const ETIQUETA_TIPO: Record<TipoActividad, { singular: string; plural: string }> = {
-  cotizaciones: { singular: 'cotización', plural: 'cotizaciones' },
-  pedidos: { singular: 'pedido', plural: 'pedidos' },
-  entregas: { singular: 'nota de entrega', plural: 'notas de entrega' },
 }
 
 /** Los tipos de documento que STEL numera, en castellano y en orden de uso. */

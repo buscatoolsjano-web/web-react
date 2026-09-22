@@ -3,9 +3,6 @@ import { Link } from 'react-router-dom'
 import { Icon, type IconName } from '@/components/icons/Icon'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { SIN_MONEDA } from '@/modules/informes/types'
-import { formatearImporte } from '@/modules/informes/lib/actividad'
-import type { ImporteMoneda } from '../lib/inicio'
 import styles from './Inicio.module.css'
 
 export interface TarjetaMetricaProps {
@@ -74,20 +71,3 @@ export function TarjetaMetrica({ titulo, icono, valor, unidad, cargando, error, 
   )
 }
 
-/**
- * Importes por moneda, una línea cada una. SIN MONEDA se muestra como tal y
- * al final: no se le asigna una, no se convierte y no hay total general.
- */
-export function ListaMonedas({ filas, etiqueta }: { filas: readonly ImporteMoneda[]; etiqueta: string }) {
-  if (filas.length === 0) return null
-  return (
-    <ul className={styles.monedas} aria-label={etiqueta}>
-      {filas.map((f) => (
-        <li key={f.moneda} className={f.moneda === SIN_MONEDA ? styles.monedaSin : styles.moneda}>
-          <span className={styles.monedaCodigo}>{f.moneda}</span>
-          <span className={styles.monedaImporte}>{formatearImporte(f.importe)}</span>
-        </li>
-      ))}
-    </ul>
-  )
-}

@@ -1,0 +1,185 @@
+/* El único gráfico del Dashboard (Fase 21 · E2): doce meses, una métrica y
+   una moneda. Ver `EvolucionComercial.tsx` para el porqué de cada regla. */
+
+.bloque {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: var(--space-4);
+  margin-bottom: var(--space-5);
+  min-width: 0;
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.grupo {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.chip,
+.chipActivo {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chipActivo {
+  background: var(--color-primary-soft);
+  border-color: var(--primary);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.chip:hover {
+  border-color: var(--text-muted);
+}
+
+.selector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.selectorLabel {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.select {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-xs);
+}
+
+/* La escala, dicha: un mes enorme achata a los otros once y eso no se puede
+   esconder normalizando en silencio. */
+.escala {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.grafico {
+  width: 100%;
+  height: 190px;
+  display: block;
+}
+
+.eje {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.zona {
+  fill: transparent;
+}
+
+.zona:hover {
+  fill: var(--surface-alt);
+}
+
+.barra {
+  fill: var(--text-muted);
+}
+
+/* El color se gasta una sola vez: el mes en curso. */
+.barraActual {
+  fill: var(--primary);
+}
+
+.mes {
+  fill: var(--text-muted);
+  font-size: 11px;
+}
+
+.verNumeros {
+  margin-top: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.verNumeros:hover {
+  text-decoration: underline;
+}
+
+.tabla {
+  width: 100%;
+  margin-top: var(--space-3);
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--space-1) var(--space-2);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.tabla td {
+  font-variant-numeric: tabular-nums;
+}
+
+.tabla thead th {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vacio {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+@media (max-width: 640px) {
+  .grafico {
+    height: 150px;
+  }
+
+  .cabecera {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

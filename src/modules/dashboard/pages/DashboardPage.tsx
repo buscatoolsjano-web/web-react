@@ -25,7 +25,7 @@ export function DashboardPage() {
 
   return (
     <div className={doc.listado}>
-      <PageHeader title="Inicio" subtitle={activa ? `${activa.companyName} · ${etiquetaRol(rol)}` : undefined} />
+      <PageHeader title="Dashboard" subtitle={activa ? `Resumen operativo y comercial de ${activa.companyName} · ${etiquetaRol(rol)}` : undefined} />
       {vista === 'operativa' ? <VistaOperativa /> : vista === 'ventas' ? <VistaVentas /> : null}
       <AccesosRapidos accesos={accesosPara(rol)} />
     </div>
