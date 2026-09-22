@@ -2,12 +2,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type * as ServiciosProductos from '../services/productos'
 import type { ProductoListado } from '../types'
 
 const estado = vi.hoisted(() => ({ movil: false }))
 vi.mock('@/hooks/useMediaQuery', () => ({
   useIsMobile: () => estado.movil,
   useMediaQuery: () => !estado.movil,
+}))
+
+vi.mock('@/features/empresa/useEmpresa', () => ({
+  useEmpresa: (): { activa: { companyId: string; esInterno: boolean } } => ({
+    activa: { companyId: 'empresa-1', esInterno: true },
+  }),
+}))
+
+// Fase 22 · Etapa B: la ficha dejó de ser sólo un cartel y busca similares.
+// Se mockea la búsqueda para que estos tests sigan siendo del LISTADO.
+vi.mock('../services/productos', async (real) => ({
+  ...(await real<typeof ServiciosProductos>()),
+  similaresDe: () => Promise.resolve([]),
 }))
 
 const { ListadoProductos } = await import('./ListadoProductos')
@@ -27,7 +42,7 @@ const producto = (p: Partial<ProductoListado> = {}): ProductoListado => ({
   esKit: false,
   necesitaRevision: false,
   marca: { id: 'm1', nombre: 'SPEEDRILL' },
-  categoria: { id: 'c1', nombre: 'Puntas y tubos' },
+  categoria: { id: 'c1', nombre: 'Puntas y tubos', slug: 'punta' },
   atributos: { encastre: '1/4 HEX', largo: '200', medida: '8' },
   precio: 83.37,
   stock: { real: 16, virtual: 16 },
@@ -44,6 +59,7 @@ const definiciones = [
 
 const montar = (props: Partial<Parameters<typeof ListadoProductos>[0]> = {}) =>
   render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
     <MemoryRouter>
       <ListadoProductos
         productos={[producto()]}
@@ -55,7 +71,8 @@ const montar = (props: Partial<Parameters<typeof ListadoProductos>[0]> = {}) =>
         definiciones={definiciones}
         {...props}
       />
-    </MemoryRouter>,
+    </MemoryRouter>
+    </QueryClientProvider>,
   )
 
 beforeEach(() => {
@@ -134,6 +151,57 @@ describe('La ficha al vuelo', () => {
     expect(pop).toHaveTextContent('16')
 
     fireEvent.mouseLeave(celda)
+    // Fase 22 · Etapa B: el cierre espera 180 ms. La ficha dejó de ser un
+    // cartel y tiene un comparador adentro; entre la miniatura y la ficha hay
+    // un hueco de 12 px, y cerrar al instante hacía imposible cruzarlo.
+    expect(screen.queryByRole('tooltip')).not.toBeNull()
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+    expect(screen.queryByRole('tooltip')).toBeNull()
+    vi.useRealTimers()
+  })
+
+  it('entrar en la ficha cancela el cierre: se puede llegar al comparador', () => {
+    vi.useFakeTimers()
+    montar({ onAbrirProducto: vi.fn() })
+    const celda = screen.getByText('SPEEDRILL').closest('tr')!.querySelector('td')!
+    fireEvent.mouseEnter(celda)
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    const pop = screen.getByRole('tooltip')
+
+    // El mouse sale de la miniatura y entra en la ficha, que es el recorrido
+    // normal para ir a tocar un similar.
+    fireEvent.mouseLeave(celda)
+    fireEvent.mouseEnter(pop)
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(screen.queryByRole('tooltip')).not.toBeNull()
+
+    // Y salir de la ficha sí la cierra.
+    fireEvent.mouseLeave(pop)
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+    expect(screen.queryByRole('tooltip')).toBeNull()
+    vi.useRealTimers()
+  })
+
+  it('Escape la cierra sin mover el mouse', () => {
+    vi.useFakeTimers()
+    montar({ onAbrirProducto: vi.fn() })
+    const celda = screen.getByText('SPEEDRILL').closest('tr')!.querySelector('td')!
+    fireEvent.mouseEnter(celda)
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(screen.queryByRole('tooltip')).not.toBeNull()
+    act(() => {
+      fireEvent.keyDown(window, { key: 'Escape' })
+    })
     expect(screen.queryByRole('tooltip')).toBeNull()
     vi.useRealTimers()
   })

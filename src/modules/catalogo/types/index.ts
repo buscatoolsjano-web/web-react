@@ -92,7 +92,7 @@ export interface ProductoListado {
   esKit: boolean
   necesitaRevision: boolean
   marca: MarcaResumen | null
-  categoria: { id: string; nombre: string } | null
+  categoria: { id: string; nombre: string; slug: string } | null
   atributos: Record<string, unknown>
   /** null = sin precio en la lista vigente. Se muestra "Consultar". */
   precio: number | null

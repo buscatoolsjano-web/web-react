@@ -6,6 +6,7 @@ import {
   obtenerProductoPorId,
   obtenerProductoPorSku,
   relacionadosDe,
+  similaresDe,
 } from '../services/productos'
 import { obtenerDisponibilidad } from '../services/disponibilidad'
 import { movimientosDeProducto } from '../services/movimientos'
@@ -180,5 +181,35 @@ export function useMovimientos(productId: string | null, habilitado: boolean, li
     queryFn: () => movimientosDeProducto(companyId!, productId!, limite),
     enabled: companyId !== null && productId !== null && habilitado,
     staleTime: 60_000,
+  })
+}
+
+/**
+ * Los similares de un producto (Fase 22 · Etapa B).
+ *
+ * `habilitado` lo decide quien llama, y es importante: el hover lo enciende
+ * **después** del retardo, no al entrar el mouse. Recorrer cincuenta filas a
+ * toda velocidad no dispara cincuenta búsquedas; dispara las de los productos
+ * en los que uno se detuvo de verdad.
+ *
+ * Una vez pedidos quedan en caché mientras dure la sesión de la pantalla: el
+ * mismo producto no se vuelve a buscar, ni en el hover ni al abrir el modal,
+ * porque la clave es la misma.
+ */
+export function useSimilares(
+  productId: string | null,
+  priceListId: string | null,
+  habilitado: boolean,
+  limite = 6,
+) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const esInterno = activa?.esInterno ?? false
+
+  return useQuery<ProductoListado[]>({
+    queryKey: ['catalogo', companyId, 'similares', productId, priceListId, esInterno, limite],
+    queryFn: () => similaresDe(companyId!, productId!, priceListId, esInterno, limite),
+    enabled: companyId !== null && productId !== null && habilitado,
+    staleTime: 10 * 60_000,
   })
 }

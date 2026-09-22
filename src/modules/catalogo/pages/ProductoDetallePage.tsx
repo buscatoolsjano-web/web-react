@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { DocSection, MetaList, Missing, type MetaItem } from '@/components/document/DocSection'
 import doc from '@/components/document/Document.module.css'
@@ -11,8 +11,9 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { DisponibilidadBadge, PrecioCelda, StockCelda } from '../components/Celdas'
 import { ListaAtributos } from '../components/ListaAtributos'
 import { ProductGallery } from '../components/ProductGallery'
+import { RelacionadosProducto } from '../components/RelacionadosProducto'
 import { useDefinicionesDeAtributos, useListasDePrecios } from '../hooks/useCatalogoFacetas'
-import { useDisponibilidad, useProducto } from '../hooks/useProductos'
+import { useDisponibilidad, useProducto, useSimilares } from '../hooks/useProductos'
 import { formatearCantidad } from '../lib/formato'
 import styles from './ProductoDetallePage.module.css'
 
@@ -27,6 +28,7 @@ import styles from './ProductoDetallePage.module.css'
  */
 export function ProductoDetallePage() {
   const { sku } = useParams<{ sku: string }>()
+  const navigate = useNavigate()
   const { activa } = useEmpresa()
 
   const companyId = activa?.companyId ?? null
@@ -36,6 +38,10 @@ export function ProductoDetallePage() {
   const { data: definiciones = [] } = useDefinicionesDeAtributos(companyId)
   const { data: producto, isPending, isFetching, error, refetch } = useProducto(sku, porDefecto?.id ?? null, !listasCargando)
   const { data: disponibilidad } = useDisponibilidad(producto ? [producto.id] : [])
+  // Fase 22 · Etapa B: en un teléfono no hay hover, y el tap desde el catálogo
+  // llega acá y no al modal. Sin esto, los similares serían una función que
+  // sólo existe con mouse.
+  const similares = useSimilares(producto?.id ?? null, porDefecto?.id ?? null, !!producto, 6)
 
   const volver = { to: '/catalogo', label: 'Catálogo' }
 
@@ -142,6 +148,15 @@ export function ProductoDetallePage() {
 
       <DocSection title="Características">
         <ListaAtributos atributos={producto.atributos} definiciones={definiciones} />
+      </DocSection>
+
+      <DocSection title="Productos similares">
+        <RelacionadosProducto
+          productos={similares.data ?? []}
+          cargando={similares.isPending}
+          moneda={porDefecto?.moneda ?? null}
+          onAbrir={(id) => void navigate(`/catalogo?producto=${id}`)}
+        />
       </DocSection>
 
       <DocSection title="Ficha">

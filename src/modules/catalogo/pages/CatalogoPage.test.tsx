@@ -46,7 +46,7 @@ const producto = (i: number): ProductoListado => ({
   esKit: i === 1,
   necesitaRevision: false,
   marca: { id: 'm', nombre: 'ZZ Torero' },
-  categoria: { id: 'c', nombre: 'ZZ Llaves' },
+  categoria: { id: 'c', nombre: 'ZZ Llaves', slug: 'otros' },
   atributos: {},
   precio: i === 2 ? null : 100,
   stock: null,

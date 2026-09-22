@@ -22,7 +22,7 @@ import type {
 const COLUMNAS_LISTADO = `
   id, sku, name, series, product_type, attributes, is_kit, needs_review,
   brands ( id, name, is_active ),
-  product_categories ( id, name ),
+  product_categories ( id, name, slug ),
   product_prices ( amount, price_list_id ),
   product_images ( source_url, thumb_url, kind, position, is_primary )
 ` as const
@@ -37,7 +37,7 @@ const COLUMNAS_DETALLE = `
   model_code, description, description_long, origin_country, ncm_code,
   weight_g, volume_cm3,
   brands ( id, name, is_active ),
-  product_categories ( id, name ),
+  product_categories ( id, name, slug ),
   product_prices ( amount, price_list_id ),
   product_images ( source_url, thumb_url, kind, position, is_primary )
 ` as const
@@ -58,7 +58,7 @@ interface FilaProducto {
   is_kit: boolean
   needs_review: boolean
   brands: { id: string; name: string; is_active?: boolean } | null
-  product_categories: { id: string; name: string } | null
+  product_categories: { id: string; name: string; slug: string } | null
   product_prices: { amount: number; price_list_id: string }[] | null
   product_images: FilaImagen[] | null
   stock_balances?: { on_hand: number; reserved: number }[] | null
@@ -151,7 +151,13 @@ function mapearListado(f: FilaProducto): ProductoListado {
     // pantalla lo aclara en vez de hacer como si nada.
     enCatalogo: f.brands ? f.brands.is_active !== false : true,
     categoria: f.product_categories
-      ? { id: f.product_categories.id, nombre: f.product_categories.name }
+      ? {
+          id: f.product_categories.id,
+          nombre: f.product_categories.name,
+          // El `slug` es lo estable: el nombre visible se puede editar, y el
+          // comparador decide por familia («punta», «balanceador»).
+          slug: f.product_categories.slug,
+        }
       : null,
     atributos: atributosDe(f.attributes),
     precio,
@@ -389,4 +395,57 @@ export async function obtenerProductoPorSku(
   if (!data) return null
 
   return mapearDetalle(data as unknown as FilaProductoDetalle)
+}
+
+/**
+ * Productos similares por familia técnica (Fase 22 · Etapa B).
+ *
+ * Reemplaza a `relacionadosDe` como fuente de «parecidos». La diferencia no es
+ * de implementación, es de resultado: aquélla exigía misma marca + misma serie
+ * + mismo tipo, así que nunca proponía la alternativa de OTRA marca —que es lo
+ * que uno busca cuando compara— y devolvía vacío para los 12.637 productos sin
+ * datos técnicos.
+ *
+ * El puntaje lo calcula `productos_similares` en la base, sobre todo el
+ * catálogo y no sobre la página que se está viendo. Acá sólo se hidratan las
+ * filas con las MISMAS columnas del listado, así el comparador tiene atributos,
+ * precio, stock e imagen sin inventar una segunda forma de leer un producto.
+ *
+ * Dos consultas por producto —el puntaje y las filas—, y las dos las cachea
+ * TanStack Query: recorrer el listado dos veces no vuelve a pedir nada.
+ */
+export async function similaresDe(
+  companyId: string,
+  productId: string,
+  priceListId: string | null,
+  esInterno: boolean,
+  limite = 6,
+): Promise<ProductoListado[]> {
+  const { data: puntajes, error: errorRpc } = await supabase.rpc('productos_similares', {
+    p_product_id: productId,
+    p_limite: limite,
+  })
+  if (errorRpc) throw new Error(`No se pudieron buscar similares: ${errorRpc.message}`)
+
+  const filas = puntajes ?? []
+  if (filas.length === 0) return []
+
+  let q = supabase
+    .from('products')
+    .select(esInterno ? COLUMNAS_LISTADO_INTERNO : COLUMNAS_LISTADO)
+    .eq('company_id', companyId)
+    .in('id', filas.map((f) => f.id))
+    .eq('product_images.is_primary', true)
+  if (priceListId) q = q.eq('product_prices.price_list_id', priceListId)
+
+  const { data, error } = await q
+  if (error) throw new Error(`No se pudieron leer los similares: ${error.message}`)
+
+  // `.in()` no conserva el orden, y acá el orden ES el resultado: lo calculó
+  // la base por cercanía técnica. Sin esto los similares salen alfabéticos.
+  const porId = new Map((data ?? []).map((f) => [(f as unknown as FilaProducto).id, f]))
+  return filas
+    .map((f) => porId.get(f.id))
+    .filter((f): f is NonNullable<typeof f> => f !== undefined)
+    .map((f) => mapearListado(f as unknown as FilaProducto))
 }

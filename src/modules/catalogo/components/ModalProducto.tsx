@@ -5,7 +5,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { LinkButton } from '@/components/ui/LinkButton'
 import { useModalAccesible } from '@/components/modals/useModalAccesible'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { useMovimientos, useProductoPorId, useRelacionados } from '../hooks/useProductos'
+import { useMovimientos, useProductoPorId, useSimilares } from '../hooks/useProductos'
 import { hojaDeCatalogo } from '../lib/hojaCatalogo'
 import { formatearPrecio } from '../lib/formato'
 import { HistorialStock } from './HistorialStock'
@@ -69,7 +69,10 @@ export function ModalProducto({
   const { activa } = useEmpresa()
   const esInterno = activa?.esInterno ?? false
   const { data, isPending, error } = useProductoPorId(productoId, priceListId, listaResuelta)
-  const relacionados = useRelacionados(data, priceListId)
+  // Fase 22 · Etapa B: la MISMA fuente que el hover del listado. Tener dos
+  // algoritmos era la forma segura de que el modal y la ficha dijeran cosas
+  // distintas del mismo par de productos.
+  const relacionados = useSimilares(productoId, priceListId, true, 8)
 
   /**
    * El historial se pide cuando se abre la sección, no cuando se abre el
@@ -283,7 +286,7 @@ function Contenido({
       {/* ── 5 · relacionados ────────────────────────────────────────────── */}
       <section className={styles.seccion} aria-labelledby="mp-relacionados">
         <h3 className={styles.tituloSeccion} id="mp-relacionados">
-          Productos relacionados
+          Productos similares
         </h3>
         <RelacionadosProducto
           productos={relacionados}

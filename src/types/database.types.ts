@@ -7405,6 +7405,10 @@ export type Database = {
         Args: { p_timeout?: unknown }
         Returns: Database["public"]["Tables"]["whatsapp_messages"]["Row"][]
       }
+      productos_similares: {
+        Args: { p_product_id: string; p_limite?: number }
+        Returns: { id: string; score: number }[]
+      }
     }
     Enums: {
       [_ in never]: never

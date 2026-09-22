@@ -43,7 +43,7 @@ const { usePrecargaStock } = await import('../hooks/useStock')
 
 const RESUMEN: ResumenStock = {
   mes: { desde: '2026-09-01', hasta: '2026-09-22' },
-  total: { con_stock: 0, en_cero: 0, stock_negativo: 0, disponible_negativo: 0, con_reservas: 0 },
+  total: { balances: 0, con_stock: 0, en_cero: 0, negativo: 0, disponible_negativo: 0, con_reservas: 0 },
   depositos: [],
   productos: { conBalance: 0, conMovimientos: 0, movidoHoyEnCero: 0 },
   ultimoMovimiento: { '0_30': 0, '31_90': 0, '91_180': 0, '181_365': 0, mas_365: 0 },

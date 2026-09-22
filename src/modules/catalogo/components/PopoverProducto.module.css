@@ -1,15 +1,23 @@
-/* La ficha al vuelo. Flota sobre todo y no recibe el mouse: si lo recibiera,
-   entrar en ella contaría como salir de la imagen y parpadearía. */
+/* La ficha al vuelo (Fase 22 · Etapa B).
+   Horizontal: la foto a la izquierda y la ficha a la derecha, como el catálogo
+   anterior. La versión vertical tapaba media pantalla para decir seis cosas.
+   A diferencia del legacy SÍ recibe el mouse, porque abajo hay un comparador
+   con el que se interactúa; el listado maneja el cierre con retardo para que
+   pasar de la miniatura a la ficha no cuente como salir. */
 
 .popover {
   position: fixed;
   z-index: var(--z-dropdown);
-  pointer-events: none;
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
+  /* Nunca más alto que la pantalla: con seis similares y siete columnas la
+     tabla crece, y una ficha de 900 px no se puede leer entera. */
+  max-height: calc(100dvh - var(--space-6));
+  display: flex;
+  flex-direction: column;
   animation: aparecer var(--duration-fast) var(--ease-standard);
 }
 
@@ -19,28 +27,47 @@
   }
 }
 
+.ficha {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+}
+
 .foto {
-  height: 150px;
+  flex: none;
+  /* Cuadrada y generosa: es el motivo por el que uno pasa el mouse. */
+  aspect-ratio: 1;
+  max-height: 300px;
   background: var(--surface-alt);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: var(--space-2);
 }
 
-.cuerpo {
-  padding: var(--space-2) var(--space-3) var(--space-3);
+/* La foto nunca se deforma: un balanceador estirado parece otro producto. */
+.foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.panel {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-3);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  overflow: hidden;
 }
 
 .sku {
-  /* Tabulares, no monoespaciada: el sistema no tiene una fuente mono como
-     token y el SKU lo que necesita es que los dígitos no bailen. */
   font-variant-numeric: tabular-nums;
-  font-size: var(--text-sm);
-  font-weight: 700;
+  font-size: var(--text-base);
+  font-weight: 800;
+  color: var(--primary-text);
 }
 
 .nombre {
@@ -53,45 +80,48 @@
   overflow: hidden;
 }
 
+/* Dos columnas, como el catálogo anterior: entran el doble de datos en el
+   mismo alto, y la ficha no empuja al comparador fuera de la pantalla. */
 .datos {
-  margin: var(--space-1) 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+  margin: var(--space-2) 0 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1) var(--space-3);
 }
 
-.fila {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-2);
+.dato {
+  min-width: 0;
   font-size: var(--text-xs);
+  display: flex;
+  gap: var(--space-1);
 }
 
-.fila dt {
+.dato dt {
   color: var(--text-muted);
   white-space: nowrap;
 }
 
-.fila dd {
+.dato dd {
   margin: 0;
   font-weight: 600;
-  text-align: right;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .comercial {
-  margin-top: var(--space-2);
+  margin-top: auto;
   padding-top: var(--space-2);
   border-top: 1px solid var(--border);
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
 
 .precio {
-  font-size: var(--text-base);
+  font-size: var(--text-lg);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -100,4 +130,135 @@
   font-size: var(--text-xs);
   color: var(--text-soft);
   font-variant-numeric: tabular-nums;
+}
+
+/* ── Comparador ─────────────────────────────────────────────────────────── */
+
+.comparador {
+  padding: var(--space-3);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tituloComparador {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.sinComparar {
+  margin: 0;
+  padding: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.scrollTabla {
+  overflow: auto;
+  /* Contiene su propio scroll: la tabla puede ser más ancha que la ficha sin
+     empujar la página, que es de dónde salía el scroll horizontal. */
+  min-height: 0;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabla th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+
+.tabla td {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.num {
+  text-align: right;
+}
+
+/* El producto que uno está mirando: se identifica, y no se compara contra sí
+   mismo. Pintarlo todo verde no diría nada y competiría con lo que importa. */
+.filaPrincipal {
+  background: var(--surface-alt);
+  font-weight: 700;
+}
+
+.etiquetaPrincipal {
+  display: block;
+  font-size: 0.7em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--primary-text);
+}
+
+.filaSimilar {
+  cursor: pointer;
+}
+
+.filaSimilar:hover,
+.filaSimilar:focus-visible {
+  background: var(--surface-alt);
+  outline: none;
+}
+
+.filaSimilar:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+/* Verde coincide, rojo difiere. Neutro cuando ALGUNO de los dos no tiene el
+   dato: no sabemos que difieren, sabemos que no sabemos. El color no va solo
+   —el valor se lee igual— así que quien no distingue rojo de verde no pierde
+   información, sólo el atajo visual. */
+.tabla td[data-veredicto='igual'] {
+  background: var(--success-light);
+  color: var(--success);
+}
+
+.tabla td[data-veredicto='distinto'] {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
+  font-weight: 700;
+}
+
+.tabla td[data-veredicto='sin-dato'] {
+  color: var(--text-muted);
+}
+
+.verMas {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--primary-text);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.verMas:hover {
+  color: var(--primary-hover);
 }

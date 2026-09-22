@@ -206,6 +206,7 @@ export function CatalogoPage() {
             onAbrirProducto={abrir}
             abierto={seleccionado}
             definiciones={definiciones}
+            priceListId={listaEfectiva?.id ?? null}
           />
           {total > 0 ? (
             <Pagination

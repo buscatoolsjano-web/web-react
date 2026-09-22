@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { Badge } from '@/components/ui/Badge'
@@ -26,6 +26,8 @@ export interface ListadoProductosProps {
   abierto?: string | null
   /** Para la ficha al vuelo: las etiquetas de los atributos. */
   definiciones?: readonly DefinicionAtributo[]
+  /** La lista de precios vigente, para que los similares traigan SU precio. */
+  priceListId?: string | null
 }
 
 /**
@@ -113,6 +115,7 @@ export function ListadoProductos({
   onAbrirProducto,
   abierto = null,
   definiciones = [],
+  priceListId = null,
 }: ListadoProductosProps) {
   const isMobile = useIsMobile()
   const navigate = useNavigate()
@@ -129,20 +132,56 @@ export function ListadoProductos({
   )
   const timer = useRef<number | null>(null)
 
-  const abrirPopover = (producto: ProductoListado, el: HTMLElement) => {
+  const cancelar = () => {
     if (timer.current !== null) window.clearTimeout(timer.current)
+    timer.current = null
+  }
+
+  const abrirPopover = (producto: ProductoListado, el: HTMLElement) => {
+    cancelar()
     const ancla = el.getBoundingClientRect()
     timer.current = window.setTimeout(() => setPopover({ producto, ancla }), 250)
   }
 
+  /**
+   * El cierre espera.
+   *
+   * Fase 22 · Etapa B: la ficha dejó de ser un cartel y pasó a tener un
+   * comparador adentro, así que hay que poder llegar con el mouse. Entre la
+   * miniatura y la ficha hay un hueco de 12 px, y cerrar al instante hacía
+   * imposible cruzarlo. Con el retardo, entrar en la ficha cancela el cierre.
+   */
   const cerrarPopover = () => {
-    if (timer.current !== null) window.clearTimeout(timer.current)
-    setPopover(null)
+    cancelar()
+    timer.current = window.setTimeout(() => setPopover(null), 180)
   }
 
-  // Si la lista cambia debajo del mouse —otra página, otro filtro— la ficha
-  // abierta ya no corresponde a nada.
-  useEffect(() => cerrarPopover, [])
+  const cerrarYa = useCallback(() => {
+    if (timer.current !== null) window.clearTimeout(timer.current)
+    timer.current = null
+    setPopover(null)
+  }, [])
+
+  /**
+   * Si la lista cambia debajo del mouse, la ficha abierta ya no corresponde a
+   * nada.
+   *
+   * El efecto de antes sólo limpiaba al desmontar, así que no hacía lo que su
+   * comentario decía: buscando otra cosa, la ficha del producto anterior se
+   * quedaba flotando sobre resultados con los que no tiene relación. Ahora
+   * depende de los productos, y cambiar de filtro o de página la cierra.
+   */
+  useEffect(() => cerrarYa, [cerrarYa, productos])
+
+  // Escape cierra sin tener que sacar el mouse de encima (B14).
+  useEffect(() => {
+    if (!popover) return
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') cerrarYa()
+    }
+    window.addEventListener('keydown', alTeclear)
+    return () => window.removeEventListener('keydown', alTeclear)
+  }, [popover, cerrarYa])
 
   if (cargando && productos.length === 0) {
     return (
@@ -288,6 +327,13 @@ export function ListadoProductos({
           moneda={moneda}
           esInterno={esInterno}
           definiciones={definiciones}
+          priceListId={priceListId}
+          onAbrirProducto={(id) => {
+            cerrarYa()
+            if (onAbrirProducto) onAbrirProducto(id)
+          }}
+          onEntrar={cancelar}
+          onSalir={cerrarPopover}
         />
       ) : null}
     </div>
