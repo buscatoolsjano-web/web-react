@@ -60,6 +60,56 @@
   text-align: right;
 }
 
+/* ── La acción del taller no se esconde detrás del scroll ──────────────
+   La tabla pide 1.220 px y la caja da 1.135 a 1440: sin esto, «Servicio»
+   —que es a lo que se entra en el taller— quedaba 83 px afuera y había que
+   correr la tabla para alcanzarlo. Se fija a la derecha y viaja con el
+   scroll interno, que sigue funcionando igual.
+
+   Cada estado de la fila necesita su fondo propio: una celda `sticky`
+   transparente deja ver el contenido pasando por debajo. */
+@media (min-width: 768px) {
+  .accion {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: var(--color-surface);
+  }
+
+  .fila:hover .accion {
+    background: var(--color-surface-alt);
+  }
+
+  .abierta .accion {
+    background: var(--color-primary-soft);
+  }
+
+  /* La cabecera y la fila de búsqueda llevan el fondo que ya tenían. */
+  thead .accion {
+    z-index: 3;
+    background: var(--color-surface-alt);
+  }
+
+  .filaBuscar .accion {
+    z-index: 3;
+    background: var(--surface);
+  }
+
+  /* La sombra aparece sólo cuando la columna está tapando algo: si la tabla
+     entra entera, o ya se scrolleó hasta el final, la columna está en su
+     lugar natural y una sombra ahí mentiría. El atributo lo pone el
+     componente mirando el scroll real. */
+  [data-fijada='true'] .accion::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 14px;
+    transform: translateX(-100%);
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, rgb(0 0 0 / 10%));
+  }
+}
+
 /* La celda del equipo: referencia arriba, etiqueta del taller abajo. */
 .colEquipo {
   min-width: 11rem;

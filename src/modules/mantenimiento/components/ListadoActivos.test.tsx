@@ -188,3 +188,46 @@ describe('En el taller (mobile)', () => {
     )
   })
 })
+
+describe('La acción «Servicio» no se esconde detrás del scroll', () => {
+  it('la celda del CTA lleva la clase de la columna fija', () => {
+    montar([activo()])
+    const fila = screen.getByText('ACT00339').closest('tr')!
+    const celda = fila.querySelector('td:last-child')!
+    expect(celda.className).toMatch(/accion/)
+    expect(within(celda as HTMLElement).getByRole('link', { name: 'Servicio' })).toBeInTheDocument()
+  })
+
+  it('la cabecera y la fila de búsqueda tienen su celda en la misma columna', () => {
+    montar([activo()], {
+      filtros: { ref: '', ident: '', serieTexto: '', clienteTexto: '' },
+      onFiltrar: vi.fn(),
+    })
+    const filas = screen.getByRole('table').querySelectorAll('thead tr')
+    for (const f of filas) {
+      expect(f.lastElementChild!.className).toMatch(/accion/)
+    }
+  })
+
+  it('la caja de la tabla se marca para la sombra sólo cuando desborda', () => {
+    // jsdom no hace layout: scrollWidth y clientWidth son 0, así que la tabla
+    // «entra» y la sombra no corresponde. Es el caso que NO debe encenderla.
+    const { container } = montar([activo()])
+    const caja = container.querySelector('[class*=contenedor]')!
+    expect(caja.getAttribute('data-fijada')).toBeNull()
+  })
+
+  it('un click en «Servicio» no abre la ficha rápida: el CTA es suyo', () => {
+    const abrir = vi.fn()
+    montar([activo()], { onAbrirFicha: abrir })
+    fireEvent.click(screen.getByRole('link', { name: 'Servicio' }))
+    expect(abrir).not.toHaveBeenCalled()
+  })
+
+  it('y un click en la fila sí la abre, como antes', () => {
+    const abrir = vi.fn()
+    montar([activo()], { onAbrirFicha: abrir })
+    fireEvent.click(screen.getByText('TORERO'))
+    expect(abrir).toHaveBeenCalledWith('a1')
+  })
+})

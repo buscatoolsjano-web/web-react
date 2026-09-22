@@ -1,3 +1,4 @@
+import { useCallback, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { LinkButton } from '@/components/ui/LinkButton'
 import { useIsMobile } from '@/hooks/useMediaQuery'
@@ -73,6 +74,60 @@ function filaClickeable(onAbrir: ((id: string) => void) | undefined, id: string)
 const ORDENES = { singular: 'orden', plural: 'órdenes' }
 
 /**
+ * ¿La columna fija está tapando algo?
+ *
+ * La sombra que indica que «Servicio» está pegado a la derecha sólo tiene
+ * sentido cuando hay algo debajo: si la tabla entra entera, o ya se scrolleó
+ * hasta el final, la columna está en su lugar natural y una sombra ahí
+ * mentiría. Eso no se puede saber en CSS, así que se mira el scroll real.
+ */
+function useColumnaFijada() {
+  const [tapando, setTapando] = useState(false)
+  const soltar = useRef<(() => void) | null>(null)
+
+  /**
+   * Es un ref de función y no un `useRef` con `useEffect` por un motivo
+   * concreto: mientras el listado carga, la tabla no existe —se dibuja un
+   * esqueleto— así que en el primer render el ref apunta a nada. Con un
+   * efecto de dependencias estables, ese efecto corría una vez, se encontraba
+   * un null y no volvía a correr nunca: la sombra no aparecía jamás.
+   */
+  const caja = useCallback((el: HTMLDivElement | null) => {
+    soltar.current?.()
+    soltar.current = null
+    if (!el) {
+      setTapando(false)
+      return
+    }
+
+    const medir = () => {
+      // El +1 evita que un píxel de redondeo encienda la sombra con la tabla
+      // entrando justa.
+      const puedeScrollear = el.scrollWidth > el.clientWidth + 1
+      const alFinal = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1
+      setTapando(puedeScrollear && !alFinal)
+    }
+
+    medir()
+    el.addEventListener('scroll', medir, { passive: true })
+    // Se observan la caja Y la tabla: la caja cambia de ancho al achicar la
+    // ventana o al abrir la ficha rápida, y la tabla cambia cuando llegan las
+    // filas —y ahí la caja no se mueve ni un píxel—.
+    const observador = new ResizeObserver(medir)
+    observador.observe(el)
+    const tablaDentro = el.firstElementChild
+    if (tablaDentro) observador.observe(tablaDentro)
+
+    soltar.current = () => {
+      el.removeEventListener('scroll', medir)
+      observador.disconnect()
+    }
+  }, [])
+
+  return { caja, tapando }
+}
+
+/**
  * El listado de equipos.
  *
  * El enlace va **por la referencia**, no por el serial: la identidad del
@@ -97,6 +152,8 @@ export function ListadoActivos({
   onFiltrar,
 }: ListadoActivosProps) {
   const isMobile = useIsMobile()
+  // Antes de cualquier salida temprana: los hooks no se saltean.
+  const { caja, tapando } = useColumnaFijada()
 
   if (cargando && filas.length === 0) {
     return (
@@ -153,7 +210,7 @@ export function ListadoActivos({
   }
 
   return (
-    <div className={tabla.contenedor}>
+    <div className={tabla.contenedor} ref={caja} data-fijada={tapando ? 'true' : undefined}>
       <table className={tabla.tabla}>
         <thead>
           <tr>
