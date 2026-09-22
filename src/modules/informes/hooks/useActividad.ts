@@ -1,9 +1,16 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { armarActividad } from '../lib/actividad'
 import { armarPipeline } from '../lib/pipeline'
 import { ErrorInforme, obtenerActividad, obtenerPipeline } from '../services/actividad'
 import { obtenerRanking } from '../services/rankings'
+import {
+  obtenerDocumentosInforme,
+  obtenerFacetasDocumentos,
+  type FacetaDocumentos,
+  type FiltrosDocumentosInforme,
+  type PaginaDocumentosInforme,
+} from '../services/documentos'
 import type { ActividadComercial, FilaRanking, ParametrosRanking, PipelineComercial } from '../types'
 
 export const clavesInformes = {
@@ -50,6 +57,40 @@ export function useRanking(mes: string | null, p: ParametrosRanking, limite: num
     queryKey: [...clavesInformes.ranking(companyId, mes, p), limite],
     queryFn: () => obtenerRanking(companyId!, mes, p, limite),
     enabled: companyId !== null && (p.medida === 'cantidad' || p.moneda !== null),
+    ...OPCIONES,
+  })
+}
+
+/**
+ * Los documentos que forman un KPI, o la sección DOCUMENTOS (Fase 21 · E3).
+ *
+ * El mismo hook para las dos cosas porque es la misma pregunta con distintos
+ * filtros: «qué documentos hay en este universo». Separarlos era la forma de
+ * que la sección y el drill-down empezaran a contar distinto.
+ */
+export function useDocumentosInforme(
+  f: FiltrosDocumentosInforme | null,
+  pagina: number,
+  porPagina = 50,
+  habilitado = true,
+) {
+  const companyId = useEmpresa().activa?.companyId ?? null
+  return useQuery<PaginaDocumentosInforme>({
+    queryKey: ['informes', companyId, 'documentos', f, pagina, porPagina],
+    queryFn: () => obtenerDocumentosInforme(companyId!, f!, porPagina, (pagina - 1) * porPagina),
+    enabled: companyId !== null && f !== null && habilitado,
+    placeholderData: keepPreviousData,
+    ...OPCIONES,
+  })
+}
+
+/** Los valores que EXISTEN para filtrar, no una lista escrita a mano. */
+export function useFacetasDocumentos(desde: string | null, hasta: string | null, tipo: string | null, moneda: string | null) {
+  const companyId = useEmpresa().activa?.companyId ?? null
+  return useQuery<FacetaDocumentos[]>({
+    queryKey: ['informes', companyId, 'facetas-documentos', desde, hasta, tipo, moneda],
+    queryFn: () => obtenerFacetasDocumentos(companyId!, desde!, hasta!, tipo, moneda),
+    enabled: companyId !== null && desde !== null && hasta !== null,
     ...OPCIONES,
   })
 }

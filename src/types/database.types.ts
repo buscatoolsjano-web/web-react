@@ -7405,6 +7405,25 @@ export type Database = {
         Args: { p_timeout?: unknown }
         Returns: Database["public"]["Tables"]["whatsapp_messages"]["Row"][]
       }
+      informe_documentos: {
+        Args: {
+          p_company: string; p_desde: string; p_hasta: string
+          p_tipo?: string | null; p_moneda?: string | null; p_estado?: string | null
+          p_serie?: string | null; p_origen?: string | null; p_cliente?: string | null
+          p_limite?: number; p_offset?: number
+        }
+        Returns: {
+          tipo: string; id: string; numero: string; fecha: string
+          cliente_id: string | null; cliente: string | null
+          estado: string; serie: string | null; origen: string | null
+          moneda: string; importe: number; en_revision: boolean
+          total_filas: number; total_importe: number
+        }[]
+      }
+      informe_documentos_facetas: {
+        Args: { p_company: string; p_desde: string; p_hasta: string; p_tipo?: string | null; p_moneda?: string | null }
+        Returns: { dimension: string; valor: string; documentos: number }[]
+      }
       productos_similares: {
         Args: { p_product_id: string; p_limite?: number }
         Returns: { id: string; score: number }[]

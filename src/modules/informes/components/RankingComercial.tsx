@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useId, useState } from 'react'
+import { useId } from 'react'
 import { Link } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { ErrorState } from '@/components/feedback/ErrorState'
@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/Button'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { Icon } from '@/components/icons/Icon'
 import { useRanking } from '../hooks/useActividad'
-import { FichaDesdeInforme } from './FichaDesdeInforme'
 import { clickDeFicha, type FichaAbierta } from '../lib/ficha'
 import { formatearImporte } from '../lib/actividad'
 import { descargarCsv, rankingACsv } from '../lib/csv'
@@ -42,6 +41,14 @@ interface Props {
    */
   elegidos: ParametrosRanking
   onCambiar: (cambios: Partial<ParametrosRanking>) => void
+  /**
+   * Abrir la ficha de un cliente o un producto.
+   *
+   * Fase 21 · E3: la ficha abierta pasó a vivir en la URL, así que ya no es
+   * estado de este componente. Cambiar de moneda con la ficha abierta ya no
+   * la cierra, y el link comparte las dos cosas.
+   */
+  onAbrirFicha: (tipo: 'cliente' | 'producto', id: string) => void
 }
 
 
@@ -53,7 +60,7 @@ const cantidad = (n: number | null) =>
  * nunca sumando monedas) o cantidad física (productos, sin moneda). Todo
  * ordenado y cortado por el servidor; el CSV baja el ranking completo.
  */
-export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, etiquetaDoceMeses, elegidos, onCambiar }: Props) {
+export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, etiquetaDoceMeses, elegidos, onCambiar, onAbrirFicha }: Props) {
   const idTitulo = useId()
   const companyId = useEmpresa().activa?.companyId ?? null
   const monedas = monedasDisponibles(actividad, elegidos.fuente, elegidos.periodo)
@@ -71,10 +78,6 @@ export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, eti
     mutationFn: () => exportarRanking(companyId!, mes, p),
     onSuccess: (todas) => descargarCsv(archivoRanking(p, mesEfectivo), rankingACsv(p, todas)),
   })
-
-  // Qué ficha está abierta encima del informe. No va a la URL: el informe
-  // sí, la ficha es de ida y vuelta.
-  const [ficha, setFicha] = useState<FichaAbierta | null>(null)
 
   const cambiar = onCambiar
 
@@ -179,7 +182,7 @@ export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, eti
               </thead>
               <tbody>
                 {filas.map((f) => (
-                  <FilaDeRanking key={f.clave} f={f} p={p} documentos={fuente.documentos} onAbrirFicha={setFicha} />
+                  <FilaDeRanking key={f.clave} f={f} p={p} documentos={fuente.documentos} onAbrirFicha={(x) => onAbrirFicha(x.tipo, x.id)} />
                 ))}
               </tbody>
             </table>
@@ -204,7 +207,6 @@ export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, eti
           ) : null}
         </div>
       </div>
-      <FichaDesdeInforme ficha={ficha} onCerrar={() => setFicha(null)} />
     </section>
   )
 }

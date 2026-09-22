@@ -13,6 +13,14 @@ import { Icon } from '@/components/icons/Icon'
 import { ID_PESTANAS_INFORMES, NavegacionInformes } from '../components/NavegacionInformes'
 import { SelectorMes } from '../components/SelectorMes'
 import { useMesInformes } from '../hooks/useMesInformes'
+import { ResumenComercial } from '../components/ResumenComercial'
+import { SeccionDocumentos } from '../components/SeccionDocumentos'
+import { SelectorMoneda } from '../components/SelectorMoneda'
+import { TablaDocumentos } from '../components/TablaDocumentos'
+import { FichaDesdeInforme } from '../components/FichaDesdeInforme'
+import { useDocumentosInforme } from '../hooks/useActividad'
+import { useFiltrosInformes } from '../hooks/useFiltrosInformes'
+import type { FiltrosInformes } from '../lib/filtrosInformes'
 import { leerVista } from '../lib/vista'
 import { StockVista } from '../components/StockVista'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
@@ -73,6 +81,22 @@ function VistasInformes() {
   )
 }
 
+/**
+ * La métrica de la pantalla y la fuente del ranking son la MISMA cosa con dos
+ * nombres: el ranking nació antes y usa «entregado/pedido/cotizado». Se
+ * traducen acá, una vez, en vez de dejar que convivan dos vocabularios.
+ */
+const FUENTE_DE: Record<TipoActividad, ParametrosRanking['fuente']> = {
+  cotizaciones: 'cotizado',
+  pedidos: 'pedido',
+  entregas: 'entregado',
+}
+const METRICA_DE: Record<ParametrosRanking['fuente'], TipoActividad> = {
+  cotizado: 'cotizaciones',
+  pedido: 'pedidos',
+  entregado: 'entregas',
+}
+
 const RUTA_LISTADO: Record<TipoActividad, string> = {
   entregas: '/ventas/entregas',
   pedidos: '/ventas/pedidos',
@@ -80,13 +104,43 @@ const RUTA_LISTADO: Record<TipoActividad, string> = {
 }
 
 function ActividadComercialVista() {
-  const { mes, tope } = useMesInformes()
+  const { tope } = useMesInformes()
+  // Fase 21 · E3: el informe entero vive en la URL. El ranking también, así
+  // que un link comparte exactamente la pantalla que uno estaba mirando.
+  const { filtros, overlay, cambiar, abrir, cerrar } = useFiltrosInformes()
+  const mes = filtros.mes
   const actividad = useActividad(mes)
   const pipeline = usePipeline(mes)
   const queryClient = useQueryClient()
-  const [ranking, setRanking] = useState<ParametrosRanking>(RANKING_INICIAL)
-  const cambiarRanking = (c: Partial<ParametrosRanking>) => setRanking((prev) => ({ ...prev, ...c }))
+  const ranking: ParametrosRanking = {
+    ...RANKING_INICIAL,
+    dimension: filtros.dimension,
+    medida: filtros.medida,
+    periodo: filtros.periodo,
+    fuente: FUENTE_DE[filtros.metrica],
+    moneda: filtros.moneda,
+  }
+  const cambiarRanking = (c: Partial<ParametrosRanking>) =>
+    cambiar({
+      ...(c.dimension !== undefined && { dimension: c.dimension }),
+      ...(c.medida !== undefined && { medida: c.medida }),
+      ...(c.periodo !== undefined && { periodo: c.periodo }),
+      ...(c.moneda !== undefined && { moneda: c.moneda }),
+      ...(c.fuente !== undefined && { metrica: METRICA_DE[c.fuente] }),
+    })
   const actualizando = useIsFetching({ queryKey: ['informes'] }) > 0
+
+  /*
+   * Qué monedas TIENEN documentos en este período, sacadas de los datos.
+   * Y cuál se está mirando: la de la URL si sigue existiendo, o la primera.
+   * Elegir una moneda que este mes no tuvo operaciones deja la pantalla vacía
+   * sin decir por qué.
+   */
+  const monedasDelPeriodo = actividad.data
+    ? [...new Set(actividad.data.kpis.flatMap((k) => k.monedas.map((m) => m.moneda)))].sort()
+    : []
+  const monedaEfectiva =
+    filtros.moneda && monedasDelPeriodo.includes(filtros.moneda) ? filtros.moneda : (monedasDelPeriodo[0] ?? null)
 
   return (
     <div className={styles.vista}>
@@ -101,6 +155,7 @@ function ActividadComercialVista() {
           ) : null}
         </div>
         <div className={styles.accionesEncabezado}>
+          <SelectorMoneda monedas={monedasDelPeriodo} valor={monedaEfectiva} onCambiar={(m) => cambiar({ moneda: m })} />
           <SelectorMes />
           <Button
             variant="ghost"
@@ -146,8 +201,27 @@ function ActividadComercialVista() {
           retrying={actividad.isFetching}
         />
       ) : (
-        <Contenido datos={actividad.data} pipeline={pipeline} mes={mes} mesEfectivo={mes ?? tope} ranking={ranking} onCambiarRanking={cambiarRanking} />
+        <Contenido
+          datos={actividad.data}
+          pipeline={pipeline}
+          mes={mes}
+          mesEfectivo={mes ?? tope}
+          ranking={ranking}
+          onCambiarRanking={cambiarRanking}
+          filtros={filtros}
+          moneda={monedaEfectiva}
+          onCambiar={cambiar}
+          onAbrirFicha={abrir}
+        />
       )}
+
+      {/* La ficha abierta vive en la URL, así que se monta acá y no dentro de
+          una sección: se llega a ella desde el ranking, desde el drill-down o
+          desde un link pegado en un chat, y cerrarla no toca los filtros. */}
+      <FichaDesdeInforme
+        ficha={overlay ? { tipo: overlay.tipo, id: overlay.id } : null}
+        onCerrar={cerrar}
+      />
     </div>
   )
 }
@@ -159,12 +233,38 @@ interface ContenidoProps {
   mesEfectivo: string
   ranking: ParametrosRanking
   onCambiarRanking: (c: Partial<ParametrosRanking>) => void
+  filtros: FiltrosInformes
+  moneda: string | null
+  onCambiar: (c: Partial<FiltrosInformes>) => void
+  onAbrirFicha: (tipo: 'cliente' | 'producto', id: string) => void
 }
 
-function Contenido({ datos, pipeline, mes, mesEfectivo, ranking, onCambiarRanking }: ContenidoProps) {
+function Contenido({
+  datos,
+  pipeline,
+  mes,
+  mesEfectivo,
+  ranking,
+  onCambiarRanking,
+  filtros,
+  moneda,
+  onCambiar,
+  onAbrirFicha,
+}: ContenidoProps) {
   const etiquetaActual = etiquetaTramo(datos.actual)
   const etiquetaAnterior = etiquetaTramo(datos.anterior)
   const enRevision = datos.kpis.filter((k) => k.enRevisionActual > 0)
+  // Qué KPI tiene abierto su drill-down. No va a la URL: es de ida y vuelta,
+  // como la ficha, y ensuciarla no aporta nada a compartir el informe.
+  const [drilldown, setDrilldown] = useState<TipoActividad | null>(null)
+  const kpiAbierto = drilldown ? datos.kpis.find((k) => k.tipo === drilldown) : undefined
+  const cifraAbierta = kpiAbierto && moneda ? kpiAbierto.monedas.find((m) => m.moneda === moneda) : undefined
+  const docsDrill = useDocumentosInforme(
+    drilldown && moneda ? { desde: datos.actual.desde, hasta: datos.actual.hasta, tipo: drilldown, moneda } : null,
+    1,
+    50,
+    drilldown !== null,
+  )
 
   return (
     <>
@@ -185,11 +285,46 @@ function Contenido({ datos, pipeline, mes, mesEfectivo, ranking, onCambiarRankin
         </Alert>
       ) : null}
 
-      <div className={styles.tarjetas}>
-        {datos.kpis.map((k) => (
-          <TarjetaActividad key={k.tipo} kpi={k} etiquetaActual={etiquetaActual} etiquetaAnterior={etiquetaAnterior} />
-        ))}
-      </div>
+      <ResumenComercial
+        datos={datos}
+        moneda={moneda}
+        etiquetaActual={etiquetaActual}
+        etiquetaAnterior={etiquetaAnterior}
+        metrica={filtros.metrica}
+        onMetrica={(t) => onCambiar({ metrica: t, estado: null, serie: null })}
+        onDrilldown={(t) => setDrilldown((prev) => (prev === t ? null : t))}
+        abierto={drilldown}
+      />
+
+      {/* El drill-down: los documentos EXACTOS que suman el indicador que se
+          acaba de tocar. El pie de la tabla compara la suma contra el KPI. */}
+      {drilldown && cifraAbierta ? (
+        <section className={styles.bloque} aria-label={`Documentos que suman ${etiquetaActual}`}>
+          <div className={styles.tarjeta}>
+            <TablaDocumentos
+              datos={docsDrill.data}
+              cargando={docsDrill.isPending}
+              pagina={1}
+              porPagina={50}
+              onPagina={() => {}}
+              kpiImporte={cifraAbierta.actual.importe}
+              moneda={moneda}
+              vacio="Sin documentos."
+            />
+          </div>
+        </section>
+      ) : null}
+
+      {/* Las tarjetas por moneda siguen: son el detalle de las monedas que NO
+          están seleccionadas, y sacarlas escondería que existen. */}
+      <details className={styles.reglas}>
+        <summary>Ver todas las monedas</summary>
+        <div className={styles.tarjetas}>
+          {datos.kpis.map((k) => (
+            <TarjetaActividad key={k.tipo} kpi={k} etiquetaActual={etiquetaActual} etiquetaAnterior={etiquetaAnterior} />
+          ))}
+        </div>
+      </details>
 
       <SerieMensual series={datos.series} />
 
@@ -216,6 +351,17 @@ function Contenido({ datos, pipeline, mes, mesEfectivo, ranking, onCambiarRankin
         onCambiar={onCambiarRanking}
         etiquetaMes={etiquetaActual}
         etiquetaDoceMeses={`12 meses (${etiquetaDoceMeses({ desde: datos.series[0]?.meses[0]?.mes ?? datos.actual.desde, hasta: datos.actual.hasta, parcial: datos.actual.parcial })})`}
+        onAbrirFicha={onAbrirFicha}
+      />
+
+      {/* El universo completo, documento por documento. Misma fuente que los
+          indicadores de arriba: lo que se ve acá es lo que ellos suman. */}
+      <SeccionDocumentos
+        filtros={{ ...filtros, moneda }}
+        onCambiar={onCambiar}
+        desde={datos.actual.desde}
+        hasta={datos.actual.hasta}
+        etiquetaPeriodo={etiquetaActual}
       />
     </>
   )

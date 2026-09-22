@@ -1,0 +1,33 @@
+-- Fase 21 · E3 — Una sola definición de qué documento forma cada KPI.
+--
+-- Aplicado en prod como `fase21_e3_documentos_comerciales`,
+-- `fase21_e3_actividad_desde_documentos_comerciales`,
+-- `fase21_e3_informe_documentos` y
+-- `fase21_e3_documentos_comerciales_control_de_rol` (2026-09-22).
+--
+-- El problema: el KPI decía «Cotizado USD 90.518,55» y no había forma de ver
+-- QUÉ documentos lo suman. Cualquier lista escrita aparte iba a divergir en el
+-- primer borrador que alguien cargara — es exactamente lo que ya había pasado
+-- con las cotizaciones abiertas (154 contra 143).
+--
+-- Ahora `documentos_comerciales` es la única definición, y las tres funciones
+-- de arriba la consumen:
+--
+--   informe_actividad_comercial  → agrega (el KPI)
+--   informe_documentos           → lista   (el drill-down y la sección)
+--   informe_documentos_facetas   → los valores que EXISTEN para filtrar
+--
+-- Verificado antes de aplicar: la salida de `informe_actividad_comercial` es
+-- idéntica fila por fila a la de la versión anterior en cinco períodos
+-- distintos. Y después: 18 comparaciones KPI contra suma del drill-down en
+-- tres meses × tres métricas × dos monedas, 0 discrepancias.
+--
+-- Las cuatro son `security invoker` y exigen rol admin o employee. Ninguna es
+-- ejecutable por `anon`. El control de rol en `documentos_comerciales` es
+-- defensa en profundidad: la RLS alcanza, pero no se podía DEMOSTRAR con los
+-- datos que hay —la única empresa donde el usuario no es admin no tiene un
+-- solo documento, así que un «0 filas» ahí prueba que está vacía, no que está
+-- aislada—.
+--
+-- El texto completo de cada función está en las migraciones aplicadas; este
+-- archivo documenta el porqué y el orden.
