@@ -12,6 +12,7 @@ import { HistorialStock } from './HistorialStock'
 import { HojaCatalogo } from './HojaCatalogo'
 import { ImagenProducto } from './ImagenProducto'
 import { ListaAtributos } from './ListaAtributos'
+import { ComparadorProductos } from './ComparadorProductos'
 import { RelacionadosProducto } from './RelacionadosProducto'
 import { EsqueletoProducto } from './EsqueletoProducto'
 import type {
@@ -138,7 +139,8 @@ export function ModalProducto({
               moneda={moneda}
               esInterno={esInterno}
               definiciones={definiciones}
-              relacionados={relacionados.data ?? []}
+              relacionados={relacionados.data?.productos ?? []}
+              fuentes={relacionados.data?.fuentes}
               cargandoRelacionados={relacionados.isPending}
               movimientos={movimientos.data}
               cargandoMovimientos={movimientos.isFetching}
@@ -159,6 +161,8 @@ interface ContenidoProps {
   esInterno: boolean
   definiciones: readonly DefinicionAtributo[]
   relacionados: ProductoListado[]
+  /** De dónde salió cada relacionado: curado del legacy o calculado. */
+  fuentes: ReadonlyMap<string, 'legacy' | 'calculated'> | undefined
   cargandoRelacionados: boolean
   movimientos: { movimientos: MovimientoDeStock[]; total: number } | undefined
   cargandoMovimientos: boolean
@@ -173,6 +177,7 @@ function Contenido({
   esInterno,
   definiciones,
   relacionados,
+  fuentes,
   cargandoRelacionados,
   movimientos,
   cargandoMovimientos,
@@ -288,6 +293,21 @@ function Contenido({
         <h3 className={styles.tituloSeccion} id="mp-relacionados">
           Productos similares
         </h3>
+        {/* El MISMO comparador que el hover, en variante completa: acá hay
+            espacio para más columnas y para la miniatura de cada uno. Un
+            solo componente, así el modal y la ficha no pueden decir cosas
+            distintas del mismo par de productos. */}
+        {relacionados.length > 0 ? (
+          <ComparadorProductos
+            principal={producto}
+            similares={relacionados}
+            fuentes={fuentes}
+            familia={producto.categoria?.slug ?? null}
+            moneda={moneda}
+            onAbrirProducto={onAbrirOtro}
+            variante="completa"
+          />
+        ) : null}
         <RelacionadosProducto
           productos={relacionados}
           cargando={cargandoRelacionados}

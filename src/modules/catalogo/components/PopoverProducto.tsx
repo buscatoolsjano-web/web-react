@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { formatearPrecio, presentarAtributos, valorConUnidad } from '../lib/formato'
 import { columnasDe } from '../lib/familias'
-import { filaComparada, textoDe } from '../lib/similitud'
+import { textoDe } from '../lib/similitud'
+import { ComparadorProductos } from './ComparadorProductos'
 import { useSimilares } from '../hooks/useProductos'
 import { ImagenProducto } from './ImagenProducto'
 import type { DefinicionAtributo, ProductoListado } from '../types'
@@ -62,7 +63,8 @@ export function PopoverProducto({
   const familia = producto.categoria?.slug ?? null
   const columnas = columnasDe(familia)
   const similares = useSimilares(producto.id, priceListId, columnas.length > 0, 8)
-  const lista = similares.data ?? []
+  const lista = similares.data?.productos ?? []
+  const fuentes = similares.data?.fuentes
   const mostrados = verTodos ? lista : lista.slice(0, VISIBLES)
 
   // Se mide en `useLayoutEffect` para que el primer pintado ya esté ubicado:
@@ -148,6 +150,7 @@ export function PopoverProducto({
       <Comparador
         principal={producto}
         similares={mostrados}
+        fuentes={fuentes}
         familia={familia}
         cargando={similares.isPending && columnas.length > 0}
         comparable={columnas.length > 0}
@@ -174,6 +177,7 @@ function Dato({ etiqueta, valor }: { etiqueta: string; valor: string | null | un
 interface ComparadorProps {
   principal: ProductoListado
   similares: ProductoListado[]
+  fuentes: ReadonlyMap<string, 'legacy' | 'calculated'> | undefined
   familia: string | null
   cargando: boolean
   comparable: boolean
@@ -195,6 +199,7 @@ interface ComparadorProps {
 function Comparador({
   principal,
   similares,
+  fuentes,
   familia,
   cargando,
   comparable,
@@ -204,8 +209,6 @@ function Comparador({
   moneda,
   onAbrirProducto,
 }: ComparadorProps) {
-  const columnas = columnasDe(familia)
-
   if (!comparable) {
     return (
       <p className={styles.sinComparar}>
@@ -218,55 +221,20 @@ function Comparador({
     return <p className={styles.sinComparar}>No se encontraron productos similares.</p>
   }
 
-  const filas = [
-    { producto: principal, esPrincipal: true },
-    ...similares.map((p) => ({ producto: p, esPrincipal: false })),
-  ]
-
   return (
     <div className={styles.comparador}>
       <h3 className={styles.tituloComparador}>Productos similares</h3>
-      <div className={styles.scrollTabla}>
-        <table className={styles.tabla}>
-          <thead>
-            <tr>
-              {columnas.map((c) => (
-                <th key={c.clave} scope="col">
-                  {c.etiqueta}
-                </th>
-              ))}
-              <th scope="col" className={styles.num}>
-                Precio
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filas.map(({ producto: p, esPrincipal }) => (
-              <tr
-                key={p.id}
-                className={esPrincipal ? styles.filaPrincipal : styles.filaSimilar}
-                onClick={esPrincipal ? undefined : () => onAbrirProducto(p.id)}
-                tabIndex={esPrincipal ? undefined : 0}
-                onKeyDown={(e) => {
-                  if (esPrincipal || (e.key !== 'Enter' && e.key !== ' ')) return
-                  e.preventDefault()
-                  onAbrirProducto(p.id)
-                }}
-              >
-                {filaComparada(principal, p, familia, esPrincipal).map((celda, i) => (
-                  <td key={celda.clave} data-veredicto={esPrincipal ? undefined : celda.veredicto}>
-                    {i === 0 && esPrincipal ? (
-                      <span className={styles.etiquetaPrincipal}>Estás viendo</span>
-                    ) : null}
-                    {celda.texto}
-                  </td>
-                ))}
-                <td className={styles.num}>{formatearPrecio(p.precio, moneda)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ComparadorProductos
+        principal={principal}
+        similares={similares}
+        fuentes={fuentes}
+        familia={familia}
+        moneda={moneda}
+        onAbrirProducto={onAbrirProducto}
+        variante="compacta"
+      />
+      {/* Más de los que entran en el hover: se ven completos en el modal, que
+          tiene espacio. Meter cinco columnas acá lo volvería una pantalla. */}
       {!verTodos && total > similares.length ? (
         <button type="button" className={styles.verMas} onClick={onVerTodos}>
           Ver los {total} similares

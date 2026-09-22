@@ -152,7 +152,7 @@ export function ProductoDetallePage() {
 
       <DocSection title="Productos similares">
         <RelacionadosProducto
-          productos={similares.data ?? []}
+          productos={similares.data?.productos ?? []}
           cargando={similares.isPending}
           moneda={porDefecto?.moneda ?? null}
           onAbrir={(id) => void navigate(`/catalogo?producto=${id}`)}

@@ -7,6 +7,7 @@ import {
   obtenerProductoPorSku,
   relacionadosDe,
   similaresDe,
+  type SimilaresDeProducto,
 } from '../services/productos'
 import { obtenerDisponibilidad } from '../services/disponibilidad'
 import { movimientosDeProducto } from '../services/movimientos'
@@ -206,7 +207,7 @@ export function useSimilares(
   const companyId = activa?.companyId ?? null
   const esInterno = activa?.esInterno ?? false
 
-  return useQuery<ProductoListado[]>({
+  return useQuery<SimilaresDeProducto>({
     queryKey: ['catalogo', companyId, 'similares', productId, priceListId, esInterno, limite],
     queryFn: () => similaresDe(companyId!, productId!, priceListId, esInterno, limite),
     enabled: companyId !== null && productId !== null && habilitado,

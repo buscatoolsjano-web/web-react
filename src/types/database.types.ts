@@ -7426,7 +7426,7 @@ export type Database = {
       }
       productos_similares: {
         Args: { p_product_id: string; p_limite?: number }
-        Returns: { id: string; score: number }[]
+        Returns: { id: string; score: number; fuente: string; motivo: string | null }[]
       }
     }
     Enums: {

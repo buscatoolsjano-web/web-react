@@ -420,7 +420,7 @@ export async function similaresDe(
   priceListId: string | null,
   esInterno: boolean,
   limite = 6,
-): Promise<ProductoListado[]> {
+): Promise<SimilaresDeProducto> {
   const { data: puntajes, error: errorRpc } = await supabase.rpc('productos_similares', {
     p_product_id: productId,
     p_limite: limite,
@@ -428,7 +428,7 @@ export async function similaresDe(
   if (errorRpc) throw new Error(`No se pudieron buscar similares: ${errorRpc.message}`)
 
   const filas = puntajes ?? []
-  if (filas.length === 0) return []
+  if (filas.length === 0) return { productos: [], fuentes: new Map() }
 
   let q = supabase
     .from('products')
@@ -444,8 +444,26 @@ export async function similaresDe(
   // `.in()` no conserva el orden, y acá el orden ES el resultado: lo calculó
   // la base por cercanía técnica. Sin esto los similares salen alfabéticos.
   const porId = new Map((data ?? []).map((f) => [(f as unknown as FilaProducto).id, f]))
-  return filas
-    .map((f) => porId.get(f.id))
-    .filter((f): f is NonNullable<typeof f> => f !== undefined)
-    .map((f) => mapearListado(f as unknown as FilaProducto))
+  return {
+    productos: filas
+      .map((f) => porId.get(f.id))
+      .filter((f): f is NonNullable<typeof f> => f !== undefined)
+      .map((f) => mapearListado(f as unknown as FilaProducto)),
+    // De dónde salió cada uno. La pantalla lo necesita para decir «equivalente»
+    // sin pedir nada más, y viene en la MISMA consulta que el puntaje.
+    fuentes: new Map(filas.map((f) => [f.id, f.fuente === 'legacy' ? ('legacy' as const) : ('calculated' as const)])),
+  }
+}
+
+/**
+ * Los similares de un producto, con su procedencia.
+ *
+ * `fuentes` distingue la equivalencia CURADA —alguien de Buscatools la
+ * declaró— de la calculada por atributos. La curada va primero, pero eso no
+ * cambia los colores del comparador: sigue mostrando en rojo lo que difiere,
+ * que es justamente por qué sirve.
+ */
+export interface SimilaresDeProducto {
+  productos: ProductoListado[]
+  fuentes: Map<string, 'legacy' | 'calculated'>
 }
