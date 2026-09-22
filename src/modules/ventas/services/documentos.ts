@@ -205,6 +205,17 @@ export async function listarDocumentos(
     q = q.neq(campo, 'delivered')
   }
 
+  // «Abiertas» es de la cotización, y la regla vive en la base: `abierta` es
+  // una columna CALCULADA por la función del mismo nombre —la misma que cuenta
+  // el informe de pipeline— y PostgREST la deja filtrar como a cualquier otra.
+  // Acá no se vuelve a definir qué es estar abierta; si se definiera, el
+  // listado y el Dashboard podrían volver a discrepar, que es justo el problema
+  // que esto cierra: 154 en el tablero y 143 en la lista.
+  if (filtros.soloAbiertas && tipo === 'cotizacion') {
+    const campo: string = 'abierta'
+    q = q.is(campo, true)
+  }
+
   const columnaOrden = {
     fecha: c.campoFecha,
     numero: 'number',

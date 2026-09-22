@@ -80,6 +80,16 @@ export interface FiltrosVentas {
   origen: 'con' | 'sin' | null
   /** Sólo pedidos: los que todavía tienen algo sin entregar. */
   pendienteDeEntrega: boolean
+  /**
+   * Sólo las cotizaciones abiertas (Fase 21 · E3).
+   *
+   * «Abierta» es emitida y sin pedido confirmado derivado: incluye las
+   * aceptadas que todavía no se convirtieron. La regla NO está acá: está en
+   * la función `abierta(sales_quotes)` de la base, la misma que cuenta el
+   * informe de pipeline. Así el número del Dashboard y el del listado no
+   * pueden separarse.
+   */
+  soloAbiertas: boolean
   pagina: number
   porPagina: number
   orden: OrdenVentas
@@ -97,6 +107,7 @@ export const FILTROS_INICIALES: FiltrosVentas = {
   serie: null,
   origen: null,
   pendienteDeEntrega: false,
+  soloAbiertas: false,
   pagina: 1,
   porPagina: 25,
   orden: 'fecha',

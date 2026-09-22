@@ -74,12 +74,11 @@ export function VistaOperativa() {
       icono: 'cart',
       titulo: 'Cotizaciones abiertas',
       valor: abiertas?.documentos ?? null,
-      // El listado no tiene un filtro «abiertas»: el que existe es por estado.
-      // Se dice el número entero y se dice cuál de los dos muestra el link, en
-      // vez de mandar a una lista que no coincide con el número de arriba.
-      detalle: abiertas ? `Enviadas o aceptadas, sin pedido · ${aceptadasSinPedido} aceptadas sin pedido` : null,
-      destino: '/ventas/cotizaciones?estado=sent',
-      etiquetaDestino: abiertas ? `Ver las ${abiertas.documentos - aceptadasSinPedido} pendientes` : 'Ver pendientes',
+      // Fase 21 · E3: el listado ya sabe decir «abierta» con la misma regla que
+      // cuenta este número, así que el link lleva exactamente a estas 154.
+      detalle: abiertas ? `Enviadas o aceptadas sin pedido confirmado · ${aceptadasSinPedido} ya aceptadas` : null,
+      destino: '/ventas/cotizaciones?abierta=1',
+      etiquetaDestino: abiertas ? `Ver las ${abiertas.documentos} abiertas` : 'Ver abiertas',
       cargando: pipeline.isPending,
       error: !!pipeline.error,
       onReintentar: () => void pipeline.refetch(),

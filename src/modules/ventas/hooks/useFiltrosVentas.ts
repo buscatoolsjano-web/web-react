@@ -49,6 +49,7 @@ export function leerFiltros(params: URLSearchParams): FiltrosVentas {
     serie: params.get('serie'),
     origen: aOrigen(params.get('origen')),
     pendienteDeEntrega: params.get('pendiente') === '1',
+    soloAbiertas: params.get('abierta') === '1',
     pagina: aEntero(params.get('page'), 1),
     porPagina: (TAMANOS as readonly number[]).includes(porPagina)
       ? porPagina
@@ -72,6 +73,7 @@ export function escribirFiltros(f: FiltrosVentas): URLSearchParams {
   if (f.serie) p.set('serie', f.serie)
   if (f.origen) p.set('origen', f.origen)
   if (f.pendienteDeEntrega) p.set('pendiente', '1')
+  if (f.soloAbiertas) p.set('abierta', '1')
   if (f.pagina > 1) p.set('page', String(f.pagina))
   if (f.porPagina !== FILTROS_INICIALES.porPagina) p.set('per', String(f.porPagina))
   if (f.orden !== FILTROS_INICIALES.orden) p.set('orden', f.orden)
@@ -110,6 +112,7 @@ export function useFiltrosVentas() {
     filtros.serie !== null ||
     filtros.origen !== null ||
     filtros.pendienteDeEntrega ||
+    filtros.soloAbiertas ||
     filtros.soloRevision
 
   return { filtros, aplicar, limpiar, hayFiltros }

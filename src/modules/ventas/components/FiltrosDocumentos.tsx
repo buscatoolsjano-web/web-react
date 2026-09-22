@@ -16,7 +16,7 @@ export interface FiltrosDocumentosProps {
 
 /** Filtros aplicados además de la búsqueda (para el contador en mobile). */
 function contarActivos(f: FiltrosVentas): number {
-  return [f.clienteId, f.estado, f.moneda, f.desde, f.hasta, f.soloRevision, f.serie, f.origen, f.pendienteDeEntrega].filter(Boolean).length
+  return [f.clienteId, f.estado, f.moneda, f.desde, f.hasta, f.soloRevision, f.serie, f.origen, f.pendienteDeEntrega, f.soloAbiertas].filter(Boolean).length
 }
 
 /**
@@ -139,6 +139,14 @@ export function FiltrosDocumentos({
             <option value="sin">Cargado a mano</option>
           </Select>
         </Field>
+      ) : null}
+
+      {tipo === 'cotizacion' ? (
+        <Checkbox
+          label="Sólo abiertas"
+          checked={filtros.soloAbiertas}
+          onChange={(e) => onAplicar({ soloAbiertas: e.target.checked })}
+        />
       ) : null}
 
       {tipo === 'pedido' ? (

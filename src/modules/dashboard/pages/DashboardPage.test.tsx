@@ -245,7 +245,10 @@ describe('C · Atención hoy', () => {
     // lista de destino—, no de lo entregado línea por línea.
     expect(screen.getByText('28')).toBeInTheDocument()
     expect(screen.getByText('219')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Ver las 143 pendientes/ })).toHaveAttribute('href', '/ventas/cotizaciones?estado=sent')
+    // El link lleva al MISMO número que muestra la tarjeta. El listado ya sabe
+    // decir «abierta» —incluidas las 11 aceptadas sin pedido confirmado—, así
+    // que no hay que recortar el KPI para que entre en lo que sabía filtrar.
+    expect(screen.getByRole('link', { name: /Ver las 154 abiertas/ })).toHaveAttribute('href', '/ventas/cotizaciones?abierta=1')
     expect(screen.getByRole('link', { name: /Ver pedidos pendientes/ })).toHaveAttribute('href', '/ventas/pedidos?pendiente=1')
     expect(screen.getByRole('link', { name: /Ver la bandeja/ })).toHaveAttribute('href', '/emails?estado=pendiente')
   })
