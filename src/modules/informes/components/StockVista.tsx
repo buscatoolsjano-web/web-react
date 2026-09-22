@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { Icon } from '@/components/icons/Icon'
 import { useMesInformes } from '../hooks/useMesInformes'
-import { useResumenStock } from '../hooks/useStock'
+import { useResumenStock, usePrecargaStock } from '../hooks/useStock'
 import { etiquetaTramo } from '../lib/actividad'
 import { ErrorInforme } from '../services/actividad'
 import { KardexProducto, type ProductoKardex } from './KardexProducto'
@@ -26,6 +26,8 @@ export function StockVista() {
   const companyId = useEmpresa().activa?.companyId ?? null
   const queryClient = useQueryClient()
   const resumen = useResumenStock(mes)
+  // Las otras tres consultas no dependen del resumen: salen con él, no detrás.
+  usePrecargaStock(mes)
   const actualizando = useIsFetching({ queryKey: ['informes', companyId, 'stock'] }) > 0
   const [producto, setProducto] = useState<ProductoKardex | null>(null)
   const kardexRef = useRef<HTMLDivElement>(null)

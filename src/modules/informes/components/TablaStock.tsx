@@ -5,7 +5,7 @@ import { ErrorState } from '@/components/feedback/ErrorState'
 import { Button } from '@/components/ui/Button'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { Icon } from '@/components/icons/Icon'
-import { POR_PAGINA_STOCK, useStockActual } from '../hooks/useStock'
+import { FILTROS_STOCK_INICIALES, POR_PAGINA_STOCK, useStockActual } from '../hooks/useStock'
 import { descargarCsv, nombreArchivo } from '../lib/csv'
 import { stockACsv } from '../lib/csvStock'
 import { ETIQUETA_FILTRO_ESTADO, etiquetaEstado, formatearCantidad, formatearFechaHora, hoyAR } from '../lib/stock'
@@ -26,7 +26,7 @@ export function TablaStock({ depositos, onVerKardex }: Props) {
   const idTitulo = useId()
   const companyId = useEmpresa().activa?.companyId ?? null
   const [texto, setTexto] = useState('')
-  const [filtros, setFiltros] = useState<FiltrosStock>({ busqueda: '', deposito: null, estado: null })
+  const [filtros, setFiltros] = useState<FiltrosStock>(FILTROS_STOCK_INICIALES)
   const [pagina, setPagina] = useState(0)
   const stock = useStockActual(filtros, pagina)
   const filas = stock.data ?? []

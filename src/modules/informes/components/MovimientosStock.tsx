@@ -6,7 +6,7 @@ import { ErrorState } from '@/components/feedback/ErrorState'
 import { Button } from '@/components/ui/Button'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { Icon } from '@/components/icons/Icon'
-import { POR_PAGINA_STOCK, useMovimientosStock } from '../hooks/useStock'
+import { FILTROS_MOVIMIENTOS_INICIALES, POR_PAGINA_STOCK, useMovimientosStock } from '../hooks/useStock'
 import { descargarCsv, nombreArchivo } from '../lib/csv'
 import { movimientosACsv } from '../lib/csvStock'
 import { enlaceOrigen, ETIQUETA_TIPO_MOVIMIENTO, etiquetaOrigen, etiquetaTipoMovimiento, formatearCantidad, formatearFechaHora, textoOrigen } from '../lib/stock'
@@ -31,7 +31,7 @@ const n = (v: number) => new Intl.NumberFormat('es-AR').format(v)
 export function MovimientosStock({ mes, etiquetaMes, resumen }: Props) {
   const idTitulo = useId()
   const companyId = useEmpresa().activa?.companyId ?? null
-  const [filtros, setFiltros] = useState<FiltrosMovimientos>({ deposito: null, tipo: null, sentido: null })
+  const [filtros, setFiltros] = useState<FiltrosMovimientos>(FILTROS_MOVIMIENTOS_INICIALES)
   const [pagina, setPagina] = useState(0)
   const movs = useMovimientosStock(mes, filtros, pagina)
   const filas = movs.data ?? []
