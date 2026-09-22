@@ -1,3 +1,4 @@
+import type { FilaDocumentoInforme } from '../services/documentos'
 import type { FilaActividad, FilaPipeline, FilaRanking, ParametrosRanking } from '../types'
 
 /**
@@ -153,4 +154,37 @@ export function descargarCsv(nombre: string, csv: string): void {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+/**
+ * Los documentos del universo que se está viendo (Fase 21 · E3.1).
+ *
+ * El CSV anterior exportaba el informe agregado ENTERO: todas las métricas,
+ * todas las monedas, todos los meses. Si uno estaba mirando «USD · Entregado ·
+ * septiembre · serie RT», el archivo traía pesos, pedidos y agosto. Un export
+ * que no es lo que está en pantalla es peor que no tenerlo: nadie lo revisa
+ * contra la pantalla antes de mandarlo.
+ *
+ * Las filas vienen de `informe_documentos` con los MISMOS filtros que la
+ * sección Documentos, así que la cantidad y la suma del archivo son las que
+ * muestra la pantalla. No se reconstruye ninguna regla comercial acá.
+ */
+export function documentosACsv(filas: readonly FilaDocumentoInforme[]): string {
+  return armar(
+    ['fecha', 'tipo', 'numero', 'cliente', 'estado', 'serie', 'origen', 'importe', 'moneda', 'en_revision'],
+    filas.map((d) => [
+      texto(d.fecha),
+      texto(d.tipo),
+      texto(d.numero),
+      texto(d.cliente),
+      texto(d.estado),
+      texto(d.serie),
+      // Vacío y «ERP» no son lo mismo: el origen nulo significa que lo emitió
+      // el ERP, y escribirlo evita que alguien lo lea como dato faltante.
+      texto(d.origen ?? 'ERP'),
+      importe(d.importe),
+      texto(d.moneda),
+      d.enRevision ? 'si' : 'no',
+    ]),
+  )
 }

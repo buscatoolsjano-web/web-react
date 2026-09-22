@@ -167,7 +167,26 @@ function ActividadComercialVista() {
           >
             {actualizando && !actividad.isPending ? 'Actualizando…' : 'Actualizar'}
           </Button>
-          <ExportarInforme mes={mes} mesEfectivo={mes ?? tope} />
+          <ExportarInforme
+            mes={mes}
+            mesEfectivo={mes ?? tope}
+            /* El universo que se está viendo: mismo período, misma métrica,
+               misma moneda y mismos filtros que la sección Documentos. */
+            universo={
+              actividad.data
+                ? {
+                    desde: actividad.data.actual.desde,
+                    hasta: actividad.data.actual.hasta,
+                    tipo: filtros.metrica,
+                    moneda: monedaEfectiva,
+                    estado: filtros.estado,
+                    serie: filtros.serie,
+                    origen: filtros.origen,
+                  }
+                : null
+            }
+            etiquetaUniverso={actividad.data ? etiquetaTramo(actividad.data.actual) : 'el período'}
+          />
         </div>
       </header>
 
@@ -326,7 +345,7 @@ function Contenido({
         </div>
       </details>
 
-      <SerieMensual series={datos.series} />
+      <SerieMensual series={datos.series} metrica={filtros.metrica} moneda={moneda} />
 
       {pipeline.isPending ? (
         <div className={styles.cargando}>
@@ -352,6 +371,15 @@ function Contenido({
         etiquetaMes={etiquetaActual}
         etiquetaDoceMeses={`12 meses (${etiquetaDoceMeses({ desde: datos.series[0]?.meses[0]?.mes ?? datos.actual.desde, hasta: datos.actual.hasta, parcial: datos.actual.parcial })})`}
         onAbrirFicha={onAbrirFicha}
+        totalDelUniverso={
+          /* El total del MISMO universo que el ranking: misma métrica, misma
+             moneda, mismo período. Si no se puede armar, va en nulo y la
+             columna de participación no aparece. */
+          moneda
+            ? (datos.kpis.find((k) => k.tipo === filtros.metrica)?.monedas.find((m) => m.moneda === moneda)?.actual
+                .importe ?? null)
+            : null
+        }
       />
 
       {/* El universo completo, documento por documento. Misma fuente que los

@@ -24,19 +24,31 @@ export function PrecioCelda({ monto, moneda }: { monto: number | null; moneda: s
  * lector de pantalla oye «12 real, 10 virtual».
  */
 export function StockCelda({ stock }: { stock: StockProducto | null }) {
-  const real = stock ? formatearCantidad(stock.real) : '0'
-  const virtual = stock ? formatearCantidad(stock.virtual) : null
+  /*
+   * Sin saldo registrado NO es cero (Fase 21 · E3.1).
+   *
+   * Un producto sin fila en `stock_balances` nunca tuvo movimientos: no
+   * sabemos cuánto hay, y escribir «0» afirma que no hay ninguno. Son 21.449
+   * productos de 21.828, así que el error no era de borde: era casi todo el
+   * catálogo diciendo un número que nadie midió.
+   */
+  if (!stock) {
+    return (
+      <span className={`${styles.stock} ${styles.sinDato}`} title="Este producto nunca tuvo movimientos de stock">
+        <span aria-hidden="true">—</span>
+        <span className="sr-only">Sin saldo registrado</span>
+      </span>
+    )
+  }
   return (
-    <span className={stock ? styles.stock : `${styles.stock} ${styles.sinDato}`}>
-      <strong>{real}</strong>
+    <span className={styles.stock}>
+      <strong>{formatearCantidad(stock.real)}</strong>
       <span className="sr-only"> real</span>
-      {virtual !== null ? (
-        <span className={styles.stockVirtual}>
-          <span aria-hidden="true">/ </span>
-          {virtual}
-          <span className="sr-only"> virtual</span>
-        </span>
-      ) : null}
+      <span className={styles.stockVirtual}>
+        <span aria-hidden="true">/ </span>
+        {formatearCantidad(stock.virtual)}
+        <span className="sr-only"> virtual</span>
+      </span>
     </span>
   )
 }

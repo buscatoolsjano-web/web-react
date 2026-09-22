@@ -17,6 +17,7 @@ import {
   esAtipica,
   ETIQUETA_FUENTE,
   medidasPosibles,
+  participacionDe,
   monedasDisponibles,
   normalizarParametros,
   TOP_N,
@@ -49,6 +50,14 @@ interface Props {
    * la cierra, y el link comparte las dos cosas.
    */
   onAbrirFicha: (tipo: 'cliente' | 'producto', id: string) => void
+  /**
+   * El importe total del MISMO universo —misma métrica, misma moneda, mismo
+   * período—, para poder decir qué porcentaje representa cada cliente.
+   *
+   * En nulo cuando no se puede calcular. Dividir por el total de otra moneda
+   * o de otro período daría un porcentaje que parece un dato y no lo es.
+   */
+  totalDelUniverso: number | null
 }
 
 
@@ -60,7 +69,7 @@ const cantidad = (n: number | null) =>
  * nunca sumando monedas) o cantidad física (productos, sin moneda). Todo
  * ordenado y cortado por el servidor; el CSV baja el ranking completo.
  */
-export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, etiquetaDoceMeses, elegidos, onCambiar, onAbrirFicha }: Props) {
+export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, etiquetaDoceMeses, elegidos, onCambiar, onAbrirFicha, totalDelUniverso }: Props) {
   const idTitulo = useId()
   const companyId = useEmpresa().activa?.companyId ?? null
   const monedas = monedasDisponibles(actividad, elegidos.fuente, elegidos.periodo)
@@ -159,7 +168,15 @@ export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, eti
         ) : ranking.error ? (
           <ErrorState
             compact
-            title={ranking.error instanceof ErrorInforme ? ranking.error.message : 'No se pudo leer el ranking.'}
+            /* Un bloque caído tiene que decir QUÉ bloque. El mensaje genérico de
+               `errorDeInforme` es el mismo que usa el error de pantalla completa, así
+               que para el código 'desconocido' gana el título propio: si no, el
+               usuario lee «no se pudo leer el informe» y cree que se cayó todo. */
+            title={
+              ranking.error instanceof ErrorInforme && ranking.error.codigo !== 'desconocido'
+                ? ranking.error.message
+                : 'No se pudo leer el ranking. El resto del informe sigue disponible.'
+            }
             onRetry={ranking.error instanceof ErrorInforme && ranking.error.codigo !== 'desconocido' ? undefined : () => void ranking.refetch()}
             retrying={ranking.isFetching}
           />
@@ -182,7 +199,7 @@ export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, eti
               </thead>
               <tbody>
                 {filas.map((f) => (
-                  <FilaDeRanking key={f.clave} f={f} p={p} documentos={fuente.documentos} onAbrirFicha={(x) => onAbrirFicha(x.tipo, x.id)} />
+                  <FilaDeRanking key={f.clave} f={f} p={p} documentos={fuente.documentos} onAbrirFicha={(x) => onAbrirFicha(x.tipo, x.id)} participacion={participacionDe(f, p, totalDelUniverso)} />
                 ))}
               </tbody>
             </table>
@@ -216,11 +233,14 @@ function FilaDeRanking({
   p,
   documentos,
   onAbrirFicha,
+  participacion,
 }: {
   f: FilaRanking
   p: ParametrosRanking
   documentos: string
   onAbrirFicha: (ficha: FichaAbierta) => void
+  /** Qué parte del universo es esta fila.  = no se puede calcular. */
+  participacion: number | null
 }) {
   const enlace = enlaceFicha(f)
   const ficha = fichaDeFila(f)
@@ -259,6 +279,14 @@ function FilaDeRanking({
       {p.medida === 'importe' ? (
         <td className={styles.num} data-etiqueta={`Importe ${p.moneda ?? ''}`}>
           <span className={styles.importe}>{formatearImporte(Number(f.importe ?? 0))}</span>
+          {/* La participación sólo aparece cuando el denominador es el MISMO
+              universo. En cantidad no existe: sumar unidades de SKU distintos
+              no da un total con significado físico. */}
+          {participacion !== null ? (
+            <span className={styles.docs}>
+              {participacion.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %
+            </span>
+          ) : null}
         </td>
       ) : null}
       {p.dimension === 'productos' ? (

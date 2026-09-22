@@ -101,3 +101,30 @@ export function fichaDeFila(
   if (f.producto_id && f.vinculado && f.codigo) return { tipo: 'producto', id: f.producto_id }
   return null
 }
+
+/**
+ * Qué porcentaje del universo representa una fila del ranking.
+ *
+ * Fase 21 · E3.1. Sólo tiene sentido cuando el numerador y el denominador son
+ * el MISMO universo: misma métrica, misma moneda, mismo período. Por eso
+ * devuelve `null` en tres casos, y ninguno es un cero:
+ *
+ *   · la medida es cantidad — sumar unidades de SKU distintos no da un total
+ *     con significado físico, así que no hay denominador;
+ *   · no hay total del universo, o es cero;
+ *   · la fila no tiene importe.
+ *
+ * La suma de los porcentajes del Top N NO da 100 %, y está bien: se muestran
+ * diez clientes de todos los que hubo.
+ */
+export function participacionDe(
+  f: Pick<FilaRanking, 'importe'>,
+  p: Pick<ParametrosRanking, 'medida'>,
+  totalDelUniverso: number | null,
+): number | null {
+  if (p.medida !== 'importe') return null
+  if (totalDelUniverso === null || totalDelUniverso === 0) return null
+  const importe = Number(f.importe ?? 0)
+  if (!Number.isFinite(importe)) return null
+  return (importe / totalDelUniverso) * 100
+}

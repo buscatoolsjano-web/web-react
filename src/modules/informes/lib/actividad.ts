@@ -179,3 +179,43 @@ export function formatearVariacion(v: number | null): string {
   const n = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 }).format(Math.abs(v))
   return `${v > 0 ? '+' : '−'}${n} %`
 }
+
+/**
+ * Un punto de la evolución: un mes, un importe, una cantidad.
+ *
+ * Es la ÚNICA transformación de la serie a números (Fase 21 · E3.1). El
+ * gráfico dibuja estos puntos y la tabla «Ver los números» los escribe: si
+ * cada uno los calculara por su lado, un día dirían cosas distintas del mismo
+ * mes y nadie sabría cuál creer.
+ */
+export interface PuntoEvolucion {
+  /** `YYYY-MM-01` */
+  mes: string
+  importe: number
+  documentos: number
+}
+
+/**
+ * Los 12 meses de una métrica en UNA moneda.
+ *
+ * Devuelve el mes aunque no haya tenido documentos: un hueco en la serie es
+ * información —ese mes no se vendió— y saltearlo haría que el gráfico
+ * mintiera sobre la forma de la curva.
+ */
+export function puntosDeEvolucion(
+  series: readonly SerieActividad[],
+  tipo: TipoActividad,
+  moneda: Moneda | null,
+): PuntoEvolucion[] {
+  const serie = series.find((s) => s.tipo === tipo)
+  if (!serie || !moneda) return []
+  return serie.meses.map((m) => {
+    const c = m.porMoneda[moneda]
+    return { mes: m.mes, importe: c?.importe ?? 0, documentos: c?.documentos ?? 0 }
+  })
+}
+
+/** Las monedas que tuvieron documentos de esa métrica en los 12 meses. */
+export function monedasDeEvolucion(series: readonly SerieActividad[], tipo: TipoActividad): Moneda[] {
+  return series.find((s) => s.tipo === tipo)?.monedas ?? []
+}
