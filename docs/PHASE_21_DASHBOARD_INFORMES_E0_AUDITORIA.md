@@ -66,6 +66,15 @@ avisa «Sin valorización, costo ni stock crítico», que es la verdad.
 candidato real de optimización. Todo lo demás agrega en el servidor: ningún
 listado grande baja al navegador.
 
+> **Corregido en E3 (2026-09-22).** Ese 2,6 s no era el costo de la consulta:
+> medida en el servidor cuesta **63 ms**, y reescribirla para no recorrer los
+> 21.825 productos midió **69 ms** —peor—. El tiempo era de la pantalla, que
+> montaba la tabla, los movimientos y el catálogo recién cuando contestaba
+> `informe_stock_resumen`: una cascada de 0,9 s → 1,6 s → 3,5 s. Arreglada la
+> cascada, las cuatro salen juntas y el último dato llega a **1,8 s**. El
+> candidato de optimización, entonces, no era el SQL. Ver el commit
+> «la pestaña Stock deja de esperarse a sí misma».
+
 ---
 
 ## 2 · LEGACY_FEATURE_MATRIX
@@ -286,8 +295,10 @@ Informes ya está cerca. Lo que falta es profundidad y drill-down.
    click en producto → `ModalProducto`. Sin salir de la pantalla.
 3. **Drill-down** (nuevo) — cada número importante abre la lista que lo forma:
    «USD 90.714 cotizados» → las 29 cotizaciones que lo componen.
-4. **Stock** (existe) — sin cambios de alcance; optimizar
-   `informe_stock_catalogo` (2,6 s).
+4. **Stock** (existe) — sin cambios de alcance. ~~Optimizar
+   `informe_stock_catalogo` (2,6 s)~~: hecho en E3, y no era la consulta sino
+   la cascada de la pantalla (3,5 s → 1,8 s). Ver la corrección en el § de
+   rendimiento.
 5. **Mantenimiento** (nuevo, chico) — parque, equipos con historial y servicios
    históricos, separados del trabajo actual.
 6. **Export** — ya respeta filtros y ya escapa `= + - @`. Sin deuda.
