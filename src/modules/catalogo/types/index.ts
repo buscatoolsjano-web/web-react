@@ -82,6 +82,8 @@ export interface StockProducto {
 }
 
 export interface ProductoListado {
+  /** `false` cuando su marca está fuera del catálogo (Fase 22 · B). */
+  enCatalogo: boolean
   id: string
   sku: string
   nombre: string

@@ -498,3 +498,117 @@
     min-height: 6mm;
   }
 }
+
+/* ── Editar desde la hoja (Fase 22 · A3–A5) ──────────────────────────────
+   Todo lo de acá abajo es de PANTALLA. En papel no existe: el `@media print`
+   del final lo apaga, y esa es la razón por la que la hoja puede ser el
+   editor sin que la impresión cambie ni un milímetro. */
+
+/* El número se ve como número, no como campo: la hoja tiene que seguir
+   pareciendo una cotización. El marco aparece al pasar por encima. */
+.editable {
+  display: inline-block;
+  width: 100%;
+  padding: 1px 3px;
+  border: 1px dashed transparent;
+  border-radius: 3px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: text;
+}
+
+.editable:hover {
+  border-color: #c7c7c7;
+  background: #fafafa;
+}
+
+.editable:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 1px;
+}
+
+.entrada {
+  width: 100%;
+  min-width: 3.5rem;
+  padding: 0 3px;
+  border: 1px solid #f97316;
+  border-radius: 3px;
+  background: #fff;
+  font: inherit;
+  text-align: right;
+  color: inherit;
+}
+
+.colAccion {
+  width: 1.75rem;
+  text-align: center;
+}
+
+.quitar {
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: #9a9a9a;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.quitar:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.filaAgregar td {
+  border-bottom: 0;
+  padding-top: 4px;
+}
+
+.agregar {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  font-size: 0.85em;
+  color: #64748b;
+  cursor: pointer;
+  text-align: left;
+}
+
+.agregar:hover {
+  border-color: #f97316;
+  color: #c2410c;
+  background: #fff7ed;
+}
+
+@media print {
+  /* En papel no hay controles: ni el botón de agregar, ni el de quitar, ni
+     el marco de los campos. Lo que se imprime es el documento. */
+  .filaAgregar,
+  .colAccion,
+  .quitar,
+  .agregar {
+    display: none !important;
+  }
+
+  .editable {
+    display: inline;
+    width: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  .entrada {
+    border: 0;
+    background: none;
+    padding: 0;
+  }
+}

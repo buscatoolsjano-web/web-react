@@ -1,11 +1,35 @@
 import { formatearCantidad, formatearFecha, formatearImporte } from '../lib/formato'
 import { queMostrar, type DocumentoImprimible, type EmpresaImpresion, type OpcionesImpresion } from '../lib/impresion'
+import { CeldaEditable } from './CeldaEditable'
 import styles from './VistaImpresion.module.css'
+
+/**
+ * Armar el documento DESDE la hoja (Fase 22 · A3).
+ *
+ * Cuando esto viene, la hoja deja de ser una vista previa y pasa a ser el
+ * editor: se agregan productos, se corrigen cantidades y se borran líneas ahí
+ * mismo, que es como se armaba una cotización en el sistema anterior.
+ *
+ * No hay un segundo documento: cada cambio va al MISMO borrador que usa el
+ * panel de la izquierda, y la hoja vuelve a dibujarse con él.
+ *
+ * Nada de esto se imprime. Los controles son de pantalla y el `@media print`
+ * los apaga: en papel sale el documento y nada más.
+ */
+export interface EdicionEnHoja {
+  onCantidad: (id: string, valor: number) => void
+  onPrecio: (id: string, valor: number) => void
+  onDescuento: (id: string, valor: number) => void
+  onEliminar: (id: string) => void
+  onAgregar: () => void
+}
 
 export interface VistaImpresionProps {
   doc: DocumentoImprimible
   empresa: EmpresaImpresion
   opciones: OpcionesImpresion
+  /** Si viene, la hoja se puede editar. En impresión nunca viene. */
+  edicion?: EdicionEnHoja | null
 }
 
 /** El logo real, servido desde `public/brand`. Es el mismo del ERP. */
@@ -32,7 +56,7 @@ const BLOQUE_DE: Record<DocumentoImprimible['tipo'], string> = {
  * mismos bloques en las mismas posiciones, con las etiquetas y las columnas
  * que le corresponden a cada uno. Lo que cambia son los datos.
  */
-export function VistaImpresion({ doc, empresa, opciones }: VistaImpresionProps) {
+export function VistaImpresion({ doc, empresa, opciones, edicion = null }: VistaImpresionProps) {
   const ver = queMostrar(opciones.formato)
   const moneda = doc.moneda
 
@@ -114,6 +138,8 @@ export function VistaImpresion({ doc, empresa, opciones }: VistaImpresionProps) 
   }
 
   const columnas = 3 + (opciones.conFotos ? 1 : 0) + (ver.precios ? 3 : 0) + (ver.impuestos ? 1 : 0)
+  // La columna del botón de borrar sólo existe en pantalla y sólo editando.
+  const columnasVisibles = columnas + (edicion ? 1 : 0)
 
   return (
     <div
@@ -255,13 +281,18 @@ export function VistaImpresion({ doc, empresa, opciones }: VistaImpresionProps) 
                 Imp.
               </th>
             ) : null}
+            {edicion ? (
+              <th scope="col" className={styles.colAccion}>
+                <span className="sr-only">Quitar</span>
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
           {doc.lineas.map((l) =>
             l.esCapitulo ? (
               <tr key={l.id} className={styles.capitulo}>
-                <td colSpan={columnas}>{l.nombre}</td>
+                <td colSpan={columnasVisibles}>{l.nombre}</td>
               </tr>
             ) : (
               <tr key={l.id}>
@@ -282,12 +313,38 @@ export function VistaImpresion({ doc, empresa, opciones }: VistaImpresionProps) 
                     <div className={styles.desc}>{l.descripcion}</div>
                   ) : null}
                 </td>
-                <td className={styles.num}>{formatearCantidad(l.cantidad)}</td>
+                <td className={styles.num}>
+                  {edicion ? (
+                    <CeldaEditable valor={l.cantidad} etiqueta="Cantidad" min={0} paso={1} onCambiar={(v) => edicion.onCantidad(l.id, v)}>
+                      {formatearCantidad(l.cantidad)}
+                    </CeldaEditable>
+                  ) : (
+                    formatearCantidad(l.cantidad)
+                  )}
+                </td>
                 {ver.precios ? (
-                  <td className={styles.num}>{formatearImporte(l.precio, moneda)}</td>
+                  <td className={styles.num}>
+                    {edicion && l.precio !== null ? (
+                      <CeldaEditable valor={l.precio} etiqueta="Precio unitario" min={0} paso={0.01} onCambiar={(v) => edicion.onPrecio(l.id, v)}>
+                        {formatearImporte(l.precio, moneda)}
+                      </CeldaEditable>
+                    ) : (
+                      formatearImporte(l.precio, moneda)
+                    )}
+                  </td>
                 ) : null}
                 {ver.precios ? (
-                  <td className={styles.num}>{l.descuentoPct > 0 ? `${l.descuentoPct}%` : '—'}</td>
+                  <td className={styles.num}>
+                    {edicion ? (
+                      <CeldaEditable valor={l.descuentoPct} etiqueta="Descuento por ciento" min={0} max={100} paso={1} onCambiar={(v) => edicion.onDescuento(l.id, v)}>
+                        {l.descuentoPct > 0 ? `${l.descuentoPct}%` : '—'}
+                      </CeldaEditable>
+                    ) : l.descuentoPct > 0 ? (
+                      `${l.descuentoPct}%`
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                 ) : null}
                 {ver.precios ? (
                   <td className={styles.num}>
@@ -299,9 +356,31 @@ export function VistaImpresion({ doc, empresa, opciones }: VistaImpresionProps) 
                     {l.impuestoPct === null ? '—' : `IVA ${formatearCantidad(l.impuestoPct)} %`}
                   </td>
                 ) : null}
+                {edicion ? (
+                  <td className={styles.colAccion}>
+                    <button
+                      type="button"
+                      className={styles.quitar}
+                      onClick={() => edicion.onEliminar(l.id)}
+                      aria-label={`Quitar ${l.nombre ?? 'la línea'}`}
+                      title="Quitar del documento"
+                    >
+                      ×
+                    </button>
+                  </td>
+                ) : null}
               </tr>
             ),
           )}
+          {edicion ? (
+            <tr className={styles.filaAgregar}>
+              <td colSpan={columnasVisibles}>
+                <button type="button" className={styles.agregar} onClick={edicion.onAgregar}>
+                  + Agregar producto
+                </button>
+              </td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
 

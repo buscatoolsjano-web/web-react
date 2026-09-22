@@ -220,3 +220,15 @@
   padding-bottom: var(--space-1);
   border-bottom: 1px solid var(--border);
 }
+
+/* El aviso de producto fuera del catálogo (Fase 22 · B). Discreto: es una
+   aclaración, no un error. */
+.fueraDelCatalogo {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--text-muted);
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}

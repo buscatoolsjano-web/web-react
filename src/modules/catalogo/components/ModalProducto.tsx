@@ -199,6 +199,16 @@ function Contenido({
           {producto.descripcion ? (
             <p className={styles.descripcion}>{producto.descripcion}</p>
           ) : null}
+          {/* Fase 22 · B: se puede llegar acá por un link viejo o desde un
+              documento histórico. El producto se muestra —los documentos que
+              lo nombran tienen que poder abrirlo— pero se dice que no está en
+              el catálogo, en vez de hacer como si nada. */}
+          {!producto.enCatalogo ? (
+            <p className={styles.fueraDelCatalogo}>
+              Este producto no aparece en el catálogo: su marca está desactivada en Configuración.
+            </p>
+          ) : null}
+
           {producto.esKit || producto.necesitaRevision ? (
             <p className={styles.estados}>
               {producto.esKit ? <Badge tone="info">Kit</Badge> : null}

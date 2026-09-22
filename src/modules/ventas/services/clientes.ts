@@ -60,21 +60,30 @@ export async function buscarClientes(
   texto: string,
 ): Promise<ClienteOpcion[]> {
   const limpio = texto.trim().replace(/[,()*]/g, '')
-  let q = supabase
+
+  // Fase 22 · A8: sin texto no se busca nada.
+  //
+  // Antes, con el campo vacío, la consulta salía SIN filtro y devolvía los
+  // primeros 20 clientes por orden alfabético: al tocar «Cliente» aparecían
+  // «27 de Julio S.R.L.», «A-Evangelista S.A.»…, que no son sugerencias de
+  // nada. Con 1.010 clientes, una lista que no responde a lo que se escribió
+  // es ruido, y encima cuesta una consulta cada vez que se abre el campo.
+  //
+  // Un solo carácter tampoco alcanza: «a» son cientos de clientes.
+  if (limpio.length < 2) return []
+
+  const patron = `%${limpio}%`
+  const q = supabase
     .from('customers')
     .select('id, legal_name, trade_name, tax_id')
     .eq('company_id', companyId)
     .is('deleted_at', null)
     .eq('status', 'active')
-    .order('legal_name', { ascending: true })
-    .limit(20)
-
-  if (limpio !== '') {
-    const patron = `%${limpio}%`
-    q = q.or(
+    .or(
       `legal_name.ilike.${patron},trade_name.ilike.${patron},tax_id.ilike.${patron},legacy_ref.ilike.${patron}`,
     )
-  }
+    .order('legal_name', { ascending: true })
+    .limit(15)
 
   const { data, error } = await q
   if (error) throw new Error(`No se pudieron buscar clientes: ${error.message}`)

@@ -176,6 +176,10 @@ export async function obtenerFacetas(plan: PlanDeConsulta): Promise<Facetas> {
     ...(plan.subtipos !== null && { p_type: plan.subtipos }),
     p_attrs: plan.atributos,
     p_ranges: plan.rangos,
+    // Fase 22: las facetas cuentan lo MISMO que el listado. Sin esto, el
+    // filtro prometía 4.200 productos de una marca desactivada y la lista
+    // mostraba cero.
+    p_solo_catalogo: true,
   })
 
   if (error) throw new Error(`No se pudieron leer los filtros: ${error.message}`)

@@ -57,7 +57,10 @@ export function BuscadorCliente({ valor, editable, onElegir }: BuscadorClientePr
   const resultados = useQuery({
     queryKey: ['ventas', companyId, 'buscar-cliente', consulta],
     queryFn: () => buscarClientes(companyId!, consulta),
-    enabled: companyId !== null && buscando,
+    // Fase 22 · A8: la consulta no sale hasta que haya algo que buscar. El
+    // servicio ya devuelve [] con menos de dos caracteres; no habilitarla
+    // evita además el request.
+    enabled: companyId !== null && buscando && consulta.trim().length >= 2,
     staleTime: 30_000,
   })
 
@@ -124,8 +127,8 @@ export function BuscadorCliente({ valor, editable, onElegir }: BuscadorClientePr
           {resultados.isFetching ? <li className={styles.nota}>Buscando…</li> : null}
           {!resultados.isFetching && (resultados.data ?? []).length === 0 ? (
             <li className={styles.nota}>
-              {consulta.trim() === ''
-                ? 'Escribí para buscar.'
+              {consulta.trim().length < 2
+                ? 'Escribí al menos dos letras del nombre, el CUIT o la referencia.'
                 : 'Ningún cliente activo coincide.'}
             </li>
           ) : null}

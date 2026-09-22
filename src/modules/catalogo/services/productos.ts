@@ -21,7 +21,7 @@ import type {
  */
 const COLUMNAS_LISTADO = `
   id, sku, name, series, product_type, attributes, is_kit, needs_review,
-  brands ( id, name ),
+  brands ( id, name, is_active ),
   product_categories ( id, name ),
   product_prices ( amount, price_list_id ),
   product_images ( source_url, thumb_url, kind, position, is_primary )
@@ -36,7 +36,7 @@ const COLUMNAS_DETALLE = `
   id, sku, name, series, product_type, attributes, is_kit, needs_review,
   model_code, description, description_long, origin_country, ncm_code,
   weight_g, volume_cm3,
-  brands ( id, name ),
+  brands ( id, name, is_active ),
   product_categories ( id, name ),
   product_prices ( amount, price_list_id ),
   product_images ( source_url, thumb_url, kind, position, is_primary )
@@ -57,7 +57,7 @@ interface FilaProducto {
   attributes: unknown
   is_kit: boolean
   needs_review: boolean
-  brands: { id: string; name: string } | null
+  brands: { id: string; name: string; is_active?: boolean } | null
   product_categories: { id: string; name: string } | null
   product_prices: { amount: number; price_list_id: string }[] | null
   product_images: FilaImagen[] | null
@@ -146,6 +146,10 @@ function mapearListado(f: FilaProducto): ProductoListado {
     esKit: f.is_kit,
     necesitaRevision: f.needs_review,
     marca: f.brands ? { id: f.brands.id, nombre: f.brands.name } : null,
+    // Fase 22 · B: si la marca está desactivada, el producto NO está en el
+    // catálogo. Se puede llegar por un link viejo o desde un documento, y la
+    // pantalla lo aclara en vez de hacer como si nada.
+    enCatalogo: f.brands ? f.brands.is_active !== false : true,
     categoria: f.product_categories
       ? { id: f.product_categories.id, nombre: f.product_categories.name }
       : null,
@@ -208,6 +212,15 @@ export async function consultarProductos(
     ...(plan.subtipos !== null && { p_type: plan.subtipos }),
     p_ranges: plan.rangos,
     p_orden: plan.orden,
+    // Fase 22 · B: el catálogo NO muestra productos de marcas desactivadas.
+    // «Sacar del catálogo» dejaba la marca fuera de los filtros y sus 3.807
+    // productos seguían en la lista. El filtro va en la consulta —que es la
+    // que pagina y cuenta— y no en un .filter() de React, que daría páginas
+    // de tamaños raros y un total que no coincide con lo que se ve.
+    //
+    // Ventas NO manda esta bandera: se puede sacar un producto del catálogo
+    // comercial sin perder la capacidad de cotizarlo.
+    p_solo_catalogo: true,
   })
 
   if (errorRpc) throw new Error(`No se pudo leer el catálogo: ${errorRpc.message}`)
@@ -309,9 +322,14 @@ export async function relacionadosDe(
 
   let q = supabase
     .from('products')
-    .select(COLUMNAS_LISTADO)
+    // Fase 22 · B: los relacionados son de la MISMA marca, así que si esa
+    // marca está fuera del catálogo no hay nada que recomendar. El `!inner`
+    // no es decorativo: con el join normal PostgREST devuelve el producto
+    // igual y deja la marca en nulo, y se colarían los que hay que esconder.
+    .select(COLUMNAS_LISTADO.replace('brands (', 'brands!inner ('))
     .eq('company_id', companyId)
     .eq('brand_id', producto.marca.id)
+    .eq('brands.is_active', true)
     .eq('series', producto.serie)
     .eq('product_type', producto.tipo)
     .neq('id', producto.id)

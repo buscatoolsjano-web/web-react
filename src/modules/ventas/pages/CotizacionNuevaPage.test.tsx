@@ -555,7 +555,7 @@ describe('Nueva cotización · cambio de cliente rápido', () => {
 describe('Nueva cotización · vista previa del borrador', () => {
   it('no se muestra sola en pantalla angosta: se ofrece un botón', () => {
     montar()
-    expect(screen.queryByRole('region', { name: 'Vista previa del documento' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Documento' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Vista previa' })).toBeInTheDocument()
   })
 
@@ -564,18 +564,18 @@ describe('Nueva cotización · vista previa del borrador', () => {
     completarMinimo()
     fireEvent.click(screen.getByRole('button', { name: 'Vista previa' }))
 
-    expect(screen.getByRole('region', { name: 'Vista previa del documento' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Documento' })).toBeInTheDocument()
     // Lo que importa de una previsualización: que no escriba.
     expect(espias.crear).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Ocultar vista previa' }))
-    expect(screen.queryByRole('region', { name: 'Vista previa del documento' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Documento' })).toBeNull()
   })
 
   it('en pantalla ancha va al lado del editor y no hay botón que apretar', () => {
     estado.pantallaAncha = true
     montar()
-    expect(screen.getByRole('region', { name: 'Vista previa del documento' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Documento' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Vista previa' })).toBeNull()
   })
 
@@ -587,7 +587,7 @@ describe('Nueva cotización · vista previa del borrador', () => {
     fireEvent.change(screen.getAllByLabelText(/Cantidad/)[0]!, { target: { value: '3' } })
     fireEvent.change(screen.getAllByLabelText(/Precio/)[0]!, { target: { value: '100' } })
 
-    const previa = screen.getByRole('region', { name: 'Vista previa del documento' })
+    const previa = screen.getByRole('region', { name: 'Documento' })
     // El id no: el documento se imprime con el NOMBRE del cliente.
     expect(within(previa).getByText(/ZZ Cliente Uno/)).toBeInTheDocument()
     expect(within(previa).queryByText('cliente-1')).toBeNull()
@@ -602,7 +602,7 @@ describe('Nueva cotización · vista previa del borrador', () => {
     estado.pantallaAncha = true
     montar()
     completarMinimo()
-    const previa = screen.getByRole('region', { name: 'Vista previa del documento' })
+    const previa = screen.getByRole('region', { name: 'Documento' })
     expect(within(previa).getByText(/a asignar al crear/)).toBeInTheDocument()
     expect(within(previa).getByText(/El número y el total definitivo los pone el servidor/)).toBeInTheDocument()
   })

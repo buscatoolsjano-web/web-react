@@ -39,15 +39,26 @@
   margin-bottom: var(--space-4);
 }
 
-/* ── Vista previa junto al editor (Fase 19 · E3) ─────────────────────────
-   Sólo desde 1440 px: es el ancho donde una hoja A4 entra al lado del
-   formulario sin dejar a ninguno de los dos estrecho. Abajo de eso la previa
-   se abre con un botón y ocupa el ancho completo. */
+/* ── El documento al lado del editor (Fase 19 · E3 · rehecho en Fase 22) ──
+   Antes el formulario se quedaba con todo el ancho sobrante y la hoja con un
+   tope de 34 rem: a 1600 px el A4 se veía en 544 px dentro de una ventanita
+   con scroll. La hoja es el documento, no una miniatura.
+
+   Ahora manda la hoja: el panel izquierdo toma lo que necesita y el resto es
+   del documento. Desde 1280 px, que es donde las dos cosas entran. */
 .conPrevia {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 34rem);
-  gap: var(--space-5);
+  grid-template-columns: minmax(19rem, 32fr) minmax(0, 68fr);
+  gap: var(--space-4);
   align-items: start;
+}
+
+@media (min-width: 1800px) {
+  /* En pantallas muy anchas el panel no necesita seguir creciendo: lo que
+     sobra es para la hoja. */
+  .conPrevia {
+    grid-template-columns: minmax(19rem, 26rem) minmax(0, 1fr);
+  }
 }
 
 .columnaEditor {
@@ -56,10 +67,21 @@
   min-width: 0;
 }
 
+/* La hoja acompaña el scroll y se queda arriba: así se la ve entera mientras
+   se cargan líneas desde el panel de la izquierda.
+
+   La altura es EXPLÍCITA y sale del alto de la ventana menos el header de la
+   aplicación —que también es sticky—. Con eso la hoja de adentro tiene contra
+   qué medirse sin adivinar dónde va a quedar al fijarse: antes se medía la
+   posición del momento, que en la primera pantalla está 400 px abajo, y la
+   hoja terminaba al 41 %. */
 .columnaPrevia {
   min-width: 0;
   position: sticky;
-  top: var(--space-4);
+  top: calc(var(--header-h) + var(--space-3));
+  height: calc(100dvh - var(--header-h) - var(--space-5));
+  display: flex;
+  flex-direction: column;
 }
 
 /* El selector de serie (Fase 19 · E3). Va arriba de la cabecera y acotado:

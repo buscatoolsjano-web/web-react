@@ -52,6 +52,7 @@ const producto = (i: number): ProductoListado => ({
   stock: null,
   disponible: null,
   imagen: null,
+  enCatalogo: true,
 })
 
 const montar = () =>

@@ -119,7 +119,9 @@ export function CotizacionNuevaPage() {
    * panel que se abre, porque partir la pantalla en dos columnas angostas no
    * ayuda a nadie.
    */
-  const pantallaAncha = useMediaQuery('(min-width: 1440px)')
+  // Fase 22: desde 1280 entran el panel y la hoja. Antes eran 1440 y la
+  // hoja quedaba chica igual.
+  const pantallaAncha = useMediaQuery('(min-width: 1280px)')
   const [previaAbierta, setPreviaAbierta] = useState(false)
   const verPrevia = pantallaAncha || previaAbierta
   const [avisoContacto, setAvisoContacto] = useState(false)
@@ -460,7 +462,7 @@ export function CotizacionNuevaPage() {
         }
       >
         {buscando ? (
-          <div className={editor.selector}>
+          <div className={editor.selector} id="buscador-de-producto">
             <SelectorProducto
               moneda={b.cabecera.moneda}
               listaPrecioId={b.cabecera.listaPrecioId || null}
@@ -505,6 +507,23 @@ export function CotizacionNuevaPage() {
               notas={b.cabecera.notas || null}
               lineas={lineasVisibles}
               ajustarAlAncho={pantallaAncha}
+              // Fase 22 · A6: la hoja edita EL MISMO borrador que el panel de
+              // la izquierda. No hay dos documentos que sincronizar: hay uno, y
+              // las dos superficies escriben en él.
+              edicion={{
+                onCantidad: (id, valor) => cambiarLinea(id, 'quantity', valor),
+                onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
+                onDescuento: (id, valor) => cambiarLinea(id, 'discount_pct', valor),
+                onEliminar: (id) => setB((x) => quitarLinea(x, id)),
+                onAgregar: () => {
+                  setBuscando(true)
+                  // El buscador vive en el panel de la izquierda: si se lo
+                  // pidió desde la hoja, hay que llevarlo a la vista.
+                  requestAnimationFrame(() => {
+                    document.getElementById('buscador-de-producto')?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+                  })
+                },
+              }}
             />
           </div>
         ) : null}

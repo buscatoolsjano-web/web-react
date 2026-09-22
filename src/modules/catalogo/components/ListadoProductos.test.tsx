@@ -33,6 +33,7 @@ const producto = (p: Partial<ProductoListado> = {}): ProductoListado => ({
   stock: { real: 16, virtual: 16 },
   disponible: null,
   imagen: null,
+  enCatalogo: true,
   ...p,
 })
 
