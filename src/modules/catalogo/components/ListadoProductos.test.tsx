@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import type * as ServiciosProductos from '../services/productos'
 import type { ProductoListado } from '../types'
 
 const estado = vi.hoisted(() => ({ movil: false }))
@@ -18,11 +17,35 @@ vi.mock('@/features/empresa/useEmpresa', () => ({
   }),
 }))
 
-// Fase 22 · Etapa B: la ficha dejó de ser sólo un cartel y busca similares.
-// Se mockea la búsqueda para que estos tests sigan siendo del LISTADO.
-vi.mock('../services/productos', async (real) => ({
-  ...(await real<typeof ServiciosProductos>()),
-  similaresDe: () => Promise.resolve([]),
+/*
+ * Fase 22 · Etapa B: la ficha dejó de ser sólo un cartel y busca similares.
+ * Se mockea la búsqueda para que estos tests sigan siendo del LISTADO.
+ *
+ * El mock NO importa el módulo real. Hacerlo —`await real()`— arrastra
+ * `services/supabase/client`, que llama a `getEnv()` al importarse y exige
+ * variables de entorno. En local hay `.env` y pasaba; en la suite aislada
+ * —que corre como si no existiera, justamente para cachar esto— fallaba, y
+ * eso es lo que tira el deploy en CI.
+ *
+ * Se declara lo que el listado usa y nada más.
+ */
+/*
+ * Y también el hook: `PopoverProducto` usa `useSimilares`, que vive en
+ * `hooks/useProductos`, que importa el service. Mockear sólo el service no
+ * alcanza — el import del hook ya arrastra la cadena.
+ */
+vi.mock('../hooks/useProductos', () => ({
+  useSimilares: () => ({ data: { productos: [], fuentes: new Map() }, isPending: false }),
+  useProductos: () => ({ data: { productos: [], total: 0 }, isPending: false, isFetching: false, error: null, refetch: vi.fn() }),
+  useDisponibilidad: () => ({ data: undefined }),
+  useProductoPorId: () => ({ data: null, isPending: false, error: null }),
+  useMovimientos: () => ({ data: undefined, isFetching: false }),
+}))
+vi.mock('../services/productos', () => ({
+  similaresDe: () => Promise.resolve({ productos: [], fuentes: new Map() }),
+  consultarProductos: () => Promise.resolve({ productos: [], total: 0 }),
+  consultarTodosLosProductos: () => Promise.resolve({ productos: [], total: 0, truncado: false }),
+  contarCatalogoCompleto: () => Promise.resolve(0),
 }))
 
 const { ListadoProductos } = await import('./ListadoProductos')

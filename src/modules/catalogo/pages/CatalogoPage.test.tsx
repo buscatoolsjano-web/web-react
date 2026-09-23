@@ -36,6 +36,13 @@ vi.mock('../hooks/useCatalogoFacetas', () => ({
   // al vuelo. Acá no importa su contenido.
   useDefinicionesDeAtributos: () => ({ data: [] }),
 }))
+// Fase 22 · paridad #49: la exportación vive en un service, que importa el
+// cliente de Supabase. Sin este mock la página lo arrastra y estos tests
+// pasan a exigir variables de entorno.
+vi.mock('../hooks/useExportarCatalogo', () => ({
+  useExportarCatalogo: () => ({ exportar: vi.fn(), exportando: false, avance: null, error: null }),
+  useTotalDelCatalogo: () => null,
+}))
 vi.mock('../hooks/useProductos', () => ({
   useProductos: () =>
     estado.error
