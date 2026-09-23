@@ -1,4 +1,4 @@
-import type { FiltrosCatalogo } from '../types'
+import type { FiltrosCatalogo, OrdenCatalogo } from '../types'
 
 /**
  * Descripción declarativa de la consulta de productos.
@@ -27,7 +27,17 @@ export interface PlanDeConsulta {
   rangos: Record<string, { min?: number; max?: number }> | null
   limite: number
   desplazamiento: number
-  orden: 'nombre' | 'sku'
+  /**
+   * Fase 22 · paridad #13: el orden viaja tal cual a la RPC.
+   *
+   * Antes se colapsaba a 'nombre' | 'sku' acá, así que un orden por marca o
+   * por categoría se perdía en el camino y la pantalla mostraba la flecha
+   * puesta mientras el servidor devolvía lo de siempre.
+   *
+   * 'relevancia' no es un orden que la RPC conozca: cuando hay búsqueda,
+   * ordena por score sola. Se traduce a 'nombre', que es el desempate.
+   */
+  orden: OrdenCatalogo
 }
 
 export const MAX_POR_PAGINA = 100
@@ -80,7 +90,7 @@ export function construirPlanDeConsulta(
     rangos: Object.keys(rangos).length > 0 ? rangos : null,
     limite: porPagina,
     desplazamiento: (pagina - 1) * porPagina,
-    orden: filtros.orden === 'sku' ? 'sku' : 'nombre',
+    orden: filtros.orden === 'relevancia' ? 'nombre' : filtros.orden,
   }
 }
 

@@ -1,4 +1,4 @@
-import { columnasDe } from '../lib/familias'
+import { columnasDe, type ColumnaComparable } from '../lib/familias'
 import { compararValor, textoDe } from '../lib/similitud'
 import { ImagenProducto } from './ImagenProducto'
 import { formatearPrecio } from '../lib/formato'
@@ -19,6 +19,17 @@ export interface ComparadorProductosProps {
    * segura de que dijeran cosas distintas del mismo par de productos.
    */
   variante: 'compacta' | 'completa'
+  /**
+   * Las filas, cuando no las decide la familia del principal.
+   *
+   * Lo usa el comparador manual (#42): ahí los productos los eligió la
+   * persona y pueden ser de familias distintas, así que las columnas salen de
+   * `columnasDeVarias`. Sin esto habría que duplicar el comparador, y dos
+   * comparadores son dos respuestas para la misma pregunta.
+   */
+  columnas?: readonly ColumnaComparable[] | undefined
+  /** Sin tope: el manual muestra los que el usuario eligió, ni uno menos. */
+  sinTope?: boolean
 }
 
 /** Cuántos similares entran sin que el hover se vuelva una pantalla. */
@@ -49,12 +60,15 @@ export function ComparadorProductos({
   moneda,
   onAbrirProducto,
   variante,
+  columnas,
+  sinTope = false,
 }: ComparadorProductosProps) {
-  const filas = columnasDe(familia)
+  const filas = columnas ?? columnasDe(familia)
   if (filas.length === 0) return null
 
-  const mostrados = similares.slice(0, MAXIMO[variante])
-  const columnas = [principal, ...mostrados]
+  const mostrados = sinTope ? similares : similares.slice(0, MAXIMO[variante])
+  // Los PRODUCTOS que van en columna; `columnas` (la prop) son las FILAS.
+  const enColumna = [principal, ...mostrados]
 
   return (
     <div className={styles.scroll} data-variante={variante}>
@@ -66,7 +80,7 @@ export function ComparadorProductos({
           <tr>
             {/* La esquina: la columna de atributos no tiene cabecera propia. */}
             <td className={styles.esquina} />
-            {columnas.map((p, i) => (
+            {enColumna.map((p, i) => (
               <th key={p.id} scope="col" className={i === 0 ? styles.cabPrincipal : styles.cabSimilar}>
                 <Cabecera
                   producto={p}
@@ -86,7 +100,7 @@ export function ComparadorProductos({
               <th scope="row" className={styles.etiqueta}>
                 {col.etiqueta}
               </th>
-              {columnas.map((p, i) => {
+              {enColumna.map((p, i) => {
                 const veredicto = i === 0 ? null : compararValor(principal, p, col)
                 return (
                   <td

@@ -153,3 +153,60 @@ export function textoMotivoPrecio(motivo: MotivoPrecio, p: ProductoParaLinea, mo
       return `La tarifa ${p.tarifaNombre ?? ''} está en ${p.monedaPrecio ?? 'otra moneda'} y el documento en ${moneda}: no se aplica ni se convierte.`
   }
 }
+
+/**
+ * Los mismos datos que `buscarProductos`, pero por id (Fase 22 · paridad, #50).
+ *
+ * Lo usa el carrito del catálogo al abrir una cotización: llegan los ids y las
+ * cantidades, y el precio se resuelve **acá**, con la tarifa del documento,
+ * igual que cuando se elige un producto a mano en el buscador. El carrito no
+ * guarda precios: congelar en el catálogo lo que decide la cotización es la
+ * forma segura de que un día no coincidan.
+ *
+ * Devuelve en el orden de `ids`, que es el orden en que se fueron agregando.
+ */
+export async function productosPorId(
+  companyId: string,
+  ids: readonly string[],
+  opciones: OpcionesBusqueda = {},
+): Promise<ProductoParaLinea[]> {
+  if (ids.length === 0) return []
+
+  const base = supabase.from('price_lists').select('id, name, currency_code').eq('company_id', companyId)
+  const { data: lista } = opciones.listaPrecioId
+    ? await base.eq('id', opciones.listaPrecioId).maybeSingle()
+    : await base.eq('is_default', true).maybeSingle()
+
+  const { data: filas, error } = await supabase
+    .from('products')
+    .select('id, sku, name, brands!brand_id ( name ), product_prices ( amount, price_list_id, valid_from, valid_to )')
+    .eq('company_id', companyId)
+    .in('id', ids)
+  if (error) throw new Error(`No se pudieron leer los productos: ${error.message}`)
+
+  const porId = new Map(
+    ((filas ?? []) as unknown as {
+      id: string
+      sku: string
+      name: string
+      brands: { name: string } | null
+      product_prices: FilaPrecio[] | null
+    }[]).map((p) => [p.id, p]),
+  )
+  const hoy = new Date().toISOString().slice(0, 10)
+
+  return ids.flatMap((id) => {
+    const p = porId.get(id)
+    if (!p) return []
+    return [{
+      id: p.id,
+      sku: p.sku,
+      nombre: p.name,
+      marca: p.brands?.name ?? null,
+      precio: lista ? precioVigente(p.product_prices ?? [], lista.id, hoy) : null,
+      monedaPrecio: lista?.currency_code ?? null,
+      tarifaId: lista?.id ?? null,
+      tarifaNombre: lista?.name ?? null,
+    }]
+  })
+}

@@ -197,3 +197,86 @@
   background: var(--color-primary-soft);
   box-shadow: inset 3px 0 0 0 var(--primary);
 }
+
+/* ── Orden por columna (Fase 22 · paridad, #13) ─────────────────────────── */
+.th {
+  padding: 0;
+}
+
+.ordenar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: inherit;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ordenar:hover {
+  color: var(--color-primary);
+}
+
+.flecha {
+  font-size: 9px;
+  color: var(--color-primary);
+}
+
+.flechaInactiva {
+  font-size: 9px;
+  opacity: 0.3;
+}
+
+/* ── Elegir para comparar (Fase 22 · paridad, #42) ──────────────────────── */
+.colElegir {
+  width: 34px;
+  text-align: center;
+}
+
+.elegir {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.elegir:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* ── Carrito (Fase 22 · paridad, #50) ───────────────────────────────────── */
+.colCarrito {
+  width: 112px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.tarjetaConCarrito {
+  position: relative;
+}
+
+.tarjetaCarrito {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 var(--space-3) var(--space-3);
+  margin-top: calc(-1 * var(--space-2));
+}
+
+/* Columnas del atributo distintivo de la categoría (Fase 22 · paridad, #19).
+   Se esconden en tablet: ahí el ancho lo necesitan SKU, nombre y precio. */
+.colDinamica {
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+}
+
+@media (max-width: 1279px) {
+  .colDinamica {
+    display: none;
+  }
+}

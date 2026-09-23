@@ -1,7 +1,13 @@
 # Fase 22 · Paridad Catálogo — legacy vs React
 
-Auditoría del módulo **Catálogo** del HTML legacy contra el React actual.
-Hechos, no porcentajes. **No se implementó nada de lo que falta** (§9).
+Auditoría del módulo **Catálogo** del HTML legacy contra el React actual, y
+el cierre de las capacidades que faltaban.
+
+**Estado: 38 de 57 en paridad estricta, 47 cubiertas.** Los 3 críticos están
+cerrados. Lo que queda son 6 parciales y 4 faltantes, cada uno con su razón.
+El conteo lo genera `scripts/audit/fase22-actualizar-matriz.mjs` desde la
+tabla: contar 57 filas a ojo es la forma confiable de que el resumen y la
+tabla digan cosas distintas.
 
 Fuente del legacy: `app.js` (45.345 líneas) + `index.html`, leídos
 programáticamente. Las referencias `app.js:NNNN` son verificables.
@@ -103,25 +109,25 @@ sería otro cambio no pedido. Anotado abajo como `INTENTIONALLY_DIFFERENT`.
 | 6 | Subcategoría (tipo/serie) | chips según la categoría, multi-selección | chips de tipo y serie, multi-selección | PARITY | — | — |
 | 7 | Filtro por atributo técnico | `<select>` por columna dinámica según la categoría (medida, largo, encastre, min/max kg, carcasa, longitud, eslinga, torque…) | facetas por atributo, multi-selección, definidas por categoría | PARITY | — | — |
 | 8 | Rango numérico | igualdad exacta (`min_kg === n`) | rango min/max de verdad (`rango.largo.min=25`) | PARITY | React es más capaz | — |
-| 9 | Filtro por columna: Referencia | input de texto sobre sku+modelo | — | MISSING | no hay filtro por columna separado de la búsqueda global | ninguna por ahora |
-| 10 | Filtro por columna: Nombre | input sobre nombre+modelo+marca | — | MISSING | ídem | ninguna por ahora |
-| 11 | **Filtro por stock con operadores** | `>5`, `<=2`, `>=10` sobre stock real y virtual | — | **MISSING** | no se puede filtrar por stock | ninguna por ahora |
+| 9 | Filtro por columna: Referencia | input de texto sobre sku+modelo | la búsqueda global cubre sku y nombre con tsvector + trigram | PARTIAL | no se puede acotar «sólo por referencia» | pendiente · LOW |
+| 10 | Filtro por columna: Nombre | input sobre nombre+modelo+marca | ídem #9 | PARTIAL | ídem | pendiente · LOW |
+| 11 | **Filtro por stock con operadores** | `>5`, `<=2`, `>=10` sobre stock real y virtual | — | **MISSING** | el stock vive en `stock_balances`, no en `products`: filtrarlo exige cambiar la forma de `search_products`, que usan cinco módulos | pendiente · MEDIUM |
 | 12 | Estado de los filtros en la URL | no: viven en `state` en memoria | todo en el querystring, compartible y con historial | INTENTIONALLY_DIFFERENT | React sobrepasa | — |
 
 ### Orden, paginación y listado
 
 | # | Funcionalidad | Legacy | React | Paridad | Diferencia | Acción necesaria |
 |---|---|---|---|---|---|---|
-| 13 | **Ordenar por columna** | click en Referencia, Marca, Modelo, Categoría, Serie, Stock real, Stock virtual, Costo — asc/desc con flecha | el orden existe (`sku`/`nombre`/`relevancia`, va a `search_products`) pero **no está expuesto en la UI** | **PARTIAL** | no hay encabezado clickeable ni selector de orden | ninguna por ahora |
+| 13 | **Ordenar por columna** | click en Referencia, Marca, Modelo, Categoría, Serie, Stock real, Stock virtual, Costo — asc/desc con flecha | **implementado**: SKU, Producto, Marca, Categoría y Serie, asc/desc, en la URL, con `aria-sort` y accesible por teclado | **PARTIAL** | faltan Stock y Costo, por la misma razón que #11 y #22 | hecho (5 de 8 columnas) |
 | 14 | Paginación | ⏮ ‹ 1 2 3 › ⏭ | componente `Pagination` con lo mismo | PARITY | — | — |
 | 15 | Productos por página | 10/25/50/100/200/500 | selector de tamaño de página | PARITY | verificar que las opciones coincidan | ninguna por ahora |
 | 16 | «Mostrando X-Y de Z» | sí | sí | PARITY | — | — |
 | 17 | Columna Imagen | miniatura 48 px | miniatura | PARITY | — | — |
 | 18 | Columnas SKU / Marca / Modelo / Categoría / Serie | sí | sí | PARITY | — | — |
-| 19 | Columnas dinámicas por categoría | sí: al elegir «punta» aparecen Medida, Largo, Encastre como columnas | no: los atributos se ven en el hover y en la ficha | PARTIAL | no se pueden comparar atributos de un vistazo en la tabla | ninguna por ahora |
+| 19 | Columnas dinámicas por categoría | mapa fijo `CATEGORY_FILTERS` | **implementado**: salen de las facetas reales de la categoría, hasta 5, descartando las que cubren menos del 25 % | PARITY | React las deriva del dato en vez de una lista escrita a mano | hecho |
 | 20 | Stock real y virtual | dos columnas con semáforo (rojo ≤0, ámbar <5, verde) | una columna «real / virt.» | PARTIAL | React no pinta semáforo — **decisión previa de Juan: nada de crítico/mínimo/semáforo** | ninguna: es deliberado |
 | 21 | Sin saldo registrado | muestra `0` | muestra `—` con «Sin saldo registrado» | INTENTIONALLY_DIFFERENT | React corrige una mentira del legacy: 21.449 productos sin movimientos decían «0» | — |
-| 22 | **Columna Costo (USD)** | sí, sólo para internos | no | **MISSING** | el costo no se ve en el listado | ninguna por ahora |
+| 22 | **Columna Costo (USD)** | sí, sólo para internos: `p.pu`, un campo del producto | no | **MISSING** | React no tiene costo en `products`: es un hecho de compras (`ultimo_precio_compra`). Mostrarlo en el listado es una consulta por página, no una columna | pendiente · MEDIUM |
 | 23 | Columna Precio de venta | sí | sí, por lista de precios | PARITY | React resuelve la tarifa; el legacy calculaba `pu*3` en JS | — |
 | 24 | Vista mobile en tarjetas | sí | sí (responsive) | PARITY | — | — |
 | 25 | Estado vacío | «Sin coincidencias» | `EmptyState` con texto y sugerencia | PARITY | — | — |
@@ -135,8 +141,8 @@ sería otro cambio no pedido. Anotado abajo como `INTENTIONALLY_DIFFERENT`.
 | 28 | Identidad (SKU, nombre, marca, categoría, serie) | sí | sí | PARITY | — | — |
 | 29 | **Descripción con link de catálogo** | texto + botón 📄 | **arreglado en esta entrega** | PARITY | — | hecho |
 | 30 | Atributos técnicos | grilla de 2 columnas | `ListaAtributos` con definiciones y unidades | PARITY | — | — |
-| 31 | Datos físicos y aduana (peso, volumen, NCM, dimensiones) | sí, sólo internos | sí (peso, volumen, NCM, origen) | PARTIAL | faltan `dim_balanceador` y `dim_caja` | ninguna por ahora |
-| 32 | Precio y stock | costo + precio venta + stock real/virtual | precio por lista + stock real/virtual | PARTIAL | falta el costo | ninguna por ahora |
+| 31 | Datos físicos y aduana (peso, volumen, NCM, dimensiones) | sí, sólo internos | sí (peso, volumen, NCM, origen) | PARTIAL | `dim_balanceador` y `dim_caja` **no existen en el esquema de React**: es deuda de datos, no una pantalla faltante | pendiente · LOW |
+| 32 | Precio y stock | costo + precio venta + stock real/virtual | precio por lista + stock real/virtual | PARTIAL | falta el costo, por lo mismo que #22 | pendiente · MEDIUM |
 | 33 | Equivalencias curadas | sección propia agrupada por marca | grilla única, **con distintivo «Equivalente»** | PARITY | la forma cambia, la distinción existe | hecho |
 | 34 | Similares calculados | sección propia, 6 tarjetas | mismos, en la misma grilla | PARITY | — | — |
 | 35 | Historial de stock | últimos 15 movimientos | `HistorialStock`, bajo demanda | PARITY | React no lo carga hasta que se abre | — |
@@ -156,11 +162,11 @@ sería otro cambio no pedido. Anotado abajo como `INTENTIONALLY_DIFFERENT`.
 
 | # | Funcionalidad | Legacy | React | Paridad | Diferencia | Acción necesaria |
 |---|---|---|---|---|---|---|
-| 42 | **Elegir qué comparar** | checkbox por fila, de 2 a 4 productos **cualesquiera**, botón «🔀 Comparar (n)» | no se eligen: se comparan el producto y sus similares calculados | **MISSING** | no se pueden comparar dos productos arbitrarios del listado | ninguna por ahora |
+| 42 | **Elegir qué comparar** | checkbox por fila, de 2 a 4 productos **cualesquiera**, botón «🔀 Comparar (n)» | **implementado**: checkbox por fila, tope de 4 (el quinto se deshabilita), botón «Comparar (n)», mismo `ComparadorProductos` | PARITY | el legacy avisa con un toast al tildar el quinto; React lo deshabilita | hecho |
 | 43 | Atributos en filas, productos en columnas | sí | sí | PARITY | — | — |
 | 44 | Marcar las filas que difieren | punto naranja en la etiqueta + fondo alternado | verde/rojo/neutro por celda, con símbolo además del color | INTENTIONALLY_DIFFERENT | React marca por celda y no usa color solo (accesibilidad) | — |
-| 45 | Quitar una columna | botón «× Quitar» por producto | — | MISSING | — | ninguna por ahora |
-| 46 | «Limpiar selección» | sí | no aplica: no hay selección | MISSING | depende de #42 | ninguna por ahora |
+| 45 | Quitar una columna | botón «× Quitar» por producto | **implementado**: «Quitar: × SKU» al pie del comparador | PARITY | — | hecho |
+| 46 | «Limpiar selección» | sí | **implementado**, junto al botón Comparar | PARITY | — | hecho |
 | 47 | Excluir `sim_*` del comparador | sí (`ALWAYS_SKIP`) | sí (los similares no son filas del comparador) | PARITY | — | — |
 | 48 | Distintivo «Equivalente» en el comparador | no | sí | INTENTIONALLY_DIFFERENT | React sobrepasa; §2 dice no agregar, no dice quitar | — |
 
@@ -168,8 +174,8 @@ sería otro cambio no pedido. Anotado abajo como `INTENTIONALLY_DIFFERENT`.
 
 | # | Funcionalidad | Legacy | React | Paridad | Diferencia | Acción necesaria |
 |---|---|---|---|---|---|---|
-| 49 | **Exportar a Excel/CSV** | modal con alcance (filtrados / todo el catálogo), 27 columnas en 3 grupos, «todas»/«ninguna», conteo en vivo, y **el cliente nunca exporta stock virtual ni el catálogo completo** | — | **MISSING** | no hay exportación del catálogo | ninguna por ahora |
-| 50 | **Agregar al carrito desde el listado** | stepper − n + por fila; barra flotante con ítems y total; «Ver cotización»; «Vaciar». Carrito distinto para cliente e interno | — | **MISSING** | no se puede armar una cotización desde el catálogo | ninguna por ahora |
+| 49 | **Exportar a Excel/CSV** | modal con alcance, 27 columnas en 3 grupos, «todas»/«ninguna», conteo en vivo, y el cliente nunca exporta stock virtual ni el catálogo completo | **implementado**: mismo modal, 21 columnas, las mismas reglas de rol, y el archivo respeta búsqueda, filtros y orden | PARITY | 21 y no 27: `familia`, `huella` y `eslinga` no existen en React. Se agrega «En catálogo», que en el legacy no existía | hecho |
+| 50 | **Agregar al carrito desde el listado** | stepper − n + por fila; barra flotante con ítems y total; «Ver cotización»; «Vaciar». Carrito distinto para cliente e interno | **implementado**: stepper en tabla y tarjetas, barra flotante, persiste en `localStorage`, y «Ver cotización» lleva a **Nueva cotización** con las líneas puestas | PARITY | el legacy crea la cotización en su propio modal con su copia del cálculo; React usa la única pantalla que crea documentos. Un solo carrito: no hay portal de cliente (F23 · `PC-02`) | hecho |
 | 51 | **Crear producto nuevo** | botón «➕ Nuevo» → modal de alta con secciones y atributos a medida (internos) | — | **MISSING** | el catálogo es de sólo lectura | ninguna por ahora |
 | 52 | Ir de un similar a otro producto | click en la tarjeta reemplaza el producto | ídem, sin cerrar el modal | PARITY | — | — |
 | 53 | Imprimir | no existe en el catálogo | no existe | PARITY | — | — |
@@ -195,65 +201,52 @@ sería otro cambio no pedido. Anotado abajo como `INTENTIONALLY_DIFFERENT`.
 Contado fila por fila, por sección:
 
 | sección | filas | PARITY | PARTIAL | MISSING | INT. DIF. |
-|---|---|---|---|---|---|
-| Búsqueda y filtrado (#1–12) | 12 | 8 | 0 | 3 | 1 |
-| Orden, paginación, listado (#13–26) | 14 | 8 | 3 | 1 | 2 |
+|---|---:|---:|---:|---:|---:|
+| Búsqueda y filtrado (#1–12) | 12 | 8 | 2 | 1 | 1 |
+| Orden, paginación, listado (#13–26) | 14 | 9 | 2 | 1 | 2 |
 | Ficha (#27–38) | 12 | 9 | 2 | 0 | 1 |
 | Hover (#39–41) | 3 | 2 | 0 | 0 | 1 |
-| Comparador (#42–48) | 7 | 2 | 0 | 3 | 2 |
-| Acciones (#49–53) | 5 | 2 | 0 | 3 | 0 |
+| Comparador (#42–48) | 7 | 5 | 0 | 0 | 2 |
+| Acciones (#49–53) | 5 | 4 | 0 | 1 | 0 |
 | Permisos (#54–56) | 3 | 1 | 0 | 0 | 2 |
 | Fuera de alcance (#57) | 1 | 0 | 0 | 1 | 0 |
-| **total** | **57** | **32** | **5** | **11** | **9** |
+| **total** | **57** | **38** | **6** | **4** | **9** |
 
 ```
 CATALOG_LEGACY_FEATURES_TOTAL = 57
 
-PARITY                  = 32
-PARTIAL                 =  5
-MISSING                 = 11
-INTENTIONALLY_DIFFERENT =  9
+                          ANTES   DESPUÉS
+PARITY                  =    32        38
+PARTIAL                 =     5         6
+MISSING                 =    11         4
+INTENTIONALLY_DIFFERENT =     9         9
 ```
 
-`PARTIAL` (5): #13 ordenar por columna · #19 columnas dinámicas · #20 semáforo
-de stock (deliberado) · #31 dimensiones · #32 costo en la ficha.
+`PARTIAL` subió de 5 a 6 y no es un retroceso: **#9** y **#10** bajaron de
+`MISSING` a `PARTIAL` —la búsqueda del servidor encuentra lo mismo, lo que
+falta es acotar a un campo— y **#13** dejó de ser «no existe» para ser «5 de
+8 columnas». Los que se cerraron enteros son #19, #42, #45, #46, #49 y #50.
 
-`MISSING` (11): #9 · #10 · #11 · #22 · #42 · #45 · #46 · #49 · #50 · #51 · #57.
+### Lo que sigue faltando, y por qué
 
-### Críticas y menores
+| # | qué | por qué no se hizo | sev |
+|---|---|---|---|
+| #11 | Filtrar por stock con operadores | El stock no está en `products`: vive en `stock_balances`. Filtrarlo exige cambiar la forma de `search_products`, que llaman cinco módulos. Es una decisión de arquitectura, no una pantalla | MEDIUM |
+| #22 · 32 | Columna y dato de **costo** | El legacy tiene `p.pu` como campo del producto. En React el costo es un hecho de compras (`ultimo_precio_compra`), no una columna. Ponerlo en el listado es una consulta por página | MEDIUM |
+| #31 | Dimensiones de producto y de caja | `dim_balanceador` y `dim_caja` **no existen en el esquema**. Es deuda de datos, no una pantalla faltante | LOW |
+| #9 · 10 | Filtros por columna de referencia y de nombre | La búsqueda global encuentra lo mismo; falta poder acotar a un campo | LOW |
+| #13 | Ordenar por Stock y por Costo | Lo mismo que #11 y #22 | LOW |
+| #51 | Crear y editar producto | Es un ABM completo, no una capacidad del listado. Y hoy los productos entran por dos puertas —STEL y catálogo técnico— que ya produjeron 226 duplicados: abrir una tercera sin cerrar eso pide más duplicados | fase propia |
+| #57 | Pestaña «Catálogo · Servicios» | Otro submódulo, con su listado y su editor | fase propia |
 
 ```
-CRITICAL_MISSING = 3
-  #50  agregar al carrito desde el catálogo — es el camino por el que hoy
-       nace una cotización en el legacy; sin esto el catálogo es sólo consulta
-  #49  exportar a Excel/CSV — con control de rol: el cliente no puede
-       exportar stock virtual ni el catálogo entero
-  #42  elegir dos a cuatro productos cualesquiera y compararlos — el
-       comparador de React sólo compara contra los similares calculados
-
-MINOR_MISSING = 8
-  #9, #10   filtros por columna de referencia y de nombre (la búsqueda global
-            del servidor los cubre en buena medida)
-  #11       filtro de stock con operadores (>5, <=2)
-  #22       columna Costo en el listado
-  #45, #46  quitar columna y limpiar selección: dependen enteramente de #42
-  #51       alta de producto desde el catálogo
-  #57       pestaña «Catálogo · Servicios»
+BLOCKING_CATALOG_GAPS = 0
 ```
 
-3 + 8 = 11, que es el total de `MISSING`.
-
-`#51` y `#57` se cuentan como menores dentro de **este** alcance porque no son
-del listado de productos: son otro submódulo y otra pantalla. Si se decide que
-entran, suben a críticas.
-
-Los `PARTIAL` no entran en ninguno de los dos conteos: no falta la
-funcionalidad, falta una parte. El más barato de cerrar es **#13**: el
-parámetro de orden ya viaja hasta la RPC y ya vive en la URL, falta el
-encabezado clickeable.
-
----
-
+Ninguno de los que quedan impide reemplazar el catálogo del legacy: se puede
+buscar, filtrar, ordenar, comparar, exportar y armar una cotización. Lo que
+falta es acotar por un campo, ver el costo, y dos submódulos que no son el
+listado de productos.
 ## Parte 4 · Lo que NO es falta de paridad (§7 y §8)
 
 - **localStorage contra Supabase.** El legacy guarda carrito, filtros y auth

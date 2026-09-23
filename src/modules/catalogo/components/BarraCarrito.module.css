@@ -1,0 +1,78 @@
+.barra {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-5);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg, 0 4px 24px rgb(0 0 0 / 18%));
+}
+
+.numeros {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-5);
+}
+
+.etiqueta {
+  display: block;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--color-text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.valor {
+  display: block;
+  font-size: var(--text-lg);
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.aclaracion {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--color-warning-text, var(--color-text-soft));
+}
+
+.acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* En teléfono ocupa el ancho: una barra flotante angosta tapa la última fila
+   y no deja leerla. */
+@media (max-width: 640px) {
+  .barra {
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: var(--space-3);
+    justify-content: space-between;
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+
+  .numeros {
+    gap: var(--space-4);
+  }
+
+  .valor {
+    font-size: var(--text-base);
+  }
+}
+
+@media print {
+  .barra {
+    display: none;
+  }
+}

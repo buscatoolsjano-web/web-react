@@ -1,4 +1,27 @@
-export type OrdenCatalogo = 'relevancia' | 'nombre' | 'sku'
+/**
+ * Cómo se ordena el catálogo (Fase 22 · paridad, #13).
+ *
+ * Los que llevan `_desc` son la misma columna al revés. Las cinco columnas
+ * ordenables son las que `search_products` sabe ordenar: SKU, Producto,
+ * Marca, Categoría y Serie. **Stock y Precio no están**, y no es un olvido:
+ * no viven en `products` —están en `stock_balances` y en `product_prices`—
+ * y el precio además depende de qué lista de precios se esté mirando, que la
+ * RPC no recibe. El legacy puede ordenar por stock porque tiene los 21.775
+ * productos en memoria.
+ */
+export const ORDENES_CATALOGO = [
+  'relevancia',
+  'nombre', 'nombre_desc',
+  'sku', 'sku_desc',
+  'marca', 'marca_desc',
+  'categoria', 'categoria_desc',
+  'serie', 'serie_desc',
+] as const
+
+export type OrdenCatalogo = (typeof ORDENES_CATALOGO)[number]
+
+/** Las columnas que se pueden ordenar, sin la dirección. */
+export const COLUMNAS_ORDENABLES = ['sku', 'nombre', 'marca', 'categoria', 'serie'] as const
 
 /** Estado completo del catálogo. Vive en la URL, no en useState. */
 export interface FiltrosCatalogo {

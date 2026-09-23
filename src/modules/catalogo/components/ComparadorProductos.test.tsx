@@ -120,9 +120,13 @@ describe('Verde, rojo y neutro por celda (§3)', () => {
     expect(celdas('Carcasa')[1]).toHaveAttribute('data-veredicto', 'sin-dato')
   })
 
-  it('el modelo identifica y no se compara: dos productos distintos siempre difieren', () => {
+  it('el modelo identifica y NO lleva veredicto: compararlo no dice nada', () => {
+    // Antes decía `sin-dato`, que en pantalla se lee «modelo sin datos para
+    // comparar». Es falso: el modelo está escrito en la celda. Lo que pasa es
+    // que dos productos distintos nunca comparten modelo, así que compararlo
+    // es una tautología. Sin veredicto, no un veredicto equivocado.
     montar()
-    expect(celdas('Modelo')[1]).toHaveAttribute('data-veredicto', 'sin-dato')
+    expect(celdas('Modelo')[1]).not.toHaveAttribute('data-veredicto')
   })
 
   it('unidades equivalentes coinciden: 2 m y 2000 mm son el mismo recorrido', () => {
@@ -135,7 +139,17 @@ describe('Verde, rojo y neutro por celda (§3)', () => {
     montar()
     expect(celdas('Carcasa')[1]?.textContent).toContain('=')
     expect(celdas('Carcasa')[2]?.textContent).toContain('≠')
-    expect(celdas('Modelo')[1]?.textContent).toContain('?')
+  })
+
+  it('«sin dato» también lleva su símbolo: no saber es información', () => {
+    montar({ similares: [SIN_CARCASA] })
+    expect(celdas('Carcasa')[1]?.textContent).toContain('?')
+  })
+
+  it('la fila de identidad no lleva ningún símbolo', () => {
+    montar()
+    expect(celdas('Modelo')[1]?.textContent).not.toContain('?')
+    expect(celdas('Modelo')[1]?.textContent).not.toContain('≠')
   })
 })
 

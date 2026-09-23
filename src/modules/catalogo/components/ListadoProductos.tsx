@@ -4,10 +4,12 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { Badge } from '@/components/ui/Badge'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import tabla from '@/components/tables/Tabla.module.css'
+import { CeldaCarrito } from './CeldaCarrito'
 import { DisponibilidadBadge, PrecioCelda, StockCelda } from './Celdas'
 import { ImagenProducto } from './ImagenProducto'
 import { PopoverProducto } from './PopoverProducto'
 import { atributosDestacados } from '../lib/destacados'
+import { valorDinamico, type ColumnaDinamica } from '../lib/columnasDinamicas'
 import type { DefinicionAtributo, ProductoListado } from '../types'
 import styles from './ListadoProductos.module.css'
 
@@ -28,6 +30,29 @@ export interface ListadoProductosProps {
   definiciones?: readonly DefinicionAtributo[]
   /** La lista de precios vigente, para que los similares traigan SU precio. */
   priceListId?: string | null
+  /** Columna «Carrito» con el − [n] + de cada fila (Fase 22 · paridad, #50). */
+  conCarrito?: boolean
+  /** Columna de selección para comparar a mano (Fase 22 · paridad, #42). */
+  seleccion?: SeleccionComparar | undefined
+  /** Encabezados que ordenan (Fase 22 · paridad, #13). */
+  orden?: OrdenDeColumna | undefined
+  /** Columnas del atributo distintivo de la categoría (Fase 22 · paridad, #19). */
+  columnasDinamicas?: readonly ColumnaDinamica[]
+}
+
+/** Elegir 2 a 4 productos para compararlos, como el checkbox del legacy. */
+export interface SeleccionComparar {
+  elegidos: ReadonlySet<string>
+  alternar: (producto: ProductoListado) => void
+  /** Ya hay 4: los no elegidos se deshabilitan, como en el legacy. */
+  lleno: boolean
+}
+
+/** El estado del orden y cómo pedirle otro. */
+export interface OrdenDeColumna {
+  campo: string
+  direccion: 'asc' | 'desc'
+  ordenar: (campo: string) => void
 }
 
 /**
@@ -116,6 +141,10 @@ export function ListadoProductos({
   abierto = null,
   definiciones = [],
   priceListId = null,
+  conCarrito = false,
+  seleccion,
+  orden,
+  columnasDinamicas = [],
 }: ListadoProductosProps) {
   const isMobile = useIsMobile()
   const navigate = useNavigate()
@@ -199,7 +228,7 @@ export function ListadoProductos({
           // Uno o dos atributos, no quince: salen de los datos del propio producto.
           const destacados = atributosDestacados(p.atributos, 2, unidades)
           return (
-            <li key={p.id}>
+            <li key={p.id} className={styles.tarjetaConCarrito}>
               <Link to={rutaProducto(p.sku)} className={styles.tarjeta}>
                 <span className={styles.tarjetaImagen}>
                   <ImagenProducto imagen={p.imagen} alt="" tamano="thumb" />
@@ -239,6 +268,13 @@ export function ListadoProductos({
                   </span>
                 </span>
               </Link>
+              {/* Fuera del <Link>: un stepper adentro de un enlace navega al
+                  tocar «+», que es lo contrario de lo que se quiso hacer. */}
+              {conCarrito ? (
+                <div className={styles.tarjetaCarrito}>
+                  <CeldaCarrito producto={p} />
+                </div>
+              ) : null}
             </li>
           )
         })}
@@ -251,18 +287,29 @@ export function ListadoProductos({
       <table className={`${tabla.tabla} ${styles.tabla}`}>
         <thead>
           <tr>
+            {seleccion ? (
+              <th scope="col" className={styles.colElegir}>
+                <span className="sr-only">Comparar</span>
+              </th>
+            ) : null}
             <th scope="col" className={styles.colImagen}>
               <span className="sr-only">Imagen</span>
             </th>
-            <th scope="col">SKU</th>
-            <th scope="col">Producto</th>
-            <th scope="col">Marca</th>
-            <th scope="col" className={styles.soloAncho}>
+            <Encabezado campo="sku" orden={orden}>SKU</Encabezado>
+            <Encabezado campo="nombre" orden={orden}>Producto</Encabezado>
+            <Encabezado campo="marca" orden={orden}>Marca</Encabezado>
+            <Encabezado campo="categoria" orden={orden} className={styles.soloAncho}>
               Categoría
-            </th>
-            <th scope="col" className={styles.soloAncho}>
+            </Encabezado>
+            <Encabezado campo="serie" orden={orden} className={styles.soloAncho}>
               Serie
-            </th>
+            </Encabezado>
+            {columnasDinamicas.map((c) => (
+              <th key={c.key} scope="col" className={styles.colDinamica}>
+                {c.label}
+                {c.unidad ? <span className={styles.aclaracion}> {c.unidad}</span> : null}
+              </th>
+            ))}
             {esInterno ? (
               <th scope="col" className={tabla.num}>
                 Stock <span className={styles.aclaracion}>real / virt.</span>
@@ -273,6 +320,11 @@ export function ListadoProductos({
             <th scope="col" className={tabla.num}>
               Precio{moneda ? <span className={styles.aclaracion}> {moneda}</span> : null}
             </th>
+            {conCarrito ? (
+              <th scope="col" className={styles.colCarrito}>
+                Carrito
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -284,6 +336,24 @@ export function ListadoProductos({
               className={p.id === abierto ? `${styles.fila} ${styles.abierta}` : styles.fila}
               {...filaClickeable(p.id, onAbrirProducto, () => void navigate(rutaProducto(p.sku)))}
             >
+              {seleccion ? (
+                <td
+                  className={styles.colElegir}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  role="presentation"
+                >
+                  <input
+                    type="checkbox"
+                    className={styles.elegir}
+                    checked={seleccion.elegidos.has(p.id)}
+                    disabled={seleccion.lleno && !seleccion.elegidos.has(p.id)}
+                    onChange={() => seleccion.alternar(p)}
+                    aria-label={`Comparar ${p.sku}`}
+                    data-comparar={p.sku}
+                  />
+                </td>
+              ) : null}
               <td
                 className={styles.colImagen}
                 // La ficha al vuelo es de la IMAGEN, no de la fila: pasar por
@@ -310,12 +380,25 @@ export function ListadoProductos({
                 {p.categoria?.nombre ?? <span className={tabla.secundario}>—</span>}
               </td>
               <td className={`${styles.soloAncho} ${tabla.nowrap}`}>{p.serie ?? <span className={tabla.secundario}>—</span>}</td>
+              {columnasDinamicas.map((c) => {
+                const v = valorDinamico(p, c)
+                return (
+                  <td key={c.key} className={styles.colDinamica}>
+                    {v === '—' ? <span className={tabla.secundario}>—</span> : v}
+                  </td>
+                )
+              })}
               <td className={esInterno ? tabla.num : tabla.nowrap}>
                 {esInterno ? <StockCelda stock={p.stock} /> : <DisponibilidadBadge disponible={disponibilidad?.get(p.id) ?? false} />}
               </td>
               <td className={tabla.num}>
                 <PrecioCelda monto={p.precio} moneda={moneda} />
               </td>
+              {conCarrito ? (
+                <td className={styles.colCarrito}>
+                  <CeldaCarrito producto={p} />
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>
@@ -337,5 +420,51 @@ export function ListadoProductos({
         />
       ) : null}
     </div>
+  )
+}
+
+/**
+ * Un encabezado que ordena (Fase 22 · paridad, #13).
+ *
+ * El legacy (`app.js:17366`) hace exactamente dos cosas: si ya se está
+ * ordenando por ese campo, da vuelta la dirección; si no, ordena por ese
+ * campo ascendente. **No hay tercer click que saque el orden** — lo verifiqué
+ * en el código antes de escribir esto, porque era la duda razonable.
+ *
+ * Si la columna no se puede ordenar, sigue siendo un `th` normal: no hay un
+ * botón que no hace nada.
+ */
+function Encabezado({
+  campo,
+  orden,
+  className,
+  children,
+}: {
+  campo: string
+  orden: OrdenDeColumna | undefined
+  className?: string | undefined
+  children: React.ReactNode
+}) {
+  const clase = className ? `${styles.th} ${className}` : styles.th
+  if (!orden) {
+    return (
+      <th scope="col" className={className}>
+        {children}
+      </th>
+    )
+  }
+  const activo = orden.campo === campo
+  const asc = activo && orden.direccion === 'asc'
+  return (
+    <th scope="col" className={clase} aria-sort={activo ? (asc ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" className={styles.ordenar} onClick={() => orden.ordenar(campo)}>
+        {children}
+        {/* El indicador va marcado como decorativo: la dirección ya la dice
+            `aria-sort`, y leerla dos veces molesta más de lo que ayuda. */}
+        <span className={activo ? styles.flecha : styles.flechaInactiva} aria-hidden="true">
+          {activo ? (asc ? '▲' : '▼') : '⇅'}
+        </span>
+      </button>
+    </th>
   )
 }

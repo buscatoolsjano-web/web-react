@@ -49,6 +49,8 @@ import {
 import { escribeVentas } from '../lib/permisos'
 import { tasaDe } from '../lib/tratamientos'
 import { crearCotizacion } from '../services/cotizaciones'
+import { productosPorId } from '../services/productosParaLinea'
+import { carritoActual, vaciarCarrito } from '@/modules/catalogo/hooks/useCarrito'
 import type { DocumentoDetalle } from '../types'
 import editor from './EditorCotizacion.module.css'
 
@@ -111,6 +113,69 @@ export function CotizacionNuevaPage() {
   }, [])
   const [b, setB] = useState<Borrador>(inicial)
   const [buscando, setBuscando] = useState(false)
+
+  /**
+   * Las líneas que vienen del carrito del catálogo (Fase 22 · paridad, #50).
+   *
+   * El legacy arma la cotización en su propio modal, con su propia copia del
+   * cálculo de totales (`app.js:17635`). Acá el carrito **no crea nada**:
+   * trae la selección a esta pantalla, que es la única que crea documentos de
+   * venta. Misma autoridad de numeración, mismo borrador, misma validación.
+   *
+   * El precio se resuelve acá con la tarifa del documento, igual que cuando
+   * se elige un producto en el buscador de arriba — el carrito no lo guarda.
+   *
+   * Se vacía el carrito apenas se cargan las líneas: si se vaciara al
+   * guardar, salir sin guardar dejaría la cotización sin hacer Y el carrito
+   * vacío. Así, lo peor que pasa es que las líneas quedan en un borrador que
+   * se descarta, y volver al catálogo a elegir de nuevo es una acción, no una
+   * pérdida silenciosa.
+   */
+  const [avisoCarrito, setAvisoCarrito] = useState<string | null>(null)
+  const desdeCatalogo = parametros.get('desde') === 'catalogo'
+  const empresaId = activa?.companyId ?? null
+  const carritoConsumido = useRef(false)
+  useEffect(() => {
+    if (!desdeCatalogo || carritoConsumido.current || !empresaId) return
+    const items = carritoActual()
+    if (items.length === 0) return
+    carritoConsumido.current = true
+    const ids = items.map((i) => i.productId)
+    void productosPorId(empresaId, ids, { listaPrecioId: b.cabecera.listaPrecioId || null })
+      .then((resueltos) => {
+        const porId = new Map(resueltos.map((p) => [p.id, p]))
+        setB((x) =>
+          items.reduce((acc, i) => {
+            const p = porId.get(i.productId)
+            return agregarLinea(acc, {
+              tipoLinea: 'item',
+              productId: i.productId,
+              sku: p?.sku ?? i.sku,
+              nombre: p?.nombre ?? i.nombre,
+              descripcion: null,
+              cantidad: i.cantidad,
+              precioUnitario: p?.precio ?? 0,
+              descuentoPct: 0,
+              tratamientoImpuesto: 'vat_21',
+              tasaImpuesto: 21,
+            })
+          }, x),
+        )
+        const sinPrecio = items.filter((i) => typeof porId.get(i.productId)?.precio !== 'number').length
+        if (sinPrecio > 0) {
+          setAvisoCarrito(
+            sinPrecio === 1
+              ? 'Un producto del carrito no tiene precio en esta tarifa: quedó en 0 y hay que ponerlo a mano.'
+              : `${sinPrecio} productos del carrito no tienen precio en esta tarifa: quedaron en 0 y hay que ponerlos a mano.`,
+          )
+        }
+        vaciarCarrito()
+      })
+      .catch((e: unknown) => {
+        carritoConsumido.current = false
+        setAvisoCarrito(e instanceof Error ? e.message : String(e))
+      })
+  }, [desdeCatalogo, empresaId, b.cabecera.listaPrecioId])
   /**
    * La vista previa (Fase 19 · E3).
    *
@@ -390,6 +455,15 @@ export function CotizacionNuevaPage() {
       />
 
       {stel ? <AvisoAutoridadStel detalle={motivo} /> : null}
+
+      {/* Fase 22 · paridad #50: si un producto del carrito no tiene precio en
+          esta tarifa, la línea queda en 0 y se avisa. Dejarla en 0 sin decir
+          nada sería cotizar gratis sin que nadie se entere. */}
+      {avisoCarrito ? (
+        <Alert tone="warning" role="status" title="Productos que vinieron del catálogo">
+          <p>{avisoCarrito}</p>
+        </Alert>
+      ) : null}
 
       {/* Fase 17 · E2: cuando un default del cliente no se puede aplicar, se
           dice por qué. Nunca se aplica un reemplazo en silencio. */}

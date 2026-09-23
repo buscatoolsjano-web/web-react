@@ -18,7 +18,8 @@ export interface CeldaComparada {
   etiqueta: string
   /** Lo que se muestra, siempre el valor original del producto. */
   texto: string
-  veredicto: Veredicto
+  /** `null` en las columnas de identidad: se muestran pero no se comparan. */
+  veredicto: Veredicto | null
 }
 
 // ── Normalización ──────────────────────────────────────────────────────────
@@ -109,6 +110,10 @@ export function valorDe(p: ProductoListado, col: ColumnaComparable): unknown {
     if (col.clave === 'sku') return p.sku
     if (col.clave === 'tipo') return p.tipo
     if (col.clave === 'serie') return p.serie
+    // Categoría sólo aparece al comparar a mano productos de familias
+    // distintas (#42): ahí es lo que explica por qué las demás filas no
+    // coinciden.
+    if (col.clave === 'categoria') return p.categoria?.nombre ?? null
     return null
   }
   return p.atributos?.[col.clave] ?? null
@@ -142,10 +147,20 @@ export function compararValor(
   principal: ProductoListado,
   similar: ProductoListado,
   col: ColumnaComparable,
-): Veredicto {
-  // Una columna de identidad no se compara: ver el modelo en rojo no informa
-  // de nada, porque dos productos distintos nunca comparten modelo.
-  if (col.identidad) return 'sin-dato'
+): Veredicto | null {
+  /*
+   * Una columna de identidad no se compara, y por eso devuelve `null` y no
+   * `sin-dato`.
+   *
+   * Antes devolvía `sin-dato`, que en pantalla se lee «modelo sin datos para
+   * comparar». Es falso: el modelo está ahí, escrito en la celda. Lo que pasa
+   * es que compararlo no dice nada —dos productos distintos nunca comparten
+   * modelo—, y eso no es lo mismo que no saber.
+   *
+   * `null` significa «esta fila no lleva veredicto»: la celda muestra el
+   * valor y ningún símbolo.
+   */
+  if (col.identidad) return null
   const a = valorDe(principal, col)
   const b = valorDe(similar, col)
   if (sinDato(a) || sinDato(b)) return 'sin-dato'

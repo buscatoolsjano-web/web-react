@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import {
   FILTROS_INICIALES,
   type FiltrosCatalogo,
+  ORDENES_CATALOGO,
   type OrdenCatalogo,
   type RangoNumerico,
 } from '../types'
@@ -48,7 +49,30 @@ function aNumero(v: string | undefined): number | null {
 }
 
 function aOrden(v: string | null): OrdenCatalogo {
-  return v === 'sku' || v === 'relevancia' || v === 'nombre' ? v : FILTROS_INICIALES.orden
+  // Un orden que la URL trae mal escrito no puede dejar la pantalla sin
+  // resultados: cae en el de siempre, igual que antes de admitir columnas.
+  return (ORDENES_CATALOGO as readonly string[]).includes(v ?? '')
+    ? (v as OrdenCatalogo)
+    : FILTROS_INICIALES.orden
+}
+
+/**
+ * El próximo orden al tocar un encabezado (Fase 22 · paridad, #13).
+ *
+ * El legacy (`app.js:17366`) hace exactamente dos cosas: si ya se ordena por
+ * esa columna, da vuelta la dirección; si no, ordena por esa columna
+ * ascendente. **No hay un tercer click que saque el orden.**
+ */
+export function proximoOrden(actual: OrdenCatalogo, columna: string): OrdenCatalogo {
+  const esAscActual = actual === columna
+  return (esAscActual ? `${columna}_desc` : columna) as OrdenCatalogo
+}
+
+/** La columna y la dirección que hay que dibujar en el encabezado. */
+export function columnaYdireccion(orden: OrdenCatalogo): { campo: string; direccion: 'asc' | 'desc' } {
+  return orden.endsWith('_desc')
+    ? { campo: orden.slice(0, -5), direccion: 'desc' }
+    : { campo: orden, direccion: 'asc' }
 }
 
 export function leerFiltros(params: URLSearchParams): FiltrosCatalogo {
@@ -79,12 +103,25 @@ export function leerFiltros(params: URLSearchParams): FiltrosCatalogo {
     if (valores.length > 0) atributos[clave] = valores
   }
 
+  /*
+   * Un parámetro vacío es como si no estuviera.
+   *
+   * `?cat=` (sin valor) llegaba como cadena vacía hasta la RPC, que espera un
+   * uuid, y la pantalla entera moría con «invalid input syntax for type uuid».
+   * `escribirFiltros` nunca genera uno así, pero un link editado a mano o
+   * recortado sí, y un filtro de más no puede tirar el catálogo.
+   */
+  const texto = (clave: string) => {
+    const v = params.get(clave)
+    return v === null || v.trim() === '' ? null : v
+  }
+
   return {
     q: params.get('q') ?? '',
-    marca: params.get('marca'),
-    categoria: params.get('cat'),
+    marca: texto('marca'),
+    categoria: texto('cat'),
     subtipos: params.getAll('tipo').filter((v) => v !== ''),
-    serie: params.get('serie'),
+    serie: texto('serie'),
     atributos,
     rangos,
     pagina: aEntero(params.get('page'), FILTROS_INICIALES.pagina),

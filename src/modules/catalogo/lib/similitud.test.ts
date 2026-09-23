@@ -254,7 +254,8 @@ describe('El modelo identifica, no compara', () => {
   const b = producto({ sku: 'SP.2521/8B', marca: { id: 'm', nombre: 'SPEEDRILL' } })
 
   it('dos productos distintos siempre tienen modelo distinto: pintarlo rojo no dice nada', () => {
-    expect(compararValor(a, b, col('punta', 'sku'))).toBe('sin-dato')
+    // null, no 'sin-dato': el modelo ESTÁ, sólo que compararlo no informa.
+    expect(compararValor(a, b, col('punta', 'sku'))).toBeNull()
   })
 
   it('pero el modelo se sigue mostrando', () => {

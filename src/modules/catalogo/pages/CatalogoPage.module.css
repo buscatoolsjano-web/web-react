@@ -47,3 +47,13 @@
     flex: 1 1 100%;
   }
 }
+
+/* Exportar y comparar, arriba del listado. Mismo lugar que la barra de
+   acciones del legacy (`catActionsHtml`). */
+.acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}

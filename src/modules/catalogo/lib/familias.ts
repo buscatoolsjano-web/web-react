@@ -142,3 +142,45 @@ export function columnasDe(slug: string | null | undefined): ColumnaComparable[]
   const f = familiaDe(slug)
   return f ? ATRIBUTOS_POR_FAMILIA[f] : []
 }
+
+/**
+ * Las columnas cuando el usuario elige los productos a mano (Fase 22 ·
+ * paridad, #42).
+ *
+ * El legacy NO impide comparar productos de familias distintas: arma filas
+ * fijas —marca, modelo, categoría, tipo, medida, encastre, largo, precio,
+ * stock— y les suma todas las claves que tenga cualquiera de los elegidos
+ * (`openCatCompare`, `ALWAYS_SKIP` y `dynKeys` en app.js:17086). Es decir,
+ * **permite comparación parcial**. Esto replica eso.
+ *
+ * Si todos son de la misma familia, devuelve exactamente lo de siempre: el
+ * comparador automático y el manual no pueden decir cosas distintas del mismo
+ * par de productos. Si hay mezcla, devuelve la unión, con una base que existe
+ * para cualquier producto —incluidos los 12.588 de «otros», que no tienen
+ * familia comparable y en el comparador automático no se dibujan—.
+ */
+export const COLUMNAS_BASE: ColumnaComparable[] = [
+  MARCA,
+  MODELO,
+  { clave: 'categoria', etiqueta: 'Categoría', origen: 'columna' },
+  { clave: 'tipo', etiqueta: 'Tipo', origen: 'columna' },
+]
+
+export function columnasDeVarias(slugs: readonly (string | null | undefined)[]): ColumnaComparable[] {
+  const familias = [...new Set(slugs.map(familiaDe))]
+  // Una sola familia conocida: el mismo comparador de siempre.
+  const unica = familias.length === 1 ? familias[0] : null
+  if (unica) return ATRIBUTOS_POR_FAMILIA[unica]
+
+  const union: ColumnaComparable[] = [...COLUMNAS_BASE]
+  const vistas = new Set(union.map((c) => c.clave))
+  for (const f of familias) {
+    if (f === null) continue
+    for (const col of ATRIBUTOS_POR_FAMILIA[f]) {
+      if (vistas.has(col.clave)) continue
+      vistas.add(col.clave)
+      union.push(col)
+    }
+  }
+  return union
+}

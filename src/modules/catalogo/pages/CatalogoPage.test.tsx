@@ -19,6 +19,15 @@ vi.mock('@/features/empresa/useEmpresa', () => ({
 vi.mock('@/hooks/useMediaQuery', () => ({ useIsMobile: () => estado.movil, useMediaQuery: () => false }))
 vi.mock('../hooks/useFiltrosCatalogo', () => ({
   useFiltrosCatalogo: () => ({ filtros: estado.filtros, actualizar: llamadas.actualizar, limpiar: llamadas.limpiar }),
+  // Fase 22 · paridad #13: los encabezados que ordenan. Las dos son puras y
+  // están probadas en paridad.test.ts; acá se usan tal cual para que la
+  // tabla se dibuje con la flecha puesta.
+  columnaYdireccion: (orden: string) =>
+    orden.endsWith('_desc')
+      ? { campo: orden.slice(0, -5), direccion: 'desc' as const }
+      : { campo: orden, direccion: 'asc' as const },
+  proximoOrden: (actual: string, columna: string) =>
+    actual === columna ? `${columna}_desc` : columna,
 }))
 vi.mock('../hooks/useCatalogoFacetas', () => ({
   useListasDePrecios: () => ({ listas: [{ id: 'l1', nombre: 'Lista general', moneda: 'USD', esPorDefecto: true }], porDefecto: { id: 'l1', nombre: 'Lista general', moneda: 'USD', esPorDefecto: true }, puedeElegir: false, cargando: false }),

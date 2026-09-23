@@ -15,6 +15,9 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { FiltrosActivos, PanelFacetas } from '../components/PanelFacetas'
 import { ListadoProductos } from '../components/ListadoProductos'
+import { BarraCarrito } from '../components/BarraCarrito'
+import { ModalComparar } from '../components/ModalComparar'
+import { ModalExportar } from '../components/ModalExportar'
 import { ModalProducto } from '../components/ModalProducto'
 import {
   useDefinicionesDeAtributos,
@@ -22,9 +25,12 @@ import {
   useListasDePrecios,
 } from '../hooks/useCatalogoFacetas'
 import { useDisponibilidad, useProductos } from '../hooks/useProductos'
-import { useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
+import { columnaYdireccion, proximoOrden, useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
+import { useExportarCatalogo, useTotalDelCatalogo } from '../hooks/useExportarCatalogo'
+import { MINIMO_COMPARAR, useSeleccionComparar } from '../hooks/useSeleccionComparar'
 import { useProductoSeleccionado } from '../hooks/useProductoSeleccionado'
 import { contarFiltrosActivos } from '../lib/planDeConsulta'
+import { columnasDinamicas } from '../lib/columnasDinamicas'
 import { debePropagarBusqueda } from '../lib/busquedaDiferida'
 import { OPCIONES_POR_PAGINA } from '../types'
 import styles from './CatalogoPage.module.css'
@@ -107,6 +113,33 @@ export function CatalogoPage() {
   // filtros: cerrar no toca nada de lo demás.
   const { seleccionado, abrir, cerrar } = useProductoSeleccionado()
 
+  // Fase 22 · paridad: elegir a mano qué comparar (#42) y exportar (#49).
+  const seleccion = useSeleccionComparar()
+  const [comparando, setComparando] = useState(false)
+  const [exportando, setExportando] = useState(false)
+  const totalDelCatalogo = useTotalDelCatalogo(companyId, exportando)
+  const exportacion = useExportarCatalogo(
+    companyId,
+    esInterno,
+    listaEfectiva?.id ?? null,
+    listaEfectiva?.moneda ?? null,
+  )
+
+  // El precio de la página, para el total de referencia de la barra del
+  // carrito. Es una estimación: el precio definitivo lo pone la cotización
+  // con SU tarifa.
+  const preciosVisibles = useMemo(
+    () => new Map(productos.map((p) => [p.id, p.precio])),
+    [productos],
+  )
+
+  // Fase 22 · paridad #19: al elegir una categoría, sus atributos pasan a ser
+  // columnas, como en el legacy.
+  const dinamicas = useMemo(
+    () => columnasDinamicas(filtros.categoria, facetas?.atributos ?? [], total),
+    [filtros.categoria, facetas, total],
+  )
+
   const activos = contarFiltrosActivos(filtros)
   const hayFiltros = activos > 0 || filtros.q !== ''
   const limpiarTodo = () => {
@@ -172,6 +205,31 @@ export function CatalogoPage() {
 
       <FiltrosActivos filtros={filtros} facetas={facetas} onCambiar={actualizar} onLimpiar={limpiarTodo} />
 
+      {/* Las acciones del listado, como la barra del legacy: exportar a la
+          izquierda y comparar con el conteo de lo elegido. */}
+      <div className={styles.acciones}>
+        <Button variant="secondary" size="sm" onClick={() => setExportando(true)} disabled={total === 0}>
+          <Icon name="download" size={16} /> Exportar
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => setComparando(true)}
+          disabled={!seleccion.puedeComparar}
+          title={
+            seleccion.puedeComparar
+              ? undefined
+              : `Tildá al menos ${MINIMO_COMPARAR} productos para compararlos`
+          }
+        >
+          Comparar{seleccion.elegidos.length > 0 ? ` (${seleccion.elegidos.length})` : ''}
+        </Button>
+        {seleccion.elegidos.length > 0 ? (
+          <Button variant="ghost" size="sm" onClick={seleccion.limpiar}>
+            Limpiar selección
+          </Button>
+        ) : null}
+      </div>
+
       {error ? (
         <ErrorState
           title="No se pudo cargar el catálogo."
@@ -207,6 +265,17 @@ export function CatalogoPage() {
             abierto={seleccionado}
             definiciones={definiciones}
             priceListId={listaEfectiva?.id ?? null}
+            conCarrito={esInterno}
+            seleccion={{
+              elegidos: seleccion.ids,
+              alternar: seleccion.alternar,
+              lleno: seleccion.lleno,
+            }}
+            columnasDinamicas={dinamicas}
+            orden={{
+              ...columnaYdireccion(filtros.orden),
+              ordenar: (campo) => actualizar({ orden: proximoOrden(filtros.orden, campo) }),
+            }}
           />
           {total > 0 ? (
             <Pagination
@@ -237,6 +306,47 @@ export function CatalogoPage() {
           onCerrar={cerrar}
           onAbrirOtro={abrir}
         />
+      ) : null}
+
+      {comparando && seleccion.puedeComparar ? (
+        <ModalComparar
+          productos={seleccion.elegidos}
+          moneda={moneda}
+          onQuitar={(p) => {
+            seleccion.quitar(p)
+            // Con uno solo no hay comparación: el legacy tampoco deja abrirla.
+            if (seleccion.elegidos.length - 1 < MINIMO_COMPARAR) setComparando(false)
+          }}
+          onAbrirProducto={(id) => {
+            setComparando(false)
+            abrir(id)
+          }}
+          onCerrar={() => setComparando(false)}
+        />
+      ) : null}
+
+      {exportando ? (
+        <ModalExportar
+          esInterno={esInterno}
+          totalFiltrado={total}
+          totalCatalogo={totalDelCatalogo}
+          hayFiltros={hayFiltros}
+          exportando={exportacion.exportando}
+          avance={exportacion.avance}
+          error={exportacion.error}
+          onExportar={(elegidas, alcance) => {
+            void exportacion.exportar(filtros, elegidas, alcance).then((ok) => {
+              if (ok) setExportando(false)
+            })
+          }}
+          onCerrar={() => setExportando(false)}
+        />
+      ) : null}
+
+      {/* La barra del carrito va última: es fija y tiene que quedar encima
+          del listado, no de los modales. */}
+      {esInterno && !seleccionado && !comparando && !exportando ? (
+        <BarraCarrito moneda={moneda} precios={preciosVisibles} />
       ) : null}
     </div>
   )

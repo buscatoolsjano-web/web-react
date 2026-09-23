@@ -467,3 +467,71 @@ export interface SimilaresDeProducto {
   productos: ProductoListado[]
   fuentes: Map<string, 'legacy' | 'calculated'>
 }
+
+/**
+ * Todo lo que coincide con el filtro, no sólo la página (Fase 22 · paridad, #49).
+ *
+ * La exportación tiene que dar **lo que se está viendo**: si alguien filtró 37
+ * productos, el archivo tiene 37, no 21.828. Pero la pantalla sólo pidió 50,
+ * así que hace falta recorrer el resto — de a 500, con el mismo plan y el
+ * mismo orden. Es la misma consulta paginada, no una segunda definición de
+ * qué entra.
+ *
+ * El lote es de 500 y no más: el segundo paso hidrata los productos con un
+ * `.in(ids)`, y con mil uuid la URL de PostgREST pasa los 37 KB y el
+ * servidor devuelve 400. Medido.
+ *
+ * El tope es alto a propósito —el catálogo entero son 17.996 productos y el
+ * legacy los exporta— pero existe: si alguna vez son 100.000, es mejor
+ * avisar que colgar la pestaña. Si se llega, se avisa en vez de entregar un
+ * archivo cortado en silencio.
+ */
+export const TOPE_EXPORTACION = 25_000
+
+/** Cada lote traído, para poder decir «llevo 3.500 de 17.996». */
+export type AvanceExportacion = (traidos: number, total: number) => void
+
+export async function consultarTodosLosProductos(
+  plan: PlanDeConsulta,
+  priceListId: string | null,
+  esInterno: boolean,
+  opciones: { tope?: number; onAvance?: AvanceExportacion } = {},
+): Promise<{ productos: ProductoListado[]; total: number; truncado: boolean }> {
+  const tope = opciones.tope ?? TOPE_EXPORTACION
+  const LOTE = 500
+  const productos: ProductoListado[] = []
+  let total = 0
+
+  for (let desde = 0; desde < tope; desde += LOTE) {
+    const pagina = await consultarProductos(
+      { ...plan, desplazamiento: desde, limite: Math.min(LOTE, tope - desde) },
+      priceListId,
+      esInterno,
+    )
+    total = pagina.total
+    productos.push(...pagina.productos)
+    opciones.onAvance?.(productos.length, total)
+    if (pagina.productos.length === 0 || productos.length >= pagina.total) break
+  }
+
+  return { productos, total, truncado: total > productos.length }
+}
+
+/**
+ * Cuántos productos hay en el catálogo, sin ningún filtro.
+ *
+ * Lo necesita el modal de exportación para el radio «Todo el catálogo (n)».
+ * Se pide el mínimo: una fila, sólo por el `total_count` que la RPC devuelve
+ * repetido en cada una.
+ */
+export async function contarCatalogoCompleto(companyId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('search_products', {
+    p_company: companyId,
+    p_limit: 1,
+    p_offset: 0,
+    p_orden: 'nombre',
+    p_solo_catalogo: true,
+  })
+  if (error) throw new Error(`No se pudo contar el catálogo: ${error.message}`)
+  return Number(data?.[0]?.total_count ?? 0)
+}
