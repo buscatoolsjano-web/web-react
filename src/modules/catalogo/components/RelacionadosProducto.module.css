@@ -80,3 +80,24 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+
+/* SKU y distintivo en la misma línea: el distintivo pertenece al SKU, no a la
+   tarjeta. Mismos colores que el del comparador — es el mismo hecho. */
+.linea {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.curada {
+  font-size: 0.7em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+  background: var(--color-info-soft);
+  color: var(--color-info-text);
+  white-space: nowrap;
+}

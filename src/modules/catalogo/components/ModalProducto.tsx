@@ -8,6 +8,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { useMovimientos, useProductoPorId, useSimilares } from '../hooks/useProductos'
 import { hojaDeCatalogo } from '../lib/hojaCatalogo'
 import { formatearPrecio } from '../lib/formato'
+import { DescripcionProducto } from './DescripcionProducto'
 import { HistorialStock } from './HistorialStock'
 import { HojaCatalogo } from './HojaCatalogo'
 import { ImagenProducto } from './ImagenProducto'
@@ -204,9 +205,7 @@ function Contenido({
         </div>
         <div className={styles.datos}>
           <h2 className={styles.nombre}>{producto.nombre}</h2>
-          {producto.descripcion ? (
-            <p className={styles.descripcion}>{producto.descripcion}</p>
-          ) : null}
+          <DescripcionProducto descripcion={producto.descripcion} className={styles.descripcion} />
           {/* Fase 22 · B: se puede llegar acá por un link viejo o desde un
               documento histórico. El producto se muestra —los documentos que
               lo nombran tienen que poder abrirlo— pero se dice que no está en
@@ -312,6 +311,7 @@ function Contenido({
           productos={relacionados}
           cargando={cargandoRelacionados}
           moneda={moneda}
+          fuentes={fuentes}
           onAbrir={onAbrirOtro}
         />
       </section>

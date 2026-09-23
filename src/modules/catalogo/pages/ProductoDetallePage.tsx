@@ -9,6 +9,7 @@ import { LinkButton } from '@/components/ui/LinkButton'
 import { Spinner } from '@/components/ui/Spinner'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { DisponibilidadBadge, PrecioCelda, StockCelda } from '../components/Celdas'
+import { DescripcionProducto } from '../components/DescripcionProducto'
 import { ListaAtributos } from '../components/ListaAtributos'
 import { ProductGallery } from '../components/ProductGallery'
 import { RelacionadosProducto } from '../components/RelacionadosProducto'
@@ -142,7 +143,7 @@ export function ProductoDetallePage() {
               </dd>
             </div>
           </dl>
-          {producto.descripcion ? <p className={styles.descripcion}>{producto.descripcion}</p> : null}
+          <DescripcionProducto descripcion={producto.descripcion} className={styles.descripcion} />
         </div>
       </div>
 
@@ -155,6 +156,7 @@ export function ProductoDetallePage() {
           productos={similares.data?.productos ?? []}
           cargando={similares.isPending}
           moneda={porDefecto?.moneda ?? null}
+          fuentes={similares.data?.fuentes}
           onAbrir={(id) => void navigate(`/catalogo?producto=${id}`)}
         />
       </DocSection>

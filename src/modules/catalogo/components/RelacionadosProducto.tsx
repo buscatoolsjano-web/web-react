@@ -8,6 +8,8 @@ export interface RelacionadosProductoProps {
   productos: readonly ProductoListado[]
   cargando: boolean
   moneda: string | null
+  /** De dónde salió cada uno: curado a mano en el legacy, o calculado acá. */
+  fuentes?: ReadonlyMap<string, 'legacy' | 'calculated'> | undefined
   onAbrir: (id: string) => void
 }
 
@@ -25,11 +27,21 @@ export interface RelacionadosProductoProps {
  *
  * Vienen ordenados por cercanía técnica, no alfabéticamente: el primero es el
  * que más atributos comparte con el que se está mirando.
+ *
+ * **Curadas y calculadas no son lo mismo, y se nota** (paridad con el legacy).
+ * La ficha del legacy tenía DOS secciones separadas: «🔄 Productos similares
+ * (equivalencias)», que eran las cargadas a mano y venían agrupadas por marca,
+ * y «🔗 Productos relacionados», que las calculaba por atributos. Acá salen de
+ * una sola consulta y en un solo orden —la curada siempre primero, porque
+ * puntúa más— pero la que alguien escribió lleva su marca, como ya la lleva en
+ * el comparador. Sin eso, una equivalencia verificada y un parecido calculado
+ * se ven igual, y no lo son.
  */
 export function RelacionadosProducto({
   productos,
   cargando,
   moneda,
+  fuentes,
   onAbrir,
 }: RelacionadosProductoProps) {
   if (cargando) return <SkeletonRows rows={2} columns={3} label="Buscando relacionados…" />
@@ -52,7 +64,17 @@ export function RelacionadosProducto({
               <ImagenProducto imagen={p.imagen} alt="" tamano="thumb" />
             </span>
             <span className={styles.cuerpo}>
-              <code className={styles.sku}>{p.sku}</code>
+              <span className={styles.linea}>
+                <code className={styles.sku}>{p.sku}</code>
+                {fuentes?.get(p.id) === 'legacy' ? (
+                  <span
+                    className={styles.curada}
+                    title="Equivalencia cargada a mano en el catálogo anterior"
+                  >
+                    Equivalente
+                  </span>
+                ) : null}
+              </span>
               <span className={styles.meta}>
                 {[p.tipo, p.atributos['medida'], p.atributos['encastre']]
                   .filter((x) => typeof x === 'string' && x !== '')
