@@ -22,7 +22,7 @@ import type {
 const COLUMNAS_LISTADO = `
   id, sku, name, series, product_type, attributes, is_kit, needs_review,
   brands ( id, name, is_active ),
-  product_categories ( id, name, slug ),
+  product_categories ( id, name, slug, is_active ),
   product_prices ( amount, price_list_id ),
   product_images ( source_url, thumb_url, kind, position, is_primary )
 ` as const
@@ -37,7 +37,7 @@ const COLUMNAS_DETALLE = `
   model_code, description, description_long, origin_country, ncm_code,
   weight_g, volume_cm3,
   brands ( id, name, is_active ),
-  product_categories ( id, name, slug ),
+  product_categories ( id, name, slug, is_active ),
   product_prices ( amount, price_list_id ),
   product_images ( source_url, thumb_url, kind, position, is_primary )
 ` as const
@@ -58,7 +58,7 @@ interface FilaProducto {
   is_kit: boolean
   needs_review: boolean
   brands: { id: string; name: string; is_active?: boolean } | null
-  product_categories: { id: string; name: string; slug: string } | null
+  product_categories: { id: string; name: string; slug: string; is_active?: boolean } | null
   product_prices: { amount: number; price_list_id: string }[] | null
   product_images: FilaImagen[] | null
   stock_balances?: { on_hand: number; reserved: number }[] | null
@@ -133,9 +133,26 @@ function agregarStock(filas: FilaProducto['stock_balances']): ProductoListado['s
   return { real, virtual: real - reservado }
 }
 
+/**
+ * Por qué un producto no está en el catálogo, cuando no está.
+ *
+ * Desde la Fase 25 · E1 hay dos interruptores —la marca y la categoría— y el
+ * cartel del modal tiene que decir cuál, porque cuál es lo que hay que ir a
+ * tocar en Configuración para arreglarlo.
+ */
+function motivoFuera(f: FilaProducto): ProductoListado['motivoFueraDelCatalogo'] {
+  const marcaFuera = f.brands ? f.brands.is_active === false : false
+  const categoriaFuera = f.product_categories ? f.product_categories.is_active === false : false
+  if (marcaFuera && categoriaFuera) return 'ambas'
+  if (marcaFuera) return 'marca'
+  if (categoriaFuera) return 'categoria'
+  return null
+}
+
 function mapearListado(f: FilaProducto): ProductoListado {
   // El embed viene filtrado por price_list_id, así que hay 0 o 1 fila.
   const precio = f.product_prices?.[0]?.amount ?? null
+  const motivoFueraDelCatalogo = motivoFuera(f)
 
   return {
     id: f.id,
@@ -149,7 +166,12 @@ function mapearListado(f: FilaProducto): ProductoListado {
     // Fase 22 · B: si la marca está desactivada, el producto NO está en el
     // catálogo. Se puede llegar por un link viejo o desde un documento, y la
     // pantalla lo aclara en vez de hacer como si nada.
-    enCatalogo: f.brands ? f.brands.is_active !== false : true,
+    //
+    // Fase 25 · E1: la categoría desactivada hace exactamente lo mismo. Las
+    // dos condiciones están del lado del servidor dentro de `search_products`;
+    // esto es sólo para lo que se abre por id o por SKU, que no pasa por ahí.
+    enCatalogo: motivoFueraDelCatalogo === null,
+    motivoFueraDelCatalogo,
     categoria: f.product_categories
       ? {
           id: f.product_categories.id,

@@ -35,10 +35,21 @@ vi.mock('../hooks/useCatalogoFacetas', () => ({
   // Fase 21 · E1: las etiquetas de los atributos, para el modal y la ficha
   // al vuelo. Acá no importa su contenido.
   useDefinicionesDeAtributos: () => ({ data: [] }),
+  // Fase 26 · E3: las usa el modal de alta de producto.
+  useMarcas: () => ({ data: [{ id: 'm1', nombre: 'ZZ SPEEDRILL' }], isPending: false }),
+  useCategorias: () => ({ data: [{ id: 'c1', nombre: 'ZZ Puntas', slug: 'punta', necesitaRevision: false }], isPending: false }),
+  useAtributosPorCategoria: () => ({ data: new Map() }),
 }))
 // Fase 22 · paridad #49: la exportación vive en un service, que importa el
 // cliente de Supabase. Sin este mock la página lo arrastra y estos tests
 // pasan a exigir variables de entorno.
+// Fase 26 · E3: el alta de producto vive en un hook que importa su service, y
+// ése importa el cliente de Supabase. Sin este mock la página lo arrastra y
+// estos tests pasan a exigir variables de entorno — que es lo que la suite
+// aislada cacha y lo que tira el deploy en CI.
+vi.mock('../hooks/useCrearProducto', () => ({
+  useCrearProducto: () => ({ mutate: vi.fn(), isPending: false, error: null, reset: vi.fn() }),
+}))
 vi.mock('../hooks/useExportarCatalogo', () => ({
   useExportarCatalogo: () => ({ exportar: vi.fn(), exportando: false, avance: null, error: null }),
   useTotalDelCatalogo: () => null,
@@ -69,6 +80,7 @@ const producto = (i: number): ProductoListado => ({
   disponible: null,
   imagen: null,
   enCatalogo: true,
+  motivoFueraDelCatalogo: null,
 })
 
 const montar = () =>
@@ -104,11 +116,18 @@ describe('Catálogo (Fase 13 · E4)', () => {
     expect(screen.getByRole('link', { name: 'ZZ Llave 1' })).toHaveAttribute('href', '/catalogo/ZZ-1')
   })
 
-  it('0 productos en la empresa: vacío sin CTA de crear (React no tiene ABM de productos)', () => {
+  /**
+   * Fase 26 · E3: el vacío ya NO dice que no se puede crear.
+   *
+   * Este test decía «sin CTA de crear (React no tiene ABM de productos)», y
+   * dejó de ser verdad: el alta existe. Lo que sigue valiendo es que el vacío
+   * no ofrezca «Limpiar filtros» cuando no hay filtros que limpiar, y que el
+   * botón de crear viva en el encabezado y no en el estado vacío.
+   */
+  it('0 productos en la empresa: el vacío no ofrece limpiar filtros', () => {
     montar()
     expect(screen.getByRole('heading', { name: 'Todavía no hay productos' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Limpiar filtros' })).toBeNull()
-    expect(screen.queryByRole('link', { name: /Nuevo/ })).toBeNull()
   })
 
   it('0 resultados por filtros o búsqueda: «Limpiar filtros» limpia', () => {

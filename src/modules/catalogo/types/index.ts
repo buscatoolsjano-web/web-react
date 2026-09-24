@@ -1,13 +1,18 @@
 /**
- * Cómo se ordena el catálogo (Fase 22 · paridad, #13).
+ * Cómo se ordena el catálogo (Fase 22 · paridad, #13; stock en Fase 25 · E2).
  *
- * Los que llevan `_desc` son la misma columna al revés. Las cinco columnas
- * ordenables son las que `search_products` sabe ordenar: SKU, Producto,
- * Marca, Categoría y Serie. **Stock y Precio no están**, y no es un olvido:
- * no viven en `products` —están en `stock_balances` y en `product_prices`—
- * y el precio además depende de qué lista de precios se esté mirando, que la
- * RPC no recibe. El legacy puede ordenar por stock porque tiene los 21.775
- * productos en memoria.
+ * Los que llevan `_desc` son la misma columna al revés. Siete columnas: SKU,
+ * Producto, Marca, Categoría, Serie y los dos saldos de stock. Los saldos los
+ * ordena la base desde la Fase 25 · E2 —`search_products` los trae con un
+ * lateral sobre `stock_balances`, y sólo cuando el orden los pide—, con los
+ * «sin saldo» al final en las dos direcciones.
+ *
+ * **Precio sigue afuera**, y no es un olvido: vive en `product_prices` y
+ * depende de qué lista se esté mirando, que la RPC no recibe.
+ *
+ * Ordenar por stock es sólo para roles internos: `stock_balances` no la puede
+ * leer un rol externo (policy `stockbal_select`), así que pedirlo desde afuera
+ * no ordena nada ni filtra nada — y la pantalla tampoco lo ofrece.
  */
 export const ORDENES_CATALOGO = [
   'relevancia',
@@ -16,12 +21,14 @@ export const ORDENES_CATALOGO = [
   'marca', 'marca_desc',
   'categoria', 'categoria_desc',
   'serie', 'serie_desc',
+  'stock_real', 'stock_real_desc',
+  'stock_virtual', 'stock_virtual_desc',
 ] as const
 
 export type OrdenCatalogo = (typeof ORDENES_CATALOGO)[number]
 
 /** Las columnas que se pueden ordenar, sin la dirección. */
-export const COLUMNAS_ORDENABLES = ['sku', 'nombre', 'marca', 'categoria', 'serie'] as const
+export const COLUMNAS_ORDENABLES = ['sku', 'nombre', 'marca', 'categoria', 'serie', 'stock_real', 'stock_virtual'] as const
 
 /** Estado completo del catálogo. Vive en la URL, no en useState. */
 export interface FiltrosCatalogo {
@@ -105,8 +112,13 @@ export interface StockProducto {
 }
 
 export interface ProductoListado {
-  /** `false` cuando su marca está fuera del catálogo (Fase 22 · B). */
+  /**
+   * `false` cuando su marca (Fase 22 · B) o su categoría (Fase 25 · E1) están
+   * fuera del catálogo.
+   */
   enCatalogo: boolean
+  /** Cuál de los dos interruptores lo dejó afuera. `null` si está adentro. */
+  motivoFueraDelCatalogo: 'marca' | 'categoria' | 'ambas' | null
   id: string
   sku: string
   nombre: string
@@ -221,6 +233,8 @@ export interface MovimientoDeStock {
  */
 export interface HojaDeCatalogo {
   catalogo: string | null
+  /** El nombre del catálogo impreso («Catálogo SPEEDRILL»), si se lo conoce. */
+  etiqueta: string | null
   pagina: number | null
   familia: number | null
   imagenUrl: string | null

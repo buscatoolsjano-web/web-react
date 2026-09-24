@@ -58,6 +58,8 @@ export const EVENTOS: Record<string, { etiqueta: string; modulo: Modulo }> = {
   CATEGORY_CREATED: { etiqueta: 'Categoría creada', modulo: 'catalogo' },
   CATEGORY_UPDATED: { etiqueta: 'Categoría renombrada', modulo: 'catalogo' },
   CATEGORY_DELETED: { etiqueta: 'Categoría eliminada', modulo: 'catalogo' },
+  CATEGORY_DISABLED: { etiqueta: 'Categoría desactivada', modulo: 'catalogo' },
+  CATEGORY_ENABLED: { etiqueta: 'Categoría reactivada', modulo: 'catalogo' },
   NUMBERING_AUTHORITY_INSERT: { etiqueta: 'Autoridad de numeración asignada', modulo: 'numeracion' },
   NUMBERING_AUTHORITY_UPDATE: { etiqueta: 'Autoridad de numeración cambiada', modulo: 'numeracion' },
   NUMBERING_AUTHORITY_DELETE: { etiqueta: 'Autoridad de numeración quitada', modulo: 'numeracion' },
@@ -121,8 +123,10 @@ export function resumenEvento(e: Pick<EventoAuditoria, 'evento' | 'detalles' | '
     case 'CATEGORY_CREATED':
       return 'Alta'
     case 'BRAND_DISABLED':
+    case 'CATEGORY_DISABLED':
       return 'Activa → Inactiva'
     case 'BRAND_ENABLED':
+    case 'CATEGORY_ENABLED':
       return 'Inactiva → Activa'
     case 'BRAND_DELETED':
     case 'CATEGORY_DELETED':

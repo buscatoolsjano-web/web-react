@@ -156,6 +156,19 @@ export function ModalProducto({
   )
 }
 
+/**
+ * Cuál de los dos interruptores de Configuración lo dejó afuera.
+ *
+ * Decirlo importa: el cartel es lo único que explica por qué un producto que
+ * existe no aparece buscándolo, y cuál de las dos pantallas hay que abrir
+ * para devolverlo.
+ */
+const MOTIVO_FUERA: Record<'marca' | 'categoria' | 'ambas', string> = {
+  marca: 'su marca está desactivada en Configuración.',
+  categoria: 'su categoría está desactivada en Configuración.',
+  ambas: 'su marca y su categoría están desactivadas en Configuración.',
+}
+
 interface ContenidoProps {
   producto: ProductoDetalle
   moneda: string | null
@@ -212,18 +225,15 @@ function Contenido({
               el catálogo, en vez de hacer como si nada. */}
           {!producto.enCatalogo ? (
             <p className={styles.fueraDelCatalogo}>
-              Este producto no aparece en el catálogo: su marca está desactivada en Configuración.
+              Este producto no aparece en el catálogo: {MOTIVO_FUERA[producto.motivoFueraDelCatalogo ?? 'marca']}
             </p>
           ) : null}
 
-          {producto.esKit || producto.necesitaRevision ? (
+          {/* «Datos a revisar» no se muestra en el Catálogo (Fase 25 · E3):
+              lo tienen 12.593 de 21.828 productos. El dato sigue en la base. */}
+          {producto.esKit ? (
             <p className={styles.estados}>
-              {producto.esKit ? <Badge tone="info">Kit</Badge> : null}
-              {producto.necesitaRevision ? (
-                <Badge tone="warning" dot>
-                  Datos a revisar
-                </Badge>
-              ) : null}
+              <Badge tone="info">Kit</Badge>
             </p>
           ) : null}
 

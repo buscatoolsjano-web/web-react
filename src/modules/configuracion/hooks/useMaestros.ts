@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import {
   ErrorMaestro,
+  cambiarEstadoCategoria,
   cambiarEstadoMarca,
   crearCategoria,
   crearMarca,
@@ -93,6 +94,7 @@ export function useAccionesMaestros() {
       mutationFn: (v: { id: string; esperado: string; nombre: string }) => renombrarCategoria(c!, v.id, v.esperado, v.nombre),
       onSettled: categorias,
     }),
+    estadoCategoria: useMutation({ mutationFn: (v: { id: string; activa: boolean }) => cambiarEstadoCategoria(c!, v.id, v.activa), onSettled: categorias }),
     eliminarCategoria: useMutation({ mutationFn: (id: string) => eliminarCategoria(c!, id), onSettled: categorias }),
   }
 }

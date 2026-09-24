@@ -280,3 +280,11 @@
     display: none;
   }
 }
+
+/* Fase 25 · E2: los encabezados de stock son columnas de números. El botón de
+   ordenar ocupa todo el ancho, así que sin esto el rótulo queda a la
+   izquierda y los números a la derecha, sin relación visible. */
+.thNum .ordenar {
+  justify-content: flex-end;
+  text-align: right;
+}

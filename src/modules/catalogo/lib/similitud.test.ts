@@ -13,6 +13,7 @@ import type { ProductoListado } from '../types'
  */
 const producto = (x: Partial<ProductoListado> & { sku: string }): ProductoListado => ({
   enCatalogo: true,
+  motivoFueraDelCatalogo: null,
   id: x.sku,
   nombre: x.sku,
   serie: null,

@@ -13,7 +13,7 @@ import { catalogoACsv, columnasPara, columnasPorDefecto } from './exportar'
 import { columnasDeVarias, COLUMNAS_BASE } from './familias'
 import { columnasDinamicas, MAXIMO_COLUMNAS, valorDinamico } from './columnasDinamicas'
 import { columnaYdireccion, proximoOrden } from '../hooks/useFiltrosCatalogo'
-import type { ProductoListado } from '../types'
+import { COLUMNAS_ORDENABLES, type ProductoListado } from '../types'
 
 /**
  * Paridad con el catálogo del legacy (Fase 22 · cierre de faltantes).
@@ -270,6 +270,26 @@ describe('#13 · El toggle del encabezado (app.js:17366)', () => {
 
   it('desde relevancia, tocar una columna ordena por ella', () => {
     expect(proximoOrden('relevancia', 'serie')).toBe('serie')
+  })
+
+  /**
+   * Fase 25 · E2: el stock se ordena igual que cualquier otra columna. En el
+   * legacy son `data-cat-sort="sr"` y `"sv"` (app.js:15518), las dos en los
+   * dos sentidos; lo único distinto es quién ordena —allá el navegador, acá
+   * `search_products`— porque acá el listado está paginado.
+   */
+  it('los dos saldos de stock son columnas ordenables como las demás', () => {
+    expect(COLUMNAS_ORDENABLES).toContain('stock_real')
+    expect(COLUMNAS_ORDENABLES).toContain('stock_virtual')
+    expect(proximoOrden('nombre', 'stock_real')).toBe('stock_real')
+    expect(proximoOrden('stock_real', 'stock_real')).toBe('stock_real_desc')
+    expect(proximoOrden('stock_real_desc', 'stock_real')).toBe('stock_real')
+    expect(proximoOrden('stock_real', 'stock_virtual')).toBe('stock_virtual')
+  })
+
+  it('el _desc de un campo con guión bajo no se corta mal', () => {
+    expect(columnaYdireccion('stock_virtual_desc')).toEqual({ campo: 'stock_virtual', direccion: 'desc' })
+    expect(columnaYdireccion('stock_real')).toEqual({ campo: 'stock_real', direccion: 'asc' })
   })
 
   it('el encabezado sabe qué flecha dibujar', () => {

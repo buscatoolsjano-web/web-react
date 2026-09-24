@@ -72,6 +72,7 @@ const producto = (p: Partial<ProductoListado> = {}): ProductoListado => ({
   disponible: null,
   imagen: null,
   enCatalogo: true,
+  motivoFueraDelCatalogo: null,
   ...p,
 })
 
@@ -111,13 +112,38 @@ describe('La fila abre el producto encima del catálogo', () => {
     expect(abrir).toHaveBeenCalledWith('p1')
   })
 
-  it('el link del nombre sigue siendo un link: no lo abre dos veces', () => {
+  /**
+   * Fase 25 · E4: **el nombre abre lo mismo que el resto de la fila.**
+   *
+   * Antes navegaba a la ficha, y el mismo producto se veía de dos formas
+   * distintas según dónde se hubiera tocado. Sigue siendo un `<a>` con href de
+   * verdad —eso es lo que hace que ctrl-click y «abrir en pestaña nueva»
+   * lleven a la ficha, que es una URL compartible—, pero el click pelado abre
+   * el modal.
+   */
+  it('el nombre abre el modal, y sigue teniendo el href de la ficha', () => {
     const abrir = vi.fn()
     montar({ onAbrirProducto: abrir })
     const link = screen.getByRole('link', { name: 'SPEEDRILL 2520/8B ADAPTADOR' })
     expect(link).toHaveAttribute('href', '/catalogo/SP.2520%2F8B')
     fireEvent.click(link)
+    expect(abrir).toHaveBeenCalledTimes(1)
+    expect(abrir).toHaveBeenCalledWith('p1')
+  })
+
+  it('Ctrl+click en el nombre no abre el modal: se está abriendo la ficha en otra pestaña', () => {
+    const abrir = vi.fn()
+    montar({ onAbrirProducto: abrir })
+    fireEvent.click(screen.getByRole('link', { name: 'SPEEDRILL 2520/8B ADAPTADOR' }), { ctrlKey: true })
     expect(abrir).not.toHaveBeenCalled()
+  })
+
+  it('sin modal —otra pantalla que reusa el listado— el nombre sigue siendo el enlace a la ficha', () => {
+    montar({})
+    expect(screen.getByRole('link', { name: 'SPEEDRILL 2520/8B ADAPTADOR' })).toHaveAttribute(
+      'href',
+      '/catalogo/SP.2520%2F8B',
+    )
   })
 
   it('Ctrl+click no lo abre: se está abriendo en otra pestaña', () => {
@@ -141,6 +167,55 @@ describe('La fila abre el producto encima del catálogo', () => {
     expect(fila).toHaveAttribute('tabindex', '0')
     fireEvent.keyDown(fila, { key: 'Enter' })
     expect(abrir).toHaveBeenCalledWith('p1')
+  })
+
+  /**
+   * Fase 25 · E2: Stock real y Stock virtual son DOS columnas, cada una con su
+   * encabezado ordenable — como el legacy (`app.js:15518`). Juntas en «12 / 10»
+   * no se podían ordenar por separado, que es lo que se pidió.
+   */
+  it('el stock son dos columnas, y las dos ordenan', () => {
+    montar({ onAbrirProducto: vi.fn(), orden: { campo: 'stock_real', direccion: 'desc', ordenar: vi.fn() } })
+    const real = screen.getByRole('columnheader', { name: /Stock real/ })
+    const virtual = screen.getByRole('columnheader', { name: /Stock virtual/ })
+    expect(real).toHaveAttribute('aria-sort', 'descending')
+    expect(virtual).toHaveAttribute('aria-sort', 'none')
+    expect(real.querySelector('button')).not.toBeNull()
+    expect(virtual.querySelector('button')).not.toBeNull()
+  })
+
+  it('tocar el encabezado de un saldo pide ese orden', () => {
+    const ordenar = vi.fn()
+    montar({ onAbrirProducto: vi.fn(), orden: { campo: 'nombre', direccion: 'asc', ordenar } })
+    fireEvent.click(screen.getByRole('columnheader', { name: /Stock virtual/ }).querySelector('button')!)
+    expect(ordenar).toHaveBeenCalledWith('stock_virtual')
+  })
+
+  /**
+   * «Sin saldo registrado» no es cero (Fase 21 · E3.1), y separar las columnas
+   * no cambia eso: son 21.449 productos de 21.828 sin ninguna fila en
+   * `stock_balances`.
+   */
+  it('un producto sin saldo muestra «—» en las dos columnas, no cero', () => {
+    montar({ onAbrirProducto: vi.fn(), productos: [producto({ stock: null })] })
+    expect(screen.getAllByText('Sin saldo registrado')).toHaveLength(2)
+    expect(screen.queryByText('0')).toBeNull()
+  })
+
+  /**
+   * Fase 25 · E3: «Datos a revisar» ya no se muestra en el Catálogo. Lo tenían
+   * 12.593 de 21.828 productos, así que marcaba más de la mitad del catálogo.
+   * El dato sigue en la base y en Configuración.
+   */
+  it('no se muestra «Datos a revisar», aunque el producto lo tenga', () => {
+    montar({ onAbrirProducto: vi.fn(), productos: [producto({ necesitaRevision: true })] })
+    expect(screen.queryByText('Datos a revisar')).toBeNull()
+  })
+
+  it('pero «Kit» sí se sigue mostrando', () => {
+    montar({ onAbrirProducto: vi.fn(), productos: [producto({ esKit: true, necesitaRevision: true })] })
+    expect(screen.getByText('Kit')).toBeInTheDocument()
+    expect(screen.queryByText('Datos a revisar')).toBeNull()
   })
 
   it('el producto abierto queda marcado', () => {

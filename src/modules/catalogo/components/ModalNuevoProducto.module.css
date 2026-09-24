@@ -1,0 +1,99 @@
+/* Alta de producto (Fase 26 · E3).
+   El legacy usa un acordeón de seis secciones; acá son `fieldset` con leyenda,
+   todos abiertos: en una pantalla de escritorio entran, y plegarlos escondía
+   campos obligatorios detrás de un click. */
+
+.cuerpo {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.grupo {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.leyenda {
+  padding: 0 var(--space-2);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+/* Varios campos en una línea, y en el teléfono uno abajo del otro. */
+.fila {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-3);
+  align-items: end;
+}
+
+/* El botón de sugerir referencia acompaña a los dos campos de los que sale. */
+.sugerir {
+  align-self: end;
+  white-space: nowrap;
+}
+
+.atributos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-3);
+}
+
+.nota {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.conversor {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.conversor input {
+  min-width: 0;
+}
+
+/* La miniatura confirma que la dirección apunta a una imagen de verdad antes
+   de guardarla: una URL que da 404 se ve acá y no después en el listado. */
+.miniatura {
+  max-width: 8rem;
+  max-height: 8rem;
+  object-fit: contain;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.pendientes {
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.pendientes summary {
+  cursor: pointer;
+  font-weight: var(--weight-medium);
+}
+
+.pendientes dl {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+}
+
+.pendientes dt {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+.pendientes dd {
+  margin: 0;
+  color: var(--color-text-muted);
+}

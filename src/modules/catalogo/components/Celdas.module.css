@@ -22,3 +22,9 @@
   color: var(--color-text-soft);
   font-size: var(--text-sm);
 }
+
+/* Fase 25 · E2: un saldo negativo es un error de carga, no un número más. */
+.negativo {
+  color: var(--color-danger-text);
+  font-variant-numeric: tabular-nums;
+}

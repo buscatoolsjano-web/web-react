@@ -3318,6 +3318,7 @@ export type Database = {
           company_id: string
           created_at: string
           id: string
+          is_active: boolean
           name: string
           needs_review: boolean
           parent_id: string | null
@@ -3328,6 +3329,7 @@ export type Database = {
           company_id: string
           created_at?: string
           id?: string
+          is_active?: boolean
           name: string
           needs_review?: boolean
           parent_id?: string | null
@@ -3338,6 +3340,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           id?: string
+          is_active?: boolean
           name?: string
           needs_review?: boolean
           parent_id?: string | null
@@ -7045,7 +7048,7 @@ export type Database = {
       }
       config_categorias_listar: {
         Args: { p_company: string }
-        Returns: { id: string; name: string; slug: string; position: number; needs_review: boolean; parent_id: string | null; productos: number; atributos: number; subcategorias: number; puede_editar: boolean }[]
+        Returns: { id: string; name: string; slug: string; position: number; needs_review: boolean; is_active: boolean; parent_id: string | null; productos: number; atributos: number; subcategorias: number; puede_editar: boolean }[]
       }
       config_categoria_crear: {
         Args: { p_company: string; p_datos: Json }
@@ -7058,6 +7061,10 @@ export type Database = {
       config_categoria_eliminar: {
         Args: { p_company: string; p_categoria: string }
         Returns: { eliminada: boolean }[]
+      }
+      config_categoria_estado: {
+        Args: { p_company: string; p_categoria: string; p_activa: boolean }
+        Returns: { is_active: boolean; cambiado: boolean; productos: number }[]
       }
       config_atributos_listar: {
         Args: { p_company: string }

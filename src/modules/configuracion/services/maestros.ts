@@ -82,6 +82,7 @@ export async function listarCategorias(companyId: string): Promise<Listado<Categ
       nombre: c.name,
       slug: c.slug,
       enRevision: c.needs_review,
+      activa: c.is_active,
       productos: Number(c.productos),
       atributos: Number(c.atributos),
       subcategorias: Number(c.subcategorias),
@@ -109,6 +110,20 @@ export async function renombrarCategoria(companyId: string, categoriaId: string,
   const f = data?.[0]
   if (!f) throw new ErrorMaestro('desconocido')
   return { nombre: f.name, cambiado: f.cambiado }
+}
+
+/**
+ * Sacar (o devolver) una categoría del catálogo (Fase 25 · E1).
+ *
+ * Gemela de `cambiarEstadoMarca`, incluido el `cambiado = false` cuando ya
+ * estaba en ese estado: lo decide la base, no la pantalla.
+ */
+export async function cambiarEstadoCategoria(companyId: string, categoriaId: string, activa: boolean): Promise<{ cambiado: boolean; productos: number }> {
+  const { data, error } = await supabase.rpc('config_categoria_estado', { p_company: companyId, p_categoria: categoriaId, p_activa: activa })
+  if (error) throw deError(error)
+  const f = data?.[0]
+  if (!f) throw new ErrorMaestro('desconocido')
+  return { cambiado: f.cambiado, productos: Number(f.productos) }
 }
 
 export async function eliminarCategoria(companyId: string, categoriaId: string): Promise<void> {

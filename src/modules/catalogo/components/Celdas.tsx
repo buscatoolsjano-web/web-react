@@ -54,6 +54,28 @@ export function StockCelda({ stock }: { stock: StockProducto | null }) {
 }
 
 /**
+ * Un solo saldo, para la tabla de dos columnas (Fase 25 · E2).
+ *
+ * El listado pasó a tener «Stock real» y «Stock virtual» separadas —como el
+ * legacy (`app.js:15518`)— porque cada una se ordena por su cuenta. `—` sigue
+ * significando «sin saldo registrado», no cero, por la misma razón de siempre.
+ *
+ * El negativo se marca: un saldo real bajo cero es un error de carga, y en
+ * una columna de números pasa desapercibido.
+ */
+export function SaldoCelda({ valor }: { valor: number | null }) {
+  if (valor === null) {
+    return (
+      <span className={styles.sinDato} title="Este producto nunca tuvo movimientos de stock">
+        <span aria-hidden="true">—</span>
+        <span className="sr-only">Sin saldo registrado</span>
+      </span>
+    )
+  }
+  return <span className={valor < 0 ? styles.negativo : undefined}>{formatearCantidad(valor)}</span>
+}
+
+/**
  * Disponibilidad para roles externos: un booleano y nada más.
  *
  * `undefined` significa que todavía no llegó la respuesta; `false`, que no

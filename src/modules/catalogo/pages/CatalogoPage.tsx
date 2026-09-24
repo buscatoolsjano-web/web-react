@@ -18,6 +18,7 @@ import { ListadoProductos } from '../components/ListadoProductos'
 import { BarraCarrito } from '../components/BarraCarrito'
 import { ModalComparar } from '../components/ModalComparar'
 import { ModalExportar } from '../components/ModalExportar'
+import { ModalNuevoProducto } from '../components/ModalNuevoProducto'
 import { ModalProducto } from '../components/ModalProducto'
 import {
   useDefinicionesDeAtributos,
@@ -32,6 +33,7 @@ import { useProductoSeleccionado } from '../hooks/useProductoSeleccionado'
 import { contarFiltrosActivos } from '../lib/planDeConsulta'
 import { columnasDinamicas } from '../lib/columnasDinamicas'
 import { debePropagarBusqueda } from '../lib/busquedaDiferida'
+import { puedeCrearProductos } from '../lib/nuevoProducto'
 import { OPCIONES_POR_PAGINA } from '../types'
 import styles from './CatalogoPage.module.css'
 
@@ -116,6 +118,15 @@ export function CatalogoPage() {
   // Fase 22 · paridad: elegir a mano qué comparar (#42) y exportar (#49).
   const seleccion = useSeleccionComparar()
   const [comparando, setComparando] = useState(false)
+  /**
+   * Fase 26 · E3: el alta de producto, encima del catálogo.
+   *
+   * Quién ve el botón sale del rol; quién puede escribir de verdad lo
+   * decide la policy `products_write` (admin y employee). La pantalla sólo
+   * evita ofrecer una acción que va a fallar.
+   */
+  const puedeCrear = puedeCrearProductos(activa?.rol)
+  const [creando, setCreando] = useState(false)
   const [exportando, setExportando] = useState(false)
   const totalDelCatalogo = useTotalDelCatalogo(companyId, exportando)
   const exportacion = useExportarCatalogo(
@@ -167,6 +178,15 @@ export function CatalogoPage() {
             {isPending ? 'Cargando…' : contar(total, PRODUCTO)}
             {listaEfectiva ? ` · ${listaEfectiva.nombre}` : ''}
           </>
+        }
+        /* Fase 26 · E3: el «Nuevo» del legacy. Sólo para quien puede
+           escribir productos; RLS lo vuelve a decidir igual. */
+        actions={
+          puedeCrear ? (
+            <Button icon={<Icon name="plus" size={16} />} onClick={() => setCreando(true)}>
+              Nuevo producto
+            </Button>
+          ) : undefined
         }
       />
 
@@ -305,6 +325,18 @@ export function CatalogoPage() {
           definiciones={definiciones}
           onCerrar={cerrar}
           onAbrirOtro={abrir}
+        />
+      ) : null}
+
+      {/* El alta, encima del catálogo. Al crear se abre el producto: es la
+          forma de ver que quedó como se quería sin ir a buscarlo. */}
+      {creando ? (
+        <ModalNuevoProducto
+          onCerrar={() => setCreando(false)}
+          onCreado={(id) => {
+            setCreando(false)
+            abrir(id)
+          }}
         />
       ) : null}
 

@@ -14,6 +14,7 @@ import {
   puedeEliminarCategoria,
   puedeEliminarMarca,
   textoDesactivar,
+  textoDesactivarCategoria,
   textoVigenciaLista,
   validarNombre,
   type Atributo,
@@ -22,7 +23,7 @@ import {
 } from './maestros'
 
 const marca = (p: Partial<Marca>): Marca => ({ id: 'm1', nombre: 'APEX', activa: true, productos: 0, equipos: 0, ...p })
-const categoria = (p: Partial<Categoria>): Categoria => ({ id: 'c1', nombre: 'Puntas y tubos', slug: 'punta', enRevision: false, productos: 0, atributos: 0, subcategorias: 0, ...p })
+const categoria = (p: Partial<Categoria>): Categoria => ({ id: 'c1', nombre: 'Puntas y tubos', slug: 'punta', enRevision: false, activa: true, productos: 0, atributos: 0, subcategorias: 0, ...p })
 
 describe('nombres', () => {
   it('normaliza como la base: trim y espacios colapsados, sin tocar mayúsculas ni acentos', () => {
@@ -55,6 +56,14 @@ describe('filtros', () => {
     expect(filtrarCategorias(cats, 'punta').map((c) => c.id)).toEqual(['1'])
     expect(filtrarCategorias(cats, 'OTR').map((c) => c.id)).toEqual(['2'])
   })
+  /** Fase 25 · E1: las categorías se filtran por estado, igual que las marcas. */
+  it('categorías por estado, y el estado se combina con la búsqueda', () => {
+    const cats = [categoria({ id: '1' }), categoria({ id: '2', nombre: 'Otros', slug: 'otros', activa: false })]
+    expect(filtrarCategorias(cats, '', 'activas').map((c) => c.id)).toEqual(['1'])
+    expect(filtrarCategorias(cats, '', 'inactivas').map((c) => c.id)).toEqual(['2'])
+    expect(filtrarCategorias(cats, '', 'todas')).toHaveLength(2)
+    expect(filtrarCategorias(cats, 'otr', 'activas')).toHaveLength(0)
+  })
   it('atributos por etiqueta, clave o categoría', () => {
     const a: Atributo[] = [{ clave: 'torq_max', etiqueta: 'Torque máximo', tipo: 'number', unidad: 'Nm', filtrable: true, categorias: ['Atornilladores'], productos: 173 }]
     expect(filtrarAtributos(a, 'torq_')).toHaveLength(1)
@@ -78,6 +87,18 @@ describe('borrado y desactivación', () => {
   it('desactivar explica el impacto sin prometer lo que no hace', () => {
     expect(textoDesactivar({ nombre: 'SPEEDRILL', productos: 4928 })).toMatch(/4\.928 productos la siguen teniendo como marca, y los documentos no cambian/)
     expect(textoDesactivar({ nombre: 'Nueva', productos: 0 })).not.toMatch(/productos/)
+  })
+  /**
+   * Fase 25 · E1. El número tiene que estar en el cartel: desactivar «Otros»
+   * saca 12.588 productos del catálogo, y eso no se descubre después de tocar
+   * el botón. Y tiene que decir que siguen existiendo, porque siguen.
+   */
+  it('desactivar una categoría dice cuántos productos saca del catálogo', () => {
+    const t = textoDesactivarCategoria({ nombre: 'Otros', productos: 12588 })
+    expect(t).toMatch(/12\.588 productos tampoco se van a listar/)
+    expect(t).toMatch(/Siguen existiendo/)
+    expect(t).toMatch(/Se puede reactivar/)
+    expect(textoDesactivarCategoria({ nombre: 'Nueva', productos: 0 })).not.toMatch(/productos/)
   })
 })
 

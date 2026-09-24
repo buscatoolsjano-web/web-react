@@ -19,11 +19,20 @@ export async function listarMarcas(companyId: string): Promise<MarcaResumen[]> {
   return (data ?? []).map((b) => ({ id: b.id, nombre: b.name }))
 }
 
+/**
+ * Categorías de la empresa activa, **sólo las que están en el catálogo**.
+ *
+ * Fase 25 · E1: el mismo `.eq('is_active', true)` que las marcas. Sin esto, una
+ * categoría desactivada seguiría apareciendo en el filtro y elegirla daría cero
+ * resultados, porque `search_products` ya no devuelve sus productos. Un filtro
+ * que siempre da cero es peor que un filtro que no está.
+ */
 export async function listarCategorias(companyId: string): Promise<CategoriaResumen[]> {
   const { data, error } = await supabase
     .from('product_categories')
     .select('id, name, slug, needs_review, position')
     .eq('company_id', companyId)
+    .eq('is_active', true)
     .order('position')
 
   if (error) throw new Error(`No se pudieron leer las categorías: ${error.message}`)

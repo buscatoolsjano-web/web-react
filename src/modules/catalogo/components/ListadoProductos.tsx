@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/Badge'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import tabla from '@/components/tables/Tabla.module.css'
 import { CeldaCarrito } from './CeldaCarrito'
-import { DisponibilidadBadge, PrecioCelda, StockCelda } from './Celdas'
+import { DisponibilidadBadge, PrecioCelda, SaldoCelda, StockCelda } from './Celdas'
 import { ImagenProducto } from './ImagenProducto'
 import { PopoverProducto } from './PopoverProducto'
 import { atributosDestacados } from '../lib/destacados'
@@ -98,17 +98,21 @@ function filaClickeable(
 
 const rutaProducto = (sku: string) => `/catalogo/${encodeURIComponent(sku)}`
 
-/** Kit y «a revisar» son datos del producto; se muestran con texto, no sólo color. */
+/**
+ * Kit es un dato del producto; se muestra con texto, no sólo color.
+ *
+ * **«Datos a revisar» ya no se muestra en el Catálogo** (Fase 25 · E3, pedido
+ * explícito). El dato sigue en `products.needs_review` y se sigue viendo en
+ * Configuración → Categorías: lo que se saca es el cartel. La razón es de
+ * proporción, no de gusto: lo tienen 12.593 de 21.828 productos —casi todos
+ * los de la categoría «Otros»— así que marcaba más de la mitad del catálogo y
+ * un cartel que aparece siempre no informa nada.
+ */
 function Estados({ producto }: { producto: ProductoListado }) {
-  if (!producto.esKit && !producto.necesitaRevision) return null
+  if (!producto.esKit) return null
   return (
     <span className={tabla.estados}>
-      {producto.esKit ? <Badge tone="info">Kit</Badge> : null}
-      {producto.necesitaRevision ? (
-        <Badge tone="warning" dot>
-          Datos a revisar
-        </Badge>
-      ) : null}
+      <Badge tone="info">Kit</Badge>
     </span>
   )
 }
@@ -126,9 +130,11 @@ function Estados({ producto }: { producto: ProductoListado }) {
  * - < 768 px: tarjetas compactas (imagen chica a la izquierda), no cards
  *   gigantes. Toda la tarjeta es un enlace.
  *
- * En la tabla el enlace es el nombre (se llega con teclado); la fila entera
- * también abre el producto con el mouse, como antes. No hay acciones dentro de
- * la fila que ese click pueda pisar.
+ * En la tabla, **cualquier parte de la fila —incluido el nombre— abre el
+ * producto de la misma manera** (Fase 25 · E4). El nombre sigue siendo un
+ * enlace de verdad para llegar con teclado y para abrir la ficha en otra
+ * pestaña, pero el click pelado hace lo mismo que el resto de la fila. No hay
+ * acciones dentro de la fila que ese click pueda pisar.
  */
 export function ListadoProductos({
   productos,
@@ -310,10 +316,18 @@ export function ListadoProductos({
                 {c.unidad ? <span className={styles.aclaracion}> {c.unidad}</span> : null}
               </th>
             ))}
+            {/* Fase 25 · E2: dos columnas, una por saldo, cada una con su
+                orden — como el legacy (`app.js:15518`). Juntas en una sola
+                celda «12 / 10» no se podían ordenar por separado. */}
             {esInterno ? (
-              <th scope="col" className={tabla.num}>
-                Stock <span className={styles.aclaracion}>real / virt.</span>
-              </th>
+              <>
+                <Encabezado campo="stock_real" orden={orden} className={`${tabla.num} ${styles.thNum}`}>
+                  Stock real
+                </Encabezado>
+                <Encabezado campo="stock_virtual" orden={orden} className={`${tabla.num} ${styles.thNum}`}>
+                  Stock virtual
+                </Encabezado>
+              </>
             ) : (
               <th scope="col">Disponibilidad</th>
             )}
@@ -367,7 +381,27 @@ export function ListadoProductos({
                 <code className={styles.sku}>{p.sku}</code>
               </td>
               <td className={styles.colNombre}>
-                <Link to={rutaProducto(p.sku)} className={styles.nombre} onClick={(e) => e.stopPropagation()}>
+                {/*
+                  Fase 25 · E4: el nombre abre lo MISMO que el resto de la fila.
+                  Antes navegaba a la ficha y el resto de la fila abría el
+                  modal, así que el mismo producto se veía de dos formas según
+                  dónde se hubiera tocado.
+
+                  Sigue siendo un `<a>` con href de verdad: ctrl-click, botón
+                  del medio y «abrir en pestaña nueva» tienen que llevar a la
+                  ficha, que es una URL compartible. El click pelado, no.
+                */}
+                <Link
+                  to={rutaProducto(p.sku)}
+                  className={styles.nombre}
+                  onClick={(e) => {
+                    if (!onAbrirProducto) return
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onAbrirProducto(p.id)
+                  }}
+                >
                   {p.nombre}
                 </Link>
                 <span className={styles.bajoNombre}>
@@ -388,9 +422,20 @@ export function ListadoProductos({
                   </td>
                 )
               })}
-              <td className={esInterno ? tabla.num : tabla.nowrap}>
-                {esInterno ? <StockCelda stock={p.stock} /> : <DisponibilidadBadge disponible={disponibilidad?.get(p.id) ?? false} />}
-              </td>
+              {esInterno ? (
+                <>
+                  <td className={tabla.num}>
+                    <SaldoCelda valor={p.stock?.real ?? null} />
+                  </td>
+                  <td className={tabla.num}>
+                    <SaldoCelda valor={p.stock?.virtual ?? null} />
+                  </td>
+                </>
+              ) : (
+                <td className={tabla.nowrap}>
+                  <DisponibilidadBadge disponible={disponibilidad?.get(p.id) ?? false} />
+                </td>
+              )}
               <td className={tabla.num}>
                 <PrecioCelda monto={p.precio} moneda={moneda} />
               </td>

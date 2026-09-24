@@ -22,6 +22,8 @@ export interface Categoria {
   nombre: string
   slug: string
   enRevision: boolean
+  /** Fase 25 · E1: false = ni ella ni sus productos aparecen en el Catálogo. */
+  activa: boolean
   productos: number
   atributos: number
   subcategorias: number
@@ -80,7 +82,7 @@ export const AUTORIDAD = {
   marcasNombre:
     'El nombre de una marca no se edita: la importación de productos reconoce las marcas por su nombre y un cambio crearía una marca duplicada. Una marca con productos no se elimina: se desactiva.',
   categorias:
-    'Renombrar cambia sólo el nombre visible: la clave interna (slug), que usa la importación, no cambia. Una categoría con productos o atributos no se elimina.',
+    'Renombrar cambia sólo el nombre visible: la clave interna (slug), que usa la importación, no cambia. Una categoría con productos o atributos no se elimina: se desactiva.',
 } as const
 
 /** trim + espacios internos colapsados, igual que la base. No cambia mayúsculas ni acentos. */
@@ -117,8 +119,12 @@ export function filtrarMarcas(lista: readonly Marca[], busqueda: string, estado:
   return lista.filter((m) => contiene(m.nombre, busqueda) && (estado === 'todas' || (estado === 'activas') === m.activa))
 }
 
-export function filtrarCategorias(lista: readonly Categoria[], busqueda: string): Categoria[] {
-  return lista.filter((c) => contiene(c.nombre, busqueda) || contiene(c.slug, busqueda))
+export function filtrarCategorias(lista: readonly Categoria[], busqueda: string, estado: FiltroEstado = 'todas'): Categoria[] {
+  return lista.filter(
+    (c) =>
+      (contiene(c.nombre, busqueda) || contiene(c.slug, busqueda)) &&
+      (estado === 'todas' || (estado === 'activas') === c.activa),
+  )
 }
 
 export function filtrarAtributos(lista: readonly Atributo[], busqueda: string): Atributo[] {
@@ -149,6 +155,20 @@ export function textoDesactivar(m: Pick<Marca, 'nombre' | 'productos'>): string 
   const base = `«${m.nombre}» deja de aparecer en los filtros del Catálogo.`
   return m.productos > 0
     ? `${base} Sus ${plural(m.productos, 'producto', 'productos')} la siguen teniendo como marca, y los documentos no cambian. Se puede reactivar.`
+    : `${base} Se puede reactivar.`
+}
+
+/**
+ * Lo mismo para una categoría (Fase 25 · E1).
+ *
+ * Se dice el número entero y sin redondear porque es lo que cambia la
+ * decisión: desactivar «Otros» saca 12.588 productos del catálogo, y eso no
+ * se descubre después de tocar el botón.
+ */
+export function textoDesactivarCategoria(c: Pick<Categoria, 'nombre' | 'productos'>): string {
+  const base = `«${c.nombre}» deja de aparecer en los filtros del Catálogo.`
+  return c.productos > 0
+    ? `${base} Sus ${plural(c.productos, 'producto', 'productos')} tampoco se van a listar ahí. Siguen existiendo: se pueden cotizar, comprar y abrir desde los documentos que los nombran. Se puede reactivar.`
     : `${base} Se puede reactivar.`
 }
 

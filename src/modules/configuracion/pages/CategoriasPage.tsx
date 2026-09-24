@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge } from '@/components/ui/Badge'
 import { Field } from '@/components/forms/Field'
-import { Input } from '@/components/forms/controls'
+import { Input, Select } from '@/components/forms/controls'
 import { contar } from '@/components/tables/rango'
 import { Icon } from '@/components/icons/Icon'
 import { Button } from '@/components/ui/Button'
@@ -14,25 +14,41 @@ import { cx } from '@/utils/cx'
 import { Dialogo } from '../components/Dialogo'
 import { DialogoNombre } from '../components/DialogoNombre'
 import { useAccionesMaestros, useCategorias } from '../hooks/useMaestros'
-import { AUTORIDAD, filtrarCategorias, mensajeErrorMaestro, puedeEliminarCategoria, type Categoria } from '../lib/maestros'
+import {
+  AUTORIDAD,
+  filtrarCategorias,
+  mensajeErrorMaestro,
+  puedeEliminarCategoria,
+  textoDesactivarCategoria,
+  type Categoria,
+  type FiltroEstado,
+} from '../lib/maestros'
 import { ErrorMaestro } from '../services/maestros'
 import styles from '../components/Configuracion.module.css'
 
-type Pendiente = { tipo: 'crear' } | { tipo: 'renombrar' | 'eliminar'; c: Categoria }
+type Pendiente =
+  | { tipo: 'crear' }
+  | { tipo: 'renombrar' | 'eliminar' | 'desactivar' | 'reactivar'; c: Categoria }
 
 const CATEGORIAS = { singular: 'categoría', plural: 'categorías' }
 
 const codigo = (e: unknown) => (e instanceof ErrorMaestro ? e.codigo : 'desconocido')
 
 /**
- * Configuración → Categorías. Admin: crear, renombrar (el slug no cambia) y
- * eliminar las que no se usan. Employee: sólo lectura.
+ * Configuración → Categorías. Admin: crear, renombrar (el slug no cambia),
+ * desactivar/reactivar y eliminar las que no se usan. Employee: sólo lectura.
+ *
+ * Fase 25 · E1: desactivar es el equivalente de las marcas. Una categoría con
+ * productos nunca se elimina —se desactiva—, y desactivarla saca del catálogo
+ * también a sus productos. Sirve para las bolsas de «todavía no clasificado»,
+ * que es de donde salió el pedido.
  */
 export function CategoriasPage() {
   const { activa } = useEmpresa()
   const q = useCategorias()
   const acciones = useAccionesMaestros()
   const [busqueda, setBusqueda] = useState('')
+  const [estado, setEstado] = useState<FiltroEstado>('todas')
   const [pendiente, setPendiente] = useState<Pendiente | null>(null)
   const [errorDialogo, setErrorDialogo] = useState<string | null>(null)
   const [aviso, setAviso] = useState<{ tono: Tono; titulo: string } | null>(null)
@@ -40,8 +56,12 @@ export function CategoriasPage() {
   const lista = q.data?.filas ?? []
   // Qué se ofrece sale del rol; lo que se permite lo vuelve a decidir la base.
   const admin = activa?.rol === 'admin'
-  const visibles = filtrarCategorias(lista, busqueda)
-  const ocupado = acciones.crearCategoria.isPending || acciones.renombrarCategoria.isPending || acciones.eliminarCategoria.isPending
+  const visibles = filtrarCategorias(lista, busqueda, estado)
+  const ocupado =
+    acciones.crearCategoria.isPending ||
+    acciones.renombrarCategoria.isPending ||
+    acciones.estadoCategoria.isPending ||
+    acciones.eliminarCategoria.isPending
 
   const abrir = (p: Pendiente) => {
     setErrorDialogo(null)
@@ -67,11 +87,21 @@ export function CategoriasPage() {
     }
   }
 
-  async function eliminar() {
-    if (pendiente?.tipo !== 'eliminar') return
+  async function confirmar() {
+    if (!pendiente || pendiente.tipo === 'crear' || pendiente.tipo === 'renombrar') return
+    const { c } = pendiente
     try {
-      await acciones.eliminarCategoria.mutateAsync(pendiente.c.id)
-      setAviso({ tono: 'ok', titulo: `Categoría «${pendiente.c.nombre}» eliminada.` })
+      if (pendiente.tipo === 'eliminar') {
+        await acciones.eliminarCategoria.mutateAsync(c.id)
+        setAviso({ tono: 'ok', titulo: `Categoría «${c.nombre}» eliminada.` })
+      } else {
+        const activar = pendiente.tipo === 'reactivar'
+        await acciones.estadoCategoria.mutateAsync({ id: c.id, activa: activar })
+        setAviso({
+          tono: 'ok',
+          titulo: activar ? `Categoría «${c.nombre}» reactivada.` : `Categoría «${c.nombre}» desactivada.`,
+        })
+      }
       setPendiente(null)
     } catch (e) {
       setErrorDialogo(mensajeErrorMaestro(codigo(e)))
@@ -93,6 +123,7 @@ export function CategoriasPage() {
     { key: 'productos', header: 'Productos', align: 'right', width: '8rem', render: (c) => c.productos.toLocaleString('es-AR') },
     { key: 'atributos', header: 'Atributos', align: 'right', width: '7rem', render: (c) => c.atributos.toLocaleString('es-AR') },
     { key: 'revision', header: 'Revisión', width: '9rem', render: (c) => (c.enRevision ? <Badge tone="warning" dot>En revisión</Badge> : '—') },
+    { key: 'estado', header: 'Estado', width: '8rem', render: (c) => <ChipActiva activa={c.activa} /> },
   ]
 
   return (
@@ -122,6 +153,13 @@ export function CategoriasPage() {
 <Field label="Buscar categoría" hideLabel className={styles.buscar}>
               <Input type="search" placeholder="Buscar categoría" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
             </Field>
+            <Field label="Filtrar por estado" hideLabel className={styles.selectFiltro}>
+              <Select value={estado} onChange={(e) => setEstado(e.target.value as FiltroEstado)}>
+                <option value="todas">Todas</option>
+                <option value="activas">Activas</option>
+                <option value="inactivas">Inactivas</option>
+              </Select>
+            </Field>
             {q.data && <span className={styles.nota}>{visibles.length === lista.length ? contar(lista.length, CATEGORIAS) : `${visibles.length} de ${lista.length}`}</span>}
           </div>
           <ResponsiveTable
@@ -135,6 +173,7 @@ export function CategoriasPage() {
               <article className={styles.card}>
                 <div className={styles.cardCabecera}>
                   {columnas[0]!.render!(c)}
+                  <ChipActiva activa={c.activa} />
                   {c.enRevision && (
                     <Badge tone="warning" dot>
                       En revisión
@@ -176,9 +215,9 @@ export function CategoriasPage() {
           onCerrar={cerrar}
         />
       )}
-      {pendiente?.tipo === 'eliminar' && (
+      {pendiente && (pendiente.tipo === 'eliminar' || pendiente.tipo === 'desactivar' || pendiente.tipo === 'reactivar') && (
         <Dialogo
-          titulo="Eliminar categoría"
+          titulo={{ desactivar: 'Desactivar categoría', reactivar: 'Reactivar categoría', eliminar: 'Eliminar categoría' }[pendiente.tipo]}
           onCerrar={cerrar}
           bloqueado={ocupado}
           pie={
@@ -186,18 +225,28 @@ export function CategoriasPage() {
               <Button variant="secondary" onClick={cerrar} disabled={ocupado}>
                 Cancelar
               </Button>
-              <Button variant="danger" onClick={() => void eliminar()} disabled={ocupado}>
-                {ocupado ? 'Eliminando…' : 'Eliminar'}
+              <Button variant={pendiente.tipo === 'eliminar' ? 'danger' : 'primary'} onClick={() => void confirmar()} disabled={ocupado}>
+                {ocupado ? 'Guardando…' : { desactivar: 'Desactivar', reactivar: 'Reactivar', eliminar: 'Eliminar' }[pendiente.tipo]}
               </Button>
             </>
           }
         >
-          <p className={styles.dialogoTexto}>«{pendiente.c.nombre}» no tiene productos, atributos ni subcategorías. Se elimina y queda registrado en la bitácora.</p>
+          <p className={styles.dialogoTexto}>
+            {pendiente.tipo === 'desactivar'
+              ? textoDesactivarCategoria(pendiente.c)
+              : pendiente.tipo === 'reactivar'
+                ? `«${pendiente.c.nombre}» y sus ${pendiente.c.productos.toLocaleString('es-AR')} productos vuelven a aparecer en el Catálogo.`
+                : `«${pendiente.c.nombre}» no tiene productos, atributos ni subcategorías. Se elimina y queda registrado en la bitácora.`}
+          </p>
           {errorDialogo && <StatusMessage tono="error" titulo={errorDialogo} />}
         </Dialogo>
       )}
     </>
   )
+}
+
+function ChipActiva({ activa }: { activa: boolean }) {
+  return activa ? <Badge tone="success">Activa</Badge> : <Badge tone="neutral" outline>Inactiva</Badge>
 }
 
 function Acciones({ c, deshabilitado, abrir }: { c: Categoria; deshabilitado: boolean; abrir: (p: Pendiente) => void }) {
@@ -207,6 +256,15 @@ function Acciones({ c, deshabilitado, abrir }: { c: Categoria; deshabilitado: bo
       <Button variant="secondary" onClick={() => abrir({ tipo: 'renombrar', c })} disabled={deshabilitado}>
         Renombrar
       </Button>
+      {c.activa ? (
+        <Button variant="secondary" onClick={() => abrir({ tipo: 'desactivar', c })} disabled={deshabilitado}>
+          Desactivar
+        </Button>
+      ) : (
+        <Button variant="secondary" onClick={() => abrir({ tipo: 'reactivar', c })} disabled={deshabilitado}>
+          Reactivar
+        </Button>
+      )}
       {eliminar.ok && (
         <Button variant="ghost" onClick={() => abrir({ tipo: 'eliminar', c })} disabled={deshabilitado}>
           Eliminar

@@ -26,9 +26,10 @@ export function HojaCatalogo({ hoja, marca }: HojaCatalogoProps) {
     return <p className={styles.vacio}>Sin hoja de catálogo vinculada.</p>
   }
 
+  // El mismo encabezado del legacy (`app.js:16824`): marca · catálogo · página.
   const titulo = [
     marca,
-    hoja.catalogo ? `Catálogo ${hoja.catalogo}` : null,
+    hoja.etiqueta ?? (hoja.catalogo ? `Catálogo ${hoja.catalogo}` : null),
     hoja.pagina !== null ? `página ${hoja.pagina}` : null,
   ]
     .filter(Boolean)

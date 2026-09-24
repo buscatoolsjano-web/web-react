@@ -35,7 +35,8 @@ describe('etiquetas', () => {
     const base = [
       'USER_INVITED', 'MEMBERSHIP_ADDED', 'INVITATION_RESENT', 'MEMBERSHIP_ROLE_CHANGED', 'MEMBERSHIP_SUSPENDED', 'MEMBERSHIP_REACTIVATED',
       'COMPANY_UPDATED', 'COMPANY_LOGO_UPDATED', 'COMPANY_LOGO_REMOVED',
-      'BRAND_CREATED', 'BRAND_DISABLED', 'BRAND_ENABLED', 'BRAND_DELETED', 'CATEGORY_CREATED', 'CATEGORY_UPDATED', 'CATEGORY_DELETED',
+      'BRAND_CREATED', 'BRAND_DISABLED', 'BRAND_ENABLED', 'BRAND_DELETED',
+      'CATEGORY_CREATED', 'CATEGORY_UPDATED', 'CATEGORY_DELETED', 'CATEGORY_DISABLED', 'CATEGORY_ENABLED',
       'NUMBERING_AUTHORITY_INSERT', 'NUMBERING_AUTHORITY_UPDATE', 'NUMBERING_AUTHORITY_DELETE',
     ]
     for (const c of base) expect(etiquetaEvento(c)).not.toMatch(/desconocido/)
@@ -46,7 +47,7 @@ describe('etiquetas', () => {
   })
   it('eventos por módulo', () => {
     expect(eventosDeModulo('empresa').map((e) => e.codigo)).toEqual(['COMPANY_UPDATED', 'COMPANY_LOGO_UPDATED', 'COMPANY_LOGO_REMOVED'])
-    expect(eventosDeModulo('')).toHaveLength(19)
+    expect(eventosDeModulo('')).toHaveLength(21)
   })
 })
 
