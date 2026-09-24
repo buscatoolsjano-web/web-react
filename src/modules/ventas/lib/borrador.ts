@@ -187,6 +187,9 @@ export function faltaParaCrear(b: Borrador): string[] {
   const falta: string[] = []
   if (b.cabecera.customerId === '') falta.push('Elegí un cliente.')
   if (b.cabecera.moneda === '') falta.push('Elegí la moneda del documento.')
+  // Fase 27 · E1: el título es el renglón que sale impreso debajo del tipo de
+  // documento. Sin él, lo que llega al cliente no dice de qué es.
+  if (b.cabecera.titulo.trim() === '') falta.push('Escribí el título del documento.')
   return falta
 }
 

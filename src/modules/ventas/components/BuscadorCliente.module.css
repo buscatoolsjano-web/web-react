@@ -107,3 +107,121 @@
   font-size: var(--text-sm);
   color: var(--danger);
 }
+
+/* ── Dentro de la hoja del documento (Fase 27 · E7) ───────────────────────
+   La hoja es papel blanco: el buscador del ERP —caja oscura, borde grueso y
+   dos renglones de ayuda— se veía como un agujero en el medio. Acá hereda la
+   tipografía del documento y sólo se distingue por un punteado, que es lo que
+   dice «esto se puede tocar». */
+.elegidoHoja {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.nombreHoja {
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+}
+
+.cambiarHoja {
+  font: inherit;
+  font-size: 0.85em;
+  padding: 0 3px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 3px;
+  background: none;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.cambiarHoja:hover,
+.cambiarHoja:focus-visible {
+  border-color: #f97316;
+  color: #c2410c;
+  background: #fff7ed;
+}
+
+
+@media print {
+  .cambiarHoja,
+  .panelHoja {
+    display: none;
+  }
+}
+
+/* El campo, con el mismo aire que el del sistema anterior: punteado naranja
+   sobre el papel, y el texto con la tipografía del documento. */
+.inputHoja {
+  font: inherit;
+  width: 100%;
+  min-width: 14rem;
+  padding: 2px 6px;
+  background: #fff;
+  color: #0f172a;
+  border: 1px dashed #f97316;
+  border-radius: 3px;
+}
+
+.inputHoja::placeholder {
+  color: #94a3b8;
+}
+
+.inputHoja:focus {
+  outline: none;
+  border-style: solid;
+}
+
+/* La lista flota sobre la hoja en vez de empujar las filas de abajo. */
+.listaHoja {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  max-height: 16rem;
+  overflow-y: auto;
+  background: #fff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.listaHoja .opcion {
+  color: #0f172a;
+}
+
+.listaHoja .opcion:hover,
+.listaHoja .opcion:focus-visible {
+  background: #fff7ed;
+}
+
+/* La referencia del sistema anterior, delante del nombre. */
+.referencia {
+  /* La misma pila que el resto del ERP: no hay token de monoespaciada. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  color: #94a3b8;
+  margin-right: 6px;
+}
+
+@media print {
+  .panelHoja {
+    display: none;
+  }
+}
+
+/* El contenedor del campo dentro de la hoja.
+   Sin caja propia —el papel ya es el fondo— y en `relative` para que la lista
+   flotante se ancle acá y no al documento entero. */
+.panelHoja {
+  position: relative;
+  display: block;
+  gap: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}

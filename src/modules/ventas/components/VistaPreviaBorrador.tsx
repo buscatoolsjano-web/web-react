@@ -6,6 +6,8 @@ import type { LineaDocumento, TipoDocumento } from '../types'
 export interface VistaPreviaBorradorProps {
   tipo: TipoDocumento
   fecha: string
+  /** El renglón que sale impreso debajo del tipo de documento (Fase 27 · E1). */
+  titulo?: string | undefined
   cliente: string
   contacto: string | null
   moneda: string | null
@@ -36,6 +38,7 @@ export interface VistaPreviaBorradorProps {
 export function VistaPreviaBorrador({
   tipo,
   fecha,
+  titulo,
   cliente,
   contacto,
   moneda,
@@ -55,7 +58,7 @@ export function VistaPreviaBorrador({
         <VistaImpresion
           doc={imprimibleDelBorrador(
             tipo,
-            { fecha, cliente, contacto, moneda, formaPago, notas, lineas },
+            { fecha, titulo: titulo ?? null, cliente, contacto, moneda, formaPago, notas, lineas },
             opciones,
           )}
           empresa={empresa}

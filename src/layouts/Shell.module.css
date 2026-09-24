@@ -546,3 +546,23 @@
     display: none;
   }
 }
+
+/* El círculo rojo de los sin leer (Fase 27 · E3).
+   Va pegado al borde derecho del ítem, no al texto: así los dos contadores
+   —Emails y WhatsApp— quedan alineados entre sí y se leen de un vistazo. */
+.sinLeer {
+  margin-left: auto;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}

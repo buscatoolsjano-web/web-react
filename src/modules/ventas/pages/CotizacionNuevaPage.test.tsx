@@ -57,7 +57,7 @@ const leerPantalla = (): Record<string, string> => {
   }
   return {
     moneda: valor('Moneda'),
-    vendedor: valor(/Vendedor/),
+    vendedor: valor(/Agente/),
     tarifa: valor(/Tarifa/),
     formaPago: valor(/Forma de pago/),
   }
@@ -149,9 +149,17 @@ const montar = (extra?: React.ReactNode, entrada = '/ventas/cotizaciones/nueva')
 }
 
 /** Deja el alta en condiciones de guardar: cliente y moneda. */
+/**
+ * Lo mínimo para poder crear. Desde la Fase 27 · E1 incluye el TÍTULO: es
+ * el renglón que sale impreso debajo del tipo de documento.
+ */
 const completarMinimo = () => {
-  fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+  // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
+  // hoja— porque se pidió poder elegirlo desde el documento. El del panel
+  // es el primero.
+  fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
   fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
+  fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ Trabajo de prueba' } })
 }
 
 beforeEach(() => {
@@ -191,7 +199,7 @@ describe('Nueva cotización · borrador', () => {
     montar()
     completarMinimo()
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'mayorista' } })
-    fireEvent.change(screen.getByLabelText(/Vendedor/), { target: { value: 'u1' } })
+    fireEvent.change(screen.getByLabelText(/Agente/), { target: { value: 'u1' } })
     fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
     fireEvent.change(screen.getAllByLabelText(/Cantidad/)[0]!, { target: { value: '2' } })
     fireEvent.change(screen.getAllByLabelText(/Precio/)[0]!, { target: { value: '50' } })
@@ -305,10 +313,13 @@ describe('Nueva cotización · defaults del cliente', () => {
   it('al elegir el cliente completa vendedor, tarifa, forma de pago y moneda', async () => {
     estado.defaults = { vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' }
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
+  // hoja— porque se pidió poder elegirlo desde el documento. El del panel
+  // es el primero.
+  fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
 
     await waitFor(() => expect(screen.getByLabelText('Moneda')).toHaveValue('USD'))
-    expect(screen.getByLabelText(/Vendedor/)).toHaveValue('u1')
+    expect(screen.getByLabelText(/Agente/)).toHaveValue('u1')
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista')
     expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
     expect(espias.defaults).toHaveBeenCalledTimes(1)
@@ -317,11 +328,14 @@ describe('Nueva cotización · defaults del cliente', () => {
   it('un cliente sin defaults deja el formulario como estaba', async () => {
     estado.defaults = { vendedorId: null, tarifaId: null, formaPago: null, moneda: null }
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
+  // hoja— porque se pidió poder elegirlo desde el documento. El del panel
+  // es el primero.
+  fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
 
     await waitFor(() => expect(espias.defaults).toHaveBeenCalled())
     expect(screen.getByLabelText('Moneda')).toHaveValue('')
-    expect(screen.getByLabelText(/Vendedor/)).toHaveValue('')
+    expect(screen.getByLabelText(/Agente/)).toHaveValue('')
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('')
     expect(screen.queryByText(/Sobre los datos del cliente/)).toBeNull()
   })
@@ -329,7 +343,10 @@ describe('Nueva cotización · defaults del cliente', () => {
   it('una tarifa del cliente en otra moneda no se aplica, y se dice por qué', async () => {
     estado.defaults = { vendedorId: null, tarifaId: 'lista-ars', formaPago: null, moneda: 'USD' }
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
+  // hoja— porque se pidió poder elegirlo desde el documento. El del panel
+  // es el primero.
+  fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
 
     expect(await screen.findByText(/está en ARS y el documento en USD/)).toBeInTheDocument()
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('')
@@ -338,10 +355,13 @@ describe('Nueva cotización · defaults del cliente', () => {
   it('un vendedor que ya no está en la empresa no se aplica, y se avisa', async () => {
     estado.defaults = { vendedorId: 'se-fue', tarifaId: null, formaPago: null, moneda: 'USD' }
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
+  // hoja— porque se pidió poder elegirlo desde el documento. El del panel
+  // es el primero.
+  fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
 
     expect(await screen.findByText(/vendedor predeterminado del cliente ya no está disponible/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Vendedor/)).toHaveValue('')
+    expect(screen.getByLabelText(/Agente/)).toHaveValue('')
   })
 
   it('lo que eligió la persona NO se pisa al elegir el cliente', async () => {
@@ -351,12 +371,15 @@ describe('Nueva cotización · defaults del cliente', () => {
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'lista-usd' } })
     fireEvent.change(screen.getByLabelText(/Forma de pago/), { target: { value: 'Contra entrega' } })
 
-    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
+  // hoja— porque se pidió poder elegirlo desde el documento. El del panel
+  // es el primero.
+  fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
     // Se espera el EFECTO —el vendedor sugerido— y no la llamada al servicio:
     // desde la Fase 19 · E1 los defaults se aplican en un efecto, un commit
     // después de que llega la respuesta. El vendedor no se tocó a mano, así
     // que ése sí se sugiere.
-    await waitFor(() => expect(screen.getByLabelText(/Vendedor/)).toHaveValue('u1'))
+    await waitFor(() => expect(screen.getByLabelText(/Agente/)).toHaveValue('u1'))
 
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('lista-usd')
     expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('Contra entrega')
@@ -365,7 +388,10 @@ describe('Nueva cotización · defaults del cliente', () => {
   it('la tarifa del cliente espera a la moneda y entra cuando se elige', async () => {
     estado.defaults = { vendedorId: null, tarifaId: 'mayorista', formaPago: null, moneda: null }
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
+  // hoja— porque se pidió poder elegirlo desde el documento. El del panel
+  // es el primero.
+  fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
     // Acá no hay nada que esperar: con la moneda sin definir, el default de
     // tarifa NO entra. Se drenan los efectos y recién después se afirma, que
     // es la única forma honesta de comprobar que algo no pasó.
@@ -379,7 +405,10 @@ describe('Nueva cotización · defaults del cliente', () => {
   it('lo sugerido se guarda como cualquier otro valor: el documento lo congela', async () => {
     estado.defaults = { vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' }
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
+  // hoja— porque se pidió poder elegirlo desde el documento. El del panel
+  // es el primero.
+  fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
     // Sin margen extra: el timeout de 8 s que había acá tapaba la carrera de
     // `aplicarDefaults`, que la Fase 19 · E1 corrigió. Si vuelve, esto falla.
     await waitFor(() => expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista'))
@@ -387,7 +416,7 @@ describe('Nueva cotización · defaults del cliente', () => {
     // con esto, el problema no es la aplicación de los defaults sino lo que
     // el alta lee del borrador.
     expect(screen.getByLabelText('Moneda')).toHaveValue('USD')
-    expect(screen.getByLabelText(/Vendedor/)).toHaveValue('u1')
+    expect(screen.getByLabelText(/Agente/)).toHaveValue('u1')
     expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
 
     espias.crear.mockImplementationOnce((_c, cab, _l) => {
@@ -395,6 +424,7 @@ describe('Nueva cotización · defaults del cliente', () => {
       void cab
       return Promise.resolve({ id: 'q-nueva', numero: 'COTI02630', total: 121, lineas: 1 })
     })
+    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ Trabajo de prueba' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
 
@@ -449,11 +479,17 @@ describe('Nueva cotización · defaults que llegan antes de que React confirme',
     espias.defaults.mockImplementationOnce(() => respuestaInmediata(estado.defaults))
     montar()
 
-    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
+  // hoja— porque se pidió poder elegirlo desde el documento. El del panel
+  // es el primero.
+  fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
 
     // Si los defaults se aplicaron sobre el borrador previo al click, el
     // cliente desaparece y «Crear cotización» queda deshabilitado por falta
-    // de cliente. Ése era el bug.
+    // de cliente. Ése era el bug. El título es lo otro que falta desde la
+    // Fase 27 · E1, y se completa para que lo único que pueda bloquear sea
+    // justamente lo que este test mira.
+    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ Trabajo de prueba' } })
     expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeEnabled()
   })
 
@@ -462,11 +498,14 @@ describe('Nueva cotización · defaults que llegan antes de que React confirme',
     espias.defaults.mockImplementationOnce(() => respuestaInmediata(estado.defaults))
     montar()
 
-    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
+  // hoja— porque se pidió poder elegirlo desde el documento. El del panel
+  // es el primero.
+  fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
 
     expect(screen.getByLabelText('Moneda')).toHaveValue('USD')
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista')
-    expect(screen.getByLabelText(/Vendedor/)).toHaveValue('u1')
+    expect(screen.getByLabelText(/Agente/)).toHaveValue('u1')
   })
 
   it('lo que se manda al servidor lleva cliente Y defaults', async () => {
@@ -474,7 +513,11 @@ describe('Nueva cotización · defaults que llegan antes de que React confirme',
     espias.defaults.mockImplementationOnce(() => respuestaInmediata(estado.defaults))
     montar()
 
-    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
+  // hoja— porque se pidió poder elegirlo desde el documento. El del panel
+  // es el primero.
+  fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
+    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ Trabajo de prueba' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
 
@@ -507,7 +550,10 @@ describe('Nueva cotización · cambio de cliente rápido', () => {
       .mockImplementationOnce(() => segunda.promesa)
     montar()
 
-    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
+  // hoja— porque se pidió poder elegirlo desde el documento. El del panel
+  // es el primero.
+  fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
     fireEvent.click(screen.getByRole('button', { name: 'elegir otro cliente' }))
 
     // Llega la del SEGUNDO y después, tarde, la del primero.
@@ -525,6 +571,7 @@ describe('Nueva cotización · cambio de cliente rápido', () => {
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista')
     expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
 
+    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ Trabajo de prueba' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
     expect(espias.crear.mock.calls[0]![1]).toMatchObject({ customer_id: 'cliente-2' })
@@ -535,7 +582,10 @@ describe('Nueva cotización · cambio de cliente rápido', () => {
     espias.defaults.mockImplementationOnce(() => tarde.promesa)
     montar()
 
-    fireEvent.click(screen.getByRole('button', { name: 'elegir cliente' }))
+    // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
+  // hoja— porque se pidió poder elegirlo desde el documento. El del panel
+  // es el primero.
+  fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
     // Mientras los defaults viajan, la persona elige la tarifa a mano.
     fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'lista-usd' } })
@@ -547,7 +597,7 @@ describe('Nueva cotización · cambio de cliente rápido', () => {
 
     // Lo elegido a mano manda; lo que nadie tocó, se sugiere.
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('lista-usd')
-    expect(screen.getByLabelText(/Vendedor/)).toHaveValue('u1')
+    expect(screen.getByLabelText(/Agente/)).toHaveValue('u1')
     expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
   })
 })
@@ -588,8 +638,15 @@ describe('Nueva cotización · vista previa del borrador', () => {
     fireEvent.change(screen.getAllByLabelText(/Precio/)[0]!, { target: { value: '100' } })
 
     const previa = screen.getByRole('region', { name: 'Documento' })
-    // El id no: el documento se imprime con el NOMBRE del cliente.
-    expect(within(previa).getByText(/ZZ Cliente Uno/)).toBeInTheDocument()
+    /*
+     * Fase 27 · E2: mientras se edita, la celda del cliente es el SELECTOR —
+     * se pidió poder elegirlo desde el documento—. En producción ese selector
+     * muestra el nombre del cliente elegido; acá está mockeado y sólo deja sus
+     * botones, así que lo que se fija es que el selector esté y que el id
+     * NUNCA se imprima. Que la hoja impresa lleve el nombre lo cubre
+     * `HojaEditable.test.tsx`, que usa la hoja sin edición.
+     */
+    expect(within(previa).getAllByRole('button', { name: 'elegir cliente' }).length).toBe(1)
     expect(within(previa).queryByText('cliente-1')).toBeNull()
     expect(within(previa).getAllByText(/USD/).length).toBeGreaterThan(0)
   })
@@ -623,7 +680,7 @@ describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
   it('con dos, arranca SIEMPRE en la que está por defecto', () => {
     estado.series = DOS
     montar()
-    expect(screen.getByLabelText('Serie')).toHaveValue('COTI')
+    expect(screen.getByLabelText('Serie del documento')).toHaveValue('COTI')
   })
 
   /** Lo que bloquea es la autoridad de la serie elegida, no la general. */
@@ -643,7 +700,7 @@ describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
     completarMinimo()
     expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeDisabled()
 
-    fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'COT-ERP' } })
+    fireEvent.change(screen.getByLabelText('Serie del documento'), { target: { value: 'COT-ERP' } })
     expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeEnabled()
     expect(screen.queryByText(/Emisión desde el ERP bloqueada/)).toBeNull()
   })
@@ -671,7 +728,7 @@ describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
     ]
     montar()
     completarMinimo()
-    fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'COT-ERP' } })
+    fireEvent.change(screen.getByLabelText('Serie del documento'), { target: { value: 'COT-ERP' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
 
@@ -684,10 +741,10 @@ describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
     estado.series = DOS
     montar()
     completarMinimo()
-    fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'COT-ERP' } })
+    fireEvent.change(screen.getByLabelText('Serie del documento'), { target: { value: 'COT-ERP' } })
     expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeEnabled()
 
-    fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'COTI' } })
+    fireEvent.change(screen.getByLabelText('Serie del documento'), { target: { value: 'COTI' } })
     expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeDisabled()
     expect(screen.getAllByText(/Emisión desde el ERP bloqueada/).length).toBeGreaterThan(0)
   })
@@ -700,7 +757,7 @@ describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
     estado.series = DOS
     montar()
     completarMinimo()
-    fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'COT-ERP' } })
+    fireEvent.change(screen.getByLabelText('Serie del documento'), { target: { value: 'COT-ERP' } })
     await act(async () => {})
     expect(espias.crear).not.toHaveBeenCalled()
   })
@@ -713,11 +770,12 @@ describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
   it('entrando desde un cliente, ese cliente viaja en el payload y la serie arranca en la de por defecto', async () => {
     estado.series = DOS
     montar(undefined, '/ventas/cotizaciones/nueva?cliente=c9')
-    expect(screen.getByLabelText('Serie')).toHaveValue('COTI')
+    expect(screen.getByLabelText('Serie del documento')).toHaveValue('COTI')
     expect(espias.crear).not.toHaveBeenCalled()
 
     fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
-    fireEvent.change(screen.getByLabelText('Serie'), { target: { value: 'COT-ERP' } })
+    fireEvent.change(screen.getByLabelText('Serie del documento'), { target: { value: 'COT-ERP' } })
+    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ Trabajo de prueba' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
 
@@ -735,7 +793,7 @@ describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
   it('el desplegable dice qué numera cada serie', () => {
     estado.series = DOS
     montar()
-    const opciones = [...screen.getByLabelText('Serie').querySelectorAll('option')].map((o) => o.textContent)
+    const opciones = [...screen.getByLabelText('Serie del documento').querySelectorAll('option')].map((o) => o.textContent)
     expect(opciones[0]).toMatch(/COTI.*STEL/)
     expect(opciones[1]).toMatch(/COT-ERP.*ERP/)
   })

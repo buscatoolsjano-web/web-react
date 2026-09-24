@@ -12,6 +12,12 @@ import type {
 import { BuscadorCliente } from './BuscadorCliente'
 import styles from './CabeceraCotizacion.module.css'
 
+/** Una serie con su autoridad, para el desplegable de la referencia. */
+export interface OpcionSerie {
+  codigo: string
+  autoridad: string
+}
+
 export interface EditorCabeceraProps {
   valores: CabeceraBorrador
   contactos: readonly OpcionContacto[]
@@ -30,6 +36,18 @@ export interface EditorCabeceraProps {
   avisoTarifa: boolean
   /** El pedido no tiene fecha de validez; la cotización sí. */
   mostrarValidez?: boolean | undefined
+  /**
+   * La referencia (Fase 27 · E1). Sólo en el alta: un documento que ya existe
+   * tiene su número y su serie, y no se cambian.
+   *
+   * `series` con una sola opción muestra el código sin desplegable: no hay
+   * nada que elegir.
+   */
+  series?: readonly OpcionSerie[] | undefined
+  serie?: string | undefined
+  onCambiarSerie?: ((codigo: string) => void) | undefined
+  /** El número, cuando el documento ya lo tiene. En el alta lo pone el servidor. */
+  numero?: string | undefined
   onCambiar: (campo: CampoCabecera, valor: string) => void
   onCambiarCliente: (customerId: string) => void
   onCambiarMoneda: (moneda: string) => void
@@ -39,14 +57,19 @@ export interface EditorCabeceraProps {
 const PERCEPCION_HABITUAL = '2.5'
 
 /**
- * Cabecera de la cotización en modo edición (Fase 15 · E2).
+ * Cabecera del documento en modo edición (Fase 15 · E2, rehecha en 27 · E1).
  *
  * Todo lo que se escribe acá va al BORRADOR: **ni un solo control escribe en
- * la base**. El único camino de escritura es «Guardar cambios».
+ * la base**. El único camino de escritura es «Guardar».
  *
- * Tres campos que el modelo ya tenía y no tenían control —contacto, vendedor y
- * tarifa—. La tarifa además necesitó una columna nueva: hasta E2 la lista de
- * precios vivía sólo en el cliente y no decía con cuál se había cotizado.
+ * **Cuatro secciones numeradas**, las del sistema anterior y en su orden:
+ * datos generales, cliente, condiciones y otros datos. No es decoración: el
+ * orden es el de la conversación con el cliente —qué documento es, para quién,
+ * en qué condiciones, y recién después el resto— y numerarlas deja nombrarlas
+ * sin describirlas.
+ *
+ * La densidad también es del pedido: cada fila que se ahorra acá es una fila
+ * menos de scroll antes de llegar a las líneas.
  */
 export function EditorCabecera({
   direcciones,
@@ -59,11 +82,15 @@ export function EditorCabecera({
   avisoContacto,
   avisoTarifa,
   mostrarValidez = true,
+  series,
+  serie,
+  onCambiarSerie,
+  numero,
   onCambiar,
   onCambiarCliente,
   onCambiarMoneda,
 }: EditorCabeceraProps) {
-  const numero = { type: 'number', step: 'any', min: '0' } as const
+  const numeroInput = { type: 'number', step: 'any', min: '0' } as const
   // Sólo se ofrecen las tarifas de la moneda del documento: una de otra moneda
   // exigiría un tipo de cambio que nadie definió, y la base la rechaza.
   const compatibles = tarifas.filter((t) => t.moneda === valores.moneda)
@@ -76,11 +103,62 @@ export function EditorCabecera({
   const direccionesVisibles = (direcciones ?? []).filter(
     (d) => d.activa || d.id === valores.direccionEntregaId,
   )
+  const hayReferencia = series !== undefined || numero !== undefined
 
   return (
     <div className={styles.bloques}>
+      {/* ── 1 · datos generales ─────────────────────────────────────── */}
       <fieldset className={styles.grupo}>
-        <legend className={styles.leyenda}>Cliente y referencia</legend>
+        <legend className={styles.leyenda}>1. Datos generales</legend>
+        <div className={styles.grilla}>
+          {hayReferencia ? (
+            <div className={`${styles.campo} ${styles.ancho}`}>
+              <span className={styles.etiqueta}>Referencia</span>
+              <div className={styles.referencia}>
+                {series && series.length > 1 && onCambiarSerie ? (
+                  <Select
+                    aria-label="Serie del documento"
+                    value={serie ?? ''}
+                    onChange={(e) => onCambiarSerie(e.target.value)}
+                  >
+                    {series.map((s) => (
+                      <option key={s.codigo} value={s.codigo}>
+                        {s.codigo} — {s.autoridad === 'ERP' ? 'se emite desde el ERP' : 'la numera STEL'}
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
+                  <span className={styles.numeroPendiente}>{serie ?? '—'}</span>
+                )}
+                {/* El número lo asigna el servidor al crear: decirlo es mejor
+                    que un campo vacío que parece que falta completar. */}
+                <span className={styles.numeroPendiente}>{numero ?? 'lo asigna el servidor'}</span>
+              </div>
+            </div>
+          ) : null}
+
+          <Field label="Fecha">
+            <Input type="date" value={valores.fecha} onChange={(e) => onCambiar('fecha', e.target.value)} />
+          </Field>
+
+          {mostrarValidez ? (
+            <Field label="Válida hasta" optional>
+              <Input type="date" value={valores.validaHasta} onChange={(e) => onCambiar('validaHasta', e.target.value)} />
+            </Field>
+          ) : null}
+
+          {/* Obligatorio desde la Fase 27 · E1: es el renglón que sale impreso
+              debajo de «COTIZACIÓN DE VENTA», y un documento sin él llega al
+              cliente sin decir de qué es. */}
+          <Field label="Título" required className={styles.ancho}>
+            <Input value={valores.titulo} onChange={(e) => onCambiar('titulo', e.target.value)} />
+          </Field>
+        </div>
+      </fieldset>
+
+      {/* ── 2 · cliente ─────────────────────────────────────────────── */}
+      <fieldset className={styles.grupo}>
+        <legend className={styles.leyenda}>2. Cliente</legend>
         <div className={styles.grilla}>
           <div className={`${styles.campo} ${styles.ancho}`}>
             {/* El buscador tiene su propio input con su `aria-label`, así que
@@ -147,12 +225,37 @@ export function EditorCabecera({
               </Select>
             </Field>
           ) : null}
+        </div>
+      </fieldset>
 
-          <Field label="Título" optional className={styles.ancho}>
-            <Input value={valores.titulo} onChange={(e) => onCambiar('titulo', e.target.value)} />
+      {/* ── 3 · condiciones ─────────────────────────────────────────── */}
+      <fieldset className={styles.grupo}>
+        <legend className={styles.leyenda}>3. Condiciones</legend>
+        <div className={styles.grilla}>
+          <Field label="Forma de pago" optional className={styles.ancho}>
+            <Input value={valores.formaPago} onChange={(e) => onCambiar('formaPago', e.target.value)} />
           </Field>
 
-          <Field label="Vendedor" optional>
+          <Field label="% Dto. global" optional>
+            <Input {...numeroInput} max="100" inputMode="decimal" value={valores.descuentoPct} onChange={(e) => onCambiar('descuentoPct', e.target.value)} />
+          </Field>
+
+          <Field label="% Percep. IIBB" optional>
+            <div className={styles.linea}>
+              <Input {...numeroInput} max="100" inputMode="decimal" value={valores.percepcionPct} onChange={(e) => onCambiar('percepcionPct', e.target.value)} />
+              <Button variant="ghost" size="sm" onClick={() => onCambiar('percepcionPct', PERCEPCION_HABITUAL)}>
+                {PERCEPCION_HABITUAL} %
+              </Button>
+            </div>
+          </Field>
+        </div>
+      </fieldset>
+
+      {/* ── 4 · otros datos ─────────────────────────────────────────── */}
+      <fieldset className={styles.grupo}>
+        <legend className={styles.leyenda}>4. Otros datos</legend>
+        <div className={styles.grilla}>
+          <Field label="Agente" optional>
             <Select value={valores.vendedorId} onChange={(e) => onCambiar('vendedorId', e.target.value)}>
               <option value="">Sin asignar</option>
               {vendedores.map((v) => (
@@ -162,21 +265,29 @@ export function EditorCabecera({
               ))}
             </Select>
           </Field>
-        </div>
-      </fieldset>
 
-      <fieldset className={styles.grupo}>
-        <legend className={styles.leyenda}>Fechas y condiciones</legend>
-        <div className={styles.grilla}>
-          <Field label="Fecha">
-            <Input type="date" value={valores.fecha} onChange={(e) => onCambiar('fecha', e.target.value)} />
+          <Field
+            label="Tarifa"
+            optional
+            help={
+              avisoTarifa
+                ? 'Cambió la moneda y la tarifa anterior estaba en otra: se quitó.'
+                : valores.moneda === ''
+                  ? 'Elegí primero la moneda.'
+                  : ocultas > 0
+                    ? `Sólo las tarifas en ${valores.moneda}.`
+                    : undefined
+            }
+          >
+            <Select value={valores.listaPrecioId} onChange={(e) => onCambiar('listaPrecioId', e.target.value)}>
+              <option value="">Sin tarifa</option>
+              {compatibles.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nombre}
+                </option>
+              ))}
+            </Select>
           </Field>
-
-          {mostrarValidez ? (
-            <Field label="Válida hasta" optional>
-              <Input type="date" value={valores.validaHasta} onChange={(e) => onCambiar('validaHasta', e.target.value)} />
-            </Field>
-          ) : null}
 
           <Field label="Moneda" help="Cambiarla puede dejar la tarifa incompatible.">
             <Select value={valores.moneda} required onChange={(e) => onCambiarMoneda(e.target.value)}>
@@ -192,57 +303,12 @@ export function EditorCabecera({
             </Select>
           </Field>
 
-          <Field
-            label="Tarifa"
-            optional
-            help={
-              avisoTarifa
-                ? 'Cambió la moneda y la tarifa anterior estaba en otra: se quitó.'
-                : valores.moneda === ''
-                  ? 'Elegí primero la moneda: sólo se ofrecen las tarifas de esa moneda.'
-                  : ocultas > 0
-                  ? `Sólo las tarifas en ${valores.moneda}. Es la que sugiere el precio de las líneas nuevas.`
-                  : 'Sugiere el precio de cada línea nueva. Las líneas ya cargadas no cambian, ni siquiera si después se cambia la tarifa.'
-            }
-          >
-            <Select value={valores.listaPrecioId} onChange={(e) => onCambiar('listaPrecioId', e.target.value)}>
-              <option value="">Sin tarifa</option>
-              {compatibles.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nombre}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
           <Field label="Tipo de cambio" optional>
-            <Input {...numero} inputMode="decimal" value={valores.tipoCambio} onChange={(e) => onCambiar('tipoCambio', e.target.value)} />
+            <Input {...numeroInput} inputMode="decimal" value={valores.tipoCambio} onChange={(e) => onCambiar('tipoCambio', e.target.value)} />
           </Field>
 
-          <Field label="Forma de pago" optional>
-            <Input value={valores.formaPago} onChange={(e) => onCambiar('formaPago', e.target.value)} />
-          </Field>
-
-          <Field label="% Dto. global" optional>
-            <Input {...numero} max="100" inputMode="decimal" value={valores.descuentoPct} onChange={(e) => onCambiar('descuentoPct', e.target.value)} />
-          </Field>
-
-          <Field label="% Percepción IIBB" optional>
-            <div className={styles.linea}>
-              <Input {...numero} max="100" inputMode="decimal" value={valores.percepcionPct} onChange={(e) => onCambiar('percepcionPct', e.target.value)} />
-              <Button variant="ghost" size="sm" onClick={() => onCambiar('percepcionPct', PERCEPCION_HABITUAL)}>
-                {PERCEPCION_HABITUAL} %
-              </Button>
-            </div>
-          </Field>
-        </div>
-      </fieldset>
-
-      <fieldset className={styles.grupo}>
-        <legend className={styles.leyenda}>Observaciones</legend>
-        <div className={styles.grilla}>
           <Field label="Observaciones" optional className={styles.ancho}>
-            <Textarea rows={3} value={valores.notas} onChange={(e) => onCambiar('notas', e.target.value)} />
+            <Textarea rows={2} value={valores.notas} onChange={(e) => onCambiar('notas', e.target.value)} />
           </Field>
         </div>
       </fieldset>

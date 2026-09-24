@@ -188,16 +188,23 @@
 
 /* La hoja se muestra sobre un fondo gris, como apoyada. El contenedor sólo
    centra y desplaza: el tamaño lo pone la hoja YA escalada. */
+/* La previsualización (Fase 27 · E6).
+   La hoja se escala para ocupar todo el ancho, así que el gris sólo tiene
+   que dejar ver el borde del papel: 4 px. Antes eran 16 y, con la hoja al
+   45 %, quedaban franjas de cientos de píxeles a los costados. */
 .previa {
   flex: 1 1 auto;
   overflow: auto;
   background: #8e8e8e;
-  padding: var(--space-3);
+  padding: 4px;
   border-radius: var(--radius-sm);
   min-width: 0;
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  /* Reservada siempre: si apareciera al no entrar la hoja, cambiaría el
+     ancho del marco y la escala se recalcularía en bucle. */
+  scrollbar-gutter: stable;
 }
 
 /* Toma exactamente el tamaño escalado de la hoja: sin esto quedaría el hueco
@@ -225,6 +232,6 @@
 
 @media (max-width: 800px) {
   .previa {
-    padding: var(--space-2);
+    padding: 2px;
   }
 }

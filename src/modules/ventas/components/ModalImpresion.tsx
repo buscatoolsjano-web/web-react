@@ -25,7 +25,24 @@ export interface ModalImpresionProps {
 }
 
 /** Los saltos del zoom manual, como en el sistema anterior. */
-const ZOOMS = [0.5, 0.65, 0.8, 0.9, 1, 1.25, 1.5] as const
+/**
+ * Cuánto puede agrandarse la hoja al «Ajustar» (Fase 27 · E6).
+ *
+ * Un A4 son ~794 px. En este modal la previsualización ocupa casi toda la
+ * ventana, así que dejarla en su tamaño real volvería a dejar gris al costado.
+ * El tope existe para que en una pantalla muy ancha no termine en una hoja de
+ * dos metros.
+ */
+const ESCALA_MAXIMA = 2.5
+
+/** El `padding` de `.previa`, en píxeles. Tiene que coincidir con el CSS. */
+const PADDING_PREVIA = 4
+
+/**
+ * Los pasos del zoom. Llegan hasta 2,5 porque «Ajustar» ahora puede dar más
+ * de 1: con los pasos viejos, tocar «+» después de ajustar ACHICABA la hoja.
+ */
+const ZOOMS = [0.5, 0.65, 0.8, 0.9, 1, 1.25, 1.5, 1.75, 2, 2.5] as const
 
 /**
  * Vista previa e impresión.
@@ -93,7 +110,7 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
    */
   const [medida, setMedida] = useState({ ancho: 0, alto: 0 })
 
-  // Las medidas reales del papel: el alto de UNA página sale de ellas.
+  // Las medidas reales del papel: de ellas sale dónde corta cada página.
   const papelAncho = opciones.papel === 'carta' ? 216 : 210
   const papelAlto = opciones.papel === 'carta' ? 279 : 297
 
@@ -105,14 +122,21 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
     const altoHoja = h.offsetHeight
     if (anchoHoja === 0) return
     setMedida((p) => (p.ancho === anchoHoja && p.alto === altoHoja ? p : { ancho: anchoHoja, alto: altoHoja }))
-    // «Ajustar» entra UNA PÁGINA entera, no el documento entero: con 33
-    // líneas, entrar todo de una significaría mirarlo al 32 %. La página se
-    // ve completa y el resto se desplaza, como en el sistema anterior.
-    const altoDePagina = anchoHoja * (papelAlto / papelAncho)
-    const cabeEnAncho = (m.clientWidth - 24) / anchoHoja
-    const cabeEnAlto = (m.clientHeight - 24) / Math.min(altoHoja, altoDePagina)
-    setEscala(zoom ?? Math.min(cabeEnAncho, cabeEnAlto, 1))
-  }, [zoom, papelAlto, papelAncho])
+    /*
+     * «Ajustar» = ocupar todo el ANCHO (Fase 27 · E6).
+     *
+     * Antes entraba una página completa: se medía el ancho y el alto y ganaba
+     * el alto, así que en una ventana normal la hoja quedaba al 45 % con dos
+     * franjas grises enormes a los costados y la letra ilegible. Es el mismo
+     * arreglo que en la vista previa del documento, y por el mismo pedido:
+     * grande aunque no entre el largo, que para eso está el scroll.
+     *
+     * Los botones de zoom siguen: esto es sólo lo que se ve al abrir y lo que
+     * hace «Ajustar».
+     */
+    const cabeEnAncho = (m.clientWidth - PADDING_PREVIA * 2) / anchoHoja
+    setEscala(zoom ?? Math.min(cabeEnAncho, ESCALA_MAXIMA))
+  }, [zoom])
 
   useLayoutEffect(medir, [medir, opciones, imprimible.lineas.length])
 

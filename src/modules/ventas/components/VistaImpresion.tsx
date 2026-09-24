@@ -1,5 +1,6 @@
+import type { ReactNode } from 'react'
 import { formatearCantidad, formatearFecha, formatearImporte } from '../lib/formato'
-import { queMostrar, type DocumentoImprimible, type EmpresaImpresion, type OpcionesImpresion } from '../lib/impresion'
+import { FORMAS_DE_PAGO, queMostrar, type DocumentoImprimible, type EmpresaImpresion, type OpcionesImpresion } from '../lib/impresion'
 import { CeldaEditable } from './CeldaEditable'
 import styles from './VistaImpresion.module.css'
 
@@ -22,6 +23,26 @@ export interface EdicionEnHoja {
   onDescuento: (id: string, valor: number) => void
   onEliminar: (id: string) => void
   onAgregar: () => void
+  /**
+   * Una línea suelta, sin producto (Fase 27 · E2).
+   *
+   * Es la que se usa para una nota en el medio del documento: un texto que
+   * se imprime entre las líneas y no lleva cantidad ni precio.
+   */
+  onNuevaLinea?: (() => void) | undefined
+  /** La fecha, editable desde la hoja. Sin esto se muestra como texto. */
+  onFecha?: ((valor: string) => void) | undefined
+  /** La forma de pago, elegible desde la hoja (Fase 27 · E7). */
+  onFormaPago?: ((valor: string) => void) | undefined
+  /**
+   * El selector de cliente, ya armado.
+   *
+   * Viene como nodo y no como callback a propósito: esta hoja es la MISMA
+   * que se imprime, y no tiene por qué saber cómo se buscan los clientes.
+   * Importar el buscador acá le metería el cliente de Supabase a la
+   * plantilla de impresión.
+   */
+  selectorCliente?: ReactNode | undefined
 }
 
 export interface VistaImpresionProps {
@@ -176,8 +197,46 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
             <dt>Número:</dt>
             <dd>{doc.numero}</dd>
             <dt>Fecha:</dt>
-            <dd>{formatearFecha(doc.fecha)}</dd>
-            {doc.formaPago ? (
+            <dd>
+              {edicion?.onFecha ? (
+                <input
+                  type="date"
+                  className={styles.fechaEditable}
+                  aria-label="Fecha del documento"
+                  value={doc.fecha.slice(0, 10)}
+                  onChange={(e) => edicion.onFecha?.(e.target.value)}
+                />
+              ) : (
+                formatearFecha(doc.fecha)
+              )}
+            </dd>
+            {/* Fase 27 · E7: con `onFormaPago` es un desplegable acá mismo,
+                como en el sistema anterior. */}
+            {edicion?.onFormaPago ? (
+              <>
+                <dt>Forma de pago:</dt>
+                <dd>
+                  <select
+                    className={styles.selectEditable}
+                    aria-label="Forma de pago"
+                    value={doc.formaPago ?? ''}
+                    onChange={(e) => edicion.onFormaPago?.(e.target.value)}
+                  >
+                    {/* Lo que ya tenía el documento, aunque no esté en la
+                        lista: cambiar la lista no puede borrar un dato. */}
+                    {doc.formaPago && !(FORMAS_DE_PAGO as readonly string[]).includes(doc.formaPago) ? (
+                      <option value={doc.formaPago}>{doc.formaPago}</option>
+                    ) : null}
+                    {doc.formaPago ? null : <option value="">Sin forma de pago</option>}
+                    {FORMAS_DE_PAGO.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </dd>
+              </>
+            ) : doc.formaPago ? (
               <>
                 <dt>Forma de pago:</dt>
                 <dd>{doc.formaPago}</dd>
@@ -220,7 +279,7 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
           <h2 className={styles.tituloBloque}>Datos del cliente</h2>
           <dl className={styles.campos}>
             <dt>Cliente:</dt>
-            <dd>{doc.cliente}</dd>
+            <dd>{edicion?.selectorCliente ?? doc.cliente}</dd>
             <dt>CUIT:</dt>
             <dd>{doc.clienteCuit ?? '—'}</dd>
             {doc.contacto ? (
@@ -375,9 +434,16 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
           {edicion ? (
             <tr className={styles.filaAgregar}>
               <td colSpan={columnasVisibles}>
-                <button type="button" className={styles.agregar} onClick={edicion.onAgregar}>
-                  + Agregar producto
-                </button>
+                <div className={styles.agregarFila}>
+                  <button type="button" className={styles.agregar} onClick={edicion.onAgregar}>
+                    + Agregar producto
+                  </button>
+                  {edicion.onNuevaLinea ? (
+                    <button type="button" className={styles.agregar} onClick={edicion.onNuevaLinea}>
+                      + Nueva línea
+                    </button>
+                  ) : null}
+                </div>
               </td>
             </tr>
           ) : null}

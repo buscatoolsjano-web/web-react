@@ -82,8 +82,13 @@ import { cambiarEstadoPedido, editabilidadPedido, guardarPedido } from '../servi
 import type { DocumentoDetalle } from '../types'
 import editor from './EditorCotizacion.module.css'
 
-type Pestana = 'lineas' | 'informacion' | 'entregas' | 'adjuntos' | 'relacionados' | 'trazabilidad'
-const PESTANAS: Pestana[] = ['lineas', 'informacion', 'entregas', 'adjuntos', 'relacionados', 'trazabilidad']
+type Pestana = 'lineas' | 'entregas' | 'adjuntos' | 'relacionados' | 'trazabilidad'
+/*
+ * Fase 27 · E5: «Información» dejó de ser pestaña. El panel de cuatro
+ * secciones está siempre a la vista, arriba de las líneas, igual que en el
+ * alta.
+ */
+const PESTANAS: Pestana[] = ['lineas', 'entregas', 'adjuntos', 'relacionados', 'trazabilidad']
 
 /** Campo del editor de líneas → campo del borrador. */
 const CAMPO_BORRADOR: Record<CampoLinea, Parameters<typeof cambiarLineaBorrador>[2]> = {
@@ -379,7 +384,6 @@ function Detalle() {
 
   const pestanas = [
     { key: 'lineas' as const, label: 'Líneas', count: lineasVisibles.length },
-    { key: 'informacion' as const, label: 'Información' },
     { key: 'entregas' as const, label: 'Entregas' },
     { key: 'adjuntos' as const, label: 'Adjuntos' },
     { key: 'relacionados' as const, label: 'Relacionados' },
@@ -547,6 +551,28 @@ function Detalle() {
              donde no se puede editar. */
           <div className={verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
           <div className={editor.columnaEditor}>
+          <DocSection title="Información del pedido">
+            {editando ? (
+              <EditorCabecera
+                valores={borrador.cabecera}
+                contactos={contactos.data ?? []}
+                direcciones={direcciones.data ?? []}
+                cargandoDirecciones={direcciones.isPending && borrador.cabecera.customerId !== ''}
+                tarifas={tarifas.data ?? []}
+                vendedores={vendedores.data ?? []}
+                cargandoContactos={contactos.isPending && borrador.cabecera.customerId !== ''}
+                avisoContacto={avisoContacto}
+                avisoTarifa={avisoTarifa}
+                mostrarValidez={false}
+                onCambiar={cambiarCampoCabecera}
+                onCambiarCliente={elegirCliente}
+                onCambiarMoneda={elegirMoneda}
+              />
+            ) : (
+              <InformacionDocumento agrupado doc={doc} onVerCliente={() => setViendoCliente(true)} />
+            )}
+          </DocSection>
+
           <DocSection
             title="Líneas"
             actions={
@@ -657,30 +683,6 @@ function Detalle() {
             </div>
           ) : null}
           </div>
-        ) : null}
-
-        {pestana === 'informacion' ? (
-          <DocSection title="Información del pedido">
-            {editando ? (
-              <EditorCabecera
-                valores={borrador.cabecera}
-                contactos={contactos.data ?? []}
-                direcciones={direcciones.data ?? []}
-                cargandoDirecciones={direcciones.isPending && borrador.cabecera.customerId !== ''}
-                tarifas={tarifas.data ?? []}
-                vendedores={vendedores.data ?? []}
-                cargandoContactos={contactos.isPending && borrador.cabecera.customerId !== ''}
-                avisoContacto={avisoContacto}
-                avisoTarifa={avisoTarifa}
-                mostrarValidez={false}
-                onCambiar={cambiarCampoCabecera}
-                onCambiarCliente={elegirCliente}
-                onCambiarMoneda={elegirMoneda}
-              />
-            ) : (
-              <InformacionDocumento doc={doc} onVerCliente={() => setViendoCliente(true)} />
-            )}
-          </DocSection>
         ) : null}
 
         {pestana === 'entregas' ? (

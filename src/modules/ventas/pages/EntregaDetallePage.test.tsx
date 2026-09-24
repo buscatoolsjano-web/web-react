@@ -231,15 +231,16 @@ beforeEach(() => {
 })
 
 describe('Remito · shell documental', () => {
-  it('abre mostrando identidad, serie y las cinco pestañas, con Líneas primero', () => {
+  it('abre mostrando identidad, serie y las pestañas que quedaron, con Líneas primero', () => {
     montar()
     expect(screen.getByRole('heading', { level: 1, name: 'RT00001321' })).toBeInTheDocument()
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByText('Serie RT')).toBeInTheDocument()
-    expect(screen.getByText('Consulta MercadoLibre')).toBeInTheDocument()
+    // El nombre del cliente está en el encabezado, en el panel y en la hoja.
+    expect(screen.getAllByText('Consulta MercadoLibre').length).toBeGreaterThan(0)
 
     const pestanas = screen.getAllByRole('tab').map((t) => t.textContent)
-    expect(pestanas).toEqual(['Líneas1', 'Información', 'Adjuntos', 'Relacionados', 'Trazabilidad'])
+    expect(pestanas).toEqual(['Líneas1', 'Adjuntos', 'Relacionados', 'Trazabilidad'])
     expect(screen.getByRole('tab', { name: /Líneas/ })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('Candado de bloqueo LOTO')).toBeInTheDocument()
   })
@@ -251,7 +252,6 @@ describe('Remito · shell documental', () => {
 
   it('Información enlaza el pedido de origen', () => {
     montar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     expect(screen.getByText('Pedido de origen')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'PDV01321' })).toHaveAttribute('href', '/ventas/pedidos/o1')
   })
@@ -259,18 +259,17 @@ describe('Remito · shell documental', () => {
   it('un remito sin pedido lo dice, no lo inventa', () => {
     estado.doc = remito({ origen: null })
     montar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     expect(screen.getByText('Sin pedido relacionado')).toBeInTheDocument()
   })
 
   it('muestra transporte y seguimiento sólo cuando existen', () => {
     montar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     expect(screen.queryByText('Transporte')).toBeNull()
 
     estado.doc = remito({ transporte: 'Andreani', seguimiento: 'AR-993' })
     montar()
-    fireEvent.click(screen.getAllByRole('tab', { name: 'Información' })[1]!)
+    // Fase 27 · E5: los datos del remito están siempre a la vista, arriba
+    // de las líneas. Ya no hay pestaña que abrir.
     expect(screen.getByText('Andreani')).toBeInTheDocument()
     expect(screen.getByText('AR-993')).toBeInTheDocument()
   })
@@ -387,7 +386,6 @@ describe('Remito · edición del borrador', () => {
     montar()
     editar()
     fireEvent.change(screen.getByLabelText(/Cantidad de PRO10022/), { target: { value: '6' } })
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.change(screen.getByLabelText(/Transporte/), { target: { value: 'Andreani' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 

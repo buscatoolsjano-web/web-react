@@ -15,9 +15,8 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSalidaConCambios } from '@/hooks/useSalidaConCambios'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
+import { BuscadorCliente } from '../components/BuscadorCliente'
 import { EditorCabecera } from '../components/EditorCabecera'
-import { Field } from '@/components/forms/Field'
-import { Select } from '@/components/forms/controls'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TotalesDocumento } from '../components/TotalesDocumento'
@@ -429,30 +428,13 @@ export function PedidoNuevoPage() {
       <div className={verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
         <div className={editor.columnaEditor}>
 
+      {/* Fase 27 · E1: la serie vive dentro de «1. Datos generales», al lado
+          del número, en vez de ser una tarjeta con su propio texto de ayuda. */}
       <DocSection title="Datos del documento">
-        {/* Sólo aparece si la empresa tiene más de una serie: con una sola no
-            hay nada que elegir y sería ruido. Arranca SIEMPRE en la que está
-            por defecto —en Buscatools, PDV, que sigue bloqueada por STEL—. */}
-        {(series.data ?? []).length > 1 ? (
-          <div className={editor.serie}>
-            <Field
-              label="Serie"
-              help="Define qué numeración lleva el documento. Una serie que numera STEL no se puede emitir desde el ERP."
-            >
-              <Select
-                value={serieVisible}
-                onChange={(e) => setB((x) => cambiarCampo(x, 'serie', e.target.value))}
-              >
-                {(series.data ?? []).map((x) => (
-                  <option key={x.codigo} value={x.codigo}>
-                    {x.codigo} — {x.autoridad === 'ERP' ? 'se emite desde el ERP' : 'la numera STEL'}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          </div>
-        ) : null}
         <EditorCabecera
+          series={series.data ?? []}
+          serie={serieVisible}
+          onCambiarSerie={(codigo) => setB((x) => cambiarCampo(x, 'serie', codigo))}
           valores={b.cabecera}
           contactos={contactos.data ?? []}
           direcciones={direcciones.data ?? []}
@@ -523,6 +505,7 @@ export function PedidoNuevoPage() {
             <VistaPreviaBorrador
               tipo="pedido"
               fecha={b.cabecera.fecha}
+              titulo={b.cabecera.titulo}
               cliente={nombreDelCliente}
               contacto={nombreDelContacto}
               moneda={b.cabecera.moneda || null}
@@ -533,6 +516,17 @@ export function PedidoNuevoPage() {
               /* La hoja edita EL MISMO borrador que el panel de la
                  izquierda: hay un documento, no dos que sincronizar. */
               edicion={{
+                onFecha: (valor) => setB((x) => cambiarCampo(x, 'fecha', valor)),
+                onFormaPago: (valor) => setB((x) => cambiarCampo(x, 'formaPago', valor)),
+                selectorCliente: (
+                  <BuscadorCliente
+                    valor={b.cabecera.customerId || null}
+                    editable
+                    apariencia="hoja"
+                    onElegir={(elegido) => elegirCliente(elegido ?? '')}
+                  />
+                ),
+                onNuevaLinea: () => nueva(),
                 onCantidad: (id, valor) => cambiarLinea(id, 'quantity', valor),
                 onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
                 onDescuento: (id, valor) => cambiarLinea(id, 'discount_pct', valor),

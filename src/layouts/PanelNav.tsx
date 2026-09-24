@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { cx } from '@/utils/cx'
 import { Icon } from '@/components/icons/Icon'
 import { entradaActiva, type EntradaNav, type GrupoNav } from './navegacion'
+import { useNoLeidos } from './useNoLeidos'
 import styles from './Shell.module.css'
 
 export interface PanelNavProps {
@@ -16,6 +17,7 @@ export interface PanelNavProps {
 /** Navegación completa: grupos con título, módulos desplegables y hojas. */
 export function PanelNav({ grupos, abrir, onNavegar }: PanelNavProps) {
   const { pathname } = useLocation()
+  const noLeidos = useNoLeidos()
   const activos = grupos.flatMap((g) => g.entradas).filter((e) => e.hijos && entradaActiva(e, pathname)).map((e) => e.id)
   const [abiertos, setAbiertos] = useState<Set<string>>(() => new Set([...activos, ...(abrir ? [abrir] : [])]))
 
@@ -43,7 +45,14 @@ export function PanelNav({ grupos, abrir, onNavegar }: PanelNavProps) {
           <ul className={styles.lista}>
             {g.entradas.map((e) => (
               <li key={e.id}>
-                <Entrada entrada={e} abierta={abiertos.has(e.id)} activa={entradaActiva(e, pathname)} onAlternar={() => alternar(e.id)} onNavegar={onNavegar} />
+                <Entrada
+                  entrada={e}
+                  abierta={abiertos.has(e.id)}
+                  activa={entradaActiva(e, pathname)}
+                  sinLeer={e.contador ? noLeidos[e.contador] : 0}
+                  onAlternar={() => alternar(e.id)}
+                  onNavegar={onNavegar}
+                />
               </li>
             ))}
           </ul>
@@ -57,12 +66,15 @@ function Entrada({
   entrada: e,
   abierta,
   activa,
+  sinLeer,
   onAlternar,
   onNavegar,
 }: {
   entrada: EntradaNav
   abierta: boolean
   activa: boolean
+  /** Cuántos sin leer. `0` no dibuja nada. */
+  sinLeer: number
   onAlternar: () => void
   onNavegar?: (() => void) | undefined
 }) {
@@ -83,6 +95,7 @@ function Entrada({
       <NavLink to={e.destino.to} end={e.destino.end ?? false} className={({ isActive }) => cx(styles.item, isActive && styles.itemActivo)} onClick={onNavegar}>
         <Icon name={e.icon} />
         <span className={styles.itemTexto}>{e.label}</span>
+        <Sinleer cuantos={sinLeer} />
       </NavLink>
     )
   }
@@ -104,5 +117,24 @@ function Entrada({
         ))}
       </ul>
     </>
+  )
+}
+
+/**
+ * El círculo rojo con los sin leer (Fase 27 · E3).
+ *
+ * Cero no dibuja nada: un círculo con un 0 adentro ocupa el mismo lugar y
+ * dice que no hay nada, que es justo lo que no hace falta mirar.
+ *
+ * Arriba de 99 dice «99+»: el número exacto no cambia la decisión y tres
+ * dígitos desarman el círculo.
+ */
+function Sinleer({ cuantos }: { cuantos: number }) {
+  if (cuantos <= 0) return null
+  return (
+    <span className={styles.sinLeer}>
+      <span aria-hidden="true">{cuantos > 99 ? '99+' : cuantos}</span>
+      <span className="sr-only">{cuantos === 1 ? '1 sin leer' : `${cuantos} sin leer`}</span>
+    </span>
   )
 }

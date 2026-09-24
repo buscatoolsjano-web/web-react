@@ -1,27 +1,45 @@
+/* El panel izquierdo del documento (Fase 27 · E1).
+   Cuatro secciones numeradas, como el sistema anterior: «1. Datos generales»,
+   «2. Cliente», «3. Condiciones», «4. Otros datos». La densidad es el punto —
+   el pedido fue ganar alto para no scrollear— así que los espacios son los
+   chicos de la escala y la grilla arranca en 150 px en vez de 200. */
+
 .bloques {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-3);
 }
 
 .grupo {
   margin: 0;
   padding: 0;
   border: 0;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-2);
   min-width: 0;
 }
 
+/* La primera no lleva raya arriba: ya está debajo del encabezado. */
+.grupo:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* El número va con la sección, como en el sistema anterior: es lo que hace
+   que se puedan nombrar («andá a la 3») sin describirlas. */
 .leyenda {
   padding: 0;
-  margin-bottom: var(--space-3);
-  font-size: var(--text-sm);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-label);
   font-weight: var(--weight-semibold);
-  color: var(--color-text);
+  color: var(--color-text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .grilla {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-2) var(--space-3);
 }
 
 .campo {
@@ -57,4 +75,24 @@
 .linea > :first-child {
   flex: 1;
   min-width: 0;
+}
+
+/* La referencia es serie + número, en una sola fila: son un dato, no dos. */
+.referencia {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: var(--space-2);
+  align-items: end;
+}
+
+/* El número que todavía no existe: se dice, no se deja en blanco. */
+.numeroPendiente {
+  padding: var(--space-2);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

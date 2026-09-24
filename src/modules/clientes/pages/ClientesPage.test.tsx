@@ -133,7 +133,7 @@ describe('Ficha rápida desde el listado (Fase 19 · E1)', () => {
     estado.filas = [cliente(1)]
     montar()
     abrir()
-    expect(await screen.findByRole('complementary')).toBeInTheDocument()
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
     await waitFor(() => expect(ficha360).toHaveBeenCalledWith('c1', 12))
   })
 
@@ -144,13 +144,13 @@ describe('Ficha rápida desde el listado (Fase 19 · E1)', () => {
     expect(link).toHaveAttribute('href', '/clientes/c1')
     fireEvent.click(link, { ctrlKey: true })
     // Con modificador no se intercepta nada: el panel no se abre.
-    expect(screen.queryByRole('complementary')).toBeNull()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('un link directo con ?cliente= abre el panel al entrar', async () => {
     estado.filas = [cliente(1)]
     montar('/clientes?cliente=c1')
-    expect(await screen.findByRole('complementary')).toBeInTheDocument()
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
   })
 
   it('cambiar de fila cambia el panel, sin cerrarlo', async () => {
@@ -160,13 +160,13 @@ describe('Ficha rápida desde el listado (Fase 19 · E1)', () => {
     await waitFor(() => expect(ficha360).toHaveBeenCalledWith('c1', 12))
     abrir(2)
     await waitFor(() => expect(ficha360).toHaveBeenCalledWith('c2', 12))
-    expect(screen.getByRole('complementary')).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
   it('la fila abierta queda marcada, y sólo una', async () => {
     estado.filas = [cliente(1), cliente(2)]
     montar('/clientes?cliente=c2')
-    await screen.findByRole('complementary')
+    await screen.findByRole('dialog')
     const marcadas = screen.getAllByRole('link').filter((l) => l.getAttribute('aria-current') === 'true')
     expect(marcadas).toHaveLength(1)
     expect(marcadas[0]).toHaveAccessibleName('ZZ Cliente 2 SA')
@@ -176,7 +176,7 @@ describe('Ficha rápida desde el listado (Fase 19 · E1)', () => {
     estado.filas = [cliente(1)]
     montar('/clientes?cliente=c1')
     fireEvent.click(await screen.findByRole('button', { name: 'Cerrar la ficha rápida' }))
-    await waitFor(() => expect(screen.queryByRole('complementary')).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(screen.getByRole('link', { name: 'ZZ Cliente 1 SA' })).toBeInTheDocument()
   })
 
@@ -187,12 +187,22 @@ describe('Ficha rápida desde el listado (Fase 19 · E1)', () => {
     expect(ficha360).not.toHaveBeenCalled()
   })
 
-  it('en pantalla angosta la ficha es una hoja modal, no un panel al costado', async () => {
-    estado.ancho = false
+  /**
+   * Fase 27 · E4: la ficha es modal en TODOS los anchos.
+   *
+   * Antes, desde 1024 px, era un cajón no modal que dejaba usar el listado
+   * de atrás. Se pidió lo contrario: fondo oscurecido, sin scroll detrás y
+   * un click afuera que cierra. Este test fijaba la diferencia entre los dos
+   * anchos; ahora fija que no hay diferencia.
+   */
+  it('la ficha es una hoja modal, en pantalla angosta y en ancha', async () => {
     estado.filas = [cliente(1)]
-    montar('/clientes?cliente=c1')
-    expect(await screen.findByRole('dialog')).toBeInTheDocument()
-    expect(screen.queryByRole('complementary')).toBeNull()
+    for (const ancho of [false, true]) {
+      estado.ancho = ancho
+      const { unmount } = montar('/clientes?cliente=c1')
+      expect(await screen.findByRole('dialog')).toHaveAttribute('aria-modal', 'true')
+      unmount()
+    }
   })
 })
 
@@ -211,7 +221,7 @@ describe('La fila entera abre la ficha (Fase 19 · E7)', () => {
     montar()
     // El CUIT: una celda de texto, sin ningún link adentro.
     fireEvent.click(screen.getByText('30-71234567-1'))
-    expect(await screen.findByRole('complementary')).toBeInTheDocument()
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
     await waitFor(() => expect(ficha360).toHaveBeenCalledWith('c1', 12))
   })
 
@@ -219,7 +229,7 @@ describe('La fila entera abre la ficha (Fase 19 · E7)', () => {
     estado.filas = [cliente(1)]
     montar()
     fireEvent.click(fila(1))
-    expect(await screen.findByRole('complementary')).toBeInTheDocument()
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
   })
 
   it('pero el checkbox de exportar NO abre nada: marca y punto', async () => {
@@ -229,14 +239,14 @@ describe('La fila entera abre la ficha (Fase 19 · E7)', () => {
     fireEvent.click(check)
     expect(check).toBeChecked()
     await waitFor(() => expect(ficha360).not.toHaveBeenCalled())
-    expect(screen.queryByRole('complementary')).toBeNull()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('con un modificador no se intercepta: Ctrl+click sobre la fila no abre el panel', () => {
     estado.filas = [cliente(1)]
     montar()
     fireEvent.click(fila(1), { ctrlKey: true })
-    expect(screen.queryByRole('complementary')).toBeNull()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('con el teclado: la fila se enfoca y Enter o Espacio la abren', async () => {
@@ -244,7 +254,7 @@ describe('La fila entera abre la ficha (Fase 19 · E7)', () => {
     montar()
     expect(fila(1)).toHaveAttribute('tabindex', '0')
     fireEvent.keyDown(fila(1), { key: 'Enter' })
-    expect(await screen.findByRole('complementary')).toBeInTheDocument()
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
   })
 
   it('Espacio sobre el checkbox enfocado es del checkbox, no de la fila', async () => {
@@ -258,7 +268,7 @@ describe('La fila entera abre la ficha (Fase 19 · E7)', () => {
   it('la fila abierta se marca a sí misma, para saber qué se está mirando', async () => {
     estado.filas = [cliente(1), cliente(2)]
     montar('/clientes?cliente=c2')
-    await screen.findByRole('complementary')
+    await screen.findByRole('dialog')
     expect(fila(2)).toHaveAttribute('aria-current', 'true')
     expect(fila(1)).not.toHaveAttribute('aria-current')
   })
@@ -279,7 +289,7 @@ describe('La fila entera abre la ficha (Fase 19 · E7)', () => {
     unmount()
 
     montar('/clientes?cliente=c1')
-    await screen.findByRole('complementary')
+    await screen.findByRole('dialog')
     expect(screen.getByRole('table').parentElement!.className).toBe(antes)
   })
 })

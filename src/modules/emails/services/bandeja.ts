@@ -244,3 +244,22 @@ export async function vincularCliente(
   })
   if (error) fallo(cliente ? 'No se pudo vincular el cliente' : 'No se pudo desvincular el cliente', error)
 }
+
+/**
+ * Cuántos hilos sin leer hay, y nada más (Fase 27 · E3).
+ *
+ * Lo pide el contador del menú. Es la MISMA RPC que la bandeja —no hay una
+ * segunda definición de «sin leer»— pidiendo una sola fila: el total viene
+ * repetido en cada una, así que traer cincuenta para contar sería pagar la
+ * bandeja entera para dibujar un número.
+ */
+export async function contarSinLeer(companyId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('listar_bandeja_email', {
+    p_company: companyId,
+    p_sin_leer: true,
+    p_limite: 1,
+    p_offset: 0,
+  })
+  if (error) fallo('No se pudo contar los correos sin leer', error)
+  return Number(data?.[0]?.total_sin_leer ?? 0)
+}

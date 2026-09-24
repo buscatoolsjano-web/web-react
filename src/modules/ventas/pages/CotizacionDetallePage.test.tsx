@@ -85,12 +85,12 @@ vi.mock('@/hooks/useMediaQuery', () => ({
 // importa que la cotización la abra, no lo que la ficha muestre adentro.
 vi.mock('@/modules/clientes/components/PanelLateralCliente', () => ({
   PanelLateralCliente: ({ clienteId, onCerrar }: { clienteId: string; onCerrar: () => void }) => (
-    <aside aria-label="Ficha rápida">
+    <div role="dialog" aria-modal="true" aria-label="Ficha rápida">
       <p>ficha rápida de {clienteId}</p>
       <button type="button" onClick={onCerrar}>
         Cerrar la ficha
       </button>
-    </aside>
+    </div>
   ),
 }))
 vi.mock('@/features/empresa/useEmpresa', () => ({
@@ -340,17 +340,19 @@ describe('Cotización · convertir en pedido', () => {
 })
 
 describe('Cotización · shell documental', () => {
-  it('abre mostrando identidad, acciones y las cinco pestañas, con Líneas primero', () => {
+  it('abre mostrando identidad, acciones y las pestañas que quedaron, con Líneas primero', () => {
     montar()
 
     expect(screen.getByRole('heading', { level: 1, name: 'COTI02558' })).toBeInTheDocument()
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    expect(screen.getByText('Consulta MercadoLibre')).toBeInTheDocument()
+    // El nombre del cliente está en el encabezado, en el panel y en la hoja:
+    // desde la Fase 27 · E5 las tres cosas se ven a la vez.
+    expect(screen.getAllByText('Consulta MercadoLibre').length).toBeGreaterThan(0)
     // El total está arriba y en el pie de las líneas: las dos son la misma cifra.
     expect(screen.getAllByText('ARS 484,00').length).toBeGreaterThan(0)
 
     const pestanas = screen.getAllByRole('tab').map((t) => t.textContent)
-    expect(pestanas).toEqual(['Líneas1', 'Información', 'Adjuntos', 'Relacionados', 'Trazabilidad'])
+    expect(pestanas).toEqual(['Líneas1', 'Adjuntos', 'Relacionados', 'Trazabilidad'])
     expect(screen.getByRole('tab', { name: /Líneas/ })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('Candado de bloqueo LOTO')).toBeInTheDocument()
   })
@@ -565,7 +567,6 @@ describe('Cotización · acciones', () => {
   it('NO se escribe nada hasta apretar Guardar', () => {
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
 
     const titulo = screen.getByLabelText(/Título/)
     fireEvent.change(titulo, { target: { value: 'ZZ nuevo título' } })
@@ -579,7 +580,6 @@ describe('Cotización · acciones', () => {
   it('Guardar manda UNA sola llamada, con el testigo de concurrencia', async () => {
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ nuevo título' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
@@ -594,7 +594,6 @@ describe('Cotización · acciones', () => {
   it('Descartar con cambios pide confirmación y no escribe', () => {
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ otro' } })
     fireEvent.click(screen.getByRole('button', { name: 'Descartar' }))
 
@@ -608,7 +607,6 @@ describe('Cotización · acciones', () => {
   it('irse a otra cotización con cambios PREGUNTA antes de perder el borrador', async () => {
     montar('/ventas/cotizaciones/q1', <Link to="/ventas/cotizaciones/q2">ir a otra</Link>)
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ borrador de q1' } })
 
     // Primer intento: se frena y se explica.
@@ -650,11 +648,9 @@ describe('Cotización · acciones', () => {
   it('cambiar de pestaña NO descarta el borrador ni pregunta', () => {
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ sobrevive' } })
 
     fireEvent.click(screen.getByRole('tab', { name: /Líneas/ }))
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
 
     expect(screen.getByLabelText(/Título/)).toHaveValue('ZZ sobrevive')
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled()
@@ -664,7 +660,6 @@ describe('Cotización · acciones', () => {
 describe('Cotización · pestañas', () => {
   it('Información muestra lo que falta como faltante, y la tarifa vacía se dice así', () => {
     montar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
 
     expect(screen.getByText('Sin contacto asignado')).toBeInTheDocument()
     // Vendedor y forma de pago: decisiones de negocio tomadas, hoy vacías.
@@ -680,7 +675,6 @@ describe('Cotización · pestañas', () => {
   it('con tarifa registrada, Información muestra su nombre (Fase 15 E2)', () => {
     estado.doc = cotizacion({ listaPrecioId: 'pl1', listaPrecioNombre: 'Mayorista' })
     montar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
 
     expect(screen.getByText('Mayorista')).toBeInTheDocument()
     expect(screen.queryByText('Sin tarifa registrada')).toBeNull()
@@ -694,7 +688,6 @@ describe('Cotización · pestañas', () => {
       contactoTelefono: null,
     })
     montar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     expect(screen.getByText(/Ana Pérez/)).toBeInTheDocument()
     expect(screen.getByText(/Compras · ana@ejemplo.com/)).toBeInTheDocument()
   })
@@ -760,17 +753,20 @@ describe('Cotización · ficha rápida del cliente (Fase 19 · E3)', () => {
   // `estado.doc` está declarado `unknown` en este archivo; acá se estrecha una
   // sola vez en vez de castear en cada aserción.
   const doc = () => estado.doc as DocumentoDetalle
-  const abrirInformacion = () => {
-    fireEvent.click(screen.getByRole('tab', { name: /Información/ }))
-  }
+  /**
+   * Fase 27 · E5: ya no hay pestaña que abrir. El panel de datos está
+   * siempre arriba de las líneas, como en el alta, así que estos tests sólo
+   * tienen que acotar dónde miran: el nombre del cliente aparece también en
+   * el encabezado y en la hoja.
+   */
+  const panel = () => screen.getByRole('tabpanel')
 
   it('el cliente es un botón que abre la ficha sin salir del documento', () => {
     montar()
-    abrirInformacion()
-    const boton = screen.getByRole('button', { name: doc().clienteNombre })
+    const boton = within(panel()).getByRole('button', { name: doc().clienteNombre })
     fireEvent.click(boton)
 
-    expect(screen.getByRole('complementary', { name: 'Ficha rápida' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Ficha rápida' })).toBeInTheDocument()
     expect(screen.getByText(`ficha rápida de ${doc().clienteId}`)).toBeInTheDocument()
     // Sigue siendo la pantalla de la cotización: no se navegó a Clientes.
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(doc().numero)
@@ -778,11 +774,10 @@ describe('Cotización · ficha rápida del cliente (Fase 19 · E3)', () => {
 
   it('se cierra y el documento sigue ahí', () => {
     montar()
-    abrirInformacion()
-    fireEvent.click(screen.getByRole('button', { name: doc().clienteNombre }))
+    fireEvent.click(within(panel()).getByRole('button', { name: doc().clienteNombre }))
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar la ficha' }))
 
-    expect(screen.queryByRole('complementary', { name: 'Ficha rápida' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Ficha rápida' })).toBeNull()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(doc().numero)
   })
 
@@ -790,11 +785,9 @@ describe('Cotización · ficha rápida del cliente (Fase 19 · E3)', () => {
   it('un documento sin cliente no ofrece el botón', () => {
     estado.doc = { ...doc(), clienteId: null }
     montar()
-    abrirInformacion()
     // Acotado al panel: el nombre del cliente también está en el encabezado.
-    const panel = screen.getByRole('tabpanel')
-    expect(within(panel).queryByRole('button', { name: doc().clienteNombre })).toBeNull()
-    expect(within(panel).getByText(doc().clienteNombre)).toBeInTheDocument()
+    expect(within(panel()).queryByRole('button', { name: doc().clienteNombre })).toBeNull()
+    expect(within(panel()).getAllByText(doc().clienteNombre)[0]).toBeInTheDocument()
   })
 })
 

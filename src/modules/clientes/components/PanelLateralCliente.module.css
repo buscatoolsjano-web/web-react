@@ -73,18 +73,27 @@
 
 /* ── Hasta 1023 px: el cajón tapa el listado, así que es modal ─────────── */
 
+/* El fondo oscurecido (Fase 27 · E4).
+   Se pidió que «se baje un poco el brillo del fondo» para que la ficha
+   resalte. Encima del overlay del sistema va un velo propio: el mismo tono
+   en las dos apariencias, porque lo que tiene que quedar claro es que hay
+   algo abierto, no de qué color es el fondo. */
 .fondo {
   position: fixed;
   inset: 0;
   z-index: var(--z-modal);
   background: var(--color-overlay);
+  backdrop-filter: brightness(0.6);
   display: flex;
   justify-content: flex-end;
 }
 
 .hoja {
   background: var(--surface);
-  width: min(560px, 100%);
+  /* El mismo ancho que tenía el cajón: entra un importe grande, las
+     tarjetas en fila y el gráfico de doce meses. */
+  width: clamp(520px, 40vw, 620px);
+  max-width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;

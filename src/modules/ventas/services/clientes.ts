@@ -6,6 +6,15 @@ export interface ClienteOpcion {
   nombre: string
   /** `true` si está dado de baja. Sólo aparece en el filtro, nunca al crear. */
   dadoDeBaja: boolean
+  /**
+   * La referencia del sistema anterior (`CLI00719`), cuando la tiene.
+   *
+   * Se muestra al lado del nombre en el desplegable, como en el legacy: es
+   * lo que la gente dicta por teléfono y lo que distingue dos razones
+   * sociales parecidas. Ya se podía BUSCAR por ella; lo que faltaba era
+   * verla.
+   */
+  referencia?: string | null | undefined
 }
 
 /**
@@ -75,7 +84,7 @@ export async function buscarClientes(
   const patron = `%${limpio}%`
   const q = supabase
     .from('customers')
-    .select('id, legal_name, trade_name, tax_id')
+    .select('id, legal_name, trade_name, tax_id, legacy_ref')
     .eq('company_id', companyId)
     .is('deleted_at', null)
     .eq('status', 'active')
@@ -89,11 +98,17 @@ export async function buscarClientes(
   if (error) throw new Error(`No se pudieron buscar clientes: ${error.message}`)
 
   return (
-    (data ?? []) as { id: string; legal_name: string | null; trade_name: string | null }[]
+    (data ?? []) as {
+      id: string
+      legal_name: string | null
+      trade_name: string | null
+      legacy_ref: string | null
+    }[]
   ).map((c) => ({
     id: c.id,
     nombre: c.trade_name?.trim() || c.legal_name?.trim() || 'Sin nombre',
     dadoDeBaja: false,
+    referencia: c.legacy_ref,
   }))
 }
 

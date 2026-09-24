@@ -303,3 +303,18 @@ export function imprimibleDelBorrador(
     esHistorico: false,
   }
 }
+
+/**
+ * Las formas de pago que usa la empresa (Fase 27 · E7).
+ *
+ * Las mismas del sistema anterior y en su orden. Es una lista para elegir, no
+ * una validación: el campo sigue siendo texto libre en la base, así que un
+ * documento viejo con otra forma de pago la conserva y se sigue viendo.
+ */
+export const FORMAS_DE_PAGO = [
+  '30 DIAS F/F con ECHEQ',
+  '15 DIAS F/F',
+  '60 DIAS F/F',
+  'Contado',
+  '50% adelanto + 50% entrega',
+] as const

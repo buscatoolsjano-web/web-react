@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { MetaList, Missing, type MetaItem } from '@/components/document/DocSection'
+import cabecera from './CabeceraCotizacion.module.css'
 import docUi from '@/components/document/Document.module.css'
 import styles from './InformacionDocumento.module.css'
 import { formatearDomicilio, formatearFecha } from '../lib/formato'
@@ -9,6 +10,15 @@ import { RUTA_DE, type DocumentoDetalle } from '../types'
 
 export interface InformacionDocumentoProps {
   doc: DocumentoDetalle
+  /**
+   * En las MISMAS cuatro secciones numeradas que el editor (Fase 27 · E5).
+   *
+   * Es lo que hace que un documento guardado se vea igual que uno que se
+   * está cargando: los mismos títulos, en el mismo orden, en el mismo lugar
+   * de la pantalla. Sin esto, mirar una cotización vieja y cargar una nueva
+   * eran dos pantallas distintas para el mismo documento.
+   */
+  agrupado?: boolean | undefined
   /**
    * Abrir la ficha rápida del cliente sin salir del documento.
    *
@@ -62,7 +72,7 @@ const ETIQUETA_ORIGEN: Record<string, string> = {
  * que es distinto de inventarle la lista actual del cliente: esa es la de hoy,
  * no necesariamente con la que se vendió.
  */
-export function InformacionDocumento({ doc, onVerCliente }: InformacionDocumentoProps) {
+export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: InformacionDocumentoProps) {
   const esCotizacion = doc.tipo === 'cotizacion'
   const esEntrega = doc.tipo === 'entrega'
   const esPedido = doc.tipo === 'pedido'
@@ -73,9 +83,14 @@ export function InformacionDocumento({ doc, onVerCliente }: InformacionDocumento
     serie: doc.serie,
   })
 
-  const items: (MetaItem | null | false)[] = [
+  /**
+   * Cada dato con su sección, para poder mostrarlos agrupados igual que en
+   * el editor. Sin agrupar salen todos en una lista, como hasta ahora.
+   */
+  const items: (Dato | null | false)[] = [
     {
       label: 'Cliente',
+      seccion: 2,
       // Fase 19 · E3: con un modo de abrir la ficha rápida, el nombre deja de
       // ser texto. Sin él sigue siendo texto: el componente lo usan tres
       // documentos y no todos tienen a dónde llevar.
@@ -88,18 +103,20 @@ export function InformacionDocumento({ doc, onVerCliente }: InformacionDocumento
           doc.clienteNombre
         ),
     },
-    { label: 'Contacto', value: contacto(doc) },
-    comercial && { label: 'Vendedor', value: doc.vendedor ?? <Missing /> },
-    comercial && { label: 'Forma de pago', value: doc.formaPago ?? <Missing /> },
-    { label: 'Moneda', value: doc.moneda ?? <Missing>Sin moneda</Missing> },
+    { seccion: 2, label: 'Contacto', value: contacto(doc) },
+    comercial && { seccion: 4, label: 'Agente', value: doc.vendedor ?? <Missing /> },
+    comercial && { seccion: 3, label: 'Forma de pago', value: doc.formaPago ?? <Missing /> },
+    { seccion: 4, label: 'Moneda', value: doc.moneda ?? <Missing>Sin moneda</Missing> },
     comercial && {
       label: 'Tarifa',
+      seccion: 4,
       value: doc.listaPrecioNombre ?? <Missing>Sin tarifa registrada</Missing>,
     },
-    doc.tipoCambio !== null && { label: 'Tipo de cambio', value: doc.tipoCambio },
-    { label: 'Serie', value: doc.serie ?? '—' },
+    doc.tipoCambio !== null && { seccion: 4, label: 'Tipo de cambio', value: doc.tipoCambio },
+    { seccion: 1, label: 'Serie', value: doc.serie ?? '—' },
     esCotizacion && {
       label: 'Válida hasta',
+      seccion: 1,
       value: doc.validaHasta ? formatearFecha(doc.validaHasta) : <Missing />,
     },
     // Fase 15 · E6: el domicilio congelado al emitir el remito. Si no quedó
@@ -107,6 +124,7 @@ export function InformacionDocumento({ doc, onVerCliente }: InformacionDocumento
     // es otra información.
     esEntrega && {
       label: 'Dirección de entrega',
+      seccion: 2,
       value: formatearDomicilio(doc.domicilioEntrega) ?? <Missing>Sin domicilio registrado</Missing>,
       wide: true,
     },
@@ -116,19 +134,21 @@ export function InformacionDocumento({ doc, onVerCliente }: InformacionDocumento
     // efectivamente va a pasar.
     esPedido && {
       label: 'Entregar en',
+      seccion: 2,
       value: formatearDomicilio(doc.domicilioElegido) ?? (
         <Missing>Sin elegir: el remito usará el domicilio principal del cliente</Missing>
       ),
       wide: true,
     },
-    esEntrega && doc.transporte ? { label: 'Transporte', value: doc.transporte } : null,
-    esEntrega && doc.seguimiento ? { label: 'Seguimiento', value: doc.seguimiento } : null,
+    esEntrega && doc.transporte ? { seccion: 4, label: 'Transporte', value: doc.transporte } : null,
+    esEntrega && doc.seguimiento ? { seccion: 4, label: 'Seguimiento', value: doc.seguimiento } : null,
     // De dónde salió el documento. La fila se muestra AUNQUE no tenga origen:
     // que un remito no venga de un pedido, o que un pedido sea manual, es un
     // dato del negocio —y en el histórico hay 37 remitos así—, no un olvido.
     doc.origen
       ? {
           label: ETIQUETA_ORIGEN[doc.origen.tipo] ?? 'Documento de origen',
+          seccion: 1,
           value: (
             <Link to={`${RUTA_DE[doc.origen.tipo]}/${doc.origen.id}`} className={docUi.enlace}>
               {doc.origen.numero}
@@ -136,12 +156,13 @@ export function InformacionDocumento({ doc, onVerCliente }: InformacionDocumento
           ),
         }
       : esEntrega
-        ? { label: 'Pedido de origen', value: <Missing>Sin pedido relacionado</Missing> }
+        ? { seccion: 1, label: 'Pedido de origen', value: <Missing>Sin pedido relacionado</Missing> }
         : doc.tipo === 'pedido'
-          ? { label: 'Cotización de origen', value: <Missing>Sin cotización: pedido manual</Missing> }
+          ? { seccion: 1, label: 'Cotización de origen', value: <Missing>Sin cotización: pedido manual</Missing> }
           : null,
     {
       label: 'Origen',
+      seccion: 1,
       value: (
         <>
           {origen.map((o) => o.texto).join(' · ')}
@@ -150,11 +171,40 @@ export function InformacionDocumento({ doc, onVerCliente }: InformacionDocumento
       ),
       wide: true,
     },
-    doc.notas ? { label: 'Observaciones', value: doc.notas, wide: true } : null,
-    doc.creadoPor ? { label: 'Creado por', value: doc.creadoPor } : null,
-    { label: 'Creado', value: formatearMomento(doc.creadoEn) },
-    { label: 'Última modificación', value: formatearMomento(doc.actualizadoEn) },
+    doc.notas ? { seccion: 4, label: 'Observaciones', value: doc.notas, wide: true } : null,
+    doc.creadoPor ? { seccion: 4, label: 'Creado por', value: doc.creadoPor } : null,
+    { seccion: 4, label: 'Creado', value: formatearMomento(doc.creadoEn) },
+    { seccion: 4, label: 'Última modificación', value: formatearMomento(doc.actualizadoEn) },
   ]
 
-  return <MetaList items={items} />
+  if (!agrupado) return <MetaList items={items} />
+
+  const de = (n: NumeroSeccion) => items.filter((i): i is Dato => !!i && i.seccion === n)
+  return (
+    <div className={cabecera.bloques}>
+      {SECCIONES.map(([n, titulo]) => {
+        const suyos = de(n)
+        if (suyos.length === 0) return null
+        return (
+          <section key={n} className={cabecera.grupo}>
+            <p className={cabecera.leyenda}>{`${n}. ${titulo}`}</p>
+            <MetaList items={suyos} />
+          </section>
+        )
+      })}
+    </div>
+  )
 }
+
+/** Las cuatro secciones, con el mismo número y nombre que en el editor. */
+type NumeroSeccion = 1 | 2 | 3 | 4
+
+const SECCIONES: readonly (readonly [NumeroSeccion, string])[] = [
+  [1, 'Datos generales'],
+  [2, 'Cliente'],
+  [3, 'Condiciones'],
+  [4, 'Otros datos'],
+]
+
+/** Un dato de la ficha, con la sección a la que pertenece. */
+type Dato = MetaItem & { seccion: NumeroSeccion }

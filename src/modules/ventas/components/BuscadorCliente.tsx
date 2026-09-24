@@ -9,6 +9,19 @@ export interface BuscadorClienteProps {
   valor: string | null
   editable: boolean
   onElegir: (id: string | null) => void
+  /**
+   * Dónde vive el buscador (Fase 27 · E7).
+   *
+   * `erp` es el de siempre: el panel del formulario, sobre fondo oscuro, y
+   * sin cliente se abre directamente el campo de búsqueda porque elegirlo es
+   * lo primero que hay que hacer.
+   *
+   * `hoja` es adentro del documento. Ahí la caja de búsqueda del ERP —con su
+   * fondo oscuro y su texto de ayuda— rompe la hoja: se ve una caja negra en
+   * el medio de un papel blanco. En ese modo el cliente se muestra como
+   * TEXTO del documento y el buscador aparece recién al tocarlo.
+   */
+  apariencia?: 'erp' | 'hoja' | undefined
 }
 
 /**
@@ -25,7 +38,7 @@ export interface BuscadorClienteProps {
  * Un cliente **dado de baja o inactivo no aparece**. Sigue existiendo y sus
  * documentos lo siguen nombrando; lo que no se puede es armarle uno nuevo.
  */
-export function BuscadorCliente({ valor, editable, onElegir }: BuscadorClienteProps) {
+export function BuscadorCliente({ valor, editable, onElegir, apariencia = 'erp' }: BuscadorClienteProps) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
   const id = useId()
@@ -52,6 +65,7 @@ export function BuscadorCliente({ valor, editable, onElegir }: BuscadorClientePr
   // nuevo el campo se mostraba pero la consulta quedaba deshabilitada, así que
   // nunca aparecía ningún cliente. Se vio al emitir la primera cotización desde
   // el ERP, que hasta el cutover no se podía crear.
+  const enHoja = apariencia === 'hoja'
   const buscando = editable && (valor === null || abierto)
 
   const resultados = useQuery({
@@ -64,10 +78,13 @@ export function BuscadorCliente({ valor, editable, onElegir }: BuscadorClientePr
     staleTime: 30_000,
   })
 
-  if (!editable || (valor !== null && !abierto)) {
+  // La misma condición que habilita la consulta, negada: antes acá había una
+  // copia escrita a mano y por eso `apariencia` no cambiaba nada —el early
+  // return seguía mostrando el buscador abierto en la hoja—.
+  if (!buscando) {
     return (
-      <div className={styles.elegido}>
-        <span className={styles.nombre}>
+      <div className={enHoja ? styles.elegidoHoja : styles.elegido}>
+        <span className={enHoja ? styles.nombreHoja : styles.nombre}>
           {valor === null
             ? 'Sin cliente'
             : elegido.isPending
@@ -78,14 +95,15 @@ export function BuscadorCliente({ valor, editable, onElegir }: BuscadorClientePr
         {editable ? (
           <button
             type="button"
-            className={styles.cambiar}
+            aria-label={valor === null ? 'Elegir cliente' : 'Cambiar el cliente'}
+            className={enHoja ? styles.cambiarHoja : styles.cambiar}
             onClick={() => {
               setTexto('')
               setConsulta('')
               setAbierto(true)
             }}
           >
-            Cambiar
+            {enHoja ? (valor === null ? 'Elegir cliente…' : 'Cambiar') : 'Cambiar'}
           </button>
         ) : null}
       </div>
@@ -93,13 +111,13 @@ export function BuscadorCliente({ valor, editable, onElegir }: BuscadorClientePr
   }
 
   return (
-    <div className={styles.panel}>
+    <div className={enHoja ? `${styles.panel} ${styles.panelHoja}` : styles.panel}>
       <input
         id={id}
         type="search"
-        className={styles.input}
+        className={enHoja ? `${styles.input} ${styles.inputHoja}` : styles.input}
         value={texto}
-        placeholder="Nombre, CUIT o referencia…"
+        placeholder={enHoja ? 'Nombre del cliente' : 'Nombre, CUIT o referencia…'}
         aria-label="Buscar cliente"
         onChange={(e) => setTexto(e.target.value)}
         autoFocus={valor !== null}
@@ -109,7 +127,7 @@ export function BuscadorCliente({ valor, editable, onElegir }: BuscadorClientePr
           {resultados.error.message}
         </p>
       ) : (
-        <ul className={styles.lista}>
+        <ul className={enHoja ? `${styles.lista} ${styles.listaHoja}` : styles.lista}>
           {(resultados.data ?? []).map((c) => (
             <li key={c.id}>
               <button
@@ -120,7 +138,8 @@ export function BuscadorCliente({ valor, editable, onElegir }: BuscadorClientePr
                   setAbierto(false)
                 }}
               >
-                {c.nombre}
+                {c.referencia ? <span className={styles.referencia}>{c.referencia}</span> : null}
+                <span>{c.nombre}</span>
               </button>
             </li>
           ))}
@@ -128,7 +147,9 @@ export function BuscadorCliente({ valor, editable, onElegir }: BuscadorClientePr
           {!resultados.isFetching && (resultados.data ?? []).length === 0 ? (
             <li className={styles.nota}>
               {consulta.trim().length < 2
-                ? 'Escribí al menos dos letras del nombre, el CUIT o la referencia.'
+                ? enHoja
+                  ? 'Escribí dos letras para buscar.'
+                  : 'Escribí al menos dos letras del nombre, el CUIT o la referencia.'
                 : 'Ningún cliente activo coincide.'}
             </li>
           ) : null}

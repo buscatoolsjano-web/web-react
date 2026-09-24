@@ -88,7 +88,12 @@ import type { DocumentoDetalle } from '../types'
 import editor from './EditorCotizacion.module.css'
 
 /** Las pestañas del documento. Líneas primero: es lo que se mira siempre. */
-const PESTANAS = ['lineas', 'informacion', 'adjuntos', 'relacionados', 'trazabilidad'] as const
+/*
+ * Fase 27 · E5: «Información» dejó de ser pestaña. El panel de cuatro
+ * secciones está siempre a la vista, arriba de las líneas, igual que en el
+ * alta: una pestaña para lo mismo era un click para ver lo que ya estaba.
+ */
+const PESTANAS = ['lineas', 'adjuntos', 'relacionados', 'trazabilidad'] as const
 type Pestana = (typeof PESTANAS)[number]
 
 /** El campo del editor de líneas → el campo del borrador. */
@@ -467,7 +472,6 @@ function Detalle() {
 
   const pestanas = [
     { key: 'lineas' as const, label: 'Líneas', count: lineasVisibles.length },
-    { key: 'informacion' as const, label: 'Información' },
     { key: 'adjuntos' as const, label: 'Adjuntos' },
     { key: 'relacionados' as const, label: 'Relacionados' },
     { key: 'trazabilidad' as const, label: 'Trazabilidad' },
@@ -651,6 +655,25 @@ function Detalle() {
              donde no se puede editar. */
           <div className={verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
           <div className={editor.columnaEditor}>
+          <DocSection title="Información de la cotización">
+            {editando ? (
+              <EditorCabecera
+                valores={borrador.cabecera}
+                contactos={contactos.data ?? []}
+                tarifas={tarifas.data ?? []}
+                vendedores={vendedores.data ?? []}
+                cargandoContactos={contactos.isPending && borrador.cabecera.customerId !== ''}
+                avisoContacto={avisoContacto}
+                avisoTarifa={avisoTarifa}
+                onCambiar={cambiarCampoCabecera}
+                onCambiarCliente={elegirCliente}
+                onCambiarMoneda={elegirMoneda}
+              />
+            ) : (
+              <InformacionDocumento agrupado doc={doc} onVerCliente={() => setViendoCliente(true)} />
+            )}
+          </DocSection>
+
           <DocSection
             title="Líneas"
             actions={
@@ -761,27 +784,6 @@ function Detalle() {
             </div>
           ) : null}
           </div>
-        ) : null}
-
-        {pestana === 'informacion' ? (
-          <DocSection title="Información de la cotización">
-            {editando ? (
-              <EditorCabecera
-                valores={borrador.cabecera}
-                contactos={contactos.data ?? []}
-                tarifas={tarifas.data ?? []}
-                vendedores={vendedores.data ?? []}
-                cargandoContactos={contactos.isPending && borrador.cabecera.customerId !== ''}
-                avisoContacto={avisoContacto}
-                avisoTarifa={avisoTarifa}
-                onCambiar={cambiarCampoCabecera}
-                onCambiarCliente={elegirCliente}
-                onCambiarMoneda={elegirMoneda}
-              />
-            ) : (
-              <InformacionDocumento doc={doc} onVerCliente={() => setViendoCliente(true)} />
-            )}
-          </DocSection>
         ) : null}
 
         {pestana === 'adjuntos' ? (

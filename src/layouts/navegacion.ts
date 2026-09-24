@@ -41,6 +41,14 @@ export interface EntradaNav {
   hijos?: Destino[]
   /** Visible pero sin enlace (módulo todavía no migrado). */
   proximamente?: boolean
+  /**
+   * Qué contador de sin leer lleva la entrada (Fase 27 · E3).
+   *
+   * El número no vive acá: esto dice CUÁL mostrar, y quien dibuja el menú lo
+   * pide. Así la navegación sigue siendo una lista de destinos y no algo que
+   * consulta la base.
+   */
+  contador?: 'emails' | 'whatsapp'
 }
 
 export interface GrupoNav {
@@ -55,6 +63,21 @@ export const NAVEGACION: GrupoNav[] = [
     id: 'inicio',
     label: null,
     entradas: [{ id: 'inicio', label: 'Inicio', icon: 'home', destino: { to: '/', label: 'Inicio', end: true } }],
+  },
+  /**
+   * Comunicación va segunda, pegada a Inicio (Fase 27 · E3).
+   *
+   * Es lo que se mira al empezar el día: los correos y los WhatsApp sin leer
+   * son trabajo que entró solo, y estaban cuatro grupos más abajo. Llevan
+   * contador, así que además hay que verlos sin desplegar nada.
+   */
+  {
+    id: 'comunicacion',
+    label: 'Comunicación',
+    entradas: [
+      { id: 'emails', label: 'Emails', icon: 'mail', contador: 'emails', destino: { to: '/emails', label: 'Emails', roles: ROLES_EMAILS } },
+      { id: 'whatsapp', label: 'WhatsApp', icon: 'message-circle', contador: 'whatsapp', destino: { to: '/whatsapp', label: 'WhatsApp', roles: ROLES_WHATSAPP } },
+    ],
   },
   {
     id: 'operacion',
@@ -76,8 +99,11 @@ export const NAVEGACION: GrupoNav[] = [
         icon: 'truck',
         hijos: [
           { to: '/compras/proveedores', label: 'Proveedores', roles: ESCRIBEN_COMPRAS },
-          { to: '/compras/pedidos', label: 'Pedidos', roles: ESCRIBEN_COMPRAS },
-          { to: '/compras/recepciones', label: 'Notas de entrada', roles: ESCRIBEN_COMPRAS },
+          // Los nombres que usa la empresa, con su abreviatura de numeración:
+          // PAP para el pedido a proveedor y NTEP para la nota de entrega de
+          // proveedor, que es la que ya numera `goods_receipts.series_code`.
+          { to: '/compras/pedidos', label: 'Pedidos a proveedor', roles: ESCRIBEN_COMPRAS },
+          { to: '/compras/recepciones', label: 'Notas de entrega de proveedor', roles: ESCRIBEN_COMPRAS },
           { to: '/compras/facturas', label: 'Facturas', roles: ESCRIBEN_COMPRAS },
         ],
       },
@@ -98,14 +124,6 @@ export const NAVEGACION: GrupoNav[] = [
     entradas: [
       { id: 'catalogo', label: 'Catálogo', icon: 'package', destino: { to: '/catalogo', label: 'Catálogo' } },
       { id: 'clientes', label: 'Clientes', icon: 'users', destino: { to: '/clientes', label: 'Clientes' } },
-    ],
-  },
-  {
-    id: 'comunicacion',
-    label: 'Comunicación',
-    entradas: [
-      { id: 'emails', label: 'Emails', icon: 'mail', destino: { to: '/emails', label: 'Emails', roles: ROLES_EMAILS } },
-      { id: 'whatsapp', label: 'WhatsApp', icon: 'message-circle', destino: { to: '/whatsapp', label: 'WhatsApp', roles: ROLES_WHATSAPP } },
     ],
   },
   {

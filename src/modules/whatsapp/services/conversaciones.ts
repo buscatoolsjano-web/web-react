@@ -168,3 +168,23 @@ export async function asignar(conversacionId: string, usuarioId: string | null):
   })
   if (error) throw new Error(`No se pudo asignar: ${error.message}`)
 }
+
+/**
+ * Cuántos mensajes de WhatsApp sin leer tiene la persona (Fase 27 · E3).
+ *
+ * Lo pide el contador del menú. Los no leídos son **por usuario** y salen de
+ * `no_leidos_whatsapp`, que recibe conversaciones: no hay forma de pedir el
+ * total de una sola vez, así que se suma sobre las conversaciones activas.
+ *
+ * El tope existe para que el contador no se convierta en la consulta más cara
+ * de la pantalla. Con más conversaciones con pendientes que el tope, el número
+ * se queda corto — y es preferible a que el menú tarde.
+ */
+export async function contarNoLeidos(
+  companyId: string,
+  usuarioId: string | null,
+  tope = 200,
+): Promise<number> {
+  const lista = await listarConversaciones(companyId, 'no_leidos', usuarioId, tope)
+  return lista.reduce((n, c) => n + c.noLeidos, 0)
+}

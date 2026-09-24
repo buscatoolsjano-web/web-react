@@ -41,7 +41,9 @@ describe('navegación agrupada', () => {
   })
 
   it('grupos en el orden aprobado', () => {
-    expect(NAVEGACION.map((g) => g.label)).toEqual([null, 'Operación', 'Datos', 'Comunicación', 'Análisis', 'Administración'])
+    // Fase 27 · E3: Comunicación subió a segunda, pegada a Inicio: es lo que
+    // se mira al empezar el día y lleva los contadores de sin leer.
+    expect(NAVEGACION.map((g) => g.label)).toEqual([null, 'Comunicación', 'Operación', 'Datos', 'Análisis', 'Administración'])
   })
 
   it('un vendedor no ve Compras ni Mantenimiento; los grupos sin enlaces desaparecen', () => {
@@ -69,7 +71,9 @@ describe('navegación agrupada', () => {
 
   it('entrada activa por prefijo de ruta (Inicio sólo exacto)', () => {
     const [inicio] = NAVEGACION[0]!.entradas
-    const ventas = NAVEGACION[1]!.entradas[0]!
+    // Por id y no por posición: el orden de los grupos cambió en la Fase 27
+    // y un test que cuenta posiciones se rompe cada vez que se reordena.
+    const ventas = NAVEGACION.flatMap((g) => g.entradas).find((e) => e.id === 'ventas')!
     expect(entradaActiva(inicio!, '/')).toBe(true)
     expect(entradaActiva(inicio!, '/catalogo')).toBe(false)
     expect(entradaActiva(ventas, '/ventas/pedidos/123')).toBe(true)

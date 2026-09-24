@@ -65,8 +65,12 @@ import { confirmarEntrega, editabilidadEntrega, guardarRemito, lineasParaEntrega
 import lineasUi from '../components/EditorLineas.module.css'
 import editor from './EditorCotizacion.module.css'
 
-type Pestana = 'lineas' | 'informacion' | 'adjuntos' | 'relacionados' | 'trazabilidad'
-const PESTANAS: Pestana[] = ['lineas', 'informacion', 'adjuntos', 'relacionados', 'trazabilidad']
+/*
+ * Fase 27 · E5: «Información» dejó de ser pestaña. Los datos del remito
+ * están siempre a la vista, arriba de las líneas, igual que en el alta.
+ */
+type Pestana = 'lineas' | 'adjuntos' | 'relacionados' | 'trazabilidad'
+const PESTANAS: Pestana[] = ['lineas', 'adjuntos', 'relacionados', 'trazabilidad']
 
 export function EntregaDetallePage() {
   const { id } = useParams<{ id: string }>()
@@ -325,7 +329,6 @@ function Detalle() {
 
   const pestanas = [
     { key: 'lineas' as const, label: 'Líneas', count: lineasVisibles.length },
-    { key: 'informacion' as const, label: 'Información' },
     { key: 'adjuntos' as const, label: 'Adjuntos' },
     { key: 'relacionados' as const, label: 'Relacionados' },
     { key: 'trazabilidad' as const, label: 'Trazabilidad' },
@@ -501,6 +504,58 @@ function Detalle() {
              sólo lectura: ver la nota de `lineasParaHoja`. */
           <div className={verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
           <div className={editor.columnaEditor}>
+          <DocSection title="Datos de la entrega">
+            {editando ? (
+              <div className={editor.formulario}>
+                <Field label="Fecha del remito">
+                  <Input
+                    type="date"
+                    value={borrador.cabecera.fecha}
+                    onChange={(e) => cambiarCabecera('fecha', e.target.value)}
+                  />
+                </Field>
+                <Field label="Contacto" optional>
+                  <Select
+                    value={borrador.cabecera.contactoId}
+                    disabled={contactos.isPending}
+                    onChange={(e) => cambiarCabecera('contactoId', e.target.value)}
+                  >
+                    <option value="">Sin contacto</option>
+                    {(contactos.data ?? []).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.rol ? `${c.nombre} · ${c.rol}` : c.nombre}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Título" optional>
+                  <Input value={borrador.cabecera.titulo} onChange={(e) => cambiarCabecera('titulo', e.target.value)} />
+                </Field>
+                <Field label="Transporte" optional>
+                  <Input
+                    value={borrador.cabecera.transporte}
+                    onChange={(e) => cambiarCabecera('transporte', e.target.value)}
+                  />
+                </Field>
+                <Field label="Seguimiento" optional help="El número que da el transporte, si lo hay.">
+                  <Input
+                    value={borrador.cabecera.seguimiento}
+                    onChange={(e) => cambiarCabecera('seguimiento', e.target.value)}
+                  />
+                </Field>
+                <Field label="Observaciones" optional>
+                  <Textarea
+                    rows={3}
+                    value={borrador.cabecera.notas}
+                    onChange={(e) => cambiarCabecera('notas', e.target.value)}
+                  />
+                </Field>
+              </div>
+            ) : (
+              <InformacionDocumento doc={doc} onVerCliente={() => setViendoCliente(true)} />
+            )}
+          </DocSection>
+
           <DocSection
             title="Líneas"
             actions={
@@ -664,60 +719,6 @@ function Detalle() {
             </div>
           ) : null}
           </div>
-        ) : null}
-
-        {pestana === 'informacion' ? (
-          <DocSection title="Datos de la entrega">
-            {editando ? (
-              <div className={editor.formulario}>
-                <Field label="Fecha del remito">
-                  <Input
-                    type="date"
-                    value={borrador.cabecera.fecha}
-                    onChange={(e) => cambiarCabecera('fecha', e.target.value)}
-                  />
-                </Field>
-                <Field label="Contacto" optional>
-                  <Select
-                    value={borrador.cabecera.contactoId}
-                    disabled={contactos.isPending}
-                    onChange={(e) => cambiarCabecera('contactoId', e.target.value)}
-                  >
-                    <option value="">Sin contacto</option>
-                    {(contactos.data ?? []).map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.rol ? `${c.nombre} · ${c.rol}` : c.nombre}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="Título" optional>
-                  <Input value={borrador.cabecera.titulo} onChange={(e) => cambiarCabecera('titulo', e.target.value)} />
-                </Field>
-                <Field label="Transporte" optional>
-                  <Input
-                    value={borrador.cabecera.transporte}
-                    onChange={(e) => cambiarCabecera('transporte', e.target.value)}
-                  />
-                </Field>
-                <Field label="Seguimiento" optional help="El número que da el transporte, si lo hay.">
-                  <Input
-                    value={borrador.cabecera.seguimiento}
-                    onChange={(e) => cambiarCabecera('seguimiento', e.target.value)}
-                  />
-                </Field>
-                <Field label="Observaciones" optional>
-                  <Textarea
-                    rows={3}
-                    value={borrador.cabecera.notas}
-                    onChange={(e) => cambiarCabecera('notas', e.target.value)}
-                  />
-                </Field>
-              </div>
-            ) : (
-              <InformacionDocumento doc={doc} onVerCliente={() => setViendoCliente(true)} />
-            )}
-          </DocSection>
         ) : null}
 
         {pestana === 'adjuntos' ? (

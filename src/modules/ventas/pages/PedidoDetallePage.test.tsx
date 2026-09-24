@@ -91,12 +91,12 @@ vi.mock('@/hooks/useMediaQuery', () => ({
 // importa que el pedido la abra.
 vi.mock('@/modules/clientes/components/PanelLateralCliente', () => ({
   PanelLateralCliente: ({ clienteId, onCerrar }: { clienteId: string; onCerrar: () => void }) => (
-    <aside aria-label="Ficha rápida">
+    <div role="dialog" aria-modal="true" aria-label="Ficha rápida">
       <p>ficha rápida de {clienteId}</p>
       <button type="button" onClick={onCerrar}>
         Cerrar la ficha
       </button>
-    </aside>
+    </div>
   ),
 }))
 vi.mock('@/features/empresa/useEmpresa', () => ({
@@ -284,16 +284,17 @@ beforeEach(() => {
 })
 
 describe('Pedido · shell documental', () => {
-  it('abre mostrando identidad, acciones y las seis pestañas, con Líneas primero', () => {
+  it('abre mostrando identidad, acciones y las pestañas que quedaron, con Líneas primero', () => {
     montar()
 
     expect(screen.getByRole('heading', { level: 1, name: 'PDV01321' })).toBeInTheDocument()
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    expect(screen.getByText('Consulta MercadoLibre')).toBeInTheDocument()
+    // El nombre del cliente está en el encabezado, en el panel y en la hoja.
+    expect(screen.getAllByText('Consulta MercadoLibre').length).toBeGreaterThan(0)
     expect(screen.getAllByText('ARS 484,00').length).toBeGreaterThan(0)
 
     const pestanas = screen.getAllByRole('tab').map((t) => t.textContent)
-    expect(pestanas).toEqual(['Líneas1', 'Información', 'Entregas', 'Adjuntos', 'Relacionados', 'Trazabilidad'])
+    expect(pestanas).toEqual(['Líneas1', 'Entregas', 'Adjuntos', 'Relacionados', 'Trazabilidad'])
     expect(screen.getByRole('tab', { name: /Líneas/ })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('Candado de bloqueo LOTO')).toBeInTheDocument()
   })
@@ -334,7 +335,6 @@ describe('Pedido · edición por borrador', () => {
     ]
     montar()
     editar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.change(screen.getByLabelText(/Entregar en/), { target: { value: 'd2' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
@@ -348,7 +348,6 @@ describe('Pedido · edición por borrador', () => {
     estado.doc = pedido({ direccionEntregaId: 'd1' })
     montar()
     editar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1')
     fireEvent.change(screen.getByLabelText(/Entregar en/), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
@@ -362,7 +361,6 @@ describe('Pedido · edición por borrador', () => {
     estado.doc = pedido({ direccionEntregaId: 'd1' })
     montar()
     editar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     // Esconderla dejaría el desplegable en blanco y guardar borraría el dato
     // sin que nadie lo pidiera.
     expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1')
@@ -379,7 +377,6 @@ describe('Pedido · edición por borrador', () => {
   it('NO se escribe nada hasta apretar Guardar', () => {
     montar()
     editar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ nuevo título' } })
 
     expect(espias.guardar).not.toHaveBeenCalled()
@@ -390,7 +387,6 @@ describe('Pedido · edición por borrador', () => {
   it('Guardar manda UNA sola llamada, con el testigo de concurrencia y las columnas del pedido', async () => {
     montar()
     editar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ nuevo título' } })
     fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-09-20' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
@@ -421,7 +417,6 @@ describe('Pedido · edición por borrador', () => {
   it('Descartar con cambios pide confirmación y no escribe', () => {
     montar()
     editar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ otro' } })
     fireEvent.click(screen.getByRole('button', { name: 'Descartar' }))
 
@@ -439,7 +434,6 @@ describe('Pedido · edición por borrador', () => {
     )
     montar()
     editar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ lo que escribí' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
@@ -452,11 +446,9 @@ describe('Pedido · edición por borrador', () => {
   it('cambiar de pestaña NO descarta el borrador ni pregunta', () => {
     montar()
     editar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ sobrevive' } })
 
     fireEvent.click(screen.getByRole('tab', { name: /Líneas/ }))
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
 
     expect(screen.getByLabelText(/Título/)).toHaveValue('ZZ sobrevive')
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled()
@@ -465,7 +457,6 @@ describe('Pedido · edición por borrador', () => {
   it('irse a otro pedido con cambios PREGUNTA antes de perder el borrador', async () => {
     montar('/ventas/pedidos/o1', <Link to="/ventas/pedidos/o2">ir a otro</Link>)
     editar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ borrador de o1' } })
 
     fireEvent.click(screen.getByRole('link', { name: 'ir a otro' }))
@@ -514,7 +505,6 @@ describe('Pedido · tarifa', () => {
     ]
     montar()
     editar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'mayorista' } })
 
     fireEvent.click(screen.getByRole('tab', { name: /Líneas/ }))
@@ -523,7 +513,6 @@ describe('Pedido · tarifa', () => {
 
   it('en lectura, Información muestra la tarifa registrada y no la inventa', () => {
     montar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     expect(screen.getByText('Tarifa')).toBeInTheDocument()
     expect(screen.getAllByText('Sin registrar').length).toBeGreaterThan(0)
   })
@@ -531,7 +520,6 @@ describe('Pedido · tarifa', () => {
   it('el pedido no tiene fecha de validez ni en edición', () => {
     montar()
     editar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     expect(screen.getByLabelText('Fecha')).toBeInTheDocument()
     expect(screen.queryByLabelText(/Válida hasta/)).toBeNull()
   })
@@ -624,7 +612,6 @@ describe('Pedido · pestañas', () => {
   it('Información enlaza la cotización de la que nació el pedido', () => {
     estado.doc = pedido({ origen: { tipo: 'cotizacion', id: 'q1', numero: 'COTI02558' } })
     montar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     expect(screen.getByText('Cotización de origen')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'COTI02558' })).toHaveAttribute('href', '/ventas/cotizaciones/q1')
   })
@@ -808,14 +795,13 @@ describe('Pedido · la serie del documento', () => {
 describe('Pedido · ficha rápida del cliente', () => {
   it('el nombre del cliente abre la ficha, y se puede cerrar sin perder el pedido', () => {
     montar()
-    fireEvent.click(screen.getByRole('tab', { name: 'Información' }))
     fireEvent.click(screen.getByRole('button', { name: 'Consulta MercadoLibre' }))
 
-    expect(screen.getByRole('complementary', { name: 'Ficha rápida' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Ficha rápida' })).toBeInTheDocument()
     expect(screen.getByText('ficha rápida de c9')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar la ficha' }))
-    expect(screen.queryByRole('complementary', { name: 'Ficha rápida' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Ficha rápida' })).toBeNull()
     // El pedido sigue donde estaba: abrir la ficha no navega a ningún lado.
     expect(screen.getByRole('heading', { level: 1, name: /PDV/ })).toBeInTheDocument()
   })

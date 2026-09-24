@@ -258,11 +258,31 @@ describe('alta de cotización (Fase 15 · E3)', () => {
     expect(b.esperado).toBe('')
   })
 
-  it('no se puede crear sin cliente ni sin moneda, y lo dice en palabras', () => {
+  /**
+   * Fase 27 · E1: el título se suma a lo obligatorio. Es el renglón que
+   * sale impreso debajo de «COTIZACIÓN DE VENTA», así que un documento sin
+   * él llega al cliente sin decir de qué es.
+   */
+  it('no se puede crear sin cliente, sin moneda ni sin título, y lo dice en palabras', () => {
     const b = borradorNuevo('2026-09-17')
-    expect(faltaParaCrear(b)).toEqual(['Elegí un cliente.', 'Elegí la moneda del documento.'])
-    expect(faltaParaCrear(cambiarCampo(b, 'customerId', 'c1'))).toEqual(['Elegí la moneda del documento.'])
-    expect(faltaParaCrear(cambiarCampo(cambiarCampo(b, 'customerId', 'c1'), 'moneda', 'USD'))).toEqual([])
+    expect(faltaParaCrear(b)).toEqual([
+      'Elegí un cliente.',
+      'Elegí la moneda del documento.',
+      'Escribí el título del documento.',
+    ])
+    const conCliente = cambiarCampo(b, 'customerId', 'c1')
+    expect(faltaParaCrear(conCliente)).toEqual([
+      'Elegí la moneda del documento.',
+      'Escribí el título del documento.',
+    ])
+    const conMoneda = cambiarCampo(conCliente, 'moneda', 'USD')
+    expect(faltaParaCrear(conMoneda)).toEqual(['Escribí el título del documento.'])
+    expect(faltaParaCrear(cambiarCampo(conMoneda, 'titulo', 'Reposición de puntas'))).toEqual([])
+  })
+
+  it('un título de puros espacios no cuenta', () => {
+    const b = cambiarCampo(cambiarCampo(cambiarCampo(borradorNuevo('2026-09-17'), 'customerId', 'c1'), 'moneda', 'USD'), 'titulo', '   ')
+    expect(faltaParaCrear(b)).toEqual(['Escribí el título del documento.'])
   })
 
   it('el payload del alta lleva la cabecera COMPLETA, con null en lo vacío', () => {

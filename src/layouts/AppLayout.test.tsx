@@ -48,6 +48,10 @@ vi.mock('@/features/empresa/useEmpresa', () => ({
   },
 }))
 
+// Los contadores de sin leer del menú consultan la base (Fase 27 · E3). Acá
+// se prueba la NAVEGACIÓN, no los contadores: se mockean para no arrastrar el
+// cliente de Supabase ni exigir un QueryClient.
+vi.mock('./useNoLeidos', () => ({ useNoLeidos: () => ({ emails: 0, whatsapp: 0 }) }))
 vi.mock('@/features/apariencia/useApariencia', () => ({
   useApariencia: () => ({
     apariencia: { version: 1, preset: 'claro-naranja', acento: 'tema', tamano: 'normal', fuente: 'sistema' },
