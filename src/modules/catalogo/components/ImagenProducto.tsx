@@ -8,6 +8,13 @@ export interface ImagenProductoProps {
   alt: string
   /** 'thumb' usa la miniatura verificada si existe; 'full' siempre el original. */
   tamano?: 'thumb' | 'full'
+  /**
+   * 'eager' para listas cortas que se ven enteras —las 25 filas de un modal—:
+   * ahí `lazy` no ahorra nada y deja la columna en blanco hasta que el
+   * navegador decide que el elemento "entró" en pantalla, cosa que no siempre
+   * pasa adentro de un contenedor con scroll propio.
+   */
+  prioridad?: 'lazy' | 'eager'
   className?: string | undefined
 }
 
@@ -33,7 +40,7 @@ export interface ImagenProductoProps {
  * La caja tiene proporción fija por CSS, así que el alto está reservado
  * antes de que la imagen cargue y el listado no salta (CLS).
  */
-export function ImagenProducto({ imagen, alt, tamano = 'thumb', className }: ImagenProductoProps) {
+export function ImagenProducto({ imagen, alt, tamano = 'thumb', prioridad = 'lazy', className }: ImagenProductoProps) {
   const [falloOriginal, setFalloOriginal] = useState(false)
   const [falloMiniatura, setFalloMiniatura] = useState(false)
 
@@ -55,7 +62,7 @@ export function ImagenProducto({ imagen, alt, tamano = 'thumb', className }: Ima
         className={styles.img}
         src={src}
         alt={alt}
-        loading="lazy"
+        loading={prioridad}
         decoding="async"
         onError={() => {
           // Si falla la miniatura se prueba el original; si falla el

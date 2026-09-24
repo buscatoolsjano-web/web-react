@@ -6,14 +6,10 @@ import { Field } from '@/components/forms/Field'
 import { Input } from '@/components/forms/controls'
 import { Spinner } from '@/components/ui/Spinner'
 import { ImagenProducto } from '@/modules/catalogo/components/ImagenProducto'
-import type { ProductoListado } from '@/modules/catalogo/types'
+import { PanelFacetas } from '@/modules/catalogo/components/PanelFacetas'
+import { FILTROS_INICIALES, type FiltrosCatalogo, type ProductoListado } from '@/modules/catalogo/types'
 import { formatearImporte } from '../lib/formato'
-import {
-  POR_PAGINA,
-  useCatalogoParaDocumento,
-  useCategoriasParaDocumento,
-  type FiltroCatalogoDocumento,
-} from '../hooks/useCatalogoParaDocumento'
+import { POR_PAGINA, useCatalogoParaDocumento, useFacetasParaDocumento } from '../hooks/useCatalogoParaDocumento'
 import styles from './ModalCatalogoProductos.module.css'
 
 export interface ModalCatalogoProductosProps {
@@ -27,24 +23,28 @@ export interface ModalCatalogoProductosProps {
   onAgregar: (p: ProductoListado, cantidad: number) => void
 }
 
-const FILTRO_INICIAL: FiltroCatalogoDocumento = { texto: '', categoria: '', pagina: 1 }
+const INICIAL: FiltrosCatalogo = { ...FILTROS_INICIALES, porPagina: POR_PAGINA }
 
 /**
  * Elegir productos del catálogo sin salir del documento (Fase 28 · E1).
  *
- * Réplica de «Añadir productos o servicios» del sistema anterior: botones de
- * categoría arriba, un buscador, y una tabla con foto, referencia, nombre,
+ * Réplica de «Añadir productos o servicios» del sistema anterior: los filtros
+ * del catálogo arriba, un buscador, y una tabla con foto, referencia, nombre,
  * categoría, marca, los dos saldos de stock, el precio y la cantidad.
+ *
+ * Los filtros son los MISMOS de la pantalla de Catálogo —`PanelFacetas` sobre
+ * `catalog_facets`—, así que al elegir una categoría aparecen sus atributos
+ * (encastre, medida, largo…) con los valores que existen de verdad y su
+ * conteo. No hay una segunda definición de qué se puede filtrar.
  *
  * Lo que cambia respecto del buscador que había antes acá:
  *
  *  · **Se puede recorrer.** El anterior exigía dos letras y sólo buscaba: sin
  *    escribir no mostraba nada, así que no servía para «mostrame los
- *    balanceadores». Ahora la categoría lista.
+ *    balanceadores de 1 a 2 kg».
  *  · **Se ve lo que hace falta para decidir**: la foto, el stock y el precio.
- *    Antes era una lista de nombres.
- *  · **Se agregan varios sin cerrar.** Cada «Agregar» suma una línea y la
- *    ventana queda abierta, que es como se carga un pedido de verdad.
+ *  · **Se agregan varios sin cerrar.** Cada «Agregar» suma la cantidad elegida
+ *    y la ventana queda abierta, que es como se carga un pedido de verdad.
  *
  * El precio sale de la tarifa del documento. Un producto sin precio en esa
  * tarifa se agrega igual, en cero y diciéndolo: es lo que ya hacía el carrito
@@ -57,19 +57,24 @@ export function ModalCatalogoProductos({
   onCerrar,
   onAgregar,
 }: ModalCatalogoProductosProps) {
-  const [filtro, setFiltro] = useState<FiltroCatalogoDocumento>(FILTRO_INICIAL)
+  const [filtros, setFiltros] = useState<FiltrosCatalogo>(INICIAL)
   const [texto, setTexto] = useState('')
   const [cantidades, setCantidades] = useState<Record<string, string>>({})
   const [agregados, setAgregados] = useState<string[]>([])
 
   // Se espera a que pare de tipear: sin esto, «balanceador» son once consultas.
   useEffect(() => {
-    const t = setTimeout(() => setFiltro((f) => (f.texto === texto ? f : { ...f, texto, pagina: 1 })), 300)
+    const t = setTimeout(() => setFiltros((f) => (f.q === texto ? f : { ...f, q: texto, pagina: 1 })), 300)
     return () => clearTimeout(t)
   }, [texto])
 
-  const categorias = useCategoriasParaDocumento()
-  const { data, isPending, isFetching, error } = useCatalogoParaDocumento(filtro, listaPrecioId)
+  // Cualquier cambio de filtro vuelve a la página 1: filtrar desde la página 9
+  // dejaría la lista vacía sin explicación.
+  const cambiarFiltros = (cambios: Partial<FiltrosCatalogo>) =>
+    setFiltros((f) => ({ ...f, ...cambios, ...(cambios.pagina === undefined ? { pagina: 1 } : {}) }))
+
+  const facetas = useFacetasParaDocumento(filtros)
+  const { data, isPending, isFetching, error } = useCatalogoParaDocumento(filtros, listaPrecioId)
   const productos = data?.productos ?? []
   const total = data?.total ?? 0
   const paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
@@ -80,7 +85,7 @@ export function ModalCatalogoProductos({
   useEffect(() => {
     // `scrollTop` y no `scrollTo`: es lo que entienden todos, jsdom incluido.
     if (cuerpo.current) cuerpo.current.scrollTop = 0
-  }, [filtro.pagina, filtro.categoria])
+  }, [filtros])
 
   const cantidadDe = (id: string) => {
     const n = Number((cantidades[id] ?? '1').replace(',', '.'))
@@ -91,7 +96,7 @@ export function ModalCatalogoProductos({
     onAgregar(p, cantidadDe(p.id))
     // La confirmación es del producto, no un cartel global: con veinte filas
     // en pantalla hay que saber cuál se agregó.
-    setAgregados((a) => [...a, p.id])
+    setAgregados((a) => (a.includes(p.id) ? a : [...a, p.id]))
   }
 
   return (
@@ -99,7 +104,7 @@ export function ModalCatalogoProductos({
       open
       onClose={onCerrar}
       title="Añadir productos o servicios"
-      size="lg"
+      size="xl"
       closeOnOverlay={false}
       footer={
         <Button variant="secondary" onClick={onCerrar}>
@@ -108,26 +113,6 @@ export function ModalCatalogoProductos({
       }
     >
       <div className={styles.filtros}>
-        <div className={styles.categorias} role="group" aria-label="Categoría">
-          <Button
-            variant={filtro.categoria === '' ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => setFiltro((f) => ({ ...f, categoria: '', pagina: 1 }))}
-          >
-            Todos
-          </Button>
-          {(categorias.data ?? []).map((c) => (
-            <Button
-              key={c.id}
-              variant={filtro.categoria === c.id ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => setFiltro((f) => ({ ...f, categoria: c.id, pagina: 1 }))}
-            >
-              {c.nombre}
-            </Button>
-          ))}
-        </div>
-
         <Field label="Buscar por SKU, nombre o descripción" hideLabel>
           <Input
             type="search"
@@ -137,6 +122,15 @@ export function ModalCatalogoProductos({
             autoFocus
           />
         </Field>
+
+        {/* Los filtros del catálogo, tal cual: categorías, subcategorías,
+            marca y los atributos de la categoría elegida. */}
+        <PanelFacetas
+          filtros={filtros}
+          facetas={facetas.data}
+          cargando={facetas.isPending}
+          onCambiar={cambiarFiltros}
+        />
       </div>
 
       {error ? (
@@ -189,7 +183,7 @@ export function ModalCatalogoProductos({
               {productos.map((p) => (
                 <tr key={p.id} className={agregados.includes(p.id) ? styles.filaAgregada : undefined}>
                   <td className={styles.colImagen}>
-                    <ImagenProducto imagen={p.imagen} alt="" tamano="thumb" />
+                    <ImagenProducto imagen={p.imagen} alt="" tamano="thumb" prioridad="eager" />
                   </td>
                   <td>
                     <code className={styles.sku}>{p.sku}</code>
@@ -226,7 +220,7 @@ export function ModalCatalogoProductos({
                   </td>
                   <td>
                     <Button size="sm" onClick={() => agregar(p)}>
-                      {agregados.includes(p.id) ? 'Agregar otra vez' : '+ Agregar'}
+                      {agregados.includes(p.id) ? 'Sumar más' : '+ Agregar'}
                     </Button>
                   </td>
                 </tr>
@@ -240,8 +234,10 @@ export function ModalCatalogoProductos({
         <span className={styles.nota}>
           {isFetching && !isPending ? <Spinner size={16} /> : null}
           {total === 1 ? '1 producto' : `${total.toLocaleString('es-AR')} productos`}
+          {/* Se cuentan PRODUCTOS, no líneas: elegir tres veces el mismo suma
+              cantidad en una sola línea, así que «3 líneas» sería mentira. */}
           {agregados.length > 0
-            ? ` · ${agregados.length === 1 ? '1 línea agregada' : `${agregados.length} líneas agregadas`}`
+            ? ` · ${agregados.length === 1 ? '1 producto agregado' : `${agregados.length} productos agregados`}`
             : ''}
         </span>
         {paginas > 1 ? (
@@ -249,19 +245,19 @@ export function ModalCatalogoProductos({
             <Button
               variant="secondary"
               size="sm"
-              disabled={filtro.pagina <= 1}
-              onClick={() => setFiltro((f) => ({ ...f, pagina: f.pagina - 1 }))}
+              disabled={filtros.pagina <= 1}
+              onClick={() => cambiarFiltros({ pagina: filtros.pagina - 1 })}
             >
               Anterior
             </Button>
             <span className={styles.nota}>
-              Página {filtro.pagina} de {paginas}
+              Página {filtros.pagina} de {paginas}
             </span>
             <Button
               variant="secondary"
               size="sm"
-              disabled={filtro.pagina >= paginas}
-              onClick={() => setFiltro((f) => ({ ...f, pagina: f.pagina + 1 }))}
+              disabled={filtros.pagina >= paginas}
+              onClick={() => cambiarFiltros({ pagina: filtros.pagina + 1 })}
             >
               Siguiente
             </Button>

@@ -14,7 +14,8 @@ export interface DialogProps {
   children?: ReactNode | undefined
   /** Botones del pie (el primario a la derecha). */
   footer?: ReactNode | undefined
-  size?: 'sm' | 'md' | 'lg' | undefined
+  /** 'xl' es para trabajar adentro del diálogo —una tabla, un catálogo—, no para leer. */
+  size?: 'sm' | 'md' | 'lg' | 'xl' | undefined
   /** `alertdialog` para confirmaciones destructivas. */
   role?: 'dialog' | 'alertdialog' | undefined
   /** Elemento que recibe el foco al abrir. Por defecto: el primer control del cuerpo, o el diálogo. */

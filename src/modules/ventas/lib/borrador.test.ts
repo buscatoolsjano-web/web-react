@@ -154,6 +154,56 @@ describe('líneas', () => {
     expect(proximoNumero(b)).toBe(4)
   })
 
+  /**
+   * Fase 28 · E6. Elegir tres veces el mismo producto es pedir tres unidades,
+   * no tres renglones: el documento impreso quedaba con la misma referencia
+   * repetida y había que juntarla a mano.
+   */
+  describe('juntar líneas iguales', () => {
+    const item = (over: Record<string, unknown> = {}) => ({
+      tipoLinea: 'item' as const, productId: 'p9', sku: 'NUEVO', nombre: 'Nuevo', descripcion: null,
+      cantidad: 1, precioUnitario: 70, descuentoPct: 0, tratamientoImpuesto: 'vat_21', tasaImpuesto: 21,
+      ...over,
+    })
+
+    it('el mismo producto dos veces suma cantidad en UNA línea', () => {
+      let b = agregarLinea(base(), item({ cantidad: 2 }))
+      b = agregarLinea(b, item({ cantidad: 3 }))
+      const suyas = b.lineas.filter((l) => l.productId === 'p9')
+      expect(suyas).toHaveLength(1)
+      expect(suyas[0]!.cantidad).toBe(5)
+    })
+
+    it('también suma sobre una línea que ya estaba guardada', () => {
+      // `base()` trae dos líneas del MISMO producto a precios distintos (100 y
+      // 50): se tiene que sumar a la de 100 y no tocar la otra.
+      const b = agregarLinea(base(), item({ productId: 'p1', sku: 'PRO001', nombre: 'Candado', cantidad: 4, precioUnitario: 100 }))
+      expect(b.lineas).toHaveLength(base().lineas.length)
+      expect(b.lineas.find((l) => l.id === 'l1')!.cantidad).toBe(6)
+      expect(b.lineas.find((l) => l.id === 'l2')!.cantidad).toBe(1)
+    })
+
+    // A otro precio es otra línea de verdad: juntarlas cambiaría el total.
+    it.each([
+      ['otro precio', { precioUnitario: 71 }],
+      ['otro descuento', { descuentoPct: 10 }],
+      ['otro impuesto', { tratamientoImpuesto: 'exempt' }],
+      ['otra descripción', { descripcion: 'con grabado' }],
+    ])('%s NO se junta', (_caso, distinto) => {
+      let b = agregarLinea(base(), item())
+      b = agregarLinea(b, item(distinto))
+      expect(b.lineas.filter((l) => l.productId === 'p9')).toHaveLength(2)
+    })
+
+    it('una línea libre nunca se junta con otra, aunque estén las dos vacías', () => {
+      const vacia = { tipoLinea: 'item' as const, productId: null, sku: null, nombre: null, descripcion: null,
+        cantidad: 1, precioUnitario: 0, descuentoPct: 0, tratamientoImpuesto: 'vat_21', tasaImpuesto: 21 }
+      let b = agregarLinea(base(), vacia)
+      b = agregarLinea(b, vacia)
+      expect(b.lineas.filter((l) => l.productId === null)).toHaveLength(2)
+    })
+  })
+
   it('quitar una línea la saca del borrador; la fila sigue en la base', () => {
     const b = quitarLinea(base(), 'l1')
     expect(b.lineas.map((l) => l.id)).toEqual(['l2'])

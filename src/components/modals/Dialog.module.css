@@ -31,6 +31,12 @@
 .lg {
   max-width: 800px;
 }
+/* Para trabajar adentro: una tabla de catálogo con foto, stock y precio no
+   entra en 800px, y recortarla obliga a scrollear a lo ancho para decidir. */
+.xl {
+  max-width: 1400px;
+  max-height: calc(100dvh - var(--space-5));
+}
 
 .encabezado {
   display: flex;
@@ -90,7 +96,8 @@
   .caja,
   .sm,
   .md,
-  .lg {
+  .lg,
+  .xl {
     max-width: none;
     max-height: calc(100dvh - var(--space-6));
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;

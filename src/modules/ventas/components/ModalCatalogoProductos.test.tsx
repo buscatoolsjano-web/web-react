@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PlanDeConsulta } from '@/modules/catalogo/lib/planDeConsulta'
-import type { ProductoListado } from '@/modules/catalogo/types'
+import type { Facetas, ProductoListado } from '@/modules/catalogo/types'
 
 const estado = vi.hoisted(() => ({
   planes: [] as { plan: PlanDeConsulta; listaPrecioId: string | null; esInterno: boolean }[],
@@ -17,24 +17,52 @@ vi.mock('@/features/empresa/useEmpresa', () => ({
   }),
 }))
 
+/**
+ * Las facetas salen de la MISMA RPC que el catálogo. Se devuelven categorías y
+ * un atributo con valores, que es lo que aparece al elegir una categoría.
+ */
 vi.mock('@/modules/catalogo/services/facetas', () => ({
-  listarCategorias: () =>
-    Promise.resolve([
-      { id: 'cat-bal', nombre: 'Balanceadores', slug: 'balanceadores', necesitaRevision: false },
-      { id: 'cat-imp', nombre: 'Llaves de impacto', slug: 'llaves-de-impacto', necesitaRevision: false },
-    ]),
+  obtenerFacetas: (plan: PlanDeConsulta): Promise<Facetas> =>
+    Promise.resolve({
+      total: 2,
+      marcas: [{ valor: 'm1', etiqueta: 'CHICAGO PNEUMATIC', cantidad: 2 }],
+      categorias: [
+        { valor: 'cat-bal', etiqueta: 'Balanceadores', cantidad: 1 },
+        { valor: 'cat-pun', etiqueta: 'Puntas y tubos', cantidad: 1 },
+      ],
+      subtipos: [],
+      // Los atributos aparecen recién con una categoría elegida, igual que en
+      // el catálogo: sin categoría serían los 234 valores de todo el inventario.
+      atributos:
+        plan.categoria === null
+          ? []
+          : [
+              {
+                key: 'encastre',
+                label: 'Encastre',
+                unidad: null,
+                clase: 'enum' as const,
+                opciones: [
+                  { valor: '1/4 HEX', etiqueta: '1/4 HEX', cantidad: 1 },
+                  { valor: '1/2', etiqueta: '1/2', cantidad: 1 },
+                ],
+                min: null,
+                max: null,
+              },
+            ],
+    }),
 }))
 
 vi.mock('@/modules/catalogo/services/productos', () => ({
   consultarProductos: (plan: PlanDeConsulta, listaPrecioId: string | null, esInterno: boolean) => {
     estado.planes.push({ plan, listaPrecioId, esInterno })
-    const todos = [producto('p1', 'CP.CP9911', 'BALANCEADOR DE 0.4 A 1 KG', 'cat-bal', 46.03)]
-    if (plan.categoria === null) todos.push(producto('p2', 'SP.TX40', 'ATORNILLADOR', 'cat-otros', null))
+    const todos = [producto('p1', 'CP.CP9911', 'BALANCEADOR DE 0.4 A 1 KG', 46.03)]
+    if (plan.categoria === null) todos.push(producto('p2', 'SP.TX40', 'ATORNILLADOR', null))
     return Promise.resolve({ productos: todos, total: todos.length })
   },
 }))
 
-function producto(id: string, sku: string, nombre: string, categoriaId: string, precio: number | null): ProductoListado {
+function producto(id: string, sku: string, nombre: string, precio: number | null): ProductoListado {
   return {
     enCatalogo: true,
     motivoFueraDelCatalogo: null,
@@ -46,7 +74,7 @@ function producto(id: string, sku: string, nombre: string, categoriaId: string, 
     esKit: false,
     necesitaRevision: false,
     marca: { id: 'm1', nombre: 'CHICAGO PNEUMATIC' },
-    categoria: { id: categoriaId, nombre: 'Balanceadores', slug: 'balanceadores' },
+    categoria: { id: 'cat-bal', nombre: 'Balanceadores', slug: 'balanceadores' },
     atributos: {},
     precio,
     stock: { real: 7, virtual: 9 },
@@ -92,8 +120,20 @@ describe('elegir productos del catálogo desde el documento', () => {
   it('filtrar por categoría se lo pide al catálogo', async () => {
     montar()
     await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
-    fireEvent.click(screen.getByRole('button', { name: 'Balanceadores' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Balanceadores/ }))
     await waitFor(() => expect(estado.planes.some((p) => p.plan.categoria === 'cat-bal')).toBe(true))
+  })
+
+  /**
+   * Fase 28 · E6: es lo que faltaba. Con una categoría elegida tienen que
+   * aparecer SUS atributos, no sólo la lista de productos.
+   */
+  it('con una categoría elegida aparecen sus atributos', async () => {
+    montar()
+    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    expect(screen.queryByRole('button', { name: /Encastre/ })).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: /Puntas y tubos/ }))
+    expect(await screen.findByRole('button', { name: /Encastre/ })).toBeInTheDocument()
   })
 
   it('el precio sale de la tarifa del documento, no de la del catálogo', async () => {
@@ -110,7 +150,7 @@ describe('elegir productos del catálogo desde el documento', () => {
     expect(onAgregar).toHaveBeenCalledWith(expect.objectContaining({ sku: 'CP.CP9911' }), 3)
     expect(onCerrar).not.toHaveBeenCalled()
     // Se dice cuál se agregó: con veinte filas en pantalla hace falta.
-    expect(await screen.findByRole('button', { name: 'Agregar otra vez' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Sumar más' })).toBeInTheDocument()
   })
 
   it('sin cantidad escrita agrega una unidad', async () => {
@@ -118,6 +158,15 @@ describe('elegir productos del catálogo desde el documento', () => {
     await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
     fireEvent.click(screen.getAllByRole('button', { name: '+ Agregar' })[0]!)
     expect(onAgregar).toHaveBeenCalledWith(expect.objectContaining({ sku: 'CP.CP9911' }), 1)
+  })
+
+  // Con el merge de líneas, «2 líneas agregadas» sería mentira.
+  it('el pie cuenta productos, no líneas', async () => {
+    montar()
+    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    fireEvent.click(screen.getAllByRole('button', { name: '+ Agregar' })[0]!)
+    fireEvent.click(await screen.findByRole('button', { name: 'Sumar más' }))
+    expect(await screen.findByText(/1 producto agregado/)).toBeInTheDocument()
   })
 
   it('un producto sin precio en la tarifa se ve, no se esconde', async () => {

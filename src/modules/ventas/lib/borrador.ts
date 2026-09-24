@@ -264,7 +264,44 @@ export function proximoNumero(b: Borrador): number {
   return b.lineas.reduce((max, l) => Math.max(max, l.numeroLinea), 0) + 1
 }
 
+/**
+ * ¿Estas dos líneas son la MISMA, y por eso se suman en vez de repetirse?
+ *
+ * Sólo un producto: una línea libre —una nota, un capítulo— no se junta con
+ * nada, aunque esté vacía igual que otra.
+ *
+ * Y sólo si coincide todo lo que hace a una línea: precio, descuento,
+ * impuesto y el texto. Dos líneas del mismo producto a precios distintos son
+ * dos líneas de verdad, y juntarlas cambiaría el total del documento.
+ */
+function esLaMisma(a: LineaBorrador, l: Omit<LineaBorrador, 'clave' | 'id' | 'numeroLinea'>): boolean {
+  return (
+    l.productId !== null &&
+    a.productId === l.productId &&
+    a.tipoLinea === l.tipoLinea &&
+    a.precioUnitario === l.precioUnitario &&
+    a.descuentoPct === l.descuentoPct &&
+    a.tratamientoImpuesto === l.tratamientoImpuesto &&
+    a.tasaImpuesto === l.tasaImpuesto &&
+    a.descripcion === l.descripcion
+  )
+}
+
+/**
+ * Sumar una línea al borrador.
+ *
+ * Si ya hay una línea igual, **suma la cantidad** en vez de agregar otra fila
+ * (Fase 28 · E6). Elegir tres veces el mismo producto es pedir tres unidades,
+ * no tres renglones: el documento impreso quedaba con la misma referencia
+ * repetida y había que juntarla a mano.
+ */
 export function agregarLinea(b: Borrador, l: Omit<LineaBorrador, 'clave' | 'id' | 'numeroLinea'>): Borrador {
+  const i = b.lineas.findIndex((x) => esLaMisma(x, l))
+  if (i >= 0) {
+    const lineas = [...b.lineas]
+    lineas[i] = { ...lineas[i]!, cantidad: lineas[i]!.cantidad + l.cantidad }
+    return { ...b, lineas }
+  }
   return {
     ...b,
     lineas: [

@@ -8,17 +8,12 @@
   margin-bottom: var(--space-3);
 }
 
-/* Los botones de categoría envuelven: son nueve y no entran en una línea. */
-.categorias {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-
 /* La tabla desplaza sola: el modal no crece con los resultados. */
 .cuerpo {
   overflow: auto;
-  max-height: min(58vh, 32rem);
+  /* Alto: lo que sobre después de los filtros. En un diálogo de 1400px de
+     ancho, 25 filas tienen que entrar sin pelear con el scroll de la página. */
+  max-height: min(62vh, 46rem);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
 }
@@ -54,8 +49,10 @@
   background: var(--color-success-soft);
 }
 
+/* La foto es para reconocer el producto, no un ícono: a 44px no se distinguía
+   una punta TORX de una PHILLIPS. */
 .colImagen {
-  width: 44px;
+  width: 64px;
 }
 
 .colNombre {
