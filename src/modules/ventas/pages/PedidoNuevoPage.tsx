@@ -416,6 +416,53 @@ export function PedidoNuevoPage() {
 
       {stel ? <AvisoAutoridadStel detalle={motivo} /> : null}
 
+      {crear.error ? (
+        <Alert tone="danger" role="alert" title="No se pudo crear el pedido">
+          <p>{mensajeErrorVentas(crear.error)}</p>
+        </Alert>
+      ) : null}
+
+      <ActionBar
+        pegajosa
+        label="Crear pedido"
+        primary={
+          <Button
+            icon={<Icon name="check" size={16} />}
+            onClick={() => crear.mutate(aPayloadCreacionPedido(b))}
+            loading={crear.isPending}
+            disabled={falta.length > 0 || stel || autoridad.cargando}
+            aria-describedby={stel || falta.length > 0 ? 'motivo-crear-pedido' : undefined}
+          >
+            {crear.isPending ? 'Creando…' : 'Crear pedido'}
+          </Button>
+        }
+        secondary={
+          <>
+            {/* Con pantalla ancha la hoja ya está al lado: el botón sobra. */}
+            {!pantallaAncha ? (
+              <Button
+                variant="secondary"
+                icon={<Icon name="eye" size={16} />}
+                onClick={() => setPreviaAbierta((v) => !v)}
+                aria-expanded={previaAbierta}
+              >
+                {previaAbierta ? 'Ocultar vista previa' : 'Vista previa'}
+              </Button>
+            ) : null}
+            <LinkButton to="/ventas/pedidos" variant="ghost">
+              Cancelar
+            </LinkButton>
+          </>
+        }
+        note={
+          stel ? (
+            <p id="motivo-crear-pedido">{motivo}</p>
+          ) : falta.length > 0 ? (
+            <p id="motivo-crear-pedido">{falta.join(' ')}</p>
+          ) : null
+        }
+      />
+
       {/* Fase 17 · E2: cuando un default del cliente no se puede aplicar, se
           dice por qué. Nunca se aplica un reemplazo en silencio. */}
       {avisosCliente.length > 0 ? (
@@ -541,52 +588,6 @@ export function PedidoNuevoPage() {
         ) : null}
       </div>
 
-      {crear.error ? (
-        <Alert tone="danger" role="alert" title="No se pudo crear el pedido">
-          <p>{mensajeErrorVentas(crear.error)}</p>
-        </Alert>
-      ) : null}
-
-      <ActionBar
-        pegajosa
-        label="Crear pedido"
-        primary={
-          <Button
-            icon={<Icon name="check" size={16} />}
-            onClick={() => crear.mutate(aPayloadCreacionPedido(b))}
-            loading={crear.isPending}
-            disabled={falta.length > 0 || stel || autoridad.cargando}
-            aria-describedby={stel || falta.length > 0 ? 'motivo-crear-pedido' : undefined}
-          >
-            {crear.isPending ? 'Creando…' : 'Crear pedido'}
-          </Button>
-        }
-        secondary={
-          <>
-            {/* Con pantalla ancha la hoja ya está al lado: el botón sobra. */}
-            {!pantallaAncha ? (
-              <Button
-                variant="secondary"
-                icon={<Icon name="eye" size={16} />}
-                onClick={() => setPreviaAbierta((v) => !v)}
-                aria-expanded={previaAbierta}
-              >
-                {previaAbierta ? 'Ocultar vista previa' : 'Vista previa'}
-              </Button>
-            ) : null}
-            <LinkButton to="/ventas/pedidos" variant="ghost">
-              Cancelar
-            </LinkButton>
-          </>
-        }
-        note={
-          stel ? (
-            <p id="motivo-crear-pedido">{motivo}</p>
-          ) : falta.length > 0 ? (
-            <p id="motivo-crear-pedido">{falta.join(' ')}</p>
-          ) : null
-        }
-      />
 
       {/* Fase 28 · E1: el catálogo entero, con sus categorías, para elegir
           sin salir del documento. Agrega con el MISMO `nueva()` que el

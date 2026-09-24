@@ -621,10 +621,12 @@ function Detalle() {
                 <Button variant="secondary" onClick={() => transicion.mutate({ hasta: 'rejected' })}>
                   Marcar rechazada
                 </Button>
+                {acciones.mas}
               </MoreMenu>
+            ) : acciones.hayMas ? (
+              <MoreMenu>{acciones.mas}</MoreMenu>
             ) : null
           }
-          danger={acciones.peligro}
           note={
             <>
               {!permiso.editable && permiso.motivo ? (

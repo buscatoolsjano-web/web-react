@@ -42,7 +42,7 @@ function Barra() {
   return (
     <div id="root">
       {a.secundarias}
-      {a.peligro}
+      {a.mas}
       {a.motivo}
       {a.capas}
     </div>
@@ -68,7 +68,7 @@ beforeEach(() => {
 describe('Acciones del documento (Fase 13)', () => {
   it('quien escribe ve Duplicar, Cancelar y Eliminar; todos ven Ver / Imprimir', () => {
     montar()
-    for (const nombre of ['Ver / Imprimir', 'Duplicar', 'Cancelar pedido', 'Eliminar']) {
+    for (const nombre of ['Ver / Imprimir', 'Duplicar pedido', 'Cancelar pedido', 'Eliminar pedido']) {
       expect(screen.getByRole('button', { name: nombre })).toBeInTheDocument()
     }
   })
@@ -77,7 +77,7 @@ describe('Acciones del documento (Fase 13)', () => {
     estado.rol = rol
     montar()
     expect(screen.getByRole('button', { name: 'Ver / Imprimir' })).toBeInTheDocument()
-    for (const nombre of ['Duplicar', 'Cancelar pedido', 'Eliminar']) {
+    for (const nombre of ['Duplicar pedido', 'Cancelar pedido', 'Eliminar pedido']) {
       expect(screen.queryByRole('button', { name: nombre })).toBeNull()
     }
   })
@@ -85,12 +85,12 @@ describe('Acciones del documento (Fase 13)', () => {
   it('Eliminar pide confirmación accesible con texto específico; nunca window.confirm', async () => {
     const nativo = vi.spyOn(window, 'confirm')
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar pedido' }))
     const dialogo = screen.getByRole('alertdialog', { name: '¿Eliminar pedido PED-00002?' })
     expect(dialogo).toHaveAccessibleDescription('Se borra el documento y sus líneas. No se puede deshacer.')
     expect(screen.getByRole('button', { name: 'Volver' })).toHaveFocus()
     expect(servicios.borrar).not.toHaveBeenCalled()
-    fireEvent.click(screen.getAllByRole('button', { name: 'Eliminar' }).at(-1)!)
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
     await waitFor(() => expect(servicios.borrar).toHaveBeenCalledWith('pedido', 'p1'))
     expect(nativo).not.toHaveBeenCalled()
   })
@@ -111,7 +111,7 @@ describe('Acciones del documento (Fase 13)', () => {
   it('STEL: Duplicar deshabilitado, y el motivo nombra la serie del documento nuevo', () => {
     estado.stel = true
     montar()
-    const duplicar = screen.getByRole('button', { name: 'Duplicar' })
+    const duplicar = screen.getByRole('button', { name: 'Duplicar pedido' })
     expect(duplicar).toBeDisabled()
     const motivo = document.getElementById(duplicar.getAttribute('aria-describedby')!)
     expect(motivo).toHaveTextContent(/El pedido nuevo saldría en la serie PDV, que numera STEL/)
@@ -123,7 +123,7 @@ describe('Acciones del documento (Fase 13)', () => {
     montar()
     expect(screen.queryByRole('button', { name: /Cancelar/ })).toBeNull()
     // Borrarlo tampoco: el trigger lo rechaza porque ya movió stock.
-    expect(screen.queryByRole('button', { name: 'Eliminar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Eliminar/ })).toBeNull()
     expect(screen.getByText('El remito ya generó movimiento de stock y no puede cancelarse directamente.')).toBeInTheDocument()
   })
 

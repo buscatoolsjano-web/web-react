@@ -321,7 +321,7 @@ describe('Pedido · edición por borrador', () => {
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
     expect(screen.getByText('Editando')).toBeInTheDocument()
-    for (const nombre of ['Confirmar pedido', 'Duplicar', 'Ver / Imprimir', 'Eliminar']) {
+    for (const nombre of ['Confirmar pedido', 'Más', 'Ver / Imprimir']) {
       expect(screen.queryByRole('button', { name: nombre })).toBeNull()
     }
   })
@@ -773,7 +773,9 @@ describe('Pedido · la serie del documento', () => {
     expect(screen.getByRole('button', { name: 'Confirmar pedido' })).toBeEnabled()
 
     // El que se crearía: bloqueado, y el motivo nombra la serie del NUEVO.
-    const duplicar = screen.getByRole('button', { name: 'Duplicar' })
+    // Fase 28 · E4: Duplicar vive adentro de «Más ▾», como en el sistema anterior.
+    fireEvent.click(screen.getByRole('button', { name: 'Más' }))
+    const duplicar = screen.getByRole('button', { name: 'Duplicar pedido' })
     expect(duplicar).toBeDisabled()
     const motivo = screen.getByText(/El pedido nuevo saldría en la serie PDV, que numera STEL/)
     expect(duplicar).toHaveAttribute('aria-describedby', motivo.id)

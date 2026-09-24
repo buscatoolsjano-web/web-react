@@ -33,10 +33,17 @@ export interface OpcionesAcciones {
 }
 
 export interface AccionesDocumento {
-  /** Ver/Imprimir y Duplicar. */
+  /** Ver / Imprimir. Es la que más se usa: queda siempre a la vista. */
   secundarias: ReactNode
-  /** Cancelar documento y Eliminar. */
-  peligro: ReactNode
+  /**
+   * Duplicar, Cancelar y Eliminar, para adentro de «Más ▾» (Fase 28 · E4).
+   *
+   * Es donde las tenía el sistema anterior, y es donde van bien: Duplicar se
+   * usa poco, y las otras dos son de las que conviene que cuesten un clic más.
+   */
+  mas: ReactNode
+  /** Si `mas` tiene algo. Sin esto habría que dibujar un «Más ▾» vacío. */
+  hayMas: boolean
   /** Motivo de Duplicar bloqueado por STEL. */
   motivo: ReactNode
   /** Error de la última acción. */
@@ -126,7 +133,7 @@ export function useAccionesDocumento(
     },
   })
 
-  if (!doc) return { secundarias: null, peligro: null, motivo: null, error: null, capas: null }
+  if (!doc) return { secundarias: null, mas: null, hayMas: false, motivo: null, error: null, capas: null }
 
   // Fase 14 E3: un remito despachado ya movió stock; la base rechaza cancelarlo
   // (DELIVERY_ALREADY_DISPATCHED), así que la acción no se ofrece.
@@ -140,12 +147,18 @@ export function useAccionesDocumento(
   const idPropio = `motivo-duplicar-${doc.id}`
   const nombre = ETIQUETA_DE[doc.tipo].singular
 
+  const sePuedeCancelar = escribe && !cerrado
+  const sePuedeBorrar = escribe && !doc.esHistorico && !remitoDespachado
+
   return {
     secundarias: (
+      <Button variant="secondary" icon={<Icon name="printer" size={16} />} onClick={() => setImprimiendo(true)}>
+        Ver / Imprimir
+      </Button>
+    ),
+    hayMas: sePuedeDuplicar || sePuedeCancelar || sePuedeBorrar,
+    mas: (
       <>
-        <Button variant="secondary" icon={<Icon name="printer" size={16} />} onClick={() => setImprimiendo(true)}>
-          Ver / Imprimir
-        </Button>
         {sePuedeDuplicar ? (
           <Button
             variant="secondary"
@@ -154,26 +167,26 @@ export function useAccionesDocumento(
             aria-describedby={stelDuplicar ? idPropio : undefined}
             onClick={() => duplicar.mutate()}
           >
-            {duplicar.isPending ? 'Duplicando…' : 'Duplicar'}
+            {duplicar.isPending ? 'Duplicando…' : `Duplicar ${nombre}`}
+          </Button>
+        ) : null}
+        {sePuedeCancelar ? (
+          <Button variant="secondary" disabled={cancelar.isPending} onClick={() => setConfirmar('cancelar')}>
+            Cancelar {nombre}
+          </Button>
+        ) : null}
+        {sePuedeBorrar ? (
+          <Button
+            variant="danger"
+            icon={<Icon name="trash" size={16} />}
+            disabled={borrar.isPending}
+            onClick={() => setConfirmar('eliminar')}
+          >
+            Eliminar {nombre}
           </Button>
         ) : null}
       </>
     ),
-    peligro:
-      escribe && (!cerrado || !doc.esHistorico) ? (
-        <>
-          {!cerrado ? (
-            <Button variant="secondary" disabled={cancelar.isPending} onClick={() => setConfirmar('cancelar')}>
-              Cancelar {nombre}
-            </Button>
-          ) : null}
-          {!doc.esHistorico && !remitoDespachado ? (
-            <Button variant="danger" icon={<Icon name="trash" size={16} />} disabled={borrar.isPending} onClick={() => setConfirmar('eliminar')}>
-              Eliminar
-            </Button>
-          ) : null}
-        </>
-      ) : null,
     motivo: (
       <>
         {sePuedeDuplicar && stelDuplicar ? (

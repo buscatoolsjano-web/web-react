@@ -458,6 +458,53 @@ export function CotizacionNuevaPage() {
 
       {stel ? <AvisoAutoridadStel detalle={motivo} /> : null}
 
+      {crear.error ? (
+        <Alert tone="danger" role="alert" title="No se pudo crear la cotización">
+          <p>{mensajeErrorVentas(crear.error)}</p>
+        </Alert>
+      ) : null}
+
+      <ActionBar
+        pegajosa
+        label="Crear cotización"
+        primary={
+          <Button
+            icon={<Icon name="check" size={16} />}
+            onClick={() => crear.mutate(aPayloadCreacion(b))}
+            loading={crear.isPending}
+            disabled={falta.length > 0 || stel || autoridad.cargando}
+            aria-describedby={stel || falta.length > 0 ? 'motivo-crear' : undefined}
+          >
+            {crear.isPending ? 'Creando…' : 'Crear cotización'}
+          </Button>
+        }
+        secondary={
+          <>
+            {/* Con pantalla ancha la previa ya está al lado: el botón sobra. */}
+            {!pantallaAncha ? (
+              <Button
+                variant="secondary"
+                icon={<Icon name="eye" size={16} />}
+                onClick={() => setPreviaAbierta((v) => !v)}
+                aria-expanded={previaAbierta}
+              >
+                {previaAbierta ? 'Ocultar vista previa' : 'Vista previa'}
+              </Button>
+            ) : null}
+            <LinkButton to="/ventas/cotizaciones" variant="ghost">
+              Cancelar
+            </LinkButton>
+          </>
+        }
+        note={
+          stel ? (
+            <p id="motivo-crear">{motivo}</p>
+          ) : falta.length > 0 ? (
+            <p id="motivo-crear">{falta.join(' ')}</p>
+          ) : null
+        }
+      />
+
       {/* Fase 22 · paridad #50: si un producto del carrito no tiene precio en
           esta tarifa, la línea queda en 0 y se avisa. Dejarla en 0 sin decir
           nada sería cotizar gratis sin que nadie se entere. */}
@@ -592,52 +639,6 @@ export function CotizacionNuevaPage() {
         ) : null}
       </div>
 
-      {crear.error ? (
-        <Alert tone="danger" role="alert" title="No se pudo crear la cotización">
-          <p>{mensajeErrorVentas(crear.error)}</p>
-        </Alert>
-      ) : null}
-
-      <ActionBar
-        pegajosa
-        label="Crear cotización"
-        primary={
-          <Button
-            icon={<Icon name="check" size={16} />}
-            onClick={() => crear.mutate(aPayloadCreacion(b))}
-            loading={crear.isPending}
-            disabled={falta.length > 0 || stel || autoridad.cargando}
-            aria-describedby={stel || falta.length > 0 ? 'motivo-crear' : undefined}
-          >
-            {crear.isPending ? 'Creando…' : 'Crear cotización'}
-          </Button>
-        }
-        secondary={
-          <>
-            {/* Con pantalla ancha la previa ya está al lado: el botón sobra. */}
-            {!pantallaAncha ? (
-              <Button
-                variant="secondary"
-                icon={<Icon name="eye" size={16} />}
-                onClick={() => setPreviaAbierta((v) => !v)}
-                aria-expanded={previaAbierta}
-              >
-                {previaAbierta ? 'Ocultar vista previa' : 'Vista previa'}
-              </Button>
-            ) : null}
-            <LinkButton to="/ventas/cotizaciones" variant="ghost">
-              Cancelar
-            </LinkButton>
-          </>
-        }
-        note={
-          stel ? (
-            <p id="motivo-crear">{motivo}</p>
-          ) : falta.length > 0 ? (
-            <p id="motivo-crear">{falta.join(' ')}</p>
-          ) : null
-        }
-      />
 
       {/* Fase 28 · E1: el catálogo entero, con sus categorías, para elegir
           sin salir del documento. Agrega con el MISMO `nueva()` que el

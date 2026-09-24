@@ -9,6 +9,7 @@ import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { ActionBar } from '@/components/document/ActionBar'
+import { MoreMenu } from '@/components/document/MoreMenu'
 import { DocSection } from '@/components/document/DocSection'
 import { DocumentHeader } from '@/components/document/DocumentHeader'
 import { DocumentTabs } from '@/components/document/DocumentTabs'
@@ -525,7 +526,9 @@ function Detalle() {
               {acciones.secundarias}
             </>
           }
-          danger={acciones.peligro}
+          more={
+            acciones.hayMas ? <MoreMenu>{acciones.mas}</MoreMenu> : null
+          }
           note={
             <>
               {!permiso.editable && permiso.motivo ? (
