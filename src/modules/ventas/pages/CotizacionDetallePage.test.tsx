@@ -36,6 +36,8 @@ const estado = vi.hoisted((): {
   series: { codigo: string; esPorDefecto: boolean; autoridad: string }[] | null
   /** Las series de PEDIDO, para elegir en qué serie se genera (Fase 19 · E4). */
   seriesPedido: { codigo: string; esPorDefecto: boolean; autoridad: string }[] | null
+  /** Fase 26 · E2: con pantalla ancha la hoja del documento va al lado. */
+  pantallaAncha: boolean
 } => ({
   rol: 'admin',
   stel: {},
@@ -48,6 +50,7 @@ const estado = vi.hoisted((): {
   vendedores: [],
   series: null,
   seriesPedido: null,
+  pantallaAncha: false,
 }))
 const espias = vi.hoisted(() => ({
   // Tipado con la firma real: sin eso `mock.calls[0]` es una tupla vacía y no
@@ -69,6 +72,15 @@ const espias = vi.hoisted(() => ({
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+// Los datos de la empresa para la hoja: no hay base en los tests.
+vi.mock('../services/empresa', () => ({
+  datosDeEmpresa: () => Promise.resolve({ nombre: 'ZZ Buscatools', razonSocial: null, cuit: null, direccion: null, telefono: null, email: null, web: null, color: '#1f2937' }),
+}))
+// La hoja al lado del editor depende del ancho (Fase 26 · E2).
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useIsMobile: () => false,
+  useMediaQuery: () => estado.pantallaAncha,
+}))
 // La ficha rápida es de Clientes y trae sus propias consultas: acá sólo
 // importa que la cotización la abra, no lo que la ficha muestre adentro.
 vi.mock('@/modules/clientes/components/PanelLateralCliente', () => ({
@@ -248,6 +260,7 @@ beforeEach(() => {
   estado.vendedores = []
   estado.series = null
   estado.seriesPedido = null
+  estado.pantallaAncha = false
   espias.guardar.mockClear()
   espias.convertir.mockClear()
   espias.convertirEnSerie.mockClear()
@@ -782,5 +795,64 @@ describe('Cotización · ficha rápida del cliente (Fase 19 · E3)', () => {
     const panel = screen.getByRole('tabpanel')
     expect(within(panel).queryByRole('button', { name: doc().clienteNombre })).toBeNull()
     expect(within(panel).getByText(doc().clienteNombre)).toBeInTheDocument()
+  })
+})
+
+/**
+ * La hoja del documento, al lado del editor (Fase 26 · E2).
+ *
+ * El pedido fue que una cotización vieja se vea igual que una nueva: con el
+ * documento a la derecha, editable si el documento se puede editar. Antes esta
+ * pantalla no tenía hoja y para ver cómo salía había que abrir el modal de
+ * impresión, donde no se puede tocar nada.
+ */
+describe('La hoja del documento', () => {
+  const hoja = () => screen.queryByRole('region', { name: 'Documento' })
+
+  it('con pantalla ancha aparece sola, con el documento adentro', async () => {
+    estado.pantallaAncha = true
+    montar()
+    await waitFor(() => expect(hoja()).not.toBeNull())
+    // Es el documento de verdad: su número y su cliente están en la hoja.
+    expect(within(hoja()!).getByText('COTI02558')).toBeInTheDocument()
+    expect(within(hoja()!).getByText(/Candado de bloqueo LOTO/)).toBeInTheDocument()
+  })
+
+  it('con pantalla angosta no ocupa lugar, y el botón la muestra', async () => {
+    estado.pantallaAncha = false
+    montar()
+    expect(hoja()).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver documento' }))
+    await waitFor(() => expect(hoja()).not.toBeNull())
+  })
+
+  it('con pantalla ancha el botón la puede esconder', async () => {
+    estado.pantallaAncha = true
+    montar()
+    await waitFor(() => expect(hoja()).not.toBeNull())
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar documento' }))
+    expect(hoja()).toBeNull()
+  })
+
+  /**
+   * La frontera que importa: un documento que no se puede editar muestra la
+   * hoja como documento, sin los controles de edición. Si se rompe, el
+   * «+ Agregar producto» termina impreso en algo que va a un cliente.
+   */
+  it('un documento no editable muestra la hoja sin controles de edición', async () => {
+    estado.doc = cotizacion({ estado: 'accepted' })
+    estado.pantallaAncha = true
+    montar()
+    await waitFor(() => expect(hoja()).not.toBeNull())
+    expect(within(hoja()!).queryByRole('button', { name: /Agregar producto/ })).toBeNull()
+  })
+
+  it('en borrador y editando, la hoja es el editor', async () => {
+    estado.doc = cotizacion({ estado: 'draft' })
+    estado.pantallaAncha = true
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    await waitFor(() => expect(hoja()).not.toBeNull())
+    expect(within(hoja()!).getByRole('button', { name: /Agregar producto/ })).toBeInTheDocument()
   })
 })

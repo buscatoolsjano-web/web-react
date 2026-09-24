@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { LinkButton } from '@/components/ui/LinkButton'
 import { Icon } from '@/components/icons/Icon'
 import { DialogoCambiosSinGuardar } from '@/components/modals/DialogoCambiosSinGuardar'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSalidaConCambios } from '@/hooks/useSalidaConCambios'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
@@ -20,8 +21,10 @@ import { Select } from '@/components/forms/controls'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TotalesDocumento } from '../components/TotalesDocumento'
+import { VistaPreviaBorrador } from '../components/VistaPreviaBorrador'
 import {
   useContactos,
+  useNombreDeCliente,
   useDireccionesEntrega,
   useSeries,
   useTarifas,
@@ -163,6 +166,8 @@ export function PedidoNuevoPage() {
   const tarifas = useTarifas(escribe)
   const vendedores = useVendedores(escribe)
   const contactos = useContactos(b.cabecera.customerId || null)
+  // Para la hoja hace falta el NOMBRE del cliente, no su id.
+  const clienteElegido = useNombreDeCliente(b.cabecera.customerId || null)
   const direcciones = useDireccionesEntrega(b.cabecera.customerId || null)
 
   // Fase 17 · E3: el contacto principal y el domicilio de entrega principal se
@@ -331,6 +336,22 @@ export function PedidoNuevoPage() {
     setB(ap.borrador)
   }
 
+  /**
+   * Para la hoja: el nombre, no el id (Fase 26 · E2).
+   *
+   * Mientras no hay cliente elegido la hoja lo dice en vez de quedar en
+   * blanco: un documento sin cliente no es un documento, y verlo vacío es
+   * la forma de acordarse.
+   */
+  const nombreDelCliente = clienteElegido.data?.nombre ?? '(cliente sin elegir)'
+  const nombreDelContacto =
+    (contactos.data ?? []).find((c) => c.id === b.cabecera.contactoId)?.nombre ?? null
+
+  /** Con 1280 px o más la hoja entra al lado del editor. */
+  const pantallaAncha = useMediaQuery('(min-width: 1280px)')
+  const [previaAbierta, setPreviaAbierta] = useState(false)
+  const verPrevia = pantallaAncha || previaAbierta
+
   const cambiarLinea = (clave: string, campo: CampoLinea, valor: string | number | null) =>
     setB((x) => {
       let siguiente = cambiarLineaBorrador(x, clave, CAMPO_BORRADOR[campo], valor)
@@ -405,6 +426,9 @@ export function PedidoNuevoPage() {
         </Alert>
       ) : null}
 
+      <div className={verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
+        <div className={editor.columnaEditor}>
+
       <DocSection title="Datos del documento">
         {/* Sólo aparece si la empresa tiene más de una serie: con una sola no
             hay nada que elegir y sería ruido. Arranca SIEMPRE en la que está
@@ -462,7 +486,7 @@ export function PedidoNuevoPage() {
         }
       >
         {buscando ? (
-          <div className={editor.selector}>
+          <div className={editor.selector} id="buscador-de-producto">
             <SelectorProducto
               moneda={b.cabecera.moneda}
               listaPrecioId={b.cabecera.listaPrecioId || null}
@@ -492,6 +516,39 @@ export function PedidoNuevoPage() {
         />
       </DocSection>
 
+        </div>
+
+        {verPrevia ? (
+          <div className={editor.columnaPrevia}>
+            <VistaPreviaBorrador
+              tipo="pedido"
+              fecha={b.cabecera.fecha}
+              cliente={nombreDelCliente}
+              contacto={nombreDelContacto}
+              moneda={b.cabecera.moneda || null}
+              formaPago={b.cabecera.formaPago || null}
+              notas={b.cabecera.notas || null}
+              lineas={lineasVisibles}
+              ajustarAlAncho={pantallaAncha}
+              /* La hoja edita EL MISMO borrador que el panel de la
+                 izquierda: hay un documento, no dos que sincronizar. */
+              edicion={{
+                onCantidad: (id, valor) => cambiarLinea(id, 'quantity', valor),
+                onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
+                onDescuento: (id, valor) => cambiarLinea(id, 'discount_pct', valor),
+                onEliminar: (id) => setB((x) => quitarLinea(x, id)),
+                onAgregar: () => {
+                  setBuscando(true)
+                  requestAnimationFrame(() => {
+                    document.getElementById('buscador-de-producto')?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+                  })
+                },
+              }}
+            />
+          </div>
+        ) : null}
+      </div>
+
       {crear.error ? (
         <Alert tone="danger" role="alert" title="No se pudo crear el pedido">
           <p>{mensajeErrorVentas(crear.error)}</p>
@@ -512,9 +569,22 @@ export function PedidoNuevoPage() {
           </Button>
         }
         secondary={
-          <LinkButton to="/ventas/pedidos" variant="ghost">
-            Cancelar
-          </LinkButton>
+          <>
+            {/* Con pantalla ancha la hoja ya está al lado: el botón sobra. */}
+            {!pantallaAncha ? (
+              <Button
+                variant="secondary"
+                icon={<Icon name="eye" size={16} />}
+                onClick={() => setPreviaAbierta((v) => !v)}
+                aria-expanded={previaAbierta}
+              >
+                {previaAbierta ? 'Ocultar vista previa' : 'Vista previa'}
+              </Button>
+            ) : null}
+            <LinkButton to="/ventas/pedidos" variant="ghost">
+              Cancelar
+            </LinkButton>
+          </>
         }
         note={
           stel ? (

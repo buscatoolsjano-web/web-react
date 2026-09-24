@@ -33,6 +33,8 @@ const estado = vi.hoisted((): {
   direcciones: unknown[]
   tarifas: unknown[]
   vendedores: unknown[]
+  /** Fase 26 · E2: con pantalla ancha la hoja del documento va al lado. */
+  pantallaAncha: boolean
 } => ({
   rol: 'admin',
   stel: {},
@@ -46,6 +48,7 @@ const estado = vi.hoisted((): {
   direcciones: [],
   tarifas: [],
   vendedores: [],
+  pantallaAncha: false,
 }))
 
 const espias = vi.hoisted(() => ({
@@ -75,6 +78,15 @@ const espias = vi.hoisted(() => ({
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+// Los datos de la empresa para la hoja: no hay base en los tests.
+vi.mock('../services/empresa', () => ({
+  datosDeEmpresa: () => Promise.resolve({ nombre: 'ZZ Buscatools', razonSocial: null, cuit: null, direccion: null, telefono: null, email: null, web: null, color: '#1f2937' }),
+}))
+// La hoja al lado del editor depende del ancho (Fase 26 · E2).
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useIsMobile: () => false,
+  useMediaQuery: () => estado.pantallaAncha,
+}))
 // La ficha rápida es de Clientes y trae sus propias consultas: acá sólo
 // importa que el pedido la abra.
 vi.mock('@/modules/clientes/components/PanelLateralCliente', () => ({
@@ -263,6 +275,7 @@ beforeEach(() => {
   estado.contactos = []
   estado.tarifas = []
   estado.vendedores = []
+  estado.pantallaAncha = false
   espias.guardar.mockClear()
   espias.cambiarEstado.mockClear()
   espias.buscar.mockClear()
@@ -932,5 +945,48 @@ describe('Pedido · generar remito', () => {
 
     await waitFor(() => expect(espias.remitar).toHaveBeenCalledTimes(1))
     expect(espias.remitar.mock.calls[0]!.at(-1)).toBe('RT-ERP')
+  })
+})
+
+/**
+ * La hoja del documento, al lado del editor (Fase 26 · E2).
+ *
+ * El mismo comportamiento que en la cotización, y por la misma razón: el pedido
+ * viejo tiene que verse como el nuevo. Estos tests son los mismos a propósito —
+ * si una de las dos pantallas cambia, la otra tiene que cambiar igual.
+ */
+describe('La hoja del documento', () => {
+  const hoja = () => screen.queryByRole('region', { name: 'Documento' })
+
+  it('con pantalla ancha aparece sola, con el documento adentro', async () => {
+    estado.pantallaAncha = true
+    montar()
+    await waitFor(() => expect(hoja()).not.toBeNull())
+    expect(within(hoja()!).getByText('PDV01321')).toBeInTheDocument()
+    expect(within(hoja()!).getByText(/Candado de bloqueo LOTO/)).toBeInTheDocument()
+  })
+
+  it('con pantalla angosta no ocupa lugar, y el botón la muestra', async () => {
+    estado.pantallaAncha = false
+    montar()
+    expect(hoja()).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver documento' }))
+    await waitFor(() => expect(hoja()).not.toBeNull())
+  })
+
+  it('un pedido confirmado muestra la hoja sin controles de edición', async () => {
+    estado.doc = pedido({ estado: 'confirmed' })
+    estado.pantallaAncha = true
+    montar()
+    await waitFor(() => expect(hoja()).not.toBeNull())
+    expect(within(hoja()!).queryByRole('button', { name: /Agregar producto/ })).toBeNull()
+  })
+
+  it('en borrador y editando, la hoja es el editor', async () => {
+    estado.pantallaAncha = true
+    montar()
+    editar()
+    await waitFor(() => expect(hoja()).not.toBeNull())
+    expect(within(hoja()!).getByRole('button', { name: /Agregar producto/ })).toBeInTheDocument()
   })
 })

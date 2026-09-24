@@ -26,6 +26,8 @@ const estado = vi.hoisted((): {
   defaults: { vendedorId: string | null; tarifaId: string | null; formaPago: string | null; moneda: string | null } | null
   /** Fase 19 · E4: las series de pedido, con su autoridad efectiva. */
   series: { codigo: string; esPorDefecto: boolean; autoridad: string }[] | null
+  /** Fase 26 · E2: con pantalla ancha la hoja del documento va al lado. */
+  pantallaAncha: boolean
 } => ({
   rol: 'admin',
   stel: {},
@@ -40,6 +42,7 @@ const estado = vi.hoisted((): {
   direcciones: [],
   productos: [],
   defaults: null,
+  pantallaAncha: false,
 }))
 
 const espias = vi.hoisted(() => ({
@@ -55,6 +58,15 @@ const espias = vi.hoisted(() => ({
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+// Los datos de la empresa para la hoja: no hay base en los tests.
+vi.mock('../services/empresa', () => ({
+  datosDeEmpresa: () => Promise.resolve({ nombre: 'ZZ Buscatools', razonSocial: null, cuit: null, direccion: null, telefono: null, email: null, web: null, color: '#1f2937' }),
+}))
+// La hoja al lado del editor depende del ancho (Fase 26 · E2).
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useIsMobile: () => false,
+  useMediaQuery: () => estado.pantallaAncha,
+}))
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({ activa: { companyId: 'c1', companyName: 'ZZ', rol: estado.rol, esInterno: true, customerId: null } }),
 }))
@@ -73,6 +85,9 @@ vi.mock('../hooks/useDocumentos', () => ({
   }),
   useVendedores: () => ({ data: estado.vendedores, isPending: false }),
   useContactos: () => ({ data: estado.contactos, isPending: false }),
+  // La hoja necesita el NOMBRE del cliente (Fase 26 · E2).
+  useNombreDeCliente: (id: string | null) =>
+    ({ data: id === null ? undefined : { id, nombre: 'ZZ Cliente Uno' }, isPending: false }),
   // Fase 17 · E3: los domicilios de entrega del cliente.
   useDireccionesEntrega: () => ({ data: estado.direcciones, isPending: false }),
 }))
@@ -138,6 +153,7 @@ beforeEach(() => {
   estado.stel = {}
   estado.series = null
   estado.productos = []
+  estado.pantallaAncha = false
   espias.crear.mockClear()
   espias.buscar.mockClear()
   espias.defaults.mockClear()
@@ -545,5 +561,38 @@ describe('Nuevo pedido · defaults que llegan antes de que React confirme', () =
       payment_terms: '60 días',
       currency_code: 'USD',
     })
+  })
+})
+
+/**
+ * La hoja al lado del editor (Fase 26 · E2).
+ *
+ * El alta de cotización la tenía desde la Fase 19 · E3 y el alta de pedido no,
+ * aunque el pedido es el documento que más se carga. «Que todas se vean igual»
+ * incluye las altas.
+ */
+describe('La hoja del pedido nuevo', () => {
+  const hoja = () => screen.queryByRole('region', { name: 'Documento' })
+
+  it('con pantalla ancha aparece sola y es el editor', async () => {
+    estado.pantallaAncha = true
+    montar()
+    await waitFor(() => expect(hoja()).not.toBeNull())
+    expect(within(hoja()!).getByRole('button', { name: /Agregar producto/ })).toBeInTheDocument()
+  })
+
+  it('sin cliente elegido la hoja lo dice, en vez de quedar en blanco', async () => {
+    estado.pantallaAncha = true
+    montar()
+    await waitFor(() => expect(hoja()).not.toBeNull())
+    expect(within(hoja()!).getByText('(cliente sin elegir)')).toBeInTheDocument()
+  })
+
+  it('con pantalla angosta hay un botón para verla', async () => {
+    estado.pantallaAncha = false
+    montar()
+    expect(hoja()).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Vista previa' }))
+    await waitFor(() => expect(hoja()).not.toBeNull())
   })
 })

@@ -28,7 +28,9 @@ const estado = vi.hoisted((): {
   eventos: unknown[]
   contactos: unknown[]
   pendientes: unknown[]
-} => ({ rol: 'admin', stel: {}, doc: null, relacionados: null, revision: undefined, series: null, avance: undefined, eventos: [], contactos: [], pendientes: [] }))
+  /** Fase 26 · E2: con pantalla ancha la hoja del documento va al lado. */
+  pantallaAncha: boolean
+} => ({ rol: 'admin', stel: {}, doc: null, relacionados: null, revision: undefined, series: null, avance: undefined, eventos: [], contactos: [], pendientes: [], pantallaAncha: false }))
 
 const espias = vi.hoisted(() => ({
   guardar: vi.fn(
@@ -46,6 +48,15 @@ const espias = vi.hoisted(() => ({
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+// Los datos de la empresa para la hoja: no hay base en los tests.
+vi.mock('../services/empresa', () => ({
+  datosDeEmpresa: () => Promise.resolve({ nombre: 'ZZ Buscatools', razonSocial: null, cuit: null, direccion: null, telefono: null, email: null, web: null, color: '#1f2937' }),
+}))
+// La hoja al lado del editor depende del ancho (Fase 26 · E2).
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useIsMobile: () => false,
+  useMediaQuery: () => estado.pantallaAncha,
+}))
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({
     activa: { companyId: 'c1', companyName: 'ZZ Pruebas', rol: estado.rol, esInterno: true, customerId: null },
@@ -213,6 +224,7 @@ beforeEach(() => {
       descuentoPct: 0, tratamientoImpuesto: 'vat_21', tasaImpuesto: 21, stockLibre: 10,
     },
   ]
+  estado.pantallaAncha = false
   espias.guardar.mockClear()
   espias.confirmar.mockClear()
   espias.pendientes.mockClear()
@@ -532,5 +544,40 @@ describe('Remito · avance del pedido', () => {
     montar()
     expect(screen.getByText('Avance no reconstruido')).toBeInTheDocument()
     expect(screen.getByText(/No se calcula el avance por línea/)).toBeInTheDocument()
+  })
+})
+
+/**
+ * La hoja del remito, al lado del editor (Fase 26 · E2).
+ *
+ * Con una diferencia respecto de la cotización y el pedido: **la hoja del
+ * remito no se edita.** Lo único editable de un remito es la cantidad, y tiene
+ * tope contra lo pendiente del pedido; ese tope y la columna «pendiente
+ * después» están en la tabla de la izquierda, y dejar escribir en la hoja sería
+ * saltear la única pantalla que muestra contra qué se compara.
+ */
+describe('La hoja del remito', () => {
+  const hoja = () => screen.queryByRole('region', { name: 'Documento' })
+
+  it('con pantalla ancha aparece sola, con el remito adentro', async () => {
+    estado.pantallaAncha = true
+    montar()
+    await waitFor(() => expect(hoja()).not.toBeNull())
+    expect(within(hoja()!).getByText('RT00001321')).toBeInTheDocument()
+  })
+
+  it('con pantalla angosta no ocupa lugar, y el botón la muestra', async () => {
+    estado.pantallaAncha = false
+    montar()
+    expect(hoja()).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver documento' }))
+    await waitFor(() => expect(hoja()).not.toBeNull())
+  })
+
+  it('nunca es un editor: no tiene el control de agregar producto', async () => {
+    estado.pantallaAncha = true
+    montar()
+    await waitFor(() => expect(hoja()).not.toBeNull())
+    expect(within(hoja()!).queryByRole('button', { name: /Agregar producto/ })).toBeNull()
   })
 })

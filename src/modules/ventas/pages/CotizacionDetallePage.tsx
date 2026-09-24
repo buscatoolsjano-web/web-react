@@ -36,6 +36,7 @@ import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TablaLineas } from '../components/TablaLineas'
 import { TotalesDocumento } from '../components/TotalesDocumento'
+import { VistaPreviaDocumento } from '../components/VistaPreviaDocumento'
 import {
   agregarLinea,
   aPayload,
@@ -64,6 +65,7 @@ import { formatearFecha, formatearImporte } from '../lib/formato'
 import { presentarOrigen } from '../lib/origen'
 import { tasaDe } from '../lib/tratamientos'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useVolverAlListado } from '../hooks/useVolverAlListado'
 import {
   useContactos,
@@ -142,6 +144,17 @@ function Detalle() {
   // está editando. Los dos en `null` significa modo lectura.
   const [original, setOriginal] = useState<Borrador | null>(null)
   const [borrador, setBorrador] = useState<Borrador | null>(null)
+
+  /**
+   * Si se ve la hoja al lado (Fase 26 · E2).
+   *
+   * `null` = nadie lo eligió todavía, y entonces manda la pantalla: con 1280 px
+   * o más la hoja entra al lado del editor y se muestra, como en el alta. Una
+   * vez que se toca el botón, gana lo que pidió la persona.
+   */
+  const pantallaAncha = useMediaQuery('(min-width: 1280px)')
+  const [previaPedida, setPreviaPedida] = useState<boolean | null>(null)
+  const verPrevia = previaPedida ?? pantallaAncha
   const [buscando, setBuscando] = useState(false)
   const [ultimoError, setUltimoError] = useState<string | null>(null)
   const [conflicto, setConflicto] = useState(false)
@@ -632,28 +645,45 @@ function Detalle() {
         label="Secciones de la cotización"
       >
         {pestana === 'lineas' ? (
+          /* Fase 26 · E2: el editor a la izquierda y la HOJA a la derecha,
+             igual que en el alta. Antes esta pantalla no tenía hoja y para ver
+             cómo salía el documento había que abrir el modal de impresión —
+             donde no se puede editar. */
+          <div className={verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
+          <div className={editor.columnaEditor}>
           <DocSection
             title="Líneas"
             actions={
-              editando ? (
-                <>
-                  <Button variant="secondary" size="sm" icon={<Icon name="search" size={16} />} onClick={() => setBuscando(true)}>
-                    Añadir producto
-                  </Button>
-                  <Button variant="secondary" size="sm" icon={<Icon name="plus" size={16} />} onClick={() => nueva()}>
-                    Nueva línea
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => nueva({ tipoLinea: 'chapter', nombre: 'Capítulo', tasaImpuesto: 0 })}>
-                    Nuevo capítulo
-                  </Button>
-                </>
-              ) : null
+              <>
+                {editando ? (
+                  <>
+                    <Button variant="secondary" size="sm" icon={<Icon name="search" size={16} />} onClick={() => setBuscando(true)}>
+                      Añadir producto
+                    </Button>
+                    <Button variant="secondary" size="sm" icon={<Icon name="plus" size={16} />} onClick={() => nueva()}>
+                      Nueva línea
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => nueva({ tipoLinea: 'chapter', nombre: 'Capítulo', tasaImpuesto: 0 })}>
+                      Nuevo capítulo
+                    </Button>
+                  </>
+                ) : null}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<Icon name="eye" size={16} />}
+                  onClick={() => setPreviaPedida(!verPrevia)}
+                  aria-expanded={verPrevia}
+                >
+                  {verPrevia ? 'Ocultar documento' : 'Ver documento'}
+                </Button>
+              </>
             }
           >
             {editando ? (
               <>
                 {buscando ? (
-                  <div className={editor.selector}>
+                  <div className={editor.selector} id="buscador-de-producto">
                     <SelectorProducto
                       moneda={borrador.cabecera.moneda}
                       listaPrecioId={borrador.cabecera.listaPrecioId || null}
@@ -691,6 +721,46 @@ function Detalle() {
               }
             />
           </DocSection>
+          </div>
+
+          {verPrevia ? (
+            <div className={editor.columnaPrevia}>
+              <VistaPreviaDocumento
+                doc={docVisible}
+                lineas={lineasVisibles}
+                ajustarAlAncho={pantallaAncha}
+                aclaracion={
+                  editando
+                    ? 'Mientras editás, el total es una previsualización: el definitivo lo calcula el servidor al guardar.'
+                    : null
+                }
+                /* La hoja edita EL MISMO borrador que el panel de la izquierda,
+                   y sólo cuando el documento se puede editar: si no, es el
+                   documento y no un editor. */
+                edicion={
+                  editando
+                    ? {
+                        onCantidad: (id, valor) => cambiarLinea(id, 'quantity', valor),
+                        onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
+                        onDescuento: (id, valor) => cambiarLinea(id, 'discount_pct', valor),
+                        onEliminar: (id) => setBorrador((b) => (b ? quitarLinea(b, id) : b)),
+                        onAgregar: () => {
+                          setBuscando(true)
+                          // El buscador vive en el panel de la izquierda: si se
+                          // lo pidió desde la hoja, hay que llevarlo a la vista.
+                          requestAnimationFrame(() => {
+                            document
+                              .getElementById('buscador-de-producto')
+                              ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+                          })
+                        },
+                      }
+                    : null
+                }
+              />
+            </div>
+          ) : null}
+          </div>
         ) : null}
 
         {pestana === 'informacion' ? (

@@ -29,19 +29,34 @@
   min-width: 0;
 }
 
-/* El marco NO recorta ni scrollea: la hoja se escala para entrar (Fase 22).
-   Antes esto era una ventana de `max-height` con scroll, y el final del
-   documento —los totales— quedaba abajo del borde. */
+/* El marco da el ANCHO y desplaza en vertical (Fase 26 · E1).
+
+   La hoja se escala para ocupar todo el ancho, así que acá no queda gris a los
+   costados: el padding es el mínimo para que se vea el borde del papel. Lo que
+   no entra a lo alto se desplaza, que fue el pedido — antes entraba la página
+   completa y la hoja terminaba al 55 %, ilegible. */
 .marco {
   flex: 1;
   min-height: 0;
-  padding: var(--space-2);
+  padding: 1px;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   min-width: 0;
+  overflow-y: auto;
+  /* `auto` y no `hidden`: en el teléfono la hoja NO se escala —`ajustarAlAncho`
+     es false— y recortarla la dejaría sin el margen derecho. Escalada nunca
+     aparece, porque la escala se calcula contra el ancho ya sin padding. */
+  overflow-x: auto;
+  /* La canaleta del scroll se reserva siempre: si apareciera recién cuando la
+     hoja no entra, el ancho del marco cambiaría, la escala se recalcularía y la
+     hoja parpadearía de tamaño en cada medición. */
+  scrollbar-gutter: stable;
+  /* `start` y no `center`: con la hoja a ancho completo centrar no cambia
+     nada, y al desplazar hacia abajo centrar la pelearía. */
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 /* Toma el tamaño ya escalado, para que no quede hueco debajo de la hoja. */
@@ -70,6 +85,7 @@
     padding: 0;
     background: none;
     border: 0;
+    overflow: visible;
   }
 
   .escalador {

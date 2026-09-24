@@ -31,6 +31,7 @@ import { PanelLateralCliente } from '@/modules/clientes/components/PanelLateralC
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
 import { PanelAvanceRemito } from '../components/PanelAvanceRemito'
+import { VistaPreviaDocumento } from '../components/VistaPreviaDocumento'
 import { TablaLineas } from '../components/TablaLineas'
 import {
   useAvanceDeRemito,
@@ -40,6 +41,7 @@ import {
   useRevision,
 } from '../hooks/useDocumentos'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useVolverAlListado } from '../hooks/useVolverAlListado'
 import { mensajeErrorVentas, motivoBloqueo } from '../lib/autoridad'
 import {
@@ -107,6 +109,21 @@ function Detalle() {
   /** La ficha rápida del cliente, sin salir del documento (Fase 19 · E4). */
   const [viendoCliente, setViendoCliente] = useState(false)
   const [aAgregar, setAAgregar] = useState('')
+
+  /**
+   * Si se ve la hoja al lado (Fase 26 · E2).
+   *
+   * `null` = nadie lo eligió todavía, y entonces manda la pantalla: con
+   * 1280 px o más la hoja entra al lado del editor y se muestra, como en el
+   * alta de una cotización. Una vez que se toca el botón, gana lo que pidió
+   * la persona.
+   *
+   * Va acá arriba y no al lado de `lineasParaHoja`: abajo de los `return`
+   * tempranos serían hooks condicionales.
+   */
+  const pantallaAncha = useMediaQuery('(min-width: 1280px)')
+  const [previaPedida, setPreviaPedida] = useState<boolean | null>(null)
+  const verPrevia = previaPedida ?? pantallaAncha
   const [pestana, setPestana] = useTabDeUrl<Pestana>(PESTANAS, 'lineas')
   const idPestanas = useId()
 
@@ -278,6 +295,33 @@ function Detalle() {
         ordenLineaId: l.orderLineId,
       }))
     : doc.lineas
+
+  /**
+   * Las líneas como van en la hoja.
+   *
+   * El borrador del remito no lleva precio —el editor lo aclara: el precio
+   * viene del pedido y no se edita acá—, así que pasárselo tal cual dejaría
+   * la hoja sin importes mientras se edita. Se recupera el precio de la
+   * línea guardada que corresponde a la misma línea de pedido. Una línea
+   * recién agregada desde el pedido todavía no tiene guardada, y va sin
+   * importe: la hoja muestra un guión, que es la verdad.
+   */
+  const lineasParaHoja = borrador
+    ? lineasVisibles.map((l) => {
+        const guardada = l.ordenLineaId === null
+          ? undefined
+          : doc.lineas.find((o) => o.ordenLineaId === l.ordenLineaId)
+        return guardada
+          ? {
+              ...l,
+              precioUnitario: guardada.precioUnitario,
+              descuentoPct: guardada.descuentoPct,
+              tratamientoImpuesto: guardada.tratamientoImpuesto,
+              tasaImpuesto: guardada.tasaImpuesto,
+            }
+          : l
+      })
+    : lineasVisibles
 
   const pestanas = [
     { key: 'lineas' as const, label: 'Líneas', count: lineasVisibles.length },
@@ -452,10 +496,16 @@ function Detalle() {
 
       <DocumentTabs id={idPestanas} items={pestanas} value={pestana} onChange={setPestana} label="Secciones del remito">
         {pestana === 'lineas' ? (
+          /* Fase 26 · E2: el editor a la izquierda y la HOJA a la derecha,
+             igual que en el alta de una cotización. La hoja del remito es de
+             sólo lectura: ver la nota de `lineasParaHoja`. */
+          <div className={verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
+          <div className={editor.columnaEditor}>
           <DocSection
             title="Líneas"
             actions={
-              editando && agregables.length > 0 ? (
+              <>
+              {editando && agregables.length > 0 ? (
                 <>
                   <Select
                     aria-label="Línea del pedido para agregar"
@@ -486,7 +536,17 @@ function Detalle() {
                     Agregar
                   </Button>
                 </>
-              ) : null
+              ) : null}
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Icon name="eye" size={16} />}
+                onClick={() => setPreviaPedida(!verPrevia)}
+                aria-expanded={verPrevia}
+              >
+                {verPrevia ? 'Ocultar documento' : 'Ver documento'}
+              </Button>
+              </>
             }
           >
             {editando ? (
@@ -574,12 +634,11 @@ function Detalle() {
               />
             )}
           </DocSection>
-        ) : null}
 
         {/* Fase 19 · E5: los cuatro números contra el pedido, sin salir del
             remito. Sólo con pedido de origen: uno suelto no tiene contra qué
             compararse. */}
-        {pestana === 'lineas' && !editando && doc.origen?.tipo === 'pedido' ? (
+        {!editando && doc.origen?.tipo === 'pedido' ? (
           <DocSection title="Avance del pedido">
             <PanelAvanceRemito
               avance={avance.data}
@@ -587,6 +646,24 @@ function Detalle() {
               despachado={doc.estado === 'shipped' || doc.estado === 'delivered'}
             />
           </DocSection>
+        ) : null}
+          </div>
+
+          {verPrevia ? (
+            <div className={editor.columnaPrevia}>
+              <VistaPreviaDocumento
+                doc={doc}
+                lineas={lineasParaHoja}
+                ajustarAlAncho={pantallaAncha}
+                aclaracion={
+                  editando
+                    ? 'La hoja muestra las cantidades que estás editando. El precio y el impuesto vienen del pedido y no se editan acá.'
+                    : null
+                }
+              />
+            </div>
+          ) : null}
+          </div>
         ) : null}
 
         {pestana === 'informacion' ? (
