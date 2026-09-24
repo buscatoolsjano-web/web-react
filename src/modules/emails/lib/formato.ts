@@ -43,6 +43,16 @@ export function tamanoLegible(bytes: number): string {
 }
 
 /**
+ * ¿Se puede mirar sin bajarlo? (Fase 28 · E8)
+ *
+ * Sólo PDF e imágenes. Un  con un .docx no muestra nada o, peor, se
+ * lo baja solo, que es justo lo que se quería evitar.
+ */
+export function sePuedeVer(mime: string): boolean {
+  return mime === 'application/pdf' || mime.startsWith('image/')
+}
+
+/**
  * Los adjuntos que se listan: los que alguien mandó. Las imágenes inline son
  * parte del cuerpo y ya se ven ahí.
  */

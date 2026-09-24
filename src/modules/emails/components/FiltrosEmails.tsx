@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { FilterBar } from '@/components/filters/FilterBar'
 import { Field } from '@/components/forms/Field'
 import { Checkbox, Input, Select } from '@/components/forms/controls'
-import { ESTADOS_TRABAJO, type CuentaEmail, type EstadoTrabajo, type FiltrosEmails as Filtros, type UsuarioAsignable } from '../types'
+import { ESTADOS_TRABAJO, type CuentaEmail, type EstadoTrabajo, type EtiquetaEmail, type FiltrosEmails as Filtros, type UsuarioAsignable } from '../types'
 import { ETIQUETA_ESTADO } from '../lib/formato'
 
 export interface FiltrosEmailsProps {
@@ -10,6 +10,8 @@ export interface FiltrosEmailsProps {
   hayFiltros: boolean
   cuentas: CuentaEmail[]
   asignables: UsuarioAsignable[]
+  /** Las etiquetas del ERP. Sin ninguna creada, el filtro no se dibuja. */
+  etiquetas: EtiquetaEmail[]
   onAplicar: (cambios: Partial<Filtros>) => void
   onLimpiar: () => void
 }
@@ -24,7 +26,7 @@ export interface FiltrosEmailsProps {
  * Fase 13 · E5: sobre el `FilterBar` común; en mobile la búsqueda queda a la
  * vista y el resto se pliega.
  */
-export function FiltrosEmails({ filtros, hayFiltros, cuentas, asignables, onAplicar, onLimpiar }: FiltrosEmailsProps) {
+export function FiltrosEmails({ filtros, hayFiltros, cuentas, asignables, etiquetas, onAplicar, onLimpiar }: FiltrosEmailsProps) {
   const [texto, setTexto] = useState(filtros.q)
   const [qPrevia, setQPrevia] = useState(filtros.q)
   if (qPrevia !== filtros.q) {
@@ -43,6 +45,7 @@ export function FiltrosEmails({ filtros, hayFiltros, cuentas, asignables, onApli
     (filtros.estado ? 1 : 0) +
     (filtros.asignado ? 1 : 0) +
     (filtros.cliente ? 1 : 0) +
+    (filtros.etiqueta ? 1 : 0) +
     (filtros.soloNoLeidos ? 1 : 0) +
     (filtros.soloConAdjuntos ? 1 : 0)
 
@@ -72,6 +75,21 @@ export function FiltrosEmails({ filtros, hayFiltros, cuentas, asignables, onApli
             {cuentas.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.direccion}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      ) : null}
+
+      {/* Fase 28 · E8: etiquetas del ERP, no las de Gmail. Sin ninguna
+          creada no se dibuja: un filtro con una sola opción no es un filtro. */}
+      {etiquetas.length > 0 ? (
+        <Field label="Etiqueta" hideLabel>
+          <Select value={filtros.etiqueta ?? ''} onChange={(e) => onAplicar({ etiqueta: e.target.value || null })}>
+            <option value="">Todas las etiquetas</option>
+            {etiquetas.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.nombre}
               </option>
             ))}
           </Select>

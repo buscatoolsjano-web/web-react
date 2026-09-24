@@ -1,10 +1,12 @@
+import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { ErrorContenido, mensajeDeError } from '../lib/errores'
-import { adjuntosVisibles, tamanoLegible } from '../lib/formato'
+import { adjuntosVisibles, sePuedeVer, tamanoLegible } from '../lib/formato'
 import { guardarEnDisco, traerAdjunto } from '../services/contenido'
 import type { AdjuntoContenido, HiloIndice, MensajeContenido } from '../types'
+import { VisorAdjunto } from './VisorAdjunto'
 import styles from './Emails.module.css'
 
 export interface AdjuntosEmailProps {
@@ -34,6 +36,7 @@ export function AdjuntosEmail({ hilo, mensaje }: AdjuntosEmailProps) {
 }
 
 function Adjunto({ hilo, mensajeId, adjunto }: { hilo: HiloIndice; mensajeId: string; adjunto: AdjuntoContenido }) {
+  const [viendo, setViendo] = useState(false)
   const bajar = useMutation({
     mutationFn: () => traerAdjunto(hilo.accountId, hilo.gmailThreadId, mensajeId, adjunto.partId),
     onSuccess: (blob) => guardarEnDisco(blob, adjunto.nombre),
@@ -56,6 +59,20 @@ function Adjunto({ hilo, mensajeId, adjunto }: { hilo: HiloIndice; mensajeId: st
           </span>
         ) : null}
       </span>
+      {/* Fase 28 · E8: un PDF o una imagen se miran sin bajarlos. Lo demás no
+          se ofrece: un `<iframe>` con un .docx no muestra nada, o se lo baja
+          solo, que es justo lo que se quería evitar. */}
+      {sePuedeVer(adjunto.mime) ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={<Icon name="eye" size={16} />}
+          onClick={() => setViendo(true)}
+          aria-label={`Ver ${adjunto.nombre}`}
+        >
+          Ver
+        </Button>
+      ) : null}
       <Button
         variant="secondary"
         size="sm"
@@ -66,6 +83,10 @@ function Adjunto({ hilo, mensajeId, adjunto }: { hilo: HiloIndice; mensajeId: st
       >
         {bajar.isPending ? 'Descargando…' : 'Descargar'}
       </Button>
+
+      {viendo ? (
+        <VisorAdjunto hilo={hilo} mensajeId={mensajeId} adjunto={adjunto} onCerrar={() => setViendo(false)} />
+      ) : null}
     </li>
   )
 }

@@ -12,6 +12,25 @@
 export const ESTADOS_TRABAJO = ['pendiente', 'en_proceso', 'resuelto'] as const
 export type EstadoTrabajo = (typeof ESTADOS_TRABAJO)[number]
 
+/**
+ * Una etiqueta del ERP (Fase 28 · E8).
+ *
+ * NO son las de Gmail. `email_threads.gmail_labels` trae las de allá, y son de
+ * sólo lectura: el navegador nunca habla con Gmail. Éstas —«Cotizar»,
+ * «Reclamo»— se crean y se ponen acá, y por eso no se mezclan con aquéllas.
+ *
+ * El color es uno de los seis tonos del sistema, no un hex: un color inventado
+ * se ve mal en modo oscuro y nadie lo mira hasta que ya está cargado.
+ */
+export const COLORES_ETIQUETA = ['neutral', 'info', 'brand', 'success', 'warning', 'danger'] as const
+export type ColorEtiqueta = (typeof COLORES_ETIQUETA)[number]
+
+export interface EtiquetaEmail {
+  id: string
+  nombre: string
+  color: ColorEtiqueta
+}
+
 /** `yo`, `nadie` o el uuid de un usuario. */
 export type FiltroAsignado = string
 export type FiltroCliente = 'con' | 'sin'
@@ -39,6 +58,8 @@ export interface FiltrosEmails {
   cuenta: string | null
   /** Carpeta, no filtro: «Limpiar filtros» no te saca de Enviados. */
   carpeta: CarpetaBandeja
+  /** id de una etiqueta del ERP, o null. */
+  etiqueta: string | null
   pagina: number
   porPagina: number
 }
@@ -52,6 +73,7 @@ export const FILTROS_INICIALES: FiltrosEmails = {
   soloConAdjuntos: false,
   cuenta: null,
   carpeta: 'todos',
+  etiqueta: null,
   pagina: 1,
   porPagina: 25,
 }
@@ -78,6 +100,8 @@ export interface FilaBandeja {
   sinLeer: boolean
   /** Sacado de la bandeja del ERP. Sólo aparece en la carpeta «Eliminados». */
   eliminado: boolean
+  /** Las etiquetas del ERP puestas en el hilo. */
+  etiquetas: EtiquetaEmail[]
 }
 
 export interface PaginaBandeja {

@@ -10,6 +10,7 @@ import { ImagenProducto } from './ImagenProducto'
 import { PopoverProducto } from './PopoverProducto'
 import { atributosDestacados } from '../lib/destacados'
 import { valorDinamico, type ColumnaDinamica } from '../lib/columnasDinamicas'
+import { EncabezadoOrdenable as Encabezado, type OrdenDeColumna } from './EncabezadoOrdenable'
 import type { DefinicionAtributo, ProductoListado } from '../types'
 import styles from './ListadoProductos.module.css'
 
@@ -48,12 +49,8 @@ export interface SeleccionComparar {
   lleno: boolean
 }
 
-/** El estado del orden y cómo pedirle otro. */
-export interface OrdenDeColumna {
-  campo: string
-  direccion: 'asc' | 'desc'
-  ordenar: (campo: string) => void
-}
+/** Se re-exporta para no romper a quien ya lo importaba de acá. */
+export type { OrdenDeColumna } from './EncabezadoOrdenable'
 
 /**
  * Los controles que se manejan solos. Un click acá adentro es del control:
@@ -471,48 +468,3 @@ export function ListadoProductos({
   )
 }
 
-/**
- * Un encabezado que ordena (Fase 22 · paridad, #13).
- *
- * El legacy (`app.js:17366`) hace exactamente dos cosas: si ya se está
- * ordenando por ese campo, da vuelta la dirección; si no, ordena por ese
- * campo ascendente. **No hay tercer click que saque el orden** — lo verifiqué
- * en el código antes de escribir esto, porque era la duda razonable.
- *
- * Si la columna no se puede ordenar, sigue siendo un `th` normal: no hay un
- * botón que no hace nada.
- */
-export function Encabezado({
-  campo,
-  orden,
-  className,
-  children,
-}: {
-  campo: string
-  orden: OrdenDeColumna | undefined
-  className?: string | undefined
-  children: React.ReactNode
-}) {
-  const clase = className ? `${styles.th} ${className}` : styles.th
-  if (!orden) {
-    return (
-      <th scope="col" className={className}>
-        {children}
-      </th>
-    )
-  }
-  const activo = orden.campo === campo
-  const asc = activo && orden.direccion === 'asc'
-  return (
-    <th scope="col" className={clase} aria-sort={activo ? (asc ? 'ascending' : 'descending') : 'none'}>
-      <button type="button" className={styles.ordenar} onClick={() => orden.ordenar(campo)}>
-        {children}
-        {/* El indicador va marcado como decorativo: la dirección ya la dice
-            `aria-sort`, y leerla dos veces molesta más de lo que ayuda. */}
-        <span className={activo ? styles.flecha : styles.flechaInactiva} aria-hidden="true">
-          {activo ? (asc ? '▲' : '▼') : '⇅'}
-        </span>
-      </button>
-    </th>
-  )
-}

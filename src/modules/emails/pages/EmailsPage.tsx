@@ -13,18 +13,22 @@ import { Icon } from '@/components/icons/Icon'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { FiltrosEmails } from '../components/FiltrosEmails'
 import { ListadoEmails } from '../components/ListadoEmails'
+import { ModalEtiquetas } from '../components/ModalEtiquetas'
 import { SinAccesoEmails } from '../components/SinAccesoEmails'
 import {
   useAsignables,
+  useAsignarDesdeBandeja,
   useBandeja,
   useCuentas,
   useEliminarHilo,
+  useEtiquetarHilo,
+  useEtiquetas,
   useFiltrosEmails,
 } from '../hooks/useEmails'
 import { useRealtimeEmails } from '../hooks/useRealtimeEmails'
 import { TAMANOS_BANDEJA } from '../lib/filtros'
 import { puedeUsarEmails } from '../lib/permisos'
-import type { CarpetaBandeja, FilaBandeja } from '../types'
+import type { CarpetaBandeja, EtiquetaEmail, FilaBandeja } from '../types'
 import styles from '../components/Emails.module.css'
 
 const HILO = { singular: 'hilo', plural: 'hilos' }
@@ -75,12 +79,28 @@ function Bandeja() {
   const { canal, reconectar } = useRealtimeEmails()
   const pestanas = useId()
   const eliminar = useEliminarHilo()
+  const asignarRapido = useAsignarDesdeBandeja(filtros)
+  const etiquetar = useEtiquetarHilo(filtros)
+  const etiquetas = useEtiquetas()
+  const [etiquetasAbiertas, setEtiquetasAbiertas] = useState(false)
   const [trabajando, setTrabajando] = useState<string | null>(null)
 
-  const alEliminar = (fila: FilaBandeja, quitar: boolean) => {
+  /** Las tres acciones de la fila bloquean esa fila mientras van y vuelven. */
+  const enFila = <T,>(fila: FilaBandeja, correr: (opciones: { onSettled: () => void }) => T) => {
     setTrabajando(fila.id)
-    eliminar.mutate({ fila, eliminar: quitar }, { onSettled: () => setTrabajando(null) })
+    correr({ onSettled: () => setTrabajando(null) })
   }
+
+  const alEliminar = (fila: FilaBandeja, quitar: boolean) =>
+    enFila(fila, (o) => eliminar.mutate({ fila, eliminar: quitar }, o))
+
+  const alAsignar = (fila: FilaBandeja, usuario: string | null, nombre: string | null) =>
+    enFila(fila, (o) => asignarRapido.mutate({ fila, usuario, nombre }, o))
+
+  const alEtiquetar = (fila: FilaBandeja, etiqueta: EtiquetaEmail, poner: boolean) =>
+    enFila(fila, (o) => etiquetar.mutate({ fila, etiqueta, poner }, o))
+
+  const errorDeFila = eliminar.error ?? asignarRapido.error ?? etiquetar.error
 
   const buzones = useMemo(
     () => new Map((cuentas.data ?? []).map((c) => [c.id, c.direccion] as const)),
@@ -113,6 +133,9 @@ function Bandeja() {
               aria-label="Actualizar la bandeja"
             >
               {actualizando ? 'Actualizando…' : 'Actualizar'}
+            </Button>
+            <Button variant="ghost" icon={<Icon name="star" size={16} />} onClick={() => setEtiquetasAbiertas(true)}>
+              Etiquetas
             </Button>
             <LinkButton to="/emails/borradores" icon={<Icon name="edit" size={16} />}>
               Borradores
@@ -171,13 +194,14 @@ function Bandeja() {
           hayFiltros={hayFiltros}
           cuentas={cuentas.data ?? []}
           asignables={asignables.data ?? []}
+          etiquetas={etiquetas.data ?? []}
           onAplicar={aplicar}
           onLimpiar={limpiar}
         />
 
-        {eliminar.error ? (
-          <Alert tone="danger" role="alert" title="No se pudo mover el hilo">
-            <p>{eliminar.error.message}</p>
+        {errorDeFila ? (
+          <Alert tone="danger" role="alert" title="No se pudo aplicar el cambio">
+            <p>{errorDeFila.message}</p>
           </Alert>
         ) : null}
 
@@ -226,6 +250,10 @@ function Bandeja() {
           <ListadoEmails
             filas={filas}
             buzones={buzones}
+            asignables={asignables.data ?? []}
+            etiquetas={etiquetas.data ?? []}
+            onAsignar={alAsignar}
+            onEtiquetar={alEtiquetar}
             onEliminar={alEliminar}
             trabajando={trabajando}
           />
@@ -245,6 +273,8 @@ function Bandeja() {
           />
         ) : null}
       </TabPanel>
+
+      {etiquetasAbiertas ? <ModalEtiquetas onCerrar={() => setEtiquetasAbiertas(false)} /> : null}
     </div>
   )
 }

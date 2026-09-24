@@ -1595,6 +1595,60 @@ export type Database = {
           },
         ]
       }
+      email_labels: {
+        Row: {
+          color: string
+          company_id: string
+          created_at: string
+          creado_por: string | null
+          id: string
+          nombre: string
+        }
+        Insert: {
+          color?: string
+          company_id: string
+          created_at?: string
+          creado_por?: string | null
+          id?: string
+          nombre: string
+        }
+        Update: {
+          color?: string
+          company_id?: string
+          created_at?: string
+          creado_por?: string | null
+          id?: string
+          nombre?: string
+        }
+        Relationships: []
+      }
+      email_thread_labels: {
+        Row: {
+          account_id: string
+          company_id: string
+          created_at: string
+          gmail_thread_id: string
+          label_id: string
+          puesta_por: string | null
+        }
+        Insert: {
+          account_id: string
+          company_id: string
+          created_at?: string
+          gmail_thread_id: string
+          label_id: string
+          puesta_por?: string | null
+        }
+        Update: {
+          account_id?: string
+          company_id?: string
+          created_at?: string
+          gmail_thread_id?: string
+          label_id?: string
+          puesta_por?: string | null
+        }
+        Relationships: []
+      }
       email_thread_state: {
         Row: {
           account_id: string
@@ -6960,6 +7014,18 @@ export type Database = {
         Args: { p_account: string; p_thread: string; p_estado: string }
         Returns: Database["public"]["Tables"]["email_thread_state"]["Row"]
       }
+      guardar_etiqueta_email: {
+        Args: { p_company: string; p_nombre: string; p_color?: string; p_id?: string | null }
+        Returns: Database["public"]["Tables"]["email_labels"]["Row"]
+      }
+      borrar_etiqueta_email: {
+        Args: { p_label: string }
+        Returns: undefined
+      }
+      etiquetar_hilo_email: {
+        Args: { p_account: string; p_thread: string; p_label: string; p_poner?: boolean }
+        Returns: undefined
+      }
       eliminar_hilo_email: {
         Args: { p_account: string; p_thread: string; p_eliminar?: boolean }
         Returns: Database["public"]["Tables"]["email_thread_state"]["Row"]
@@ -7307,6 +7373,7 @@ export type Database = {
           p_cliente?: string | null
           p_adjuntos?: boolean | null
           p_carpeta?: string | null
+          p_etiqueta?: string | null
           p_limite?: number | null
           p_offset?: number | null
         }
@@ -7330,6 +7397,7 @@ export type Database = {
           vinculo_origen: string | null
           sin_leer: boolean
           eliminado: boolean
+          etiquetas: Json
           total: number
           total_sin_leer: number
         }[]

@@ -1,10 +1,13 @@
 import { supabase } from '@/services/supabase/client'
+import { COLORES_ETIQUETA } from '../types'
 import type {
   ClaseSugerencia,
   ClienteVinculado,
+  ColorEtiqueta,
   CuentaEmail,
   EstadoHilo,
   EstadoTrabajo,
+  EtiquetaEmail,
   FiltrosEmails,
   HiloIndice,
   PaginaBandeja,
@@ -41,6 +44,26 @@ export async function listarCuentas(companyId: string): Promise<CuentaEmail[]> {
   }))
 }
 
+/**
+ * El `jsonb` de etiquetas que devuelve la RPC, ya tipado.
+ *
+ * Un color que no sea de los seis del sistema cae en `neutral` en vez de
+ * pintar una clase que no existe: el CHECK de la base lo impide, pero acá no
+ * se confía en eso para elegir una clase de CSS.
+ */
+function comoEtiquetas(bruto: unknown): EtiquetaEmail[] {
+  if (!Array.isArray(bruto)) return []
+  return bruto.flatMap((e) => {
+    if (typeof e !== 'object' || e === null) return []
+    const { id, nombre, color } = e as Record<string, unknown>
+    if (typeof id !== 'string' || typeof nombre !== 'string') return []
+    const tono = (COLORES_ETIQUETA as readonly string[]).includes(String(color))
+      ? (color as ColorEtiqueta)
+      : 'neutral'
+    return [{ id, nombre, color: tono }]
+  })
+}
+
 export async function listarBandeja(companyId: string, f: FiltrosEmails): Promise<PaginaBandeja> {
   const { data, error } = await supabase.rpc('listar_bandeja_email', {
     p_company: companyId,
@@ -53,6 +76,7 @@ export async function listarBandeja(companyId: string, f: FiltrosEmails): Promis
     p_adjuntos: f.soloConAdjuntos,
     // `todos` viaja como null: es el valor por defecto de la RPC.
     p_carpeta: f.carpeta === 'todos' ? null : f.carpeta,
+    p_etiqueta: f.etiqueta,
     p_limite: f.porPagina,
     p_offset: (f.pagina - 1) * f.porPagina,
   })
@@ -79,6 +103,7 @@ export async function listarBandeja(companyId: string, f: FiltrosEmails): Promis
       vinculoOrigen: r.vinculo_origen,
       sinLeer: r.sin_leer,
       eliminado: r.eliminado ?? false,
+      etiquetas: comoEtiquetas(r.etiquetas),
     })),
     total: Number(filas[0]?.total ?? 0),
     totalSinLeer: Number(filas[0]?.total_sin_leer ?? 0),
@@ -246,6 +271,54 @@ export async function vincularCliente(
     p_origen: cliente?.origen ?? 'manual',
   })
   if (error) fallo(cliente ? 'No se pudo vincular el cliente' : 'No se pudo desvincular el cliente', error)
+}
+
+// ── Etiquetas del ERP (Fase 28 · E8) ──────────────────────────────────────
+
+/** Las etiquetas de la empresa. Son pocas: se cachean con staleTime largo. */
+export async function listarEtiquetas(companyId: string): Promise<EtiquetaEmail[]> {
+  const { data, error } = await supabase
+    .from('email_labels')
+    .select('id, nombre, color')
+    .eq('company_id', companyId)
+    .order('nombre')
+  if (error) fallo('No se pudieron leer las etiquetas', error)
+  return comoEtiquetas(data ?? [])
+}
+
+/** Crear (`id` null) o renombrar. El nombre es único por empresa. */
+export async function guardarEtiqueta(
+  companyId: string,
+  datos: { id: string | null; nombre: string; color: ColorEtiqueta },
+): Promise<void> {
+  const { error } = await supabase.rpc('guardar_etiqueta_email', {
+    p_company: companyId,
+    p_nombre: datos.nombre,
+    p_color: datos.color,
+    p_id: datos.id,
+  })
+  if (error) fallo(datos.id ? 'No se pudo renombrar la etiqueta' : 'No se pudo crear la etiqueta', error)
+}
+
+/** Borra la etiqueta y la saca de todos los hilos. Ningún correo se toca. */
+export async function borrarEtiqueta(labelId: string): Promise<void> {
+  const { error } = await supabase.rpc('borrar_etiqueta_email', { p_label: labelId })
+  if (error) fallo('No se pudo borrar la etiqueta', error)
+}
+
+export async function etiquetarHilo(
+  accountId: string,
+  gmailThreadId: string,
+  labelId: string,
+  poner: boolean,
+): Promise<void> {
+  const { error } = await supabase.rpc('etiquetar_hilo_email', {
+    p_account: accountId,
+    p_thread: gmailThreadId,
+    p_label: labelId,
+    p_poner: poner,
+  })
+  if (error) fallo(poner ? 'No se pudo poner la etiqueta' : 'No se pudo sacar la etiqueta', error)
 }
 
 /**

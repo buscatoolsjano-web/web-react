@@ -495,7 +495,7 @@
   line-height: var(--leading-normal);
 }
 
-/* ── Eliminar / restaurar en la fila (Fase 28 · E2) ─────────────────────── */
+/* ── Acciones de la fila: asignar, etiquetar, eliminar (F28 · E2/E8) ────── */
 /* El botón vive al lado del enlace, no adentro: un `<button>` dentro de un
    `<a>` no es HTML válido y el teclado no llega a los dos. */
 
@@ -509,13 +509,83 @@
   min-width: 0;
 }
 
+/* Los controles viven al lado del enlace, no adentro: un control dentro de un
+    no es HTML válido y el teclado no llega a los dos. */
+.accionesFila {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+  padding: 0 var(--space-2);
+  border-left: 1px solid var(--color-border);
+}
+
+.asignarRapido {
+  width: 9.5rem;
+  font-size: var(--text-xs);
+}
+
+.menuEtiquetas {
+  position: relative;
+  display: inline-flex;
+}
+
+.panelEtiquetas {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: var(--z-dropdown);
+  display: grid;
+  gap: var(--space-1);
+  min-width: 12rem;
+  max-height: 16rem;
+  overflow-y: auto;
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.panelEtiquetas[hidden] {
+  display: none;
+}
+
+.opcionEtiqueta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.opcionEtiqueta:hover {
+  background: var(--color-surface-alt);
+}
+
+/* El color de la etiqueta acompaña al nombre; nunca lo reemplaza. */
+.puntoEtiqueta {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+}
+
+.punto_info { background: var(--color-info); }
+.punto_brand { background: var(--color-primary); }
+.punto_success { background: var(--color-success); }
+.punto_warning { background: var(--color-warning); }
+.punto_danger { background: var(--color-danger); }
+
 .accionFila {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
   width: var(--touch-target);
   border: 0;
-  border-left: 1px solid var(--color-border);
   background: none;
   color: var(--color-text-soft);
   cursor: pointer;
@@ -535,4 +605,57 @@
 .panelCarpeta {
   display: grid;
   gap: var(--space-4);
+}
+
+/* ── Etiquetas: el alta y la lista (Fase 28 · E8) ───────────────────────── */
+
+.formEtiqueta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.accionesEtiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.listaEtiquetas {
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.filaEtiqueta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+}
+
+/* ── Ver un adjunto sin bajarlo (Fase 28 · E8) ──────────────────────────── */
+/* Alto fijo y grande: un PDF en una caja de 300px obliga a scrollear dentro
+   del scroll, que es exactamente lo que hace inútil un visor embebido. */
+
+.visor {
+  width: 100%;
+  height: min(72vh, 900px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.visorImagen {
+  display: block;
+  max-width: 100%;
+  max-height: min(72vh, 900px);
+  margin: 0 auto;
+  object-fit: contain;
 }

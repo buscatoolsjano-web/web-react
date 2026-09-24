@@ -6,7 +6,7 @@ import { Field } from '@/components/forms/Field'
 import { Input } from '@/components/forms/controls'
 import { Spinner } from '@/components/ui/Spinner'
 import { ImagenProducto } from '@/modules/catalogo/components/ImagenProducto'
-import { Encabezado } from '@/modules/catalogo/components/ListadoProductos'
+import { EncabezadoOrdenable as Encabezado } from '@/modules/catalogo/components/EncabezadoOrdenable'
 import { PanelFacetas } from '@/modules/catalogo/components/PanelFacetas'
 import { columnasDinamicas, valorDinamico } from '@/modules/catalogo/lib/columnasDinamicas'
 import {
