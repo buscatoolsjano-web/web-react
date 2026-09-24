@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PlanDeConsulta } from '@/modules/catalogo/lib/planDeConsulta'
 import type { Facetas, ProductoListado } from '@/modules/catalogo/types'
@@ -125,15 +125,45 @@ describe('elegir productos del catálogo desde el documento', () => {
   })
 
   /**
-   * Fase 28 · E6: es lo que faltaba. Con una categoría elegida tienen que
-   * aparecer SUS atributos, no sólo la lista de productos.
+   * Fase 28 · E6/E7: es lo que faltaba. Con una categoría elegida tienen que
+   * aparecer SUS atributos, como filtro Y como columna de la tabla.
    */
-  it('con una categoría elegida aparecen sus atributos', async () => {
+  it('con una categoría elegida aparecen sus atributos, y como columna', async () => {
     montar()
     await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
-    expect(screen.queryByRole('button', { name: /Encastre/ })).toBeNull()
+    expect(screen.queryByRole('columnheader', { name: /Encastre/ })).toBeNull()
+
     fireEvent.click(await screen.findByRole('button', { name: /Puntas y tubos/ }))
-    expect(await screen.findByRole('button', { name: /Encastre/ })).toBeInTheDocument()
+
+    // La columna, que además ordena…
+    const columna = await screen.findByRole('columnheader', { name: /Encastre/ })
+    expect(columna).toHaveAttribute('aria-sort', 'none')
+    // …y el filtro, que es un desplegable aparte.
+    const conEncastre = screen.getAllByRole('button', { name: /Encastre/ })
+    expect(conEncastre.some((b) => b.hasAttribute('aria-expanded'))).toBe(true)
+  })
+
+  it('tocar una columna ordena, y tocarla de nuevo la da vuelta', async () => {
+    montar()
+    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    const encabezado = () => screen.getByRole('columnheader', { name: /SKU/ })
+
+    fireEvent.click(within(encabezado()).getByRole('button'))
+    await waitFor(() => expect(estado.planes.at(-1)?.plan.orden).toBe('sku'))
+    expect(encabezado()).toHaveAttribute('aria-sort', 'ascending')
+
+    fireEvent.click(within(encabezado()).getByRole('button'))
+    await waitFor(() => expect(estado.planes.at(-1)?.plan.orden).toBe('sku_desc'))
+    expect(encabezado()).toHaveAttribute('aria-sort', 'descending')
+  })
+
+  it('ordenar por un atributo se lo pide a la base como attr:<clave>', async () => {
+    montar()
+    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    fireEvent.click(await screen.findByRole('button', { name: /Puntas y tubos/ }))
+    const columna = await screen.findByRole('columnheader', { name: /Encastre/ })
+    fireEvent.click(within(columna).getByRole('button'))
+    await waitFor(() => expect(estado.planes.at(-1)?.plan.orden).toBe('attr:encastre'))
   })
 
   it('el precio sale de la tarifa del documento, no de la del catálogo', async () => {

@@ -109,3 +109,8 @@
   color: var(--color-text-soft);
   font-size: var(--text-sm);
 }
+
+/* Un atributo no se parte en dos renglones: «1/4 HEX» es un valor solo. */
+.nowrap {
+  white-space: nowrap;
+}

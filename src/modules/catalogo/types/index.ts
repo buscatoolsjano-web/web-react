@@ -25,7 +25,20 @@ export const ORDENES_CATALOGO = [
   'stock_virtual', 'stock_virtual_desc',
 ] as const
 
-export type OrdenCatalogo = (typeof ORDENES_CATALOGO)[number]
+/**
+ * Orden del catálogo.
+ *
+ * Además de las columnas fijas, `attr:<clave>` ordena por un atributo —y
+ * `attr:<clave>_desc` al revés— (Fase 28 · E7). No se enumeran: las claves
+ * salen de `product_attribute_definitions`, que es dato y no código.
+ */
+export type OrdenCatalogo = (typeof ORDENES_CATALOGO)[number] | `attr:${string}`
+
+/** `attr:encastre` → `encastre`; cualquier otra cosa → null. */
+export function claveDeAtributoOrdenado(orden: OrdenCatalogo): string | null {
+  const campo = orden.endsWith('_desc') ? orden.slice(0, -5) : orden
+  return campo.startsWith('attr:') ? campo.slice(5) : null
+}
 
 /** Las columnas que se pueden ordenar, sin la dirección. */
 export const COLUMNAS_ORDENABLES = ['sku', 'nombre', 'marca', 'categoria', 'serie', 'stock_real', 'stock_virtual'] as const

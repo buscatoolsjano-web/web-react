@@ -6,8 +6,15 @@ import { Field } from '@/components/forms/Field'
 import { Input } from '@/components/forms/controls'
 import { Spinner } from '@/components/ui/Spinner'
 import { ImagenProducto } from '@/modules/catalogo/components/ImagenProducto'
+import { Encabezado } from '@/modules/catalogo/components/ListadoProductos'
 import { PanelFacetas } from '@/modules/catalogo/components/PanelFacetas'
-import { FILTROS_INICIALES, type FiltrosCatalogo, type ProductoListado } from '@/modules/catalogo/types'
+import { columnasDinamicas, valorDinamico } from '@/modules/catalogo/lib/columnasDinamicas'
+import {
+  FILTROS_INICIALES,
+  type FiltrosCatalogo,
+  type OrdenCatalogo,
+  type ProductoListado,
+} from '@/modules/catalogo/types'
 import { formatearImporte } from '../lib/formato'
 import { POR_PAGINA, useCatalogoParaDocumento, useFacetasParaDocumento } from '../hooks/useCatalogoParaDocumento'
 import styles from './ModalCatalogoProductos.module.css'
@@ -78,6 +85,21 @@ export function ModalCatalogoProductos({
   const productos = data?.productos ?? []
   const total = data?.total ?? 0
   const paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
+
+  // Las columnas de la categoría elegida, igual que en la pantalla de
+  // Catálogo: salen de las facetas y no de un mapa escrito a mano.
+  const dinamicas = columnasDinamicas(filtros.categoria, facetas.data?.atributos ?? [], total)
+
+  /**
+   * Un click en el encabezado ordena por esa columna; otro, al revés. No hay
+   * tercer click que saque el orden, igual que el sistema anterior.
+   */
+  const orden = {
+    campo: filtros.orden.endsWith('_desc') ? filtros.orden.slice(0, -5) : filtros.orden,
+    direccion: filtros.orden.endsWith('_desc') ? ('desc' as const) : ('asc' as const),
+    ordenar: (campo: string) =>
+      cambiarFiltros({ orden: (filtros.orden === campo ? `${campo}_desc` : campo) as OrdenCatalogo }),
+  }
 
   // Al cambiar de página se vuelve arriba: si no, se sigue mirando el final
   // de la anterior con filas nuevas.
@@ -154,20 +176,40 @@ export function ModalCatalogoProductos({
                 <th scope="col" className={styles.colImagen}>
                   <span className="sr-only">Imagen</span>
                 </th>
-                <th scope="col">SKU</th>
-                <th scope="col">Nombre</th>
-                <th scope="col">Categoría</th>
-                <th scope="col">Marca</th>
+                <Encabezado campo="sku" orden={orden}>
+                  SKU
+                </Encabezado>
+                <Encabezado campo="nombre" orden={orden}>
+                  Nombre
+                </Encabezado>
+                <Encabezado campo="categoria" orden={orden}>
+                  Categoría
+                </Encabezado>
+                <Encabezado campo="marca" orden={orden}>
+                  Marca
+                </Encabezado>
+                {/* Las columnas de la categoría elegida: en «Puntas y tubos»,
+                    medida, largo y encastre. Salen de las facetas, no de una
+                    lista escrita a mano, y ordenan como cualquier otra. */}
+                {dinamicas.map((c) => (
+                  <Encabezado key={c.key} campo={`attr:${c.key}`} orden={orden}>
+                    {c.label}
+                    {c.unidad ? <span className={styles.secundario}> {c.unidad}</span> : null}
+                  </Encabezado>
+                ))}
                 {esInterno ? (
                   <>
-                    <th scope="col" className={styles.num} title="Stock virtual">
-                      SV
-                    </th>
-                    <th scope="col" className={styles.num} title="Stock real">
-                      SR
-                    </th>
+                    <Encabezado campo="stock_virtual" orden={orden} className={styles.num}>
+                      <span title="Stock virtual">SV</span>
+                    </Encabezado>
+                    <Encabezado campo="stock_real" orden={orden} className={styles.num}>
+                      <span title="Stock real">SR</span>
+                    </Encabezado>
                   </>
                 ) : null}
+                {/* Precio NO ordena: sale de la tarifa del documento y se
+                    resuelve sobre la página ya traída, así que ordenar acá
+                    ordenaría 25 filas y mentiría sobre las otras 4.791. */}
                 <th scope="col" className={styles.num}>
                   Precio
                 </th>
@@ -191,6 +233,11 @@ export function ModalCatalogoProductos({
                   <td className={styles.colNombre}>{p.nombre}</td>
                   <td className={styles.secundario}>{p.categoria?.nombre ?? '—'}</td>
                   <td className={styles.secundario}>{p.marca?.nombre ?? '—'}</td>
+                  {dinamicas.map((c) => (
+                    <td key={c.key} className={styles.nowrap}>
+                      {valorDinamico(p, c)}
+                    </td>
+                  ))}
                   {esInterno ? (
                     <>
                       <td className={styles.num}>{p.stock ? p.stock.virtual : '—'}</td>

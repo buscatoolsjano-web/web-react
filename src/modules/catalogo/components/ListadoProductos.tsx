@@ -310,11 +310,14 @@ export function ListadoProductos({
             <Encabezado campo="serie" orden={orden} className={styles.soloAncho}>
               Serie
             </Encabezado>
+            {/* Fase 28 · E7: también ordenan. `search_products` acepta
+                `attr:<clave>`, y dentro de una familia el atributo ES la
+                columna por la que se busca. */}
             {columnasDinamicas.map((c) => (
-              <th key={c.key} scope="col" className={styles.colDinamica}>
+              <Encabezado key={c.key} campo={`attr:${c.key}`} orden={orden} className={styles.colDinamica}>
                 {c.label}
                 {c.unidad ? <span className={styles.aclaracion}> {c.unidad}</span> : null}
-              </th>
+              </Encabezado>
             ))}
             {/* Fase 25 · E2: dos columnas, una por saldo, cada una con su
                 orden — como el legacy (`app.js:15518`). Juntas en una sola
@@ -479,7 +482,7 @@ export function ListadoProductos({
  * Si la columna no se puede ordenar, sigue siendo un `th` normal: no hay un
  * botón que no hace nada.
  */
-function Encabezado({
+export function Encabezado({
   campo,
   orden,
   className,
