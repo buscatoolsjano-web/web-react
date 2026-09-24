@@ -17,6 +17,7 @@ import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { BuscadorCliente } from '../components/BuscadorCliente'
 import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
+import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TotalesDocumento } from '../components/TotalesDocumento'
 import { VistaPreviaBorrador } from '../components/VistaPreviaBorrador'
@@ -112,6 +113,8 @@ export function CotizacionNuevaPage() {
   }, [])
   const [b, setB] = useState<Borrador>(inicial)
   const [buscando, setBuscando] = useState(false)
+  // Fase 28 · E1: el catálogo completo, para elegir desde la hoja.
+  const [catalogoAbierto, setCatalogoAbierto] = useState(false)
 
   /**
    * Las líneas que vienen del carrito del catálogo (Fase 22 · paridad, #50).
@@ -582,14 +585,7 @@ export function CotizacionNuevaPage() {
                 onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
                 onDescuento: (id, valor) => cambiarLinea(id, 'discount_pct', valor),
                 onEliminar: (id) => setB((x) => quitarLinea(x, id)),
-                onAgregar: () => {
-                  setBuscando(true)
-                  // El buscador vive en el panel de la izquierda: si se lo
-                  // pidió desde la hoja, hay que llevarlo a la vista.
-                  requestAnimationFrame(() => {
-                    document.getElementById('buscador-de-producto')?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-                  })
-                },
+                onAgregar: () => setCatalogoAbierto(true),
               }}
             />
           </div>
@@ -641,6 +637,29 @@ export function CotizacionNuevaPage() {
           ) : null
         }
       />
+
+      {/* Fase 28 · E1: el catálogo entero, con sus categorías, para elegir
+          sin salir del documento. Agrega con el MISMO `nueva()` que el
+          buscador de la izquierda: una sola forma de sumar una línea. */}
+      {catalogoAbierto ? (
+        <ModalCatalogoProductos
+          listaPrecioId={b.cabecera.listaPrecioId || null}
+          moneda={b.cabecera.moneda || null}
+          esInterno={activa?.esInterno ?? false}
+          onCerrar={() => setCatalogoAbierto(false)}
+          onAgregar={(p, cantidad) =>
+            nueva({
+              productId: p.id,
+              sku: p.sku,
+              nombre: p.nombre,
+              cantidad,
+              // La tarifa del documento SUGIERE el precio; sin precio en
+              // esa tarifa la línea entra en cero y se ve.
+              precioUnitario: p.precio ?? 0,
+            })
+          }
+        />
+      ) : null}
 
       <DialogoCambiosSinGuardar open={salida.preguntando} onSalir={salida.salir} onQuedarse={salida.quedarse} />
     </div>

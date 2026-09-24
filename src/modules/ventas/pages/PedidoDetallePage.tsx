@@ -32,6 +32,7 @@ import { PanelLateralCliente } from '@/modules/clientes/components/PanelLateralC
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelStock } from '../components/PanelStock'
 import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
+import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TablaLineas } from '../components/TablaLineas'
 import { TotalesDocumento } from '../components/TotalesDocumento'
@@ -136,6 +137,8 @@ function Detalle() {
   const [original, setOriginal] = useState<Borrador | null>(null)
   const [borrador, setBorrador] = useState<Borrador | null>(null)
   const [buscando, setBuscando] = useState(false)
+  // Fase 28 · E1: el catálogo completo, para elegir desde la hoja.
+  const [catalogoAbierto, setCatalogoAbierto] = useState(false)
 
   /**
    * Si se ve la hoja al lado (Fase 26 · E2).
@@ -666,16 +669,7 @@ function Detalle() {
                         onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
                         onDescuento: (id, valor) => cambiarLinea(id, 'discount_pct', valor),
                         onEliminar: (id) => setBorrador((b) => (b ? quitarLinea(b, id) : b)),
-                        onAgregar: () => {
-                          setBuscando(true)
-                          // El buscador vive en el panel de la izquierda: si se
-                          // lo pidió desde la hoja, hay que llevarlo a la vista.
-                          requestAnimationFrame(() => {
-                            document
-                              .getElementById('buscador-de-producto')
-                              ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-                          })
-                        },
+                        onAgregar: () => setCatalogoAbierto(true),
                       }
                     : null
                 }
@@ -731,6 +725,29 @@ function Detalle() {
           onCerrar={() => setGenerando(false)}
           series={seriesRemito.data ?? []}
           onConfirmar={(cantidades, fecha, serie) => crearRemito.mutate({ cantidades, fecha, serie })}
+        />
+      ) : null}
+
+      {/* Fase 28 · E1: el catálogo entero, con sus categorías, para elegir
+          sin salir del documento. Agrega con el MISMO `nueva()` que el
+          buscador de la izquierda: una sola forma de sumar una línea. */}
+      {catalogoAbierto ? (
+        <ModalCatalogoProductos
+          listaPrecioId={borrador?.cabecera.listaPrecioId || doc.listaPrecioId}
+          moneda={borrador?.cabecera.moneda || doc.moneda}
+          esInterno={activa?.esInterno ?? false}
+          onCerrar={() => setCatalogoAbierto(false)}
+          onAgregar={(p, cantidad) =>
+            nueva({
+              productId: p.id,
+              sku: p.sku,
+              nombre: p.nombre,
+              cantidad,
+              // La tarifa del documento SUGIERE el precio; sin precio en
+              // esa tarifa la línea entra en cero y se ve.
+              precioUnitario: p.precio ?? 0,
+            })
+          }
         />
       ) : null}
 

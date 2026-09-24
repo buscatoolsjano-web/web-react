@@ -18,6 +18,7 @@ import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { BuscadorCliente } from '../components/BuscadorCliente'
 import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
+import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TotalesDocumento } from '../components/TotalesDocumento'
 import { VistaPreviaBorrador } from '../components/VistaPreviaBorrador'
@@ -110,6 +111,8 @@ export function PedidoNuevoPage() {
   }, [])
   const [b, setB] = useState<Borrador>(inicial)
   const [buscando, setBuscando] = useState(false)
+  // Fase 28 · E1: el catálogo completo, para elegir desde la hoja.
+  const [catalogoAbierto, setCatalogoAbierto] = useState(false)
   const [avisoContacto, setAvisoContacto] = useState(false)
   const [avisoTarifa, setAvisoTarifa] = useState(false)
   // Fase 17 · E2. `tocados` es la memoria de lo que eligió la persona: el
@@ -531,12 +534,7 @@ export function PedidoNuevoPage() {
                 onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
                 onDescuento: (id, valor) => cambiarLinea(id, 'discount_pct', valor),
                 onEliminar: (id) => setB((x) => quitarLinea(x, id)),
-                onAgregar: () => {
-                  setBuscando(true)
-                  requestAnimationFrame(() => {
-                    document.getElementById('buscador-de-producto')?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-                  })
-                },
+                onAgregar: () => setCatalogoAbierto(true),
               }}
             />
           </div>
@@ -588,6 +586,29 @@ export function PedidoNuevoPage() {
           ) : null
         }
       />
+
+      {/* Fase 28 · E1: el catálogo entero, con sus categorías, para elegir
+          sin salir del documento. Agrega con el MISMO `nueva()` que el
+          buscador de la izquierda: una sola forma de sumar una línea. */}
+      {catalogoAbierto ? (
+        <ModalCatalogoProductos
+          listaPrecioId={b.cabecera.listaPrecioId || null}
+          moneda={b.cabecera.moneda || null}
+          esInterno={activa?.esInterno ?? false}
+          onCerrar={() => setCatalogoAbierto(false)}
+          onAgregar={(p, cantidad) =>
+            nueva({
+              productId: p.id,
+              sku: p.sku,
+              nombre: p.nombre,
+              cantidad,
+              // La tarifa del documento SUGIERE el precio; sin precio en
+              // esa tarifa la línea entra en cero y se ve.
+              precioUnitario: p.precio ?? 0,
+            })
+          }
+        />
+      ) : null}
 
       <DialogoCambiosSinGuardar open={salida.preguntando} onSalir={salida.salir} onQuedarse={salida.quedarse} />
     </div>
