@@ -218,6 +218,13 @@ export function useMarcarLeido() {
  * No se parchea la fila: el hilo cambia de carpeta, así que la página que se
  * está mirando ya no es la misma. Se vuelve a pedir, y de paso se corrige el
  * total, que con un parche quedaría mintiendo.
+ *
+ * Las carpetas que NO se están mirando se tiran de la caché en vez de
+ * invalidarlas. Invalidar no alcanza: el evento de tiempo real llega enseguida
+ * y `parchearFilas` las vuelve a escribir, y escribir una consulta le borra la
+ * marca de inválida sin haberla pedido de nuevo. Así quedaba «Eliminados» en
+ * cero después de eliminar. Tirarlas no se puede deshacer, y cuesta cero
+ * requests: se piden recién cuando alguien abre esa carpeta.
  */
 export function useEliminarHilo() {
   const companyId = useCompany()
@@ -227,6 +234,7 @@ export function useEliminarHilo() {
       eliminarHilo(fila.accountId, fila.gmailThreadId, eliminar),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: claves.bandeja(companyId) })
+      qc.removeQueries({ queryKey: claves.bandeja(companyId), type: 'inactive' })
       // El globito rojo del menú cuenta sin leer: lo eliminado no cuenta más.
       void qc.invalidateQueries({ queryKey: ['nav', companyId, 'sin-leer', 'emails'] })
     },

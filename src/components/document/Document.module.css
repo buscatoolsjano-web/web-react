@@ -43,6 +43,17 @@
   border-radius: var(--radius-lg);
 }
 
+/* Pegada abajo del header al bajar por el documento (Fase 28 · E3).
+   Sticky y no fixed: ocupa su lugar en el flujo, así que nunca tapa una línea
+   —que era el bug de la barra vieja—. El fondo es opaco a propósito: lo que
+   scrollea tiene que pasar POR DEBAJO y leerse como tal. */
+.actionBarPegajosa {
+  position: sticky;
+  top: calc(var(--header-h) + var(--space-2));
+  z-index: var(--z-sticky);
+  box-shadow: var(--shadow-md);
+}
+
 .actionFila {
   display: flex;
   flex-wrap: wrap;
@@ -257,19 +268,6 @@
   margin: 0;
   font-size: var(--text-sm);
   color: var(--color-text-soft);
-}
-
-/* ── Identidad del documento ───────────────────────────────────────────── */
-/* Cliente · fecha en un renglón; el título comercial en el suyo, porque suele
-   ser largo y si comparte línea desplaza al cliente fuera de vista. */
-.identidad,
-.tituloDoc {
-  display: block;
-}
-
-.tituloDoc {
-  margin-top: 2px;
-  color: var(--color-text-muted);
 }
 
 /* De dónde salió el documento: contexto, no alerta. */

@@ -58,7 +58,7 @@ import {
   type CampoRemito,
 } from '../lib/borradorRemito'
 import { presentarEstado } from '../lib/estados'
-import { formatearCantidad, formatearFecha, formatearImporte } from '../lib/formato'
+import { formatearCantidad, formatearImporte } from '../lib/formato'
 import { escribeVentas } from '../lib/permisos'
 import { FalloDeGuardado } from '../services/cotizaciones'
 import { confirmarEntrega, editabilidadEntrega, guardarRemito, lineasParaEntregar } from '../services/entregas'
@@ -361,10 +361,6 @@ function Detalle() {
             </span>
           ) : null
         }
-        cliente={doc.clienteNombre}
-        fecha={formatearFecha(doc.fecha)}
-        titulo={borrador ? borrador.cabecera.titulo : doc.titulo}
-        total={formatearImporte(doc.total, doc.moneda)}
       />
 
       <AvisosHistoricos documento={doc} revision={revision.data} />
@@ -408,6 +404,8 @@ function Detalle() {
 
       {editando ? (
         <ActionBar
+          pegajosa
+          volver={volver}
           primary={
             <Button
               icon={<Icon name="check" size={16} />}
@@ -440,6 +438,8 @@ function Detalle() {
         />
       ) : (
         <ActionBar
+          pegajosa
+          volver={volver}
           primary={
             permiso.confirmable ? (
               <Button

@@ -62,7 +62,6 @@ import {
 } from '../lib/autoridad'
 import { escribeVentas } from '../lib/permisos'
 import { presentarEstado } from '../lib/estados'
-import { formatearFecha, formatearImporte } from '../lib/formato'
 import { presentarOrigen } from '../lib/origen'
 import { tasaDe } from '../lib/tratamientos'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
@@ -492,10 +491,6 @@ function Detalle() {
           </Badge>
         ))}
         aviso={editando ? <Badge tone="info">Editando</Badge> : null}
-        cliente={doc.clienteNombre}
-        fecha={formatearFecha(doc.fecha)}
-        titulo={borrador ? borrador.cabecera.titulo : doc.titulo}
-        total={formatearImporte(doc.total, doc.moneda)}
       />
 
       <AvisosHistoricos documento={doc} revision={revision.data} />
@@ -546,6 +541,8 @@ function Detalle() {
         // cambiar de estado, duplicar o cancelar no se ofrecen: hacerlas con un
         // borrador a medias es perderlo.
         <ActionBar
+          pegajosa
+          volver={volver}
           primary={
             <Button
               icon={<Icon name="check" size={16} />}
@@ -575,6 +572,8 @@ function Detalle() {
         />
       ) : (
         <ActionBar
+          pegajosa
+          volver={volver}
           primary={
             esBorrador ? (
               escribe ? (

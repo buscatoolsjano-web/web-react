@@ -74,7 +74,6 @@ import {
   type CampoCabecera,
 } from '../lib/borrador'
 import { presentarCumplimiento, presentarEstado } from '../lib/estados'
-import { formatearFecha, formatearImporte } from '../lib/formato'
 import { escribeVentas } from '../lib/permisos'
 import { tasaDe } from '../lib/tratamientos'
 import { FalloDeGuardado, ordenarLineas } from '../services/cotizaciones'
@@ -412,10 +411,6 @@ function Detalle() {
           ) : null
         }
         aviso={editando ? <Badge tone="info">Editando</Badge> : null}
-        cliente={doc.clienteNombre}
-        fecha={formatearFecha(doc.fecha)}
-        titulo={borrador ? borrador.cabecera.titulo : doc.titulo}
-        total={formatearImporte(doc.total, doc.moneda)}
       />
 
       <AvisosHistoricos documento={doc} revision={revision.data} />
@@ -462,6 +457,8 @@ function Detalle() {
 
       {editando ? (
         <ActionBar
+          pegajosa
+          volver={volver}
           primary={
             <Button
               icon={<Icon name="check" size={16} />}
@@ -491,6 +488,8 @@ function Detalle() {
         />
       ) : (
         <ActionBar
+          pegajosa
+          volver={volver}
           primary={
             escribe && doc.estado === 'confirmed' ? (
               <Button

@@ -548,6 +548,7 @@ export function PedidoNuevoPage() {
       ) : null}
 
       <ActionBar
+        pegajosa
         label="Crear pedido"
         primary={
           <Button

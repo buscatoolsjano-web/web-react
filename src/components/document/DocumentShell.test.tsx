@@ -43,7 +43,7 @@ const montarPestanas = (ruta = '/') =>
   )
 
 describe('<DocumentHeader>', () => {
-  it('el número es el único h1, y el estado, el origen y el total lo acompañan', () => {
+  it('el número es el único h1, y el estado y el origen lo acompañan', () => {
     render(
       <MemoryRouter>
         <DocumentHeader
@@ -51,10 +51,6 @@ describe('<DocumentHeader>', () => {
           numero="COTI02558"
           estados={<span>Cerrada</span>}
           origen={<span>Migrado desde STEL</span>}
-          cliente="Consulta MercadoLibre"
-          fecha="16/09/2026"
-          titulo="VENTA MERCADO LIBRE VARIOS"
-          total="ARS 624.345,48"
         />
       </MemoryRouter>,
     )
@@ -62,18 +58,22 @@ describe('<DocumentHeader>', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1, name: 'COTI02558' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Cotizaciones/ })).toHaveAttribute('href', '/ventas/cotizaciones')
-    for (const texto of ['Cerrada', 'Migrado desde STEL', 'Consulta MercadoLibre', '16/09/2026', 'ARS 624.345,48', 'Total']) {
+    for (const texto of ['Cerrada', 'Migrado desde STEL']) {
       expect(screen.getByText(texto)).toBeInTheDocument()
     }
   })
 
-  it('sin total no inventa un importe en cero', () => {
+  // Fase 28 · E3. El cliente, la fecha, el título y el total ya estaban en la
+  // hoja y en «Información del documento», dos renglones más abajo: acá sólo
+  // empujaban la barra de acciones y las líneas fuera de la pantalla.
+  it('no repite el cliente, la fecha, el título ni el total', () => {
     render(
       <MemoryRouter>
         <DocumentHeader back={{ to: '/x', label: 'X' }} numero="RT0000001433" />
       </MemoryRouter>,
     )
     expect(screen.queryByText('Total')).toBeNull()
+    expect(screen.getByRole('heading', { level: 1 }).closest('header')?.textContent).toBe('XRT0000001433')
   })
 })
 

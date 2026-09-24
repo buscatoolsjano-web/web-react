@@ -240,6 +240,33 @@
   border-right: 1px solid var(--color-border);
 }
 
+/* Contraer el menú (Fase 28 · E3): en pantallas chicas de alto, 240px de
+   menú son 240px que no se usan para el documento. Se recuerda por navegador. */
+.sidebarCabecera {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-2) 0;
+}
+
+.colapsar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-soft);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.colapsar:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
 /* ── Panel de navegación (sidebar y cajón) ─────────────────────────────── */
 /* minmax(0, 1fr): sin esto la fila más ancha («WhatsApp · Próximamente»)
    estira la columna y aparece scroll horizontal en la sidebar. */

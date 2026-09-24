@@ -6,6 +6,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { EmpresaSelector } from '@/features/empresa/EmpresaSelector'
 import { BotonApariencia } from '@/features/apariencia/BotonApariencia'
 import { moduloDeRuta } from '@/features/apariencia/opciones'
+import { Icon } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
 import { navegacionPara } from './navegacion'
 import { PanelNav } from './PanelNav'
@@ -17,6 +18,23 @@ import styles from './Shell.module.css'
 
 /** Mismo punto de corte que la escala de tokens: 768–1023 es tablet. */
 const TABLET = '(min-width: 768px) and (max-width: 1023px)'
+
+/**
+ * Si el menú de escritorio quedó contraído (Fase 28 · E3).
+ *
+ * Se guarda por navegador y no en la base: es una preferencia de cómo se ve
+ * ESTA pantalla, no un dato de la empresa. Leer `localStorage` puede tirar
+ * excepción (ventana privada, cookies bloqueadas), así que va con red.
+ */
+const LLAVE_MENU = 'buscatools.menu-colapsado'
+
+function leerColapsada(): boolean {
+  try {
+    return localStorage.getItem(LLAVE_MENU) === '1'
+  } catch {
+    return false
+  }
+}
 
 /**
  * Shell de la app (Fase 13 · E2).
@@ -36,6 +54,7 @@ export function AppLayout() {
   const empresa = useEmpresa()
   const { pathname } = useLocation()
   const [cajon, setCajon] = useState<{ abierto: boolean; modulo: string | null }>({ abierto: false, modulo: null })
+  const [colapsada, setColapsada] = useState(leerColapsada)
   const idCajon = useId()
   const disparador = useRef<HTMLElement | null>(null)
   const panelCajon = useRef<HTMLDivElement>(null)
@@ -56,6 +75,18 @@ export function AppLayout() {
     setCajon({ abierto: true, modulo })
   }
   const cerrarCajon = () => setCajon({ abierto: false, modulo: null })
+
+  const alternarMenu = () => {
+    setColapsada((antes) => {
+      try {
+        localStorage.setItem(LLAVE_MENU, antes ? '0' : '1')
+      } catch {
+        // Sin `localStorage` el menú igual se contrae; lo que no sobrevive es
+        // la próxima visita. No es motivo para no hacer nada.
+      }
+      return !antes
+    })
+  }
 
   // Cajón abierto: sin scroll de fondo, foco adentro, Escape cierra y el foco
   // vuelve a quien lo abrió. El resto del shell queda `inert` (ver JSX).
@@ -123,11 +154,25 @@ export function AppLayout() {
       </header>
 
       <div className={styles.cuerpo}>
-        {!conCajon && (
-          <aside className={styles.sidebar}>
-            <PanelNav grupos={grupos} />
-          </aside>
-        )}
+        {/* Escritorio: el menú entero, o la barra de íconos si se contrajo.
+            La barra es la MISMA de tablet, con su botón de arriba devolviendo
+            el menú: una sola forma de verse angosto, no dos. */}
+        {!conCajon &&
+          (colapsada ? (
+            <aside className={styles.sidebarCompacta}>
+              <BarraCompacta grupos={grupos} expandida={false} onExpandir={alternarMenu} />
+            </aside>
+          ) : (
+            <aside className={styles.sidebar}>
+              <div className={styles.sidebarCabecera}>
+                <button type="button" className={styles.colapsar} onClick={alternarMenu} title="Contraer el menú">
+                  <Icon name="chevron-left" size={16} />
+                  <span>Contraer</span>
+                </button>
+              </div>
+              <PanelNav grupos={grupos} />
+            </aside>
+          ))}
         {isTablet && (
           <aside className={styles.sidebarCompacta} inert={abierto || undefined}>
             <BarraCompacta grupos={grupos} expandida={abierto} onExpandir={abrirCajon} />

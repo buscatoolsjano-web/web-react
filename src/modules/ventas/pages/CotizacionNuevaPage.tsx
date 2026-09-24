@@ -599,6 +599,7 @@ export function CotizacionNuevaPage() {
       ) : null}
 
       <ActionBar
+        pegajosa
         label="Crear cotización"
         primary={
           <Button

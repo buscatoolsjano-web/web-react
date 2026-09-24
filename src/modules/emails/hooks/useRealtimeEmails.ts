@@ -80,6 +80,12 @@ export function useRealtimeEmails(): { canal: EstadoCanal; reconectar: () => voi
         const coincide = (f: FilaBandeja) =>
           f.accountId === fila.account_id && f.gmailThreadId === fila.gmail_thread_id
         const previa = filasEnCache().find(coincide)
+
+        // Fase 28 · E2: `deleted_at` vive en esta misma tabla, y eliminar o
+        // restaurar mueve el hilo de carpeta y cambia el total de TODAS. Eso
+        // no se parchea: se vuelve a pedir la página.
+        if (fila.deleted_at !== null || previa?.eliminado) return refrescarPronto(false)
+
         parchearFilas(qc, companyId, coincide, { estado: fila.workflow_status as EstadoTrabajo })
         // El nombre del asignado o del cliente no viene en el evento: si cambió,
         // se vuelve a pedir la página en vez de mostrar un id.
