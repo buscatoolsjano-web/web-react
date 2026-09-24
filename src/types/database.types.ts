@@ -1603,6 +1603,8 @@ export type Database = {
           created_at: string
           customer_contact_id: string | null
           customer_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           gmail_thread_id: string
           id: string
           internal_note: string | null
@@ -1617,6 +1619,8 @@ export type Database = {
           created_at?: string
           customer_contact_id?: string | null
           customer_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           gmail_thread_id: string
           id?: string
           internal_note?: string | null
@@ -1631,6 +1635,8 @@ export type Database = {
           created_at?: string
           customer_contact_id?: string | null
           customer_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           gmail_thread_id?: string
           id?: string
           internal_note?: string | null
@@ -6954,6 +6960,10 @@ export type Database = {
         Args: { p_account: string; p_thread: string; p_estado: string }
         Returns: Database["public"]["Tables"]["email_thread_state"]["Row"]
       }
+      eliminar_hilo_email: {
+        Args: { p_account: string; p_thread: string; p_eliminar?: boolean }
+        Returns: Database["public"]["Tables"]["email_thread_state"]["Row"]
+      }
       validar_token_worker_ia_whatsapp: {
         Args: { p_token: string }
         Returns: boolean
@@ -7296,6 +7306,7 @@ export type Database = {
           p_asignado?: string | null
           p_cliente?: string | null
           p_adjuntos?: boolean | null
+          p_carpeta?: string | null
           p_limite?: number | null
           p_offset?: number | null
         }
@@ -7318,6 +7329,7 @@ export type Database = {
           customer_name: string | null
           vinculo_origen: string | null
           sin_leer: boolean
+          eliminado: boolean
           total: number
           total_sin_leer: number
         }[]

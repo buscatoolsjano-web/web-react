@@ -16,6 +16,17 @@ export type EstadoTrabajo = (typeof ESTADOS_TRABAJO)[number]
 export type FiltroAsignado = string
 export type FiltroCliente = 'con' | 'sin'
 
+/**
+ * Las carpetas de la bandeja (Fase 28 · E2).
+ *
+ * `recibidos` y `enviados` son las etiquetas de Gmail (INBOX / SENT), no la
+ * dirección del último mensaje: es lo que dice el buzón. Como un hilo puede no
+ * estar en ninguna de las dos —archivado en Gmail, o con etiqueta propia—,
+ * `todos` sigue siendo la carpeta por defecto y no esconde nada.
+ */
+export const CARPETAS_BANDEJA = ['todos', 'recibidos', 'enviados', 'eliminados'] as const
+export type CarpetaBandeja = (typeof CARPETAS_BANDEJA)[number]
+
 export interface FiltrosEmails {
   q: string
   soloNoLeidos: boolean
@@ -26,6 +37,8 @@ export interface FiltrosEmails {
   soloConAdjuntos: boolean
   /** Sólo tiene sentido con más de una cuenta. */
   cuenta: string | null
+  /** Carpeta, no filtro: «Limpiar filtros» no te saca de Enviados. */
+  carpeta: CarpetaBandeja
   pagina: number
   porPagina: number
 }
@@ -38,6 +51,7 @@ export const FILTROS_INICIALES: FiltrosEmails = {
   cliente: null,
   soloConAdjuntos: false,
   cuenta: null,
+  carpeta: 'todos',
   pagina: 1,
   porPagina: 25,
 }
@@ -62,6 +76,8 @@ export interface FilaBandeja {
   clienteNombre: string | null
   vinculoOrigen: string | null
   sinLeer: boolean
+  /** Sacado de la bandeja del ERP. Sólo aparece en la carpeta «Eliminados». */
+  eliminado: boolean
 }
 
 export interface PaginaBandeja {

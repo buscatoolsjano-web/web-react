@@ -24,6 +24,7 @@ const fila = (p: Partial<FilaBandeja> = {}): FilaBandeja => ({
   clienteNombre: null,
   vinculoOrigen: null,
   sinLeer: true,
+  eliminado: false,
   ...p,
 })
 
@@ -45,5 +46,43 @@ describe('Bandeja de Emails (presentación)', () => {
     expect(within(segunda!).getByText('(sin asunto)')).toBeInTheDocument()
     expect(within(segunda!).getByText('Resuelto')).toBeInTheDocument()
     expect(lista.textContent).not.toMatch(/\u{1F4CE}/u)
+  })
+
+  // Fase 28 · E2. El botón va afuera del enlace: un `<button>` dentro de un
+  // `<a>` no es HTML válido y el teclado no llega a los dos.
+  it('el botón de eliminar no está adentro del enlace', () => {
+    render(
+      <MemoryRouter>
+        <ListadoEmails filas={[fila()]} buzones={new Map()} onEliminar={() => {}} />
+      </MemoryRouter>,
+    )
+    const enlace = screen.getByRole('link')
+    const boton = screen.getByRole('button', { name: 'Eliminar: Pedido de cotización' })
+    expect(enlace.contains(boton)).toBe(false)
+  })
+
+  it('un hilo ya eliminado ofrece restaurarlo', () => {
+    const tocados: [string, boolean][] = []
+    render(
+      <MemoryRouter>
+        <ListadoEmails
+          filas={[fila({ eliminado: true })]}
+          buzones={new Map()}
+          onEliminar={(f, quitar) => tocados.push([f.id, quitar])}
+        />
+      </MemoryRouter>,
+    )
+    const boton = screen.getByRole('button', { name: 'Restaurar: Pedido de cotización' })
+    boton.click()
+    expect(tocados).toEqual([['h1', false]])
+  })
+
+  it('sin `onEliminar` no se dibuja ningún botón', () => {
+    render(
+      <MemoryRouter>
+        <ListadoEmails filas={[fila()]} buzones={new Map()} />
+      </MemoryRouter>,
+    )
+    expect(screen.queryByRole('button')).toBeNull()
   })
 })

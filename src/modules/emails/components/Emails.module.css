@@ -494,3 +494,45 @@
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
 }
+
+/* ── Eliminar / restaurar en la fila (Fase 28 · E2) ─────────────────────── */
+/* El botón vive al lado del enlace, no adentro: un `<button>` dentro de un
+   `<a>` no es HTML válido y el teclado no llega a los dos. */
+
+.item {
+  display: flex;
+  align-items: stretch;
+}
+
+.item > .fila {
+  flex: 1;
+  min-width: 0;
+}
+
+.accionFila {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: var(--touch-target);
+  border: 0;
+  border-left: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-soft);
+  cursor: pointer;
+}
+
+.accionFila:hover:not(:disabled) {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
+.accionFila:disabled {
+  cursor: progress;
+  opacity: 0.5;
+}
+
+/* El panel de la carpeta no dibuja nada: sólo apila lo de siempre. */
+.panelCarpeta {
+  display: grid;
+  gap: var(--space-4);
+}

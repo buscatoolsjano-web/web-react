@@ -9,6 +9,7 @@ import {
   buscarClientes,
   cambiarEstado,
   clienteVinculado,
+  eliminarHilo,
   listarBandeja,
   listarCuentas,
   marcarLeido,
@@ -66,7 +67,13 @@ export function useFiltrosEmails() {
     },
     [params, setParams],
   )
-  const limpiar = useCallback(() => setParams(new URLSearchParams(), { replace: true }), [setParams])
+  // «Limpiar filtros» no te muda de carpeta: seguís donde estabas, sin recortes.
+  const limpiar = useCallback(() => {
+    const p = new URLSearchParams()
+    const { carpeta } = leerFiltros(params)
+    if (carpeta !== 'todos') p.set('carpeta', carpeta)
+    setParams(p, { replace: true })
+  }, [params, setParams])
 
   return { filtros, aplicar, limpiar, hayFiltros: hayFiltrosActivos(filtros) }
 }
@@ -202,6 +209,27 @@ export function useMarcarLeido() {
   return useMutation({
     mutationFn: (h: HiloIndice) => marcarLeido(h.accountId, h.gmailThreadId),
     onSuccess: (_r, h) => parchearFilas(qc, companyId, (f) => f.id === h.id, { sinLeer: false }),
+  })
+}
+
+/**
+ * Eliminar un hilo de la bandeja del ERP, o devolverlo (Fase 28 · E2).
+ *
+ * No se parchea la fila: el hilo cambia de carpeta, así que la página que se
+ * está mirando ya no es la misma. Se vuelve a pedir, y de paso se corrige el
+ * total, que con un parche quedaría mintiendo.
+ */
+export function useEliminarHilo() {
+  const companyId = useCompany()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ fila, eliminar }: { fila: FilaBandeja; eliminar: boolean }) =>
+      eliminarHilo(fila.accountId, fila.gmailThreadId, eliminar),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: claves.bandeja(companyId) })
+      // El globito rojo del menú cuenta sin leer: lo eliminado no cuenta más.
+      void qc.invalidateQueries({ queryKey: ['nav', companyId, 'sin-leer', 'emails'] })
+    },
   })
 }
 

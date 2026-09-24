@@ -1,6 +1,8 @@
 import {
+  CARPETAS_BANDEJA,
   ESTADOS_TRABAJO,
   FILTROS_INICIALES,
+  type CarpetaBandeja,
   type EstadoTrabajo,
   type FiltrosEmails,
 } from '../types'
@@ -23,6 +25,11 @@ function estado(v: string | null): EstadoTrabajo | null {
   return (ESTADOS_TRABAJO as readonly string[]).includes(v ?? '') ? (v as EstadoTrabajo) : null
 }
 
+/** Una carpeta inventada en la URL cae en «Todos», que no esconde nada. */
+function carpeta(v: string | null): CarpetaBandeja {
+  return (CARPETAS_BANDEJA as readonly string[]).includes(v ?? '') ? (v as CarpetaBandeja) : 'todos'
+}
+
 export function leerFiltros(p: URLSearchParams): FiltrosEmails {
   const asignado = p.get('asignado')
   const cliente = p.get('cliente')
@@ -38,6 +45,7 @@ export function leerFiltros(p: URLSearchParams): FiltrosEmails {
     cliente: cliente === 'con' || cliente === 'sin' ? cliente : null,
     soloConAdjuntos: p.get('adjuntos') === '1',
     cuenta: cuenta && UUID.test(cuenta) ? cuenta : null,
+    carpeta: carpeta(p.get('carpeta')),
     pagina: entero(p.get('page'), 1),
     porPagina: (TAMANOS_BANDEJA as readonly number[]).includes(porPagina)
       ? porPagina
@@ -54,11 +62,16 @@ export function escribirFiltros(f: FiltrosEmails): URLSearchParams {
   if (f.cliente) p.set('cliente', f.cliente)
   if (f.soloConAdjuntos) p.set('adjuntos', '1')
   if (f.cuenta) p.set('cuenta', f.cuenta)
+  if (f.carpeta !== 'todos') p.set('carpeta', f.carpeta)
   if (f.pagina > 1) p.set('page', String(f.pagina))
   if (f.porPagina !== FILTROS_INICIALES.porPagina) p.set('per', String(f.porPagina))
   return p
 }
 
+/**
+ * La carpeta NO cuenta como filtro: es dónde estás parado, no qué recortaste.
+ * Si contara, «Limpiar filtros» te sacaría de Enviados sin avisar.
+ */
 export function hayFiltrosActivos(f: FiltrosEmails): boolean {
   return (
     f.q.trim() !== '' ||

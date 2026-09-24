@@ -50,6 +50,21 @@ describe('filtros en la URL', () => {
     expect(leerFiltros(new URLSearchParams('asignado=nadie')).asignado).toBe('nadie')
   })
 
+  it('la carpeta viaja en la URL y lo inventado cae en «Todos»', () => {
+    expect(leerFiltros(new URLSearchParams('carpeta=enviados')).carpeta).toBe('enviados')
+    expect(leerFiltros(new URLSearchParams('carpeta=eliminados')).carpeta).toBe('eliminados')
+    expect(leerFiltros(new URLSearchParams('carpeta=spam')).carpeta).toBe('todos')
+    expect(escribirFiltros({ ...FILTROS_INICIALES, carpeta: 'recibidos' }).get('carpeta')).toBe('recibidos')
+    // «Todos» es el valor por defecto: no ensucia la URL.
+    expect(escribirFiltros(FILTROS_INICIALES).has('carpeta')).toBe(false)
+  })
+
+  // La carpeta es dónde estás parado, no un recorte: si contara como filtro,
+  // «Limpiar filtros» te sacaría de Enviados sin avisar.
+  it('la carpeta NO cuenta como filtro activo', () => {
+    expect(hayFiltrosActivos({ ...FILTROS_INICIALES, carpeta: 'eliminados' })).toBe(false)
+  })
+
   it('sabe cuándo hay filtros y cuándo un cambio de trabajo puede sacar filas', () => {
     expect(hayFiltrosActivos(FILTROS_INICIALES)).toBe(false)
     expect(hayFiltrosActivos({ ...FILTROS_INICIALES, soloNoLeidos: true })).toBe(true)

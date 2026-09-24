@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import doc from '@/components/document/Document.module.css'
 import { Alert } from '@/components/feedback/Alert'
@@ -8,18 +8,48 @@ import { Pagination } from '@/components/tables/Pagination'
 import { Button } from '@/components/ui/Button'
 import { LinkButton } from '@/components/ui/LinkButton'
 import { SkeletonRows } from '@/components/ui/Skeleton'
+import { TabPanel, Tabs, type TabItem } from '@/components/ui/Tabs'
 import { Icon } from '@/components/icons/Icon'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { FiltrosEmails } from '../components/FiltrosEmails'
 import { ListadoEmails } from '../components/ListadoEmails'
 import { SinAccesoEmails } from '../components/SinAccesoEmails'
-import { useAsignables, useBandeja, useCuentas, useFiltrosEmails } from '../hooks/useEmails'
+import {
+  useAsignables,
+  useBandeja,
+  useCuentas,
+  useEliminarHilo,
+  useFiltrosEmails,
+} from '../hooks/useEmails'
 import { useRealtimeEmails } from '../hooks/useRealtimeEmails'
 import { TAMANOS_BANDEJA } from '../lib/filtros'
 import { puedeUsarEmails } from '../lib/permisos'
+import type { CarpetaBandeja, FilaBandeja } from '../types'
 import styles from '../components/Emails.module.css'
 
 const HILO = { singular: 'hilo', plural: 'hilos' }
+
+/**
+ * Las carpetas (Fase 28 · E2).
+ *
+ * «Todos» va primero y es la que se abre: Recibidos y Enviados son las
+ * etiquetas de Gmail, y hay hilos que no están en ninguna de las dos
+ * —archivados, o con etiqueta propia—. Si las carpetas fueran sólo esas dos,
+ * ese correo no se vería desde ningún lado.
+ */
+const CARPETAS: readonly TabItem<CarpetaBandeja>[] = [
+  { key: 'todos', label: 'Todos' },
+  { key: 'recibidos', label: 'Recibidos' },
+  { key: 'enviados', label: 'Enviados' },
+  { key: 'eliminados', label: 'Eliminados' },
+]
+
+const VACIA: Record<CarpetaBandeja, string> = {
+  todos: 'La bandeja está vacía',
+  recibidos: 'No hay correo recibido',
+  enviados: 'Todavía no enviaste ninguno',
+  eliminados: 'No eliminaste ningún hilo',
+}
 
 /**
  * La bandeja.
@@ -43,6 +73,14 @@ function Bandeja() {
   const asignables = useAsignables()
   const bandeja = useBandeja(filtros)
   const { canal, reconectar } = useRealtimeEmails()
+  const pestanas = useId()
+  const eliminar = useEliminarHilo()
+  const [trabajando, setTrabajando] = useState<string | null>(null)
+
+  const alEliminar = (fila: FilaBandeja, quitar: boolean) => {
+    setTrabajando(fila.id)
+    eliminar.mutate({ fila, eliminar: quitar }, { onSettled: () => setTrabajando(null) })
+  }
 
   const buzones = useMemo(
     () => new Map((cuentas.data ?? []).map((c) => [c.id, c.direccion] as const)),
@@ -79,7 +117,11 @@ function Bandeja() {
             <LinkButton to="/emails/borradores" icon={<Icon name="edit" size={16} />}>
               Borradores
             </LinkButton>
-            <LinkButton to="/emails/redactar" variant="primary" icon={<Icon name="plus" size={16} />}>
+            <LinkButton
+              to="/emails/redactar"
+              variant="primary"
+              icon={<Icon name="plus" size={16} />}
+            >
               Nuevo email
             </LinkButton>
           </>
@@ -102,76 +144,107 @@ function Bandeja() {
       ) : null}
 
       {conError.map((c) => (
-        <Alert key={c.id} tone="warning" role="status" title={`La sincronización de ${c.direccion} tuvo un problema`}>
+        <Alert
+          key={c.id}
+          tone="warning"
+          role="status"
+          title={`La sincronización de ${c.direccion} tuvo un problema`}
+        >
           <p>
-            {c.errorSyncEn ? `Desde el ${new Date(c.errorSyncEn).toLocaleString('es-AR')}. ` : ''}Puede faltar correo reciente hasta que se recupere.
+            {c.errorSyncEn ? `Desde el ${new Date(c.errorSyncEn).toLocaleString('es-AR')}. ` : ''}
+            Puede faltar correo reciente hasta que se recupere.
           </p>
         </Alert>
       ))}
 
-      <FiltrosEmails
-        filtros={filtros}
-        hayFiltros={hayFiltros}
-        cuentas={cuentas.data ?? []}
-        asignables={asignables.data ?? []}
-        onAplicar={aplicar}
-        onLimpiar={limpiar}
+      <Tabs
+        id={pestanas}
+        items={CARPETAS}
+        value={filtros.carpeta}
+        onChange={(carpeta) => aplicar({ carpeta })}
+        label="Carpeta de la bandeja"
       />
 
-      {bandeja.error ? (
-        <ErrorState
-          title="No se pudo leer la bandeja."
-          description={bandeja.error.message}
-          onRetry={() => void bandeja.refetch()}
-          retrying={bandeja.isFetching}
+      <TabPanel tabsId={pestanas} tabKey={filtros.carpeta} className={styles.panelCarpeta}>
+        <FiltrosEmails
+          filtros={filtros}
+          hayFiltros={hayFiltros}
+          cuentas={cuentas.data ?? []}
+          asignables={asignables.data ?? []}
+          onAplicar={aplicar}
+          onLimpiar={limpiar}
         />
-      ) : cuentas.data && cuentas.data.length === 0 ? (
-        <EmptyState icon="mail" title="Sin cuenta de correo" description="Esta empresa no tiene ninguna cuenta de correo conectada." />
-      ) : bandeja.isPending ? (
-        <div className={styles.lista}>
-          <SkeletonRows rows={6} columns={3} label="Cargando la bandeja…" />
-        </div>
-      ) : total === 0 ? (
-        hayFiltros ? (
+
+        {eliminar.error ? (
+          <Alert tone="danger" role="alert" title="No se pudo mover el hilo">
+            <p>{eliminar.error.message}</p>
+          </Alert>
+        ) : null}
+
+        {bandeja.error ? (
+          <ErrorState
+            title="No se pudo leer la bandeja."
+            description={bandeja.error.message}
+            onRetry={() => void bandeja.refetch()}
+            retrying={bandeja.isFetching}
+          />
+        ) : cuentas.data && cuentas.data.length === 0 ? (
           <EmptyState
-            icon="search"
-            title="Ningún hilo coincide con los filtros"
+            icon="mail"
+            title="Sin cuenta de correo"
+            description="Esta empresa no tiene ninguna cuenta de correo conectada."
+          />
+        ) : bandeja.isPending ? (
+          <div className={styles.lista}>
+            <SkeletonRows rows={6} columns={3} label="Cargando la bandeja…" />
+          </div>
+        ) : total === 0 ? (
+          hayFiltros ? (
+            <EmptyState
+              icon="search"
+              title="Ningún hilo coincide con los filtros"
+              action={
+                <Button variant="secondary" onClick={limpiar}>
+                  Limpiar filtros
+                </Button>
+              }
+            />
+          ) : (
+            <EmptyState icon="inbox" title={VACIA[filtros.carpeta]} />
+          )
+        ) : filas.length === 0 ? (
+          <EmptyState
+            icon="inbox"
+            title="No hay hilos en esta página"
             action={
-              <Button variant="secondary" onClick={limpiar}>
-                Limpiar filtros
+              <Button variant="secondary" onClick={() => aplicar({ pagina: 1 })}>
+                Ir a la primera página
               </Button>
             }
           />
         ) : (
-          <EmptyState icon="inbox" title="La bandeja está vacía" />
-        )
-      ) : filas.length === 0 ? (
-        <EmptyState
-          icon="inbox"
-          title="No hay hilos en esta página"
-          action={
-            <Button variant="secondary" onClick={() => aplicar({ pagina: 1 })}>
-              Ir a la primera página
-            </Button>
-          }
-        />
-      ) : (
-        <ListadoEmails filas={filas} buzones={buzones} />
-      )}
+          <ListadoEmails
+            filas={filas}
+            buzones={buzones}
+            onEliminar={alEliminar}
+            trabajando={trabajando}
+          />
+        )}
 
-      {total > 0 ? (
-        <Pagination
-          label="Paginación de la bandeja"
-          offset={(filtros.pagina - 1) * filtros.porPagina}
-          pageSize={filtros.porPagina}
-          total={total}
-          noun={HILO}
-          loading={bandeja.isFetching}
-          onChange={(offset) => aplicar({ pagina: Math.floor(offset / filtros.porPagina) + 1 })}
-          pageSizeOptions={TAMANOS_BANDEJA}
-          onPageSizeChange={(porPagina) => aplicar({ porPagina })}
-        />
-      ) : null}
+        {total > 0 ? (
+          <Pagination
+            label="Paginación de la bandeja"
+            offset={(filtros.pagina - 1) * filtros.porPagina}
+            pageSize={filtros.porPagina}
+            total={total}
+            noun={HILO}
+            loading={bandeja.isFetching}
+            onChange={(offset) => aplicar({ pagina: Math.floor(offset / filtros.porPagina) + 1 })}
+            pageSizeOptions={TAMANOS_BANDEJA}
+            onPageSizeChange={(porPagina) => aplicar({ porPagina })}
+          />
+        ) : null}
+      </TabPanel>
     </div>
   )
 }

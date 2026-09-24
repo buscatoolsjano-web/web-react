@@ -9,6 +9,10 @@ export interface ListadoEmailsProps {
   filas: FilaBandeja[]
   /** accountId → dirección del buzón, para no mostrarse a sí mismo como participante. */
   buzones: ReadonlyMap<string, string>
+  /** Sacar el hilo de la bandeja, o devolverlo. Sin esto no se dibuja el botón. */
+  onEliminar?: ((fila: FilaBandeja, eliminar: boolean) => void) | undefined
+  /** El hilo que está yendo o volviendo, para bloquear su botón. */
+  trabajando?: string | null | undefined
 }
 
 /**
@@ -18,8 +22,12 @@ export interface ListadoEmailsProps {
  *
  * El no leído no es sólo color: la fila lleva el texto «Sin leer». El clip es
  * un ícono con nombre, no un emoji.
+ *
+ * Fase 28 · E2: el botón de eliminar va FUERA del enlace —un botón adentro de
+ * un `<a>` no es HTML válido y el teclado no llega—, así que la fila es un
+ * enlace y un botón, lado a lado.
  */
-export function ListadoEmails({ filas, buzones }: ListadoEmailsProps) {
+export function ListadoEmails({ filas, buzones, onEliminar, trabajando }: ListadoEmailsProps) {
   const { search } = useLocation()
 
   return (
@@ -30,8 +38,9 @@ export function ListadoEmails({ filas, buzones }: ListadoEmailsProps) {
           f.ultimaDireccion === 'out'
             ? `Para: ${resumenParticipantes(f.participantes, propia)}`
             : (f.ultimoRemitente ?? resumenParticipantes(f.participantes, propia))
+        const asunto = f.asunto?.trim() || '(sin asunto)'
         return (
-          <li key={f.id}>
+          <li key={f.id} className={styles.item}>
             <Link
               to={`/emails/${f.id}`}
               // Volver desde el hilo recupera los filtros y la página.
@@ -43,7 +52,7 @@ export function ListadoEmails({ filas, buzones }: ListadoEmailsProps) {
               </span>
 
               <span className={styles.centro}>
-                <span className={styles.asunto}>{f.asunto?.trim() || '(sin asunto)'}</span>
+                <span className={styles.asunto}>{asunto}</span>
                 {f.extracto ? <span className={styles.extracto}>{f.extracto}</span> : null}
                 <span className={styles.meta}>
                   {f.sinLeer ? <span className={styles.sinLeer}>Sin leer</span> : null}
@@ -66,6 +75,21 @@ export function ListadoEmails({ filas, buzones }: ListadoEmailsProps) {
                 ) : null}
               </span>
             </Link>
+
+            {onEliminar ? (
+              <button
+                type="button"
+                className={styles.accionFila}
+                disabled={trabajando === f.id}
+                // El nombre lleva el asunto: con veinticinco botones «Eliminar»
+                // seguidos, «Eliminar» solo no dice cuál.
+                aria-label={`${f.eliminado ? 'Restaurar' : 'Eliminar'}: ${asunto}`}
+                title={f.eliminado ? 'Devolver a la bandeja' : 'Sacar de la bandeja del ERP (no se borra de Gmail)'}
+                onClick={() => onEliminar(f, !f.eliminado)}
+              >
+                <Icon name={f.eliminado ? 'refresh' : 'trash'} size={16} />
+              </button>
+            ) : null}
           </li>
         )
       })}

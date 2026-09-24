@@ -51,6 +51,8 @@ export async function listarBandeja(companyId: string, f: FiltrosEmails): Promis
     p_asignado: f.asignado,
     p_cliente: f.cliente,
     p_adjuntos: f.soloConAdjuntos,
+    // `todos` viaja como null: es el valor por defecto de la RPC.
+    p_carpeta: f.carpeta === 'todos' ? null : f.carpeta,
     p_limite: f.porPagina,
     p_offset: (f.pagina - 1) * f.porPagina,
   })
@@ -76,6 +78,7 @@ export async function listarBandeja(companyId: string, f: FiltrosEmails): Promis
       clienteNombre: r.customer_name,
       vinculoOrigen: r.vinculo_origen,
       sinLeer: r.sin_leer,
+      eliminado: r.eliminado ?? false,
     })),
     total: Number(filas[0]?.total ?? 0),
     totalSinLeer: Number(filas[0]?.total_sin_leer ?? 0),
@@ -243,6 +246,23 @@ export async function vincularCliente(
     p_origen: cliente?.origen ?? 'manual',
   })
   if (error) fallo(cliente ? 'No se pudo vincular el cliente' : 'No se pudo desvincular el cliente', error)
+}
+
+/**
+ * Sacar un hilo de la bandeja, o devolverlo (Fase 28 · E2).
+ *
+ * **No borra nada en Gmail.** El navegador nunca habla con Gmail, y escribir
+ * allá es del servicio de correo, que no vive en este repo. Lo que hace es
+ * marcarlo como eliminado en el ERP: desaparece de la bandeja y de los
+ * contadores, y queda en la carpeta «Eliminados» con su «Restaurar».
+ */
+export async function eliminarHilo(accountId: string, gmailThreadId: string, eliminar: boolean): Promise<void> {
+  const { error } = await supabase.rpc('eliminar_hilo_email', {
+    p_account: accountId,
+    p_thread: gmailThreadId,
+    p_eliminar: eliminar,
+  })
+  if (error) fallo(eliminar ? 'No se pudo eliminar el hilo' : 'No se pudo restaurar el hilo', error)
 }
 
 /**
