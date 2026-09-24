@@ -13,6 +13,16 @@ export interface Miga {
 export interface PageHeaderProps {
   /** Único h1 de la página. */
   title: ReactNode
+  /**
+   * El h1 sigue existiendo pero no se ve (Fase 28 · E5).
+   *
+   * Para pantallas donde el título no dice nada que no esté a la vista —el
+   * alta de un documento, que ya se anuncia en la hoja y en «Crear
+   * cotización»— y ese renglón es alto que se le saca al formulario. No se
+   * borra: sin h1 la página se queda sin encabezado para quien navega con
+   * lector de pantalla o saltando por títulos.
+   */
+  hideTitle?: boolean | undefined
   subtitle?: ReactNode | undefined
   /** Enlace de vuelta («← Pedidos»). Excluyente con `breadcrumbs`. */
   back?: { to: string; label: string } | undefined
@@ -28,9 +38,13 @@ export interface PageHeaderProps {
  * Encabezado de página del sistema: contexto (volver o migas), título, estado,
  * subtítulo y acciones. En mobile las acciones bajan debajo del título.
  */
-export function PageHeader({ title, subtitle, back, breadcrumbs, status, actions, className }: PageHeaderProps) {
+export function PageHeader({ title, hideTitle, subtitle, back, breadcrumbs, status, actions, className }: PageHeaderProps) {
+  // Con el título oculto y sin estado ni acciones, la fila no dibuja nada:
+  // dejarla puesta sería un renglón vacío, que es justo lo que se quería sacar.
+  const filaVacia = hideTitle && !status && !subtitle && !actions
+
   return (
-    <header className={cx(styles.header, className)}>
+    <header className={cx(styles.header, hideTitle && styles.sinTitulo, className)}>
       {back ? (
         <Link to={back.to} className={styles.volver}>
           <Icon name="arrow-left" size={16} />
@@ -55,16 +69,20 @@ export function PageHeader({ title, subtitle, back, breadcrumbs, status, actions
           </nav>
         )
       )}
-      <div className={styles.fila}>
-        <div className={styles.titulos}>
-          <div className={styles.tituloLinea}>
-            <h1 className={styles.titulo}>{title}</h1>
-            {status}
+      {filaVacia ? (
+        <h1 className="sr-only">{title}</h1>
+      ) : (
+        <div className={styles.fila}>
+          <div className={styles.titulos}>
+            <div className={styles.tituloLinea}>
+              <h1 className={hideTitle ? 'sr-only' : styles.titulo}>{title}</h1>
+              {status}
+            </div>
+            {subtitle && <p className={styles.subtitulo}>{subtitle}</p>}
           </div>
-          {subtitle && <p className={styles.subtitulo}>{subtitle}</p>}
+          {actions && <div className={styles.acciones}>{actions}</div>}
         </div>
-        {actions && <div className={styles.acciones}>{actions}</div>}
-      </div>
+      )}
     </header>
   )
 }

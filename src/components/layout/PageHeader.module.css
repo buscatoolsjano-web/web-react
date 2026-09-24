@@ -4,6 +4,12 @@
   margin-bottom: var(--space-5);
 }
 
+/* Sin título a la vista (Fase 28 · E5): queda sólo el «volver», así que el
+   margen propio del encabezado sobra —el hueco lo pone el gap de la página—. */
+.sinTitulo {
+  margin-bottom: 0;
+}
+
 .volver,
 .migas a {
   display: inline-flex;

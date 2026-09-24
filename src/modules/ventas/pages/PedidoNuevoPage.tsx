@@ -411,7 +411,10 @@ export function PedidoNuevoPage() {
       <PageHeader
         back={{ to: '/ventas/pedidos', label: 'Pedidos' }}
         title="Nuevo pedido"
-        subtitle="Se arma acá y se guarda de una sola vez. El número lo asigna el servidor al crearlo."
+        // Fase 28 · E5: el título ocupaba un renglón que no decía nada que no
+        // estuviera abajo, en la hoja y en «Crear». Sigue existiendo para
+        // quien navega por encabezados, pero no se dibuja.
+        hideTitle
       />
 
       {stel ? <AvisoAutoridadStel detalle={motivo} /> : null}

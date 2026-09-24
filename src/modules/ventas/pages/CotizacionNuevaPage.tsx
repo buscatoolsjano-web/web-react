@@ -453,7 +453,10 @@ export function CotizacionNuevaPage() {
       <PageHeader
         back={{ to: '/ventas/cotizaciones', label: 'Cotizaciones' }}
         title="Nueva cotización"
-        subtitle="Se arma acá y se guarda de una sola vez. El número lo asigna el servidor al crearla."
+        // Fase 28 · E5: el título ocupaba un renglón que no decía nada que no
+        // estuviera abajo, en la hoja y en «Crear». Sigue existiendo para
+        // quien navega por encabezados, pero no se dibuja.
+        hideTitle
       />
 
       {stel ? <AvisoAutoridadStel detalle={motivo} /> : null}

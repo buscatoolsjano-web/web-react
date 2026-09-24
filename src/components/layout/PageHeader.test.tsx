@@ -25,6 +25,17 @@ describe('PageHeader', () => {
     expect(screen.getByRole('button', { name: 'Nota de entrega' })).toBeInTheDocument()
   })
 
+  /**
+   * Fase 28 · E5. «Ocultar» es no dibujarlo, NO borrarlo: sin h1 la página se
+   * queda sin encabezado para quien navega saltando por títulos.
+   */
+  it('con hideTitle el h1 sigue estando, pero no se ve', () => {
+    conRouter(<PageHeader title="Nueva cotización" hideTitle back={{ to: '/ventas/cotizaciones', label: 'Cotizaciones' }} />)
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Nueva cotización' })
+    expect(h1).toHaveClass('sr-only')
+    expect(screen.getByRole('link', { name: 'Cotizaciones' })).toBeInTheDocument()
+  })
+
   it('migas: la última es la página actual', () => {
     conRouter(<PageHeader title="Marcas" breadcrumbs={[{ label: 'Configuración', to: '/configuracion' }, { label: 'Marcas' }]} />)
     const nav = screen.getByRole('navigation', { name: 'Ruta' })
