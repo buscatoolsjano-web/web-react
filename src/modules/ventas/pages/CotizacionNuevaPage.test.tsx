@@ -71,6 +71,9 @@ const espias = vi.hoisted(() => ({
       _lineas: Record<string, unknown>[],
     ) => Promise.resolve({ id: 'q-nueva', numero: 'COTI02630', total: 121, lineas: 1 }),
   ),
+  catalogo: vi.fn((_plan: unknown, _listaPrecioId: string | null) =>
+    Promise.resolve({ productos: [], total: 0 }),
+  ),
   buscar: vi.fn((_c: string, _t: string, _o?: { listaPrecioId?: string | null }) => Promise.resolve(estado.productos)),
   defaults: vi.fn((_c: string, _id: string) => Promise.resolve(estado.defaults)),
 }))
@@ -121,6 +124,16 @@ vi.mock('../services/productosParaLinea', async () => {
   const real = await vi.importActual<typeof ServicioProductos>('../services/productosParaLinea')
   return { ...real, buscarProductos: espias.buscar }
 })
+
+// Fase 28 · E14: «Añadir producto» abre el catálogo. Se espía su consulta para
+// sostener que recibe la tarifa del documento.
+vi.mock('@/modules/catalogo/services/facetas', () => ({
+  obtenerFacetas: () =>
+    Promise.resolve({ total: 0, marcas: [], categorias: [], subtipos: [], atributos: [] }),
+}))
+vi.mock('@/modules/catalogo/services/productos', () => ({
+  consultarProductos: espias.catalogo,
+}))
 
 const { CotizacionNuevaPage } = await import('./CotizacionNuevaPage')
 
@@ -250,14 +263,16 @@ describe('Nueva cotización · borrador', () => {
 })
 
 describe('Nueva cotización · tarifa y precio sugerido', () => {
-  it('el buscador recibe la tarifa del documento', async () => {
+  // Fase 28 · E14: «Añadir producto» abre el catálogo. El invariante es el
+  // mismo de siempre —la consulta lleva la tarifa del documento— sobre el
+  // camino nuevo.
+  it('el catálogo recibe la tarifa del documento', async () => {
     montar()
     completarMinimo()
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'mayorista' } })
     fireEvent.click(screen.getByRole('button', { name: 'Añadir producto' }))
-    fireEvent.change(screen.getByLabelText(/Buscar por SKU/), { target: { value: 'balanceador' } })
-    await waitFor(() => expect(espias.buscar).toHaveBeenCalled(), { timeout: 2000 })
-    expect(espias.buscar.mock.calls.at(-1)![2]).toEqual({ listaPrecioId: 'mayorista' })
+    await waitFor(() => expect(espias.catalogo).toHaveBeenCalled(), { timeout: 2000 })
+    expect(espias.catalogo.mock.calls.at(-1)![1]).toBe('mayorista')
   })
 
   it('sólo se ofrecen tarifas de la moneda del documento', () => {

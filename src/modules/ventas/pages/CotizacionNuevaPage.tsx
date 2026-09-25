@@ -17,7 +17,7 @@ import { BuscadorCliente } from '../components/BuscadorCliente'
 import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
-import { SelectorProducto } from '../components/SelectorProducto'
+import { ModalContactos } from '../components/ModalContactos'
 import { TotalesDocumento } from '../components/TotalesDocumento'
 import { ControlesDeHoja } from '../components/ControlesDeHoja'
 import { useOpcionesDeHoja } from '../hooks/useOpcionesDeHoja'
@@ -113,9 +113,10 @@ export function CotizacionNuevaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [b, setB] = useState<Borrador>(inicial)
-  const [buscando, setBuscando] = useState(false)
   // Fase 28 · E1: el catálogo completo, para elegir desde la hoja.
   const [catalogoAbierto, setCatalogoAbierto] = useState(false)
+  // Fase 28 · E14: la agenda del cliente, sin abandonar el documento.
+  const [contactosAbiertos, setContactosAbiertos] = useState(false)
   // Fase 28 · E12: el formato de la hoja lo maneja la pantalla, para poder
   // ponerlo adentro de la barra de acciones en vez de arriba de la hoja.
   const { opciones: opcionesDeHoja, controles } = useOpcionesDeHoja()
@@ -542,6 +543,7 @@ export function CotizacionNuevaPage() {
           tres renglones de alto para un desplegable que casi nunca se toca. */}
       <DocSection title="Datos del documento">
         <EditorCabecera
+                onAbrirContactos={() => setContactosAbiertos(true)}
           series={series.data ?? []}
           serie={serieVisible}
           onCambiarSerie={(codigo) => setB((x) => cambiarCampo(x, 'serie', codigo))}
@@ -562,7 +564,7 @@ export function CotizacionNuevaPage() {
         title="Líneas"
         actions={
           <>
-            <Button variant="secondary" size="sm" icon={<Icon name="search" size={16} />} onClick={() => setBuscando(true)}>
+            <Button variant="secondary" size="sm" icon={<Icon name="search" size={16} />} onClick={() => setCatalogoAbierto(true)}>
               Añadir producto
             </Button>
             <Button variant="secondary" size="sm" icon={<Icon name="plus" size={16} />} onClick={() => nueva()}>
@@ -574,22 +576,6 @@ export function CotizacionNuevaPage() {
           </>
         }
       >
-        {buscando ? (
-          <div className={editor.selector} id="buscador-de-producto">
-            <SelectorProducto
-              moneda={b.cabecera.moneda}
-              listaPrecioId={b.cabecera.listaPrecioId || null}
-              onCerrar={() => setBuscando(false)}
-              onElegir={(p, precio) => {
-                // La tarifa del documento SUGIERE el precio; después se puede
-                // escribir a mano y cambiar la tarifa no lo recalcula.
-                nueva({ productId: p.id, sku: p.sku, nombre: p.nombre, precioUnitario: precio ?? 0 })
-                setBuscando(false)
-              }}
-            />
-          </div>
-        ) : null}
-
         <EditorLineas
           lineas={lineasVisibles}
           moneda={b.cabecera.moneda}
@@ -654,6 +640,14 @@ export function CotizacionNuevaPage() {
       {/* Fase 28 · E1: el catálogo entero, con sus categorías, para elegir
           sin salir del documento. Agrega con el MISMO `nueva()` que el
           buscador de la izquierda: una sola forma de sumar una línea. */}
+      {contactosAbiertos && b.cabecera.customerId !== '' ? (
+        <ModalContactos
+          clienteId={b.cabecera.customerId}
+          clienteNombre={nombreDelCliente || 'el cliente'}
+          onCerrar={() => setContactosAbiertos(false)}
+        />
+      ) : null}
+
       {catalogoAbierto ? (
         <ModalCatalogoProductos
           listaPrecioId={b.cabecera.listaPrecioId || null}

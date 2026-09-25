@@ -96,3 +96,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* El botón de la agenda, debajo del selector de contacto (Fase 28 · E14). */
+.botonAgenda {
+  justify-self: start;
+  margin-top: calc(var(--space-2) * -1);
+}

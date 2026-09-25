@@ -61,6 +61,9 @@ const espias = vi.hoisted(() => ({
     ) => Promise.resolve({ actualizadoEn: 'x', cambiosCabecera: 1, lineasTocadas: 0 }),
   ),
   cambiarEstado: vi.fn((_id: string, _desde: string, _hasta: string) => Promise.resolve()),
+  catalogo: vi.fn((_plan: unknown, _listaPrecioId: string | null) =>
+    Promise.resolve({ productos: [], total: 0 }),
+  ),
   buscar: vi.fn((_c: string, _t: string, _o?: { listaPrecioId?: string | null }) => Promise.resolve([])),
   // Fase 15 · E5: generar el remito es UNA llamada al servidor.
   remitar: vi.fn((_orderId: string, _cantidades: Map<string, number>, _fecha: string) =>
@@ -162,6 +165,16 @@ vi.mock('../components/BuscadorCliente', () => ({
       elegir otro cliente
     </button>
   ),
+}))
+
+// Fase 28 · E14: «Añadir producto» abre el catálogo. Se espía su consulta para
+// sostener que recibe la tarifa del documento.
+vi.mock('@/modules/catalogo/services/facetas', () => ({
+  obtenerFacetas: () =>
+    Promise.resolve({ total: 0, marcas: [], categorias: [], subtipos: [], atributos: [] }),
+}))
+vi.mock('@/modules/catalogo/services/productos', () => ({
+  consultarProductos: espias.catalogo,
 }))
 
 const { PedidoDetallePage } = await import('./PedidoDetallePage')
@@ -486,15 +499,16 @@ describe('Pedido · edición por borrador', () => {
 })
 
 describe('Pedido · tarifa', () => {
-  it('el buscador de productos recibe la tarifa del pedido', async () => {
+  // mismo —la consulta lleva la tarifa del documento— sobre el camino nuevo.
+  // Fase 28 · E14: «Añadir producto» abre el catálogo. El invariante es el
+  it('el catálogo recibe la tarifa del pedido', async () => {
     estado.doc = pedido({ listaPrecioId: 'mayorista', listaPrecioNombre: 'Mayorista' })
     estado.tarifas = [{ id: 'mayorista', nombre: 'Mayorista', moneda: 'ARS' }]
     montar()
     editar()
     fireEvent.click(screen.getByRole('button', { name: 'Añadir producto' }))
-    fireEvent.change(screen.getByLabelText(/Buscar por SKU/), { target: { value: 'candado' } })
-    await waitFor(() => expect(espias.buscar).toHaveBeenCalled(), { timeout: 2000 })
-    expect(espias.buscar.mock.calls.at(-1)![2]).toEqual({ listaPrecioId: 'mayorista' })
+    await waitFor(() => expect(espias.catalogo).toHaveBeenCalled(), { timeout: 2000 })
+    expect(espias.catalogo.mock.calls.at(-1)![1]).toBe('mayorista')
   })
 
   it('cambiar la tarifa NO recalcula las líneas ya cargadas', () => {
@@ -727,7 +741,7 @@ describe('Pedido · avisos de la migración', () => {
   })
 })
 
-/**
+/**
  * Fase 19 · E4: la ficha rápida del cliente, sin salir del pedido. Es el mismo
  * componente que abre el listado de Clientes y la cotización.
  */

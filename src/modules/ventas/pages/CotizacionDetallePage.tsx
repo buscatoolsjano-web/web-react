@@ -34,7 +34,7 @@ import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
 import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
-import { SelectorProducto } from '../components/SelectorProducto'
+import { ModalContactos } from '../components/ModalContactos'
 import { TablaLineas } from '../components/TablaLineas'
 import { TotalesDocumento } from '../components/TotalesDocumento'
 import { VistaPreviaDocumento } from '../components/VistaPreviaDocumento'
@@ -160,9 +160,10 @@ function Detalle() {
   const pantallaAncha = useMediaQuery('(min-width: 1280px)')
   const [previaPedida, setPreviaPedida] = useState<boolean | null>(null)
   const verPrevia = previaPedida ?? pantallaAncha
-  const [buscando, setBuscando] = useState(false)
   // Fase 28 · E1: el catálogo completo, para elegir desde la hoja.
   const [catalogoAbierto, setCatalogoAbierto] = useState(false)
+  // Fase 28 · E14: la agenda del cliente, sin abandonar el documento.
+  const [contactosAbiertos, setContactosAbiertos] = useState(false)
   const [ultimoError, setUltimoError] = useState<string | null>(null)
   const [conflicto, setConflicto] = useState(false)
   const [avisoContacto, setAvisoContacto] = useState(false)
@@ -662,6 +663,7 @@ function Detalle() {
           <DocSection title="Información de la cotización">
             {editando ? (
               <EditorCabecera
+                onAbrirContactos={() => setContactosAbiertos(true)}
                 valores={borrador.cabecera}
                 contactos={contactos.data ?? []}
                 tarifas={tarifas.data ?? []}
@@ -684,7 +686,7 @@ function Detalle() {
               <>
                 {editando ? (
                   <>
-                    <Button variant="secondary" size="sm" icon={<Icon name="search" size={16} />} onClick={() => setBuscando(true)}>
+                    <Button variant="secondary" size="sm" icon={<Icon name="search" size={16} />} onClick={() => setCatalogoAbierto(true)}>
                       Añadir producto
                     </Button>
                     <Button variant="secondary" size="sm" icon={<Icon name="plus" size={16} />} onClick={() => nueva()}>
@@ -709,22 +711,6 @@ function Detalle() {
           >
             {editando ? (
               <>
-                {buscando ? (
-                  <div className={editor.selector} id="buscador-de-producto">
-                    <SelectorProducto
-                      moneda={borrador.cabecera.moneda}
-                      listaPrecioId={borrador.cabecera.listaPrecioId || null}
-                      onCerrar={() => setBuscando(false)}
-                      onElegir={(p, precio) => {
-                        // La tarifa del documento SUGIERE el precio de la
-                        // línea nueva. Las que ya estaban no se tocan, ni
-                        // siquiera si después cambia la tarifa.
-                        nueva({ productId: p.id, sku: p.sku, nombre: p.nombre, precioUnitario: precio ?? 0 })
-                        setBuscando(false)
-                      }}
-                    />
-                  </div>
-                ) : null}
                 <EditorLineas
                   lineas={lineasVisibles}
                   moneda={borrador.cabecera.moneda}
@@ -804,6 +790,14 @@ function Detalle() {
       {/* Fase 28 · E1: el catálogo entero, con sus categorías, para elegir
           sin salir del documento. Agrega con el MISMO `nueva()` que el
           buscador de la izquierda: una sola forma de sumar una línea. */}
+      {contactosAbiertos && borrador?.cabecera.customerId ? (
+        <ModalContactos
+          clienteId={borrador.cabecera.customerId}
+          clienteNombre={doc.clienteNombre || 'el cliente'}
+          onCerrar={() => setContactosAbiertos(false)}
+        />
+      ) : null}
+
       {catalogoAbierto ? (
         <ModalCatalogoProductos
           listaPrecioId={borrador?.cabecera.listaPrecioId || doc.listaPrecioId}

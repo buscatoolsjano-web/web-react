@@ -32,6 +32,13 @@ export interface EditorCabeceraProps {
   cargandoContactos: boolean
   /** El cambio de cliente dejó al documento sin contacto. */
   avisoContacto: boolean
+  /**
+   * Abrir la agenda de contactos del cliente (Fase 28 · E14).
+   *
+   * Sin esto no se dibuja el botón: hay pantallas donde el documento no se
+   * edita, y ahí no hay nada que agendar.
+   */
+  onAbrirContactos?: (() => void) | undefined
   /** El cambio de moneda dejó la tarifa incompatible. */
   avisoTarifa: boolean
   /**
@@ -78,6 +85,7 @@ export function EditorCabecera({
   vendedores,
   cargandoContactos,
   avisoContacto,
+  onAbrirContactos,
   avisoTarifa,
   series,
   serie,
@@ -189,6 +197,20 @@ export function EditorCabecera({
               ))}
             </Select>
           </Field>
+          {/* Fase 28 · E14: crear un contacto sin abandonar el documento. Antes
+              había que irse a la ficha del cliente y volver a empezar. */}
+          {onAbrirContactos ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className={styles.botonAgenda}
+              disabled={valores.customerId === ''}
+              onClick={onAbrirContactos}
+            >
+              Contactos del cliente…
+            </Button>
+          ) : null}
 
           {direcciones ? (
             <Field
