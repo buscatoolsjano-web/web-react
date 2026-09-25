@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import type { DatosProductoImpreso } from '../lib/descripcionProducto'
 import { separarMotivos } from '../lib/estados'
 import { DOC_TYPE_DE } from '../lib/autoridad'
 import type {
@@ -534,38 +535,69 @@ export async function revisionDeDocumento(
 }
 
 /**
- * La foto principal de cada producto, para el documento impreso (Fase 19 · E6).
+ * Lo que el documento impreso necesita de cada producto (Fase 28 · E9).
  *
- * Se pide SÓLO cuando el formato lleva fotos: un documento sin fotos no paga
- * esta consulta. Devuelve la miniatura si existe —pesa menos y alcanza para
- * 16 mm de papel— y si no, la imagen original.
+ * Es la foto —miniatura si existe, que pesa menos y alcanza para 16 mm de
+ * papel— más los datos con los que se arma la descripción de la línea: marca,
+ * modelo, origen, NCM, tipo y los atributos.
+ *
+ * Dos consultas y no una por línea: los productos de un documento entran
+ * holgados en un `in (...)`, y la foto vive en otra tabla.
+ *
+ * Antes esto era `fotosDeProductos` y sólo se pedía al abrir la ventana de
+ * impresión. Ahora la hoja del documento también lo usa, porque la hoja ES el
+ * documento: no puede mostrar menos que lo que se va a imprimir.
  */
-export async function fotosDeProductos(
+export async function datosDeProductosImpresos(
   companyId: string,
   productoIds: readonly string[],
-): Promise<Map<string, string>> {
+): Promise<Map<string, DatosProductoImpreso>> {
   const ids = [...new Set(productoIds)]
   if (ids.length === 0) return new Map()
 
-  const { data, error } = await supabase
-    .from('product_images')
-    .select('product_id, thumb_url, source_url, is_primary')
-    .eq('company_id', companyId)
-    .in('product_id', ids)
-    .order('is_primary', { ascending: false })
-  if (error) throw new Error(`No se pudieron leer las fotos: ${error.message}`)
+  const [productos, imagenes] = await Promise.all([
+    supabase
+      .from('products')
+      .select('id, model_code, origin_country, ncm_code, product_type, attributes, brands ( name )')
+      .eq('company_id', companyId)
+      .in('id', ids),
+    supabase
+      .from('product_images')
+      .select('product_id, thumb_url, source_url, is_primary')
+      .eq('company_id', companyId)
+      .in('product_id', ids)
+      .order('is_primary', { ascending: false }),
+  ])
+  if (productos.error) throw new Error(`No se pudieron leer los productos: ${productos.error.message}`)
+  if (imagenes.error) throw new Error(`No se pudieron leer las fotos: ${imagenes.error.message}`)
 
   const fotos = new Map<string, string>()
-  for (const f of (data ?? []) as {
-    product_id: string
-    thumb_url: string | null
-    source_url: string | null
-  }[]) {
+  for (const f of imagenes.data ?? []) {
     // La primera de cada producto gana: vienen ordenadas con la principal
     // adelante.
     if (fotos.has(f.product_id)) continue
     const url = f.thumb_url ?? f.source_url
     if (url) fotos.set(f.product_id, url)
   }
-  return fotos
+
+  const datos = new Map<string, DatosProductoImpreso>()
+  for (const p of productos.data ?? []) {
+    datos.set(p.id, {
+      foto: fotos.get(p.id) ?? null,
+      marca: p.brands?.name ?? null,
+      modelo: p.model_code,
+      origen: p.origin_country,
+      ncm: p.ncm_code,
+      tipo: p.product_type,
+      atributos: (p.attributes ?? {}) as Record<string, unknown>,
+    })
+  }
+  // Un producto borrado sigue nombrado en el documento pero ya no se lee: su
+  // foto igual se muestra si quedó, porque el documento es lo que fue.
+  for (const [id, url] of fotos) {
+    if (!datos.has(id)) {
+      datos.set(id, { foto: url, marca: null, modelo: null, origen: null, ncm: null, tipo: null, atributos: {} })
+    }
+  }
+  return datos
 }

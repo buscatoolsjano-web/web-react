@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { formatearCantidad, formatearFecha, formatearImporte } from '../lib/formato'
-import { FORMAS_DE_PAGO, queMostrar, type DocumentoImprimible, type EmpresaImpresion, type OpcionesImpresion } from '../lib/impresion'
+import { FORMAS_DE_PAGO, queMostrar, type DocumentoImprimible, type EmpresaImpresion, type LineaImpresa, type OpcionesImpresion } from '../lib/impresion'
 import { CeldaEditable } from './CeldaEditable'
 import styles from './VistaImpresion.module.css'
 
@@ -29,7 +29,8 @@ export interface EdicionEnHoja {
    * Es la que se usa para una nota en el medio del documento: un texto que
    * se imprime entre las líneas y no lleva cantidad ni precio.
    */
-  onNuevaLinea?: (() => void) | undefined
+  /** Una nota en el medio del documento: sólo título y texto. */
+  onNuevoCapitulo?: (() => void) | undefined
   /** La fecha, editable desde la hoja. Sin esto se muestra como texto. */
   onFecha?: ((valor: string) => void) | undefined
   /** La forma de pago, elegible desde la hoja (Fase 27 · E7). */
@@ -158,7 +159,7 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
     )
   }
 
-  const columnas = 3 + (opciones.conFotos ? 1 : 0) + (ver.precios ? 3 : 0) + (ver.impuestos ? 1 : 0)
+  const columnas = 3 + (ver.precios ? 3 : 0) + (ver.impuestos ? 1 : 0)
   // La columna del botón de borrar sólo existe en pantalla y sólo editando.
   const columnasVisibles = columnas + (edicion ? 1 : 0)
 
@@ -302,8 +303,10 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
       {/* ── D · productos ───────────────────────────────────────────── */}
       <table className={styles.tabla}>
         <colgroup>
-          {opciones.conFotos ? <col style={{ width: '18mm' }} /> : null}
-          <col style={{ width: '24mm' }} />
+          {/* La referencia lleva la foto abajo, en la misma celda: es como lo
+              arma el sistema anterior (`app.js:25439`, `td.ref-cell`). Una
+              columna aparte movía el ancho de la tabla según el formato. */}
+          <col style={{ width: '26mm' }} />
           <col />
           <col style={{ width: '16mm' }} />
           {ver.precios ? <col style={{ width: '24mm' }} /> : null}
@@ -313,7 +316,6 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
         </colgroup>
         <thead>
           <tr>
-            {opciones.conFotos ? <th scope="col">Foto</th> : null}
             <th scope="col">Ref.</th>
             <th scope="col">Nombre / descripción</th>
             <th scope="col" className={styles.num}>
@@ -351,26 +353,27 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
           {doc.lineas.map((l) =>
             l.esCapitulo ? (
               <tr key={l.id} className={styles.capitulo}>
-                <td colSpan={columnasVisibles}>{l.nombre}</td>
+                <td colSpan={columnasVisibles}>
+                  <div className={styles.capituloNombre}>{l.nombre ?? ''}</div>
+                  {l.descripcion ? <div className={styles.capituloTexto}>{l.descripcion}</div> : null}
+                </td>
               </tr>
             ) : (
               <tr key={l.id}>
-                {/* El hueco de la foto existe en TODAS las filas cuando el
-                    formato las lleva: con imagen se usa, sin imagen queda
-                    vacío. Así las columnas no se mueven de una fila a otra. */}
-                {opciones.conFotos ? (
-                  <td className={styles.celdaFoto}>
+                {/* Referencia arriba y foto abajo, en una sola celda. El hueco
+                    de la foto existe en TODAS las filas: con imagen se usa, sin
+                    imagen queda vacío, y así todas las filas miden lo mismo. */}
+                <td className={styles.celdaRef}>
+                  <div className={styles.sku}>{l.sku ?? '—'}</div>
+                  {opciones.conFotos ? (
                     <div className={styles.marcoFoto}>
                       {l.foto ? <img src={l.foto} alt="" className={styles.foto} loading="lazy" /> : null}
                     </div>
-                  </td>
-                ) : null}
-                <td className={styles.sku}>{l.sku ?? '—'}</td>
+                  ) : null}
+                </td>
                 <td>
                   <div className={styles.nombre}>{l.nombre ?? '—'}</div>
-                  {l.descripcion && l.descripcion !== l.nombre ? (
-                    <div className={styles.desc}>{l.descripcion}</div>
-                  ) : null}
+                  <DescripcionLinea linea={l} />
                 </td>
                 <td className={styles.num}>
                   {edicion ? (
@@ -438,9 +441,9 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
                   <button type="button" className={styles.agregar} onClick={edicion.onAgregar}>
                     + Agregar producto
                   </button>
-                  {edicion.onNuevaLinea ? (
-                    <button type="button" className={styles.agregar} onClick={edicion.onNuevaLinea}>
-                      + Nueva línea
+                  {edicion.onNuevoCapitulo ? (
+                    <button type="button" className={styles.agregar} onClick={edicion.onNuevoCapitulo}>
+                      + Nuevo capítulo
                     </button>
                   ) : null}
                 </div>
@@ -494,4 +497,41 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
       </footer>
     </div>
   )
+}
+
+/**
+ * Lo que va debajo del nombre del producto.
+ *
+ * Con datos del producto se arman las partes —Marca, Modelo, Origen, NCM y los
+ * atributos que lo distinguen—, cada una en su propio `span` que no se parte:
+ * «Encastre: 1/4 HEX» nunca queda con el valor en el renglón siguiente. Sin
+ * datos cae en la descripción libre de la línea, que es lo que tienen las
+ * líneas escritas a mano.
+ *
+ * El corte a tres renglones lo hace el CSS: acá no se recorta el texto, porque
+ * cuántas partes entran depende del ancho, y el ancho lo sabe el navegador.
+ */
+function DescripcionLinea({ linea }: { linea: LineaImpresa }) {
+  if (linea.partes.length > 0) {
+    return (
+      <div className={styles.desc}>
+        {/* El espacio entre partes es un espacio DE VERDAD y no sólo un
+            margen: cada parte no se parte al medio, y sin un espacio entre
+            una y otra el navegador no tiene dónde cortar el renglón. Con
+            margen solo, los siete datos quedaban en UNA línea que se iba de
+            la celda —medido: 7 partes en 197 px y 16 px de alto—. */}
+        {linea.partes.map((p) => (
+          <Fragment key={p.etiqueta}>
+            <span className={styles.parte}>
+              <b>{p.etiqueta}:</b> {p.valor}
+            </span>{' '}
+          </Fragment>
+        ))}
+      </div>
+    )
+  }
+  if (linea.descripcion && linea.descripcion !== linea.nombre) {
+    return <div className={styles.desc}>{linea.descripcion}</div>
+  }
+  return null
 }

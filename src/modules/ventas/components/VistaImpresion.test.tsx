@@ -30,6 +30,7 @@ const linea = (p: Partial<LineaImpresa> = {}): LineaImpresa => ({
   sku: 'PRO10022',
   nombre: 'Candado de bloqueo LOTO',
   descripcion: null,
+  partes: [],
   cantidad: 2,
   precio: 100,
   descuentoPct: 0,
@@ -123,26 +124,73 @@ describe('El documento impreso', () => {
       expect(encabezados()).toEqual(conUno)
     })
 
-    /** Regla 10: el hueco de la foto existe en TODAS las filas o en ninguna. */
-    it('con fotos, la columna existe en todas las filas aunque el producto no tenga', () => {
+    /**
+     * Regla 10 + Fase 28 · E9: la foto vive en la celda de la referencia, y su
+     * hueco existe en TODAS las filas o en ninguna. Una columna aparte movía
+     * el ancho de la tabla según el formato.
+     */
+    it('con fotos, el hueco existe en todas las filas aunque el producto no tenga', () => {
       montar(
         doc({ lineas: [linea({ foto: 'https://ejemplo/1.png' }), linea({ id: 'l2', foto: null })] }),
         { ...OPCIONES_INICIALES, conFotos: true },
       )
 
-      expect(encabezados()[0]).toBe('Foto')
+      // La foto NO agrega columna: sigue empezando en «Ref.».
+      expect(encabezados()[0]).toBe('Ref.')
       const filas = screen.getAllByRole('row').slice(1)
-      // Las dos filas tienen la misma cantidad de celdas: la de la foto está
-      // en las dos, con imagen y sin imagen.
       expect(new Set(filas.map((f) => within(f).getAllByRole('cell').length)).size).toBe(1)
-      // Y sólo una tiene imagen: la foto es decorativa (`alt=""`), así que se
-      // la busca por etiqueta y no por rol.
+      // Sólo una tiene imagen: la foto es decorativa, se busca por etiqueta.
       expect(filas.filter((f) => f.querySelector('img') !== null)).toHaveLength(1)
     })
 
-    it('sin fotos no hay columna de foto: el formato no las lleva', () => {
+    it('sin fotos las columnas son las mismas: el formato no cambia la tabla', () => {
       montar(doc({ lineas: [linea({ foto: 'https://ejemplo/1.png' })] }))
-      expect(encabezados()).not.toContain('Foto')
+      expect(encabezados()[0]).toBe('Ref.')
+      // El logo de la empresa no cuenta: se mira la tabla, no la hoja entera.
+      expect(screen.getByRole('table').querySelector('img')).toBeNull()
+    })
+
+    /**
+     * Fase 28 · E9: la descripción se arma con los datos del producto —marca,
+     * modelo, origen, NCM, atributos—, como el documento del sistema anterior.
+     * Cada dato va entero o no va: «Encastre: 1/4 HEX» no se parte al medio.
+     */
+    it('la descripción sale de los datos del producto, cada uno sin partirse', () => {
+      montar(
+        doc({
+          lineas: [
+            linea({
+              partes: [
+                { etiqueta: 'Marca', valor: 'SPEEDRILL' },
+                { etiqueta: 'Encastre', valor: '1/4 HEX' },
+              ],
+            }),
+          ],
+        }),
+      )
+      const fila = screen.getAllByRole('row')[1]!
+      expect(fila).toHaveTextContent('Marca: SPEEDRILL')
+      expect(fila).toHaveTextContent('Encastre: 1/4 HEX')
+    })
+
+    it('sin datos del producto cae en la descripción escrita a mano', () => {
+      montar(doc({ lineas: [linea({ partes: [], descripcion: 'Lo que escribió la persona' })] }))
+      expect(screen.getAllByRole('row')[1]!).toHaveTextContent('Lo que escribió la persona')
+    })
+
+    /** Un capítulo es una NOTA: título y texto, sin referencia ni importes. */
+    it('un capítulo ocupa toda la fila y muestra su texto', () => {
+      montar(
+        doc({
+          lineas: [
+            linea({ id: 'c1', esCapitulo: true, nombre: 'Entrega', descripcion: 'Se entrega en Melincué 5125.' }),
+          ],
+        }),
+      )
+      const fila = screen.getAllByRole('row')[1]!
+      expect(within(fila).getAllByRole('cell')).toHaveLength(1)
+      expect(fila).toHaveTextContent('Entrega')
+      expect(fila).toHaveTextContent('Se entrega en Melincué 5125.')
     })
 
     it('una descripción larga no agrega columnas ni cambia el orden', () => {

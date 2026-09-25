@@ -579,7 +579,8 @@ export function PedidoNuevoPage() {
                     onElegir={(elegido) => elegirCliente(elegido ?? '')}
                   />
                 ),
-                onNuevaLinea: () => nueva(),
+                onNuevoCapitulo: () =>
+                  nueva({ tipoLinea: 'chapter', nombre: 'Capítulo', cantidad: 0, precioUnitario: 0, tasaImpuesto: 0, tratamientoImpuesto: 'exempt' }),
                 onCantidad: (id, valor) => cambiarLinea(id, 'quantity', valor),
                 onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
                 onDescuento: (id, valor) => cambiarLinea(id, 'discount_pct', valor),

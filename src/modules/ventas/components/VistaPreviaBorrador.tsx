@@ -1,3 +1,4 @@
+import { useDatosDeProductos } from '../hooks/useDatosDeProductos'
 import { imprimibleDelBorrador } from '../lib/impresion'
 import { PanelHoja } from './PanelHoja'
 import { VistaImpresion, type EdicionEnHoja } from './VistaImpresion'
@@ -48,6 +49,10 @@ export function VistaPreviaBorrador({
   ajustarAlAncho = false,
   edicion = null,
 }: VistaPreviaBorradorProps) {
+  // La hoja del alta muestra lo mismo que la del documento guardado: foto y
+  // descripción armada con los datos del producto (Fase 28 · E9).
+  const { datos, definiciones } = useDatosDeProductos(lineas)
+
   return (
     <PanelHoja
       etiqueta={edicion ? 'Documento' : 'Vista previa del documento'}
@@ -60,6 +65,8 @@ export function VistaPreviaBorrador({
             tipo,
             { fecha, titulo: titulo ?? null, cliente, contacto, moneda, formaPago, notas, lineas },
             opciones,
+            datos,
+            definiciones,
           )}
           empresa={empresa}
           opciones={opciones}

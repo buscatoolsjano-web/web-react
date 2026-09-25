@@ -144,12 +144,14 @@ export function BuscadorCliente({ valor, editable, onElegir, apariencia = 'erp' 
             </li>
           ))}
           {resultados.isFetching ? <li className={styles.nota}>Buscando…</li> : null}
-          {!resultados.isFetching && (resultados.data ?? []).length === 0 ? (
+          {/* En la hoja, con menos de dos letras no se dice nada: es una caja
+              de texto y los clientes aparecen al escribir (Fase 28 · E9). El
+              panel del formulario sí lleva la ayuda, que ahí es texto de campo
+              y no un cartel en el medio del documento. */}
+          {!resultados.isFetching && (resultados.data ?? []).length === 0 && !(enHoja && consulta.trim().length < 2) ? (
             <li className={styles.nota}>
               {consulta.trim().length < 2
-                ? enHoja
-                  ? 'Escribí dos letras para buscar.'
-                  : 'Escribí al menos dos letras del nombre, el CUIT o la referencia.'
+                ? 'Escribí al menos dos letras del nombre, el CUIT o la referencia.'
                 : 'Ningún cliente activo coincide.'}
             </li>
           ) : null}

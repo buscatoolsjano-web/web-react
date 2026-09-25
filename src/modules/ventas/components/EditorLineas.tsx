@@ -84,13 +84,25 @@ export function EditorLineas({
               <td className={styles.num} data-label="#">{l.numeroLinea ?? i + 1}</td>
 
               {l.tipoLinea === 'chapter' ? (
+                /* Fase 28 · E9: un capítulo es una nota —dónde se entrega, una
+                   aclaración—, así que lleva título Y texto. Sin referencia,
+                   sin cantidad y sin importe: no es una línea que se cobre. */
                 <td colSpan={7} className={styles.celdaCapitulo} data-label="Capítulo">
                   <input
                     className={styles.texto}
                     value={l.nombre ?? ''}
                     readOnly={!editable}
+                    placeholder="Título de la nota"
                     aria-label="Título del capítulo"
                     onChange={(e) => onCambiar(l.id, 'name_snapshot', e.target.value || null)}
+                  />
+                  <input
+                    className={styles.texto}
+                    value={l.descripcion ?? ''}
+                    readOnly={!editable}
+                    placeholder="Texto de la nota (dónde se entrega, una aclaración…)"
+                    aria-label="Texto del capítulo"
+                    onChange={(e) => onCambiar(l.id, 'description_snapshot', e.target.value || null)}
                   />
                 </td>
               ) : (

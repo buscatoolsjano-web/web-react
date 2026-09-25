@@ -1,3 +1,4 @@
+import { useDatosDeProductos } from '../hooks/useDatosDeProductos'
 import { construirImprimible } from '../lib/impresion'
 import { PanelHoja } from './PanelHoja'
 import { VistaImpresion, type EdicionEnHoja } from './VistaImpresion'
@@ -42,6 +43,10 @@ export function VistaPreviaDocumento({
   edicion = null,
   aclaracion = null,
 }: VistaPreviaDocumentoProps) {
+  // La hoja muestra lo MISMO que se imprime: foto y descripción armada con
+  // los datos del producto (Fase 28 · E9).
+  const { datos, definiciones } = useDatosDeProductos(lineas)
+
   return (
     <PanelHoja
       etiqueta="Documento"
@@ -52,7 +57,7 @@ export function VistaPreviaDocumento({
         <VistaImpresion
           // Las líneas visibles reemplazan a las del documento: mientras se
           // edita, la hoja tiene que mostrar lo que se está editando.
-          doc={construirImprimible({ ...doc, lineas: [...lineas] }, opciones)}
+          doc={construirImprimible({ ...doc, lineas: [...lineas] }, opciones, datos, definiciones)}
           empresa={empresa}
           opciones={opciones}
           edicion={edicion}

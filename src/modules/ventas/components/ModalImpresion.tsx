@@ -14,7 +14,7 @@ import {
   type OpcionesImpresion,
 } from '../lib/impresion'
 import { datosDeEmpresa } from '../services/empresa'
-import { fotosDeProductos } from '../services/documentos'
+import { useDatosDeProductos } from '../hooks/useDatosDeProductos'
 import type { DocumentoDetalle } from '../types'
 import { VistaImpresion } from './VistaImpresion'
 import styles from './ModalImpresion.module.css'
@@ -77,14 +77,9 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
     staleTime: 10 * 60_000,
   })
 
-  // Las fotos sólo se piden si el formato las lleva.
-  const idsDeProducto = doc.lineas.map((l) => l.productId).filter((x): x is string => x !== null)
-  const { data: fotos } = useQuery({
-    queryKey: ['ventas', activa?.companyId, 'fotos-impresion', doc.id],
-    queryFn: () => fotosDeProductos(activa!.companyId, idsDeProducto),
-    enabled: !!activa && opciones.conFotos && idsDeProducto.length > 0,
-    staleTime: 10 * 60_000,
-  })
+  // La foto y los datos de la descripción. Se comparten con la hoja del
+  // documento: es el MISMO documento, no puede mostrar cosas distintas.
+  const { datos, definiciones } = useDatosDeProductos(doc.lineas)
 
   const empresa: EmpresaImpresion = empresaDb ?? {
     nombre: activa?.companyName ?? '',
@@ -92,7 +87,7 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
     telefono: null, email: null, web: null, color: '#f37021',
   }
 
-  const imprimible = construirImprimible(doc, opciones, fotos)
+  const imprimible = construirImprimible(doc, opciones, datos, definiciones)
 
   // ── La escala de la previsualización ──────────────────────────────────
   //

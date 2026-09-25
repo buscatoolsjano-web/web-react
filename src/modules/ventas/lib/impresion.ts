@@ -1,3 +1,5 @@
+import type { DefinicionAtributo } from '@/modules/catalogo/types'
+import { partesDeDescripcion, type DatosProductoImpreso, type ParteDescripcion } from './descripcionProducto'
 import { formatearDomicilio } from './formato'
 import type { DocumentoDetalle, LineaDocumento, TipoDocumento } from '../types'
 
@@ -104,6 +106,12 @@ export interface LineaImpresa {
   impuestoPct: number | null
   /** La foto del producto, si el formato las lleva y el producto tiene una. */
   foto: string | null
+  /**
+   * Marca, modelo, origen, NCM y los atributos que distinguen al producto
+   * (Fase 28 · E9). Es lo que el sistema anterior pone debajo del nombre, y
+   * reemplaza a la descripción libre cuando el producto tiene datos.
+   */
+  partes: ParteDescripcion[]
 }
 
 export interface DocumentoImprimible {
@@ -154,8 +162,10 @@ function subtotalDeLinea(l: LineaDocumento, factorImpuesto: number): number | nu
 export function construirImprimible(
   doc: DocumentoDetalle,
   opciones: OpcionesImpresion,
-  /** Foto por producto. Sólo se pide cuando el formato las lleva. */
-  fotos?: ReadonlyMap<string, string>,
+  /** Datos por producto: la foto y con qué armar la descripción. */
+  datos?: ReadonlyMap<string, DatosProductoImpreso>,
+  /** Definiciones de atributos, para la etiqueta legible de cada uno. */
+  definiciones: readonly DefinicionAtributo[] = [],
 ): DocumentoImprimible {
   const ver = queMostrar(opciones.formato)
 
@@ -194,7 +204,8 @@ export function construirImprimible(
         descuentoPct: l.descuentoPct ?? 0,
         subtotal: subtotalDeLinea(l, factor),
         impuestoPct: l.tasaImpuesto,
-        foto: opciones.conFotos && l.productId ? (fotos?.get(l.productId) ?? null) : null,
+        foto: opciones.conFotos && l.productId ? (datos?.get(l.productId)?.foto ?? null) : null,
+        partes: l.productId ? partesDeDescripcion(datos?.get(l.productId), definiciones) : [],
       }
     }),
     subtotal: doc.subtotal,
@@ -251,6 +262,10 @@ export function imprimibleDelBorrador(
     lineas: readonly LineaDocumento[]
   },
   opciones: OpcionesImpresion,
+  /** Datos por producto: la foto y con qué armar la descripción. */
+  productos?: ReadonlyMap<string, DatosProductoImpreso>,
+  /** Definiciones de atributos, para la etiqueta legible de cada uno. */
+  definiciones: readonly DefinicionAtributo[] = [],
 ): DocumentoImprimible {
   const ver = queMostrar(opciones.formato)
   let subtotal = 0
@@ -271,8 +286,11 @@ export function imprimibleDelBorrador(
       descuentoPct: l.descuentoPct ?? 0,
       subtotal: sub,
       impuestoPct: l.tasaImpuesto,
-      // El borrador todavía no consulta fotos: no hay documento que imprimir.
-      foto: null,
+      // Fase 28 · E9: el alta muestra lo MISMO que el documento guardado —foto
+      // y descripción armada con los datos del producto—. Antes no: la hoja
+      // del alta era la única que mentía sobre cómo iba a salir impreso.
+      foto: opciones.conFotos && l.productId ? (productos?.get(l.productId)?.foto ?? null) : null,
+      partes: l.productId ? partesDeDescripcion(productos?.get(l.productId), definiciones) : [],
     }
   })
 

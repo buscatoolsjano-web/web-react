@@ -86,7 +86,9 @@ export function PanelHoja({ etiqueta, aclaracion, ajustarAlAncho = false, childr
     formato,
     preciosConImpuestos: conImpuestos,
     papel: OPCIONES_INICIALES.papel,
-    conFotos: false,
+    // Fase 28 · E9: la hoja lleva foto SIEMPRE. El hueco existe en todas las
+    // filas aunque el producto no tenga imagen, así todas miden lo mismo.
+    conFotos: true,
   }
 
   /**

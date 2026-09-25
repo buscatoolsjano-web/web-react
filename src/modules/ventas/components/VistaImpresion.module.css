@@ -221,24 +221,36 @@
 .desc {
   color: var(--tinta-suave);
   font-size: 7.5pt;
+  line-height: 1.6;
   margin-top: 0.5mm;
-  /* Crece, pero acotado: tres líneas. */
+  /* Crece, pero acotado: tres renglones. El texto va entero en el HTML —
+     cuántos datos entran depende del ancho, y el ancho lo sabe el navegador. */
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-/* Regla 10: el hueco de la foto existe SIEMPRE que el formato las lleve.
-   Con imagen se usa; sin imagen queda vacío, y la descripción no lo invade. */
-.celdaFoto {
-  width: 18mm;
-  padding: 1mm;
+/* Cada dato entero o nada: «Encastre: 1/4 HEX» no se parte entre renglones.
+   Dos espacios de separación, como el documento del sistema anterior. */
+.parte {
+  white-space: nowrap;
+  margin-right: 3mm;
+}
+
+/* Referencia arriba, foto abajo, en una sola celda (Fase 28 · E9), como la
+   celda de referencia del sistema anterior. El hueco de la foto existe SIEMPRE
+   que el formato las lleve: con imagen se usa, sin imagen queda vacío, y así
+   todas las filas miden lo mismo —que es lo que se pidió—. */
+.celdaRef {
+  width: 26mm;
+  padding: 1.5mm;
 }
 
 .marcoFoto {
-  width: 16mm;
-  height: 16mm;
+  width: 20mm;
+  height: 20mm;
+  margin-top: 1mm;
   border: 1px solid var(--linea);
   border-radius: 1mm;
   display: flex;
@@ -254,13 +266,24 @@
   object-fit: contain;
 }
 
+/* Un capítulo es una nota en el medio del documento —dónde se entrega, una
+   aclaración—: título y texto, sin referencia, sin cantidad y sin importe. */
 .capitulo td {
   background: #faf6f2;
+  font-size: 8pt;
+}
+
+.capituloNombre {
   color: var(--naranja);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  font-size: 8pt;
+}
+
+.capituloTexto {
+  color: var(--tinta);
+  margin-top: 0.5mm;
+  white-space: pre-wrap;
 }
 
 /* ── E · el relleno que ancla los totales abajo ────────────────────────── */

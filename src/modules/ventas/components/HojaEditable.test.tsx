@@ -22,7 +22,7 @@ const OPCIONES: OpcionesImpresion = { formato: 'valorado', preciosConImpuestos: 
 const linea = (id: string, over: Record<string, unknown> = {}) => ({
   id, esCapitulo: false, numero: 1, sku: 'PRO04888', nombre: 'Destornillador EI3',
   descripcion: null, cantidad: 4, precio: 1350.69, descuentoPct: 10,
-  subtotal: 4862.48, impuestoPct: 21, foto: null, ...over,
+  subtotal: 4862.48, impuestoPct: 21, foto: null, partes: [], ...over,
 })
 
 const doc = (lineas: unknown[]): DocumentoImprimible =>

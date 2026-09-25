@@ -120,8 +120,11 @@
   flex-wrap: wrap;
 }
 
+/* Al tamaño del resto del documento: el nombre del cliente no es un título,
+   es un dato más de la cabecera (Fase 28 · E9). */
 .nombreHoja {
   font: inherit;
+  font-size: 0.95em;
   font-weight: 700;
   color: inherit;
 }
@@ -156,8 +159,11 @@
    sobre el papel, y el texto con la tipografía del documento. */
 .inputHoja {
   font: inherit;
+  /* El ancho en mm y no en rem: la hoja se mide en milímetros y se escala en
+     bloque, así que un rem —que es del root— le quedaba enorme. */
+  font-size: 0.95em;
   width: 100%;
-  min-width: 14rem;
+  min-width: 38mm;
   padding: 2px 6px;
   background: #fff;
   color: #0f172a;
