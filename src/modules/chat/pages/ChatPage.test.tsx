@@ -157,6 +157,22 @@ describe('El chat interno', () => {
     await waitFor(() => expect(espias.enviar).toHaveBeenCalledWith('conv-de-u-norberto', 'Hola'))
   })
 
+  /**
+   * Sin conversación no hay mensajes que pedir, así que la query queda
+   * deshabilitada — y una query deshabilitada se queda en «pending» para
+   * siempre. Decir «Cargando…» ahí es mentir: no está cargando nada.
+   */
+  it('a alguien sin conversación no le dice «Cargando…» para siempre', async () => {
+    estado.conversaciones = [conversacion({ id: null, ultimoMensaje: null, ultimoMensajeEn: null })]
+    estado.mensajes = []
+    montar()
+    fireEvent.click(await screen.findByRole('button', { name: /Norberto/ }, { timeout: 3000 }))
+
+    const charla = await screen.findByRole('log', { name: 'Mensajes' })
+    expect(await within(charla).findByText(/Escribí el primero/)).toBeInTheDocument()
+    expect(within(charla).queryByText(/Cargando/)).toBeNull()
+  })
+
   it('con una conversación ya abierta no se crea otra', async () => {
     montar()
     fireEvent.click(await screen.findByRole('button', { name: /Norberto/ }, { timeout: 3000 }))

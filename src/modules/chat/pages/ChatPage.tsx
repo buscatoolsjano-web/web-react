@@ -161,7 +161,11 @@ function Chat() {
                 <h2 className={styles.titulo}>{conversacion.conQuien}</h2>
 
                 <div className={styles.mensajes} ref={fondo} role="log" aria-label="Mensajes">
-                  {mensajes.isPending ? (
+                  {/* `isLoading` y no `isPending`: con alguien a quien nunca se
+                      le escribió no hay conversación todavía, la query queda
+                      deshabilitada, y una query deshabilitada se queda en
+                      «pending» para siempre. Decía «Cargando…» sin fin. */}
+                  {mensajes.isLoading ? (
                     <p className={styles.nota}>Cargando…</p>
                   ) : charla.length === 0 ? (
                     <p className={styles.nota}>Todavía no hay mensajes. Escribí el primero.</p>
