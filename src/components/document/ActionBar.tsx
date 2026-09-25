@@ -7,6 +7,14 @@ import styles from './Document.module.css'
 export interface ActionBarProps {
   /** Vuelta al listado. Sólo tiene sentido en una barra pegada: el enlace del encabezado se va con el scroll. */
   volver?: { to: string; label: string } | undefined
+  /**
+   * El h1 de la página, invisible (Fase 28 · E12).
+   *
+   * Para pantallas que ya no dibujan encabezado: el título no se ve —no dice
+   * nada que no esté abajo— pero tiene que existir, o la página se queda sin
+   * encabezado para quien navega saltando por títulos.
+   */
+  titulo?: string | undefined
   /** La acción principal del estado actual (una). */
   primary?: ReactNode | undefined
   /** Acciones normales: editar, imprimir, enviar… */
@@ -39,6 +47,7 @@ export interface ActionBarProps {
  */
 export function ActionBar({
   volver,
+  titulo,
   primary,
   secondary,
   more,
@@ -48,13 +57,14 @@ export function ActionBar({
   label = 'Acciones del documento',
   className,
 }: ActionBarProps) {
-  if (!volver && !primary && !secondary && !more && !danger && !note) return null
+  if (!titulo && !volver && !primary && !secondary && !more && !danger && !note) return null
   return (
     <div
       className={cx(styles.actionBar, pegajosa && styles.actionBarPegajosa, className)}
       role="group"
       aria-label={label}
     >
+      {titulo ? <h1 className="sr-only">{titulo}</h1> : null}
       {(volver || primary || secondary || more || danger) && (
         <div className={styles.actionFila}>
           {volver && (

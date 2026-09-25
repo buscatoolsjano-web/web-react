@@ -191,7 +191,7 @@ describe('Nueva cotización · borrador', () => {
     montar()
     completarMinimo()
     fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
-    fireEvent.change(screen.getAllByLabelText(/Cantidad/)[0]!, { target: { value: '3' } })
+    fireEvent.change(screen.getAllByLabelText('Cantidad')[0]!, { target: { value: '3' } })
     expect(espias.crear).not.toHaveBeenCalled()
   })
 
@@ -201,8 +201,8 @@ describe('Nueva cotización · borrador', () => {
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'mayorista' } })
     fireEvent.change(screen.getByLabelText(/Agente/), { target: { value: 'u1' } })
     fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
-    fireEvent.change(screen.getAllByLabelText(/Cantidad/)[0]!, { target: { value: '2' } })
-    fireEvent.change(screen.getAllByLabelText(/Precio/)[0]!, { target: { value: '50' } })
+    fireEvent.change(screen.getAllByLabelText('Cantidad')[0]!, { target: { value: '2' } })
+    fireEvent.change(screen.getAllByLabelText('Precio unitario')[0]!, { target: { value: '50' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
 
@@ -634,8 +634,8 @@ describe('Nueva cotización · vista previa del borrador', () => {
     montar()
     completarMinimo()
     fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
-    fireEvent.change(screen.getAllByLabelText(/Cantidad/)[0]!, { target: { value: '3' } })
-    fireEvent.change(screen.getAllByLabelText(/Precio/)[0]!, { target: { value: '100' } })
+    fireEvent.change(screen.getAllByLabelText('Cantidad')[0]!, { target: { value: '3' } })
+    fireEvent.change(screen.getAllByLabelText('Precio unitario')[0]!, { target: { value: '100' } })
 
     const previa = screen.getByRole('region', { name: 'Documento' })
     /*

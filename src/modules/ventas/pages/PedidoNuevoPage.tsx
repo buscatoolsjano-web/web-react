@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { PageHeader } from '@/components/layout/PageHeader'
 import { ActionBar } from '@/components/document/ActionBar'
 import { DocSection } from '@/components/document/DocSection'
 import docUi from '@/components/document/Document.module.css'
@@ -21,6 +20,8 @@ import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TotalesDocumento } from '../components/TotalesDocumento'
+import { ControlesDeHoja } from '../components/ControlesDeHoja'
+import { useOpcionesDeHoja } from '../hooks/useOpcionesDeHoja'
 import { VistaPreviaBorrador } from '../components/VistaPreviaBorrador'
 import {
   useContactos,
@@ -113,6 +114,9 @@ export function PedidoNuevoPage() {
   const [buscando, setBuscando] = useState(false)
   // Fase 28 · E1: el catálogo completo, para elegir desde la hoja.
   const [catalogoAbierto, setCatalogoAbierto] = useState(false)
+  // Fase 28 · E12: el formato de la hoja lo maneja la pantalla, para poder
+  // ponerlo adentro de la barra de acciones en vez de arriba de la hoja.
+  const { opciones: opcionesDeHoja, controles } = useOpcionesDeHoja()
   const [avisoContacto, setAvisoContacto] = useState(false)
   const [avisoTarifa, setAvisoTarifa] = useState(false)
   // Fase 17 · E2. `tocados` es la memoria de lo que eligió la persona: el
@@ -408,14 +412,10 @@ export function PedidoNuevoPage() {
 
   return (
     <div className={`${docUi.pagina} ${docUi.paginaAncha}`}>
-      <PageHeader
-        back={{ to: '/ventas/pedidos', label: 'Pedidos' }}
-        title="Nuevo pedido"
-        // Fase 28 · E5: el título ocupaba un renglón que no decía nada que no
-        // estuviera abajo, en la hoja y en «Crear». Sigue existiendo para
-        // quien navega por encabezados, pero no se dibuja.
-        hideTitle
-      />
+      {/* Fase 28 · E12: el encabezado entero se fue. El título ya no se
+          dibujaba (E5) y el «volver» se mudó a la barra de acciones, que es
+          donde está el resto de lo que se puede hacer acá. El h1 vive en la
+          barra, invisible, para que la página siga teniendo encabezado. */}
 
       {stel ? <AvisoAutoridadStel detalle={motivo} /> : null}
 
@@ -427,6 +427,8 @@ export function PedidoNuevoPage() {
 
       <ActionBar
         pegajosa
+        volver={{ to: '/ventas/pedidos', label: 'Pedidos' }}
+        titulo="Nuevo pedido"
         label="Crear pedido"
         primary={
           <Button
@@ -441,6 +443,9 @@ export function PedidoNuevoPage() {
         }
         secondary={
           <>
+            {/* Fase 28 · E12: el formato de la hoja vive acá y no arriba de la
+                hoja: son 40 px que le sacaba al documento. */}
+            <ControlesDeHoja {...controles} />
             {/* Con pantalla ancha la hoja ya está al lado: el botón sobra. */}
             {!pantallaAncha ? (
               <Button
@@ -565,6 +570,7 @@ export function PedidoNuevoPage() {
               notas={b.cabecera.notas || null}
               lineas={lineasVisibles}
               ajustarAlAncho={pantallaAncha}
+              opcionesDeHoja={opcionesDeHoja}
               /* La hoja edita EL MISMO borrador que el panel de la
                  izquierda: hay un documento, no dos que sincronizar. */
               edicion={{

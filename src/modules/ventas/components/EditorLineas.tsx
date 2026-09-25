@@ -18,7 +18,7 @@ export type CampoLinea =
 export interface EditorLineasProps {
   lineas: readonly LineaDocumento[]
   moneda: string
-  /** `false` deja la tabla en sólo lectura sin cambiar el layout. */
+  /** `false` deja el editor en sólo lectura sin cambiar el layout. */
   editable: boolean
   /** Cómo se nombra el documento en el rótulo para lectores de pantalla. */
   documento?: 'de la cotización' | 'del pedido' | undefined
@@ -33,23 +33,29 @@ function aNumero(v: string): number {
 }
 
 /**
- * La tabla de líneas del editor.
+ * Las líneas del editor, una ficha por línea.
  *
- * Cada línea tiene su propio `id` y su `line_no`: el orden es un dato, no la
- * posición en un array. En el legacy el índice ERA la identidad, y de ahí
- * salió el `entregado[idx]` que hubo que reconstruir en Stage 2.5.
+ * **Era una tabla de diez columnas** (Fase 15 · E2 … Fase 28 · E11), y en la
+ * columna del editor —que mide 26 rem al lado de la hoja— no entraba: había
+ * que desplazarla a lo ancho para ver el precio, y a lo ancho de nuevo para
+ * ver el impuesto. Nadie puede leer una línea así de una sola vez.
  *
- * Fase 15 · E2, dos cambios que importan:
+ * Ahora cada línea es una ficha con sus campos en dos columnas, como el
+ * sistema anterior: arriba el tipo y la referencia con los botones de mover y
+ * borrar; después el nombre a todo lo ancho, porque es lo que se lee primero;
+ * y abajo precio, descuento, unidades y subtotal en pares, la descripción
+ * completa y, al final, la referencia editable y el impuesto.
  *
+ * Lo que NO cambió y sigue importando:
+ *
+ * · Cada línea tiene su propio `id` y su `line_no`: el orden es un dato, no la
+ *   posición en un array. En el legacy el índice ERA la identidad, y de ahí
+ *   salió el `entregado[idx]` que hubo que reconstruir en Stage 2.5.
  * · Los controles son CONTROLADOS (`value` + `onChange`), no `defaultValue` +
  *   `onBlur`. Con `defaultValue` el «Descartar» restauraba los datos pero
- *   dejaba en pantalla lo que la persona había tipeado — un descarte que se
- *   ve a medias no es un descarte.
+ *   dejaba en pantalla lo tipeado — un descarte que se ve a medias no es un
+ *   descarte.
  * · Cada cambio va al BORRADOR. Este componente no escribe en la base.
- *
- * La columna que antes decía «Descripción» era en realidad el nombre del
- * producto. Ahora son dos: Producto y Descripción, y la segunda es el texto
- * comercial (`description_snapshot`), que se edita sin tocar el catálogo.
  */
 export function EditorLineas({
   lineas,
@@ -60,104 +66,137 @@ export function EditorLineas({
   onEliminar,
   onMover,
 }: EditorLineasProps) {
-  return (
-    <div className={styles.scroll}>
-      <table className={styles.tabla}>
-        <caption className="sr-only">Líneas {documento}, en edición</caption>
-        <thead>
-          <tr>
-            <th scope="col" className={styles.num}>#</th>
-            <th scope="col">Referencia</th>
-            <th scope="col">Producto</th>
-            <th scope="col">Descripción</th>
-            <th scope="col" className={styles.derecha}>Cant.</th>
-            <th scope="col" className={styles.derecha}>Precio</th>
-            <th scope="col" className={styles.derecha}>% Dto.</th>
-            <th scope="col">Impuesto</th>
-            <th scope="col" className={styles.derecha}>Subtotal</th>
-            {editable ? <th scope="col" aria-label="Acciones" /> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {lineas.map((l, i) => (
-            <tr key={l.id} className={l.tipoLinea === 'chapter' ? styles.capitulo : undefined}>
-              <td className={styles.num} data-label="#">{l.numeroLinea ?? i + 1}</td>
+  if (lineas.length === 0) {
+    return <p className={styles.vacio}>Todavía no hay líneas.</p>
+  }
 
-              {l.tipoLinea === 'chapter' ? (
-                /* Fase 28 · E11: una nota es UNA caja de texto —dónde se
-                   entrega, una aclaración— y nada más. Sin referencia, sin
-                   cantidad y sin importe: no es una línea que se cobre. En la
-                   E9 tenía título y texto; dos casillas para escribir una
-                   frase eran una de más. */
-                <td colSpan={7} className={styles.celdaCapitulo} data-label="Nota">
+  return (
+    <ul className={styles.fichas} aria-label={`Líneas ${documento}, en edición`}>
+      {lineas.map((l, i) => (
+        <li key={l.id} className={l.tipoLinea === 'chapter' ? `${styles.ficha} ${styles.fichaNota}` : styles.ficha}>
+          <div className={styles.cabecera}>
+            <span className={styles.tipo}>{etiquetaDeTipo(l)}</span>
+            <code className={styles.refCabecera}>{l.tipoLinea === 'chapter' ? '' : (l.sku ?? '—')}</code>
+            <span className={styles.numeroLinea}>#{l.numeroLinea ?? i + 1}</span>
+            {editable ? (
+              <span className={styles.acciones}>
+                <IconButton icon="arrow-up" aria-label="Subir" size="sm" onClick={() => onMover(l.id, -1)} disabled={i === 0} />
+                <IconButton icon="arrow-down" aria-label="Bajar" size="sm" onClick={() => onMover(l.id, 1)} disabled={i === lineas.length - 1} />
+                <IconButton icon="trash" aria-label="Eliminar línea" size="sm" variant="danger" onClick={() => onEliminar(l.id)} />
+              </span>
+            ) : null}
+          </div>
+
+          {l.tipoLinea === 'chapter' ? (
+            /* Fase 28 · E11: una nota es UNA caja de texto —dónde se entrega,
+               una aclaración— y nada más. Sin referencia, sin cantidad y sin
+               importe: no es una línea que se cobre. */
+            <input
+              className={styles.nombre}
+              value={l.nombre ?? ''}
+              readOnly={!editable}
+              placeholder="Escribí una nota: dónde se entrega, una aclaración…"
+              aria-label="Nota del documento"
+              onChange={(e) => onCambiar(l.id, 'name_snapshot', e.target.value || null)}
+            />
+          ) : (
+            <>
+              {/* El nombre va solo y a todo lo ancho: es lo que se lee primero. */}
+              <input
+                className={styles.nombre}
+                value={l.nombre ?? ''}
+                readOnly={!editable}
+                placeholder="Nombre del producto"
+                aria-label="Producto"
+                onChange={(e) => onCambiar(l.id, 'name_snapshot', e.target.value || null)}
+              />
+
+              <div className={styles.grilla}>
+                <Campo etiqueta="Precio unit.">
                   <input
-                    className={styles.texto}
-                    value={l.nombre ?? ''}
+                    type="number"
+                    step="any"
+                    min="0"
+                    inputMode="decimal"
+                    className={styles.numero}
+                    value={l.precioUnitario ?? 0}
                     readOnly={!editable}
-                    placeholder="Escribí una nota: dónde se entrega, una aclaración…"
-                    aria-label="Nota del documento"
-                    onChange={(e) => onCambiar(l.id, 'name_snapshot', e.target.value || null)}
+                    aria-label="Precio unitario"
+                    onChange={(e) => onCambiar(l.id, 'unit_price', aNumero(e.target.value))}
                   />
-                </td>
-              ) : (
-                <>
-                  <td className={styles.celdaSku} data-label="Referencia">
-                    <input
-                      className={styles.sku}
-                      value={l.sku ?? ''}
-                      // Un SKU del catálogo no se reescribe a mano: la línea ya
-                      // apunta al producto y el texto sería una mentira.
-                      readOnly={!editable || l.productId !== null}
-                      aria-label="Referencia"
-                      onChange={(e) => onCambiar(l.id, 'sku_snapshot', e.target.value || null)}
-                    />
-                  </td>
-                  <td className={styles.celdaProducto} data-label="Producto">
-                    <input
-                      className={styles.texto}
-                      value={l.nombre ?? ''}
-                      readOnly={!editable}
-                      aria-label="Producto"
-                      onChange={(e) => onCambiar(l.id, 'name_snapshot', e.target.value || null)}
-                    />
-                  </td>
-                  <td className={styles.celdaDescripcion} data-label="Descripción">
-                    <textarea
-                      className={styles.descripcion}
-                      value={l.descripcion ?? ''}
-                      readOnly={!editable}
-                      rows={1}
-                      placeholder="Texto comercial"
-                      aria-label="Descripción de la línea"
-                      onChange={(e) => onCambiar(l.id, 'description_snapshot', e.target.value || null)}
-                    />
-                  </td>
-                  <td className={`${styles.derecha} ${styles.celdaCantidad}`} data-label="Cant.">
-                    <input
-                      type="number"
-                      step="any"
-                      inputMode="decimal"
-                      className={styles.numero}
-                      value={l.cantidad}
-                      readOnly={!editable}
-                      aria-label="Cantidad"
-                      onChange={(e) => onCambiar(l.id, 'quantity', aNumero(e.target.value))}
-                    />
-                  </td>
-                  <td className={`${styles.derecha} ${styles.celdaPrecio}`} data-label="Precio">
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      inputMode="decimal"
-                      className={styles.numero}
-                      value={l.precioUnitario ?? 0}
-                      readOnly={!editable}
-                      aria-label="Precio unitario"
-                      onChange={(e) => onCambiar(l.id, 'unit_price', aNumero(e.target.value))}
-                    />
-                  </td>
-                  <td className={`${styles.derecha} ${styles.celdaDto}`} data-label="% Dto.">
+                </Campo>
+                <Campo etiqueta="Dto. %">
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    max="100"
+                    inputMode="decimal"
+                    className={styles.numero}
+                    value={l.descuentoPct ?? 0}
+                    readOnly={!editable}
+                    aria-label="Descuento"
+                    onChange={(e) => onCambiar(l.id, 'discount_pct', aNumero(e.target.value))}
+                  />
+                </Campo>
+                <Campo etiqueta="Uds.">
+                  <input
+                    type="number"
+                    step="any"
+                    inputMode="decimal"
+                    className={styles.numero}
+                    value={l.cantidad}
+                    readOnly={!editable}
+                    aria-label="Cantidad"
+                    onChange={(e) => onCambiar(l.id, 'quantity', aNumero(e.target.value))}
+                  />
+                </Campo>
+                {/* El subtotal se calcula: se muestra, no se escribe. */}
+                <Campo etiqueta="Subtotal">
+                  <output className={styles.subtotal}>{formatearImporte(netoDeLinea(l), moneda)}</output>
+                </Campo>
+              </div>
+
+              <Campo etiqueta="Descripción (se imprime)" ancho>
+                <textarea
+                  className={styles.descripcion}
+                  value={l.descripcion ?? ''}
+                  readOnly={!editable}
+                  rows={3}
+                  placeholder="Texto comercial"
+                  aria-label="Descripción de la línea"
+                  onChange={(e) => onCambiar(l.id, 'description_snapshot', e.target.value || null)}
+                />
+              </Campo>
+
+              <div className={styles.grilla}>
+                <Campo etiqueta="Ref.">
+                  <input
+                    className={styles.sku}
+                    value={l.sku ?? ''}
+                    // Un SKU del catálogo no se reescribe a mano: la línea ya
+                    // apunta al producto y el texto sería una mentira.
+                    readOnly={!editable || l.productId !== null}
+                    aria-label="Referencia"
+                    onChange={(e) => onCambiar(l.id, 'sku_snapshot', e.target.value || null)}
+                  />
+                </Campo>
+                <Campo etiqueta="Impuesto">
+                  <select
+                    className={styles.select}
+                    value={l.tratamientoImpuesto ?? 'vat_21'}
+                    disabled={!editable}
+                    aria-label="Tratamiento de impuesto"
+                    onChange={(e) => onCambiar(l.id, 'tax_treatment', e.target.value)}
+                  >
+                    {TRATAMIENTOS.map((t) => (
+                      <option key={t.valor} value={t.valor}>
+                        {t.etiqueta}
+                      </option>
+                    ))}
+                  </select>
+                  {/* «Otra alícuota» no tiene tasa por defecto: la escribe quien cotiza. */}
+                  {l.tratamientoImpuesto === 'other' ? (
                     <input
                       type="number"
                       step="any"
@@ -165,67 +204,41 @@ export function EditorLineas({
                       max="100"
                       inputMode="decimal"
                       className={styles.numero}
-                      value={l.descuentoPct ?? 0}
+                      value={l.tasaImpuesto ?? 0}
                       readOnly={!editable}
-                      aria-label="Descuento"
-                      onChange={(e) => onCambiar(l.id, 'discount_pct', aNumero(e.target.value))}
+                      aria-label="Alícuota"
+                      onChange={(e) => onCambiar(l.id, 'tax_rate_snapshot', aNumero(e.target.value))}
                     />
-                  </td>
-                  <td className={styles.celdaImpuesto} data-label="Impuesto">
-                    <select
-                      className={styles.select}
-                      value={l.tratamientoImpuesto ?? 'vat_21'}
-                      disabled={!editable}
-                      aria-label="Tratamiento de impuesto"
-                      onChange={(e) => onCambiar(l.id, 'tax_treatment', e.target.value)}
-                    >
-                      {TRATAMIENTOS.map((t) => (
-                        <option key={t.valor} value={t.valor}>
-                          {t.etiqueta}
-                        </option>
-                      ))}
-                    </select>
-                    {/* «Otra alícuota» no tiene tasa por defecto: la escribe quien cotiza. */}
-                    {l.tratamientoImpuesto === 'other' ? (
-                      <input
-                        type="number"
-                        step="any"
-                        min="0"
-                        max="100"
-                        inputMode="decimal"
-                        className={styles.numero}
-                        value={l.tasaImpuesto ?? 0}
-                        readOnly={!editable}
-                        aria-label="Alícuota"
-                        onChange={(e) => onCambiar(l.id, 'tax_rate_snapshot', aNumero(e.target.value))}
-                      />
-                    ) : null}
-                  </td>
-                </>
-              )}
+                  ) : null}
+                </Campo>
+              </div>
+            </>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
 
-              <td className={`${styles.derecha} ${styles.celdaSubtotal}`} data-label="Subtotal">
-                {l.tipoLinea === 'chapter' ? '' : formatearImporte(netoDeLinea(l), moneda)}
-              </td>
+/** El tipo de línea, en la esquina, como el sistema anterior. */
+function etiquetaDeTipo(l: LineaDocumento): string {
+  if (l.tipoLinea === 'chapter') return 'NOTA'
+  if (l.tipoLinea === 'service') return 'SERV'
+  return l.productId !== null ? 'PROD' : 'LIBRE'
+}
 
-              {editable ? (
-                <td className={styles.acciones}>
-                  <IconButton icon="arrow-up" aria-label="Subir" size="sm" onClick={() => onMover(l.id, -1)} disabled={i === 0} />
-                  <IconButton icon="arrow-down" aria-label="Bajar" size="sm" onClick={() => onMover(l.id, 1)} disabled={i === lineas.length - 1} />
-                  <IconButton icon="trash" aria-label="Eliminar línea" size="sm" variant="danger" onClick={() => onEliminar(l.id)} />
-                </td>
-              ) : null}
-            </tr>
-          ))}
-          {lineas.length === 0 ? (
-            <tr>
-              <td colSpan={editable ? 10 : 9} className={styles.vacio}>
-                Todavía no hay líneas.
-              </td>
-            </tr>
-          ) : null}
-        </tbody>
-      </table>
-    </div>
+/**
+ * Etiqueta arriba y control abajo.
+ *
+ * Es un `<label>` de verdad y no un `aria-label` suelto: el texto visible y el
+ * nombre accesible tienen que ser el mismo, o quien dicta por voz pide
+ * «precio unitario» y no pasa nada.
+ */
+function Campo({ etiqueta, ancho = false, children }: { etiqueta: string; ancho?: boolean; children: React.ReactNode }) {
+  return (
+    <label className={ancho ? `${styles.campo} ${styles.campoAncho}` : styles.campo}>
+      <span className={styles.etiqueta}>{etiqueta}</span>
+      {children}
+    </label>
   )
 }

@@ -1,5 +1,5 @@
 import { useDatosDeProductos } from '../hooks/useDatosDeProductos'
-import { imprimibleDelBorrador } from '../lib/impresion'
+import { imprimibleDelBorrador, type OpcionesImpresion } from '../lib/impresion'
 import { PanelHoja } from './PanelHoja'
 import { VistaImpresion, type EdicionEnHoja } from './VistaImpresion'
 import type { LineaDocumento, TipoDocumento } from '../types'
@@ -17,6 +17,8 @@ export interface VistaPreviaBorradorProps {
   lineas: readonly LineaDocumento[]
   /** Al lado del editor la hoja A4 no entra a tamaño real: se achica. */
   ajustarAlAncho?: boolean
+  /** Las opciones de la hoja, cuando las maneja la pantalla (Fase 28 · E12). */
+  opcionesDeHoja?: OpcionesImpresion | undefined
   /** Si viene, la hoja se puede editar (Fase 22 · A3). */
   edicion?: EdicionEnHoja | null
 }
@@ -47,6 +49,7 @@ export function VistaPreviaBorrador({
   notas,
   lineas,
   ajustarAlAncho = false,
+  opcionesDeHoja,
   edicion = null,
 }: VistaPreviaBorradorProps) {
   // La hoja del alta muestra lo mismo que la del documento guardado: foto y
@@ -58,6 +61,7 @@ export function VistaPreviaBorrador({
       etiqueta={edicion ? 'Documento' : 'Vista previa del documento'}
       aclaracion="El número y el total definitivo los pone el servidor al crear el documento."
       ajustarAlAncho={ajustarAlAncho}
+      opciones={opcionesDeHoja}
     >
       {(opciones, empresa) => (
         <VistaImpresion

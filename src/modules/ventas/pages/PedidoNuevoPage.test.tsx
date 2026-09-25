@@ -192,7 +192,7 @@ describe('Nuevo pedido · borrador', () => {
     completarMinimo()
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ pedido directo' } })
     fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
-    fireEvent.change(screen.getAllByLabelText(/Cantidad/)[0]!, { target: { value: '3' } })
+    fireEvent.change(screen.getAllByLabelText('Cantidad')[0]!, { target: { value: '3' } })
     expect(espias.crear).not.toHaveBeenCalled()
   })
 
@@ -202,8 +202,8 @@ describe('Nuevo pedido · borrador', () => {
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'mayorista' } })
     fireEvent.change(screen.getByLabelText(/Agente/), { target: { value: 'u1' } })
     fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
-    fireEvent.change(screen.getAllByLabelText(/Cantidad/)[0]!, { target: { value: '2' } })
-    fireEvent.change(screen.getAllByLabelText(/Precio/)[0]!, { target: { value: '50' } })
+    fireEvent.change(screen.getAllByLabelText('Cantidad')[0]!, { target: { value: '2' } })
+    fireEvent.change(screen.getAllByLabelText('Precio unitario')[0]!, { target: { value: '50' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
 

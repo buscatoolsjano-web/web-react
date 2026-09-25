@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { PageHeader } from '@/components/layout/PageHeader'
 import { ActionBar } from '@/components/document/ActionBar'
 import { DocSection } from '@/components/document/DocSection'
 import docUi from '@/components/document/Document.module.css'
@@ -20,6 +19,8 @@ import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
 import { SelectorProducto } from '../components/SelectorProducto'
 import { TotalesDocumento } from '../components/TotalesDocumento'
+import { ControlesDeHoja } from '../components/ControlesDeHoja'
+import { useOpcionesDeHoja } from '../hooks/useOpcionesDeHoja'
 import { VistaPreviaBorrador } from '../components/VistaPreviaBorrador'
 import { useContactos, useNombreDeCliente, useSeries, useTarifas, useVendedores } from '../hooks/useDocumentos'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -115,6 +116,9 @@ export function CotizacionNuevaPage() {
   const [buscando, setBuscando] = useState(false)
   // Fase 28 · E1: el catálogo completo, para elegir desde la hoja.
   const [catalogoAbierto, setCatalogoAbierto] = useState(false)
+  // Fase 28 · E12: el formato de la hoja lo maneja la pantalla, para poder
+  // ponerlo adentro de la barra de acciones en vez de arriba de la hoja.
+  const { opciones: opcionesDeHoja, controles } = useOpcionesDeHoja()
 
   /**
    * Las líneas que vienen del carrito del catálogo (Fase 22 · paridad, #50).
@@ -450,14 +454,10 @@ export function CotizacionNuevaPage() {
 
   return (
     <div className={`${docUi.pagina} ${docUi.paginaAncha}`}>
-      <PageHeader
-        back={{ to: '/ventas/cotizaciones', label: 'Cotizaciones' }}
-        title="Nueva cotización"
-        // Fase 28 · E5: el título ocupaba un renglón que no decía nada que no
-        // estuviera abajo, en la hoja y en «Crear». Sigue existiendo para
-        // quien navega por encabezados, pero no se dibuja.
-        hideTitle
-      />
+      {/* Fase 28 · E12: el encabezado entero se fue. El título ya no se
+          dibujaba (E5) y el «volver» se mudó a la barra de acciones, que es
+          donde está el resto de lo que se puede hacer acá. El h1 vive en la
+          barra, invisible, para que la página siga teniendo encabezado. */}
 
       {stel ? <AvisoAutoridadStel detalle={motivo} /> : null}
 
@@ -469,6 +469,8 @@ export function CotizacionNuevaPage() {
 
       <ActionBar
         pegajosa
+        volver={{ to: '/ventas/cotizaciones', label: 'Cotizaciones' }}
+        titulo="Nueva cotización"
         label="Crear cotización"
         primary={
           <Button
@@ -483,6 +485,9 @@ export function CotizacionNuevaPage() {
         }
         secondary={
           <>
+            {/* Fase 28 · E12: el formato de la hoja vive acá y no arriba de la
+                hoja: son 40 px que le sacaba al documento. */}
+            <ControlesDeHoja {...controles} />
             {/* Con pantalla ancha la previa ya está al lado: el botón sobra. */}
             {!pantallaAncha ? (
               <Button
@@ -616,6 +621,7 @@ export function CotizacionNuevaPage() {
               notas={b.cabecera.notas || null}
               lineas={lineasVisibles}
               ajustarAlAncho={pantallaAncha}
+              opcionesDeHoja={opcionesDeHoja}
               // Fase 22 · A6: la hoja edita EL MISMO borrador que el panel de
               // la izquierda. No hay dos documentos que sincronizar: hay uno, y
               // las dos superficies escriben en él.

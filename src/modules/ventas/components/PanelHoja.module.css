@@ -100,3 +100,13 @@
   }
 }
 
+
+/* Los controles de la hoja, adentro de la barra de acciones (Fase 28 · E12).
+   Sin el fondo ni el borde del renglón de controles: acá el rectángulo ya lo
+   pone la barra. */
+.controlesEnBarra {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
