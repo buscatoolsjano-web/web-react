@@ -449,7 +449,7 @@ export function CotizacionNuevaPage() {
   } as DocumentoDetalle
 
   return (
-    <div className={docUi.pagina}>
+    <div className={`${docUi.pagina} ${docUi.paginaAncha}`}>
       <PageHeader
         back={{ to: '/ventas/cotizaciones', label: 'Cotizaciones' }}
         title="Nueva cotización"

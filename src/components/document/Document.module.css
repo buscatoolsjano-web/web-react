@@ -1,10 +1,22 @@
 /* ── Página de documento ──────────────────────────────────────────────── */
+/* Centrada (Fase 28 · E10): al contraer el menú lo que se gana tiene que ir
+   al documento, no quedar como un hueco a la derecha. Sin el margen
+   automático la página quedaba pegada a la izquierda, y contraer el menú
+   sólo corría todo 176 px sin que nada se viera mejor. */
 .pagina {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   min-width: 0;
   max-width: 1200px;
+  margin-inline: auto;
+  width: 100%;
+}
+
+/* Un documento con su hoja al lado usa más: el panel y la hoja ya están
+   pensados hasta 1800 px, y el tope de 1200 los apretaba sin motivo. */
+.paginaAncha {
+  max-width: 1600px;
 }
 
 /* Total en el encabezado */

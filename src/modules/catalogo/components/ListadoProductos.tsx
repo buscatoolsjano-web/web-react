@@ -10,6 +10,7 @@ import { ImagenProducto } from './ImagenProducto'
 import { PopoverProducto } from './PopoverProducto'
 import { atributosDestacados } from '../lib/destacados'
 import { valorDinamico, type ColumnaDinamica } from '../lib/columnasDinamicas'
+import { filaClickeable } from '@/components/tables/filaClickeable'
 import { EncabezadoOrdenable as Encabezado, type OrdenDeColumna } from './EncabezadoOrdenable'
 import type { DefinicionAtributo, ProductoListado } from '../types'
 import styles from './ListadoProductos.module.css'
@@ -52,46 +53,7 @@ export interface SeleccionComparar {
 /** Se re-exporta para no romper a quien ya lo importaba de acá. */
 export type { OrdenDeColumna } from './EncabezadoOrdenable'
 
-/**
- * Los controles que se manejan solos. Un click acá adentro es del control:
- * el link del nombre navega, y mañana el carrito agregará al carrito.
- */
-const CONTROLES = 'a, button, input, select, textarea, label, [role="button"], [role="link"]'
 
-/**
- * Fase 21 · E1: **la fila entera abre el producto en el modal.**
- *
- * Antes navegaba a la página del producto y volver costaba re-armar la búsqueda,
- * los filtros, la página y el scroll. Ahora abre encima. Si no hay modal
- * —la ficha completa, por ejemplo— sigue navegando, que es el comportamiento
- * de antes.
- */
-function filaClickeable(
-  id: string,
-  onAbrir: ((id: string) => void) | undefined,
-  navegar: () => void,
-) {
-  const abrir = () => (onAbrir ? onAbrir(id) : navegar())
-  return {
-    tabIndex: 0,
-    onClick: (e: React.MouseEvent<HTMLTableRowElement>) => {
-      if (e.defaultPrevented || e.button !== 0) return
-      // Ctrl, Cmd y Shift son del navegador: abrir en pestaña o seleccionar.
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
-      if ((e.target as HTMLElement).closest(CONTROLES)) return
-      // Seleccionar un SKU para copiarlo termina en un click sobre la fila.
-      if ((window.getSelection()?.toString() ?? '') !== '') return
-      e.currentTarget.focus()
-      abrir()
-    },
-    onKeyDown: (e: React.KeyboardEvent<HTMLTableRowElement>) => {
-      if (e.key !== 'Enter' && e.key !== ' ') return
-      if (e.target !== e.currentTarget) return
-      e.preventDefault()
-      abrir()
-    },
-  }
-}
 
 const rutaProducto = (sku: string) => `/catalogo/${encodeURIComponent(sku)}`
 
@@ -348,7 +310,7 @@ export function ListadoProductos({
               data-fila-producto={p.id}
               aria-current={p.id === abierto ? 'true' : undefined}
               className={p.id === abierto ? `${styles.fila} ${styles.abierta}` : styles.fila}
-              {...filaClickeable(p.id, onAbrirProducto, () => void navigate(rutaProducto(p.sku)))}
+              {...filaClickeable(() => (onAbrirProducto ? onAbrirProducto(p.id) : void navigate(rutaProducto(p.sku))))}
             >
               {seleccion ? (
                 <td

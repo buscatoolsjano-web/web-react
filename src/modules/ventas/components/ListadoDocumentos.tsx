@@ -1,4 +1,5 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { filaClickeable } from '@/components/tables/filaClickeable'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { Icon } from '@/components/icons/Icon'
 import { SkeletonRows } from '@/components/ui/Skeleton'
@@ -59,6 +60,7 @@ export function ListadoDocumentos({
   // `state` y no en el `href`: la URL de un documento tiene que seguir siendo
   // compartible sin arrastrar el filtro de quien lo abrió.
   const { search } = useLocation()
+  const navegar = useNavigate()
   const vuelta = search === '' ? undefined : { volverA: search }
   const haySeleccion = onSeleccionar !== undefined && seleccionados !== undefined
   const todosMarcados = haySeleccion && filas.length > 0 && filas.every((d) => seleccionados.has(d.id))
@@ -145,7 +147,14 @@ export function ListadoDocumentos({
         </thead>
         <tbody>
           {filas.map((d) => (
-            <tr key={d.id} className={haySeleccion && seleccionados.has(d.id) ? tabla.seleccionada : undefined}>
+            /* Fase 28 · E10: toda la fila abre el documento, no sólo el
+               número. El enlace del número sigue siendo un `<a>` de verdad,
+               con su URL, para copiarla o abrirla en otra pestaña. */
+            <tr
+              key={d.id}
+              className={`${tabla.filaClicable} ${haySeleccion && seleccionados.has(d.id) ? tabla.seleccionada : ''}`}
+              {...filaClickeable(() => void navegar(`${RUTA_DE[d.tipo]}/${d.id}`, { state: vuelta }))}
+            >
               {haySeleccion ? (
                 <td className={tabla.check}>
                   <input

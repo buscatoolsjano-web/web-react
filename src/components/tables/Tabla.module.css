@@ -261,3 +261,18 @@ a.tarjeta:focus-visible {
     display: none;
   }
 }
+
+/* Toda la fila abre el registro (Fase 28 · E10). El cursor y el foco lo dicen:
+   una fila que hace algo al tocarla tiene que verse como que hace algo. */
+.filaClicable {
+  cursor: pointer;
+}
+
+.filaClicable:hover {
+  background: var(--color-surface-alt);
+}
+
+.filaClicable:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: calc(var(--focus-offset) * -1);
+}

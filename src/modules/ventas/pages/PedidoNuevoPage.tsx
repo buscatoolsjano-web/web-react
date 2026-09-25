@@ -407,7 +407,7 @@ export function PedidoNuevoPage() {
   } as DocumentoDetalle
 
   return (
-    <div className={docUi.pagina}>
+    <div className={`${docUi.pagina} ${docUi.paginaAncha}`}>
       <PageHeader
         back={{ to: '/ventas/pedidos', label: 'Pedidos' }}
         title="Nuevo pedido"

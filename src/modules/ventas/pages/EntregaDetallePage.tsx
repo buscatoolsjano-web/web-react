@@ -336,7 +336,7 @@ function Detalle() {
   ]
 
   return (
-    <div className={docUi.pagina}>
+    <div className={`${docUi.pagina} ${docUi.paginaAncha}`}>
       <DocumentHeader
         back={volver}
         numero={doc.numero}
