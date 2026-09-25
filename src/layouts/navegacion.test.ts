@@ -4,6 +4,7 @@ import { ROLES_EMAILS } from '@/modules/emails/lib/permisos'
 import { ROLES_INFORMES } from '@/modules/informes/lib/permisos'
 import { ROLES_CONFIGURACION } from '@/modules/configuracion/lib/permisos'
 import { ROLES_WHATSAPP } from '@/modules/whatsapp/lib/permisos'
+import { ROLES_CHAT } from '@/modules/chat/lib/permisos'
 
 /**
  * La lista plana de Fase 1 tal como estaba en AppLayout.tsx antes de la
@@ -11,7 +12,9 @@ import { ROLES_WHATSAPP } from '@/modules/whatsapp/lib/permisos'
  * rol exactamente estos destinos: el rediseño no cambia permisos.
  *
  * Fase 16: se suma /whatsapp, que hasta ahora figuraba como «próximamente».
- * Es el ÚNICO destino nuevo desde la Fase 1, y entra con sus propios roles.
+ *
+ * Fase 28 · E15: se suma /chat, el chat interno. Son los dos únicos destinos
+ * nuevos desde la Fase 1, y cada uno entra con sus propios roles.
  */
 const AC = ['admin', 'employee']
 const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
@@ -29,6 +32,7 @@ const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
   { to: '/mantenimiento/ordenes', roles: AC },
   { to: '/emails', roles: ROLES_EMAILS },
   { to: '/whatsapp', roles: ROLES_WHATSAPP },
+  { to: '/chat', roles: ROLES_CHAT },
   { to: '/informes', roles: ROLES_INFORMES },
   { to: '/configuracion', roles: ROLES_CONFIGURACION },
 ]

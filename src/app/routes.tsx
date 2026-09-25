@@ -217,6 +217,9 @@ const WhatsappPage = lazyConRecarga(() =>
 const InformeWhatsappPage = lazyConRecarga(() =>
   import('@/modules/whatsapp/pages/InformeWhatsappPage').then((m) => ({ default: m.InformeWhatsappPage })),
 )
+const ChatPage = lazyConRecarga(() =>
+  import('@/modules/chat/pages/ChatPage').then((m) => ({ default: m.ChatPage })),
+)
 const InformesPage = lazyConRecarga(() =>
   import('@/modules/informes/pages/InformesPage').then((m) => ({ default: m.InformesPage })),
 )
@@ -385,6 +388,11 @@ export const routes: RouteObject[] = [
       // (el vendedor ve el de sus conversaciones). No es el módulo Informes:
       // ése es de admin y employee, y éste respeta la asignación.
       { path: 'whatsapp/informes', element: privada(<InformeWhatsappPage />) },
+
+      // Chat interno (Fase 28 · E15). Es de los de adentro: la página lo
+      // comprueba y la RLS lo impide. Un cliente que escriba la URL ve el
+      // cartel de «tu rol no usa el chat», no una pantalla vacía.
+      { path: 'chat', element: privada(<ChatPage />) },
 
       // Informes v1: actividad comercial agregada en el servidor. Admin y
       // employee; la página y la RPC lo validan, el menú sólo no lo ofrece.

@@ -1595,6 +1595,92 @@ export type Database = {
           },
         ]
       }
+      chat_conversaciones: {
+        Row: {
+          company_id: string
+          created_at: string
+          creada_por: string | null
+          id: string
+          ultimo_mensaje: string | null
+          ultimo_mensaje_en: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          creada_por?: string | null
+          id?: string
+          ultimo_mensaje?: string | null
+          ultimo_mensaje_en?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          creada_por?: string | null
+          id?: string
+          ultimo_mensaje?: string | null
+          ultimo_mensaje_en?: string | null
+        }
+        Relationships: []
+      }
+      chat_mensajes: {
+        Row: {
+          autor_id: string
+          company_id: string
+          conversacion_id: string
+          created_at: string
+          id: string
+          texto: string
+        }
+        Insert: {
+          autor_id: string
+          company_id: string
+          conversacion_id: string
+          created_at?: string
+          id?: string
+          texto: string
+        }
+        Update: {
+          autor_id?: string
+          company_id?: string
+          conversacion_id?: string
+          created_at?: string
+          id?: string
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_mensajes_autor_id_fkey"
+            columns: ["autor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_participantes: {
+        Row: {
+          company_id: string
+          conversacion_id: string
+          created_at: string
+          leido_hasta: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          conversacion_id: string
+          created_at?: string
+          leido_hasta?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          conversacion_id?: string
+          created_at?: string
+          leido_hasta?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_labels: {
         Row: {
           color: string
@@ -7454,6 +7540,41 @@ export type Database = {
       registrar_descarte_borrador_email: {
         Args: { p_account: string; p_thread: string | null; p_firma: string }
         Returns: undefined
+      }
+      usuarios_para_chat: {
+        Args: { p_company: string }
+        Returns: {
+          user_id: string
+          nombre: string
+          rol: string
+        }[]
+      }
+      listar_chats: {
+        Args: { p_company: string }
+        Returns: {
+          id: string
+          con_quien: string
+          con_quien_id: string | null
+          ultimo_mensaje: string | null
+          ultimo_mensaje_en: string | null
+          sin_leer: number
+        }[]
+      }
+      abrir_chat_directo: {
+        Args: { p_company: string; p_otro: string }
+        Returns: string
+      }
+      enviar_mensaje_chat: {
+        Args: { p_conversacion: string; p_texto: string }
+        Returns: Database["public"]["Tables"]["chat_mensajes"]["Row"]
+      }
+      marcar_chat_leido: {
+        Args: { p_conversacion: string }
+        Returns: undefined
+      }
+      contar_chats_sin_leer: {
+        Args: { p_company: string }
+        Returns: number
       }
       usuarios_asignables_email: {
         Args: { p_company: string }

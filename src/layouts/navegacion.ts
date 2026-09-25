@@ -1,6 +1,7 @@
 import type { IconName } from '@/components/icons/Icon'
 import { ROLES_EMAILS } from '@/modules/emails/lib/permisos'
 import { ROLES_WHATSAPP } from '@/modules/whatsapp/lib/permisos'
+import { ROLES_CHAT } from '@/modules/chat/lib/permisos'
 import { ROLES_INFORMES } from '@/modules/informes/lib/permisos'
 import { ROLES_CONFIGURACION } from '@/modules/configuracion/lib/permisos'
 
@@ -48,7 +49,7 @@ export interface EntradaNav {
    * pide. Así la navegación sigue siendo una lista de destinos y no algo que
    * consulta la base.
    */
-  contador?: 'emails' | 'whatsapp'
+  contador?: 'emails' | 'whatsapp' | 'chat'
 }
 
 export interface GrupoNav {
@@ -77,6 +78,8 @@ export const NAVEGACION: GrupoNav[] = [
     entradas: [
       { id: 'emails', label: 'Emails', icon: 'mail', contador: 'emails', destino: { to: '/emails', label: 'Emails', roles: ROLES_EMAILS } },
       { id: 'whatsapp', label: 'WhatsApp', icon: 'message-circle', contador: 'whatsapp', destino: { to: '/whatsapp', label: 'WhatsApp', roles: ROLES_WHATSAPP } },
+      // Fase 28 · E15: el único de Comunicación que no habla con afuera.
+      { id: 'chat', label: 'Chat', icon: 'users', contador: 'chat', destino: { to: '/chat', label: 'Chat', roles: ROLES_CHAT } },
     ],
   },
   {

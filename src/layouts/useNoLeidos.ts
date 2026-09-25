@@ -3,13 +3,16 @@ import { useAuth } from '@/features/auth/useAuth'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { ROLES_EMAILS } from '@/modules/emails/lib/permisos'
 import { ROLES_WHATSAPP } from '@/modules/whatsapp/lib/permisos'
+import { ROLES_CHAT } from '@/modules/chat/lib/permisos'
 import { contarSinLeer } from '@/modules/emails/services/bandeja'
 import { contarNoLeidos } from '@/modules/whatsapp/services/conversaciones'
+import { contarChatsSinLeer } from '@/modules/chat/services/chat'
 
 /** Cuántos sin leer hay en cada bandeja. `0` también cuando no llegó todavía. */
 export interface NoLeidos {
   emails: number
   whatsapp: number
+  chat: number
 }
 
 /** Cada dos minutos. Es un contador, no una bandeja: no hace falta al segundo. */
@@ -54,5 +57,15 @@ export function useNoLeidos(): NoLeidos {
     retry: false,
   })
 
-  return { emails: emails.data ?? 0, whatsapp: whatsapp.data ?? 0 }
+  // El chat sí es por usuario y por empresa: su clave lleva las dos cosas.
+  const chat = useQuery({
+    queryKey: ['nav', companyId, 'sin-leer', 'chat'],
+    queryFn: () => contarChatsSinLeer(companyId!),
+    enabled: companyId !== null && (ROLES_CHAT as readonly string[]).includes(rol),
+    refetchInterval: CADA,
+    staleTime: CADA,
+    retry: false,
+  })
+
+  return { emails: emails.data ?? 0, whatsapp: whatsapp.data ?? 0, chat: chat.data ?? 0 }
 }

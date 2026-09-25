@@ -1,0 +1,193 @@
+/* Chat interno (Fase 28 · E15). Dos columnas en escritorio; en mobile la
+   lista arriba y la charla abajo, que es como entra en 390 px. */
+
+.columnas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .columnas {
+    grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  }
+}
+
+/* ── La lista ──────────────────────────────────────────────────────────── */
+
+.lista {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.conversaciones {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conversaciones > li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.conversacion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--space-2);
+  width: 100%;
+  padding: var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.conversacion:hover {
+  background: var(--color-surface-alt);
+}
+
+.conversacion:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+
+/* La abierta se marca con fondo Y con una barra: el color solo no alcanza. */
+.activa {
+  background: var(--color-surface-alt);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.quien {
+  font-weight: var(--weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previa {
+  grid-column: 1;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cuando {
+  grid-column: 2;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* El número de sin leer: el mismo globito rojo del menú. */
+.sinLeer {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  min-width: 1.25rem;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  text-align: center;
+}
+
+/* ── La charla ─────────────────────────────────────────────────────────── */
+
+.charla {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+/* Alto fijo y scroll propio: la página no crece con la conversación, y el
+   campo de escribir queda siempre a la vista. */
+.mensajes {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  height: min(58vh, 34rem);
+  overflow-y: auto;
+  padding-right: var(--space-2);
+}
+
+.burbuja {
+  display: grid;
+  gap: 2px;
+  justify-self: start;
+  max-width: min(42rem, 85%);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.mia {
+  justify-self: end;
+  background: var(--color-primary-soft, var(--color-surface-alt));
+  border-color: var(--color-primary);
+}
+
+.autor {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-soft);
+}
+
+.texto {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.hora {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.redactar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+.campo {
+  width: 100%;
+  padding: var(--space-2);
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+
+.campo:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.nota {
+  margin: 0;
+  padding: var(--space-3);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+}
