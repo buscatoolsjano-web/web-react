@@ -2,9 +2,22 @@ import { useId, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { cx } from '@/utils/cx'
 import { Icon } from '@/components/icons/Icon'
+import { precargarRuta } from '@/app/precarga'
 import { entradaActiva, type EntradaNav, type GrupoNav } from './navegacion'
 import { useNoLeidos } from './useNoLeidos'
 import styles from './Shell.module.css'
+
+/**
+ * Empezar a bajar la pantalla apenas el mouse toca el enlace (Fase 29 · E3).
+ *
+ * El hover da entre 200 y 800 ms antes del clic, que alcanza para tener el
+ * chunk listo. `onFocus` hace lo mismo para quien navega con el teclado, que
+ * si no se quedaría sin la ventaja.
+ */
+function precargaDe(to: string) {
+  const precargar = () => precargarRuta(to)
+  return { onPointerEnter: precargar, onFocus: precargar }
+}
 
 export interface PanelNavProps {
   grupos: GrupoNav[]
@@ -92,7 +105,7 @@ function Entrada({
 
   if (e.destino) {
     return (
-      <NavLink to={e.destino.to} end={e.destino.end ?? false} className={({ isActive }) => cx(styles.item, isActive && styles.itemActivo)} onClick={onNavegar}>
+      <NavLink to={e.destino.to} end={e.destino.end ?? false} className={({ isActive }) => cx(styles.item, isActive && styles.itemActivo)} onClick={onNavegar} {...precargaDe(e.destino.to)}>
         <Icon name={e.icon} />
         <span className={styles.itemTexto}>{e.label}</span>
         <Sinleer cuantos={sinLeer} />
@@ -110,7 +123,7 @@ function Entrada({
       <ul id={idHijos} className={styles.hijos} hidden={!abierta}>
         {(e.hijos ?? []).map((h) => (
           <li key={h.to}>
-            <NavLink to={h.to} className={({ isActive }) => cx(styles.hijo, isActive && styles.itemActivo)} onClick={onNavegar}>
+            <NavLink to={h.to} className={({ isActive }) => cx(styles.hijo, isActive && styles.itemActivo)} onClick={onNavegar} {...precargaDe(h.to)}>
               {h.label}
             </NavLink>
           </li>

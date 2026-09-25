@@ -5,6 +5,15 @@ import { AuthLayout } from '@/layouts/AuthLayout'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
 import { ErrorPage } from '@/app/ErrorPage'
 import { CargandoRuta } from '@/app/CargandoRuta'
+// Los importadores de las cinco pantallas de todos los días viven en
+// `precarga.ts`, que también las precarga. Una sola definición de cada una.
+import {
+  importarCatalogo,
+  importarClientes,
+  importarCotizaciones,
+  importarDashboard,
+  importarEmails,
+} from '@/app/precarga'
 
 const CLAVE_RECARGA = 'bt-chunk-recargado'
 
@@ -61,20 +70,14 @@ function lazyConRecarga(importar: () => Promise<{ default: ComponentType }>) {
  * Cada módulo entra con su propio chunk: nadie descarga Compras para mirar
  * el Catálogo.
  */
-const DashboardPage = lazyConRecarga(() =>
-  import('@/modules/dashboard/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
-)
-const CatalogoPage = lazyConRecarga(() =>
-  import('@/modules/catalogo/pages/CatalogoPage').then((m) => ({ default: m.CatalogoPage })),
-)
+const DashboardPage = lazyConRecarga(importarDashboard)
+const CatalogoPage = lazyConRecarga(importarCatalogo)
 const ProductoDetallePage = lazyConRecarga(() =>
   import('@/modules/catalogo/pages/ProductoDetallePage').then((m) => ({
     default: m.ProductoDetallePage,
   })),
 )
-const CotizacionesPage = lazyConRecarga(() =>
-  import('@/modules/ventas/pages/CotizacionesPage').then((m) => ({ default: m.CotizacionesPage })),
-)
+const CotizacionesPage = lazyConRecarga(importarCotizaciones)
 const CotizacionNuevaPage = lazyConRecarga(() =>
   import('@/modules/ventas/pages/CotizacionNuevaPage').then((m) => ({
     default: m.CotizacionNuevaPage,
@@ -104,9 +107,7 @@ const EntregaDetallePage = lazyConRecarga(() =>
     default: m.EntregaDetallePage,
   })),
 )
-const ClientesPage = lazyConRecarga(() =>
-  import('@/modules/clientes/pages/ClientesPage').then((m) => ({ default: m.ClientesPage })),
-)
+const ClientesPage = lazyConRecarga(importarClientes)
 const ClienteNuevoPage = lazyConRecarga(() =>
   import('@/modules/clientes/pages/ClienteNuevoPage').then((m) => ({ default: m.ClienteNuevoPage })),
 )
@@ -199,9 +200,7 @@ const OrdenDetallePage = lazyConRecarga(() =>
 const PuntosPage = lazyConRecarga(() =>
   import('@/modules/mantenimiento/pages/PuntosPage').then((m) => ({ default: m.PuntosPage })),
 )
-const EmailsPage = lazyConRecarga(() =>
-  import('@/modules/emails/pages/EmailsPage').then((m) => ({ default: m.EmailsPage })),
-)
+const EmailsPage = lazyConRecarga(importarEmails)
 const EmailRedactarPage = lazyConRecarga(() =>
   import('@/modules/emails/pages/EmailRedactarPage').then((m) => ({ default: m.EmailRedactarPage })),
 )

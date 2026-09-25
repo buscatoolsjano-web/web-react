@@ -6,6 +6,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { EmpresaSelector } from '@/features/empresa/EmpresaSelector'
 import { BotonApariencia } from '@/features/apariencia/BotonApariencia'
 import { moduloDeRuta } from '@/features/apariencia/opciones'
+import { precargarAlDescansar } from '@/app/precarga'
 import { Icon } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
 import { navegacionPara } from './navegacion'
@@ -107,6 +108,14 @@ export function AppLayout() {
       if (quien?.isConnected) quien.focus()
     }
   }, [abierto])
+
+  // Las pantallas de todos los días se bajan cuando el navegador no tenga nada
+  // que hacer (Fase 29 · E3), así el primer clic del menú no espera su chunk.
+  // Va acá y no en `App`: quien está en el login no tiene por qué bajarse el
+  // ERP entero. Una vez por sesión — `precargarAlDescansar` lleva la cuenta.
+  useEffect(() => {
+    precargarAlDescansar()
+  }, [])
 
   // Identidad por módulo (Fase 14): Ventas verde, Compras azul, Mantenimiento
   // grafito. Va en el <html> para que los diálogos (portal en body) la hereden.
