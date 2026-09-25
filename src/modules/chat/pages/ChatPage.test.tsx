@@ -138,19 +138,39 @@ describe('El chat interno', () => {
     expect(screen.getByRole('button', { name: 'Enviar' })).toBeDisabled()
   })
 
-  it('«Hablar con…» abre la conversación con esa persona', async () => {
+  /**
+   * Fase 28 · E16: el equipo entero aparece desde el primer día, con o sin
+   * conversación. Hablarle a alguien por primera vez crea la conversación al
+   * mandar el mensaje, no antes: así no queda una vacía si el envío falla.
+   */
+  it('a alguien con quien no se habló nunca se le puede escribir igual', async () => {
+    estado.conversaciones = [conversacion({ id: null, ultimoMensaje: null, ultimoMensajeEn: null })]
+    estado.mensajes = []
     montar()
-    const selector = await screen.findByRole('combobox', { name: 'Hablar con' })
-    // Arranca deshabilitado hasta que llega la lista de personas.
-    await waitFor(() => expect(selector).toBeEnabled())
-    fireEvent.change(selector, { target: { value: 'u-norberto' } })
+    fireEvent.click(await screen.findByRole('button', { name: /Norberto/ }, { timeout: 3000 }))
+
+    const campo = await screen.findByRole('textbox', { name: 'Escribí un mensaje' })
+    fireEvent.change(campo, { target: { value: 'Hola' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
     await waitFor(() => expect(espias.abrir).toHaveBeenCalledWith('c1', 'u-norberto'))
+    await waitFor(() => expect(espias.enviar).toHaveBeenCalledWith('conv-de-u-norberto', 'Hola'))
   })
 
-  it('sin conversaciones lo dice en vez de dejar la pantalla vacía', async () => {
+  it('con una conversación ya abierta no se crea otra', async () => {
+    montar()
+    fireEvent.click(await screen.findByRole('button', { name: /Norberto/ }, { timeout: 3000 }))
+    const campo = await screen.findByRole('textbox', { name: 'Escribí un mensaje' })
+    fireEvent.change(campo, { target: { value: 'Hola' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+    await waitFor(() => expect(espias.enviar).toHaveBeenCalledWith('conv-1', 'Hola'))
+    expect(espias.abrir).not.toHaveBeenCalled()
+  })
+
+  it('sin nadie más en el equipo lo dice en vez de dejar la pantalla vacía', async () => {
     estado.conversaciones = []
     montar()
-    expect(await screen.findByText(/Todavía no hablaste con nadie/)).toBeInTheDocument()
+    expect(await screen.findByText(/Todavía no hay nadie más en el equipo/)).toBeInTheDocument()
   })
 
   // La pantalla no es el control de acceso —lo son la RLS y las RPC— pero no
@@ -159,6 +179,6 @@ describe('El chat interno', () => {
     estado.rol = 'customer'
     montar()
     expect(await screen.findByText('Tu rol no usa el chat interno')).toBeInTheDocument()
-    expect(screen.queryByRole('combobox', { name: 'Hablar con' })).toBeNull()
+    expect(screen.queryByRole('complementary', { name: 'Conversaciones' })).toBeNull()
   })
 })

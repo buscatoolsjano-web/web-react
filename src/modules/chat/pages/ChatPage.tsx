@@ -5,21 +5,17 @@ import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { Button } from '@/components/ui/Button'
-import { Field } from '@/components/forms/Field'
-import { Select } from '@/components/forms/controls'
 import { Icon } from '@/components/icons/Icon'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { fechaBandeja } from '@/modules/emails/lib/formato'
 import { puedeUsarChat } from '../lib/permisos'
 import {
-  useAbrirChat,
   useConversaciones,
   useEnviarMensaje,
   useMarcarLeido,
   useMensajes,
   useRealtimeChat,
-  useUsuariosParaChat,
 } from '../hooks/useChat'
 import styles from './ChatPage.module.css'
 
@@ -52,18 +48,23 @@ export function ChatPage() {
 }
 
 function Chat() {
-  const [abierta, setAbierta] = useState<string | null>(null)
+  /**
+   * Con quién se está hablando. Se recuerda la PERSONA y no la conversación
+   * (Fase 28 · E16): una fila sin conversación todavía no tiene id, y cuando
+   * se crea al mandar el primer mensaje, la fila sigue siendo la misma.
+   */
+  const [conQuien, setConQuien] = useState<string | null>(null)
   const [texto, setTexto] = useState('')
 
   const conversaciones = useConversaciones()
-  const usuarios = useUsuariosParaChat()
-  const mensajes = useMensajes(abierta)
-  const abrir = useAbrirChat()
-  const enviar = useEnviarMensaje(abierta)
+  const enviar = useEnviarMensaje()
   const { canal, reconectar } = useRealtimeChat()
 
   const lista = conversaciones.data ?? []
-  const conversacion = lista.find((c) => c.id === abierta) ?? null
+  const conversacion = lista.find((c) => (c.conQuienId ?? c.id) === conQuien) ?? null
+  const abierta = conversacion?.id ?? null
+
+  const mensajes = useMensajes(abierta)
   const charla = mensajes.data ?? []
 
   useMarcarLeido(abierta, charla.length)
@@ -77,34 +78,18 @@ function Chat() {
 
   const mandar = () => {
     const limpio = texto.trim()
-    if (limpio === '' || abierta === null) return
-    enviar.mutate(limpio, { onSuccess: () => setTexto('') })
+    if (limpio === '' || conversacion === null) return
+    enviar.mutate(
+      { conversacionId: conversacion.id, personaId: conversacion.conQuienId, texto: limpio },
+      { onSuccess: () => setTexto('') },
+    )
   }
 
   return (
     <div className={doc.listado}>
       <PageHeader
         title="Chat"
-        subtitle={`${lista.length} ${lista.length === 1 ? 'conversación' : 'conversaciones'}`}
-        actions={
-          <Field label="Hablar con" hideLabel>
-            <Select
-              value=""
-              disabled={(usuarios.data ?? []).length === 0 || abrir.isPending}
-              onChange={(e) => {
-                if (e.target.value === '') return
-                abrir.mutate(e.target.value, { onSuccess: (id) => setAbierta(id) })
-              }}
-            >
-              <option value="">Hablar con…</option>
-              {(usuarios.data ?? []).map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.nombre}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        }
+        subtitle={`${lista.length} ${lista.length === 1 ? 'persona' : 'personas'} en el equipo`}
       />
 
       {canal === 'caido' ? (
@@ -122,12 +107,6 @@ function Chat() {
         </Alert>
       ) : null}
 
-      {abrir.error ? (
-        <Alert tone="danger" role="alert" title="No se pudo abrir la conversación">
-          <p>{abrir.error.message}</p>
-        </Alert>
-      ) : null}
-
       {conversaciones.error ? (
         <ErrorState
           title="No se pudieron leer las conversaciones."
@@ -141,18 +120,16 @@ function Chat() {
             {conversaciones.isPending ? (
               <SkeletonRows rows={4} columns={1} label="Cargando las conversaciones…" />
             ) : lista.length === 0 ? (
-              <p className={styles.nota}>
-                Todavía no hablaste con nadie. Elegí a alguien en «Hablar con…».
-              </p>
+              <p className={styles.nota}>Todavía no hay nadie más en el equipo.</p>
             ) : (
               <ul className={styles.conversaciones}>
                 {lista.map((c) => (
-                  <li key={c.id}>
+                  <li key={c.conQuienId ?? c.id}>
                     <button
                       type="button"
-                      className={`${styles.conversacion} ${c.id === abierta ? styles.activa : ''}`}
-                      aria-current={c.id === abierta ? 'true' : undefined}
-                      onClick={() => setAbierta(c.id)}
+                      className={`${styles.conversacion} ${(c.conQuienId ?? c.id) === conQuien ? styles.activa : ''}`}
+                      aria-current={(c.conQuienId ?? c.id) === conQuien ? 'true' : undefined}
+                      onClick={() => setConQuien(c.conQuienId ?? c.id)}
                     >
                       <span className={styles.quien}>{c.conQuien}</span>
                       {c.sinLeer > 0 ? (
@@ -176,8 +153,8 @@ function Chat() {
             {conversacion === null ? (
               <EmptyState
                 icon="message-circle"
-                title="Elegí una conversación"
-                description="O empezá una nueva con «Hablar con…»."
+                title="Elegí con quién hablar"
+                description="Están todos a la izquierda, hayas hablado con ellos o no."
               />
             ) : (
               <>

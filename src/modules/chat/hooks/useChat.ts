@@ -71,19 +71,37 @@ export function useAbrirChat() {
 }
 
 /**
- * Mandar un mensaje.
+ * Mandar un mensaje a una persona.
+ *
+ * Si todavía no hablaron, primero crea la conversación (Fase 28 · E16): en la
+ * lista la fila figuraba sin una, porque la lista muestra a todo el equipo. Va
+ * junto y no en dos pasos de la pantalla para que no quede una conversación
+ * vacía si el envío falla.
  *
  * No se parchea la caché con el mensaje propio: el `INSERT` vuelve por
  * realtime y lo trae con su id y su hora de servidor. Escribirlo dos veces
  * —una a mano y otra por el evento— era el camino corto al mensaje duplicado.
  */
-export function useEnviarMensaje(conversacionId: string | null) {
+export function useEnviarMensaje() {
   const companyId = useCompany()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (texto: string) => enviarMensaje(conversacionId!, texto),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: claves.mensajes(companyId, conversacionId) })
+    mutationFn: async ({
+      conversacionId,
+      personaId,
+      texto,
+    }: {
+      conversacionId: string | null
+      personaId: string | null
+      texto: string
+    }) => {
+      const id = conversacionId ?? (personaId ? await abrirChatDirecto(companyId!, personaId) : null)
+      if (id === null) throw new Error('No sé a quién mandarle el mensaje')
+      await enviarMensaje(id, texto)
+      return id
+    },
+    onSuccess: (id) => {
+      void qc.invalidateQueries({ queryKey: claves.mensajes(companyId, id) })
       void qc.invalidateQueries({ queryKey: claves.lista(companyId) })
     },
   })

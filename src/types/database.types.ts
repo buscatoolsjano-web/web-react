@@ -7552,7 +7552,7 @@ export type Database = {
       listar_chats: {
         Args: { p_company: string }
         Returns: {
-          id: string
+          id: string | null
           con_quien: string
           con_quien_id: string | null
           ultimo_mensaje: string | null
