@@ -73,10 +73,12 @@ const montar = (d: DocumentoDetalle) =>
 const etiquetas = () => screen.getAllByRole('term').map((t) => t.textContent)
 
 describe('Información · cotización', () => {
-  it('muestra lo comercial y la validez', () => {
+  it('muestra lo comercial', () => {
     montar(doc({ validaHasta: '2026-10-17', listaPrecioNombre: 'Mayorista', formaPago: '30 días' }))
-    expect(etiquetas()).toContain('Válida hasta')
-    expect(screen.getByText('17/10/2026')).toBeInTheDocument()
+    // Fase 28 · E11: «Válida hasta» no aplica y no se muestra, ni siquiera
+    // cuando el documento trae el dato cargado.
+    expect(etiquetas()).not.toContain('Válida hasta')
+    expect(screen.queryByText('17/10/2026')).toBeNull()
     expect(screen.getByText('Mayorista')).toBeInTheDocument()
     expect(screen.getByText('30 días')).toBeInTheDocument()
   })

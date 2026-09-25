@@ -34,8 +34,6 @@ export interface EditorCabeceraProps {
   avisoContacto: boolean
   /** El cambio de moneda dejó la tarifa incompatible. */
   avisoTarifa: boolean
-  /** El pedido no tiene fecha de validez; la cotización sí. */
-  mostrarValidez?: boolean | undefined
   /**
    * La referencia (Fase 27 · E1). Sólo en el alta: un documento que ya existe
    * tiene su número y su serie, y no se cambian.
@@ -81,7 +79,6 @@ export function EditorCabecera({
   cargandoContactos,
   avisoContacto,
   avisoTarifa,
-  mostrarValidez = true,
   series,
   serie,
   onCambiarSerie,
@@ -141,11 +138,8 @@ export function EditorCabecera({
             <Input type="date" value={valores.fecha} onChange={(e) => onCambiar('fecha', e.target.value)} />
           </Field>
 
-          {mostrarValidez ? (
-            <Field label="Válida hasta" optional>
-              <Input type="date" value={valores.validaHasta} onChange={(e) => onCambiar('validaHasta', e.target.value)} />
-            </Field>
-          ) : null}
+          {/* «Válida hasta» se fue en la Fase 28 · E11: no aplica al negocio,
+              y de las 307 cotizaciones de la base ninguna la tenía cargada. */}
 
           {/* Obligatorio desde la Fase 27 · E1: es el renglón que sale impreso
               debajo de «COTIZACIÓN DE VENTA», y un documento sin él llega al

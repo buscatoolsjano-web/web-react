@@ -273,17 +273,41 @@
   font-size: 8pt;
 }
 
-.capituloNombre {
-  color: var(--naranja);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
 .capituloTexto {
   color: var(--tinta);
-  margin-top: 0.5mm;
   white-space: pre-wrap;
+}
+
+/* La caja de la nota: punteada naranja como el resto de lo editable en la
+   hoja, con la tipografía del documento y sin el borde de formulario del
+   navegador, que sobre el papel desentona. */
+.notaTexto {
+  font: inherit;
+  display: block;
+  width: 100%;
+  resize: vertical;
+  padding: 1mm 1.5mm;
+  color: var(--tinta);
+  background: #fff;
+  border: 1px dashed var(--naranja);
+  border-radius: 1mm;
+}
+
+.notaTexto::placeholder {
+  color: #94a3b8;
+}
+
+.notaTexto:focus {
+  outline: none;
+  border-style: solid;
+}
+
+@media print {
+  .notaTexto {
+    border: 0;
+    padding: 0;
+    resize: none;
+  }
 }
 
 /* ── E · el relleno que ancla los totales abajo ────────────────────────── */

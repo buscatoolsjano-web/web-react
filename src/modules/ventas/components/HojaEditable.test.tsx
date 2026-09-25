@@ -35,7 +35,7 @@ const doc = (lineas: unknown[]): DocumentoImprimible =>
 
 const edicion = (): EdicionEnHoja => ({
   onCantidad: vi.fn(), onPrecio: vi.fn(), onDescuento: vi.fn(),
-  onEliminar: vi.fn(), onAgregar: vi.fn(),
+  onEliminar: vi.fn(), onAgregar: vi.fn(), onTextoCapitulo: vi.fn(),
 })
 
 describe('La hoja del documento: sin edición no hay ni un control', () => {
@@ -150,10 +150,29 @@ describe('La hoja como editor', () => {
     expect(screen.getAllByRole('button', { name: /Agregar producto/ })).toHaveLength(1)
   })
 
-  it('un capítulo no tiene cantidad ni precio que tocar', () => {
-    const capitulo = linea('c1', { esCapitulo: true, nombre: 'MANO DE OBRA' })
-    render(<VistaImpresion doc={doc([capitulo])} empresa={EMPRESA} opciones={OPCIONES} edicion={edicion()} />)
-    const fila = screen.getByText('MANO DE OBRA').closest('tr')!
-    expect(within(fila).queryByRole('button', { name: /Cantidad/ })).toBeNull()
+  /**
+   * Fase 28 · E11: una nota es UNA caja de texto en la hoja, y se borra desde
+   ahí. Ni cantidad, ni precio, ni la palabra «Capítulo» puesta de fábrica.
+   */
+  it('una nota se escribe y se borra desde la hoja, sin cantidad ni precio', () => {
+    const e = edicion()
+    const nota = linea('c1', { esCapitulo: true, nombre: '' })
+    render(<VistaImpresion doc={doc([nota])} empresa={EMPRESA} opciones={OPCIONES} edicion={e} />)
+
+    const caja = screen.getByRole('textbox', { name: 'Nota del documento' })
+    fireEvent.change(caja, { target: { value: 'Se entrega en Melincué 5125.' } })
+    expect(e.onTextoCapitulo).toHaveBeenCalledWith('c1', 'Se entrega en Melincué 5125.')
+
+    const fila = caja.closest('tr')!
+    expect(within(fila).queryByRole('spinbutton')).toBeNull()
+    fireEvent.click(within(fila).getByRole('button', { name: 'Quitar la nota' }))
+    expect(e.onEliminar).toHaveBeenCalledWith('c1')
+  })
+
+  it('sin edición la nota se ve como texto, no como caja', () => {
+    const nota = linea('c1', { esCapitulo: true, nombre: 'Se entrega en Melincué 5125.' })
+    render(<VistaImpresion doc={doc([nota])} empresa={EMPRESA} opciones={OPCIONES} edicion={null} />)
+    expect(screen.getByText('Se entrega en Melincué 5125.')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Nota del documento' })).toBeNull()
   })
 })

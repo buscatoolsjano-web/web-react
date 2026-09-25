@@ -58,9 +58,10 @@ describe('<EditorLineas>', () => {
     expect(screen.getByText('USD 90,00')).toBeInTheDocument()
   })
 
-  it('un capítulo ocupa la fila y no tiene cantidad ni precio', () => {
-    montar([linea({ tipoLinea: 'chapter', nombre: 'Accesorios' })])
-    expect(screen.getByLabelText('Título del capítulo')).toHaveValue('Accesorios')
+  // Fase 28 · E11: una nota es UNA caja de texto y nada más.
+  it('una nota ocupa la fila y no tiene cantidad ni precio', () => {
+    montar([linea({ tipoLinea: 'chapter', nombre: 'Se entrega en Melincué 5125.' })])
+    expect(screen.getByLabelText('Nota del documento')).toHaveValue('Se entrega en Melincué 5125.')
     expect(screen.queryByLabelText('Cantidad')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Precio unitario')).not.toBeInTheDocument()
   })

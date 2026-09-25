@@ -3,7 +3,7 @@ import { MetaList, Missing, type MetaItem } from '@/components/document/DocSecti
 import cabecera from './CabeceraCotizacion.module.css'
 import docUi from '@/components/document/Document.module.css'
 import styles from './InformacionDocumento.module.css'
-import { formatearDomicilio, formatearFecha } from '../lib/formato'
+import { formatearDomicilio } from '../lib/formato'
 import { presentarOrigen } from '../lib/origen'
 import { formatearMomento } from '../lib/trazabilidad'
 import { RUTA_DE, type DocumentoDetalle } from '../types'
@@ -73,7 +73,6 @@ const ETIQUETA_ORIGEN: Record<string, string> = {
  * no necesariamente con la que se vendió.
  */
 export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: InformacionDocumentoProps) {
-  const esCotizacion = doc.tipo === 'cotizacion'
   const esEntrega = doc.tipo === 'entrega'
   const esPedido = doc.tipo === 'pedido'
   const comercial = !esEntrega
@@ -114,11 +113,8 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
     },
     doc.tipoCambio !== null && { seccion: 4, label: 'Tipo de cambio', value: doc.tipoCambio },
     { seccion: 1, label: 'Serie', value: doc.serie ?? '—' },
-    esCotizacion && {
-      label: 'Válida hasta',
-      seccion: 1,
-      value: doc.validaHasta ? formatearFecha(doc.validaHasta) : <Missing />,
-    },
+    // «Válida hasta» se fue en la Fase 28 · E11: no aplica, y de las 307
+    // cotizaciones de la base ninguna la tenía cargada.
     // Fase 15 · E6: el domicilio congelado al emitir el remito. Si no quedó
     // registrado se dice; NO se muestra el domicilio de hoy del cliente, que
     // es otra información.

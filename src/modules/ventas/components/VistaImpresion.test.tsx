@@ -179,18 +179,13 @@ describe('El documento impreso', () => {
     })
 
     /** Un capítulo es una NOTA: título y texto, sin referencia ni importes. */
-    it('un capítulo ocupa toda la fila y muestra su texto', () => {
-      montar(
-        doc({
-          lineas: [
-            linea({ id: 'c1', esCapitulo: true, nombre: 'Entrega', descripcion: 'Se entrega en Melincué 5125.' }),
-          ],
-        }),
-      )
+    it('una nota ocupa toda la fila y muestra su texto', () => {
+      montar(doc({ lineas: [linea({ id: 'c1', esCapitulo: true, nombre: 'Se entrega en Melincué 5125.' })] }))
       const fila = screen.getAllByRole('row')[1]!
       expect(within(fila).getAllByRole('cell')).toHaveLength(1)
-      expect(fila).toHaveTextContent('Entrega')
       expect(fila).toHaveTextContent('Se entrega en Melincué 5125.')
+      // Ni cantidad, ni precio, ni la palabra «Capítulo» puesta de fábrica.
+      expect(fila).not.toHaveTextContent('Capítulo')
     })
 
     it('una descripción larga no agrega columnas ni cambia el orden', () => {

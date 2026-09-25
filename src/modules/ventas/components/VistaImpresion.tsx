@@ -24,13 +24,16 @@ export interface EdicionEnHoja {
   onEliminar: (id: string) => void
   onAgregar: () => void
   /**
-   * Una línea suelta, sin producto (Fase 27 · E2).
+   * Una nota en el medio del documento (Fase 27 · E2, Fase 28 · E11).
    *
-   * Es la que se usa para una nota en el medio del documento: un texto que
-   * se imprime entre las líneas y no lleva cantidad ni precio.
+   * Un texto que se imprime entre las líneas y no lleva referencia, cantidad
+   * ni precio: dónde se entrega, una aclaración. Es UNA caja de texto y nada
+   * más — ni siquiera un título, que era una casilla de más para escribir una
+   * frase.
    */
-  /** Una nota en el medio del documento: sólo título y texto. */
   onNuevoCapitulo?: (() => void) | undefined
+  /** El texto de la nota, editable en la hoja. */
+  onTextoCapitulo?: ((id: string, texto: string) => void) | undefined
   /** La fecha, editable desde la hoja. Sin esto se muestra como texto. */
   onFecha?: ((valor: string) => void) | undefined
   /** La forma de pago, elegible desde la hoja (Fase 27 · E7). */
@@ -353,10 +356,36 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
           {doc.lineas.map((l) =>
             l.esCapitulo ? (
               <tr key={l.id} className={styles.capitulo}>
-                <td colSpan={columnasVisibles}>
-                  <div className={styles.capituloNombre}>{l.nombre ?? ''}</div>
-                  {l.descripcion ? <div className={styles.capituloTexto}>{l.descripcion}</div> : null}
+                {/* Una caja de texto y el botón de quitar. Nada de «Capítulo»
+                    escrito de fábrica: el renglón arranca vacío y quien lo usa
+                    escribe lo que tenga que decir. */}
+                <td colSpan={columnas}>
+                  {edicion?.onTextoCapitulo ? (
+                    <textarea
+                      className={styles.notaTexto}
+                      value={l.nombre ?? ''}
+                      rows={2}
+                      placeholder="Escribí una nota: dónde se entrega, una aclaración…"
+                      aria-label="Nota del documento"
+                      onChange={(e) => edicion.onTextoCapitulo?.(l.id, e.target.value)}
+                    />
+                  ) : (
+                    <div className={styles.capituloTexto}>{l.nombre ?? ''}</div>
+                  )}
                 </td>
+                {edicion ? (
+                  <td className={styles.colAccion}>
+                    <button
+                      type="button"
+                      className={styles.quitar}
+                      onClick={() => edicion.onEliminar(l.id)}
+                      aria-label="Quitar la nota"
+                      title="Quitar del documento"
+                    >
+                      ×
+                    </button>
+                  </td>
+                ) : null}
               </tr>
             ) : (
               <tr key={l.id}>

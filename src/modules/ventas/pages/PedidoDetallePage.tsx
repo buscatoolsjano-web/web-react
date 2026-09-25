@@ -568,7 +568,6 @@ function Detalle() {
                 cargandoContactos={contactos.isPending && borrador.cabecera.customerId !== ''}
                 avisoContacto={avisoContacto}
                 avisoTarifa={avisoTarifa}
-                mostrarValidez={false}
                 onCambiar={cambiarCampoCabecera}
                 onCambiarCliente={elegirCliente}
                 onCambiarMoneda={elegirMoneda}
@@ -590,7 +589,7 @@ function Detalle() {
                     <Button variant="secondary" size="sm" icon={<Icon name="plus" size={16} />} onClick={() => nueva()}>
                       Nueva línea
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => nueva({ tipoLinea: 'chapter', nombre: 'Capítulo', tasaImpuesto: 0 })}>
+                    <Button variant="ghost" size="sm" onClick={() => nueva({ tipoLinea: 'chapter', tasaImpuesto: 0 })}>
                       Nuevo capítulo
                     </Button>
                   </>
@@ -667,6 +666,7 @@ function Detalle() {
                 edicion={
                   editando
                     ? {
+                        onTextoCapitulo: (id, texto) => cambiarLinea(id, 'name_snapshot', texto),
                         onCantidad: (id, valor) => cambiarLinea(id, 'quantity', valor),
                         onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
                         onDescuento: (id, valor) => cambiarLinea(id, 'discount_pct', valor),
