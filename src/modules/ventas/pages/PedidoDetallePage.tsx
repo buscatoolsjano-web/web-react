@@ -22,11 +22,13 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { useAccionesDocumento } from '../components/AccionesDocumento'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
+import { CadenaDocumento } from '../components/CadenaDocumento'
 import { ChipEstado } from '../components/ChipEstado'
 import { InformacionDocumento } from '../components/InformacionDocumento'
 import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalEntregaParcial } from '../components/ModalEntregaParcial'
+import { useCrearFacturaDesdePedido } from '../hooks/useFacturasVenta'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { PanelPendientes } from '../components/PanelPendientes'
 import { PanelLateralCliente } from '@/modules/clientes/components/PanelLateralCliente'
@@ -44,6 +46,7 @@ import {
   useDisponibilidad,
   useDocumento,
   usePendientes,
+  useCadenaDocumento,
   useRelacionados,
   useRevision,
   useSeries,
@@ -130,6 +133,8 @@ function Detalle() {
   const queryClient = useQueryClient()
   const { data: doc, isPending, error } = useDocumento('pedido', id)
   const relacionados = useRelacionados('pedido', id)
+  const cadena = useCadenaDocumento('pedido', id)
+  const facturar = useCrearFacturaDesdePedido()
   // Los motivos de revisión, clasificados por el servidor (Fase 19 · E4).
   const revision = useRevision('pedido', id)
   const pendientes = usePendientes(doc)
@@ -414,6 +419,45 @@ function Detalle() {
         }
         aviso={editando ? <Badge tone="info">Editando</Badge> : null}
       />
+
+      {/* El circuito de la venta (Fase 29 · E6). «Generar» abre el MISMO
+          modal de cantidades que el botón de la barra: un remito nunca se
+          crea a ciegas, hay que decir cuánto se entrega de cada línea. */}
+      {cadena.data ? (
+        <CadenaDocumento
+          cadena={cadena.data}
+          actual="pedido"
+          generar={{
+            entrega: {
+              onGenerar: () => {
+                setErrorRemito(null)
+                setGenerando(true)
+              },
+              ...(!escribe
+                ? { motivo: 'Tu rol no genera remitos' }
+                : doc.estado !== 'confirmed'
+                  ? { motivo: 'El pedido tiene que estar confirmado' }
+                  : stelEntrega
+                    ? { motivo: 'La numeración de remitos la lleva el sistema anterior' }
+                    : {}),
+            },
+            /* La factura nace del pedido (Fase 29 · E7). Sale en `draft` y con
+               número interno: el fiscal lo da AFIP por Tango. Que el pedido
+               esté confirmado es la misma condición que para el remito — un
+               borrador todavía se edita, y facturar un borrador es facturar
+               algo que puede cambiar. */
+            factura: {
+              onGenerar: () => facturar.mutate({ orderId: id! }),
+              cargando: facturar.isPending,
+              ...(!escribe
+                ? { motivo: 'Tu rol no factura' }
+                : doc.estado !== 'confirmed'
+                  ? { motivo: 'El pedido tiene que estar confirmado' }
+                  : {}),
+            },
+          }}
+        />
+      ) : null}
 
       <AvisosHistoricos documento={doc} revision={revision.data} />
 

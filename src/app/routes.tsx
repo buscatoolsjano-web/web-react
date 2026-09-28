@@ -107,6 +107,14 @@ const EntregaDetallePage = lazyConRecarga(() =>
     default: m.EntregaDetallePage,
   })),
 )
+const FacturasVentaPage = lazyConRecarga(() =>
+  import('@/modules/ventas/pages/FacturasVentaPage').then((m) => ({ default: m.FacturasVentaPage })),
+)
+const FacturaVentaDetallePage = lazyConRecarga(() =>
+  import('@/modules/ventas/pages/FacturaVentaDetallePage').then((m) => ({
+    default: m.FacturaVentaDetallePage,
+  })),
+)
 const ClientesPage = lazyConRecarga(importarClientes)
 const ClienteNuevoPage = lazyConRecarga(() =>
   import('@/modules/clientes/pages/ClienteNuevoPage').then((m) => ({ default: m.ClienteNuevoPage })),
@@ -326,6 +334,8 @@ export const routes: RouteObject[] = [
       { path: 'ventas/pedidos/:id', element: privada(<PedidoDetallePage />) },
       { path: 'ventas/entregas', element: privada(<EntregasPage />) },
       { path: 'ventas/entregas/:id', element: privada(<EntregaDetallePage />) },
+      { path: 'ventas/facturas', element: privada(<FacturasVentaPage />) },
+      { path: 'ventas/facturas/:id', element: privada(<FacturaVentaDetallePage />) },
 
       // Clientes. El identificador es el uuid y no la referencia `CLI00001`:
       // la referencia es un dato del cliente —heredado, editable y que 19 de

@@ -2078,6 +2078,13 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           delivery_serial_id: string | null
+          /**
+           * Columna CALCULADA (funcion estado_servicio, Fase 29 E8). No existe en
+           * la tabla: PostgREST la expone porque es una funcion sobre la fila.
+           * Se puede pedir en el select y filtrar con eq, pero NO se escribe,
+           * por eso va solo en Row y no en Insert ni en Update.
+           */
+          estado_servicio: string
           id: string
           identifier: string | null
           model_text: string | null
@@ -6498,12 +6505,20 @@ export type Database = {
       config_ia_whatsapp: { Args: { p_company: string }; Returns: Json }
       confirmar_entrega: { Args: { p_delivery: string }; Returns: Json }
       confirmar_recepcion: { Args: { p_receipt: string }; Returns: Json }
+      cadena_de_documento: {
+        Args: { p_id: string; p_tipo: string }
+        Returns: Json
+      }
       convertir_cotizacion_en_pedido: {
         Args: { p_esperado?: string; p_quote: string }
         Returns: Json
       }
       convertir_cotizacion_en_pedido_en_serie: {
         Args: { p_esperado: string; p_quote: string; p_serie: string }
+        Returns: Json
+      }
+      crear_factura_desde_pedido: {
+        Args: { p_fecha?: string; p_order: string; p_serie?: string }
         Returns: Json
       }
       crear_cotizacion: {

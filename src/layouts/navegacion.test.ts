@@ -13,8 +13,12 @@ import { ROLES_CHAT } from '@/modules/chat/lib/permisos'
  *
  * Fase 16: se suma /whatsapp, que hasta ahora figuraba como «próximamente».
  *
- * Fase 28 · E15: se suma /chat, el chat interno. Son los dos únicos destinos
- * nuevos desde la Fase 1, y cada uno entra con sus propios roles.
+ * Fase 28 · E15: se suma /chat, el chat interno.
+ *
+ * Fase 29 · E7: se suma /ventas/facturas. Va SIN restricción de rol, como el
+ * resto de Ventas: quién ve qué factura lo decide `invoices_select` —internos
+ * ven las de su empresa, un cliente sólo las suyas—, y quién puede emitirlas
+ * lo decide la RPC. Ocultar el enlace sería una cortesía, no el control.
  */
 const AC = ['admin', 'employee']
 const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
@@ -23,6 +27,7 @@ const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
   { to: '/ventas/cotizaciones' },
   { to: '/ventas/pedidos' },
   { to: '/ventas/entregas' },
+  { to: '/ventas/facturas' },
   { to: '/clientes' },
   { to: '/compras/proveedores', roles: AC },
   { to: '/compras/pedidos', roles: AC },
