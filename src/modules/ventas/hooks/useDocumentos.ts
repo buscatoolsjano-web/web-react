@@ -16,6 +16,7 @@ import {
   seriesDeDocumento,
 } from '../services/documentos'
 import { documentosRelacionados, avanceDelRemito, evidenciaDeEntrega } from '../services/relacionados'
+import { cadenaDeDocumento } from '../services/cadena'
 import { disponibilidadDeProductos } from '../services/stock'
 import { calcularPendientes, type ResultadoPendientes } from '../lib/pendientes'
 import type {
@@ -173,6 +174,24 @@ export function useTrazabilidad(tipo: TipoDocumento, id: string | undefined, hab
     queryFn: () => listarEventos(companyId!, ENTIDAD_DE[tipo], id!),
     enabled: companyId !== null && !!id && habilitado,
     staleTime: 30_000,
+  })
+}
+
+/**
+ * La cadena del documento: cotización → pedido → entrega → factura (Fase 29 · E6).
+ *
+ * `staleTime` corto a propósito: apenas se genera el pedido desde acá, la
+ * barra tiene que mostrarlo. Quien lo genera invalida esta clave.
+ */
+export function useCadenaDocumento(tipo: TipoDocumento, id: string | undefined) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery({
+    queryKey: ['ventas', companyId, tipo, 'cadena', id],
+    queryFn: () => cadenaDeDocumento(tipo, id!),
+    enabled: companyId !== null && !!id,
+    staleTime: 15_000,
   })
 }
 

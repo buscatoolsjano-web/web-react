@@ -21,6 +21,10 @@ const estado = vi.hoisted((): {
   stel: Record<string, boolean>
   doc: unknown
   relacionados: unknown
+
+  /** La cadena del circuito. null = la barra no se dibuja. */
+
+  cadena: unknown
   /** Lo que devuelve la vista del servidor; sin definir = todavía no llegó. */
   revision: { historicos: string[]; activos: string[]; resueltos: string[]; noVerificables: string[]; requiereAtencion: boolean } | undefined
   series: { codigo: string; esPorDefecto: boolean; autoridad: string }[] | null
@@ -30,7 +34,7 @@ const estado = vi.hoisted((): {
   pendientes: unknown[]
   /** Fase 26 · E2: con pantalla ancha la hoja del documento va al lado. */
   pantallaAncha: boolean
-} => ({ rol: 'admin', stel: {}, doc: null, relacionados: null, revision: undefined, series: null, avance: undefined, eventos: [], contactos: [], pendientes: [], pantallaAncha: false }))
+} => ({ rol: 'admin', stel: {}, doc: null, relacionados: null, cadena: null, revision: undefined, series: null, avance: undefined, eventos: [], contactos: [], pendientes: [], pantallaAncha: false }))
 
 const espias = vi.hoisted(() => ({
   guardar: vi.fn(
@@ -67,6 +71,9 @@ vi.mock('../hooks/useAutoridadNumeracion', () => ({
 }))
 vi.mock('../hooks/useDocumentos', () => ({
   useDocumento: () => ({ data: estado.doc, isPending: false, error: null }),
+  // La cadena del documento (Fase 29 · E6). Por defecto sólo el propio: lo
+  // que prueba cada test es su pantalla, no la barra del circuito.
+  useCadenaDocumento: () => ({ data: estado.cadena, isPending: false }),
   useRelacionados: () => ({ data: estado.relacionados, isPending: false }),
   // Fase 19 · E4: la clasificación de los motivos la hace el servidor.
   useRevision: () => ({ data: estado.revision, isPending: false }),

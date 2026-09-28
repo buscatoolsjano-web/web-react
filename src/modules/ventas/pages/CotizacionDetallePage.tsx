@@ -25,6 +25,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { useAccionesDocumento } from '../components/AccionesDocumento'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
+import { CadenaDocumento } from '../components/CadenaDocumento'
 import { ChipEstado } from '../components/ChipEstado'
 import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
@@ -70,6 +71,7 @@ import { useVolverAlListado } from '../hooks/useVolverAlListado'
 import {
   useContactos,
   useDocumento,
+  useCadenaDocumento,
   useRelacionados,
   useRevision,
   useSeries,
@@ -142,6 +144,7 @@ function Detalle() {
   const queryClient = useQueryClient()
   const { data: doc, isPending, error } = useDocumento('cotizacion', id)
   const relacionados = useRelacionados('cotizacion', id)
+  const cadena = useCadenaDocumento('cotizacion', id)
   // Los motivos de revisión, clasificados por el servidor (Fase 19 · E4).
   const revision = useRevision('cotizacion', id)
 
@@ -493,6 +496,29 @@ function Detalle() {
         ))}
         aviso={editando ? <Badge tone="info">Editando</Badge> : null}
       />
+
+      {/* El circuito de la venta (Fase 29 · E6). Va arriba del documento y en
+          pantalla: es herramienta de trabajo, no parte de la hoja del cliente
+          —el CSS la saca al imprimir—. «Generar» llama al MISMO handler que
+          el botón de la barra, con el mismo motivo de bloqueo: dos botones
+          para lo mismo que se comportan distinto sería peor que uno solo. */}
+      {cadena.data ? (
+        <CadenaDocumento
+          cadena={cadena.data}
+          actual="cotizacion"
+          generar={{
+            pedido: {
+              onGenerar: () => (hayQueElegirSerie ? setEligiendoSerie(true) : convertir.mutate(null)),
+              cargando: convertir.isPending,
+              ...(!escribe
+                ? { motivo: 'Tu rol no genera pedidos' }
+                : stelPedido
+                  ? { motivo: 'La numeración de pedidos la lleva el sistema anterior' }
+                  : {}),
+            },
+          }}
+        />
+      ) : null}
 
       <AvisosHistoricos documento={doc} revision={revision.data} />
 

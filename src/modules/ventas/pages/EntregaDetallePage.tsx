@@ -25,6 +25,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { useAccionesDocumento } from '../components/AccionesDocumento'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
+import { CadenaDocumento } from '../components/CadenaDocumento'
 import { ChipEstado } from '../components/ChipEstado'
 import { InformacionDocumento } from '../components/InformacionDocumento'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
@@ -38,6 +39,7 @@ import {
   useAvanceDeRemito,
   useContactos,
   useDocumento,
+  useCadenaDocumento,
   useRelacionados,
   useRevision,
 } from '../hooks/useDocumentos'
@@ -100,6 +102,7 @@ function Detalle() {
   const queryClient = useQueryClient()
   const { data: doc, isPending, error } = useDocumento('entrega', id)
   const relacionados = useRelacionados('entrega', id)
+  const cadena = useCadenaDocumento('entrega', id)
   // Los motivos de revisión, clasificados por el servidor (Fase 19 · E4).
   const revision = useRevision('entrega', id)
   // El avance del pedido visto desde este remito (Fase 19 · E5).
@@ -363,6 +366,10 @@ function Detalle() {
           ) : null
         }
       />
+
+      {/* El circuito de la venta (Fase 29 · E6). Acá sin «Generar»: el paso
+          siguiente es la factura, y todavía no se emite desde el ERP. */}
+      {cadena.data ? <CadenaDocumento cadena={cadena.data} actual="entrega" /> : null}
 
       <AvisosHistoricos documento={doc} revision={revision.data} />
 
