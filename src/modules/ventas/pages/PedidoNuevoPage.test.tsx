@@ -462,7 +462,7 @@ describe('Nuevo pedido · contacto y domicilio de entrega (Fase 17 · E3)', () =
   // es el primero.
   fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
 
-    await waitFor(() => expect(screen.getByLabelText(/Contacto/)).toHaveValue('k1'))
+    await waitFor(() => expect(screen.getByRole('combobox', { name: /Contacto/ })).toHaveValue('k1'))
     expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1')
   })
 
@@ -520,12 +520,12 @@ describe('Nuevo pedido · contacto y domicilio de entrega (Fase 17 · E3)', () =
     await waitFor(() => expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1'))
 
     fireEvent.change(screen.getByLabelText(/Entregar en/), { target: { value: 'd2' } })
-    fireEvent.change(screen.getByLabelText(/Contacto/), { target: { value: '' } })
+    fireEvent.change(screen.getByRole('combobox', { name: /Contacto/ }), { target: { value: '' } })
     // Un re-render no vuelve a sugerir: la sugerencia sólo llena lo vacío y no
     // tocado, y estos dos campos ya son una decisión.
     fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
     expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d2')
-    expect(screen.getByLabelText(/Contacto/)).toHaveValue('')
+    expect(screen.getByRole('combobox', { name: /Contacto/ })).toHaveValue('')
   })
 
   it('un principal desactivado no se sugiere ni se ofrece para elegir', async () => {
@@ -538,7 +538,7 @@ describe('Nuevo pedido · contacto y domicilio de entrega (Fase 17 · E3)', () =
   fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
     await waitFor(() => expect(espias.defaults).toHaveBeenCalled())
 
-    expect(screen.getByLabelText(/Contacto/)).toHaveValue('')
+    expect(screen.getByRole('combobox', { name: /Contacto/ })).toHaveValue('')
     expect(screen.getByLabelText(/Entregar en/)).toHaveValue('')
     // Y no están entre las opciones: en un documento nuevo no se ofrecen.
     expect(screen.queryByRole('option', { name: /ZZ Ana/ })).not.toBeInTheDocument()

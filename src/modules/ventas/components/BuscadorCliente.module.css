@@ -50,13 +50,20 @@
   min-width: 0;
 }
 
+/* El borde y el redondeo son los de `.control` de Forms —no los genéricos— para
+   que el campo del cliente no se vea más flojo que el select de «Contacto» que
+   tiene al lado: `--color-border` es visiblemente más suave que el
+   `--color-border-strong` que usa el resto de los controles del formulario.
+   El alto y el tamaño de letra sí se apartan a propósito; el porqué, abajo. */
 .input {
-  /* 16px: menos que eso y iOS hace zoom al enfocar. */
+  /* 16px: menos que eso y iOS hace zoom al enfocar. El resto de los controles
+     usa --text-sm (14px); acá se prioriza no perder el foco de la pantalla
+     porque elegir cliente es lo primero que se hace en un documento nuevo. */
   font-size: 16px;
   min-height: 44px;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
   width: 100%;

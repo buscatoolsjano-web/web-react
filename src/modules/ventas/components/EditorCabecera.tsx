@@ -198,17 +198,31 @@ export function EditorCabecera({
             </Select>
           </Field>
           {/* Fase 28 · E14: crear un contacto sin abandonar el documento. Antes
-              había que irse a la ficha del cliente y volver a empezar. */}
+              había que irse a la ficha del cliente y volver a empezar.
+
+              El texto es corto a propósito. «Contactos del cliente…» no entraba
+              en una línea de la columna, y al estirarse el botón quedaba del
+              alto del label más el select: un bloque que pesaba más que el
+              campo al que acompaña. Está pegado a «Contacto», así que de qué
+              contactos habla se entiende por dónde está; el nombre largo queda
+              en el `aria-label`.
+
+              Ese `aria-label` nombra la ACCIÓN («abrir la agenda…») y no la
+              cosa («contactos del cliente») a propósito: con el segundo, el
+              botón y el select «Contacto» pasaban a tener dos nombres
+              accesibles casi iguales dentro del mismo grupo, y quedaba
+              ambiguo para quien navega por lector de pantalla. */}
           {onAbrirContactos ? (
             <Button
               type="button"
               variant="secondary"
               size="sm"
               className={styles.botonAgenda}
+              aria-label="Abrir la agenda de contactos del cliente"
               disabled={valores.customerId === ''}
               onClick={onAbrirContactos}
             >
-              Contactos del cliente…
+              Contactos…
             </Button>
           ) : null}
 

@@ -60,9 +60,13 @@
   }
 }
 
+/* El rótulo de «Cliente», que no puede usar `Field` porque el buscador trae su
+   propio input. Copia exacta de `.label` de Forms, `line-height` incluido: sin
+   él quedaba unos píxeles más alto que «Contacto», que está al lado. */
 .etiqueta {
   font-size: var(--text-label);
   font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
   color: var(--color-text-soft);
 }
 
@@ -97,8 +101,14 @@
   text-overflow: ellipsis;
 }
 
-/* El botón de la agenda, debajo del selector de contacto (Fase 28 · E14). */
+/* El botón de la agenda, al lado del selector de contacto (Fase 28 · E14).
+
+   `align-self: end` es lo que lo arregla: por defecto un hijo de grilla se
+   estira al alto de su fila, y como la fila la marca «Contacto» —label más
+   select— el botón salía como un bloque de dos renglones de alto. Alineado
+   abajo queda a la altura del select, que es el control al que pertenece. */
 .botonAgenda {
   justify-self: start;
-  margin-top: calc(var(--space-2) * -1);
+  align-self: end;
+  white-space: nowrap;
 }

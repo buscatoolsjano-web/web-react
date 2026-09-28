@@ -67,6 +67,7 @@ export function BuscadorCliente({ valor, editable, onElegir, apariencia = 'erp' 
   // el ERP, que hasta el cutover no se podía crear.
   const enHoja = apariencia === 'hoja'
   const buscando = editable && (valor === null || abierto)
+  const termino = consulta.trim()
 
   const resultados = useQuery({
     queryKey: ['ventas', companyId, 'buscar-cliente', consulta],
@@ -74,9 +75,27 @@ export function BuscadorCliente({ valor, editable, onElegir, apariencia = 'erp' 
     // Fase 22 · A8: la consulta no sale hasta que haya algo que buscar. El
     // servicio ya devuelve [] con menos de dos caracteres; no habilitarla
     // evita además el request.
-    enabled: companyId !== null && buscando && consulta.trim().length >= 2,
+    enabled: companyId !== null && buscando && termino.length >= 2,
     staleTime: 30_000,
   })
+
+  const opciones = resultados.data ?? []
+  const sinCoincidencias = termino.length >= 2 && !resultados.isFetching && opciones.length === 0
+
+  /**
+   * La lista existe sólo cuando tiene algo adentro.
+   *
+   * Antes salía siempre, y con menos de dos letras su único renglón era «Escribí
+   * al menos dos letras del nombre, el CUIT o la referencia». Con el borde y el
+   * fondo de la lista, ese cartel se leía como un SEGUNDO campo vacío debajo del
+   * buscador: lo primero que se ve al abrir un documento nuevo era un formulario
+   * que parece pedir dos cosas. Y era redundante —el placeholder ya dice
+   * «Nombre, CUIT o referencia…»—, así que se fue.
+   *
+   * Sin esta condición el `<ul>` vacío seguiría dibujando su borde: una franja
+   * de dos píxeles colgando del campo.
+   */
+  const hayLista = opciones.length > 0 || resultados.isFetching || sinCoincidencias
 
   // La misma condición que habilita la consulta, negada: antes acá había una
   // copia escrita a mano y por eso `apariencia` no cambiaba nada —el early
@@ -126,9 +145,9 @@ export function BuscadorCliente({ valor, editable, onElegir, apariencia = 'erp' 
         <p className={styles.error} role="alert">
           {resultados.error.message}
         </p>
-      ) : (
+      ) : hayLista ? (
         <ul className={enHoja ? `${styles.lista} ${styles.listaHoja}` : styles.lista}>
-          {(resultados.data ?? []).map((c) => (
+          {opciones.map((c) => (
             <li key={c.id}>
               <button
                 type="button"
@@ -144,19 +163,9 @@ export function BuscadorCliente({ valor, editable, onElegir, apariencia = 'erp' 
             </li>
           ))}
           {resultados.isFetching ? <li className={styles.nota}>Buscando…</li> : null}
-          {/* En la hoja, con menos de dos letras no se dice nada: es una caja
-              de texto y los clientes aparecen al escribir (Fase 28 · E9). El
-              panel del formulario sí lleva la ayuda, que ahí es texto de campo
-              y no un cartel en el medio del documento. */}
-          {!resultados.isFetching && (resultados.data ?? []).length === 0 && !(enHoja && consulta.trim().length < 2) ? (
-            <li className={styles.nota}>
-              {consulta.trim().length < 2
-                ? 'Escribí al menos dos letras del nombre, el CUIT o la referencia.'
-                : 'Ningún cliente activo coincide.'}
-            </li>
-          ) : null}
+          {sinCoincidencias ? <li className={styles.nota}>Ningún cliente activo coincide.</li> : null}
         </ul>
-      )}
+      ) : null}
       {valor !== null ? (
         <button type="button" className={styles.cambiar} onClick={() => setAbierto(false)}>
           Cancelar

@@ -61,6 +61,25 @@ describe('BuscadorCliente en un documento nuevo', () => {
     expect(await screen.findByText('Ningún cliente activo coincide.')).toBeInTheDocument()
   })
 
+  /**
+   * Antes, con el campo vacío, la lista salía igual con un solo renglón que
+   * decía «Escribí al menos dos letras…». Con el borde y el fondo de la lista
+   * eso se leía como un segundo campo vacío debajo del buscador, y era
+   * redundante: el placeholder ya dice qué se escribe.
+   */
+  it('con el campo vacío no dibuja ninguna lista debajo', () => {
+    montar({ valor: null })
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+    expect(screen.queryByText(/al menos dos letras/i)).not.toBeInTheDocument()
+  })
+
+  it('con una sola letra tampoco: todavía no hay nada que mostrar', async () => {
+    montar({ valor: null })
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'g' } })
+    await waitFor(() => expect(estado.llamadas).toHaveLength(0))
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+  })
+
   it('en sólo lectura no busca ni muestra el campo', async () => {
     montar({ valor: 'k1', editable: false })
     await waitFor(() => expect(screen.getByText('Cliente elegido')).toBeInTheDocument())
