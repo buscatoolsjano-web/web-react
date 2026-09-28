@@ -52,7 +52,7 @@ describe('navegación agrupada', () => {
   it('grupos en el orden aprobado', () => {
     // Fase 27 · E3: Comunicación subió a segunda, pegada a Inicio: es lo que
     // se mira al empezar el día y lleva los contadores de sin leer.
-    expect(NAVEGACION.map((g) => g.label)).toEqual([null, 'Comunicación', 'Operación', 'Datos', 'Análisis', 'Administración'])
+    expect(NAVEGACION.map((g) => g.label)).toEqual([null, 'Comunicación', 'Datos', 'Operación', 'Análisis', 'Administración'])
   })
 
   it('un vendedor no ve Compras ni Mantenimiento; los grupos sin enlaces desaparecen', () => {

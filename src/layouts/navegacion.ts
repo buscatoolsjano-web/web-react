@@ -83,6 +83,14 @@ export const NAVEGACION: GrupoNav[] = [
     ],
   },
   {
+    id: 'datos',
+    label: 'Datos',
+    entradas: [
+      { id: 'catalogo', label: 'Catálogo', icon: 'package', destino: { to: '/catalogo', label: 'Catálogo' } },
+      { id: 'clientes', label: 'Clientes', icon: 'users', destino: { to: '/clientes', label: 'Clientes' } },
+    ],
+  },
+  {
     id: 'operacion',
     label: 'Operación',
     entradas: [
@@ -124,14 +132,6 @@ export const NAVEGACION: GrupoNav[] = [
           { to: '/mantenimiento/ordenes', label: 'Órdenes de servicio', roles: ESCRIBEN_MANTENIMIENTO },
         ],
       },
-    ],
-  },
-  {
-    id: 'datos',
-    label: 'Datos',
-    entradas: [
-      { id: 'catalogo', label: 'Catálogo', icon: 'package', destino: { to: '/catalogo', label: 'Catálogo' } },
-      { id: 'clientes', label: 'Clientes', icon: 'users', destino: { to: '/clientes', label: 'Clientes' } },
     ],
   },
   {
