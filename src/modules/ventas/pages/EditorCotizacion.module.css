@@ -47,17 +47,30 @@
    Ahora manda la hoja: el panel izquierdo toma lo que necesita y el resto es
    del documento. Desde 1280 px, que es donde las dos cosas entran. */
 .conPrevia {
+  /* Lo que el panel de datos le gana a la hoja, en píxeles exactos. Un solo
+     número para las dos columnas: lo que una suma, la otra lo resta. */
+  --ajuste-panel: 10px;
+
   display: grid;
-  grid-template-columns: minmax(19rem, 32fr) minmax(0, 68fr);
+  /* El reparto es 32/68 del espacio libre —el ancho menos el gap—, y encima
+     va el ajuste. Se calcula el 32 % a mano en vez de usar `32fr` porque
+     `fr` no entra en `calc()`: no existe `calc(32fr + 10px)`. La segunda
+     columna toma el resto, así que queda angosta exactamente en esos 10 px
+     sin tener que repetir la cuenta. */
+  grid-template-columns:
+    minmax(19rem, calc((100% - var(--space-4)) * 0.32 + var(--ajuste-panel)))
+    minmax(0, 1fr);
   gap: var(--space-4);
   align-items: start;
 }
 
 @media (min-width: 1800px) {
   /* En pantallas muy anchas el panel no necesita seguir creciendo: lo que
-     sobra es para la hoja. */
+     sobra es para la hoja. El ajuste se mantiene. */
   .conPrevia {
-    grid-template-columns: minmax(19rem, 26rem) minmax(0, 1fr);
+    grid-template-columns:
+      minmax(19rem, calc(26rem + var(--ajuste-panel)))
+      minmax(0, 1fr);
   }
 }
 
