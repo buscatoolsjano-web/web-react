@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/Badge'
+import type { EstadoServicio } from '../types'
 import {
   etiquetaDeCotizacion,
   etiquetaDeEstado,
@@ -114,4 +115,19 @@ export function ChipBaja({ dadoDeBaja }: { dadoDeBaja: boolean }) {
       Dado de baja
     </Badge>
   )
+}
+
+/**
+ * El estado operativo del equipo en el parque (Fase 29 · E8).
+ *
+ * Es el chip que el panel anterior mostraba en cada fila del listado. `OK`
+ * NO se dibuja: un parque sano son cientos de filas, y cientos de chips
+ * verdes iguales no comunican nada y tapan a los tres que sí importan. La
+ * ausencia de chip ES el «sin trabajo abierto».
+ */
+export function ChipServicio({ estado }: { estado: EstadoServicio }) {
+  if (estado === 'ok') return null
+  if (estado === 'en_espera') return <Badge tone="warning" dot>En espera</Badge>
+  if (estado === 'cotizacion_pendiente') return <Badge tone="info" dot>Cotiz. pendiente</Badge>
+  return <Badge tone="info">En servicio</Badge>
 }

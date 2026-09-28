@@ -8,7 +8,7 @@ import { contar } from '@/components/tables/rango'
 import tabla from '@/components/tables/Tabla.module.css'
 import { formatearFecha } from '../lib/formato'
 import { BuscadorDeColumna } from './BuscadorDeColumna'
-import { ChipBaja } from './ChipEstado'
+import { ChipBaja, ChipServicio } from './ChipEstado'
 import { Miniatura } from './Miniatura'
 import type { ActivoListado, FiltrosActivos, OrdenActivos } from '../types'
 import styles from './Listado.module.css'
@@ -355,6 +355,7 @@ export function ListadoActivos({
               <td className={`${tabla.num} ${styles.ocultaBajo1280Tambien}`}>{a.historial}</td>
               <td className={styles.ocultaBajo1280Tambien}>
                 <ChipBaja dadoDeBaja={a.dadoDeBaja} />
+                <ChipServicio estado={a.estadoServicio} />
               </td>
               {/* La acción del taller: abrir un servicio para este equipo. Es
                   la que el panel anterior tenía en cada fila, y la que hace

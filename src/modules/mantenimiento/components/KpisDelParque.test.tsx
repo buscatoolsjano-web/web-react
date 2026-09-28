@@ -20,6 +20,7 @@ const resumen = (p: Partial<ResumenActivos> = {}): ResumenActivos => ({
   conHistorial: 132,
   historialCerrado: 149,
   historialPresupuesto: 51,
+  porEstadoServicio: { en_espera: 0, cotizacion_pendiente: 0, en_servicio: 0, ok: 0 },
   clientes: [{ id: 'c1', nombre: 'UN CLIENTE', equipos: 100 }],
   marcas: [{ valor: 'FEIN', equipos: 200 }],
   modelos: [{ valor: 'ASM18-12-PC', equipos: 30 }],

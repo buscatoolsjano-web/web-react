@@ -1,4 +1,8 @@
 import type { ClienteListado } from '../types'
+import { celda, descargarCsv } from '@/utils/csv'
+
+// Se re-exportan para no romper a quien ya los importaba de acá.
+export { celda, descargarCsv }
 
 /**
  * Exportación del listado a CSV.
@@ -12,14 +16,6 @@ import type { ClienteListado } from '../types'
  * uno solo. Acá `emails` es un array y se vuelcan todos, separados por espacio,
  * dentro de la misma celda: perder direcciones al exportar sería perder datos.
  */
-
-/** Escapa un campo. La coma, el punto y coma y las comillas rompen un CSV. */
-export function celda(valor: string | number | null | undefined): string {
-  if (valor === null || valor === undefined) return ''
-  const s = String(valor)
-  if (/[",;\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`
-  return s
-}
 
 const COLUMNAS = [
   'Referencia',
@@ -55,20 +51,3 @@ export function aCsv(filas: readonly ClienteListado[]): string {
   return lineas.join('\r\n')
 }
 
-/**
- * Dispara la descarga.
- *
- * El BOM va adelante a propósito: sin él Excel en Windows abre las tildes
- * rotas, y casi todos los nombres de cliente tienen tildes.
- */
-export function descargarCsv(nombre: string, contenido: string): void {
-  const blob = new Blob(['﻿' + contenido], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = nombre
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}

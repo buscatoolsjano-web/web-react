@@ -71,3 +71,40 @@ describe('escribirFiltros', () => {
     expect(leer(escribir(original))).toEqual(original)
   })
 })
+
+/**
+ * El estado de servicio del parque (Fase 29 · E8).
+ *
+ * Es el filtro que el panel anterior tenía como chips: qué equipo está
+ * frenado, cuál espera respuesta del cliente y cuál está en el banco. Va en
+ * la URL como los demás, así que «mandame los que están en espera» es un
+ * link y no una explicación.
+ */
+describe('el estado de servicio', () => {
+  it.each(['en_espera', 'cotizacion_pendiente', 'en_servicio', 'ok'])(
+    'lee «%s» de la URL',
+    (v) => {
+      expect(leer(`svc=${v}`).estadoServicio).toBe(v)
+    },
+  )
+
+  /** Lo mismo que con `estado`: un valor raro no puede llegar a la consulta. */
+  it('un estado inventado se ignora', () => {
+    expect(leer('svc=lo-que-sea').estadoServicio).toBe('')
+    expect(leer('svc=').estadoServicio).toBe('')
+  })
+
+  it('vuelve a la URL tal cual, y sin él si está vacío', () => {
+    expect(escribir({ ...FILTROS_ACTIVOS_INICIALES, estadoServicio: 'en_espera' })).toContain(
+      'svc=en_espera',
+    )
+    expect(escribir(FILTROS_ACTIVOS_INICIALES)).not.toContain('svc')
+  })
+
+  it('cuenta como filtro puesto, así el botón de limpiar aparece', () => {
+    const conEstado = leer('svc=en_espera')
+    expect(conEstado.estadoServicio).toBe('en_espera')
+    // Ida y vuelta completa: lo que se lee se vuelve a escribir igual.
+    expect(escribir(conEstado)).toBe('svc=en_espera')
+  })
+})

@@ -3,6 +3,7 @@ import type {
   ActivoDetalle,
   ActivoListado,
   DuplicadoDeSerial,
+  EstadoServicio,
   FiltrosActivos,
   PaginaDeActivos,
   ResumenActivos,
@@ -30,7 +31,7 @@ const vacioANulo = (s: string): string | null => {
 const COLUMNAS = `
   id, reference, name, identifier, serial_number, serial_normalized, owner_customer_id,
   product_id, asset_type, brand_text, model_text, city, under_contract,
-  deleted_at, created_at,
+  deleted_at, created_at, estado_servicio,
   dueno:customers!owner_customer_id ( legal_name ),
   producto:products!product_id ( sku ),
   maintenance_orders ( id ),
@@ -50,6 +51,7 @@ interface Fila {
   asset_type: string | null
   brand_text: string | null
   model_text: string | null
+  estado_servicio: EstadoServicio
   city: string | null
   under_contract: boolean
   deleted_at: string | null
@@ -95,6 +97,7 @@ const aFila = (f: Fila): ActivoListado => ({
   dadoDeBaja: f.deleted_at !== null,
   ordenes: (f.maintenance_orders ?? []).length,
   historial: (f.historial ?? []).length,
+  estadoServicio: f.estado_servicio,
   creadoEn: f.created_at,
 })
 
@@ -159,6 +162,9 @@ export async function listarActivos(
   if (filtros.sinCliente) q = q.is('owner_customer_id', null)
   if (filtros.estado === 'activo') q = q.is('deleted_at', null)
   if (filtros.estado === 'baja') q = q.not('deleted_at', 'is', null)
+  // El estado de servicio es una columna calculada de la base: se filtra en el
+  // servidor como cualquier otra, o la paginación devolvería páginas cojas.
+  if (filtros.estadoServicio !== '') q = q.eq('estado_servicio', filtros.estadoServicio)
 
   const columna = {
     referencia: 'reference',
@@ -196,7 +202,7 @@ export async function resumenDeActivos(companyId: string): Promise<ResumenActivo
   const { data, error } = await supabase
     .from('maintenance_assets')
     .select(
-      'owner_customer_id, brand_text, model_text, serial_normalized, dueno:customers!owner_customer_id(legal_name), maintenance_orders(id), historial:maintenance_service_history(id, status)',
+      'owner_customer_id, brand_text, model_text, serial_normalized, estado_servicio, dueno:customers!owner_customer_id(legal_name), maintenance_orders(id), historial:maintenance_service_history(id, status)',
     )
     .eq('company_id', companyId)
     .is('deleted_at', null)
@@ -207,6 +213,7 @@ export async function resumenDeActivos(companyId: string): Promise<ResumenActivo
     brand_text: string | null
     model_text: string | null
     serial_normalized: string | null
+    estado_servicio: EstadoServicio
     dueno: { legal_name: string } | null
     maintenance_orders: { id: string }[] | null
     historial: { id: string; status: string }[] | null
@@ -223,8 +230,19 @@ export async function resumenDeActivos(companyId: string): Promise<ResumenActivo
   let conHistorial = 0
   let historialCerrado = 0
   let historialPresupuesto = 0
+  // Arranca en cero los cuatro: un estado sin equipos tiene que mostrar 0 en su
+  // chip, no desaparecer. Que no haya nada en espera es informacion.
+  const porEstadoServicio: Record<EstadoServicio, number> = {
+    en_espera: 0,
+    cotizacion_pendiente: 0,
+    en_servicio: 0,
+    ok: 0,
+  }
 
   for (const f of filas) {
+    // El Record arranca con las cuatro claves, pero el valor viene de la base:
+    // si algun dia aparece un estado nuevo, se ignora en vez de romper la pantalla.
+    if (f.estado_servicio in porEstadoServicio) porEstadoServicio[f.estado_servicio] += 1
     if (f.owner_customer_id) {
       const previo = clientes.get(f.owner_customer_id)
       if (previo) previo.equipos += 1
@@ -257,6 +275,7 @@ export async function resumenDeActivos(companyId: string): Promise<ResumenActivo
     conHistorial,
     historialCerrado,
     historialPresupuesto,
+    porEstadoServicio,
     // Los clientes, por cantidad de equipos: dos concentran el 77 % del parque
     // y tienen que quedar arriba del desplegable.
     clientes: [...clientes.values()].sort(porEquipos),

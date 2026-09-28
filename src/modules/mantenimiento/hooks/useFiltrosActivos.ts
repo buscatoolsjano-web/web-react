@@ -17,6 +17,10 @@ import { TAMANOS_DE_PAGINA } from '../lib/paginas'
 
 const ESTADOS = ['activo', 'baja']
 const SERIES = ['con', 'sin']
+// Los mismos cuatro que ESTADOS_SERVICIO. Sueltos acá para no acoplar el
+// lector de la URL a la lista de etiquetas: si mañana cambia un texto, el
+// link que alguien guardo tiene que seguir funcionando.
+const ESTADOS_SERVICIO_URL = ['en_espera', 'cotizacion_pendiente', 'en_servicio', 'ok']
 
 function aEntero(v: string | null, porDefecto: number): number {
   const n = Number(v)
@@ -53,6 +57,7 @@ export function leerFiltros(params: URLSearchParams): FiltrosActivos {
     serie: deLista(params.get('serie'), SERIES),
     sinCliente: params.get('sincli') === '1',
     estado: deLista(params.get('estado'), ESTADOS),
+    estadoServicio: deLista(params.get('svc'), ESTADOS_SERVICIO_URL),
     pagina: aEntero(params.get('page'), 1),
     porPagina: (TAMANOS_DE_PAGINA as readonly number[]).includes(porPagina)
       ? porPagina
@@ -79,6 +84,7 @@ export function escribirFiltros(f: FiltrosActivos): URLSearchParams {
   if (f.serie !== '') p.set('serie', f.serie)
   if (f.sinCliente) p.set('sincli', '1')
   if (f.estado !== '') p.set('estado', f.estado)
+  if (f.estadoServicio !== '') p.set('svc', f.estadoServicio)
   if (f.pagina > 1) p.set('page', String(f.pagina))
   if (f.porPagina !== FILTROS_ACTIVOS_INICIALES.porPagina) p.set('per', String(f.porPagina))
   if (f.orden !== FILTROS_ACTIVOS_INICIALES.orden) p.set('orden', f.orden)
@@ -117,7 +123,8 @@ export function useFiltrosActivos() {
     filtros.modelo !== '' ||
     filtros.serie !== '' ||
     filtros.sinCliente ||
-    filtros.estado !== ''
+    filtros.estado !== '' ||
+    filtros.estadoServicio !== ''
 
   return { filtros, aplicar, limpiar, hayFiltros }
 }

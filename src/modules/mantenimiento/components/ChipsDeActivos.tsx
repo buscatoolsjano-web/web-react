@@ -1,3 +1,4 @@
+import { ESTADOS_SERVICIO } from '../lib/estados'
 import type { FiltrosActivos, ResumenActivos } from '../types'
 import styles from './ChipsDeActivos.module.css'
 
@@ -51,20 +52,51 @@ export function ChipsDeActivos({ filtros, resumen, onAplicar }: ChipsDeActivosPr
     },
   ] as const
 
+  /**
+   * Los cuatro estados operativos (Fase 29 · E8).
+   *
+   * Van en su propia fila y no mezclados con los de arriba porque contestan
+   * otra pregunta: los primeros son de calidad de dato —qué equipo entró sin
+   * serie o sin dueño—, y éstos son del día a día del taller —qué está
+   * frenado, qué espera respuesta, qué está en el banco—. Mezclarlos haría
+   * que apretar uno pareciera deshacer el otro, y no se pisan: se combinan.
+   */
+  const operativos = ESTADOS_SERVICIO.map((e) => ({
+    clave: e.valor,
+    etiqueta: e.etiqueta,
+    cuenta: resumen?.porEstadoServicio[e.valor],
+    activo: filtros.estadoServicio === e.valor,
+    // Volver a apretar el chip encendido lo apaga: es un filtro, no una pestaña.
+    cambio: { estadoServicio: filtros.estadoServicio === e.valor ? '' : e.valor },
+  }))
+
+  const boton = (c: {
+    clave: string
+    etiqueta: string
+    cuenta: number | undefined
+    activo: boolean
+    cambio: Partial<FiltrosActivos>
+  }) => (
+    <button
+      key={c.clave}
+      type="button"
+      className={c.activo ? styles.chipActivo : styles.chip}
+      aria-pressed={c.activo}
+      onClick={() => onAplicar(c.cambio)}
+    >
+      {c.etiqueta}
+      {c.cuenta === undefined ? null : <span className={styles.cuenta}>{c.cuenta}</span>}
+    </button>
+  )
+
   return (
-    <div className={styles.fila} role="group" aria-label="Atajos del listado">
-      {chips.map((c) => (
-        <button
-          key={c.clave}
-          type="button"
-          className={c.activo ? styles.chipActivo : styles.chip}
-          aria-pressed={c.activo}
-          onClick={() => onAplicar(c.cambio)}
-        >
-          {c.etiqueta}
-          {c.cuenta === undefined ? null : <span className={styles.cuenta}>{c.cuenta}</span>}
-        </button>
-      ))}
-    </div>
+    <>
+      <div className={styles.fila} role="group" aria-label="Atajos del listado">
+        {chips.map(boton)}
+      </div>
+      <div className={styles.fila} role="group" aria-label="Estado de servicio">
+        {operativos.map(boton)}
+      </div>
+    </>
   )
 }

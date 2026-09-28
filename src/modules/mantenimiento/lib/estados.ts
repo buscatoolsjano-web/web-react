@@ -246,3 +246,21 @@ export function editabilidadDe(estado: EstadoOrden): {
   const abierta = estado === 'open'
   return { cabecera: abierta, etapa: abierta, checks: abierta, cancelar: abierta }
 }
+
+/**
+ * Los cuatro estados operativos del parque (Fase 29 · E8).
+ *
+ * Son los del panel anterior, con las mismas palabras: es lo que el taller
+ * dice en voz alta. El orden NO es alfabético ni casual — va de lo que más
+ * exige atención a lo que no exige ninguna, que es como se mira el tablero.
+ */
+export const ESTADOS_SERVICIO = [
+  { valor: 'en_espera', etiqueta: 'En espera', tono: 'warning' },
+  { valor: 'cotizacion_pendiente', etiqueta: 'Cotiz. pendiente', tono: 'info' },
+  { valor: 'en_servicio', etiqueta: 'En servicio', tono: 'info' },
+  { valor: 'ok', etiqueta: 'OK', tono: 'success' },
+] as const
+
+export function etiquetaDeEstadoServicio(v: string): string {
+  return ESTADOS_SERVICIO.find((e) => e.valor === v)?.etiqueta ?? v
+}

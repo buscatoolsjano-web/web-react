@@ -7,6 +7,19 @@
 
 // ── Equipos ────────────────────────────────────────────────────────────────
 
+/**
+ * Qué le está pasando al equipo AHORA, derivado de sus órdenes abiertas.
+ *
+ * Lo calcula la base, con la columna calculada `estado_servicio`, y no la
+ * pantalla: el listado pagina en el servidor, así que filtrar por esto en el
+ * cliente mostraría páginas incompletas.
+ *
+ * Prioridad cuando el equipo tiene varias órdenes abiertas: primero lo
+ * frenado, después lo que espera respuesta del cliente, y al final lo que se
+ * está trabajando. Se muestra lo que exige atención, no lo más reciente.
+ */
+export type EstadoServicio = 'en_espera' | 'cotizacion_pendiente' | 'en_servicio' | 'ok'
+
 export interface ActivoListado {
   id: string
   referencia: string
@@ -32,6 +45,7 @@ export interface ActivoListado {
   ordenes: number
   /** Cuántos servicios históricos importados de STEL. No son órdenes. */
   historial: number
+  estadoServicio: EstadoServicio
   creadoEn: string
 }
 
@@ -99,6 +113,8 @@ export interface FiltrosActivos {
   sinCliente: boolean
   /** `''` todos · `activo` · `baja`. */
   estado: string
+  /** `''` todos, o uno de `EstadoServicio`: el chip operativo del panel. */
+  estadoServicio: string
   pagina: number
   porPagina: number
   orden: OrdenActivos
@@ -119,6 +135,7 @@ export const FILTROS_ACTIVOS_INICIALES: FiltrosActivos = {
   serie: '',
   sinCliente: false,
   estado: '',
+  estadoServicio: '',
   pagina: 1,
   porPagina: 25,
   orden: 'alta',
@@ -147,6 +164,8 @@ export interface ResumenActivos {
   conHistorial: number
   historialCerrado: number
   historialPresupuesto: number
+  /** Cuántos equipos hay en cada estado de servicio, para los chips. */
+  porEstadoServicio: Record<EstadoServicio, number>
   clientes: { id: string; nombre: string; equipos: number }[]
   marcas: { valor: string; equipos: number }[]
   modelos: { valor: string; equipos: number }[]

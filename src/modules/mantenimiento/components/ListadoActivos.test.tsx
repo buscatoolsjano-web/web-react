@@ -38,6 +38,7 @@ const activo = (p: Partial<ActivoListado> = {}): ActivoListado => ({
   dadoDeBaja: false,
   ordenes: 0,
   historial: 0,
+  estadoServicio: 'ok' as const,
   creadoEn: '2026-09-21',
   ...p,
 })

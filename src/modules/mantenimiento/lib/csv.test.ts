@@ -22,6 +22,7 @@ const EQUIPO: ActivoListado = {
   dadoDeBaja: false,
   ordenes: 2,
   historial: 0,
+  estadoServicio: 'ok' as const,
   creadoEn: '2026-09-11T14:00:00.000Z',
 }
 
