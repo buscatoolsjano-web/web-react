@@ -64,6 +64,41 @@
   top: calc(var(--header-h) + var(--space-2));
   z-index: var(--z-sticky);
   box-shadow: var(--shadow-md);
+  /* Que encoja suave y no salte de alto al pegarse. */
+  transition: padding 120ms ease-out;
+}
+
+/* El centinela de `useBarraPegada`: un píxel invisible arriba de la barra.
+   No ocupa alto propio —el margen negativo lo compensa— para no mover nada. */
+.centinela {
+  height: 1px;
+  margin-bottom: -1px;
+  pointer-events: none;
+}
+
+/* Pegada, la barra pasa a UNA sola fila (Fase 29 · E5).
+   Suelta ocupa dos bloques apilados: los botones y la nota de qué falta. Ese
+   alto, fijo sobre el documento, tapaba media columna del formulario al
+   bajar. Pegada, la nota se corre AL LADO de los botones —segunda columna del
+   mismo grid— y queda en un renglón con puntos suspensivos: se sigue leyendo
+   qué falta, sin comerse la pantalla.
+
+   El `h1` del título no molesta acá: es `.sr-only`, o sea `position:
+   absolute`, así que no ocupa celda del grid.
+
+   Entera vuelve a verse al subir, que es donde se está cuando se completa el
+   formulario. */
+.actionBarPegajosa[data-pegada='true'] {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  padding-block: var(--space-2);
+}
+
+.actionBarPegajosa[data-pegada='true'] .actionNota {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
 }
 
 .actionFila {

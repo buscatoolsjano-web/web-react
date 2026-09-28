@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { cx } from '@/utils/cx'
 import { Icon } from '@/components/icons/Icon'
 import { LinkButton } from '@/components/ui/LinkButton'
@@ -57,10 +57,22 @@ export function ActionBar({
   label = 'Acciones del documento',
   className,
 }: ActionBarProps) {
+  // Desestructurado y no `pegada.activa`: el objeto lleva el ref adentro, y
+  // leer una propiedad suya en el render dispara `react-hooks/refs` aunque lo
+  // que se lea sea un booleano.
+  const { centinela, activa: pegada } = useBarraPegada(pegajosa === true)
+
   if (!titulo && !volver && !primary && !secondary && !more && !danger && !note) return null
   return (
+    <>
+      {/* El centinela: un píxel justo arriba de la barra. Mientras se ve, la
+          barra está en su sitio; cuando se va de pantalla, está pegada. Es la
+          única forma de saberlo, porque CSS no expone el estado de un
+          `position: sticky`. */}
+      {pegajosa ? <div ref={centinela} aria-hidden="true" className={styles.centinela} /> : null}
     <div
       className={cx(styles.actionBar, pegajosa && styles.actionBarPegajosa, className)}
+      data-pegada={pegada ? 'true' : undefined}
       role="group"
       aria-label={label}
     >
@@ -80,5 +92,48 @@ export function ActionBar({
       )}
       {note && <div className={styles.actionNota}>{note}</div>}
     </div>
+    </>
   )
+}
+
+/**
+ * Saber si la barra está pegada arriba (Fase 29 · E5).
+ *
+ * Pegada, la barra ocupa alto fijo sobre el documento, y con la nota de «qué
+ * falta» adentro ese alto tapaba media columna del formulario al bajar. La
+ * nota no se puede sacar —es la guía de por qué el botón está deshabilitado—,
+ * así que se compacta, y para eso hay que saber cuándo está pegada.
+ *
+ * `position: sticky` no avisa de nada, así que se mira un centinela de un
+ * píxel puesto justo arriba: si salió de pantalla, la barra está pegada.
+ *
+ * Sin `IntersectionObserver` —jsdom en los tests, algún navegador viejo— no
+ * se rompe nada: la barra simplemente se queda siempre en su versión alta,
+ * que es como venía funcionando.
+ */
+function useBarraPegada(activo: boolean): { centinela: React.RefObject<HTMLDivElement | null>; activa: boolean } {
+  const centinela = useRef<HTMLDivElement>(null)
+  const [activa, setActiva] = useState(false)
+
+  useEffect(() => {
+    // Sin `setActiva(false)` acá: poner estado dentro del efecto es lo que
+    // marca `react-hooks/set-state-in-effect`, y además sobra — cuando la
+    // barra no es pegajosa, lo que se devuelve abajo ya es false.
+    if (!activo) return
+    const el = centinela.current
+    if (!el || typeof IntersectionObserver !== 'function') return
+    const observador = new IntersectionObserver(
+      (entradas) => {
+        const e = entradas[0]
+        if (e) setActiva(!e.isIntersecting)
+      },
+      { threshold: 1 },
+    )
+    observador.observe(el)
+    return () => observador.disconnect()
+  }, [activo])
+
+  // `activo &&` para que apagar la barra pegajosa la devuelva suelta sin
+  // tener que tocar el estado desde el efecto.
+  return { centinela, activa: activo && activa }
 }
