@@ -1,0 +1,113 @@
+/* La receta de un kit dentro del alta de producto. */
+
+.receta {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.explicacion,
+.vacio {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.lista {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  width: 100%;
+}
+
+/* Producto, cantidad y acciones en una línea; en el teléfono, apilados. */
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.elegido {
+  display: grid;
+  gap: 2px;
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.elegido span {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  /* Un nombre largo no puede empujar la cantidad fuera de la fila. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cantidad {
+  width: 6rem;
+}
+
+.buscador {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+}
+
+.resultados {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* Veinte resultados no pueden empujar el botón de guardar fuera de la vista. */
+  max-height: 14rem;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.resultados button {
+  display: grid;
+  grid-template-columns: minmax(6rem, auto) minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: baseline;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.resultados button:hover:not(:disabled),
+.resultados button:focus-visible {
+  background: var(--color-surface-alt);
+}
+
+.resultados button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.resultados span {
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resultados em {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-style: normal;
+  white-space: nowrap;
+}

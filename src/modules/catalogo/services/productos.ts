@@ -557,3 +557,47 @@ export async function contarCatalogoCompleto(companyId: string): Promise<number>
   if (error) throw new Error(`No se pudo contar el catálogo: ${error.message}`)
   return Number(data?.[0]?.total_count ?? 0)
 }
+
+/** Un producto como candidato a componente de un kit. */
+export interface CandidatoComponente {
+  id: string
+  sku: string
+  nombre: string
+}
+
+/**
+ * Busca productos para usarlos como COMPONENTES de un kit.
+ *
+ * Deliberadamente no reusa el selector de Ventas: aquel resuelve precio, lista
+ * y moneda, que acá no significan nada. Esto sólo necesita id, referencia y
+ * nombre.
+ *
+ * Excluye los kits: no se permiten kits dentro de kits —lo rechaza el trigger
+ * de la base igual—, y ofrecerlos sería ofrecer algo que va a fallar.
+ */
+export async function buscarComponentes(
+  companyId: string,
+  texto: string,
+): Promise<CandidatoComponente[]> {
+  const q = texto.trim()
+  // Con una o dos letras la búsqueda devuelve medio catálogo y no ayuda.
+  if (q.length < 2) return []
+
+  // `or()` de PostgREST se parsea por comas y paréntesis: si llegan del texto
+  // de la persona, rompen el filtro o lo cambian de significado. Se van.
+  const limpio = q.replace(/[,()%\\]/g, ' ').trim()
+  if (limpio === '') return []
+
+  const { data, error } = await supabase
+    .from('products')
+    .select('id, sku, name')
+    .eq('company_id', companyId)
+    .eq('is_kit', false)
+    .is('deleted_at', null)
+    .or(`sku.ilike.%${limpio}%,name.ilike.%${limpio}%`)
+    .order('sku')
+    .limit(20)
+
+  if (error) throw new Error(`No se pudieron buscar los componentes: ${error.message}`)
+  return (data ?? []).map((p) => ({ id: p.id, sku: p.sku, nombre: p.name }))
+}

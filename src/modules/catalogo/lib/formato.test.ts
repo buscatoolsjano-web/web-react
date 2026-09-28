@@ -9,9 +9,9 @@ import {
 import type { DefinicionAtributo } from '../types'
 
 const DEFS: DefinicionAtributo[] = [
-  { key: 'torq_max', label: 'Torque máximo', unidad: 'Nm', tipo: 'number', filtrable: true, posicion: 1 },
-  { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'text', filtrable: true, posicion: 2 },
-  { key: 'medida', label: 'Medida', unidad: null, tipo: 'text', filtrable: true, posicion: 3 },
+  { key: 'torq_max', label: 'Torque máximo', unidad: 'Nm', tipo: 'number', filtrable: true, posicion: 1, enumerada: false, opciones: [] },
+  { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'text', filtrable: true, posicion: 2, enumerada: false, opciones: [] },
+  { key: 'medida', label: 'Medida', unidad: null, tipo: 'text', filtrable: true, posicion: 3, enumerada: false, opciones: [] },
 ]
 
 describe('formatearPrecio', () => {
@@ -73,7 +73,7 @@ describe('presentarAtributos', () => {
 
   it('muestra los booleanos como Sí/No', () => {
     const defs: DefinicionAtributo[] = [
-      { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'boolean', filtrable: false, posicion: 1 },
+      { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'boolean', filtrable: false, posicion: 1, enumerada: false, opciones: [] },
     ]
     expect(presentarAtributos({ encastre: true }, defs)[0]?.valor).toBe('Sí')
   })

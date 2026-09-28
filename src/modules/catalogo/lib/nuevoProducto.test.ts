@@ -7,6 +7,7 @@ import {
   gramosDesdeKg,
   hayErrores,
   puedeCrearProductos,
+  referenciaDerivada,
   skuSugerido,
   validarNuevoProducto,
   type FormularioNuevoProducto,
@@ -16,6 +17,8 @@ import type { DefinicionAtributo } from '../types'
 const F = (over: Partial<FormularioNuevoProducto> = {}): FormularioNuevoProducto => ({
   ...FORMULARIO_VACIO,
   sku: 'SP.9999',
+  marcaId: 'marca-1',
+  modelo: '9999',
   nombre: 'Adaptador de prueba',
   categoriaId: 'cat-punta',
   ...over,
@@ -64,8 +67,21 @@ describe('Qué se exige antes de guardar', () => {
     expect(validarNuevoProducto(F({ categoriaId: '' })).categoriaId).toMatch(/categoría/)
   })
 
-  it('la marca NO es obligatoria: hay productos sin marca en el catálogo', () => {
-    expect(hayErrores(validarNuevoProducto(F({ marcaId: '' })))).toBe(false)
+  /**
+   * La marca pasó a ser OBLIGATORIA para lo que se crea de ahora en más.
+   *
+   * Antes no lo era, y el motivo era descriptivo: el 25 % del catálogo
+   * (5.509 de 21.828 productos) entró sin marca en la importación del sistema
+   * anterior. Pero eso describe lo que HAY, no lo que se quiere agregar: sin
+   * marca no hay prefijo, y sin prefijo cada quien inventa su propio código.
+   * Los 5.509 de antes siguen como están; esto sólo gobierna el alta.
+   */
+  it('la marca es obligatoria: la referencia sale de ella', () => {
+    expect(validarNuevoProducto(F({ marcaId: '' })).marcaId).toMatch(/marca/)
+  })
+
+  it('el modelo es obligatorio, por lo mismo', () => {
+    expect(validarNuevoProducto(F({ modelo: '   ' })).modelo).toMatch(/modelo/)
   })
 
   it('una imagen que no es una dirección web se rechaza antes de guardarla', () => {
@@ -109,8 +125,15 @@ describe('Los atributos del jsonb (app.js:14491)', () => {
 })
 
 describe('El formulario convertido en fila', () => {
+  /**
+   * El fixture trae marca y modelo porque son obligatorios para el alta; acá
+   * se vacían a propósito, que es lo que este test mira: un campo sin escribir
+   * tiene que llegar a la base como NULL y no como cadena vacía. La diferencia
+   * importa: `''` cuenta como valor en los filtros del catálogo y en los
+   * índices únicos, y NULL no.
+   */
   it('lo vacío es NULL, no cadena vacía', () => {
-    const fila = filaDesdeFormulario(F())
+    const fila = filaDesdeFormulario(F({ modelo: '', marcaId: '' }))
     expect(fila.model_code).toBeNull()
     expect(fila.description).toBeNull()
     expect(fila.brand_id).toBeNull()
@@ -163,6 +186,8 @@ describe('Los atributos que se ofrecen al cargar', () => {
     tipo: 'text',
     filtrable,
     posicion,
+    enumerada: false,
+    opciones: [],
   })
   const definiciones = [def('largo', true, 2), def('encastre', true, 1), def('nota', false, 3)]
   const porCategoria = new Map([['cat-punta', new Set(['largo', 'encastre', 'nota'])]])
@@ -195,5 +220,31 @@ describe('Quién puede crear', () => {
     expect(puedeCrearProductos('employee')).toBe(true)
     expect(puedeCrearProductos('customer')).toBe(false)
     expect(puedeCrearProductos(undefined)).toBe(false)
+  })
+})
+
+describe('La referencia que sale de la marca y el modelo', () => {
+  it('son las dos primeras letras de la marca, un punto y el modelo en mayúsculas', () => {
+    expect(referenciaDerivada('Speedrill', 'vpph2/150')).toBe('SP.VPPH2/150')
+  })
+
+  /** La marca puede empezar con un número —«3M»—: cuentan las LETRAS, no los caracteres. */
+  it('ignora lo que no es letra al tomar el prefijo', () => {
+    expect(referenciaDerivada('3M Argentina', 'x1')).toBe('MA.X1')
+  })
+
+  /**
+   * Sin marca o sin modelo NO inventa nada. Un prefijo de relleno más la hora
+   * da una referencia distinta en cada tecla: imposible de leer mientras se
+   * escribe, e imposible de reproducir después.
+   */
+  it('devuelve vacío cuando no alcanza para armarla', () => {
+    expect(referenciaDerivada(null, 'vpph2')).toBe('')
+    expect(referenciaDerivada('Speedrill', '   ')).toBe('')
+    expect(referenciaDerivada('X', 'vpph2')).toBe('')
+  })
+
+  it('es determinística: con los mismos datos da siempre lo mismo', () => {
+    expect(referenciaDerivada('Speedrill', 'a')).toBe(referenciaDerivada('Speedrill', 'a'))
   })
 })

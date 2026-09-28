@@ -3419,6 +3419,8 @@ export type Database = {
           created_at: string
           data_type: string
           id: string
+          /** Fase 30: si es true, el valor sale de `product_attribute_options`. */
+          is_enumerated: boolean
           is_filterable: boolean
           key: string
           label: string
@@ -3431,6 +3433,7 @@ export type Database = {
           created_at?: string
           data_type: string
           id?: string
+          is_enumerated?: boolean
           is_filterable?: boolean
           key: string
           label: string
@@ -3443,6 +3446,7 @@ export type Database = {
           created_at?: string
           data_type?: string
           id?: string
+          is_enumerated?: boolean
           is_filterable?: boolean
           key?: string
           label?: string
@@ -3462,6 +3466,54 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      /**
+       * Fase 30: los valores permitidos de un atributo enumerado.
+       *
+       * Existe para que «1/4 Hex» y «1/4 HEX» no puedan volver a convivir: sin
+       * lista cerrada ya pasó, en 1.176 productos.
+       */
+      product_attribute_options: {
+        Row: {
+          company_id: string
+          created_at: string
+          definition_id: string
+          id: string
+          position: number
+          value: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          definition_id: string
+          id?: string
+          position?: number
+          value: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          definition_id?: string
+          id?: string
+          position?: number
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_attribute_options_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_attribute_options_definition_id_fkey"
+            columns: ["definition_id"]
+            isOneToOne: false
+            referencedRelation: "product_attribute_definitions"
             referencedColumns: ["id"]
           },
         ]
@@ -3577,6 +3629,67 @@ export type Database = {
           {
             foreignKeyName: "product_images_product_id_fkey"
             columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      /**
+       * Fase 30: la receta de un kit.
+       *
+       * El kit NO tiene stock propio: sale del cuello de botella de estas
+       * filas, y venderlo descuenta los componentes.
+       */
+      product_kit_components: {
+        Row: {
+          company_id: string
+          component_product_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          kit_product_id: string
+          position: number
+          quantity: number
+        }
+        Insert: {
+          company_id: string
+          component_product_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kit_product_id: string
+          position?: number
+          quantity: number
+        }
+        Update: {
+          company_id?: string
+          component_product_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kit_product_id?: string
+          position?: number
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_kit_components_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_kit_components_component_product_id_fkey"
+            columns: ["component_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_kit_components_kit_product_id_fkey"
+            columns: ["kit_product_id"]
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]

@@ -80,7 +80,8 @@ describe('Qué exige antes de mandar', () => {
   /** La categoría es obligatoria porque `products.category_id` es NOT NULL. */
   it('con referencia y nombre pero sin categoría, sigue sin mandar', () => {
     montar()
-    escribir(/Referencia/, 'SP.1')
+    fireEvent.change(screen.getByLabelText(/Marca/), { target: { value: 'm1' } })
+    escribir(/Modelo/, '1')
     escribir(/^Nombre/, 'Adaptador')
     crear()
     expect(espias.crear).not.toHaveBeenCalled()
@@ -94,8 +95,10 @@ describe('Qué exige antes de mandar', () => {
 })
 
 describe('Lo que manda', () => {
+  // La referencia NO se escribe: sale sola de la marca y el modelo.
   const completar = () => {
-    escribir(/Referencia/, '  SP.2520/8B ')
+    fireEvent.change(screen.getByLabelText(/Marca/), { target: { value: 'm1' } })
+    escribir(/Modelo/, '2520/8b')
     escribir(/^Nombre/, '  Adaptador   de prueba ')
     fireEvent.change(screen.getByLabelText(/Categoría/), { target: { value: 'c-punta' } })
   }
@@ -105,12 +108,12 @@ describe('Lo que manda', () => {
     completar()
     crear()
     expect(espias.crear).toHaveBeenCalledTimes(1)
-    const [payload] = espias.crear.mock.calls[0]! as unknown as [{ fila: Record<string, unknown>; imagenUrl: string | null }]
-    expect(payload.fila.sku).toBe('SP.2520/8B')
+    const [payload] = espias.crear.mock.calls[0]! as unknown as [{ fila: Record<string, unknown>; imagen: File | null }]
+    expect(payload.fila.sku).toBe('MA.2520/8B')
     expect(payload.fila.name).toBe('Adaptador de prueba')
     expect(payload.fila.category_id).toBe('c-punta')
-    expect(payload.fila.brand_id).toBeNull()
-    expect(payload.imagenUrl).toBeNull()
+    expect(payload.fila.brand_id).toBe('m1')
+    expect(payload.imagen).toBeNull()
   })
 
   it('los atributos escritos viajan en el jsonb, y el número como número', () => {
@@ -132,13 +135,17 @@ describe('Lo que manda', () => {
     expect(payload.fila.attributes).toEqual({ barcode: '7791234567890' })
   })
 
-  it('una imagen mal escrita no se manda, y se explica', () => {
+  /**
+   * La imagen pasó de una URL escrita a un archivo adjunto: ya no hay ninguna
+   * dirección que pueda estar mal escrita, y el tipo y el tamaño los limita el
+   * bucket además de la pantalla.
+   */
+  it('la imagen se adjunta como archivo, no como dirección', () => {
     montar()
-    completar()
-    escribir(/Dirección de la imagen/, 'foto.jpg')
-    crear()
-    expect(espias.crear).not.toHaveBeenCalled()
-    expect(screen.getByText(/http/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Dirección de la imagen/)).toBeNull()
+    const campo = screen.getByLabelText(/Foto del producto/)
+    expect(campo).toHaveAttribute('type', 'file')
+    expect(campo).toHaveAttribute('accept', expect.stringContaining('image/png'))
   })
 })
 
@@ -163,14 +170,52 @@ describe('Los atributos dependen de la categoría', () => {
   })
 })
 
-describe('La referencia sugerida', () => {
+describe('La referencia', () => {
   /** Dos LETRAS de la marca + punto + modelo (app.js:13653). */
-  it('sale de la marca y el modelo elegidos', () => {
+  it('se arma sola al elegir la marca y escribir el modelo', () => {
     montar()
     fireEvent.change(screen.getByLabelText(/Marca/), { target: { value: 'm1' } })
     escribir(/Modelo/, 'x1')
-    fireEvent.click(screen.getByRole('button', { name: 'Sugerir referencia' }))
     expect(screen.getByLabelText(/Referencia/)).toHaveValue('MA.X1')
+  })
+
+  /** Se rearma: cambiar el modelo no deja la referencia del anterior. */
+  it('sigue al modelo cuando se corrige', () => {
+    montar()
+    fireEvent.change(screen.getByLabelText(/Marca/), { target: { value: 'm1' } })
+    escribir(/Modelo/, 'x1')
+    escribir(/Modelo/, 'x2')
+    expect(screen.getByLabelText(/Referencia/)).toHaveValue('MA.X2')
+  })
+
+  /**
+   * De sólo lectura mientras es automática: es la guarda que evita que cada
+   * quien invente su propio código y el catálogo se llene de duplicados.
+   */
+  it('no se puede escribir mientras es automática', () => {
+    montar()
+    expect(screen.getByLabelText(/Referencia/)).toHaveAttribute('readonly')
+  })
+
+  it('se puede escribir a mano si alguien lo decide, y volver atrás', () => {
+    montar()
+    fireEvent.change(screen.getByLabelText(/Marca/), { target: { value: 'm1' } })
+    escribir(/Modelo/, 'x1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Escribirla a mano' }))
+    expect(screen.getByLabelText(/Referencia/)).not.toHaveAttribute('readonly')
+    escribir(/Referencia/, 'A-MANO-1')
+    expect(screen.getByLabelText(/Referencia/)).toHaveValue('A-MANO-1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a la automática' }))
+    expect(screen.getByLabelText(/Referencia/)).toHaveValue('MA.X1')
+  })
+
+  it('sin marca o sin modelo no deja mandar, porque la referencia sale de ahí', () => {
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Crear producto' }))
+    expect(screen.getByText('Elegí una marca: la referencia sale de ella.')).toBeInTheDocument()
+    expect(screen.getByText('Escribí el modelo: la referencia sale de él.')).toBeInTheDocument()
   })
 })
 

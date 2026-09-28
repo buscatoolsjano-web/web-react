@@ -33,10 +33,15 @@
   align-items: end;
 }
 
-/* El botón de sugerir referencia acompaña a los dos campos de los que sale. */
-.sugerir {
-  align-self: end;
-  white-space: nowrap;
+/* El pie de la referencia: la explicación de cómo se arma a la izquierda y el
+   escape a mano a la derecha. En el teléfono uno abajo del otro. */
+.pieDeReferencia {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: calc(var(--space-2) * -1);
 }
 
 .atributos {

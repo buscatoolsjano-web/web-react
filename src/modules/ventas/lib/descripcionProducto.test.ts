@@ -8,7 +8,7 @@ const def = (key: string, label: string, over: Partial<DefinicionAtributo> = {})
   unidad: null,
   tipo: 'text',
   filtrable: true,
-  posicion: 0,
+  posicion: 0, enumerada: false, opciones: [],
   ...over,
 })
 

@@ -114,11 +114,35 @@ export function skuSugerido(marca: string | null, modelo: string, ahora = Date.n
   return `PRO-${ahora.toString(36).toUpperCase().slice(-5)}`
 }
 
+/**
+ * La referencia que sale SOLA de la marca y el modelo: `SP.VPPH2/150`.
+ *
+ * Se separa de `skuSugerido` porque son dos cosas distintas. Ésta es
+ * **determinística**: con los mismos datos da siempre lo mismo, así puede ser
+ * el valor de un campo derivado que se recalcula en cada tecla. `skuSugerido`
+ * inventa un sufijo con la hora cuando falta el modelo, y un campo que cambia
+ * solo mientras se escribe es un campo que nadie puede leer.
+ *
+ * Devuelve `''` cuando no alcanza para armarla —sin marca, o sin modelo—, y ahí
+ * la pantalla deja escribirla a mano. No inventa un prefijo: `PRO-` no dice
+ * nada de lo que es el producto.
+ */
+export function referenciaDerivada(marca: string | null, modelo: string): string {
+  const letras = (marca ?? '')
+    .replace(/[^a-zA-Z]/g, '')
+    .slice(0, 2)
+    .toUpperCase()
+  const m = modelo.trim().toUpperCase()
+  return letras.length === 2 && m !== '' ? `${letras}.${m}` : ''
+}
+
 /** Espacios de más colapsados, como hace la base con los nombres de maestros. */
 const limpiar = (v: string) => v.trim().replace(/\s+/g, ' ')
 
 export interface ErroresNuevoProducto {
   sku?: string
+  marcaId?: string
+  modelo?: string
   nombre?: string
   categoriaId?: string
   imagenUrl?: string
@@ -137,6 +161,11 @@ export function validarNuevoProducto(f: FormularioNuevoProducto): ErroresNuevoPr
   const e: ErroresNuevoProducto = {}
   if (limpiar(f.sku) === '') e.sku = 'Escribí una referencia.'
   else if (limpiar(f.sku).length > 64) e.sku = 'Máximo 64 caracteres.'
+  // La marca y el modelo son obligatorios porque la referencia SALE de ellos.
+  // Dejarlos opcionales devolvía el catálogo al texto libre: sin marca no hay
+  // prefijo, y sin prefijo cada quien inventaba su propio código.
+  if (f.marcaId === '') e.marcaId = 'Elegí una marca: la referencia sale de ella.'
+  if (limpiar(f.modelo) === '') e.modelo = 'Escribí el modelo: la referencia sale de él.'
   if (limpiar(f.nombre) === '') e.nombre = 'Escribí un nombre.'
   if (f.categoriaId === '') e.categoriaId = 'Elegí una categoría: la base la exige.'
   if (f.imagenUrl.trim() !== '' && !/^https?:\/\//i.test(f.imagenUrl.trim())) {

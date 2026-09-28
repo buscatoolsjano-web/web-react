@@ -55,24 +55,59 @@ function tipoDeDato(v: string): DefinicionAtributo['tipo'] {
  * producto necesita la etiqueta y la unidad de cualquier clave, sea
  * filtrable o no.
  */
+const COLUMNAS_BASE = 'key, label, unit, data_type, is_filterable, position'
+const COLUMNAS_CON_OPCIONES = `${COLUMNAS_BASE}, is_enumerated, product_attribute_options ( value, position )`
+
 export async function listarDefinicionesDeAtributos(
   companyId: string,
 ): Promise<DefinicionAtributo[]> {
-  const { data, error } = await supabase
-    .from('product_attribute_definitions')
-    .select('key, label, unit, data_type, is_filterable, position')
-    .eq('company_id', companyId)
-    .order('position')
-    .order('key')
+  const pedir = (columnas: string) =>
+    supabase
+      .from('product_attribute_definitions')
+      .select(columnas)
+      .eq('company_id', companyId)
+      .order('position')
+      .order('key')
+
+  let { data, error } = await pedir(COLUMNAS_CON_OPCIONES)
+
+  // La lista cerrada de valores vive sólo en la base de São Paulo (Fase 30).
+  // Contra una base que todavía no la tiene, PostgREST responde 42703 y sin
+  // este reintento se caería TODO el catálogo —etiquetas, unidades y filtros—
+  // por una columna que sólo hace falta para el alta. Degrada a texto libre,
+  // que es como funcionaba antes.
+  if (error?.code === '42703') {
+    ;({ data, error } = await pedir(COLUMNAS_BASE))
+  }
 
   if (error) throw new Error(`No se pudieron leer los atributos: ${error.message}`)
-  return (data ?? []).map((d) => ({
+
+  type Fila = {
+    key: string
+    label: string
+    unit: string | null
+    data_type: string
+    is_filterable: boolean
+    position: number
+    is_enumerated?: boolean
+    product_attribute_options?: { value: string; position: number }[]
+  }
+
+  return ((data ?? []) as unknown as Fila[]).map((d) => ({
     key: d.key,
     label: d.label,
     unidad: d.unit,
     tipo: tipoDeDato(d.data_type),
     filtrable: d.is_filterable,
     posicion: d.position,
+    enumerada: d.is_enumerated ?? false,
+    // PostgREST no garantiza el orden de los embebidos: se ordena acá, por
+    // posición —que sale de cuántos productos usan cada valor— y después
+    // alfabético, para que la lista salga siempre igual.
+    opciones: (d.product_attribute_options ?? [])
+      .slice()
+      .sort((a, b) => a.position - b.position || a.value.localeCompare(b.value, 'es'))
+      .map((o) => o.value),
   }))
 }
 

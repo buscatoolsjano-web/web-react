@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { crearProducto, type ProductoCreado } from '../services/altaProducto'
-import type { FilaNuevoProducto } from '../lib/nuevoProducto'
+import { crearProducto, type AltaDeProducto, type ProductoCreado } from '../services/altaProducto'
 
 /**
  * Crear un producto y volver a leer el catálogo (Fase 26 · E3).
@@ -15,8 +14,8 @@ export function useCrearProducto() {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
 
-  return useMutation<ProductoCreado, Error, { fila: FilaNuevoProducto; imagenUrl: string | null }>({
-    mutationFn: ({ fila, imagenUrl }) => crearProducto(companyId!, fila, imagenUrl),
+  return useMutation<ProductoCreado, Error, AltaDeProducto>({
+    mutationFn: (alta) => crearProducto(companyId!, alta),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['catalogo'] })
     },

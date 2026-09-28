@@ -8,7 +8,7 @@ const def = (key: string, filtrable = true): DefinicionAtributo => ({
   unidad: null,
   tipo: 'text',
   filtrable,
-  posicion: 0,
+  posicion: 0, enumerada: false, opciones: [],
 })
 
 const DEFS = [

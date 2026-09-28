@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { Dialog } from '@/components/modals/Dialog'
 import { Alert } from '@/components/feedback/Alert'
 import { Button } from '@/components/ui/Button'
@@ -21,12 +21,18 @@ import {
   FORMULARIO_VACIO,
   gramosDesdeKg,
   hayErrores,
-  skuSugerido,
+  referenciaDerivada,
   validarNuevoProducto,
   type EstadoProducto,
   type FormularioNuevoProducto,
 } from '../lib/nuevoProducto'
+import { ComponentesDelKit } from './ComponentesDelKit'
+import { componentesUtiles, filaVacia, type ComponenteElegido } from '../lib/kit'
 import styles from './ModalNuevoProducto.module.css'
+
+/** Lo mismo que acepta el bucket `productos`. */
+const TIPOS_DE_IMAGEN = ['image/png', 'image/jpeg', 'image/webp', 'image/avif']
+const MAXIMO_IMAGEN = 5 * 1024 * 1024
 
 export interface ModalNuevoProductoProps {
   onCerrar: () => void
@@ -64,6 +70,45 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
   const [f, setF] = useState<FormularioNuevoProducto>(FORMULARIO_VACIO)
   const [mostrarErrores, setMostrarErrores] = useState(false)
   const [kilos, setKilos] = useState('')
+  /** La referencia es derivada salvo que alguien decida escribirla. */
+  const [refManual, setRefManual] = useState(false)
+  const [imagen, setImagen] = useState<File | null>(null)
+  const [vistaPrevia, setVistaPrevia] = useState<string | null>(null)
+  const [errorImagen, setErrorImagen] = useState<string | null>(null)
+  const [componentes, setComponentes] = useState<ComponenteElegido[]>([])
+  const idImagen = useId()
+
+  /**
+   * El archivo elegido, validado ANTES de subirlo.
+   *
+   * El bucket ya limita tipo y tamaño —una validación que vive sólo acá no es
+   * una validación—, pero rebotar en el navegador evita subir 20 MB para que
+   * el servidor los rechace.
+   */
+  const elegirImagen = (archivo: File | null) => {
+    if (vistaPrevia !== null) URL.revokeObjectURL(vistaPrevia)
+    if (archivo === null) {
+      setImagen(null)
+      setVistaPrevia(null)
+      setErrorImagen(null)
+      return
+    }
+    if (!TIPOS_DE_IMAGEN.includes(archivo.type)) {
+      setImagen(null)
+      setVistaPrevia(null)
+      setErrorImagen('Tiene que ser PNG, JPG, WEBP o AVIF.')
+      return
+    }
+    if (archivo.size > MAXIMO_IMAGEN) {
+      setImagen(null)
+      setVistaPrevia(null)
+      setErrorImagen('El archivo pasa de 5 MB.')
+      return
+    }
+    setImagen(archivo)
+    setVistaPrevia(URL.createObjectURL(archivo))
+    setErrorImagen(null)
+  }
 
   const errores = validarNuevoProducto(f)
   const invalido = hayErrores(errores)
@@ -78,17 +123,40 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
   )
 
   const nombreDeMarca = (marcas.data ?? []).find((m) => m.id === f.marcaId)?.nombre ?? null
+  const nombreDe = (id: string) => (marcas.data ?? []).find((m) => m.id === id)?.nombre ?? null
+
+  /**
+   * La referencia se rearma en el mismo `setState` que cambia la marca o el
+   * modelo, y no en un efecto: un efecto que escribe estado deja un render
+   * intermedio con la referencia vieja al lado del modelo nuevo, y además es
+   * exactamente lo que prohíbe `react-hooks/set-state-in-effect`.
+   */
+  const elegirMarca = (id: string) =>
+    setF((x) => ({ ...x, marcaId: id, sku: refManual ? x.sku : referenciaDerivada(nombreDe(id), x.modelo) }))
+
+  const escribirModelo = (v: string) =>
+    setF((x) => ({ ...x, modelo: v, sku: refManual ? x.sku : referenciaDerivada(nombreDeMarca, v) }))
+
+  // Un kit sin receta no se puede despachar (lo rechaza `confirmar_entrega`),
+  // así que tampoco se deja crear: mejor el error acá que al querer entregarlo.
+  const kitSinReceta = f.esKit && componentesUtiles(componentes).length === 0
 
   const guardar = () => {
     setMostrarErrores(true)
-    if (invalido) return
+    if (invalido || kitSinReceta) return
     crear.mutate(
-      { fila: filaDesdeFormulario(f), imagenUrl: f.imagenUrl.trim() || null },
+      {
+        fila: filaDesdeFormulario(f),
+        imagen,
+        componentes: componentesUtiles(componentes),
+      },
       {
         onSuccess: (r) => {
           setF(FORMULARIO_VACIO)
           setKilos('')
           setMostrarErrores(false)
+          elegirImagen(null)
+          setComponentes([])
           onCreado(r.id)
         },
       },
@@ -129,9 +197,12 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
         </Alert>
       ) : null}
 
-      {mostrarErrores && invalido ? (
+      {mostrarErrores && (invalido || kitSinReceta) ? (
         <Alert tone="warning" role="status" title="Faltan datos">
-          <p>Lo que falta está marcado abajo.</p>
+          {invalido ? <p>Lo que falta está marcado abajo.</p> : null}
+          {/* Un kit sin receta no se puede despachar —`confirmar_entrega` lo
+              rechaza—, así que tampoco se deja crear. */}
+          {kitSinReceta ? <p>Un kit necesita al menos un componente con su cantidad.</p> : null}
         </Alert>
       ) : null}
 
@@ -140,20 +211,46 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
         <fieldset className={styles.grupo}>
           <legend className={styles.leyenda}>Información general</legend>
 
+          {/* Marca, modelo y referencia van juntos porque la referencia SALE de
+              los otros dos. Tenerla acá arriba y la marca tres secciones más
+              abajo obligaba a bajar, elegir y volver para poder armarla. */}
           <div className={styles.fila}>
-            <Field label="Referencia" required error={ver('sku')} help="El código con el que se busca. Único por empresa.">
-              <Input value={f.sku} onChange={(e) => cambiar('sku', e.target.value)} autoComplete="off" />
+            <Field label="Marca" required error={ver('marcaId')} help={marcas.isPending ? 'Cargando…' : undefined}>
+              <Select value={f.marcaId} onChange={(e) => elegirMarca(e.target.value)}>
+                <option value="">Elegí una marca…</option>
+                {(marcas.data ?? []).map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nombre}
+                  </option>
+                ))}
+              </Select>
             </Field>
-            <Field label="Modelo" optional>
-              <Input value={f.modelo} onChange={(e) => cambiar('modelo', e.target.value)} autoComplete="off" />
+
+            <Field label="Modelo" required error={ver('modelo')}>
+              <Input value={f.modelo} onChange={(e) => escribirModelo(e.target.value)} autoComplete="off" />
             </Field>
+
+            <Field label="Referencia" required error={ver('sku')}>
+              <Input value={f.sku} readOnly={!refManual} onChange={(e) => cambiar('sku', e.target.value)} autoComplete="off" />
+            </Field>
+          </div>
+
+          <div className={styles.pieDeReferencia}>
+            <p className={styles.nota}>
+              {refManual
+                ? 'Referencia escrita a mano. Si volvés a la automática se rearma con la marca y el modelo.'
+                : 'La referencia se arma sola: las dos primeras letras de la marca, un punto y el modelo.'}
+            </p>
             <Button
-              variant="secondary"
+              variant="ghost"
               size="sm"
-              className={styles.sugerir}
-              onClick={() => cambiar('sku', skuSugerido(nombreDeMarca, f.modelo))}
+              onClick={() => {
+                const manual = !refManual
+                setRefManual(manual)
+                if (!manual) cambiar('sku', referenciaDerivada(nombreDeMarca, f.modelo))
+              }}
             >
-              Sugerir referencia
+              {refManual ? 'Volver a la automática' : 'Escribirla a mano'}
             </Button>
           </div>
 
@@ -186,24 +283,12 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
 
         {/* ── 2 · marca, categoría y atributos ────────────────────────────── */}
         <fieldset className={styles.grupo}>
-          <legend className={styles.leyenda}>Marca, categoría y atributos</legend>
+          <legend className={styles.leyenda}>Categoría y atributos</legend>
 
           <div className={styles.fila}>
-            <Field
-              label="Marca"
-              optional
-              help={marcas.isPending ? 'Cargando…' : 'Las marcas se crean en Configuración → Marcas.'}
-            >
-              <Select value={f.marcaId} onChange={(e) => cambiar('marcaId', e.target.value)}>
-                <option value="">Sin marca</option>
-                {(marcas.data ?? []).map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.nombre}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
+            {/* La marca subió a «Información general»: es de donde sale la
+                referencia, y estaba tres secciones más abajo que el campo que
+                la usa. */}
             <Field
               label="Categoría"
               required
@@ -232,9 +317,14 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
 
           <Checkbox
             label="Es un kit o set"
-            help="Marca el producto como kit. Los componentes todavía no se pueden cargar (ver abajo)."
+            help="El stock sale de los componentes: no se lleva por separado."
             checked={f.esKit}
-            onChange={(e) => cambiar('esKit', e.target.checked)}
+            onChange={(e) => {
+              cambiar('esKit', e.target.checked)
+              // Al marcarlo se abre la primera línea sola: si no, la sección
+              // aparece vacía y no se ve que hay algo que cargar.
+              if (e.target.checked && componentes.length === 0) setComponentes([filaVacia()])
+            }}
           />
 
           {/* Los atributos son los que la categoría elegida tiene definidos: sin
@@ -247,14 +337,39 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
           ) : (
             <div className={styles.atributos}>
               {atributos.map((d) => (
-                <Field key={d.key} label={d.unidad ? `${d.label} (${d.unidad})` : d.label} optional>
-                  <Input
-                    value={f.atributos[d.key] ?? ''}
-                    inputMode={d.tipo === 'number' ? 'decimal' : undefined}
-                    onChange={(e) =>
-                      setF((x) => ({ ...x, atributos: { ...x.atributos, [d.key]: e.target.value } }))
-                    }
-                  />
+                <Field
+                  key={d.key}
+                  label={d.unidad ? `${d.label} (${d.unidad})` : d.label}
+                  optional
+                  help={d.enumerada ? `${d.opciones.length} opciones` : undefined}
+                >
+                  {/* Con lista se ELIGE; sin lista se escribe. Escribir un
+                      atributo que es una enumeración es lo que metió «1/4 Hex»
+                      al lado de «1/4 HEX» en 1.176 productos: dos filtros en el
+                      catálogo para la misma cosa. */}
+                  {d.enumerada ? (
+                    <Select
+                      value={f.atributos[d.key] ?? ''}
+                      onChange={(e) =>
+                        setF((x) => ({ ...x, atributos: { ...x.atributos, [d.key]: e.target.value } }))
+                      }
+                    >
+                      <option value="">Sin especificar</option>
+                      {d.opciones.map((o) => (
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
+                      ))}
+                    </Select>
+                  ) : (
+                    <Input
+                      value={f.atributos[d.key] ?? ''}
+                      inputMode={d.tipo === 'number' ? 'decimal' : undefined}
+                      onChange={(e) =>
+                        setF((x) => ({ ...x, atributos: { ...x.atributos, [d.key]: e.target.value } }))
+                      }
+                    />
+                  )}
                 </Field>
               ))}
             </div>
@@ -264,23 +379,44 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
         {/* ── 3 · imagen ──────────────────────────────────────────────────── */}
         <fieldset className={styles.grupo}>
           <legend className={styles.leyenda}>Imagen</legend>
+          {/* `Field` conecta la etiqueta con su control por contexto, y eso lo
+              consumen los controles del sistema de formularios. Un `input` de
+              archivo crudo no puede: no tiene `value` y necesita su propio
+              manejo. Por eso el id va explícito en los dos lados. */}
           <Field
-            label="Dirección de la imagen"
+            id={idImagen}
+            label="Foto del producto"
             optional
-            error={ver('imagenUrl')}
-            help="Queda como foto principal. Todavía no se puede subir un archivo desde acá."
+            error={errorImagen ?? undefined}
+            help="PNG, JPG, WEBP o AVIF, hasta 5 MB. Queda como foto principal."
           >
-            <Input
-              type="url"
-              placeholder="https://…"
-              value={f.imagenUrl}
-              onChange={(e) => cambiar('imagenUrl', e.target.value)}
+            <input
+              id={idImagen}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/avif"
+              onChange={(e) => elegirImagen(e.target.files?.[0] ?? null)}
             />
           </Field>
-          {f.imagenUrl.trim() !== '' && !ver('imagenUrl') ? (
-            <img src={f.imagenUrl.trim()} alt="" className={styles.miniatura} />
+
+          {/* La miniatura sale del archivo elegido, sin subir nada: confirma que
+              es la foto que se quería antes de guardarla. */}
+          {vistaPrevia !== null ? (
+            <div className={styles.pieDeReferencia}>
+              <img src={vistaPrevia} alt="" className={styles.miniatura} />
+              <Button variant="ghost" size="sm" onClick={() => elegirImagen(null)}>
+                Quitar la imagen
+              </Button>
+            </div>
           ) : null}
         </fieldset>
+
+        {/* ── 4 · receta del kit ──────────────────────────────────────────── */}
+        {f.esKit ? (
+          <fieldset className={styles.grupo}>
+            <legend className={styles.leyenda}>Qué lleva el kit</legend>
+            <ComponentesDelKit componentes={componentes} onCambiar={setComponentes} />
+          </fieldset>
+        ) : null}
 
         {/* ── 4 · logística y aduana ──────────────────────────────────────── */}
         <fieldset className={styles.grupo}>

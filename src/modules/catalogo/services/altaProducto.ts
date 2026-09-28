@@ -47,24 +47,54 @@ export interface ProductoCreado {
   nombre: string
   /** `false` cuando el producto se creó pero su imagen no se pudo registrar. */
   imagenGuardada: boolean
+  /** `false` cuando el producto se creó pero su receta de kit no se pudo guardar. */
+  componentesGuardados: boolean
+}
+
+/** Una línea de la receta de un kit. */
+export interface ComponenteKit {
+  productoId: string
+  cantidad: number
+}
+
+export interface AltaDeProducto {
+  fila: FilaNuevoProducto
+  /** El archivo elegido. Se sube al bucket `productos`. */
+  imagen: File | null
+  /** La receta, si es un kit. Vacía si no lo es. */
+  componentes: ComponenteKit[]
+}
+
+const BUCKET = 'productos'
+
+/** La extensión del tipo REAL que declara el archivo, no la del nombre. */
+function extensionDe(tipo: string): string {
+  if (tipo === 'image/png') return 'png'
+  if (tipo === 'image/webp') return 'webp'
+  if (tipo === 'image/avif') return 'avif'
+  return 'jpg'
 }
 
 /**
- * Inserta el producto y, si se dio una URL, su imagen principal.
+ * Inserta el producto, sube su imagen y guarda la receta si es un kit.
  *
- * Son dos escrituras y **no hay transacción**: PostgREST no la ofrece. El orden
- * importa y está elegido: primero el producto —que es lo que se vino a crear— y
- * después la imagen. Si la imagen falla, el producto queda creado y se avisa,
- * en vez de perder la carga entera por una URL.
+ * Son hasta cuatro escrituras y **no hay transacción**: PostgREST no la ofrece.
+ * El orden importa y está elegido: primero el producto —que es lo que se vino a
+ * crear—, después lo accesorio. Si falla la imagen o la receta, el producto
+ * queda creado y la pantalla lo dice, en vez de perder la carga entera.
+ *
+ * La ruta del archivo la arma el servidor de esta función y no el usuario:
+ * `<company_id>/<product_id>/<uuid>.<ext>`. El nombre que traía el archivo se
+ * descarta —puede venir con `../`, con acentos o con 300 caracteres— y la
+ * primera carpeta es la que miran las policies del bucket.
  */
 export async function crearProducto(
   companyId: string,
-  fila: FilaNuevoProducto,
-  imagenUrl: string | null,
+  alta: AltaDeProducto,
 ): Promise<ProductoCreado> {
   const { data, error } = await supabase
     .from('products')
-    .insert({ ...fila, company_id: companyId })
+    .insert({ ...alta.fila, company_id: companyId })
     .select('id, sku, name')
     .single()
 
@@ -72,19 +102,54 @@ export async function crearProducto(
   if (!data) throw new ErrorAltaProducto('desconocido', 'La base no devolvió el producto creado.')
 
   let imagenGuardada = true
-  if (imagenUrl !== null && imagenUrl !== '') {
-    const { error: errorImagen } = await supabase.from('product_images').insert({
-      company_id: companyId,
-      product_id: data.id,
-      source_url: imagenUrl,
-      // `product_image` es lo que el listado considera FOTO: un diagrama
-      // compartido no cuenta y el producto quedaría con el placeholder.
-      kind: 'product_image',
-      position: 0,
-      is_primary: true,
+  if (alta.imagen !== null) {
+    const ruta = `${companyId}/${data.id}/${crypto.randomUUID()}.${extensionDe(alta.imagen.type)}`
+    const subida = await supabase.storage.from(BUCKET).upload(ruta, alta.imagen, {
+      contentType: alta.imagen.type,
+      upsert: false,
     })
-    if (errorImagen) imagenGuardada = false
+    if (subida.error) {
+      imagenGuardada = false
+    } else {
+      const { error: errorImagen } = await supabase.from('product_images').insert({
+        company_id: companyId,
+        product_id: data.id,
+        storage_path: ruta,
+        // `product_image` es lo que el listado considera FOTO: un diagrama
+        // compartido no cuenta y el producto quedaría con el placeholder.
+        kind: 'product_image',
+        position: 0,
+        is_primary: true,
+        bytes: alta.imagen.size,
+      })
+      if (errorImagen) {
+        imagenGuardada = false
+        // El byte ya está arriba y la fila no entró: se borra, o queda un
+        // archivo huérfano que nadie va a encontrar nunca.
+        await supabase.storage.from(BUCKET).remove([ruta])
+      }
+    }
   }
 
-  return { id: data.id, sku: data.sku, nombre: data.name, imagenGuardada }
+  let componentesGuardados = true
+  if (alta.componentes.length > 0) {
+    const { error: errorKit } = await supabase.from('product_kit_components').insert(
+      alta.componentes.map((c, i) => ({
+        company_id: companyId,
+        kit_product_id: data.id,
+        component_product_id: c.productoId,
+        quantity: c.cantidad,
+        position: i,
+      })),
+    )
+    if (errorKit) componentesGuardados = false
+  }
+
+  return {
+    id: data.id,
+    sku: data.sku,
+    nombre: data.name,
+    imagenGuardada,
+    componentesGuardados,
+  }
 }

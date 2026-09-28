@@ -109,6 +109,15 @@ export interface DefinicionAtributo {
   tipo: 'text' | 'number' | 'boolean'
   filtrable: boolean
   posicion: number
+  /**
+   * Si es true el valor se ELIGE de `opciones` y no se escribe.
+   *
+   * Es lo que impide que «1/4 Hex» y «1/4 HEX» convivan: con el campo libre ya
+   * pasó, en 1.176 productos.
+   */
+  enumerada: boolean
+  /** Los valores permitidos, en orden. Vacío cuando no es enumerada. */
+  opciones: string[]
 }
 
 export interface ListaDePrecios {
