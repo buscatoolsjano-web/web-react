@@ -226,8 +226,18 @@ export function validarOcExtraida(crudo: string): OcExtraida {
 
   const o = json as Record<string, unknown>
 
-  const numero = texto(o.numero, MAX_LARGO_NUMERO)
-  if (numero === null) throw new OcInvalida('sin_numero', 'no se leyó el número de la orden de compra')
+  /**
+   * Sin número NO se rechaza: se devuelve vacío y lo escribe la persona.
+   *
+   * Antes esto tiraba todo el documento a la basura. Es demasiado: el número
+   * es un dato de UNA línea del PDF, y que la IA no lo encuentre —porque está
+   * en un sello, porque el cliente no lo puso, porque el documento es otra
+   * cosa— no invalida las veinte líneas de productos que sí leyó.
+   *
+   * La pantalla ya lo exige antes de importar (`faltaParaImportar`), que es
+   * donde corresponde: la IA propone, la persona completa y confirma.
+   */
+  const numero = texto(o.numero, MAX_LARGO_NUMERO) ?? ''
 
   const crudas = Array.isArray(o.lineas) ? o.lineas : null
   if (crudas === null) throw new OcInvalida('sin_lineas', 'la respuesta no trae líneas')

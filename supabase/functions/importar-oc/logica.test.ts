@@ -103,14 +103,19 @@ describe('Validar lo que devolvió la IA', () => {
     }
   })
 
-  /** Sin número de OC no hay nada que registrar: es la referencia del cliente. */
-  it('sin número de orden se rechaza', () => {
-    try {
-      validarOcExtraida(oc({ numero: '   ' }))
-      expect.unreachable('tendría que haber fallado')
-    } catch (e) {
-      expect((e as OcInvalida).motivo).toBe('sin_numero')
-    }
+  /**
+   * Sin número NO se rechaza: se devuelve vacío y lo completa la persona.
+   *
+   * Rechazar el documento entero por eso era demasiado. El número es un dato
+   * de UNA línea del PDF, y que la IA no lo encuentre —porque está en un
+   * sello, porque el cliente no lo puso, porque el documento resultó ser
+   * otra cosa— no invalida las veinte líneas de productos que sí leyó. La
+   * pantalla lo exige antes de importar, que es donde corresponde.
+   */
+  it('sin número de orden devuelve vacío en vez de rechazar el documento', () => {
+    const r = validarOcExtraida(oc({ numero: '   ' }))
+    expect(r.numero).toBe('')
+    expect(r.lineas).toHaveLength(1)
   })
 
   it('sin líneas se rechaza: no es una OC', () => {

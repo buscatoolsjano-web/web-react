@@ -409,8 +409,21 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
         <section className={styles.bloque}>
           <h3 className={styles.titulo}>2 · Los datos</h3>
           <div className={styles.grilla}>
-            <Field label="Número de la orden" required>
-              <Input value={numero} onChange={(e) => setNumero(e.target.value)} />
+            {/* Cuando la IA no lo encontró se dice POR QUÉ está vacío y qué
+                hacer. Un campo requerido en blanco, sin explicación, parece un
+                error de la pantalla y no un dato que falta en el documento. */}
+            <Field
+              label="Número de la orden"
+              required
+              {...(leida.numero === ''
+                ? { help: 'No se encontró en el documento: escribilo a mano.' }
+                : {})}
+            >
+              <Input
+                autoFocus={leida.numero === ''}
+                value={numero}
+                onChange={(e) => setNumero(e.target.value)}
+              />
             </Field>
             <Field label="Fecha" optional>
               <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
