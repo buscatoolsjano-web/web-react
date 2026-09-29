@@ -1677,3 +1677,82 @@ vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
 
 Y el `.env.local` que apunta a Brasil es justamente lo que tapaba el problema en
 esta máquina. Por eso existe la suite aislada.
+
+---
+
+## 27 · Importar la OC del cliente: los dos emparejadores (2026-09-29)
+
+Fase 30 · E1 y E3. Lo que decide si la función sirve: dado un PDF leído por la
+IA, **a qué cliente nuestro corresponde** y **qué producto nuestro es cada
+línea**. Todo lo demás —subir el archivo, llamar al modelo, la pantalla— es
+plomería alrededor de esto.
+
+Las dos funciones devuelven **por qué** matchearon, no sólo un número. Eso vale
+más que la confianza: el que revisa puede confiar en un `alias` sin mirarlo y
+desconfiar de un `parecido` de 0,42.
+
+### `emparejar_lineas_de_oc(empresa, cliente, lineas)`
+
+De lo más confiable a lo menos:
+
+| método | confianza | qué es |
+| --- | --- | --- |
+| `alias` | 1.00 | alguien de la casa ya dijo que ese texto es ese producto |
+| `sku` | 0.98 | nuestra referencia, escrita por el cliente |
+| `alias_sin_cantidad` | 0.95 | el alias, ignorando el `x N` del final |
+| `modelo` | 0.92 | el modelo del fabricante |
+| `referencia_vieja` | 0.90 | nuestra referencia ANTES del renombre de prefijos |
+| `parecido` | la similitud real | trigramas sobre el nombre, umbral 0,35 |
+| `sin_match` | 0 | no sabe, y lo dice |
+
+Probado contra los 21.775 productos reales: 7 de 7 casos correctos, incluido
+`tornillo de la suerte` → `sin_match`. **Que diga «no sé» es tan importante
+como que acierte**: un producto equivocado en una cotización es peor que un
+renglón vacío.
+
+Dos cosas aparecieron probando, y ninguna se habría visto sin datos reales:
+
+**Los alias viejos traen la cantidad pegada.** La migración los guardó como
+`punta phillips ph2 largo 70 mm x 5`. Buscando por texto exacto, la misma OC
+pidiendo 10 unidades no matchea nunca. Se prueba primero el exacto (1.00) y
+recién después sacando el ` x N` (0.95) — vale menos a propósito, porque en
+algunas descripciones ese «x 3» es parte del producto.
+
+**Los clientes tienen nuestras referencias VIEJAS.** Después de §22 y §23
+—TOHNICHI `TOH.` → `TC.`, SAIPOR `SAI.` → `SA.`— hay 23 productos cuya
+referencia anterior sigue circulando en los sistemas de los clientes.
+`legacy_ref` la resuelve. Sin este paso, esos 23 habrían empezado a fallar
+justo después del cutover, y el síntoma habría sido «la importación no
+encuentra productos que existen».
+
+### `emparejar_cliente_de_oc(empresa, nombre, cuit)`
+
+El dato duro sería el CUIT, pero **565 de 1.010 clientes lo tienen cargado**, y
+sólo 544 con 11 dígitos. Para casi la mitad, el nombre no es un respaldo: es el
+único camino.
+
+| método | confianza | nota |
+| --- | --- | --- |
+| `cuit` | 1.00 | hay índice ÚNICO sobre el CUIT normalizado: si coincide, no hay ambigüedad y se devuelve **sólo ése** |
+| `nombre_exacto` | 0.95 | contra los TRES nombres: razón social, fantasía y el del sistema viejo |
+| `parecido` | la similitud | hasta 5 candidatos, para que la pantalla PREGUNTE |
+
+La clave de comparación saca la **forma jurídica**, que es justo lo que cada uno
+escribe distinto: «METALÚRGICA ZZ S.A.», «Metalurgica ZZ SA» y «METALURGICA ZZ
+S.A.I.C.» dan lo mismo.
+
+Probado con clientes reales, buscándolos por su nombre deformado como lo
+escribirían en su membrete —sin acentos, sin puntos, en mayúscula—: 4 de 4 por
+CUIT y 4 de 4 por nombre. Un nombre inventado devuelve un candidato al 0,33, no
+una certeza.
+
+**Nunca elige solo cuando el método es `parecido`.** Equivocarse de producto
+sale una cotización mal hecha; equivocarse de cliente manda la mercadería a
+otra empresa.
+
+### Lo que falta
+
+`index.ts` de la Edge Function —extraer el texto del PDF y llamar al
+proveedor—, la RPC que persiste la OC y busca cotizaciones que coincidan, y la
+pantalla. Sigue bloqueado por `OPENAI_API_KEY`, que es una de las 4 secrets del
+cutover (§25).
