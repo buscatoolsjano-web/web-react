@@ -311,3 +311,35 @@ export async function leerOcDesdePdf(archivo: File): Promise<OcLeida> {
     textoCrudo: typeof o['texto'] === 'string' ? o['texto'] : null,
   }
 }
+
+/** En qué estado está la lectura con IA. */
+export interface EstadoDeLectura {
+  proveedor: string
+  /** `false` cuando la función está desplegada pero sin proveedor real. */
+  listo: boolean
+}
+
+/**
+ * Preguntarle a la función si la IA está encendida (Fase 30 · E6).
+ *
+ * Existe para que el cartel de la pantalla diga la verdad. Uno que anuncia
+ * «IA activa» cuando el proveedor está en `falso` es peor que no tener
+ * cartel: manda a probar con una OC real y a no entender por qué salen
+ * siempre los mismos tres ítems de demo.
+ *
+ * Si la función no responde, se asume que NO está lista. Ante la duda, el
+ * cartel se calla.
+ */
+export async function estadoDeLectura(): Promise<EstadoDeLectura> {
+  try {
+    const r: { data: unknown; error: Error | null } = await supabase.functions.invoke<unknown>(
+      'importar-oc',
+      { method: 'GET' },
+    )
+    if (r.error) return { proveedor: 'desconocido', listo: false }
+    const o = (r.data ?? {}) as Record<string, unknown>
+    return { proveedor: cadena(o['proveedor']) || 'desconocido', listo: o['listo'] === true }
+  } catch {
+    return { proveedor: 'desconocido', listo: false }
+  }
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { Dialog } from '@/components/modals/Dialog'
 import { Alert } from '@/components/feedback/Alert'
@@ -25,6 +25,7 @@ import {
 import {
   FalloDeImportacion,
   cotizacionesPara,
+  estadoDeLectura,
   emparejarCliente,
   emparejarLineas,
   importarOc,
@@ -75,6 +76,14 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
   const [fecha, setFecha] = useState('')
   const [moneda, setMoneda] = useState('ARS')
   const [hecho, setHecho] = useState<ResultadoImportacion | null>(null)
+
+  /* El cartel de arriba tiene que decir la verdad: se le pregunta a la
+     función, que es la única que sabe si hay proveedor configurado. */
+  const estado = useQuery({
+    queryKey: ['ventas', 'oc', 'estado-lectura'],
+    queryFn: estadoDeLectura,
+    staleTime: 5 * 60_000,
+  })
   const entrada = useRef<HTMLInputElement>(null)
 
   /**
@@ -260,6 +269,21 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
           )
         }
       >
+        {/* El cartel dice lo que la función contestó, no lo que nos gustaría.
+            Con el proveedor en `falso` se avisa que los datos son de demo: si
+            no, alguien prueba con una OC real y no entiende por qué salen
+            siempre los mismos tres ítems. */}
+        {estado.isSuccess ? (
+          <p className={styles.estadoIa}>
+            <Badge tone={estado.data.listo ? 'success' : 'neutral'}>
+              {estado.data.listo ? '✓ IA activa' : 'IA en modo demo'}
+            </Badge>
+            {estado.data.listo ? null : (
+              <span>Se va a leer el PDF, pero los ítems salen de un ejemplo fijo.</span>
+            )}
+          </p>
+        ) : null}
+
         {archivo === null ? (
           <div
             className={encima ? `${styles.zona} ${styles.zonaEncima}` : styles.zona}

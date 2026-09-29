@@ -55,7 +55,19 @@ async function textoDelPdf(bytes: Uint8Array): Promise<string> {
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
-  if (req.method !== 'POST') return falla('metodo', 'Sólo POST.', 405)
+  /**
+   * GET: en qué estado está la lectura, sin procesar nada.
+   *
+   * Es lo que le permite a la pantalla mostrar «IA activa» y que sea verdad.
+   * Un cartel que dice que la IA está encendida cuando no lo está es peor que
+   * no tener cartel: manda a probar y a no entender por qué salen datos de
+   * demo. No se devuelve la clave ni el modelo, sólo si está configurado.
+   */
+  if (req.method === 'GET') {
+    const p = proveedorConfigurado()
+    return json({ proveedor: p.nombre, listo: p.nombre !== 'falso' })
+  }
+  if (req.method !== 'POST') return falla('metodo', 'Sólo GET o POST.', 405)
 
   try {
     const form = await req.formData()
