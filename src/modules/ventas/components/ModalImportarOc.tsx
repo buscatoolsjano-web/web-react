@@ -345,7 +345,12 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
         </>
       }
     >
-      <div className={styles.revision}>
+      {/* Dos columnas, como el editor de un documento: el resumen a la
+          izquierda y el PDF a la derecha, para ir comparando renglón por
+          renglón sin cambiar de ventana. Cada columna scrollea por su cuenta,
+          así el documento no se va de pantalla mientras se baja por la lista. */}
+      <div className={urlPrevia === null ? styles.revision : styles.conPdf}>
+        <div className={styles.revision}>
         <section className={styles.bloque}>
           <h3 className={styles.titulo}>1 · El cliente</h3>
           {clienteId === null ? (
@@ -486,6 +491,18 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
         ) : null}
 
         {falta.length > 0 ? <p className={styles.falta}>{falta.join(' ')}</p> : null}
+        </div>
+
+        {urlPrevia !== null ? (
+          <aside className={styles.pdfAlLado} aria-label="La orden de compra que subiste">
+            <object data={urlPrevia} type="application/pdf" className={styles.visorLateral}>
+              <p className={styles.sinVisor}>
+                Tu navegador no muestra PDF acá. El archivo es{' '}
+                <strong>{archivo?.name ?? 'el que subiste'}</strong>.
+              </p>
+            </object>
+          </aside>
+        ) : null}
       </div>
     </Dialog>
   )
