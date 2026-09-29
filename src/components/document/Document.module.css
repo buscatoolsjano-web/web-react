@@ -120,6 +120,13 @@
   margin-left: auto;
 }
 
+/* La trazabilidad, al otro extremo de la fila (Fase 29 · E16). A la derecha
+   porque es contexto y no una acción: agrupadas a la izquierda quedan las
+   cosas que se aprietan. */
+.actionPasos {
+  margin-left: auto;
+}
+
 .actionNota {
   display: grid;
   gap: var(--space-1);
@@ -144,6 +151,12 @@
     margin-left: 0;
     padding-top: var(--space-2);
     border-top: 1px solid var(--color-border);
+  }
+  /* En el teléfono la fila es una columna: la trazabilidad pasa a ser su
+     propio renglón y arranca a la izquierda como todo lo demás. El `auto` de
+     escritorio la dejaría pegada al borde derecho, sola. */
+  .actionPasos {
+    margin-left: 0;
   }
 }
 

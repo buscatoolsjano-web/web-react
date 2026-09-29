@@ -23,6 +23,19 @@ export interface ActionBarProps {
   more?: ReactNode | undefined
   /** Acciones destructivas, separadas a la derecha. */
   danger?: ReactNode | undefined
+  /**
+   * La trazabilidad del documento, a la derecha y en la MISMA fila (Fase 29 · E16).
+   *
+   * Entra en la barra en vez de ser un bloque propio arriba del documento: la
+   * fila ya mide lo que miden los botones, así que cuatro círculos de 32 no
+   * agregan alto y el documento sube una franja entera.
+   *
+   * Va última en el DOM y se corre sola con `margin-left: auto`. Si alguna
+   * pantalla llegara a pasar `danger` y `pasos` a la vez, los dos se reparten
+   * el espacio libre en vez de irse al extremo; hoy ninguna lo hace, porque
+   * las acciones destructivas viven dentro de «Más ▾».
+   */
+  pasos?: ReactNode | undefined
   /** Motivos de bloqueo, avisos o resultado (texto visible, no tooltip). */
   note?: ReactNode | undefined
   /**
@@ -53,6 +66,7 @@ export function ActionBar({
   more,
   danger,
   note,
+  pasos,
   pegajosa,
   label = 'Acciones del documento',
   className,
@@ -62,7 +76,7 @@ export function ActionBar({
   // que se lea sea un booleano.
   const { centinela, activa: pegada } = useBarraPegada(pegajosa === true)
 
-  if (!titulo && !volver && !primary && !secondary && !more && !danger && !note) return null
+  if (!titulo && !volver && !primary && !secondary && !more && !danger && !note && !pasos) return null
   return (
     <>
       {/* El centinela: un píxel justo arriba de la barra. Mientras se ve, la
@@ -77,7 +91,7 @@ export function ActionBar({
       aria-label={label}
     >
       {titulo ? <h1 className="sr-only">{titulo}</h1> : null}
-      {(volver || primary || secondary || more || danger) && (
+      {(volver || primary || secondary || more || danger || pasos) && (
         <div className={styles.actionFila}>
           {volver && (
             <LinkButton to={volver.to} variant="secondary" icon={<Icon name="arrow-left" size={16} />}>
@@ -88,6 +102,7 @@ export function ActionBar({
           {secondary && <div className={styles.actionGrupo}>{secondary}</div>}
           {more && <div className={styles.actionGrupo}>{more}</div>}
           {danger && <div className={cx(styles.actionGrupo, styles.actionPeligro)}>{danger}</div>}
+          {pasos && <div className={styles.actionPasos}>{pasos}</div>}
         </div>
       )}
       {note && <div className={styles.actionNota}>{note}</div>}

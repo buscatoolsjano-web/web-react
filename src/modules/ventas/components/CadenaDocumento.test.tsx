@@ -22,11 +22,18 @@ function montar(ui: React.ReactElement) {
 const circuito = () => screen.getByRole('navigation', { name: 'Circuito de la venta' })
 
 describe('La cadena del documento', () => {
-  it('muestra los cuatro pasos siempre, existan o no', () => {
+  /**
+   * Los cuatro pasos están siempre, existan o no. Como ahora son círculos con
+   * un emoji, la palabra vive en el texto para lector de pantalla y en el
+   * `title`: el emoji no puede ser lo único que diga de qué paso se trata.
+   */
+  it('nombra los cuatro pasos aunque se dibujen como círculos', () => {
     montar(<CadenaDocumento cadena={cadena()} actual="cotizacion" />)
-    for (const paso of ['Cotización', 'Pedido', 'Entrega', 'Factura']) {
-      expect(within(circuito()).getByText(paso)).toBeInTheDocument()
-    }
+    const n = circuito()
+    expect(within(n).getByText(/Cotización COT-BTS00001/)).toBeInTheDocument()
+    expect(within(n).getByText('Pedido: todavía no existe')).toBeInTheDocument()
+    expect(within(n).getByText('Entrega: todavía no existe')).toBeInTheDocument()
+    expect(within(n).getByText('Factura: todavía no existe')).toBeInTheDocument()
   })
 
   /**
@@ -41,10 +48,23 @@ describe('La cadena del documento', () => {
       />,
     )
     const n = circuito()
-    expect(within(n).queryByRole('link', { name: 'PDV-ERP00007' })).toBeNull()
-    expect(within(n).getByText('PDV-ERP00007')).toBeInTheDocument()
-    expect(within(n).getByRole('link', { name: 'COT-BTS00001' })).toBeInTheDocument()
-    expect(within(n).getByRole('link', { name: 'RT-ERP00003' })).toBeInTheDocument()
+    expect(within(n).queryByRole('link', { name: /PDV-ERP00007/ })).toBeNull()
+    expect(within(n).getByText(/PDV-ERP00007/)).toBeInTheDocument()
+    expect(within(n).getByRole('link', { name: /COT-BTS00001/ })).toBeInTheDocument()
+    expect(within(n).getByRole('link', { name: /RT-ERP00003/ })).toBeInTheDocument()
+  })
+
+  /**
+   * El número tiene que llegar por dos caminos: el `title` para el mouse y el
+   * nombre accesible para el lector de pantalla. Es lo que reemplaza al número
+   * que antes estaba escrito en la caja.
+   */
+  it('el círculo lleva el número en el title, no sólo el emoji', () => {
+    montar(<CadenaDocumento cadena={cadena({ pedido: eslabon('PDV-ERP00007') })} actual="cotizacion" />)
+    expect(within(circuito()).getByRole('link', { name: /PDV-ERP00007/ })).toHaveAttribute(
+      'title',
+      'Pedido PDV-ERP00007',
+    )
   })
 
   it('marca el paso actual para quien navega con lector de pantalla', () => {
@@ -53,18 +73,12 @@ describe('La cadena del documento', () => {
     expect(actual?.textContent).toContain('COT-BTS00001')
   })
 
-  it('un paso que todavía no existe y no se puede generar muestra un guion', () => {
-    montar(<CadenaDocumento cadena={cadena()} actual="cotizacion" />)
-    // Tres pasos sin documento: pedido, entrega y factura.
-    expect(within(circuito()).getAllByText('—')).toHaveLength(3)
-  })
-
   it('ofrece «Generar» sólo donde la página dijo que se puede', () => {
     const onGenerar = vi.fn()
     montar(
       <CadenaDocumento cadena={cadena()} actual="cotizacion" generar={{ pedido: { onGenerar } }} />,
     )
-    const boton = within(circuito()).getByRole('button', { name: /Generar/ })
+    const boton = within(circuito()).getByRole('button', { name: /Generar pedido/ })
     fireEvent.click(boton)
     expect(onGenerar).toHaveBeenCalledTimes(1)
     // Entrega y factura siguen sin ofrecer nada: sólo hay UN botón.
@@ -84,7 +98,7 @@ describe('La cadena del documento', () => {
         generar={{ pedido: { onGenerar, motivo: 'Tu rol no genera pedidos' } }}
       />,
     )
-    const boton = within(circuito()).getByRole('button', { name: /Generar/ })
+    const boton = within(circuito()).getByRole('button', { name: /Generar pedido/ })
     expect(boton).toBeDisabled()
     expect(boton).toHaveAttribute('title', 'Tu rol no genera pedidos')
     fireEvent.click(boton)
@@ -99,7 +113,7 @@ describe('La cadena del documento', () => {
         generar={{ pedido: { onGenerar: vi.fn(), cargando: true } }}
       />,
     )
-    expect(within(circuito()).getByRole('button', { name: /Generando/ })).toBeDisabled()
+    expect(within(circuito()).getByRole('button', { name: /Generando pedido/ })).toBeDisabled()
   })
 
   /**
@@ -111,7 +125,7 @@ describe('La cadena del documento', () => {
     montar(
       <CadenaDocumento cadena={cadena({ pedido: eslabon('PDV-ERP00007', 3) })} actual="cotizacion" />,
     )
-    expect(within(circuito()).getByText('y 2 más')).toBeInTheDocument()
+    expect(within(circuito()).getByText('Pedido PDV-ERP00007 y 2 más')).toBeInTheDocument()
   })
 
   it('la factura no enlaza a ningún lado mientras no tenga pantalla', () => {
@@ -119,7 +133,7 @@ describe('La cadena del documento', () => {
       <CadenaDocumento cadena={cadena({ factura: eslabon('FAC-0001') })} actual="cotizacion" />,
     )
     const n = circuito()
-    expect(within(n).getByText('FAC-0001')).toBeInTheDocument()
-    expect(within(n).queryByRole('link', { name: 'FAC-0001' })).toBeNull()
+    expect(within(n).getByText(/FAC-0001/)).toBeInTheDocument()
+    expect(within(n).queryByRole('link', { name: /FAC-0001/ })).toBeNull()
   })
 })

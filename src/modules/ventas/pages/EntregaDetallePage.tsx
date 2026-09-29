@@ -142,6 +142,14 @@ function Detalle() {
   const volver = useVolverAlListado('entrega', 'Notas de entrega')
   const stelEntrega = autoridad.stel('delivery')
 
+  /**
+   * El circuito de la venta, para la barra de acciones (Fase 29 · E16).
+   *
+   * Acá sin «Generar»: el paso siguiente es la factura, y todavía no se emite
+   * desde el remito.
+   */
+  const circuito = cadena.data ? <CadenaDocumento cadena={cadena.data} actual="entrega" /> : null
+
   const editando = borrador !== null
   const sucio = borrador !== null && original !== null && hayCambiosRemito(borrador, original)
   const salida = useSalidaConCambios(sucio)
@@ -367,10 +375,6 @@ function Detalle() {
         }
       />
 
-      {/* El circuito de la venta (Fase 29 · E6). Acá sin «Generar»: el paso
-          siguiente es la factura, y todavía no se emite desde el ERP. */}
-      {cadena.data ? <CadenaDocumento cadena={cadena.data} actual="entrega" /> : null}
-
       <AvisosHistoricos documento={doc} revision={revision.data} />
 
       {esInterno && stelEntrega ? (
@@ -414,6 +418,7 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
+          pasos={circuito}
           primary={
             <Button
               icon={<Icon name="check" size={16} />}
@@ -448,6 +453,7 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
+          pasos={circuito}
           primary={
             permiso.confirmable ? (
               <Button

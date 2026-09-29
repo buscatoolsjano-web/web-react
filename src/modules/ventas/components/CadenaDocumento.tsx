@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import { cx } from '@/utils/cx'
-import { Icon } from '@/components/icons/Icon'
 import { RUTA_DE } from '../types'
 import { PASOS_CADENA, type CadenaDocumento as Cadena, type PasoCadena } from '../lib/cadena'
 import styles from './CadenaDocumento.module.css'
@@ -10,6 +9,21 @@ const ETIQUETA: Record<PasoCadena, string> = {
   pedido: 'Pedido',
   entrega: 'Entrega',
   factura: 'Factura',
+}
+
+/**
+ * Un emoji por paso, como en el sistema anterior.
+ *
+ * Se eligieron por lo que muestran, no por lo que nombran: el camión es una
+ * entrega para cualquiera, y el recibo una factura. La palabra igual está —en
+ * el `title` y en el texto para lector de pantalla—, así que el emoji no carga
+ * solo con el significado.
+ */
+const EMOJI: Record<PasoCadena, string> = {
+  cotizacion: '📝',
+  pedido: '📋',
+  entrega: '🚚',
+  factura: '🧾',
 }
 
 /** Factura todavía no tiene pantalla propia, así que tampoco tiene ruta. */
@@ -39,9 +53,15 @@ export interface CadenaDocumentoProps {
 /**
  * La cadena del documento: cotización → pedido → entrega → factura (Fase 29 · E6).
  *
- * Reemplaza tener que adivinar en qué punto del circuito está una venta. El
- * paso donde estás parado va marcado; los que ya existen son enlaces; el
- * siguiente, si se puede, tiene el botón para generarlo.
+ * Cuatro círculos con emoji, dentro de la barra de acciones (Fase 29 · E16).
+ * Antes era un bloque propio arriba del documento: cuatro cajas con etiqueta y
+ * número que ocupaban unos 90 px de alto para decir algo que entra en cuatro
+ * círculos de 32. Metida en la barra no agrega NADA de alto —la fila ya mide
+ * 40 por los botones— y todo el documento sube esa pantalla.
+ *
+ * El número de cada documento no se pierde: va en el `title` y en el nombre
+ * accesible del círculo, que es un enlace. El del paso actual ya está en el
+ * encabezado de la página, así que mostrarlo acá era decirlo dos veces.
  *
  * Va en pantalla y NO en la hoja: es una herramienta de trabajo, no parte del
  * documento que se le manda al cliente.
@@ -55,52 +75,68 @@ export function CadenaDocumento({ cadena, actual, generar }: CadenaDocumentoProp
           const esActual = paso === actual
           const accion = generar?.[paso]
           const ruta = RUTA[paso]
+          const nombre = ETIQUETA[paso]
+
+          /**
+           * Lo que se lee al pasar el mouse y lo que escucha un lector de
+           * pantalla. Es la misma frase para los dos: el círculo solo no dice
+           * de qué documento habla, y un emoji sin texto no se anuncia.
+           */
+          const descripcion = eslabon
+            ? `${nombre} ${eslabon.numero}${eslabon.cuantos > 1 ? ` y ${eslabon.cuantos - 1} más` : ''}`
+            : accion
+              ? accion.cargando === true
+                ? `Generando ${nombre.toLowerCase()}…`
+                : `Generar ${nombre.toLowerCase()}`
+              : `${nombre}: todavía no existe`
+
+          const clases = cx(
+            styles.circulo,
+            eslabon && styles.hecho,
+            esActual && styles.actual,
+            !eslabon && !accion && styles.pendiente,
+          )
+          // El emoji es decorativo: lo que se anuncia es `descripcion`. Sin el
+          // `aria-hidden` el lector lee el nombre Unicode del emoji, que en
+          // medio de la frase no aporta nada.
+          const cara = (
+            <>
+              <span className={styles.emoji} aria-hidden="true">
+                {EMOJI[paso]}
+              </span>
+              <span className="sr-only">{descripcion}</span>
+            </>
+          )
 
           return (
             <li key={paso} className={styles.paso}>
               {i > 0 && <span className={cx(styles.union, eslabon && styles.unionHecha)} aria-hidden="true" />}
 
-              <div
-                className={cx(
-                  styles.caja,
-                  eslabon && styles.cajaHecha,
-                  esActual && styles.cajaActual,
-                  !eslabon && !accion && styles.cajaPendiente,
-                )}
-                aria-current={esActual ? 'step' : undefined}
-              >
-                <span className={styles.etiqueta}>{ETIQUETA[paso]}</span>
-
-                {eslabon ? (
-                  <>
-                    {/* El paso actual no se enlaza a sí mismo: sería un enlace
-                        a la página en la que ya estás. */}
-                    {esActual || !ruta ? (
-                      <span className={styles.numero}>{eslabon.numero}</span>
-                    ) : (
-                      <Link to={`${ruta}/${eslabon.id}`} className={styles.numeroEnlace}>
-                        {eslabon.numero}
-                      </Link>
-                    )}
-                    {eslabon.cuantos > 1 && (
-                      <span className={styles.varios}>y {eslabon.cuantos - 1} más</span>
-                    )}
-                  </>
-                ) : accion ? (
-                  <button
-                    type="button"
-                    className={styles.generar}
-                    onClick={accion.onGenerar}
-                    disabled={accion.cargando === true || accion.motivo !== undefined}
-                    title={accion.motivo}
-                  >
-                    <Icon name="plus" size={16} />
-                    {accion.cargando === true ? 'Generando…' : 'Generar'}
-                  </button>
-                ) : (
-                  <span className={styles.sinDocumento}>—</span>
-                )}
-              </div>
+              {eslabon && !esActual && ruta ? (
+                <Link to={`${ruta}/${eslabon.id}`} className={clases} title={descripcion}>
+                  {cara}
+                </Link>
+              ) : accion && !eslabon ? (
+                <button
+                  type="button"
+                  className={cx(clases, styles.generable)}
+                  onClick={accion.onGenerar}
+                  disabled={accion.cargando === true || accion.motivo !== undefined}
+                  title={accion.motivo ?? descripcion}
+                >
+                  {cara}
+                  {/* El «+» distingue de un vistazo el paso que se puede crear
+                      del que está simplemente vacío: los dos son un círculo
+                      apagado y sin esto se ven igual. */}
+                  <span className={styles.mas} aria-hidden="true">
+                    +
+                  </span>
+                </button>
+              ) : (
+                <span className={clases} title={descripcion} aria-current={esActual ? 'step' : undefined}>
+                  {cara}
+                </span>
+              )}
             </li>
           )
         })}

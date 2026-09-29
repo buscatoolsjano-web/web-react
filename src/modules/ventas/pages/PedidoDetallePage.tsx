@@ -399,6 +399,52 @@ function Detalle() {
     { key: 'trazabilidad' as const, label: 'Trazabilidad' },
   ]
 
+  /**
+   * El circuito de la venta, para la barra de acciones (Fase 29 · E16).
+   *
+   * Se arma una vez y se pasa a las DOS barras —la de edición y la de
+   * lectura—: es el mismo dato en los dos estados.
+   *
+   * «Generar» abre el MISMO modal de cantidades que el botón de la barra: un
+   * remito nunca se crea a ciegas, hay que decir cuánto se entrega de cada
+   * línea.
+   */
+  const circuito = cadena.data ? (
+    <CadenaDocumento
+      cadena={cadena.data}
+      actual="pedido"
+      generar={{
+        entrega: {
+          onGenerar: () => {
+            setErrorRemito(null)
+            setGenerando(true)
+          },
+          ...(!escribe
+            ? { motivo: 'Tu rol no genera remitos' }
+            : doc.estado !== 'confirmed'
+              ? { motivo: 'El pedido tiene que estar confirmado' }
+              : stelEntrega
+                ? { motivo: 'La numeración de remitos la lleva el sistema anterior' }
+                : {}),
+        },
+        /* La factura nace del pedido (Fase 29 · E7). Sale en `draft` y con
+           número interno: el fiscal lo da AFIP por Tango. Que el pedido
+           esté confirmado es la misma condición que para el remito — un
+           borrador todavía se edita, y facturar un borrador es facturar
+           algo que puede cambiar. */
+        factura: {
+          onGenerar: () => facturar.mutate({ orderId: id! }),
+          cargando: facturar.isPending,
+          ...(!escribe
+            ? { motivo: 'Tu rol no factura' }
+            : doc.estado !== 'confirmed'
+              ? { motivo: 'El pedido tiene que estar confirmado' }
+              : {}),
+        },
+      }}
+    />
+  ) : null
+
   return (
     <div className={`${docUi.pagina} ${docUi.paginaAncha}`}>
       <DocumentHeader
@@ -420,44 +466,6 @@ function Detalle() {
         aviso={editando ? <Badge tone="info">Editando</Badge> : null}
       />
 
-      {/* El circuito de la venta (Fase 29 · E6). «Generar» abre el MISMO
-          modal de cantidades que el botón de la barra: un remito nunca se
-          crea a ciegas, hay que decir cuánto se entrega de cada línea. */}
-      {cadena.data ? (
-        <CadenaDocumento
-          cadena={cadena.data}
-          actual="pedido"
-          generar={{
-            entrega: {
-              onGenerar: () => {
-                setErrorRemito(null)
-                setGenerando(true)
-              },
-              ...(!escribe
-                ? { motivo: 'Tu rol no genera remitos' }
-                : doc.estado !== 'confirmed'
-                  ? { motivo: 'El pedido tiene que estar confirmado' }
-                  : stelEntrega
-                    ? { motivo: 'La numeración de remitos la lleva el sistema anterior' }
-                    : {}),
-            },
-            /* La factura nace del pedido (Fase 29 · E7). Sale en `draft` y con
-               número interno: el fiscal lo da AFIP por Tango. Que el pedido
-               esté confirmado es la misma condición que para el remito — un
-               borrador todavía se edita, y facturar un borrador es facturar
-               algo que puede cambiar. */
-            factura: {
-              onGenerar: () => facturar.mutate({ orderId: id! }),
-              cargando: facturar.isPending,
-              ...(!escribe
-                ? { motivo: 'Tu rol no factura' }
-                : doc.estado !== 'confirmed'
-                  ? { motivo: 'El pedido tiene que estar confirmado' }
-                  : {}),
-            },
-          }}
-        />
-      ) : null}
 
       <AvisosHistoricos documento={doc} revision={revision.data} />
 
@@ -505,6 +513,7 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
+          pasos={circuito}
           primary={
             <Button
               icon={<Icon name="check" size={16} />}
@@ -536,6 +545,7 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
+          pasos={circuito}
           primary={
             escribe && doc.estado === 'confirmed' ? (
               <Button

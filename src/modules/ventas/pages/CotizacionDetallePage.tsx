@@ -465,6 +465,35 @@ function Detalle() {
     </Button>
   ) : null
 
+  /**
+   * El circuito de la venta, para la barra de acciones (Fase 29 · E16).
+   *
+   * Se arma una vez y se pasa a las DOS barras —la de edición y la de
+   * lectura—: es el mismo dato en los dos estados, y tenerlo en una sola
+   * variable evita que una quede vieja cuando se toque la otra.
+   *
+   * «Generar» llama al MISMO handler que el botón de la barra, con el mismo
+   * motivo de bloqueo: dos botones para lo mismo que se comportan distinto
+   * sería peor que uno solo.
+   */
+  const circuito = cadena.data ? (
+    <CadenaDocumento
+      cadena={cadena.data}
+      actual="cotizacion"
+      generar={{
+        pedido: {
+          onGenerar: () => (hayQueElegirSerie ? setEligiendoSerie(true) : convertir.mutate(null)),
+          cargando: convertir.isPending,
+          ...(!escribe
+            ? { motivo: 'Tu rol no genera pedidos' }
+            : stelPedido
+              ? { motivo: 'La numeración de pedidos la lleva el sistema anterior' }
+              : {}),
+        },
+      }}
+    />
+  ) : null
+
   const nueva = (over: Partial<Parameters<typeof agregarLinea>[1]> = {}) =>
     setBorrador((b) =>
       b
@@ -496,29 +525,6 @@ function Detalle() {
         ))}
         aviso={editando ? <Badge tone="info">Editando</Badge> : null}
       />
-
-      {/* El circuito de la venta (Fase 29 · E6). Va arriba del documento y en
-          pantalla: es herramienta de trabajo, no parte de la hoja del cliente
-          —el CSS la saca al imprimir—. «Generar» llama al MISMO handler que
-          el botón de la barra, con el mismo motivo de bloqueo: dos botones
-          para lo mismo que se comportan distinto sería peor que uno solo. */}
-      {cadena.data ? (
-        <CadenaDocumento
-          cadena={cadena.data}
-          actual="cotizacion"
-          generar={{
-            pedido: {
-              onGenerar: () => (hayQueElegirSerie ? setEligiendoSerie(true) : convertir.mutate(null)),
-              cargando: convertir.isPending,
-              ...(!escribe
-                ? { motivo: 'Tu rol no genera pedidos' }
-                : stelPedido
-                  ? { motivo: 'La numeración de pedidos la lleva el sistema anterior' }
-                  : {}),
-            },
-          }}
-        />
-      ) : null}
 
       <AvisosHistoricos documento={doc} revision={revision.data} />
 
@@ -570,6 +576,7 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
+          pasos={circuito}
           primary={
             <Button
               icon={<Icon name="check" size={16} />}
@@ -601,6 +608,7 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
+          pasos={circuito}
           primary={
             esBorrador ? (
               escribe ? (
