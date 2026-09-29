@@ -62,6 +62,14 @@ export function useCatalogoParaDocumento(filtros: FiltrosCatalogo, listaPrecioId
     // esto la tabla parpadea a vacío en cada tecla.
     placeholderData: keepPreviousData,
     staleTime: 30_000,
+    // Que el resultado sobreviva a cerrar el modal (Fase 29 · E18).
+    //
+    // Por defecto react-query tira una consulta que nadie está mirando a los 5
+    // minutos, y el modal deja de mirarla apenas se cierra. Media hora después
+    // de trabajar en un documento, volver a abrirlo costaba lo mismo que la
+    // primera vez. Con `gcTime` largo, reabrir muestra lo de antes EN EL ACTO
+    // y refresca por detrás: el spinner sólo aparece cuando no hay nada.
+    gcTime: 30 * 60_000,
   })
 }
 
@@ -81,7 +89,11 @@ export function useFacetasParaDocumento(filtros: FiltrosCatalogo) {
     queryFn: () => obtenerFacetas(construirPlanDeConsulta(filtros, companyId!)),
     enabled: companyId !== null,
     placeholderData: keepPreviousData,
-    staleTime: 60_000,
+    // Las facetas son lo más caro de todo el modal: ~85 ms de CPU, porque
+    // recorren los productos de la empresa y los agrupan de cinco maneras. Y
+    // son lo que menos cambia: sólo se mueven cuando cambia el catálogo.
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   })
 }
 
@@ -120,11 +132,13 @@ export function usePrecargarCatalogoDeDocumento(listaPrecioId: string | null, ac
       queryKey: clavePagina(companyId, FILTROS_MODAL, listaPrecioId, esInterno),
       queryFn: () => consultarProductos(plan, listaPrecioId, esInterno),
       staleTime: 30_000,
+      gcTime: 30 * 60_000,
     })
     void qc.prefetchQuery({
       queryKey: claveFacetas(companyId, FILTROS_MODAL),
       queryFn: () => obtenerFacetas(plan),
-      staleTime: 60_000,
+      staleTime: 5 * 60_000,
+      gcTime: 30 * 60_000,
     })
   }, [activo, companyId, listaPrecioId, esInterno, qc])
 }
