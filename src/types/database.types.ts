@@ -472,6 +472,63 @@ export type Database = {
           },
         ]
       }
+      customer_oc_aliases: {
+        Row: {
+          clave: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          id: string
+          last_used_at: string
+          texto_original: string | null
+          times_used: number
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          clave: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          id?: string
+          last_used_at?: string
+          texto_original?: string | null
+          times_used?: number
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          clave?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          id?: string
+          last_used_at?: string
+          texto_original?: string | null
+          times_used?: number
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_oc_aliases_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_oc_aliases_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_po_candidates: {
         Row: {
           candidate: string
@@ -6639,6 +6696,7 @@ export type Database = {
       }
       importar_oc: {
         Args: {
+          p_cliente_leido?: Json
           p_company: string
           p_customer: string
           p_fecha: string | null

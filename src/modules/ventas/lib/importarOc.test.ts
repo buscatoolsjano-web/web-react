@@ -43,6 +43,17 @@ describe('Cuándo la pantalla elige el cliente sola', () => {
   })
 
   /**
+   * La memoria es lo MÁS duro que hay, no lo menos: es la única fuente que
+   * puede saber algo que el documento no dice. La OC de Mabe trae el logo como
+   * imagen y, en texto, la razón social de otra sociedad del grupo; ningún
+   * CUIT ni nombre del papel lleva al cliente correcto. Sólo lleva el hecho de
+   * que alguien ya lo corrigió una vez.
+   */
+  it('con la memoria de una corrección anterior, elige', () => {
+    expect(clienteAutomatico([cliente('memoria')])?.customerId).toBe('c1')
+  })
+
+  /**
    * La decisión central. Los trigramas devuelven el MÁS parecido que
    * encontraron, no el correcto: con mil clientes siempre hay alguno que se
    * parece. Un 0,97 sigue siendo un parecido.

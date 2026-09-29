@@ -1808,3 +1808,95 @@ cotización» se expresa sin ambigüedad.
 **El título tartamudeaba**: «OC OC-PRUEBA-9001», porque casi todo número de
 orden ya empieza con OC. `app.titulo_de_oc` lo antepone sólo cuando hace falta.
 Es un renglón que se imprime y lo ve el cliente.
+
+## 28 · Memoria de cliente por CUIT y por nombre (2026-09-29)
+
+### El caso que la pide
+
+La OC de Mabe trae el logo «mabe» como **imagen**, y el texto que sí se puede
+leer dice `Razon Social: DREAN S.A.` con RFC `30502680478`. La IA lee bien: eso
+es literalmente lo que está escrito. El cliente de la casa, en cambio, es *Mabe
+Argentina S.A.*, que además no tiene CUIT cargado.
+
+No es un problema de prompt, y ajustarlo no lo arregla: el dato **no está en el
+documento**. Lo único que puede resolverlo es que alguien lo diga una vez.
+
+Es el mismo patrón que la memoria de productos (`recordar_alias_de_oc`), un
+escalón más arriba: en vez de «este cliente llama así a este producto», es «este
+papel corresponde a este cliente».
+
+### Por qué NO sirvió `customer_legacy_tax_ids`
+
+Parecía la tabla obvia y no lo es: su **PRIMARY KEY es `customer_id` solo**, o
+sea una fila por cliente. Acá hace falta lo contrario —varias claves apuntando
+al mismo cliente—, porque una misma empresa aparece con su razón social, con la
+de un grupo y con más de un CUIT según la planta que emite la orden.
+
+Tabla nueva, `customer_oc_aliases`, con `unique (company_id, tipo, clave)`: una
+clave apunta a UN cliente por empresa, y si mañana resulta que era otro, la
+corrección **pisa** en vez de duplicar.
+
+### Sólo se guarda lo que no se podía deducir
+
+`app.recordar_cliente_de_oc` compara contra la ficha del cliente antes de
+escribir: si el CUIT del papel ya es su CUIT, o el nombre ya es alguno de los
+tres que guardamos (`legal_name`, `trade_name`, `legacy_name`), la fila no
+aporta nada. Guardarla llenaría la tabla de ruido y taparía las correcciones de
+verdad, que son las que hay que poder auditar a ojo.
+
+Se decide en la base y no en la pantalla: el frontend manda **siempre** lo que
+leyó, y la base resuelve si vale la pena. Decidirlo del otro lado obligaría a
+duplicar esa comparación en TypeScript.
+
+### La memoria se consulta ANTES que el CUIT
+
+Parece al revés y es a propósito. Si el CUIT del papel figura en la ficha de
+algún cliente, la memoria para ese CUIT **no existe** —`recordar` no la guarda
+por redundante—, salvo que alguien la haya escrito corrigiendo justamente eso. Y
+en ese caso la corrección de la persona vale más que la coincidencia.
+
+Orden final de `emparejar_cliente_de_oc`: memoria por CUIT → memoria por nombre
+→ CUIT en la ficha → nombre exacto → parecido.
+
+`memoria` entra a `DUROS_CLIENTE`, así que la pantalla elige sola. Y cuando lo
+hace, ahora dice por qué: «Ya lo habías corregido para este mismo documento. La
+orden dice «DREAN S.A.».» Sin ese renglón, la pantalla muestra *Mabe Argentina*
+sobre una orden que dice *Drean* y parece un error.
+
+### Probado contra los datos reales, revirtiendo al final
+
+Siete comprobaciones en un bloque que termina en `raise exception 'TEST_OK'`,
+corriendo como `authenticated` con claims de JWT —no como `postgres`, que
+saltea RLS y prueba otra cosa—:
+
+1. antes de guardar nada, «DREAN S.A. / 30502680478» no lleva a Mabe;
+2. al importar corrigiendo a Mabe, quedan 2 filas de memoria (CUIT y nombre);
+3. la OC siguiente resuelve por CUIT, con `metodo = 'memoria'`;
+4. y también sólo por el nombre escrito distinto («Drean Sociedad Anonima»),
+   que además desambigua entre los DOS clientes Mabe que hay en la base;
+5. un segundo uso **cuenta** (`times_used = 2`), no duplica;
+6. si alguien se equivocó y era otro cliente, la corrección pisa y la cuenta
+   arranca de nuevo en 1;
+7. lo redundante no se guarda: importar con el nombre propio del cliente no
+   deja rastro.
+
+### Efecto lateral: `clave_de_razon_social` reconoce dos formas más
+
+La prueba 4 falló primero, y no por la memoria: la función que saca la forma
+jurídica no conocía «Sociedad Anónima» escrito con todas las letras, ni las
+variantes largas del acrónimo (S.A.C.I.F., S.A.I.C.F., S.A.C.I.F.I.A.).
+
+Medido contra los 1.010 clientes reales antes de cambiarla: **7 claves mejoran,
+ninguna queda vacía y no aparece ninguna clave repetida nueva** —lo peligroso
+sería eso último, porque convertiría un «nombre exacto» en dos empresas
+indistinguibles—. Y se verificó que la función, aunque es `IMMUTABLE`, no está
+dentro de ningún índice, vista materializada ni restricción: cambiarla ahí
+habría dejado el índice inconsistente en silencio.
+
+### `importar_oc` cambió de firma
+
+Se agregó `p_cliente_leido jsonb default null` y se **reemplazó** la versión de
+8 argumentos en vez de dejar una sobrecarga: con un parámetro con default, las
+dos conviven y una llamada de 8 argumentos queda ambigua. PostgREST llama por
+nombre, así que el frontend ya publicado sigue funcionando —le falta un
+parámetro que tiene default—.

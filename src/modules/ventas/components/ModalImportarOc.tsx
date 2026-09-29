@@ -22,6 +22,7 @@ import {
   type CandidataCotizacion,
   type CandidatoCliente,
   type LineaEmparejada,
+  type MetodoCliente,
 } from '../lib/importarOc'
 import {
   FalloDeImportacion,
@@ -68,6 +69,16 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
   const [encima, setEncima] = useState(false)
   const [leida, setLeida] = useState<OcLeida | null>(null)
   const [clienteId, setClienteId] = useState<string | null>(null)
+  /**
+   * Por qué se resolvió solo, cuando se resolvió solo.
+   *
+   * Sin esto, el cliente aparece elegido y no se sabe de dónde salió. Importa
+   * sobre todo con `memoria`: la orden dice «DREAN S.A.» y en la pantalla se
+   * lee «Mabe Argentina», y hay que poder ver que eso no es un error sino una
+   * corrección que alguien hizo antes. Cuando lo elige una persona queda en
+   * `null`: ya sabe por qué.
+   */
+  const [porQue, setPorQue] = useState<MetodoCliente | null>(null)
   const [candidatos, setCandidatos] = useState<CandidatoCliente[]>([])
   const [lineas, setLineas] = useState<LineaEmparejada[]>([])
   const [editando, setEditando] = useState<number | null>(null)
@@ -159,7 +170,7 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
         })),
       )
       const solo = clienteAutomatico(cands)
-      if (solo) await elegirCliente(solo.customerId, oc)
+      if (solo) await elegirCliente(solo.customerId, oc, solo.metodo)
     },
   })
 
@@ -169,8 +180,13 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
    * En ese orden y no al revés: los alias del catálogo son POR CLIENTE, así
    * que emparejar antes de saber quién es daría peores resultados.
    */
-  const elegirCliente = async (id: string, oc: OcLeida | null = leida) => {
+  const elegirCliente = async (
+    id: string,
+    oc: OcLeida | null = leida,
+    metodo: MetodoCliente | null = null,
+  ) => {
     setClienteId(id)
+    setPorQue(metodo)
     if (!oc || companyId === null) return
     const ls = await emparejarLineas(companyId, id, oc.lineas)
 
@@ -222,6 +238,15 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
         lineas,
         quoteId,
         textoCrudo: leida?.textoCrudo ?? null,
+        /**
+         * Lo que decía el papel, para que la próxima OC de esta empresa
+         * reconozca al cliente sola (Fase 30 · E7).
+         *
+         * Se manda siempre, también cuando el emparejado salió bien: la base
+         * compara contra la ficha del cliente y sólo guarda lo que no se podía
+         * deducir. Decidirlo acá obligaría a duplicar esa comparación.
+         */
+        clienteLeido: leida?.cliente ?? null,
       }),
     onSuccess: setHecho,
   })
@@ -267,6 +292,24 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
               {hecho.sinMatch === 1 ? 'Una línea quedó' : `${hecho.sinMatch} líneas quedaron`} sin producto
               del catálogo: {hecho.sinMatch === 1 ? 'está' : 'están'} en la cotización con el texto del
               cliente, para completar a mano.
+            </p>
+          ) : null}
+          {/* Lo que la próxima OC de este cliente va a resolver sola.
+              Se dicen los NÚMEROS y no «esto se aprende solo»: lo primero se
+              puede comprobar la próxima vez, lo segundo hay que creerlo. */}
+          {hecho.memoriaLineas > 0 || hecho.memoriaCliente > 0 ? (
+            <p>
+              Quedó guardado en la memoria de este cliente:{' '}
+              {hecho.memoriaLineas > 0
+                ? `${hecho.memoriaLineas === 1 ? 'una referencia' : `${hecho.memoriaLineas} referencias`} de producto`
+                : null}
+              {hecho.memoriaLineas > 0 && hecho.memoriaCliente > 0 ? ' y ' : null}
+              {hecho.memoriaCliente > 0
+                ? hecho.memoriaCliente === 1
+                  ? 'cómo se lo nombra en sus órdenes'
+                  : 'su CUIT y cómo se lo nombra en sus órdenes'
+                : null}
+              . La próxima orden de compra se va a emparejar sola.
             </p>
           ) : null}
         </Alert>
@@ -439,7 +482,20 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
               </Field>
             </>
           ) : (
-            <BuscadorCliente valor={clienteId} editable onElegir={(id) => id && void elegirCliente(id)} />
+            <>
+              <BuscadorCliente valor={clienteId} editable onElegir={(id) => id && void elegirCliente(id)} />
+              {porQue !== null && (
+                <p className={styles.leido}>
+                  {EXPLICACION_CLIENTE[porQue]}
+                  {/* Se comprueba que haya TEXTO y no sólo que no sea `null`:
+                      la IA puede devolver la cadena vacía, y entonces el
+                      cartel diría «La orden dice «».» */}
+                  {porQue === 'memoria' && (leida.cliente.nombre ?? '') !== ''
+                    ? `. La orden dice «${leida.cliente.nombre}».`
+                    : '.'}
+                </p>
+              )}
+            </>
           )}
         </section>
 

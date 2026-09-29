@@ -136,6 +136,10 @@ export interface ResultadoImportacion {
   conDiferencia: number
   estado: string
   vinculada: boolean
+  /** Cuántas referencias del cliente quedaron guardadas para la próxima OC. */
+  memoriaLineas: number
+  /** Cuántas claves —CUIT, nombre— quedaron apuntando a este cliente. */
+  memoriaCliente: number
 }
 
 /**
@@ -173,6 +177,14 @@ export async function importarOc(params: {
   lineas: readonly LineaEmparejada[]
   quoteId: string | null
   textoCrudo: string | null
+  /**
+   * El cliente tal como lo decía el PDF, para la memoria (Fase 30 · E7).
+   *
+   * No es lo mismo que `customerId`: ése es el cliente de verdad, corregido si
+   * hizo falta. Esto es el texto del papel, y la diferencia entre los dos es
+   * justamente lo que hay que recordar. Si son iguales, la base no guarda nada.
+   */
+  clienteLeido: { nombre: string | null; cuit: string | null } | null
 }): Promise<ResultadoImportacion> {
   const { data, error } = await supabase.rpc('importar_oc', {
     p_company: params.companyId,
@@ -196,6 +208,7 @@ export async function importarOc(params: {
     })) as unknown as never,
     p_quote_id: params.quoteId,
     p_raw_text: params.textoCrudo,
+    p_cliente_leido: params.clienteLeido,
   })
 
   if (error) {
@@ -216,6 +229,8 @@ export async function importarOc(params: {
     conDiferencia: numero(r['con_diferencia']),
     estado: cadena(r['estado']),
     vinculada: r['vinculada'] === true,
+    memoriaLineas: numero(r['memoria_lineas']),
+    memoriaCliente: numero(r['memoria_cliente']),
   }
 }
 

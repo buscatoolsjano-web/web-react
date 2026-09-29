@@ -22,7 +22,18 @@ export type MetodoLinea =
   | 'parecido'
   | 'sin_match'
 
-export type MetodoCliente = 'cuit' | 'nombre_exacto' | 'parecido'
+export type MetodoCliente =
+  /**
+   * Alguien ya dijo, en una OC anterior, que este texto es este cliente.
+   *
+   * Va PRIMERO —antes que el CUIT— porque es lo único que puede aportar algo
+   * que el documento no dice. El caso que lo motivó: la OC de Mabe trae el
+   * logo como imagen y, en texto, la razón social de otra sociedad del grupo.
+   */
+  | 'memoria'
+  | 'cuit'
+  | 'nombre_exacto'
+  | 'parecido'
 
 export interface CandidatoCliente {
   customerId: string
@@ -72,7 +83,7 @@ const DUROS_LINEA: readonly MetodoLinea[] = [
   'modelo',
   'referencia_vieja',
 ]
-const DUROS_CLIENTE: readonly MetodoCliente[] = ['cuit', 'nombre_exacto']
+const DUROS_CLIENTE: readonly MetodoCliente[] = ['memoria', 'cuit', 'nombre_exacto']
 
 /**
  * A qué cliente se importa, si se puede saber sin preguntar.
@@ -170,6 +181,7 @@ export const EXPLICACION_LINEA: Record<MetodoLinea, string> = {
 }
 
 export const EXPLICACION_CLIENTE: Record<MetodoCliente, string> = {
+  memoria: 'Ya lo habías corregido para este mismo documento',
   cuit: 'Coincide el CUIT',
   nombre_exacto: 'Coincide el nombre',
   parecido: 'Se parece al nombre: conviene confirmarlo',
