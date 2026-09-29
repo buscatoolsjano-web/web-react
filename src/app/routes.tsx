@@ -88,9 +88,6 @@ const CotizacionDetallePage = lazyConRecarga(() =>
     default: m.CotizacionDetallePage,
   })),
 )
-const ImportarOcPage = lazyConRecarga(() =>
-  import('@/modules/ventas/pages/ImportarOcPage').then((m) => ({ default: m.ImportarOcPage })),
-)
 const PedidosPage = lazyConRecarga(() =>
   import('@/modules/ventas/pages/PedidosPage').then((m) => ({ default: m.PedidosPage })),
 )
@@ -332,10 +329,6 @@ export const routes: RouteObject[] = [
       // `nueva` antes que `:id`: si no, React Router la tomaría como un id.
       { path: 'ventas/cotizaciones/nueva', element: privada(<CotizacionNuevaPage />) },
       { path: 'ventas/cotizaciones/:id', element: privada(<CotizacionDetallePage />) },
-      // Importar la OC del cliente (Fase 30). Cuelga de Ventas y no de
-      // Cotizaciones porque el resultado puede ser una cotización nueva o
-      // engancharse a una que ya existe.
-      { path: 'ventas/importar-oc', element: privada(<ImportarOcPage />) },
       { path: 'ventas/pedidos', element: privada(<PedidosPage />) },
       { path: 'ventas/pedidos/nuevo', element: privada(<PedidoNuevoPage />) },
       { path: 'ventas/pedidos/:id', element: privada(<PedidoDetallePage />) },

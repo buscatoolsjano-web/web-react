@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -22,6 +22,18 @@ import { DOC_TYPE_DE, motivoBloqueo, TITULO_BANNER_STEL_SERIE_DEFECTO } from '..
 import { aCsv, descargarCsv } from '../lib/csv'
 import { escribeVentas } from '../lib/permisos'
 import { exportarCsv } from '../services/acciones'
+
+/**
+ * El modal de importar OC, en carga diferida (Fase 30 · E6).
+ *
+ * Arrastra el visor de PDF y los servicios de IA, y la mayoría de las visitas
+ * al listado no lo abren nunca. Además, importarlo de forma estática hacía que
+ * el test de esta página levantara el cliente de Supabase al cargar el módulo,
+ * y eso ROMPE la suite aislada —la que corre sin `.env`—.
+ */
+const ModalImportarOc = lazy(() =>
+  import('../components/ModalImportarOc').then((m) => ({ default: m.ModalImportarOc })),
+)
 import { ETIQUETA_DE, type OrdenVentas, type TipoDocumento } from '../types'
 
 export interface ListadoPageProps {
@@ -50,6 +62,17 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaN
   // conjunto que `quotes_write`/`orders_write`). Lo que IMPIDE crear no es
   // esconder el botón: es RLS.
   const puedeCrear = rutaNuevo !== undefined && escribeVentas(activa?.rol)
+
+  /**
+   * Importar la OC del cliente (Fase 30 · E6).
+   *
+   * Va en la barra de los TRES listados —cotizaciones, pedidos y notas de
+   * entrega— y no en el menú: es una forma de empezar una venta, así que
+   * tiene que estar donde se empiezan las ventas. Como `ListadoPage` es la
+   * misma para los tres, el botón se escribe una vez.
+   */
+  const [importando, setImportando] = useState(false)
+  const puedeImportar = escribeVentas(activa?.rol)
   // Fase 12 E2.5: con STEL como autoridad no se emite. Lo impone la base.
   const autoridad = useAutoridadNumeracion()
   const docType = DOC_TYPE_DE[tipo]
@@ -119,6 +142,15 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaN
 
   const acciones = (
     <>
+      {puedeImportar ? (
+        <Button
+          variant="secondary"
+          icon={<Icon name="upload" size={16} />}
+          onClick={() => setImportando(true)}
+        >
+          Importar OC
+        </Button>
+      ) : null}
       <Button
         variant="secondary"
         icon={<Icon name="download" size={16} />}
@@ -156,6 +188,11 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaN
 
   return (
     <div className={doc.listado}>
+      {importando ? (
+        <Suspense fallback={null}>
+          <ModalImportarOc onCerrar={() => setImportando(false)} />
+        </Suspense>
+      ) : null}
       <PageHeader
         title={titulo}
         subtitle={isPending ? 'Cargando…' : contar(total, etiquetas)}

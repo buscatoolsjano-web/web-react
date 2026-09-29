@@ -33,7 +33,6 @@ const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
   { to: '/ventas/pedidos' },
   { to: '/ventas/entregas' },
   { to: '/ventas/facturas' },
-  { to: '/ventas/importar-oc' },
   { to: '/clientes' },
   { to: '/compras/proveedores', roles: AC },
   { to: '/compras/pedidos', roles: AC },

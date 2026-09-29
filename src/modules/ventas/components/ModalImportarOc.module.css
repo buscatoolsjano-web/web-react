@@ -1,0 +1,249 @@
+/* Importar la OC del cliente (Fase 30 · E6). */
+
+/* ── 1 · la zona de arrastre ────────────────────────────────────────────── */
+
+.zona {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  border: 2px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-soft);
+  text-align: center;
+}
+
+/* Que se note que el archivo va a caer acá. */
+.zonaEncima {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.zonaTitulo {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+.zonaAyuda {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+/* ── 2 · mirar el PDF ───────────────────────────────────────────────────── */
+
+.previa {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17rem;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Alto fijo: el visor del navegador no tiene alto propio y sin esto colapsa. */
+.visor {
+  width: 100%;
+  height: 60vh;
+  min-height: 20rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-soft);
+}
+
+.sinVisor {
+  margin: 0;
+  padding: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.costado {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+.nombreArchivo {
+  margin: 0;
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.peso {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.pregunta {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-base);
+}
+
+/* ── 3 · revisar ────────────────────────────────────────────────────────── */
+
+.revision {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.bloque {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  min-width: 0;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-soft);
+}
+
+.leido,
+.falta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-2) var(--space-3);
+  width: 100%;
+}
+
+.candidato {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.candidato:hover,
+.candidato:focus-visible {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.candidatoNombre {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--weight-semibold);
+}
+
+.lineas,
+.cotis {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Lo que pidió · → · lo nuestro · cantidad · el botón. El buscador, cuando se
+   abre, ocupa una fila entera debajo. */
+.linea {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.3fr) auto auto;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+/* La que hay que mirar. Además del color, el borde grueso: el color solo no
+   alcanza para quien no lo distingue. */
+.revisar {
+  border-left: 3px solid var(--color-warning, var(--color-primary));
+  background: var(--color-surface-alt);
+}
+
+.pidio,
+.nuestro {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pidio span,
+.nuestro span {
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nada {
+  font-style: normal;
+  color: var(--color-text-muted);
+}
+
+.flecha {
+  color: var(--color-text-muted);
+}
+
+.cantidad {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+}
+
+.buscador {
+  grid-column: 1 / -1;
+}
+
+.coti {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.coti:has(input:checked) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.cotiNumero {
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-base);
+}
+
+@media (max-width: 767px) {
+  .previa {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .visor {
+    height: 40vh;
+  }
+  .linea {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .flecha {
+    display: none;
+  }
+}
