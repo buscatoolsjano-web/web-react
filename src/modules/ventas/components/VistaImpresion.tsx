@@ -36,6 +36,18 @@ export interface EdicionEnHoja {
   onTextoCapitulo?: ((id: string, texto: string) => void) | undefined
   /** La fecha, editable desde la hoja. Sin esto se muestra como texto. */
   onFecha?: ((valor: string) => void) | undefined
+  /**
+   * El título del documento, editable desde la hoja (Fase 29 · E17).
+   *
+   * Es el renglón que va debajo del tipo —«COTIZACIÓN DE VENTA»— y es lo
+   * único que le dice al cliente de qué es la hoja que recibe. Hasta acá se
+   * cargaba sólo desde el panel, que es donde menos se lo ve: en la hoja, el
+   * hueco vacío se nota, y es obligatorio.
+   *
+   * Ojo con no confundirlo con `doc.titulo`, que es el TIPO de documento y no
+   * se edita: el del usuario es `doc.subtitulo`.
+   */
+  onTitulo?: ((valor: string) => void) | undefined
   /** La forma de pago, elegible desde la hoja (Fase 27 · E7). */
   onFormaPago?: ((valor: string) => void) | undefined
   /**
@@ -191,7 +203,18 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
 
       {/* ── B · el documento ────────────────────────────────────────── */}
       <h1 className={styles.titulo}>{doc.titulo}</h1>
-      <p className={styles.subtitulo}>{doc.subtitulo ?? ''}</p>
+      {edicion?.onTitulo ? (
+        <input
+          type="text"
+          className={styles.tituloEditable}
+          aria-label="Título del documento"
+          placeholder="Título del documento"
+          value={doc.subtitulo ?? ''}
+          onChange={(e) => edicion.onTitulo?.(e.target.value)}
+        />
+      ) : (
+        <p className={styles.subtitulo}>{doc.subtitulo ?? ''}</p>
+      )}
 
       {/* ── C · datos del documento y del cliente ───────────────────── */}
       <section className={styles.bloques}>

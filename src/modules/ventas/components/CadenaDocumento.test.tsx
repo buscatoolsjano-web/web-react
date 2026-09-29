@@ -37,6 +37,41 @@ describe('La cadena del documento', () => {
   })
 
   /**
+   * El rótulo de abajo es lo que evita que el emoji cargue solo con el
+   * significado para quien ve la pantalla. Va `aria-hidden` porque el nombre
+   * ya está en el texto del círculo: sin eso se diría «Pedido» dos veces.
+   */
+  it('cada círculo lleva su nombre escrito debajo', () => {
+    montar(<CadenaDocumento cadena={cadena()} actual="cotizacion" />)
+    const rotulos = circuito().querySelectorAll('[aria-hidden="true"]')
+    const textos = [...rotulos].map((r) => r.textContent)
+    expect(textos).toContain('Cotización')
+    expect(textos).toContain('Pedido')
+    expect(textos).toContain('Entrega')
+    expect(textos).toContain('Factura')
+  })
+
+  /**
+   * En la pantalla de alta no hay documento, así que la cadena va vacía. El
+   * circuito igual sirve: dice dónde estás parado y qué viene después. Lo que
+   * NO puede pasar es que el paso actual se dibuje apagado como los otros
+   * tres — sería el más tenue de los cuatro justo donde estás trabajando.
+   */
+  it('con la cadena vacía marca el paso actual igual', () => {
+    montar(
+      <CadenaDocumento
+        cadena={{ cotizacion: null, pedido: null, entrega: null, factura: null }}
+        actual="cotizacion"
+      />,
+    )
+    const actual = circuito().querySelector('[aria-current="step"]')
+    expect(actual).not.toBeNull()
+    expect(actual?.textContent).toContain('Cotización')
+    // Y no hay ningún enlace: no existe todavía ningún documento al que ir.
+    expect(within(circuito()).queryAllByRole('link')).toHaveLength(0)
+  })
+
+  /**
    * El paso donde estás parado no se enlaza: sería un enlace a la página que
    * ya estás mirando. Los otros sí, que es para lo que sirve la barra.
    */

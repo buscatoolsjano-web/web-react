@@ -55,6 +55,8 @@ import {
   sugerirDeLaAgenda,
   type DefaultsComerciales,
 } from '../lib/defaults'
+import { cadenaVacia } from '../lib/cadena'
+import { CadenaDocumento } from '../components/CadenaDocumento'
 import { escribeVentas } from '../lib/permisos'
 import { tasaDe } from '../lib/tratamientos'
 import { crearPedido } from '../services/pedidos'
@@ -431,6 +433,11 @@ export function PedidoNuevoPage() {
         volver={{ to: '/ventas/pedidos', label: 'Pedidos' }}
         titulo="Nuevo pedido"
         label="Crear pedido"
+        /* El circuito también al armar el pedido (Fase 29 · E17). Acá la cadena
+           va vacía: este alta es para un pedido que nace suelto. Uno que sale
+           de una cotización se crea desde ella, y esa pantalla sí trae la
+           cadena de verdad. */
+        pasos={<CadenaDocumento cadena={cadenaVacia()} actual="pedido" />}
         primary={
           <Button
             icon={<Icon name="check" size={16} />}
@@ -563,6 +570,8 @@ export function PedidoNuevoPage() {
                  izquierda: hay un documento, no dos que sincronizar. */
               edicion={{
                 onFecha: (valor) => setB((x) => cambiarCampo(x, 'fecha', valor)),
+                // El título también desde la hoja: es donde se ve el hueco.
+                onTitulo: (valor) => setB((x) => cambiarCampo(x, 'titulo', valor)),
                 onFormaPago: (valor) => setB((x) => cambiarCampo(x, 'formaPago', valor)),
                 selectorCliente: (
                   <BuscadorCliente

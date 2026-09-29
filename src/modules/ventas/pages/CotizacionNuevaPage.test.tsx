@@ -172,7 +172,7 @@ const completarMinimo = () => {
   // es el primero.
   fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
   fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
-  fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ Trabajo de prueba' } })
+  fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'ZZ Trabajo de prueba' } })
 }
 
 beforeEach(() => {
@@ -439,7 +439,7 @@ describe('Nueva cotización · defaults del cliente', () => {
       void cab
       return Promise.resolve({ id: 'q-nueva', numero: 'COTI02630', total: 121, lineas: 1 })
     })
-    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ Trabajo de prueba' } })
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'ZZ Trabajo de prueba' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
 
@@ -504,7 +504,7 @@ describe('Nueva cotización · defaults que llegan antes de que React confirme',
     // de cliente. Ése era el bug. El título es lo otro que falta desde la
     // Fase 27 · E1, y se completa para que lo único que pueda bloquear sea
     // justamente lo que este test mira.
-    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ Trabajo de prueba' } })
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'ZZ Trabajo de prueba' } })
     expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeEnabled()
   })
 
@@ -532,7 +532,7 @@ describe('Nueva cotización · defaults que llegan antes de que React confirme',
   // hoja— porque se pidió poder elegirlo desde el documento. El del panel
   // es el primero.
   fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
-    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ Trabajo de prueba' } })
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'ZZ Trabajo de prueba' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
 
@@ -586,7 +586,7 @@ describe('Nueva cotización · cambio de cliente rápido', () => {
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista')
     expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
 
-    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ Trabajo de prueba' } })
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'ZZ Trabajo de prueba' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
     expect(espias.crear.mock.calls[0]![1]).toMatchObject({ customer_id: 'cliente-2' })
@@ -790,7 +790,7 @@ describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
 
     fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
     fireEvent.change(screen.getByLabelText('Serie del documento'), { target: { value: 'COT-ERP' } })
-    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ Trabajo de prueba' } })
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'ZZ Trabajo de prueba' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
 

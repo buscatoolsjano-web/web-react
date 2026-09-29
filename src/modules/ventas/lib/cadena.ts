@@ -35,3 +35,18 @@ export interface CadenaDocumento {
 /** Los cuatro pasos, en orden. El orden importa: es el de la barra. */
 export const PASOS_CADENA = ['cotizacion', 'pedido', 'entrega', 'factura'] as const
 export type PasoCadena = (typeof PASOS_CADENA)[number]
+
+/**
+ * La cadena de un documento que todavía no existe (Fase 29 · E17).
+ *
+ * La pantalla de alta no tiene documento, así que no tiene cadena que
+ * consultar —no hay id que preguntar—. Pero el circuito igual sirve ahí: dice
+ * en qué parte del recorrido estás parado y qué viene después, que es
+ * justamente lo que no se sabe la primera vez que se usa el sistema.
+ *
+ * Es una función y no una constante para que nadie pueda escribirle encima a
+ * un objeto compartido entre pantallas.
+ */
+export function cadenaVacia(): CadenaDocumento {
+  return { cotizacion: null, pedido: null, entrega: null, factura: null }
+}

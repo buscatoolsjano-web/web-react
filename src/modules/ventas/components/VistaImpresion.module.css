@@ -126,6 +126,43 @@
   min-height: 4mm;
 }
 
+/* El mismo renglón, pero editable desde la hoja (Fase 29 · E17).
+   Hereda la tipografía del subtítulo para que la hoja se vea igual mientras se
+   escribe: lo único que lo distingue es el punteado, que es lo que dice «esto
+   se puede tocar». Ancho casi completo y centrado, como el texto que
+   reemplaza. */
+.tituloEditable {
+  display: block;
+  width: 80%;
+  margin: 1mm auto 0;
+  padding: 0 2px;
+  text-align: center;
+  font: inherit;
+  font-size: 8.5pt;
+  color: var(--tinta-suave);
+  background: none;
+  border: 1px dashed #cbd5e1;
+  border-radius: 3px;
+}
+
+.tituloEditable::placeholder {
+  color: #94a3b8;
+}
+
+.tituloEditable:hover,
+.tituloEditable:focus {
+  border-color: #f97316;
+  border-style: solid;
+  outline: none;
+}
+
+@media print {
+  .tituloEditable {
+    border: 0;
+    padding: 0;
+  }
+}
+
 /* ── C · datos del documento y del cliente ─────────────────────────────── */
 
 .bloques {

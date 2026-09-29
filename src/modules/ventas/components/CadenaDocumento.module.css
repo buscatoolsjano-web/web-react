@@ -16,33 +16,59 @@
   min-width: 0;
 }
 
+/* El diámetro vive acá porque lo necesitan tres reglas: el círculo, el «+» y
+   —sobre todo— la línea que une dos pasos, que se ancla a la MITAD del
+   círculo. Con el número suelto en cada una, cambiar el tamaño desalineaba la
+   línea y no se notaba hasta mirarlo de cerca. */
 .pasos {
+  --circulo: 36px;
+  --separacion: var(--space-3);
+
   display: flex;
-  align-items: center;
-  gap: 0;
+  align-items: flex-start;
+  gap: var(--separacion);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* Cada paso es una columna: el círculo arriba y el rótulo abajo. */
 .paso {
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 3px;
   min-width: 0;
 }
 
-/* La línea entre dos pasos. Con color cuando el paso ya existe: se ve de un
-   vistazo hasta dónde llegó la venta. Es corta a propósito —los círculos
-   tienen que leerse como una cadena, no como cuatro botones sueltos—. */
-.union {
-  width: var(--space-2);
+/* La línea que une con el paso anterior. Es un pseudo-elemento y no un nodo:
+   dentro de la columna corría el centro y los rótulos quedaban desalineados
+   respecto de su círculo. Acá se cuelga del borde izquierdo, a la altura del
+   centro del círculo, y cruza exactamente el hueco entre columnas. */
+.paso + .paso::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--circulo) / 2 - 1px);
+  right: 100%;
+  width: var(--separacion);
   height: 2px;
-  flex: none;
   background: var(--color-border);
 }
 
-.unionHecha {
+/* Con color cuando el paso ya existe: se ve de un vistazo hasta dónde llegó
+   la venta. Se pinta el tramo que ENTRA al paso cumplido, no el que sale. */
+.paso + .pasoHecho::before {
   background: var(--color-primary);
+}
+
+/* El nombre del paso. Es lo que evita que el emoji cargue solo con el
+   significado para quien ve la pantalla. */
+.rotulo {
+  font-size: var(--text-xs);
+  line-height: 1;
+  color: var(--color-text-soft);
+  white-space: nowrap;
 }
 
 .circulo {
@@ -51,8 +77,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 32px;
-  height: 32px;
+  width: var(--circulo);
+  height: var(--circulo);
   padding: 0;
   border: 1px solid var(--color-border);
   border-radius: 50%;
@@ -61,20 +87,35 @@
 }
 
 .emoji {
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1;
 }
 
+/* El paso que YA existe: pintado, no sólo con el borde de color. Que se vea
+   de lejos hasta dónde llegó la venta es el trabajo de esta barra; con el
+   borde solo había que fijarse. */
 .hecho {
   border-color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 
-/* Donde está parado el usuario. Además del color va el borde más grueso: el
-   color solo no alcanza para quien no lo distingue. */
+/* Donde está parado el usuario. Lleva el anillo además del borde grueso: si
+   estás parado en un paso que además existe, «cumplido» y «acá estás» serían
+   el mismo círculo pintado, y son dos cosas distintas.
+   El grosor y el anillo no son decorativos: el color solo no alcanza para
+   quien no lo distingue. */
 .actual {
   border-width: 2px;
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+/* El rótulo del paso cumplido acompaña al círculo: así el verde se lee aunque
+   el círculo quede tapado por el cursor. */
+.pasoHecho .rotulo {
+  color: var(--color-primary-text);
+  font-weight: var(--weight-semibold);
 }
 
 /* El paso que todavía no existe y que tampoco se puede crear desde acá. */

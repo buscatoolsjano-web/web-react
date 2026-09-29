@@ -70,7 +70,7 @@ export function CadenaDocumento({ cadena, actual, generar }: CadenaDocumentoProp
   return (
     <nav className={styles.cadena} aria-label="Circuito de la venta">
       <ol className={styles.pasos}>
-        {PASOS_CADENA.map((paso, i) => {
+        {PASOS_CADENA.map((paso) => {
           const eslabon = cadena[paso]
           const esActual = paso === actual
           const accion = generar?.[paso]
@@ -94,7 +94,11 @@ export function CadenaDocumento({ cadena, actual, generar }: CadenaDocumentoProp
             styles.circulo,
             eslabon && styles.hecho,
             esActual && styles.actual,
-            !eslabon && !accion && styles.pendiente,
+            // El paso actual nunca va apagado, aunque todavía no exista: en la
+            // pantalla de alta la cotización se está armando y es el único
+            // paso que importa. Sin esta condición, el círculo donde estás
+            // parado era el más tenue de los cuatro.
+            !eslabon && !accion && !esActual && styles.pendiente,
           )
           // El emoji es decorativo: lo que se anuncia es `descripcion`. Sin el
           // `aria-hidden` el lector lee el nombre Unicode del emoji, que en
@@ -109,9 +113,12 @@ export function CadenaDocumento({ cadena, actual, generar }: CadenaDocumentoProp
           )
 
           return (
-            <li key={paso} className={styles.paso}>
-              {i > 0 && <span className={cx(styles.union, eslabon && styles.unionHecha)} aria-hidden="true" />}
-
+            // La línea que une con el paso anterior es un `::before` del `li`
+            // y no un elemento: con el rótulo debajo, el `li` es una columna, y
+            // una línea metida adentro le corría el centro al círculo. Como
+            // pseudo-elemento se ancla al alto del círculo y los rótulos
+            // quedan centrados de verdad.
+            <li key={paso} className={cx(styles.paso, eslabon && styles.pasoHecho)}>
               {eslabon && !esActual && ruta ? (
                 <Link to={`${ruta}/${eslabon.id}`} className={clases} title={descripcion}>
                   {cara}
@@ -137,6 +144,13 @@ export function CadenaDocumento({ cadena, actual, generar }: CadenaDocumentoProp
                   {cara}
                 </span>
               )}
+
+              {/* El rótulo va `aria-hidden` porque el nombre del paso ya está
+                  en el texto del círculo («Pedido PDV-ERP00007»): sin esto un
+                  lector de pantalla diría «Pedido» dos veces seguidas. */}
+              <span className={styles.rotulo} aria-hidden="true">
+                {nombre}
+              </span>
             </li>
           )
         })}

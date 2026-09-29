@@ -76,6 +76,7 @@ import {
   quitarLinea,
   type Borrador,
   type CampoCabecera,
+  faltaParaGuardar,
 } from '../lib/borrador'
 import { presentarCumplimiento, presentarEstado } from '../lib/estados'
 import { escribeVentas } from '../lib/permisos'
@@ -214,6 +215,14 @@ function Detalle() {
   const permiso = editabilidadPedido(doc?.estado ?? '', escribe, tieneEntregas)
   const editando = borrador !== null
   const sucio = borrador !== null && original !== null && hayCambios(borrador, original)
+  /**
+   * Lo que falta para poder guardar (Fase 29 · E17).
+   *
+   * El título es obligatorio también al editar, no sólo al crear: es el
+   * renglón que sale impreso debajo del tipo de documento, y hasta ahora se
+   * podía abrir un documento existente, borrárselo y guardarlo.
+   */
+  const faltaGuardar = borrador ? faltaParaGuardar(borrador) : []
 
   const tarifas = useTarifas(editando)
   const vendedores = useVendedores(editando)
@@ -518,7 +527,7 @@ function Detalle() {
             <Button
               icon={<Icon name="check" size={16} />}
               loading={guardar.isPending}
-              disabled={!sucio || guardar.isPending}
+              disabled={!sucio || faltaGuardar.length > 0 || guardar.isPending}
               onClick={() => guardar.mutate()}
             >
               {guardar.isPending ? 'Guardando…' : 'Guardar cambios'}
@@ -534,11 +543,14 @@ function Detalle() {
             </Button>
           }
           note={
-            <p>
-              {sucio
-                ? 'Hay cambios sin guardar. No se escribe nada hasta que aprietes «Guardar cambios».'
-                : 'Sin cambios todavía. Lo que edites no se escribe hasta que lo guardes.'}
-            </p>
+            <>
+              {faltaGuardar.length > 0 ? <p>{faltaGuardar.join(' ')}</p> : null}
+              <p>
+                {sucio
+                  ? 'Hay cambios sin guardar. No se escribe nada hasta que aprietes «Guardar cambios».'
+                  : 'Sin cambios todavía. Lo que edites no se escribe hasta que lo guardes.'}
+              </p>
+            </>
           }
         />
       ) : (
@@ -707,6 +719,9 @@ function Detalle() {
                 edicion={
                   editando
                     ? {
+                        // El título también desde la hoja (Fase 29 · E17):
+                        // es obligatorio y es donde se ve el hueco.
+                        onTitulo: (valor) => setBorrador((b) => (b ? cambiarCampo(b, 'titulo', valor) : b)),
                         onTextoCapitulo: (id, texto) => cambiarLinea(id, 'name_snapshot', texto),
                         onCantidad: (id, valor) => cambiarLinea(id, 'quantity', valor),
                         onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),

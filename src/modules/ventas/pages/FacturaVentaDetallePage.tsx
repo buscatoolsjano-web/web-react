@@ -11,6 +11,9 @@ import type { Column } from '@/components/tables/types'
 import { Badge } from '@/components/ui/Badge'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { useFacturaVenta } from '../hooks/useFacturasVenta'
+import { useCadenaDocumento } from '../hooks/useDocumentos'
+import { cadenaVacia } from '../lib/cadena'
+import { CadenaDocumento } from '../components/CadenaDocumento'
 import { formatearCantidad, formatearFecha, formatearImporte } from '../lib/formato'
 import type { LineaFactura } from '../services/facturas'
 
@@ -69,6 +72,19 @@ export function FacturaVentaDetallePage() {
   const { id } = useParams<{ id: string }>()
   const factura = useFacturaVenta(id)
 
+  /**
+   * El circuito se pide por el PEDIDO, no por la factura (Fase 29 · E17).
+   *
+   * `cadena_de_documento` recibe cotización, pedido o remito: la factura no es
+   * una entrada válida. Pero toda factura sale de un pedido y lo guarda en
+   * `order_id`, y la cadena de ese pedido ya trae los cuatro pasos —incluida
+   * esta misma factura—. Así se muestra el circuito real sin tocar la RPC.
+   *
+   * El hook va antes de los `return` tempranos porque es un hook: no puede
+   * quedar detrás de un `if`.
+   */
+  const cadena = useCadenaDocumento('pedido', factura.data?.pedidoId ?? undefined)
+
   if (factura.isPending) {
     return (
       <div className={doc.listado}>
@@ -116,7 +132,25 @@ export function FacturaVentaDetallePage() {
         actions={<Badge tone={estado.tono}>{estado.texto}</Badge>}
       />
 
-      <ActionBar volver={{ to: '/ventas/facturas', label: 'Facturas' }} titulo={f.numero} />
+      <ActionBar
+        volver={{ to: '/ventas/facturas', label: 'Facturas' }}
+        titulo={f.numero}
+        /* Si la factura no tuviera pedido —hoy no pasa, pero la columna
+           admite null— la cadena no llega. Se arma una con esta factura
+           adentro: decir «Factura: todavía no existe» parado ENCIMA de la
+           factura sería mentira. */
+        pasos={
+          <CadenaDocumento
+            cadena={
+              cadena.data ?? {
+                ...cadenaVacia(),
+                factura: { id: f.id, numero: f.numero, estado: f.estado, cuantos: 1 },
+              }
+            }
+            actual="factura"
+          />
+        }
+      />
 
       {/* Mientras no esté la API, toda factura vive sólo en el ERP. Decirlo
           acá evita que alguien la mande creyendo que es el comprobante. */}

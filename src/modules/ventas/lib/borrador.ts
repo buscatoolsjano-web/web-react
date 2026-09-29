@@ -193,6 +193,20 @@ export function faltaParaCrear(b: Borrador): string[] {
   return falta
 }
 
+/**
+ * Lo que falta para poder guardar un documento que YA existe (Fase 29 · E17).
+ *
+ * Son las mismas condiciones que para crear, y por la misma razón: un
+ * documento guardado sin título imprime un renglón vacío igual que uno recién
+ * creado, y el cliente recibe una hoja que no dice de qué es.
+ *
+ * Hasta acá sólo se miraba al crear, así que se podía abrir una cotización
+ * existente, borrarle el título y guardarla.
+ */
+export function faltaParaGuardar(b: Borrador): string[] {
+  return faltaParaCrear(b)
+}
+
 // ── Cambios ────────────────────────────────────────────────────────────────
 
 export function cambiarCampo(b: Borrador, campo: CampoCabecera, valor: string): Borrador {

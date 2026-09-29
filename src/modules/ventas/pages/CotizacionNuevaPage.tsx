@@ -47,6 +47,8 @@ import {
   aplicarDefaults,
   type DefaultsComerciales,
 } from '../lib/defaults'
+import { cadenaVacia } from '../lib/cadena'
+import { CadenaDocumento } from '../components/CadenaDocumento'
 import { escribeVentas } from '../lib/permisos'
 import { tasaDe } from '../lib/tratamientos'
 import { crearCotizacion } from '../services/cotizaciones'
@@ -473,6 +475,12 @@ export function CotizacionNuevaPage() {
         volver={{ to: '/ventas/cotizaciones', label: 'Cotizaciones' }}
         titulo="Nueva cotización"
         label="Crear cotización"
+        /* El circuito también mientras se arma la cotización (Fase 29 · E17).
+           Acá no hay documento —ni id que consultar—, así que la cadena va
+           vacía y sólo se marca dónde estás parado. Sirve igual: es la primera
+           vez que alguien ve el recorrido completo, y es justo cuando no sabe
+           qué viene después. */
+        pasos={<CadenaDocumento cadena={cadenaVacia()} actual="cotizacion" />}
         primary={
           <Button
             icon={<Icon name="check" size={16} />}
@@ -613,6 +621,8 @@ export function CotizacionNuevaPage() {
               // las dos superficies escriben en él.
               edicion={{
                 onFecha: (valor) => setB((x) => cambiarCampo(x, 'fecha', valor)),
+                // El título también desde la hoja: es donde se ve el hueco.
+                onTitulo: (valor) => setB((x) => cambiarCampo(x, 'titulo', valor)),
                 onFormaPago: (valor) => setB((x) => cambiarCampo(x, 'formaPago', valor)),
                 selectorCliente: (
                   <BuscadorCliente
