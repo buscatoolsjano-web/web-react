@@ -47,9 +47,23 @@ describe('La referencia sugerida (app.js:13653)', () => {
     expect(s).toHaveLength(7)
   })
 
+  /**
+   * Ojo con la hora: este test FALLABA cada tanto.
+   *
+   * La segunda comparación llamaba dos veces a `skuSugerido('', 'ABC')` sin
+   * pasarle `ahora`, así que las dos usaban `Date.now()`. El sufijo sale de
+   * los últimos caracteres del milisegundo en base 36 y cambia en cada
+   * milisegundo: si las dos llamadas caían a los costados de uno, daban
+   * distinto y el test se caía sin motivo aparente.
+   *
+   * Con la hora fija el resultado es el mismo siempre, y lo que se comprueba
+   * queda dicho de frente: prefijo `PRO-` y cinco caracteres de sufijo.
+   */
   it('sin marca, el prefijo es PRO', () => {
     expect(skuSugerido(null, '', 0x5f5e100).startsWith('PRO-')).toBe(true)
-    expect(skuSugerido('', 'ABC')).toBe('PRO-' + skuSugerido('', 'ABC').slice(4))
+    const s = skuSugerido('', 'ABC', 0x5f5e100)
+    expect(s.startsWith('PRO-')).toBe(true)
+    expect(s).toHaveLength(9)
   })
 })
 

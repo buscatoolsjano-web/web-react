@@ -6622,6 +6622,34 @@ export type Database = {
         Args: { p_id: string; p_tipo: string }
         Returns: Json
       }
+      // Importar la OC del cliente (Fase 30). Agregadas A MANO, como el resto
+      // de la Fase 30: el generador produce una forma distinta que rompe la
+      // columna calculada `estado_servicio` y convierte los null en undefined.
+      cotizaciones_para_oc: {
+        Args: { p_company: string; p_customer: string; p_meses?: number; p_productos: string[] }
+        Returns: Json
+      }
+      emparejar_cliente_de_oc: {
+        Args: { p_company: string; p_cuit: string | null; p_nombre: string | null }
+        Returns: Json
+      }
+      emparejar_lineas_de_oc: {
+        Args: { p_company: string; p_customer: string; p_lineas: Json }
+        Returns: Json
+      }
+      importar_oc: {
+        Args: {
+          p_company: string
+          p_customer: string
+          p_fecha: string | null
+          p_lineas: Json
+          p_moneda: string | null
+          p_numero: string
+          p_quote_id?: string | null
+          p_raw_text?: string | null
+        }
+        Returns: Json
+      }
       convertir_cotizacion_en_pedido: {
         Args: { p_esperado?: string; p_quote: string }
         Returns: Json
