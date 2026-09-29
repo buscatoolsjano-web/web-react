@@ -58,10 +58,23 @@ export default defineConfig(({ mode }) => {
       // nada de Deno se pueden correr acá igual, y es donde conviene que
       // estén, porque son los que deciden si un PDF mal leído entra al sistema.
       include: ['src/**/*.{test,spec}.{ts,tsx}', 'supabase/functions/**/*.{test,spec}.ts'],
+      // Fase 30: la suite pasó de ~100 archivos a 175 y volvió a pasar lo
+      // mismo que en la Fase 14, un escalón más arriba. Tres tests de páginas
+      // pesadas —crear cotización, crear pedido, el diálogo de apariencia—
+      // empezaron a cortarse en 15 s bajo carga, y los tres pasan en 300 ms
+      // corridos solos. No es lógica: es contención de CPU.
+      //
+      // Sube a 25 s. Sigue cortando un cuelgue real —un test colgado tarda
+      // para siempre, no 20 s— y deja de fallar el deploy por una carrera de
+      // la máquina. La alternativa de fondo es `isolate: false`, que vitest
+      // sugiere y ahorraría ~30 s, pero comparte estado entre archivos y esta
+      // suite usa `vi.mock` en todos lados: el riesgo de contaminación
+      // cruzada es peor que el problema.
+      //
       // Fase 14: con ~100 archivos en paralelo, el PRIMER test de un archivo
       // jsdom pesado (shell, Inicio, diálogo de apariencia) llegó a 5 s por pura
-      // contención de CPU; solo tarda ~0,3 s. 15 s sigue cortando cuelgues reales.
-      testTimeout: 15_000,
+      // contención de CPU; solo tarda ~0,3 s. Ver arriba: ahora son 25.
+      testTimeout: 25_000,
     },
   }
 })

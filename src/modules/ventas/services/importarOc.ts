@@ -343,3 +343,45 @@ export async function estadoDeLectura(): Promise<EstadoDeLectura> {
     return { proveedor: 'desconocido', listo: false }
   }
 }
+
+/** Una línea de una cotización candidata, para poder mirarla sin salir. */
+export interface LineaDeCotizacion {
+  id: string
+  sku: string | null
+  nombre: string | null
+  cantidad: number
+  precio: number
+  productId: string | null
+}
+
+/**
+ * Las líneas de una cotización candidata (Fase 30 · E6).
+ *
+ * «2 de 5 coinciden» no alcanza para decidir si es LA cotización: pueden ser
+ * dos productos que ese cliente compra siempre y aparecen en todas. Hay que
+ * poder abrirla y mirarla.
+ *
+ * Se piden pocas columnas y de la tabla, sin RPC: es una lectura simple que la
+ * política de `sales_quote_lines` ya acota a la empresa de quien mira.
+ */
+export async function lineasDeCotizacion(quoteId: string): Promise<LineaDeCotizacion[]> {
+  const { data, error } = await supabase
+    .from('sales_quote_lines')
+    .select('id, sku_snapshot, name_snapshot, quantity, unit_price, product_id, line_no, line_type')
+    .eq('quote_id', quoteId)
+    .order('line_no')
+
+  if (error) throw new Error(`No se pudieron leer las líneas: ${error.message}`)
+
+  return (data ?? [])
+    // Los capítulos son texto en el medio del documento, no productos.
+    .filter((l) => l.line_type !== 'chapter')
+    .map((l) => ({
+      id: String(l.id),
+      sku: l.sku_snapshot,
+      nombre: l.name_snapshot,
+      cantidad: numero(l.quantity),
+      precio: numero(l.unit_price),
+      productId: l.product_id,
+    }))
+}

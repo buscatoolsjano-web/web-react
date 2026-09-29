@@ -34,6 +34,6 @@ export default defineConfig({
     // corre acá (Fase 30 · E2). No usa variables de Vite, así que pasa igual.
     include: ['src/**/*.{test,spec}.{ts,tsx}', 'supabase/functions/**/*.{test,spec}.ts'],
     // Mismo margen que la suite normal (ver vite.config.ts).
-    testTimeout: 15_000,
+    testTimeout: 25_000,
   },
 })

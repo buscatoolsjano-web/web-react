@@ -1,0 +1,62 @@
+/* Mirar una cotización candidata sin salir del modal (Fase 30 · E6). */
+
+.lineas {
+  display: grid;
+  gap: 2px;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  /* Una cotización de treinta líneas no puede empujar el pie del diálogo
+     fuera de la vista. */
+  max-height: 14rem;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.linea {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(5rem, auto) minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: baseline;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+}
+
+/* La que el cliente está pidiendo en ESTA orden. Además del color va el
+   tilde: el color solo no alcanza para quien no lo distingue, y acá lo que se
+   está haciendo es justamente comparar. */
+.coincide {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+  font-weight: var(--weight-semibold);
+}
+
+.marca {
+  display: grid;
+  place-items: center;
+  color: var(--color-primary);
+}
+
+.sku {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cantidad {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nota {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}

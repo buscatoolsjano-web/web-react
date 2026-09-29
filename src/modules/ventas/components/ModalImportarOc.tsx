@@ -11,6 +11,7 @@ import { Input, Select } from '@/components/forms/controls'
 import { Icon } from '@/components/icons/Icon'
 import { BuscadorCliente } from './BuscadorCliente'
 import { BuscadorProducto } from './BuscadorProducto'
+import { VistaCotizacionCandidata } from './VistaCotizacionCandidata'
 import {
   EXPLICACION_CLIENTE,
   EXPLICACION_LINEA,
@@ -72,6 +73,9 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
   const [editando, setEditando] = useState<number | null>(null)
   const [cotis, setCotis] = useState<CandidataCotizacion[]>([])
   const [quoteId, setQuoteId] = useState<string | null>(null)
+  /* Qué cotización candidata está abierta para mirarla. Una a la vez: dos
+     listas de líneas al mismo tiempo se comparan peor que de a una. */
+  const [viendo, setViendo] = useState<string | null>(null)
   const [numero, setNumero] = useState('')
   const [fecha, setFecha] = useState('')
   const [moneda, setMoneda] = useState('ARS')
@@ -167,7 +171,7 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
     setLineas((ls) =>
       ls.map((l) =>
         l.n === n
-          ? { ...l, productId: p.id, sku: p.sku, nombre: p.nombre, metodo: 'alias', confianza: 1 }
+          ? { ...l, productId: p.id, sku: p.sku, nombre: p.nombre, metodo: 'manual', confianza: 1 }
           : l,
       ),
     )
@@ -535,7 +539,30 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
                     <span>
                       {c.lineasEnComun} de {c.lineasOc} productos en común
                     </span>
+                    {/* «2 de 5 coinciden» no alcanza para decidir: pueden ser
+                        dos productos que ese cliente compra siempre. Lo que
+                        resuelve la duda es ver qué tiene adentro. */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-expanded={viendo === c.quoteId}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setViendo(viendo === c.quoteId ? null : c.quoteId)
+                      }}
+                    >
+                      {viendo === c.quoteId ? 'Ocultar' : 'Ver cotización'}
+                    </Button>
                   </label>
+                  {viendo === c.quoteId ? (
+                    <VistaCotizacionCandidata
+                      quoteId={c.quoteId}
+                      moneda={c.moneda ?? moneda}
+                      productosDeLaOc={lineas
+                        .map((l) => l.productId)
+                        .filter((p): p is string => p !== null)}
+                    />
+                  ) : null}
                 </li>
               ))}
               <li>

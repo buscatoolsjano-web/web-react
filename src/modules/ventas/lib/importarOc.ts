@@ -12,6 +12,8 @@
 
 /** Cómo se encontró. Viene de las RPC; el orden es de más a menos confiable. */
 export type MetodoLinea =
+  /** Lo eligio una persona en la pantalla. La fuente mas confiable que hay. */
+  | 'manual'
   | 'alias'
   | 'sku'
   | 'alias_sin_cantidad'
@@ -63,6 +65,7 @@ export interface CandidataCotizacion {
  * 21.775 productos siempre hay algo que se parece.
  */
 const DUROS_LINEA: readonly MetodoLinea[] = [
+  'manual',
   'alias',
   'sku',
   'alias_sin_cantidad',
@@ -156,6 +159,7 @@ export function faltaParaImportar(estado: {
  * al nombre» se revisan distinto, aunque la confianza sea parecida.
  */
 export const EXPLICACION_LINEA: Record<MetodoLinea, string> = {
+  manual: 'Lo elegiste vos',
   alias: 'Ya se había emparejado antes para este cliente',
   sku: 'El código es nuestra referencia',
   alias_sin_cantidad: 'Se había emparejado antes, con otra cantidad',
