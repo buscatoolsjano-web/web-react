@@ -10,13 +10,17 @@ import { EncabezadoOrdenable as Encabezado } from '@/modules/catalogo/components
 import { PanelFacetas } from '@/modules/catalogo/components/PanelFacetas'
 import { columnasDinamicas, valorDinamico } from '@/modules/catalogo/lib/columnasDinamicas'
 import {
-  FILTROS_INICIALES,
   type FiltrosCatalogo,
   type OrdenCatalogo,
   type ProductoListado,
 } from '@/modules/catalogo/types'
 import { formatearImporte } from '../lib/formato'
-import { POR_PAGINA, useCatalogoParaDocumento, useFacetasParaDocumento } from '../hooks/useCatalogoParaDocumento'
+import {
+  FILTROS_MODAL,
+  POR_PAGINA,
+  useCatalogoParaDocumento,
+  useFacetasParaDocumento,
+} from '../hooks/useCatalogoParaDocumento'
 import styles from './ModalCatalogoProductos.module.css'
 
 export interface ModalCatalogoProductosProps {
@@ -30,7 +34,9 @@ export interface ModalCatalogoProductosProps {
   onAgregar: (p: ProductoListado, cantidad: number) => void
 }
 
-const INICIAL: FiltrosCatalogo = { ...FILTROS_INICIALES, porPagina: POR_PAGINA }
+/* Los filtros de arranque viven en el hook, junto a la precarga: si cada uno
+   armara los suyos, un campo distinto bastaría para que la clave no coincidiera
+   y la precarga dejara de servir sin que nadie lo note. */
 
 /**
  * Elegir productos del catálogo sin salir del documento (Fase 28 · E1).
@@ -64,7 +70,7 @@ export function ModalCatalogoProductos({
   onCerrar,
   onAgregar,
 }: ModalCatalogoProductosProps) {
-  const [filtros, setFiltros] = useState<FiltrosCatalogo>(INICIAL)
+  const [filtros, setFiltros] = useState<FiltrosCatalogo>(FILTROS_MODAL)
   const [texto, setTexto] = useState('')
   const [cantidades, setCantidades] = useState<Record<string, string>>({})
   const [agregados, setAgregados] = useState<string[]>([])

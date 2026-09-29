@@ -18,6 +18,7 @@ import { BuscadorCliente } from '../components/BuscadorCliente'
 import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
+import { usePrecargarCatalogoDeDocumento } from '../hooks/useCatalogoParaDocumento'
 import { ModalContactos } from '../components/ModalContactos'
 import { TotalesDocumento } from '../components/TotalesDocumento'
 import { ControlesDeHoja } from '../components/ControlesDeHoja'
@@ -231,6 +232,10 @@ export function PedidoNuevoPage() {
       void navegar(`/ventas/pedidos/${r.id}`, { replace: true })
     },
   })
+
+  // El catálogo, pedido antes de que lo abran (Fase 29 · E18).
+  // En el alta se agregan líneas sí o sí: se precarga siempre.
+  usePrecargarCatalogoDeDocumento(b.cabecera.listaPrecioId || null, true)
 
   const sucio = hayCambios(b, inicial) && !crear.isSuccess && !crear.isPending
   const salida = useSalidaConCambios(sucio)

@@ -36,6 +36,7 @@ import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelStock } from '../components/PanelStock'
 import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
 import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
+import { usePrecargarCatalogoDeDocumento } from '../hooks/useCatalogoParaDocumento'
 import { ModalContactos } from '../components/ModalContactos'
 import { TablaLineas } from '../components/TablaLineas'
 import { TotalesDocumento } from '../components/TotalesDocumento'
@@ -222,6 +223,10 @@ function Detalle() {
    * renglón que sale impreso debajo del tipo de documento, y hasta ahora se
    * podía abrir un documento existente, borrárselo y guardarlo.
    */
+  // El catálogo, pedido antes de que lo abran (Fase 29 · E18).
+  // Sólo en edición: mirando un documento cerrado no se agrega nada.
+  usePrecargarCatalogoDeDocumento(borrador?.cabecera.listaPrecioId ?? null, editando)
+
   const faltaGuardar = borrador ? faltaParaGuardar(borrador) : []
 
   const tarifas = useTarifas(editando)

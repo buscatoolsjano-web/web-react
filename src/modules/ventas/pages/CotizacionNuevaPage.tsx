@@ -17,6 +17,7 @@ import { BuscadorCliente } from '../components/BuscadorCliente'
 import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
+import { usePrecargarCatalogoDeDocumento } from '../hooks/useCatalogoParaDocumento'
 import { ModalContactos } from '../components/ModalContactos'
 import { TotalesDocumento } from '../components/TotalesDocumento'
 import { ControlesDeHoja } from '../components/ControlesDeHoja'
@@ -284,6 +285,10 @@ export function CotizacionNuevaPage() {
 
   // Con el alta ya enviada no se pregunta nada: el borrador se convirtió en
   // documento y la navegación es parte del guardado.
+  // El catálogo, pedido antes de que lo abran (Fase 29 · E18).
+  // En el alta se agregan líneas sí o sí: se precarga siempre.
+  usePrecargarCatalogoDeDocumento(b.cabecera.listaPrecioId || null, true)
+
   const sucio = hayCambios(b, inicial) && !crear.isSuccess && !crear.isPending
   const salida = useSalidaConCambios(sucio)
 

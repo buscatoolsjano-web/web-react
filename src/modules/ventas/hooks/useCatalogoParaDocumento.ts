@@ -1,11 +1,34 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { consultarProductos } from '@/modules/catalogo/services/productos'
 import { obtenerFacetas } from '@/modules/catalogo/services/facetas'
-import type { FiltrosCatalogo } from '@/modules/catalogo/types'
+import { FILTROS_INICIALES, type FiltrosCatalogo } from '@/modules/catalogo/types'
 import { construirPlanDeConsulta } from '@/modules/catalogo/lib/planDeConsulta'
 
 export const POR_PAGINA = 25
+
+/**
+ * Con qué filtros abre el modal del catálogo.
+ *
+ * Vive acá y no en el modal porque lo necesitan DOS: el modal, para consultar,
+ * y la precarga, para dejar esa misma consulta ya resuelta. Si cada uno armara
+ * los suyos, bastaría un campo distinto para que la clave no coincidiera: la
+ * precarga seguiría corriendo, el modal seguiría esperando, y nadie se
+ * enteraría de que dejó de servir.
+ */
+export const FILTROS_MODAL: FiltrosCatalogo = { ...FILTROS_INICIALES, porPagina: POR_PAGINA }
+
+/** Las dos claves, en un solo lugar, por la misma razón. */
+const clavePagina = (
+  companyId: string | null,
+  filtros: FiltrosCatalogo,
+  listaPrecioId: string | null,
+  esInterno: boolean,
+) => ['ventas', companyId, 'catalogo-documento', filtros, listaPrecioId, esInterno] as const
+
+const claveFacetas = (companyId: string | null, filtros: FiltrosCatalogo) =>
+  ['ventas', companyId, 'facetas-documento', filtros] as const
 
 /**
  * El catálogo, para elegir productos sin salir del documento (Fase 28 · E1).
@@ -32,7 +55,7 @@ export function useCatalogoParaDocumento(filtros: FiltrosCatalogo, listaPrecioId
   const esInterno = activa?.esInterno ?? false
 
   return useQuery({
-    queryKey: ['ventas', companyId, 'catalogo-documento', filtros, listaPrecioId, esInterno],
+    queryKey: clavePagina(companyId, filtros, listaPrecioId, esInterno),
     queryFn: () => consultarProductos(construirPlanDeConsulta(filtros, companyId!), listaPrecioId, esInterno),
     enabled: companyId !== null,
     // Mientras llega la página siguiente se sigue viendo la anterior: sin
@@ -54,10 +77,54 @@ export function useFacetasParaDocumento(filtros: FiltrosCatalogo) {
   const companyId = activa?.companyId ?? null
 
   return useQuery({
-    queryKey: ['ventas', companyId, 'facetas-documento', filtros],
+    queryKey: claveFacetas(companyId, filtros),
     queryFn: () => obtenerFacetas(construirPlanDeConsulta(filtros, companyId!)),
     enabled: companyId !== null,
     placeholderData: keepPreviousData,
     staleTime: 60_000,
   })
+}
+
+/**
+ * Dejar el catálogo listo ANTES de que lo pidan (Fase 29 · E18).
+ *
+ * El modal tardaba en abrir y mostraba «buscando». Medido contra São Paulo, la
+ * espera no era una sola cosa:
+ *
+ *  · `catalog_facets` sin filtros tarda **76 ms de servidor**: recorre los
+ *    21.775 productos de la empresa y los agrupa por marca, categoría, tipo,
+ *    atributos y rangos. Con el modal recién abierto ese resultado es siempre
+ *    el mismo.
+ *  · `search_products` son otros 24 ms, y **su resultado necesita un segundo
+ *    viaje** para traer las filas: la RPC devuelve el orden y los ids, y
+ *    recién ahí se piden los productos. Son dos idas y vueltas encadenadas.
+ *
+ * Nada de eso se arregla pidiéndolo más rápido: se arregla pidiéndolo ANTES.
+ * Cuando alguien está editando un documento, que va a abrir el catálogo es
+ * casi seguro —es la única forma de agregar líneas—, así que se pide mientras
+ * mira la pantalla y al hacer clic ya está en caché.
+ *
+ * `prefetchQuery` no reemplaza nada si la clave ya está fresca, así que
+ * volver a entrar no dispara consultas de más.
+ */
+export function usePrecargarCatalogoDeDocumento(listaPrecioId: string | null, activo: boolean) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const esInterno = activa?.esInterno ?? false
+  const qc = useQueryClient()
+
+  useEffect(() => {
+    if (!activo || companyId === null) return
+    const plan = construirPlanDeConsulta(FILTROS_MODAL, companyId)
+    void qc.prefetchQuery({
+      queryKey: clavePagina(companyId, FILTROS_MODAL, listaPrecioId, esInterno),
+      queryFn: () => consultarProductos(plan, listaPrecioId, esInterno),
+      staleTime: 30_000,
+    })
+    void qc.prefetchQuery({
+      queryKey: claveFacetas(companyId, FILTROS_MODAL),
+      queryFn: () => obtenerFacetas(plan),
+      staleTime: 60_000,
+    })
+  }, [activo, companyId, listaPrecioId, esInterno, qc])
 }
