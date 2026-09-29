@@ -1756,3 +1756,55 @@ otra empresa.
 proveedor—, la RPC que persiste la OC y busca cotizaciones que coincidan, y la
 pantalla. Sigue bloqueado por `OPENAI_API_KEY`, que es una de las 4 secrets del
 cutover (§25).
+
+### E5 · Guardar la OC y engancharla a una cotización (2026-09-29)
+
+`cotizaciones_para_oc(empresa, cliente, productos[], meses)` e
+`importar_oc(...)`. Las dos probadas contra datos reales; la segunda, con una
+transacción que se revierte, así que no quedó ni una cotización de prueba ni un
+número de serie consumido.
+
+**Buscar la cotización.** La señal que sirve es cuántos de los productos de la
+OC aparecen en la cotización. El total no alcanza —el cliente pide una parte de
+lo cotizado más seguido que todo— y el número de cotización rara vez viene en
+la OC. A igual cobertura, primero la que ya se mandó: a un borrador el cliente
+no pudo responderle.
+
+Probado tomando una cotización real de 32 líneas y usando sus productos como si
+fueran los de una OC: la encuentra primera con cobertura 1,00, entre 6
+candidatas del mismo cliente. Pidiendo sólo 2 de sus productos, también. Con
+productos que ese cliente nunca cotizó, **0 candidatas** — no ofrece la menos
+mala.
+
+**Guardar.** Todo en una transacción: si algo falla no queda ni la OC, ni las
+líneas, ni media cotización con el número ya consumido. La cotización no se
+arma a mano: se llama a `crear_cotizacion`, que ya valida cliente, tarifa y
+moneda, reserva el número, calcula totales y audita.
+
+Las líneas **sin producto entran igual**, con el texto del cliente y sin
+`product_id`. Perderlas sería peor que dejarlas para completar a mano: el que
+revisa ve exactamente qué falta.
+
+Rebota la **OC duplicada** comparando sin distinguir mayúsculas ni espacios.
+Importar dos veces el mismo PDF es el error más fácil de cometer, y deja dos
+cotizaciones por el mismo pedido.
+
+### Tres correcciones que salieron de la prueba
+
+**`match_status` no era lo que yo creía.** Había inventado `'partial'`; el
+CHECK dice `unmatched | match | difference | missing | extra`. El vocabulario
+del esquema es mejor que el mío: no describe *cómo encontré el producto* sino
+*cómo queda la línea contra la cotización*, que es la pregunta que se hace el
+que revisa —«¿me está pidiendo algo distinto de lo que le cotizamos?»—.
+
+El cómo se emparejó es otro eje y no tenía dónde vivir. Va en `match_method`,
+columna nueva: la confianza sola no alcanza, porque 0,95 puede ser un alias o
+un parecido muy bueno y no se revisan igual.
+
+**`v_ql := null` no limpia un record.** Leerle un campo a un record sin asignar
+no da null: da error. Con variables sueltas, «esta línea no está en la
+cotización» se expresa sin ambigüedad.
+
+**El título tartamudeaba**: «OC OC-PRUEBA-9001», porque casi todo número de
+orden ya empieza con OC. `app.titulo_de_oc` lo antepone sólo cuando hace falta.
+Es un renglón que se imprime y lo ve el cliente.
