@@ -13,6 +13,12 @@ const estado = vi.hoisted(() => ({
 }))
 const llamadas = vi.hoisted(() => ({ actualizar: vi.fn(), limpiar: vi.fn(), refetch: vi.fn() }))
 
+// El editor de la receta del kit (Fase 30) importa `services/productos` para
+// buscar componentes, y ese módulo levanta el cliente de Supabase al cargarse.
+// La página llega hasta ahí por ModalNuevoProducto, así que sin este mock el
+// test se cae en la suite AISLADA —la que corre sin .env, y la que corre el
+// deploy— aunque en local pase. Mismo mock que ModalNuevoProducto.test.
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({ activa: { companyId: 'c1', companyName: 'ZZ', rol: 'admin', esInterno: true, customerId: null } }),
 }))
