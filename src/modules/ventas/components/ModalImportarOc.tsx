@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
@@ -549,60 +549,92 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
                 ? 'Elegí el cliente y se emparejan solas con tu catálogo. Igual podés machear a mano desde ahora.'
                 : 'Lo que machees queda guardado en la memoria de este cliente: la próxima orden que diga lo mismo se resuelve sola.'}
             </p>
-            <ul className={styles.lineas}>
-              {lineas.map((l) => (
-                <li key={l.n} className={necesitaRevision(l) ? `${styles.linea} ${styles.revisar}` : styles.linea}>
-                  {/* Las dos referencias enfrentadas, con rótulo, y SIN cortar
-                      el texto: lo que se está haciendo acá es comparar, y un
-                      nombre con puntos suspensivos no se puede comparar. */}
-                  <div className={styles.lado}>
-                    <span className={styles.rotuloLado}>Pide el cliente</span>
-                    <strong className={styles.ref}>{l.codigo ?? '—'}</strong>
-                    <span className={styles.texto}>{l.descripcion ?? ''}</span>
-                  </div>
-
-                  <span className={styles.flecha} aria-hidden="true">→</span>
-
-                  <div className={styles.lado}>
-                    <span className={styles.rotuloLado}>Nuestro producto</span>
-                    {l.productId === null ? (
-                      <em className={styles.nada}>Sin machear</em>
-                    ) : (
-                      <>
-                        <strong className={styles.ref}>{l.sku}</strong>
-                        <span className={styles.texto}>{l.nombre}</span>
-                      </>
-                    )}
-                  </div>
-
-                  <div className={styles.pie}>
-                    <Badge tone={l.productId === null ? 'danger' : l.metodo === 'parecido' ? 'warning' : 'success'}>
-                      {EXPLICACION_LINEA[l.metodo]}
-                    </Badge>
-                    <span className={styles.cantidad}>
-                      {l.cantidad} × {l.precio === null ? '—' : formatearImporte(l.precio, moneda)}
-                    </span>
-                    <Button
-                      variant={l.productId === null ? 'secondary' : 'ghost'}
-                      size="sm"
-                      onClick={() => setEditando(editando === l.n ? null : l.n)}
-                    >
-                      {editando === l.n ? 'Cerrar' : l.productId === null ? 'Machear' : 'Cambiar'}
-                    </Button>
-                  </div>
-
-                  {editando === l.n ? (
-                    <div className={styles.buscador}>
-                      <BuscadorProducto
-                        texto={l.descripcion ?? l.codigo ?? ''}
-                        onElegir={(p) => linkear(l.n, p)}
-                        onCancelar={() => setEditando(null)}
-                      />
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
+            {/* Una fila por producto: su referencia, la nuestra y el estado.
+                Es una tabla de verdad y no una lista de tarjetas porque lo que
+                se hace acá es leer una columna de arriba abajo comparándola
+                contra el PDF de al lado, y para eso las referencias tienen que
+                estar alineadas entre sí. */}
+            <table className={styles.tabla}>
+              <thead>
+                <tr>
+                  <th scope="col">Pide el cliente</th>
+                  <th scope="col">Nuestro producto</th>
+                  <th scope="col" className={styles.colCant}>
+                    Cant. × precio
+                  </th>
+                  <th scope="col">
+                    <span className="sr-only">Estado</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {lineas.map((l) => {
+                  const abierto = editando === l.n
+                  /**
+                   * Tres estados y una sola acción.
+                   *
+                   * El tilde y la cruz son los dos que se piden; el triángulo
+                   * es el parecido, y existe porque mostrarlo como tilde sería
+                   * aceptar una adivinanza en silencio. Los trigramas devuelven
+                   * el más parecido que encontraron, no el correcto: con 21.775
+                   * productos siempre hay algo que se parece.
+                   *
+                   * Tocar cualquiera de los tres abre el buscador, ya cargado
+                   * con el texto del cliente.
+                   */
+                  const estado =
+                    l.productId === null ? 'sin' : l.metodo === 'parecido' ? 'dudoso' : 'ok'
+                  return (
+                    <Fragment key={l.n}>
+                      <tr className={necesitaRevision(l) ? styles.revisar : undefined}>
+                        {/* El texto largo va en `title`: la referencia es lo
+                            que se compara, y el nombre completo está en el PDF
+                            de al lado. Cuando no hay código, la descripción ES
+                            la referencia y se muestra ella. */}
+                        <td className={styles.ref} title={l.descripcion ?? undefined}>
+                          {l.codigo ?? l.descripcion ?? '—'}
+                        </td>
+                        <td className={styles.ref} title={l.nombre ?? undefined}>
+                          {l.productId === null ? <em className={styles.nada}>Sin machear</em> : l.sku}
+                        </td>
+                        <td className={styles.colCant}>
+                          {l.cantidad} × {l.precio === null ? '—' : formatearImporte(l.precio, moneda)}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className={`${styles.marca} ${styles[estado]}`}
+                            aria-expanded={abierto}
+                            /* El motivo viaja en el rótulo y en el `title`: el
+                               icono solo no distingue «es nuestra referencia»
+                               de «se parece al nombre», y no se revisan igual. */
+                            title={`${EXPLICACION_LINEA[l.metodo]}. Tocá para elegir otro.`}
+                            aria-label={`${EXPLICACION_LINEA[l.metodo]}. Elegir el producto para «${l.codigo ?? l.descripcion ?? `línea ${l.n}`}».`}
+                            onClick={() => setEditando(abierto ? null : l.n)}
+                          >
+                            <Icon
+                              name={estado === 'ok' ? 'check' : estado === 'dudoso' ? 'alert-triangle' : 'x'}
+                              size={16}
+                            />
+                          </button>
+                        </td>
+                      </tr>
+                      {abierto ? (
+                        <tr>
+                          <td colSpan={4} className={styles.buscador}>
+                            <BuscadorProducto
+                              texto={l.descripcion ?? l.codigo ?? ''}
+                              onElegir={(p) => linkear(l.n, p)}
+                              onCancelar={() => setEditando(null)}
+                            />
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
           </section>
         ) : null}
 

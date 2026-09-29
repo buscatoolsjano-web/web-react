@@ -150,7 +150,6 @@
   font-weight: var(--weight-semibold);
 }
 
-.lineas,
 .cotis {
   display: grid;
   gap: var(--space-2);
@@ -161,95 +160,113 @@
   min-width: 0;
 }
 
-/* Las dos referencias enfrentadas arriba, y abajo el estado con la acción.
-   El buscador, cuando se abre, ocupa una fila entera al final. */
-.linea {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  gap: var(--space-2) var(--space-3);
-  align-items: start;
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  min-width: 0;
+/* ── la tabla de productos ───────────────────────────────────────────────
+
+   Una fila por producto. Antes cada línea era una tarjeta de tres bloques y
+   ocupaba media pantalla: con 19 líneas había que scrollear mucho para hacer
+   una tarea que es leer una columna de arriba abajo. */
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--text-sm);
 }
 
-.lado {
-  display: grid;
-  gap: 2px;
-  align-content: start;
-  min-width: 0;
-}
-
-/* Qué lado es cuál. Sin esto hay que deducirlo por la flecha, y con el PDF al
-   lado uno está mirando otra cosa. */
-.rotuloLado {
+.tabla th {
+  padding: 0 var(--space-2) var(--space-1);
+  text-align: left;
   font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
 }
 
+.tabla td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+/* La columna del estado es del ancho del botón y nada más. */
+.tabla th:last-child,
+.tabla td:last-child {
+  width: 2.5rem;
+  padding-left: 0;
+}
+
+/* Las referencias en monoespaciada y en UNA línea: comparar dos códigos
+   carácter por carácter es imposible con la tipografía de proporción
+   variable. El nombre completo va en el `title`, y el PDF está al lado. */
 .ref {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: var(--text-sm);
-}
-
-/* El nombre se ENVUELVE, no se corta. Un «RIPLEY-TOOLS WS50 PELAD…» no se
-   puede comparar contra nada, que es justamente lo único que hay que hacer
-   con estas dos columnas. Tres renglones alcanzan para los nombres reales y
-   evitan que una descripción larga empuje el resto fuera de la vista. */
-.texto {
-  font-size: var(--text-sm);
-  color: var(--color-text-soft);
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* El estado, la cantidad y el botón, en una fila propia debajo de las dos
-   columnas: así la insignia no compite por ancho con los nombres, que es lo
-   que la dejaba cortada en «Se parece al nombre: convie…». */
-.pie {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--color-border);
-}
-
-.pie .cantidad {
-  margin-left: auto;
+.colCant {
+  width: 8.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--color-text-soft);
 }
 
 /* La que hay que mirar. Además del color, el borde grueso: el color solo no
    alcanza para quien no lo distingue. */
-.revisar {
-  border-left: 3px solid var(--color-warning, var(--color-primary));
+.revisar > td {
   background: var(--color-surface-alt);
+}
+
+.revisar > td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-warning, var(--color-primary));
 }
 
 .nada {
   font-style: normal;
+  font-family: var(--font-sans, inherit);
   color: var(--color-text-muted);
 }
 
-.flecha {
-  color: var(--color-text-muted);
+/* El tilde, el triángulo o la cruz. Es el estado Y el botón: tocarlo abre el
+   buscador para elegir otro producto. */
+.marca {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  cursor: pointer;
 }
 
-.cantidad {
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  font-size: var(--text-sm);
+.marca:hover,
+.marca:focus-visible {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-alt);
 }
 
+.ok {
+  color: var(--color-success);
+}
+
+.dudoso {
+  color: var(--color-warning, var(--color-primary));
+}
+
+.sin {
+  color: var(--color-danger);
+}
+
+/* La fila del buscador ocupa el ancho entero de la tabla (`colspan`), así que
+   sólo necesita respirar por dentro. */
 .buscador {
-  grid-column: 1 / -1;
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  background: var(--color-surface-alt);
 }
 
 .coti {
@@ -281,10 +298,9 @@
   .visor {
     height: 40vh;
   }
-  .linea {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .flecha {
+  /* En pantalla angosta la columna de cantidad sobra antes que las dos
+     referencias, que son lo que se compara. Se va ella y no ellas. */
+  .colCant {
     display: none;
   }
 }

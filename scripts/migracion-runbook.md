@@ -1900,3 +1900,55 @@ Se agregó `p_cliente_leido jsonb default null` y se **reemplazó** la versión 
 dos conviven y una llamada de 8 argumentos queda ambigua. PostgREST llama por
 nombre, así que el frontend ya publicado sigue funcionando —le falta un
 parámetro que tiene default—.
+
+## 29 · La revisión de la OC, en una tabla (2026-09-29)
+
+Cada línea era una tarjeta de tres bloques —las dos referencias enfrentadas,
+los dos nombres completos, y un pie con la insignia del método, la cantidad y
+el botón «Machear»—. Con una OC de 19 líneas eso es mucho scroll para una tarea
+que consiste en leer una columna de arriba abajo comparándola contra el PDF.
+
+Ahora es una tabla de verdad: **una fila por producto**, cuatro columnas —lo
+que pide el cliente, nuestra referencia, cantidad × precio, y el estado—.
+
+**Por qué `<table>` y no una grilla de `<div>`.** Lo que se hace acá es comparar
+una columna contra otra, y para eso las referencias tienen que estar alineadas
+entre sí. Además el encabezado queda asociado a cada celda para un lector de
+pantalla, y la fila del buscador se expande con `colspan` sin romper nada.
+
+**Las referencias van en monoespaciada y en una sola línea.** `SP.2008VP/100`
+contra `SP.2008VP/100` se compara carácter por carácter, y con tipografía de
+ancho variable eso es imposible. El nombre completo va en el `title`; el PDF
+está al lado. Cuando la línea no trae código, la descripción del cliente **es**
+la referencia y se muestra ella: es lo único que hay para buscar el producto.
+
+### Tres marcas, no dos
+
+Lo pedido eran dos: tilde y cruz. Son tres, y la que sobra es a propósito.
+
+| marca | qué dice | al tocarla |
+|---|---|---|
+| ✔ verde | emparejado en firme (SKU, alias, modelo…) | abre el buscador |
+| ⚠ ámbar | **parecido**: es una propuesta, no una certeza | abre el buscador |
+| ✘ rojo | no se encontró nada | abre el buscador |
+
+Mostrar un parecido como tilde sería aceptar una adivinanza en silencio, que es
+justo lo que evita `DUROS_LINEA`: los trigramas devuelven el más parecido que
+encontraron, no el correcto, y con 21.775 productos siempre hay algo que se
+parece. La acción es una sola para las tres, así que no agrega nada que
+aprender.
+
+El icono solo no distingue «el código es nuestra referencia» de «se parece al
+nombre», y no se revisan igual: el motivo viaja en el `title` y en el rótulo
+accesible del botón.
+
+### El modal por fin tiene pruebas
+
+No tenía ninguna, siendo la pantalla donde se decide qué entra a una cotización.
+Tres, sobre la tabla: que hay una fila por producto con las dos referencias
+—y que sin código se muestra la descripción—, que las tres marcas se distinguen
+por su rótulo accesible, y que tocarlas abre y cierra el buscador.
+
+El PDF se saltea: la lectura vive en una Edge Function y el test devuelve lo que
+habría devuelto. Ojo para la próxima: el proyecto **no tiene
+`@testing-library/user-event`**, se usa `fireEvent`.
