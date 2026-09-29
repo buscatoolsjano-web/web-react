@@ -30,7 +30,9 @@ export default defineConfig({
     // El mismo setup que la suite normal. Sin esto los tests de componentes
     // se quedan sin los matchers de jest-dom y fallan sólo acá.
     setupFiles: ['src/test/setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    // Igual que la suite normal: la lógica pura de las Edge Functions también
+    // corre acá (Fase 30 · E2). No usa variables de Vite, así que pasa igual.
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'supabase/functions/**/*.{test,spec}.ts'],
     // Mismo margen que la suite normal (ver vite.config.ts).
     testTimeout: 15_000,
   },

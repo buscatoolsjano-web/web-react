@@ -14,5 +14,14 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "vitest.aislado.config.ts"]
+  "include": [
+    "vite.config.ts",
+    "vitest.aislado.config.ts",
+    // La lógica PURA de las Edge Functions (Fase 30 · E2). Sólo la pura: los
+    // `index.ts` importan de `npm:` y usan `Deno`, que este proyecto no sabe
+    // resolver. Vitest ya las corre, pero vitest transpila sin chequear tipos,
+    // así que sin esto un error de tipos acá no lo veía nadie.
+    "supabase/functions/importar-oc/logica.ts",
+    "supabase/functions/importar-oc/logica.test.ts"
+  ]
 }

@@ -53,7 +53,11 @@ export default defineConfig(({ mode }) => {
       environment: 'node',
       globals: true,
       setupFiles: ['src/test/setup.ts'],
-      include: ['src/**/*.{test,spec}.{ts,tsx}'],
+      // También la lógica PURA de las Edge Functions (Fase 30 · E2). Vivía sin
+      // ninguna prueba: vitest sólo miraba `src/`. Los módulos que no importan
+      // nada de Deno se pueden correr acá igual, y es donde conviene que
+      // estén, porque son los que deciden si un PDF mal leído entra al sistema.
+      include: ['src/**/*.{test,spec}.{ts,tsx}', 'supabase/functions/**/*.{test,spec}.ts'],
       // Fase 14: con ~100 archivos en paralelo, el PRIMER test de un archivo
       // jsdom pesado (shell, Inicio, diálogo de apariencia) llegó a 5 s por pura
       // contención de CPU; solo tarda ~0,3 s. 15 s sigue cortando cuelgues reales.
