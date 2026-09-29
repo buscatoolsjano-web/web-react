@@ -161,17 +161,69 @@
   min-width: 0;
 }
 
-/* Lo que pidió · → · lo nuestro · cantidad · el botón. El buscador, cuando se
-   abre, ocupa una fila entera debajo. */
+/* Las dos referencias enfrentadas arriba, y abajo el estado con la acción.
+   El buscador, cuando se abre, ocupa una fila entera al final. */
 .linea {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.3fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: var(--space-2) var(--space-3);
-  align-items: center;
-  padding: var(--space-2) var(--space-3);
+  align-items: start;
+  padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   min-width: 0;
+}
+
+.lado {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  min-width: 0;
+}
+
+/* Qué lado es cuál. Sin esto hay que deducirlo por la flecha, y con el PDF al
+   lado uno está mirando otra cosa. */
+.rotuloLado {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.ref {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-sm);
+}
+
+/* El nombre se ENVUELVE, no se corta. Un «RIPLEY-TOOLS WS50 PELAD…» no se
+   puede comparar contra nada, que es justamente lo único que hay que hacer
+   con estas dos columnas. Tres renglones alcanzan para los nombres reales y
+   evitan que una descripción larga empuje el resto fuera de la vista. */
+.texto {
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* El estado, la cantidad y el botón, en una fila propia debajo de las dos
+   columnas: así la insignia no compite por ancho con los nombres, que es lo
+   que la dejaba cortada en «Se parece al nombre: convie…». */
+.pie {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.pie .cantidad {
+  margin-left: auto;
 }
 
 /* La que hay que mirar. Además del color, el borde grueso: el color solo no
@@ -188,13 +240,14 @@
   min-width: 0;
 }
 
+/* Estos son los de la lista PREVIA —antes de elegir cliente—, donde todavia
+   no hay nada que comparar. Igual se envuelve en vez de cortar: una
+   descripcion a medias no le sirve a nadie. */
 .pidio span,
 .nuestro span {
   font-size: var(--text-sm);
   color: var(--color-text-soft);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .nada {

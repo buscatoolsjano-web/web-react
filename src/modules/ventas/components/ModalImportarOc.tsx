@@ -479,33 +479,55 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
               {resumen.aConfirmar > 0 ? ` · ${resumen.aConfirmar} a confirmar` : ''}
               {resumen.sinProducto > 0 ? ` · ${resumen.sinProducto} sin producto` : ''}
             </p>
+            {/* Que se sepa que macheando se enseña. Es lo que convierte el
+                trabajo de hoy en que la próxima OC de este cliente salga sola,
+                y si no se dice, nadie lo supone. */}
+            <p className={styles.leido}>
+              Lo que machees queda guardado en la memoria de este cliente: la próxima orden que diga
+              lo mismo se resuelve sola.
+            </p>
             <ul className={styles.lineas}>
               {lineas.map((l) => (
                 <li key={l.n} className={necesitaRevision(l) ? `${styles.linea} ${styles.revisar}` : styles.linea}>
-                  <span className={styles.pidio}>
-                    <strong>{l.codigo ?? l.descripcion ?? '—'}</strong>
-                    <span>{l.codigo ? (l.descripcion ?? '') : ''}</span>
-                  </span>
+                  {/* Las dos referencias enfrentadas, con rótulo, y SIN cortar
+                      el texto: lo que se está haciendo acá es comparar, y un
+                      nombre con puntos suspensivos no se puede comparar. */}
+                  <div className={styles.lado}>
+                    <span className={styles.rotuloLado}>Pide el cliente</span>
+                    <strong className={styles.ref}>{l.codigo ?? '—'}</strong>
+                    <span className={styles.texto}>{l.descripcion ?? ''}</span>
+                  </div>
+
                   <span className={styles.flecha} aria-hidden="true">→</span>
-                  <span className={styles.nuestro}>
+
+                  <div className={styles.lado}>
+                    <span className={styles.rotuloLado}>Nuestro producto</span>
                     {l.productId === null ? (
-                      <em className={styles.nada}>Sin producto</em>
+                      <em className={styles.nada}>Sin machear</em>
                     ) : (
                       <>
-                        <strong>{l.sku}</strong>
-                        <span>{l.nombre}</span>
+                        <strong className={styles.ref}>{l.sku}</strong>
+                        <span className={styles.texto}>{l.nombre}</span>
                       </>
                     )}
+                  </div>
+
+                  <div className={styles.pie}>
                     <Badge tone={l.productId === null ? 'danger' : l.metodo === 'parecido' ? 'warning' : 'success'}>
                       {EXPLICACION_LINEA[l.metodo]}
                     </Badge>
-                  </span>
-                  <span className={styles.cantidad}>
-                    {l.cantidad} × {l.precio === null ? '—' : formatearImporte(l.precio, moneda)}
-                  </span>
-                  <Button variant="ghost" size="sm" onClick={() => setEditando(editando === l.n ? null : l.n)}>
-                    {l.productId === null ? 'Elegir' : 'Cambiar'}
-                  </Button>
+                    <span className={styles.cantidad}>
+                      {l.cantidad} × {l.precio === null ? '—' : formatearImporte(l.precio, moneda)}
+                    </span>
+                    <Button
+                      variant={l.productId === null ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setEditando(editando === l.n ? null : l.n)}
+                    >
+                      {editando === l.n ? 'Cerrar' : l.productId === null ? 'Machear' : 'Cambiar'}
+                    </Button>
+                  </div>
+
                   {editando === l.n ? (
                     <div className={styles.buscador}>
                       <BuscadorProducto
