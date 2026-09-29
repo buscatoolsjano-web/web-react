@@ -1592,9 +1592,88 @@ y sirve para siempre, no sólo para el cutover.
 | 4 secrets de Supabase | **el dueño** | son API keys; no las tipeo yo en ningún campo |
 | SMTP de Brasil | **el dueño** | contraseña de aplicación de Gmail |
 | Webhook de Meta | cualquiera, después del token | la URL no es secreta; el verify token sí |
-| Cloud Run | mixto | la URL y la publishable key son públicas; `SUPABASE_SECRET_KEY` no |
-| 2 secrets de GitHub | cualquiera | los dos valores son públicos (viajan en el bundle), pero es **el último paso** |
+| Cloud Run | **el dueño primero** | `gcloud` está, pero vencido: hay que correr `gcloud auth login` a mano (§26). Después, la URL y la publishable key son públicas; `SUPABASE_SECRET_KEY` no |
+| 2 secrets de GitHub | **puedo yo** (`gh` está autenticado, ver §26) | valores públicos, pero es **el último paso** |
 | Subir el logo | **el dueño** | desde Configuración del ERP |
 
 `META_WHATSAPP_VERIFY_TOKEN` no hay que recuperarlo de Ohio: **lo elegimos
 nosotros**. Se inventa uno nuevo y se pone en los dos lados (Supabase y Meta).
+
+---
+
+## 26 · Correcciones al inventario de herramientas (2026-09-29)
+
+Tres cosas que en §25 estaban mal, encontradas al ir a usarlas.
+
+### `gh` SÍ está instalado y autenticado
+
+Figuraba como no disponible, y por eso los 2 secrets de GitHub estaban
+listados como trabajo manual del dueño. No lo son: `gh` está en el PATH y
+autenticado como `janoguarini`. El cambio de las dos patas se puede hacer
+desde acá, y de todos modos **sus dos valores son públicos** —viajan en el
+bundle del frontend, que es un archivo que cualquiera descarga—.
+
+```bash
+gh secret set VITE_SUPABASE_URL      --body "https://jiudqbusyknubonpedde.supabase.co"
+gh secret set VITE_SUPABASE_ANON_KEY --body "sb_publishable_ZrIVBQYQkTTRxp_XtAJpeA_GSMRjHmV"
+```
+
+Sigue siendo **el último paso**: cambiarlos antes deja el frontend hablando con
+Brasil mientras el correo y WhatsApp siguen escribiendo en Ohio.
+
+Confirmado contra el repo: son exactamente **dos** secrets, sin variables y con
+un solo environment (`github-pages`).
+
+| secret | última vez |
+| --- | --- |
+| `VITE_SUPABASE_ANON_KEY` | 2026-09-08 |
+| `VITE_SUPABASE_URL` | 2026-09-08 |
+
+### `VITE_EMAILS_API_URL` no es un secret: está escrito en `deploy.yml`
+
+Apunta a `https://buscatools-erp-email-api-545134968830.us-east1.run.app`. Si
+alguna vez se mueve el servicio a `southamerica-east1` —que es lo que conviene
+con la base en São Paulo— hay que **editar el workflow**, no un secret. Es el
+tipo de cosa que se busca media hora en el lugar equivocado.
+
+### `gcloud` está instalado, pero hay que volver a loguearse
+
+También figuraba como no disponible. Está, en
+`~/AppData/Local/Google/Cloud SDK/`, con la cuenta `info@buscatools.com.ar`.
+Dos detalles para que ande:
+
+1. **Su Python está roto** en esta máquina: el alias de la Microsoft Store se
+   come el `python` del PATH. El SDK trae el suyo, hay que señalárselo:
+
+   ```bash
+   export CLOUDSDK_PYTHON="$HOME/AppData/Local/Google/Cloud SDK/google-cloud-sdk/platform/bundledpython/python.exe"
+   ```
+
+2. **Las credenciales están vencidas.** Cualquier comando que toque la API
+   falla con `Reauthentication failed. cannot prompt during non-interactive
+   execution`. Hay que correr `gcloud auth login` a mano, en una terminal
+   interactiva: es un flujo de navegador y nadie más lo puede hacer.
+
+3. Y `--project` quiere el **project ID**, no el número: `545134968830` lo
+   rechaza. El ID sale de `gcloud projects list` una vez reautenticado.
+
+### El deploy corre la suite aislada — y ahí apareció un error
+
+`deploy.yml` corre `lint`, `typecheck`, `test`, **`test:isolated`** y `build`
+antes de publicar. Eso significa dos cosas buenas: un push roto no llega a
+producción, y `npm test` solo **no alcanza** para dar algo por verificado.
+
+`test:isolated` corre ignorando cualquier `.env` (ADR-019). Con los cambios de
+la Fase 30, `CatalogoPage.test.tsx` se caía ahí y pasaba en local: el editor de
+la receta del kit importa `services/productos`, ese módulo levanta el cliente de
+Supabase al cargarse, y la página llega hasta él por `ModalNuevoProducto`. Sin
+`.env` el cliente no valida y el archivo entero no carga.
+
+Se arregló con el mismo mock que ya usaba `ModalNuevoProducto.test`:
+
+```ts
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+```
+
+Y el `.env.local` que apunta a Brasil es justamente lo que tapaba el problema en
+esta máquina. Por eso existe la suite aislada.
