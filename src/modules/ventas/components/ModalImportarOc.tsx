@@ -139,6 +139,25 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
       setFecha(oc.fecha ?? '')
       setMoneda(oc.moneda ?? 'ARS')
       setCandidatos(cands)
+      /**
+       * Las líneas entran YA, sin producto, en cuanto se leen.
+       *
+       * Antes había dos listas: una de sólo lectura hasta elegir cliente y
+       * otra emparejada después. Eso dejaba las filas sin el botón de machear
+       * justo cuando la persona ya está mirando el PDF y sabe qué es cada
+       * cosa. Ahora la lista es UNA sola desde el principio y se le van
+       * llenando los productos.
+       */
+      setLineas(
+        oc.lineas.map((l) => ({
+          ...l,
+          productId: null,
+          sku: null,
+          nombre: null,
+          metodo: 'sin_match' as const,
+          confianza: 0,
+        })),
+      )
       const solo = clienteAutomatico(cands)
       if (solo) await elegirCliente(solo.customerId, oc)
     },
@@ -154,8 +173,22 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
     setClienteId(id)
     if (!oc || companyId === null) return
     const ls = await emparejarLineas(companyId, id, oc.lineas)
-    setLineas(ls)
-    setCotis(await cotizacionesPara(companyId, id, ls))
+
+    /**
+     * Lo macheado a mano MANDA sobre lo que propone el emparejador.
+     *
+     * Se puede machear antes de elegir cliente —mirando el PDF ya se sabe qué
+     * es cada cosa—, y después cambiar de cliente porque el primero estaba
+     * mal. Sin esta mezcla, ese cambio borraba en silencio todo el trabajo
+     * hecho a mano y lo reemplazaba por sugerencias.
+     */
+    const aMano = new Map(
+      lineas.filter((l) => l.metodo === 'manual').map((l) => [l.n, l]),
+    )
+    const finales = ls.map((l) => aMano.get(l.n) ?? l)
+
+    setLineas(finales)
+    setCotis(await cotizacionesPara(companyId, id, finales))
     setQuoteId(null)
   }
 
@@ -442,35 +475,8 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
           </div>
         </section>
 
-        {/* Las líneas se muestran SIEMPRE, aunque todavía no haya cliente.
-            El emparejado necesita saber quién es —los alias son por cliente—,
-            pero esconder lo que la IA leyó hasta entonces daba la impresión de
-            que no había leído nada. Primero se ve lo que dice el papel;
-            después, contra qué producto nuestro va cada cosa. */}
-        {clienteId === null && leida.lineas.length > 0 ? (
-          <section className={styles.bloque}>
-            <h3 className={styles.titulo}>3 · Los productos</h3>
-            <p className={styles.leido}>
-              Se leyeron {leida.lineas.length} línea{leida.lineas.length === 1 ? '' : 's'}. Elegí el
-              cliente y se emparejan con tu catálogo.
-            </p>
-            <ul className={styles.lineas}>
-              {leida.lineas.map((l) => (
-                <li key={l.n} className={styles.linea}>
-                  <span className={styles.pidio}>
-                    <strong>{l.codigo ?? l.descripcion ?? '—'}</strong>
-                    <span>{l.codigo ? (l.descripcion ?? '') : ''}</span>
-                  </span>
-                  <span className={styles.cantidad}>
-                    {l.cantidad} × {l.precio === null ? '—' : formatearImporte(l.precio, moneda)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
 
-        {clienteId !== null ? (
+        {lineas.length > 0 ? (
           <section className={styles.bloque}>
             <h3 className={styles.titulo}>3 · Los productos</h3>
             <p className={styles.leido}>
@@ -483,8 +489,9 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
                 trabajo de hoy en que la próxima OC de este cliente salga sola,
                 y si no se dice, nadie lo supone. */}
             <p className={styles.leido}>
-              Lo que machees queda guardado en la memoria de este cliente: la próxima orden que diga
-              lo mismo se resuelve sola.
+              {clienteId === null
+                ? 'Elegí el cliente y se emparejan solas con tu catálogo. Igual podés machear a mano desde ahora.'
+                : 'Lo que machees queda guardado en la memoria de este cliente: la próxima orden que diga lo mismo se resuelve sola.'}
             </p>
             <ul className={styles.lineas}>
               {lineas.map((l) => (

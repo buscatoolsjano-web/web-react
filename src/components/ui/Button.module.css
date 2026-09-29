@@ -84,6 +84,22 @@
   border-color: var(--color-border-strong);
 }
 
+/* Azul. Para una acción que no es LA principal de la pantalla pero tiene que
+   verse: «Importar OC» convive con «+ Nuevo», que es la primaria verde, y con
+   los secundarios grises. Usa los tokens `info` que ya estaban en la paleta;
+   no se inventó un color. */
+.info {
+  background: var(--color-info);
+  color: var(--color-on-primary);
+}
+.info:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+.info:not(:disabled):active,
+.info.loading {
+  filter: brightness(0.92);
+}
+
 .ghost {
   background: transparent;
   color: var(--color-text-soft);

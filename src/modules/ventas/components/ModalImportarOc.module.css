@@ -233,23 +233,6 @@
   background: var(--color-surface-alt);
 }
 
-.pidio,
-.nuestro {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-/* Estos son los de la lista PREVIA —antes de elegir cliente—, donde todavia
-   no hay nada que comparar. Igual se envuelve en vez de cortar: una
-   descripcion a medias no le sirve a nadie. */
-.pidio span,
-.nuestro span {
-  font-size: var(--text-sm);
-  color: var(--color-text-soft);
-  overflow-wrap: anywhere;
-}
-
 .nada {
   font-style: normal;
   color: var(--color-text-muted);

@@ -144,7 +144,7 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaN
     <>
       {puedeImportar ? (
         <Button
-          variant="secondary"
+          variant="info"
           icon={<Icon name="upload" size={16} />}
           onClick={() => setImportando(true)}
         >
