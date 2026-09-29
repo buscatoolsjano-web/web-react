@@ -19,6 +19,11 @@ import { ROLES_CHAT } from '@/modules/chat/lib/permisos'
  * resto de Ventas: quién ve qué factura lo decide `invoices_select` —internos
  * ven las de su empresa, un cliente sólo las suyas—, y quién puede emitirlas
  * lo decide la RPC. Ocultar el enlace sería una cortesía, no el control.
+ *
+ * Fase 30 · E6: se suma /ventas/importar-oc. También sin restricción de rol, y
+ * por la misma razón: quién puede importar lo decide `importar_oc`, que exige
+ * ser escritor de la empresa y lo dice con un motivo. Un enlace escondido no
+ * es un permiso.
  */
 const AC = ['admin', 'employee']
 const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
@@ -28,6 +33,7 @@ const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
   { to: '/ventas/pedidos' },
   { to: '/ventas/entregas' },
   { to: '/ventas/facturas' },
+  { to: '/ventas/importar-oc' },
   { to: '/clientes' },
   { to: '/compras/proveedores', roles: AC },
   { to: '/compras/pedidos', roles: AC },

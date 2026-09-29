@@ -218,3 +218,73 @@ export async function importarOc(params: {
     vinculada: r['vinculada'] === true,
   }
 }
+
+/** Lo que devuelve la Edge Function al leer el PDF. */
+export interface OcLeida {
+  cliente: { nombre: string | null; cuit: string | null }
+  numero: string
+  fecha: string | null
+  moneda: string | null
+  lineas: LineaCruda[]
+  textoCrudo: string | null
+}
+
+/**
+ * Leer la OC de un PDF (Fase 30 · E4, todavía sin desplegar).
+ *
+ * La lectura vive en una Edge Function y no acá por dos razones: la clave del
+ * proveedor de IA no puede salir del servidor, y el PDF no tiene por qué
+ * viajar dos veces.
+ *
+ * Mientras la función no esté desplegada, esto falla — y falla DICIENDO que
+ * falta desplegarla. Un «Failed to fetch» mandaría a buscar el problema al
+ * lugar equivocado.
+ */
+export async function leerOcDesdePdf(archivo: File): Promise<OcLeida> {
+  const cuerpo = new FormData()
+  cuerpo.append('archivo', archivo)
+
+  // El genérico y el tipo del error no son adorno: `functions.invoke` devuelve
+  // `any` en las dos puntas, y el lint lo marca. Sin esto, leerle `.message` a
+  // lo que sea que vuelva compila igual y explota en producción.
+  const respuesta: { data: unknown; error: Error | null } = await supabase.functions.invoke<unknown>(
+    'importar-oc',
+    { body: cuerpo },
+  )
+  const { data, error } = respuesta
+
+  if (error) {
+    const msg = error.message
+    if (msg.includes('404') || /not\s*found/i.test(msg)) {
+      throw new FalloDeImportacion(
+        'sin_desplegar',
+        'La lectura automática todavía no está disponible: falta desplegar la función que lee el PDF.',
+      )
+    }
+    throw new FalloDeImportacion('lectura', `No se pudo leer el PDF: ${msg}`)
+  }
+
+  const o = (data ?? {}) as Record<string, unknown>
+  const cli = (typeof o['cliente'] === 'object' && o['cliente'] !== null ? o['cliente'] : {}) as Record<string, unknown>
+
+  return {
+    cliente: {
+      nombre: typeof cli['nombre'] === 'string' ? cli['nombre'] : null,
+      cuit: typeof cli['cuit'] === 'string' ? cli['cuit'] : null,
+    },
+    numero: cadena(o['numero']),
+    fecha: typeof o['fecha'] === 'string' ? o['fecha'] : null,
+    moneda: typeof o['moneda'] === 'string' ? o['moneda'] : null,
+    lineas: (Array.isArray(o['lineas']) ? o['lineas'] : []).map((l, i) => {
+      const x = (l ?? {}) as Record<string, unknown>
+      return {
+        n: i + 1,
+        codigo: typeof x['codigo'] === 'string' ? x['codigo'] : null,
+        descripcion: typeof x['descripcion'] === 'string' ? x['descripcion'] : null,
+        cantidad: numero(x['cantidad']),
+        precio: x['precio'] === null || x['precio'] === undefined ? null : numero(x['precio']),
+      }
+    }),
+    textoCrudo: typeof o['texto'] === 'string' ? o['texto'] : null,
+  }
+}

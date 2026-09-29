@@ -103,6 +103,9 @@ export const NAVEGACION: GrupoNav[] = [
           { to: '/ventas/pedidos', label: 'Pedidos' },
           { to: '/ventas/entregas', label: 'Notas de entrega' },
           { to: '/ventas/facturas', label: 'Facturas' },
+          // Última: es una entrada, no una etapa del circuito. Las cuatro de
+          // arriba se leen en el orden en que pasa una venta.
+          { to: '/ventas/importar-oc', label: 'Importar OC' },
         ],
       },
       {
