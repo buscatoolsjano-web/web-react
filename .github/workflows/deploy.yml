@@ -1,7 +1,13 @@
-name: Deploy to GitHub Pages
+# Corre en los PR como chequeo, y en main además publica.
+name: CI y deploy a GitHub Pages
 
 on:
   push:
+    branches: [main]
+  # Los mismos chequeos sobre el PR, antes de mergear. Hasta acá sólo corrían
+  # DESPUÉS del merge, así que un test intermitente no se veía en el PR: se veía
+  # fallando el deploy, con el cambio ya en main.
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -11,9 +17,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  # No cancelar un deploy a medias: dejaría Pages en estado inconsistente.
-  cancel-in-progress: false
+  # Un grupo por referencia. Con `pages` para todo, los chequeos de un PR
+  # hacían cola detrás de un deploy —y al revés, que es peor—.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # En un PR, un push nuevo cancela la corrida anterior: ya no interesa.
+  # En main NO se cancela: un deploy a medias deja Pages inconsistente.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -53,12 +62,16 @@ jobs:
           # la autorización la da el JWT de Supabase de cada persona.
           VITE_EMAILS_API_URL: https://buscatools-erp-email-api-545134968830.us-east1.run.app
 
+      # De acá para abajo es publicar, y un PR no publica. Sin este `if`,
+      # agregar el disparador `pull_request` mandaría CADA PR a producción.
       - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
         with:
           path: ./dist
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
