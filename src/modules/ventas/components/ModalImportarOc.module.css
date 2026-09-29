@@ -261,18 +261,21 @@
    El alto es fijo y cada columna scrollea por su cuenta. Sin eso, bajar por la
    lista de productos se llevaba el PDF fuera de pantalla, que es justo lo que
    se quiere mirar al mismo tiempo. */
+/* El PDF a la IZQUIERDA y más ancho, y los datos a la derecha.
+   Es el orden en que se trabaja: se lee el papel y se va comprobando contra la
+   tabla, no al revés. */
 .conPdf {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   gap: var(--space-4);
-  /* Lo mismo que el visor del paso anterior: todo lo que queda de pantalla.
-     Acá el PDF pesa un poco más que el resumen —es lo que se compara contra
-     cada renglón—, por eso la columna derecha es la más ancha. */
   height: calc(100dvh - 15rem);
   min-height: 24rem;
   min-width: 0;
 }
 
+/* Visualmente primero, pero ÚLTIMO en el HTML: quien navega por teclado o con
+   lector de pantalla llega antes al formulario, que es donde se trabaja. El
+   PDF es material de consulta. */
 .conPdf > .revision {
   overflow-y: auto;
   align-content: start;
@@ -283,6 +286,10 @@
 .pdfAlLado {
   min-width: 0;
   height: 100%;
+  /* Visualmente primero, pero ÚLTIMO en el HTML: quien navega por teclado o
+     con lector de pantalla llega antes al formulario, que es donde se
+     trabaja. El PDF es material de consulta. */
+  order: -1;
 }
 
 .visorLateral {

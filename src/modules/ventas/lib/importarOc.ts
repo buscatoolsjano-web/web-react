@@ -131,12 +131,21 @@ export function resumirLineas(lineas: readonly LineaEmparejada[]): ResumenLineas
 export function faltaParaImportar(estado: {
   clienteId: string | null
   numero: string
-  lineas: readonly LineaEmparejada[]
+  /** Las que LEYÓ la IA, no las emparejadas. Ver abajo. */
+  lineasLeidas: number
 }): string[] {
   const falta: string[] = []
   if (estado.clienteId === null) falta.push('Elegí a qué cliente corresponde la orden.')
   if (estado.numero.trim() === '') falta.push('Escribí el número de la orden de compra.')
-  if (estado.lineas.length === 0) falta.push('La orden no tiene ninguna línea.')
+  /**
+   * Se cuentan las líneas LEÍDAS y no las emparejadas.
+   *
+   * El emparejado necesita saber el cliente —los alias son por cliente—, así
+   * que antes de elegirlo no hay líneas emparejadas. Mirando ésas, la pantalla
+   * decía «La orden no tiene ninguna línea» sobre una orden con cinco líneas
+   * perfectamente leídas. Era mentira y mandaba a buscar el problema al PDF.
+   */
+  if (estado.lineasLeidas === 0) falta.push('No se leyó ninguna línea en el documento.')
   return falta
 }
 

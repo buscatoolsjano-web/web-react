@@ -110,7 +110,7 @@ describe('El resumen de arriba de la tabla', () => {
 })
 
 describe('Qué frena la importación', () => {
-  const base = { clienteId: 'c1', numero: 'OC-412', lineas: [linea('alias')] }
+  const base = { clienteId: 'c1', numero: 'OC-412', lineasLeidas: 1 }
 
   it('con cliente, número y líneas, no falta nada', () => {
     expect(faltaParaImportar(base)).toEqual([])
@@ -127,15 +127,22 @@ describe('Qué frena la importación', () => {
   })
 
   /**
-   * Las líneas sin producto NO frenan. Entran a la cotización con el texto del
-   * cliente y se completan a mano: perderlas sería peor que importarlas
-   * incompletas.
+   * Se cuentan las líneas LEÍDAS, no las emparejadas.
+   *
+   * El emparejado necesita saber el cliente —los alias son por cliente—, así
+   * que antes de elegirlo no hay ninguna emparejada. Mirando ésas, la pantalla
+   * decía «La orden no tiene ninguna línea» sobre una orden con cinco líneas
+   * perfectamente leídas: era mentira, y mandaba a buscar el problema al PDF.
    */
-  it('las líneas sin producto no frenan nada', () => {
-    expect(faltaParaImportar({ ...base, lineas: [linea('sin_match')] })).toEqual([])
+  it('las líneas leídas alcanzan, aunque ninguna esté emparejada todavía', () => {
+    expect(faltaParaImportar({ clienteId: null, numero: 'OC-412', lineasLeidas: 5 })).toEqual([
+      'Elegí a qué cliente corresponde la orden.',
+    ])
   })
 
-  it('pero sin ninguna línea, no es una orden de compra', () => {
-    expect(faltaParaImportar({ ...base, lineas: [] })).toEqual(['La orden no tiene ninguna línea.'])
+  it('sin ninguna línea leída, no es un documento que se pueda importar', () => {
+    expect(faltaParaImportar({ ...base, lineasLeidas: 0 })).toEqual([
+      'No se leyó ninguna línea en el documento.',
+    ])
   })
 })

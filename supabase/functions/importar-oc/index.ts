@@ -90,8 +90,31 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const texto = revisarTextoPdf(await textoDelPdf(bytes))
 
     const proveedor = proveedorConfigurado()
+    const t0 = Date.now()
     const crudo = await proveedor.leer(texto)
     const oc = validarOcExtraida(crudo)
+
+    /**
+     * Rastro para diagnosticar, SIN contenido del cliente.
+     *
+     * Cuando una lectura sale mal, lo primero que hace falta saber es dónde se
+     * cortó: ¿el PDF traía texto?, ¿el modelo devolvió algo?, ¿cuántas líneas?
+     * Sin esto hay que adivinar, y ya se perdió una vuelta adivinando.
+     *
+     * Van sólo números: cuántos caracteres, cuántas líneas, cuánto tardó. La
+     * orden de compra de un cliente NO va a los logs.
+     */
+    console.log(
+      JSON.stringify({
+        evento: 'oc_leida',
+        caracteres: texto.length,
+        lineas: oc.lineas.length,
+        con_numero: oc.numero !== '',
+        con_cliente: oc.cliente.nombre !== null || oc.cliente.cuit !== null,
+        proveedor: proveedor.nombre,
+        ms: Date.now() - t0,
+      }),
+    )
 
     return json({
       ...oc,
@@ -102,7 +125,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
     })
   } catch (e) {
     if (e instanceof PdfIlegible) return falla(e.motivo, e.message)
-    if (e instanceof OcInvalida) return falla(e.motivo, `No se pudo leer la orden: ${e.message}`)
+    if (e instanceof OcInvalida) {
+      // El mismo rastro que en el camino feliz: si el modelo devolvió algo que
+      // no sirve, hace falta saber cuánto texto tenía para decidir si el
+      // problema es el PDF, el prompt o el documento.
+      console.log(JSON.stringify({ evento: 'oc_rechazada', motivo: e.motivo }))
+      const ayuda =
+        e.motivo === 'sin_lineas'
+          ? ' Revisá que el PDF tenga una tabla de ítems con cantidades.'
+          : ''
+      return falla(e.motivo, `No se pudo leer la orden: ${e.message}.${ayuda}`)
+    }
     if (e instanceof FalloProveedor) {
       const mensajes: Record<string, string> = {
         sin_configurar: 'La lectura con IA no está configurada en este entorno.',

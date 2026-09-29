@@ -190,7 +190,7 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
   })
 
   const resumen = resumirLineas(lineas)
-  const falta = faltaParaImportar({ clienteId, numero, lineas })
+  const falta = faltaParaImportar({ clienteId, numero, lineasLeidas: leida?.lineas.length ?? 0 })
   const errorLeer = leer.error instanceof FalloDeImportacion ? leer.error : null
   const errorImportar = importar.error instanceof FalloDeImportacion ? importar.error : null
 
@@ -317,7 +317,7 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
           <div className={styles.previa}>
             {/* Mirar el documento ANTES de gastar una llamada al modelo: el
                 archivo equivocado es el error más fácil de cometer. */}
-            <object data={urlPrevia ?? ''} type="application/pdf" className={styles.visor}>
+            <object data={`${urlPrevia ?? ''}#toolbar=0&navpanes=0&view=FitH`} type="application/pdf" className={styles.visor}>
               <p className={styles.sinVisor}>
                 Tu navegador no muestra PDF acá. El archivo es <strong>{archivo.name}</strong>.
               </p>
@@ -438,6 +438,34 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
           </div>
         </section>
 
+        {/* Las líneas se muestran SIEMPRE, aunque todavía no haya cliente.
+            El emparejado necesita saber quién es —los alias son por cliente—,
+            pero esconder lo que la IA leyó hasta entonces daba la impresión de
+            que no había leído nada. Primero se ve lo que dice el papel;
+            después, contra qué producto nuestro va cada cosa. */}
+        {clienteId === null && leida.lineas.length > 0 ? (
+          <section className={styles.bloque}>
+            <h3 className={styles.titulo}>3 · Los productos</h3>
+            <p className={styles.leido}>
+              Se leyeron {leida.lineas.length} línea{leida.lineas.length === 1 ? '' : 's'}. Elegí el
+              cliente y se emparejan con tu catálogo.
+            </p>
+            <ul className={styles.lineas}>
+              {leida.lineas.map((l) => (
+                <li key={l.n} className={styles.linea}>
+                  <span className={styles.pidio}>
+                    <strong>{l.codigo ?? l.descripcion ?? '—'}</strong>
+                    <span>{l.codigo ? (l.descripcion ?? '') : ''}</span>
+                  </span>
+                  <span className={styles.cantidad}>
+                    {l.cantidad} × {l.precio === null ? '—' : formatearImporte(l.precio, moneda)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         {clienteId !== null ? (
           <section className={styles.bloque}>
             <h3 className={styles.titulo}>3 · Los productos</h3>
@@ -532,7 +560,11 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
 
         {urlPrevia !== null ? (
           <aside className={styles.pdfAlLado} aria-label="La orden de compra que subiste">
-            <object data={urlPrevia} type="application/pdf" className={styles.visorLateral}>
+            <object
+              data={`${urlPrevia}#toolbar=0&navpanes=0&view=FitH`}
+              type="application/pdf"
+              className={styles.visorLateral}
+            >
               <p className={styles.sinVisor}>
                 Tu navegador no muestra PDF acá. El archivo es{' '}
                 <strong>{archivo?.name ?? 'el que subiste'}</strong>.

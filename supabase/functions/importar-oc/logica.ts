@@ -127,7 +127,11 @@ export const INSTRUCCIONES_OC = [
   '  "1.234,56" se devuelve como 1234.56.',
   '- No incluyas como líneas los subtotales, el IVA, los totales, los textos',
   '  legales ni las condiciones de entrega.',
-  '- Si el texto no parece una orden de compra, devolvé `lineas` vacío.',
+  '- Sacá SIEMPRE los ítems que encuentres, sea cual sea el encabezado del',
+  '  documento: orden de compra, pedido, solicitud de cotización, remito o lo',
+  '  que sea. Decidir si es el documento correcto NO es tarea tuya: la persona',
+  '  lo está mirando al lado de la tabla. Devolvé `lineas` vacío SÓLO si de',
+  '  verdad no hay ningún renglón con un producto y una cantidad.',
 ].join('\n')
 
 /** Lo que se le manda al modelo: el texto del PDF y nada más. */
