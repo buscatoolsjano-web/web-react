@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   MAX_LINEAS,
+  MIN_CARACTERES_PDF,
+  PdfIlegible,
   OcInvalida,
   aNumero,
   normalizarCuit,
   normalizarFecha,
+  limpiarTextoPdf,
+  revisarTextoPdf,
   validarOcExtraida,
 } from './logica'
 
@@ -191,5 +195,32 @@ describe('Validar lo que devolvió la IA', () => {
     expect(r.cliente).toEqual({ nombre: null, cuit: null })
     expect(r.fecha).toBeNull()
     expect(r.moneda).toBeNull()
+  })
+})
+
+describe('El texto que sale del PDF', () => {
+  it('colapsa los espacios y las líneas vacías de más, y conserva los saltos', () => {
+    expect(limpiarTextoPdf('  OC   1234 \n\n\n\n  ITEM \t 1  \n')).toBe('OC 1234\n\nITEM 1')
+  })
+
+  /**
+   * Un PDF escaneado no tiene capa de texto: al extraerlo salen cero
+   * caracteres. Si eso llega al modelo, el modelo INVENTA — le pedimos una
+   * orden de compra y le damos nada, y lo que devuelva va a ser verosímil y
+   * falso. Se corta antes y se dice por qué.
+   */
+  it('un PDF sin capa de texto se rechaza en vez de mandarle nada a la IA', () => {
+    try {
+      revisarTextoPdf('   \n \n  ')
+      expect.unreachable('tendría que haber fallado')
+    } catch (e) {
+      expect((e as PdfIlegible).motivo).toBe('sin_texto')
+      expect((e as PdfIlegible).message).toMatch(/escaneado/)
+    }
+  })
+
+  it('una OC de verdad pasa', () => {
+    const texto = 'ORDEN DE COMPRA N° 4500123456\n'.repeat(20)
+    expect(revisarTextoPdf(texto).length).toBeGreaterThan(MIN_CARACTERES_PDF)
   })
 })

@@ -279,3 +279,64 @@ export function validarOcExtraida(crudo: string): OcExtraida {
     lineas,
   }
 }
+
+// ── El PDF ────────────────────────────────────────────────────────────────
+
+/**
+ * Cuánto texto tiene que traer un PDF para que valga la pena mandárselo a la
+ * IA.
+ *
+ * Un PDF escaneado —una foto adentro de un PDF— no tiene capa de texto: al
+ * extraerlo salen cero caracteres, o un puñado de basura del encabezado. Si
+ * eso llega al modelo, el modelo inventa: le pedimos una orden de compra y le
+ * damos nada, y lo que devuelva va a ser verosímil y falso.
+ *
+ * Así que se corta ANTES, y se lo dice. 200 caracteres es poco para una OC de
+ * verdad —un membrete solo ya los pasa— y suficiente para distinguir «esto no
+ * tiene texto» de «esto es una orden corta».
+ */
+export const MIN_CARACTERES_PDF = 200
+
+/** Tope del archivo. El bucket `ventas` acepta 20 MB; acá se corta antes. */
+export const MAX_BYTES_PDF = 15 * 1024 * 1024
+
+export type MotivoLectura = 'sin_archivo' | 'no_es_pdf' | 'demasiado_grande' | 'sin_texto' | 'ilegible'
+
+export class PdfIlegible extends Error {
+  constructor(
+    readonly motivo: MotivoLectura,
+    mensaje: string,
+  ) {
+    super(mensaje)
+    this.name = 'PdfIlegible'
+  }
+}
+
+/**
+ * Limpiar el texto que sale del PDF antes de mandarlo.
+ *
+ * Los extractores dejan saltos de línea por cada fragmento posicionado, así
+ * que una tabla sale como cien renglones de una palabra. Colapsar los espacios
+ * repetidos y las líneas vacías baja bastante los tokens sin perder la
+ * estructura, porque los saltos simples se conservan.
+ */
+export function limpiarTextoPdf(crudo: string): string {
+  return crudo
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t ]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+/** Decide si el PDF sirve, y si no, por qué. */
+export function revisarTextoPdf(crudo: string): string {
+  const limpio = limpiarTextoPdf(crudo)
+  if (limpio.length < MIN_CARACTERES_PDF) {
+    throw new PdfIlegible(
+      'sin_texto',
+      'El PDF no tiene texto: parece escaneado o una foto. Por ahora sólo se pueden leer los PDF generados por un sistema.',
+    )
+  }
+  return limpio
+}

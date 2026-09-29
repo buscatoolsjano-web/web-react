@@ -254,6 +254,29 @@ export async function leerOcDesdePdf(archivo: File): Promise<OcLeida> {
   const { data, error } = respuesta
 
   if (error) {
+    /**
+     * El motivo y el mensaje vienen en el CUERPO, no en el error.
+     *
+     * `functions.invoke` trata cualquier respuesta no-2xx como un fallo y deja
+     * el `Response` en `error.context`; su `.message` es genérico. Sin leer el
+     * cuerpo, «El PDF no tiene texto: parece escaneado» se vería como «Edge
+     * Function returned a non-2xx status code», que no ayuda a nadie.
+     */
+    const ctx = (error as { context?: unknown }).context
+    if (ctx instanceof Response) {
+      const cuerpo: unknown = await ctx.json().catch(() => null)
+      const e = (cuerpo as { error?: { motivo?: unknown; mensaje?: unknown } } | null)?.error
+      if (typeof e?.mensaje === 'string') {
+        throw new FalloDeImportacion(typeof e.motivo === 'string' ? e.motivo : 'lectura', e.mensaje)
+      }
+      if (ctx.status === 404) {
+        throw new FalloDeImportacion(
+          'sin_desplegar',
+          'La lectura automática todavía no está disponible: falta desplegar la función que lee el PDF.',
+        )
+      }
+    }
+
     const msg = error.message
     if (msg.includes('404') || /not\s*found/i.test(msg)) {
       throw new FalloDeImportacion(
