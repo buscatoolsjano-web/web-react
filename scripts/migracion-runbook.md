@@ -2440,3 +2440,70 @@ La primera es la sensata: el cutover es el paso siguiente.
 **Ventana de riesgo:** el watch de producción vence el **07/10**. Si el
 cutover no llegó para entonces, hay que renovarlo a mano — y hasta que la UI
 no esté desplegada, la alarma existe pero no la ve nadie.
+
+## 37 · El puente de correo Ohio → Brasil (Fase 34 · E2). TEMPORAL
+
+### Por qué no alcanzaba con «apuntar el correo a Brasil»
+
+El correo entra por un servicio de Cloud Run que escribe en **una sola base**.
+Apuntarlo a Brasil haría que **Ohio deje de recibir**, y la web que todos usan
+todavía lee Ohio: los correos entrarían a una base que nadie mira. Eso es el
+cutover, no un ajuste — y el cutover tiene un orden (§ «El momento del
+cutover»).
+
+### Lo que sí se puede mientras tanto
+
+Copiar el correo de Ohio a Brasil por el FDW cada 5 minutos. Ohio sigue
+recibiendo; Brasil queda al día y se puede usar y probar de verdad.
+
+**Sólo las tablas de correo.** Un `_resync()` sin argumentos pisa `products` y
+`brands` con los de Ohio y se lleva puesta toda la limpieza de la Fase 32.
+`_resync` acepta una lista y acá se le pasa. `email_sync_log` queda afuera
+además: 2.600 filas de bitácora que no mira nadie y se llevaban un tercio del
+tiempo de cada pasada.
+
+Primera corrida: Brasil pasó de 1.303 a **1.404 hilos**, 153 nuevos desde el
+28/09, y el catálogo quedó intacto (32 marcas, 3.939 sin marca).
+
+### Se apaga solo, y eso es lo importante
+
+Después del cutover, Brasil pasa a ser el que RECIBE. Si el puente siguiera
+corriendo **borraría el correo nuevo de Brasil** y lo reemplazaría por el de
+Ohio, ya congelado. Sería perder correo de verdad.
+
+Por eso compara los relojes antes de copiar: si Brasil está **estrictamente**
+adelante, entiende que ya es el primario, se desprograma y no copia nada. No
+depende de que alguien se acuerde de apagarlo el día del cutover, que es justo
+la clase de paso que se olvida.
+
+### Tres errores que aparecieron probándolo
+
+Ninguno habría dado la cara al instalarlo:
+
+1. **`set_config()` no sirve acá.** `set local session_replication_role =
+   replica` funciona como `postgres`, pero el mismo cambio vía `set_config()`
+   —lo único que tiene PL/pgSQL— da «permission denied». El parámetro lo pone
+   el COMANDO del cron, que es SQL plano, y la función lo exige.
+2. **El apagado usaba `>=`.** Apenas copia, copia también `email_accounts`, así
+   que los relojes quedan IGUALES — y el puente se apagaba solo en la pasada
+   siguiente. Se habría apagado a los cinco minutos de encenderlo, y nadie lo
+   habría notado hasta que faltara correo. Va estricto: `>`.
+3. **No podía escribir `cron.job`.** Es de `supabase_admin`. Se usa
+   `cron.unschedule()`, que además es mejor: un job desactivado alguien lo
+   vuelve a encender sin saber por qué estaba apagado; uno que no existe hay
+   que decidir crearlo.
+
+### Para el día del cutover
+
+El puente se desprograma solo, pero **conviene comprobarlo**:
+
+```sql
+select * from cron.job where jobname = 'puente-de-correo';  -- no debe existir
+```
+
+Y el orden sigue siendo el de siempre: frenar escritores → resync →
+`_reaplicar_calidad()` → secrets → Cloud Run al final.
+
+**Atención para ese resync**: `_reaplicar_calidad()` cubre el trabajo de
+calidad anterior, **pero NO la Fase 32** —marcas, tipos, referencias—. Hay que
+extenderla antes del resync final o se pierde.
