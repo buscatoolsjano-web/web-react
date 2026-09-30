@@ -2317,3 +2317,59 @@ Comprobado:
 | TOHNICHI sin tipo | 1.293 | **754** |
 
 Banco de búsqueda: **36 de 36**, con los tres casos nuevos incorporados.
+
+## 35 · El header, con el formato de la web vieja (Fase 33)
+
+Orden, de izquierda a derecha: **campana · chat · píldora del asistente ·
+paleta · empresa · usuario**. Es el de la web vieja, y se copia a propósito:
+es a lo que está acostumbrada la gente de la casa, y un orden distinto obliga
+a volver a aprender algo que ya sabían.
+
+El criterio detrás: primero lo que es **de uno** —los avisos, el chat, el
+asistente— y después lo que **cambia de contexto**: la empresa y la sesión. Lo
+primero se toca muchas veces al día; lo segundo, casi nunca.
+
+### El asistente es una píldora, no un ícono
+
+Con su nombre escrito. Un tercer ícono al lado de otros dos se lee como «otra
+bandeja»; la píldora dice qué es y se encuentra sin adivinar. El degradado es
+el único color fijo de la barra —todo lo demás sigue los tokens del tema— y
+está puesto para que se distinga de lo que tiene al lado; al llevar fondo
+propio, el contraste del texto queda garantizado en claro y en oscuro.
+
+En pantalla angosta queda sólo la chispa: entre perder el botón o perder la
+palabra, se pierde la palabra.
+
+### El asistente dejó de ser una sección
+
+Se sacaron la ruta `/asistente` y su entrada del menú. Vive en un panel que
+entra por la derecha, así que se le puede preguntar **sin salir de la pantalla
+en la que uno está trabajando**, que es justo el momento en que aparece la
+pregunta. Como sección obligaba a irse de ahí.
+
+`CajonDerecho` reusa `useModalAccesible`, el mismo de los diálogos: foco
+atrapado, Escape cierra, fondo `inert`, y el foco vuelve a quien abrió.
+Reescribir eso «para un panelcito» es como aparecen las trampas de teclado.
+
+### Las notificaciones NO tienen tabla
+
+Avisan dos cosas: que te asignen un correo y que alguien te escriba en el
+chat. Las dos ya están en la base —un hilo con `assigned_to` sin leer, una
+conversación con mensajes pendientes—, así que una tabla sería una COPIA de
+ese estado. Y las copias se desincronizan: leés el correo desde la bandeja y
+la notificación te queda ahí porque nadie se acordó de marcarla. Derivándola,
+desaparece sola.
+
+El día que haga falta un aviso que no se derive de nada —«se cayó el sync de
+STEL»— ahí sí va una tabla.
+
+`p_asignado` es lo que las hace **tuyas**. Verificado contra la base: el
+usuario de prueba tiene 0 correos asignados, mientras la empresa tiene 1.303
+sin leer. Sin ese filtro, la campana mostraría 1.303 avisos que no son de uno
+— que es el número del menú, no una notificación.
+
+El contador comparte `queryKey` con el panel: abrirlo no vuelve a consultar, y
+con dos consultas distintas el globito podría decir 3 con el panel mostrando 2.
+
+Los dos paneles se cargan con `lazy`: el header lo ve TODO el mundo en TODAS
+las páginas, y quien no los abre no paga su descarga.

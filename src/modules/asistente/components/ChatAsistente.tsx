@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { Alert } from '@/components/feedback/Alert'
-import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import {
@@ -13,7 +12,7 @@ import {
   type PasoAsistente,
 } from '../services/asistente'
 import { pedazos } from '../lib/formatoRespuesta'
-import styles from './AsistentePage.module.css'
+import styles from './ChatAsistente.module.css'
 
 /**
  * El asistente (Fase 31 · E4).
@@ -43,7 +42,7 @@ const EJEMPLOS = [
   '¿Qué correos quedaron sin responder?',
 ]
 
-export default function AsistentePage() {
+export function ChatAsistente() {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
 
@@ -103,15 +102,6 @@ export default function AsistentePage() {
 
   return (
     <div className={styles.pagina}>
-      <header className={styles.cabecera}>
-        <h1 className={styles.titulo}>Asistente</h1>
-        {estado.data ? (
-          <Badge tone={estado.data.listo ? 'success' : 'warning'}>
-            {estado.data.listo ? 'IA activa' : 'IA apagada'}
-          </Badge>
-        ) : null}
-      </header>
-
       {estado.data && !estado.data.listo ? (
         <Alert tone="warning" title="La IA todavía no está encendida">
           <p>

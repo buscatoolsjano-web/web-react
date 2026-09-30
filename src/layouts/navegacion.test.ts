@@ -28,7 +28,6 @@ import { ROLES_CHAT } from '@/modules/chat/lib/permisos'
 const AC = ['admin', 'employee']
 const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
   { to: '/' },
-  { to: '/asistente' },
   { to: '/catalogo' },
   { to: '/ventas/cotizaciones' },
   { to: '/ventas/pedidos' },

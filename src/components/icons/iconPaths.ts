@@ -44,6 +44,12 @@ export const TRAZOS = {
   'message-circle': 'M4 19.5l1.2-3.6A8 8 0 1 1 8.4 19z',
   'log-out': 'M9.5 20H5V4h4.5M15.5 16.5L20 12l-4.5-4.5M20 12H9.5',
   building: 'M5 21V4h9v17M14 9h5v12M3 21h18M8 8h3M8 12h3M8 16h3',
+  // Campana de notificaciones (Fase 33). Badajo aparte para que el trazo
+  // cierre bien a 16 px, que es el tamaño al que va en el header.
+  bell: 'M12 3.5a5.5 5.5 0 0 0-5.5 5.5c0 4-1.5 5.5-1.5 5.5h14s-1.5-1.5-1.5-5.5A5.5 5.5 0 0 0 12 3.5zM10.5 18a1.5 1.5 0 0 0 3 0',
+  // La chispa del asistente: una estrella de cuatro puntas, que es como se
+  // nombra a la IA en todos lados, más una chica al costado.
+  sparkles: 'M12 4l1.8 4.2L18 10l-4.2 1.8L12 16l-1.8-4.2L6 10l4.2-1.8zM18.5 15.5l.8 1.7 1.7.8-1.7.8-.8 1.7-.8-1.7-1.7-.8 1.7-.8z',
   inbox: 'M3.5 13l2.5-8h12l2.5 8v6h-17zM3.5 13H9l1 2.5h4l1-2.5h5.5',
   refresh: 'M19.5 9.5A8 8 0 0 0 5 7.5M4.5 3.5v4h4M4.5 14.5A8 8 0 0 0 19 16.5M19.5 20.5v-4h-4',
   image: 'M4 5h16v14H4zM4 16l4.5-4.5 3.5 3.5 2.5-2.5L20 17.5M15 9.5h.01',

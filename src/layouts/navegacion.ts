@@ -65,18 +65,6 @@ export const NAVEGACION: GrupoNav[] = [
     label: null,
     entradas: [
       { id: 'inicio', label: 'Inicio', icon: 'home', destino: { to: '/', label: 'Inicio', end: true } },
-      /**
-       * El asistente, arriba de todo (Fase 31 · E4).
-       *
-       * Va acá y no en un grupo temático porque no es de un tema: se le
-       * pregunta cualquier cosa y él deriva. Enterrado en un grupo, sería
-       * «otra sección más» y nadie lo usaría para lo que sirve, que es
-       * entrar por acá en vez de buscar la pantalla correcta.
-       *
-       * Sin `roles`: lo que cada uno puede ver lo decide la RLS del lado del
-       * servidor, no el menú.
-       */
-      { id: 'asistente', label: 'Asistente', icon: 'message-circle', destino: { to: '/asistente', label: 'Asistente' } },
     ],
   },
   /**

@@ -6,7 +6,7 @@ import type * as ServicioAsistente from '../services/asistente'
 import type { RespuestaAsistente } from '../services/asistente'
 
 /**
- * La pantalla del asistente (Fase 31 · E4).
+ * El chat del asistente (Fase 31 · E4, movido al cajón del header en la 33).
  *
  * Se prueban las tres cosas que la hacen confiable, que son justo las que la
  * web vieja no tenía: que el hilo ENTERO viaja —sin eso, «¿y de ese cliente?»
@@ -50,13 +50,13 @@ vi.mock('../services/asistente', async (original) => {
   }
 })
 
-const { default: AsistentePage } = await import('./AsistentePage')
+const { ChatAsistente } = await import('./ChatAsistente')
 
 function montar() {
   estado.enviado = null
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <AsistentePage />
+      <ChatAsistente />
     </QueryClientProvider>,
   )
 }
@@ -66,7 +66,7 @@ const escribirYEnviar = (texto: string) => {
   fireEvent.click(screen.getByRole('button', { name: /preguntar/i }))
 }
 
-describe('La pantalla del asistente', () => {
+describe('El chat del asistente', () => {
   it('muestra la respuesta y deja ver a quién consultó', async () => {
     estado.listo = true
     estado.error = null
@@ -114,9 +114,9 @@ describe('La pantalla del asistente', () => {
   })
 
   /**
-   * Un cartel que anuncia «IA activa» cuando el proveedor está en falso es
-   * peor que no tener cartel: manda a probar y a no entender por qué contesta
-   * siempre lo mismo.
+   * Un asistente que contesta siempre lo mismo sin decir que está apagado
+   * manda a probar y a no entender por qué. El aviso viaja con el chat y no
+   * con el header, así que sigue estando ahora que el chat vive en un cajón.
    */
   it('avisa cuando la IA está apagada', async () => {
     estado.listo = false
@@ -124,8 +124,7 @@ describe('La pantalla del asistente', () => {
     estado.respuesta = null
     montar()
 
-    expect(await screen.findByText('IA apagada')).toBeInTheDocument()
-    expect(screen.getByText(/todavía no está encendida/i)).toBeInTheDocument()
+    expect(await screen.findByText(/todavía no está encendida/i)).toBeInTheDocument()
   })
 
   it('un fallo se muestra en el hilo y no rompe la pantalla', async () => {

@@ -1,0 +1,95 @@
+/* Los accesos del header: notificaciones, chat y asistente (Fase 33). */
+
+/* Los dos íconos con globito. Usan los tokens del header —no los generales—
+   para que sigan al tema de la barra superior como el resto de sus botones. */
+.boton {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-topnav-text);
+  cursor: pointer;
+}
+
+.boton:hover {
+  background: var(--color-topnav-hover);
+  color: var(--color-topnav-text);
+}
+
+.boton:focus-visible {
+  outline: 2px solid var(--color-topnav-focus);
+  outline-offset: 2px;
+}
+
+/* El globito se apoya en la esquina del ícono y se sale un poco del botón:
+   por eso el header no puede recortar por overflow. */
+.globo {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  line-height: 1rem;
+  text-align: center;
+}
+
+/* ── la píldora del asistente ───────────────────────────────────────────── */
+
+/* Con su nombre escrito, y no un ícono más. Tres íconos seguidos se leen como
+   tres bandejas; la píldora dice qué es y se encuentra sin adivinar.
+
+   El degradado es el único color fijo de la barra, a propósito: es el acento
+   que lo hace distinguible de los botones de al lado, que siguen al tema. Al
+   tener fondo propio, el contraste del texto blanco queda garantizado en
+   claro y en oscuro por igual. */
+.pildora {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  height: 2.25rem;
+  padding: 0 var(--space-3);
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(100deg, #7c3aed, #c026d3);
+  color: #fff;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pildora:hover {
+  filter: brightness(1.08);
+}
+
+.pildora:focus-visible {
+  outline: 2px solid var(--color-topnav-focus);
+  outline-offset: 2px;
+}
+
+/* En pantalla angosta queda sólo la chispa: el header no da para el texto, y
+   entre perder el botón o perder la palabra, se pierde la palabra. */
+@media (max-width: 767px) {
+  .pildoraTexto {
+    display: none;
+  }
+  .pildora {
+    padding: 0;
+    width: 2.25rem;
+    justify-content: center;
+  }
+}

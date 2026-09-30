@@ -14,6 +14,7 @@ import { PanelNav } from './PanelNav'
 import { BarraCompacta } from './BarraCompacta'
 import { MenuUsuario } from './MenuUsuario'
 import { EstadoEmpresa } from './EstadoEmpresa'
+import { BotonesHeader } from './BotonesHeader'
 import { nombreVisible } from './sesion'
 import styles from './Shell.module.css'
 
@@ -155,8 +156,14 @@ export function AppLayout() {
         <span className={styles.espaciador} />
         {session && (
           <div className={styles.sesion}>
-            <EmpresaSelector />
+            {/* El orden es el de la web vieja, que es a lo que está
+                acostumbrada la gente de la casa: los avisos y el asistente
+                primero —son de UNO, no de la empresa elegida, y se tocan
+                muchas más veces—, después la apariencia, y al final lo que
+                cambia de contexto: la empresa y la sesión. */}
+            <BotonesHeader />
             <BotonApariencia className={styles.botonHeader} />
+            <EmpresaSelector />
             <MenuUsuario email={email} nombre={nombreVisible(user)} empresa={empresa.activa?.companyName ?? null} rol={empresa.activa?.rol ?? null} onSalir={() => void salir()} />
           </div>
         )}

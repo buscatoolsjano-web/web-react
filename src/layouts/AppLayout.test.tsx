@@ -52,6 +52,10 @@ vi.mock('@/features/empresa/useEmpresa', () => ({
 // se prueba la NAVEGACIÓN, no los contadores: se mockean para no arrastrar el
 // cliente de Supabase ni exigir un QueryClient.
 vi.mock('./useNoLeidos', () => ({ useNoLeidos: () => ({ emails: 0, whatsapp: 0 }) }))
+// La campana y el asistente consultan con react-query y este test monta el
+// layout sin proveedor. Se mockean igual que los contadores del menú: lo que
+// se prueba acá es el shell, no lo que traen.
+vi.mock('./BotonesHeader', () => ({ BotonesHeader: () => <div /> }))
 vi.mock('@/features/apariencia/useApariencia', () => ({
   useApariencia: () => ({
     apariencia: { version: 1, preset: 'claro-naranja', acento: 'tema', tamano: 'normal', fuente: 'sistema' },

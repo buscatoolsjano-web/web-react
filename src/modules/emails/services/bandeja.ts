@@ -356,3 +356,38 @@ export async function contarSinLeer(companyId: string): Promise<number> {
   if (error) fallo('No se pudo contar los correos sin leer', error)
   return Number(data?.[0]?.total_sin_leer ?? 0)
 }
+
+/** Un correo asignado a alguien y todavía sin leer, para las notificaciones. */
+export interface CorreoAsignado {
+  id: string
+  de: string
+  asunto: string
+  resumen: string | null
+  cuando: string | null
+}
+
+/**
+ * Los correos asignados A UNA PERSONA y sin leer (Fase 33 · E1).
+ *
+ * `p_asignado` es lo que los hace «suyos». Sin ese filtro serían los sin leer
+ * de toda la empresa, que es el número del menú: que a alguien le asignen un
+ * correo a OTRO no es una notificación para uno.
+ */
+export async function asignadosAMi(companyId: string, userId: string): Promise<CorreoAsignado[]> {
+  const { data, error } = await supabase.rpc('listar_bandeja_email', {
+    p_company: companyId,
+    p_asignado: userId,
+    p_sin_leer: true,
+    p_limite: 15,
+    p_offset: 0,
+  })
+  if (error) fallo('No se pudieron leer tus correos asignados', error)
+
+  return (data ?? []).map((h) => ({
+    id: String(h.id),
+    de: h.last_message_from ?? 'Alguien',
+    asunto: h.subject ?? '(sin asunto)',
+    resumen: h.snippet ?? null,
+    cuando: h.last_message_at ?? null,
+  }))
+}

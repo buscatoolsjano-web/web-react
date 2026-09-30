@@ -224,10 +224,6 @@ const WhatsappPage = lazyConRecarga(() =>
 const InformeWhatsappPage = lazyConRecarga(() =>
   import('@/modules/whatsapp/pages/InformeWhatsappPage').then((m) => ({ default: m.InformeWhatsappPage })),
 )
-// El asistente con agentes (Fase 31 · E4). Export por defecto, como las
-// páginas nuevas.
-const AsistentePage = lazyConRecarga(() => import('@/modules/asistente/pages/AsistentePage'))
-
 const ChatPage = lazyConRecarga(() =>
   import('@/modules/chat/pages/ChatPage').then((m) => ({ default: m.ChatPage })),
 )
@@ -406,11 +402,6 @@ export const routes: RouteObject[] = [
       // comprueba y la RLS lo impide. Un cliente que escriba la URL ve el
       // cartel de «tu rol no usa el chat», no una pantalla vacía.
       { path: 'chat', element: privada(<ChatPage />) },
-
-      // El asistente (Fase 31). Las herramientas corren con el JWT de quien
-      // pregunta, así que la RLS ya acota qué puede ver cada rol: la página
-      // no necesita filtrar nada por su cuenta.
-      { path: 'asistente', element: privada(<AsistentePage />) },
 
       // Informes v1: actividad comercial agregada en el servidor. Admin y
       // employee; la página y la RPC lo validan, el menú sólo no lo ofrece.

@@ -1,0 +1,65 @@
+/* El panel que entra por la derecha (Fase 33 · E2). */
+
+.velo {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 1000);
+  background: color-mix(in srgb, var(--color-neutral-900, #000) 45%, transparent);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cajon {
+  display: flex;
+  flex-direction: column;
+  width: min(26rem, 100vw);
+  height: 100%;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg, -8px 0 24px rgb(0 0 0 / 25%));
+  animation: entrar 160ms ease-out;
+}
+
+/* El asistente necesita más ancho: muestra conversación, no una lista. */
+.cajonAncho {
+  width: min(34rem, 100vw);
+}
+
+/* Quien pidió no animar, no ve animación. */
+@media (prefers-reduced-motion: reduce) {
+  .cajon {
+    animation: none;
+  }
+}
+
+@keyframes entrar {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+.cabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.titulo {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+/* El cuerpo es el único que scrollea: la cabecera con el botón de cerrar
+   queda siempre a la vista. */
+.cuerpo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
