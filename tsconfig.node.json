@@ -11,6 +11,10 @@
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
+    // Deno EXIGE la extensión en los imports relativos (`./agentes.ts`), así
+    // que los módulos de las Edge Functions la llevan. Con `noEmit` esto no
+    // tiene ningún efecto sobre lo que se compila: sólo deja de quejarse.
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "types": ["node"]
   },
@@ -22,6 +26,14 @@
     // resolver. Vitest ya las corre, pero vitest transpila sin chequear tipos,
     // así que sin esto un error de tipos acá no lo veía nadie.
     "supabase/functions/importar-oc/logica.ts",
-    "supabase/functions/importar-oc/logica.test.ts"
+    "supabase/functions/importar-oc/logica.test.ts",
+    // El núcleo del asistente (Fase 31 · E1). Mismo criterio: sólo lo puro.
+    // `index.ts`, `proveedor.ts` y `ejecutor.ts` hablan con Deno y quedan
+    // afuera. Se comprobó que sin esta línea un error de tipos acá no lo
+    // detectaba nadie: metí uno a propósito y `tsc` no dijo nada.
+    "supabase/functions/asistente/agentes.ts",
+    "supabase/functions/asistente/herramientas.ts",
+    "supabase/functions/asistente/bucle.ts",
+    "supabase/functions/asistente/bucle.test.ts"
   ]
 }
