@@ -70,6 +70,17 @@ with casos(grupo, pregunta, tipo, espera) as (values
   ('MARCA', 'sumake',                   'marca', 'SUMAKE'),
   ('MARCA', 'milwaukee',                'marca', 'MILWAUKEE'),
   ('MARCA', 'red rooster',              'marca', 'RED ROOSTER'),
+  ('MARCA', 'nac',                      'marca', 'NAC'),
+  ('MARCA', 'macsi',                    'marca', 'MACSI'),
+  ('MARCA', 'ohmi',                     'marca', 'OHMI'),
+
+  -- ── En castellano, sobre productos con nombre en inglés (Fase 32 · E8) ───
+  -- El puente lo hace el TIPO: «IMPACT SOCKET» está tipado como Embocadura,
+  -- «TORX BIT» como Punta. Sin el tipo dentro del texto buscable, quien
+  -- pregunta en castellano no encuentra nada de esto.
+  ('TIPO', 'embocadura normeco',         'marca', 'NORMECO'),
+  ('TIPO', 'puntas torx ohmi',           'marca', 'OHMI'),
+  ('TIPO', 'embocaduras de impacto nac', 'marca', 'NAC'),
 
   -- ── Lo que NO tiene que devolver nada ────────────────────────────────────
   -- Devolver basura es peor que devolver nada: el modelo la menciona.

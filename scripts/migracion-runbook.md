@@ -2276,3 +2276,44 @@ elegir nomenclatura, y eso es del dueño del catálogo. Sólo se completaron
 
 Quedan 4.504 productos con `PRO#####` y 3.939 sin marca: reventa suelta cuyos
 nombres no empiezan con una marca.
+
+## 34 · El diccionario castellano ↔ inglés del catálogo (Fase 32 · E7–E8)
+
+La equivalencia la dio el dueño del catálogo: **socket = Embocadura,
+bit = Punta, head = Cabezal**. Son los términos que el catálogo ya usaba para
+APEX y SPEEDRILL, así que las herramientas importadas con nombre en inglés
+pasan a filtrarse junto con las demás en vez de quedar en un limbo aparte.
+
+Se aplicó a TODAS las marcas y no sólo a TOHNICHI: 848 productos sin tipo usan
+esas palabras —NORMECO 79, NAC 55, OHMI 55, GEDORE 44—, y dejarlos afuera
+habría repetido el problema un escalón más abajo.
+
+Se verificó antes que **ningún** producto usa dos de las tres palabras, así que
+el orden de las ramas no cambia ningún resultado. La única excepción es «bit
+holder», que en la casa ya tiene su propio tipo, «Holder Bit»: es el que
+sostiene la punta, no la punta.
+
+### El eslabón que faltaba
+
+Tipificar no servía de nada por sí solo: **la búsqueda no miraba el tipo**.
+Un «TOHNICHI DH12D SQUARE DRIVE HEAD» quedaba tipado como Cabezal y seguía sin
+aparecer buscando «cabezal», que es la palabra que se usa acá.
+
+Ahora `product_type` y la categoría entran al texto buscable. En la práctica el
+tipo funciona como un **diccionario**: el que pregunta escribe en castellano y
+el catálogo está escrito mitad en inglés.
+
+Comprobado:
+
+| se busca | aparece |
+|---|---|
+| embocadura normeco | NORMECO … IMPACT SOCKET |
+| puntas torx ohmi | OHMI … TORX BIT |
+| embocaduras de impacto nac | NAC … IMPACT SOCKET |
+
+| | antes de E7 | después |
+|---|---|---|
+| sin tipo | 7.897 | **7.051** |
+| TOHNICHI sin tipo | 1.293 | **754** |
+
+Banco de búsqueda: **36 de 36**, con los tres casos nuevos incorporados.
