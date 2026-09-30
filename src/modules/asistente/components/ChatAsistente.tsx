@@ -9,8 +9,10 @@ import { Icon, type IconName } from '@/components/icons/Icon'
 import {
   FalloAsistente,
   estadoAsistente,
+  leerAdjunto,
   preguntar,
   transcribir,
+  type Adjunto,
   type MensajeChat,
   type PasoAsistente,
   type PropuestaCotizacion,
@@ -78,6 +80,16 @@ export function ChatAsistente() {
      hace nada es peor que no tenerlo. */
   const [grabando, setGrabando] = useState<Grabacion | null>(null)
   const [avisoAudio, setAvisoAudio] = useState<string | null>(null)
+  /* El documento adjuntado, ya pasado a texto. Uno por vez: dos documentos en
+     una sola pregunta se mezclan y el modelo no sabe cuál es cuál. */
+  const [adjunto, setAdjunto] = useState<Adjunto | null>(null)
+  const entradaArchivo = useRef<HTMLInputElement>(null)
+
+  const leyendo = useMutation({
+    mutationFn: leerAdjunto,
+    onSuccess: setAdjunto,
+    onError: (e) => setAvisoAudio(e instanceof Error ? e.message : 'No pude leer el archivo.'),
+  })
   const puedeGrabar = sePuedeGrabar()
 
   const transcribiendo = useMutation({
@@ -150,11 +162,39 @@ export function ChatAsistente() {
      * contexto. Sin esto, «¿y de ese cliente qué pendiente hay?» llega sin
      * saber de qué cliente se habla.
      */
+    /**
+     * El documento viaja DENTRO de la pregunta, no como un campo aparte.
+     *
+     * Así el bucle de agentes no se entera de que hubo un adjunto: para él es
+     * una consulta más larga. No hubo que tocar ni el bucle ni las
+     * herramientas para que esto funcione.
+     */
+    const conAdjunto =
+      adjunto === null
+        ? limpio
+        : [
+            `[Documento adjunto: ${adjunto.nombre}${adjunto.recortado ? ' · recortado' : ''}]`,
+            adjunto.texto,
+            '',
+            '[Pregunta]',
+            limpio,
+          ].join('\n')
+
     const hilo: MensajeChat[] = [
       ...turnos.filter((x) => !x.error).map((x) => ({ rol: x.rol, texto: x.texto })),
-      { rol: 'usuario' as const, texto: limpio },
+      { rol: 'usuario' as const, texto: conAdjunto },
     ]
-    setTurnos((prev) => [...prev, { rol: 'usuario', texto: limpio }])
+    /* En pantalla se ve lo que la persona ESCRIBIÓ, con el nombre del
+       archivo: volcar el documento entero en la burbuja haría ilegible la
+       conversación. */
+    setTurnos((prev) => [
+      ...prev,
+      {
+        rol: 'usuario',
+        texto: adjunto === null ? limpio : `${adjunto.nombre} — ${limpio}`,
+      },
+    ])
+    setAdjunto(null)
     setTexto('')
     consultar.mutate(hilo)
   }
@@ -279,6 +319,30 @@ export function ChatAsistente() {
           autoComplete="off"
           disabled={companyId === null}
         />
+        {/* El clip. Un solo archivo por vez: dos documentos en una pregunta
+            se mezclan y el modelo no sabe cuál es cuál. */}
+        <input
+          ref={entradaArchivo}
+          type="file"
+          accept="application/pdf"
+          className="sr-only"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            setAvisoAudio(null)
+            if (f) leyendo.mutate(f)
+            e.target.value = ''
+          }}
+        />
+        <button
+          type="button"
+          className={styles.micro}
+          aria-label="Adjuntar un PDF"
+          disabled={leyendo.isPending}
+          onClick={() => entradaArchivo.current?.click()}
+        >
+          <Icon name="paperclip" size={20} />
+        </button>
+
         {/* El micrófono sólo si el navegador puede grabar. Y el estado se
             dice con PALABRAS además de color: «Grabando» en el rótulo
             accesible, no sólo un botón rojo. */}
@@ -303,6 +367,25 @@ export function ChatAsistente() {
           Preguntar
         </Button>
       </form>
+
+      {/* El archivo adjuntado, con su nombre y cómo sacarlo. Sin esto no se
+          sabe si quedó puesto, y se manda la pregunta sin él o con uno viejo. */}
+      {adjunto !== null ? (
+        <p className={styles.adjunto}>
+          <Icon name="paperclip" size={16} />
+          <span className={styles.adjuntoNombre}>{adjunto.nombre}</span>
+          {adjunto.paginas !== null ? (
+            <span className={styles.adjuntoDato}>
+              {adjunto.paginas} pág.{adjunto.recortado ? ' · recortado' : ''}
+            </span>
+          ) : null}
+          <button type="button" className={styles.quitar} onClick={() => setAdjunto(null)}>
+            Quitar
+          </button>
+        </p>
+      ) : null}
+
+      {leyendo.isPending ? <p className={styles.estadoAudio}>Leyendo el documento…</p> : null}
 
       {grabando !== null || transcribiendo.isPending || avisoAudio !== null ? (
         <p className={styles.estadoAudio} role="status">

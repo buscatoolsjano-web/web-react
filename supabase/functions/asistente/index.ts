@@ -10,6 +10,7 @@
  * confirmación en pantalla.
  */
 import { createClient } from 'npm:@supabase/supabase-js@2.58.0'
+import { extractText, getDocumentProxy } from 'npm:unpdf@1.3.2'
 import { type Mensaje, responder } from './bucle.ts'
 import { type Bandeja, crearEjecutor } from './ejecutor.ts'
 import { FalloProveedor, MAX_BYTES_AUDIO, proveedorConfigurado, transcribir } from './proveedor.ts'
@@ -29,6 +30,19 @@ const json = (cuerpo: unknown, status = 200) =>
 
 const falla = (motivo: string, mensaje: string, status = 400) =>
   json({ error: { motivo, mensaje } }, status)
+
+/** Lo más grande que se acepta como adjunto. */
+const MAX_BYTES_ARCHIVO = 10 * 1024 * 1024
+
+/**
+ * Cuánto texto de un documento entra a la pregunta.
+ *
+ * No es una optimización: un documento largo entero se come la ventana de
+ * contexto y el agente se queda sin lugar para razonar sobre él. Veinte mil
+ * caracteres son unas diez páginas, de sobra para una orden de compra o una
+ * ficha técnica.
+ */
+const MAX_TEXTO_ARCHIVO = 20_000
 
 /** Cuántos mensajes de la charla se le pasan al modelo. */
 const HISTORIAL = 12
@@ -85,8 +99,45 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const tipo = req.headers.get('content-type') ?? ''
   if (tipo.includes('multipart/form-data')) {
     const form = await req.formData().catch(() => null)
+
+    /**
+     * Un documento para poder preguntar SOBRE él.
+     *
+     * Se le saca el TEXTO y se devuelve; el archivo no se guarda en ningún
+     * lado. Lo que se manda después al modelo es ese texto dentro de la
+     * pregunta, así que el bucle de agentes no se entera de que hubo un
+     * adjunto: para él es una consulta más larga.
+     */
+    const archivo = form?.get('archivo')
+    if (archivo instanceof File) {
+      if (archivo.size > MAX_BYTES_ARCHIVO) {
+        return falla('demasiado_grande', 'El archivo pesa más de 10 MB.')
+      }
+      try {
+        const doc = await getDocumentProxy(new Uint8Array(await archivo.arrayBuffer()))
+        const { text, totalPages } = await extractText(doc, { mergePages: true })
+        const crudo = (typeof text === 'string' ? text : text.join('\n')).trim()
+        if (crudo === '') {
+          return falla('sin_texto',
+            'Ese PDF no tiene texto: parece escaneado. Por ahora sólo puedo leer PDF con texto.')
+        }
+        // Se recorta acá y no en el navegador: un documento largo entero se
+        // come la ventana de contexto y el agente se queda sin lugar para
+        // razonar. Se avisa que se recortó.
+        const recortado = crudo.length > MAX_TEXTO_ARCHIVO
+        return json({
+          nombre: archivo.name,
+          paginas: totalPages ?? null,
+          recortado,
+          texto: recortado ? crudo.slice(0, MAX_TEXTO_ARCHIVO) : crudo,
+        })
+      } catch {
+        return falla('ilegible', 'No pude abrir el archivo. ¿Es un PDF y está completo?')
+      }
+    }
+
     const audio = form?.get('audio')
-    if (!(audio instanceof File)) return falla('sin_audio', 'No llegó ningún audio.')
+    if (!(audio instanceof File)) return falla('sin_archivo', 'No llegó ningún archivo.')
     if (audio.size > MAX_BYTES_AUDIO) {
       return falla('demasiado_grande', 'El audio es muy largo. Probá con algo más corto.')
     }

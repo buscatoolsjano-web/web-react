@@ -214,6 +214,46 @@ function leerPropuesta(v: unknown): PropuestaCotizacion | null {
   }
 }
 
+/** Un documento adjuntado, ya pasado a texto. */
+export interface Adjunto {
+  nombre: string
+  paginas: number | null
+  /** `true` si el documento era más largo que lo que entra en una consulta. */
+  recortado: boolean
+  texto: string
+}
+
+/**
+ * Sacarle el texto a un PDF para poder preguntar SOBRE él (Fase 36 · E3).
+ *
+ * El archivo no se guarda en ningún lado: se lee, se devuelve el texto y se
+ * termina. Lo que después viaja al asistente es ese texto dentro de la
+ * pregunta, así que los agentes no se enteran de que hubo un adjunto — para
+ * ellos es una consulta más larga.
+ *
+ * Eso tiene una consecuencia buena: no hubo que tocar el bucle de agentes ni
+ * las herramientas. Y una limitación honesta: si el PDF es una foto escaneada,
+ * no hay texto que sacar y se dice.
+ */
+export async function leerAdjunto(archivo: File): Promise<Adjunto> {
+  const cuerpo = new FormData()
+  cuerpo.append('archivo', archivo)
+
+  const r: { data: unknown; error: Error | null } = await supabase.functions.invoke<unknown>(
+    'asistente',
+    { body: cuerpo },
+  )
+  if (r.error) await fallo(r.error)
+
+  const o = (r.data ?? {}) as Record<string, unknown>
+  return {
+    nombre: cadena(o['nombre']) || archivo.name,
+    paginas: typeof o['paginas'] === 'number' ? o['paginas'] : null,
+    recortado: o['recortado'] === true,
+    texto: cadena(o['texto']),
+  }
+}
+
 /**
  * Pasar un audio a texto (Fase 36 · E2).
  *

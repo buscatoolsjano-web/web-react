@@ -2609,3 +2609,55 @@ peor que no tenerlo. Y el estado se dice con PALABRAS además de color —
 
 Se agregó el ícono `mic`, que no existía; estaba usando el de teléfono, que se
 lee como «llamar» y no como «dictar».
+
+## 40 · Adjuntar documentos al asistente (Fase 36 · E3)
+
+Se le sube un PDF, se le saca el texto en el servidor y se puede preguntar
+SOBRE él. El archivo **no se guarda en ningún lado**: se lee, se devuelve el
+texto y se termina.
+
+### El texto viaja DENTRO de la pregunta
+
+Es la decisión que hizo barato esto: el bucle de agentes **no se entera** de
+que hubo un adjunto — para él es una consulta más larga. No hubo que tocar ni
+el bucle ni las herramientas.
+
+Se recorta a 20.000 caracteres (unas diez páginas) y se avisa que se recortó.
+No es una optimización: un documento entero se come la ventana de contexto y
+el agente se queda sin lugar para razonar sobre él.
+
+En la burbuja se muestra el NOMBRE del archivo y lo que la persona escribió, no
+el documento volcado: eso haría ilegible la conversación.
+
+Si el PDF es una foto escaneada no hay texto que sacar, y se dice. Un OCR es
+otro trabajo.
+
+### Probado con una OC real
+
+`OC 4800020829 · MIRGOR`, 3 páginas. El asistente leyó el número, sacó los tres
+renglones y los cruzó contra el catálogo dando SKU, precio de lista y stock —
+y del tercero dijo que **no hay coincidencia exacta**, ofreciendo un
+equivalente en vez de forzar un parecido.
+
+---
+
+## 41 · Aviso: probar permisos NO es desplegar
+
+Durante esta fase rompí la función del asistente. El CLI de Supabase falló con
+403 y, para «probar si el MCP tenía permisos», llamé a `deploy_edge_function`
+con un archivo de relleno. Eso **pisó la versión que andaba** y dejó la función
+devolviendo `WORKER_ERROR`.
+
+Dos cosas que quedan escritas:
+
+1. **Probar permisos y desplegar no son la misma operación.** Para saber si hay
+   acceso, se lista o se lee; no se escribe. Un despliegue siempre reemplaza lo
+   que hay.
+2. **Restaurar por MCP no es viable**: son seis archivos y 64 KB, que habría
+   que transcribir a mano con riesgo de romperlo de otra forma. El camino de
+   vuelta es el CLI, así que **conviene verificar el CLI antes de tocar nada**.
+
+La causa del 403 era que el CLI estaba logueado con **otra cuenta** de
+Supabase: `npx supabase projects list` mostraba seis proyectos personales y
+ninguno de Buscatools. Ese comando es el diagnóstico rápido cuando aparece un
+403, y es más claro que el mensaje de error.

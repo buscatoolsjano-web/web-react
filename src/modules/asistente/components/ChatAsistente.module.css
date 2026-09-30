@@ -269,3 +269,48 @@
   font-size: var(--text-sm);
   color: var(--color-text-soft);
 }
+
+/* ── el adjunto ──────────────────────────────────────────────────────────── */
+
+/* Se ve que quedó puesto y cómo sacarlo. Sin esto se manda la pregunta sin el
+   archivo, o peor, con uno de antes. */
+.adjunto {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.adjuntoNombre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text);
+}
+
+.adjuntoDato {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.quitar {
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-decoration: underline;
+}
