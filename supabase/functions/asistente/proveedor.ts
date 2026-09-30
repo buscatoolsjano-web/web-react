@@ -58,6 +58,20 @@ function aEntrada(mensajes: readonly Mensaje[]): Record<string, unknown>[] {
     if (m.rol === 'usuario') {
       items.push({ role: 'user', content: m.texto })
     } else if (m.rol === 'agente') {
+      /**
+       * Si tenemos lo que devolvió el proveedor, se le devuelve TAL CUAL.
+       *
+       * Reconstruirlo a mano parece equivalente y no lo es: un modelo que
+       * razona emite bloques propios entre la pregunta y la llamada, y esos
+       * bloques van apareados con lo que sigue. Rearmando los mensajes se
+       * pierden, y la conversación puede volver rechazada por quedar mal
+       * apareada. La reconstrucción de abajo queda sólo para los mensajes que
+       * vienen del navegador, que nunca pasaron por el proveedor.
+       */
+      if (m.crudo && m.crudo.length > 0) {
+        for (const item of m.crudo) items.push(item as Record<string, unknown>)
+        continue
+      }
       if (m.texto.trim() !== '') items.push({ role: 'assistant', content: m.texto })
       for (const ll of m.llamadas ?? []) {
         items.push({
@@ -150,7 +164,8 @@ function proveedorOpenAI(cliente: OpenAI, modelo: string, esfuerzo: string): Pro
         .map((c) => c.text ?? '')
         .join('')
 
-      return { texto, llamadas }
+      // Los ítems se guardan enteros para devolverlos en la vuelta siguiente.
+      return { texto, llamadas, crudo: salida as unknown[] }
     },
   }
 }

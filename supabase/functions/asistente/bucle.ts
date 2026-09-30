@@ -33,7 +33,25 @@ export interface LlamadaHerramienta {
 
 export type Mensaje =
   | { rol: 'usuario'; texto: string }
-  | { rol: 'agente'; texto: string; llamadas?: readonly LlamadaHerramienta[] }
+  | {
+      rol: 'agente'
+      texto: string
+      llamadas?: readonly LlamadaHerramienta[]
+      /**
+       * Lo que devolvió el proveedor, tal cual, para devolvérselo después.
+       *
+       * El bucle no lo mira ni sabe qué hay adentro: sólo lo transporta. Los
+       * modelos que razonan emiten bloques propios entre la pregunta y la
+       * llamada a herramienta, y si no vuelven junto con el resultado se
+       * pierde el hilo del razonamiento —y según el proveedor, la
+       * conversación entera se rechaza por quedar mal apareada—.
+       *
+       * Reconstruir los mensajes a mano en vez de reenviar esto funcionaba en
+       * las pruebas con modelo guionado y se habría roto en la primera
+       * consulta real.
+       */
+      crudo?: readonly unknown[]
+    }
   | { rol: 'herramienta'; id: string; nombre: string; texto: string }
 
 export interface PedidoAlModelo {
@@ -45,6 +63,8 @@ export interface PedidoAlModelo {
 export interface RespuestaModelo {
   texto: string
   llamadas: readonly LlamadaHerramienta[]
+  /** Los ítems del proveedor, para reenviarlos en la vuelta siguiente. */
+  crudo?: readonly unknown[]
 }
 
 export interface Limites {
@@ -73,6 +93,15 @@ export interface Entorno {
    * La web vieja se tragaba estos errores en un `catch` vacío.
    */
   ejecutar(nombre: string, argumentos: Record<string, unknown>): Promise<string>
+  /**
+   * Lo que el agente tiene que saber de ESTA consulta: la fecha de hoy y
+   * quién pregunta. Se inyecta porque este módulo es puro y no puede mirar
+   * el reloj —y porque en un test la fecha tiene que poder ser fija—.
+   *
+   * Sin esto, «el mejor cliente de agosto» se contestaba preguntando de qué
+   * año. Tenía razón el modelo: no lo podía saber.
+   */
+  contexto?: string
   limites?: Partial<Limites>
 }
 
@@ -156,9 +185,17 @@ function herramientasVisibles(agenteId: string, pila: readonly string[], limites
   return [...propias, ...colegas]
 }
 
-function sistemaDe(agenteId: string): string {
+/**
+ * El prompt de sistema: lo común, lo del agente, y el contexto de la consulta.
+ *
+ * El contexto va al final y no al principio: es lo más específico y lo que no
+ * se puede deducir de nada —la fecha de hoy, quién pregunta—, y conviene que
+ * quede cerca de la pregunta.
+ */
+function sistemaDe(agenteId: string, contexto: string | undefined): string {
   const a = agente(agenteId)
-  return a ? `${PROMPT_COMUN}\n\n---\n\n${a.prompt}` : PROMPT_COMUN
+  const base = a ? `${PROMPT_COMUN}\n\n---\n\n${a.prompt}` : PROMPT_COMUN
+  return contexto ? `${base}\n\n---\n\n${contexto}` : base
 }
 
 /**
@@ -185,12 +222,12 @@ async function correr(
     }
 
     cuenta.llamadas++
-    const r = await entorno.modelo({ sistema: sistemaDe(agenteId), mensajes, herramientas })
+    const r = await entorno.modelo({ sistema: sistemaDe(agenteId, entorno.contexto), mensajes, herramientas })
 
     // Sin llamadas, contestó: se termina.
     if (r.llamadas.length === 0) return r.texto
 
-    mensajes.push({ rol: 'agente', texto: r.texto, llamadas: r.llamadas })
+    mensajes.push({ rol: 'agente', texto: r.texto, llamadas: r.llamadas, crudo: r.crudo })
 
     /**
      * Las llamadas de una misma vuelta van EN PARALELO.
@@ -214,7 +251,7 @@ async function correr(
 
   cuenta.llamadas++
   const cierre = await entorno.modelo({
-    sistema: sistemaDe(agenteId),
+    sistema: sistemaDe(agenteId, entorno.contexto),
     mensajes: [
       ...mensajes,
       {

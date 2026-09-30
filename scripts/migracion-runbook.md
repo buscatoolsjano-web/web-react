@@ -1952,3 +1952,162 @@ por su rótulo accesible, y que tocarlas abre y cierra el buscador.
 El PDF se saltea: la lectura vive en una Edge Function y el test devuelve lo que
 habría devuelto. Ojo para la próxima: el proyecto **no tiene
 `@testing-library/user-event`**, se usa `fireEvent`.
+
+## 30 · El ejército de agentes: arquitectura (Fase 31 · E1–E4)
+
+Se arma de cero. El legacy (`app.js`, 45.345 líneas) sirvió para saber qué
+agentes hacían falta y, sobre todo, qué NO repetir.
+
+### Lo que hacía el legacy, y por qué no alcanzaba
+
+Un asistente general más cinco por sección (catálogo, ventas, compras, emails,
+mantenimiento). El problema no era la cantidad de agentes: era que **ninguno
+consultaba la base**. Los datos se pegaban como TEXTO dentro del prompt.
+
+| | legacy | ahora |
+|---|---|---|
+| Catálogo | volcaba hasta **400 líneas** de producto: el 1,8 % de 21.775 | consulta con herramientas; llega a cualquiera |
+| Derivación | tablero de regex + memoria pegajosa de 12 turnos | lo decide el modelo, y puede consultar a dos |
+| Datos | texto pegado al prompt | RPC con `function calling` |
+| Acciones | `:::ACCION:::{json}:::FIN:::` sacado con regex, error tragado en `catch{}` | herramientas tipadas; el fallo vuelve como texto |
+| Claves | `localStorage` + token fijo en el JS público | secrets de la Edge Function |
+| Permisos | ninguno: el Worker corría con lo que tuviera | JWT de la persona; manda la RLS |
+
+El parche más elocuente del legacy: «¿llegó algún mail con una orden de
+compra?» matcheaba «orden de compra» y caía en Compras, que no ve los correos.
+Hubo que escribir una regla de prioridad a mano para Emails. Acá hay un test de
+ese caso exacto, y el general consulta a los DOS.
+
+### La arquitectura
+
+`bucle.ts` + `agentes.ts` + `herramientas.ts` son PUROS: entran dos funciones
+inyectadas (`modelo` y `ejecutar`) y todo lo demás es decisión. Por eso los
+límites se prueban con un modelo guionado, que es la única forma de verificar
+ciclos y presupuesto sin gastar ni depender de que el modelo se porte igual
+dos veces.
+
+Los cortes, todos probados: un colega que ya está en la pila **no se le
+ofrece** al modelo —rechazarlo después gasta vueltas—; tope de profundidad;
+tope de vueltas por agente; y un presupuesto global de llamadas. Todos
+terminan en una RESPUESTA, nunca en una excepción hacia la persona.
+
+### Lo que salió de probar las herramientas contra datos reales
+
+Cinco errores, todos de los que hacen «responder con errores»:
+
+1. **El grave**: preguntar por un cliente inexistente devolvía los documentos
+   de OTRO. El CUIT se comparaba normalizado a cifras y 447 clientes no tienen
+   CUIT: vacío igual a vacío matcheaba a todos. No fallaba: contestaba mal con
+   datos reales ajenos.
+2. «fein oscilante» devolvía **un** producto: se exigía la frase entera y se
+   llaman «FEIN MULTIMASTER». Ahora busca por palabra contra nombre, SKU y
+   marca.
+3. «punta philips ph2» ponía **BR.PH1 arriba de BR.PH2**. Los trigramas miran
+   la cadena entera: un carácter es ruido para ellos y TODO para una persona.
+4. Buscar por palabra suelta trajo lo contrario: «zzzz no existe» devolvía «NO
+   UTILIZAR ESTE ITEM» porque «no» matchea. Palabras vacías y un piso de
+   coincidencia.
+5. `informe_documentos` habla en **plural** y `informe_rankings_comerciales`
+   rechaza «clientes + cantidad» y exige moneda con importe. Traducir es
+   trabajo del envoltorio: pedirle al modelo que adivine el plural es que un
+   día devuelva cero sobre una base con 218 cotizaciones.
+
+Y se descubrió que los módulos de las Edge Functions nuevas **no se estaban
+typecheckeando**: metí un error a propósito y `tsc` no dijo nada. Ahora están
+en `tsconfig.node.json`, que además necesitó `allowImportingTsExtensions`
+porque Deno exige la extensión en los imports relativos.
+
+### Encenderlo
+
+El proveedor arranca en `falso`, como `importar-oc`: desplegado sin configurar
+no manda los datos de nadie a un tercero. Se enciende con un secret:
+
+    IA_PROVIDER = openai
+
+`OPENAI_API_KEY` ya está cargada (la usa `importar-oc`). `IA_MODELO` y
+`IA_ESFUERZO` tienen default.
+
+### Pendiente
+
+- El Worker del legacy sigue vivo con su token publicado: **rotarlo o
+  apagarlo**, exista o no el asistente nuevo.
+- El asistente sólo LEE. Crear una cotización es otra decisión y necesita su
+  confirmación en pantalla.
+- Compras no puede LISTAR documentos de compra (no hay informe equivalente a
+  `informe_documentos`); sí abrir uno por número. Está dicho en su prompt.
+- Memoria entre conversaciones: el legacy tiene 5 tablas. Sin migrar.
+
+## 31 · Lo que salió de probar el asistente con preguntas reales (Fase 31 · E5)
+
+Con el proveedor encendido y preguntas de verdad aparecieron cuatro cosas que
+ninguna prueba con modelo guionado podía encontrar.
+
+### 1 · No sabía en qué día vivía
+
+«¿Cuál fue el mejor cliente de agosto?» → «¿De qué año querés consultar
+agosto?». El modelo tenía razón: no lo podía saber. Se inyecta el contexto de
+la consulta —fecha en zona horaria de Buenos Aires, y quién pregunta— por el
+`Entorno`, no leyendo el reloj adentro del bucle, que es puro y tiene que
+poder tener fecha fija en un test.
+
+La zona horaria importa: a las 21 de Argentina, en UTC ya es mañana, y «lo de
+hoy» sería el día equivocado.
+
+### 2 · Preguntaba de más
+
+Después de la fecha, seguía: «¿en qué moneda querés medirlo?», teniendo USD
+por defecto. La regla del prompt decía «si es ambiguo, preguntá», y eso
+convierte cada consulta en un interrogatorio. Ahora la regla distingue:
+
+- **Asumí y decilo** cuando hay una respuesta obvia (el año de un mes, la
+  moneda habitual, «últimamente»).
+- **Pará y preguntá** sólo cuando elegir mal tiene consecuencias: cuál de dos
+  clientes parecidos, cuál de dos productos que no son intercambiables.
+
+### 3 · El grave: contestaba que NO hay stock de algo que sí hay
+
+«¿Tenemos puntas Philips PH2 con stock?» → **«No hay stock»**, con 10 unidades
+de BR.PH2 en el depósito. Dos palabras rompían la búsqueda:
+
+- «puntas» en plural no matchea «PUNTA»;
+- «philips» con una L no matchea «PHILLIPS», que es como está escrito.
+
+Escribiendo «punta phillips ph2» aparecía perfecto. O sea: **la respuesta
+dependía de cómo se escribiera la pregunta**, y el error salía como una
+afirmación segura. Un vendedor le dice a un cliente que no tenemos algo que
+tenemos.
+
+Se arregla con `word_similarity` por palabra. El umbral es 0,6, medido:
+
+| par | parecido |
+|---|---|
+| philips ↔ phillips | 0,700 |
+| puntas ↔ punta | 0,714 |
+| destornillador ↔ punta phillips | 0,067 |
+| llave ↔ ídem | 0,000 |
+
+Casi diez veces de separación entre «es la misma palabra» y «no tiene nada que
+ver»: 0,6 no es un número elegido a ojo.
+
+### 4 · Y eso costó tres veces más, así que la búsqueda va en dos etapas
+
+Calcular el parecido palabra por palabra contra los 21.775 productos llevó la
+búsqueda de ~400 ms a **1.356 ms**. Ahora: una preselección barata (`like` y
+`<%`) y, sobre esos cientos, el cálculo caro que decide el orden. Vuelve a
+440–920 ms en régimen; los 2.400 ms del primer tiro son arranque en frío.
+
+La preselección es generosa a propósito: lo que deje afuera no lo rescata
+nadie después.
+
+### Detalles de la pantalla
+
+- **La caja de escribir ocupaba media pantalla.** Las filas de la grilla se
+  asignan por POSICIÓN y el cartel de «IA apagada» es condicional: sin él
+  había un hijo menos y el `1fr` le tocaba a la barra. Ahora es flex y el que
+  crece lo dice él mismo.
+- **Los asteriscos se veían.** Se resuelven con un partidor propio de seis
+  líneas que devuelve PEDAZOS, no HTML: el texto del modelo no puede inyectar
+  nada en la página. Los asteriscos sin cerrar quedan como texto, así que un
+  `**` de más no cambia el aspecto de media respuesta.
+- **Los importes salían «USD 10811.48».** Se le pide al modelo el formato
+  argentino: mismo número, escrito como se lee acá.

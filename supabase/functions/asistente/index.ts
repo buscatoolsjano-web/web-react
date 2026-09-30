@@ -121,11 +121,37 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const proveedor = proveedorConfigurado()
 
+  /**
+   * Lo que el agente tiene que saber de ESTA consulta.
+   *
+   * La fecha, sobre todo. Sin ella, «el mejor cliente de agosto» se contestaba
+   * preguntando de qué año, y tenía razón: no lo podía saber. Va en la zona
+   * horaria de Buenos Aires, que es donde se trabaja: a las 21 de Argentina,
+   * en UTC ya es mañana, y «lo de hoy» sería el día equivocado.
+   *
+   * Y quién pregunta, que es lo que le da sentido a «¿qué tengo pendiente?».
+   */
+  const ahora = new Date().toLocaleDateString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+  const meta = (usuario.user.user_metadata ?? {}) as { full_name?: unknown; nombre?: unknown }
+  const quien =
+    (typeof meta.full_name === 'string' && meta.full_name) ||
+    (typeof meta.nombre === 'string' && meta.nombre) ||
+    usuario.user.email ||
+    'alguien de la empresa'
+  const contexto = `CONTEXTO DE ESTA CONSULTA\nHoy es ${ahora}. Cuando digan un mes sin año, es el más reciente que ya pasó.\nQuien pregunta es ${quien}.`
+
   try {
     const r = await responder(
       {
         modelo: (pedido) => proveedor.responder(pedido),
         ejecutar: crearEjecutor({ token, companyId, userId }),
+        contexto,
       },
       mensajes,
       inicial,
