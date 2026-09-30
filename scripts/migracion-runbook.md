@@ -2207,3 +2207,72 @@ letras de la marca + punto + modelo, pero **la regla choca**:
 Ya hay un precedente de cómo se resolvió antes: TOHNICHI usa `TC.` y no `TO.`
 porque TORERO tenía `TO.`. Decidir los prefijos nuevos es del dueño del
 catálogo, no mío: un prefijo mal elegido se arrastra para siempre.
+
+## 33 · Referencias, tipos y atributos (Fase 32 · E5–E6)
+
+### Los prefijos nuevos los decidió el dueño del catálogo
+
+BREMEN → `BM` (porque `BR` ya es BROPPE) y NAC → `NC` (porque `NA` ya estaba
+usado). Es el mismo criterio con el que antes TOHNICHI quedó en `TC` y no en
+`TO`: TORERO tenía `TO`. Un prefijo mal elegido se arrastra para siempre, así
+que la decisión no es de quien escribe la migración.
+
+### El modelo NO estaba en `model_code`
+
+Parecía el campo obvio y era una trampa: en **5.348 de 5.394** productos con
+SKU genérico, `model_code` es el propio número del SKU —`PRO04787` tiene
+`model_code` «04787»—. Un correlativo interno, no el modelo del fabricante.
+Usarlo habría producido `RI.05004` para «RIVIT **RIV504**».
+
+El modelo sale del NOMBRE: el primer token con dígitos dentro de los tres que
+siguen a la marca. Los dígitos son lo que separa un modelo de una palabra, y
+el límite de tres evita agarrar un número perdido más adelante: sin él,
+«MACSI ZAPATO DE SEGURIDAD ZAFIRO TALLE 35» habría quedado con modelo «35».
+
+**890 productos renombrados, cero SKU duplicados.**
+
+### Lo que se dejó sin tocar, a propósito
+
+- **Sin modelo deducible** (188): se quedan con `PRO#####`. Inventar una
+  referencia es peor que no tenerla.
+- **Referencias que chocarían** (59 grupos): «RIV504 Trigger», «RIV504 Jaws
+  opener» y «RIV504 End plug» son tres REPUESTOS del mismo modelo, y su número
+  de parte está en otro lado del nombre. Ponerles `RI.RIV504`, `-2` y `-3`
+  sería inventar una numeración que no existe en ningún catálogo.
+
+### FIAM y TOHNICHI: el dato ya estaba en la base
+
+Se pidió sacarlo de las webs de los fabricantes. No hizo falta, y conviene
+saber por qué:
+
+- **TOHNICHI**: 2.762 de 2.776 traen una ficha estructurada en `description`
+  —MARCA / ORIGEN / MODELO / DESCRIPCION— con el rango de torque y el encastre
+  adentro del texto. Sólo faltaba parsearla.
+- **FIAM**: 3.220 de 3.378 son **REPUESTOS**. El «faltan atributos» era un
+  espejismo: una bujía o un rotor no tienen torque ni encastre. El hueco real
+  eran ~158 herramientas, y 68 ya traían ficha.
+
+Scrapear 6.105 productos de dos sitios habría sido caro, lento y menos
+confiable que leer lo que ya estaba.
+
+Se usan las claves que YA usa el catálogo —`torq_min`, `torq_max`, `encastre`,
+`peso_kg`— y no unas nuevas: si cada marca inventa su vocabulario, el filtro
+deja de servir, que es lo que se quería arreglar. Y `attributes` se MEZCLA con
+lo nuevo del lado izquierdo del `||`, así lo cargado a mano gana.
+
+| | antes | después |
+|---|---|---|
+| sin tipo de producto | 12.600 | **7.897** |
+| sin atributos | 12.740 | **11.445** |
+| FIAM sin tipo | 3.374 | **158** |
+
+### Lo que falta y por qué no lo decidí yo
+
+1.293 TOHNICHI quedaron SIN tipo a propósito: son cabezales (OPEN END HEAD,
+RING HEAD, HEX HEAD), tubos (SOCKET, HEX SOCKET) y puntas (BIT). Traducirlos
+al vocabulario de la casa —que tiene «Embocadura», «Casquillo», «Punta»— es
+elegir nomenclatura, y eso es del dueño del catálogo. Sólo se completaron
+«Llave Dinamométrica» y «Destornillador Dinamométrico», que no admiten duda.
+
+Quedan 4.504 productos con `PRO#####` y 3.939 sin marca: reventa suelta cuyos
+nombres no empiezan con una marca.
