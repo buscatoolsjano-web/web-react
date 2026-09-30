@@ -1,4 +1,4 @@
-import { asignadosAMi } from '@/modules/emails/services/bandeja'
+import { asignadosAMi, avisosDeSincronizacion } from '@/modules/emails/services/bandeja'
 import { listarChats } from '@/modules/chat/services/chat'
 
 /**
@@ -21,7 +21,7 @@ import { listarChats } from '@/modules/chat/services/chat'
 
 export interface Notificacion {
   id: string
-  tipo: 'email' | 'chat'
+  tipo: 'email' | 'chat' | 'alerta'
   /** Quién lo generó: el remitente del correo, o quién escribió. */
   de: string
   titulo: string
@@ -47,6 +47,35 @@ async function correosParaMi(companyId: string, userId: string): Promise<Notific
   } catch {
     // Un fallo no rompe el panel: se muestra lo que se pueda. Que no cargue
     // una fuente es mejor que no mostrar ninguna.
+    return []
+  }
+}
+
+/**
+ * Los problemas de la bandeja: que el correo haya dejado de entrar.
+ *
+ * Es la única fuente que NO es personal —le pasa a la empresa, no a uno— y va
+ * igual acá, arriba de todo. Un aviso de que el correo dejó de entrar no sirve
+ * escondido en una pantalla de configuración que nadie abre: tiene que estar
+ * donde la gente ya mira.
+ *
+ * Y es lo que faltaba el 28/09: el correo se cortó y nada avisó.
+ */
+async function problemasDeCorreo(companyId: string): Promise<Notificacion[]> {
+  try {
+    const avisos = await avisosDeSincronizacion(companyId)
+    return avisos.map((a) => ({
+      id: `alerta:${a.clave}:${a.cuenta}`,
+      tipo: 'alerta' as const,
+      de: a.cuenta,
+      titulo: a.titulo,
+      detalle: a.detalle,
+      // Sin fecha a propósito: al ordenar por fecha descendente, el vacío
+      // queda último. Se reinserta adelante en `misNotificaciones`.
+      cuando: null,
+      destino: '/emails',
+    }))
+  } catch {
     return []
   }
 }
@@ -83,9 +112,16 @@ export async function misNotificaciones(
   companyId: string,
   userId: string,
 ): Promise<Notificacion[]> {
-  const [correos, chats] = await Promise.all([
+  const [problemas, correos, chats] = await Promise.all([
+    problemasDeCorreo(companyId),
     correosParaMi(companyId, userId),
     chatsParaMi(companyId),
   ])
-  return [...correos, ...chats].sort((a, b) => (b.cuando ?? '').localeCompare(a.cuando ?? ''))
+  // Los problemas van SIEMPRE primero, sin importar la fecha: que el correo
+  // haya dejado de entrar importa más que cualquier mensaje suelto, y además
+  // explica por qué la lista de abajo puede estar vacía.
+  const personales = [...correos, ...chats].sort((a, b) =>
+    (b.cuando ?? '').localeCompare(a.cuando ?? ''),
+  )
+  return [...problemas, ...personales]
 }

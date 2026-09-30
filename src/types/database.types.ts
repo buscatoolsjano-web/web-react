@@ -6690,6 +6690,10 @@ export type Database = {
         Args: { p_company: string; p_cuit: string | null; p_nombre: string | null }
         Returns: Json
       }
+      estado_sync_email: {
+        Args: { p_company: string }
+        Returns: Json
+      }
       emparejar_lineas_de_oc: {
         Args: { p_company: string; p_customer: string; p_lineas: Json }
         Returns: Json

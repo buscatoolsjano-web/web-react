@@ -4,7 +4,8 @@
   position: fixed;
   inset: 0;
   z-index: var(--z-modal, 1000);
-  background: color-mix(in srgb, var(--color-neutral-900, #000) 45%, transparent);
+  /* El mismo velo que los diálogos: hay un token para esto. */
+  background: var(--color-overlay);
   display: flex;
   justify-content: flex-end;
 }

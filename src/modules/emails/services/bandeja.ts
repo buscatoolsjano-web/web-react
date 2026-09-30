@@ -391,3 +391,37 @@ export async function asignadosAMi(companyId: string, userId: string): Promise<C
     cuando: h.last_message_at ?? null,
   }))
 }
+
+/** Un problema de sincronización de la bandeja, listo para mostrar. */
+export interface AvisoSync {
+  cuenta: string
+  nivel: 'critico' | 'aviso'
+  clave: string
+  titulo: string
+  detalle: string
+}
+
+/**
+ * Si el correo está entrando o no (Fase 34).
+ *
+ * Existe por cómo falla esto: el correo entra por *push* de Gmail, con un
+ * permiso que VENCE cada 7 días. Cuando vence, Gmail deja de avisar y
+ * `sync_error` queda en NULL — nada falla, simplemente se hace silencio. Una
+ * bandeja que dejó de recibir se ve igual que una bandeja tranquila, y eso
+ * se puede sostener días sin que nadie lo note.
+ *
+ * Devuelve `[]` cuando está todo bien, que es lo normal.
+ */
+export async function avisosDeSincronizacion(companyId: string): Promise<AvisoSync[]> {
+  const { data, error } = await supabase.rpc('estado_sync_email', { p_company: companyId })
+  if (error) fallo('No se pudo comprobar la sincronización del correo', error)
+
+  const texto = (v: unknown): string => (typeof v === 'string' ? v : '')
+  return ((data ?? []) as Record<string, unknown>[]).map((a) => ({
+    cuenta: texto(a['cuenta']),
+    nivel: a['nivel'] === 'critico' ? 'critico' : 'aviso',
+    clave: texto(a['clave']),
+    titulo: texto(a['titulo']),
+    detalle: texto(a['detalle']),
+  }))
+}

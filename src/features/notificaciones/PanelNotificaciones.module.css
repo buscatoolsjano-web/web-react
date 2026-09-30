@@ -112,3 +112,17 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Una alerta no es un mensaje: va en ámbar y con triángulo. La FORMA distinta
+   importa tanto como el color, porque el color solo no lo distingue todo el
+   mundo. */
+.iconoAlerta {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-full, 50%);
+  background: var(--color-warning-soft, var(--color-surface-alt));
+  color: var(--color-warning, var(--color-text));
+}

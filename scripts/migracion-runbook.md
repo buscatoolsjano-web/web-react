@@ -2373,3 +2373,70 @@ con dos consultas distintas el globito podría decir 3 con el panel mostrando 2.
 
 Los dos paneles se cargan con `lazy`: el header lo ve TODO el mundo en TODAS
 las páginas, y quien no los abre no paga su descarga.
+
+## 36 · La alarma de correo, y por qué el 28/09 no fue un error (Fase 34)
+
+### Primero: no había nada roto
+
+Reportado: «los mails no están llegando desde el 28/09». Medido:
+
+| | último sync | hilos últimos 2 días |
+|---|---|---|
+| Ohio (producción) | **hoy 15:59** | **172** |
+| Brasil | 28/09 17:20 | 0 |
+
+Brasil quedó congelado el 28/09 porque **es la copia que se hizo ese día**. No
+recibe correo: no es un destino, es una foto. El deploy de producción sigue
+usando el secret de GitHub que apunta a Ohio —el último paso del cutover—, así
+que `app.buscatools.com` nunca dejó de recibir.
+
+La confusión salió de mostrar la preview local sin aclarar a qué base apunta.
+**Lección para el cutover: cualquier pantalla que muestre datos tiene que
+decir de qué base salieron, o se confunde una copia con una caída.**
+
+### Lo que sí encontró la búsqueda de la causa
+
+El correo **no entra por cron**: entra por *push* de Gmail, habilitado por un
+`watch` que **vence cada 7 días**. Si nadie lo renueva, Gmail deja de avisar.
+
+Y falla en silencio: **`sync_error` queda en NULL**. Nada da error porque nada
+falla. Una bandeja que dejó de recibir se ve idéntica a una bandeja tranquila,
+y eso se sostiene días sin que nadie lo note — que es exactamente lo que se
+creyó que había pasado.
+
+### La alarma
+
+`estado_sync_email(company)` devuelve `[]` cuando está todo bien y, si no:
+
+| señal | nivel | por qué |
+|---|---|---|
+| watch vencido | crítico | determinista: la fecha está guardada |
+| `sync_error` no nulo | crítico | gana sobre «por vencer» |
+| watch vence en < 2 días | aviso | avisa ANTES de que duela |
+| > 12 h sin sincronizar | aviso | umbral generoso a propósito |
+
+El umbral de 12 h es generoso porque un fin de semana tranquilo no se
+distingue de una cuenta rota, y el texto lo dice: «puede ser que no haya
+llegado nada». **Una alarma que suena en falso se termina ignorando, que es la
+peor forma de no tener alarma.**
+
+Probada con cinco casos revirtiendo al final, incluido el que más importa: con
+todo sano **no avisa nada**.
+
+Se aplicó a Brasil y **también a producción**, con autorización explícita. Es
+`stable` y no escribe: sólo lee `email_accounts`. Verificado contra producción:
+devuelve `[]`, con el watch venciendo el 07/10 a 161 h de distancia.
+
+### Ojo al desplegar el frontend
+
+La UI que muestra la alarma viaja junto con el asistente, y **Ohio no tiene
+ninguna de sus 12 RPC ni su Edge Function**. Desplegar `main` a producción hoy
+pondría la píldora del asistente contra una base que no la puede atender: un
+botón que falla al tocarlo.
+
+O va todo junto en el cutover, o hay que llevar el asistente a Ohio primero.
+La primera es la sensata: el cutover es el paso siguiente.
+
+**Ventana de riesgo:** el watch de producción vence el **07/10**. Si el
+cutover no llegó para entonces, hay que renovarlo a mano — y hasta que la UI
+no esté desplegada, la alarma existe pero no la ve nadie.

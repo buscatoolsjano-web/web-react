@@ -30,6 +30,13 @@ function hace(iso: string | null): string {
   return d === 1 ? 'ayer' : `hace ${d} días`
 }
 
+/** Qué ícono y qué color le toca a cada clase de aviso. */
+const icono = {
+  alerta: { nombre: 'alert-triangle', clase: 'iconoAlerta' },
+  email:  { nombre: 'mail',           clase: 'iconoMail' },
+  chat:   { nombre: 'message-circle', clase: 'iconoChat' },
+} as const
+
 export interface PanelNotificacionesProps {
   onCerrar: () => void
 }
@@ -69,8 +76,11 @@ export function PanelNotificaciones({ onCerrar }: PanelNotificacionesProps) {
           {(q.data ?? []).map((n) => (
             <li key={n.id}>
               <button type="button" className={styles.item} onClick={() => ir(n)}>
-                <span className={n.tipo === 'email' ? styles.iconoMail : styles.iconoChat}>
-                  <Icon name={n.tipo === 'email' ? 'mail' : 'message-circle'} size={16} />
+                {/* La alerta se distingue por FORMA además de por color: un
+                    triángulo no se confunde con un sobre aunque no se vean
+                    los colores. */}
+                <span className={styles[icono[n.tipo].clase]}>
+                  <Icon name={icono[n.tipo].nombre} size={16} />
                 </span>
                 <span className={styles.texto}>
                   <span className={styles.linea1}>

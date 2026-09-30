@@ -99,4 +99,26 @@ describe('El panel de notificaciones', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Facundo/i }))
     expect(estado.destino).toBe('/chat')
   })
+
+  /**
+   * El caso que motivó todo: el 28/09 el correo dejó de entrar y NADA avisó.
+   * Un aviso de que la bandeja se cortó no sirve escondido en configuración:
+   * va acá, arriba de todo, que es donde la gente ya mira.
+   */
+  it('un problema de la bandeja aparece como alerta y va PRIMERO', async () => {
+    estado.datos = [
+      {
+        id: 'alerta:watch_vencido:info@buscatools.com.ar', tipo: 'alerta',
+        de: 'info@buscatools.com.ar', titulo: 'El correo NO está entrando',
+        detalle: 'El permiso de Gmail venció el 28/09 a las 14:20.',
+        cuando: null, destino: '/emails',
+      },
+      unMail(),
+    ]
+    montar()
+
+    expect(await screen.findByText('El correo NO está entrando')).toBeInTheDocument()
+    const filas = screen.getAllByRole('button').filter((b) => b.textContent?.includes('@'))
+    expect(filas[0]?.textContent).toContain('El correo NO está entrando')
+  })
 })
