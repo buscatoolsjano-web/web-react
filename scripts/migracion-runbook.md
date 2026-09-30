@@ -2661,3 +2661,124 @@ La causa del 403 era que el CLI estaba logueado con **otra cuenta** de
 Supabase: `npx supabase projects list` mostraba seis proyectos personales y
 ninguno de Buscatools. Ese comando es el diagnóstico rápido cuando aparece un
 403, y es más claro que el mensaje de error.
+
+## 42 · El cutover: lo que se pudo hacer solo y lo que no
+
+El corte a São Paulo se hizo en este orden, y el orden importa: **primero los
+datos, después la calidad, y los secretos al final.** Al revés, se copian datos
+sobre un sistema que ya está atendiendo pedidos.
+
+### a) Re-sincronizar, y por qué se contaron filas y no fechas
+
+Antes de resincronizar se midió la divergencia. `products` daba 21.828 filas en
+los dos lados y **cero filas modificadas en Ohio** desde la copia, así que se
+excluyó del resync junto con `brands`: el trabajo de catálogo vive en Brasil y
+un resync lo habría pisado.
+
+El resto —95 tablas, 46.419 filas, 95 segundos— se trajo con `_resync()`.
+
+El conteo marcó **31 filas de `product_prices` del 09/09 que están en Ohio y no
+en Brasil**, y parecía una pérdida. No lo era: son los precios de 31 productos
+que el dedup de catálogo **fundió como duplicados** y dejó dados de baja acá.
+Ohio conserva las dos filas de cada par; Brasil se quedó con una.
+
+Resincronizarlas las resucitó, y `_reaplicar_calidad(true)` las volvió a
+borrar: tiene un paso de fusión guiado por `_merge_productos` que mueve el
+stock al sobreviviente y elimina el precio del fundido. Las dos cosas están
+bien; lo que estaba mal era mi lectura.
+
+> **El conteo crudo da falsos positivos cuando una de las dos bases borra a
+> propósito.** «Ohio tiene 31 filas más» no significa «a Brasil le faltan 31»:
+> significa «hay 31 filas de diferencia», y hay que preguntar de quién son. La
+> comparación honesta descuenta las filas que pertenecen a productos fundidos.
+
+Y de ahí sale el orden: **resync primero, calidad después.** Al revés, el
+resync deshace la deduplicación y nadie se entera.
+
+### b) Las dos reaplicaciones, y un número que engaña
+
+`_reaplicar_calidad(true)` y `_reaplicar_unificacion(true)` reportan la
+cantidad de filas de su **tabla de referencia**, no las que cambiaron. Reportan
+lo mismo antes y después de aplicar, lo que hace pensar que no hicieron nada.
+
+Se verifica mirando el estado, no el informe:
+
+* «4. prefijos unificados — 31 filas» **sí** trabajó: `TC.%` pasó de 2.750 a
+  2.781. Renombra por marca, no por prefijo previo, así que alcanzó a 31
+  productos de TOHNICHI y SAIPOR que no tenían prefijo ninguno.
+* «5. rpm pasa a lista cerrada — 1 fila» era un no-op: su única acción es
+  `data_type = 'text'` y ya estaba en `text`. El «1» es la fila de `rpm` en sí.
+
+### c) Cinco marcas con dos prefijos, y un `model_code` contaminado
+
+`_preflight()` falló en el control 3 con cinco marcas: BREMEN (BM/BR), ESTIC
+(ES/ET), FIAM (FI/FM), NAC (NC/NA) y RIVIT (RI/RV). En todas, el prefijo
+mayoritario era el correcto —BM y NC porque así se pidieron, y FI, RI y ES
+porque son las dos primeras letras de la marca—, así que se movió la minoría:
+**32 SKU corregidos.**
+
+Apareció además un daño más silencioso: **11 productos tenían el prefijo metido
+dentro del `model_code`** (`model_code = 'FM.E8MCC5A-650'` en lugar de
+`'E8MCC5A-650'`). Eso no rompe nada a la vista, pero sí rompe la pregunta «¿ya
+existe este modelo?», y por ahí entraron los duplicados del punto siguiente.
+
+### d) Tres identidades que NO se tocaron, y por qué
+
+Quedaron tres filas que el control 4 marca como (marca, modelo) repetido. No se
+resolvieron solas porque **cada una es una decisión comercial, no técnica**:
+
+| Modelo | Las dos filas | El conflicto |
+|---|---|---|
+| ESTIC `EH2-CVS05-SS` | `ES.` 2.400 · `ET.` 2.335 | mismo producto, dos precios |
+| ESTIC `EH2-R1016-S` | `ES.` 478,38 · `ET.` 8.313 | mismo producto, 17× de diferencia |
+| RIVIT `RIV503` | `RV.` la remachadora · `RI.` las mordazas | **no son el mismo producto** |
+
+Los dos de ESTIC son duplicados reales: entraron por dos caminos distintos del
+ERP, con `external_id` de `stel` diferentes (20282866 y 44699746). La
+duplicación viene del origen, no del importador, **y existe igual en Ohio**:
+por eso no es un bloqueo del cutover.
+
+El de RIVIT es un falso positivo del control: `RI.RIV503` son las mordazas
+(JAWS x3, Cod. 1250100) archivadas bajo el modelo de la máquina. Un repuesto
+tiene derecho a nombrar el equipo al que pertenece; lo que le falta es su
+propio `model_code`.
+
+Los tres precios están respaldados por cotizaciones reales (COTI02360 a 2.400,
+COTI02426 a 2.335 y 8.313, COTI02300 a 724,73), así que la evidencia está —
+pero elegir cuál queda es decidir a qué precio se vende, y eso no se decide
+desde una consulta SQL.
+
+### e) El control 9 no podía dar verde
+
+Contaba `cron.job where active` y exigía exactamente 2, pero se escribió antes
+del puente de correo. Con el puente prendido y los dos jobs de WhatsApp
+apagados, daba `1 de 2` para siempre.
+
+Se separó en dos controles: **9** mira los dos jobs de WhatsApp, que son los que
+tienen que quedar prendidos; **9b** mira el puente, que tiene que quedar
+*apagado* porque es andamiaje.
+
+> Una compuerta que no puede dar verde se ignora, y una compuerta ignorada es
+> peor que ninguna: da la sensación de que algo vigila. Es la misma razón por la
+> que la alarma de correo se colgó de `watch_expiration` y no de la quietud.
+
+### f) Storage: 45 kB y un solo archivo
+
+Todo el storage de Ohio es **un objeto de 46.384 bytes**: el logo de la empresa
+(`bbcb2cee-…/logo-1789477492911.png`). No hay imágenes de productos ni adjuntos
+de ventas ni media de WhatsApp. El FDW copia la fila de `storage.objects` pero
+no los bytes, así que el logo se sube desde la pantalla de configuración.
+
+El `public/brand/buscatools-logo.png` del repo **no** sirve de reemplazo: pesa
+36.005 bytes y el subido 46.384. Son archivos distintos.
+
+### g) La verificación que sí vale para el esquema
+
+Comparar la cantidad de funciones (367 en Brasil, 333 en Ohio) no prueba nada:
+un `+1` puede esconder una que falta junto a dos que sobran. Se agrupó por
+esquema e inicial para localizar los 13 grupos que diferían, se trajeron los
+nombres de esos grupos y se restó: **cero funciones de Ohio faltan en Brasil.**
+
+Las 34 de más son el asistente y el trabajo de catálogo. Las Edge Functions
+también están completas: Brasil tiene las 6 de Ohio más `importar-oc` y
+`asistente`.
