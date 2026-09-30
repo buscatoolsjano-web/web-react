@@ -10,12 +10,14 @@ import {
   FalloAsistente,
   estadoAsistente,
   preguntar,
+  transcribir,
   type MensajeChat,
   type PasoAsistente,
   type PropuestaCotizacion,
 } from '../services/asistente'
 import { pedazos } from '../lib/formatoRespuesta'
 import { TarjetaCotizacion } from './TarjetaCotizacion'
+import { empezarAGrabar, FalloGrabacion, sePuedeGrabar, type Grabacion } from '../lib/grabador'
 import styles from './ChatAsistente.module.css'
 
 /**
@@ -72,6 +74,38 @@ export function ChatAsistente() {
 
   const [turnos, setTurnos] = useState<Turno[]>([])
   const [texto, setTexto] = useState('')
+  /* El micrófono sólo aparece si el navegador puede grabar: un botón que no
+     hace nada es peor que no tenerlo. */
+  const [grabando, setGrabando] = useState<Grabacion | null>(null)
+  const [avisoAudio, setAvisoAudio] = useState<string | null>(null)
+  const puedeGrabar = sePuedeGrabar()
+
+  const transcribiendo = useMutation({
+    mutationFn: transcribir,
+    onSuccess: (t) => {
+      /* Lo dicho ENTRA AL CUADRO, no se manda. Ver el comentario del servicio:
+         la transcripción se equivoca con los SKU y una consulta armada sobre
+         una referencia mal oída trae el producto equivocado. */
+      setTexto((antes) => (antes.trim() === '' ? t : `${antes} ${t}`))
+      setAvisoAudio(null)
+    },
+    onError: (e) => setAvisoAudio(e instanceof Error ? e.message : 'No pude entender el audio.'),
+  })
+
+  const alternarMicrofono = async () => {
+    setAvisoAudio(null)
+    if (grabando) {
+      const g = grabando
+      setGrabando(null)
+      transcribiendo.mutate(await g.detener())
+      return
+    }
+    try {
+      setGrabando(await empezarAGrabar())
+    } catch (e) {
+      setAvisoAudio(e instanceof FalloGrabacion ? e.message : 'No pude abrir el micrófono.')
+    }
+  }
   const finRef = useRef<HTMLDivElement>(null)
 
   const estado = useQuery({
@@ -245,6 +279,22 @@ export function ChatAsistente() {
           autoComplete="off"
           disabled={companyId === null}
         />
+        {/* El micrófono sólo si el navegador puede grabar. Y el estado se
+            dice con PALABRAS además de color: «Grabando» en el rótulo
+            accesible, no sólo un botón rojo. */}
+        {puedeGrabar ? (
+          <button
+            type="button"
+            className={grabando ? `${styles.micro} ${styles.microActivo}` : styles.micro}
+            aria-label={grabando ? 'Cortar y transcribir' : 'Dictar la consulta'}
+            aria-pressed={grabando !== null}
+            disabled={transcribiendo.isPending}
+            onClick={() => void alternarMicrofono()}
+          >
+            <Icon name={grabando ? 'check' : 'mic'} size={20} />
+          </button>
+        ) : null}
+
         <Button
           type="submit"
           icon={<Icon name="arrow-right" size={16} />}
@@ -253,6 +303,16 @@ export function ChatAsistente() {
           Preguntar
         </Button>
       </form>
+
+      {grabando !== null || transcribiendo.isPending || avisoAudio !== null ? (
+        <p className={styles.estadoAudio} role="status">
+          {grabando !== null
+            ? 'Grabando… tocá el tilde para terminar.'
+            : transcribiendo.isPending
+              ? 'Pasando a texto…'
+              : avisoAudio}
+        </p>
+      ) : null}
     </div>
   )
 }

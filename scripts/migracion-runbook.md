@@ -2562,3 +2562,50 @@ enviada a un cliente.
 Quedó **COT-BTS00002** creada en Brasil al probar de punta a punta. Es la copia
 de migración y se resincroniza en el cutover, así que no molesta; si se quiere,
 se borra.
+
+## 39 · Al crear, va derecho a la cotización · y se puede dictar (Fase 36 · E2)
+
+### Crear lleva a la cotización
+
+El paso intermedio —un cartel de «se creó» con un botón para abrirla— era un
+clic de más para algo que uno siempre quiere: lo primero que se hace con una
+cotización nueva es mirarla y completar lo que falte.
+
+Efecto lateral que había que resolver: **el cajón quedaba tapando justo lo que
+uno fue a ver**. Ahora el panel se cierra al cambiar de ruta, y vale para
+cualquier navegación, no sólo para ésta. La ruta inicial se guarda en una
+`ref` para no cerrarse en el primer pintado, que es cuando recién se abre.
+
+### Dictar la consulta
+
+`POST` con `multipart/form-data` a la misma función, **después** de exigir la
+sesión: transcribir cuesta plata y no puede quedar abierto a cualquiera con la
+clave pública.
+
+**Lo transcripto entra al cuadro de texto y NO se manda solo.** La
+transcripción se equivoca con los SKU —«SP punto dos mil ocho» sale de diez
+maneras— y una consulta armada sobre una referencia mal oída devuelve el
+producto equivocado con total aplomo. Leerlo antes de enviar cuesta un segundo.
+
+El idioma se fija en `es`: sin eso, un audio corto en rioplatense a veces se
+transcribe como portugués o italiano.
+
+### Las tres trampas de `MediaRecorder`
+
+Están en `lib/grabador.ts`, aparte del componente, y con pruebas:
+
+1. **Soltar el micrófono al terminar Y al cancelar.** Si no se paran las
+   pistas, el navegador deja el indicador de «grabando» prendido para siempre
+   y algunos sistemas no lo liberan hasta cerrar la pestaña. Hay un test por
+   cada rama: olvidarlo en una de las dos es el error clásico.
+2. **Elegir un formato que el navegador tenga.** Pedir uno que no está hace
+   que la grabación salga VACÍA sin dar error.
+3. **Distinguir «dijo que no» de «no hay micrófono»** (`NotAllowedError` vs
+   `NotFoundError`): son dos problemas distintos y se resuelven distinto.
+
+El botón sólo aparece si el navegador puede grabar: uno que no hace nada es
+peor que no tenerlo. Y el estado se dice con PALABRAS además de color —
+«Grabando… tocá el tilde para terminar»—, no sólo con un botón rojo.
+
+Se agregó el ícono `mic`, que no existía; estaba usando el de teléfono, que se
+lee como «llamar» y no como «dictar».

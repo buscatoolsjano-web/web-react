@@ -44,6 +44,9 @@ export const TRAZOS = {
   'message-circle': 'M4 19.5l1.2-3.6A8 8 0 1 1 8.4 19z',
   'log-out': 'M9.5 20H5V4h4.5M15.5 16.5L20 12l-4.5-4.5M20 12H9.5',
   building: 'M5 21V4h9v17M14 9h5v12M3 21h18M8 8h3M8 12h3M8 16h3',
+  // Micrófono para dictar (Fase 36). Cápsula, arco y pie: a 20 px el arco es
+  // lo que lo distingue de una pastilla cualquiera.
+  mic: 'M12 4a2.5 2.5 0 0 1 2.5 2.5v5a2.5 2.5 0 0 1-5 0v-5A2.5 2.5 0 0 1 12 4zM6.5 11a5.5 5.5 0 0 0 11 0M12 16.5V20M9 20h6',
   // Campana de notificaciones (Fase 33). Badajo aparte para que el trazo
   // cierre bien a 16 px, que es el tamaño al que va en el header.
   bell: 'M12 3.5a5.5 5.5 0 0 0-5.5 5.5c0 4-1.5 5.5-1.5 5.5h14s-1.5-1.5-1.5-5.5A5.5 5.5 0 0 0 12 3.5zM10.5 18a1.5 1.5 0 0 0 3 0',

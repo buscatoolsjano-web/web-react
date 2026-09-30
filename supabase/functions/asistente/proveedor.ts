@@ -220,3 +220,56 @@ export function proveedorConfigurado(): Proveedor {
     esfuerzo,
   )
 }
+
+/** Cuánto audio se acepta. Un minuto y medio de voz entra de sobra. */
+export const MAX_BYTES_AUDIO = 8 * 1024 * 1024
+
+/**
+ * Pasar un audio a texto (Fase 36 · E2).
+ *
+ * Existe para poder preguntar hablando, que en un depósito o manejando es la
+ * única forma cómoda. Lo transcripto entra al chat **como si se hubiera
+ * escrito**: no se manda directo al asistente.
+ *
+ * Eso último es a propósito. La transcripción se equivoca con los SKU —«SP
+ * punto dos mil ocho» puede salir de diez maneras— y una consulta armada sobre
+ * una referencia mal oída devuelve el producto equivocado con total aplomo.
+ * Verlo escrito antes de enviar cuesta un segundo y evita eso.
+ */
+export async function transcribir(audio: Blob): Promise<string> {
+  const nombre = (Deno.env.get('IA_PROVIDER') ?? 'falso').trim()
+  if (nombre === 'falso') {
+    throw new FalloProveedor('sin_configurar', 'la transcripción está apagada')
+  }
+  const clave = Deno.env.get('OPENAI_API_KEY')
+  if (!clave) throw new FalloProveedor('sin_configurar', 'falta la clave del proveedor')
+
+  const cuerpo = new FormData()
+  cuerpo.append('file', audio, 'consulta.webm')
+  cuerpo.append('model', (Deno.env.get('IA_MODELO_AUDIO') ?? 'whisper-1').trim())
+  // El idioma se fija: sin esto, un audio corto en castellano rioplatense a
+  // veces se transcribe como portugués o italiano.
+  cuerpo.append('language', 'es')
+
+  let r: Response
+  try {
+    r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${clave}` },
+      body: cuerpo,
+    })
+  } catch {
+    throw new FalloProveedor('caido', 'el proveedor no respondió')
+  }
+
+  if (!r.ok) {
+    throw new FalloProveedor(
+      r.status === 429 ? 'limite' : r.status === 401 || r.status === 403 ? 'rechazo' : 'caido',
+      'el proveedor rechazó el audio',
+    )
+  }
+
+  const datos: unknown = await r.json().catch(() => null)
+  const texto = (datos as { text?: unknown } | null)?.text
+  return typeof texto === 'string' ? texto.trim() : ''
+}

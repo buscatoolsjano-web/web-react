@@ -227,3 +227,45 @@
     max-width: 100%;
   }
 }
+
+/* ── el micrófono ────────────────────────────────────────────────────────── */
+
+.micro {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-surface-alt);
+  color: var(--color-text-soft);
+  cursor: pointer;
+}
+
+.micro:hover:not(:disabled),
+.micro:focus-visible {
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.micro:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Grabando. El color NO es la única señal: el ícono cambia a un tilde y el
+   rótulo accesible dice «Cortar y transcribir». */
+.microActivo {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: #fff;
+}
+
+/* Qué está pasando con el audio, en palabras y debajo de la barra. */
+.estadoAudio {
+  flex: none;
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}

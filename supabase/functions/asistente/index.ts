@@ -12,7 +12,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.58.0'
 import { type Mensaje, responder } from './bucle.ts'
 import { type Bandeja, crearEjecutor } from './ejecutor.ts'
-import { FalloProveedor, proveedorConfigurado } from './proveedor.ts'
+import { FalloProveedor, MAX_BYTES_AUDIO, proveedorConfigurado, transcribir } from './proveedor.ts'
 import { AGENTE_RAIZ, agente, todosLosAgentes } from './agentes.ts'
 
 const CORS = {
@@ -74,6 +74,35 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const cabecera = req.headers.get('Authorization') ?? ''
   const token = cabecera.startsWith('Bearer ') ? cabecera.slice(7) : ''
   if (token === '') return falla('sin_sesion', 'Hay que estar logueado.', 401)
+
+  /**
+   * Un audio para pasar a texto.
+   *
+   * Va por el MISMO POST y se distingue por el tipo de contenido, después de
+   * exigir la sesión igual que todo lo demás: transcribir cuesta plata, así
+   * que no puede quedar abierto a cualquiera con la clave pública.
+   */
+  const tipo = req.headers.get('content-type') ?? ''
+  if (tipo.includes('multipart/form-data')) {
+    const form = await req.formData().catch(() => null)
+    const audio = form?.get('audio')
+    if (!(audio instanceof File)) return falla('sin_audio', 'No llegó ningún audio.')
+    if (audio.size > MAX_BYTES_AUDIO) {
+      return falla('demasiado_grande', 'El audio es muy largo. Probá con algo más corto.')
+    }
+    try {
+      const texto = await transcribir(audio)
+      if (texto === '') return falla('vacio', 'No se entendió nada. Probá de nuevo.')
+      return json({ texto })
+    } catch (e) {
+      if (e instanceof FalloProveedor) {
+        return falla(e.motivo, e.motivo === 'sin_configurar'
+          ? 'La transcripción todavía no está configurada.'
+          : 'No pude entender el audio. Probá de nuevo o escribilo.', 502)
+      }
+      return falla('interno', 'No pude procesar el audio.', 500)
+    }
+  }
 
   let cuerpo: { companyId?: unknown; mensajes?: unknown; agente?: unknown }
   try {

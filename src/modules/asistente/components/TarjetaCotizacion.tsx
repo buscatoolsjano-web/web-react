@@ -67,7 +67,21 @@ export function TarjetaCotizacion({ propuesta }: TarjetaCotizacionProps) {
         lineas,
       )
     },
-    onSuccess: (r) => setCreada({ id: r.id, numero: r.numero }),
+    onSuccess: (r) => {
+      setCreada({ id: r.id, numero: r.numero })
+      /**
+       * Se va DERECHO a la cotización recién creada.
+       *
+       * El paso intermedio —un cartel de «se creó» con un botón para
+       * abrirla— era un clic de más para algo que uno siempre quiere: lo
+       * primero que se hace con una cotización nueva es mirarla y completar
+       * lo que falte. El cartel queda igual, por si la navegación falla.
+       *
+       * El panel se cierra solo al cambiar de pantalla, así que no queda
+       * tapando lo que se fue a ver.
+       */
+      void navegar(`/ventas/cotizaciones/${r.id}`)
+    },
   })
 
   if (creada) {

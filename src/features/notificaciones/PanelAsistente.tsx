@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { CajonDerecho } from '@/components/modals/CajonDerecho'
 import { IconButton } from '@/components/ui/IconButton'
 import { ChatAsistente } from '@/modules/asistente/components/ChatAsistente'
@@ -26,6 +27,22 @@ export function PanelAsistente({ onCerrar }: PanelAsistenteProps) {
    * charla larga sobre otro tema se vuelve contexto que confunde —y se paga—.
    */
   const [vuelta, setVuelta] = useState(0)
+
+  /**
+   * Si se navega, el panel se cierra.
+   *
+   * Pasa cuando el asistente crea una cotización y lleva derecho a ella: sin
+   * esto el cajón quedaba tapando justo lo que uno fue a ver. Vale para
+   * cualquier navegación, no sólo para ésa.
+   *
+   * Se guarda la ruta inicial en una ref para no cerrarse en el primer
+   * pintado, que es cuando el panel recién se abre.
+   */
+  const { pathname } = useLocation()
+  const rutaInicial = useRef(pathname)
+  useEffect(() => {
+    if (pathname !== rutaInicial.current) onCerrar()
+  }, [pathname, onCerrar])
 
   return (
     <CajonDerecho

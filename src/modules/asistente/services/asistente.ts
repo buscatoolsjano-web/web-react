@@ -215,6 +215,29 @@ function leerPropuesta(v: unknown): PropuestaCotizacion | null {
 }
 
 /**
+ * Pasar un audio a texto (Fase 36 · E2).
+ *
+ * Lo transcripto vuelve al cuadro de texto y NO se manda solo. La
+ * transcripción se equivoca con los SKU —«SP punto dos mil ocho» sale de diez
+ * maneras— y una consulta armada sobre una referencia mal oída devuelve el
+ * producto equivocado con total aplomo. Leerlo antes de enviar cuesta un
+ * segundo.
+ */
+export async function transcribir(audio: Blob): Promise<string> {
+  const cuerpo = new FormData()
+  cuerpo.append('audio', audio, 'consulta.webm')
+
+  const r: { data: unknown; error: Error | null } = await supabase.functions.invoke<unknown>(
+    'asistente',
+    { body: cuerpo },
+  )
+  if (r.error) await fallo(r.error)
+
+  const o = (r.data ?? {}) as Record<string, unknown>
+  return cadena(o['texto'])
+}
+
+/**
  * En qué estado está el asistente.
  *
  * Existe para que el cartel de la pantalla diga la verdad. Uno que anuncia
