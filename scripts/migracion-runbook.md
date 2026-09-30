@@ -2827,3 +2827,64 @@ nombres de esos grupos y se restó: **cero funciones de Ohio faltan en Brasil.**
 Las 34 de más son el asistente y el trabajo de catálogo. Las Edge Functions
 también están completas: Brasil tiene las 6 de Ohio más `importar-oc` y
 `asistente`.
+
+## 43 · La bandeja ya está en Brasil (2026-09-30) — cutover parcial
+
+**Estado: el servicio `buscatools-erp-email-api` apunta a São Paulo.** Es el
+primer pedazo de producción que cruzó, y se hizo antes de tiempo porque sin él
+no se podía abrir un solo correo desde la prueba.
+
+| | antes | ahora |
+|---|---|---|
+| `SUPABASE_URL` | `uaxcfufvapzulqvynanp` (Ohio) | `jiudqbusyknubonpedde` (Brasil) |
+| `SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_rw9cMuxu6rPtLGyubr5Qog_qrX0VzjY` | `sb_publishable_ZrIVBQYQkTTRxp_XtAJpeA_GSMRjHmV` |
+| `CORS_ORIGINS` | `app.buscatools.com`, `localhost:5173` | + `localhost:4173` |
+
+Revisión `00006`, 100% del tráfico. Proyecto **`buscatools-erp-email`** (ese es
+el ID; `545134968830` es el número y gcloud lo rechaza).
+
+**Consecuencia que hay que tener presente: `app.buscatools.com` no puede abrir
+correos hasta que se cambien los secrets de GitHub.** Su bundle se construye
+contra Ohio, así que manda tokens de Ohio a un servicio que ahora valida contra
+Brasil. La bandeja *lista* igual —eso sale de su propia base— pero abrir un
+mensaje falla. Se revierte poniendo los valores de la columna «antes».
+
+El servicio de **sync** (`buscatools-erp-email`) sigue en Ohio, y está bien:
+los correos entran allá y el puente los trae. Ese sí necesita
+`SUPABASE_SERVICE_KEY` y va junto con el resto del cutover.
+
+### Tres trampas que costaron una hora
+
+**1. `cmd` se come los `^` y gcloud no se queja.** El valor de `CORS_ORIGINS`
+lleva comas, así que hay que usar el delimitador propio de gcloud
+(`^@^CLAVE=a,b,c`). Llamado como `gcloud.cmd` desde PowerShell, `cmd` procesa
+los `^` y el comando falla **sin que el resto de la salida lo haga evidente**:
+el segundo comando anduvo, el primero no, y quedó a medias.
+
+La forma que funciona saltea `cmd` y llama al Python del SDK directo:
+
+```powershell
+& $env:CLOUDSDK_PYTHON "$env:LOCALAPPDATA\Google\Cloud SDK\google-cloud-sdk\lib\gcloud.py" `
+  run services update buscatools-erp-email-api --region us-east1 --project buscatools-erp-email `
+  --update-env-vars "^@^CORS_ORIGINS=https://app.buscatools.com,http://localhost:5173,http://localhost:4173"
+```
+
+> Después de cada `update`, **leer la variable de vuelta**. Que el comando
+> «termine» no quiere decir que haya hecho lo que se le pidió.
+
+**2. `CORS_ORIGINS` tenía `5173`, no `4173`.** O sea el puerto del dev server,
+no el del `npm run preview`, que es contra el que conviene medir y probar. Sin
+ese origen el navegador corta en el preflight y el ERP muestra «No se pudo
+contactar al servicio de correo. Revisá la conexión.» — que parece la red y
+manda a buscar al lugar equivocado. La pista real está en la consola:
+
+```
+blocked by CORS policy: Response to preflight request doesn't pass
+access control check: No 'Access-Control-Allow-Origin' header
+```
+
+**3. La cuenta de Google del navegador no es la del CLI.** Chrome estaba con
+`buscatools.jano@gmail.com`, que no ve el proyecto; el `gcloud` de la máquina
+ya estaba configurado con `info@buscatools.com.ar`, que sí. Darle permisos a la
+cuenta de Gmail habría sido regalar acceso permanente a producción para un
+cambio de una sola vez. Lo que faltaba era sólo refrescar el token del CLI.
