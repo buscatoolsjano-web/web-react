@@ -20,7 +20,15 @@ export const EnvSchema = z.object({
   // El servicio público de la bandeja de Emails (Cloud Run). Es una URL, no un
   // secreto: la autorización la da el JWT de cada persona. Opcional para que un
   // entorno sin Emails siga arrancando; la bandeja lo avisa en vez de romper.
-  VITE_EMAILS_API_URL: z.string().url('VITE_EMAILS_API_URL debe ser una URL válida').optional(),
+  //
+  // Vacío cuenta como ausente. Sin esto, un `VITE_EMAILS_API_URL=` en un .env
+  // —o un secret de CI que quedó en blanco— hace que zod rechace `''` y la app
+  // entera no arranque, por una función opcional. Degradar la bandeja es la
+  // respuesta correcta; ladrillar el login no.
+  VITE_EMAILS_API_URL: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.string().url('VITE_EMAILS_API_URL debe ser una URL válida').optional(),
+  ),
 })
 
 export type Env = z.infer<typeof EnvSchema>

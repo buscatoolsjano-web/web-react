@@ -199,7 +199,7 @@ antes de seguir. Las huellas comparan contenido fila por fila, no sólo
 |---|---|---|
 | `.env` local | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | `npm run dev` carga datos |
 | GitHub secrets | los dos mismos | build verde |
-| Cloud Run emails | `VITE_SUPABASE_URL` + `SUPABASE_SECRET_KEY` | `GET /salud` → 200 |
+| Cloud Run bandeja | `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` (sin secretos) | `GET /salud` → 200 |
 | whatsapp-listener | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | no desplegado hoy |
 | `supabase/.temp/linked-project.json` | ref | `supabase link` |
 
@@ -670,17 +670,61 @@ Después, un push a `main` (o *Run workflow*) reconstruye y publica.
 
 #### Pata 3 · La API de correo en Cloud Run — **la que es fácil de olvidar**
 
-`backend/emails` lee `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y
-`SUPABASE_SECRET_KEY`. **Si no se actualiza, después del cutover el sync de
-correo sigue leyendo y escribiendo en OHIO**, con la web ya en Brasil: los
-correos entrarían a la base vieja y no aparecerían en el ERP.
+**Los nombres de las variables que decía esta sección estaban mal.** Decía
+`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `SUPABASE_SECRET_KEY`, y
+**ninguno de los tres existe en el código**. Ese comando habría agregado tres
+variables que nadie lee, y el servicio habría seguido apuntando a Ohio con
+cara de actualizado. Los nombres reales salen de `backend/emails/src/config.ts`:
+
+| Servicio | Modo | Lo que lee de Supabase |
+|---|---|---|
+| sync de correo | `leerConfig()` | `SUPABASE_URL` + **`SUPABASE_SERVICE_KEY`** |
+| bandeja pública | `leerConfigApi()` (`MODO=api`) | `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` |
+
+El de la bandeja **no lleva service key**: autoriza con el JWT de cada persona
+y decide la RLS. Los dos valores que necesita son públicos, así que ese
+servicio se puede mover sin tocar ningún secreto.
+
+**Si no se actualizan, después del cutover el correo sigue leyendo y
+escribiendo en OHIO** con la web ya en Brasil: los correos entrarían a la base
+vieja y no aparecerían en el ERP.
 
 ```bash
+# gcloud no arranca si `CLOUDSDK_PYTHON` no apunta al Python del propio SDK:
+# cae en el alias de la Microsoft Store y muere con «Python was not found».
+export CLOUDSDK_PYTHON="$LOCALAPPDATA/Google/Cloud SDK/google-cloud-sdk/platform/bundledpython/python.exe"
+
 gcloud run services update buscatools-erp-email-api \
   --region us-east1 --project 545134968830 \
-  --update-env-vars VITE_SUPABASE_URL=https://jiudqbusyknubonpedde.supabase.co,VITE_SUPABASE_ANON_KEY=sb_publishable_ZrIVBQYQkTTRxp_XtAJpeA_GSMRjHmV \
-  --update-secrets SUPABASE_SECRET_KEY=...   # la service key de Brasil
+  --update-env-vars \
+SUPABASE_URL=https://jiudqbusyknubonpedde.supabase.co,SUPABASE_PUBLISHABLE_KEY=sb_publishable_ZrIVBQYQkTTRxp_XtAJpeA_GSMRjHmV
 ```
+
+El servicio de **sync** va aparte y sí necesita la service key de Brasil, que
+sale del panel de Supabase y se guarda en Secret Manager.
+
+Ojo con `CORS_ORIGINS`: la bandeja tiene allowlist de orígenes y no acepta
+comodín. Si se prueba desde `http://localhost:4173`, ese origen tiene que
+estar en la lista o el navegador corta antes de llegar.
+
+#### Por qué la prueba contra São Paulo no puede leer correo
+
+Vale la pena dejarlo escrito porque parece un problema de red y no lo es. La
+bandeja autoriza llamando a **PostgREST de su proyecto configurado** con el JWT
+de la persona (`AutorizadorSupabase`). Con la web en Brasil y el servicio en
+Ohio, el token viene firmado con el secreto de Brasil y Ohio contesta:
+
+```
+{"code":"PGRST301","message":"No suitable key or wrong key type",
+ "details":"None of the keys was able to decode the JWT"}
+```
+
+No hay arreglo del lado del frontend: **el cuerpo de los mensajes nunca se
+guarda en Supabase** —es a propósito, por privacidad— así que leer un mail
+siempre pasa por Cloud Run. Sólo la lista de la bandeja sale de la base.
+
+Efecto secundario útil: ese mismo desajuste impide que un envío desde la prueba
+escriba en Ohio. La API rechaza todo, no sólo las lecturas.
 
 Y después **reiniciar el watch de Gmail**, porque el cursor (`historyId`) vive en
 la base: al cambiar de base, el sync arranca del cursor que viajó en la copia.
@@ -1592,7 +1636,7 @@ y sirve para siempre, no sólo para el cutover.
 | 4 secrets de Supabase | **el dueño** | son API keys; no las tipeo yo en ningún campo |
 | SMTP de Brasil | **el dueño** | contraseña de aplicación de Gmail |
 | Webhook de Meta | cualquiera, después del token | la URL no es secreta; el verify token sí |
-| Cloud Run | **el dueño primero** | `gcloud` está, pero vencido: hay que correr `gcloud auth login` a mano (§26). Después, la URL y la publishable key son públicas; `SUPABASE_SECRET_KEY` no |
+| Cloud Run | **el dueño primero** | `gcloud auth login` es interactivo (§26). Ojo: sin `CLOUDSDK_PYTHON` gcloud ni arranca. La bandeja sólo pide valores públicos; el sync sí pide `SUPABASE_SERVICE_KEY` |
 | 2 secrets de GitHub | **puedo yo** (`gh` está autenticado, ver §26) | valores públicos, pero es **el último paso** |
 | Subir el logo | **el dueño** | desde Configuración del ERP |
 

@@ -31,4 +31,26 @@ describe('parseEnv', () => {
     expect(() => parseEnv({})).toThrow(/VITE_SUPABASE_URL/)
     expect(() => parseEnv({})).toThrow(/VITE_SUPABASE_ANON_KEY/)
   })
+
+  /**
+   * Una bandeja sin configurar no puede impedir el login.
+   *
+   * `VITE_EMAILS_API_URL=` en un .env, o un secret de CI en blanco, llega como
+   * `''`. Antes zod lo rechazaba por no ser una URL y se caía el arranque
+   * entero: nadie podía entrar al ERP porque faltaba una función opcional.
+   */
+  it('trata la URL de correo vacía como ausente, sin romper el arranque', () => {
+    expect(parseEnv({ ...valido, VITE_EMAILS_API_URL: '' })).toEqual(valido)
+  })
+
+  it('pero una URL de correo con basura sigue siendo un error', () => {
+    expect(() => parseEnv({ ...valido, VITE_EMAILS_API_URL: 'no-es-url' })).toThrow(
+      /URL válida/,
+    )
+  })
+
+  it('y una válida se conserva', () => {
+    const con = { ...valido, VITE_EMAILS_API_URL: 'https://api.example.com' }
+    expect(parseEnv(con)).toEqual(con)
+  })
 })
