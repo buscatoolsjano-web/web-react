@@ -2111,3 +2111,99 @@ nadie después.
   `**` de más no cambia el aspecto de media respuesta.
 - **Los importes salían «USD 10811.48».** Se le pide al modelo el formato
   argentino: mismo número, escrito como se lee acá.
+
+## 32 · Calidad del catálogo para que la IA conteste bien (Fase 32)
+
+### Primero: ¿la migración perdió datos? NO
+
+Era la sospecha razonable y hay con qué verificarla: el repo del legacy trae
+`productos-data.json`, 21.772 productos, el mismo número que la base.
+
+| campo | legacy | base |
+|---|---|---|
+| marca | 16.316 | 16.311 |
+| medida | 4.745 | 4.745 |
+| largo | 7.765 | 7.765 |
+| encastre | 8.422 | 8.422 |
+| origen | 8.818 | 8.818 |
+| NCM | 5.329 | 5.329 |
+| serie | 9.089 | 9.089 |
+
+Idénticos. Y las marcas duplicadas también venían del legacy. **La base ya
+estaba incompleta antes de migrar**; la migración fue fiel.
+
+### Las «marcas» de dos letras eran prefijos de SKU
+
+Ocho: BR, GE, KI, MI, NA, RR, SI, TO. La marca de verdad estaba en el NOMBRE.
+
+- `GE` convivía con `GEDORE` → filtrar por Gedore dejaba la mitad afuera.
+- `TO` convivía con `TORERO`, que tiene 91 productos.
+- **`BR` contenía DOS fabricantes**: BREMEN y BROPPE, que comparten prefijo
+  porque las dos empiezan igual.
+- KI = KING TONY · MI = MILWAUKEE · NA = NAC · RR = RED ROOSTER · SI = SIOUX
+
+### Productos de marcas conocidas, sin marca
+
+859 tenían la marca escrita en el nombre y el campo vacío: «GEDORE 3549-05…»,
+«TOHNICHI CEM100N3X15D-G», «APEX EX372». GEDORE mostraba 4 productos y tiene
+100; RIVIT mostraba 2 y tiene 197.
+
+Se asigna la marca más LARGA que coincida, no la primera: con «RED ROOSTER
+RRP203», la más larga es siempre la más específica.
+
+Más ocho marcas que faltaba dar de alta (663 productos): MERCEDES BENZ,
+NORMECO, MACSI, OHMI, SUMAKE, ACRADYNE, QIMAROX, TRILOGIQ. Se miraron una por
+una: hay primeras palabras muy frecuentes que son sustantivos y no marcas
+—LLAVE, CINTA, PINZA, GUANTE, ZAPATO—, y darlas de alta sería peor que nada.
+
+**Resultado: sin marca pasó de 5.461 a 3.939. Marcas: 25 → 32.**
+
+### El banco de pruebas de formas de preguntar
+
+`scripts/asistente-pruebas-de-busqueda.sql`: la misma pregunta escrita de
+muchas maneras, con lo que TIENE que devolver. Prueba la BÚSQUEDA y no al
+modelo, a propósito: corre en un segundo, no cuesta nada, es determinista, y
+es la capa donde estuvo el error. Probar sólo a través del modelo mezcla dos
+fuentes de fallo y cuesta plata cada vez.
+
+Primera corrida: 29 ✓, 3 parciales, 6 ✗. Todos los fallos en un mismo lugar:
+preguntar por una MARCA no devolvía productos de esa marca. «gedore»,
+«ingersoll», «milwaukee» daban cero entre los primeros cinco.
+
+La causa: el campo marca se usaba para MATCHEAR pero no para ORDENAR. Un
+producto de otra marca que menciona «gedore» competía de igual a igual con los
+cien que SON Gedore, y desempataba el alfabeto.
+
+Arreglado: si una palabra de la consulta nombra una marca, esos productos van
+primero. El desempate entra DESPUÉS de `palabras`, no antes — un producto de
+otra marca que coincide en todo lo pedido sigue ganándole a uno de la marca
+correcta que coincide en la mitad.
+
+**Segunda corrida: 37 de 37.**
+
+### Lo que NO se puede arreglar sin datos
+
+FIAM (3.374) y TOHNICHI (2.731) no tienen ningún atributo, y eso **no se
+inventa**. Se puede extraer lo que ya está escrito en el nombre —medidas,
+encastres, torques— pero las specs que no están en ningún lado necesitan los
+catálogos del fabricante.
+
+Quedan 3.939 productos sin marca: reventa suelta cuyos nombres no empiezan con
+una marca. Clasificarlos necesita reglas nuevas o criterio humano.
+
+### Pendiente: el prefijo de SKU de las marcas nuevas
+
+5.394 productos siguen con SKU genérico `PRO#####`. La convención es dos
+letras de la marca + punto + modelo, pero **la regla choca**:
+
+| marca | prefijo natural | choca con |
+|---|---|---|
+| BREMEN | BR | BROPPE (BR.PH2) |
+| NAC | NA | ya usado |
+| MERCEDES BENZ | ME | — |
+| NORMECO | NO | — |
+| MACSI | MA | — |
+
+Ya hay un precedente de cómo se resolvió antes: TOHNICHI usa `TC.` y no `TO.`
+porque TORERO tenía `TO.`. Decidir los prefijos nuevos es del dueño del
+catálogo, no mío: un prefijo mal elegido se arrastra para siempre.
