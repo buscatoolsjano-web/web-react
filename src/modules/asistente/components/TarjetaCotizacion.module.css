@@ -1,0 +1,119 @@
+/* El borrador de cotización dentro del chat (Fase 36). */
+
+/* Se distingue del resto de la conversación con borde propio: no es algo que
+   el asistente DIJO, es algo que va a pasar si apretás. */
+.tarjeta {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.cabecera {
+  display: grid;
+  gap: 2px;
+}
+
+/* Dice en letras que todavía no existe. Es lo que evita que alguien la dé por
+   creada y la busque después en el listado. */
+.rotulo {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-warning, var(--color-text-muted));
+}
+
+.cliente {
+  font-size: var(--text-base);
+}
+
+.lineas {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cada renglón: SKU, nombre, cantidad × precio y de dónde sale el precio. */
+.linea {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 2px var(--space-2);
+  align-items: baseline;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-sm);
+}
+
+/* El que no se resolvió, marcado por color Y por borde: el color solo no lo
+   distingue todo el mundo. */
+.sinResolver {
+  border-left: 3px solid var(--color-warning, var(--color-primary));
+  padding-left: var(--space-2);
+}
+
+.sku {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cantidad {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.origen,
+.problema {
+  grid-column: 2 / -1;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.problema {
+  color: var(--color-warning, var(--color-text-soft));
+}
+
+.pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.total {
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.aviso {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-warning, var(--color-text-soft));
+}
+
+.error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+}
+
+/* «sin IVA» en chico al lado del número: el documento creado va a mostrar más
+   —el servidor suma el 21 %— y hay que poder anticiparlo sin hacer la cuenta. */
+.sinIva {
+  font-weight: var(--weight-regular, 400);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}

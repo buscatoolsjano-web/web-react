@@ -124,36 +124,69 @@
 
 /* ── la pantalla vacía ───────────────────────────────────────────────────── */
 
+/* Centrada y con aire: es lo primero que se ve al abrir, y un panel que
+   arranca con una lista pegada arriba a la izquierda parece un formulario. */
 .vacio {
   display: grid;
+  justify-items: center;
   gap: var(--space-3);
-  justify-items: start;
-  padding: var(--space-4) 0;
+  padding: var(--space-6) var(--space-2) var(--space-4);
+  text-align: center;
+}
+
+.vacioIcono {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
 
 .vacioTitulo {
   margin: 0;
-  font-size: var(--text-base);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.vacioAyuda {
+  margin: 0;
+  font-size: var(--text-sm);
   color: var(--color-text-soft);
+  line-height: 1.5;
 }
 
 .ejemplos {
   display: grid;
   gap: var(--space-2);
-  margin: 0;
+  width: 100%;
+  margin: var(--space-2) 0 0;
   padding: 0;
   list-style: none;
 }
 
+/* Fila entera, con el ícono a la izquierda: un objetivo chico dentro de una
+   fila ancha es mucho más difícil de acertar, sobre todo en un celular. */
 .ejemplo {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border-strong);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--color-surface-alt);
   color: inherit;
   font: inherit;
+  font-size: var(--text-sm);
   text-align: left;
   cursor: pointer;
+}
+
+.ejemploIcono {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
 }
 
 .ejemplo:hover,
@@ -175,10 +208,10 @@
 .entrada {
   flex: 1;
   min-width: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3);
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-surface-alt);
   color: inherit;
   font: inherit;
 }

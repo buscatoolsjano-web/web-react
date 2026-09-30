@@ -1,17 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { useAuth } from '@/features/auth/useAuth'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { nombreVisible } from '@/layouts/sesion'
 import { Alert } from '@/components/feedback/Alert'
 import { Button } from '@/components/ui/Button'
-import { Icon } from '@/components/icons/Icon'
+import { Icon, type IconName } from '@/components/icons/Icon'
 import {
   FalloAsistente,
   estadoAsistente,
   preguntar,
   type MensajeChat,
   type PasoAsistente,
+  type PropuestaCotizacion,
 } from '../services/asistente'
 import { pedazos } from '../lib/formatoRespuesta'
+import { TarjetaCotizacion } from './TarjetaCotizacion'
 import styles from './ChatAsistente.module.css'
 
 /**
@@ -31,20 +35,40 @@ interface Turno {
   rol: 'usuario' | 'agente'
   texto: string
   pasos?: PasoAsistente[]
+  /** El borrador de cotización, si armó uno. */
+  propuesta?: PropuestaCotizacion | null
   corte?: 'ninguno' | 'vueltas' | 'presupuesto'
   error?: boolean
 }
 
-const EJEMPLOS = [
-  '¿Tenemos puntas Philips PH2 con stock?',
-  '¿Cuál fue el mejor cliente de agosto?',
-  '¿A qué precio le cotizamos a Mirgor la última vez?',
-  '¿Qué correos quedaron sin responder?',
+/**
+ * Los atajos de arranque. No son decoración: muestran el ALCANCE.
+ *
+ * Sin ellos nadie sabe si puede preguntar por stock, por precios o por
+ * correos, y la primera pregunta se desperdicia averiguándolo. Cada uno apunta
+ * a un agente distinto a propósito, para que se vea que hay más de uno.
+ */
+const EJEMPLOS: { icono: IconName; texto: string }[] = [
+  { icono: 'package', texto: '¿Tenemos puntas Philips PH2 con stock?' },
+  { icono: 'bar-chart', texto: '¿Cuál fue el mejor cliente del mes pasado?' },
+  { icono: 'cart', texto: '¿A qué precio le cotizamos a Mirgor la última vez?' },
+  { icono: 'mail', texto: '¿Qué correos quedaron sin responder?' },
 ]
 
 export function ChatAsistente() {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
+
+  /**
+   * El nombre de pila, si lo hay.
+   *
+   * «Hola, Juan Manuel Jesús» suena a carta del banco, así que va sólo el
+   * primero. Y si la cuenta no tiene nombre cargado —pasa: hay usuarios que
+   * son un buzón, como info@—, se saluda sin nombre. Inventar un relleno a
+   * partir del correo daría «Hola, Info», que es peor que no saludar por
+   * nombre.
+   */
+  const primerNombre = (nombreVisible(useAuth().user) ?? '').split(' ')[0] ?? ''
 
   const [turnos, setTurnos] = useState<Turno[]>([])
   const [texto, setTexto] = useState('')
@@ -59,7 +83,10 @@ export function ChatAsistente() {
   const consultar = useMutation({
     mutationFn: (hilo: readonly MensajeChat[]) => preguntar({ companyId: companyId!, mensajes: hilo }),
     onSuccess: (r) => {
-      setTurnos((t) => [...t, { rol: 'agente', texto: r.texto, pasos: r.pasos, corte: r.corte }])
+      setTurnos((t) => [
+        ...t,
+        { rol: 'agente', texto: r.texto, pasos: r.pasos, corte: r.corte, propuesta: r.propuesta },
+      ])
     },
     onError: (e) => {
       const msg = e instanceof FalloAsistente ? e.message : 'No pude responder en este momento.'
@@ -114,15 +141,21 @@ export function ChatAsistente() {
       <div className={styles.hilo}>
         {turnos.length === 0 ? (
           <div className={styles.vacio}>
-            <p className={styles.vacioTitulo}>Preguntame sobre el negocio.</p>
-            {/* Los ejemplos no son decoración: muestran el ALCANCE. Sin ellos
-                nadie sabe si puede preguntar por stock, por precios o por
-                correos, y la primera pregunta se desperdicia averiguándolo. */}
+            <span className={styles.vacioIcono} aria-hidden="true">
+              <Icon name="sparkles" size={32} />
+            </span>
+            <h3 className={styles.vacioTitulo}>{primerNombre === '' ? 'Hola' : `Hola, ${primerNombre}`}</h3>
+            <p className={styles.vacioAyuda}>
+              Consulto el ERP en vivo: catálogo, ventas, compras y correo.
+              <br />
+              Preguntame lo que quieras.
+            </p>
             <ul className={styles.ejemplos}>
               {EJEMPLOS.map((e) => (
-                <li key={e}>
-                  <button type="button" className={styles.ejemplo} onClick={() => enviar(e)}>
-                    {e}
+                <li key={e.texto}>
+                  <button type="button" className={styles.ejemplo} onClick={() => enviar(e.texto)}>
+                    <Icon name={e.icono} size={16} className={styles.ejemploIcono} />
+                    <span>{e.texto}</span>
                   </button>
                 </li>
               ))}
@@ -143,6 +176,10 @@ export function ChatAsistente() {
                 z.negrita ? <strong key={k}>{z.texto}</strong> : <span key={k}>{z.texto}</span>,
               )}
             </p>
+
+            {/* El borrador va DEBAJO de lo que dijo, como una tarjeta
+                aparte: es lo que va a pasar si apretás, no algo que dijo. */}
+            {t.propuesta ? <TarjetaCotizacion propuesta={t.propuesta} /> : null}
 
             {t.corte && t.corte !== 'ninguno' ? (
               <p className={styles.aviso}>

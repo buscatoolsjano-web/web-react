@@ -1,4 +1,5 @@
 import { useRef, type ReactNode } from 'react'
+import { Icon, type IconName } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
 import { useModalAccesible } from './useModalAccesible'
 import styles from './CajonDerecho.module.css'
@@ -17,6 +18,10 @@ import styles from './CajonDerecho.module.css'
  */
 export interface CajonDerechoProps {
   titulo: string
+  /** Una línea debajo del título, para decir qué es esto sin abrirlo. */
+  subtitulo?: string
+  /** Un ícono a la izquierda del título. */
+  icono?: IconName
   onCerrar: () => void
   /** Más ancho para el asistente, que muestra conversación. */
   ancho?: 'normal' | 'ancho'
@@ -27,6 +32,8 @@ export interface CajonDerechoProps {
 
 export function CajonDerecho({
   titulo,
+  subtitulo,
+  icono,
   onCerrar,
   ancho = 'normal',
   accion,
@@ -45,7 +52,17 @@ export function CajonDerecho({
         aria-label={titulo}
       >
         <header className={styles.cabecera}>
-          <h2 className={styles.titulo}>{titulo}</h2>
+          {icono ? (
+            <span className={styles.icono} aria-hidden="true">
+              <Icon name={icono} size={20} />
+            </span>
+          ) : null}
+          <div className={styles.textos}>
+            <h2 className={styles.titulo}>{titulo}</h2>
+            {/* El subtítulo dice QUÉ es esto. Un panel titulado sólo
+                «Asistente» obliga a probarlo para saber qué sabe. */}
+            {subtitulo ? <p className={styles.subtitulo}>{subtitulo}</p> : null}
+          </div>
           {accion}
           <IconButton icon="x" aria-label="Cerrar" onClick={onCerrar} />
         </header>

@@ -47,12 +47,36 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-.titulo {
+/* El ícono con su fondo redondo, como marca del panel. */
+.icono {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.textos {
   flex: 1;
   min-width: 0;
+}
+
+.titulo {
   margin: 0;
   font-size: var(--text-base);
   font-weight: var(--weight-semibold);
+}
+
+.subtitulo {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* El cuerpo es el único que scrollea: la cabecera con el botón de cerrar

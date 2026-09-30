@@ -22,6 +22,40 @@ export interface PasoAsistente {
   nombre: string
 }
 
+/** Un renglón del borrador que armó el asistente. */
+export interface LineaPropuesta {
+  n: number
+  /** Lo que pidió la persona, tal cual. */
+  pidio: string
+  cantidad: number
+  resuelto: boolean
+  productId?: string
+  sku?: string
+  nombre?: string
+  precio?: number
+  /** «último a este cliente» o «lista». No es lo mismo para quien revisa. */
+  origenPrecio?: string
+  disponible?: number
+  /** Por qué no se pudo resolver. */
+  nota?: string
+}
+
+/**
+ * El borrador de cotización que armó el asistente.
+ *
+ * Viaja ESTRUCTURADO, aparte del texto: la pantalla no lo saca de la prosa del
+ * modelo. Y nada de esto está creado todavía — se crea con el botón.
+ */
+export interface PropuestaCotizacion {
+  listoParaConfirmar: boolean
+  clienteId: string
+  clienteNombre: string
+  moneda: string
+  lineas: LineaPropuesta[]
+  sinResolver: number
+  total: number
+}
+
 export interface RespuestaAsistente {
   texto: string
   pasos: PasoAsistente[]
@@ -29,6 +63,8 @@ export interface RespuestaAsistente {
   llamadas: number
   /** Si se tocó un tope, cuál. */
   corte: 'ninguno' | 'vueltas' | 'presupuesto'
+  /** El borrador, si el asistente armó uno en esta vuelta. */
+  propuesta: PropuestaCotizacion | null
 }
 
 export interface AgenteDisponible {
@@ -55,6 +91,12 @@ export class FalloAsistente extends Error {
 }
 
 const cadena = (v: unknown): string => (typeof v === 'string' ? v : '')
+
+/** Número, comprobando el tipo. La base manda los importes como texto. */
+const numero = (v: unknown): number => {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
 
 /**
  * El motivo y el mensaje vienen en el CUERPO, no en el error.
@@ -121,6 +163,54 @@ export async function preguntar(params: {
     }),
     llamadas: typeof o['llamadas'] === 'number' ? o['llamadas'] : 0,
     corte: o['corte'] === 'vueltas' || o['corte'] === 'presupuesto' ? o['corte'] : 'ninguno',
+    propuesta: leerPropuesta(o['propuesta']),
+  }
+}
+
+/**
+ * El borrador, comprobando los tipos en vez de confiar.
+ *
+ * La forma viene de la base a través de la función, así que es conocida; se
+ * valida igual porque lo que se hace con esto es CREAR una cotización, y un
+ * campo mal leído ahí no da un cartel feo: da un documento equivocado.
+ */
+function leerPropuesta(v: unknown): PropuestaCotizacion | null {
+  if (typeof v !== 'object' || v === null) return null
+  const o = v as Record<string, unknown>
+  const cli = (typeof o['cliente'] === 'object' && o['cliente'] !== null
+    ? o['cliente']
+    : {}) as Record<string, unknown>
+  const clienteId = cadena(cli['id'])
+  if (clienteId === '') return null
+
+  const lineas = Array.isArray(o['lineas']) ? o['lineas'] : []
+  return {
+    listoParaConfirmar: o['listo_para_confirmar'] === true,
+    clienteId,
+    clienteNombre: cadena(cli['nombre']),
+    moneda: cadena(o['moneda']) || 'USD',
+    sinResolver: numero(o['sin_resolver']),
+    total: numero(o['total']),
+    lineas: lineas.map((l): LineaPropuesta => {
+      const x = (l ?? {}) as Record<string, unknown>
+      const base = {
+        n: numero(x['n']),
+        pidio: cadena(x['pidio']),
+        cantidad: numero(x['cantidad']),
+        resuelto: x['resuelto'] === true,
+      }
+      return x['resuelto'] === true
+        ? {
+            ...base,
+            productId: cadena(x['product_id']),
+            sku: cadena(x['sku']),
+            nombre: cadena(x['nombre']),
+            precio: numero(x['precio']),
+            origenPrecio: cadena(x['origen_precio']),
+            disponible: numero(x['disponible']),
+          }
+        : { ...base, nota: cadena(x['nota']) }
+    }),
   }
 }
 

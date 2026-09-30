@@ -2507,3 +2507,58 @@ Y el orden sigue siendo el de siempre: frenar escritores → resync →
 **Atención para ese resync**: `_reaplicar_calidad()` cubre el trabajo de
 calidad anterior, **pero NO la Fase 32** —marcas, tipos, referencias—. Hay que
 extenderla antes del resync final o se pierde.
+
+## 38 · El asistente arma cotizaciones (Fase 36)
+
+### La decisión de fondo: la IA no escribe
+
+El asistente **prepara** el borrador —resuelve el cliente, busca cada producto,
+trae el precio, calcula el total— y lo muestra en una tarjeta. La cotización la
+crea la PERSONA con un botón, por el mismo camino que la pantalla de siempre:
+`crearCotizacion` → `crear_cotizacion`, que valida cliente, vendedor, tarifa y
+moneda del lado del servidor y es transaccional.
+
+El costo del error no es simétrico: si el asistente se equivoca leyendo, uno le
+dice «fijate bien»; si se equivocara creando, quedó una cotización mal hecha
+con un número de serie consumido. Por eso el permiso tampoco lo es.
+`asistente_preparar_cotizacion` es `stable`: no puede escribir aunque quisiera.
+
+### Cómo viaja el borrador
+
+**Estructurado, aparte del texto.** El ejecutor guarda lo que devolvió
+`preparar_cotizacion` en una bandeja y la Edge Function lo adjunta a la
+respuesta. La pantalla NO lo saca de la prosa del modelo.
+
+La web vieja lo hacía al revés: el modelo escribía `:::ACCION:::{json}:::FIN:::`
+y el navegador lo extraía con una expresión regular, tragándose el error en un
+`catch` vacío si el JSON venía mal. Eso funciona en las pruebas y falla en
+producción.
+
+### Lo que la tarjeta muestra, y por qué
+
+Todo antes de crear: qué cliente, qué producto cayó en cada renglón, a qué
+precio **y de dónde salió ese precio** —«último a este cliente» o «lista»—. Un
+botón que dijera sólo «Crear cotización» obligaría a confiar.
+
+Lo que no se resolvió sin dudas se marca y **apaga el botón**, diciendo por
+qué. Un «parecido» acá no es un resultado aproximado: es mercadería equivocada
+enviada a un cliente.
+
+### Dos errores encontrados probándolo en la pantalla
+
+1. **El parámetro no coincidía.** La herramienta declaraba `productos` y la RPC
+   `p_lineas`. La convención del catálogo es que el nombre que ve el modelo es
+   el de la RPC sin `p_`, justamente para que no haya una tabla de
+   equivalencias que se desincronice — y yo la rompí. Toda llamada fallaba. El
+   asistente fue honesto («la herramienta falló») y armó los números a mano con
+   las otras herramientas, pero no aparecía la tarjeta, que es todo el punto.
+2. **El total decía menos que la cotización creada.** La tarjeta mostraba
+   595,80 y el documento salió en 720,92: el servidor suma el 21 % de IVA.
+   Verificado con COT-BTS00002. Ahora dice «sin IVA». Un total que después no
+   coincide, en una pantalla de plata, hace desconfiar de todo lo demás.
+
+### Nota
+
+Quedó **COT-BTS00002** creada en Brasil al probar de punta a punta. Es la copia
+de migración y se resincroniza en el cutover, así que no molesta; si se quiere,
+se borra.

@@ -24,12 +24,29 @@
  *    recibiría cincuenta UUID y no podría decir ni un nombre.
  */
 
-/** Un esquema JSON, en la forma acotada que se usa acá. */
-export interface EsquemaParametro {
-  type: 'string' | 'number' | 'integer' | 'boolean'
-  description: string
-  enum?: readonly string[]
-}
+/**
+ * Un esquema JSON, en la forma acotada que se usa acá.
+ *
+ * Hay dos formas y no una porque cotizar necesita una LISTA de renglones, y
+ * pedirle al modelo que los mande en un texto —«SKU x cantidad, SKU x
+ * cantidad»— es ponerle una gramática propia que va a escribir mal el día
+ * menos pensado. Lo que es una lista se declara como lista.
+ */
+export type EsquemaParametro =
+  | {
+      type: 'string' | 'number' | 'integer' | 'boolean'
+      description: string
+      enum?: readonly string[]
+    }
+  | {
+      type: 'array'
+      description: string
+      items: {
+        type: 'object'
+        properties: Record<string, EsquemaParametro>
+        required: readonly string[]
+      }
+    }
 
 export interface Herramienta {
   /** El nombre que ve el modelo. En castellano: el prompt también lo está. */
@@ -212,6 +229,36 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
     rpc: 'asistente_stock',
     fijos: ['company'],
     maxFilas: 40,
+  },
+
+  // ── preparar una cotización ────────────────────────────────────────────────
+  {
+    id: 'preparar_cotizacion',
+    descripcion:
+      'Arma el BORRADOR de una cotización: resuelve el cliente, busca cada producto, ' +
+      'trae el precio que se le cobró a ese cliente y calcula el total. ' +
+      'NO la crea: crearla es un botón que aprieta la persona. ' +
+      'Usala cuando te pidan cotizar, presupuestar o «armame una cotización».',
+    parametros: {
+      cliente: texto('El nombre del cliente, como lo devolvió buscar_cliente.'),
+      productos: {
+        type: 'array',
+        description: 'Los renglones de la cotización, en el orden en que los pidieron.',
+        items: {
+          type: 'object',
+          properties: {
+            producto: texto('El SKU si lo sabés, o el nombre tal como lo dijeron.'),
+            cantidad: entero('Cuántas unidades. Si no lo dijeron, 1.'),
+          },
+          required: ['producto', 'cantidad'],
+        },
+      },
+      moneda: texto('USD, ARS o EUR. Por defecto USD.'),
+    },
+    obligatorios: ['cliente', 'productos'],
+    rpc: 'asistente_preparar_cotizacion',
+    fijos: ['company'],
+    maxFilas: 1,
   },
 
   // ── compras ───────────────────────────────────────────────────────────────

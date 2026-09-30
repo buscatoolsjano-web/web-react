@@ -23,6 +23,10 @@ const estado = vi.hoisted(() => ({
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+// El saludo usa el nombre de quien pregunta (Fase 35).
+vi.mock('@/features/auth/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'u1', email: 'juan@buscatools.com.ar', user_metadata: { full_name: 'Juan Manuel Mocciaro' } } }),
+}))
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({ activa: { companyId: 'c1', companyName: 'ZZ', rol: 'admin', esInterno: true, customerId: null } }),
 }))
@@ -44,7 +48,7 @@ vi.mock('../services/asistente', async (original) => {
       estado.enviado = p
       if (estado.error) return Promise.reject(estado.error)
       return Promise.resolve(
-        estado.respuesta ?? { texto: 'Listo.', pasos: [], llamadas: 1, corte: 'ninguno' },
+        estado.respuesta ?? { texto: 'Listo.', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null },
       )
     },
   }
@@ -78,6 +82,7 @@ describe('El chat del asistente', () => {
       ],
       llamadas: 3,
       corte: 'ninguno',
+      propuesta: null,
     }
     montar()
 
@@ -98,7 +103,7 @@ describe('El chat del asistente', () => {
   it('manda el hilo ENTERO, no sólo el último mensaje', async () => {
     estado.listo = true
     estado.error = null
-    estado.respuesta = { texto: 'Mirgor compró 8 cosas.', pasos: [], llamadas: 1, corte: 'ninguno' }
+    estado.respuesta = { texto: 'Mirgor compró 8 cosas.', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null }
     montar()
 
     escribirYEnviar('¿qué le vendimos a Mirgor?')
@@ -144,7 +149,7 @@ describe('El chat del asistente', () => {
   it('avisa cuando la consulta se cortó por llegar a su tope', async () => {
     estado.listo = true
     estado.error = null
-    estado.respuesta = { texto: 'Con lo que junté…', pasos: [], llamadas: 24, corte: 'presupuesto' }
+    estado.respuesta = { texto: 'Con lo que junté…', pasos: [], llamadas: 24, corte: 'presupuesto', propuesta: null }
     montar()
 
     escribirYEnviar('algo largo')
@@ -154,14 +159,14 @@ describe('El chat del asistente', () => {
   it('los ejemplos de arranque preguntan al tocarlos', async () => {
     estado.listo = true
     estado.error = null
-    estado.respuesta = { texto: 'ok', pasos: [], llamadas: 1, corte: 'ninguno' }
+    estado.respuesta = { texto: 'ok', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null }
     montar()
 
-    const ejemplo = await screen.findByRole('button', { name: /mejor cliente de agosto/i })
+    const ejemplo = await screen.findByRole('button', { name: /mejor cliente del mes pasado/i })
     fireEvent.click(ejemplo)
     await waitFor(() => {
       const p = estado.enviado as unknown as { mensajes: { texto: string }[] }
-      expect(p.mensajes[0]?.texto).toMatch(/mejor cliente de agosto/i)
+      expect(p.mensajes[0]?.texto).toMatch(/mejor cliente del mes pasado/i)
     })
   })
 })

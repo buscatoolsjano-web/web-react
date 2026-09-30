@@ -11,7 +11,7 @@
  */
 import { createClient } from 'npm:@supabase/supabase-js@2.58.0'
 import { type Mensaje, responder } from './bucle.ts'
-import { crearEjecutor } from './ejecutor.ts'
+import { type Bandeja, crearEjecutor } from './ejecutor.ts'
 import { FalloProveedor, proveedorConfigurado } from './proveedor.ts'
 import { AGENTE_RAIZ, agente, todosLosAgentes } from './agentes.ts'
 
@@ -146,11 +146,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     'alguien de la empresa'
   const contexto = `CONTEXTO DE ESTA CONSULTA\nHoy es ${ahora}. Cuando digan un mes sin año, es el más reciente que ya pasó.\nQuien pregunta es ${quien}.`
 
+  // Lo que las herramientas dejan para la pantalla: hoy, el borrador de
+  // cotización. Va aparte del texto a propósito.
+  const bandeja: Bandeja = { propuesta: null }
+
   try {
     const r = await responder(
       {
         modelo: (pedido) => proveedor.responder(pedido),
-        ejecutar: crearEjecutor({ token, companyId, userId }),
+        ejecutar: crearEjecutor({ token, companyId, userId }, bandeja),
         contexto,
       },
       mensajes,
@@ -165,6 +169,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       llamadas: r.llamadas,
       corte: r.corte,
       proveedor: proveedor.nombre,
+      propuesta: bandeja.propuesta,
     })
   } catch (e) {
     if (e instanceof FalloProveedor) {

@@ -33,7 +33,20 @@ const problema = (texto: string): string => JSON.stringify({ error: texto })
 /** Cuántos caracteres de resultado se le pasan al modelo, como mucho. */
 const MAX_TEXTO = 12_000
 
-export function crearEjecutor(ctx: Contexto) {
+/**
+ * Lo que una herramienta dejó para la pantalla, además del texto.
+ *
+ * El borrador de cotización viaja acá y NO metido en la prosa del modelo. Si
+ * la pantalla tuviera que sacarlo del texto, haría falta que el modelo
+ * escribiera un formato exacto todas las veces, que es la clase de cosa que
+ * funciona en las pruebas y falla en producción. La web vieja lo hacía así,
+ * con bloques `:::ACCION:::` y una expresión regular.
+ */
+export interface Bandeja {
+  propuesta: unknown | null
+}
+
+export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -86,6 +99,10 @@ export function crearEjecutor(ctx: Contexto) {
     } catch {
       return problema('No pude consultar la base en este momento.')
     }
+
+    // El borrador se guarda entero para la pantalla, antes de recortarlo
+    // para el modelo.
+    if (bandeja && nombre === 'preparar_cotizacion') bandeja.propuesta = datos ?? null
 
     const texto = JSON.stringify(datos ?? null)
     return texto.length <= MAX_TEXTO
