@@ -694,8 +694,9 @@ vieja y no aparecerían en el ERP.
 # cae en el alias de la Microsoft Store y muere con «Python was not found».
 export CLOUDSDK_PYTHON="$LOCALAPPDATA/Google/Cloud SDK/google-cloud-sdk/platform/bundledpython/python.exe"
 
+# `--project` quiere el ID, no el número `545134968830`. Sale de `gcloud projects list`.
 gcloud run services update buscatools-erp-email-api \
-  --region us-east1 --project 545134968830 \
+  --region us-east1 --project PROJECT_ID \
   --update-env-vars \
 SUPABASE_URL=https://jiudqbusyknubonpedde.supabase.co,SUPABASE_PUBLISHABLE_KEY=sb_publishable_ZrIVBQYQkTTRxp_XtAJpeA_GSMRjHmV
 ```
