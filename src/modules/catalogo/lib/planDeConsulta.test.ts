@@ -25,7 +25,11 @@ describe('construirPlanDeConsulta', () => {
     expect(plan.serie).toBe('S9')
     expect(plan.limite).toBe(25)
     expect(plan.desplazamiento).toBe(50)
-    expect(plan.orden).toBe('nombre')
+    // Fase 38: el orden por defecto es «destacado» —stock primero, después
+    // foto— y no «nombre». Con 21.757 productos, ordenar por nombre ponía
+    // primero los que empiezan con «*» o con un número, que son los que menos
+    // se usan.
+    expect(plan.orden).toBe('destacado')
   })
 
   it('U2 · SIEMPRE lleva companyId, y sin empresa activa falla en vez de consultar', () => {

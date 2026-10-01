@@ -16,6 +16,17 @@
  */
 export const ORDENES_CATALOGO = [
   'relevancia',
+  /**
+   * El orden por defecto: primero lo que hay en el depósito, después lo que
+   * tiene foto, y recién ahí el resto por nombre.
+   *
+   * Antes el defecto era `nombre`, y con 21.757 productos la primera página
+   * eran los que empiezan con «*» o con un número — los que menos se usan.
+   * Lo que se usa todos los días es otra cosa: 379 productos tienen stock y
+   * 3.979 tienen foto, y que alguien se haya tomado el trabajo de cargarla ya
+   * dice que ese producto importa.
+   */
+  'destacado',
   'nombre', 'nombre_desc',
   'sku', 'sku_desc',
   'modelo', 'modelo_desc',
@@ -86,7 +97,7 @@ export const FILTROS_INICIALES: FiltrosCatalogo = {
   rangos: {},
   pagina: 1,
   porPagina: 50,
-  orden: 'nombre',
+  orden: 'destacado',
 }
 
 /** Las opciones del legacy, sin el 500 (que existía sólo porque ya se habían bajado todos). */
