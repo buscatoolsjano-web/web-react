@@ -106,3 +106,76 @@ begin
         '          CASE WHEN     v_desc AND v_campo = ''tipo''      THEN m.tipo      END DESC,' || E'\n' || v2);
   execute d;
 end $$;
+
+-- ── 4 · Filtrar por SERIE desde la columna ───────────────────────────────
+--
+-- `filtros.serie` existía en el frontend desde hacía rato y se armaba en el
+-- plan de consulta, pero NUNCA llegaba a la base: `search_products` no tenía
+-- el parámetro. Era estado muerto. Con la fila de filtros por columna pasa a
+-- hacer falta de verdad.
+--
+-- OJO · `CREATE OR REPLACE` con un parámetro NUEVO no reemplaza: crea una
+-- SOBRECARGA. Con las dos vivas, PostgREST contesta
+-- «Could not choose the best candidate function» y el catálogo queda en cero.
+-- Hay que borrar la vieja. Eso lo hace el bloque del final.
+do $$
+declare d text;
+begin
+  select pg_get_functiondef(p.oid) into d
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'search_products'
+     and position('p_series' in pg_get_function_arguments(p.oid)) = 0;
+  if d is null then raise notice 'search_products ya acepta p_series'; return; end if;
+
+  d := replace(d, 'p_solo_catalogo boolean DEFAULT false)',
+                  'p_solo_catalogo boolean DEFAULT false, p_series text[] DEFAULT NULL::text[])');
+  d := replace(d, '      AND (NOT v_busca',
+                  '      AND (p_series IS NULL OR p.series = ANY(p_series))' || E'\n' || '      AND (NOT v_busca');
+  execute d;
+end $$;
+
+-- Y las facetas: aceptan el filtro y además DEVUELVEN los valores de serie,
+-- que son los que pueblan el desplegable de esa columna.
+do $$
+declare d text; v_ancla text;
+begin
+  select pg_get_functiondef(p.oid) into d
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'catalog_facets'
+     and position('p_series' in pg_get_function_arguments(p.oid)) = 0;
+  if d is null then raise notice 'catalog_facets ya acepta p_series'; return; end if;
+
+  d := replace(d, 'p_solo_catalogo boolean DEFAULT false)',
+                  'p_solo_catalogo boolean DEFAULT false, p_series text[] DEFAULT NULL::text[])');
+  d := replace(d, '    SELECT p.brand_id, p.category_id, p.product_type, p.attributes,',
+                  '    SELECT p.brand_id, p.category_id, p.product_type, p.series, p.attributes,');
+  d := replace(d, '           (p_type     IS NULL OR p.product_type = ANY(p_type)) AS ok_tipo,',
+                  '           (p_type     IS NULL OR p.product_type = ANY(p_type)) AS ok_tipo,' || E'\n' ||
+                  '           (p_series   IS NULL OR p.series       = ANY(p_series)) AS ok_serie,');
+  d := replace(d, 'SELECT count(*) AS n FROM marcado' || E'\n' || '    WHERE ok_cat AND ok_marca AND ok_tipo AND ok_attrs AND ok_rango',
+                  'SELECT count(*) AS n FROM marcado' || E'\n' || '    WHERE ok_cat AND ok_marca AND ok_tipo AND ok_serie AND ok_attrs AND ok_rango');
+
+  v_ancla := E'  )\n  SELECT jsonb_build_object(';
+  d := replace(d, v_ancla, E'  ),\n' ||
+    '  f_serie AS (' || E'\n' ||
+    '    SELECT coalesce(jsonb_agg(jsonb_build_object(''value'', s.series, ''count'', s.n)' || E'\n' ||
+    '                              ORDER BY s.n DESC, s.series), ''[]''::jsonb) AS j' || E'\n' ||
+    '    FROM (SELECT series, count(*) n FROM marcado' || E'\n' ||
+    '          WHERE ok_cat AND ok_marca AND ok_tipo AND ok_attrs AND ok_rango' || E'\n' ||
+    '            AND coalesce(series, '''') <> ''''' || E'\n' ||
+    '          GROUP BY 1) s' || E'\n' || '  )' || E'\n' || '  SELECT jsonb_build_object(');
+  d := replace(d, '    ''product_types'', (SELECT j FROM f_tipo),',
+                  '    ''product_types'', (SELECT j FROM f_tipo),' || E'\n' ||
+                  '    ''series'',        (SELECT j FROM f_serie),');
+  execute d;
+end $$;
+
+-- Las sobrecargas viejas se van: con las dos vivas, PostgREST no puede elegir.
+drop function if exists public.search_products(uuid,text,integer,integer,uuid,uuid,jsonb,text[],jsonb,text,boolean);
+drop function if exists public.catalog_facets(uuid,text,uuid,uuid,text[],jsonb,jsonb,boolean);
+
+-- Comprobación: las dos tienen que dar el MISMO número.
+--   select (public.catalog_facets('<empresa>', null, null, null, null, null, null,
+--                                 false, array['Punta']) ->> 'total')::int;
+--   select count(*) from public.search_products('<empresa>', null, 5000, 0, null,
+--                       null, null, null, null, 'nombre', false, array['Punta']);

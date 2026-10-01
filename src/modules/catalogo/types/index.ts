@@ -236,6 +236,8 @@ export interface Facetas {
   marcas: OpcionFaceta[]
   categorias: OpcionFaceta[]
   subtipos: OpcionFaceta[]
+  /** Valores de `series`, para el filtro de la columna SERIE. */
+  series: OpcionFaceta[]
   atributos: FacetaAtributo[]
 }
 

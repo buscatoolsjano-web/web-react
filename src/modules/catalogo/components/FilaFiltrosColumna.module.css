@@ -1,0 +1,66 @@
+/* La fila de filtros vive DENTRO del `thead`, debajo de los títulos.
+
+   Fondo propio y un borde abajo para que se lea como parte del encabezado y
+   no como la primera fila de datos: si se confunde con un producto, el primer
+   reflejo es querer hacerle click. */
+.fila {
+  background: var(--color-surface-raised, var(--color-surface));
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fila td {
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  vertical-align: middle;
+}
+
+.celda {
+  min-width: 0;
+  position: relative;
+}
+
+/* Los controles ocupan el ancho de SU columna y nada más: si crecieran,
+   empujarían las columnas y la tabla volvería a desbordar, que es justo lo
+   que se vino a arreglar. */
+/* El control va FUERA DEL FLUJO, y no es un capricho de maquetado.
+
+   El ancho mínimo de un `<select>` lo fija su opción más larga, y en una
+   tabla ese mínimo se le suma a la columna: con seis desplegables la tabla
+   volvía a desbordar 89 px —y la columna de la imagen se aplastaba a 26— o
+   sea que el filtro por columna rompía justo lo que habíamos arreglado.
+
+   La caja reserva el alto y no aporta ancho; el control la llena por encima.
+   Así los anchos los siguen decidiendo los TÍTULOS, que es lo correcto. */
+.caja {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  height: var(--control-h-sm, 30px);
+}
+
+.control {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.control:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+/* En pantallas chicas la tabla ya se convierte en tarjetas, así que esta fila
+   no llega a verse; se esconde igual por si alguna vista reusa la tabla. */
+@media (max-width: 767px) {
+  .fila {
+    display: none;
+  }
+}

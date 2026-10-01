@@ -11,6 +11,7 @@ const facetas: Facetas = {
     { valor: 'c2', etiqueta: 'Atornilladores', cantidad: 8 },
   ],
   subtipos: [],
+  series: [],
   marcas: [
     { valor: 'm1', etiqueta: 'Torero', cantidad: 7 },
     { valor: 'm2', etiqueta: 'Atlas', cantidad: 5 },

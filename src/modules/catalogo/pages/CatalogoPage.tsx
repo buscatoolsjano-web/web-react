@@ -333,6 +333,13 @@ export function CatalogoPage() {
             }}
             columnasDinamicas={dinamicas}
             categoriaFija={filtros.categoria !== null}
+            filtroColumnas={{
+              filtros,
+              facetas,
+              onCambiar: actualizar,
+              texto: textoInput,
+              onTexto: setTextoInput,
+            }}
             orden={{
               ...columnaYdireccion(filtros.orden),
               ordenar: (campo) => actualizar({ orden: proximoOrden(filtros.orden, campo) }),

@@ -19,10 +19,16 @@
    las de texto repetido (Categoría, Serie), no ésta. */
 .colImagen {
   width: 76px;
+  /* min-width además de width: con la tabla ajustada, width es sólo una
+     sugerencia y el navegador achica primero las columnas sin ancho propio.
+     La imagen no tiene ancho intrínseco —es un div al 100 %— así que se
+     aplastaba a 26 px y las miniaturas desaparecían de la pantalla. */
+  min-width: 76px;
 }
 
 .colImagen > * {
   width: 60px;
+  min-width: 60px;
 }
 
 .sku {
@@ -251,7 +257,7 @@
 
 /* ── Carrito (Fase 22 · paridad, #50) ───────────────────────────────────── */
 .colCarrito {
-  width: 112px;
+  width: 96px;
   text-align: center;
   white-space: nowrap;
 }
@@ -304,6 +310,16 @@
   white-space: nowrap;
 }
 
+/* «Stock real» y «Stock virtual» en dos renglones, como la web vieja.
+
+   En una sola línea son 112 y 127 px de TÍTULO para mostrar un número de dos
+   cifras. Envueltos son unos 70 cada uno, y de ahí salen los 89 px que le
+   faltaban a la tabla para entrar con la fila de filtros puesta. */
+.thStock.apretada,
+.thStock.apretada .ordenar {
+  white-space: normal;
+}
+
 /* Ninguna columna acapara el sobrante.
 
    Con `table-layout: auto` el ancho que sobra se reparte entre las columnas,
@@ -316,11 +332,11 @@
 }
 
 .colReferencia {
-  max-width: 11rem;
+  max-width: 9.5rem;
 }
 
 .colModelo {
-  max-width: 10rem;
+  max-width: 8rem;
 }
 
 /* Filas más bajas: con 8.623 productos, cada 8 px de alto son una fila más en

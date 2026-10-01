@@ -191,6 +191,7 @@ interface RespuestaFacetas {
   brands: { id: string; name: string; count: number }[]
   categories: { id: string; slug: string; name: string; count: number }[]
   product_types: { value: string; count: number }[]
+  series: { value: string; count: number }[]
   attributes: Record<
     string,
     { label: string; unit: string | null; values: { value: string; count: number }[] }
@@ -218,6 +219,7 @@ export async function obtenerFacetas(plan: PlanDeConsulta): Promise<Facetas> {
     ...(plan.categoria !== null && { p_category: plan.categoria }),
     ...(plan.marca !== null && { p_brand: plan.marca }),
     ...(plan.subtipos !== null && { p_type: plan.subtipos }),
+    ...(plan.serie !== null && { p_series: [plan.serie] }),
     p_attrs: plan.atributos,
     p_ranges: plan.rangos,
     // Fase 22: las facetas cuentan lo MISMO que el listado. Sin esto, el
@@ -229,7 +231,7 @@ export async function obtenerFacetas(plan: PlanDeConsulta): Promise<Facetas> {
   if (error) throw new Error(`No se pudieron leer los filtros: ${error.message}`)
 
   const r = (data ?? {
-    total: 0, brands: [], categories: [], product_types: [], attributes: {},
+    total: 0, brands: [], categories: [], product_types: [], series: [], attributes: {},
   }) as RespuestaFacetas
 
   return {
@@ -241,6 +243,9 @@ export async function obtenerFacetas(plan: PlanDeConsulta): Promise<Facetas> {
       valor: c.id, etiqueta: c.name, cantidad: c.count,
     })),
     subtipos: (r.product_types ?? []).map((t) => ({
+      valor: t.value, etiqueta: t.value, cantidad: t.count,
+    })),
+    series: (r.series ?? []).map((t) => ({
       valor: t.value, etiqueta: t.value, cantidad: t.count,
     })),
     atributos: Object.entries(r.attributes ?? {}).map(([key, a]) =>

@@ -10,6 +10,7 @@ import { ImagenProducto } from './ImagenProducto'
 import { PopoverProducto } from './PopoverProducto'
 import { atributosDestacados } from '../lib/destacados'
 import { valorDinamico, type ColumnaDinamica } from '../lib/columnasDinamicas'
+import { FilaFiltrosColumna, type FilaFiltrosColumnaProps } from './FilaFiltrosColumna'
 import { filaClickeable } from '@/components/tables/filaClickeable'
 import { EncabezadoOrdenable as Encabezado, type OrdenDeColumna } from './EncabezadoOrdenable'
 import type { DefinicionAtributo, ProductoListado } from '../types'
@@ -46,6 +47,14 @@ export interface ListadoProductosProps {
    * necesitan los atributos, que son los que distinguen una fila de otra.
    */
   categoriaFija?: boolean
+  /**
+   * La fila de filtros dentro del encabezado. Opcional: otras pantallas
+   * reusan este listado sin filtros propios (el modal de ventas, por ejemplo).
+   */
+  filtroColumnas?: Pick<
+    FilaFiltrosColumnaProps,
+    'filtros' | 'facetas' | 'onCambiar' | 'texto' | 'onTexto'
+  >
 }
 
 /** Elegir 2 a 4 productos para compararlos, como el checkbox del legacy. */
@@ -117,6 +126,7 @@ export function ListadoProductos({
   orden,
   columnasDinamicas = [],
   categoriaFija = false,
+  filtroColumnas,
 }: ListadoProductosProps) {
   const isMobile = useIsMobile()
   const navigate = useNavigate()
@@ -315,10 +325,10 @@ export function ListadoProductos({
                 celda «12 / 10» no se podían ordenar por separado. */}
             {esInterno ? (
               <>
-                <Encabezado campo="stock_real" orden={orden} className={`${tabla.num} ${styles.thNum} ${styles.apretada}`}>
+                <Encabezado campo="stock_real" orden={orden} className={`${tabla.num} ${styles.thNum} ${styles.apretada} ${styles.thStock}`}>
                   Stock real
                 </Encabezado>
-                <Encabezado campo="stock_virtual" orden={orden} className={`${tabla.num} ${styles.thNum} ${styles.apretada}`}>
+                <Encabezado campo="stock_virtual" orden={orden} className={`${tabla.num} ${styles.thNum} ${styles.apretada} ${styles.thStock}`}>
                   Stock virtual
                 </Encabezado>
               </>
@@ -334,6 +344,16 @@ export function ListadoProductos({
               </th>
             ) : null}
           </tr>
+          {filtroColumnas ? (
+            <FilaFiltrosColumna
+              {...filtroColumnas}
+              columnasDinamicas={columnasDinamicas}
+              conSeleccion={seleccion !== undefined}
+              categoriaFija={categoriaFija}
+              conCarrito={conCarrito}
+              esInterno={esInterno}
+            />
+          ) : null}
         </thead>
         <tbody>
           {productos.map((p) => (

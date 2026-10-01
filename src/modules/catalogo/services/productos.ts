@@ -238,6 +238,7 @@ export async function consultarProductos(
     ...(plan.marca !== null && { p_brand: plan.marca }),
     p_attrs: plan.atributos,
     ...(plan.subtipos !== null && { p_type: plan.subtipos }),
+    ...(plan.serie !== null && { p_series: [plan.serie] }),
     p_ranges: plan.rangos,
     p_orden: plan.orden,
     // Fase 22 · B: el catálogo NO muestra productos de marcas desactivadas.

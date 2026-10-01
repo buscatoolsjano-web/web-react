@@ -31,6 +31,7 @@ vi.mock('@/modules/catalogo/services/facetas', () => ({
         { valor: 'cat-pun', etiqueta: 'Puntas y tubos', cantidad: 1 },
       ],
       subtipos: [],
+      series: [],
       // Los atributos aparecen recién con una categoría elegida, igual que en
       // el catálogo: sin categoría serían los 234 valores de todo el inventario.
       atributos:
