@@ -3000,3 +3000,55 @@ medir una mudanza de base hay que pedir algo que obligue a ir a la base.
 
 Y el número que importa no es 120 ms: es 120 ms **por eslabón**. Una pantalla
 que encadena tres consultas se ahorra más de un tercio de segundo.
+
+## 46 · La limpieza, y un filtro que casi borra clientes reales
+
+Con el smoke test confirmado se borró el andamiaje: **30 tablas `_*` y 3
+funciones**. Quedaron vivas `_preflight` y `_verificar_datos`, que no dependen
+de ninguna tabla y siguen sirviendo mientras falte la pata de correo.
+
+### `_resync` no se borró por prolijidad
+
+Se borró porque **ya era peligroso**. Con la web escribiendo en Brasil,
+resincronizar desde Ohio pisaría las escrituras nuevas con datos viejos. La
+misma función que el día anterior era la herramienta central del cutover, al
+día siguiente es una trampa cargada.
+
+> Una herramienta de migración no envejece bien. Lo que era indispensable antes
+> del corte, después del corte destruye datos. Borrarla es parte del corte.
+
+Lo mismo con `_reaplicar_calidad` y `_reaplicar_unificacion`: volver a
+correrlas re-fusionaría productos que ya se fusionaron.
+
+### El filtro que casi se lleva puestos tres clientes reales
+
+Buscando datos de prueba con `legal_name ilike '%test%'` aparecieron cinco
+clientes. **Tres eran reales**: «Damián Testori», «Testori S.R.L.» y «Testo
+Argentina S.A.» — un apellido y una marca de instrumentos. Sólo «Cliente de
+prueba» y «General prueba» eran sintéticos.
+
+> Buscar basura por substring del nombre encuentra clientes de verdad. `test`
+> está adentro de Testori, Testo, Testa, Contestabile. Antes de borrar por
+> patrón hay que leer la lista entera, nunca confiar en el `WHERE`.
+
+### Lo que NO se borró, y por qué queda a decisión del dueño
+
+De los 11 usuarios `zz-*@buscatools.test` se borraron **9**. Los otros dos
+crearon documentos que siguen en el libro de ventas:
+
+| Usuario | Dejó |
+|---|---|
+| `zz-cutover-smoke-…` | COTI02629 (borrador, USD 37,70) |
+| `zz-e5-pedido-…` | un pedido de venta |
+
+Y el cliente sintético «Cliente de prueba» tiene 3 cotizaciones, **2 pedidos
+(uno confirmado)** y 1 remito — `RT-ERP00001`, que movió stock.
+
+Borrar eso no es limpieza: toca la numeración de documentos y los saldos de
+stock. El borrado se detuvo solo gracias a la condición
+`not exists (... created_by = u.id)`, que es la forma correcta de escribir un
+borrado masivo: que se frene ante lo que no esperaba en vez de arrastrarlo.
+
+### Verificación posterior
+
+Banco de búsqueda del asistente: **11 de 11** después de borrar las 30 tablas.
