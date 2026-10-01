@@ -3,9 +3,22 @@
  * Sin Deno ni red, para testearla desde Node.
  */
 
+/**
+ * Orígenes del navegador que pueden llamar. Sin comodín, a propósito.
+ *
+ * `4173` es `npm run preview`, o sea el build de producción servido local —
+ * que es contra el que conviene probar, porque el dev server miente sobre los
+ * tiempos. Faltaba, y el síntoma no se parece en nada a la causa: el navegador
+ * corta en el preflight y la pantalla dice «No se pudo contactar al servidor.
+ * Revisá la conexión.», que manda a buscar un problema de red.
+ *
+ * El mismo agujero estaba en `CORS_ORIGINS` del servicio de correo. Si se
+ * agrega un origen nuevo, hay que agregarlo en los dos lados.
+ */
 export const ORIGENES_PERMITIDOS = [
   'https://app.buscatools.com',
   'http://localhost:5173',
+  'http://localhost:4173',
   'http://localhost:3000',
 ] as const
 
