@@ -90,7 +90,15 @@ export const FILTROS_INICIALES: FiltrosCatalogo = {
 }
 
 /** Las opciones del legacy, sin el 500 (que existía sólo porque ya se habían bajado todos). */
-export const OPCIONES_POR_PAGINA = [25, 50, 100] as const
+/**
+ * Cuántos productos por página se pueden pedir.
+ *
+ * 500 es el techo a propósito y no es arbitrario: cada fila trae su imagen,
+ * su precio y sus saldos, así que pedir «todos» con 21.752 productos no es
+ * una página, es una descarga. Para llevarse el catálogo entero está Exportar,
+ * que para eso existe.
+ */
+export const OPCIONES_POR_PAGINA = [10, 20, 50, 100, 200, 500] as const
 
 export interface MarcaResumen {
   id: string

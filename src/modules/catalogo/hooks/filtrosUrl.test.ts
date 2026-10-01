@@ -17,7 +17,7 @@ describe('filtros del catálogo en la URL', () => {
       atributos: { encastre: ['1/4 HEX', '3/8 SQ'], medida: ['10'] },
       rangos: { largo: { min: 25, max: 50 }, max_kg: { min: 10, max: null } },
       pagina: 3,
-      porPagina: 25,
+      porPagina: 100,
       orden: 'sku',
     })
     expect(leerFiltros(escribirFiltros(original))).toEqual(original)
@@ -58,6 +58,23 @@ describe('filtros del catálogo en la URL', () => {
     expect(r.porPagina).toBe(FILTROS_INICIALES.porPagina)
     expect(r.orden).toBe(FILTROS_INICIALES.orden)
     expect(r.rangos).toEqual({})
+  })
+
+  /**
+   * El `per` venía de la URL sin control: cualquier entero positivo valía.
+   * Un `?per=99999` pedía las 21.752 filas con su imagen, su precio y sus
+   * saldos. No hace falta mala intención — alcanza con editar el link.
+   */
+  it('un «por página» que no está en la lista cae al valor por defecto', () => {
+    expect(leerFiltros(new URLSearchParams('per=99999')).porPagina).toBe(
+      FILTROS_INICIALES.porPagina,
+    )
+    expect(leerFiltros(new URLSearchParams('per=37')).porPagina).toBe(
+      FILTROS_INICIALES.porPagina,
+    )
+    // Los de la lista sí se respetan.
+    expect(leerFiltros(new URLSearchParams('per=10')).porPagina).toBe(10)
+    expect(leerFiltros(new URLSearchParams('per=500')).porPagina).toBe(500)
   })
 
   it('recorta el texto de búsqueda', () => {

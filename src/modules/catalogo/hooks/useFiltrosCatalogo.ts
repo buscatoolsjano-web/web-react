@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import {
   FILTROS_INICIALES,
   type FiltrosCatalogo,
+  OPCIONES_POR_PAGINA,
   ORDENES_CATALOGO,
   type OrdenCatalogo,
   type RangoNumerico,
@@ -40,6 +41,21 @@ const PREFIJO_RANGO = 'rango.'
 function aEntero(v: string | null, porDefecto: number): number {
   const n = Number(v)
   return Number.isInteger(n) && n > 0 ? n : porDefecto
+}
+
+/**
+ * Cuántos por página, pero SÓLO uno de los valores ofrecidos.
+ *
+ * El `per` sale de la URL y hasta acá se aceptaba cualquier entero positivo:
+ * un `?per=99999` pedía las 21.752 filas con su imagen, su precio y sus
+ * saldos. No hace falta mala intención —alcanza con un link editado a mano— y
+ * el costo lo paga la base.
+ */
+function aPorPagina(v: string | null): number {
+  const n = Number(v)
+  return (OPCIONES_POR_PAGINA as readonly number[]).includes(n)
+    ? n
+    : FILTROS_INICIALES.porPagina
 }
 
 function aNumero(v: string | undefined): number | null {
@@ -125,7 +141,7 @@ export function leerFiltros(params: URLSearchParams): FiltrosCatalogo {
     atributos,
     rangos,
     pagina: aEntero(params.get('page'), FILTROS_INICIALES.pagina),
-    porPagina: aEntero(params.get('per'), FILTROS_INICIALES.porPagina),
+    porPagina: aPorPagina(params.get('per')),
     orden: aOrden(params.get('orden')),
   }
 }

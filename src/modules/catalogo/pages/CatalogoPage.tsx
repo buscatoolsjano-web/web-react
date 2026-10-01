@@ -41,7 +41,7 @@ const PRODUCTO = { singular: 'producto', plural: 'productos' } as const
 
 export function CatalogoPage() {
   const { activa } = useEmpresa()
-  const { filtros, actualizar, limpiar } = useFiltrosCatalogo()
+  const { filtros, actualizar, limpiar } = useFiltrosCatalogo()
 
   const companyId = activa?.companyId ?? null
   const esInterno = activa?.esInterno ?? false
@@ -226,6 +226,33 @@ export function CatalogoPage() {
                 Nuevo producto
               </Button>
             ) : null}
+            {/*
+              Exportar y Comparar también viven acá (Fase 38).
+
+              Tenían una fila propia entre los filtros y la tabla, para dos
+              botones. Esa fila costaba ~50 px de los que el catálogo no tiene
+              para regalar: lo que está abajo son 21.752 productos.
+            */}
+            <Button variant="secondary" onClick={() => setExportando(true)} disabled={total === 0}>
+              <Icon name="download" size={16} /> Exportar
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setComparando(true)}
+              disabled={!seleccion.puedeComparar}
+              title={
+                seleccion.puedeComparar
+                  ? undefined
+                  : `Tildá al menos ${MINIMO_COMPARAR} productos para compararlos`
+              }
+            >
+              Comparar{seleccion.elegidos.length > 0 ? ` (${seleccion.elegidos.length})` : ''}
+            </Button>
+            {seleccion.elegidos.length > 0 ? (
+              <Button variant="ghost" onClick={seleccion.limpiar}>
+                Limpiar selección
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -235,13 +262,13 @@ export function CatalogoPage() {
         className={styles.barra}
         activeCount={activos}
         onClear={limpiarTodo}
-        hasFilters={hayFiltros}
+        hasFilters={hayFiltros}
       >
         <PanelFacetas
           filtros={filtros}
           facetas={facetas}
           cargando={facetasCargando}
-          onCambiar={actualizar}
+          onCambiar={actualizar}
         />
       </FilterBar>
 
@@ -258,31 +285,6 @@ export function CatalogoPage() {
         pone el desplegable en «Todos». Y «Limpiar filtros» ahora vive dentro
         de la barra, como en la web vieja.
       */}
-
-      {/* Las acciones del listado, como la barra del legacy: exportar a la
-          izquierda y comparar con el conteo de lo elegido. */}
-      <div className={styles.acciones}>
-        <Button variant="secondary" size="sm" onClick={() => setExportando(true)} disabled={total === 0}>
-          <Icon name="download" size={16} /> Exportar
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => setComparando(true)}
-          disabled={!seleccion.puedeComparar}
-          title={
-            seleccion.puedeComparar
-              ? undefined
-              : `Tildá al menos ${MINIMO_COMPARAR} productos para compararlos`
-          }
-        >
-          Comparar{seleccion.elegidos.length > 0 ? ` (${seleccion.elegidos.length})` : ''}
-        </Button>
-        {seleccion.elegidos.length > 0 ? (
-          <Button variant="ghost" size="sm" onClick={seleccion.limpiar}>
-            Limpiar selección
-          </Button>
-        ) : null}
-      </div>
 
       {error ? (
         <ErrorState
