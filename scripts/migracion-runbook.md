@@ -3052,3 +3052,26 @@ borrado masivo: que se frene ante lo que no esperaba en vez de arrastrarlo.
 ### Verificación posterior
 
 Banco de búsqueda del asistente: **11 de 11** después de borrar las 30 tablas.
+
+### Lo sintético quedó marcado, no borrado
+
+Decisión del dueño: **conservar los documentos y marcar lo sintético.** Se usó
+el mecanismo que el propio sistema ya tiene para eso, que es más fuerte que un
+nombre: `status = 'inactive'`, que los saca de los selectores. El `CHECK` de
+`customers.status` ya admitía `active`/`inactive`, así que no hubo que inventar
+nada.
+
+| Qué | Cómo quedó |
+|---|---|
+| `Cliente de prueba` / `El Gitano` | `ZZ SIN USAR · …`, `inactive`, con nota explicando por qué se conservan sus documentos |
+| `General prueba` | `ZZ SIN USAR · …`, `inactive` |
+| Los 2 usuarios `zz-*` que quedaron | `full_name` con prefijo `ZZ SIN USAR`, `is_active = false` |
+
+Los 6 documentos (`COTI02629`, `COT-BTS00001/2`, `PDV-ERP00001`, `PDV01320`,
+`RT-ERP00001`) siguen enteros y ahora muestran el nombre marcado.
+
+**Corrección a lo que decía la sección anterior:** se había afirmado que
+`RT-ERP00001` «movió stock». No es cierto — está en `draft` y
+`stock_movements` no tiene ni un movimiento de esos productos. El argumento
+para conservarlos sigue en pie por la numeración de documentos, pero no por los
+saldos.
