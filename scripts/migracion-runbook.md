@@ -3136,3 +3136,41 @@ COTI02515 y COTI02517: siguen mostrando «ALQUILER DE DISPENSER FRIO CALOR» con
 su precio. El `product_id` queda como rastro, no como fuente.
 
 El control está bien escrito; lo que informa es real y ya está decidido.
+
+## 48 · El logo, y la Edge Function que faltaba desplegar
+
+El logo era el último byte que el SQL no copia. Ya está subido: 36.005 bytes,
+registrado en `companies.logo_path` y visible en Configuración. Control 10 del
+preflight en verde.
+
+### Lo que faltaba no era el archivo
+
+El arreglo de CORS de `config-empresa-logo` estaba commiteado desde hacía
+horas, pero **las Edge Functions no se despliegan con el push**: `deploy.yml`
+sólo construye y publica el frontend. La función seguía corriendo la versión 5,
+con la allowlist vieja. Se desplegó a mano la versión 6.
+
+> Un arreglo commiteado no es un arreglo desplegado. Para el frontend el push
+> alcanza; para las Edge Functions y para las RPC, no.
+
+### El archivo no es el mismo que había en Ohio
+
+Se subió `public/brand/buscatools-logo.png` del repo: **36.005 bytes**, contra
+los 46.384 del que estaba en Ohio. Son imágenes distintas —la de Ohio se había
+subido desde la pantalla el 2026-09-15— y los bytes de aquélla no se pueden
+recuperar sin credenciales de ese proyecto. Si el dueño prefiere el otro, se
+sube desde Configuración y reemplaza a éste.
+
+### Dos errores de consola que no eran errores
+
+Al terminar, la consola mostraba un 401 y un 400 y la imagen no aparecía en el
+primer `querySelector`. Las dos cosas engañaban:
+
+* el 401/400 eran de **antes** de la subida — el intento de firmar la ruta de
+  Ohio que `companies.logo_path` traía copiada y que en Brasil no existía;
+* la imagen sí estaba, pero colgada de otro nodo que el que buscaba el
+  selector.
+
+La confirmación buena fue mirar el `<img>` renderizado: carga desde la URL
+firmada de Supabase, 1400×673. Y antes que eso, la base: el objeto en el
+bucket y la ruta registrada en la empresa.
