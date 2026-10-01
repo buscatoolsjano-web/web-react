@@ -75,3 +75,34 @@ end $$;
 -- select jsonb_path_query_array(
 --          public.catalog_facets('<empresa>'), '$.categories[*].name');
 --   → «Otros» tiene que ser el último.
+
+-- ── 3 · Ordenar por TIPO ─────────────────────────────────────────────────
+--
+-- `product_type` vuelve a ser columna, como la TIPO de la web vieja. No es lo
+-- mismo que SERIE y por eso van las dos: `series` es la familia («Punta») y
+-- `product_type` el tipo concreto («Torx»). Está cargado en el 67 % de los
+-- productos —más que `series`, que llega al 42 %—.
+do $$
+declare d text; v1 text; v2 text;
+begin
+  select pg_get_functiondef(p.oid) into d
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'search_products';
+
+  if position('v_campo = ''tipo''' in d) > 0 then
+    raise notice 'search_products ya ordenaba por tipo';
+    return;
+  end if;
+
+  v1 := '      coalesce(p.series,'''') AS serie,';
+  v2 := '          CASE WHEN NOT v_desc AND v_campo = ''serie''     THEN m.serie     END ASC,';
+  if position(v1 in d) = 0 or position(v2 in d) = 0 then
+    raise exception 'no encontre los bloques de serie';
+  end if;
+
+  d := replace(d, v1, v1 || E'\n      coalesce(p.product_type,'''') AS tipo,');
+  d := replace(d, v2,
+        '          CASE WHEN NOT v_desc AND v_campo = ''tipo''      THEN m.tipo      END ASC,'  || E'\n' ||
+        '          CASE WHEN     v_desc AND v_campo = ''tipo''      THEN m.tipo      END DESC,' || E'\n' || v2);
+  execute d;
+end $$;

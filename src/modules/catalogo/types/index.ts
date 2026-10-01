@@ -22,6 +22,7 @@ export const ORDENES_CATALOGO = [
   'marca', 'marca_desc',
   'categoria', 'categoria_desc',
   'serie', 'serie_desc',
+  'tipo', 'tipo_desc',
   'stock_real', 'stock_real_desc',
   'stock_virtual', 'stock_virtual_desc',
 ] as const

@@ -11,12 +11,18 @@
   cursor: pointer;
 }
 
+/* La IMAGEN es lo primero que se mira para reconocer una punta de un tubo, así
+   que va siempre y se ve. Antes eran 40 px dentro de 56: a ese tamaño una
+   embocadura y un adaptador son el mismo borrón gris.
+
+   Nunca se esconde por ancho. Las columnas que ceden en pantallas chicas son
+   las de texto repetido (Categoría, Serie), no ésta. */
 .colImagen {
-  width: 56px;
+  width: 76px;
 }
 
 .colImagen > * {
-  width: 40px;
+  width: 60px;
 }
 
 .sku {
@@ -281,4 +287,46 @@
 .thNum .ordenar {
   justify-content: flex-end;
   text-align: right;
+}
+
+/* ── El espacio sobrante va a UNA columna, no repartido (Fase 38) ──────────
+   Al sacar la columna del nombre, la tabla pasó a tener holgura: `width: 100%`
+   con `table-layout: auto` reparte ese sobrante entre TODAS las columnas
+   automáticas, y el resultado son huecos de aire entre celdas cortas —se veía
+   «Categoría … … Serie … … Stock»—.
+
+   La solución es decirle a cada columna que NO quiere crecer. `width: 1%` con
+   `nowrap` es la forma estándar de pedir «lo mínimo que necesito»: el sobrante
+   queda entonces para las columnas que sí se leen —Modelo y Marca—, en vez de
+   diluirse en padding. */
+.apretada {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* Ninguna columna acapara el sobrante.
+
+   Con `table-layout: auto` el ancho que sobra se reparte entre las columnas,
+   y las de texto corto se lo quedaban: «Categoría» llegaba a 215 px para
+   decir «Otros». Un tope las devuelve a su tamaño razonable y el aire se
+   reparte parejo en vez de quedar en dos huecos grandes. */
+.colCategoria,
+.colMarca {
+  max-width: 9rem;
+}
+
+.colReferencia {
+  max-width: 11rem;
+}
+
+.colModelo {
+  max-width: 10rem;
+}
+
+/* Filas más bajas: con 8.623 productos, cada 8 px de alto son una fila más en
+   pantalla. El padding lateral también baja, que es de donde salían los
+   huecos entre celdas. */
+.tabla :global(td),
+.tabla :global(th) {
+  padding: var(--space-2) var(--space-3);
 }
