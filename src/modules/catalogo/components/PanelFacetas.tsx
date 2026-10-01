@@ -102,23 +102,31 @@ export function PanelFacetas({ filtros, facetas, cargando, onCambiar, buscador }
         }
       />
 
-      {/* ── Fila 2 · subcategorías de la categoría elegida ──────────────── */}
-      {verSubtipos && (
-        <FilaChips
-          etiqueta="Subcategoría"
-          opciones={facetas?.subtipos ?? []}
-          seleccionados={filtros.subtipos}
-          totalTodas={null}
-          multiple
-          onElegir={(valores) => onCambiar({ subtipos: valores })}
-        />
-      )}
+      {/*
+        La SUBCATEGORÍA dejó de ser una fila de chips (Fase 38).
+
+        Con «Puntas y tubos» eran 21 chips —Embocadura, Extensión, Allen,
+        Adaptador, Torx…— que ocupaban una fila entera para un filtro que no se
+        usa más que los otros. Pasa a ser un desplegable más de «Filtrar por»,
+        al lado de Marca y de los atributos: mismo peso visual que el resto, y
+        una fila menos entre la cabecera y los productos.
+      */}
 
       {/* ── Fila 3 · marca y atributos, como desplegables ───────────────── */}
-      {verDesplegables && (marcas.length > 0 || atributos.length > 0) && (
+      {verDesplegables && (marcas.length > 0 || atributos.length > 0 || verSubtipos) && (
         <div className={styles.fila}>
           <span className={styles.rotulo}>Filtrar por</span>
           <div className={styles.desplegables}>
+            {verSubtipos && (facetas?.subtipos.length ?? 0) > 0 && (
+              <DesplegableLista
+                titulo="Subcategoría"
+                opciones={facetas?.subtipos ?? []}
+                seleccionados={filtros.subtipos}
+                multiple
+                onElegir={(valores) => onCambiar({ subtipos: valores })}
+              />
+            )}
+
             {marcas.length > 0 && (
               <DesplegableLista
                 titulo="Marca"
