@@ -110,8 +110,13 @@ describe('Catálogo (Fase 13 · E4)', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByText('1 producto · Lista general')).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: 'Paginación del catálogo' })).toHaveTextContent('1–1 de 1 producto')
+    // Hay UN solo «Por página», el de la barra de arriba (Fase 38): tenerlo
+    // también abajo eran dos sitios donde mirar para entender por qué se ven
+    // 50 filas y no 200.
     fireEvent.change(screen.getByLabelText('Por página'), { target: { value: '100' } })
-    expect(llamadas.actualizar).toHaveBeenCalledWith({ porPagina: 100 })
+    // Y vuelve a la página 1: con 50 por página podías estar en la 400, y al
+    // pasar a 500 esa página ya no existe — la tabla quedaba vacía.
+    expect(llamadas.actualizar).toHaveBeenCalledWith({ porPagina: 100, pagina: 1 })
   })
 
   it('resultados: estado con texto (Kit), «Consultar» sin precio y el nombre como enlace al detalle', () => {

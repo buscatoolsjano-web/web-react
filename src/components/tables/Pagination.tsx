@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, type ReactNode } from 'react'
 import { cx } from '@/utils/cx'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
@@ -22,6 +22,16 @@ export interface PaginationProps {
   /** Nombre accesible de la región (útil si hay dos listados en la pantalla). */
   label?: string | undefined
   className?: string | undefined
+  /**
+   * Acciones que van en esta misma fila, entre «por página» y la navegación.
+   *
+   * Existe para que el catálogo pueda poner Exportar, Nuevo y Comparar donde
+   * los tenía la web vieja —en la barra del listado— sin gastar una fila
+   * propia para tres botones.
+   */
+  acciones?: ReactNode | undefined
+  /** Variante chica, para la barra que va ARRIBA de la tabla. */
+  compacta?: boolean | undefined
 }
 
 /**
@@ -40,6 +50,8 @@ export function Pagination({
   onPageSizeChange,
   label = 'Paginación',
   className,
+  acciones,
+  compacta = false,
 }: PaginationProps) {
   const idTamano = useId()
   const hayAnterior = offset > 0
@@ -47,7 +59,7 @@ export function Pagination({
   const paginas = Math.max(1, Math.ceil(total / pageSize))
   const actual = Math.min(paginas, Math.floor(offset / pageSize) + 1)
   return (
-    <nav className={cx(styles.pagination, className)} aria-label={label}>
+    <nav className={cx(styles.pagination, compacta && styles.compacta, className)} aria-label={label}>
       <p className={styles.rango} aria-live="polite">
         {rangoTexto(offset, pageSize, total, noun)}
       </p>
@@ -68,6 +80,7 @@ export function Pagination({
           </span>
         </div>
       ) : null}
+      {acciones ? <div className={styles.acciones}>{acciones}</div> : null}
       {(hayAnterior || haySiguiente) && (
         <div className={styles.botones}>
           <Button variant="secondary" size="sm" onClick={() => onChange(Math.max(0, offset - pageSize))} disabled={!hayAnterior || loading} icon={<Icon name="chevron-left" size={16} />}>

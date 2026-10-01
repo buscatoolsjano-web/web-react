@@ -206,55 +206,13 @@ export function CatalogoPage() {
             {listaEfectiva ? ` · ${listaEfectiva.nombre}` : ''}
           </>
         }
-        /* Fase 26 · E3: el «Nuevo» del legacy. Sólo para quien puede
-           escribir productos; RLS lo vuelve a decidir igual. */
         /*
-          El buscador y la lista de precios viven ACÁ, a la izquierda de
-          «Nuevo producto» (Fase 38).
-
-          Estuvieron en una fila propia, y después compartiendo la de los chips
-          de categoría. Las dos veces le robaban ancho a lo mismo: con 10
-          categorías, los chips no entraban y «Otros» quedaba fuera de la
-          pantalla. Acá no compiten con nada —esa fila estaba vacía— y los
-          chips recuperan la fila entera.
+          El encabezado se queda con el buscador y la lista de precios, nada
+          más. Exportar, Nuevo y Comparar bajaron a la barra del listado, que
+          es donde los tiene la web vieja: en la misma fila que «mostrando
+          1-50 de 21.752» y los botones de página.
         */
-        actions={
-          <>
-            {buscador}
-            {puedeCrear ? (
-              <Button icon={<Icon name="plus" size={16} />} onClick={() => setCreando(true)}>
-                Nuevo producto
-              </Button>
-            ) : null}
-            {/*
-              Exportar y Comparar también viven acá (Fase 38).
-
-              Tenían una fila propia entre los filtros y la tabla, para dos
-              botones. Esa fila costaba ~50 px de los que el catálogo no tiene
-              para regalar: lo que está abajo son 21.752 productos.
-            */}
-            <Button variant="secondary" onClick={() => setExportando(true)} disabled={total === 0}>
-              <Icon name="download" size={16} /> Exportar
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => setComparando(true)}
-              disabled={!seleccion.puedeComparar}
-              title={
-                seleccion.puedeComparar
-                  ? undefined
-                  : `Tildá al menos ${MINIMO_COMPARAR} productos para compararlos`
-              }
-            >
-              Comparar{seleccion.elegidos.length > 0 ? ` (${seleccion.elegidos.length})` : ''}
-            </Button>
-            {seleccion.elegidos.length > 0 ? (
-              <Button variant="ghost" onClick={seleccion.limpiar}>
-                Limpiar selección
-              </Button>
-            ) : null}
-          </>
-        }
+        actions={buscador}
       />
 
             <FilterBar
@@ -310,6 +268,53 @@ export function CatalogoPage() {
         )
       ) : (
         <>
+          {/*
+            La barra del listado, calcada de la web vieja: a la izquierda
+            cuántos se están viendo y cuántos por página; a la derecha las
+            acciones y los botones de página. Todo en una fila de 28 px.
+          */}
+          <Pagination
+            label="Paginación del catálogo (arriba)"
+            compacta
+            offset={(filtros.pagina - 1) * filtros.porPagina}
+            pageSize={filtros.porPagina}
+            total={total}
+            noun={PRODUCTO}
+            loading={isFetching}
+            onChange={(offset) => actualizar({ pagina: Math.floor(offset / filtros.porPagina) + 1 })}
+            pageSizeOptions={OPCIONES_POR_PAGINA}
+            onPageSizeChange={(porPagina) => actualizar({ porPagina, pagina: 1 })}
+            acciones={
+              <>
+                <Button variant="secondary" size="sm" onClick={() => setExportando(true)} disabled={total === 0}>
+                  <Icon name="download" size={16} /> Exportar
+                </Button>
+                {puedeCrear ? (
+                  <Button size="sm" icon={<Icon name="plus" size={16} />} onClick={() => setCreando(true)}>
+                    Nuevo
+                  </Button>
+                ) : null}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setComparando(true)}
+                  disabled={!seleccion.puedeComparar}
+                  title={
+                    seleccion.puedeComparar
+                      ? undefined
+                      : `Tildá al menos ${MINIMO_COMPARAR} productos para compararlos`
+                  }
+                >
+                  Comparar{seleccion.elegidos.length > 0 ? ` (${seleccion.elegidos.length})` : ''}
+                </Button>
+                {seleccion.elegidos.length > 0 ? (
+                  <Button variant="ghost" size="sm" onClick={seleccion.limpiar}>
+                    Limpiar selección
+                  </Button>
+                ) : null}
+              </>
+            }
+          />
           <ListadoProductos
             productos={productos}
             esInterno={esInterno}
@@ -350,8 +355,9 @@ export function CatalogoPage() {
               noun={PRODUCTO}
               loading={isFetching}
               onChange={(offset) => actualizar({ pagina: Math.floor(offset / filtros.porPagina) + 1 })}
-              pageSizeOptions={OPCIONES_POR_PAGINA}
-              onPageSizeChange={(porPagina) => actualizar({ porPagina })}
+              /* Sin selector de tamaño: ese vive en la barra de arriba. Dos
+                 «Por página» en la misma pantalla son dos sitios donde mirar
+                 para entender por qué se ven 50 filas y no 200. */
             />
           ) : null}
         </>
