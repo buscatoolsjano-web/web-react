@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useIsMobile } from '@/hooks/useMediaQuery'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { FilterBar } from '@/components/filters/FilterBar'
 import { Field } from '@/components/forms/Field'
@@ -42,11 +41,7 @@ const PRODUCTO = { singular: 'producto', plural: 'productos' } as const
 
 export function CatalogoPage() {
   const { activa } = useEmpresa()
-  const { filtros, actualizar, limpiar } = useFiltrosCatalogo()
-  // Arriba del todo a propósito: más abajo hay un `return` temprano cuando no
-  // hay empresa activa, y un hook después de un return condicional cambia el
-  // orden de los hooks entre renders.
-  const esMobile = useIsMobile()
+  const { filtros, actualizar, limpiar } = useFiltrosCatalogo()
 
   const companyId = activa?.companyId ?? null
   const esInterno = activa?.esInterno ?? false
@@ -173,8 +168,7 @@ export function CatalogoPage() {
 
   const vacio = !isPending && !error && productos.length === 0
   const moneda = listaEfectiva?.moneda ?? null
-
-  /** El buscador. Se arma una vez y se coloca según el ancho (ver abajo). */
+  /** El buscador y la lista de precios, que van en el encabezado. */
   const buscador = (
     <div className={styles.busqueda}>
       <Field label="Buscar productos" hideLabel className={styles.buscador}>
@@ -214,40 +208,40 @@ export function CatalogoPage() {
         }
         /* Fase 26 · E3: el «Nuevo» del legacy. Sólo para quien puede
            escribir productos; RLS lo vuelve a decidir igual. */
+        /*
+          El buscador y la lista de precios viven ACÁ, a la izquierda de
+          «Nuevo producto» (Fase 38).
+
+          Estuvieron en una fila propia, y después compartiendo la de los chips
+          de categoría. Las dos veces le robaban ancho a lo mismo: con 10
+          categorías, los chips no entraban y «Otros» quedaba fuera de la
+          pantalla. Acá no compiten con nada —esa fila estaba vacía— y los
+          chips recuperan la fila entera.
+        */
         actions={
-          puedeCrear ? (
-            <Button icon={<Icon name="plus" size={16} />} onClick={() => setCreando(true)}>
-              Nuevo producto
-            </Button>
-          ) : undefined
+          <>
+            {buscador}
+            {puedeCrear ? (
+              <Button icon={<Icon name="plus" size={16} />} onClick={() => setCreando(true)}>
+                Nuevo producto
+              </Button>
+            ) : null}
+          </>
         }
       />
 
-      {/*
-        Dónde va el buscador depende del ancho, y no es cosmético.
-
-        En escritorio comparte fila con los chips de categoría —como la web
-        vieja—, y eso es lo que le devuelve una fila entera a la tabla: la
-        cabecera pasó de 276 px a 228.
-
-        En mobile NO puede ir ahí: las facetas se pliegan detrás de «Filtros» y
-        el buscador quedaría escondido adentro. En un teléfono es lo primero
-        que se usa, así que vuelve a su lugar fijo arriba de todo.
-      */}
-      <FilterBar
+            <FilterBar
         label="Buscar y filtrar productos"
         className={styles.barra}
         activeCount={activos}
         onClear={limpiarTodo}
-        hasFilters={hayFiltros}
-        search={esMobile ? buscador : undefined}
+        hasFilters={hayFiltros}
       >
         <PanelFacetas
           filtros={filtros}
           facetas={facetas}
           cargando={facetasCargando}
-          onCambiar={actualizar}
-          buscador={esMobile ? undefined : buscador}
+          onCambiar={actualizar}
         />
       </FilterBar>
 

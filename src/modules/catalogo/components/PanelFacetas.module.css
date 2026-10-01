@@ -347,3 +347,40 @@ div.facetas {
     margin-left: 0;
   }
 }
+
+/* ── Todo en una fila por grupo (Fase 38) ─────────────────────────────────
+   Con 10 categorías, 21 subcategorías y hasta 7 atributos, cada grupo se iba
+   a dos y tres renglones y empujaba la tabla fuera de la pantalla. La web
+   vieja mete lo mismo en una fila por grupo, y la diferencia es sólo tamaño:
+   controles de 32 px en vez de 40 y texto chico.
+
+   Los chips siguen con scroll horizontal cuando igual no entran, pero ahora
+   entran muchos más antes de llegar a eso. */
+.chip {
+  min-height: var(--control-h-sm, 32px);
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  gap: var(--space-1);
+}
+
+.botonDesplegable {
+  min-height: var(--control-h-sm, 32px);
+  max-width: 200px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  gap: var(--space-1);
+}
+
+/* Los atributos, también en una fila. Envuelven sólo si de verdad no entran:
+   con scroll horizontal, como los chips, en vez de apilarse en tres renglones
+   que empujan la tabla fuera de la pantalla. */
+.desplegables {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
+}
+
+.desplegables::-webkit-scrollbar {
+  display: none;
+}

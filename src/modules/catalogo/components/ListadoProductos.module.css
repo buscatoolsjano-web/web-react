@@ -305,9 +305,14 @@
    `nowrap` es la forma estándar de pedir «lo mínimo que necesito»: el sobrante
    queda entonces para las columnas que sí se leen —Modelo y Marca—, en vez de
    diluirse en padding. */
+/* «Lo mínimo que necesito» para el ancho, pero SIN prohibir el salto de línea.
+
+   El nowrap obligaba a cada título a ocupar una línea entera: con cinco
+   columnas de atributos (Atornilladores) la tabla se iba 608 px fuera de la
+   caja. La web vieja mete catorce columnas en el mismo ancho justamente
+   porque deja que «STOCK REAL» o «TORQUE MÁXIMO» caigan en dos renglones. */
 .apretada {
   width: 1%;
-  white-space: nowrap;
 }
 
 /* «Stock real» y «Stock virtual» en dos renglones, como la web vieja.
@@ -315,10 +320,7 @@
    En una sola línea son 112 y 127 px de TÍTULO para mostrar un número de dos
    cifras. Envueltos son unos 70 cada uno, y de ahí salen los 89 px que le
    faltaban a la tabla para entrar con la fila de filtros puesta. */
-.thStock.apretada,
-.thStock.apretada .ordenar {
-  white-space: normal;
-}
+
 
 /* Ninguna columna acapara el sobrante.
 
@@ -345,4 +347,26 @@
 .tabla :global(td),
 .tabla :global(th) {
   padding: var(--space-2) var(--space-3);
+}
+
+/* Densidad del listado (Fase 38): letra y padding chicos, como la web vieja.
+   No es estética — es lo que decide cuántas columnas entran sin scrollear.
+
+   La clase va DOBLE —.tabla.tabla— a propósito: compite con la del módulo
+   de tabla compartido, que tiene la misma especificidad, y sin esto gana el
+   que el bundler ponga último. Perdió dos veces en silencio. */
+.tabla.tabla {
+  font-size: var(--text-xs);
+}
+
+.tabla.tabla :global(td),
+.tabla.tabla :global(th) {
+  padding: var(--space-2);
+}
+
+/* Los valores de Tipo son largos («Atornillador Recto Neumático») y se
+   llevaban 207 px. Con tope, envuelven. */
+.tabla.tabla :global(th).apretada,
+.tabla.tabla :global(td).apretada {
+  max-width: 7rem;
 }

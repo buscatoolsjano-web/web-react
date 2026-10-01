@@ -179,3 +179,41 @@ drop function if exists public.catalog_facets(uuid,text,uuid,uuid,text[],jsonb,j
 --                                 false, array['Punta']) ->> 'total')::int;
 --   select count(*) from public.search_products('<empresa>', null, 5000, 0, null,
 --                       null, null, null, null, 'nombre', false, array['Punta']);
+
+-- ── 5 · Las opciones numéricas se ordenan por número ─────────────────────
+--
+-- Los filtros dependientes YA funcionaban: al elegir `torq_min = 6`, las
+-- opciones de `torq_max` salen de los productos que tienen torque mínimo 6, o
+-- sea que ninguna puede ser menor. Lo que fallaba era el ORDEN: las opciones
+-- venían por cantidad, así que se leían «20, 24, 12, 10, 15, 18» y parecía
+-- que el filtro no había hecho nada.
+--
+-- Ordenar por texto tampoco sirve: «100» iría antes que «15».
+--
+-- Los atributos NO numéricos (Encastre, Carcasa) siguen por cantidad, que ahí
+-- es lo útil: lo más usado arriba.
+do $$
+declare d text; viejo text;
+begin
+  select pg_get_functiondef(p.oid) into d
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'catalog_facets';
+
+  viejo := '                       ORDER BY ap.n DESC, ap.val) AS vals';
+  if position(viejo in d) = 0 then
+    raise notice 'catalog_facets ya ordena las opciones por numero'; return;
+  end if;
+
+  d := replace(d, viejo,
+    '                       ORDER BY CASE WHEN ap.val ~ ''^\s*-?\d+([.,]\d+)?\s*$''' || E'\n' ||
+    '                                     THEN replace(btrim(ap.val), '','', ''.'')::numeric' || E'\n' ||
+    '                                END NULLS LAST,' || E'\n' ||
+    '                                ap.n DESC, ap.val) AS vals');
+  execute d;
+end $$;
+
+-- Comprobación:
+--   select jsonb_path_query_array(public.catalog_facets('<empresa>', null,
+--            '<categoria atornilladores>'::uuid, null, null,
+--            '{"torq_min": ["6"]}'::jsonb), '$.attributes.torq_max.values[*].value');
+--   → ["10","12","15","18","20","24"] · ninguno menor a 6, y en orden.
