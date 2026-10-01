@@ -2937,3 +2937,66 @@ Además de las 30 tablas `_*`, quedaron **11 usuarios `zz-*@buscatools.test`**
 de las pruebas. Se comprobó que **no tienen ninguna membresía de empresa**, así
 que la RLS no les muestra nada y no son un agujero — pero no tienen por qué
 seguir existiendo en producción.
+
+## 45 · Lo que mostró el advisor, y cuánto se ganó de verdad
+
+### Las tablas de andamiaje estaban expuestas
+
+El advisor de seguridad encontró **11 tablas `_*` sin RLS en un esquema que
+PostgREST publica**. O sea legibles por cualquiera con la clave publicable,
+que es pública por diseño. No tenían datos de clientes —son metadatos de la
+migración: nombres de tablas, conteos, informes— pero filtraban estructura
+interna, incluida la existencia del proyecto de Ohio.
+
+Lo importante es que **esto dejó de ser prolijidad para ser un hallazgo de
+seguridad en producción** en el momento en que la web cruzó. Y la respuesta no
+era borrarlas: borrar el andamiaje antes de validar el cutover es quedarse sin
+red. Se les prendió RLS **sin ninguna política**, que cierra la puerta sin
+tirar nada:
+
+```sql
+alter table public._lo_que_sea enable row level security;
+```
+
+Sin políticas, PostgREST no devuelve una fila a nadie; `postgres` y las
+funciones `SECURITY DEFINER` siguen viéndolas porque saltean RLS. Quedaron
+**30 de 30 con RLS y 0 políticas**.
+
+> Una tabla temporal en el esquema `public` de Supabase no es temporal: es
+> API. El prefijo `_` no la esconde de nada.
+
+### `product_availability`: un ERROR que no era
+
+El advisor marca la vista como `SECURITY DEFINER`. Mirada de cerca, **filtra el
+inquilino ella misma**:
+
+```sql
+... FROM stock_balances b WHERE company_id = ANY (app.current_company_ids())
+```
+
+`app.current_company_ids()` lee el JWT del request, así que aunque corra como
+su creador, cada quien ve lo suyo. Además **Ohio tiene exactamente lo mismo**
+(`security_invoker=false`), o sea que es preexistente y no una regresión. Se
+deja como está: cambiar el modelo de seguridad de una vista horas después de un
+cutover, cuando está probadamente filtrada, es el peor momento posible.
+Pendiente para un día tranquilo.
+
+### La medición que justifica la mudanza
+
+Desde Argentina, 10 muestras de una consulta que **llega a Postgres**
+(`/rest/v1/products?select=id&limit=1`), no de un endpoint que se resuelve en
+el borde:
+
+| | mediana | mejor | peor |
+|---|---|---|---|
+| Ohio | 298 ms | 280 ms | 952 ms |
+| **São Paulo** | **178 ms** | **155 ms** | 651 ms |
+
+**120 ms menos por request, un 40%.**
+
+Ojo con cómo se mide: el primer intento usó `/rest/v1/?select=1` y dio 156 vs
+120 ms, una diferencia mucho más chica. Ese endpoint no baja a la base. Para
+medir una mudanza de base hay que pedir algo que obligue a ir a la base.
+
+Y el número que importa no es 120 ms: es 120 ms **por eslabón**. Una pantalla
+que encadena tres consultas se ahorra más de un tercio de segundo.
