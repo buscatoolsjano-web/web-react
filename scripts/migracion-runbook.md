@@ -2888,3 +2888,52 @@ access control check: No 'Access-Control-Allow-Origin' header
 ya estaba configurado con `info@buscatools.com.ar`, que sí. Darle permisos a la
 cuenta de Gmail habría sido regalar acceso permanente a producción para un
 cambio de una sola vez. Lo que faltaba era sólo refrescar el token del CLI.
+
+## 44 · La web ya está en São Paulo (2026-10-01)
+
+**Pasó el punto de no retorno.** Los secrets de GitHub apuntan a Brasil, los 16
+commits están publicados y el deploy `36870277071` terminó en verde.
+
+Verificación que vale la pena repetir en cualquier cutover: **no alcanza con
+que el deploy diga «success»**. Hay que mirar lo que quedó servido. Se bajaron
+los 7 chunks de `app.buscatools.com` y se buscó el ref del proyecto:
+
+```bash
+for f in $(grep -o 'assets/[A-Za-z0-9_.-]*\.js' index.html | sort -u); do
+  curl -s "https://app.buscatools.com/$f" -o "$(basename $f)"
+done
+grep -ho '[a-z]\{20\}\.supabase\.co' *.js | sort -u
+```
+
+Resultado: `jiudqbusyknubonpedde.supabase.co`, y **ninguna** aparición de
+`uaxcfufvapzulqvynanp`. El sitio carga y redirige al login, como corresponde:
+la sesión se guarda por proyecto, así que la de Ohio ya no sirve. Los usuarios
+viajaron con su hash de contraseña, así que entran con lo mismo de siempre.
+
+### Lo que todavía está en Ohio, y por qué no es urgente
+
+| Pieza | Dónde | Consecuencia hoy |
+|---|---|---|
+| Sync de correo | Ohio | los correos entran allá y el puente los trae cada 5 min |
+| Webhook de Meta + cron WhatsApp | Ohio | sin efecto: WhatsApp quieto desde el 18/09 |
+| Logo de la empresa | sin subir | los PDF salen sin logo |
+
+**El cron NO se prende en Brasil todavía, y es a propósito.** Mientras el
+webhook de Meta siga apuntando a Ohio, los mensajes entran allá y es el cron de
+Ohio el que tiene que procesarlos. Prender Brasil ahora no adelantaría nada y
+haría fallar `whatsapp-ai-worker` cada 2 minutos por falta de secretos. Los
+tres se mueven juntos: webhook, secretos y cron.
+
+### El cursor de Gmail va a retroceder, y está bien
+
+Brasil tiene `last_history_id = 5599826` y Ohio `5599878`. Cuando el sync se
+mude, va a arrancar 52 eventos atrás y **reprocesarlos**. Es la dirección
+segura: reprocesar es idempotente, saltear perdería correos. El `watch` vence
+el 2026-10-08, así que hay margen.
+
+### Pendiente de limpieza
+
+Además de las 30 tablas `_*`, quedaron **11 usuarios `zz-*@buscatools.test`**
+de las pruebas. Se comprobó que **no tienen ninguna membresía de empresa**, así
+que la RLS no les muestra nada y no son un agujero — pero no tienen por qué
+seguir existiendo en producción.
