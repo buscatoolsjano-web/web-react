@@ -3075,3 +3075,64 @@ Los 6 documentos (`COTI02629`, `COT-BTS00001/2`, `PDV-ERP00001`, `PDV01320`,
 `stock_movements` no tiene ni un movimiento de esos productos. El argumento
 para conservarlos sigue en pie por la numeración de documentos, pero no por los
 saldos.
+
+## 47 · El sync de correo ya escribe en São Paulo (2026-10-01)
+
+Última pieza del correo. El servicio `buscatools-erp-email` —el que recibe los
+avisos de Gmail por Pub/Sub— pasó a escribir en Brasil.
+
+### Lo que hizo falta, y lo que NO
+
+`SUPABASE_SERVICE_KEY` no era un valor suelto: apunta a Secret Manager,
+`supabase-service-key:latest`. Eso simplifica todo y además es lo correcto —
+nadie tiene que pasar la clave por un comando ni por el historial del terminal.
+Alcanza con **agregar una versión** al secreto y redesplegar: `:latest` la toma.
+
+Queda la versión 1 (Ohio) habilitada a propósito: es la vuelta atrás.
+
+Lo que **no** hizo falta, contra lo que decía esta guía:
+
+* **Reiniciar el watch a mano.** Lo renueva `gmail-watch-renewal`, un job de
+  Cloud Scheduler, todos los días a las 06:00 y con su propia identidad. El
+  watch de Gmail apunta al *topic* de Pub/Sub, que no cambió; lo que vive en la
+  base es sólo el cursor.
+* **Tocar la suscripción de Pub/Sub.** Empuja a la URL del servicio, que es la
+  misma.
+
+### La verificación que sirve
+
+`GET /salud` devuelve **403**, y está bien: este servicio vive detrás de IAM.
+Los logs tampoco alcanzan — dicen que el contenedor arrancó, no contra qué base
+escribe.
+
+La prueba buena fue disparar el job del watch a mano y mirar **de qué lado se
+movió el dato**:
+
+| | antes | después |
+|---|---|---|
+| `watch_expiration` Brasil | 2026-10-08 **09:00:07** (copiado) | 2026-10-08 **20:16:33** |
+| `watch_expiration` Ohio | 2026-10-08 09:00:07 | **sin cambios** |
+
+Escribió en Brasil. Y como esa escritura necesita la service key, eso prueba de
+paso que la versión nueva del secreto es válida: no hace falta mirarla.
+
+### El puente se apagó
+
+Con el sync en Brasil, el puente dejó de sobrar y pasó a ser peligroso: cada 5
+minutos borraba el correo de Brasil y lo reponía desde Ohio, que ahora es la
+base congelada. Se desprogramó a mano (`cron.unschedule`) en vez de esperar a
+que se apagara solo: su regla de auto-apagado existe para un corte sin nadie
+mirando, y acá estábamos mirando.
+
+### Control 5 pasó a FALLA, y es correcto
+
+«Referencias a productos de baja: 159 filas». Aparece porque se dieron de baja
+los 18 productos de STEL —7 servicios y 11 materiales— que estaban en 97
+renglones de documentos.
+
+No rompe nada, y vale saber por qué: **los renglones guardan snapshot**
+(`sku_snapshot`, `name_snapshot`, `brand_snapshot`, precios). Verificado en
+COTI02515 y COTI02517: siguen mostrando «ALQUILER DE DISPENSER FRIO CALOR» con
+su precio. El `product_id` queda como rastro, no como fuente.
+
+El control está bien escrito; lo que informa es real y ya está decidido.
