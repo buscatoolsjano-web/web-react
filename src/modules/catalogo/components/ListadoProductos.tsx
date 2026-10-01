@@ -40,6 +40,12 @@ export interface ListadoProductosProps {
   orden?: OrdenDeColumna | undefined
   /** Columnas del atributo distintivo de la categoría (Fase 22 · paridad, #19). */
   columnasDinamicas?: readonly ColumnaDinamica[]
+  /**
+   * `true` cuando hay UNA categoría filtrada, y entonces la columna Categoría
+   * no se dibuja: repetiría el mismo valor en las 50 filas. Son ~130 px que
+   * necesitan los atributos, que son los que distinguen una fila de otra.
+   */
+  categoriaFija?: boolean
 }
 
 /** Elegir 2 a 4 productos para compararlos, como el checkbox del legacy. */
@@ -110,6 +116,7 @@ export function ListadoProductos({
   seleccion,
   orden,
   columnasDinamicas = [],
+  categoriaFija = false,
 }: ListadoProductosProps) {
   const isMobile = useIsMobile()
   const navigate = useNavigate()
@@ -260,12 +267,27 @@ export function ListadoProductos({
             <th scope="col" className={styles.colImagen}>
               <span className="sr-only">Imagen</span>
             </th>
-            <Encabezado campo="sku" orden={orden}>SKU</Encabezado>
-            <Encabezado campo="nombre" orden={orden}>Producto</Encabezado>
+            <Encabezado campo="sku" orden={orden}>Referencia</Encabezado>
+            {/*
+              El NOMBRE no es una columna (Fase 38).
+
+              Era la más ancha de la tabla y la que menos decía: «APEX *5422
+              EMBOCADURA» es la marca, el modelo y la serie concatenados, o sea
+              exactamente lo que ya dicen las tres columnas de al lado. Se
+              comía el ancho que necesitaban los atributos, que son los que
+              distinguen una fila de otra, y obligaba a scrollear de costado
+              para llegar al precio.
+
+              El nombre completo sigue estando: en el popover de la imagen, en
+              la ficha y en el modal.
+            */}
+            <Encabezado campo="modelo" orden={orden}>Modelo</Encabezado>
             <Encabezado campo="marca" orden={orden}>Marca</Encabezado>
-            <Encabezado campo="categoria" orden={orden} className={styles.soloAncho}>
-              Categoría
-            </Encabezado>
+            {categoriaFija ? null : (
+              <Encabezado campo="categoria" orden={orden} className={styles.soloAncho}>
+                Categoría
+              </Encabezado>
+            )}
             <Encabezado campo="serie" orden={orden} className={styles.soloAncho}>
               Serie
             </Encabezado>
@@ -339,15 +361,14 @@ export function ListadoProductos({
               >
                 <ImagenProducto imagen={p.imagen} alt="" tamano="thumb" />
               </td>
-              <td className={tabla.nowrap}>
-                <code className={styles.sku}>{p.sku}</code>
-              </td>
-              <td className={styles.colNombre}>
+              <td className={styles.colReferencia}>
                 {/*
-                  Fase 25 · E4: el nombre abre lo MISMO que el resto de la fila.
-                  Antes navegaba a la ficha y el resto de la fila abría el
-                  modal, así que el mismo producto se veía de dos formas según
-                  dónde se hubiera tocado.
+                  La REFERENCIA es ahora el enlace, como en la web vieja.
+
+                  Fase 25 · E4: abre lo MISMO que el resto de la fila. Antes el
+                  nombre navegaba a la ficha y el resto abría el modal, así que
+                  el mismo producto se veía de dos formas según dónde se
+                  hubiera tocado.
 
                   Sigue siendo un `<a>` con href de verdad: ctrl-click, botón
                   del medio y «abrir en pestaña nueva» tienen que llevar a la
@@ -355,7 +376,7 @@ export function ListadoProductos({
                 */}
                 <Link
                   to={rutaProducto(p.sku)}
-                  className={styles.nombre}
+                  className={styles.refEnlace}
                   onClick={(e) => {
                     if (!onAbrirProducto) return
                     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
@@ -363,18 +384,21 @@ export function ListadoProductos({
                     e.stopPropagation()
                     onAbrirProducto(p.id)
                   }}
+                  title={p.nombre}
                 >
-                  {p.nombre}
+                  <code className={styles.sku}>{p.sku}</code>
                 </Link>
-                <span className={styles.bajoNombre}>
-                  {p.categoria ? <span className={styles.soloTablet}>{p.categoria.nombre}</span> : null}
-                  <Estados producto={p} />
-                </span>
+                <Estados producto={p} />
+              </td>
+              <td className={`${tabla.nowrap} ${styles.colModelo}`} title={p.nombre}>
+                {p.modelo ?? <span className={tabla.secundario}>—</span>}
               </td>
               <td className={styles.colMarca}>{p.marca?.nombre ?? <span className={tabla.secundario}>—</span>}</td>
-              <td className={`${styles.soloAncho} ${styles.colCategoria}`}>
-                {p.categoria?.nombre ?? <span className={tabla.secundario}>—</span>}
-              </td>
+              {categoriaFija ? null : (
+                <td className={`${styles.soloAncho} ${styles.colCategoria}`}>
+                  {p.categoria?.nombre ?? <span className={tabla.secundario}>—</span>}
+                </td>
+              )}
               <td className={`${styles.soloAncho} ${tabla.nowrap}`}>{p.serie ?? <span className={tabla.secundario}>—</span>}</td>
               {columnasDinamicas.map((c) => {
                 const v = valorDinamico(p, c)

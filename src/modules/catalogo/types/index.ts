@@ -18,6 +18,7 @@ export const ORDENES_CATALOGO = [
   'relevancia',
   'nombre', 'nombre_desc',
   'sku', 'sku_desc',
+  'modelo', 'modelo_desc',
   'marca', 'marca_desc',
   'categoria', 'categoria_desc',
   'serie', 'serie_desc',
@@ -144,6 +145,15 @@ export interface ProductoListado {
   id: string
   sku: string
   nombre: string
+  /**
+   * `model_code`: lo que identifica al producto dentro de su marca.
+   *
+   * Está en el listado y no sólo en el detalle porque es la columna por la que
+   * se lee una fila. El `nombre` no sirve para eso: termina siendo la marca, el
+   * modelo y los atributos concatenados —«APEX *5422 EMBOCADURA»—, o sea lo
+   * mismo que ya dicen las otras columnas, pero ocupando el triple de ancho.
+   */
+  modelo: string | null
   serie: string | null
   tipo: string | null
   esKit: boolean
@@ -179,7 +189,6 @@ export interface ImagenProducto {
 export interface ProductoDetalle extends ProductoListado {
   /** Todas las imágenes, ordenadas por `posicion`. */
   imagenes: ImagenProducto[]
-  modelo: string | null
   descripcion: string | null
   descripcionLarga: string | null
   origen: string | null

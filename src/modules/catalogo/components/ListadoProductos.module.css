@@ -25,40 +25,33 @@
   white-space: nowrap;
 }
 
-.colNombre {
-  min-width: 16rem;
+/* La referencia es el enlace de la fila, y es lo primero que se lee. Ancho
+   acotado a propósito: un SKU largo no puede empujar a los atributos fuera de
+   la caja, que es justo lo que hacía el nombre. */
+.colReferencia {
+  min-width: 9rem;
+  white-space: nowrap;
 }
 
-.nombre {
-  display: block;
-  color: var(--color-text);
+.refEnlace {
+  color: var(--color-primary-text);
   font-weight: var(--weight-semibold);
   text-decoration: none;
 }
 
-.nombre:hover {
-  color: var(--color-primary-text);
+.refEnlace:hover {
   text-decoration: underline;
 }
 
-.nombre:focus-visible {
+.refEnlace:focus-visible {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
   border-radius: var(--radius-sm);
 }
 
-.bajoNombre {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
-  margin-top: 2px;
-  font-size: var(--text-xs);
-  color: var(--color-text-soft);
-}
-
-.bajoNombre:empty {
-  display: none;
+.colModelo {
+  min-width: 7rem;
+  font-weight: var(--weight-medium);
 }
 
 .colMarca {
@@ -90,10 +83,11 @@
   }
 }
 
-/* Con la barra compacta (768–1023) el nombre cede ancho antes que Stock y Precio. */
+/* Con la barra compacta (768–1023) la referencia cede ancho antes que Stock y
+   Precio: el SKU se puede truncar, un saldo no. */
 @media (max-width: 1023px) {
-  .colNombre {
-    min-width: 11rem;
+  .colReferencia {
+    min-width: 7rem;
   }
 }
 

@@ -331,3 +331,19 @@ div.facetas {
     box-shadow: none;
   }
 }
+
+/* El buscador comparte fila con los chips de categoría y se va a la derecha.
+   `flex: 0 1 auto` con un mínimo: cede ancho a los chips antes que
+   desaparecer, pero nunca baja de lo que hace falta para escribir un SKU. */
+.extra {
+  flex: 0 0 24rem;
+  margin-left: auto;
+}
+
+
+@media (max-width: 767px) {
+  .extra {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+}

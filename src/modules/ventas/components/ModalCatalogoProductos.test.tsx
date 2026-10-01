@@ -69,6 +69,7 @@ function producto(id: string, sku: string, nombre: string, precio: number | null
     id,
     sku,
     nombre,
+    modelo: sku,
     serie: null,
     tipo: null,
     esKit: false,

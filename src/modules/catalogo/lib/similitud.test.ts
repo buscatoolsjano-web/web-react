@@ -16,6 +16,7 @@ const producto = (x: Partial<ProductoListado> & { sku: string }): ProductoListad
   motivoFueraDelCatalogo: null,
   id: x.sku,
   nombre: x.sku,
+  modelo: x.sku,
   serie: null,
   tipo: null,
   esKit: false,

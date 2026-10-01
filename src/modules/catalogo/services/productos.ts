@@ -20,7 +20,7 @@ import type {
  * de otro. `stock_balances` sólo se pide para roles internos.
  */
 const COLUMNAS_LISTADO = `
-  id, sku, name, series, product_type, attributes, is_kit, needs_review,
+  id, sku, name, model_code, series, product_type, attributes, is_kit, needs_review,
   brands ( id, name, is_active ),
   product_categories ( id, name, slug, is_active ),
   product_prices ( amount, price_list_id ),
@@ -52,6 +52,7 @@ interface FilaProducto {
   id: string
   sku: string
   name: string
+  model_code: string | null
   series: string | null
   product_type: string | null
   attributes: unknown
@@ -73,7 +74,6 @@ interface FilaImagen {
 }
 
 interface FilaProductoDetalle extends FilaProducto {
-  model_code: string | null
   description: string | null
   description_long: string | null
   origin_country: string | null
@@ -158,6 +158,7 @@ function mapearListado(f: FilaProducto): ProductoListado {
     id: f.id,
     sku: f.sku,
     nombre: f.name,
+    modelo: f.model_code,
     serie: f.series,
     tipo: f.product_type,
     esKit: f.is_kit,
@@ -197,7 +198,6 @@ function mapearDetalle(f: FilaProductoDetalle): ProductoDetalle {
   return {
     ...mapearListado(f),
     imagenes: mapearImagenes(f.product_images),
-    modelo: f.model_code,
     descripcion: f.description,
     descripcionLarga: f.description_long,
     origen: f.origin_country,

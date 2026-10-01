@@ -60,6 +60,7 @@ const producto = (p: Partial<ProductoListado> = {}): ProductoListado => ({
   id: 'p1',
   sku: 'SP.2520/8B',
   nombre: 'SPEEDRILL 2520/8B ADAPTADOR',
+  modelo: '2520/8B',
   serie: 'Adaptador',
   tipo: 'Adaptador',
   esKit: false,
@@ -113,7 +114,11 @@ describe('La fila abre el producto encima del catálogo', () => {
   })
 
   /**
-   * Fase 25 · E4: **el nombre abre lo mismo que el resto de la fila.**
+   * Fase 25 · E4: **la referencia abre lo mismo que el resto de la fila.**
+   *
+   * Fase 38: el enlace era el NOMBRE del producto; ahora es la REFERENCIA,
+   * porque la columna del nombre se fue —era la más ancha de la tabla y decía
+   * lo mismo que las tres de al lado—. El comportamiento no cambió.
    *
    * Antes navegaba a la ficha, y el mismo producto se veía de dos formas
    * distintas según dónde se hubiera tocado. Sigue siendo un `<a>` con href de
@@ -121,26 +126,26 @@ describe('La fila abre el producto encima del catálogo', () => {
    * lleven a la ficha, que es una URL compartible—, pero el click pelado abre
    * el modal.
    */
-  it('el nombre abre el modal, y sigue teniendo el href de la ficha', () => {
+  it('la referencia abre el modal, y sigue teniendo el href de la ficha', () => {
     const abrir = vi.fn()
     montar({ onAbrirProducto: abrir })
-    const link = screen.getByRole('link', { name: 'SPEEDRILL 2520/8B ADAPTADOR' })
+    const link = screen.getByRole('link', { name: 'SP.2520/8B' })
     expect(link).toHaveAttribute('href', '/catalogo/SP.2520%2F8B')
     fireEvent.click(link)
     expect(abrir).toHaveBeenCalledTimes(1)
     expect(abrir).toHaveBeenCalledWith('p1')
   })
 
-  it('Ctrl+click en el nombre no abre el modal: se está abriendo la ficha en otra pestaña', () => {
+  it('Ctrl+click en la referencia no abre el modal: se está abriendo la ficha en otra pestaña', () => {
     const abrir = vi.fn()
     montar({ onAbrirProducto: abrir })
-    fireEvent.click(screen.getByRole('link', { name: 'SPEEDRILL 2520/8B ADAPTADOR' }), { ctrlKey: true })
+    fireEvent.click(screen.getByRole('link', { name: 'SP.2520/8B' }), { ctrlKey: true })
     expect(abrir).not.toHaveBeenCalled()
   })
 
-  it('sin modal —otra pantalla que reusa el listado— el nombre sigue siendo el enlace a la ficha', () => {
+  it('sin modal —otra pantalla que reusa el listado— la referencia sigue siendo el enlace a la ficha', () => {
     montar({})
-    expect(screen.getByRole('link', { name: 'SPEEDRILL 2520/8B ADAPTADOR' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'SP.2520/8B' })).toHaveAttribute(
       'href',
       '/catalogo/SP.2520%2F8B',
     )

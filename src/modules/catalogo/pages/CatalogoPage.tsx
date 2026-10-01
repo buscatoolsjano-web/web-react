@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { FilterBar } from '@/components/filters/FilterBar'
 import { Field } from '@/components/forms/Field'
@@ -13,7 +14,7 @@ import { contar } from '@/components/tables/rango'
 import doc from '@/components/document/Document.module.css'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { FiltrosActivos, PanelFacetas } from '../components/PanelFacetas'
+import { PanelFacetas } from '../components/PanelFacetas'
 import { ListadoProductos } from '../components/ListadoProductos'
 import { BarraCarrito } from '../components/BarraCarrito'
 import { ModalComparar } from '../components/ModalComparar'
@@ -42,6 +43,10 @@ const PRODUCTO = { singular: 'producto', plural: 'productos' } as const
 export function CatalogoPage() {
   const { activa } = useEmpresa()
   const { filtros, actualizar, limpiar } = useFiltrosCatalogo()
+  // Arriba del todo a propósito: más abajo hay un `return` temprano cuando no
+  // hay empresa activa, y un hook después de un return condicional cambia el
+  // orden de los hooks entre renders.
+  const esMobile = useIsMobile()
 
   const companyId = activa?.companyId ?? null
   const esInterno = activa?.esInterno ?? false
@@ -169,6 +174,34 @@ export function CatalogoPage() {
   const vacio = !isPending && !error && productos.length === 0
   const moneda = listaEfectiva?.moneda ?? null
 
+  /** El buscador. Se arma una vez y se coloca según el ancho (ver abajo). */
+  const buscador = (
+    <div className={styles.busqueda}>
+      <Field label="Buscar productos" hideLabel className={styles.buscador}>
+        <Input
+          type="search"
+          value={textoInput}
+          onChange={(e) => setTextoInput(e.target.value)}
+          placeholder="Buscar por SKU o nombre…"
+        />
+      </Field>
+      <span className={styles.lupa} aria-hidden="true">
+        {isFetching && !isPending ? <Spinner size={16} /> : <Icon name="search" size={16} />}
+      </span>
+      {puedeElegir && (
+        <Field label="Lista de precios" hideLabel className={styles.lista}>
+          <Select value={listaEfectiva?.id ?? ''} onChange={(e) => setListaElegida(e.target.value)}>
+            {listas.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.nombre}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
+    </div>
+  )
+
   return (
     <div className={doc.listado}>
       <PageHeader
@@ -190,40 +223,47 @@ export function CatalogoPage() {
         }
       />
 
+      {/*
+        Dónde va el buscador depende del ancho, y no es cosmético.
+
+        En escritorio comparte fila con los chips de categoría —como la web
+        vieja—, y eso es lo que le devuelve una fila entera a la tabla: la
+        cabecera pasó de 276 px a 228.
+
+        En mobile NO puede ir ahí: las facetas se pliegan detrás de «Filtros» y
+        el buscador quedaría escondido adentro. En un teléfono es lo primero
+        que se usa, así que vuelve a su lugar fijo arriba de todo.
+      */}
       <FilterBar
         label="Buscar y filtrar productos"
+        className={styles.barra}
         activeCount={activos}
-        search={
-          <div className={styles.busqueda}>
-            <Field label="Buscar productos" hideLabel className={styles.buscador}>
-              <Input
-                type="search"
-                value={textoInput}
-                onChange={(e) => setTextoInput(e.target.value)}
-                placeholder="Buscar por SKU o nombre…"
-              />
-            </Field>
-            <span className={styles.lupa} aria-hidden="true">
-              {isFetching && !isPending ? <Spinner size={16} /> : <Icon name="search" size={16} />}
-            </span>
-            {puedeElegir && (
-              <Field label="Lista de precios" hideLabel className={styles.lista}>
-                <Select value={listaEfectiva?.id ?? ''} onChange={(e) => setListaElegida(e.target.value)}>
-                  {listas.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.nombre}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            )}
-          </div>
-        }
+        onClear={limpiarTodo}
+        hasFilters={hayFiltros}
+        search={esMobile ? buscador : undefined}
       >
-        <PanelFacetas filtros={filtros} facetas={facetas} cargando={facetasCargando} onCambiar={actualizar} />
+        <PanelFacetas
+          filtros={filtros}
+          facetas={facetas}
+          cargando={facetasCargando}
+          onCambiar={actualizar}
+          buscador={esMobile ? undefined : buscador}
+        />
       </FilterBar>
 
-      <FiltrosActivos filtros={filtros} facetas={facetas} onCambiar={actualizar} onLimpiar={limpiarTodo} />
+      {/*
+        La fila de «filtros activos» se fue (Fase 38).
+
+        Repetía lo que ya está a la vista un centímetro más arriba: la
+        categoría elegida ya es un chip resaltado y cada desplegable muestra su
+        valor. Costaba una fila entera —y arriba de ella el buscador, los chips
+        de categoría, los de subcategoría y los atributos—, así que la tabla
+        arrancaba a 600 px y no entraba ni una fila de productos en pantalla.
+
+        Quitar un filtro de a uno sigue estando: se vuelve a tocar su chip o se
+        pone el desplegable en «Todos». Y «Limpiar filtros» ahora vive dentro
+        de la barra, como en la web vieja.
+      */}
 
       {/* Las acciones del listado, como la barra del legacy: exportar a la
           izquierda y comparar con el conteo de lo elegido. */}
@@ -292,6 +332,7 @@ export function CatalogoPage() {
               lleno: seleccion.lleno,
             }}
             columnasDinamicas={dinamicas}
+            categoriaFija={filtros.categoria !== null}
             orden={{
               ...columnaYdireccion(filtros.orden),
               ordenar: (campo) => actualizar({ orden: proximoOrden(filtros.orden, campo) }),

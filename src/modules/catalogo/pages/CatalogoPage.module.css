@@ -4,17 +4,19 @@
   min-height: 40vh;
 }
 
-/* Búsqueda + lista de precios: la búsqueda crece, la lista toma su ancho. */
+/* Búsqueda + lista de precios, a la derecha de los chips de categoría.
+   `nowrap` a propósito: si envuelven, esa fila pasa a ser dos renglones y se
+   pierde justo lo que se vino a ganar. Ceden ancho antes que bajar. */
 .busqueda {
   position: relative;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--space-2);
   min-width: 0;
 }
 
 .buscador {
-  flex: 1 1 260px;
+  flex: 1 1 10rem;
   min-width: 0;
 }
 
@@ -35,7 +37,7 @@
 }
 
 .lista {
-  flex: 0 1 220px;
+  flex: 0 1 11rem;
   min-width: 0;
 }
 
@@ -55,5 +57,22 @@
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+/* ── La cabecera, compacta (Fase 38) ───────────────────────────────────────
+   El catálogo es la única pantalla donde la cabecera compite de verdad con el
+   contenido: con 8.623 resultados, lo que importa es ver filas. Entre el
+   buscador, los chips de categoría, los de subcategoría y los atributos se
+   iban 450 px antes de la primera fila.
+
+   Se aprieta acá y no en `FilterBar`, que lo usan ocho pantallas más donde el
+   aire está bien. */
+.barra {
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.barra :global(.fila) + :global(.fila) {
+  padding-top: var(--space-1);
 }

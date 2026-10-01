@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/forms/controls'
 import { Icon } from '@/components/icons/Icon'
@@ -18,6 +18,15 @@ export interface PanelFacetasProps {
   facetas: Facetas | undefined
   cargando: boolean
   onCambiar: (cambios: Partial<FiltrosCatalogo>) => void
+  /**
+   * El buscador, que va DENTRO de la fila de categorías (Fase 38).
+   *
+   * Antes era una fila propia arriba de todo. Entre esa fila, los chips de
+   * categoría, los de subcategoría y los atributos, la cabecera se comía 276 px
+   * y la tabla arrancaba a la mitad de la pantalla. Compartir fila con los
+   * chips —como la web vieja— devuelve una fila entera al contenido.
+   */
+  buscador?: ReactNode
 }
 
 /**
@@ -45,7 +54,7 @@ export interface PanelFacetasProps {
  *
  * Ninguna categoría está nombrada en el código: qué se dibuja sale de los datos.
  */
-export function PanelFacetas({ filtros, facetas, cargando, onCambiar }: PanelFacetasProps) {
+export function PanelFacetas({ filtros, facetas, cargando, onCambiar, buscador }: PanelFacetasProps) {
   const hayCategoria = filtros.categoria !== null
 
   const verSubtipos = mostrarFacetaSubtipo(
@@ -76,6 +85,7 @@ export function PanelFacetas({ filtros, facetas, cargando, onCambiar }: PanelFac
       {/* ── Fila 1 · categorías ─────────────────────────────────────────── */}
       <FilaChips
         etiqueta="Categoría"
+        extra={buscador}
         opciones={facetas?.categorias ?? []}
         seleccionados={filtros.categoria ? [filtros.categoria] : []}
         totalTodas={facetas?.total ?? null}
@@ -168,6 +178,7 @@ function FilaChips({
   totalTodas,
   multiple,
   onElegir,
+  extra,
 }: {
   etiqueta: string
   opciones: readonly OpcionFaceta[]
@@ -175,6 +186,8 @@ function FilaChips({
   totalTodas: number | null
   multiple: boolean
   onElegir: (valores: string[]) => void
+  /** Va al final de la fila, pegado a la derecha. Hoy: el buscador. */
+  extra?: ReactNode
 }) {
   if (opciones.length === 0) return null
 
@@ -215,6 +228,7 @@ function FilaChips({
           </button>
         ))}
       </div>
+      {extra ? <div className={styles.extra}>{extra}</div> : null}
     </div>
   )
 }

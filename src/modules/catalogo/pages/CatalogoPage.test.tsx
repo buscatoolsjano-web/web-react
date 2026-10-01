@@ -74,6 +74,7 @@ const producto = (i: number): ProductoListado => ({
   id: `p${i}`,
   sku: `ZZ-${i}`,
   nombre: `ZZ Llave ${i}`,
+  modelo: `ZZ-${i}`,
   serie: null,
   tipo: null,
   esKit: i === 1,
@@ -119,7 +120,8 @@ describe('Catálogo (Fase 13 · E4)', () => {
     montar()
     expect(screen.getByText('Kit')).toBeInTheDocument()
     expect(screen.getByText('Consultar')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'ZZ Llave 1' })).toHaveAttribute('href', '/catalogo/ZZ-1')
+    // Fase 38: el enlace de la fila es la REFERENCIA, no el nombre.
+    expect(screen.getByRole('link', { name: 'ZZ-1' })).toHaveAttribute('href', '/catalogo/ZZ-1')
   })
 
   /**
@@ -140,7 +142,11 @@ describe('Catálogo (Fase 13 · E4)', () => {
     estado.filtros = { ...FILTROS_INICIALES, q: 'zzznada' }
     montar()
     expect(screen.getByRole('heading', { name: 'Ningún producto coincide' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    // Hay dos (Fase 38): el de la barra de filtros y el del cartel de «sin
+    // resultados». Se usa el del cartel, que es el que tiene a mano quien se
+    // quedó sin resultados y no quiere ir a buscar el botón de arriba.
+    const botones = screen.getAllByRole('button', { name: 'Limpiar filtros' })
+    fireEvent.click(botones[botones.length - 1]!)
     expect(llamadas.limpiar).toHaveBeenCalled()
   })
 
