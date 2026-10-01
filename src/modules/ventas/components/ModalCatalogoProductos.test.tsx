@@ -140,9 +140,11 @@ describe('elegir productos del catálogo desde el documento', () => {
     // La columna, que además ordena…
     const columna = await screen.findByRole('columnheader', { name: /Encastre/ })
     expect(columna).toHaveAttribute('aria-sort', 'none')
-    // …y el filtro, que es un desplegable aparte.
-    const conEncastre = screen.getAllByRole('button', { name: /Encastre/ })
-    expect(conEncastre.some((b) => b.hasAttribute('aria-expanded'))).toBe(true)
+    // …y el filtro, que es un desplegable aparte. Fase 38: es un `select`
+    // común, no un botón con panel flotante — el panel se rompía dentro de la
+    // fila de filtros, que scrollea en horizontal.
+    const filtro = screen.getByLabelText('Filtrar por Encastre')
+    expect(filtro.tagName).toBe('SELECT')
   })
 
   it('tocar una columna ordena, y tocarla de nuevo la da vuelta', async () => {

@@ -1,0 +1,24 @@
+/* El desplegable de filtro de la fila «Filtrar por».
+   El de la tabla usa su propio tamaño, más chico, porque ahí el ancho lo
+   manda la columna. */
+.control {
+  flex: none;
+  max-width: 14rem;
+  min-height: var(--control-h-sm, 32px);
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.control:hover {
+  background: var(--color-surface-alt);
+}
+
+.control:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}

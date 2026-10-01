@@ -33,23 +33,44 @@ describe('Facetas del catálogo (Fase 13 · E4)', () => {
     expect(onCambiar).toHaveBeenCalledWith({ categoria: 'c2', subtipos: [], atributos: {}, rangos: {} })
   })
 
-  it('desplegable de marca: aria-expanded, panel asociado, Escape cierra y devuelve el foco', () => {
-    render(<PanelFacetas filtros={conCategoria} facetas={facetas} cargando={false} onCambiar={vi.fn()} />)
-    const boton = screen.getByRole('button', { name: /Marca/ })
-    expect(boton).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(boton)
-    expect(boton).toHaveAttribute('aria-expanded', 'true')
-    expect(document.getElementById(boton.getAttribute('aria-controls')!)).toHaveAccessibleName('Marca')
-    expect(screen.getByRole('radio', { name: /Torero/ })).toBeInTheDocument()
-    fireEvent.keyDown(document, { key: 'Escape' })
-    expect(boton).toHaveAttribute('aria-expanded', 'false')
-    expect(boton).toHaveFocus()
+  /**
+   * Fase 38: el filtro de «Filtrar por» es una lista desplegable común.
+   *
+   * Antes era un botón que abría un panel flotante con buscador y casillas.
+   * Tenía dos problemas: era un control distinto al de los filtros de la
+   * tabla —dos cosas para lo mismo— y la fila scrollea en horizontal, lo que
+   * recorta cualquier cosa que flote: el panel terminaba dibujado DENTRO de
+   * la fila, sin su botón.
+   *
+   * Un `select` lo dibuja el sistema operativo por encima de todo.
+   */
+  it('cada filtro es un desplegable con sus opciones y el conteo de cada una', () => {
+    const onCambiar = vi.fn()
+    render(<PanelFacetas filtros={conCategoria} facetas={facetas} cargando={false} onCambiar={onCambiar} />)
+
+    const marca = screen.getByLabelText('Filtrar por Marca')
+    expect(marca.tagName).toBe('SELECT')
+    // La primera opción dice qué se está filtrando, para que el control se
+    // entienda sin depender de un rótulo al lado.
+    expect(marca).toHaveTextContent('Marca · Todos')
+    expect(marca).toHaveTextContent('Torero')
+
+    fireEvent.change(marca, { target: { value: 'm2' } })
+    expect(onCambiar).toHaveBeenCalledWith({ marca: 'm2' })
   })
 
-  it('el ícono del desplegable es un SVG decorativo, no un glifo unicode', () => {
-    const { container } = render(<PanelFacetas filtros={conCategoria} facetas={facetas} cargando={false} onCambiar={vi.fn()} />)
-    expect(container).not.toHaveTextContent('▾')
-    expect(screen.getByRole('button', { name: /Marca/ }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+  it('volver a «Todos» limpia ese filtro en vez de mandar una cadena vacía', () => {
+    const onCambiar = vi.fn()
+    render(
+      <PanelFacetas
+        filtros={{ ...conCategoria, marca: 'm2' }}
+        facetas={facetas}
+        cargando={false}
+        onCambiar={onCambiar}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText('Filtrar por Marca'), { target: { value: '' } })
+    expect(onCambiar).toHaveBeenCalledWith({ marca: null })
   })
 
   it('filtros aplicados: cada uno se quita solo y «Limpiar filtros» limpia todo; sin filtros no se muestra', () => {
