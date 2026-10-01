@@ -32,6 +32,17 @@ export interface SelectorFacetaProps {
   /** Texto de la opción vacía. Por defecto «Todos». */
   todos?: string
   className?: string | undefined
+  /**
+   * Mostrar cuántos productos hay en cada opción.
+   *
+   * Arriba sí: ayuda a elegir. En el encabezado de la tabla no, porque ahí el
+   * ancho lo manda la columna —61 px en «Marca»— y «1/2 SQ (2.253)» no entra
+   * ni de casualidad: se leía «1/2 S…».
+   */
+  conConteo?: boolean
+  /** La opción vacía repite el nombre del filtro. En la tabla no hace falta:
+   *  el título de la columna está justo arriba. */
+  conNombre?: boolean
 }
 
 export function SelectorFaceta({
@@ -41,6 +52,8 @@ export function SelectorFaceta({
   onElegir,
   todos = 'Todos',
   className,
+  conConteo = true,
+  conNombre = true,
 }: SelectorFacetaProps) {
   // Sin opciones no se dibuja: un desplegable con un solo ítem que dice
   // «Todos» ocupa lugar y no filtra nada.
@@ -52,12 +65,11 @@ export function SelectorFaceta({
       value={valor}
       onChange={(e: ChangeEvent<HTMLSelectElement>) => onElegir(e.target.value)}
     >
-      <option value="">
-        {etiqueta} · {todos}
-      </option>
+      <option value="">{conNombre ? `${etiqueta} · ${todos}` : todos}</option>
       {opciones.map((o) => (
         <option key={o.valor} value={o.valor} title={o.etiqueta}>
-          {recortar(o.etiqueta)} ({o.cantidad.toLocaleString('es-AR')})
+          {recortar(o.etiqueta)}
+          {conConteo ? ` (${o.cantidad.toLocaleString('es-AR')})` : ''}
         </option>
       ))}
     </select>

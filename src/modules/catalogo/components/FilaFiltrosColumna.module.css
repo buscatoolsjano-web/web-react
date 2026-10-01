@@ -43,8 +43,12 @@
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  padding: 0 var(--space-2);
-  font-size: var(--text-xs);
+  /* Relleno y letra al mínimo: la columna más angosta mide 61 px y la
+     flecha nativa del desplegable ya se lleva ~20. Con 8 px de relleno a
+     cada lado quedaban 25 px para el texto y «Todos» necesita 36, así que
+     se leía «Todc». */
+  padding: 0 2px;
+  font-size: 11px;
   font-weight: var(--weight-regular);
   color: var(--color-text);
   background: var(--color-surface);

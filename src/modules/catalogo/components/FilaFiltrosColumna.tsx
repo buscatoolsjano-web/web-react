@@ -1,7 +1,7 @@
-import type { ChangeEvent } from 'react'
 import tabla from '@/components/tables/Tabla.module.css'
 import type { ColumnaDinamica } from '../lib/columnasDinamicas'
-import type { Facetas, FiltrosCatalogo, OpcionFaceta } from '../types'
+import type { Facetas, FiltrosCatalogo } from '../types'
+import { SelectorFaceta } from './SelectorFaceta'
 import styles from './FilaFiltrosColumna.module.css'
 
 /**
@@ -37,54 +37,6 @@ export interface FilaFiltrosColumnaProps {
   categoriaFija: boolean
   conCarrito: boolean
   esInterno: boolean
-}
-
-/**
- * Cuánto se deja crecer al texto de una opción.
- *
- * No es estética: el ancho MÍNIMO de un `<select>` lo fija su opción más
- * larga, y ese mínimo se le suma a la columna. Con «Medida» (235 opciones) y
- * «Largo» (176) la tabla volvía a desbordar 89 px, o sea que el filtro por
- * columna rompía justo lo que habíamos arreglado. El valor completo sigue
- * estando en el `title`.
- */
-const MAXIMO_OPCION = 16
-
-const recortar = (t: string) =>
-  t.length <= MAXIMO_OPCION ? t : `${t.slice(0, MAXIMO_OPCION - 1)}…`
-
-/** Un `<select>` de faceta: «Todos» + lo que existe, con su conteo. */
-function Desplegable({
-  etiqueta,
-  valor,
-  opciones,
-  onElegir,
-}: {
-  etiqueta: string
-  valor: string
-  opciones: readonly OpcionFaceta[]
-  onElegir: (valor: string) => void
-}) {
-  // Sin opciones no se dibuja el control: un desplegable con un solo ítem que
-  // dice «Todos» ocupa lugar y no filtra nada.
-  if (opciones.length === 0) return null
-  return (
-    <div className={styles.caja}>
-    <select
-      className={styles.control}
-      aria-label={`Filtrar por ${etiqueta}`}
-      value={valor}
-      onChange={(e: ChangeEvent<HTMLSelectElement>) => onElegir(e.target.value)}
-    >
-      <option value="">Todos</option>
-      {opciones.map((o) => (
-        <option key={o.valor} value={o.valor} title={o.etiqueta}>
-          {recortar(o.etiqueta)} ({o.cantidad.toLocaleString('es-AR')})
-        </option>
-      ))}
-    </select>
-    </div>
-  )
 }
 
 export function FilaFiltrosColumna({
@@ -128,7 +80,9 @@ export function FilaFiltrosColumna({
       <td />
 
       <td className={styles.celda}>
-        <Desplegable
+        <SelectorFaceta
+          conConteo={false}
+          conNombre={false}
           etiqueta="marca"
           valor={filtros.marca ?? ''}
           opciones={facetas?.marcas ?? []}
@@ -138,7 +92,9 @@ export function FilaFiltrosColumna({
 
       {categoriaFija ? null : (
         <td className={styles.celda}>
-          <Desplegable
+          <SelectorFaceta
+          conConteo={false}
+          conNombre={false}
             etiqueta="categoría"
             valor={filtros.categoria ?? ''}
             opciones={facetas?.categorias ?? []}
@@ -157,7 +113,9 @@ export function FilaFiltrosColumna({
       )}
 
       <td className={styles.celda}>
-        <Desplegable
+        <SelectorFaceta
+          conConteo={false}
+          conNombre={false}
           etiqueta="serie"
           valor={filtros.serie ?? ''}
           opciones={facetas?.series ?? []}
@@ -166,7 +124,9 @@ export function FilaFiltrosColumna({
       </td>
 
       <td className={styles.celda}>
-        <Desplegable
+        <SelectorFaceta
+          conConteo={false}
+          conNombre={false}
           etiqueta="tipo"
           valor={filtros.subtipos[0] ?? ''}
           opciones={facetas?.subtipos ?? []}
@@ -178,7 +138,9 @@ export function FilaFiltrosColumna({
         const faceta = facetas?.atributos.find((a) => a.key === c.key)
         return (
           <td key={c.key} className={styles.celda}>
-            <Desplegable
+            <SelectorFaceta
+          conConteo={false}
+          conNombre={false}
               etiqueta={c.label}
               valor={filtros.atributos[c.key]?.[0] ?? ''}
               opciones={faceta?.opciones ?? []}
