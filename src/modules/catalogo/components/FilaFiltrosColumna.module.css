@@ -4,7 +4,7 @@
    no como la primera fila de datos: si se confunde con un producto, el primer
    reflejo es querer hacerle click. */
 .fila {
-  background: var(--color-surface-raised, var(--color-surface));
+  background: var(--color-surface-alt);
   border-bottom: 1px solid var(--color-border);
 }
 
