@@ -12,6 +12,7 @@
  * inventada llegue a la base.
  */
 import { createClient } from 'npm:@supabase/supabase-js@2.58.0'
+import { clasificarFallo, instruccionParaElModelo } from './errores.ts'
 import { herramienta } from './herramientas.ts'
 
 export interface Contexto {
@@ -88,12 +89,23 @@ export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
     try {
       const r = await supabase.rpc(h.rpc, params)
       if (r.error) {
-        // El mensaje de Postgres NO se le pasa al modelo tal cual: puede traer
-        // nombres de tablas y de columnas, que no le sirven para nada y son
-        // información de adentro. Se traduce a algo accionable.
-        return problema(
-          'La consulta falló. Revisá los parámetros que mandaste y probá de otra forma.',
-        )
+        const codigo = (r.error as { code?: string }).code ?? null
+
+        /*
+         * El mensaje crudo va al LOG, no al modelo.
+         *
+         * Al modelo no le sirve «column order_number does not exist» y además
+         * es información de adentro. Pero a quien mantiene esto le sirve
+         * muchísimo: es la diferencia entre enterarse de que una herramienta
+         * está rota y que el agente la siga llamando en silencio durante
+         * semanas. Va con el nombre y el código para poder buscarlo.
+         */
+        console.error(`asistente: ${nombre} → ${h.rpc} falló [${codigo ?? 'sin código'}] ${r.error.message}`)
+
+        // Y al modelo le va una INSTRUCCIÓN según el tipo de fallo: reintentar
+        // sirve con parámetros mal escritos y sólo quema presupuesto con una
+        // herramienta rota. Ver `errores.ts`.
+        return problema(instruccionParaElModelo(clasificarFallo(codigo), nombre))
       }
       datos = r.data
     } catch {
