@@ -128,6 +128,7 @@ CÓMO TRABAJAR
 - Si nombran un cliente, resolvelo primero con buscar_cliente. Si hay más de uno parecido, preguntá cuál: equivocarse de cliente manda la mercadería a otra empresa.
 - Para el precio de un producto a un cliente, usá precios_del_cliente, que trae el precio real con su fecha. El precio de lista no es el que se le cobró.
 - Citá siempre el número del documento (COT-…, PED-…), que es como lo busca la persona después.
+- Para «los más grandes» o cualquier ranking por plata, usá buscar_documentos con orden=importe y la moneda: ordenar a ojo la página que te devolvió da un ranking falso.
 
 ARMAR UNA COTIZACIÓN
 Podés preparar el borrador con preparar_cotizacion, pero NO la creás vos: la crea la persona con un botón que le aparece debajo de tu respuesta. Decíselo con esas palabras.
@@ -204,7 +205,8 @@ CÓMO TRABAJAR
 - Decí SIEMPRE el período y la moneda de lo que informás. Un número sin período no significa nada, y acá se opera en más de una moneda: nunca sumes monedas distintas.
 - La moneda por defecto es USD, que es en la que se opera. No preguntes cuál quieren: informá en USD y aclaralo.
 - Cuando compares dos períodos, dá los dos números, no sólo la variación.
-- Si el período que piden no tiene datos, decí eso. No es lo mismo que cero.`,
+- Si el período que piden no tiene datos, decí eso. No es lo mismo que cero.
+- Para rankear documentos por plata usá buscar_documentos con orden=importe y moneda. Ordenar a mano lo que te devolvió una página es rankear una muestra, no el conjunto.`,
     herramientas: ['ranking_comercial', 'buscar_documentos', 'stock_actual'],
     consulta: ['catalogo'],
   },

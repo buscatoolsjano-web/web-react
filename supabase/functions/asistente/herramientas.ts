@@ -203,6 +203,37 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
         enum: ['sent', 'accepted', 'confirmed', 'delivered'],
       },
       cliente: texto('Nombre del cliente. Vacío: todos.'),
+      /*
+       * Ordenar por importe no es un lujo: sin esto el ranking era falso.
+       *
+       * La herramienta devuelve como mucho 40 filas y las traía ordenadas por
+       * FECHA. Pedirle «las 3 cotizaciones pendientes más grandes» sobre 143
+       * le daba al modelo las 40 más recientes para que rankeara esa muestra,
+       * que nadie eligió. Probado: contestó que la mayor en USD era de Mirgor
+       * por 154.796,85 cuando la real era de Volkswagen por 225.783,46.
+       *
+       * El error no se notaba: los números que daba eran de verdad, sólo que
+       * faltaba el primero. Ahora la base ordena sobre el conjunto entero.
+       */
+      orden: {
+        type: 'string',
+        description:
+          'Cómo ordenar. `fecha` (por defecto) trae los más recientes. ' +
+          '`importe` trae los de mayor monto, ordenando sobre TODOS los del período y no sobre la página. ' +
+          'Usá `importe` siempre que te pidan «los más grandes», «el más caro» o un ranking por plata. ' +
+          'Con `importe` la moneda es obligatoria.',
+        enum: ['fecha', 'importe'],
+      },
+      /*
+       * Y la moneda es obligatoria al rankear, a propósito: acá se opera en
+       * USD, ARS y EUR, y un «top 3 por importe» que las mezcla ordena números
+       * que no son comparables. Si falta, la base no adivina: devuelve un
+       * error que explica qué pedir.
+       */
+      moneda: texto(
+        'USD, ARS o EUR. Vacío: todas, que sólo sirve ordenando por fecha. ' +
+          'Obligatoria cuando el orden es `importe`.',
+      ),
       limite: entero('Cuántos traer (1 a 40). Por defecto 20.'),
     },
     obligatorios: ['tipo'],
