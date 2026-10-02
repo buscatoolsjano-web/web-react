@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ComponentType, type ReactNode } from 'react'
+import { lazy, useState, Suspense, type ComponentType, type ReactNode } from 'react'
 import { Navigate, type RouteObject } from 'react-router-dom'
 import { AppLayout } from '@/layouts/AppLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
@@ -13,9 +13,11 @@ import {
   importarCotizaciones,
   importarDashboard,
   importarEmails,
+  perezoso,
+  CLAVE_RECARGA,
+  type ImportadorDePantalla,
 } from '@/app/precarga'
 
-const CLAVE_RECARGA = 'bt-chunk-recargado'
 
 /**
  * `lazy()` que sobrevive a un deploy.
@@ -33,18 +35,17 @@ const CLAVE_RECARGA = 'bt-chunk-recargado'
  * index.html nuevo con los hashes nuevos— y sólo una, para que un fallo
  * real de red no deje la página en un bucle de recargas.
  */
-function lazyConRecarga(importar: () => Promise<{ default: ComponentType }>) {
-  return lazy(async () => {
+function lazyConRecarga(crudo: ImportadorDePantalla | (() => Promise<{ default: ComponentType }>)) {
+  // Las cinco de todos los días llegan ya envueltas desde precarga.ts —y tienen
+  // que llegar así, porque su `resuelto` lo puebla la precarga—. Las demás se
+  // envuelven acá: no se precargan, pero después de la primera visita sus
+  // remontajes tampoco suspenden.
+  const importar: ImportadorDePantalla = 'recuerda' in crudo ? crudo : perezoso(crudo)
+  const Perezoso = lazy(async () => {
     try {
-      const modulo = await importar()
-      // Cargó bien: se limpia la marca para que un futuro deploy vuelva a
-      // tener su reintento disponible.
-      try {
-        sessionStorage.removeItem(CLAVE_RECARGA)
-      } catch {
-        /* storage bloqueado: no cambia nada */
-      }
-      return modulo
+      // La marca la limpia `recordando`, que es por donde pasan los dos
+      // caminos —la precarga y esto—.
+      return await importar()
     } catch (error) {
       let yaSeIntento = true
       try {
@@ -62,6 +63,27 @@ function lazyConRecarga(importar: () => Promise<{ default: ComponentType }>) {
       return new Promise<never>(() => {})
     }
   })
+
+  /**
+   * Si el chunk ya está en memoria, se renderiza DERECHO, sin pasar por
+   * `lazy()` y por lo tanto sin suspender.
+   *
+   * Medido: suspender acá cuesta ~263 ms de más —no por bajar nada, sino
+   * porque React retrasa a propósito el reemplazo del fallback para que no
+   * parpadee—. Ver la explicación larga en `recordando`, en precarga.ts.
+   *
+   * La elección se hace UNA vez por montaje, con `useState`, y eso no es un
+   * detalle: si se decidiera en cada render, el tipo del elemento cambiaría de
+   * `Perezoso` a la pantalla en cuanto el chunk llegara, y React desmontaría y
+   * volvería a montar la pantalla entera —perdiendo su estado y repitiendo sus
+   * consultas— justo después de terminar de cargarla.
+   *
+   * Ninguna ruta recibe props, así que no hay nada que reenviar.
+   */
+  return function Pantalla() {
+    const [Elegida] = useState<ComponentType>(() => importar.resuelto ?? Perezoso)
+    return <Elegida />
+  }
 }
 
 /**
