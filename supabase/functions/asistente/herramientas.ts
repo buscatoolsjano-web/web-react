@@ -177,7 +177,31 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
       },
       desde: texto('Fecha inicial en formato AAAA-MM-DD. Por defecto, hace 30 días.'),
       hasta: texto('Fecha final en formato AAAA-MM-DD. Por defecto, hoy.'),
-      estado: texto('Estado del documento. Vacío: todos.'),
+      /*
+       * El estado lleva su lista, igual que `tipo`, y lleva la traducción.
+       *
+       * Era texto libre con la descripción «Estado del documento. Vacío:
+       * todos.». El modelo no tenía de dónde sacar que la base dice `sent` y
+       * mandaba la palabra de la pregunta —«pendiente»—, que no existe. La RPC
+       * la pasa tal cual al filtro, no encuentra nada y contesta «No hay
+       * cotizaciones en ese período». Probado: «¿qué cotizaciones tenemos
+       * pendientes?» devolvía que no había ninguna, con 143 enviadas y 3
+       * borradores en la base.
+       *
+       * Lo que lo arregla no es sólo la lista: es decir qué significa cada
+       * una en las palabras que usa la gente acá. Sin eso el modelo tiene los
+       * valores pero sigue sin saber cuál corresponde a «pendiente».
+       */
+      estado: {
+        type: 'string',
+        description:
+          'Estado del documento. Vacío: todos, que suele ser lo que conviene. ' +
+          'Una cotización «pendiente» o «sin respuesta» es `sent`: ya salió y el cliente todavía no la aceptó. ' +
+          '`accepted` es la que el cliente aceptó. ' +
+          'Los pedidos en curso son `confirmed` y las entregas hechas, `delivered`. ' +
+          'Los borradores no se listan nunca.',
+        enum: ['sent', 'accepted', 'confirmed', 'delivered'],
+      },
       cliente: texto('Nombre del cliente. Vacío: todos.'),
       limite: entero('Cuántos traer (1 a 40). Por defecto 20.'),
     },
