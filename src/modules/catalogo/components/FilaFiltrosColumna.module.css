@@ -18,31 +18,31 @@
   position: relative;
 }
 
-/* Los controles ocupan el ancho de SU columna y nada más: si crecieran,
-   empujarían las columnas y la tabla volvería a desbordar, que es justo lo
-   que se vino a arreglar. */
-/* El control va FUERA DEL FLUJO, y no es un capricho de maquetado.
+/* El control ocupa EXACTAMENTE su columna (Fase 39).
 
-   El ancho mínimo de un `<select>` lo fija su opción más larga, y en una
-   tabla ese mínimo se le suma a la columna: con seis desplegables la tabla
-   volvía a desbordar 89 px —y la columna de la imagen se aplastaba a 26— o
-   sea que el filtro por columna rompía justo lo que habíamos arreglado.
+   Acá había una caja que sacaba el control del flujo —posición absoluta— para
+   que su ancho no empujara la columna. Era necesario mientras la tabla se
+   maquetaba sola: el ancho mínimo de un `<select>` lo fija su opción más
+   larga, y en una tabla automática ese mínimo se le suma a la columna.
 
-   La caja reserva el alto y no aporta ancho; el control la llena por encima.
-   Así los anchos los siguen decidiendo los TÍTULOS, que es lo correcto. */
-.caja {
-  position: relative;
-  width: 100%;
-  min-width: 0;
-  height: var(--control-h-sm, 30px);
-}
+   Pero sólo lo usaba el buscador. Los desplegables entraban por
+   `SelectorFaceta`, que sin un `className` cae en SU propia clase —la del
+   panel de arriba, donde el control sí se ancha con su contenido—. Resultado
+   medido: el desplegable de Serie ocupaba 156 px en una columna de 96 y se
+   salía 68 px sobre la columna de al lado. Lo mismo Tipo y Encastre.
 
+   Ahora la tabla es `table-layout: fixed`, así que el contenido ya no puede
+   mover una columna y el truco sobra: alcanza con pedir el 100 % de la celda.
+   `min-width: 0` es lo que no se puede olvidar —es lo que autoriza al
+   `<select>` a ser más angosto que su opción más larga— y `border-box` hace
+   que el relleno y el borde entren dentro de ese 100 %. */
 .control {
-  position: absolute;
-  inset: 0;
+  display: block;
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
   max-width: 100%;
+  height: var(--control-h-sm, 30px);
   /* Relleno y letra al mínimo: la columna más angosta mide 61 px y la
      flecha nativa del desplegable ya se lleva ~20. Con 8 px de relleno a
      cada lado quedaban 25 px para el texto y «Todos» necesita 36, así que

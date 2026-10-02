@@ -215,18 +215,27 @@ export function CatalogoPage() {
         actions={buscador}
       />
 
-            <FilterBar
-        label="Buscar y filtrar productos"
-        className={styles.barra}
-        activeCount={activos}
-        onClear={limpiarTodo}
-        hasFilters={hayFiltros}
-      >
+      {/*
+        «Limpiar filtros» NO se le pasa a `FilterBar` (Fase 39).
+
+        La barra lo dibuja al final de todo, y ahí se llevaba una fila entera
+        del rectángulo de filtros para un solo botón alineado a la derecha.
+        Entra en la fila de categorías, que ya existe y tiene lugar de sobra a
+        la derecha de los chips.
+      */}
+      <FilterBar label="Buscar y filtrar productos" className={styles.barra} activeCount={activos}>
         <PanelFacetas
           filtros={filtros}
           facetas={facetas}
           cargando={facetasCargando}
           onCambiar={actualizar}
+          extra={
+            hayFiltros ? (
+              <Button variant="ghost" size="sm" onClick={limpiarTodo} icon={<Icon name="x" size={16} />}>
+                Limpiar filtros
+              </Button>
+            ) : null
+          }
         />
       </FilterBar>
 

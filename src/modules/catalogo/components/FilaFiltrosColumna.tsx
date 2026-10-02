@@ -64,7 +64,6 @@ export function FilaFiltrosColumna({
           referencia, nombre y modelo. Dos cajas para el mismo filtro serían
           dos sitios donde mirar para entender por qué falta una fila. */}
       <td className={styles.celda}>
-        <div className={styles.caja}>
         <input
           type="search"
           className={styles.control}
@@ -73,7 +72,6 @@ export function FilaFiltrosColumna({
           value={texto}
           onChange={(e) => onTexto(e.target.value)}
         />
-        </div>
       </td>
 
       {/* MODELO · lo cubre la caja de al lado. */}
@@ -81,6 +79,7 @@ export function FilaFiltrosColumna({
 
       <td className={styles.celda}>
         <SelectorFaceta
+          className={styles.control}
           conConteo={false}
           conNombre={false}
           etiqueta="marca"
@@ -93,6 +92,7 @@ export function FilaFiltrosColumna({
       {categoriaFija ? null : (
         <td className={styles.celda}>
           <SelectorFaceta
+          className={styles.control}
           conConteo={false}
           conNombre={false}
             etiqueta="categoría"
@@ -114,6 +114,7 @@ export function FilaFiltrosColumna({
 
       <td className={styles.celda}>
         <SelectorFaceta
+          className={styles.control}
           conConteo={false}
           conNombre={false}
           etiqueta="serie"
@@ -125,6 +126,7 @@ export function FilaFiltrosColumna({
 
       <td className={styles.celda}>
         <SelectorFaceta
+          className={styles.control}
           conConteo={false}
           conNombre={false}
           etiqueta="tipo"
@@ -139,6 +141,7 @@ export function FilaFiltrosColumna({
         return (
           <td key={c.key} className={styles.celda}>
             <SelectorFaceta
+          className={styles.control}
           conConteo={false}
           conNombre={false}
               etiqueta={c.label}

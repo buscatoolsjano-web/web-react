@@ -13,14 +13,21 @@ export interface PanelFacetasProps {
   cargando: boolean
   onCambiar: (cambios: Partial<FiltrosCatalogo>) => void
   /**
-   * El buscador, que va DENTRO de la fila de categorías (Fase 38).
+   * Lo que va pegado a la derecha DENTRO de la fila de categorías.
    *
-   * Antes era una fila propia arriba de todo. Entre esa fila, los chips de
-   * categoría, los de subcategoría y los atributos, la cabecera se comía 276 px
-   * y la tabla arrancaba a la mitad de la pantalla. Compartir fila con los
-   * chips —como la web vieja— devuelve una fila entera al contenido.
+   * Hoy: «Limpiar filtros» (Fase 39). Antes el buscador (Fase 38), que después
+   * subió al encabezado de la pantalla.
+   *
+   * La idea es la misma de siempre: una fila que ya existe puede alojar un
+   * control suelto a su derecha, y eso ahorra la fila entera que ese control
+   * se llevaría para él solo. Entre la fila del buscador, los chips de
+   * categoría, los de subcategoría y los atributos, la cabecera llegó a
+   * comerse 276 px y la tabla arrancaba a la mitad de la pantalla.
+   *
+   * Va FUERA del contenedor que scrollea de costado: si estuviera adentro, en
+   * pantallas angostas se iría de viaje con los chips.
    */
-  buscador?: ReactNode
+  extra?: ReactNode
 }
 
 /**
@@ -48,7 +55,7 @@ export interface PanelFacetasProps {
  *
  * Ninguna categoría está nombrada en el código: qué se dibuja sale de los datos.
  */
-export function PanelFacetas({ filtros, facetas, cargando, onCambiar, buscador }: PanelFacetasProps) {
+export function PanelFacetas({ filtros, facetas, cargando, onCambiar, extra }: PanelFacetasProps) {
   const hayCategoria = filtros.categoria !== null
 
   const verSubtipos = mostrarFacetaSubtipo(
@@ -79,7 +86,7 @@ export function PanelFacetas({ filtros, facetas, cargando, onCambiar, buscador }
       {/* ── Fila 1 · categorías ─────────────────────────────────────────── */}
       <FilaChips
         etiqueta="Categoría"
-        extra={buscador}
+        extra={extra}
         opciones={facetas?.categorias ?? []}
         seleccionados={filtros.categoria ? [filtros.categoria] : []}
         totalTodas={facetas?.total ?? null}
@@ -185,7 +192,7 @@ function FilaChips({
   totalTodas: number | null
   multiple: boolean
   onElegir: (valores: string[]) => void
-  /** Va al final de la fila, pegado a la derecha. Hoy: el buscador. */
+  /** Va al final de la fila, pegado a la derecha. Hoy: «Limpiar filtros». */
   extra?: ReactNode
 }) {
   if (opciones.length === 0) return null
