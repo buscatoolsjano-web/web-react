@@ -41,7 +41,10 @@
    acotado a propósito: un SKU largo no puede empujar a los atributos fuera de
    la caja, que es justo lo que hacía el nombre. */
 .colReferencia {
-  width: 8.5rem;
+  /* 8 rem y no 8,5: esos 8 px vuelven al reparto de las columnas
+     automáticas y le sacan un renglón al encabezado. Sigue entrando el SKU
+     más largo. */
+  width: 8rem;
   white-space: nowrap;
 }
 
@@ -304,6 +307,30 @@
 
 /* Columnas del atributo distintivo de la categoría (Fase 22 · paridad, #19).
    Se esconden en tablet: ahí el ancho lo necesitan SKU, nombre y precio. */
+/* Las columnas de atributo NO declaran ancho, y se probó declararlo (Fase 39).
+
+   Fijarlas en 80 px bajaba el encabezado de 60 a 45 px, pero rompía algo peor:
+   cinco columnas por 80 son 400 px de presupuesto cerrado, y sumados al resto
+   de lo fijo daban 1014. A 1281 px de ventana eso no entra —desbordaba 38 px y
+   Modelo y Marca se aplastaban a CERO—, que es justo lo que vino a evitar el
+   layout fijo.
+
+   El mismo encabezado de 45 px se consigue sin declarar nada: achicando
+   Referencia de 8,5 a 8 rem y Precio de 6 a 5,5. Son 24 px que vuelven al
+   reparto, y como se reparten entre TODAS las columnas automáticas, cada una
+   queda en 76 px en vez de los 67 que dejaba la variante de 80 px. Mejor en
+   las dos puntas, y sin un presupuesto cerrado que pueda no entrar.
+
+   Medido a 1588 px, Atornilladores y Balanceadores, cinco columnas de
+   atributos cada una:
+
+                             alto encab.   ancho por columna   desborde
+     sin tocar nada              60 px           74 px            0
+     atributos fijos en 80       45 px           67 px        0, y 38 a 1281
+     Referencia 8rem + Precio    45 px           76 px            0
+
+   El carrito NO se achica: su control de cantidad necesita 125 px y a 112 se
+   corta. También se probó. */
 .colDinamica {
   hyphens: auto;
   font-size: var(--text-xs);
@@ -456,7 +483,8 @@
 }
 
 .colPrecio {
-  width: 6rem;
+  /* Idem: 5,5 rem alcanzan para «US$ 1.234,56» y devuelven 8 px al reparto. */
+  width: 5.5rem;
 }
 
 /* Filas más bajas: con 8.623 productos, cada 8 px de alto son una fila más en
