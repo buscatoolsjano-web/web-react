@@ -6,7 +6,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { EmpresaSelector } from '@/features/empresa/EmpresaSelector'
 import { BotonApariencia } from '@/features/apariencia/BotonApariencia'
 import { moduloDeRuta } from '@/features/apariencia/opciones'
-import { precargarAlDescansar } from '@/app/precarga'
+import { precargarAlDescansar, precargarRuta } from '@/app/precarga'
 import { Icon } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
 import { navegacionPara } from './navegacion'
@@ -110,13 +110,44 @@ export function AppLayout() {
     }
   }, [abierto])
 
-  // Las pantallas de todos los días se bajan cuando el navegador no tenga nada
-  // que hacer (Fase 29 · E3), así el primer clic del menú no espera su chunk.
-  // Va acá y no en `App`: quien está en el login no tiene por qué bajarse el
-  // ERP entero. Una vez por sesión — `precargarAlDescansar` lleva la cuenta.
+  // La pantalla PEDIDA se baja ya, sin esperar a que resuelva la sesión.
+  //
+  // `ProtectedRoute` devuelve un spinner mientras verifica, así que el
+  // `<Suspense>` con la pantalla no se renderiza y su `import()` ni arranca.
+  // Medido: con esto el chunk del Dashboard empieza a los ~300 ms, en paralelo
+  // con el viaje de autenticación; sin esto, a los ~694 ms, o sea después. Son
+  // ~200 ms de cadena que no tienen por qué ser cadena: bajar el código no
+  // necesita saber quién sos.
+  //
+  // AppLayout monta ANTES del guard —es el `element` del layout, no un hijo
+  // protegido—, y de ahí sale la ventaja. `pathname` se lee una sola vez, al
+  // montar, que es cuando esto importa: después ya está en memoria.
+  const rutaInicial = useRef(pathname)
   useEffect(() => {
-    precargarAlDescansar()
+    precargarRuta(rutaInicial.current)
   }, [])
+
+  // Las OTRAS pantallas de todos los días (Fase 29 · E3), para que el primer
+  // clic del menú no espere su chunk.
+  //
+  // Dos condiciones, y las dos salieron de medir:
+  //
+  // 1. CON SESIÓN. Antes salía al montar, y AppLayout monta antes del guard:
+  //    quien entraba a una URL privada con la sesión vencida se bajaba el ERP
+  //    entero —90 pedidos— antes de poder escribir la contraseña, y el
+  //    `controls.js` del formulario de login tardaba 304 ms en vez de 10 por
+  //    hacer cola detrás. El comentario de antes decía que esto no pasaba.
+  //
+  // 2. DESPUÉS, no «cuando haya un hueco». `requestIdleCallback` considera
+  //    ocioso el rato en que se espera la respuesta de la autenticación, que es
+  //    justo el peor momento: son 55 archivos extra bajando y EJECUTÁNDOSE en
+  //    el hilo principal mientras la pantalla pedida quiere renderizar. El
+  //    retardo deja que la pantalla pida lo suyo primero.
+  useEffect(() => {
+    if (session === null) return
+    const t = window.setTimeout(precargarAlDescansar, 1_500)
+    return () => window.clearTimeout(t)
+  }, [session])
 
   // Identidad por módulo (Fase 14): Ventas verde, Compras azul, Mantenimiento
   // grafito. Va en el <html> para que los diálogos (portal en body) la hereden.
