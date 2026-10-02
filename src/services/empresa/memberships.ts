@@ -12,6 +12,31 @@ export function esRolInterno(rol: string): boolean {
   return (ROLES_INTERNOS as readonly string[]).includes(rol)
 }
 
+/**
+ * Una lista de precios de la empresa, tal como llega con la membresía.
+ *
+ * Viaja acá y no en una consulta aparte por una razón medida: era un viaje
+ * entero en el medio de la cadena del catálogo. `search_products` no puede
+ * salir hasta saber qué lista aplicar —si sale sin eso, el embed devuelve
+ * todas las listas visibles y `product_prices[0]` toma una cualquiera, o sea
+ * que un interno ve por un rato un precio que no es el de su lista—, y
+ * `price_lists` no podía salir hasta saber la empresa. Tres viajes en fila
+ * donde alcanzan dos.
+ *
+ * Medido: la consulta de listas tardaba ~119 ms y retrasaba todo lo que venía
+ * detrás. Pedirlas acá, embebidas en la consulta de empresas que ya se hace
+ * en cada carga, cuesta tres filas más y cero viajes.
+ *
+ * RLS sigue gobernando: el embed aplica las mismas políticas que la consulta
+ * suelta, así que un customer recibe una sola lista y un interno las tres.
+ */
+export interface ListaDePreciosDeEmpresa {
+  id: string
+  nombre: string
+  moneda: string
+  esPorDefecto: boolean
+}
+
 export interface Membresia {
   companyId: string
   companyName: string
@@ -20,6 +45,8 @@ export interface Membresia {
   esInterno: boolean
   /** Sólo para roles externos: el cliente al que representa. */
   customerId: string | null
+  /** Las listas de precios visibles de ESTA empresa. Ver el tipo de arriba. */
+  listasDePrecios: ListaDePreciosDeEmpresa[]
 }
 
 /**
@@ -46,7 +73,9 @@ export interface Membresia {
 export async function listarMembresias(userId: string): Promise<Membresia[]> {
   const { data, error } = await supabase
     .from('company_memberships')
-    .select('company_id, role, customer_id, companies ( name, slug )')
+    .select(
+      'company_id, role, customer_id, companies ( name, slug, price_lists ( id, name, currency_code, is_default ) )',
+    )
     .eq('user_id', userId)
     .eq('status', 'active')
 
@@ -59,5 +88,15 @@ export async function listarMembresias(userId: string): Promise<Membresia[]> {
     rol: m.role,
     esInterno: esRolInterno(m.role),
     customerId: m.customer_id,
+    // El orden lo pone el cliente: ordenar DENTRO de un embed anidado dos
+    // niveles no es algo que PostgREST exprese bien, y son tres filas.
+    listasDePrecios: (m.companies?.price_lists ?? [])
+      .map((l) => ({
+        id: l.id,
+        nombre: l.name,
+        moneda: l.currency_code,
+        esPorDefecto: l.is_default,
+      }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
   }))
 }

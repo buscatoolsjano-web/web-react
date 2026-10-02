@@ -8,7 +8,7 @@ const membresia = (rol: string): Membresia => ({
   companySlug: 'buscatools',
   rol,
   esInterno: ['admin', 'employee', 'salesperson', 'technician'].includes(rol),
-  customerId: null,
+  customerId: null, listasDePrecios: []
 })
 
 describe('permisosDe', () => {

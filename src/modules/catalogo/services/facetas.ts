@@ -145,30 +145,6 @@ export async function listarAtributosPorCategoria(
 
 
 /**
- * Listas de precios visibles para el usuario.
- *
- * No filtra por rol: RLS ya devuelve las que corresponden. Un usuario
- * interno recibe las 3 de su empresa; un customer, sólo la suya; un
- * distributor, sólo "Distribuidores". La UI elige entre lo que llegó, y
- * nunca decide un precio por su cuenta.
- */
-export async function listarListasDePrecios(companyId: string): Promise<ListaDePrecios[]> {
-  const { data, error } = await supabase
-    .from('price_lists')
-    .select('id, name, currency_code, is_default')
-    .eq('company_id', companyId)
-    .order('name')
-
-  if (error) throw new Error(`No se pudieron leer las listas de precios: ${error.message}`)
-  return (data ?? []).map((l) => ({
-    id: l.id,
-    nombre: l.name,
-    moneda: l.currency_code,
-    esPorDefecto: l.is_default,
-  }))
-}
-
-/**
  * Cuál lista usar si el usuario no eligió ninguna.
  *
  * `is_default` está por empresa (hay dos listas llamadas "Lista base", una

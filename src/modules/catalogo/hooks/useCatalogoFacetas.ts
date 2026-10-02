@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
+import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { construirPlanDeConsulta } from '../lib/planDeConsulta'
 import {
   obtenerFacetas,
   listaPorDefecto,
   listarCategorias,
   listarDefinicionesDeAtributos,
-  listarListasDePrecios,
   listarMarcas,
   listarAtributosPorCategoria,
 } from '../services/facetas'
@@ -66,19 +66,23 @@ export interface EstadoListasDePrecios {
  * elegir. Un interno recibe las tres de su empresa.
  */
 export function useListasDePrecios(companyId: string | null): EstadoListasDePrecios {
-  const { data, isPending } = useQuery({
-    queryKey: ['catalogo', companyId, 'listasDePrecios'],
-    queryFn: () => listarListasDePrecios(companyId!),
-    enabled: companyId !== null,
-    staleTime: CINCO_MINUTOS,
-  })
+  // Ya vienen con la membresía, en el mismo viaje que la empresa (Fase 39).
+  // Antes eran una consulta aparte de ~119 ms que se metía en el medio de la
+  // cadena del catálogo: ver el comentario de `ListaDePreciosDeEmpresa`.
+  //
+  // `cargando` queda en false apenas hay empresa activa, y eso es lo que
+  // destraba `search_products` un viaje antes.
+  const { activa, cargando } = useEmpresa()
 
-  const listas = data ?? []
+  // El id se sigue recibiendo y se compara: si el que pide no es el de la
+  // empresa activa, no se le devuelven listas que no son suyas.
+  const listas = activa !== null && activa.companyId === companyId ? (activa.listasDePrecios ?? []) : []
+
   return {
     listas,
     porDefecto: listaPorDefecto(listas),
     puedeElegir: listas.length > 1,
-    cargando: companyId !== null && isPending,
+    cargando: companyId !== null && cargando,
   }
 }
 

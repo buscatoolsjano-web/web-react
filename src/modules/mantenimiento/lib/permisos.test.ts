@@ -8,7 +8,7 @@ const membresia = (rol: string): Membresia => ({
   companySlug: 'empresa',
   rol,
   esInterno: rol !== 'customer' && rol !== 'distributor',
-  customerId: null,
+  customerId: null, listasDePrecios: []
 })
 
 describe('permisosDe', () => {

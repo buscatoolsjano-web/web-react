@@ -37,8 +37,8 @@ vi.mock('@/services/supabase/client', () => ({
 }))
 
 vi.mock('@/features/empresa/useEmpresa', () => ({
-  useEmpresa: (): { activa: { companyId: string; rol: string; esInterno: boolean } } => ({
-    activa: { companyId: 'empresa-1', rol: 'admin', esInterno: true },
+  useEmpresa: (): { activa: { companyId: string; rol: string; esInterno: boolean; listasDePrecios: [] } } => ({
+    activa: { companyId: 'empresa-1', rol: 'admin', esInterno: true, listasDePrecios: [] },
   }),
 }))
 
