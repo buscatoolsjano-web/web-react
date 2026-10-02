@@ -236,8 +236,12 @@
    envuelve y se silabea igual que cualquier párrafo. */
 .ordenar {
   display: block;
+  /* Sin relleno propio: lo pone la celda. Tenía `padding: inherit`, de cuando
+     el encabezado no tenía ninguno; hoy sí lo tiene, así que se sumaban y el
+     título arrancaba 16 px adentro mientras el dato arrancaba a 8. Las dos
+     líneas que tenían que ser una quedaban separadas, en TODAS las columnas. */
+  padding: 0;
   width: 100%;
-  padding: inherit;
   border: none;
   background: none;
   color: inherit;
@@ -312,13 +316,45 @@
   }
 }
 
-/* Fase 25 · E2: los encabezados de stock son columnas de números. El botón de
-   ordenar ocupa todo el ancho, así que sin esto el rótulo queda a la
-   izquierda y los números a la derecha, sin relación visible. */
-.thNum .ordenar {
-  justify-content: flex-end;
-  text-align: right;
+/* ── Todo contra el margen izquierdo (Fase 39) ─────────────────────────────
+
+   Stock y Precio venían alineados a la derecha, que es la convención
+   tipográfica para comparar magnitudes: las unidades quedan en la misma
+   columna vertical y un 1.200 se distingue de un 120 de un vistazo.
+
+   Pero en esta tabla jugaba en contra. Los títulos de esas columnas caen en
+   dos renglones («Stock / real»), y un título que arranca a la izquierda sobre
+   números que terminan a la derecha no comparte ningún borde: la columna se
+   lee desfasada aunque esté perfectamente alineada consigo misma.
+
+   Con todo a la izquierda hay UNA línea vertical por columna —título, filtro y
+   dato arrancan en el mismo píxel— y la tabla se recorre con la vista sin
+   saltos. Es la decisión de Jano y es la correcta para esta tabla: acá los
+   números son saldos de dos o tres cifras y precios ya formateados, no una
+   columna de importes para sumar a ojo.
+
+   `font-variant-numeric: tabular-nums` se queda (viene del módulo compartido):
+   las cifras siguen midiendo todas lo mismo, así que las unidades caen en la
+   misma posición igual. */
+/* Una sola regla para TODA la tabla, y a propósito.
+
+   La alineación a la derecha no vive en este archivo: viene de `.num` del
+   módulo de tabla compartido, cuyo nombre de clase está hasheado y desde acá
+   no se puede nombrar. Intentar alcanzarla columna por columna fue el primer
+   intento y no funcionó —una regla que apunta a una clase local inexistente no
+   falla, simplemente no aplica nunca, que es la peor forma de equivocarse—.
+
+   `.tabla.tabla` duplicado da la especificidad necesaria para ganarle a `.num`
+   sin tener que conocerla, y va con `thead`/`tbody` en el medio por una razón
+   concreta: el módulo compartido no sólo trae `.num`, trae `.tabla th.num`,
+   que EMPATA con `.tabla.tabla th`. Un empate lo desempata el orden del
+   bundle, o sea la suerte — y en este archivo ya se perdió así dos veces, en
+   silencio. Agregar el ancestro sube el escalón y deja de ser una apuesta. */
+.tabla.tabla :global(thead) :global(th),
+.tabla.tabla :global(tbody) :global(td) {
+  text-align: left;
 }
+
 
 /* ── El espacio sobrante va a UNA columna, no repartido (Fase 38) ──────────
    Al sacar la columna del nombre, la tabla pasó a tener holgura: `width: 100%`
