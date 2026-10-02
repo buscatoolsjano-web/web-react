@@ -231,8 +231,24 @@ export function CatalogoPage() {
           onCambiar={actualizar}
           extra={
             hayFiltros ? (
-              <Button variant="ghost" size="sm" onClick={limpiarTodo} icon={<Icon name="x" size={16} />}>
-                Limpiar filtros
+              /*
+                Dice «Limpiar» y no «Limpiar filtros»: comparte fila con los
+                chips de categoría, y ahí cada píxel del rótulo es un píxel que
+                deja de estar disponible para los chips. Medido, el nombre
+                completo se llevaba 138 px de esa fila.
+
+                El `aria-label` sí dice de qué limpia: en un lector de pantalla
+                el botón se anuncia solo, sin los chips al lado que acá le dan
+                el contexto.
+              */
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={limpiarTodo}
+                aria-label="Limpiar filtros"
+                icon={<Icon name="x" size={16} />}
+              >
+                Limpiar
               </Button>
             ) : null
           }
