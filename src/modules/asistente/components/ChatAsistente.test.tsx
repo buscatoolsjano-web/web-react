@@ -71,7 +71,18 @@ const escribirYEnviar = (texto: string) => {
 }
 
 describe('El chat del asistente', () => {
-  it('muestra la respuesta y deja ver a quién consultó', async () => {
+  /**
+   * La traza NO se muestra (Fase 39), pero los pasos SÍ siguen llegando.
+   *
+   * La distinción es la que pidió Jano: que el asistente siga derivando a sus
+   * especialistas, y que eso no se vea. Por eso el caso de prueba manda unos
+   * pasos y verifica las dos mitades: que la respuesta esté, y que ni el
+   * nombre del agente ni el de la herramienta aparezcan en pantalla.
+   *
+   * Si alguna vez se vuelve a dibujar la traza, esta prueba falla y obliga a
+   * decidirlo a propósito en vez de que reaparezca por descuido.
+   */
+  it('muestra la respuesta y NO expone a quién consultó', async () => {
     estado.listo = true
     estado.error = null
     estado.respuesta = {
@@ -89,10 +100,11 @@ describe('El chat del asistente', () => {
     escribirYEnviar('¿tenemos punta PH2?')
     expect(await screen.findByText('Sí: SP.2008VP/100, 4 disponibles.')).toBeInTheDocument()
 
-    // La traza usa el TÍTULO del agente, no su id: «Catálogo», no «catalogo».
-    expect(screen.getByText(/Consultó a Catálogo/)).toBeInTheDocument()
-    fireEvent.click(screen.getByText(/Consultó a Catálogo/))
-    expect(screen.getByText('buscar_productos')).toBeInTheDocument()
+    // Los pasos llegaron —están en la respuesta de arriba— y aun así no se
+    // ven: ni el agente al que derivó ni la herramienta que usó.
+    expect(screen.queryByText(/Consultó a/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/buscar_productos/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/le preguntó a/)).not.toBeInTheDocument()
   })
 
   /**

@@ -199,7 +199,9 @@ export function ChatAsistente() {
     consultar.mutate(hilo)
   }
 
-  const titulo = (id: string) => estado.data?.agentes.find((a) => a.id === id)?.titulo ?? id
+  /* `titulo()` se fue con la traza: era lo que traducía «catalogo» a
+     «Catálogo» para mostrarlo. Los agentes siguen llegando en `estado.data`
+     por si hay que volver a dibujarla. */
 
   return (
     <div className={styles.pagina}>
@@ -261,41 +263,24 @@ export function ChatAsistente() {
               </p>
             ) : null}
 
-            {t.pasos && t.pasos.length > 0 ? (
-              <details className={styles.traza}>
-                <summary>
-                  {t.pasos.filter((p) => p.tipo === 'consulta').length > 0
-                    ? `Consultó a ${[...new Set(t.pasos.filter((p) => p.tipo === 'consulta').map((p) => titulo(p.nombre)))].join(', ')}`
-                    : `${t.pasos.length} consulta${t.pasos.length === 1 ? '' : 's'} a los datos`}
-                </summary>
-                <ol className={styles.pasos}>
-                  {t.pasos.map((p, j) => (
-                    <li key={j}>
-                      <span className={styles.pasoAgente}>{titulo(p.agente)}</span>
-                      {p.tipo === 'consulta' ? (
-                        <>
-                          {' le preguntó a '}
-                          <strong>{titulo(p.nombre)}</strong>
-                        </>
-                      ) : (
-                        <>
-                          {' usó '}
-                          <code>{p.nombre}</code>
-                        </>
-                      )}
-                    </li>
-                  ))}
-                </ol>
-              </details>
-            ) : null}
+            {/*
+              La traza ya NO se dibuja (Fase 39).
+
+              Decía «Consultó a Catálogo · Catálogo usó buscar_productos». Era
+              útil mientras se construía esto —para ver por qué un dato salía
+              raro— y es ruido para quien sólo quiere la respuesta: nombra
+              piezas internas que no le significan nada a quien pregunta.
+
+              Lo que NO cambia es lo de abajo: el asistente sigue derivando a
+              sus especialistas igual que antes. Esto es la pantalla, no el
+              mecanismo. `pasos` sigue llegando y sigue guardado en el mensaje,
+              así que volver a mostrarlo —o volcarlo a un log cuando algo
+              parezca mal— es dibujar de nuevo este bloque y nada más.
+            */}
           </article>
         ))}
 
-        {consultar.isPending ? (
-          <article className={styles.suyo} aria-live="polite">
-            <p className={styles.pensando}>Pensando…</p>
-          </article>
-        ) : null}
+        {consultar.isPending ? <Progreso /> : null}
 
         <div ref={finRef} />
       </div>
@@ -397,5 +382,60 @@ export function ChatAsistente() {
         </p>
       ) : null}
     </div>
+  )
+}
+
+/**
+ * La barra mientras el asistente trabaja (Fase 39).
+ *
+ * Antes decía «Pensando…» y nada más. Una consulta tarda entre 20 y 45
+ * segundos —el asistente deriva a un especialista y ése consulta la base
+ * varias veces— y medio minuto mirando un texto quieto se siente como un
+ * cuelgue: lo primero que uno hace es volver a apretar.
+ *
+ * LA BARRA NO MIENTE, Y ESO DEFINE CÓMO ESTÁ HECHA.
+ *
+ * No hay progreso real que informar: el servidor contesta de una sola vez al
+ * final, así que nadie sabe cuánto falta. Entonces avanza rápido al principio
+ * y se va frenando sola, acercándose al 92 % sin llegar nunca. Cuando la
+ * respuesta llega, la barra desaparece junto con el cartel.
+ *
+ * Una barra que llega al 100 % y SIGUE esperando es peor que no tener barra:
+ * la primera vez molesta y a partir de la segunda ya no se le cree a ninguna.
+ *
+ * Por eso tampoco lleva `aria-valuenow`: un `progressbar` sin valor es, por
+ * definición, indeterminado, que es exactamente lo que esto es. Poner un
+ * número inventado ahí le mentiría al lector de pantalla con más precisión
+ * todavía.
+ */
+function Progreso() {
+  const [avance, setAvance] = useState(0)
+
+  useEffect(() => {
+    const inicio = performance.now()
+    // 14 segundos de constante: a los 14 va por el 51 %, a los 30 por el 88,
+    // y de ahí en más se arrastra. Está elegido contra los tiempos medidos
+    // (20 a 45 s), para que la mayor parte del avance ocurra mientras la
+    // espera todavía se siente corta.
+    const id = window.setInterval(() => {
+      const t = (performance.now() - inicio) / 1000
+      setAvance(Math.min(0.92, 1 - Math.exp(-t / 14)))
+    }, 120)
+    return () => window.clearInterval(id)
+  }, [])
+
+  return (
+    <article className={styles.suyo}>
+      <div
+        className={styles.barra}
+        role="progressbar"
+        aria-label="El asistente está buscando la respuesta"
+      >
+        <div className={styles.barraRelleno} style={{ width: `${Math.round(avance * 100)}%` }} />
+      </div>
+      <p className={styles.pensando} aria-live="polite">
+        Buscando en el ERP…
+      </p>
+    </article>
   )
 }

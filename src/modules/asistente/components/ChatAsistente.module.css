@@ -314,3 +314,31 @@
   cursor: pointer;
   text-decoration: underline;
 }
+
+/* ── la barra de progreso ─────────────────────────────────────────────────
+   Riel fino y relleno con la primaria. La transición es lo que hace que se
+   lea como movimiento continuo y no como saltos: el componente actualiza el
+   ancho cada 120 ms, y sin esto se vería a tirones. */
+.barra {
+  overflow: hidden;
+  width: 100%;
+  height: 4px;
+  margin-bottom: var(--space-2);
+  background: var(--color-neutral-soft);
+  border-radius: 999px;
+}
+
+.barraRelleno {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: inherit;
+  transition: width 200ms linear;
+}
+
+/* Quien pidió menos movimiento no necesita ver la barra crecer: el cartel de
+   «Buscando en el ERP…» ya dice lo mismo. */
+@media (prefers-reduced-motion: reduce) {
+  .barraRelleno {
+    transition: none;
+  }
+}
