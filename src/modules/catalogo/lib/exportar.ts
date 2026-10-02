@@ -70,8 +70,8 @@ export const COLUMNAS_EXPORTABLES: ColumnaExportable[] = [
   { clave: 'max_kg', etiqueta: 'Max kg', grupo: 'atributos', valor: atributo('max_kg') },
   { clave: 'longitud', etiqueta: 'Longitud cable', grupo: 'atributos', valor: atributo('longitud') },
   { clave: 'carcasa', etiqueta: 'Carcasa', grupo: 'atributos', valor: atributo('carcasa') },
-  { clave: 'torq_min', etiqueta: 'Torque mínimo', grupo: 'atributos', valor: atributo('torq_min') },
-  { clave: 'torq_max', etiqueta: 'Torque máximo', grupo: 'atributos', valor: atributo('torq_max') },
+  { clave: 'torq_min', etiqueta: 'Torque mín.', grupo: 'atributos', valor: atributo('torq_min') },
+  { clave: 'torq_max', etiqueta: 'Torque máx.', grupo: 'atributos', valor: atributo('torq_max') },
   {
     clave: 'stock_real',
     etiqueta: 'Stock real',

@@ -47,7 +47,7 @@ function valorAString(v: unknown): string | null {
  * Cruza el jsonb `attributes` con sus definiciones para poder mostrarlo.
  *
  * NUNCA se muestra el JSON crudo: cada clave se resuelve a su `label` y su
- * `unit` ("torq_max": 250 → "Torque máximo: 250 Nm").
+ * `unit` ("torq_max": 250 → "Torque máx.: 250 Nm").
  *
  * Una clave sin definición se DESCARTA. El trigger de la base impide
  * insertarlas, así que si aparece una es un bug que hay que ver, no algo
@@ -81,7 +81,7 @@ export function presentarAtributos(
   })
 }
 
-/** "Torque máximo: 250 Nm" — el valor con su unidad, si tiene. */
+/** "Torque máx.: 250 Nm" — el valor con su unidad, si tiene. */
 export function valorConUnidad(a: AtributoPresentable): string {
   return a.unidad ? `${a.valor} ${a.unidad}` : a.valor
 }

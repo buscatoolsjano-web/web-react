@@ -7,7 +7,7 @@ import styles from './ListaAtributos.module.css'
  *
  * NUNCA se muestra el jsonb crudo. Cada clave se cruza con
  * product_attribute_definitions para obtener su `label` y su `unit`:
- * `{"torq_max": 250}` se ve como "Torque máximo · 250 Nm".
+ * `{"torq_max": 250}` se ve como "Torque máx. · 250 Nm".
  *
  * Las claves sin definición no se pintan (ver presentarAtributos).
  */

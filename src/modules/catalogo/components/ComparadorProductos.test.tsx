@@ -61,7 +61,7 @@ const celdas = (etiqueta: string) => within(fila(etiqueta)).getAllByRole('cell')
 describe('Atributos en filas, productos en columnas', () => {
   it('cada atributo de la familia es UNA fila', () => {
     montar()
-    for (const e of ['Marca', 'Modelo', 'Capacidad mínima', 'Capacidad máxima', 'Recorrido', 'Carcasa']) {
+    for (const e of ['Marca', 'Modelo', 'Cap. mín.', 'Cap. máx.', 'Recorrido', 'Carcasa']) {
       expect(screen.getByRole('rowheader', { name: e })).toBeInTheDocument()
     }
   })
@@ -99,7 +99,7 @@ describe('El principal es la línea base (§2)', () => {
 
   it('su columna NO se pinta contra sí misma', () => {
     montar()
-    for (const e of ['Carcasa', 'Recorrido', 'Capacidad mínima']) {
+    for (const e of ['Carcasa', 'Recorrido', 'Cap. mín.']) {
       expect(celdas(e)[0]).not.toHaveAttribute('data-veredicto')
     }
   })
