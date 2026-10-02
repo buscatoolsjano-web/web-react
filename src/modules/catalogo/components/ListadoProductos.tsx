@@ -277,7 +277,7 @@ export function ListadoProductos({
             <th scope="col" className={styles.colImagen}>
               <span className="sr-only">Imagen</span>
             </th>
-            <Encabezado campo="sku" orden={orden}>Referencia</Encabezado>
+            <Encabezado campo="sku" orden={orden} className={styles.colReferencia}>Referencia</Encabezado>
             {/*
               El NOMBRE no es una columna (Fase 38).
 
@@ -292,13 +292,13 @@ export function ListadoProductos({
               la ficha y en el modal.
             */}
             <Encabezado campo="modelo" orden={orden}>Modelo</Encabezado>
-            <Encabezado campo="marca" orden={orden} className={styles.apretada}>Marca</Encabezado>
+            <Encabezado campo="marca" orden={orden}>Marca</Encabezado>
             {categoriaFija ? null : (
-              <Encabezado campo="categoria" orden={orden} className={`${styles.soloAncho} ${styles.apretada}`}>
+              <Encabezado campo="categoria" orden={orden} className={`${styles.soloAncho}`}>
                 Categoría
               </Encabezado>
             )}
-            <Encabezado campo="serie" orden={orden} className={`${styles.soloAncho} ${styles.apretada}`}>
+            <Encabezado campo="serie" orden={orden} className={`${styles.soloAncho}`}>
               Serie
             </Encabezado>
             {/*
@@ -308,14 +308,14 @@ export function ListadoProductos({
               productos —más que la serie, que llega al 42 %—, así que es de
               las columnas que más dicen.
             */}
-            <Encabezado campo="tipo" orden={orden} className={`${styles.soloAncho} ${styles.apretada}`}>
+            <Encabezado campo="tipo" orden={orden} className={`${styles.soloAncho}`}>
               Tipo
             </Encabezado>
             {/* Fase 28 · E7: también ordenan. `search_products` acepta
                 `attr:<clave>`, y dentro de una familia el atributo ES la
                 columna por la que se busca. */}
             {columnasDinamicas.map((c) => (
-              <Encabezado key={c.key} campo={`attr:${c.key}`} orden={orden} className={`${styles.colDinamica} ${styles.apretada}`}>
+              <Encabezado key={c.key} campo={`attr:${c.key}`} orden={orden} className={`${styles.colDinamica}`}>
                 {c.label}
                 {c.unidad ? <span className={styles.aclaracion}> {c.unidad}</span> : null}
               </Encabezado>
@@ -325,17 +325,17 @@ export function ListadoProductos({
                 celda «12 / 10» no se podían ordenar por separado. */}
             {esInterno ? (
               <>
-                <Encabezado campo="stock_real" orden={orden} className={`${tabla.num} ${styles.thNum} ${styles.apretada} ${styles.thStock}`}>
+                <Encabezado campo="stock_real" orden={orden} className={`${tabla.num} ${styles.thNum} ${styles.thStock}`}>
                   Stock real
                 </Encabezado>
-                <Encabezado campo="stock_virtual" orden={orden} className={`${tabla.num} ${styles.thNum} ${styles.apretada} ${styles.thStock}`}>
+                <Encabezado campo="stock_virtual" orden={orden} className={`${tabla.num} ${styles.thNum} ${styles.thStock}`}>
                   Stock virtual
                 </Encabezado>
               </>
             ) : (
               <th scope="col">Disponibilidad</th>
             )}
-            <th scope="col" className={`${tabla.num} ${styles.apretada}`}>
+            <th scope="col" className={`${tabla.num} ${styles.colPrecio}`}>
               Precio{moneda ? <span className={styles.aclaracion}> {moneda}</span> : null}
             </th>
             {conCarrito ? (
@@ -423,20 +423,20 @@ export function ListadoProductos({
               <td className={`${tabla.nowrap} ${styles.colModelo}`} title={p.nombre}>
                 {p.modelo ?? <span className={tabla.secundario}>—</span>}
               </td>
-              <td className={`${styles.colMarca} ${styles.apretada}`}>{p.marca?.nombre ?? <span className={tabla.secundario}>—</span>}</td>
+              <td className={`${styles.colMarca}`}>{p.marca?.nombre ?? <span className={tabla.secundario}>—</span>}</td>
               {categoriaFija ? null : (
-                <td className={`${styles.soloAncho} ${styles.colCategoria} ${styles.apretada}`}>
+                <td className={`${styles.soloAncho} ${styles.colCategoria}`}>
                   {p.categoria?.nombre ?? <span className={tabla.secundario}>—</span>}
                 </td>
               )}
-              <td className={`${styles.soloAncho} ${tabla.nowrap} ${styles.apretada}`}>{p.serie ?? <span className={tabla.secundario}>—</span>}</td>
-              <td className={`${styles.soloAncho} ${tabla.nowrap} ${styles.apretada}`}>
+              <td className={`${styles.soloAncho} ${tabla.nowrap}`}>{p.serie ?? <span className={tabla.secundario}>—</span>}</td>
+              <td className={`${styles.soloAncho} ${tabla.nowrap}`}>
                 {p.tipo ?? <span className={tabla.secundario}>—</span>}
               </td>
               {columnasDinamicas.map((c) => {
                 const v = valorDinamico(p, c)
                 return (
-                  <td key={c.key} className={`${styles.colDinamica} ${styles.apretada}`}>
+                  <td key={c.key} className={`${styles.colDinamica}`}>
                     {v === '—' ? <span className={tabla.secundario}>—</span> : v}
                   </td>
                 )

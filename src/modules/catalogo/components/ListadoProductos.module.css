@@ -41,7 +41,7 @@
    acotado a propósito: un SKU largo no puede empujar a los atributos fuera de
    la caja, que es justo lo que hacía el nombre. */
 .colReferencia {
-  min-width: 9rem;
+  width: 8.5rem;
   white-space: nowrap;
 }
 
@@ -62,7 +62,6 @@
 }
 
 .colModelo {
-  min-width: 7rem;
   font-weight: var(--weight-medium);
 }
 
@@ -70,9 +69,6 @@
   white-space: nowrap;
 }
 
-.colCategoria {
-  min-width: 9rem;
-}
 
 .aclaracion {
   font-weight: var(--weight-regular);
@@ -99,7 +95,29 @@
    Precio: el SKU se puede truncar, un saldo no. */
 @media (max-width: 1023px) {
   .colReferencia {
-    min-width: 7rem;
+    width: 6.5rem;
+  }
+
+  /* A este ancho la tabla ya está al límite: cada píxel que suelta una
+     columna de ancho fijo es un píxel para Modelo y Marca, que son las que
+     distinguen una fila de otra. Sin esto quedaban en 44 px, unos cinco
+     caracteres. */
+  .colImagen {
+    width: 44px;
+    min-width: 44px;
+  }
+
+  .colImagen > * {
+    width: 36px;
+    min-width: 36px;
+  }
+
+  .colCarrito {
+    width: 5rem;
+  }
+
+  .colPrecio {
+    width: 4.5rem;
   }
 }
 
@@ -209,10 +227,15 @@
   padding: 0;
 }
 
+/* Bloque y no flex (Fase 39).
+
+   Era `inline-flex`, y por eso un título largo no entraba en su columna: el
+   rótulo y la flecha son elementos flex, y un elemento flex no se achica por
+   debajo de su contenido (`min-width: auto`), así que `Revoluciones` exigía
+   79 px en una columna de 72 y se salía. Como texto de bloque, el título
+   envuelve y se silabea igual que cualquier párrafo. */
 .ordenar {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  display: block;
   width: 100%;
   padding: inherit;
   border: none;
@@ -228,11 +251,13 @@
 }
 
 .flecha {
+  margin-left: 4px;
   font-size: 9px;
   color: var(--color-primary);
 }
 
 .flechaInactiva {
+  margin-left: 4px;
   font-size: 9px;
   opacity: 0.3;
 }
@@ -257,7 +282,7 @@
 
 /* ── Carrito (Fase 22 · paridad, #50) ───────────────────────────────────── */
 .colCarrito {
-  width: 96px;
+  width: 8rem;
   text-align: center;
   white-space: nowrap;
 }
@@ -276,7 +301,7 @@
 /* Columnas del atributo distintivo de la categoría (Fase 22 · paridad, #19).
    Se esconden en tablet: ahí el ancho lo necesitan SKU, nombre y precio. */
 .colDinamica {
-  white-space: nowrap;
+  hyphens: auto;
   font-size: var(--text-xs);
   color: var(--color-text-soft);
 }
@@ -305,15 +330,15 @@
    `nowrap` es la forma estándar de pedir «lo mínimo que necesito»: el sobrante
    queda entonces para las columnas que sí se leen —Modelo y Marca—, en vez de
    diluirse en padding. */
-/* «Lo mínimo que necesito» para el ancho, pero SIN prohibir el salto de línea.
+/* `.apretada` se fue (Fase 39).
 
-   El nowrap obligaba a cada título a ocupar una línea entera: con cinco
-   columnas de atributos (Atornilladores) la tabla se iba 608 px fuera de la
-   caja. La web vieja mete catorce columnas en el mismo ancho justamente
-   porque deja que «STOCK REAL» o «TORQUE MÁXIMO» caigan en dos renglones. */
-.apretada {
-  width: 1%;
-}
+   Era `width: 1%`, el truco de «dame lo mínimo» que se usa en tablas
+   automáticas para que una columna no acapare el sobrante. Con
+   `table-layout: fixed` ese mismo 1 % significa literalmente el 1 % del ancho
+   de la tabla —ocho píxeles— así que no sólo dejó de hacer falta: era
+   peligroso dejarla puesta. Las columnas de texto ahora no declaran ancho y
+   se reparten el sobrante en partes iguales, que es lo que la clase intentaba
+   conseguir. */
 
 /* «Stock real» y «Stock virtual» en dos renglones, como la web vieja.
 
@@ -322,23 +347,80 @@
    faltaban a la tabla para entrar con la fila de filtros puesta. */
 
 
-/* Ninguna columna acapara el sobrante.
 
-   Con `table-layout: auto` el ancho que sobra se reparte entre las columnas,
-   y las de texto corto se lo quedaban: «Categoría» llegaba a 215 px para
-   decir «Otros». Un tope las devuelve a su tamaño razonable y el aire se
-   reparte parejo en vez de quedar en dos huecos grandes. */
-.colCategoria,
-.colMarca {
-  max-width: 9rem;
+/* Los títulos envuelven. De acá salen las columnas angostas (Fase 39).
+
+   El módulo compartido trae `.tabla thead th { white-space: nowrap }`, que
+   gana por especificidad a cualquier regla de columna de este archivo. Por eso
+   ningún título envolvió NUNCA, por más que hubiera comentarios acá
+   explicando que «STOCK REAL» caía en dos renglones como en la web vieja:
+   no caía, y el título en una línea era lo que fijaba el ancho de la columna.
+   Un rótulo de 127 px mandando sobre una columna que muestra números de dos
+   cifras.
+
+   El selector va a `.tabla.tabla thead th` para ganarle, igual que la regla
+   del tamaño de letra de más abajo y por el mismo motivo. */
+.tabla.tabla :global(thead) :global(th) {
+  white-space: normal;
+  /* Varias líneas por título cuestan alto de encabezado: interlineado
+     corto para que ese costo no se coma las filas. */
+  line-height: 1.2;
+  /* Silabea si el navegador puede, pero NO parte dentro de una palabra.
+     Con `overflow-wrap: break-word` el título «Modelo» en una columna de
+     54 px se leía «Mo / del / o», y «Stock real» se deshacía en cuatro
+     renglones: un título recortado se entiende, uno despedazado no. */
+  hyphens: auto;
+  overflow: hidden;
 }
 
-.colReferencia {
-  max-width: 9.5rem;
+/* ── Los anchos se declaran, no se ruegan (Fase 39) ────────────────────────
+
+   Acá había tres bloques de `max-width` sobre celdas, cada uno con su
+   comentario explicando el ancho que conseguía. No conseguían nada: **el
+   algoritmo de tabla automática IGNORA `max-width` en `td` y `th`**. Los
+   topes estaban escritos, el navegador no los miraba, y nadie lo notó porque
+   el síntoma —una tabla ancha— se parece al problema que decían resolver.
+
+   Medido antes de tocar nada, con la ventana en 961 px: la tabla ocupaba
+   1215 px dentro de una caja de 834, o sea **383 px de desborde**. Y el
+   reparto era absurdo: «Stock real» 174 px y «Stock virtual» 172 para
+   mostrar números de dos cifras, «Precio» 189, mientras «Modelo» —que sí se
+   lee— se arreglaba con 112.
+
+   Con `table-layout: fixed` el ancho lo deciden los encabezados y se respeta.
+   Las columnas de ancho conocido (casillero, imagen, referencia, stock,
+   precio, carrito) lo piden en píxeles; las de texto NO piden nada y se
+   reparten lo que sobra en partes iguales. Así la tabla entra siempre en su
+   caja —sea cual sea la cantidad de columnas de atributos— y lo que no cabe
+   se corta con puntos suspensivos en vez de empujar a las demás afuera. */
+.tabla.tabla {
+  table-layout: fixed;
 }
 
-.colModelo {
-  max-width: 8rem;
+/* Lo que no entra se corta acá, no desborda la tabla. Va sólo en las celdas
+   de DATOS: los títulos tienen que poder caer en dos renglones, que es de
+   donde sale el ancho que ganan las columnas de números. */
+.tabla.tabla :global(tbody) :global(td) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* «Stock real» y «Stock virtual» en dos renglones.
+
+   Esta regla EXISTÍA sólo como comentario: el TSX usaba `styles.thStock` y
+   en el CSS no había ninguna `.thStock`, así que la clase llegaba como
+   `undefined` y los títulos seguían en una línea. De ahí los 174 px.
+
+   En dos renglones el título deja de mandar y la columna vale lo que vale un
+   número de cuatro cifras. */
+.thStock,
+.colNumero {
+  width: 4.5rem;
+}
+
+.colPrecio {
+  width: 6rem;
 }
 
 /* Filas más bajas: con 8.623 productos, cada 8 px de alto son una fila más en
@@ -364,9 +446,43 @@
   padding: var(--space-2);
 }
 
-/* Los valores de Tipo son largos («Atornillador Recto Neumático») y se
-   llevaban 207 px. Con tope, envuelven. */
-.tabla.tabla :global(th).apretada,
-.tabla.tabla :global(td).apretada {
-  max-width: 7rem;
+
+/* ── Pantallas medianas: lo fijo cede antes que lo que se lee (Fase 39) ────
+
+   Con `table-layout: fixed` las columnas de ancho declarado se cobran su
+   ancho primero y el resto se reparte lo que queda. A 1024 px eso dejaba a
+   Modelo y Marca en 21 px —ilegibles— porque entre casillero, imagen,
+   referencia, dos stocks, precio y carrito ya se habían llevado 614 de los
+   670 disponibles.
+
+   Acá se achica lo que puede achicarse sin perder información: la miniatura
+   sigue reconociéndose a 44 px, un saldo entra en 3,5 rem y el precio en 5.
+   Lo que NO se achica es el texto que distingue una fila de otra. */
+@media (max-width: 1279px) {
+  .colImagen {
+    width: 48px;
+    min-width: 48px;
+  }
+
+  .colImagen > * {
+    width: 40px;
+    min-width: 40px;
+  }
+
+  .thStock,
+  .colNumero {
+    width: 3.25rem;
+  }
+
+  .colPrecio {
+    width: 4.75rem;
+  }
+
+  .colCarrito {
+    width: 5rem;
+  }
+
+  .colReferencia {
+    width: 6.75rem;
+  }
 }
