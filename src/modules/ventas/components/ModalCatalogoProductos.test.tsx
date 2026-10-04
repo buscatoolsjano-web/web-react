@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PlanDeConsulta } from '@/modules/catalogo/lib/planDeConsulta'
 import type { Facetas, ProductoListado } from '@/modules/catalogo/types'
+import type { UltimoPrecio } from '@/modules/clientes/types'
 
 const estado = vi.hoisted(() => ({
   planes: [] as { plan: PlanDeConsulta; listaPrecioId: string | null; esInterno: boolean }[],
@@ -87,7 +88,13 @@ function producto(id: string, sku: string, nombre: string, precio: number | null
 
 const { ModalCatalogoProductos } = await import('./ModalCatalogoProductos')
 
-function montar(props: Partial<{ listaPrecioId: string | null; moneda: string | null }> = {}) {
+function montar(
+  props: Partial<{
+    listaPrecioId: string | null
+    moneda: string | null
+    historicos: Map<string, UltimoPrecio>
+  }> = {},
+) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const onAgregar = vi.fn()
   const onCerrar = vi.fn()
@@ -97,6 +104,7 @@ function montar(props: Partial<{ listaPrecioId: string | null; moneda: string | 
         listaPrecioId={props.listaPrecioId ?? 'lp-9'}
         moneda={props.moneda ?? 'USD'}
         esInterno={estado.esInterno}
+        historicos={props.historicos}
         onCerrar={onCerrar}
         onAgregar={onAgregar}
       />
@@ -181,7 +189,14 @@ describe('elegir productos del catálogo desde el documento', () => {
     await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
     fireEvent.change(screen.getByLabelText('Cantidad de CP.CP9911'), { target: { value: '3' } })
     fireEvent.click(screen.getAllByRole('button', { name: '+ Agregar' })[0]!)
-    expect(onAgregar).toHaveBeenCalledWith(expect.objectContaining({ sku: 'CP.CP9911' }), 3)
+    // Tercer argumento desde la Fase 40: el precio con el que entra la línea.
+    // Sin histórico de este cliente, el de la tarifa, que es lo que ya hacía.
+    expect(onAgregar).toHaveBeenCalledWith(
+      expect.objectContaining({ sku: 'CP.CP9911' }),
+      3,
+      // El precio de la tarifa del producto de prueba, sin histórico de cliente.
+      { precio: 46.03, deHistorico: false },
+    )
     expect(onCerrar).not.toHaveBeenCalled()
     // Se dice cuál se agregó: con veinte filas en pantalla hace falta.
     expect(await screen.findByRole('button', { name: 'Sumar más' })).toBeInTheDocument()
@@ -191,7 +206,46 @@ describe('elegir productos del catálogo desde el documento', () => {
     const { onAgregar } = montar()
     await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
     fireEvent.click(screen.getAllByRole('button', { name: '+ Agregar' })[0]!)
-    expect(onAgregar).toHaveBeenCalledWith(expect.objectContaining({ sku: 'CP.CP9911' }), 1)
+    expect(onAgregar).toHaveBeenCalledWith(
+      expect.objectContaining({ sku: 'CP.CP9911' }),
+      1,
+      { precio: 46.03, deHistorico: false },
+    )
+  })
+
+  /*
+   * Lo que pidió el negocio: si a ESTE cliente ya se le vendió ESTE producto,
+   * la línea entra con ese precio y no con el de la tarifa. El caso real que
+   * lo motivó fue 49,40 y después 22,20 al mismo cliente en USD.
+   */
+  it('con histórico del cliente, la línea entra con ese precio y no con el de la tarifa', async () => {
+    const historicos = new Map([
+      [
+        'p1',
+        {
+          productId: 'p1',
+          sku: 'CP.CP9911',
+          nombre: 'BALANCEADOR DE 0.4 A 1 KG',
+          moneda: 'USD',
+          ultimoPrecio: 22.2,
+          ultimaFecha: '2026-05-19',
+          ultimoDocumento: 'PDV01233',
+          ultimoDocumentoId: 'd1',
+          ultimoTipo: 'pedido' as const,
+          precioAnterior: 49.4,
+          veces: 2,
+        },
+      ],
+    ])
+    const { onAgregar } = montar({ historicos })
+    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    // Se ve antes de agregar: el histórico, y abajo la tarifa tachada.
+    expect(screen.getByTitle(/Último precio de este cliente/)).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: '+ Agregar' })[0]!)
+    expect(onAgregar).toHaveBeenCalledWith(expect.objectContaining({ sku: 'CP.CP9911' }), 1, {
+      precio: 22.2,
+      deHistorico: true,
+    })
   })
 
   // Con el merge de líneas, «2 líneas agregadas» sería mentira.

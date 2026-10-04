@@ -15,6 +15,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { BuscadorCliente } from '../components/BuscadorCliente'
 import { EditorCabecera } from '../components/EditorCabecera'
+import { useUltimoPrecio } from '../hooks/useUltimoPrecio'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
 import { usePrecargarCatalogoDeDocumento } from '../hooks/useCatalogoParaDocumento'
@@ -293,6 +294,14 @@ export function CotizacionNuevaPage() {
   const salida = useSalidaConCambios(sucio)
 
   const lineasVisibles = comoLineasDocumento(b)
+
+  /*
+   * El último precio de este cliente, una sola consulta para toda la pantalla
+   * (Fase 40). La comparten el editor de líneas —que avisa en naranja cuando
+   * el precio no es el de la última vez— y el modal del catálogo, que entra
+   * la línea con ese precio en vez del de la tarifa.
+   */
+  const { historicos } = useUltimoPrecio(b.cabecera.customerId || null, b.cabecera.moneda)
   // Para la vista previa: el documento se imprime con NOMBRES, no con ids.
   const nombreDelCliente = clienteElegido.data?.nombre ?? '(cliente sin elegir)'
   const nombreDelContacto =
@@ -593,6 +602,7 @@ export function CotizacionNuevaPage() {
           lineas={lineasVisibles}
           moneda={b.cabecera.moneda}
           editable
+          historicos={historicos}
           onCambiar={cambiarLinea}
           onEliminar={(clave) => setB((x) => quitarLinea(x, clave))}
           onMover={(clave, d) => setB((x) => moverLinea(x, clave, d))}
@@ -668,16 +678,18 @@ export function CotizacionNuevaPage() {
           listaPrecioId={b.cabecera.listaPrecioId || null}
           moneda={b.cabecera.moneda || null}
           esInterno={activa?.esInterno ?? false}
+          historicos={historicos}
           onCerrar={() => setCatalogoAbierto(false)}
-          onAgregar={(p, cantidad) =>
+          onAgregar={(p, cantidad, precio) =>
             nueva({
               productId: p.id,
               sku: p.sku,
               nombre: p.nombre,
               cantidad,
-              // La tarifa del documento SUGIERE el precio; sin precio en
-              // esa tarifa la línea entra en cero y se ve.
-              precioUnitario: p.precio ?? 0,
+              // El precio lo decide el modal: si este cliente ya compró este
+              // producto, el que se le cobró; si no, la tarifa del documento.
+              // Sin ninguno de los dos, la línea entra en cero y se ve.
+              precioUnitario: precio.precio,
             })
           }
         />

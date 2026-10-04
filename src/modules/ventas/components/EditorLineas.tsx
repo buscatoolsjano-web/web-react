@@ -1,9 +1,14 @@
 import { IconButton } from '@/components/ui/IconButton'
+import type { UltimoPrecio } from '@/modules/clientes/types'
 import { TRATAMIENTOS } from '../lib/tratamientos'
 import { formatearImporte } from '../lib/formato'
 import { netoDeLinea } from '../lib/totales'
+import { avisoDePrecio } from '../lib/ultimoPrecio'
 import type { LineaDocumento } from '../types'
 import styles from './EditorLineas.module.css'
+
+/** Una sola instancia: un `new Map()` por render rompería las memos. */
+const SIN_HISTORICO: Map<string, UltimoPrecio> = new Map()
 
 export type CampoLinea =
   | 'sku_snapshot'
@@ -22,6 +27,16 @@ export interface EditorLineasProps {
   editable: boolean
   /** Cómo se nombra el documento en el rótulo para lectores de pantalla. */
   documento?: 'de la cotización' | 'del pedido' | undefined
+  /**
+   * El último precio de este cliente por producto (Fase 40).
+   *
+   * Llega como PROP y no de una consulta acá adentro. Lo intenté al revés
+   * —con `useUltimoPrecio` dentro del componente— y estaba mal por dos
+   * razones: este componente no lee ni escribe en la base, es una ficha que
+   * dibuja lo que le dan, y la página ya tiene que pedir el histórico igual
+   * para el modal del catálogo. Así se pide una sola vez por pantalla.
+   */
+  historicos?: Map<string, UltimoPrecio> | undefined
   onCambiar: (lineaId: string, campo: CampoLinea, valor: string | number | null) => void
   onEliminar: (lineaId: string) => void
   onMover: (lineaId: string, direccion: -1 | 1) => void
@@ -62,6 +77,7 @@ export function EditorLineas({
   moneda,
   editable,
   documento = 'de la cotización',
+  historicos = SIN_HISTORICO,
   onCambiar,
   onEliminar,
   onMover,
@@ -124,6 +140,30 @@ export function EditorLineas({
                     aria-label="Precio unitario"
                     onChange={(e) => onCambiar(l.id, 'unit_price', aNumero(e.target.value))}
                   />
+                  {/*
+                    El último precio de este cliente por este producto. En
+                    naranja cuando el de la línea no coincide —y entonces dice
+                    cuál era, de qué documento y de cuándo—, y en gris cuando
+                    sí, para que se entienda de dónde salió el número que
+                    apareció solo. `role="status"` y no `alert`: es información
+                    al lado del campo, no un error que interrumpa.
+                  */}
+                  {(() => {
+                    const aviso = l.productId
+                      ? avisoDePrecio(historicos.get(l.productId), l.precioUnitario ?? 0)
+                      : null
+                    if (!aviso) return null
+                    return (
+                      <p
+                        role="status"
+                        className={
+                          aviso.tono === 'historico' ? styles.avisoHistorico : styles.avisoIgual
+                        }
+                      >
+                        {aviso.texto}
+                      </p>
+                    )
+                  })()}
                 </Campo>
                 <Campo etiqueta="Dto. %">
                   <input

@@ -16,6 +16,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { BuscadorCliente } from '../components/BuscadorCliente'
 import { EditorCabecera } from '../components/EditorCabecera'
+import { useUltimoPrecio } from '../hooks/useUltimoPrecio'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
 import { usePrecargarCatalogoDeDocumento } from '../hooks/useCatalogoParaDocumento'
@@ -241,6 +242,10 @@ export function PedidoNuevoPage() {
   const salida = useSalidaConCambios(sucio)
 
   const lineasVisibles = comoLineasDocumento(b)
+
+  /* El último precio de este cliente, una sola consulta para la pantalla
+     entera: la comparten el editor de líneas y el modal del catálogo. */
+  const { historicos } = useUltimoPrecio(b.cabecera.customerId || null, b.cabecera.moneda)
   const falta = faltaParaCrear(b)
 
   const SUGERIBLES: CampoCabecera[] = [
@@ -543,6 +548,7 @@ export function PedidoNuevoPage() {
           moneda={b.cabecera.moneda}
           editable
           documento="del pedido"
+          historicos={historicos}
           onCambiar={cambiarLinea}
           onEliminar={(clave) => setB((x) => quitarLinea(x, clave))}
           onMover={(clave, d) => setB((x) => moverLinea(x, clave, d))}
@@ -617,16 +623,18 @@ export function PedidoNuevoPage() {
           listaPrecioId={b.cabecera.listaPrecioId || null}
           moneda={b.cabecera.moneda || null}
           esInterno={activa?.esInterno ?? false}
+          historicos={historicos}
           onCerrar={() => setCatalogoAbierto(false)}
-          onAgregar={(p, cantidad) =>
+          onAgregar={(p, cantidad, precio) =>
             nueva({
               productId: p.id,
               sku: p.sku,
               nombre: p.nombre,
               cantidad,
-              // La tarifa del documento SUGIERE el precio; sin precio en
-              // esa tarifa la línea entra en cero y se ve.
-              precioUnitario: p.precio ?? 0,
+              // El precio lo decide el modal: si este cliente ya compró este
+              // producto, el que se le cobró; si no, la tarifa del documento.
+              // Sin ninguno de los dos, la línea entra en cero y se ve.
+              precioUnitario: precio.precio,
             })
           }
         />

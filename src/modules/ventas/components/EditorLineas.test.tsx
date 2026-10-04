@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { EditorLineas } from './EditorLineas'
+import type { UltimoPrecio } from '@/modules/clientes/types'
 import type { LineaDocumento } from '../types'
 
 const linea = (p: Partial<LineaDocumento> = {}): LineaDocumento => ({
@@ -21,7 +22,11 @@ const linea = (p: Partial<LineaDocumento> = {}): LineaDocumento => ({
   ...p,
 })
 
-function montar(lineas: LineaDocumento[], editable = true) {
+function montar(
+  lineas: LineaDocumento[],
+  editable = true,
+  historicos?: Map<string, UltimoPrecio>,
+) {
   const onCambiar = vi.fn()
   const onEliminar = vi.fn()
   const onMover = vi.fn()
@@ -30,6 +35,7 @@ function montar(lineas: LineaDocumento[], editable = true) {
       lineas={lineas}
       moneda="USD"
       editable={editable}
+      historicos={historicos}
       onCambiar={onCambiar}
       onEliminar={onEliminar}
       onMover={onMover}
@@ -37,6 +43,27 @@ function montar(lineas: LineaDocumento[], editable = true) {
   )
   return { onCambiar, onEliminar, onMover }
 }
+
+/** El caso real: al mismo cliente, 49,40 y después 22,20 en USD. */
+const HISTORICO = (precio = 22.2): Map<string, UltimoPrecio> =>
+  new Map([
+    [
+      'prod-1',
+      {
+        productId: 'prod-1',
+        sku: 'PRO05229',
+        nombre: 'Balanceador',
+        moneda: 'USD',
+        ultimoPrecio: precio,
+        ultimaFecha: '2026-05-19',
+        ultimoDocumento: 'PDV01233',
+        ultimoDocumentoId: 'd1',
+        ultimoTipo: 'pedido' as const,
+        precioAnterior: 49.4,
+        veces: 2,
+      },
+    ],
+  ])
 
 describe('<EditorLineas>', () => {
   it('guarda al salir del campo, y sólo si el valor cambió', () => {
@@ -102,5 +129,46 @@ describe('<EditorLineas>', () => {
   it('sin líneas lo dice en vez de mostrar una tabla vacía', () => {
     montar([])
     expect(screen.getByText('Todavía no hay líneas.')).toBeInTheDocument()
+  })
+})
+
+/*
+ * El último precio de este cliente por este producto (Fase 40).
+ *
+ * Lo pidió el negocio así: que el precio se complete solo y que, si alguien lo
+ * cambia, se vea en naranja cuál era. El aviso tiene que decir el MONTO
+ * ANTERIOR, no el que está escrito en la línea: sin el monto no sirve para
+ * decidir nada.
+ */
+describe('<EditorLineas> · último precio del cliente', () => {
+  it('cuando el precio no es el de la última vez, lo avisa con el monto', () => {
+    montar([linea({ productId: 'prod-1', precioUnitario: 49.4 })], true, HISTORICO())
+    const aviso = screen.getByText(/Último precio/)
+    expect(aviso.textContent).toMatch(/22[.,]20/)
+    expect(aviso.textContent).toContain('PDV01233')
+    expect(aviso.textContent).toContain('pedido')
+  })
+
+  it('cuando coincide, lo dice sin alarmar', () => {
+    montar([linea({ productId: 'prod-1', precioUnitario: 22.2 })], true, HISTORICO())
+    expect(screen.getByText(/Es el último precio/)).toBeInTheDocument()
+    expect(screen.queryByText(/Último precio:/)).toBeNull()
+  })
+
+  it('sin histórico no dice nada: no se inventa un aviso', () => {
+    montar([linea({ productId: 'prod-1', precioUnitario: 49.4 })])
+    expect(screen.queryByText(/ltimo precio/)).toBeNull()
+  })
+
+  it('una línea libre, sin producto, no se compara con nada', () => {
+    // El histórico es por producto; una línea escrita a mano no tiene con qué
+    // emparejarse, aunque el cliente tenga histórico de otras cosas.
+    montar([linea({ productId: null, precioUnitario: 49.4 })], true, HISTORICO())
+    expect(screen.queryByText(/ltimo precio/)).toBeNull()
+  })
+
+  it('un centavo de diferencia ya avisa', () => {
+    montar([linea({ productId: 'prod-1', precioUnitario: 22.21 })], true, HISTORICO())
+    expect(screen.getByText(/Último precio:/)).toBeInTheDocument()
   })
 })

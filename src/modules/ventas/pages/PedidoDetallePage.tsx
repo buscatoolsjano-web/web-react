@@ -26,6 +26,7 @@ import { CadenaDocumento } from '../components/CadenaDocumento'
 import { ChipEstado } from '../components/ChipEstado'
 import { InformacionDocumento } from '../components/InformacionDocumento'
 import { EditorCabecera } from '../components/EditorCabecera'
+import { useUltimoPrecio } from '../hooks/useUltimoPrecio'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalEntregaParcial } from '../components/ModalEntregaParcial'
 import { useCrearFacturaDesdePedido } from '../hooks/useFacturasVenta'
@@ -317,6 +318,20 @@ function Detalle() {
     setConflicto(false)
     setConfirmarSalida(false)
   }, [])
+
+  /*
+   * El último precio de este cliente, una sola consulta para la pantalla
+   * entera: la comparten el editor de líneas y el modal del catálogo.
+   *
+   * VA ACÁ ARRIBA, antes de los `return` de carga y error, porque es un hook:
+   * abajo quedaba después de tres salidas tempranas y React cambiaba el orden
+   * de los hooks entre renders. Por eso `doc?.` en vez de `doc.`: todavía
+   * puede no haber documento, y el hook sabe no consultar sin cliente.
+   */
+  const { historicos } = useUltimoPrecio(
+    borrador?.cabecera.customerId || doc?.clienteId || null,
+    borrador?.cabecera.moneda || doc?.moneda || null,
+  )
 
   if (isPending) {
     return (
@@ -686,6 +701,7 @@ function Detalle() {
                   moneda={borrador.cabecera.moneda}
                   editable
                   documento="del pedido"
+                  historicos={historicos}
                   onCambiar={cambiarLinea}
                   onEliminar={(clave) => setBorrador((b) => (b ? quitarLinea(b, clave) : b))}
                   onMover={(clave, d) => setBorrador((b) => (b ? moverLinea(b, clave, d) : b))}
@@ -807,16 +823,18 @@ function Detalle() {
           listaPrecioId={borrador?.cabecera.listaPrecioId || doc.listaPrecioId}
           moneda={borrador?.cabecera.moneda || doc.moneda}
           esInterno={activa?.esInterno ?? false}
+          historicos={historicos}
           onCerrar={() => setCatalogoAbierto(false)}
-          onAgregar={(p, cantidad) =>
+          onAgregar={(p, cantidad, precio) =>
             nueva({
               productId: p.id,
               sku: p.sku,
               nombre: p.nombre,
               cantidad,
-              // La tarifa del documento SUGIERE el precio; sin precio en
-              // esa tarifa la línea entra en cero y se ve.
-              precioUnitario: p.precio ?? 0,
+              // El precio lo decide el modal: si este cliente ya compró este
+              // producto, el que se le cobró; si no, la tarifa del documento.
+              // Sin ninguno de los dos, la línea entra en cero y se ve.
+              precioUnitario: precio.precio,
             })
           }
         />

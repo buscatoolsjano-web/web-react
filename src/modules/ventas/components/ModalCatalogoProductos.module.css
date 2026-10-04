@@ -114,3 +114,23 @@
 .nowrap {
   white-space: nowrap;
 }
+
+/*
+ * El precio histórico de este cliente, en la columna de precio (Fase 40).
+ *
+ * En naranja porque es el que va a entrar en la línea y no es el de la tarifa:
+ * quien elige tiene que notar que ahí pasa algo distinto. Abajo, más chico, el
+ * de la tarifa, para poder comparar sin abrir nada.
+ */
+.precioHistorico {
+  display: block;
+  color: var(--color-warning-text);
+  font-weight: var(--weight-semibold);
+}
+
+.precioTarifa {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+  text-decoration: line-through;
+}

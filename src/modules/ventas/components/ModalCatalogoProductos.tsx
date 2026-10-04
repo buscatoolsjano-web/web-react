@@ -14,7 +14,9 @@ import {
   type OrdenCatalogo,
   type ProductoListado,
 } from '@/modules/catalogo/types'
+import type { UltimoPrecio } from '@/modules/clientes/types'
 import { formatearImporte } from '../lib/formato'
+import { mismoPrecio, precioParaLineaNueva } from '../lib/ultimoPrecio'
 import {
   FILTROS_MODAL,
   POR_PAGINA,
@@ -29,10 +31,36 @@ export interface ModalCatalogoProductosProps {
   moneda: string | null
   /** Sólo un rol interno ve stock; RLS decide qué llega. */
   esInterno: boolean
+  /**
+   * El último precio de este cliente por producto (Fase 40).
+   *
+   * Lo pide la página, una vez, y lo comparte con el editor de líneas: el
+   * histórico es por cliente, no por página del catálogo, así que recorrer el
+   * catálogo no cuesta ninguna consulta.
+   */
+  historicos?: Map<string, UltimoPrecio> | undefined
   onCerrar: () => void
-  /** Se llama una vez por producto agregado, con la cantidad elegida. */
-  onAgregar: (p: ProductoListado, cantidad: number) => void
+  /**
+   * Se llama una vez por producto agregado, con la cantidad elegida y con el
+   * PRECIO QUE CORRESPONDE.
+   *
+   * El precio es un tercer argumento y no `p.precio` porque ya no sale de un
+   * solo lado: si este cliente ya compró este producto, manda el precio que se
+   * le cobró; si no, la tarifa del documento. La decisión se toma acá, una vez,
+   * en vez de repetirla en las cuatro pantallas que agregan líneas.
+   */
+  onAgregar: (p: ProductoListado, cantidad: number, precio: PrecioPropuesto) => void
 }
+
+/** El precio con el que entra la línea, y de dónde salió. */
+export interface PrecioPropuesto {
+  precio: number
+  /** `true`: vino del histórico del cliente, no de la tarifa. */
+  deHistorico: boolean
+}
+
+/** Una sola instancia: un `new Map()` por render rompería las memos. */
+const SIN_HISTORICO: Map<string, UltimoPrecio> = new Map()
 
 /* Los filtros de arranque viven en el hook, junto a la precarga: si cada uno
    armara los suyos, un campo distinto bastaría para que la clave no coincidiera
@@ -67,6 +95,7 @@ export function ModalCatalogoProductos({
   listaPrecioId,
   moneda,
   esInterno,
+  historicos = SIN_HISTORICO,
   onCerrar,
   onAgregar,
 }: ModalCatalogoProductosProps) {
@@ -96,6 +125,7 @@ export function ModalCatalogoProductos({
   // Catálogo: salen de las facetas y no de un mapa escrito a mano.
   const dinamicas = columnasDinamicas(filtros.categoria, facetas.data?.atributos ?? [], total)
 
+
   /**
    * Un click en el encabezado ordena por esa columna; otro, al revés. No hay
    * tercer click que saque el orden, igual que el sistema anterior.
@@ -121,7 +151,7 @@ export function ModalCatalogoProductos({
   }
 
   const agregar = (p: ProductoListado) => {
-    onAgregar(p, cantidadDe(p.id))
+    onAgregar(p, cantidadDe(p.id), precioParaLineaNueva(historicos.get(p.id), p.precio))
     // La confirmación es del producto, no un cartel global: con veinte filas
     // en pantalla hay que saber cuál se agregó.
     setAgregados((a) => (a.includes(p.id) ? a : [...a, p.id]))
@@ -251,13 +281,40 @@ export function ModalCatalogoProductos({
                     </>
                   ) : null}
                   <td className={styles.num}>
-                    {p.precio === null ? (
-                      <span className={styles.sinPrecio} title="Sin precio en la tarifa del documento">
-                        —
-                      </span>
-                    ) : (
-                      formatearImporte(p.precio, moneda)
-                    )}
+                    {/*
+                      Si este cliente ya compró este producto, se muestra ESE
+                      precio, que es el que va a entrar en la línea. Mostrar el
+                      de la tarifa y después cargar otro sería la peor de las
+                      dos opciones. El de la tarifa queda abajo, tachado, para
+                      que se vea la diferencia antes de agregar.
+                    */}
+                    {(() => {
+                      const h = historicos.get(p.id)
+                      if (h && h.ultimoPrecio !== null) {
+                        return (
+                          <>
+                            <span
+                              className={styles.precioHistorico}
+                              title={`Último precio de este cliente · ${h.ultimoTipo === 'pedido' ? 'pedido' : 'cotización'} ${h.ultimoDocumento ?? ''}`}
+                            >
+                              {formatearImporte(h.ultimoPrecio, moneda)}
+                            </span>
+                            {p.precio !== null && !mismoPrecio(p.precio, h.ultimoPrecio) ? (
+                              <span className={styles.precioTarifa}>
+                                tarifa {formatearImporte(p.precio, moneda)}
+                              </span>
+                            ) : null}
+                          </>
+                        )
+                      }
+                      return p.precio === null ? (
+                        <span className={styles.sinPrecio} title="Sin precio en la tarifa del documento">
+                          —
+                        </span>
+                      ) : (
+                        formatearImporte(p.precio, moneda)
+                      )
+                    })()}
                   </td>
                   <td className={styles.num}>
                     <Input
