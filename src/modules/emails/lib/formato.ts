@@ -53,6 +53,21 @@ export function sePuedeVer(mime: string): boolean {
 }
 
 /**
+ * ¿Este adjunto puede ser una orden de compra? (Fase 40)
+ *
+ * Es sólo el tipo: PDF, que es lo único que sabe leer el importador —usa
+ * `unpdf` para sacarle el texto—. No pretende adivinar si ADEMÁS es una OC:
+ * eso lo decide la IA al leerlo, y la persona confirmando el documento antes.
+ * Ofrecer el botón en un .xlsx sería ofrecer un error.
+ *
+ * El `mime` puede venir con parámetros («application/pdf; charset=binary»),
+ * así que se compara el tipo y no la cadena completa.
+ */
+export function puedeSerOrdenDeCompra(mime: string): boolean {
+  return mime.split(';')[0]!.trim().toLowerCase() === 'application/pdf'
+}
+
+/**
  * Los adjuntos que se listan: los que alguien mandó. Las imágenes inline son
  * parte del cuerpo y ya se ven ahí.
  */

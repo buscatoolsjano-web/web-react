@@ -4,6 +4,7 @@ import { dependeDelTrabajo, escribirFiltros, hayFiltrosActivos, leerFiltros } fr
 import { ErrorContenido, clasificarRespuesta, mensajeDeError } from './errores'
 import {
   adjuntosVisibles,
+  puedeSerOrdenDeCompra,
   fechaBandeja,
   presentarSugerencias,
   resumenParticipantes,
@@ -146,6 +147,26 @@ describe('formato', () => {
       { partId: '2', nombre: 'factura.pdf', mime: 'application/pdf', tamano: 1, contentId: null, inline: false },
     ]
     expect(adjuntosVisibles(a).map((x) => x.nombre)).toEqual(['factura.pdf'])
+  })
+
+  /*
+   * Fase 40: qué adjunto se ofrece mandar al importador de OC. Es sólo el
+   * tipo —PDF, lo único que el importador sabe leer—; si ADEMÁS es una orden
+   * lo decide la IA al leerla y la persona confirmando el documento.
+   */
+  it('sólo un PDF se ofrece como orden de compra', () => {
+    expect(puedeSerOrdenDeCompra('application/pdf')).toBe(true)
+    // Gmail manda el mime con parámetros a veces.
+    expect(puedeSerOrdenDeCompra('application/pdf; charset=binary')).toBe(true)
+    expect(puedeSerOrdenDeCompra('APPLICATION/PDF')).toBe(true)
+    expect(puedeSerOrdenDeCompra(' application/pdf ')).toBe(true)
+  })
+
+  it('una planilla o una imagen no se ofrecen: seria ofrecer un error', () => {
+    expect(puedeSerOrdenDeCompra('application/vnd.ms-excel')).toBe(false)
+    expect(puedeSerOrdenDeCompra('image/png')).toBe(false)
+    expect(puedeSerOrdenDeCompra('application/octet-stream')).toBe(false)
+    expect(puedeSerOrdenDeCompra('')).toBe(false)
   })
 
   it('los participantes excluyen el propio buzón', () => {

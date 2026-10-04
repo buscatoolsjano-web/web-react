@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '@/components/layout/PageHeader'
 import doc from '@/components/document/Document.module.css'
 import { Alert } from '@/components/feedback/Alert'
@@ -29,10 +29,24 @@ import { useRealtimeEmails } from '../hooks/useRealtimeEmails'
 import { esMensajeNuestro } from '../lib/destinatarios'
 import { ErrorContenido, mensajeDeError } from '../lib/errores'
 import { puedeUsarEmails } from '../lib/permisos'
+import { escribeVentas } from '@/modules/ventas/lib/permisos'
+import { traerAdjunto } from '../services/contenido'
 import { listarBorradores } from '../services/redactar'
 import type { OpcionesComposer } from '../hooks/useComposer'
-import type { ModoRedaccion } from '../types'
+import type { AdjuntoContenido, ModoRedaccion } from '../types'
 import styles from '../components/Emails.module.css'
+
+/**
+ * El importador de OC, cargado sólo cuando se usa.
+ *
+ * `lazy` y no un import normal por lo mismo que en el listado de Ventas: es un
+ * modal grande que la mayoría de los hilos no abre nunca, y además importarlo
+ * de forma estática levanta el cliente de Supabase al cargar el módulo, lo que
+ * rompe la suite aislada —la que corre sin `.env`—.
+ */
+const ModalImportarOc = lazy(() =>
+  import('@/modules/ventas/components/ModalImportarOc').then((m) => ({ default: m.ModalImportarOc })),
+)
 
 /**
  * Un hilo.
@@ -48,6 +62,7 @@ export function EmailHiloPage() {
 }
 
 function Hilo() {
+  const empresa = useEmpresa()
   const { threadId } = useParams()
   const location = useLocation()
   const desde = (location.state as { desde?: string } | null)?.desde ?? ''
@@ -79,6 +94,42 @@ function Hilo() {
     setApertura({ borrador: null, envio: null })
     cambiarUrl({ componer: null, mensaje: null, borrador: null, envio: null })
   }, [cambiarUrl])
+
+  /*
+   * ── Importar un adjunto como orden de compra (Fase 40) ─────────────────
+   *
+   * El insumo del importador YA ESTABA LLEGANDO POR ACÁ: los clientes mandan
+   * las OC como PDF adjunto. El importador existía y nunca se había usado con
+   * una orden real, porque el camino era bajar el PDF, ir a Ventas, abrir
+   * «Importar OC» y volver a elegirlo.
+   *
+   * Importar escribe una cotización, así que el botón sólo existe para quien
+   * puede escribir en Ventas. Sin esto, un vendedor veria un botón que la base
+   * rechaza —el mismo error que la Fase 13 vino a sacar de las otras pantallas—.
+   */
+  const puedeImportar = escribeVentas(empresa.activa?.rol)
+  const [ocParaImportar, setOcParaImportar] = useState<{ archivo: File; origen: string } | null>(null)
+
+  const traerParaOc = useMutation({
+    mutationFn: async ({ adjunto, mensajeId }: { adjunto: AdjuntoContenido; mensajeId: string }) => {
+      const blob = await traerAdjunto(hilo!.accountId, hilo!.gmailThreadId, mensajeId, adjunto.partId)
+      /*
+       * `File` y no `Blob`: el importador manda un `FormData` y la función de
+       * edge valida `archivo instanceof File` y además mira el nombre. Un
+       * Blob suelto llega sin nombre y se rechaza.
+       *
+       * El `type` se fuerza a PDF porque Gmail a veces devuelve
+       * `application/octet-stream` para un PDF perfectamente válido, y la
+       * función igual comprueba la firma de los bytes antes de leerlo.
+       */
+      return new File([blob], adjunto.nombre, { type: 'application/pdf' })
+    },
+    onSuccess: (archivo, { adjunto }) =>
+      setOcParaImportar({
+        archivo,
+        origen: `Adjunto de «${hilo?.asunto ?? 'este correo'}» · ${adjunto.nombre}`,
+      }),
+  })
 
   const propia = (cuentas.data ?? []).find((c) => c.id === hilo?.accountId)?.direccion ?? ''
 
@@ -212,6 +263,34 @@ function Hilo() {
         </aside>
 
         <section className={styles.mensajes} aria-label="Mensajes" aria-busy={contenido.isFetching}>
+          {/*
+            Si los bytes del adjunto no llegan, se dice ACÁ y no en el modal:
+            el modal todavía no se abrió, y un modal vacío con un error adentro
+            no explica qué pasó. Los errores del importador en sí son suyos.
+          */}
+          {traerParaOc.error ? (
+            <Alert tone="danger" role="alert" title="No se pudo traer el adjunto">
+              <p>
+                {traerParaOc.error instanceof ErrorContenido
+                  ? mensajeDeError(traerParaOc.error.codigo)
+                  : traerParaOc.error.message}
+              </p>
+            </Alert>
+          ) : null}
+
+          {ocParaImportar ? (
+            <Suspense fallback={null}>
+              <ModalImportarOc
+                archivoInicial={ocParaImportar.archivo}
+                origen={ocParaImportar.origen}
+                onCerrar={() => {
+                  setOcParaImportar(null)
+                  traerParaOc.reset()
+                }}
+              />
+            </Suspense>
+          ) : null}
+
           {contenido.isPending && !errorContenido ? (
             // El contenido viene de Gmail al abrir y puede tardar (arranque en frío
             // del servicio): se dice qué se está esperando, no sólo un spinner.
@@ -237,6 +316,12 @@ function Hilo() {
                 hilo={hilo}
                 mensaje={m}
                 nuestro={esMensajeNuestro(m.de, nuestras)}
+                onImportarOc={
+                  puedeImportar
+                    ? (adjunto, mensajeId) => traerParaOc.mutate({ adjunto, mensajeId })
+                    : undefined
+                }
+                importandoOc={traerParaOc.isPending ? traerParaOc.variables?.adjunto.partId : null}
                 // Con pocos mensajes se ven todos; con muchos, sólo el último.
                 abiertoInicial={mensajes.length <= 3 || i === mensajes.length - 1}
                 onAccion={(modo, id) => {

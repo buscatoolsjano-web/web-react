@@ -42,6 +42,18 @@ const MONEDAS = ['ARS', 'USD', 'EUR', 'BRL']
 const MB = 1024 * 1024
 
 export interface ModalImportarOcProps {
+  /**
+   * Un PDF que ya viene elegido, para abrir el importador desde otro lado
+   * (Fase 40: el adjunto de un correo).
+   *
+   * NO dispara la lectura. El paso de «¿Es este el PDF correcto?» existe a
+   * propósito —mirar el documento antes de gastar una llamada al modelo— y
+   * llegar con el archivo puesto no es razón para saltearlo: desde un correo
+   * es MÁS fácil equivocarse de adjunto, no menos.
+   */
+  archivoInicial?: File | undefined
+  /** De dónde vino el archivo, para decirlo en pantalla. */
+  origen?: string | undefined
   onCerrar: () => void
 }
 
@@ -59,7 +71,7 @@ export interface ModalImportarOcProps {
  * La regla de fondo: **la IA propone y la persona confirma**. Nada se escribe
  * hasta el último botón.
  */
-export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
+export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImportarOcProps) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
   const navegar = useNavigate()
@@ -173,6 +185,26 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
       if (solo) await elegirCliente(solo.customerId, oc, solo.metodo)
     },
   })
+
+  /*
+   * El archivo que llega de afuera se adopta UNA vez, al abrir (Fase 40).
+   *
+   * Tiene que ir DESPUÉS de `leer`, no arriba con el resto del estado:
+   * `elegirArchivo` llama a `leer.reset()`, y desde un efecto declarado antes
+   * eso es leer una variable que todavía no existe. Los manejadores de evento
+   * se salvaban por tiempo —corren después del render— pero un efecto no.
+   *
+   * Con `ref` y no con una dependencia: si el padre vuelve a renderizar y pasa
+   * otro `File`, esto NO tiene que arrancar de nuevo y pisar lo que la persona
+   * estaba revisando. Y si lo quitó con «Cambiar archivo», tampoco vuelve solo.
+   */
+  const adoptado = useRef(false)
+  useEffect(() => {
+    if (adoptado.current || !archivoInicial) return
+    adoptado.current = true
+    elegirArchivo(archivoInicial)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [archivoInicial])
 
   /**
    * Elegido el cliente, se emparejan las líneas y se buscan cotizaciones.
@@ -405,6 +437,9 @@ export function ModalImportarOc({ onCerrar }: ModalImportarOcProps) {
             <aside className={styles.costado}>
               <p className={styles.nombreArchivo}>{archivo.name}</p>
               <p className={styles.peso}>{(archivo.size / MB).toFixed(2)} MB</p>
+              {/* De dónde vino, cuando no lo eligió a mano: desde un correo
+                  hay varios adjuntos y conviene ver cuál se agarró. */}
+              {origen ? <p className={styles.peso}>{origen}</p> : null}
               <h3 className={styles.pregunta}>¿Es este el PDF correcto?</h3>
               <p className={styles.zonaAyuda}>La IA va a leer el documento y sacar los ítems.</p>
               {errorLeer ? (
