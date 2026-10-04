@@ -24,6 +24,7 @@ interface Estado {
   atencion: Consulta
   cuentas: unknown[]
   bandeja: Consulta
+  porPersona: Consulta
   ultimos: { documentos: unknown[]; cargando: boolean; error: Error | null; parcial: boolean }
   porEntregar: { total: number; filas: unknown[] }
   documentos: { sent: { total: number; filas: unknown[] }; draft: { total: number; filas: unknown[] } }
@@ -36,6 +37,14 @@ const estado = vi.hoisted<Estado>(() => ({
   atencion: { isPending: false, error: null, data: null },
   cuentas: [{ id: 'a1' }],
   bandeja: { isPending: false, error: null, data: { total: 3, totalSinLeer: 2, filas: [] } },
+  porPersona: {
+    isPending: false,
+    error: null,
+    data: [
+      { userId: 'u-nor', nombre: 'Norberto', rol: 'employee', correos: 4, cotizaciones: 0, pedidos: 0 },
+      { userId: null, nombre: 'Sin asignar', rol: '', correos: 717, cotizaciones: 143, pedidos: 28 },
+    ],
+  },
   ultimos: { documentos: [], cargando: false, error: null, parcial: false },
   porEntregar: { total: 28, filas: [] },
   documentos: { sent: { total: 2, filas: [] }, draft: { total: 1, filas: [] } },
@@ -56,6 +65,7 @@ vi.mock('@/modules/informes/hooks/useActividad', () => ({
 vi.mock('@/modules/dashboard/hooks/useDashboard', () => ({
   useAtencion: () => ({ ...estado.atencion, isFetching: false, refetch }),
   useUltimosDocumentos: () => ({ ...estado.ultimos, reintentar }),
+  usePendientePorPersona: () => ({ ...estado.porPersona, refetch }),
 }))
 vi.mock('@/modules/emails/hooks/useEmails', () => ({
   useCuentas: () => ({ data: estado.cuentas, isPending: false }),
@@ -240,17 +250,28 @@ describe('B · Situación del mes', () => {
 describe('C · Atención hoy', () => {
   it('los números accionables, cada uno con su link filtrado', () => {
     montar()
-    expect(screen.getByText('154')).toBeInTheDocument()
+    // Acotado a la sección: desde la Fase 40, «Pendiente por persona» también
+    // muestra un 28 —los pedidos sin entregar, sin vendedor asignado— y un
+    // `getByText('28')` global encontraba los dos.
+    const seccion = screen.getByRole('heading', { name: 'Atención hoy' }).closest('section')!
+    expect(within(seccion).getByText('154')).toBeInTheDocument()
     // 28 sale del estado de cumplimiento del servidor —el mismo que filtra la
     // lista de destino—, no de lo entregado línea por línea.
-    expect(screen.getByText('28')).toBeInTheDocument()
-    expect(screen.getByText('219')).toBeInTheDocument()
+    expect(within(seccion).getByText('28')).toBeInTheDocument()
+    expect(within(seccion).getByText('219')).toBeInTheDocument()
     // El link lleva al MISMO número que muestra la tarjeta. El listado ya sabe
     // decir «abierta» —incluidas las 11 aceptadas sin pedido confirmado—, así
     // que no hay que recortar el KPI para que entre en lo que sabía filtrar.
     expect(screen.getByRole('link', { name: /Ver las 154 abiertas/ })).toHaveAttribute('href', '/ventas/cotizaciones?abierta=1')
     expect(screen.getByRole('link', { name: /Ver pedidos pendientes/ })).toHaveAttribute('href', '/ventas/pedidos?pendiente=1')
-    expect(screen.getByRole('link', { name: /Ver la bandeja/ })).toHaveAttribute('href', '/emails?estado=pendiente')
+    /*
+     * `sinresponder=1`, no `estado=pendiente` (Fase 40). El viejo contaba 1515
+     * sobre 1516 hilos porque `pendiente` es el valor por omisión y nadie lo
+     * tocó nunca: incluía lo que mandamos nosotros, los borradores y lo
+     * archivado. El link tiene que llevar a la MISMA consulta que da el
+     * número, o la tarjeta vuelve a decir una cosa y la lista otra.
+     */
+    expect(screen.getByRole('link', { name: /Ver la bandeja/ })).toHaveAttribute('href', '/emails?sinresponder=1')
   })
 
   it('los no verificables se dicen aparte, no se suman al problema', () => {
@@ -279,7 +300,14 @@ describe('C · Atención hoy', () => {
   it('sin cuenta de correo, la tarjeta de Emails no existe', () => {
     estado.cuentas = []
     montar()
-    expect(screen.queryByText('Emails pendientes')).toBeNull()
+    expect(screen.queryByText('Emails sin responder')).toBeNull()
+  })
+
+  // Al revés que la de arriba: CON cuenta, la tarjeta está. Si no se comprueba
+  // esto, renombrar la tarjeta deja a la prueba negativa pasando por vacío.
+  it('con cuenta de correo, la tarjeta de Emails está', () => {
+    montar()
+    expect(screen.getByText('Emails sin responder')).toBeInTheDocument()
   })
 
   it('sin nada pendiente, lo dice en vez de mostrar cuatro ceros', () => {
@@ -314,7 +342,9 @@ describe('D · La evolución', () => {
   it('«Ver los números» abre la tabla con mes, importe y documentos', () => {
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Ver los números' }))
-    const tabla = screen.getByRole('table')
+    // Por nombre y no `getByRole('table')` a secas: desde la Fase 40 el panel
+    // tiene además la tabla de «Pendiente por persona».
+    const tabla = screen.getByRole('table', { name: /por mes en/ })
     expect(within(tabla).getByText('Septiembre 2026')).toBeInTheDocument()
     expect(within(tabla).getByText('USD 90.518,55')).toBeInTheDocument()
     expect(within(tabla).getByRole('columnheader', { name: 'Documentos' })).toBeInTheDocument()
@@ -392,5 +422,58 @@ describe('Por rol', () => {
     montar()
     expect(screen.getByText('STEL numera cotizaciones, pedidos y notas de entrega')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ver numeración' })).toHaveAttribute('href', '/configuracion/numeracion')
+  })
+})
+
+/*
+ * Pendiente por persona (Fase 40).
+ *
+ * Lo que importa probar no es que la tabla se dibuje, sino las dos decisiones
+ * que se tomaron: que «Sin asignar» se vea como una fila más —hoy es la más
+ * grande, con 717 correos que nadie tomó— y que el correo lleve al filtro de
+ * la bandeja, porque un número que no se puede abrir no sirve para repartir.
+ */
+describe('F · Pendiente por persona', () => {
+  it('muestra una fila por persona y la de «Sin asignar»', () => {
+    montar()
+    expect(screen.getByRole('heading', { name: 'Pendiente por persona' })).toBeInTheDocument()
+    expect(screen.getByRole('rowheader', { name: /Norberto/ })).toBeInTheDocument()
+    expect(screen.getByRole('rowheader', { name: /Sin asignar/ })).toBeInTheDocument()
+    expect(screen.getByText('717')).toBeInTheDocument()
+  })
+
+  it('el correo de cada fila lleva a la bandeja ya filtrada', () => {
+    montar()
+    expect(screen.getByRole('link', { name: /4 correos sin responder de Norberto/ })).toHaveAttribute(
+      'href',
+      '/emails?sinresponder=1&asignado=u-nor',
+    )
+    // Para la fila sin asignar, el filtro es `asignado=nadie`, que es el que
+    // la bandeja ya entendía antes de esta fase.
+    expect(screen.getByRole('link', { name: /717 correos sin responder de Sin asignar/ })).toHaveAttribute(
+      'href',
+      '/emails?sinresponder=1&asignado=nadie',
+    )
+  })
+
+  it('sin nada pendiente de nadie, lo dice en vez de una tabla de ceros', () => {
+    estado.porPersona = {
+      isPending: false,
+      error: null,
+      data: [{ userId: 'u-nor', nombre: 'Norberto', rol: 'employee', correos: 0, cotizaciones: 0, pedidos: 0 }],
+    }
+    montar()
+    expect(screen.getByText(/Nadie tiene trabajo pendiente/)).toBeInTheDocument()
+  })
+
+  /*
+   * La RPC sólo contesta a admin y employee. Si contesta un error, el panel
+   * lo dice y ofrece reintentar en vez de mostrar una tabla vacía, que se
+   * leería como «no hay nada pendiente».
+   */
+  it('si no se puede leer, lo dice y ofrece reintentar', () => {
+    estado.porPersona = { isPending: false, error: new Error('Tu rol no puede'), data: null }
+    montar()
+    expect(screen.getByText(/No se pudo leer el pendiente por persona/)).toBeInTheDocument()
   })
 })

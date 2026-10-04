@@ -36,14 +36,24 @@ export type FiltroAsignado = string
 export type FiltroCliente = 'con' | 'sin'
 
 /**
- * Las carpetas de la bandeja (Fase 28 · E2).
+ * Las carpetas de la bandeja (Fase 28 · E2, rehechas en la Fase 40).
  *
  * `recibidos` y `enviados` son las etiquetas de Gmail (INBOX / SENT), no la
- * dirección del último mensaje: es lo que dice el buzón. Como un hilo puede no
- * estar en ninguna de las dos —archivado en Gmail, o con etiqueta propia—,
- * `todos` sigue siendo la carpeta por defecto y no esconde nada.
+ * dirección del último mensaje: es lo que dice el buzón.
+ *
+ * YA NO HAY «TODOS», y `recibidos` es la que abre. «Todos» mezclaba el correo
+ * que entró con el que mandamos nosotros, y de ahí salía el «1515 pendientes»
+ * que no significaba nada.
+ *
+ * `archivados` existe por una razón concreta: 274 hilos no están ni en INBOX
+ * ni en SENT porque alguien los archivó en Gmail, y antes sólo se los veía
+ * desde «Todos». Sin esta carpeta se volvían invisibles. Separar bien las
+ * bandejas no puede costar perder correo.
+ *
+ * Los BORRADORES no son una carpeta de acá: tienen su propia pantalla, en
+ * /emails/borradores. Eran 311 de los 1516 hilos y la RPC ya no los devuelve.
  */
-export const CARPETAS_BANDEJA = ['todos', 'recibidos', 'enviados', 'eliminados'] as const
+export const CARPETAS_BANDEJA = ['recibidos', 'enviados', 'archivados', 'eliminados'] as const
 export type CarpetaBandeja = (typeof CARPETAS_BANDEJA)[number]
 
 export interface FiltrosEmails {
@@ -54,6 +64,16 @@ export interface FiltrosEmails {
   asignado: FiltroAsignado | null
   cliente: FiltroCliente | null
   soloConAdjuntos: boolean
+  /**
+   * Los hilos donde el último que habló fue el otro y nadie los dio por
+   * resueltos: los que esperan una respuesta nuestra (Fase 40).
+   *
+   * Es UN concepto, aunque en la base viaje como dos flags
+   * (`p_sin_responder` + `p_excluir_resueltos`). «Último mensaje entrante»
+   * sin «no resuelto» volvería a contar lo que alguien ya atendió, y es
+   * justamente el error que teníamos.
+   */
+  soloSinResponder: boolean
   /** Sólo tiene sentido con más de una cuenta. */
   cuenta: string | null
   /** Carpeta, no filtro: «Limpiar filtros» no te saca de Enviados. */
@@ -71,8 +91,9 @@ export const FILTROS_INICIALES: FiltrosEmails = {
   asignado: null,
   cliente: null,
   soloConAdjuntos: false,
+  soloSinResponder: false,
   cuenta: null,
-  carpeta: 'todos',
+  carpeta: 'recibidos',
   etiqueta: null,
   pagina: 1,
   porPagina: 25,

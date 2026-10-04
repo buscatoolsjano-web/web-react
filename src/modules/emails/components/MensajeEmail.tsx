@@ -10,6 +10,8 @@ import styles from './Emails.module.css'
 export interface MensajeEmailProps {
   hilo: HiloIndice
   mensaje: MensajeContenido
+  /** Lo mandamos nosotros: se marca para poder leer la cadena de un golpe. */
+  nuestro?: boolean
   abiertoInicial: boolean
   /** Responder, responder a todos y reenviar ESTE mensaje. */
   onAccion?: (modo: 'responder' | 'responder_todos' | 'reenviar', mensajeId: string) => void
@@ -19,13 +21,20 @@ export interface MensajeEmailProps {
  * Un mensaje del hilo. Plegado sólo en la cabecera: el cuerpo no se dibuja
  * hasta abrirlo (y `CuerpoSeguro` sigue siendo el único que lo pinta).
  */
-export function MensajeEmail({ hilo, mensaje, abiertoInicial, onAccion }: MensajeEmailProps) {
+export function MensajeEmail({ hilo, mensaje, nuestro = false, abiertoInicial, onAccion }: MensajeEmailProps) {
   const [abierto, setAbierto] = useState(abiertoInicial)
   const id = useId()
   const cantidadAdjuntos = mensaje.adjuntos.filter((a) => !a.inline).length
 
   return (
-    <article className={styles.mensaje} aria-label={`Mensaje de ${mensaje.de || 'remitente desconocido'}`}>
+    <article
+      className={nuestro ? `${styles.mensaje} ${styles.mensajeNuestro}` : styles.mensaje}
+      aria-label={
+        nuestro
+          ? `Mensaje que enviamos, de ${mensaje.de || 'remitente desconocido'}`
+          : `Mensaje de ${mensaje.de || 'remitente desconocido'}`
+      }
+    >
       <button
         type="button"
         className={styles.mensajeCabecera}
@@ -34,7 +43,10 @@ export function MensajeEmail({ hilo, mensaje, abiertoInicial, onAccion }: Mensaj
         onClick={() => setAbierto((v) => !v)}
       >
         <Icon name="chevron-down" size={16} className={abierto ? styles.flechaAbierta : styles.flecha} />
-        <span className={styles.mensajeDe}>{mensaje.de || '(sin remitente)'}</span>
+        <span className={styles.mensajeDe}>
+          {nuestro ? <span className={styles.enviadoPor}>Enviado</span> : null}
+          {mensaje.de || '(sin remitente)'}
+        </span>
         <span className={styles.mensajeFecha}>
           {cantidadAdjuntos > 0 ? (
             <span className={styles.clip}>

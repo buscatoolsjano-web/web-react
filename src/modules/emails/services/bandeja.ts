@@ -74,8 +74,15 @@ export async function listarBandeja(companyId: string, f: FiltrosEmails): Promis
     p_asignado: f.asignado,
     p_cliente: f.cliente,
     p_adjuntos: f.soloConAdjuntos,
-    // `todos` viaja como null: es el valor por defecto de la RPC.
-    p_carpeta: f.carpeta === 'todos' ? null : f.carpeta,
+    p_carpeta: f.carpeta,
+    /*
+     * «Sin responder» es un concepto y dos flags. El último mensaje tiene que
+     * haber ENTRADO (`p_sin_responder`) y nadie tiene que haberlo dado por
+     * resuelto (`p_excluir_resueltos`). Con el primero solo, un hilo que
+     * alguien ya atendió seguiría apareciendo como si esperara.
+     */
+    p_sin_responder: f.soloSinResponder,
+    p_excluir_resueltos: f.soloSinResponder,
     p_etiqueta: f.etiqueta,
     p_limite: f.porPagina,
     p_offset: (f.pagina - 1) * f.porPagina,

@@ -3,6 +3,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { listarDocumentos } from '@/modules/ventas/services/documentos'
 import { FILTROS_INICIALES as FILTROS_VENTAS, type TipoDocumento } from '@/modules/ventas/types'
 import { documentosEnAtencion } from '../services/atencion'
+import { pendientePorPersona } from '../services/pendientePorPersona'
 import { ultimosDocumentos } from '../lib/documentos'
 
 /**
@@ -25,6 +26,25 @@ export function useAtencion() {
     enabled: companyId !== null,
     staleTime: 5 * UN_MINUTO,
     refetchOnWindowFocus: false,
+  })
+}
+
+/**
+ * Lo pendiente de cada persona (Fase 40).
+ *
+ * `retry: false` a propósito: el error esperable acá es de PERMISO —la RPC
+ * sólo contesta a admin y employee—, y reintentar tres veces un 403 sólo
+ * demora el panel. El componente decide qué hacer con el error.
+ */
+export function usePendientePorPersona() {
+  const companyId = useEmpresa().activa?.companyId ?? null
+  return useQuery({
+    queryKey: ['dashboard', companyId, 'pendiente-por-persona'],
+    queryFn: () => pendientePorPersona(companyId!),
+    enabled: companyId !== null,
+    staleTime: 5 * UN_MINUTO,
+    refetchOnWindowFocus: false,
+    retry: false,
   })
 }
 

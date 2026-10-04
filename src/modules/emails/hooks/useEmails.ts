@@ -24,6 +24,7 @@ import {
   vincularCliente,
 } from '../services/bandeja'
 import { traerHilo } from '../services/contenido'
+import { FILTROS_INICIALES } from '../types'
 import type {
   ClaseSugerencia,
   ColorEtiqueta,
@@ -78,7 +79,7 @@ export function useFiltrosEmails() {
   const limpiar = useCallback(() => {
     const p = new URLSearchParams()
     const { carpeta } = leerFiltros(params)
-    if (carpeta !== 'todos') p.set('carpeta', carpeta)
+    if (carpeta !== FILTROS_INICIALES.carpeta) p.set('carpeta', carpeta)
     setParams(p, { replace: true })
   }, [params, setParams])
 

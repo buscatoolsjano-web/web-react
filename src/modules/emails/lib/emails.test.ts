@@ -50,13 +50,30 @@ describe('filtros en la URL', () => {
     expect(leerFiltros(new URLSearchParams('asignado=nadie')).asignado).toBe('nadie')
   })
 
-  it('la carpeta viaja en la URL y lo inventado cae en «Todos»', () => {
+  it('la carpeta viaja en la URL y lo inventado cae en Recibidos', () => {
     expect(leerFiltros(new URLSearchParams('carpeta=enviados')).carpeta).toBe('enviados')
+    expect(leerFiltros(new URLSearchParams('carpeta=archivados')).carpeta).toBe('archivados')
     expect(leerFiltros(new URLSearchParams('carpeta=eliminados')).carpeta).toBe('eliminados')
-    expect(leerFiltros(new URLSearchParams('carpeta=spam')).carpeta).toBe('todos')
-    expect(escribirFiltros({ ...FILTROS_INICIALES, carpeta: 'recibidos' }).get('carpeta')).toBe('recibidos')
-    // «Todos» es el valor por defecto: no ensucia la URL.
+    expect(leerFiltros(new URLSearchParams('carpeta=spam')).carpeta).toBe('recibidos')
+    expect(escribirFiltros({ ...FILTROS_INICIALES, carpeta: 'enviados' }).get('carpeta')).toBe('enviados')
+    // Recibidos es el valor por defecto: no ensucia la URL.
     expect(escribirFiltros(FILTROS_INICIALES).has('carpeta')).toBe(false)
+  })
+
+  /*
+   * «Todos» era la carpeta por defecto hasta la Fase 40. Un favorito o un link
+   * pegado en un chat con `carpeta=todos` no tiene que dar error: aterriza en
+   * Recibidos, que es la que abre.
+   */
+  it('un link viejo con carpeta=todos aterriza en Recibidos', () => {
+    expect(leerFiltros(new URLSearchParams('carpeta=todos')).carpeta).toBe('recibidos')
+  })
+
+  it('«sin responder» viaja en la URL y cuenta como filtro', () => {
+    expect(leerFiltros(new URLSearchParams('sinresponder=1')).soloSinResponder).toBe(true)
+    expect(leerFiltros(new URLSearchParams('')).soloSinResponder).toBe(false)
+    expect(escribirFiltros({ ...FILTROS_INICIALES, soloSinResponder: true }).get('sinresponder')).toBe('1')
+    expect(hayFiltrosActivos({ ...FILTROS_INICIALES, soloSinResponder: true })).toBe(true)
   })
 
   // La carpeta es dónde estás parado, no un recorte: si contara como filtro,

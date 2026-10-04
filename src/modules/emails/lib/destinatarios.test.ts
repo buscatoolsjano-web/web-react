@@ -3,6 +3,7 @@ import {
   ASUNTO,
   destinatariosIniciales,
   direccionValida,
+  esMensajeNuestro,
   extraerDirecciones,
   partirEntrada,
   sinDuplicados,
@@ -84,5 +85,37 @@ describe('asuntos y adjuntos', () => {
 
   it('suma tamaños', () => {
     expect(totalAdjuntos([{ tamano: 10 }, { tamano: 5 }])).toBe(15)
+  })
+})
+
+describe('esMensajeNuestro', () => {
+  const nuestras = new Set(['info@buscatools.com.ar'])
+
+  it('reconoce nuestra respuesta aunque el hilo haya entrado por otro buzón', () => {
+    // El caso real: el hilo de Mirgor llegó a buscatools@gmail.com (un alias
+    // que reenvía) y la respuesta salió desde la cuenta conectada.
+    expect(
+      esMensajeNuestro('Buscatools Global Assembly Solutions <info@buscatools.com.ar>', nuestras),
+    ).toBe(true)
+  })
+
+  it('el mensaje del cliente no es nuestro', () => {
+    expect(esMensajeNuestro('"Somma, Tomas" <Tomas.Somma@mirgor.com.ar>', nuestras)).toBe(false)
+  })
+
+  it('no le importan las mayúsculas', () => {
+    expect(esMensajeNuestro('<INFO@Buscatools.Com.Ar>', nuestras)).toBe(true)
+  })
+
+  it('ante la duda no es nuestro', () => {
+    expect(esMensajeNuestro('', nuestras)).toBe(false)
+    expect(esMensajeNuestro('(sin remitente)', nuestras)).toBe(false)
+    // Sin cuentas conectadas no se marca nada: marcar de más confunde más.
+    expect(esMensajeNuestro('<info@buscatools.com.ar>', new Set())).toBe(false)
+  })
+
+  it('un dominio parecido no alcanza', () => {
+    expect(esMensajeNuestro('<info@buscatools.com>', nuestras)).toBe(false)
+    expect(esMensajeNuestro('<otro@buscatools.com.ar>', nuestras)).toBe(false)
   })
 })

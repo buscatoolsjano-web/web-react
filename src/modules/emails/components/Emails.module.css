@@ -386,6 +386,38 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * Nuestros propios mensajes dentro de la cadena (Fase 40).
+ *
+ * El borde de la izquierda es todo el efecto: en un hilo de ida y vuelta
+ * alcanza para ver de un vistazo qué dijo el cliente y qué contestamos
+ * nosotros, sin leer direcciones. Deliberadamente NO se cambia el fondo: el
+ * cuerpo del correo trae su propio HTML y un fondo de color acá hace que
+ * algunos mensajes queden ilegibles.
+ */
+.mensajeNuestro {
+  border-left: 3px solid var(--color-primary);
+}
+
+/*
+ * Y para quien no distinga el color, la palabra.
+ *
+ * `--color-primary-text` y `--color-primary-soft`, no `--color-primary`: son
+ * los dos que el sistema redefine en modo oscuro y el par que tiene el
+ * contraste medido (5.04 sobre el fondo soft).
+ */
+.enviadoPor {
+  display: inline-block;
+  margin-right: var(--space-2);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  vertical-align: 1px;
+}
+
 .mensajeFecha {
   display: inline-flex;
   align-items: center;

@@ -34,24 +34,26 @@ import styles from '../components/Emails.module.css'
 const HILO = { singular: 'hilo', plural: 'hilos' }
 
 /**
- * Las carpetas (Fase 28 · E2).
+ * Las carpetas (Fase 28 · E2, rehechas en la Fase 40).
  *
- * «Todos» va primero y es la que se abre: Recibidos y Enviados son las
- * etiquetas de Gmail, y hay hilos que no están en ninguna de las dos
- * —archivados, o con etiqueta propia—. Si las carpetas fueran sólo esas dos,
- * ese correo no se vería desde ningún lado.
+ * RECIBIDOS ABRE LA PANTALLA, y «Todos» ya no existe. Mezclar lo que entró con
+ * lo que mandamos era el origen del «1515 pendientes»: de 1516 hilos, 250 los
+ * habíamos mandado nosotros y 311 eran borradores.
+ *
+ * «Archivados» no es un cajón de sastre: son los 274 hilos que alguien archivó
+ * en Gmail y que, sin esta pestaña, no se podrían ver desde ninguna parte.
  */
 const CARPETAS: readonly TabItem<CarpetaBandeja>[] = [
-  { key: 'todos', label: 'Todos' },
   { key: 'recibidos', label: 'Recibidos' },
   { key: 'enviados', label: 'Enviados' },
+  { key: 'archivados', label: 'Archivados' },
   { key: 'eliminados', label: 'Eliminados' },
 ]
 
 const VACIA: Record<CarpetaBandeja, string> = {
-  todos: 'La bandeja está vacía',
   recibidos: 'No hay correo recibido',
   enviados: 'Todavía no enviaste ninguno',
+  archivados: 'No hay correo archivado',
   eliminados: 'No eliminaste ningún hilo',
 }
 

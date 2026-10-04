@@ -12,14 +12,37 @@ import { FILTROS_INICIALES as FILTROS_VENTAS } from '@/modules/ventas/types'
 import type { DocTypeVentas } from '@/modules/ventas/lib/autoridad'
 import { cotizacionesAbiertas, textoAutoridadStel } from '../lib/inicio'
 import { avisoDeMesParcial, etiquetaDeTramo, mesLargo } from '../lib/panel'
-import { useAtencion, useUltimosDocumentos } from '../hooks/useDashboard'
+import { useAtencion, usePendientePorPersona, useUltimosDocumentos } from '../hooks/useDashboard'
 import { AtencionHoy, type TarjetaAtencion } from './AtencionHoy'
+import { PendientePorPersona } from './PendientePorPersona'
 import { EvolucionComercial } from './EvolucionComercial'
 import { KpiComercial } from './KpiComercial'
 import { UltimosDocumentos } from './UltimosDocumentos'
 import styles from './Panel.module.css'
 
-const EMAILS_PENDIENTES = { ...FILTROS_EMAILS, estado: 'pendiente' as const, porPagina: 1 }
+/**
+ * Los correos que esperan una respuesta nuestra (Fase 40).
+ *
+ * ANTES ESTA TARJETA MENTÍA, y mentía fuerte: decía 1515 sobre 1516 hilos que
+ * existían. Pedía `estado: 'pendiente'` sobre la carpeta «Todos», y
+ * `workflow_status` sólo existe si alguien lo tocó —lo tocó 6 veces en la
+ * vida—, así que el `coalesce(..., 'pendiente')` de la RPC marcaba como
+ * pendiente absolutamente todo: lo que mandamos nosotros, los 311 borradores
+ * y el correo archivado de hace dos años.
+ *
+ * Ahora son tres condiciones, y las tres hacen falta: está en RECIBIDOS, el
+ * último que habló fue el otro, y nadie lo dio por resuelto. Da 718, y cada
+ * uno de esos 718 es un correo que alguien nos mandó y nadie contestó.
+ *
+ * Los mismos filtros que `destino`: el número de acá y la lista a la que
+ * lleva el link son la misma consulta, no dos definiciones parecidas.
+ */
+const EMAILS_SIN_RESPONDER = {
+  ...FILTROS_EMAILS,
+  carpeta: 'recibidos' as const,
+  soloSinResponder: true,
+  porPagina: 1,
+}
 
 /**
  * Los pedidos por entregar salen del MISMO listado al que lleva la tarjeta.
@@ -57,7 +80,8 @@ export function VistaOperativa() {
   const pipeline = usePipeline(null)
   const atencion = useAtencion()
   const cuentas = useCuentas()
-  const bandeja = useBandeja(EMAILS_PENDIENTES)
+  const bandeja = useBandeja(EMAILS_SIN_RESPONDER)
+  const porPersona = usePendientePorPersona()
   const autoridad = useAutoridadNumeracion()
   const ultimos = useUltimosDocumentos(8)
   const porEntregar = useDocumentos('pedido', PEDIDOS_PENDIENTES)
@@ -116,10 +140,10 @@ export function VistaOperativa() {
           {
             clave: 'emails',
             icono: 'mail' as const,
-            titulo: 'Emails pendientes',
+            titulo: 'Emails sin responder',
             valor: bandeja.data?.total ?? null,
             detalle: bandeja.data && bandeja.data.totalSinLeer > 0 ? `${bandeja.data.totalSinLeer} sin leer.` : null,
-            destino: '/emails?estado=pendiente',
+            destino: '/emails?sinresponder=1',
             etiquetaDestino: 'Ver la bandeja',
             cargando: bandeja.isPending,
             error: !!bandeja.error,
@@ -195,6 +219,18 @@ export function VistaOperativa() {
 
       {/* C */}
       <AtencionHoy tarjetas={tarjetas} atencion={atencion.data} />
+
+      {/*
+        Debajo de «Atención hoy» y no arriba: primero QUÉ hay pendiente, después
+        DE QUIÉN. El orden importa porque el segundo panel sólo tiene sentido
+        cuando ya se vio el primero.
+      */}
+      <PendientePorPersona
+        filas={porPersona.data}
+        cargando={porPersona.isPending}
+        error={!!porPersona.error}
+        onReintentar={() => void porPersona.refetch()}
+      />
 
       {/* D */}
       <EvolucionComercial

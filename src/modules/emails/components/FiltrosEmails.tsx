@@ -47,6 +47,7 @@ export function FiltrosEmails({ filtros, hayFiltros, cuentas, asignables, etique
     (filtros.cliente ? 1 : 0) +
     (filtros.etiqueta ? 1 : 0) +
     (filtros.soloNoLeidos ? 1 : 0) +
+    (filtros.soloSinResponder ? 1 : 0) +
     (filtros.soloConAdjuntos ? 1 : 0)
 
   return (
@@ -129,6 +130,17 @@ export function FiltrosEmails({ filtros, hayFiltros, cuentas, asignables, etique
       </Field>
 
       <Checkbox label="Sólo sin leer" checked={filtros.soloNoLeidos} onChange={(e) => onAplicar({ soloNoLeidos: e.target.checked })} />
+      {/*
+        «Sin responder» no es lo mismo que «sin leer»: un hilo se puede haber
+        leído y seguir esperando una respuesta. Es el filtro que usa la tarjeta
+        de «Sin responder» del inicio, así que el número de allá y la lista de
+        acá son la misma consulta.
+      */}
+      <Checkbox
+        label="Sin responder"
+        checked={filtros.soloSinResponder}
+        onChange={(e) => onAplicar({ soloSinResponder: e.target.checked })}
+      />
       <Checkbox label="Con adjuntos" checked={filtros.soloConAdjuntos} onChange={(e) => onAplicar({ soloConAdjuntos: e.target.checked })} />
     </FilterBar>
   )

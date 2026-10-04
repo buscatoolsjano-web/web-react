@@ -398,3 +398,65 @@
     grid-column: 2;
   }
 }
+
+/*
+ * Pendiente por persona (Fase 40).
+ *
+ * Una tabla y no tarjetas: son cuatro números por fila y lo que se hace con
+ * ellos es COMPARAR entre personas. En tarjetas, comparar obliga a saltar de
+ * una a otra; en columnas alineadas se lee de un golpe quién está tapado.
+ */
+.tablaPendiente {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.tablaPendiente th,
+.tablaPendiente td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.tablaPendiente thead th {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.tablaPendiente .numCol {
+  width: 7rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.persona {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+/* El rol en chico al lado del nombre: dos personas pueden llamarse igual. */
+.rol {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular, 400);
+  color: var(--color-text-soft);
+}
+
+/* Un cero no es una noticia: se apaga para que resalten los que sí son trabajo. */
+.cero {
+  color: var(--color-text-muted);
+}
+
+/*
+ * La fila «Sin asignar». Va al final y se despega del resto porque no es una
+ * persona: es el trabajo que nadie tomó, y es la fila que hay que vaciar.
+ */
+.filaSinAsignar th,
+.filaSinAsignar td {
+  border-top: 2px solid var(--color-border-strong, var(--color-border));
+  background: var(--color-surface-alt);
+}

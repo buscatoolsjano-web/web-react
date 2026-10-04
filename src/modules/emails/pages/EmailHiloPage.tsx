@@ -26,6 +26,7 @@ import {
 } from '../hooks/useEmails'
 import { useParamsUrl } from '../hooks/useParamsUrl'
 import { useRealtimeEmails } from '../hooks/useRealtimeEmails'
+import { esMensajeNuestro } from '../lib/destinatarios'
 import { ErrorContenido, mensajeDeError } from '../lib/errores'
 import { puedeUsarEmails } from '../lib/permisos'
 import { listarBorradores } from '../services/redactar'
@@ -80,6 +81,16 @@ function Hilo() {
   }, [cambiarUrl])
 
   const propia = (cuentas.data ?? []).find((c) => c.id === hilo?.accountId)?.direccion ?? ''
+
+  /*
+   * Todas las direcciones de la empresa, para distinguir en la cadena lo
+   * nuestro de lo del cliente. Son TODAS las cuentas, no sólo la del hilo:
+   * ver `esMensajeNuestro`.
+   */
+  const nuestras = useMemo(
+    () => new Set((cuentas.data ?? []).map((c) => c.direccion.toLowerCase())),
+    [cuentas.data],
+  )
   const mensajesDisponibles = contenido.data?.hilo.mensajes
   const refMensaje = useMemo(
     () => (mensajesDisponibles ?? []).find((m) => m.id === mensajeRef) ?? mensajesDisponibles?.at(-1) ?? null,
@@ -225,6 +236,7 @@ function Hilo() {
                 key={m.id}
                 hilo={hilo}
                 mensaje={m}
+                nuestro={esMensajeNuestro(m.de, nuestras)}
                 // Con pocos mensajes se ven todos; con muchos, sólo el último.
                 abiertoInicial={mensajes.length <= 3 || i === mensajes.length - 1}
                 onAccion={(modo, id) => {

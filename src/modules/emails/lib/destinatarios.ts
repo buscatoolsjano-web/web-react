@@ -39,6 +39,28 @@ export function extraerDirecciones(cabecera: string): string[] {
   return salida
 }
 
+/**
+ * ¿Este mensaje lo mandamos nosotros? (Fase 40)
+ *
+ * Sirve para leer una cadena de un golpe: en un hilo de ida y vuelta, saber
+ * qué dijo el cliente y qué dijimos nosotros no debería obligar a leer
+ * direcciones una por una.
+ *
+ * Se compara contra las cuentas CONECTADAS de la empresa, no contra el buzón
+ * por el que entró el hilo. Son cosas distintas: en el hilo de Mirgor los
+ * mensajes llegaron a `buscatools@gmail.com` —un alias que reenvía— y la
+ * respuesta salió desde `info@buscatools.com.ar`, que es la cuenta de verdad.
+ * Comparando contra el buzón del hilo, nuestra propia respuesta figuraba como
+ * ajena.
+ *
+ * Una cabecera sin dirección reconocible devuelve `false`: ante la duda, no es
+ * nuestro. Marcar como propio un mensaje ajeno confunde más que no marcar nada.
+ */
+export function esMensajeNuestro(de: string, nuestras: ReadonlySet<string>): boolean {
+  if (nuestras.size === 0) return false
+  return extraerDirecciones(de).some((d) => nuestras.has(d))
+}
+
 /** Parte un texto pegado o tipeado en direcciones: comas, punto y coma, espacios, saltos. */
 export function partirEntrada(texto: string): { validas: string[]; invalidas: string[] } {
   const validas: string[] = []

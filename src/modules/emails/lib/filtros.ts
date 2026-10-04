@@ -25,9 +25,14 @@ function estado(v: string | null): EstadoTrabajo | null {
   return (ESTADOS_TRABAJO as readonly string[]).includes(v ?? '') ? (v as EstadoTrabajo) : null
 }
 
-/** Una carpeta inventada en la URL cae en «Todos», que no esconde nada. */
+/**
+ * Una carpeta inventada en la URL cae en Recibidos, que es la que abre.
+ *
+ * Incluye `carpeta=todos`, que era la de antes: un link viejo o un favorito
+ * guardado no da error, aterriza en Recibidos.
+ */
 function carpeta(v: string | null): CarpetaBandeja {
-  return (CARPETAS_BANDEJA as readonly string[]).includes(v ?? '') ? (v as CarpetaBandeja) : 'todos'
+  return (CARPETAS_BANDEJA as readonly string[]).includes(v ?? '') ? (v as CarpetaBandeja) : 'recibidos'
 }
 
 export function leerFiltros(p: URLSearchParams): FiltrosEmails {
@@ -45,6 +50,7 @@ export function leerFiltros(p: URLSearchParams): FiltrosEmails {
       asignado === 'yo' || asignado === 'nadie' || (asignado && UUID.test(asignado)) ? asignado : null,
     cliente: cliente === 'con' || cliente === 'sin' ? cliente : null,
     soloConAdjuntos: p.get('adjuntos') === '1',
+    soloSinResponder: p.get('sinresponder') === '1',
     cuenta: cuenta && UUID.test(cuenta) ? cuenta : null,
     carpeta: carpeta(p.get('carpeta')),
     // Una etiqueta inventada se ignora: no llega al servidor.
@@ -64,8 +70,9 @@ export function escribirFiltros(f: FiltrosEmails): URLSearchParams {
   if (f.asignado) p.set('asignado', f.asignado)
   if (f.cliente) p.set('cliente', f.cliente)
   if (f.soloConAdjuntos) p.set('adjuntos', '1')
+  if (f.soloSinResponder) p.set('sinresponder', '1')
   if (f.cuenta) p.set('cuenta', f.cuenta)
-  if (f.carpeta !== 'todos') p.set('carpeta', f.carpeta)
+  if (f.carpeta !== FILTROS_INICIALES.carpeta) p.set('carpeta', f.carpeta)
   if (f.etiqueta) p.set('etiqueta', f.etiqueta)
   if (f.pagina > 1) p.set('page', String(f.pagina))
   if (f.porPagina !== FILTROS_INICIALES.porPagina) p.set('per', String(f.porPagina))
@@ -84,6 +91,7 @@ export function hayFiltrosActivos(f: FiltrosEmails): boolean {
     f.asignado !== null ||
     f.cliente !== null ||
     f.soloConAdjuntos ||
+    f.soloSinResponder ||
     f.etiqueta !== null ||
     f.cuenta !== null
   )
@@ -94,5 +102,13 @@ export function hayFiltrosActivos(f: FiltrosEmails): boolean {
  * Si sí, no alcanza con parchear la fila: hay que volver a pedir la página.
  */
 export function dependeDelTrabajo(f: FiltrosEmails): boolean {
-  return f.estado !== null || f.asignado !== null || f.cliente !== null || f.q.trim() !== ''
+  // `soloSinResponder` cuenta: marcar un hilo resuelto lo saca de esta vista,
+  // y parchear la fila dejaría a la vista mostrando lo que ya no corresponde.
+  return (
+    f.estado !== null ||
+    f.asignado !== null ||
+    f.cliente !== null ||
+    f.soloSinResponder ||
+    f.q.trim() !== ''
+  )
 }
