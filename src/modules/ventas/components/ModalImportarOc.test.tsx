@@ -39,6 +39,9 @@ const emparejadas: LineaEmparejada[] = [
   { ...leida.lineas[2]!, productId: null, sku: null, nombre: null, metodo: 'sin_match', confianza: 0 },
 ]
 
+/** Lo que la pantalla le manda a `importarOc`, para poder mirarlo. */
+const enviado = vi.hoisted(() => [] as Record<string, unknown>[])
+
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({ activa: { companyId: 'c1', companyName: 'ZZ', rol: 'admin', esInterno: true, customerId: null } }),
@@ -51,12 +54,19 @@ vi.mock('../services/importarOc', () => ({
   emparejarLineas: () => Promise.resolve(emparejadas),
   cotizacionesPara: () => Promise.resolve([]),
   estadoDeLectura: () => Promise.resolve({ proveedor: 'openai', listo: true }),
-  importarOc: () => Promise.resolve({}),
+  importarOc: (p: Record<string, unknown>) => { enviado.push(p); return Promise.resolve({}) },
   lineasDeCotizacion: () => Promise.resolve([]),
 }))
 vi.mock('./BuscadorCliente', () => ({ BuscadorCliente: () => <div>buscador de cliente</div> }))
 vi.mock('./BuscadorProducto', () => ({
-  BuscadorProducto: () => <div>buscador de producto</div>,
+  BuscadorProducto: ({ onElegir }: { onElegir: (p: { id: string; sku: string; nombre: string }) => void }) => (
+    <div>
+      buscador de producto
+      <button type="button" onClick={() => onElegir({ id: 'p-elegido', sku: 'SP.ELEGIDO', nombre: 'El que elegi a mano' })}>
+        elegir este
+      </button>
+    </div>
+  ),
 }))
 
 const { ModalImportarOc } = await import('./ModalImportarOc')
@@ -96,7 +106,9 @@ describe('Revisar la OC · la tabla de productos', () => {
     // Sin código, la descripción del cliente ES la referencia: es lo único que
     // hay para buscarlo, y dejarlo en «—» obligaría a volver al PDF.
     expect(within(filas[3]!).getAllByRole('cell')[0]).toHaveTextContent('MAVE ALGO QUE NO ESTA')
-    expect(within(filas[3]!).getAllByRole('cell')[1]).toHaveTextContent(/sin machear/i)
+    // «Elegir producto» y no «Sin machear»: el texto dice QUÉ HACER con la
+    // línea, porque esa celda es el botón que abre el buscador.
+    expect(within(filas[3]!).getAllByRole('cell')[1]).toHaveTextContent(/elegir producto/i)
   })
 
   /**
@@ -108,14 +120,17 @@ describe('Revisar la OC · la tabla de productos', () => {
     await abrirLaRevision()
     const filas = within(screen.getByRole('table')).getAllByRole('row')
 
-    expect(within(filas[1]!).getByRole('button')).toHaveAccessibleName(/nuestra referencia/i)
-    expect(within(filas[2]!).getByRole('button')).toHaveAccessibleName(/se parece al nombre/i)
-    expect(within(filas[3]!).getByRole('button')).toHaveAccessibleName(/no se encontró/i)
+    // El de la MARCA es el segundo botón de la fila: el primero es la celda
+    // del producto, que desde ahora también abre el buscador.
+    const marca = (n: number) => within(filas[n]!).getAllByRole('button')[1]!
+    expect(marca(1)).toHaveAccessibleName(/nuestra referencia/i)
+    expect(marca(2)).toHaveAccessibleName(/se parece al nombre/i)
+    expect(marca(3)).toHaveAccessibleName(/no se encontró/i)
   })
 
   it('tocar la marca abre el buscador para elegir otro producto, y se cierra', async () => {
     await abrirLaRevision()
-    const marca = within(within(screen.getByRole('table')).getAllByRole('row')[3]!).getByRole('button')
+    const marca = within(within(screen.getByRole('table')).getAllByRole('row')[3]!).getAllByRole('button')[1]!
 
     expect(marca).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(marca)
@@ -124,5 +139,39 @@ describe('Revisar la OC · la tabla de productos', () => {
 
     fireEvent.click(marca)
     expect(screen.queryByText('buscador de producto')).not.toBeInTheDocument()
+  })
+})
+
+/*
+ * Elegir el producto a mano, que es lo que pasa con casi todas las OC nuevas:
+ * el catálogo del cliente no coincide con el nuestro hasta que alguien los
+ * empareja una primera vez.
+ *
+ * Lo que importa probar es que la línea viaje con `metodo: 'manual'`. No es un
+ * detalle cosmético: `app.recordar_alias_de_oc` FILTRA por ese campo y nunca
+ * aprende de un «parecido» —cementar una adivinanza es peor que no aprender—.
+ * Si la pantalla mandara otro método, el macheo funcionaría esta vez y la
+ * próxima OC del mismo cliente volvería a salir sin machear.
+ */
+describe('Revisar la OC · elegir el producto a mano', () => {
+  it('la línea queda con el producto elegido y método «manual»', async () => {
+    enviado.length = 0
+    await abrirLaRevision()
+
+    const sinMachear = within(screen.getByRole('table')).getAllByRole('row')[3]!
+    // La celda del producto abre el buscador: es la acción principal.
+    fireEvent.click(within(sinMachear).getAllByRole('button')[0]!)
+    fireEvent.click(await screen.findByRole('button', { name: 'elegir este' }))
+
+    // Ya no dice «Elegir producto»: ahora muestra el SKU que se eligió.
+    expect(within(sinMachear).getAllByRole('cell')[1]).toHaveTextContent('SP.ELEGIDO')
+
+    fireEvent.click(screen.getByRole('button', { name: /Importar la orden/i }))
+    await waitFor(() => expect(enviado).toHaveLength(1))
+
+    const lineas = enviado[0]!['lineas'] as { productId: string | null; metodo: string }[]
+    const elegida = lineas.find((l) => l.productId === 'p-elegido')
+    expect(elegida).toBeDefined()
+    expect(elegida!.metodo).toBe('manual')
   })
 })

@@ -224,13 +224,48 @@
   box-shadow: inset 3px 0 0 var(--color-warning, var(--color-primary));
 }
 
+/* «Elegir producto» tiene que leerse como una ACCIÓN y no como una ausencia:
+   es lo que hay que hacer con esa línea, no un dato que falta. */
 .nada {
   font-style: normal;
   font-family: var(--font-sans, inherit);
-  color: var(--color-text-muted);
+  color: var(--color-primary-text);
 }
 
-/* El tilde, el triángulo o la cruz. Es el estado Y el botón: tocarlo abre el
+/*
+ * La celda del producto ES el botón que abre el buscador.
+ *
+ * Antes la única forma de elegir a mano era el icono de la derecha, y para una
+ * línea sin machear ese icono es una CRUZ: se lee «borrar esta línea». La
+ * acción más importante de esta pantalla estaba escondida detrás del gesto que
+ * parecía destructivo, así que nadie la encontraba.
+ */
+.elegir {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.elegir:hover {
+  text-decoration: underline;
+}
+
+.elegir:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* El tilde, el triángulo o la lupa. Es el estado Y el botón: tocarlo abre el
    buscador para elegir otro producto. */
 .marca {
   display: grid;

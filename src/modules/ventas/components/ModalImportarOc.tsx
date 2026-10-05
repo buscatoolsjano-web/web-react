@@ -629,8 +629,40 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
                         <td className={styles.ref} title={l.descripcion ?? undefined}>
                           {l.codigo ?? l.descripcion ?? '—'}
                         </td>
-                        <td className={styles.ref} title={l.nombre ?? undefined}>
-                          {l.productId === null ? <em className={styles.nada}>Sin machear</em> : l.sku}
+                        {/*
+                          La celda ENTERA abre el buscador, no sólo el icono de
+                          la derecha.
+
+                          Antes la única forma de elegir a mano era tocar ese
+                          icono, y para una línea sin machear el icono es una
+                          CRUZ: se lee «borrar esta línea», no «elegir
+                          producto». Nadie lo iba a apretar. La acción más
+                          importante de esta pantalla estaba escondida detrás
+                          del gesto que parecía destructivo.
+
+                          Y cuando ya hay producto, el SKU también se puede
+                          tocar: cambiar un macheo equivocado es tan necesario
+                          como poner el que falta.
+                        */}
+                        <td className={styles.ref}>
+                          <button
+                            type="button"
+                            className={styles.elegir}
+                            aria-expanded={abierto}
+                            title={
+                              l.productId === null
+                                ? 'Elegir a mano el producto de Buscatools que corresponde'
+                                : `${l.nombre ?? l.sku ?? ''} · Tocá para cambiarlo`
+                            }
+                            aria-label={`Elegir el producto para «${l.codigo ?? l.descripcion ?? `línea ${l.n}`}»`}
+                            onClick={() => setEditando(abierto ? null : l.n)}
+                          >
+                            {l.productId === null ? (
+                              <span className={styles.nada}>Elegir producto</span>
+                            ) : (
+                              l.sku
+                            )}
+                          </button>
                         </td>
                         <td className={styles.colCant}>
                           {l.cantidad} × {l.precio === null ? '—' : formatearImporte(l.precio, moneda)}
@@ -647,8 +679,10 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
                             aria-label={`${EXPLICACION_LINEA[l.metodo]}. Elegir el producto para «${l.codigo ?? l.descripcion ?? `línea ${l.n}`}».`}
                             onClick={() => setEditando(abierto ? null : l.n)}
                           >
+                            {/* `search` y no `x` para el estado «sin»: la cruz
+                                decía «borrar», y lo que hace es buscar. */}
                             <Icon
-                              name={estado === 'ok' ? 'check' : estado === 'dudoso' ? 'alert-triangle' : 'x'}
+                              name={estado === 'ok' ? 'check' : estado === 'dudoso' ? 'alert-triangle' : 'search'}
                               size={16}
                             />
                           </button>
