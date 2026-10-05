@@ -413,3 +413,25 @@
   font-size: var(--text-sm);
   color: var(--color-text-soft);
 }
+
+/*
+ * El alta rápida de cliente, dentro del paso 1 (Fase 40).
+ *
+ * Encuadrada y separada del resto: es un formulario adentro de otro, y sin un
+ * borde propio los dos campos se leían como parte de la búsqueda de arriba.
+ */
+.altaCliente {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.altaAcciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/forms/Field'
 import { Input, Select } from '@/components/forms/controls'
 import { Icon } from '@/components/icons/Icon'
+import { crearCliente } from '@/modules/clientes/services/edicion'
+import { CLIENTE_VACIO, validarCliente } from '@/modules/clientes/lib/validacion'
 import { BuscadorCliente } from './BuscadorCliente'
 import { BuscadorProducto } from './BuscadorProducto'
 import { VistaCotizacionCandidata } from './VistaCotizacionCandidata'
@@ -37,6 +39,20 @@ import {
 } from '../services/importarOc'
 import { formatearImporte } from '../lib/formato'
 import styles from './ModalImportarOc.module.css'
+
+/**
+ * Los problemas de validación del alta rápida de cliente, como un error.
+ *
+ * Va como excepción y no como valor de retorno para que entre por el mismo
+ * `onError` que los fallos del servidor: la pantalla muestra una lista de
+ * problemas y no le importa si los detectó el navegador o la base.
+ */
+class ErroresDeAlta extends Error {
+  constructor(readonly problemas: string[]) {
+    super(problemas[0] ?? 'Datos invalidos')
+    this.name = 'ErroresDeAlta'
+  }
+}
 
 const MONEDAS = ['ARS', 'USD', 'EUR', 'BRL']
 const MB = 1024 * 1024
@@ -91,6 +107,17 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
    * `null`: ya sabe por qué.
    */
   const [porQue, setPorQue] = useState<MetodoCliente | null>(null)
+
+  /*
+   * El alta de cliente desde acá (Fase 40). Ver el bloque del paso 1.
+   *
+   * Se guarda el nombre y el CUIT aparte de `leida` porque son EDITABLES: lo
+   * que la IA sacó del PDF es la propuesta, no el dato definitivo.
+   */
+  const [creando, setCreando] = useState(false)
+  const [nuevoNombre, setNuevoNombre] = useState('')
+  const [nuevoCuit, setNuevoCuit] = useState('')
+  const [erroresAlta, setErroresAlta] = useState<string[]>([])
   const [candidatos, setCandidatos] = useState<CandidatoCliente[]>([])
   const [lineas, setLineas] = useState<LineaEmparejada[]>([])
   const [editando, setEditando] = useState<number | null>(null)
@@ -239,6 +266,43 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
     setCotis(await cotizacionesPara(companyId, id, finales))
     setQuoteId(null)
   }
+
+  /**
+   * Crear el cliente que la orden nombra y seguir con la importación.
+   *
+   * Nace con lo MÍNIMO —razón social y CUIT— y nada más. El resto (tarifa,
+   * condición de pago, vendedor, contactos) se carga en Clientes, que es la
+   * pantalla que sabe hacerlo bien. Pedir todo eso acá convertiría un atajo en
+   * un formulario largo en el medio de otra tarea, y quien está importando una
+   * OC no tiene a mano la condición de pago.
+   *
+   * Se valida con `validarCliente`, el MISMO validador del alta normal: si un
+   * CUIT de diez dígitos no se acepta allá, tampoco acá.
+   *
+   * Y al terminar se llama a `elegirCliente`, así el alta no es un desvío: el
+   * cliente queda elegido y las líneas se emparejan igual que si lo hubieras
+   * buscado. `metodo: 'manual'` porque lo decidió una persona.
+   */
+  const altaCliente = useMutation({
+    mutationFn: async () => {
+      const datos = { ...CLIENTE_VACIO, razonSocial: nuevoNombre, cuit: nuevoCuit }
+      const problemas = validarCliente(datos).map((e) => e.mensaje)
+      if (problemas.length > 0) throw new ErroresDeAlta(problemas)
+      return crearCliente(companyId!, { datos })
+    },
+    onSuccess: async ({ id }) => {
+      setErroresAlta([])
+      setCreando(false)
+      await elegirCliente(id, leida, 'creado')
+    },
+    onError: (e) => {
+      setErroresAlta(
+        e instanceof ErroresDeAlta
+          ? e.problemas
+          : [e instanceof Error ? e.message : 'No se pudo crear el cliente.'],
+      )
+    },
+  })
 
   /**
    * Linkear una línea a mano.
@@ -515,6 +579,77 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
               <Field label="Buscarlo a mano" optional>
                 <BuscadorCliente valor={null} editable onElegir={(id) => id && void elegirCliente(id)} />
               </Field>
+
+              {/*
+                Crear el cliente sin salir de acá (Fase 40).
+
+                Una OC puede llegar de alguien que todavía no existe en el ERP
+                —pasó con GMRA S.A.U., que no está ni en Buscatools ni en
+                STEL—. Hasta ahora había que cancelar, ir a Clientes, cargarlo,
+                volver y empezar la importación de nuevo, incluida la llamada
+                al modelo. Ahora se crea acá y la importación sigue.
+
+                LOS CAMPOS SE MUESTRAN Y SE PUEDEN CORREGIR. No es un botón de
+                «crear con lo que leyó»: un cliente queda para siempre y se
+                reusa en cada documento, y la IA lee de un PDF. Un nombre mal
+                leído que nadie miró es un cliente duplicado o mal escrito para
+                el resto de la vida del sistema.
+              */}
+              {creando ? (
+                <div className={styles.altaCliente}>
+                  <Field label="Razón social">
+                    <Input
+                      value={nuevoNombre}
+                      onChange={(e) => setNuevoNombre(e.target.value)}
+                      placeholder="Como figura en la orden"
+                      autoFocus
+                    />
+                  </Field>
+                  <Field label="CUIT" optional>
+                    <Input
+                      value={nuevoCuit}
+                      onChange={(e) => setNuevoCuit(e.target.value)}
+                      placeholder="11 dígitos"
+                      inputMode="numeric"
+                    />
+                  </Field>
+                  {erroresAlta.length > 0 ? (
+                    <Alert tone="danger" role="alert" title="Revisá estos datos">
+                      <ul>
+                        {erroresAlta.map((e) => (
+                          <li key={e}>{e}</li>
+                        ))}
+                      </ul>
+                    </Alert>
+                  ) : null}
+                  <div className={styles.altaAcciones}>
+                    <Button
+                      variant="primary"
+                      loading={altaCliente.isPending}
+                      disabled={nuevoNombre.trim() === '' || altaCliente.isPending}
+                      onClick={() => altaCliente.mutate()}
+                    >
+                      Crear y usar
+                    </Button>
+                    <Button variant="ghost" onClick={() => setCreando(false)} disabled={altaCliente.isPending}>
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  variant="secondary"
+                  icon={<Icon name="plus" size={16} />}
+                  onClick={() => {
+                    setErroresAlta([])
+                    setNuevoNombre(leida.cliente.nombre ?? '')
+                    setNuevoCuit(leida.cliente.cuit ?? '')
+                    setCreando(true)
+                  }}
+                >
+                  No está: crearlo
+                </Button>
+              )}
             </>
           ) : (
             <>

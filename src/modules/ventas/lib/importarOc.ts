@@ -34,6 +34,17 @@ export type MetodoCliente =
   | 'cuit'
   | 'nombre_exacto'
   | 'parecido'
+  /**
+   * No lo eligió el emparejador: lo acaba de crear una persona desde el
+   * importador (Fase 40).
+   *
+   * No sale de la base como los otros cuatro —el emparejador nunca lo
+   * devuelve—; lo pone la pantalla cuando el alta rápida termina bien. Está
+   * acá y no como un caso aparte para que el cartel de «por qué este cliente»
+   * tenga una respuesta también en ese camino, en vez de quedar mudo justo
+   * cuando el vínculo es más nuevo y menos comprobado.
+   */
+  | 'creado'
 
 export interface CandidatoCliente {
   customerId: string
@@ -185,4 +196,5 @@ export const EXPLICACION_CLIENTE: Record<MetodoCliente, string> = {
   cuit: 'Coincide el CUIT',
   nombre_exacto: 'Coincide el nombre',
   parecido: 'Se parece al nombre: conviene confirmarlo',
+  creado: 'Lo creaste recién, desde esta misma orden',
 }
