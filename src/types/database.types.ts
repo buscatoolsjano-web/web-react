@@ -1830,6 +1830,60 @@ export type Database = {
           },
         ]
       }
+      deletion_log: {
+        Row: {
+          action: string
+          company_id: string
+          deleted_at: string
+          deleted_by: string | null
+          entity_id: string
+          entity_type: string
+          id: number
+          label: string | null
+          reason: string
+          snapshot: Json
+        }
+        Insert: {
+          action?: string
+          company_id: string
+          deleted_at?: string
+          deleted_by?: string | null
+          entity_id: string
+          entity_type: string
+          id?: never
+          label?: string | null
+          reason: string
+          snapshot: Json
+        }
+        Update: {
+          action?: string
+          company_id?: string
+          deleted_at?: string
+          deleted_by?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: never
+          label?: string | null
+          reason?: string
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deletion_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deletion_log_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_accounts: {
         Row: {
           active: boolean
@@ -7653,6 +7707,14 @@ export type Database = {
         }[]
       }
       anular_entrega: { Args: { p_delivery: string }; Returns: Json }
+      borrar_con_motivo: {
+        Args: { p_entidad: string; p_id: string; p_motivo: string }
+        Returns: Json
+      }
+      registrar_borrado: {
+        Args: { p_accion?: string; p_entidad: string; p_id: string; p_motivo: string }
+        Returns: Json
+      }
       aprobar_cotizacion_mantenimiento: {
         Args: { p_order: string; p_por?: string | null }
         Returns: Json
@@ -7850,8 +7912,8 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      borrar_contacto: { Args: { p_contacto: string }; Returns: Json }
-      borrar_direccion: { Args: { p_direccion: string }; Returns: Json }
+      borrar_contacto: { Args: { p_contacto: string; p_motivo: string }; Returns: Json }
+      borrar_direccion: { Args: { p_direccion: string; p_motivo: string }; Returns: Json }
       borrar_etiqueta_email: { Args: { p_label: string }; Returns: undefined }
       borrar_mensaje_grupo_whatsapp: {
         Args: {

@@ -207,16 +207,28 @@ describe('Ficha del cliente (Fase 13 · E4)', () => {
     expect(!!screen.queryByRole('button', { name: 'Dar de baja' })).toBe(ve)
   })
 
-  it('Dar de baja pide confirmación accesible (foco en «Volver»), nunca window.confirm', () => {
+  /**
+   * Fase 40: la baja pide MOTIVO, porque para quien la hace es un borrado —el
+   * cliente deja de aparecer— y es lo único que queda escrito después.
+   */
+  it('Dar de baja pide confirmación accesible y motivo, nunca window.confirm', () => {
     const nativo = vi.spyOn(window, 'confirm')
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Dar de baja' }))
-    const dialogo = screen.getByRole('alertdialog', { name: '¿Dar de baja a ZZ Uno?' })
+    const dialogo = screen.getByRole('alertdialog', { name: '¿Eliminar ZZ Uno?' })
     expect(dialogo).toHaveAccessibleDescription(/No se borra/)
     expect(screen.getByRole('button', { name: 'Volver' })).toHaveFocus()
+
+    // Sin motivo no se puede: el botón está deshabilitado y no se llama a nada.
+    const confirmar = within(dialogo).getByRole('button', { name: 'Dar de baja' })
+    expect(confirmar).toBeDisabled()
+    fireEvent.click(confirmar)
     expect(mutaciones.dar).not.toHaveBeenCalled()
-    fireEvent.click(within(dialogo).getByRole('button', { name: 'Dar de baja' }))
+
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Era una prueba' }))
+    fireEvent.click(confirmar)
     expect(mutaciones.dar).toHaveBeenCalledTimes(1)
+    expect(mutaciones.dar).toHaveBeenCalledWith('Era una prueba', expect.anything())
     expect(nativo).not.toHaveBeenCalled()
   })
 

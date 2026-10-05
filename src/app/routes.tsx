@@ -285,6 +285,9 @@ const ConfigIAWhatsappPage = lazyConRecarga(() =>
 const AuditoriaPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/AuditoriaPage').then((m) => ({ default: m.AuditoriaPage })),
 )
+const BorradosPage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/BorradosPage').then((m) => ({ default: m.BorradosPage })),
+)
 const RecuperarPage = lazyConRecarga(() =>
   import('@/features/auth/pages/RecuperarPage').then((m) => ({ default: m.RecuperarPage })),
 )
@@ -449,6 +452,8 @@ export const routes: RouteObject[] = [
           { path: 'atributos', element: conSuspense(<AtributosPage />) },
           // Entrega 4: auditoría de Configuración, sólo admin y sólo lectura.
           { path: 'auditoria', element: conSuspense(<AuditoriaPage />) },
+          // Fase 40: qué se borró, quién y por qué. Admin y employee, sólo lectura.
+          { path: 'borrados', element: conSuspense(<BorradosPage />) },
           // Fase 16 · E3: IA de WhatsApp (modo, límites, informes, uso). Sólo admin; la RPC lo vuelve a validar.
           { path: 'whatsapp-ia', element: conSuspense(<ConfigIAWhatsappPage />) },
         ],

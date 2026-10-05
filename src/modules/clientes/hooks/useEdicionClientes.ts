@@ -93,7 +93,7 @@ export function useBajaCliente(clienteId: string) {
 
   return {
     dar: useMutation({
-      mutationFn: () => darDeBajaCliente(companyId!, clienteId),
+      mutationFn: (motivo: string) => darDeBajaCliente(companyId!, clienteId, motivo),
       onSuccess: invalidar,
     }),
     reactivar: useMutation({
@@ -146,7 +146,7 @@ export function useContactosEdicion(clienteId: string) {
       onSuccess: invalidar,
     }),
     borrar: useMutation({
-      mutationFn: (id: string) => borrarContacto(id),
+      mutationFn: (v: { id: string; motivo: string }) => borrarContacto(v.id, v.motivo),
       onSuccess: invalidar,
     }),
   }
@@ -172,7 +172,7 @@ export function useDireccionesEdicion(clienteId: string) {
       onSuccess: invalidar,
     }),
     borrar: useMutation({
-      mutationFn: (id: string) => borrarDireccion(id),
+      mutationFn: (v: { id: string; motivo: string }) => borrarDireccion(v.id, v.motivo),
       onSuccess: invalidar,
     }),
   }

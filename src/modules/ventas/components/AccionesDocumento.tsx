@@ -5,6 +5,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { ConfirmBorrado } from '@/components/modals/ConfirmBorrado'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import {
   DOC_TYPE_DE,
@@ -141,7 +142,7 @@ export function useAccionesDocumento(
   })
 
   const borrar = useMutation({
-    mutationFn: () => borrarDocumento(doc!.tipo, doc!.id),
+    mutationFn: (motivo: string) => borrarDocumento(doc!.tipo, doc!.id, motivo),
     onSuccess: () => {
       setError(null)
       setConfirmar(null)
@@ -269,16 +270,13 @@ export function useAccionesDocumento(
           onCancel={() => setConfirmar(null)}
           onConfirm={() => anular.mutate()}
         />
-        <ConfirmDialog
+        <ConfirmBorrado
           open={confirmar === 'eliminar'}
-          tone="danger"
-          title={`¿Eliminar ${nombre} ${doc.numero}?`}
-          description="Se borra el documento y sus líneas. No se puede deshacer."
-          confirmLabel="Eliminar"
-          cancelLabel="Volver"
+          que={`${nombre} ${doc.numero}`}
+          description="Se borra el documento y sus líneas. No se puede deshacer, pero el motivo y una copia de lo borrado quedan en Configuración → Borrados."
           busy={borrar.isPending}
           onCancel={() => setConfirmar(null)}
-          onConfirm={() => borrar.mutate()}
+          onConfirm={(motivo) => borrar.mutate(motivo)}
         />
       </>
     ),

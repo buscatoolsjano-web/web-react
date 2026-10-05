@@ -1,0 +1,60 @@
+/* Configuración → Borrados (Fase 40). */
+
+.motivo {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+}
+
+.texto {
+  margin: 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.ver {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary-text);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.ver:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* La copia de la fila: nombres de columna de la base, así que en monoespaciada
+   y en dos columnas. No se traducen a propósito —son los nombres reales y
+   quien va a rehacer el registro a mano los necesita tal cual—. */
+.copia {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  font-size: var(--text-xs);
+}
+
+.campo {
+  display: grid;
+  grid-template-columns: minmax(6rem, max-content) minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.campo dt {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--color-text-muted);
+}
+
+.campo dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

@@ -7,7 +7,7 @@ import { ActionBar } from '@/components/document/ActionBar'
 import { DocSection, MetaList, Missing } from '@/components/document/DocSection'
 import doc from '@/components/document/Document.module.css'
 import { Alert } from '@/components/feedback/Alert'
-import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { ConfirmBorrado } from '@/components/modals/ConfirmBorrado'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { Button } from '@/components/ui/Button'
@@ -397,15 +397,14 @@ export function ActivoDetallePage() {
         </TabPanel>
       </div>
 
-      <ConfirmDialog
+      <ConfirmBorrado
         open={confirmandoBaja}
-        tone="danger"
-        title={`¿Dar de baja ${activo.referencia}?`}
+        que={activo.referencia}
         description="La baja es lógica: sus órdenes lo siguen nombrando y el historial queda intacto. Se puede reactivar."
         confirmLabel={acciones.darDeBaja.isPending ? 'Dando de baja…' : 'Dar de baja'}
         busy={acciones.darDeBaja.isPending}
         onCancel={() => setConfirmandoBaja(false)}
-        onConfirm={() => acciones.darDeBaja.mutate(undefined, { onSettled: () => setConfirmandoBaja(false) })}
+        onConfirm={(motivo) => acciones.darDeBaja.mutate(motivo, { onSettled: () => setConfirmandoBaja(false) })}
       />
     </div>
   )

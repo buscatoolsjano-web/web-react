@@ -26,7 +26,7 @@ interface Guardado {
 }
 const mut = vi.hoisted(() => ({
   guardar: vi.fn((_v: { id: string | null; esperado: string | null; datos: unknown }) => {}),
-  borrar: vi.fn((_id: string, _opciones?: unknown) => {}),
+  borrar: vi.fn((_v: { id: string; motivo: string }, _opciones?: unknown) => {}),
   reset: vi.fn(),
 }))
 const llamada = (n = 0): Guardado => mut.guardar.mock.calls[n]![0] as Guardado
@@ -160,6 +160,8 @@ describe('EditorDirecciones · desactivar en vez de borrar', () => {
 
     const dialogo = screen.getByRole('alertdialog')
     expect(within(dialogo).getByText(/no se puede borrar/i)).toBeInTheDocument()
+    // Fase 40: hay que decir por qué, también cuando la salida es desactivarla.
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Era una prueba' }))
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Desactivarla' }))
 
     expect(mut.borrar).not.toHaveBeenCalled()

@@ -7,6 +7,7 @@ import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { ConfirmBorrado } from '@/components/modals/ConfirmBorrado'
 import { DialogoCambiosSinGuardar } from '@/components/modals/DialogoCambiosSinGuardar'
 import { useSalidaConCambios } from '@/hooks/useSalidaConCambios'
 import { Badge } from '@/components/ui/Badge'
@@ -660,16 +661,17 @@ export function ClienteDetallePage() {
         onConfirm={cerrarEdicion}
       />
 
-      <ConfirmDialog
+      {/* La baja pide motivo como un borrado, porque para quien la hace es un
+          borrado: el cliente deja de aparecer. Queda en Configuración →
+          Borrados, marcada como baja y no como borrado. */}
+      <ConfirmBorrado
         open={confirmandoBaja}
-        tone="danger"
-        title={`¿Dar de baja a ${nombre}?`}
+        que={nombre}
         description="No se borra: deja de ofrecerse al armar documentos nuevos. Sus documentos y su historial siguen accesibles, y se puede reactivar."
         confirmLabel="Dar de baja"
-        cancelLabel="Volver"
         busy={baja.dar.isPending}
-        onConfirm={() =>
-          baja.dar.mutate(undefined, {
+        onConfirm={(motivo) =>
+          baja.dar.mutate(motivo, {
             onSuccess: () => setConfirmandoBaja(false),
             onError: () => setConfirmandoBaja(false),
           })

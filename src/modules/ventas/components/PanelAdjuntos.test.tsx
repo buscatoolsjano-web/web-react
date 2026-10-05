@@ -142,9 +142,8 @@ describe('Adjuntos · borrar', () => {
     montar()
     fireEvent.click(await screen.findByRole('button', { name: 'Eliminar orden-de-compra.pdf' }))
 
-    const dialogo = await screen.findByRole('alertdialog', { name: '¿Eliminar este archivo?' })
-    expect(within(dialogo).getByText(/orden-de-compra\.pdf/)).toBeInTheDocument()
-    fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar' }))
+    const dialogo = await screen.findByRole('alertdialog', { name: '¿Eliminar «orden-de-compra.pdf»?' })
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Volver' }))
 
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
     expect(espias.borrar).not.toHaveBeenCalled()
@@ -154,10 +153,20 @@ describe('Adjuntos · borrar', () => {
     estado.lista = [adjunto()]
     montar()
     fireEvent.click(await screen.findByRole('button', { name: 'Eliminar orden-de-compra.pdf' }))
-    fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Eliminar' }))
+    const dialogo = await screen.findByRole('alertdialog')
+
+    // Fase 40: sin motivo no se borra. Un adjunto que falta es de las cosas que
+    // más caro se pagan sin saber quién lo sacó: el archivo tampoco está.
+    expect(within(dialogo).getByRole('button', { name: 'Eliminar' })).toBeDisabled()
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Era una prueba' }))
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Eliminar' }))
 
     await waitFor(() => expect(espias.borrar).toHaveBeenCalledTimes(1))
-    expect(espias.borrar.mock.calls[0]).toEqual(['a1', 'c1/quote/q1/uuid-orden-de-compra.pdf'])
+    expect(espias.borrar.mock.calls[0]).toEqual([
+      'a1',
+      'c1/quote/q1/uuid-orden-de-compra.pdf',
+      'Era una prueba',
+    ])
   })
 
   it('si el archivo queda en el almacenamiento, se avisa', async () => {
@@ -167,7 +176,9 @@ describe('Adjuntos · borrar', () => {
     )
     montar()
     fireEvent.click(await screen.findByRole('button', { name: 'Eliminar orden-de-compra.pdf' }))
-    fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Eliminar' }))
+    const dialogo = await screen.findByRole('alertdialog')
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Era una prueba' }))
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Eliminar' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/quedó en el almacenamiento/)
   })

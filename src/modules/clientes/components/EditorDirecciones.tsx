@@ -3,7 +3,8 @@ import { Field } from '@/components/forms/Field'
 import { Checkbox, Input, Select } from '@/components/forms/controls'
 import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
-import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { ConfirmBorrado } from '@/components/modals/ConfirmBorrado'
+import { registrarBaja } from '@/services/borrado'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { SkeletonRows } from '@/components/ui/Skeleton'
@@ -290,10 +291,9 @@ export function EditorDirecciones({
         </Button>
       ) : null}
 
-      <ConfirmDialog
+      <ConfirmBorrado
         open={confirmando !== null}
-        tone="danger"
-        title={`¿Borrar la dirección de ${(confirmando && (ETIQUETA_TIPO[confirmando.tipo] ?? confirmando.tipo))?.toLowerCase() ?? ''}?`}
+        que={`la dirección de ${(confirmando && (ETIQUETA_TIPO[confirmando.tipo] ?? confirmando.tipo))?.toLowerCase() ?? ''}`}
         description={
           referenciada
             ? 'Figura en pedidos ya emitidos, así que no se puede borrar. Lo que corresponde es desactivarla.'
@@ -302,17 +302,17 @@ export function EditorDirecciones({
               : 'Si figura en algún pedido no se va a poder borrar: en ese caso, desactivala.'
         }
         confirmLabel={referenciada ? 'Desactivarla' : 'Borrar dirección'}
-        cancelLabel="Volver"
         busy={borrar.isPending || guardar.isPending}
-        onConfirm={() => {
+        onConfirm={(motivo) => {
           if (!confirmando) return
           if (referenciada) {
             cambiarActivo(confirmando, false)
+            void registrarBaja('customer_address', confirmando.id, motivo)
             setConfirmando(null)
             borrar.reset()
             return
           }
-          borrar.mutate(confirmando.id, {
+          borrar.mutate({ id: confirmando.id, motivo }, {
             onSuccess: () => setConfirmando(null),
             onError: (e) => {
               if (!(e instanceof FalloDeAgenda && e.esReferenciado)) setConfirmando(null)

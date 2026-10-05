@@ -255,7 +255,7 @@ export function useEditarFactura(id: string) {
     }),
     registrar: useMutation({ mutationFn: () => registrarFactura(id), onSuccess: listo }),
     anular: useMutation({ mutationFn: () => anularFactura(companyId!, id), onSuccess: listo }),
-    borrar: useMutation({ mutationFn: () => borrarFactura(companyId!, id), onSuccess: listo }),
+    borrar: useMutation({ mutationFn: (motivo: string) => borrarFactura(id, motivo), onSuccess: listo }),
   }
 }
 

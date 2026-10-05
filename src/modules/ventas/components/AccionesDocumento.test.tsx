@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { DocumentoDetalle } from '../types'
@@ -84,16 +84,26 @@ describe('Acciones del documento (Fase 13)', () => {
     }
   })
 
-  it('Eliminar pide confirmación accesible con texto específico; nunca window.confirm', async () => {
+  /**
+   * Fase 40: eliminar pide MOTIVO. Es lo único que queda cuando el documento
+   * ya no está: su propia auditoría cuelga de él y se va con él.
+   */
+  it('Eliminar pide confirmación accesible y motivo; nunca window.confirm', async () => {
     const nativo = vi.spyOn(window, 'confirm')
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar pedido' }))
     const dialogo = screen.getByRole('alertdialog', { name: '¿Eliminar pedido PED-00002?' })
-    expect(dialogo).toHaveAccessibleDescription('Se borra el documento y sus líneas. No se puede deshacer.')
+    expect(dialogo).toHaveAccessibleDescription(/Se borra el documento y sus líneas/)
     expect(screen.getByRole('button', { name: 'Volver' })).toHaveFocus()
+
+    const confirmar = screen.getByRole('button', { name: 'Eliminar' })
+    expect(confirmar).toBeDisabled()
+    fireEvent.click(confirmar)
     expect(servicios.borrar).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
-    await waitFor(() => expect(servicios.borrar).toHaveBeenCalledWith('pedido', 'p1'))
+
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Error de carga' }))
+    fireEvent.click(confirmar)
+    await waitFor(() => expect(servicios.borrar).toHaveBeenCalledWith('pedido', 'p1', 'Error de carga'))
     expect(nativo).not.toHaveBeenCalled()
   })
 

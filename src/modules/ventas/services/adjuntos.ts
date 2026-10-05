@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import { borrarConMotivo } from '@/services/borrado'
 import type { TipoDocumento } from '../types'
 
 const BUCKET = 'ventas'
@@ -213,9 +214,11 @@ export async function urlDeDescarga(ruta: string): Promise<string> {
  * Si el borrado del archivo falla, la fila ya no está y el adjunto desaparece
  * de la pantalla: se avisa, porque alguien va a tener que limpiar el bucket.
  */
-export async function borrarAdjunto(id: string, ruta: string): Promise<void> {
-  const { error } = await supabase.from('attachments').delete().eq('id', id)
-  if (error) throw enCastellano(error.message, 'No se pudo borrar el adjunto.')
+export async function borrarAdjunto(id: string, ruta: string, motivo: string): Promise<void> {
+  // El motivo y una copia de la fila quedan en `deletion_log` (Fase 40):
+  // un adjunto que falta es de las cosas que más caro se pagan sin saber
+  // quién lo sacó, porque el archivo tampoco está.
+  await borrarConMotivo('attachment', id, motivo)
 
   const { error: eArchivo } = await supabase.storage.from(BUCKET).remove([ruta])
   if (eArchivo) {

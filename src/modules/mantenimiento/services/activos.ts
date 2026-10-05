@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import { registrarBaja } from '@/services/borrado'
 import type {
   ActivoDetalle,
   ActivoListado,
@@ -497,7 +498,11 @@ export async function actualizarActivo(
  * Un equipo con historial no se borra: sus órdenes lo referencian y borrarlo
  * dejaría documentos huérfanos. Se marca con fecha, como los clientes.
  */
-export async function darDeBajaActivo(companyId: string, id: string): Promise<boolean> {
+export async function darDeBajaActivo(
+  companyId: string,
+  id: string,
+  motivo: string,
+): Promise<boolean> {
   const { data, error } = await supabase
     .from('maintenance_assets')
     .update({ deleted_at: new Date().toISOString() })
@@ -506,7 +511,13 @@ export async function darDeBajaActivo(companyId: string, id: string): Promise<bo
     .is('deleted_at', null)
     .select('id')
   if (error) throw new Error(traducir(error.message, error.code))
-  return (data ?? []).length > 0
+  const dadoDeBaja = (data ?? []).length > 0
+
+  // Sólo si la baja ocurrió de verdad: el `is('deleted_at', null)` hace que
+  // una segunda baja no toque ninguna fila, y anotar esa no-baja llenaría el
+  // registro de ruido (Fase 40).
+  if (dadoDeBaja) await registrarBaja('maintenance_asset', id, motivo)
+  return dadoDeBaja
 }
 
 export async function reactivarActivo(companyId: string, id: string): Promise<void> {

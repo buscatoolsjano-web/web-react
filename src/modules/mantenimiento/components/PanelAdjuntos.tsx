@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { Field } from '@/components/forms/Field'
 import { Select } from '@/components/forms/controls'
-import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { ConfirmBorrado } from '@/components/modals/ConfirmBorrado'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { formatearFecha } from '../lib/formato'
@@ -71,7 +71,8 @@ export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: Panel
   })
 
   const borrar = useMutation({
-    mutationFn: ({ id, ruta }: { id: string; ruta: string }) => borrarAdjunto(id, ruta),
+    mutationFn: ({ id, ruta, motivo }: { id: string; ruta: string; motivo: string }) =>
+      borrarAdjunto(id, ruta, motivo),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: clave }),
     onError: (e: Error) => setError(e.message),
   })
@@ -171,16 +172,15 @@ export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: Panel
         </p>
       ) : null}
 
-      <ConfirmDialog
+      <ConfirmBorrado
         open={aBorrar !== null}
-        tone="danger"
-        title={`¿Borrar «${aBorrar?.nombre ?? ''}»?`}
-        description="El archivo se borra del almacenamiento y no se puede recuperar."
+        que={`«${aBorrar?.nombre ?? ''}»`}
+        description="El archivo se borra del almacenamiento y no se puede recuperar. El motivo y sus datos quedan en Configuración → Borrados."
         confirmLabel={borrar.isPending ? 'Borrando…' : 'Borrar archivo'}
         busy={borrar.isPending}
         onCancel={() => setABorrar(null)}
-        onConfirm={() => {
-          if (aBorrar) borrar.mutate({ id: aBorrar.id, ruta: aBorrar.ruta }, { onSettled: () => setABorrar(null) })
+        onConfirm={(motivo) => {
+          if (aBorrar) borrar.mutate({ id: aBorrar.id, ruta: aBorrar.ruta, motivo }, { onSettled: () => setABorrar(null) })
         }}
       />
     </div>

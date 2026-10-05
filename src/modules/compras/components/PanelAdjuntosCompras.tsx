@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { ConfirmBorrado } from '@/components/modals/ConfirmBorrado'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { formatearFecha } from '../lib/formato'
@@ -43,6 +44,8 @@ export function PanelAdjuntosCompras({
   const entrada = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [clase, setClase] = useState<string>(clases[0]?.valor ?? 'other')
+  /* Igual que en el panel de proveedores: borrar un adjunto no pedía nada. */
+  const [aBorrar, setABorrar] = useState<{ id: string; ruta: string; nombre: string } | null>(null)
 
   const clave = ['compras', activa?.companyId, 'adjuntos', entidad, entidadId]
 
@@ -64,8 +67,12 @@ export function PanelAdjuntosCompras({
   })
 
   const borrar = useMutation({
-    mutationFn: ({ id, ruta }: { id: string; ruta: string }) => borrarAdjunto(id, ruta),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: clave }),
+    mutationFn: ({ id, ruta, motivo }: { id: string; ruta: string; motivo: string }) =>
+      borrarAdjunto(id, ruta, motivo),
+    onSuccess: () => {
+      setABorrar(null)
+      void queryClient.invalidateQueries({ queryKey: clave })
+    },
     onError: (e: Error) => setError(e.message),
   })
 
@@ -112,7 +119,7 @@ export function PanelAdjuntosCompras({
                   className={styles.borrar}
                   aria-label={`Borrar ${a.nombre}`}
                   disabled={borrar.isPending}
-                  onClick={() => borrar.mutate({ id: a.id, ruta: a.ruta })}
+                  onClick={() => setABorrar({ id: a.id, ruta: a.ruta, nombre: a.nombre })}
                 >
                   ×
                 </button>
@@ -164,6 +171,18 @@ export function PanelAdjuntosCompras({
           {error}
         </p>
       ) : null}
+
+      <ConfirmBorrado
+        open={aBorrar !== null}
+        que={aBorrar ? `«${aBorrar.nombre}»` : 'este archivo'}
+        description="Se borra del almacenamiento y no se puede recuperar. El motivo y sus datos quedan en Configuración → Borrados."
+        confirmLabel="Borrar archivo"
+        busy={borrar.isPending}
+        onCancel={() => setABorrar(null)}
+        onConfirm={(motivo) =>
+          aBorrar && borrar.mutate({ id: aBorrar.id, ruta: aBorrar.ruta, motivo })
+        }
+      />
     </div>
   )
 }

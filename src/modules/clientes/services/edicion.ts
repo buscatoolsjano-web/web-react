@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import { registrarBaja } from '@/services/borrado'
 import type { Json } from '@/types/database.types'
 import type { DatosCliente, DatosContacto, DatosDireccion } from '../lib/validacion'
 import { normalizarDominios, normalizarEmails } from '../lib/validacion'
@@ -202,13 +203,28 @@ export async function guardarCliente(
  * y `status` es el estado comercial. Dejar `status = 'active'` en un cliente
  * dado de baja sería guardar una contradicción.
  */
-export async function darDeBajaCliente(companyId: string, id: string): Promise<void> {
+export async function darDeBajaCliente(
+  companyId: string,
+  id: string,
+  motivo: string,
+): Promise<void> {
   const { error } = await supabase
     .from('customers')
     .update({ deleted_at: new Date().toISOString(), status: 'inactive' })
     .eq('company_id', companyId)
     .eq('id', id)
   if (error) throw new Error(`No se pudo dar de baja: ${error.message}`)
+
+  /*
+   * La baja se registra DESPUÉS del update y no antes (Fase 40).
+   *
+   * No es atómico y no puede serlo desde el navegador, así que hay que elegir
+   * cuál de los dos errores se prefiere. Registrar primero dejaría anotada una
+   * baja que no ocurrió —el peor de los dos, porque el registro es lo único en
+   * lo que después se confía—. Así, lo que puede faltar es el registro de una
+   * baja real, y eso se ve: el cliente aparece dado de baja sin motivo.
+   */
+  await registrarBaja('customer', id, motivo)
 }
 
 export async function reactivarCliente(companyId: string, id: string): Promise<void> {
@@ -357,8 +373,8 @@ export async function guardarContacto(
  * corta con `CONTACTO_REFERENCIADO`: un documento emitido no puede quedar
  * apuntando a una fila que ya no existe. Para eso está desactivarlo.
  */
-export async function borrarContacto(contactoId: string): Promise<void> {
-  const { error } = await supabase.rpc('borrar_contacto', { p_contacto: contactoId })
+export async function borrarContacto(contactoId: string, motivo: string): Promise<void> {
+  const { error } = await supabase.rpc('borrar_contacto', { p_contacto: contactoId, p_motivo: motivo })
   if (error) throw falloDeAgenda(error.message, 'No se pudo borrar el contacto.')
 }
 
@@ -389,8 +405,8 @@ export async function guardarDireccion(
   return leerResultado(data)
 }
 
-export async function borrarDireccion(direccionId: string): Promise<void> {
-  const { error } = await supabase.rpc('borrar_direccion', { p_direccion: direccionId })
+export async function borrarDireccion(direccionId: string, motivo: string): Promise<void> {
+  const { error } = await supabase.rpc('borrar_direccion', { p_direccion: direccionId, p_motivo: motivo })
   if (error) throw falloDeAgenda(error.message, 'No se pudo borrar la dirección.')
 }
 

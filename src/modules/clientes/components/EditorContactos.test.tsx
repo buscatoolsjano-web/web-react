@@ -26,7 +26,7 @@ interface Guardado {
 }
 const mut = vi.hoisted(() => ({
   guardar: vi.fn((_v: { id: string | null; esperado: string | null; datos: unknown }) => {}),
-  borrar: vi.fn((_id: string, _opciones?: unknown) => {}),
+  borrar: vi.fn((_v: { id: string; motivo: string }, _opciones?: unknown) => {}),
   reset: vi.fn(),
 }))
 /** El argumento de la n-ésima llamada, con su forma real. */
@@ -171,6 +171,9 @@ describe('EditorContactos · desactivar en vez de borrar', () => {
     // destructiva.
     const dialogo = screen.getByRole('alertdialog')
     expect(within(dialogo).getByText(/no se puede borrar/i)).toBeInTheDocument()
+    // Fase 40: también acá hay que decir por qué. Para el cliente del otro
+    // lado del teléfono el contacto desapareció igual.
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Era una prueba' }))
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Desactivarlo' }))
 
     // Lo que se manda es un guardado con activo en falso, NO otro borrado.
@@ -179,11 +182,20 @@ describe('EditorContactos · desactivar en vez de borrar', () => {
     expect(llamada().datos.activo).toBe(false)
   })
 
-  it('sin referencias, Borrar borra de verdad', () => {
+  it('sin referencias, Borrar borra de verdad, con el motivo', () => {
     montar([contacto()])
     fireEvent.click(screen.getByRole('button', { name: 'Borrar' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Borrar contacto' }))
-    expect(mut.borrar).toHaveBeenCalledWith('k1', expect.anything())
+
+    // Sin motivo el borrado no sale: es lo único que queda cuando el contacto
+    // ya no está, y la base lo exige igual (DELETION_REASON_REQUIRED).
+    const confirmar = screen.getByRole('button', { name: 'Borrar contacto' })
+    expect(confirmar).toBeDisabled()
+    fireEvent.click(confirmar)
+    expect(mut.borrar).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Está duplicado' }))
+    fireEvent.click(confirmar)
+    expect(mut.borrar).toHaveBeenCalledWith({ id: 'k1', motivo: 'Está duplicado' }, expect.anything())
   })
 })
 

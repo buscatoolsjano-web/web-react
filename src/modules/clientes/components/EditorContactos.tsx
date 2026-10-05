@@ -3,7 +3,8 @@ import { Field } from '@/components/forms/Field'
 import { Checkbox, Input } from '@/components/forms/controls'
 import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
-import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { ConfirmBorrado } from '@/components/modals/ConfirmBorrado'
+import { registrarBaja } from '@/services/borrado'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { SkeletonRows } from '@/components/ui/Skeleton'
@@ -316,27 +317,29 @@ export function EditorContactos({
         </Button>
       ) : null}
 
-      <ConfirmDialog
+      {/* El motivo se pide también cuando la oferta cambia a «desactivarlo»:
+          para el cliente del otro lado del teléfono el contacto desapareció
+          igual, y dentro de tres meses nadie se acuerda de por qué. */}
+      <ConfirmBorrado
         open={confirmando !== null}
-        tone="danger"
-        title={`¿Borrar el contacto ${confirmando?.nombre ?? ''}?`}
+        que={`el contacto ${confirmando?.nombre ?? ''}`}
         description={
           referenciado
             ? 'Figura en documentos ya emitidos, así que no se puede borrar. Lo que corresponde es desactivarlo.'
             : 'Si figura en algún documento no se va a poder borrar: en ese caso, desactivalo.'
         }
         confirmLabel={referenciado ? 'Desactivarlo' : 'Borrar contacto'}
-        cancelLabel="Volver"
         busy={borrar.isPending || guardar.isPending}
-        onConfirm={() => {
+        onConfirm={(motivo) => {
           if (!confirmando) return
           if (referenciado) {
             cambiarActivo(confirmando, false)
+            void registrarBaja('customer_contact', confirmando.id, motivo)
             setConfirmando(null)
             borrar.reset()
             return
           }
-          borrar.mutate(confirmando.id, {
+          borrar.mutate({ id: confirmando.id, motivo }, {
             onSuccess: () => setConfirmando(null),
             // Si no se pudo borrar porque está referenciado, el diálogo queda
             // abierto y cambia de oferta: desactivarlo.

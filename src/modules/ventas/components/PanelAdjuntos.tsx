@@ -16,7 +16,7 @@ import type { TipoDocumento } from '../types'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { Icon } from '@/components/icons/Icon'
-import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { ConfirmBorrado } from '@/components/modals/ConfirmBorrado'
 import { Field } from '@/components/forms/Field'
 import { Select } from '@/components/forms/controls'
 import { escribeVentas } from '../lib/permisos'
@@ -85,7 +85,8 @@ export function PanelAdjuntos({ tipo, documentoId }: PanelAdjuntosProps) {
   })
 
   const borrar = useMutation({
-    mutationFn: ({ id, ruta }: { id: string; ruta: string }) => borrarAdjunto(id, ruta),
+    mutationFn: ({ id, ruta, motivo }: { id: string; ruta: string; motivo: string }) =>
+      borrarAdjunto(id, ruta, motivo),
     onSuccess: () => {
       setError(null)
       setABorrar(null)
@@ -195,20 +196,15 @@ export function PanelAdjuntos({ tipo, documentoId }: PanelAdjuntosProps) {
         </p>
       ) : null}
 
-      <ConfirmDialog
+      <ConfirmBorrado
         open={aBorrar !== null}
-        tone="danger"
-        title="¿Eliminar este archivo?"
-        description={
-          aBorrar
-            ? `Se va a eliminar «${aBorrar.nombre}» del documento y del almacenamiento. No se puede deshacer.`
-            : ''
-        }
-        confirmLabel="Eliminar"
-        cancelLabel="Cancelar"
+        que={aBorrar ? `«${aBorrar.nombre}»` : 'este archivo'}
+        description="Se borra del documento y del almacenamiento. No se puede deshacer, pero el motivo y los datos del archivo quedan en Configuración → Borrados."
         busy={borrar.isPending}
         onCancel={() => setABorrar(null)}
-        onConfirm={() => aBorrar && borrar.mutate({ id: aBorrar.id, ruta: aBorrar.ruta })}
+        onConfirm={(motivo) =>
+          aBorrar && borrar.mutate({ id: aBorrar.id, ruta: aBorrar.ruta, motivo })
+        }
       />
     </div>
   )

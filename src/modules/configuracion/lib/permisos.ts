@@ -12,6 +12,9 @@
  *   · Listas de precios y Atributos: admin y employee leen; nadie edita (Entrega 3).
  *   · Marcas y Categorías: admin administra; employee lee (Entrega 3).
  *   · Auditoría: sólo admin, sólo lectura (Entrega 4).
+ *   · Borrados: admin y employee leen; nadie edita (Fase 40). Lo ve también
+ *     employee porque es quien borra: el registro sirve para entenderse entre
+ *     los que trabajan, no sólo para que el admin controle.
  *   · WhatsApp · IA: sólo admin (Fase 16 · E3).
  */
 export const ROLES_CONFIGURACION = ['admin', 'employee'] as const
@@ -25,6 +28,7 @@ export const SECCIONES_CONFIGURACION = [
   { to: '/configuracion/categorias', label: 'Categorías', roles: ['admin', 'employee'] },
   { to: '/configuracion/atributos', label: 'Atributos', roles: ['admin', 'employee'] },
   { to: '/configuracion/auditoria', label: 'Auditoría', roles: ['admin'] },
+  { to: '/configuracion/borrados', label: 'Borrados', roles: ['admin', 'employee'] },
   { to: '/configuracion/whatsapp-ia', label: 'WhatsApp · IA', roles: ['admin'] },
 ] as const
 

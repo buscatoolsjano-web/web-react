@@ -10,6 +10,7 @@ import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { ConfirmBorrado } from '@/components/modals/ConfirmBorrado'
 import { ActionBar } from '@/components/document/ActionBar'
 import docUi from '@/components/document/Document.module.css'
 import { ChipFactura } from '../components/ChipEstado'
@@ -450,17 +451,15 @@ export function FacturaDetallePage() {
           })
         }
       />
-      <ConfirmDialog
+      <ConfirmBorrado
         open={borrando}
-        tone="danger"
-        title={`¿Borrar el borrador ${factura.numero}?`}
-        description="Se borra la factura en borrador y sus líneas. No se puede deshacer."
+        que={`el borrador ${factura.numero}`}
+        description="Se borra la factura en borrador y sus líneas. No se puede deshacer, pero el motivo y una copia de lo borrado quedan en Configuración → Borrados."
         confirmLabel="Borrar borrador"
-        cancelLabel="Volver"
         busy={acciones.borrar.isPending}
         onCancel={() => setBorrando(false)}
-        onConfirm={() =>
-          acciones.borrar.mutate(undefined, {
+        onConfirm={(motivo) =>
+          acciones.borrar.mutate(motivo, {
             onSuccess: () => void navegar('/compras/facturas'),
             onError: () => setBorrando(false),
           })

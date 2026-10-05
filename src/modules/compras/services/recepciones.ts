@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import { borrarConMotivo } from '@/services/borrado'
 import type {
   Deposito,
   EstadoRecepcionDoc,
@@ -450,14 +451,15 @@ export async function guardarLineasRecepcion(
   if (error) throw new Error(traducir(error.message, error.code))
 }
 
-/** Borra un borrador. Una recepción confirmada no se borra: la frena el trigger. */
-export async function borrarRecepcion(companyId: string, id: string): Promise<void> {
-  const { error } = await supabase
-    .from('goods_receipts')
-    .delete()
-    .eq('company_id', companyId)
-    .eq('id', id)
-  if (error) throw new Error(traducir(error.message, error.code))
+/**
+ * Borra un borrador, dejando registrado por qué (Fase 40).
+ *
+ * Una recepción confirmada no se borra: la frena el trigger, igual que antes.
+ * Lo que cambia es que el motivo y una copia de la fila quedan en
+ * `deletion_log`.
+ */
+export async function borrarRecepcion(id: string, motivo: string): Promise<void> {
+  await borrarConMotivo('goods_receipt', id, motivo)
 }
 
 export interface ResultadoConfirmacion {

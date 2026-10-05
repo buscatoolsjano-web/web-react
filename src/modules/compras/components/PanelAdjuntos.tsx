@@ -11,6 +11,7 @@ import {
   urlDeDescarga,
 } from '../services/adjuntos'
 import { SkeletonRows } from '@/components/ui/Skeleton'
+import { ConfirmBorrado } from '@/components/modals/ConfirmBorrado'
 import styles from './PanelAdjuntos.module.css'
 
 export interface PanelAdjuntosProps {
@@ -31,6 +32,12 @@ export function PanelAdjuntos({ proveedorId, puedeEditar }: PanelAdjuntosProps) 
   const entrada = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [clase, setClase] = useState<string>('other')
+  /*
+   * Borrar un adjunto NO pedía confirmación: una cruz y el archivo se iba.
+   * Ahora pasa por el mismo diálogo que el resto —con motivo— porque un
+   * adjunto perdido no se puede rehacer y nadie sabía quién lo había sacado.
+   */
+  const [aBorrar, setABorrar] = useState<{ id: string; ruta: string; nombre: string } | null>(null)
 
   const clave = ['compras', activa?.companyId, 'adjuntos-proveedor', proveedorId]
 
@@ -51,8 +58,12 @@ export function PanelAdjuntos({ proveedorId, puedeEditar }: PanelAdjuntosProps) 
   })
 
   const borrar = useMutation({
-    mutationFn: ({ id, ruta }: { id: string; ruta: string }) => borrarAdjunto(id, ruta),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: clave }),
+    mutationFn: ({ id, ruta, motivo }: { id: string; ruta: string; motivo: string }) =>
+      borrarAdjunto(id, ruta, motivo),
+    onSuccess: () => {
+      setABorrar(null)
+      void queryClient.invalidateQueries({ queryKey: clave })
+    },
     onError: (e: Error) => setError(e.message),
   })
 
@@ -99,7 +110,7 @@ export function PanelAdjuntos({ proveedorId, puedeEditar }: PanelAdjuntosProps) 
                   className={styles.borrar}
                   aria-label={`Borrar ${a.nombre}`}
                   disabled={borrar.isPending}
-                  onClick={() => borrar.mutate({ id: a.id, ruta: a.ruta })}
+                  onClick={() => setABorrar({ id: a.id, ruta: a.ruta, nombre: a.nombre })}
                 >
                   ×
                 </button>
@@ -151,6 +162,17 @@ export function PanelAdjuntos({ proveedorId, puedeEditar }: PanelAdjuntosProps) 
           {error}
         </p>
       ) : null}
+      <ConfirmBorrado
+        open={aBorrar !== null}
+        que={aBorrar ? `«${aBorrar.nombre}»` : 'este archivo'}
+        description="Se borra del almacenamiento y no se puede recuperar. El motivo y sus datos quedan en Configuración → Borrados."
+        confirmLabel="Borrar archivo"
+        busy={borrar.isPending}
+        onCancel={() => setABorrar(null)}
+        onConfirm={(motivo) =>
+          aBorrar && borrar.mutate({ id: aBorrar.id, ruta: aBorrar.ruta, motivo })
+        }
+      />
     </div>
   )
 }

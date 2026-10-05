@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import { borrarConMotivo } from '@/services/borrado'
 import { tasaDe } from '../lib/tratamientos'
 import type {
   EstadoFactura,
@@ -562,13 +563,15 @@ export async function guardarLineasFactura(
   if (error) throw new Error(traducir(error.message, error.code))
 }
 
-export async function borrarFactura(companyId: string, id: string): Promise<void> {
-  const { error } = await supabase
-    .from('supplier_invoices')
-    .delete()
-    .eq('company_id', companyId)
-    .eq('id', id)
-  if (error) throw new Error(traducir(error.message, error.code))
+/**
+ * Borra el borrador, dejando registrado por qué (Fase 40).
+ *
+ * El borrado lo sigue haciendo el usuario, con su RLS y contra los triggers de
+ * siempre —una factura registrada no se borra—; lo que cambia es que el motivo
+ * y una copia de la fila quedan en `deletion_log`.
+ */
+export async function borrarFactura(id: string, motivo: string): Promise<void> {
+  await borrarConMotivo('supplier_invoice', id, motivo)
 }
 
 /**

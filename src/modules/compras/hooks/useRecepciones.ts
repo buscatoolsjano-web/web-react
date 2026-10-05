@@ -160,7 +160,7 @@ export function useEditarRecepcion(id: string) {
       onSuccess: invalidar,
     }),
     borrar: useMutation({
-      mutationFn: () => borrarRecepcion(companyId!, id),
+      mutationFn: (motivo: string) => borrarRecepcion(id, motivo),
       onSuccess: invalidar,
     }),
   }

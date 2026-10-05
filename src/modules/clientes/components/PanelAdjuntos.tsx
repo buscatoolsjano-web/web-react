@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
-import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { ConfirmBorrado } from '@/components/modals/ConfirmBorrado'
 import { Button } from '@/components/ui/Button'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { Field } from '@/components/forms/Field'
@@ -78,7 +78,7 @@ export function PanelAdjuntos({ clienteId, puedeEditar }: PanelAdjuntosProps) {
   })
 
   const borrar = useMutation({
-    mutationFn: (a: AdjuntoCliente) => borrarAdjunto(a.id, a.ruta),
+    mutationFn: (v: { a: AdjuntoCliente; motivo: string }) => borrarAdjunto(v.a.id, v.a.ruta, v.motivo),
     onSuccess: alTerminar,
   })
 
@@ -206,17 +206,15 @@ export function PanelAdjuntos({ clienteId, puedeEditar }: PanelAdjuntosProps) {
         </div>
       )}
 
-      <ConfirmDialog
+      <ConfirmBorrado
         open={confirmando !== null}
-        tone="danger"
-        title={`¿Borrar ${confirmando?.nombre ?? ''}?`}
-        description="Se borra el archivo del almacenamiento. No se puede deshacer."
+        que={confirmando?.nombre ?? 'el adjunto'}
+        description="Se borra el archivo del almacenamiento. No se puede deshacer, pero el motivo y los datos del archivo quedan en Configuración → Borrados."
         confirmLabel="Borrar adjunto"
-        cancelLabel="Volver"
         busy={borrar.isPending}
-        onConfirm={() => {
+        onConfirm={(motivo) => {
           if (!confirmando) return
-          borrar.mutate(confirmando, {
+          borrar.mutate({ a: confirmando, motivo }, {
             onSuccess: () => setConfirmando(null),
             onError: () => setConfirmando(null),
           })

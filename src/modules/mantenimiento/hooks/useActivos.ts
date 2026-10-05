@@ -171,7 +171,7 @@ export function useGuardarActivo(id: string) {
       onSuccess: invalidar,
     }),
     darDeBaja: useMutation({
-      mutationFn: () => darDeBajaActivo(companyId!, id),
+      mutationFn: (motivo: string) => darDeBajaActivo(companyId!, id, motivo),
       onSuccess: invalidar,
     }),
     reactivar: useMutation({

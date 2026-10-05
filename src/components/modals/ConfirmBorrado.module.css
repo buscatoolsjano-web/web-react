@@ -1,0 +1,50 @@
+/* El motivo del borrado, dentro del diálogo de confirmación (Fase 40). */
+
+.caja {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.pregunta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.motivos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Botones de motivo. Chicos y de borde suave: son un atajo, no la acción
+   principal del diálogo —ésa es el botón rojo del pie—. */
+.chip {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--color-primary);
+}
+
+.chip:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+}
+
+/* El elegido se marca con color Y con borde: el color solo no alcanza para
+   quien no lo distingue, y acá la marca dice qué se va a guardar. */
+.chip[aria-pressed='true'] {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+  font-weight: var(--weight-semibold);
+}

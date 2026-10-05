@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import { borrarConMotivo } from '@/services/borrado'
 import { aCsv } from '../lib/csv'
 import { registrarEvento } from './auditoria'
 import { crearCotizacion } from './cotizaciones'
@@ -208,15 +209,31 @@ export async function cancelarDocumento(
  * stock menos —borrar el movimiento NO devuelve las unidades, porque el
  * trigger de stock es AFTER INSERT.
  */
-export async function borrarDocumento(tipo: TipoDocumento, id: string): Promise<void> {
-  const tabla = {
-    cotizacion: 'sales_quotes' as const,
-    pedido: 'sales_orders' as const,
-    entrega: 'deliveries' as const,
+/**
+ * Borra el documento, dejando registrado por qué (Fase 40).
+ *
+ * Antes era un `delete()` suelto: la fila se iba y nadie podía decir quién la
+ * sacó ni para qué. En un remito era peor, porque su trigger de borrado limpia
+ * a propósito los eventos de auditoría de la entidad —son suyos y se van con
+ * ella—, así que no quedaba ni rastro indirecto.
+ *
+ * Ahora pasa por `borrar_con_motivo`, que anota y borra en la misma
+ * transacción. Las protecciones son exactamente las de antes: la RPC es
+ * SECURITY INVOKER y el DELETE lo sigue haciendo el usuario, contra los mismos
+ * triggers. Lo único que cambia es que queda escrito.
+ */
+export async function borrarDocumento(
+  tipo: TipoDocumento,
+  id: string,
+  motivo: string,
+): Promise<void> {
+  const entidad = {
+    cotizacion: 'sales_quote' as const,
+    pedido: 'sales_order' as const,
+    entrega: 'delivery' as const,
   }[tipo]
 
-  const { error } = await supabase.from(tabla).delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  await borrarConMotivo(entidad, id, motivo)
 }
 
 /**
