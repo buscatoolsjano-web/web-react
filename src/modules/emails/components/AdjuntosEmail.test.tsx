@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { AdjuntoContenido, HiloIndice, MensajeContenido } from '../types'
 import { AdjuntosEmail } from './AdjuntosEmail'
 
@@ -65,15 +65,21 @@ describe('<AdjuntosEmail> · importar una OC', () => {
     ).toBeInTheDocument()
   })
 
-  it('al apretarlo manda ESE adjunto y el mensaje donde estaba', () => {
+  it('al apretarlo baja los bytes y entrega un File con el nombre del adjunto', async () => {
     const onImportarOc = vi.fn()
     montar([adj(), adj({ partId: 'p2', nombre: 'remito.pdf' })], onImportarOc)
     fireEvent.click(screen.getByRole('button', { name: /Importar remito\.pdf como/ }))
-    expect(onImportarOc).toHaveBeenCalledTimes(1)
-    expect(onImportarOc).toHaveBeenCalledWith(
-      expect.objectContaining({ partId: 'p2', nombre: 'remito.pdf' }),
-      'm1',
-    )
+    await waitFor(() => expect(onImportarOc).toHaveBeenCalledTimes(1))
+
+    const archivo = onImportarOc.mock.calls[0]![0] as File
+    /*
+     * `File` y no `Blob`: la función de edge valida `archivo instanceof File`
+     * y mira el nombre. Y el tipo se fuerza a PDF porque Gmail a veces manda
+     * `application/octet-stream` para un PDF válido.
+     */
+    expect(archivo).toBeInstanceOf(File)
+    expect(archivo.name).toBe('remito.pdf')
+    expect(archivo.type).toBe('application/pdf')
   })
 
   it('SIN permiso de escritura en Ventas el botón no existe', () => {

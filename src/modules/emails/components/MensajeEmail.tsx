@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { fechaCompleta } from '../lib/formato'
-import type { AdjuntoContenido, HiloIndice, MensajeContenido } from '../types'
+import type { HiloIndice, MensajeContenido } from '../types'
 import { AdjuntosEmail } from './AdjuntosEmail'
 import { CuerpoSeguro } from './CuerpoSeguro'
 import styles from './Emails.module.css'
@@ -16,9 +16,7 @@ export interface MensajeEmailProps {
   /** Responder, responder a todos y reenviar ESTE mensaje. */
   onAccion?: (modo: 'responder' | 'responder_todos' | 'reenviar', mensajeId: string) => void
   /** Mandar un adjunto al importador de OC (Fase 40). Ver `AdjuntosEmail`. */
-  onImportarOc?: ((adjunto: AdjuntoContenido, mensajeId: string) => void) | undefined
-  /** El `partId` del adjunto que se está abriendo ahora. */
-  importandoOc?: string | null | undefined
+  onImportarOc?: ((archivo: File) => void) | undefined
 }
 
 /**
@@ -32,7 +30,6 @@ export function MensajeEmail({
   abiertoInicial,
   onAccion,
   onImportarOc,
-  importandoOc,
 }: MensajeEmailProps) {
   const [abierto, setAbierto] = useState(abiertoInicial)
   const id = useId()
@@ -82,7 +79,6 @@ export function MensajeEmail({
             hilo={hilo}
             mensaje={mensaje}
             onImportarOc={onImportarOc}
-            importando={importandoOc}
           />
           {onAccion ? (
             <div className={styles.accionesMensaje} role="group" aria-label="Acciones del mensaje">

@@ -5,6 +5,7 @@ import { Dialog } from '@/components/modals/Dialog'
 import { Icon } from '@/components/icons/Icon'
 import { Spinner } from '@/components/ui/Spinner'
 import { ErrorContenido, mensajeDeError } from '../lib/errores'
+import { puedeSerOrdenDeCompra } from '../lib/formato'
 import { guardarEnDisco, traerAdjunto } from '../services/contenido'
 import type { AdjuntoContenido, HiloIndice } from '../types'
 import styles from './Emails.module.css'
@@ -13,6 +14,17 @@ export interface VisorAdjuntoProps {
   hilo: HiloIndice
   mensajeId: string
   adjunto: AdjuntoContenido
+  /**
+   * Mandar este PDF al importador de órdenes de compra, desde acá (Fase 40).
+   *
+   * Recibe un `File` y no el adjunto porque el visor YA TIENE los bytes: los
+   * bajó para mostrarlos. Pedirlos de nuevo sería una segunda vuelta a Gmail
+   * por un archivo que está a la vista.
+   *
+   * Sin la función no hay botón: el permiso lo decide la página, que es la que
+   * conoce el rol.
+   */
+  onImportarOc?: ((archivo: File) => void) | undefined
   onCerrar: () => void
 }
 
@@ -32,7 +44,7 @@ export interface VisorAdjuntoProps {
  * imagen. Cualquier otro tipo no se ofrece: un `<iframe>` con un .docx no
  * muestra nada o, peor, se lo baja solo.
  */
-export function VisorAdjunto({ hilo, mensajeId, adjunto, onCerrar }: VisorAdjuntoProps) {
+export function VisorAdjunto({ hilo, mensajeId, adjunto, onImportarOc, onCerrar }: VisorAdjuntoProps) {
   const [url, setUrl] = useState<string | null>(null)
   const [blob, setBlob] = useState<Blob | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -67,6 +79,27 @@ export function VisorAdjunto({ hilo, mensajeId, adjunto, onCerrar }: VisorAdjunt
       size="xl"
       footer={
         <>
+          {/*
+            Fase 40: mirar la orden de compra y mandarla a cotizar sin bajarla
+            ni cerrar nada. Es la acción PRINCIPAL cuando el adjunto es una OC
+            —por eso `primary` y primera—, y el archivo sale del blob que ya
+            está en pantalla.
+
+            `disabled` hasta que carguen los bytes: con el visor todavía en
+            blanco no hay nada que importar.
+          */}
+          {onImportarOc && puedeSerOrdenDeCompra(adjunto.mime) ? (
+            <Button
+              variant="primary"
+              icon={<Icon name="upload" size={16} />}
+              disabled={blob === null}
+              onClick={() =>
+                blob && onImportarOc(new File([blob], adjunto.nombre, { type: 'application/pdf' }))
+              }
+            >
+              Importar como OC
+            </Button>
+          ) : null}
           <Button
             variant="secondary"
             icon={<Icon name="download" size={16} />}

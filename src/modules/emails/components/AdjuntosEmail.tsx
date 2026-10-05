@@ -13,16 +13,17 @@ export interface AdjuntosEmailProps {
   hilo: HiloIndice
   mensaje: MensajeContenido
   /**
-   * Mandar este adjunto al importador de órdenes de compra (Fase 40).
+   * Mandar un adjunto al importador de órdenes de compra (Fase 40).
    *
-   * Lo resuelve la PÁGINA y no este componente, por dos razones: el modal del
-   * importador es de Ventas y pesa —se carga con `lazy`—, y la descarga de los
-   * bytes tiene que sobrevivir a que este `<li>` se desmonte. Sin la función,
-   * el botón no existe: así el permiso lo decide quien sabe el rol.
+   * Recibe el `File` YA ARMADO, no el adjunto: así los dos caminos que llevan
+   * al importador —el botón de la fila y el del visor— le entregan lo mismo, y
+   * el que ya tiene los bytes en pantalla no vuelve a pedirlos.
+   *
+   * Quién abre el modal es la PÁGINA: es de Ventas, pesa, y se carga con
+   * `lazy`. Sin la función no hay botón, así que el permiso lo decide quien
+   * conoce el rol.
    */
-  onImportarOc?: ((adjunto: AdjuntoContenido, mensajeId: string) => void) | undefined
-  /** El adjunto que se está mandando ahora, para mostrarlo ocupado. */
-  importando?: string | null | undefined
+  onImportarOc?: ((archivo: File) => void) | undefined
 }
 
 /**
@@ -32,7 +33,7 @@ export interface AdjuntosEmailProps {
  * recibe una URL de Gmail: el botón pide los bytes al servicio de Cloud Run,
  * que valida cuenta, hilo, mensaje y parte antes de ir a buscarlos.
  */
-export function AdjuntosEmail({ hilo, mensaje, onImportarOc, importando }: AdjuntosEmailProps) {
+export function AdjuntosEmail({ hilo, mensaje, onImportarOc }: AdjuntosEmailProps) {
   const visibles = adjuntosVisibles(mensaje.adjuntos)
   if (visibles.length === 0) return null
   return (
@@ -45,7 +46,6 @@ export function AdjuntosEmail({ hilo, mensaje, onImportarOc, importando }: Adjun
             mensajeId={mensaje.id}
             adjunto={a}
             onImportarOc={onImportarOc}
-            importando={importando === a.partId}
           />
         ))}
       </ul>
@@ -58,21 +58,36 @@ function Adjunto({
   mensajeId,
   adjunto,
   onImportarOc,
-  importando = false,
 }: {
   hilo: HiloIndice
   mensajeId: string
   adjunto: AdjuntoContenido
-  onImportarOc?: ((adjunto: AdjuntoContenido, mensajeId: string) => void) | undefined
-  importando?: boolean
+  onImportarOc?: ((archivo: File) => void) | undefined
 }) {
   const [viendo, setViendo] = useState(false)
   const bajar = useMutation({
     mutationFn: () => traerAdjunto(hilo.accountId, hilo.gmailThreadId, mensajeId, adjunto.partId),
     onSuccess: (blob) => guardarEnDisco(blob, adjunto.nombre),
   })
-  const error = bajar.error
-    ? mensajeDeError(bajar.error instanceof ErrorContenido ? bajar.error.codigo : 'desconocido')
+
+  /*
+   * El atajo de la fila: para quien ya sabe que ese PDF es una OC y no
+   * necesita mirarlo. Baja los bytes y arma el `File` acá mismo.
+   *
+   * `File` y no `Blob`: la función de edge valida `archivo instanceof File` y
+   * mira el nombre. El tipo se fuerza porque Gmail a veces devuelve
+   * `application/octet-stream` para un PDF válido, y la función igual
+   * comprueba la firma de los bytes antes de leerlo.
+   */
+  const importar = useMutation({
+    mutationFn: () => traerAdjunto(hilo.accountId, hilo.gmailThreadId, mensajeId, adjunto.partId),
+    onSuccess: (blob) =>
+      onImportarOc?.(new File([blob], adjunto.nombre, { type: 'application/pdf' })),
+  })
+
+  const fallo = bajar.error ?? importar.error
+  const error = fallo
+    ? mensajeDeError(fallo instanceof ErrorContenido ? fallo.codigo : 'desconocido')
     : null
 
   return (
@@ -117,11 +132,11 @@ function Adjunto({
           variant="secondary"
           size="sm"
           icon={<Icon name="upload" size={16} />}
-          onClick={() => onImportarOc(adjunto, mensajeId)}
-          loading={importando}
+          onClick={() => importar.mutate()}
+          loading={importar.isPending}
           aria-label={`Importar ${adjunto.nombre} como orden de compra`}
         >
-          {importando ? 'Abriendo…' : 'Importar OC'}
+          {importar.isPending ? 'Abriendo…' : 'Importar OC'}
         </Button>
       ) : null}
       <Button
@@ -136,7 +151,23 @@ function Adjunto({
       </Button>
 
       {viendo ? (
-        <VisorAdjunto hilo={hilo} mensajeId={mensajeId} adjunto={adjunto} onCerrar={() => setViendo(false)} />
+        <VisorAdjunto
+          hilo={hilo}
+          mensajeId={mensajeId}
+          adjunto={adjunto}
+          /* Desde el visor, importar también CIERRA el visor: el importador se
+             abre con el mismo PDF a la vista, y dos ventanas apiladas mostrando
+             el mismo documento confunden más de lo que ayudan. */
+          onImportarOc={
+            onImportarOc
+              ? (archivo) => {
+                  setViendo(false)
+                  onImportarOc(archivo)
+                }
+              : undefined
+          }
+          onCerrar={() => setViendo(false)}
+        />
       ) : null}
     </li>
   )

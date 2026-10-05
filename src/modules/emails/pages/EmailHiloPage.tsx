@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '@/components/layout/PageHeader'
 import doc from '@/components/document/Document.module.css'
 import { Alert } from '@/components/feedback/Alert'
@@ -30,10 +30,9 @@ import { esMensajeNuestro } from '../lib/destinatarios'
 import { ErrorContenido, mensajeDeError } from '../lib/errores'
 import { puedeUsarEmails } from '../lib/permisos'
 import { escribeVentas } from '@/modules/ventas/lib/permisos'
-import { traerAdjunto } from '../services/contenido'
 import { listarBorradores } from '../services/redactar'
 import type { OpcionesComposer } from '../hooks/useComposer'
-import type { AdjuntoContenido, ModoRedaccion } from '../types'
+import type { ModoRedaccion } from '../types'
 import styles from '../components/Emails.module.css'
 
 /**
@@ -110,26 +109,19 @@ function Hilo() {
   const puedeImportar = escribeVentas(empresa.activa?.rol)
   const [ocParaImportar, setOcParaImportar] = useState<{ archivo: File; origen: string } | null>(null)
 
-  const traerParaOc = useMutation({
-    mutationFn: async ({ adjunto, mensajeId }: { adjunto: AdjuntoContenido; mensajeId: string }) => {
-      const blob = await traerAdjunto(hilo!.accountId, hilo!.gmailThreadId, mensajeId, adjunto.partId)
-      /*
-       * `File` y no `Blob`: el importador manda un `FormData` y la función de
-       * edge valida `archivo instanceof File` y además mira el nombre. Un
-       * Blob suelto llega sin nombre y se rechaza.
-       *
-       * El `type` se fuerza a PDF porque Gmail a veces devuelve
-       * `application/octet-stream` para un PDF perfectamente válido, y la
-       * función igual comprueba la firma de los bytes antes de leerlo.
-       */
-      return new File([blob], adjunto.nombre, { type: 'application/pdf' })
-    },
-    onSuccess: (archivo, { adjunto }) =>
+  /*
+   * Los dos caminos —el botón de la fila y el del visor— terminan acá con el
+   * `File` ya armado. La página sólo abre el modal y dice de dónde salió el
+   * archivo; quién baja los bytes es cosa del que tenía el adjunto a mano.
+   */
+  const abrirImportador = useCallback(
+    (archivo: File) =>
       setOcParaImportar({
         archivo,
-        origen: `Adjunto de «${hilo?.asunto ?? 'este correo'}» · ${adjunto.nombre}`,
+        origen: `Adjunto de «${hilo?.asunto ?? 'este correo'}» · ${archivo.name}`,
       }),
-  })
+    [hilo?.asunto],
+  )
 
   const propia = (cuentas.data ?? []).find((c) => c.id === hilo?.accountId)?.direccion ?? ''
 
@@ -263,21 +255,6 @@ function Hilo() {
         </aside>
 
         <section className={styles.mensajes} aria-label="Mensajes" aria-busy={contenido.isFetching}>
-          {/*
-            Si los bytes del adjunto no llegan, se dice ACÁ y no en el modal:
-            el modal todavía no se abrió, y un modal vacío con un error adentro
-            no explica qué pasó. Los errores del importador en sí son suyos.
-          */}
-          {traerParaOc.error ? (
-            <Alert tone="danger" role="alert" title="No se pudo traer el adjunto">
-              <p>
-                {traerParaOc.error instanceof ErrorContenido
-                  ? mensajeDeError(traerParaOc.error.codigo)
-                  : traerParaOc.error.message}
-              </p>
-            </Alert>
-          ) : null}
-
           {ocParaImportar ? (
             <Suspense fallback={null}>
               <ModalImportarOc
@@ -285,7 +262,6 @@ function Hilo() {
                 origen={ocParaImportar.origen}
                 onCerrar={() => {
                   setOcParaImportar(null)
-                  traerParaOc.reset()
                 }}
               />
             </Suspense>
@@ -316,12 +292,7 @@ function Hilo() {
                 hilo={hilo}
                 mensaje={m}
                 nuestro={esMensajeNuestro(m.de, nuestras)}
-                onImportarOc={
-                  puedeImportar
-                    ? (adjunto, mensajeId) => traerParaOc.mutate({ adjunto, mensajeId })
-                    : undefined
-                }
-                importandoOc={traerParaOc.isPending ? traerParaOc.variables?.adjunto.partId : null}
+                onImportarOc={puedeImportar ? abrirImportador : undefined}
                 // Con pocos mensajes se ven todos; con muchos, sólo el último.
                 abiertoInicial={mensajes.length <= 3 || i === mensajes.length - 1}
                 onAccion={(modo, id) => {
