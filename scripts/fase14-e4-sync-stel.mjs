@@ -35,7 +35,15 @@ const guardar = (nombre, datos) => { fs.mkdirSync(SALIDA, { recursive: true }); 
 
 async function contexto() {
   const { data: emp, error } = await sb.from('companies').select('id').eq('slug', EMPRESA).single()
-  if (error || !emp) throw new Error(`empresa ${EMPRESA} no encontrada`)
+  /*
+   * El error de abajo se decía SIEMPRE «empresa no encontrada», y eso esconde
+   * el caso que de verdad pasa: la clave de servicio es de otro proyecto y la
+   * base contesta 401 «Invalid API key». Buscar una empresa que sí existe, por
+   * un mensaje que dice que no existe, cuesta un buen rato. Si vino un error
+   * de la base, se dice ese.
+   */
+  if (error) throw new Error(`no se pudo leer la empresa ${EMPRESA}: ${error.message}`)
+  if (!emp) throw new Error(`empresa ${EMPRESA} no encontrada`)
   const { data: cat } = await sb.from('product_categories').select('id, needs_review').eq('company_id', emp.id).eq('slug', CATEGORIA_REVISION.slug).maybeSingle()
   if (cat && cat.needs_review !== true) throw new Error('la categoría de revisión no está marcada como revisión')
   const { data: listas } = await sb.from('price_lists').select('id, name, currency_code, is_default').eq('company_id', emp.id)

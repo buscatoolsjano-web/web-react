@@ -1,0 +1,140 @@
+# Trae de STEL lo que todavía no está en el ERP. Todos los días a las 11.
+#
+# POR QUÉ EXISTE
+#
+# El sync incremental STEL → ERP se construyó en la Fase 14 · E4 y quedó como
+# un script de línea de comandos que alguien corría a mano. Se corrió dos días
+# —15 y 16 de septiembre de 2026— y nunca más. No falló: la última corrida
+# terminó en `finished`, sin error. Simplemente dejó de dispararse, porque no
+# había nada que lo disparara.
+#
+# Resultado medido el 5 de octubre: el checkpoint de documentos quedó clavado
+# en 2026-09-16 02:01 y el de productos en 2026-09-15 18:20. Casi tres semanas
+# de movimientos de STEL que el ERP no vio.
+#
+# ESTO NO REEMPLAZA LA LÓGICA, SÓLO LA DISPARA. Todo el trabajo lo hace
+# `scripts/fase14-e4-sync-stel.mjs`, que ya está probado y que avanza un
+# checkpoint por entidad en `stel_sync_state`. Si una corrida falla, el
+# checkpoint NO avanza y la del día siguiente vuelve a tomar esa ventana: no
+# hay forma de que un día perdido se saltee en silencio.
+#
+# EL HORARIO. `0 14 * * *` es UTC; Argentina es UTC-3 todo el año (no hay
+# horario de verano), así que son las 11:00 de acá. Si algún día cambiara esa
+# regla, este número hay que tocarlo a mano: GitHub Actions no entiende zonas.
+#
+# PRIMERO PRODUCTOS, DESPUÉS DOCUMENTOS. Es el orden en que se corrió a mano en
+# septiembre y el que tiene sentido: una línea de documento referencia un
+# producto, y si el producto todavía no existe la línea entra sin él.
+#
+# EL CUPO DE LA API ES COMPARTIDO con los escenarios de Make. El incremental
+# diario es barato —1-2 llamadas para productos, ~12 para documentos— y por eso
+# esto corre una vez por día y no cada hora. No convertir esto en un full scan.
+#
+# SI SE AGOTA EL TOPE DE LLAMADAS, el cliente LANZA («Presupuesto de llamadas
+# agotado») en vez de devolver medio resultado. Eso es lo que hace que esto sea
+# seguro: la corrida falla, el checkpoint se queda donde estaba y se reintenta
+# con un tope más alto. Nunca avanza por encima de datos que no miró.
+#
+# Por eso la puesta al día de varias semanas necesita `max_llamadas` más alto
+# que el diario: con los valores por omisión (20 y 40) una ventana larga se
+# queda corta y falla. En septiembre, una ventana NORMAL ya usó 42 llamadas
+# para productos y 35 para documentos.
+
+name: Sync STEL → ERP
+
+on:
+  schedule:
+    # 14:00 UTC = 11:00 en Argentina (UTC-3, sin horario de verano).
+    - cron: '0 14 * * *'
+  # Para la puesta al día de las semanas que faltan, y para poder reintentar
+  # un día que falló sin esperar al siguiente.
+  workflow_dispatch:
+    inputs:
+      desde:
+        description: 'Desde cuándo traer (ISO, ej. 2026-09-15). Vacío = desde el checkpoint guardado.'
+        required: false
+        type: string
+      aplicar:
+        description: 'Escribir en la base. Sin esto es sólo lectura (ensayo).'
+        required: false
+        type: boolean
+        default: true
+      max_llamadas:
+        description: 'Tope de llamadas a STEL por entidad. Vacío = 20 productos / 40 documentos. Subirlo para ponerse al día.'
+        required: false
+        type: string
+
+# Dos corridas a la vez tomarían el mismo candado de `stel_sync_state` y una
+# moriría por timeout. Se encola, no se cancela: la que está corriendo puede
+# estar a mitad de un lote.
+concurrency:
+  group: sync-stel
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    # El delta de tres semanas es más lento que el diario; 30 minutos es
+    # holgado para los dos y corta si algo se cuelga esperando a STEL.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Qué se va a tomar, ANTES de tocar nada. Si algo sale mal, este registro
+      # dice de dónde arrancó cada entidad.
+      - name: Estado antes
+        run: node scripts/fase14-e4-sync-stel.mjs estado
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          STEL_API_KEY: ${{ secrets.STEL_API_KEY }}
+
+      - name: Productos
+        run: |
+          node scripts/fase14-e4-sync-stel.mjs productos \
+            ${{ inputs.desde && format('--desde {0}', inputs.desde) || '' }} \
+            ${{ (github.event_name == 'schedule' || inputs.aplicar) && '--aplicar' || '' }} \
+            ${{ inputs.max_llamadas && format('--max-llamadas {0}', inputs.max_llamadas) || '' }} \
+            --crear-nuevos
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          STEL_API_KEY: ${{ secrets.STEL_API_KEY }}
+
+      - name: Documentos
+        run: |
+          node scripts/fase14-e4-sync-stel.mjs documentos \
+            ${{ inputs.desde && format('--desde {0}', inputs.desde) || '' }} \
+            ${{ (github.event_name == 'schedule' || inputs.aplicar) && '--aplicar' || '' }} \
+            ${{ inputs.max_llamadas && format('--max-llamadas {0}', inputs.max_llamadas) || '' }}
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          STEL_API_KEY: ${{ secrets.STEL_API_KEY }}
+
+      # Y qué quedó. Sirve para ver el checkpoint nuevo sin entrar a la base.
+      - name: Estado después
+        if: always()
+        run: node scripts/fase14-e4-sync-stel.mjs estado
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          STEL_API_KEY: ${{ secrets.STEL_API_KEY }}
+
+      # El detalle de cada corrida queda como artefacto por si hay que mirar
+      # qué se tocó. `always()` porque cuando falla es cuando más se necesita.
+      - name: Guardar el detalle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sync-stel-${{ github.run_id }}
+          path: scripts/output/e4/
+          if-no-files-found: ignore
+          retention-days: 30
