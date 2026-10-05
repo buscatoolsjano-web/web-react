@@ -279,6 +279,46 @@ export async function confirmarEntrega(deliveryId: string): Promise<ResultadoCon
   }
 }
 
+export interface ResultadoAnulacion {
+  yaAnulada: boolean
+  movimientos: number
+  /** Unidades devueltas al depósito. Positivo. */
+  unidades: number
+  cumplimiento?: string
+}
+
+/**
+ * Anula un remito despachado: **devuelve el stock** y lo deja cancelado.
+ *
+ * Es la operación inversa de `confirmarEntrega`, y hasta la Fase 40 no
+ * existía: un remito despachado era un callejón sin salida —ni se cancelaba
+ * ni se borraba— porque la base se negaba, con razón, a dejar cinco unidades
+ * descontadas para siempre sin ningún papel que diga por qué.
+ *
+ * El stock no vuelve borrando los movimientos —el trigger de saldos sólo suma
+ * al insertar— sino con un contramovimiento `return_in`. La hoja de stock
+ * queda contando la verdad: la mercadería salió y volvió.
+ *
+ * Idempotente, como el despacho: anular dos veces no devuelve el doble.
+ */
+export async function anularEntrega(deliveryId: string): Promise<ResultadoAnulacion> {
+  const { data, error } = await supabase.rpc('anular_entrega', { p_delivery: deliveryId })
+  if (error) throw new Error(`No se pudo anular: ${error.message}`)
+
+  const r = data as {
+    ya_anulada: boolean
+    movimientos: number
+    unidades: number
+    cumplimiento?: string
+  }
+  return {
+    yaAnulada: r.ya_anulada,
+    movimientos: r.movimientos,
+    unidades: Number(r.unidades),
+    ...(r.cumplimiento !== undefined && { cumplimiento: r.cumplimiento }),
+  }
+}
+
 /**
  * Qué se puede hacer con un remito según su estado (Fase 15 · E5).
  *

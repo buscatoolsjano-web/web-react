@@ -42,6 +42,13 @@ const TITULO: Record<string, string> = {
   approved: 'Aceptado',
   rejected: 'Rechazado',
   cancelled: 'Cancelado',
+  // El ciclo del remito. Sin estas entradas el historial mostraba «Stock
+  // consumed» y «Reservation released»: el nombre de la columna en inglés,
+  // que es lo que pasa cuando no hay traducción y se cae en el fallback.
+  shipped: 'Despachado',
+  stock_consumed: 'Stock descontado',
+  stock_returned: 'Stock devuelto',
+  reservation_released: 'Reservas liberadas',
 }
 
 /** Los campos auditados, con el nombre que usa la gente. */

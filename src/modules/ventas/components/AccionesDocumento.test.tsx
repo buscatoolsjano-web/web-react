@@ -10,6 +10,7 @@ const servicios = vi.hoisted(() => ({
   borrar: vi.fn(() => Promise.resolve()),
   cancelar: vi.fn(() => Promise.resolve()),
   duplicar: vi.fn(() => Promise.resolve('nuevo')),
+  anular: vi.fn(() => Promise.resolve({ yaAnulada: false, movimientos: 4, unidades: 5 })),
 }))
 
 // El componente lee las series del tipo para saber en qué serie saldría el
@@ -31,6 +32,7 @@ vi.mock('../services/acciones', () => ({
   cancelarDocumento: servicios.cancelar,
   duplicarDocumento: servicios.duplicar,
 }))
+vi.mock('../services/entregas', () => ({ anularEntrega: servicios.anular }))
 vi.mock('./ModalImpresion', () => ({ ModalImpresion: () => <div>vista previa</div> }))
 
 const { useAccionesDocumento } = await import('./AccionesDocumento')
@@ -118,13 +120,51 @@ describe('Acciones del documento (Fase 13)', () => {
     expect(motivo).toHaveTextContent(/Este documento no se toca/)
   })
 
-  it.each(['shipped', 'delivered'])('Fase 14 E3: remito %s no ofrece Cancelar y explica por qué', (est) => {
+  /**
+   * Un remito despachado no se cancela ni se borra —el stock ya salió— pero
+   * desde la Fase 40 tampoco es un callejón sin salida: se anula, que devuelve
+   * las unidades. Lo que se prueba es que la pantalla ofrezca ESA salida y no
+   * las otras dos, porque la base rechaza las otras dos.
+   */
+  it.each(['shipped', 'delivered'])('Fase 40: remito %s se anula, no se cancela ni se borra', (est) => {
     estado.doc = { id: 'r1', tipo: 'entrega', numero: 'RT0000000001', estado: est, esHistorico: false }
     montar()
-    expect(screen.queryByRole('button', { name: /Cancelar/ })).toBeNull()
-    // Borrarlo tampoco: el trigger lo rechaza porque ya movió stock.
+    expect(screen.queryByRole('button', { name: /^Cancelar/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Eliminar/ })).toBeNull()
-    expect(screen.getByText('El remito ya generó movimiento de stock y no puede cancelarse directamente.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Anular el remito' })).toBeEnabled()
+    // Y el cartel explica por qué ésa es la salida, no las otras dos.
+    expect(screen.getByText(/ya descontó stock/)).toBeInTheDocument()
+  })
+
+  /**
+   * El remito histórico vino de STEL: el documento es de allá. Si se anulara
+   * acá, el próximo sync lo traería de vuelta vivo con el stock ya devuelto.
+   */
+  it('Fase 40: un remito histórico no se anula desde el ERP', () => {
+    estado.doc = { id: 'r9', tipo: 'entrega', numero: 'RT0000001433', estado: 'shipped', esHistorico: true }
+    montar()
+    expect(screen.queryByRole('button', { name: 'Anular el remito' })).toBeNull()
+  })
+
+  it('Fase 40: anular pide confirmación y dice que el stock vuelve', async () => {
+    estado.doc = { id: 'r1', tipo: 'entrega', numero: 'RT-ERP00002', estado: 'shipped', esHistorico: false }
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Anular el remito' }))
+
+    // El texto habla de consecuencias —el stock y el pedido—, no de botones.
+    expect(screen.getByText(/vuelven al stock/)).toBeInTheDocument()
+    expect(screen.getByText(/pendientes de entrega/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Anular y devolver el stock' }))
+    await waitFor(() => expect(servicios.anular).toHaveBeenCalledWith('r1'))
+  })
+
+  /** Ya anulado, el stock volvió: ahí sí se puede borrar. */
+  it('Fase 40: el remito anulado se puede eliminar', () => {
+    estado.doc = { id: 'r1', tipo: 'entrega', numero: 'RT-ERP00002', estado: 'cancelled', esHistorico: false }
+    montar()
+    expect(screen.getByRole('button', { name: /^Eliminar/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Anular el remito' })).toBeNull()
   })
 
   it('Fase 14 E3: remito en borrador sí se puede cancelar', () => {

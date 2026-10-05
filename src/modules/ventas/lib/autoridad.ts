@@ -114,8 +114,19 @@ export function esErrorAutoridadExterna(e: unknown): boolean {
  * y validaciones del servicio) → texto para la persona.
  */
 export const MENSAJES_WORKFLOW: Record<string, string> = {
-  DELIVERY_ALREADY_DISPATCHED: 'El remito ya generó movimiento de stock y no puede cancelarse directamente.',
+  /**
+   * Fase 40: dejó de ser un callejón sin salida.
+   *
+   * El texto decía la verdad —no se puede cancelar— y ahí se terminaba, así
+   * que quien tenía un remito mal despachado no sabía qué hacer. Ahora hay
+   * una salida y el mensaje la nombra: anular devuelve las unidades y recién
+   * entonces el remito se puede borrar.
+   */
+  DELIVERY_ALREADY_DISPATCHED:
+    'El remito ya descontó stock: para dejarlo sin efecto usá «Anular el remito», que devuelve las unidades.',
   DELIVERY_CANCELLED: 'El remito está cancelado.',
+  DELIVERY_IMPORTED: 'El remito vino de STEL: se anula en STEL, no acá.',
+  DELIVERY_NOT_DISPATCHED: 'El remito está en borrador: no movió stock, así que no hay nada que anular.',
   DELIVERY_STATUS_REQUIRES_DISPATCH: 'El remito sólo avanza con «Confirmar y despachar», que descuenta el stock.',
   DOCUMENT_CURRENCY_REQUIRED: 'Elegí la moneda del documento: no hay moneda por defecto.',
   DOCUMENT_CURRENCY_MISMATCH: 'El documento tiene que conservar la moneda de su documento de origen.',

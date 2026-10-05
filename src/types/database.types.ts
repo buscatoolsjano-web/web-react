@@ -7652,6 +7652,7 @@ export type Database = {
           tipo: string
         }[]
       }
+      anular_entrega: { Args: { p_delivery: string }; Returns: Json }
       aprobar_cotizacion_mantenimiento: {
         Args: { p_order: string; p_por?: string | null }
         Returns: Json

@@ -16,6 +16,7 @@ import {
 import { useSeries } from '../hooks/useDocumentos'
 import { escribeVentas } from '../lib/permisos'
 import { borrarDocumento, cancelarDocumento, duplicarDocumento } from '../services/acciones'
+import { anularEntrega } from '../services/entregas'
 import { ETIQUETA_DE, RUTA_DE, type DocumentoDetalle } from '../types'
 import { ModalImpresion } from './ModalImpresion'
 
@@ -73,7 +74,7 @@ export function useAccionesDocumento(
   const navegar = useNavigate()
   const queryClient = useQueryClient()
   const [imprimiendo, setImprimiendo] = useState(false)
-  const [confirmar, setConfirmar] = useState<'cancelar' | 'eliminar' | null>(null)
+  const [confirmar, setConfirmar] = useState<'cancelar' | 'eliminar' | 'anular' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const escribe = escribeVentas(activa?.rol)
@@ -119,6 +120,26 @@ export function useAccionesDocumento(
     },
   })
 
+  /**
+   * Anular el remito: devuelve el stock y lo deja cancelado (Fase 40).
+   *
+   * No se refresca sólo el remito: el pedido de origen vuelve a mostrar esas
+   * unidades como pendientes de entrega y el saldo del depósito cambió.
+   * `refrescar` invalida todo Ventas, que es justo lo que hace falta acá.
+   */
+  const anular = useMutation({
+    mutationFn: () => anularEntrega(doc!.id),
+    onSuccess: () => {
+      setError(null)
+      setConfirmar(null)
+      void refrescar()
+    },
+    onError: (e: Error) => {
+      setConfirmar(null)
+      setError(mensajeErrorVentas(e))
+    },
+  })
+
   const borrar = useMutation({
     mutationFn: () => borrarDocumento(doc!.tipo, doc!.id),
     onSuccess: () => {
@@ -149,6 +170,15 @@ export function useAccionesDocumento(
 
   const sePuedeCancelar = escribe && !cerrado
   const sePuedeBorrar = escribe && !doc.esHistorico && !remitoDespachado
+  /**
+   * Anular reemplaza a «Cancelar» en un remito despachado (Fase 40).
+   *
+   * No se ofrece en uno histórico: ese documento es de STEL y se anula allá;
+   * acá sólo volvería a entrar vivo en el próximo sync, con el stock ya
+   * devuelto. La base también lo rechaza (DELIVERY_IMPORTED); esto evita el
+   * botón que falla.
+   */
+  const sePuedeAnular = escribe && remitoDespachado && !doc.esHistorico
 
   return {
     secundarias: (
@@ -156,7 +186,7 @@ export function useAccionesDocumento(
         Ver / Imprimir
       </Button>
     ),
-    hayMas: sePuedeDuplicar || sePuedeCancelar || sePuedeBorrar,
+    hayMas: sePuedeDuplicar || sePuedeCancelar || sePuedeAnular || sePuedeBorrar,
     mas: (
       <>
         {sePuedeDuplicar ? (
@@ -173,6 +203,17 @@ export function useAccionesDocumento(
         {sePuedeCancelar ? (
           <Button variant="secondary" disabled={cancelar.isPending} onClick={() => setConfirmar('cancelar')}>
             Cancelar {nombre}
+          </Button>
+        ) : null}
+        {sePuedeAnular ? (
+          <Button
+            variant="secondary"
+            icon={<Icon name="refresh" size={16} />}
+            loading={anular.isPending}
+            disabled={anular.isPending}
+            onClick={() => setConfirmar('anular')}
+          >
+            Anular el remito
           </Button>
         ) : null}
         {sePuedeBorrar ? (
@@ -213,6 +254,20 @@ export function useAccionesDocumento(
           busy={cancelar.isPending}
           onCancel={() => setConfirmar(null)}
           onConfirm={() => cancelar.mutate()}
+        />
+        {/* El texto dice lo que PASA, no lo que se toca: anular no es una
+            corrección cosmética, mueve el saldo del depósito y le devuelve
+            trabajo pendiente al pedido. Quien lo confirma tiene que saberlo. */}
+        <ConfirmDialog
+          open={confirmar === 'anular'}
+          tone="danger"
+          title={`¿Anular el remito ${doc.numero}?`}
+          description="Las unidades vuelven al stock y el pedido las muestra de nuevo como pendientes de entrega. El remito queda cancelado, con el movimiento de ida y el de vuelta registrados. Después se puede borrar."
+          confirmLabel="Anular y devolver el stock"
+          cancelLabel="Volver"
+          busy={anular.isPending}
+          onCancel={() => setConfirmar(null)}
+          onConfirm={() => anular.mutate()}
         />
         <ConfirmDialog
           open={confirmar === 'eliminar'}

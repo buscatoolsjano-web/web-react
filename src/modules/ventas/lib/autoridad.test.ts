@@ -52,7 +52,7 @@ describe('autoridad de numeración en Ventas', () => {
   })
 
   it('Fase 14 E3: códigos de workflow → mensaje, aunque vengan envueltos', () => {
-    expect(mensajeErrorVentas(new Error('No se pudo cancelar: DELIVERY_ALREADY_DISPATCHED'))).toBe('El remito ya generó movimiento de stock y no puede cancelarse directamente.')
+    expect(mensajeErrorVentas(new Error('No se pudo cancelar: DELIVERY_ALREADY_DISPATCHED'))).toMatch(/Anular el remito/)
     expect(mensajeErrorVentas(new Error('No se pudo guardar: DOCUMENT_CURRENCY_REQUIRED'))).toBe('Elegí la moneda del documento: no hay moneda por defecto.')
     expect(mensajeErrorVentas(new Error('DOCUMENT_CURRENCY_MISMATCH'))).toMatch(/conservar la moneda/)
     expect(mensajeErrorVentas(new Error('DELIVERY_STATUS_REQUIRES_DISPATCH'))).toMatch(/Confirmar y despachar/)
