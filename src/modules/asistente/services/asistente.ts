@@ -56,6 +56,26 @@ export interface PropuestaCotizacion {
   total: number
 }
 
+/**
+ * Un producto que el asistente nombró en su respuesta (Fase 40).
+ *
+ * Viaja ESTRUCTURADO por el mismo canal que el borrador, no sacado del texto:
+ * la pantalla dibuja una tarjeta con sus botones y no tiene que adivinar dónde
+ * terminaba el SKU dentro de una frase.
+ *
+ * No trae el id del producto, a propósito: «Ver» va a `/catalogo/:sku`, que no
+ * lo necesita, y para «Agregar» se resuelve el id de todos los SKU juntos en
+ * una sola consulta. Mandar el uuid de cada producto a través del modelo sería
+ * pagar tokens por un dato que la pantalla puede averiguar sola.
+ */
+export interface ProductoNombrado {
+  sku: string
+  nombre: string
+  precio: number | null
+  moneda: string | null
+  disponible: number | null
+}
+
 export interface RespuestaAsistente {
   texto: string
   pasos: PasoAsistente[]
@@ -65,6 +85,8 @@ export interface RespuestaAsistente {
   corte: 'ninguno' | 'vueltas' | 'presupuesto'
   /** El borrador, si el asistente armó uno en esta vuelta. */
   propuesta: PropuestaCotizacion | null
+  /** Los productos que nombró, para las tarjetas. Vacío si no nombró ninguno. */
+  productos: ProductoNombrado[]
 }
 
 export interface AgenteDisponible {
@@ -164,7 +186,37 @@ export async function preguntar(params: {
     llamadas: typeof o['llamadas'] === 'number' ? o['llamadas'] : 0,
     corte: o['corte'] === 'vueltas' || o['corte'] === 'presupuesto' ? o['corte'] : 'ninguno',
     propuesta: leerPropuesta(o['propuesta']),
+    productos: leerProductos(o['productos']),
   }
+}
+
+/**
+ * Los productos nombrados, comprobando los tipos en vez de confiar.
+ *
+ * Una fila sin SKU se descarta: el SKU es la identidad y sin él la tarjeta no
+ * puede ni enlazar ni agregar. Es preferible mostrar una tarjeta menos que una
+ * que no hace nada.
+ */
+function leerProductos(v: unknown): ProductoNombrado[] {
+  if (!Array.isArray(v)) return []
+  return v.flatMap((p) => {
+    if (typeof p !== 'object' || p === null) return []
+    const o = p as Record<string, unknown>
+    const sku = cadena(o['sku'])
+    if (sku === '') return []
+    const num = (x: unknown): number | null => {
+      if (x === null || x === undefined) return null
+      const n = Number(x)
+      return Number.isFinite(n) ? n : null
+    }
+    return [{
+      sku,
+      nombre: cadena(o['nombre']) || sku,
+      precio: num(o['precio']),
+      moneda: cadena(o['moneda']) || null,
+      disponible: num(o['disponible']),
+    }]
+  })
 }
 
 /**

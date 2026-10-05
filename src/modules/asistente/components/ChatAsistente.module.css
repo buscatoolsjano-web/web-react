@@ -318,8 +318,18 @@
 /* ── la barra de progreso ─────────────────────────────────────────────────
    Riel fino y relleno con la primaria. La transición es lo que hace que se
    lea como movimiento continuo y no como saltos: el componente actualiza el
-   ancho cada 120 ms, y sin esto se vería a tirones. */
-.barra {
+   ancho cada 120 ms, y sin esto se vería a tirones.
+
+   SE LLAMA «progreso» Y NO «barra», y eso no es cosmética: «barra» ya era el
+   formulario de abajo. Dos reglas con el mismo nombre en el mismo módulo
+   compilan a la MISMA clase y gana la última, así que este bloque le aplicaba
+   «height: 4px» y «overflow: hidden» AL FORMULARIO: la caja de texto quedaba
+   de cuatro píxeles y recortada, o sea invisible. Nadie podía escribir.
+
+   Y al revés, la barra de progreso heredaba el «display: flex», el
+   «padding-top» y el «border-top» del formulario, así que tampoco se veía
+   como una barra que avanza. Un solo nombre repetido rompió las dos. */
+.progreso {
   overflow: hidden;
   width: 100%;
   height: 4px;
@@ -328,7 +338,7 @@
   border-radius: 999px;
 }
 
-.barraRelleno {
+.progresoRelleno {
   height: 100%;
   background: var(--color-primary);
   border-radius: inherit;
@@ -338,7 +348,7 @@
 /* Quien pidió menos movimiento no necesita ver la barra crecer: el cartel de
    «Buscando en el ERP…» ya dice lo mismo. */
 @media (prefers-reduced-motion: reduce) {
-  .barraRelleno {
+  .progresoRelleno {
     transition: none;
   }
 }

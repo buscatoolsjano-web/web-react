@@ -15,10 +15,12 @@ import {
   type Adjunto,
   type MensajeChat,
   type PasoAsistente,
+  type ProductoNombrado,
   type PropuestaCotizacion,
 } from '../services/asistente'
 import { pedazos } from '../lib/formatoRespuesta'
 import { TarjetaCotizacion } from './TarjetaCotizacion'
+import { TarjetasProductos } from './TarjetasProductos'
 import { empezarAGrabar, FalloGrabacion, sePuedeGrabar, type Grabacion } from '../lib/grabador'
 import styles from './ChatAsistente.module.css'
 
@@ -41,6 +43,8 @@ interface Turno {
   pasos?: PasoAsistente[]
   /** El borrador de cotización, si armó uno. */
   propuesta?: PropuestaCotizacion | null
+  /** Los productos que nombró, para dibujarlos como tarjetas con sus botones. */
+  productos?: ProductoNombrado[]
   corte?: 'ninguno' | 'vueltas' | 'presupuesto'
   error?: boolean
 }
@@ -131,7 +135,14 @@ export function ChatAsistente() {
     onSuccess: (r) => {
       setTurnos((t) => [
         ...t,
-        { rol: 'agente', texto: r.texto, pasos: r.pasos, corte: r.corte, propuesta: r.propuesta },
+        {
+          rol: 'agente',
+          texto: r.texto,
+          pasos: r.pasos,
+          corte: r.corte,
+          propuesta: r.propuesta,
+          productos: r.productos,
+        },
       ])
     },
     onError: (e) => {
@@ -256,6 +267,12 @@ export function ChatAsistente() {
             {/* El borrador va DEBAJO de lo que dijo, como una tarjeta
                 aparte: es lo que va a pasar si apretás, no algo que dijo. */}
             {t.propuesta ? <TarjetaCotizacion propuesta={t.propuesta} /> : null}
+
+            {/* Y los productos que nombró, para poder hacer algo con ellos sin
+                copiar el SKU e irse al catálogo a buscarlo. */}
+            {t.productos && t.productos.length > 0 ? (
+              <TarjetasProductos productos={t.productos} />
+            ) : null}
 
             {t.corte && t.corte !== 'ninguno' ? (
               <p className={styles.aviso}>
@@ -427,11 +444,11 @@ function Progreso() {
   return (
     <article className={styles.suyo}>
       <div
-        className={styles.barra}
+        className={styles.progreso}
         role="progressbar"
         aria-label="El asistente está buscando la respuesta"
       >
-        <div className={styles.barraRelleno} style={{ width: `${Math.round(avance * 100)}%` }} />
+        <div className={styles.progresoRelleno} style={{ width: `${Math.round(avance * 100)}%` }} />
       </div>
       <p className={styles.pensando} aria-live="polite">
         Buscando en el ERP…

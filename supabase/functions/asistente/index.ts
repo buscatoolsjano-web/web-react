@@ -226,9 +226,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     'alguien de la empresa'
   const contexto = `CONTEXTO DE ESTA CONSULTA\nHoy es ${ahora}. Cuando digan un mes sin año, es el más reciente que ya pasó.\nQuien pregunta es ${quien}.`
 
-  // Lo que las herramientas dejan para la pantalla: hoy, el borrador de
-  // cotización. Va aparte del texto a propósito.
-  const bandeja: Bandeja = { propuesta: null }
+  // Lo que las herramientas dejan para la pantalla: el borrador de cotización
+  // y los productos que se nombraron. Va aparte del texto a propósito.
+  const bandeja: Bandeja = { propuesta: null, productos: [] }
 
   try {
     const r = await responder(
@@ -250,6 +250,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       corte: r.corte,
       proveedor: proveedor.nombre,
       propuesta: bandeja.propuesta,
+      // Los productos nombrados, para dibujarlos como tarjetas con sus botones.
+      productos: bandeja.productos,
     })
   } catch (e) {
     if (e instanceof FalloProveedor) {

@@ -48,7 +48,7 @@ vi.mock('../services/asistente', async (original) => {
       estado.enviado = p
       if (estado.error) return Promise.reject(estado.error)
       return Promise.resolve(
-        estado.respuesta ?? { texto: 'Listo.', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null },
+        estado.respuesta ?? { texto: 'Listo.', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null, productos: [] },
       )
     },
   }
@@ -94,6 +94,7 @@ describe('El chat del asistente', () => {
       llamadas: 3,
       corte: 'ninguno',
       propuesta: null,
+      productos: [],
     }
     montar()
 
@@ -115,7 +116,7 @@ describe('El chat del asistente', () => {
   it('manda el hilo ENTERO, no sólo el último mensaje', async () => {
     estado.listo = true
     estado.error = null
-    estado.respuesta = { texto: 'Mirgor compró 8 cosas.', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null }
+    estado.respuesta = { texto: 'Mirgor compró 8 cosas.', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null, productos: [] }
     montar()
 
     escribirYEnviar('¿qué le vendimos a Mirgor?')
@@ -161,7 +162,7 @@ describe('El chat del asistente', () => {
   it('avisa cuando la consulta se cortó por llegar a su tope', async () => {
     estado.listo = true
     estado.error = null
-    estado.respuesta = { texto: 'Con lo que junté…', pasos: [], llamadas: 24, corte: 'presupuesto', propuesta: null }
+    estado.respuesta = { texto: 'Con lo que junté…', pasos: [], llamadas: 24, corte: 'presupuesto', propuesta: null, productos: [] }
     montar()
 
     escribirYEnviar('algo largo')
@@ -171,7 +172,7 @@ describe('El chat del asistente', () => {
   it('los ejemplos de arranque preguntan al tocarlos', async () => {
     estado.listo = true
     estado.error = null
-    estado.respuesta = { texto: 'ok', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null }
+    estado.respuesta = { texto: 'ok', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null, productos: [] }
     montar()
 
     const ejemplo = await screen.findByRole('button', { name: /mejor cliente del mes pasado/i })

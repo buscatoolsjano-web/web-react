@@ -1,0 +1,106 @@
+/* Los productos que nombró el asistente, como tarjetas (Fase 40). */
+
+.lista {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * Una tarjeta por producto. En COLUMNA y no en fila: esto vive en un panel
+ * lateral de ~380 px, y nombre + precio + dos botones en una sola línea
+ * obligaba a elegir entre truncar el nombre o desbordar.
+ */
+.tarjeta {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.datos {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sku {
+  font-size: var(--text-xs);
+  /* La misma pila que el resto del ERP para los SKU. No hay token de fuente
+     monoespaciada: se escribe entera, como en EditorLineas y BuscadorProducto. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--color-text-soft);
+}
+
+.nombre {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  /* El nombre completo, cortado en varias líneas. Un «DESTORNILLADOR PHILIPS
+     PH2 X 150MM…» truncado no deja distinguir dos medidas parecidas. */
+  overflow-wrap: anywhere;
+}
+
+.cifras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin-top: 2px;
+  font-size: var(--text-sm);
+}
+
+.precio {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+.sinPrecio {
+  color: var(--color-text-muted);
+}
+
+/* Con stock y sin stock se distinguen por COLOR Y POR PALABRA: «400
+   disponibles» contra «sin stock». Nadie tiene que interpretar un verde. */
+.conStock {
+  color: var(--color-success-text, var(--color-success));
+  font-variant-numeric: tabular-nums;
+}
+
+.sinStock {
+  color: var(--color-text-muted);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* «Ver» es un link de verdad —abre el producto en el catálogo—, así que se
+   puede abrir en otra pestaña con el clic del medio. Se le da aspecto de
+   botón secundario para que las dos acciones se lean como pares. */
+.ver {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.ver:hover {
+  background: var(--color-surface-alt);
+}
+
+.ver:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}

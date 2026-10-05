@@ -45,7 +45,71 @@ const MAX_TEXTO = 12_000
  */
 export interface Bandeja {
   propuesta: unknown | null
+  /**
+   * Los productos que se nombraron, para dibujarlos como tarjetas con sus
+   * botones (Fase 40).
+   *
+   * MISMO PRINCIPIO QUE EL BORRADOR: viajan como DATOS, no sacados de la prosa
+   * del modelo. Si la pantalla tuviera que leer «SP.PH2 — SPEEDRILL: USD 1,81;
+   * stock 400» de un texto, haría falta que el modelo escribiera un formato
+   * exacto todas las veces, que es la clase de cosa que anda en las pruebas y
+   * falla en producción. La web vieja lo hacía así, con expresiones regulares.
+   */
+  productos: ProductoNombrado[]
 }
+
+/** Lo mínimo para dibujar una tarjeta y poder actuar sobre ella. */
+export interface ProductoNombrado {
+  sku: string
+  nombre: string
+  precio: number | null
+  moneda: string | null
+  disponible: number | null
+}
+
+/** Un número que puede venir como texto —`numeric` de Postgres— o faltar. */
+function aNumero(v: unknown): number | null {
+  if (v === null || v === undefined) return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+/**
+ * Saca los productos de lo que devolvió una herramienta.
+ *
+ * `buscar_productos` los pone en `productos` y `stock` en `stock`, con nombres
+ * de campo distintos para el saldo. Se normalizan acá, una vez, en vez de que
+ * la pantalla conozca las dos formas.
+ *
+ * Se acumulan entre herramientas y SIN REPETIR: una consulta puede buscar por
+ * nombre y después pedir el stock de uno de los resultados, y ese producto no
+ * tiene que aparecer dos veces. Gana la primera aparición, que es la que trae
+ * el precio.
+ */
+function cosecharProductos(datos: unknown, acumulado: ProductoNombrado[]): void {
+  if (typeof datos !== 'object' || datos === null) return
+  const d = datos as Record<string, unknown>
+  const filas = [
+    ...(Array.isArray(d['productos']) ? d['productos'] : []),
+    ...(Array.isArray(d['stock']) ? d['stock'] : []),
+  ]
+  for (const f of filas) {
+    if (typeof f !== 'object' || f === null) continue
+    const p = f as Record<string, unknown>
+    const sku = typeof p['sku'] === 'string' ? p['sku'] : null
+    if (sku === null || acumulado.some((x) => x.sku === sku)) continue
+    acumulado.push({
+      sku,
+      nombre: typeof p['nombre'] === 'string' ? p['nombre'] : sku,
+      precio: aNumero(p['precio']),
+      moneda: typeof p['moneda'] === 'string' ? p['moneda'] : null,
+      disponible: aNumero(p['disponible']),
+    })
+  }
+}
+
+/** Cuántas tarjetas se mandan como mucho. Más que esto es una lista, no un atajo. */
+const MAX_PRODUCTOS = 12
 
 export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
   const supabase = createClient(
@@ -115,6 +179,20 @@ export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
     // El borrador se guarda entero para la pantalla, antes de recortarlo
     // para el modelo.
     if (bandeja && nombre === 'preparar_cotizacion') bandeja.propuesta = datos ?? null
+
+    /*
+     * Y los productos que la herramienta haya nombrado, para las tarjetas.
+     * También ANTES del recorte: si la respuesta se corta por `MAX_TEXTO`, el
+     * modelo ve menos, pero la pantalla ya tiene las filas enteras.
+     */
+    // `stock_actual`, no `stock`: el id de la herramienta es el del catálogo
+    // de `herramientas.ts`, y el nombre corto nunca habría enganchado.
+    if (bandeja && (nombre === 'buscar_productos' || nombre === 'stock_actual')) {
+      if (bandeja.productos.length < MAX_PRODUCTOS) {
+        cosecharProductos(datos, bandeja.productos)
+        bandeja.productos.length = Math.min(bandeja.productos.length, MAX_PRODUCTOS)
+      }
+    }
 
     const texto = JSON.stringify(datos ?? null)
     return texto.length <= MAX_TEXTO
