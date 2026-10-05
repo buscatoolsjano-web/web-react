@@ -145,7 +145,13 @@ export function FiltroCliente({ valor, onElegir }: FiltroClienteProps) {
                   onClick={() => elegir(c.id)}
                 >
                   {c.referencia ? <span className={styles.referencia}>{c.referencia}</span> : null}
-                  <span className={styles.opcionNombre}>{c.nombre}</span>
+                  <span className={styles.opcionNombre}>
+                    {c.nombre}
+                    {/* La razón social cuando no es lo que se muestra: acá el
+                        nombre comercial suele ser una persona, y sin esto no
+                        se entiende por qué coincidió (Fase 40). */}
+                    {c.razonSocial ? <span className={styles.razon}>{c.razonSocial}</span> : null}
+                  </span>
                   {c.dadoDeBaja ? <span className={styles.baja}>de baja</span> : null}
                 </button>
               </li>

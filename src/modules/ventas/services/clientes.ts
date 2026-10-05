@@ -15,6 +15,36 @@ export interface ClienteOpcion {
    * verla.
    */
   referencia?: string | null | undefined
+  /**
+   * La razón social, cuando no es lo que se muestra (Fase 40).
+   *
+   * El nombre visible es el comercial, y en este maestro el comercial suele
+   * ser una PERSONA: «Francisco Rivas» para Mitsubishi Hitachi. Buscando «mi»
+   * aparecía «Francisco Rivas» y no había forma de saber por qué. Mostrando
+   * las dos, la coincidencia se explica sola.
+   */
+  razonSocial?: string | null | undefined
+}
+
+/** Una fila tal como la devuelve `public.buscar_clientes`. */
+interface FilaBuscada {
+  id: string
+  nombre: string | null
+  razon_social: string | null
+  cuit: string | null
+  referencia: string | null
+  dado_de_baja: boolean
+}
+
+function aOpcion(f: FilaBuscada): ClienteOpcion {
+  return {
+    id: f.id,
+    nombre: f.nombre ?? 'Sin nombre',
+    dadoDeBaja: f.dado_de_baja,
+    referencia: f.referencia,
+    // Sólo cuando aporta: repetir el mismo texto dos veces es ruido.
+    razonSocial: f.razon_social && f.razon_social !== f.nombre ? f.razon_social : null,
+  }
 }
 
 /**
@@ -39,45 +69,11 @@ export async function buscarClientesParaFiltro(
   companyId: string,
   texto: string,
 ): Promise<ClienteOpcion[]> {
-  // Los paréntesis y las comas rompen la sintaxis de `or()` de PostgREST y la
-  // estrella es un comodín de `ilike`: las razones sociales traen las tres.
-  const limpio = texto.trim().replace(/[,()*]/g, '')
-  // Una sola letra son cientos de clientes: no es una sugerencia de nada.
-  if (limpio.length < 2) return []
-
-  const patron = `%${limpio}%`
-  const { data, error } = await supabase
-    .from('customers')
-    .select('id, legal_name, trade_name, legacy_ref, deleted_at')
-    .eq('company_id', companyId)
-    .or(
-      `legal_name.ilike.${patron},trade_name.ilike.${patron},tax_id.ilike.${patron},legacy_ref.ilike.${patron}`,
-    )
-    .order('legal_name', { ascending: true })
-    .limit(15)
-  if (error) throw new Error(`No se pudieron buscar los clientes: ${error.message}`)
-
-  return (
-    (data ?? []) as {
-      id: string
-      legal_name: string | null
-      trade_name: string | null
-      legacy_ref: string | null
-      deleted_at: string | null
-    }[]
-  ).map((c) => ({
-    id: c.id,
-    nombre: c.trade_name?.trim() || c.legal_name?.trim() || 'Sin nombre',
-    dadoDeBaja: c.deleted_at !== null,
-    referencia: c.legacy_ref,
-  }))
+  return pedirBusqueda(companyId, texto, true)
 }
 
 /**
  * Buscador de clientes para un documento **nuevo**.
- *
- * Contra el servidor y de a 20, igual que el buscador de productos: el legacy
- * tenía los 988 clientes en un array global y filtraba en memoria.
  *
  * Un cliente dado de baja o inactivo **no se ofrece**. Sigue existiendo, sus
  * documentos lo siguen nombrando, pero no se le arma uno nuevo.
@@ -86,48 +82,34 @@ export async function buscarClientes(
   companyId: string,
   texto: string,
 ): Promise<ClienteOpcion[]> {
-  const limpio = texto.trim().replace(/[,()*]/g, '')
+  return pedirBusqueda(companyId, texto, false)
+}
 
-  // Fase 22 · A8: sin texto no se busca nada.
-  //
-  // Antes, con el campo vacío, la consulta salía SIN filtro y devolvía los
-  // primeros 20 clientes por orden alfabético: al tocar «Cliente» aparecían
-  // «27 de Julio S.R.L.», «A-Evangelista S.A.»…, que no son sugerencias de
-  // nada. Con 1.010 clientes, una lista que no responde a lo que se escribió
-  // es ruido, y encima cuesta una consulta cada vez que se abre el campo.
-  //
-  // Un solo carácter tampoco alcanza: «a» son cientos de clientes.
-  if (limpio.length < 2) return []
+/**
+ * La llamada, una sola vez para los dos.
+ *
+ * Sin texto no se busca nada: con el campo vacío la consulta salía sin filtro
+ * y devolvía los primeros 20 por orden alfabético —«27 de Julio S.R.L.»,
+ * «A-Evangelista S.A.»…—, que no son sugerencias de nada. Una sola letra
+ * tampoco alcanza: «a» son cientos de clientes. La base aplica el mismo
+ * mínimo; esto evita además el viaje.
+ */
+async function pedirBusqueda(
+  companyId: string,
+  texto: string,
+  incluirInactivos: boolean,
+): Promise<ClienteOpcion[]> {
+  if (texto.trim().length < 2) return []
 
-  const patron = `%${limpio}%`
-  const q = supabase
-    .from('customers')
-    .select('id, legal_name, trade_name, tax_id, legacy_ref')
-    .eq('company_id', companyId)
-    .is('deleted_at', null)
-    .eq('status', 'active')
-    .or(
-      `legal_name.ilike.${patron},trade_name.ilike.${patron},tax_id.ilike.${patron},legacy_ref.ilike.${patron}`,
-    )
-    .order('legal_name', { ascending: true })
-    .limit(15)
-
-  const { data, error } = await q
+  const { data, error } = await supabase.rpc('buscar_clientes', {
+    p_company: companyId,
+    p_texto: texto,
+    p_incluir_inactivos: incluirInactivos,
+    p_limite: 15,
+  })
   if (error) throw new Error(`No se pudieron buscar clientes: ${error.message}`)
 
-  return (
-    (data ?? []) as {
-      id: string
-      legal_name: string | null
-      trade_name: string | null
-      legacy_ref: string | null
-    }[]
-  ).map((c) => ({
-    id: c.id,
-    nombre: c.trade_name?.trim() || c.legal_name?.trim() || 'Sin nombre',
-    dadoDeBaja: false,
-    referencia: c.legacy_ref,
-  }))
+  return ((data ?? []) as unknown as FilaBuscada[]).map(aOpcion)
 }
 
 /** El nombre de un cliente ya elegido, para mostrarlo sin volver a buscarlo. */

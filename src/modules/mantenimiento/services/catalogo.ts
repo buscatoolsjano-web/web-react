@@ -93,34 +93,44 @@ export interface ClienteBuscado {
 }
 
 /**
- * Búsqueda de clientes por razón social, nombre comercial o referencia.
+ * Búsqueda de clientes por razón social, nombre comercial, referencia o CUIT.
  *
- * Como mucho 20 filas: hay 1010 clientes y traerlos todos para un selector
- * sería el error del legacy.
+ * Va por `public.buscar_clientes`, la MISMA de Ventas, para que el orden sea
+ * el mismo en toda la app: primero los que empiezan con lo que se escribió,
+ * después los que empiezan una palabra con eso, y recién al final los que lo
+ * contienen en el medio (Fase 40).
+ *
+ * El orden lo decide la base y no esta función, y ésa es la diferencia que
+ * importa: ordenar las 20 filas que ya llegaron no sirve de nada, porque con
+ * 1.010 clientes la que se buscaba se perdió en el corte.
  */
 export async function buscarClientes(
   companyId: string,
   texto: string,
   tope = 20,
 ): Promise<ClienteBuscado[]> {
-  const t = texto.trim().replace(/[,()*]/g, '')
-  if (t.length < 2) return []
+  if (texto.trim().length < 2) return []
 
-  const { data, error } = await supabase
-    .from('customers')
-    .select('id, legacy_ref, legal_name, trade_name')
-    .eq('company_id', companyId)
-    .is('deleted_at', null)
-    .or(`legal_name.ilike.%${t}%,trade_name.ilike.%${t}%,legacy_ref.ilike.%${t}%`)
-    .order('legal_name')
-    .limit(tope)
+  const { data, error } = await supabase.rpc('buscar_clientes', {
+    p_company: companyId,
+    p_texto: texto,
+    p_incluir_inactivos: false,
+    p_limite: tope,
+  })
   if (error) throw new Error(`No se pudieron buscar clientes: ${error.message}`)
 
-  return (data ?? []).map((c) => ({
+  return (
+    (data ?? []) as unknown as {
+      id: string
+      nombre: string | null
+      razon_social: string | null
+      referencia: string | null
+    }[]
+  ).map((c) => ({
     id: c.id,
-    referencia: c.legacy_ref,
-    razonSocial: c.legal_name,
-    nombreComercial: c.trade_name,
+    referencia: c.referencia,
+    razonSocial: c.razon_social ?? c.nombre ?? 'Sin nombre',
+    nombreComercial: c.nombre,
   }))
 }
 

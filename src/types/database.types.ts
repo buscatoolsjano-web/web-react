@@ -7707,6 +7707,23 @@ export type Database = {
         }[]
       }
       anular_entrega: { Args: { p_delivery: string }; Returns: Json }
+      buscar_clientes: {
+        Args: {
+          p_company: string
+          p_incluir_inactivos?: boolean
+          p_limite?: number
+          p_texto: string
+        }
+        Returns: {
+          cuit: string | null
+          dado_de_baja: boolean
+          id: string
+          nombre: string
+          rango: number
+          razon_social: string | null
+          referencia: string | null
+        }[]
+      }
       borrar_con_motivo: {
         Args: { p_entidad: string; p_id: string; p_motivo: string }
         Returns: Json

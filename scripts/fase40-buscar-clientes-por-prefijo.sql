@@ -1,0 +1,66 @@
+-- Fase 40 · Buscar clientes: primero los que EMPIEZAN con lo que escribiste
+--
+-- EL PROBLEMA, MEDIDO
+--
+-- El buscador hacía `ilike '%texto%'`, ordenaba alfabéticamente y cortaba en
+-- 15. Con 1.010 clientes eso no es «ordenar mal»: es NO ENCONTRAR. Escribir
+-- «mi» devolvía, en este orden:
+--
+--   Adami Adrian Alfredo · ADITIVOS ALIMENTARIOS · ADM Neumática & Servicios ·
+--   Agencia Maritima Nabsa · AIMCO · Alimentos Fruna · Aluar · AMPHENOL ·
+--   APERAM · Api Herramientas · Ariel A. Demitti · Ascensores Guillemin ·
+--   AUSTIN POWDER · Automación Micromecanica · Autosal
+--
+-- Mirgor no está. Ninguno de esos quince empieza con «mi»: el corte se
+-- consumió entero con nombres que lo contienen en el medio y van antes en el
+-- alfabeto.
+--
+-- POR QUÉ EN LA BASE Y NO EN EL NAVEGADOR
+--
+-- Porque ordenar las quince filas que ya llegaron no arregla nada: la que se
+-- buscaba no vino. El orden tiene que decidirse ANTES del límite, y el límite
+-- está del lado del servidor.
+--
+-- LOS CUATRO RANGOS
+--
+--   0  es exactamente eso (nombre, nombre comercial o referencia), o el CUIT
+--      empieza con esos dígitos
+--   1  empieza con eso
+--   2  una PALABRA empieza con eso   → «Grupo Mirgor» para «mirgor»
+--   3  lo contiene en el medio       → «Quimirgo» para «mirgor»
+--
+-- El rango 3 se deja, no se descarta. Si alguien escribe un pedazo del medio y
+-- es lo único que hay, tiene que encontrarlo; lo que no puede es taparle los
+-- otros tres. Con el límite de 15, en la práctica sólo aparece cuando sobra
+-- lugar, que es exactamente cuando hace falta.
+--
+-- EL CUIT, POR DÍGITOS
+--
+-- Hasta ahora pegar «30-57803607-1» no encontraba nada: la columna guarda
+-- «30578036071» y el ilike buscaba los guiones también. Ahora se comparan los
+-- dígitos de los dos lados.
+--
+-- SECURITY INVOKER
+--
+-- Un externo tiene que seguir viendo un solo cliente, el suyo, y eso lo decide
+-- RLS. Esto ordena; no abre nada.
+--
+-- LA RAZÓN SOCIAL VIAJA APARTE
+--
+-- El nombre que se muestra es el comercial, y en este maestro el comercial
+-- suele ser una PERSONA. Buscando «mi» aparecía «Francisco Rivas» y no había
+-- forma de saber por qué: es Mitsubishi Hitachi. La función devuelve las dos y
+-- la pantalla muestra la segunda cuando no es la misma.
+--
+-- Aplicado en São Paulo como la migración `fase40_buscar_clientes_por_prefijo`.
+--
+-- ENSAYO (como `authenticated`):
+--
+--   mi      → 1·Francisco Rivas (Mitsubishi Hitachi) | 1·Micaela Melisa
+--             Baigorri (Mercedes Benz) | 1·MICRO OMNIBUS | 1·Miguel Angel
+--             Ciapino (GRUPO AMBAR) | 1·Miguel Ayala Rojas (Mainco) | …
+--   mirgor  → 2·Grupo Mirgor S.A.
+--   whirl   → 1·Charles Silveira (Whirlpool Brasil) | 1·WHIRLPOOL ARGENTINA
+--   30-57803607-1 → 0·Grupo Mirgor S.A.   (antes: nada)
+--   CLI00719      → 0·Patricio (Juan Manuel)
+--   m             → (vacío: una letra no es una búsqueda)

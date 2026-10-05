@@ -159,6 +159,11 @@ export function BuscadorCliente({ valor, editable, onElegir, apariencia = 'erp' 
               >
                 {c.referencia ? <span className={styles.referencia}>{c.referencia}</span> : null}
                 <span>{c.nombre}</span>
+                {/* La razón social, cuando no es lo que se muestra. El nombre
+                    visible es el comercial, y acá el comercial suele ser una
+                    PERSONA: buscando «mi» aparecía «Francisco Rivas» sin modo
+                    de saber que era Mitsubishi Hitachi (Fase 40). */}
+                {c.razonSocial ? <span className={styles.razon}>{c.razonSocial}</span> : null}
               </button>
             </li>
           ))}

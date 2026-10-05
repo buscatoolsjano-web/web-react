@@ -99,6 +99,15 @@
   color: var(--primary);
 }
 
+/* La razón social, debajo del nombre que se muestra. Más chica y apagada:
+   es la explicación de por qué coincidió, no el nombre. */
+.razon {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
 .lista li:last-child .opcion {
   border-bottom: none;
 }
