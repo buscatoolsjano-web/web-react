@@ -13,6 +13,14 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+  /* Sin esto, un contenido ancho —la tabla del catálogo, con foto, stock y
+     precio— empujaba el diálogo MÁS ALLÁ de la pantalla: `min-width: auto` es
+     el default de un ítem flex y le deja crecer hasta el ancho de su
+     contenido. En una ventana de 731px el diálogo medía 1019 y lo que quedaba
+     a la derecha —el botón «Nuevo producto», entre otras cosas— no se podía
+     ni ver ni alcanzar. Con `0` el diálogo se queda en la pantalla y el que
+     scrollea es el contenedor que ya tiene `overflow: auto` para eso. */
+  min-width: 0;
   max-height: min(calc(100dvh - var(--space-6)), 760px);
   background: var(--color-surface);
   color: var(--color-text);

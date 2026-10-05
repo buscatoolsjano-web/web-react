@@ -5,7 +5,10 @@ import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/forms/Field'
 import { Input } from '@/components/forms/controls'
 import { Spinner } from '@/components/ui/Spinner'
+import { Icon } from '@/components/icons/Icon'
 import { ImagenProducto } from '@/modules/catalogo/components/ImagenProducto'
+import { ModalNuevoProducto } from '@/modules/catalogo/components/ModalNuevoProducto'
+import type { ProductoCreado } from '@/modules/catalogo/services/altaProducto'
 import { EncabezadoOrdenable as Encabezado } from '@/modules/catalogo/components/EncabezadoOrdenable'
 import { PanelFacetas } from '@/modules/catalogo/components/PanelFacetas'
 import { columnasDinamicas, valorDinamico } from '@/modules/catalogo/lib/columnasDinamicas'
@@ -103,6 +106,9 @@ export function ModalCatalogoProductos({
   const [texto, setTexto] = useState('')
   const [cantidades, setCantidades] = useState<Record<string, string>>({})
   const [agregados, setAgregados] = useState<string[]>([])
+  /** El alta de producto, encima de este modal (Fase 40). */
+  const [creando, setCreando] = useState(false)
+  const [reciente, setReciente] = useState<ProductoCreado | null>(null)
 
   // Se espera a que pare de tipear: sin esto, «balanceador» son once consultas.
   useEffect(() => {
@@ -171,15 +177,36 @@ export function ModalCatalogoProductos({
       }
     >
       <div className={styles.filtros}>
-        <Field label="Buscar por SKU, nombre o descripción" hideLabel>
-          <Input
-            type="search"
-            value={texto}
-            placeholder="Buscar por SKU, nombre o descripción…"
-            onChange={(e) => setTexto(e.target.value)}
-            autoFocus
-          />
-        </Field>
+        {/* El alta va PEGADA al buscador y no en el pie, porque el momento en
+            que hace falta es exactamente éste: buscaste, no está, y hasta ahora
+            había que abandonar la cotización, ir al Catálogo, crearlo y volver
+            a empezar. */}
+        <div className={styles.barraBuscar}>
+          <Field label="Buscar por SKU, nombre o descripción" hideLabel className={styles.campoBuscar}>
+            <Input
+              type="search"
+              value={texto}
+              placeholder="Buscar por SKU, nombre o descripción…"
+              onChange={(e) => setTexto(e.target.value)}
+              autoFocus
+            />
+          </Field>
+          <Button variant="secondary" icon={<Icon name="plus" size={16} />} onClick={() => setCreando(true)}>
+            Nuevo producto
+          </Button>
+        </div>
+
+        {/* El cartel no dice sólo «listo»: dice qué hacer ahora. El producto
+            recién creado no tiene precio en la tarifa del documento —no puede
+            tenerlo, acaba de nacer— y entra en cero si nadie lo mira. */}
+        {reciente ? (
+          <Alert tone="success" title={`${reciente.sku} creado y agregado al buscador`}>
+            <p>
+              Ponele la cantidad y tocá «Agregar». Revisá el precio: un producto nuevo
+              todavía no está en la tarifa de este documento.
+            </p>
+          </Alert>
+        ) : null}
 
         {/* Los filtros del catálogo, tal cual: categorías, subcategorías,
             marca y los atributos de la categoría elegida. */}
@@ -374,6 +401,31 @@ export function ModalCatalogoProductos({
           </span>
         ) : null}
       </div>
+
+      {/*
+       * El alta, encima de este modal.
+       *
+       * Al crearlo NO se agrega solo al documento: se deja listo en la lista,
+       * buscado por su SKU, para que se elija la cantidad y se mire el precio
+       * como con cualquier otro. Agregarlo de una escondería justo lo que hay
+       * que revisar —que nació sin precio en esta tarifa—.
+       *
+       * El texto se escribe en los dos lados a la vez: en `texto`, para que el
+       * buscador muestre lo que está filtrando, y en `filtros`, para saltear
+       * los 300 ms del debounce. Esperarlos acá sería medio segundo de lista
+       * vieja justo después de crear algo.
+       */}
+      {creando ? (
+        <ModalNuevoProducto
+          onCerrar={() => setCreando(false)}
+          onCreado={(p) => {
+            setCreando(false)
+            setReciente(p)
+            setTexto(p.sku)
+            setFiltros((f) => ({ ...FILTROS_MODAL, q: p.sku, pagina: 1, porPagina: f.porPagina }))
+          }}
+        />
+      ) : null}
     </Dialog>
   )
 }

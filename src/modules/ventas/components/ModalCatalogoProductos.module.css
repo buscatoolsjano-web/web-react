@@ -134,3 +134,26 @@
   color: var(--color-text-soft);
   text-decoration: line-through;
 }
+
+/*
+ * El buscador y «Nuevo producto», en una sola fila (Fase 40).
+ *
+ * El botón va al lado del campo y no en el pie porque el momento en que hace
+ * falta es justo cuando se buscó algo y no está.
+ */
+.barraBuscar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.campoBuscar {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .barraBuscar {
+    flex-wrap: wrap;
+  }
+}

@@ -13,6 +13,7 @@ import {
   useMarcas,
 } from '../hooks/useCatalogoFacetas'
 import { useCrearProducto } from '../hooks/useCrearProducto'
+import type { ProductoCreado } from '../services/altaProducto'
 import {
   atributosDeLaCategoria,
   CAMPOS_QUE_NO_ESTAN,
@@ -36,8 +37,16 @@ const MAXIMO_IMAGEN = 5 * 1024 * 1024
 
 export interface ModalNuevoProductoProps {
   onCerrar: () => void
-  /** Al crearlo se abre el producto, para ver que quedó como se quería. */
-  onCreado: (id: string) => void
+  /**
+   * Qué hacer con el producto recién creado.
+   *
+   * Llega el producto ENTERO y no sólo el id (Fase 40): desde el Catálogo lo
+   * único que hace falta es abrirlo, pero desde una cotización hay que
+   * encontrarlo en la lista para agregarlo, y para eso se necesita el SKU.
+   * Devolver el id y obligar a releerlo sería pedir una consulta por un dato
+   * que el alta ya tiene en la mano.
+   */
+  onCreado: (producto: ProductoCreado) => void
 }
 
 /**
@@ -157,7 +166,7 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
           setMostrarErrores(false)
           elegirImagen(null)
           setComponentes([])
-          onCreado(r.id)
+          onCreado(r)
         },
       },
     )

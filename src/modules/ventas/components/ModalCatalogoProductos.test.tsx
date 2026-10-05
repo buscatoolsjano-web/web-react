@@ -86,6 +86,22 @@ function producto(id: string, sku: string, nombre: string, precio: number | null
   }
 }
 
+/**
+ * El alta de producto se saltea entera: lo que se prueba acá no es el
+ * formulario —tiene sus propios tests— sino qué hace ESTE modal con el
+ * producto que vuelve.
+ */
+vi.mock('@/modules/catalogo/components/ModalNuevoProducto', () => ({
+  ModalNuevoProducto: ({ onCreado }: { onCreado: (p: { id: string; sku: string; nombre: string }) => void }) => (
+    <div>
+      alta de producto
+      <button type="button" onClick={() => onCreado({ id: 'p9', sku: 'ZZ.NUEVO', nombre: 'EL QUE ACABO DE CREAR' })}>
+        crear
+      </button>
+    </div>
+  ),
+}))
+
 const { ModalCatalogoProductos } = await import('./ModalCatalogoProductos')
 
 function montar(
@@ -280,5 +296,47 @@ describe('con un rol externo', () => {
     await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
     expect(screen.queryByRole('columnheader', { name: 'SR' })).not.toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'SV' })).not.toBeInTheDocument()
+  })
+})
+
+/*
+ * Crear un producto sin salir de la cotización (Fase 40).
+ *
+ * El caso real: estás armando una cotización, el producto que te pidieron no
+ * está en el catálogo todavía, y hasta ahora había que abandonar el documento,
+ * ir al Catálogo, crearlo y empezar de nuevo.
+ */
+describe('crear un producto desde el documento', () => {
+  it('el buscador ofrece crear uno, y al crearlo lo deja buscado por su SKU', async () => {
+    montar()
+    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo producto' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'crear' }))
+
+    // Queda escrito en el buscador: se ve QUÉ está filtrando la lista.
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText(/Buscar por SKU/)).toHaveValue('ZZ.NUEVO'),
+    )
+    // Y se le pidió al catálogo con ese texto, sin esperar el debounce.
+    await waitFor(() => expect(estado.planes.at(-1)?.plan.texto).toBe('ZZ.NUEVO'))
+  })
+
+  /**
+   * NO se agrega solo al documento. Un producto recién creado no tiene precio
+   * en la tarifa —no puede tenerlo— y agregarlo de una escondería justo eso:
+   * entraría en cero sin que nadie lo mire.
+   */
+  it('no lo agrega solo: avisa que falta ponerle cantidad y mirar el precio', async () => {
+    const { onAgregar } = montar()
+    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo producto' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'crear' }))
+
+    expect(onAgregar).not.toHaveBeenCalled()
+    const aviso = await screen.findByText(/ZZ.NUEVO creado y agregado al buscador/)
+    expect(aviso.closest('[class]')).toBeTruthy()
+    expect(screen.getByText(/todavía no está en la tarifa/)).toBeInTheDocument()
   })
 })

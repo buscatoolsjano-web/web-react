@@ -408,9 +408,9 @@ export function CatalogoPage() {
       {creando ? (
         <ModalNuevoProducto
           onCerrar={() => setCreando(false)}
-          onCreado={(id) => {
+          onCreado={(p) => {
             setCreando(false)
-            abrir(id)
+            abrir(p.id)
           }}
         />
       ) : null}
