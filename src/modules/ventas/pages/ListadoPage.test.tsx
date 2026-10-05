@@ -38,7 +38,8 @@ vi.mock('../hooks/useFiltrosVentas', () => ({
   }),
 }))
 vi.mock('../hooks/useDocumentos', () => ({
-  useClientes: () => ({ data: [] }),
+  useNombreDeCliente: () => ({ data: null, isPending: false }),
+  useBuscarClientesParaFiltro: () => ({ data: [], isFetching: false, error: null }),
   useSeries: () => ({ data: estado.series, isPending: estado.seriesPendientes }),
   useFacetas: () => ({ data: { monedas: ['USD'], series: ['COTI'] } }),
   useDocumentos: () =>
@@ -239,9 +240,9 @@ describe('Listado de Ventas: estados', () => {
     expect(screen.getByRole('searchbox', { name: 'Buscar por número de documento' })).toBeVisible()
     const plegar = screen.getByRole('button', { name: /Filtros/ })
     expect(plegar).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.getByRole('combobox', { name: 'Cliente', hidden: true }).closest('[hidden]')).not.toBeNull()
+    expect(screen.getByRole('button', { name: /filtrar por cliente/i, hidden: true }).closest('[hidden]')).not.toBeNull()
     fireEvent.click(plegar)
     expect(plegar).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('combobox', { name: 'Cliente' }).closest('[hidden]')).toBeNull()
+    expect(screen.getByRole('button', { name: /filtrar por cliente/i }).closest('[hidden]')).toBeNull()
   })
 })

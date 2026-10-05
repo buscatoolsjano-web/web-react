@@ -18,41 +18,59 @@ export interface ClienteOpcion {
 }
 
 /**
- * Clientes para el **filtro** de los listados.
+ * Clientes para el **filtro** de los listados (Fase 40).
  *
- * Incluye los dados de baja, marcados: si no, un documento histórico de un
- * cliente que ya no opera no se podría filtrar por su cliente.
+ * Es el mismo buscador contra el servidor que el del alta, con una diferencia
+ * que importa: acá **sí** aparecen los dados de baja y los inactivos,
+ * marcados. Filtrar es mirar el pasado, y un cliente que dejó de operar tiene
+ * documentos que hay que poder encontrar por él; dar de alta es mirar el
+ * futuro, y a ése no se le arma uno nuevo.
  *
- * Tope de 500. El maestro pasó de 60 a 1.010 al migrar la Fase 5 y un
- * desplegable con mil opciones no se usa; para elegir un cliente al crear un
- * documento está `buscarClientes`, que pregunta al servidor.
+ * Reemplaza a un desplegable con las primeras 500 filas alfabéticas. El
+ * maestro tiene 1.010, así que faltaban 510: la lista se cortaba en
+ * «Industrial Deckert S.R.L.» y no había forma de notarlo —el desplegable se
+ * veía completo—. Whirlpool, que es el puesto 994 y tiene 29 cotizaciones, no
+ * se podía elegir. Por eso esto es una corrección y no sólo una comodidad.
  *
  * Un rol externo ve exactamente uno: el suyo. No lo decide esta consulta, lo
  * decide RLS.
  */
-export async function listarClientes(companyId: string): Promise<ClienteOpcion[]> {
+export async function buscarClientesParaFiltro(
+  companyId: string,
+  texto: string,
+): Promise<ClienteOpcion[]> {
+  // Los paréntesis y las comas rompen la sintaxis de `or()` de PostgREST y la
+  // estrella es un comodín de `ilike`: las razones sociales traen las tres.
+  const limpio = texto.trim().replace(/[,()*]/g, '')
+  // Una sola letra son cientos de clientes: no es una sugerencia de nada.
+  if (limpio.length < 2) return []
+
+  const patron = `%${limpio}%`
   const { data, error } = await supabase
     .from('customers')
-    .select('id, legal_name, trade_name, deleted_at')
+    .select('id, legal_name, trade_name, legacy_ref, deleted_at')
     .eq('company_id', companyId)
+    .or(
+      `legal_name.ilike.${patron},trade_name.ilike.${patron},tax_id.ilike.${patron},legacy_ref.ilike.${patron}`,
+    )
     .order('legal_name', { ascending: true })
-    .limit(500)
-  if (error) throw new Error(`No se pudieron leer los clientes: ${error.message}`)
+    .limit(15)
+  if (error) throw new Error(`No se pudieron buscar los clientes: ${error.message}`)
 
   return (
     (data ?? []) as {
       id: string
       legal_name: string | null
       trade_name: string | null
+      legacy_ref: string | null
       deleted_at: string | null
     }[]
-  )
-    .map((c) => ({
-      id: c.id,
-      nombre: c.trade_name?.trim() || c.legal_name?.trim() || 'Sin nombre',
-      dadoDeBaja: c.deleted_at !== null,
-    }))
-    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+  ).map((c) => ({
+    id: c.id,
+    nombre: c.trade_name?.trim() || c.legal_name?.trim() || 'Sin nombre',
+    dadoDeBaja: c.deleted_at !== null,
+    referencia: c.legacy_ref,
+  }))
 }
 
 /**

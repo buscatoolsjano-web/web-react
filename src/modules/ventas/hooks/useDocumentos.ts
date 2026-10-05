@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { listarClientes, nombreDeCliente } from '../services/clientes'
+import { buscarClientesParaFiltro, nombreDeCliente } from '../services/clientes'
 import { listarEventos, type EntidadAuditable } from '../services/auditoria'
 import {
   contactosDeCliente,
@@ -73,15 +73,25 @@ export function useRelacionados(tipo: TipoDocumento, id: string | undefined) {
   })
 }
 
-export function useClientes() {
+/**
+ * Los clientes que coinciden con lo que se escribió en el filtro (Fase 40).
+ *
+ * `habilitado` lo decide la pantalla —el buscador está cerrado casi siempre—:
+ * sin eso, cada listado pediría clientes al abrirse para llenar un desplegable
+ * que nadie tocó.
+ */
+export function useBuscarClientesParaFiltro(texto: string, habilitado: boolean) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
+  const termino = texto.trim()
 
   return useQuery({
-    queryKey: ['ventas', companyId, 'clientes'],
-    queryFn: () => listarClientes(companyId!),
-    enabled: companyId !== null,
-    staleTime: 5 * 60_000,
+    queryKey: ['ventas', companyId, 'filtro-cliente', termino],
+    queryFn: () => buscarClientesParaFiltro(companyId!, termino),
+    // El servicio ya devuelve [] con menos de dos caracteres; no habilitarla
+    // ahorra además el viaje.
+    enabled: companyId !== null && habilitado && termino.length >= 2,
+    staleTime: 30_000,
   })
 }
 

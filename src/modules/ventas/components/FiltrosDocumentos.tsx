@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { FilterBar } from '@/components/filters/FilterBar'
 import { Field } from '@/components/forms/Field'
 import { Checkbox, Input, Select } from '@/components/forms/controls'
+import { FiltroCliente } from './FiltroCliente'
 import { estadosDisponibles } from '../lib/estados'
-import { useClientes, useFacetas } from '../hooks/useDocumentos'
+import { useFacetas } from '../hooks/useDocumentos'
 import type { FiltrosVentas, TipoDocumento } from '../types'
 
 export interface FiltrosDocumentosProps {
@@ -35,7 +36,6 @@ export function FiltrosDocumentos({
   onAplicar,
   onLimpiar,
 }: FiltrosDocumentosProps) {
-  const clientes = useClientes()
   const facetas = useFacetas(tipo)
 
   // El número se escribe letra por letra: se espera a que la persona pare de
@@ -69,19 +69,9 @@ export function FiltrosDocumentos({
         </Field>
       }
     >
-      <Field label="Cliente" hideLabel>
-        <Select value={filtros.clienteId ?? ''} onChange={(e) => onAplicar({ clienteId: e.target.value || null })}>
-          <option value="">Todos los clientes</option>
-          {(clientes.data ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.nombre}
-              {/* Un cliente dado de baja sigue en el filtro: sus documentos
-                  históricos existen y hay que poder buscarlos por él. */}
-              {c.dadoDeBaja ? ' (dado de baja)' : ''}
-            </option>
-          ))}
-        </Select>
-      </Field>
+      {/* Un buscador y no un desplegable: son 1.010 clientes y el `<select>`
+          mostraba los primeros 500, sin avisar. Ver FiltroCliente.tsx. */}
+      <FiltroCliente valor={filtros.clienteId} onElegir={(id) => onAplicar({ clienteId: id })} />
 
       <Field label="Estado" hideLabel>
         <Select value={filtros.estado ?? ''} onChange={(e) => onAplicar({ estado: e.target.value || null })}>

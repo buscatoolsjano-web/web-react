@@ -1,0 +1,167 @@
+/* El filtro de cliente del listado: un buscador con cara de desplegable
+   (Fase 40). Ver el porqué en FiltroCliente.tsx. */
+
+.caja {
+  position: relative;
+  min-width: 11rem;
+}
+
+/* Cerrado se tiene que ver IGUAL que el select que tiene al lado —mismo alto,
+   mismo borde, misma flecha—: es un filtro más de la fila, no un control
+   aparte. Los valores salen de `.control` de Forms.module.css. */
+.disparador {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-h-md);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-tight);
+  text-align: left;
+  cursor: pointer;
+}
+
+.disparador:hover {
+  border-color: var(--color-text-soft);
+}
+
+.disparador:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+}
+
+/* Sin filtro el texto es un placeholder, no un valor: si se viera igual que un
+   cliente elegido, «Todos los clientes» pasaría por una empresa llamada así. */
+.todos {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text-muted);
+}
+
+.nombre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--weight-semibold);
+}
+
+.flecha {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+/* El panel flota: empujar la barra de filtros hacia abajo movería el listado
+   entero cada vez que alguien toca el filtro. */
+.panel {
+  position: absolute;
+  z-index: var(--z-dropdown);
+  top: calc(100% + var(--space-1));
+  left: 0;
+  display: grid;
+  gap: var(--space-2);
+  width: max(100%, 20rem);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.entrada {
+  width: 100%;
+  min-height: var(--control-h-md);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  /* 16px y no --text-sm: con menos, iOS hace zoom al enfocar y la barra de
+     filtros se va de pantalla justo cuando se está escribiendo. */
+  font-size: 16px;
+}
+
+.entrada:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.opcion:hover,
+.opcion:focus-visible {
+  outline: none;
+  background: var(--color-primary-soft);
+}
+
+.opcionNombre {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* La referencia del sistema anterior (CLI00719) es lo que la gente dicta por
+   teléfono y lo que distingue dos razones sociales parecidas. */
+.referencia {
+  flex: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.baja {
+  flex: none;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--color-danger);
+}
+
+.nota {
+  padding: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 767px) {
+  .caja {
+    min-width: 0;
+  }
+  .panel {
+    width: 100%;
+  }
+}
