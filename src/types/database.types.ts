@@ -1,23 +1,43 @@
 /**
- * Tipos generados desde el schema de Supabase (proyecto uaxcfufvapzulqvynanp).
+ * Tipos generados desde el schema de Supabase (proyecto jiudqbusyknubonpedde,
+ * São Paulo / sa-east-1). Es la base que usa la app: el secreto de GitHub
+ * `VITE_SUPABASE_URL` apunta ahí —verificado en el bundle que sirve
+ * app.buscatools.com— y `.env.local` también. El proyecto uaxcfufvapzulqvynanp
+ * (Ohio) quedó atrás y NO sirve como fuente: le faltan 3 tablas y 26
+ * funciones que São Paulo sí tiene (Fases 30, 39 y 40).
  *
  * NO editar a mano. Se regenera con:
- *   npx supabase gen types typescript --project-id uaxcfufvapzulqvynanp
+ *   npx supabase gen types typescript --project-id jiudqbusyknubonpedde
  *
- * Refleja el schema completo: catálogo, stock, las tablas de Ventas de la
- * Fase 4 (incluido el precio por línea de entrega de Stage 3), las columnas
- * que la Fase 5 agregó a `customers` —emails, industry, needs_review,
- * review_reason, imported_at, legacy_source— y las ocho tablas de Compras de
- * la Fase 6.
+ * PERO ESA ORDEN SOLA NO ALCANZA, y conviene saber por qué antes de correrla.
+ * Medido sobre este esquema: la salida cruda de la CLI
  *
- * Generar el archivo con la CLI oficial necesita un access token de Supabase
- * que no está en esta máquina. Las seis columnas de Fase 5 y sus funciones se
- * escribieron a mano y se verifican con `scripts/fase5-verificar-tipos.mjs`.
- * Las ocho tablas de Compras NO se escribieron a mano: las genera
- * `scripts/fase6-generar-tipos-compras.mjs` desde el esquema OpenAPI que
- * publica PostgREST, que es la misma fuente de la que sale el archivo oficial.
+ *   · pierde `| null` en 277 campos de `Functions` (111 en Args, 166 en
+ *     Returns) y en NINGUNO de `Tables`. No es un bug del generador: Postgres
+ *     no guarda la nulabilidad de las columnas de un `returns table(...)` ni
+ *     de los parámetros `out`, así que el generador asume no-nulo. Las tablas
+ *     sí la tienen en el catálogo y salen bien.
+ *   · pierde `maintenance_assets.estado_servicio`, que es una columna
+ *     calculada que PostgREST expone y que el código filtra con `.eq()`.
  *
- * Cuando se pueda regenerar con la CLI, el resultado tiene que ser idéntico.
+ * Las dos cosas se reinyectan encima de la salida generada. Por eso el
+ * objetivo que declaraba la versión anterior de este header —«cuando se pueda
+ * regenerar con la CLI, el resultado tiene que ser idéntico»— es inalcanzable:
+ * la CLI no puede producir este archivo, y aceptarla tal cual haría que 166
+ * campos de retorno dejaran de pedir chequeo de null.
+ *
+ * El orden de los miembros es el del generador (alfabético dentro de cada
+ * sección), no el temático que tenía el archivo escrito a mano. Los
+ * comentarios se conservaron anclados al miembro que precedían, así que alguno
+ * que describía a un grupo quedó sobre el primero de ese grupo.
+ */
+/* eslint-disable @typescript-eslint/no-redundant-type-constituents --
+ * Este esquema no tiene enums ni tipos compuestos, asi que dentro de los
+ * helpers `Enums<>` y `CompositeTypes<>` que emite el generador
+ * `keyof DefaultSchema["Enums"]` resuelve a `never` y la union queda con un
+ * constituyente redundante. Es salida del generador, no codigo nuestro, y
+ * vuelve a aparecer en cada regeneracion: se silencia la regla en vez de
+ * editar el footer a mano cada vez. Nada del codigo usa esos dos helpers.
  */
 export type Json =
   | string
@@ -127,6 +147,194 @@ export type Database = {
           },
         ]
       }
+      catalog_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          changed_fields: string[]
+          company_id: string
+          created_at: string
+          entity_id: string
+          entity_name: string
+          entity_type: string
+          id: number
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          changed_fields?: string[]
+          company_id: string
+          created_at?: string
+          entity_id: string
+          entity_name: string
+          entity_type: string
+          id?: never
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          changed_fields?: string[]
+          company_id?: string
+          created_at?: string
+          entity_id?: string
+          entity_name?: string
+          entity_type?: string
+          id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_audit_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_conversaciones: {
+        Row: {
+          company_id: string
+          creada_por: string | null
+          created_at: string
+          id: string
+          ultimo_mensaje: string | null
+          ultimo_mensaje_en: string | null
+        }
+        Insert: {
+          company_id: string
+          creada_por?: string | null
+          created_at?: string
+          id?: string
+          ultimo_mensaje?: string | null
+          ultimo_mensaje_en?: string | null
+        }
+        Update: {
+          company_id?: string
+          creada_por?: string | null
+          created_at?: string
+          id?: string
+          ultimo_mensaje?: string | null
+          ultimo_mensaje_en?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_conversaciones_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_conversaciones_creada_por_fkey"
+            columns: ["creada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_mensajes: {
+        Row: {
+          autor_id: string
+          company_id: string
+          conversacion_id: string
+          created_at: string
+          id: string
+          texto: string
+        }
+        Insert: {
+          autor_id: string
+          company_id: string
+          conversacion_id: string
+          created_at?: string
+          id?: string
+          texto: string
+        }
+        Update: {
+          autor_id?: string
+          company_id?: string
+          conversacion_id?: string
+          created_at?: string
+          id?: string
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_mensajes_autor_id_fkey"
+            columns: ["autor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_mensajes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_mensajes_conversacion_id_fkey"
+            columns: ["conversacion_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_participantes: {
+        Row: {
+          company_id: string
+          conversacion_id: string
+          created_at: string
+          leido_hasta: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          conversacion_id: string
+          created_at?: string
+          leido_hasta?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          conversacion_id?: string
+          created_at?: string
+          leido_hasta?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_participantes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_participantes_conversacion_id_fkey"
+            columns: ["conversacion_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_participantes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null
@@ -186,6 +394,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "currencies"
             referencedColumns: ["code"]
+          },
+        ]
+      }
+      company_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          changed_fields: string[]
+          company_id: string
+          created_at: string
+          id: number
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          changed_fields: string[]
+          company_id: string
+          created_at?: string
+          id?: never
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          changed_fields?: string[]
+          company_id?: string
+          created_at?: string
+          id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_audit_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -273,8 +523,8 @@ export type Database = {
       }
       customer_addresses: {
         Row: {
-          city: string | null
           active: boolean
+          city: string | null
           company_id: string
           country_code: string | null
           created_at: string
@@ -291,8 +541,8 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
-          city?: string | null
           active?: boolean
+          city?: string | null
           company_id: string
           country_code?: string | null
           created_at?: string
@@ -309,8 +559,8 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
-          city?: string | null
           active?: boolean
+          city?: string | null
           company_id?: string
           country_code?: string | null
           created_at?: string
@@ -715,6 +965,7 @@ export type Database = {
           id: string
           line_no: number
           match_confidence: number | null
+          match_method: string | null
           match_status: string
           matched_at: string | null
           matched_by: string | null
@@ -733,6 +984,7 @@ export type Database = {
           id?: string
           line_no: number
           match_confidence?: number | null
+          match_method?: string | null
           match_status?: string
           matched_at?: string | null
           matched_by?: string | null
@@ -751,6 +1003,7 @@ export type Database = {
           id?: string
           line_no?: number
           match_confidence?: number | null
+          match_method?: string | null
           match_status?: string
           matched_at?: string | null
           matched_by?: string | null
@@ -966,6 +1219,7 @@ export type Database = {
           phone: string | null
           review_reason: string | null
           salesperson_id: string | null
+          search_text: string | null
           status: string
           tax_id: string | null
           trade_name: string | null
@@ -996,6 +1250,7 @@ export type Database = {
           phone?: string | null
           review_reason?: string | null
           salesperson_id?: string | null
+          search_text?: string | null
           status?: string
           tax_id?: string | null
           trade_name?: string | null
@@ -1026,6 +1281,7 @@ export type Database = {
           phone?: string | null
           review_reason?: string | null
           salesperson_id?: string | null
+          search_text?: string | null
           status?: string
           tax_id?: string | null
           trade_name?: string | null
@@ -1078,6 +1334,7 @@ export type Database = {
           created_by: string | null
           currency_code: string | null
           customer_id: string
+          delivery_address_snapshot: Json | null
           delivery_date: string
           exchange_rate: number | null
           external_id: string | null
@@ -1113,6 +1370,7 @@ export type Database = {
           created_by?: string | null
           currency_code?: string | null
           customer_id: string
+          delivery_address_snapshot?: Json | null
           delivery_date: string
           exchange_rate?: number | null
           external_id?: string | null
@@ -1148,6 +1406,7 @@ export type Database = {
           created_by?: string | null
           currency_code?: string | null
           customer_id?: string
+          delivery_address_snapshot?: Json | null
           delivery_date?: string
           exchange_rate?: number | null
           external_id?: string | null
@@ -1223,6 +1482,13 @@ export type Database = {
             columns: ["shipping_address_id"]
             isOneToOne: false
             referencedRelation: "customer_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_source_quote_id_fkey"
+            columns: ["source_quote_id"]
+            isOneToOne: false
+            referencedRelation: "sales_quotes"
             referencedColumns: ["id"]
           },
           {
@@ -1405,11 +1671,130 @@ export type Database = {
           },
         ]
       }
+      document_numbering_authority: {
+        Row: {
+          authority: string
+          company_id: string
+          doc_type: string
+          reason: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          authority: string
+          company_id: string
+          doc_type: string
+          reason: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          authority?: string
+          company_id?: string
+          doc_type?: string
+          reason?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_numbering_authority_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_numbering_authority_audit: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          company_id: string
+          db_role: string
+          doc_type: string
+          id: number
+          jwt_role: string | null
+          new_authority: string | null
+          old_authority: string | null
+          operation: string
+          reason: string | null
+          series_code: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          company_id: string
+          db_role?: string
+          doc_type: string
+          id?: never
+          jwt_role?: string | null
+          new_authority?: string | null
+          old_authority?: string | null
+          operation: string
+          reason?: string | null
+          series_code?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          company_id?: string
+          db_role?: string
+          doc_type?: string
+          id?: never
+          jwt_role?: string | null
+          new_authority?: string | null
+          old_authority?: string | null
+          operation?: string
+          reason?: string | null
+          series_code?: string | null
+        }
+        Relationships: []
+      }
+      document_numbering_authority_series: {
+        Row: {
+          authority: string
+          company_id: string
+          doc_type: string
+          reason: string
+          series_code: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          authority: string
+          company_id: string
+          doc_type: string
+          reason: string
+          series_code: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          authority?: string
+          company_id?: string
+          doc_type?: string
+          reason?: string
+          series_code?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_numbering_authority_series_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_sequences: {
         Row: {
           company_id: string
           doc_type: string
           is_default: boolean
+          is_selectable: boolean
           next_number: number
           padding: number
           prefix: string
@@ -1419,6 +1804,7 @@ export type Database = {
           company_id: string
           doc_type: string
           is_default?: boolean
+          is_selectable?: boolean
           next_number: number
           padding?: number
           prefix: string
@@ -1428,6 +1814,7 @@ export type Database = {
           company_id?: string
           doc_type?: string
           is_default?: boolean
+          is_selectable?: boolean
           next_number?: number
           padding?: number
           prefix?: string
@@ -1533,7 +1920,7 @@ export type Database = {
           created_at?: string
           detalle?: Json | null
           gmail_thread_id?: string | null
-          id: number
+          id?: number
         }
         Update: {
           account_id?: string
@@ -1569,6 +1956,124 @@ export type Database = {
           },
         ]
       }
+      email_labels: {
+        Row: {
+          color: string
+          company_id: string
+          creado_por: string | null
+          created_at: string
+          id: string
+          nombre: string
+        }
+        Insert: {
+          color?: string
+          company_id: string
+          creado_por?: string | null
+          created_at?: string
+          id?: string
+          nombre: string
+        }
+        Update: {
+          color?: string
+          company_id?: string
+          creado_por?: string | null
+          created_at?: string
+          id?: string
+          nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_labels_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_labels_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_send_requests: {
+        Row: {
+          account_id: string
+          attempted_at: string
+          client_request_id: string
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          error_code: string | null
+          gmail_message_id: string | null
+          gmail_thread_id: string | null
+          id: string
+          intentos: number
+          operation: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          attempted_at?: string
+          client_request_id: string
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          gmail_message_id?: string | null
+          gmail_thread_id?: string | null
+          id?: string
+          intentos?: number
+          operation: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          attempted_at?: string
+          client_request_id?: string
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          gmail_message_id?: string | null
+          gmail_thread_id?: string | null
+          id?: string
+          intentos?: number
+          operation?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_send_requests_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_send_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_send_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_sync_log: {
         Row: {
           account_id: string
@@ -1590,7 +2095,7 @@ export type Database = {
           historial_vencido?: boolean
           history_id_desde?: string | null
           history_id_hasta?: string | null
-          id: number
+          id?: number
           kind: string
           threads_tocados?: number
         }
@@ -1612,6 +2117,62 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_thread_labels: {
+        Row: {
+          account_id: string
+          company_id: string
+          created_at: string
+          gmail_thread_id: string
+          label_id: string
+          puesta_por: string | null
+        }
+        Insert: {
+          account_id: string
+          company_id: string
+          created_at?: string
+          gmail_thread_id: string
+          label_id: string
+          puesta_por?: string | null
+        }
+        Update: {
+          account_id?: string
+          company_id?: string
+          created_at?: string
+          gmail_thread_id?: string
+          label_id?: string
+          puesta_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_thread_labels_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_thread_labels_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_thread_labels_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "email_labels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_thread_labels_puesta_por_fkey"
+            columns: ["puesta_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1651,146 +2212,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      chat_conversaciones: {
-        Row: {
-          company_id: string
-          created_at: string
-          creada_por: string | null
-          id: string
-          ultimo_mensaje: string | null
-          ultimo_mensaje_en: string | null
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          creada_por?: string | null
-          id?: string
-          ultimo_mensaje?: string | null
-          ultimo_mensaje_en?: string | null
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          creada_por?: string | null
-          id?: string
-          ultimo_mensaje?: string | null
-          ultimo_mensaje_en?: string | null
-        }
-        Relationships: []
-      }
-      chat_mensajes: {
-        Row: {
-          autor_id: string
-          company_id: string
-          conversacion_id: string
-          created_at: string
-          id: string
-          texto: string
-        }
-        Insert: {
-          autor_id: string
-          company_id: string
-          conversacion_id: string
-          created_at?: string
-          id?: string
-          texto: string
-        }
-        Update: {
-          autor_id?: string
-          company_id?: string
-          conversacion_id?: string
-          created_at?: string
-          id?: string
-          texto?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_mensajes_autor_id_fkey"
-            columns: ["autor_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_participantes: {
-        Row: {
-          company_id: string
-          conversacion_id: string
-          created_at: string
-          leido_hasta: string | null
-          user_id: string
-        }
-        Insert: {
-          company_id: string
-          conversacion_id: string
-          created_at?: string
-          leido_hasta?: string | null
-          user_id: string
-        }
-        Update: {
-          company_id?: string
-          conversacion_id?: string
-          created_at?: string
-          leido_hasta?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      email_labels: {
-        Row: {
-          color: string
-          company_id: string
-          created_at: string
-          creado_por: string | null
-          id: string
-          nombre: string
-        }
-        Insert: {
-          color?: string
-          company_id: string
-          created_at?: string
-          creado_por?: string | null
-          id?: string
-          nombre: string
-        }
-        Update: {
-          color?: string
-          company_id?: string
-          created_at?: string
-          creado_por?: string | null
-          id?: string
-          nombre?: string
-        }
-        Relationships: []
-      }
-      email_thread_labels: {
-        Row: {
-          account_id: string
-          company_id: string
-          created_at: string
-          gmail_thread_id: string
-          label_id: string
-          puesta_por: string | null
-        }
-        Insert: {
-          account_id: string
-          company_id: string
-          created_at?: string
-          gmail_thread_id: string
-          label_id: string
-          puesta_por?: string | null
-        }
-        Update: {
-          account_id?: string
-          company_id?: string
-          created_at?: string
-          gmail_thread_id?: string
-          label_id?: string
-          puesta_por?: string | null
-        }
-        Relationships: []
       }
       email_thread_state: {
         Row: {
@@ -1877,6 +2298,13 @@ export type Database = {
             referencedRelation: "customers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "email_thread_state_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       email_threads: {
@@ -1900,7 +2328,7 @@ export type Database = {
         Insert: {
           account_id: string
           company_id: string
-          gmail_labels: string[]
+          gmail_labels?: string[]
           gmail_thread_id: string
           has_attachments?: boolean
           id?: string
@@ -1908,7 +2336,7 @@ export type Database = {
           last_message_dir?: string | null
           last_message_from?: string | null
           message_count?: number
-          participants: string[]
+          participants?: string[]
           size_estimate?: number | null
           snippet?: string | null
           subject?: string | null
@@ -1948,6 +2376,61 @@ export type Database = {
           },
         ]
       }
+      employee_external_identities: {
+        Row: {
+          channel: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          display_name: string | null
+          external_id: string
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          channel: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string | null
+          external_id: string
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          channel?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string | null
+          external_id?: string
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_external_identities_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_external_identities_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_external_identities_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goods_receipt_lines: {
         Row: {
           company_id: string
@@ -1966,7 +2449,7 @@ export type Database = {
           goods_receipt_id: string
           id?: string
           name_snapshot?: string | null
-          product_id: string | null
+          product_id?: string | null
           purchase_order_line_id?: string | null
           quantity: number
           sku_snapshot?: string | null
@@ -2123,8 +2606,57 @@ export type Database = {
           },
         ]
       }
+      maintenance_asset_images: {
+        Row: {
+          asset_id: string
+          company_id: string
+          created_at: string
+          external_id: string | null
+          id: string
+          position: number
+          storage_path: string | null
+          url: string | null
+        }
+        Insert: {
+          asset_id: string
+          company_id: string
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          position?: number
+          storage_path?: string | null
+          url?: string | null
+        }
+        Update: {
+          asset_id?: string
+          company_id?: string
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          position?: number
+          storage_path?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_asset_images_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_asset_images_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_assets: {
         Row: {
+          address_text: string | null
           asset_type: string | null
           brand_id: string | null
           brand_text: string | null
@@ -2135,6 +2667,9 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           delivery_serial_id: string | null
+          description: string | null
+          external_id: string | null
+          external_source: string | null
           /**
            * Columna CALCULADA (funcion estado_servicio, Fase 29 E8). No existe en
            * la tabla: PostgREST la expone porque es una funcion sobre la fila.
@@ -2144,7 +2679,10 @@ export type Database = {
           estado_servicio: string
           id: string
           identifier: string | null
+          imported_at: string | null
+          last_synced_at: string | null
           model_text: string | null
+          name: string | null
           notes: string | null
           owner_customer_id: string | null
           product_id: string | null
@@ -2159,6 +2697,7 @@ export type Database = {
           warranty_start: string | null
         }
         Insert: {
+          address_text?: string | null
           asset_type?: string | null
           brand_id?: string | null
           brand_text?: string | null
@@ -2169,9 +2708,15 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           delivery_serial_id?: string | null
+          description?: string | null
+          external_id?: string | null
+          external_source?: string | null
           id?: string
           identifier?: string | null
+          imported_at?: string | null
+          last_synced_at?: string | null
           model_text?: string | null
+          name?: string | null
           notes?: string | null
           owner_customer_id?: string | null
           product_id?: string | null
@@ -2186,6 +2731,7 @@ export type Database = {
           warranty_start?: string | null
         }
         Update: {
+          address_text?: string | null
           asset_type?: string | null
           brand_id?: string | null
           brand_text?: string | null
@@ -2196,9 +2742,15 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           delivery_serial_id?: string | null
+          description?: string | null
+          external_id?: string | null
+          external_source?: string | null
           id?: string
           identifier?: string | null
+          imported_at?: string | null
+          last_synced_at?: string | null
           model_text?: string | null
+          name?: string | null
           notes?: string | null
           owner_customer_id?: string | null
           product_id?: string | null
@@ -2293,7 +2845,7 @@ export type Database = {
           entity_id: string
           entity_type: string
           from_status?: string | null
-          id: number
+          id?: number
           to_status?: string | null
         }
         Update: {
@@ -3626,6 +4178,58 @@ export type Database = {
           },
         ]
       }
+      product_equivalences: {
+        Row: {
+          company_id: string
+          equivalent_product_id: string
+          id: string
+          imported_at: string
+          product_id: string
+          source: string
+          source_kind: string
+        }
+        Insert: {
+          company_id: string
+          equivalent_product_id: string
+          id?: string
+          imported_at?: string
+          product_id: string
+          source?: string
+          source_kind: string
+        }
+        Update: {
+          company_id?: string
+          equivalent_product_id?: string
+          id?: string
+          imported_at?: string
+          product_id?: string
+          source?: string
+          source_kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_equivalences_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_equivalences_equivalent_product_id_fkey"
+            columns: ["equivalent_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_equivalences_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_images: {
         Row: {
           alt_text: string | null
@@ -4265,7 +4869,7 @@ export type Database = {
           entity_id: string
           entity_type: string
           from_status?: string | null
-          id: number
+          id?: never
           to_status?: string | null
         }
         Update: {
@@ -4277,7 +4881,7 @@ export type Database = {
           entity_id?: string
           entity_type?: string
           from_status?: string | null
-          id?: number
+          id?: never
           to_status?: string | null
         }
         Relationships: [
@@ -5168,6 +5772,182 @@ export type Database = {
           },
         ]
       }
+      stel_reconciliation_log: {
+        Row: {
+          action: string
+          company_id: string
+          created_at: string
+          detail: Json | null
+          entity_id: string
+          entity_type: string
+          field: string | null
+          id: number
+          new_value: Json | null
+          old_value: Json | null
+          reverted_at: string | null
+          run_id: string
+          source: string
+          stel_id: string | null
+        }
+        Insert: {
+          action: string
+          company_id: string
+          created_at?: string
+          detail?: Json | null
+          entity_id: string
+          entity_type: string
+          field?: string | null
+          id?: never
+          new_value?: Json | null
+          old_value?: Json | null
+          reverted_at?: string | null
+          run_id: string
+          source?: string
+          stel_id?: string | null
+        }
+        Update: {
+          action?: string
+          company_id?: string
+          created_at?: string
+          detail?: Json | null
+          entity_id?: string
+          entity_type?: string
+          field?: string | null
+          id?: never
+          new_value?: Json | null
+          old_value?: Json | null
+          reverted_at?: string | null
+          run_id?: string
+          source?: string
+          stel_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stel_reconciliation_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stel_reconciliation_log_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "stel_reconciliation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stel_reconciliation_runs: {
+        Row: {
+          company_id: string
+          finished_at: string | null
+          id: string
+          kind: string
+          plan_hash: string
+          source: string
+          started_at: string
+          status: string
+          stel_read_at: string
+          summary: Json | null
+        }
+        Insert: {
+          company_id: string
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          plan_hash: string
+          source?: string
+          started_at?: string
+          status?: string
+          stel_read_at: string
+          summary?: Json | null
+        }
+        Update: {
+          company_id?: string
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          plan_hash?: string
+          source?: string
+          started_at?: string
+          status?: string
+          stel_read_at?: string
+          summary?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stel_reconciliation_runs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stel_sync_state: {
+        Row: {
+          company_id: string
+          cursor_external_id: string | null
+          cursor_modified_at: string | null
+          entity: string
+          last_calls: number
+          last_error: string | null
+          last_finished_at: string | null
+          last_run_id: string | null
+          last_started_at: string | null
+          last_status: string
+          last_summary: Json
+          locked_at: string | null
+          locked_by: string | null
+        }
+        Insert: {
+          company_id: string
+          cursor_external_id?: string | null
+          cursor_modified_at?: string | null
+          entity: string
+          last_calls?: number
+          last_error?: string | null
+          last_finished_at?: string | null
+          last_run_id?: string | null
+          last_started_at?: string | null
+          last_status?: string
+          last_summary?: Json
+          locked_at?: string | null
+          locked_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          cursor_external_id?: string | null
+          cursor_modified_at?: string | null
+          entity?: string
+          last_calls?: number
+          last_error?: string | null
+          last_finished_at?: string | null
+          last_run_id?: string | null
+          last_started_at?: string | null
+          last_status?: string
+          last_summary?: Json
+          locked_at?: string | null
+          locked_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stel_sync_state_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stel_sync_state_last_run_id_fkey"
+            columns: ["last_run_id"]
+            isOneToOne: false
+            referencedRelation: "stel_reconciliation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_balances: {
         Row: {
           company_id: string
@@ -5676,6 +6456,70 @@ export type Database = {
           },
         ]
       }
+      users_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          company_id: string
+          created_at: string
+          from_role: string | null
+          from_status: string | null
+          id: number
+          membership_id: string
+          target_user_id: string | null
+          to_role: string | null
+          to_status: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          company_id: string
+          created_at?: string
+          from_role?: string | null
+          from_status?: string | null
+          id?: never
+          membership_id: string
+          target_user_id?: string | null
+          to_role?: string | null
+          to_status?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          company_id?: string
+          created_at?: string
+          from_role?: string | null
+          from_status?: string | null
+          id?: never
+          membership_id?: string
+          target_user_id?: string | null
+          to_role?: string | null
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_audit_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_audit_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       warehouses: {
         Row: {
           code: string
@@ -5722,10 +6566,10 @@ export type Database = {
           display_name: string | null
           display_phone_number: string
           id: string
-          phone_number_id: string
+          phone_number_id: string | null
           provider: string
           updated_at: string
-          waba_id: string
+          waba_id: string | null
         }
         Insert: {
           active?: boolean
@@ -5734,10 +6578,10 @@ export type Database = {
           display_name?: string | null
           display_phone_number: string
           id?: string
-          phone_number_id: string
+          phone_number_id?: string | null
           provider?: string
           updated_at?: string
-          waba_id: string
+          waba_id?: string | null
         }
         Update: {
           active?: boolean
@@ -5746,10 +6590,10 @@ export type Database = {
           display_name?: string | null
           display_phone_number?: string
           id?: string
-          phone_number_id?: string
+          phone_number_id?: string | null
           provider?: string
           updated_at?: string
-          waba_id?: string
+          waba_id?: string | null
         }
         Relationships: [
           {
@@ -6175,6 +7019,54 @@ export type Database = {
           },
         ]
       }
+      whatsapp_conversation_participants: {
+        Row: {
+          company_id: string
+          conversation_id: string
+          display_name: string | null
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          left_at: string | null
+          wa_id: string
+        }
+        Insert: {
+          company_id: string
+          conversation_id: string
+          display_name?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          left_at?: string | null
+          wa_id: string
+        }
+        Update: {
+          company_id?: string
+          conversation_id?: string
+          display_name?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          left_at?: string | null
+          wa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversation_participants_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversation_participants_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_conversation_reads: {
         Row: {
           conversation_id: string
@@ -6322,6 +7214,70 @@ export type Database = {
           },
         ]
       }
+      whatsapp_group_allowlist: {
+        Row: {
+          account_id: string
+          ai_enabled: boolean
+          company_id: string
+          created_at: string
+          created_by: string | null
+          enabled: boolean
+          group_name: string | null
+          id: string
+          notes: string | null
+          provider_group_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          ai_enabled?: boolean
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          group_name?: string | null
+          id?: string
+          notes?: string | null
+          provider_group_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          ai_enabled?: boolean
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          group_name?: string | null
+          id?: string
+          notes?: string | null
+          provider_group_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_group_allowlist_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_group_allowlist_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_group_allowlist_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_media: {
         Row: {
           attempts: number
@@ -6415,8 +7371,11 @@ export type Database = {
           conversation_id: string
           created_at: string
           created_by: string | null
+          deleted_at: string | null
+          deleted_by_wa_id: string | null
           delivered_at: string | null
           direction: string
+          edited_at: string | null
           error_code: number | null
           error_details: string | null
           estado_visible: string | null
@@ -6448,8 +7407,11 @@ export type Database = {
           conversation_id: string
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by_wa_id?: string | null
           delivered_at?: string | null
           direction: string
+          edited_at?: string | null
           error_code?: number | null
           error_details?: string | null
           estado_visible?: string | null
@@ -6481,8 +7443,11 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by_wa_id?: string | null
           delivered_at?: string | null
           direction?: string
+          edited_at?: string | null
           error_code?: number | null
           error_details?: string | null
           estado_visible?: string | null
@@ -6558,7 +7523,7 @@ export type Database = {
           account_id?: string | null
           error_details?: string | null
           event_type?: string | null
-          id: number
+          id?: number
           payload: Json
           processed_at?: string | null
           provider_event_id?: string | null
@@ -6650,6 +7615,286 @@ export type Database = {
       }
     }
     Functions: {
+      _preflight: {
+        Args: never
+        Returns: {
+          control: string
+          detalle: string
+          estado: string
+        }[]
+      }
+      _verificar_datos: {
+        Args: { p_tablas?: string[] }
+        Returns: {
+          coincide: boolean
+          filas_destino: number
+          filas_origen: number
+          huella_destino: string
+          huella_origen: string
+          nombre_tabla: string
+        }[]
+      }
+      abierta: {
+        Args: { q: Database["public"]["Tables"]["sales_quotes"]["Row"] }
+        Returns: boolean
+      }
+      abrir_chat_directo: {
+        Args: { p_company: string; p_otro: string }
+        Returns: string
+      }
+      actividad_mensual_cliente: {
+        Args: { p_customer: string; p_meses?: number | null }
+        Returns: {
+          documentos: number
+          importe: number
+          mes: string
+          moneda: string | null
+          tipo: string
+        }[]
+      }
+      aprobar_cotizacion_mantenimiento: {
+        Args: { p_order: string; p_por?: string | null }
+        Returns: Json
+      }
+      asignar_conversacion_whatsapp: {
+        Args: { p_conversacion: string; p_usuario?: string | null }
+        Returns: {
+          account_id: string
+          archived_at: string | null
+          assigned_to: string | null
+          company_id: string
+          conversation_type: string
+          created_at: string
+          customer_contact_id: string | null
+          customer_id: string | null
+          group_name: string | null
+          id: string
+          last_inbound_at: string | null
+          last_message_at: string | null
+          last_message_dir: string | null
+          last_message_preview: string | null
+          last_outbound_at: string | null
+          phone_e164: string | null
+          phone_raw: string | null
+          profile_name: string | null
+          provider_contact_id: string
+          provider_group_id: string | null
+          service_window_expires_at: string | null
+          updated_at: string
+          vinculo_origen: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "whatsapp_conversations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      // ── Emails (fase 9) ──────────────────────────────────────────────
+      asignar_hilo_email: {
+        Args: { p_account: string; p_thread: string; p_usuario?: string | null }
+        Returns: {
+          account_id: string
+          assigned_to: string | null
+          company_id: string
+          created_at: string
+          customer_contact_id: string | null
+          customer_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          gmail_thread_id: string
+          id: string
+          internal_note: string | null
+          updated_at: string
+          vinculo_origen: string | null
+          workflow_status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "email_thread_state"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      asistente_buscar_cliente: {
+        Args: { p_company: string; p_texto: string }
+        Returns: Json
+      }
+      asistente_buscar_documentos: {
+        Args: {
+          p_cliente?: string
+          p_company: string
+          p_desde?: string
+          p_estado?: string
+          p_hasta?: string
+          p_limite?: number
+          p_moneda?: string
+          p_orden?: string
+          p_tipo: string
+        }
+        Returns: Json
+      }
+      asistente_buscar_emails: {
+        Args: {
+          p_company: string
+          p_limite?: number
+          p_sin_leer?: boolean
+          p_texto?: string
+        }
+        Returns: Json
+      }
+      asistente_buscar_productos: {
+        Args: { p_company: string; p_limite?: number; p_texto: string }
+        Returns: Json
+      }
+      asistente_ficha_producto: {
+        Args: { p_company: string; p_sku: string }
+        Returns: Json
+      }
+      asistente_historial_cliente: {
+        Args: { p_cliente: string; p_company: string; p_limite?: number }
+        Returns: Json
+      }
+      asistente_precios_cliente: {
+        Args: { p_cliente: string; p_company: string; p_producto?: string }
+        Returns: Json
+      }
+      asistente_preparar_cotizacion: {
+        Args: {
+          p_cliente: string
+          p_company: string
+          p_moneda?: string
+          p_productos: Json
+        }
+        Returns: Json
+      }
+      asistente_ranking: {
+        Args: {
+          p_company: string
+          p_dimension: string
+          p_limite?: number
+          p_medida?: string
+          p_mes?: string
+          p_moneda?: string
+        }
+        Returns: Json
+      }
+      asistente_resumen_catalogo: { Args: { p_company: string }; Returns: Json }
+      asistente_stock: {
+        Args: { p_company: string; p_limite?: number; p_texto?: string }
+        Returns: Json
+      }
+      asistente_ultimo_costo: {
+        Args: { p_company: string; p_sku: string }
+        Returns: Json
+      }
+      asistente_ver_documento: {
+        Args: { p_company: string; p_numero: string }
+        Returns: Json
+      }
+      // Entrega 5. SECURITY INVOKER: un rol sin acceso a Emails no ve el historial.
+      autocompletar_destinatarios_email: {
+        Args: { p_company: string; p_q: string }
+        Returns: {
+          cliente_id: string | null
+          cliente_nombre: string | null
+          clientes: number
+          direccion: string
+          fuente: string
+          nombre: string | null
+        }[]
+      }
+      autoridad_numeracion_empresa: {
+        Args: { p_company: string }
+        Returns: {
+          authority: string
+          doc_type: string
+        }[]
+      }
+      autoridad_numeracion_series: {
+        Args: { p_company: string }
+        Returns: {
+          authority: string
+          doc_type: string
+          reason: string
+          series_code: string
+        }[]
+      }
+      avanzar_history_email: {
+        Args: { p_account: string; p_full_sync?: boolean | null; p_history_id: string }
+        Returns: {
+          active: boolean
+          auth_mode: string
+          company_id: string
+          created_at: string
+          display_name: string | null
+          email_address: string
+          id: string
+          last_full_sync_at: string | null
+          last_history_id: string | null
+          last_synced_at: string | null
+          provider: string
+          sync_error: string | null
+          sync_error_at: string | null
+          sync_lock_owner: string | null
+          sync_lock_until: string | null
+          updated_at: string
+          watch_expiration: string | null
+          watch_topic: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "email_accounts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      borrar_contacto: { Args: { p_contacto: string }; Returns: Json }
+      borrar_direccion: { Args: { p_direccion: string }; Returns: Json }
+      borrar_etiqueta_email: { Args: { p_label: string }; Returns: undefined }
+      borrar_mensaje_grupo_whatsapp: {
+        Args: {
+          p_account: string
+          p_deleted_at: string
+          p_deleted_by?: string
+          p_provider_message_id: string
+        }
+        Returns: Json
+      }
+      cadena_de_documento: {
+        Args: { p_id: string; p_tipo: string }
+        Returns: Json
+      }
+      cambiar_estado_email: {
+        Args: { p_account: string; p_estado: string; p_thread: string }
+        Returns: {
+          account_id: string
+          assigned_to: string | null
+          company_id: string
+          created_at: string
+          customer_contact_id: string | null
+          customer_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          gmail_thread_id: string
+          id: string
+          internal_note: string | null
+          updated_at: string
+          vinculo_origen: string | null
+          workflow_status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "email_thread_state"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cancelar_orden_mantenimiento: {
+        Args: { p_motivo?: string | null; p_order: string }
+        Returns: Json
+      }
+      capacidad_torque: { Args: { p_order: string }; Returns: Json }
       catalog_facets: {
         Args: {
           p_attrs?: Json
@@ -6658,9 +7903,38 @@ export type Database = {
           p_company: string
           p_query?: string
           p_ranges?: Json
+          p_series?: string[]
+          p_solo_catalogo?: boolean
           p_type?: string[]
         }
         Returns: Json
+      }
+      cerrar_orden_mantenimiento: { Args: { p_order: string }; Returns: Json }
+      clave_api_email_servicio: { Args: never; Returns: string }
+      clientes_similares: {
+        Args: {
+          p_company: string
+          p_cuit?: string | null
+          p_email?: string | null
+          p_excluir?: string | null
+          p_limite?: number
+          p_nombre?: string | null
+          p_telefono?: string | null
+        }
+        Returns: {
+          deleted_at: string | null
+          emails: string[] | null
+          fuerza: string
+          id: string
+          legacy_ref: string | null
+          legal_name: string
+          motivo: string
+          needs_review: boolean
+          parecido: number
+          phone: string | null
+          tax_id: string | null
+          trade_name: string | null
+        }[]
       }
       completar_analisis_whatsapp: {
         Args: {
@@ -6672,30 +7946,688 @@ export type Database = {
         }
         Returns: string
       }
+      completar_envio_email: {
+        Args: {
+          p_error: string | null
+          p_estado: string
+          p_firma: string
+          p_message_id: string | null
+          p_request: string
+          p_thread_id: string | null
+        }
+        Returns: {
+          gmail_message_id: string | null
+          gmail_thread_id: string | null
+          id: string
+          status: string
+        }[]
+      }
+      config_atributos_listar: {
+        Args: { p_company: string }
+        Returns: {
+          categorias: string[]
+          data_type: string
+          is_filterable: boolean
+          key: string
+          label: string
+          position: number
+          productos: number
+          unit: string | null
+        }[]
+      }
+      config_auditar_reenvio: {
+        Args: { p_actor: string; p_membership: string }
+        Returns: undefined
+      }
+      config_auditoria_actores: {
+        Args: { p_company: string }
+        Returns: {
+          actor_id: string
+          email: string | null
+          eventos: number
+          nombre: string | null
+        }[]
+      }
+      config_auditoria_listar: {
+        Args: {
+          p_actor?: string | null
+          p_company: string
+          p_desde?: string | null
+          p_desplazamiento?: number
+          p_evento?: string | null
+          p_hasta?: string | null
+          p_limite?: number
+          p_modulo?: string | null
+          p_texto?: string | null
+        }
+        Returns: {
+          actor: Json | null
+          detalles: Json
+          entidad_existe: boolean
+          entidad_id: string | null
+          entidad_nombre: string | null
+          entidad_tipo: string
+          evento: string
+          evento_id: number
+          fecha: string
+          modulo: string
+          origen: string
+          total: number
+        }[]
+      }
+      config_cambiar_estado: {
+        Args: { p_estado: string; p_membership: string }
+        Returns: {
+          estado: string
+          membership_id: string
+          rol: string
+        }[]
+      }
+      config_cambiar_rol: {
+        Args: { p_membership: string; p_rol: string }
+        Returns: {
+          estado: string
+          membership_id: string
+          rol: string
+        }[]
+      }
+      config_categoria_crear: {
+        Args: { p_company: string; p_datos: Json }
+        Returns: {
+          id: string
+          name: string
+          slug: string
+        }[]
+      }
+      config_categoria_eliminar: {
+        Args: { p_categoria: string; p_company: string }
+        Returns: {
+          eliminada: boolean
+        }[]
+      }
+      config_categoria_estado: {
+        Args: { p_activa: boolean; p_categoria: string; p_company: string }
+        Returns: {
+          cambiado: boolean
+          is_active: boolean
+          productos: number
+        }[]
+      }
+      config_categoria_renombrar: {
+        Args: {
+          p_categoria: string
+          p_company: string
+          p_datos: Json
+          p_esperado: string
+        }
+        Returns: {
+          cambiado: boolean
+          name: string
+        }[]
+      }
+      config_categorias_listar: {
+        Args: { p_company: string }
+        Returns: {
+          atributos: number
+          id: string
+          is_active: boolean
+          name: string
+          needs_review: boolean
+          parent_id: string | null
+          position: number
+          productos: number
+          puede_editar: boolean
+          slug: string
+          subcategorias: number
+        }[]
+      }
+      config_empresa_actualizar: {
+        Args: { p_company: string; p_datos: Json; p_esperado: string }
+        Returns: {
+          campos: string[]
+          updated_at: string
+        }[]
+      }
+      config_empresa_logo_precheck: {
+        Args: { p_actor: string; p_company: string; p_esperado: string }
+        Returns: string
+      }
+      config_empresa_logo_registrar: {
+        Args: {
+          p_actor: string
+          p_company: string
+          p_esperado: string
+          p_path: string
+        }
+        Returns: {
+          logo_anterior: string
+          logo_path: string
+          updated_at: string
+        }[]
+      }
+      // Entrega 4. Las tres son de lectura; la primera y la segunda son
+      // SECURITY INVOKER, la tercera DEFINER acotada a quien usa Emails.
+      // Fase 12 · Configuración → Usuarios. Sólo admin de la empresa (la RPC lo
+      // valida). Las de invitación son de la Edge Function y no se tipan acá.
+      // Fase 12 E2 · Empresa y numeración. Admin/employee leen; sólo admin edita.
+      config_empresa_obtener: {
+        Args: { p_company: string }
+        Returns: {
+          address: string | null
+          brand_color: string | null
+          default_currency: string
+          email: string | null
+          id: string
+          is_active: boolean
+          legal_name: string | null
+          logo_path: string | null
+          name: string
+          phone: string | null
+          puede_editar: boolean
+          slug: string
+          tax_id: string | null
+          updated_at: string
+          website: string | null
+        }[]
+      }
       config_ia_whatsapp: { Args: { p_company: string }; Returns: Json }
-      confirmar_entrega: { Args: { p_delivery: string }; Returns: Json }
-      confirmar_recepcion: { Args: { p_receipt: string }; Returns: Json }
-      cadena_de_documento: {
-        Args: { p_id: string; p_tipo: string }
+      config_lista_precios_clientes: {
+        Args: { p_company: string; p_lista: string }
+        Returns: {
+          id: string
+          legal_name: string
+          total: number
+        }[]
+      }
+      config_lista_precios_items: {
+        Args: {
+          p_busqueda?: string | null
+          p_company: string
+          p_desplazamiento?: number
+          p_limite?: number
+          p_lista: string
+          p_vigencia?: string
+        }
+        Returns: {
+          amount: number
+          marca: string | null
+          name: string
+          price_id: string
+          product_id: string
+          producto_estado: string
+          sku: string
+          total: number
+          valid_from: string
+          valid_to: string | null
+          vigencia: string
+        }[]
+      }
+      config_listar_usuarios: {
+        Args: { p_company: string }
+        Returns: {
+          alta: string
+          bloqueada: boolean
+          cliente: string | null
+          email: string
+          email_confirmado: boolean
+          es_propia: boolean
+          estado: string
+          invitado_el: string | null
+          membership_id: string
+          nombre: string | null
+          rol: string
+          ultimo_ingreso: string | null
+          user_id: string
+        }[]
+      }
+      config_listas_precios_listar: {
+        Args: { p_company: string }
+        Returns: {
+          clientes: number
+          created_at: string
+          currency_code: string
+          id: string
+          is_default: boolean
+          items: number
+          items_vigentes: number
+          name: string
+          precios_cero: number
+          valid_from: string | null
+          valid_to: string | null
+          vigencia_desde: string | null
+          vigencia_hasta: string | null
+        }[]
+      }
+      config_marca_crear: {
+        Args: { p_company: string; p_datos: Json }
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
+      config_marca_eliminar: {
+        Args: { p_company: string; p_marca: string }
+        Returns: {
+          eliminada: boolean
+        }[]
+      }
+      config_marca_estado: {
+        Args: { p_activa: boolean; p_company: string; p_marca: string }
+        Returns: {
+          cambiado: boolean
+          is_active: boolean
+          productos: number
+        }[]
+      }
+      config_marcas_listar: {
+        Args: { p_company: string }
+        Returns: {
+          created_at: string
+          equipos: number
+          id: string
+          is_active: boolean
+          name: string
+          productos: number
+          puede_editar: boolean
+        }[]
+      }
+      config_numeracion_diagnostico: {
+        Args: { p_company: string }
+        Returns: {
+          atipicos_por_encima: number
+          autoridad: string
+          autoridad_configurada: boolean
+          con_patron: number
+          doc_type: string
+          documentos: number
+          estado: string
+          fuera_patron: number
+          is_default: boolean
+          max_numero: number | null
+          max_numero_sin_atipicos: number | null
+          next_number: number
+          padding: number
+          prefix: string
+          proximo: string
+          series_code: string
+        }[]
+      }
+      config_preparar_reenvio: {
+        Args: { p_actor: string; p_membership: string }
+        Returns: {
+          company_id: string
+          email: string
+        }[]
+      }
+      config_registrar_miembro: {
+        Args: {
+          p_actor: string
+          p_company: string
+          p_evento: string
+          p_nombre: string
+          p_rol: string
+          p_user: string
+        }
+        Returns: string
+      }
+      config_validar_invitacion: {
+        Args: {
+          p_actor: string
+          p_company: string
+          p_email: string
+          p_rol: string
+        }
+        Returns: {
+          bloqueada: boolean
+          email: string
+          email_confirmado: boolean
+          invitacion_pendiente: boolean
+          membership_estado: string
+          membership_id: string
+          user_id: string
+        }[]
+      }
+      confirmar_consumo_mantenimiento: {
+        Args: { p_order: string }
         Returns: Json
       }
-      // Importar la OC del cliente (Fase 30). Agregadas A MANO, como el resto
-      // de la Fase 30: el generador produce una forma distinta que rompe la
-      // columna calculada `estado_servicio` y convierte los null en undefined.
-      cotizaciones_para_oc: {
-        Args: { p_company: string; p_customer: string; p_meses?: number; p_productos: string[] }
+      confirmar_entrega: { Args: { p_delivery: string }; Returns: Json }
+      confirmar_recepcion: { Args: { p_receipt: string }; Returns: Json }
+      contar_chats_sin_leer: { Args: { p_company: string }; Returns: number }
+      convertir_cotizacion_en_pedido: {
+        Args: { p_esperado?: string; p_quote: string }
         Returns: Json
+      }
+      convertir_cotizacion_en_pedido_en_serie: {
+        Args: { p_esperado: string; p_quote: string; p_serie: string }
+        Returns: Json
+      }
+      // Importar la OC del cliente (Fase 30). Ya NO estan escritas a mano: las
+      // genera la CLI desde Sao Paulo. Los dos defectos que esta nota advertia
+      // —`estado_servicio` y los null convertidos en undefined— siguen
+      // existiendo, pero se arreglan para TODO el archivo de una vez, no
+      // funcion por funcion: estan explicados en el encabezado.
+      cotizaciones_para_oc: {
+        Args: {
+          p_company: string
+          p_customer: string
+          p_meses?: number
+          p_productos: string[]
+        }
+        Returns: Json
+      }
+      crear_cliente: {
+        Args: {
+          p_company: string
+          p_contacto?: Json | null
+          p_datos: Json
+          p_direccion?: Json | null
+        }
+        Returns: Json
+      }
+      crear_cotizacion: {
+        Args: { p_cabecera: Json; p_company: string; p_lineas: Json }
+        Returns: Json
+      }
+      crear_factura_desde_pedido: {
+        Args: { p_fecha?: string; p_order: string; p_serie?: string }
+        Returns: Json
+      }
+      crear_pedido: {
+        Args: { p_cabecera: Json; p_company: string; p_lineas: Json }
+        Returns: Json
+      }
+      crear_remito_desde_pedido: {
+        Args: {
+          p_esperado?: string
+          p_fecha?: string
+          p_lineas: Json
+          p_order: string
+          p_serie?: string
+        }
+        Returns: Json
+      }
+      documentos_comerciales: {
+        Args: { p_company: string; p_desde: string; p_hasta: string }
+        Returns: {
+          cliente_id: string
+          en_revision: boolean
+          estado: string
+          fecha: string
+          id: string
+          importe: number
+          moneda: string
+          numero: string
+          origen: string
+          serie: string
+          tipo: string
+        }[]
+      }
+      documentos_del_cliente: {
+        Args: {
+          p_customer: string
+          p_limit?: number
+          p_offset?: number
+          p_tipo?: string | null
+        }
+        Returns: {
+          documento_id: string
+          estado: string | null
+          fecha: string | null
+          moneda: string | null
+          numero: string | null
+          tipo: string
+          total: number | null
+          total_filas: number
+        }[]
+      }
+      duplicados_de_serial: {
+        Args: { p_company: string; p_excluir?: string | null; p_serial: string }
+        Returns: {
+          created_at: string
+          id: string
+          model_text: string | null
+          owner_customer_id: string | null
+          reference: string
+          serial_number: string | null
+        }[]
+      }
+      duplicar_pedido_compra: { Args: { p_order: string }; Returns: string }
+      editar_mensaje_grupo_whatsapp: {
+        Args: {
+          p_account: string
+          p_edited_at: string
+          p_provider_message_id: string
+          p_text?: string
+        }
+        Returns: Json
+      }
+      eliminar_hilo_email: {
+        Args: { p_account: string; p_eliminar?: boolean; p_thread: string }
+        Returns: {
+          account_id: string
+          assigned_to: string | null
+          company_id: string
+          created_at: string
+          customer_contact_id: string | null
+          customer_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          gmail_thread_id: string
+          id: string
+          internal_note: string | null
+          updated_at: string
+          vinculo_origen: string | null
+          workflow_status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "email_thread_state"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       emparejar_cliente_de_oc: {
         Args: { p_company: string; p_cuit: string | null; p_nombre: string | null }
         Returns: Json
       }
-      estado_sync_email: {
-        Args: { p_company: string }
-        Returns: Json
-      }
       emparejar_lineas_de_oc: {
         Args: { p_company: string; p_customer: string; p_lineas: Json }
+        Returns: Json
+      }
+      // Fase 16 · la llama la persona desde la Edge Function de envío; valida
+      // al actor adentro, como asignar_conversacion_whatsapp.
+      encolar_mensaje_whatsapp: {
+        Args: {
+          p_client_request_id: string
+          p_conversacion: string
+          p_texto: string
+        }
+        Returns: {
+          account_id: string
+          attempts: number
+          caption: string | null
+          claimed_at: string | null
+          client_request_id: string | null
+          company_id: string
+          conversation_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by_wa_id: string | null
+          delivered_at: string | null
+          direction: string
+          edited_at: string | null
+          error_code: number | null
+          error_details: string | null
+          estado_visible: string | null
+          failed_at: string | null
+          id: string
+          media_id: string | null
+          message_type: string
+          next_attempt_at: string | null
+          ordenado_en: string | null
+          provider_message_id: string | null
+          provider_status: string | null
+          provider_timestamp: string | null
+          read_at: string | null
+          received_at: string | null
+          reply_to_provider_id: string | null
+          sender_name: string | null
+          sender_wa_id: string | null
+          sent_at: string | null
+          status: string
+          text_body: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "whatsapp_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      enviar_mensaje_chat: {
+        Args: { p_conversacion: string; p_texto: string }
+        Returns: {
+          autor_id: string
+          company_id: string
+          conversacion_id: string
+          created_at: string
+          id: string
+          texto: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "chat_mensajes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      estado_ia_whatsapp: { Args: { p_company: string }; Returns: Json }
+      estado_servicio: {
+        Args: { a: Database["public"]["Tables"]["maintenance_assets"]["Row"] }
+        Returns: string
+      }
+      estado_sync_email: { Args: { p_company: string }; Returns: Json }
+      etiquetar_hilo_email: {
+        Args: {
+          p_account: string
+          p_label: string
+          p_poner?: boolean
+          p_thread: string
+        }
+        Returns: undefined
+      }
+      generar_informe_whatsapp: {
+        Args: {
+          p_company: string
+          p_desde: string
+          p_hasta: string
+          p_tipo: string
+        }
+        Returns: Json
+      }
+      generar_informes_programados_whatsapp: {
+        Args: { p_ahora?: string }
+        Returns: number
+      }
+      grupos_cuit_legacy: {
+        Args: { p_customers: string[] }
+        Returns: {
+          cuit_normalizado: string
+          customer_id: string
+          fichas: Json
+          legacy_tax_id_raw: string
+        }[]
+      }
+      // Fase 16 · E2: IA e informes de WhatsApp.
+      guardar_analisis_whatsapp: {
+        Args: {
+          p_conversacion: string
+          p_hasta_mensaje: string
+          p_metricas: Json
+          p_modelo: string
+          p_resultado: Json
+        }
+        Returns: Json
+      }
+      guardar_cliente: {
+        Args: { p_customer: string; p_datos: Json; p_esperado: string }
+        Returns: Json
+      }
+      guardar_config_ia_whatsapp: {
+        Args: { p_company: string; p_config: Json; p_version: string }
+        Returns: Json
+      }
+      guardar_contacto: {
+        Args: {
+          p_contacto: string | null
+          p_customer: string
+          p_datos: Json
+          p_esperado: string | null
+        }
+        Returns: Json
+      }
+      // Fase 15 · E2. Guarda cabecera, lineas y auditoria de una cotizacion en
+      // una transaccion. SECURITY DEFINER: valida al actor, el estado, la
+      // concurrencia y cada campo adentro.
+      guardar_cotizacion: {
+        Args: {
+          p_cabecera: Json
+          p_esperado: string
+          p_lineas: Json
+          p_quote: string
+        }
+        Returns: Json
+      }
+      guardar_direccion: {
+        Args: {
+          p_customer: string
+          p_datos: Json
+          p_direccion: string | null
+          p_esperado: string | null
+        }
+        Returns: Json
+      }
+      guardar_etiqueta_email: {
+        Args: {
+          p_color?: string
+          p_company: string
+          p_id?: string | null
+          p_nombre: string
+        }
+        Returns: {
+          color: string
+          company_id: string
+          creado_por: string | null
+          created_at: string
+          id: string
+          nombre: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "email_labels"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      guardar_mi_apariencia: { Args: { p_appearance: Json | null }; Returns: Json }
+      guardar_pedido: {
+        Args: {
+          p_cabecera: Json
+          p_esperado: string
+          p_lineas: Json
+          p_order: string
+        }
+        Returns: Json
+      }
+      guardar_remito: {
+        Args: {
+          p_cabecera: Json
+          p_delivery: string
+          p_esperado: string
+          p_lineas: Json
+        }
         Returns: Json
       }
       importar_oc: {
@@ -6712,91 +8644,440 @@ export type Database = {
         }
         Returns: Json
       }
-      convertir_cotizacion_en_pedido: {
-        Args: { p_esperado?: string; p_quote: string }
-        Returns: Json
+      informe_actividad_comercial: {
+        Args: { p_company: string; p_mes?: string | null }
+        Returns: {
+          desde: string | null
+          documentos: number
+          en_revision: number
+          hasta: string | null
+          importe: number
+          mes: string
+          moneda: string | null
+          periodo: string
+          tipo: string | null
+        }[]
       }
-      convertir_cotizacion_en_pedido_en_serie: {
-        Args: { p_esperado: string; p_quote: string; p_serie: string }
-        Returns: Json
-      }
-      crear_factura_desde_pedido: {
-        Args: { p_fecha?: string; p_order: string; p_serie?: string }
-        Returns: Json
-      }
-      crear_cotizacion: {
-        Args: { p_cabecera: Json; p_company: string; p_lineas: Json }
-        Returns: Json
-      }
-      crear_pedido: {
-        Args: { p_cabecera: Json; p_company: string; p_lineas: Json }
-        Returns: Json
-      }
-      crear_remito_desde_pedido: {
+      informe_documentos: {
         Args: {
-          p_esperado?: string
-          p_fecha?: string
-          p_lineas: Json
-          p_order: string
+          p_cliente?: string | null
+          p_company: string
+          p_desde: string
+          p_estado?: string | null
+          p_hasta: string
+          p_limite?: number
+          p_moneda?: string | null
+          p_offset?: number
+          p_origen?: string | null
+          p_serie?: string | null
+          p_tipo?: string | null
         }
-        Returns: Json
+        Returns: {
+          cliente: string | null
+          cliente_id: string | null
+          en_revision: boolean
+          estado: string
+          fecha: string
+          id: string
+          importe: number
+          moneda: string
+          numero: string
+          origen: string | null
+          serie: string | null
+          tipo: string
+          total_filas: number
+          total_importe: number
+        }[]
       }
-      duplicar_pedido_compra: { Args: { p_order: string }; Returns: string }
-      estado_ia_whatsapp: { Args: { p_company: string }; Returns: Json }
-      generar_informe_whatsapp: {
+      informe_documentos_facetas: {
         Args: {
           p_company: string
           p_desde: string
           p_hasta: string
-          p_tipo: string
-        }
-        Returns: Json
-      }
-      generar_informes_programados_whatsapp: {
-        Args: { p_ahora?: string }
-        Returns: number
-      }
-      borrar_contacto: {
-        Args: { p_contacto: string }
-        Returns: Json
-      }
-      borrar_direccion: {
-        Args: { p_direccion: string }
-        Returns: Json
-      }
-      guardar_contacto: {
-        Args: {
-          p_contacto: string | null
-          p_customer: string
-          p_datos: Json
-          p_esperado: string | null
-        }
-        Returns: Json
-      }
-      guardar_direccion: {
-        Args: {
-          p_customer: string
-          p_datos: Json
-          p_direccion: string | null
-          p_esperado: string | null
-        }
-        Returns: Json
-      }
-      documentos_del_cliente: {
-        Args: {
-          p_customer: string
-          p_limit?: number
-          p_offset?: number
+          p_moneda?: string | null
           p_tipo?: string | null
         }
         Returns: {
-          tipo: string
-          documento_id: string
-          numero: string | null
-          fecha: string | null
-          estado: string | null
+          dimension: string
+          documentos: number
+          valor: string
+        }[]
+      }
+      informe_kardex_producto: {
+        Args: {
+          p_company: string
+          p_deposito?: string | null
+          p_desplazamiento?: number
+          p_limite?: number
+          p_orden?: string
+          p_producto: string
+        }
+        Returns: {
+          deposito: string | null
+          deposito_codigo: string | null
+          dia: string
+          fecha: string
+          inicia_con_apertura: boolean
+          movement_type: string
+          movimiento_id: number
+          notas: string | null
+          posicion: number
+          quantity: number
+          referencia: string | null
+          saldo: number | null
+          saldo_actual: number | null
+          saldo_verificado: boolean
+          sentido: string
+          source_id: string | null
+          source_type: string | null
+          total_filas: number
+          warehouse_id: string
+        }[]
+      }
+      informe_movimientos_stock: {
+        Args: {
+          p_company: string
+          p_deposito?: string | null
+          p_desplazamiento?: number
+          p_limite?: number
+          p_mes?: string | null
+          p_producto?: string | null
+          p_sentido?: string | null
+          p_tipo?: string | null
+        }
+        Returns: {
+          deposito: string | null
+          deposito_codigo: string | null
+          desde: string
+          dia: string
+          fecha: string
+          hasta: string
+          movement_type: string
+          movimiento_id: number
+          notas: string | null
+          posicion: number
+          producto: string | null
+          producto_activo: boolean | null
+          producto_id: string
+          quantity: number
+          referencia: string | null
+          sentido: string
+          sku: string | null
+          source_id: string | null
+          source_type: string | null
+          total_filas: number
+          warehouse_id: string
+        }[]
+      }
+      informe_pipeline_comercial: {
+        Args: { p_company: string; p_mes?: string | null }
+        Returns: {
+          abiertas: number | null
+          aceptadas: number | null
+          categoria: string | null
+          convertidas: number | null
+          desde: string | null
+          documentos: number
+          hasta: string | null
+          importe: number | null
+          importe_convertido: number | null
           moneda: string | null
-          total: number | null
+          periodo: string
+          seccion: string
+        }[]
+      }
+      informe_rankings_comerciales: {
+        Args: {
+          p_company: string
+          p_desplazamiento?: number
+          p_dimension?: string
+          p_fuente?: string
+          p_limite?: number
+          p_medida?: string
+          p_mes?: string | null
+          p_moneda?: string | null
+          p_periodo?: string
+        }
+        Returns: {
+          activo: boolean | null
+          cantidad: number | null
+          cantidad_atipica: number | null
+          clave: string
+          cliente_id: string | null
+          codigo: string | null
+          desde: string
+          documentos: number
+          etiqueta: string
+          hasta: string
+          importe: number | null
+          lineas_atipicas: number | null
+          moneda: string | null
+          posicion: number
+          producto_id: string | null
+          total_filas: number
+          vinculado: boolean
+        }[]
+      }
+      informe_stock_actual: {
+        Args: {
+          p_busqueda?: string | null
+          p_company: string
+          p_deposito?: string | null
+          p_desplazamiento?: number
+          p_estado?: string | null
+          p_limite?: number
+        }
+        Returns: {
+          available: number
+          deposito: string
+          deposito_codigo: string
+          disponible_negativo: boolean
+          estado: string
+          on_hand: number
+          posicion: number
+          producto: string
+          producto_activo: boolean
+          producto_id: string
+          reserved: number
+          sku: string
+          total_filas: number
+          ultimo_movimiento: string | null
+          warehouse_id: string
+        }[]
+      }
+      informe_stock_catalogo: {
+        Args: { p_company: string }
+        Returns: {
+          cantidad: number
+          categoria: string
+        }[]
+      }
+      informe_stock_resumen: {
+        Args: { p_company: string; p_mes?: string | null }
+        Returns: {
+          activo: boolean | null
+          cantidad: number
+          categoria: string | null
+          codigo: string | null
+          deposito: string | null
+          desde: string | null
+          hasta: string | null
+          seccion: string
+          warehouse_id: string | null
+        }[]
+      }
+      informe_whatsapp: {
+        Args: {
+          p_company: string
+          p_desde: string
+          p_hasta: string
+          p_horas?: number
+        }
+        Returns: Json
+      }
+      ingresar_mensaje_grupo_whatsapp: {
+        Args: {
+          p_account: string
+          p_direction: string
+          p_group_id: string
+          p_group_name?: string
+          p_media?: Json
+          p_message_type: string
+          p_provider_message_id: string
+          p_reply_to?: string
+          p_sender_name?: string
+          p_sender_wa_id: string
+          p_sent_at: string
+          p_text?: string
+        }
+        Returns: Json
+      }
+      listar_bandeja_email: {
+        Args: {
+          p_account?: string | null
+          p_adjuntos?: boolean | null
+          p_asignado?: string | null
+          p_carpeta?: string | null
+          p_cliente?: string | null
+          p_company: string
+          p_estado?: string | null
+          p_etiqueta?: string | null
+          p_excluir_resueltos?: boolean | null
+          p_limite?: number | null
+          p_offset?: number | null
+          p_q?: string | null
+          p_sin_leer?: boolean | null
+          // Fase 40, agregados a mano (ver la nota al final de `Functions`).
+          p_sin_responder?: boolean | null
+        }
+        Returns: {
+          account_id: string
+          assigned_name: string | null
+          assigned_to: string | null
+          customer_id: string | null
+          customer_name: string | null
+          eliminado: boolean
+          etiquetas: Json
+          gmail_thread_id: string
+          has_attachments: boolean
+          id: string
+          last_message_at: string | null
+          last_message_dir: string | null
+          last_message_from: string | null
+          message_count: number
+          participants: string[]
+          sin_leer: boolean
+          snippet: string | null
+          subject: string | null
+          total: number
+          total_sin_leer: number
+          vinculo_origen: string | null
+          workflow_status: string
+        }[]
+      }
+      listar_chats: {
+        Args: { p_company: string }
+        Returns: {
+          con_quien: string
+          con_quien_id: string | null
+          id: string | null
+          sin_leer: number
+          ultimo_mensaje: string | null
+          ultimo_mensaje_en: string | null
+        }[]
+      }
+      marcar_chat_leido: {
+        Args: { p_conversacion: string }
+        Returns: undefined
+      }
+      marcar_conversacion_leida_whatsapp: {
+        Args: { p_conversacion: string }
+        Returns: undefined
+      }
+      marcar_hilo_leido_email: {
+        Args: { p_account: string; p_thread: string }
+        Returns: undefined
+      }
+      metricas_ia_whatsapp: { Args: { p_company: string }; Returns: Json }
+      next_document_number: {
+        Args: { p_company: string; p_doc_type: string; p_series?: string }
+        Returns: string
+      }
+      no_leidos_email: {
+        Args: { p_account: string; p_threads: string[] }
+        Returns: {
+          gmail_thread_id: string
+          sin_leer: boolean
+        }[]
+      }
+      no_leidos_whatsapp: {
+        Args: { p_conversaciones: string[] }
+        Returns: {
+          conversation_id: string
+          no_leidos: number
+        }[]
+      }
+      numero_o_null: { Args: { t: string }; Returns: number }
+      pendiente_de_facturar: {
+        Args: {
+          p_company: string
+          p_excluir_factura?: string | null
+          p_receipts?: string[] | null
+          p_supplier?: string | null
+        }
+        Returns: {
+          cantidad_pedida: number | null
+          currency_code: string | null
+          descripcion: string | null
+          en_borrador: number
+          facturado: number
+          goods_receipt_id: string
+          goods_receipt_line_id: string
+          order_number: string | null
+          pendiente: number
+          precio_pedido: number | null
+          product_id: string | null
+          purchase_order_id: string | null
+          purchase_order_line_id: string | null
+          receipt_date: string
+          receipt_number: string
+          recibido: number
+          sku: string | null
+          tratamiento_pedido: string | null
+        }[]
+      }
+      pendiente_de_pedido: {
+        Args: { p_excluir_recepcion?: string | null; p_order: string }
+        Returns: {
+          borradores: string[]
+          descripcion: string | null
+          en_borrador: number
+          line_no: number
+          pedido: number
+          pendiente: number
+          product_id: string | null
+          purchase_order_line_id: string
+          recibido: number
+          sku: string | null
+        }[]
+      }
+      /*
+       * AGREGADO A MANO · Fase 40. Hay que regenerar este archivo.
+       *
+       * Lo normal es `npx supabase gen types typescript --project-id <id>`,
+       * que pide un token de acceso personal. Mientras tanto, la firma va acá
+       * para que el build no quede roto; cuando se regenere, esto se
+       * reemplaza solo. Lo mismo con los dos parámetros nuevos de
+       * `listar_bandeja_email`.
+       *
+       * OJO: el encabezado de este archivo dice que se generó desde el
+       * proyecto `uaxcfufvapzulqvynanp`, que es el de Ohio. La base en uso es
+       * la de São Paulo —ahí entra el correo—, así que al regenerar hay que
+       * apuntar a ésa y revisar qué más quedó desactualizado: por ejemplo
+       * `ultimo_precio_cliente` acá no declara `ultimo_documento_id`, que la
+       * función sí devuelve y `clientes/services/precios.ts` sí lee.
+       */
+      pendiente_por_persona: {
+        Args: { p_company: string }
+        Returns: {
+          correos_sin_responder: number
+          cotizaciones_enviadas: number
+          nombre: string
+          pedidos_sin_entregar: number
+          rol: string
+          user_id: string | null
+        }[]
+      }
+      postgres_fdw_disconnect: { Args: { "": string }; Returns: boolean }
+      postgres_fdw_disconnect_all: { Args: never; Returns: boolean }
+      postgres_fdw_get_connections: {
+        Args: never
+        Returns: Record<string, unknown>[]
+      }
+      postgres_fdw_handler: { Args: never; Returns: unknown }
+      precheck_cierre_mantenimiento: {
+        Args: { p_order: string }
+        Returns: Json
+      }
+      precios_historicos_cliente: {
+        Args: {
+          p_customer: string
+          p_limit?: number | null
+          p_offset?: number | null
+          p_product?: string | null
+        }
+        Returns: {
+          cantidad: number | null
+          descuento_pct: number | null
+          documento_id: string
+          fecha: string | null
+          moneda: string | null
+          nombre: string | null
+          numero: string
+          precio: number | null
+          product_id: string | null
+          sku: string | null
+          tipo: string
           total_filas: number
         }[]
       }
@@ -6808,409 +9089,87 @@ export type Database = {
           p_texto?: string | null
         }
         Returns: {
-          product_id: string | null
-          sku: string | null
-          nombre: string | null
-          moneda: string | null
-          cotizaciones: number
-          pedidos: number
           cantidad_cotizada: number | null
           cantidad_pedida: number | null
+          cotizaciones: number
+          moneda: string | null
+          nombre: string | null
+          pedidos: number
+          product_id: string | null
+          sku: string | null
+          total_filas: number
+          ultima_cantidad: number | null
           ultima_fecha: string | null
-          ultimo_tipo: string
           ultimo_documento_id: string | null
           ultimo_numero: string | null
-          ultima_cantidad: number | null
           ultimo_precio: number | null
-          total_filas: number
+          ultimo_tipo: string
         }[]
       }
-      clientes_similares: {
-        Args: {
-          p_company: string
-          p_cuit?: string | null
-          p_email?: string | null
-          p_excluir?: string | null
-          p_limite?: number
-          p_nombre?: string | null
-          p_telefono?: string | null
-        }
+      productos_similares: {
+        Args: { p_limite?: number; p_product_id: string }
         Returns: {
+          fuente: string
           id: string
-          legal_name: string
-          trade_name: string | null
-          tax_id: string | null
-          legacy_ref: string | null
-          emails: string[] | null
-          phone: string | null
-          deleted_at: string | null
-          needs_review: boolean
-          motivo: string
-          fuerza: string
-          parecido: number
+          motivo: string | null
+          score: number
         }[]
       }
-      crear_cliente: {
-        Args: {
-          p_company: string
-          p_contacto?: Json | null
-          p_datos: Json
-          p_direccion?: Json | null
-        }
+      rechazar_cotizacion_mantenimiento: {
+        Args: { p_motivo?: string | null; p_order: string }
         Returns: Json
       }
-      grupos_cuit_legacy: {
-        Args: { p_customers: string[] }
+      reciclar_mensajes_whatsapp: {
+        Args: { p_timeout?: string }
         Returns: {
-          cuit_normalizado: string
-          customer_id: string
-          fichas: Json
-          legacy_tax_id_raw: string
+          account_id: string
+          attempts: number
+          caption: string | null
+          claimed_at: string | null
+          client_request_id: string | null
+          company_id: string
+          conversation_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by_wa_id: string | null
+          delivered_at: string | null
+          direction: string
+          edited_at: string | null
+          error_code: number | null
+          error_details: string | null
+          estado_visible: string | null
+          failed_at: string | null
+          id: string
+          media_id: string | null
+          message_type: string
+          next_attempt_at: string | null
+          ordenado_en: string | null
+          provider_message_id: string | null
+          provider_status: string | null
+          provider_timestamp: string | null
+          read_at: string | null
+          received_at: string | null
+          reply_to_provider_id: string | null
+          sender_name: string | null
+          sender_wa_id: string | null
+          sent_at: string | null
+          status: string
+          text_body: string | null
         }[]
-      }
-      guardar_cliente: {
-        Args: {
-          p_customer: string
-          p_datos: Json
-          p_esperado: string
+        SetofOptions: {
+          from: "*"
+          to: "whatsapp_messages"
+          isOneToOne: false
+          isSetofReturn: true
         }
-        Returns: Json
       }
-      guardar_config_ia_whatsapp: {
-        Args: { p_company: string; p_config: Json; p_version: string }
-        Returns: Json
-      }
-      guardar_remito: {
-        Args: {
-          p_cabecera: Json
-          p_delivery: string
-          p_esperado: string
-          p_lineas: Json
-        }
-        Returns: Json
-      }
-      guardar_pedido: {
-        Args: {
-          p_cabecera: Json
-          p_esperado: string
-          p_lineas: Json
-          p_order: string
-        }
-        Returns: Json
-      }
-      metricas_ia_whatsapp: { Args: { p_company: string }; Returns: Json }
       reclamar_analisis_whatsapp: {
         Args: {
           p_ahora?: string
           p_empresa?: string
           p_limite: number
           p_worker: string
-        }
-        Returns: Json
-      }
-      registrar_factura_proveedor: { Args: { p_invoice: string }; Returns: Json }
-      aprobar_cotizacion_mantenimiento: {
-        Args: {
-          p_order: string
-          p_por?: string | null
-        }
-        Returns: Json
-      }
-      cancelar_orden_mantenimiento: {
-        Args: {
-          p_order: string
-          p_motivo?: string | null
-        }
-        Returns: Json
-      }
-      capacidad_torque: {
-        Args: {
-          p_order: string
-        }
-        Returns: Json
-      }
-      cerrar_orden_mantenimiento: {
-        Args: {
-          p_order: string
-        }
-        Returns: Json
-      }
-      confirmar_consumo_mantenimiento: {
-        Args: {
-          p_order: string
-        }
-        Returns: Json
-      }
-      duplicados_de_serial: {
-        Args: {
-          p_company: string
-          p_serial: string
-          p_excluir?: string | null
-        }
-        Returns: {
-          id: string
-          reference: string
-          model_text: string | null
-          serial_number: string | null
-          owner_customer_id: string | null
-          created_at: string
-        }[]
-      }
-      precheck_cierre_mantenimiento: {
-        Args: {
-          p_order: string
-        }
-        Returns: Json
-      }
-      pendiente_de_facturar: {
-        Args: {
-          p_company: string
-          p_receipts?: string[] | null
-          p_supplier?: string | null
-          p_excluir_factura?: string | null
-        }
-        Returns: {
-          goods_receipt_line_id: string
-          goods_receipt_id: string
-          receipt_number: string
-          receipt_date: string
-          purchase_order_line_id: string | null
-          purchase_order_id: string | null
-          order_number: string | null
-          currency_code: string | null
-          product_id: string | null
-          sku: string | null
-          descripcion: string | null
-          recibido: number
-          facturado: number
-          en_borrador: number
-          pendiente: number
-          precio_pedido: number | null
-          tratamiento_pedido: string | null
-          cantidad_pedida: number | null
-        }[]
-      }
-      pendiente_de_pedido: {
-        Args: { p_order: string; p_excluir_recepcion?: string | null }
-        Returns: {
-          purchase_order_line_id: string
-          line_no: number
-          product_id: string | null
-          sku: string | null
-          descripcion: string | null
-          pedido: number
-          recibido: number
-          en_borrador: number
-          pendiente: number
-          borradores: string[]
-        }[]
-      }
-      reintentar_analisis_whatsapp: {
-        Args: { p_conversacion: string }
-        Returns: string
-      }
-      ultimo_precio_compra: {
-        Args: {
-          p_company: string
-          p_products: string[]
-          p_currency: string
-          p_supplier?: string | null
-        }
-        Returns: {
-          product_id: string
-          unit_price: number
-          discount_pct: number
-          order_number: string
-          order_date: string
-          supplier_name: string
-        }[]
-      }
-      rechazar_cotizacion_mantenimiento: {
-        Args: {
-          p_order: string
-          p_motivo?: string | null
-        }
-        Returns: Json
-      }
-      registrar_evento_compra: {
-        Args: {
-          p_entity_type: string
-          p_entity_id: string
-          p_action: string
-          p_from_status?: string | null
-          p_to_status?: string | null
-          p_diff?: Json | null
-        }
-        Returns: number
-      }
-      next_document_number: {
-        Args: { p_company: string; p_doc_type: string; p_series?: string }
-        Returns: string
-      }
-      resumen_cliente_360: {
-        Args: { p_customer: string; p_meses?: number | null }
-        Returns: Json
-      }
-      resumen_cliente: {
-        Args: { p_customer: string }
-        Returns: {
-          cotizaciones: number
-          pedidos: number
-          entregas: number
-          ultima_actividad: string | null
-          productos_distintos: number
-          documentos_12m: number
-        }[]
-      }
-      series_de_documento: {
-        Args: { p_company: string; p_doc_type: string }
-        Returns: {
-          authority: string
-          is_default: boolean
-          series_code: string
-        }[]
-      }
-      totales_por_moneda_cliente: {
-        Args: { p_customer: string }
-        Returns: {
-          tipo: string
-          moneda: string | null
-          documentos: number
-          importe: number
-          sin_importe: number
-        }[]
-      }
-      actividad_mensual_cliente: {
-        Args: {
-          p_customer: string
-          p_meses?: number | null
-        }
-        Returns: {
-          mes: string
-          tipo: string
-          moneda: string | null
-          documentos: number
-          importe: number
-        }[]
-      }
-      precios_historicos_cliente: {
-        Args: {
-          p_customer: string
-          p_product?: string | null
-          p_limit?: number | null
-          p_offset?: number | null
-        }
-        Returns: {
-          tipo: string
-          documento_id: string
-          numero: string
-          fecha: string | null
-          product_id: string | null
-          sku: string | null
-          nombre: string | null
-          cantidad: number | null
-          precio: number | null
-          descuento_pct: number | null
-          moneda: string | null
-          total_filas: number
-        }[]
-      }
-      ultimo_precio_cliente: {
-        Args: {
-          p_customer: string
-          p_product?: string | null
-        }
-        Returns: {
-          product_id: string | null
-          sku: string | null
-          nombre: string | null
-          moneda: string | null
-          ultimo_precio: number | null
-          ultima_fecha: string | null
-          ultimo_documento: string | null
-          ultimo_tipo: string
-          precio_anterior: number | null
-          veces: number
-        }[]
-      }
-      resolver_revision_cliente: {
-        Args: {
-          p_customer: string
-          p_motivos?: string[] | null
-        }
-        Returns: Json
-      }
-      registrar_evento_venta: {
-        Args: {
-          p_action: string
-          p_diff?: Json
-          p_entity_id: string
-          p_entity_type: string
-          p_from_status?: string
-          p_to_status?: string
-        }
-        Returns: number
-      }
-      search_products: {
-        Args: {
-          p_attrs?: Json
-          p_brand?: string
-          p_category?: string
-          p_company: string
-          p_limit?: number
-          p_offset?: number
-          p_orden?: string
-          p_query?: string
-          p_ranges?: Json
-          p_type?: string[]
-        }
-        Returns: {
-          id: string
-          rank_position: number
-          score: number
-          total_count: number
-        }[]
-      }
-      // Fase 15 · E2. Guarda cabecera, lineas y auditoria de una cotizacion en
-      // una transaccion. SECURITY DEFINER: valida al actor, el estado, la
-      // concurrencia y cada campo adentro.
-      guardar_cotizacion: {
-        Args: {
-          p_quote: string
-          p_esperado: string
-          p_cabecera: Json
-          p_lineas: Json
-        }
-        Returns: Json
-      }
-      asignar_conversacion_whatsapp: {
-        Args: {
-          p_conversacion: string
-          p_usuario?: string | null
-        }
-        Returns: Database["public"]["Tables"]["whatsapp_conversations"]["Row"]
-      }
-      marcar_conversacion_leida_whatsapp: {
-        Args: { p_conversacion: string }
-        Returns: undefined
-      }
-      // Fase 16 · E2: IA e informes de WhatsApp.
-      guardar_analisis_whatsapp: {
-        Args: {
-          p_conversacion: string
-          p_hasta_mensaje: string
-          p_metricas: Json
-          p_modelo: string
-          p_resultado: Json
-        }
-        Returns: Json
-      }
-      informe_whatsapp: {
-        Args: {
-          p_company: string
-          p_desde: string
-          p_hasta: string
-          p_horas?: number
         }
         Returns: Json
       }
@@ -7224,9 +9183,200 @@ export type Database = {
         }
         Returns: undefined
       }
+      registrar_descarte_borrador_email: {
+        Args: { p_account: string; p_firma: string; p_thread: string | null }
+        Returns: undefined
+      }
+      registrar_entrante_whatsapp: {
+        Args: {
+          p_caption: string | null
+          p_media?: Json | null
+          p_phone_number_id: string
+          p_profile_name: string | null
+          p_provider_message_id: string
+          p_reply_to: string | null
+          p_texto: string | null
+          p_timestamp: string | null
+          p_tipo: string
+          p_wa_id: string
+          p_waba_id: string | null
+        }
+        Returns: Json
+      }
+      registrar_estado_whatsapp: {
+        Args: {
+          p_error_code?: number | null
+          p_error_details?: string | null
+          p_estado: string
+          p_phone_number_id: string
+          p_provider_message_id: string
+          p_timestamp: string | null
+        }
+        Returns: Json
+      }
+      registrar_evento_compra: {
+        Args: {
+          p_action: string
+          p_diff?: Json | null
+          p_entity_id: string
+          p_entity_type: string
+          p_from_status?: string | null
+          p_to_status?: string | null
+        }
+        Returns: number
+      }
+      registrar_evento_venta: {
+        Args: {
+          p_action: string
+          p_diff?: Json
+          p_entity_id: string
+          p_entity_type: string
+          p_from_status?: string
+          p_to_status?: string
+        }
+        Returns: number
+      }
+      registrar_factura_proveedor: {
+        Args: { p_invoice: string }
+        Returns: Json
+      }
+      registrar_grupo_whatsapp: {
+        Args: {
+          p_account: string
+          p_group_id: string
+          p_group_name?: string
+          p_participantes?: Json
+        }
+        Returns: Json
+      }
+      reintentar_analisis_whatsapp: {
+        Args: { p_conversacion: string }
+        Returns: string
+      }
+      // Entrega 5. Exigen una firma HMAC que sólo tiene el servicio de la bandeja:
+      // el frontend no puede usarlas aunque tenga EXECUTE.
+      reservar_envio_email: {
+        Args: {
+          p_account: string
+          p_client_request_id: string
+          p_firma: string
+          p_operacion: string
+        }
+        Returns: {
+          attempted_at: string
+          created_at: string
+          gmail_message_id: string | null
+          gmail_thread_id: string | null
+          id: string
+          intentos: number
+          nuevo: boolean
+          status: string
+        }[]
+      }
       resolver_item_ia_whatsapp: {
         Args: { p_estado: string; p_item: string }
         Returns: Json
+      }
+      resolver_revision_cliente: {
+        Args: { p_customer: string; p_motivos?: string[] | null }
+        Returns: Json
+      }
+      resumen_cliente: {
+        Args: { p_customer: string }
+        Returns: {
+          cotizaciones: number
+          documentos_12m: number
+          entregas: number
+          pedidos: number
+          productos_distintos: number
+          ultima_actividad: string | null
+        }[]
+      }
+      resumen_cliente_360: {
+        Args: { p_customer: string; p_meses?: number | null }
+        Returns: Json
+      }
+      search_products: {
+        Args: {
+          p_attrs?: Json
+          p_brand?: string
+          p_category?: string
+          p_company: string
+          p_limit?: number
+          p_offset?: number
+          p_orden?: string
+          p_query?: string
+          p_ranges?: Json
+          p_series?: string[]
+          p_solo_catalogo?: boolean
+          p_type?: string[]
+        }
+        Returns: {
+          id: string
+          rank_position: number
+          score: number
+          total_count: number
+        }[]
+      }
+      sellar_media_whatsapp: {
+        Args: {
+          p_error_details?: string | null
+          p_media: string
+          p_mime_type?: string | null
+          p_size_bytes: number | null
+          p_storage_path: string | null
+        }
+        Returns: undefined
+      }
+      sellar_saliente_whatsapp: {
+        Args: {
+          p_error_code?: number | null
+          p_error_details?: string | null
+          p_mensaje: string
+          p_provider_message_id: string | null
+        }
+        Returns: {
+          account_id: string
+          attempts: number
+          caption: string | null
+          claimed_at: string | null
+          client_request_id: string | null
+          company_id: string
+          conversation_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by_wa_id: string | null
+          delivered_at: string | null
+          direction: string
+          edited_at: string | null
+          error_code: number | null
+          error_details: string | null
+          estado_visible: string | null
+          failed_at: string | null
+          id: string
+          media_id: string | null
+          message_type: string
+          next_attempt_at: string | null
+          ordenado_en: string | null
+          provider_message_id: string | null
+          provider_status: string | null
+          provider_timestamp: string | null
+          read_at: string | null
+          received_at: string | null
+          reply_to_provider_id: string | null
+          sender_name: string | null
+          sender_wa_id: string | null
+          sent_at: string | null
+          status: string
+          text_body: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "whatsapp_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       senales_atencion_whatsapp: {
         Args: { p_conversaciones: string[]; p_horas?: number }
@@ -7235,104 +9385,268 @@ export type Database = {
           motivos: string[]
         }[]
       }
-      no_leidos_whatsapp: {
-        Args: { p_conversaciones: string[] }
+      series_de_documento: {
+        Args: { p_company: string; p_doc_type: string }
         Returns: {
-          conversation_id: string
-          no_leidos: number
+          authority: string
+          is_default: boolean
+          series_code: string
         }[]
       }
-      // Fase 16 · la llama la persona desde la Edge Function de envío; valida
-      // al actor adentro, como asignar_conversacion_whatsapp.
-      encolar_mensaje_whatsapp: {
-        Args: {
-          p_conversacion: string
-          p_texto: string
-          p_client_request_id: string
+      similitud_cercania: {
+        Args: { a: number; b: number; peso: number }
+        Returns: number
+      }
+      soltar_lease_email: {
+        Args: { p_account: string; p_owner: string }
+        Returns: {
+          active: boolean
+          auth_mode: string
+          company_id: string
+          created_at: string
+          display_name: string | null
+          email_address: string
+          id: string
+          last_full_sync_at: string | null
+          last_history_id: string | null
+          last_synced_at: string | null
+          provider: string
+          sync_error: string | null
+          sync_error_at: string | null
+          sync_lock_owner: string | null
+          sync_lock_until: string | null
+          updated_at: string
+          watch_expiration: string | null
+          watch_topic: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "email_accounts"
+          isOneToOne: false
+          isSetofReturn: true
         }
-        Returns: Database["public"]["Tables"]["whatsapp_messages"]["Row"]
+      }
+      stel_asegurar_categoria_revision: {
+        Args: { p_nombre: string; p_run: string; p_slug: string }
+        Returns: string
+      }
+      stel_reconciliacion_cerrar: {
+        Args: { p_estado: string; p_resumen: Json; p_run: string }
+        Returns: undefined
+      }
+      stel_reconciliacion_iniciar: {
+        Args: { p_company: string; p_plan_hash: string; p_stel_read_at: string }
+        Returns: string
+      }
+      stel_reconciliar_cliente: {
+        Args: { p: Json; p_run: string }
+        Returns: Json
+      }
+      stel_reconciliar_documento: {
+        Args: { p: Json; p_run: string }
+        Returns: Json
+      }
+      stel_reconciliar_producto: {
+        Args: { p: Json; p_run: string }
+        Returns: Json
+      }
+      stel_revertir_reconciliacion: {
+        Args: { p_limite?: number; p_run: string }
+        Returns: Json
+      }
+      stel_sync_cerrar: {
+        Args: {
+          p_cursor: string
+          p_cursor_id: string
+          p_error?: string
+          p_estado: string
+          p_llamadas: number
+          p_resumen: Json
+          p_run: string
+        }
+        Returns: undefined
+      }
+      stel_sync_estado: {
+        Args: { p_company: string }
+        Returns: {
+          cursor_external_id: string | null
+          cursor_modified_at: string | null
+          entity: string
+          last_calls: number
+          last_error: string | null
+          last_finished_at: string | null
+          last_started_at: string | null
+          last_status: string
+          last_summary: Json
+          locked: boolean
+        }[]
+      }
+      stel_sync_precio: { Args: { p: Json; p_run: string }; Returns: Json }
+      stel_sync_producto: { Args: { p: Json; p_run: string }; Returns: Json }
+      stel_sync_tomar: {
+        Args: {
+          p_company: string
+          p_entidad: string
+          p_owner: string
+          p_ttl?: string
+        }
+        Returns: Json
+      }
+      stock_de_kit: {
+        Args: { p_kit: string; p_warehouse?: string }
+        Returns: number
+      }
+      stock_kit: {
+        Args: { p: Database["public"]["Tables"]["products"]["Row"] }
+        Returns: number
+      }
+      sugerencias_cliente_email: {
+        Args: { p_account: string; p_thread: string }
+        Returns: {
+          clase: string
+          contact_id: string | null
+          contact_name: string | null
+          customer_id: string
+          customer_name: string | null
+          direccion: string
+        }[]
+      }
+      // Sólo service_role puede ejecutarlas: el frontend no las llama nunca.
+      // Están acá porque PostgREST las publica y el archivo tiene que describir
+      // el esquema real, no el que nos gustaría.
+      tomar_lease_email: {
+        Args: { p_account: string; p_minutos?: number | null; p_owner: string }
+        Returns: {
+          active: boolean
+          auth_mode: string
+          company_id: string
+          created_at: string
+          display_name: string | null
+          email_address: string
+          id: string
+          last_full_sync_at: string | null
+          last_history_id: string | null
+          last_synced_at: string | null
+          provider: string
+          sync_error: string | null
+          sync_error_at: string | null
+          sync_lock_owner: string | null
+          sync_lock_until: string | null
+          updated_at: string
+          watch_expiration: string | null
+          watch_topic: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "email_accounts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       // Sólo service_role puede ejecutarlas: el frontend no las llama nunca.
       // Están acá porque PostgREST las publica y el archivo tiene que
       // describir el esquema real, no el que nos gustaría.
       tomar_mensajes_whatsapp: {
         Args: { p_limite?: number | null }
-        Returns: Database["public"]["Tables"]["whatsapp_messages"]["Row"][]
-      }
-      registrar_entrante_whatsapp: {
-        Args: {
-          p_phone_number_id: string
-          p_waba_id?: string | null
-          p_wa_id: string
-          p_profile_name?: string | null
-          p_provider_message_id: string
-          p_tipo: string
-          p_texto?: string | null
-          p_caption?: string | null
-          p_reply_to?: string | null
-          p_timestamp?: string | null
-          p_media?: Json | null
+        Returns: {
+          account_id: string
+          attempts: number
+          caption: string | null
+          claimed_at: string | null
+          client_request_id: string | null
+          company_id: string
+          conversation_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by_wa_id: string | null
+          delivered_at: string | null
+          direction: string
+          edited_at: string | null
+          error_code: number | null
+          error_details: string | null
+          estado_visible: string | null
+          failed_at: string | null
+          id: string
+          media_id: string | null
+          message_type: string
+          next_attempt_at: string | null
+          ordenado_en: string | null
+          provider_message_id: string | null
+          provider_status: string | null
+          provider_timestamp: string | null
+          read_at: string | null
+          received_at: string | null
+          reply_to_provider_id: string | null
+          sender_name: string | null
+          sender_wa_id: string | null
+          sent_at: string | null
+          status: string
+          text_body: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "whatsapp_messages"
+          isOneToOne: false
+          isSetofReturn: true
         }
-        Returns: Json
       }
-      registrar_estado_whatsapp: {
+      totales_por_moneda_cliente: {
+        Args: { p_customer: string }
+        Returns: {
+          documentos: number
+          importe: number
+          moneda: string | null
+          sin_importe: number
+          tipo: string
+        }[]
+      }
+      ultimo_precio_cliente: {
+        Args: { p_customer: string; p_product?: string | null }
+        Returns: {
+          moneda: string | null
+          nombre: string | null
+          precio_anterior: number | null
+          product_id: string | null
+          sku: string | null
+          ultima_fecha: string | null
+          ultimo_documento: string | null
+          ultimo_documento_id: string
+          ultimo_precio: number | null
+          ultimo_tipo: string
+          veces: number
+        }[]
+      }
+      ultimo_precio_compra: {
         Args: {
-          p_phone_number_id: string
-          p_provider_message_id: string
-          p_estado: string
-          p_timestamp?: string | null
-          p_error_code?: number | null
-          p_error_details?: string | null
+          p_company: string
+          p_currency: string
+          p_products: string[]
+          p_supplier?: string | null
         }
-        Returns: Json
+        Returns: {
+          discount_pct: number
+          order_date: string
+          order_number: string
+          product_id: string
+          supplier_name: string
+          unit_price: number
+        }[]
       }
-      sellar_saliente_whatsapp: {
-        Args: {
-          p_mensaje: string
-          p_provider_message_id?: string | null
-          p_error_code?: number | null
-          p_error_details?: string | null
-        }
-        Returns: Database["public"]["Tables"]["whatsapp_messages"]["Row"]
+      usuarios_asignables_email: {
+        Args: { p_company: string }
+        Returns: {
+          full_name: string
+          user_id: string
+        }[]
       }
-      sellar_media_whatsapp: {
-        Args: {
-          p_media: string
-          p_storage_path?: string | null
-          p_size_bytes?: number | null
-          p_mime_type?: string | null
-          p_error_details?: string | null
-        }
-        Returns: undefined
-      }
-      // ── Emails (fase 9) ──────────────────────────────────────────────
-      asignar_hilo_email: {
-        Args: {
-          p_account: string
-          p_thread: string
-          p_usuario?: string | null
-        }
-        Returns: Database["public"]["Tables"]["email_thread_state"]["Row"]
-      }
-      cambiar_estado_email: {
-        Args: { p_account: string; p_thread: string; p_estado: string }
-        Returns: Database["public"]["Tables"]["email_thread_state"]["Row"]
-      }
-      guardar_etiqueta_email: {
-        Args: { p_company: string; p_nombre: string; p_color?: string; p_id?: string | null }
-        Returns: Database["public"]["Tables"]["email_labels"]["Row"]
-      }
-      borrar_etiqueta_email: {
-        Args: { p_label: string }
-        Returns: undefined
-      }
-      etiquetar_hilo_email: {
-        Args: { p_account: string; p_thread: string; p_label: string; p_poner?: boolean }
-        Returns: undefined
-      }
-      eliminar_hilo_email: {
-        Args: { p_account: string; p_thread: string; p_eliminar?: boolean }
-        Returns: Database["public"]["Tables"]["email_thread_state"]["Row"]
+      usuarios_para_chat: {
+        Args: { p_company: string }
+        Returns: {
+          nombre: string
+          rol: string
+          user_id: string
+        }[]
       }
       validar_token_worker_ia_whatsapp: {
         Args: { p_token: string }
@@ -7345,514 +9659,33 @@ export type Database = {
       vincular_cliente_email: {
         Args: {
           p_account: string
-          p_thread: string
-          p_customer?: string | null
           p_contacto?: string | null
+          p_customer?: string | null
           p_origen?: string | null
-        }
-        Returns: Database["public"]["Tables"]["email_thread_state"]["Row"]
-      }
-      // Entrega 4. Las tres son de lectura; la primera y la segunda son
-      // SECURITY INVOKER, la tercera DEFINER acotada a quien usa Emails.
-      // Fase 12 · Configuración → Usuarios. Sólo admin de la empresa (la RPC lo
-      // valida). Las de invitación son de la Edge Function y no se tipan acá.
-      // Fase 12 E2 · Empresa y numeración. Admin/employee leen; sólo admin edita.
-      config_empresa_obtener: {
-        Args: { p_company: string }
-        Returns: {
-          id: string
-          slug: string
-          name: string
-          legal_name: string | null
-          tax_id: string | null
-          address: string | null
-          phone: string | null
-          email: string | null
-          website: string | null
-          brand_color: string | null
-          default_currency: string
-          is_active: boolean
-          logo_path: string | null
-          updated_at: string
-          puede_editar: boolean
-        }[]
-      }
-      config_empresa_actualizar: {
-        Args: { p_company: string; p_esperado: string; p_datos: Json }
-        Returns: { updated_at: string; campos: string[] }[]
-      }
-      config_numeracion_diagnostico: {
-        Args: { p_company: string }
-        Returns: {
-          doc_type: string
-          series_code: string
-          prefix: string
-          padding: number
-          is_default: boolean
-          next_number: number
-          proximo: string
-          documentos: number
-          con_patron: number
-          fuera_patron: number
-          max_numero: number | null
-          max_numero_sin_atipicos: number | null
-          atipicos_por_encima: number
-          estado: string
-          autoridad: string
-          autoridad_configurada: boolean
-        }[]
-      }
-      config_auditoria_listar: {
-        Args: { p_company: string; p_desde?: string | null; p_hasta?: string | null; p_modulo?: string | null; p_evento?: string | null; p_actor?: string | null; p_texto?: string | null; p_limite?: number; p_desplazamiento?: number }
-        Returns: { origen: string; evento_id: number; modulo: string; evento: string; fecha: string; actor: Json | null; entidad_tipo: string; entidad_id: string | null; entidad_nombre: string | null; entidad_existe: boolean; detalles: Json; total: number }[]
-      }
-      config_auditoria_actores: {
-        Args: { p_company: string }
-        Returns: { actor_id: string; nombre: string | null; email: string | null; eventos: number }[]
-      }
-      config_marcas_listar: {
-        Args: { p_company: string }
-        Returns: { id: string; name: string; is_active: boolean; created_at: string; productos: number; equipos: number; puede_editar: boolean }[]
-      }
-      config_marca_crear: {
-        Args: { p_company: string; p_datos: Json }
-        Returns: { id: string; name: string }[]
-      }
-      config_marca_estado: {
-        Args: { p_company: string; p_marca: string; p_activa: boolean }
-        Returns: { is_active: boolean; cambiado: boolean; productos: number }[]
-      }
-      config_marca_eliminar: {
-        Args: { p_company: string; p_marca: string }
-        Returns: { eliminada: boolean }[]
-      }
-      config_categorias_listar: {
-        Args: { p_company: string }
-        Returns: { id: string; name: string; slug: string; position: number; needs_review: boolean; is_active: boolean; parent_id: string | null; productos: number; atributos: number; subcategorias: number; puede_editar: boolean }[]
-      }
-      config_categoria_crear: {
-        Args: { p_company: string; p_datos: Json }
-        Returns: { id: string; name: string; slug: string }[]
-      }
-      config_categoria_renombrar: {
-        Args: { p_company: string; p_categoria: string; p_esperado: string; p_datos: Json }
-        Returns: { name: string; cambiado: boolean }[]
-      }
-      config_categoria_eliminar: {
-        Args: { p_company: string; p_categoria: string }
-        Returns: { eliminada: boolean }[]
-      }
-      config_categoria_estado: {
-        Args: { p_company: string; p_categoria: string; p_activa: boolean }
-        Returns: { is_active: boolean; cambiado: boolean; productos: number }[]
-      }
-      config_atributos_listar: {
-        Args: { p_company: string }
-        Returns: { key: string; label: string; data_type: string; unit: string | null; is_filterable: boolean; position: number; categorias: string[]; productos: number }[]
-      }
-      config_listas_precios_listar: {
-        Args: { p_company: string }
-        Returns: { id: string; name: string; currency_code: string; is_default: boolean; valid_from: string | null; valid_to: string | null; created_at: string; items: number; items_vigentes: number; precios_cero: number; vigencia_desde: string | null; vigencia_hasta: string | null; clientes: number }[]
-      }
-      config_lista_precios_clientes: {
-        Args: { p_company: string; p_lista: string }
-        Returns: { id: string; legal_name: string; total: number }[]
-      }
-      config_lista_precios_items: {
-        Args: { p_company: string; p_lista: string; p_busqueda?: string | null; p_vigencia?: string; p_limite?: number; p_desplazamiento?: number }
-        Returns: { price_id: string; product_id: string; sku: string; name: string; marca: string | null; amount: number; valid_from: string; valid_to: string | null; vigencia: string; producto_estado: string; total: number }[]
-      }
-      autoridad_numeracion_empresa: {
-        Args: { p_company: string }
-        Returns: { doc_type: string; authority: string }[]
-      }
-      autoridad_numeracion_series: {
-        Args: { p_company: string }
-        Returns: { doc_type: string; series_code: string; authority: string; reason: string }[]
-      }
-      stel_sync_estado: {
-        Args: { p_company: string }
-        Returns: {
-          entity: string
-          last_status: string
-          last_started_at: string | null
-          last_finished_at: string | null
-          cursor_modified_at: string | null
-          cursor_external_id: string | null
-          last_calls: number
-          last_error: string | null
-          last_summary: Json
-          locked: boolean
-        }[]
-      }
-      guardar_mi_apariencia: {
-        Args: { p_appearance: Json | null }
-        Returns: Json
-      }
-      config_listar_usuarios: {
-        Args: { p_company: string }
-        Returns: {
-          membership_id: string
-          user_id: string
-          nombre: string | null
-          email: string
-          rol: string
-          estado: string
-          cliente: string | null
-          alta: string
-          invitado_el: string | null
-          email_confirmado: boolean
-          ultimo_ingreso: string | null
-          bloqueada: boolean
-          es_propia: boolean
-        }[]
-      }
-      config_cambiar_rol: {
-        Args: { p_membership: string; p_rol: string }
-        Returns: { membership_id: string; rol: string; estado: string }[]
-      }
-      config_cambiar_estado: {
-        Args: { p_membership: string; p_estado: string }
-        Returns: { membership_id: string; rol: string; estado: string }[]
-      }
-      informe_actividad_comercial: {
-        Args: { p_company: string; p_mes?: string | null }
-        Returns: {
-          periodo: string
-          tipo: string | null
-          mes: string
-          desde: string | null
-          hasta: string | null
-          moneda: string | null
-          documentos: number
-          importe: number
-          en_revision: number
-        }[]
-      }
-      informe_kardex_producto: {
-        Args: { p_company: string; p_producto: string; p_deposito?: string | null; p_orden?: string; p_limite?: number; p_desplazamiento?: number }
-        Returns: {
-          posicion: number
-          total_filas: number
-          movimiento_id: number
-          fecha: string
-          dia: string
-          warehouse_id: string
-          deposito_codigo: string | null
-          deposito: string | null
-          movement_type: string
-          sentido: string
-          quantity: number
-          saldo: number | null
-          saldo_verificado: boolean
-          inicia_con_apertura: boolean
-          saldo_actual: number | null
-          source_type: string | null
-          source_id: string | null
-          referencia: string | null
-          notas: string | null
-        }[]
-      }
-      informe_movimientos_stock: {
-        Args: { p_company: string; p_mes?: string | null; p_deposito?: string | null; p_tipo?: string | null; p_sentido?: string | null; p_producto?: string | null; p_limite?: number; p_desplazamiento?: number }
-        Returns: {
-          posicion: number
-          total_filas: number
-          movimiento_id: number
-          fecha: string
-          dia: string
-          producto_id: string
-          sku: string | null
-          producto: string | null
-          producto_activo: boolean | null
-          warehouse_id: string
-          deposito_codigo: string | null
-          deposito: string | null
-          movement_type: string
-          sentido: string
-          quantity: number
-          source_type: string | null
-          source_id: string | null
-          referencia: string | null
-          notas: string | null
-          desde: string
-          hasta: string
-        }[]
-      }
-      informe_rankings_comerciales: {
-        Args: {
-          p_company: string
-          p_mes?: string | null
-          p_dimension?: string
-          p_fuente?: string
-          p_medida?: string
-          p_periodo?: string
-          p_moneda?: string | null
-          p_limite?: number
-          p_desplazamiento?: number
+          p_thread: string
         }
         Returns: {
-          posicion: number
-          total_filas: number
-          clave: string
-          cliente_id: string | null
-          producto_id: string | null
-          etiqueta: string
-          codigo: string | null
-          moneda: string | null
-          importe: number | null
-          cantidad: number | null
-          documentos: number
-          lineas_atipicas: number | null
-          cantidad_atipica: number | null
-          vinculado: boolean
-          activo: boolean | null
-          desde: string
-          hasta: string
-        }[]
-      }
-      informe_stock_actual: {
-        Args: { p_company: string; p_busqueda?: string | null; p_deposito?: string | null; p_estado?: string | null; p_limite?: number; p_desplazamiento?: number }
-        Returns: {
-          posicion: number
-          total_filas: number
-          producto_id: string
-          sku: string
-          producto: string
-          producto_activo: boolean
-          warehouse_id: string
-          deposito_codigo: string
-          deposito: string
-          on_hand: number
-          reserved: number
-          available: number
-          estado: string
-          disponible_negativo: boolean
-          ultimo_movimiento: string | null
-        }[]
-      }
-      informe_stock_catalogo: {
-        Args: { p_company: string }
-        Returns: { categoria: string; cantidad: number }[]
-      }
-      informe_stock_resumen: {
-        Args: { p_company: string; p_mes?: string | null }
-        Returns: {
-          seccion: string
-          warehouse_id: string | null
-          codigo: string | null
-          deposito: string | null
-          activo: boolean | null
-          categoria: string | null
-          cantidad: number
-          desde: string | null
-          hasta: string | null
-        }[]
-      }
-      informe_pipeline_comercial: {
-        Args: { p_company: string; p_mes?: string | null }
-        Returns: {
-          seccion: string
-          periodo: string
-          desde: string | null
-          hasta: string | null
-          categoria: string | null
-          moneda: string | null
-          documentos: number
-          importe: number | null
-          convertidas: number | null
-          importe_convertido: number | null
-          abiertas: number | null
-          aceptadas: number | null
-        }[]
-      }
-      listar_bandeja_email: {
-        Args: {
-          p_company: string
-          p_account?: string | null
-          p_q?: string | null
-          p_sin_leer?: boolean | null
-          p_estado?: string | null
-          p_asignado?: string | null
-          p_cliente?: string | null
-          p_adjuntos?: boolean | null
-          p_carpeta?: string | null
-          p_etiqueta?: string | null
-          p_limite?: number | null
-          p_offset?: number | null
-        }
-        Returns: {
-          id: string
           account_id: string
-          gmail_thread_id: string
-          subject: string | null
-          snippet: string | null
-          last_message_at: string | null
-          last_message_from: string | null
-          last_message_dir: string | null
-          participants: string[]
-          message_count: number
-          has_attachments: boolean
-          workflow_status: string
           assigned_to: string | null
-          assigned_name: string | null
-          customer_id: string | null
-          customer_name: string | null
-          vinculo_origen: string | null
-          sin_leer: boolean
-          eliminado: boolean
-          etiquetas: Json
-          total: number
-          total_sin_leer: number
-        }[]
-      }
-      sugerencias_cliente_email: {
-        Args: { p_account: string; p_thread: string }
-        Returns: {
-          customer_id: string
-          customer_name: string | null
-          contact_id: string | null
-          contact_name: string | null
-          direccion: string
-          clase: string
-        }[]
-      }
-      // Entrega 5. SECURITY INVOKER: un rol sin acceso a Emails no ve el historial.
-      autocompletar_destinatarios_email: {
-        Args: { p_company: string; p_q: string }
-        Returns: {
-          direccion: string
-          nombre: string | null
-          cliente_id: string | null
-          cliente_nombre: string | null
-          fuente: string
-          clientes: number
-        }[]
-      }
-      // Entrega 5. Exigen una firma HMAC que sólo tiene el servicio de la bandeja:
-      // el frontend no puede usarlas aunque tenga EXECUTE.
-      reservar_envio_email: {
-        Args: { p_account: string; p_client_request_id: string; p_operacion: string; p_firma: string }
-        Returns: {
-          id: string
-          status: string
-          nuevo: boolean
-          gmail_message_id: string | null
-          gmail_thread_id: string | null
+          company_id: string
           created_at: string
-          intentos: number
-          attempted_at: string
-        }[]
-      }
-      completar_envio_email: {
-        Args: {
-          p_request: string
-          p_estado: string
-          p_message_id: string | null
-          p_thread_id: string | null
-          p_error: string | null
-          p_firma: string
-        }
-        Returns: { id: string; status: string; gmail_message_id: string | null; gmail_thread_id: string | null }[]
-      }
-      registrar_descarte_borrador_email: {
-        Args: { p_account: string; p_thread: string | null; p_firma: string }
-        Returns: undefined
-      }
-      usuarios_para_chat: {
-        Args: { p_company: string }
-        Returns: {
-          user_id: string
-          nombre: string
-          rol: string
-        }[]
-      }
-      listar_chats: {
-        Args: { p_company: string }
-        Returns: {
-          id: string | null
-          con_quien: string
-          con_quien_id: string | null
-          ultimo_mensaje: string | null
-          ultimo_mensaje_en: string | null
-          sin_leer: number
-        }[]
-      }
-      abrir_chat_directo: {
-        Args: { p_company: string; p_otro: string }
-        Returns: string
-      }
-      enviar_mensaje_chat: {
-        Args: { p_conversacion: string; p_texto: string }
-        Returns: Database["public"]["Tables"]["chat_mensajes"]["Row"]
-      }
-      marcar_chat_leido: {
-        Args: { p_conversacion: string }
-        Returns: undefined
-      }
-      contar_chats_sin_leer: {
-        Args: { p_company: string }
-        Returns: number
-      }
-      usuarios_asignables_email: {
-        Args: { p_company: string }
-        Returns: {
-          user_id: string
-          full_name: string
-        }[]
-      }
-      marcar_hilo_leido_email: {
-        Args: { p_account: string; p_thread: string }
-        Returns: undefined
-      }
-      no_leidos_email: {
-        Args: { p_account: string; p_threads: string[] }
-        Returns: {
+          customer_contact_id: string | null
+          customer_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           gmail_thread_id: string
-          sin_leer: boolean
-        }[]
-      }
-      // Sólo service_role puede ejecutarlas: el frontend no las llama nunca.
-      // Están acá porque PostgREST las publica y el archivo tiene que describir
-      // el esquema real, no el que nos gustaría.
-      tomar_lease_email: {
-        Args: { p_account: string; p_owner: string; p_minutos?: number | null }
-        Returns: Database["public"]["Tables"]["email_accounts"]["Row"][]
-      }
-      soltar_lease_email: {
-        Args: { p_account: string; p_owner: string }
-        Returns: Database["public"]["Tables"]["email_accounts"]["Row"][]
-      }
-      avanzar_history_email: {
-        Args: { p_account: string; p_history_id: string; p_full_sync?: boolean | null }
-        Returns: Database["public"]["Tables"]["email_accounts"]["Row"][]
-      }
-      reciclar_mensajes_whatsapp: {
-        Args: { p_timeout?: unknown }
-        Returns: Database["public"]["Tables"]["whatsapp_messages"]["Row"][]
-      }
-      informe_documentos: {
-        Args: {
-          p_company: string; p_desde: string; p_hasta: string
-          p_tipo?: string | null; p_moneda?: string | null; p_estado?: string | null
-          p_serie?: string | null; p_origen?: string | null; p_cliente?: string | null
-          p_limite?: number; p_offset?: number
+          id: string
+          internal_note: string | null
+          updated_at: string
+          vinculo_origen: string | null
+          workflow_status: string
         }
-        Returns: {
-          tipo: string; id: string; numero: string; fecha: string
-          cliente_id: string | null; cliente: string | null
-          estado: string; serie: string | null; origen: string | null
-          moneda: string; importe: number; en_revision: boolean
-          total_filas: number; total_importe: number
-        }[]
-      }
-      informe_documentos_facetas: {
-        Args: { p_company: string; p_desde: string; p_hasta: string; p_tipo?: string | null; p_moneda?: string | null }
-        Returns: { dimension: string; valor: string; documentos: number }[]
-      }
-      productos_similares: {
-        Args: { p_product_id: string; p_limite?: number }
-        Returns: { id: string; score: number; fuente: string; motivo: string | null }[]
+        SetofOptions: {
+          from: "*"
+          to: "email_thread_state"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {
@@ -7864,13 +9697,125 @@ export type Database = {
   }
 }
 
-type PublicSchema = Database['public']
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-export type Tables<T extends keyof (PublicSchema['Tables'] & PublicSchema['Views'])> =
-  (PublicSchema['Tables'] & PublicSchema['Views'])[T] extends { Row: infer R } ? R : never
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
-export type TablesInsert<T extends keyof PublicSchema['Tables']> =
-  PublicSchema['Tables'][T] extends { Insert: infer I } ? I : never
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
-export type TablesUpdate<T extends keyof PublicSchema['Tables']> =
-  PublicSchema['Tables'][T] extends { Update: infer U } ? U : never
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never) = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never) = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

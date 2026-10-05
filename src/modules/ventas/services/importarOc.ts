@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import type { Json } from '@/types/database.types'
 import type {
   CandidataCotizacion,
   CandidatoCliente,
@@ -74,7 +75,7 @@ export async function emparejarLineas(
   const { data, error } = await supabase.rpc('emparejar_lineas_de_oc', {
     p_company: companyId,
     p_customer: customerId,
-    p_lineas: lineas as unknown as never,
+    p_lineas: lineas as unknown as Json,
   })
   if (error) throw new Error(`No se pudo emparejar el catálogo: ${error.message}`)
 
@@ -205,7 +206,7 @@ export async function importarOc(params: {
       nombre: l.nombre,
       metodo: l.metodo,
       confianza: l.confianza,
-    })) as unknown as never,
+    })) as unknown as Json,
     p_quote_id: params.quoteId,
     p_raw_text: params.textoCrudo,
     p_cliente_leido: params.clienteLeido,

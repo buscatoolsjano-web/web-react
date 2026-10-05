@@ -112,7 +112,7 @@ export async function ultimosPrecios(
   })
   if (error) throw new Error(`No se pudo leer el último precio: ${error.message}`)
 
-  return ((data ?? []) as unknown as FilaUltimo[]).map((f) => ({
+  return ((data ?? []) as FilaUltimo[]).map((f) => ({
     productId: f.product_id,
     sku: f.sku,
     nombre: f.nombre,
