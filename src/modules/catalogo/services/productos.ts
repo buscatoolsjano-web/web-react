@@ -42,9 +42,18 @@ const COLUMNAS_DETALLE = `
   product_images ( source_url, thumb_url, kind, position, is_primary )
 ` as const
 
+/*
+ * Lo interno, en el MISMO viaje y sólo para quien es interno (Fase 40).
+ *
+ * Las notas privadas y los links de compra viven en tablas propias justamente
+ * para que no puedan pedirse desde afuera; acá se embeben para no pagar dos
+ * consultas más al abrir un producto.
+ */
 const COLUMNAS_DETALLE_INTERNO = `
   ${COLUMNAS_DETALLE},
-  stock_balances ( on_hand, reserved )
+  stock_balances ( on_hand, reserved ),
+  product_private_notes ( notes ),
+  product_purchase_links ( id, label, url, notes, position )
 ` as const
 
 /** Forma cruda que devuelve PostgREST. */
@@ -74,6 +83,10 @@ interface FilaImagen {
 }
 
 interface FilaProductoDetalle extends FilaProducto {
+  product_private_notes?: { notes: string } | { notes: string }[] | null
+  product_purchase_links?:
+    | { id: string; label: string; url: string; notes: string | null; position: number }[]
+    | null
   description: string | null
   description_long: string | null
   origin_country: string | null
@@ -195,6 +208,12 @@ function mapearListado(f: FilaProducto): ProductoListado {
 }
 
 function mapearDetalle(f: FilaProductoDetalle): ProductoDetalle {
+  /* Una relación 1:1 embebida puede llegar como objeto o como array de uno,
+     según cómo PostgREST resuelva la FK. Se normaliza acá y no en la pantalla. */
+  const nota = Array.isArray(f.product_private_notes)
+    ? (f.product_private_notes[0]?.notes ?? null)
+    : (f.product_private_notes?.notes ?? null)
+
   return {
     ...mapearListado(f),
     imagenes: mapearImagenes(f.product_images),
@@ -204,6 +223,16 @@ function mapearDetalle(f: FilaProductoDetalle): ProductoDetalle {
     ncm: f.ncm_code,
     pesoG: f.weight_g,
     volumenCm3: f.volume_cm3,
+    /* `undefined` es «no se pidió» —la consulta de un externo no los trae— y
+       se traduce a null: no hay dato que mostrar, y tampoco uno vacío que
+       invite a escribir donde no corresponde. */
+    notasPrivadas: f.product_private_notes === undefined ? null : nota,
+    linksDeCompra:
+      f.product_purchase_links === undefined
+        ? null
+        : [...(f.product_purchase_links ?? [])]
+            .sort((a, b) => a.position - b.position)
+            .map((l) => ({ id: l.id, label: l.label, url: l.url, notas: l.notes })),
   }
 }
 

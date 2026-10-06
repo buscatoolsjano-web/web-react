@@ -206,6 +206,16 @@ export interface ImagenProducto {
   esPrincipal: boolean
 }
 
+/** De dónde compramos este producto (Fase 40). Sólo para roles internos. */
+export interface LinkDeCompra {
+  id: string
+  /** Quién lo vende: el proveedor, el marketplace, «el de la vuelta». */
+  label: string
+  url: string
+  /** El precio al que se consiguió, cuándo, o lo que convenga recordar. */
+  notas: string | null
+}
+
 export interface ProductoDetalle extends ProductoListado {
   /** Todas las imágenes, ordenadas por `posicion`. */
   imagenes: ImagenProducto[]
@@ -215,6 +225,19 @@ export interface ProductoDetalle extends ProductoListado {
   ncm: string | null
   pesoG: number | null
   volumenCm3: number | null
+  /**
+   * Lo que no se le muestra al cliente (Fase 40).
+   *
+   * Vienen de tablas aparte y no de columnas de `products`, y no es prolijidad:
+   * un cliente externo puede leer los productos activos y PostgREST deja pedir
+   * las columnas que uno quiera. RLS es por fila, no por columna, así que la
+   * única forma de que esto no se lea desde afuera es que esté en otra tabla.
+   *
+   * `null` cuando quien mira no es interno: no es que no haya, es que no le
+   * corresponde verlo.
+   */
+  notasPrivadas: string | null
+  linksDeCompra: LinkDeCompra[] | null
 }
 
 export interface PaginaDeProductos {

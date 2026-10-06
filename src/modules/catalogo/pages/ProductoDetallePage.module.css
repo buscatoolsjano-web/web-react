@@ -64,3 +64,12 @@
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
 }
+
+/* La observación privada (Fase 40): respeta los saltos de línea de quien la
+   escribió, porque suelen ser una lista de cosas sueltas y no un párrafo. */
+.notasPrivadas {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}

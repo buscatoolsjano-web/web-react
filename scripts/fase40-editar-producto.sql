@@ -1,0 +1,67 @@
+-- Fase 40 · Editar un producto: atributos, observaciones privadas y de dónde
+-- lo compramos
+--
+-- POR QUÉ
+--
+-- Un producto sólo se podía CREAR. Una vez cargado, corregirle el modelo o
+-- completarle un atributo exigía entrar a la base. Y no había ningún lugar
+-- para lo que la empresa sabe del producto y el cliente no tiene por qué
+-- saber: dónde conviene comprarlo, a cuánto se consiguió, qué suele fallar.
+--
+-- LA DECISIÓN QUE IMPORTA: NO SON COLUMNAS DE `products`
+--
+-- `products_select` deja que un cliente EXTERNO lea los productos activos de
+-- la empresa, y PostgREST permite pedir las columnas que uno quiera. Una
+-- columna `internal_notes` en `products` sería legible por el cliente con sólo
+-- nombrarla en el `select`: «lo compramos en tal lado a USD 2» quedaría a un
+-- request de distancia.
+--
+-- RLS es por FILA, no por columna. La única forma de que un dato no se lea es
+-- que esté en otra tabla con su propia policy. Por eso son dos tablas, y las
+-- dos exigen `current_internal_company_ids` —no `current_company_ids`—:
+--
+--   public.product_private_notes    una por producto (PK = product_id)
+--   public.product_purchase_links   varias, ordenadas
+--
+-- EL CHECK DE LA URL NO ES PARANOIA
+--
+-- Lo que entra a la base vuelve a salir a un `href`. Un `javascript:` guardado
+-- ahí sería un clic a una ejecución. El CHECK acepta `http` y `https` y nada
+-- más, y la pantalla valida lo mismo antes de mandar.
+--
+-- LA EMPRESA, VERIFICADA POR TRIGGER
+--
+-- `app.validar_empresa_del_producto` exige que la empresa de la fila sea la
+-- del producto. Sin eso, una nota privada podría colgarse de un producto ajeno
+-- y leerse desde la empresa de uno.
+--
+-- LO QUE NO SE EDITA
+--
+-- `status` NO se toca al guardar, y es a propósito: la ficha no lo muestra, así
+-- que escribirlo significaría mandar siempre el mismo valor y reactivar en
+-- silencio un producto discontinuado cada vez que alguien le corrige una
+-- medida. Lo que no se ve, no se escribe.
+--
+-- LOS ATRIBUTOS QUE NO SE VEN TAMPOCO SE PIERDEN
+--
+-- En el maestro migrado hay productos con atributos que su categoría actual no
+-- declara. El formulario muestra sólo los declarados, pero LOS LLEVA TODOS: si
+-- mandara únicamente los que muestra, guardar los borraría sin avisar.
+--
+-- Aplicado en São Paulo como la migración
+-- `fase40_notas_privadas_y_links_de_compra`.
+--
+-- ENSAYOS (como `authenticated`, revertidos):
+--
+--   1) nota privada + dos links, en orden           → ok
+--   2) una URL `javascript:`                        → violates check constraint
+--                                                     product_purchase_links_url_check
+--   3) colgar una nota de un producto de otra empresa → PRODUCTO_DE_OTRA_EMPRESA
+--
+--   4) EL QUE IMPORTA, la fuga: se carga la nota como admin sobre un producto
+--      ACTIVO —de los que un externo sí puede ver— y después se lee el mismo
+--      producto con el jwt de cada rol:
+--
+--        admin                → 1 nota
+--        CLIENTE externo      → 0 notas y 0 links
+--        vendedor interno     → 1 nota

@@ -4466,6 +4466,66 @@ export type Database = {
           },
         ]
       }
+      product_private_notes: {
+        Row: {
+          company_id: string
+          notes: string
+          product_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          notes: string
+          product_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          notes?: string
+          product_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      product_purchase_links: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string
+          notes: string | null
+          position: number
+          product_id: string
+          url: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label: string
+          notes?: string | null
+          position?: number
+          product_id: string
+          url: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string
+          notes?: string | null
+          position?: number
+          product_id?: string
+          url?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           attributes: Json

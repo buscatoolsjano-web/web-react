@@ -1,11 +1,15 @@
 import { useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { DocSection, MetaList, Missing, type MetaItem } from '@/components/document/DocSection'
 import doc from '@/components/document/Document.module.css'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
+import { Alert } from '@/components/feedback/Alert'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/icons/Icon'
 import { LinkButton } from '@/components/ui/LinkButton'
 import { Spinner } from '@/components/ui/Spinner'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
@@ -17,7 +21,17 @@ import { HojaCatalogo } from '../components/HojaCatalogo'
 import { ListaAtributos } from '../components/ListaAtributos'
 import { ProductGallery } from '../components/ProductGallery'
 import { RelacionadosProducto } from '../components/RelacionadosProducto'
-import { useDefinicionesDeAtributos, useListasDePrecios } from '../hooks/useCatalogoFacetas'
+import { EditorProducto } from '../components/EditorProducto'
+import { LinksDeCompra } from '../components/LinksDeCompra'
+import { edicionDesdeProducto, puedeEditarProductos } from '../lib/edicionProducto'
+import { guardarProducto, type EdicionProducto } from '../services/edicionProducto'
+import {
+  useAtributosPorCategoria,
+  useCategorias,
+  useDefinicionesDeAtributos,
+  useListasDePrecios,
+  useMarcas,
+} from '../hooks/useCatalogoFacetas'
 import { useDisponibilidad, useMovimientos, useProducto, useSimilares } from '../hooks/useProductos'
 import { formatearCantidad } from '../lib/formato'
 import { hojaDeCatalogo } from '../lib/hojaCatalogo'
@@ -53,6 +67,27 @@ export function ProductoDetallePage() {
   // para que una cueste una consulta más que la otra.
   const [verHistorial, setVerHistorial] = useState(false)
   const movimientos = useMovimientos(producto?.id ?? null, verHistorial)
+
+  /*
+   * La edición (Fase 40). Lo que se está editando vive acá y no en la URL: es
+   * un ida y vuelta, no una vista que alguien quiera compartir por link.
+   */
+  const queryClient = useQueryClient()
+  const marcas = useMarcas(companyId)
+  const categorias = useCategorias(companyId)
+  const porCategoria = useAtributosPorCategoria(companyId)
+  const [edicion, setEdicion] = useState<EdicionProducto | null>(null)
+  const puedeEditar = puedeEditarProductos(activa?.rol)
+
+  const guardar = useMutation({
+    mutationFn: () => guardarProducto(companyId!, producto!.id, edicion!),
+    onSuccess: async () => {
+      setEdicion(null)
+      // El catálogo entero: el nombre, los atributos y la categoría cambian
+      // las facetas y los listados, no sólo esta ficha.
+      await queryClient.invalidateQueries({ queryKey: ['catalogo'] })
+    },
+  })
 
   const volver = { to: '/catalogo', label: 'Catálogo' }
 
@@ -119,7 +154,44 @@ export function ProductoDetallePage() {
         }
         // «Datos a revisar» no se muestra en el Catálogo (Fase 25 · E3).
         status={producto.esKit ? <Badge tone="info">Kit</Badge> : undefined}
+        actions={
+          /* Fase 40: hasta ahora un producto sólo se podía crear; corregirle
+             el modelo o completarle un atributo exigía entrar a la base. */
+          puedeEditar && edicion === null ? (
+            <Button
+              variant="secondary"
+              icon={<Icon name="edit" size={16} />}
+              onClick={() => setEdicion(edicionDesdeProducto(producto))}
+            >
+              Editar producto
+            </Button>
+          ) : undefined
+        }
       />
+
+      {guardar.isSuccess && edicion === null ? (
+        <Alert tone="success" role="status" title="Producto guardado." />
+      ) : null}
+
+      {edicion !== null ? (
+        <DocSection title="Editar producto">
+          <EditorProducto
+            valores={edicion}
+            marcas={marcas.data ?? []}
+            categorias={categorias.data ?? []}
+            definiciones={definiciones}
+            atributosPorCategoria={porCategoria.data}
+            guardando={guardar.isPending}
+            error={guardar.error instanceof Error ? guardar.error.message : null}
+            onCambiar={setEdicion}
+            onGuardar={() => guardar.mutate()}
+            onCancelar={() => {
+              guardar.reset()
+              setEdicion(null)
+            }}
+          />
+        </DocSection>
+      ) : null}
 
       <div className={styles.principal}>
         <ProductGallery imagenes={producto.imagenes} nombre={producto.nombre} />
@@ -195,6 +267,21 @@ export function ProductoDetallePage() {
             cargando={movimientos.isFetching}
             onAbrir={() => setVerHistorial(true)}
           />
+        </DocSection>
+      ) : null}
+
+      {/* Lo interno: sólo para la empresa, y no por elección de esta pantalla.
+          Las dos cosas viven en tablas cuya policy exige rol interno, así que
+          para un externo la consulta ni siquiera las trae. */}
+      {esInterno && producto.notasPrivadas ? (
+        <DocSection title="Observaciones privadas">
+          <p className={styles.notasPrivadas}>{producto.notasPrivadas}</p>
+        </DocSection>
+      ) : null}
+
+      {esInterno && producto.linksDeCompra !== null ? (
+        <DocSection title="Dónde lo compramos">
+          <LinksDeCompra links={producto.linksDeCompra} />
         </DocSection>
       ) : null}
 
