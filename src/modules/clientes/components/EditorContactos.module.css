@@ -133,3 +133,138 @@
 .inactivo .nombre {
   color: var(--color-text-muted);
 }
+
+/* ── Fase 40 · buscar y elegir cómo verlos ──────────────────────────────── */
+
+.barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.filtro {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+/* El selector de vista: dos botones pegados, como un interruptor. Chico y a la
+   derecha, porque es una preferencia y no la acción de la pantalla. */
+.vistas {
+  display: flex;
+  margin-left: auto;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.vista,
+.vistaActiva {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: var(--color-surface);
+  color: var(--color-text-soft);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.vista + .vista,
+.vista + .vistaActiva,
+.vistaActiva + .vista {
+  border-left: 1px solid var(--color-border);
+}
+
+.vista:hover {
+  background: var(--color-surface-alt);
+}
+
+/* El elegido se marca con fondo Y con negrita: el color solo no alcanza para
+   quien no lo distingue. */
+.vistaActiva {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+  font-weight: var(--weight-semibold);
+}
+
+.vista:focus-visible,
+.vistaActiva:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.sinCoincidencias {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+/* ── la lista ───────────────────────────────────────────────────────────── */
+
+.tablaScroll {
+  overflow-x: auto;
+  margin-bottom: var(--space-3);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.tabla th {
+  padding: 0 var(--space-2) var(--space-1);
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.tabla td,
+.tabla tbody th {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+  text-align: left;
+}
+
+.celdaNombre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--weight-semibold);
+}
+
+/* El teléfono en monoespaciada: se compara dígito por dígito. */
+.celdaTelefono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: nowrap;
+}
+
+.celdaAcciones {
+  display: flex;
+  gap: var(--space-1);
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+/* Un contacto desactivado sigue a la vista, atenuado: esconderlo haría creer
+   que se borró. */
+.filaInactiva {
+  opacity: 0.6;
+}
+
+/* El formulario ocupa la fila entera: en una celda de columna no entra. */
+.celdaForm {
+  padding: var(--space-3) var(--space-2);
+  background: var(--color-surface-alt);
+}

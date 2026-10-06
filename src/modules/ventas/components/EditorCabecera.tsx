@@ -10,6 +10,7 @@ import type {
   OpcionVendedor,
 } from '../services/opciones'
 import { BuscadorCliente } from './BuscadorCliente'
+import { BuscadorContacto } from './BuscadorContacto'
 import styles from './CabeceraCotizacion.module.css'
 
 /** Una serie con su autoridad, para el desplegable de la referencia. */
@@ -100,11 +101,10 @@ export function EditorCabecera({
   // exigiría un tipo de cambio que nadie definió, y la base la rechaza.
   const compatibles = tarifas.filter((t) => t.moneda === valores.moneda)
   const ocultas = tarifas.length - compatibles.length
-  // Un contacto o una dirección desactivados no se ofrecen… salvo que el
-  // documento ya los nombre. En ese caso se muestran, marcados: esconderlos
-  // haría que el desplegable quedara en blanco y que guardar borrara el dato
-  // sin que nadie lo pidiera.
-  const contactosVisibles = contactos.filter((c) => c.activo || c.id === valores.contactoId)
+  // Una dirección desactivada no se ofrece… salvo que el documento ya la
+  // nombre. En ese caso se muestra, marcada: esconderla haría que el
+  // desplegable quedara en blanco y que guardar borrara el dato sin que nadie
+  // lo pidiera. (La misma regla para los contactos vive en lib/contactos.)
   const direccionesVisibles = (direcciones ?? []).filter(
     (d) => d.activa || d.id === valores.direccionEntregaId,
   )
@@ -184,18 +184,16 @@ export function EditorCabecera({
                   : undefined
             }
           >
-            <Select
-              value={valores.contactoId}
-              disabled={valores.customerId === '' || cargandoContactos}
-              onChange={(e) => onCambiar('contactoId', e.target.value)}
-            >
-              <option value="">Sin contacto</option>
-              {contactosVisibles.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {`${c.rol ? `${c.nombre} · ${c.rol}` : c.nombre}${c.activo ? '' : ' (desactivado)'}`}
-                </option>
-              ))}
-            </Select>
+            {/* Un buscador y no un `<select>`: el cliente más poblado del
+                maestro tiene 22 contactos, y veintidós nombres en un
+                desplegable se recorren a ciegas. Ver BuscadorContacto.tsx. */}
+            <BuscadorContacto
+              contactos={contactos}
+              valor={valores.contactoId}
+              disabled={valores.customerId === ''}
+              cargando={cargandoContactos}
+              onElegir={(id) => onCambiar('contactoId', id)}
+            />
           </Field>
           {/* Fase 28 · E14: crear un contacto sin abandonar el documento. Antes
               había que irse a la ficha del cliente y volver a empezar.

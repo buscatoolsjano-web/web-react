@@ -12,6 +12,15 @@ import { Icon } from '@/components/icons/Icon'
 import { useContactosEdicion } from '../hooks/useEdicionClientes'
 import { FalloDeAgenda } from '../services/edicion'
 import { CONTACTO_VACIO, validarContacto, type DatosContacto } from '../lib/validacion'
+import {
+  DESDE_CUANTOS_SE_BUSCA,
+  filtrarContactosDelCliente,
+  guardarVistaContactos,
+  leerVistaContactos,
+  VISTAS,
+  type VistaContactos,
+} from '../lib/vistaContactos'
+import { TablaContactos } from './TablaContactos'
 import type { ContactoCliente } from '../types'
 import styles from './EditorContactos.module.css'
 
@@ -71,6 +80,10 @@ export function EditorContactos({
   const [datos, setDatos] = useState<DatosContacto>(CONTACTO_VACIO)
   const [errores, setErrores] = useState<string[]>([])
   const [confirmando, setConfirmando] = useState<ContactoCliente | null>(null)
+  // Fase 40: tarjetas para leer una ficha, lista para encontrar a alguien
+  // entre muchos. La preferencia se guarda; ver lib/vistaContactos.
+  const [vista, setVista] = useState<VistaContactos>(() => leerVistaContactos())
+  const [filtro, setFiltro] = useState('')
 
   const abrirNuevo = () => {
     setDatos({ ...CONTACTO_VACIO, esPrincipal: contactos.filter((c) => c.activo).length === 0 })
@@ -187,6 +200,7 @@ export function EditorContactos({
   // Fase 17 · E5. Los 87 contactos migrados quedaron sin principal y **no se
   // marcó ninguno por script**: quién atiende a cada cliente no lo sabe una
   // migración. Lo que sí corresponde es decirlo donde se puede arreglar.
+  const visibles = filtrarContactosDelCliente(contactos, filtro)
   const hayActivos = contactos.some((c) => c.activo)
   const sinPrincipal = hayActivos && !contactos.some((c) => c.activo && c.esPrincipal)
 
@@ -210,8 +224,60 @@ export function EditorContactos({
         />
       ) : null}
 
+      {contactos.length > 0 ? (
+        <div className={styles.barra}>
+          {/* El buscador aparece recién cuando hay varios: con tres contactos
+              es un control de más que hay que mirar y descartar. */}
+          {contactos.length >= DESDE_CUANTOS_SE_BUSCA ? (
+            <Input
+              type="search"
+              className={styles.filtro}
+              value={filtro}
+              placeholder="Buscar por nombre, cargo, email o teléfono…"
+              aria-label="Buscar contacto"
+              onChange={(e) => setFiltro(e.target.value)}
+            />
+          ) : null}
+          <div className={styles.vistas} role="group" aria-label="Cómo ver los contactos">
+            {VISTAS.map((v) => (
+              <button
+                key={v.valor}
+                type="button"
+                className={vista === v.valor ? styles.vistaActiva : styles.vista}
+                aria-pressed={vista === v.valor}
+                onClick={() => {
+                  setVista(v.valor)
+                  guardarVistaContactos(v.valor)
+                }}
+              >
+                <Icon name={v.icono} size={16} />
+                {v.etiqueta}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {visibles.length === 0 && contactos.length > 0 ? (
+        <p className={styles.sinCoincidencias}>Ningún contacto coincide con «{filtro}».</p>
+      ) : null}
+
+      {vista === 'lista' && visibles.length > 0 ? (
+        <TablaContactos
+          contactos={visibles}
+          puedeEditar={puedeEditar}
+          editandoId={editando}
+          guardando={guardar.isPending}
+          formulario={formulario}
+          onEditar={abrirEdicion}
+          onCambiarActivo={cambiarActivo}
+          onBorrar={setConfirmando}
+        />
+      ) : null}
+
+      {vista === 'tarjetas' ? (
       <ul className={styles.lista}>
-        {contactos.map((c) =>
+        {visibles.map((c) =>
           editando === c.id ? (
             <li key={c.id} className={styles.itemForm}>
               {formulario('Guardar')}
@@ -288,6 +354,7 @@ export function EditorContactos({
           <li className={styles.itemForm}>{formulario('Agregar contacto')}</li>
         ) : null}
       </ul>
+      ) : null}
 
       {borrar.error ? (
         <Alert tone="danger" role="alert" title="No se pudo borrar el contacto">

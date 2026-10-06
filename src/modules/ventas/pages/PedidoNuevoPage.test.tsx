@@ -462,7 +462,12 @@ describe('Nuevo pedido · contacto y domicilio de entrega (Fase 17 · E3)', () =
   // es el primero.
   fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
 
-    await waitFor(() => expect(screen.getByRole('combobox', { name: /Contacto/ })).toHaveValue('k1'))
+    // Fase 40: el contacto dejó de ser un `<select>` y es un buscador —el
+    // cliente más poblado del maestro tiene 22 contactos—, así que el elegido
+    // se lee en el botón que lo abre y no en el valor de un combo.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Contacto: ZZ Ana/ })).toBeInTheDocument(),
+    )
     expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1')
   })
 
@@ -520,12 +525,15 @@ describe('Nuevo pedido · contacto y domicilio de entrega (Fase 17 · E3)', () =
     await waitFor(() => expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1'))
 
     fireEvent.change(screen.getByLabelText(/Entregar en/), { target: { value: 'd2' } })
-    fireEvent.change(screen.getByRole('combobox', { name: /Contacto/ }), { target: { value: '' } })
+    // Quitar el contacto: se abre el buscador y se elige «Sin contacto».
+    fireEvent.click(screen.getByRole('button', { name: /^Contacto: ZZ Ana/ }))
+    fireEvent.click(screen.getByRole('option', { name: 'Sin contacto' }))
+
     // Un re-render no vuelve a sugerir: la sugerencia sólo llena lo vacío y no
     // tocado, y estos dos campos ya son una decisión.
     fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
     expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d2')
-    expect(screen.getByRole('combobox', { name: /Contacto/ })).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Elegir contacto' })).toBeInTheDocument()
   })
 
   it('un principal desactivado no se sugiere ni se ofrece para elegir', async () => {
@@ -538,9 +546,11 @@ describe('Nuevo pedido · contacto y domicilio de entrega (Fase 17 · E3)', () =
   fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
     await waitFor(() => expect(espias.defaults).toHaveBeenCalled())
 
-    expect(screen.getByRole('combobox', { name: /Contacto/ })).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Elegir contacto' })).toBeInTheDocument()
     expect(screen.getByLabelText(/Entregar en/)).toHaveValue('')
     // Y no están entre las opciones: en un documento nuevo no se ofrecen.
+    // El contacto hay que abrirlo para verlas, que es justo la prueba.
+    fireEvent.click(screen.getByRole('button', { name: 'Elegir contacto' }))
     expect(screen.queryByRole('option', { name: /ZZ Ana/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('option', { name: /Vieja/ })).not.toBeInTheDocument()
   })

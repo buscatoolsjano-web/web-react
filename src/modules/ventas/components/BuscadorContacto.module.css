@@ -1,0 +1,177 @@
+/* Elegir el contacto del documento, escribiendo (Fase 40).
+   Ver el porqué en BuscadorContacto.tsx. */
+
+.caja {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Cerrado se tiene que ver IGUAL que los selects que tiene alrededor —mismo
+   alto, mismo borde, misma flecha—: es un campo más del formulario, no un
+   control aparte. Los valores salen de `.control` de Forms.module.css. */
+.disparador {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-h-md);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-tight);
+  text-align: left;
+  cursor: pointer;
+}
+
+.disparador:hover:not(:disabled) {
+  border-color: var(--color-text-soft);
+}
+
+.disparador:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.disparador:disabled {
+  cursor: not-allowed;
+  background: var(--color-neutral-soft);
+  border-color: var(--color-border);
+  color: var(--color-text-disabled);
+}
+
+/* Sin contacto el texto es un placeholder, no un valor: si se viera igual que
+   un contacto elegido, «Sin contacto» pasaría por el nombre de alguien. */
+.vacio {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text-muted);
+}
+
+.nombre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flecha {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+/* El panel flota: empujar el formulario hacia abajo movería los campos de
+   abajo cada vez que alguien toca el contacto. */
+.panel {
+  position: absolute;
+  z-index: var(--z-dropdown);
+  top: calc(100% + var(--space-1));
+  left: 0;
+  display: grid;
+  gap: var(--space-2);
+  width: max(100%, 18rem);
+  max-width: 90vw;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.entrada {
+  width: 100%;
+  min-height: var(--control-h-md);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  /* 16px y no --text-sm: con menos, iOS hace zoom al enfocar y el formulario
+     se va de pantalla justo mientras se escribe. */
+  font-size: 16px;
+}
+
+.entrada:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.opcion {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.opcion:hover,
+.opcion:focus-visible {
+  outline: none;
+  background: var(--color-primary-soft);
+}
+
+.opcionNombre {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+/* El cargo y el email: lo que distingue a dos personas con el mismo nombre.
+   El `<select>` no podía mostrarlos. */
+.detalle {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.principal {
+  flex: none;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--color-primary-text);
+}
+
+.inactivo {
+  flex: none;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--color-text-muted);
+}
+
+.nota {
+  padding: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}

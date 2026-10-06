@@ -71,6 +71,14 @@ const escribir = (etiqueta: RegExp, valor: string) =>
   fireEvent.change(screen.getByLabelText(etiqueta), { target: { value: valor } })
 
 beforeEach(() => {
+  // La vista elegida se guarda en localStorage a propósito —quien trabaja con
+  // el cliente de 22 contactos quiere la lista siempre—, así que acá hay que
+  // limpiarla: si no, el caso que toca «Lista» le cambia la vista al siguiente.
+  try {
+    localStorage.clear()
+  } catch {
+    /* jsdom siempre lo tiene; en un navegador bloqueado, no pasa nada */
+  }
   estado.guardarError = null
   estado.borrarError = null
   vi.clearAllMocks()
@@ -218,5 +226,78 @@ describe('EditorContactos · conflictos y permisos', () => {
     expect(screen.queryByRole('button', { name: /agregar contacto/i })).not.toBeInTheDocument()
     // Pero los contactos se leen igual.
     expect(screen.getByText('ZZ Ana Pérez')).toBeInTheDocument()
+  })
+})
+
+/*
+ * Verlos en lista, y encontrar a alguien entre muchos (Fase 40).
+ *
+ * Las tarjetas son mejores para leer una ficha —el nombre grande, el mail
+ * clickeable, las notas enteras—, pero el cliente más poblado del maestro
+ * tiene 22 contactos y en tarjetas ocupan tres pantallas.
+ */
+describe('EditorContactos · lista y búsqueda', () => {
+  const varios = (n: number) =>
+    Array.from({ length: n }, (_, i) =>
+      contacto({
+        id: `k${i}`,
+        nombre: `ZZ Persona ${i}`,
+        cargo: i === 0 ? 'Compras' : 'Ingeniería',
+        email: `p${i}@zz.test`,
+        esPrincipal: i === 0,
+      }),
+    )
+
+  it('arranca en tarjetas y no hay tabla', () => {
+    montar(varios(3))
+    expect(screen.getByRole('button', { name: /Tarjetas/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
+  it('«Lista» muestra una tabla con una fila por contacto', () => {
+    montar(varios(3))
+    fireEvent.click(screen.getByRole('button', { name: /Lista/ }))
+
+    const tabla = screen.getByRole('table', { name: 'Contactos del cliente' })
+    // Tres contactos más el encabezado.
+    expect(within(tabla).getAllByRole('row')).toHaveLength(4)
+    expect(within(tabla).getByRole('columnheader', { name: 'Email' })).toBeInTheDocument()
+  })
+
+  /**
+   * Con tres contactos un campo de búsqueda es un control de más que hay que
+   * mirar y descartar. El umbral sale de los datos: el promedio real es 2,9.
+   */
+  it('el buscador aparece recién cuando hay varios', () => {
+    const { unmount } = montar(varios(3))
+    expect(screen.queryByRole('searchbox', { name: /buscar contacto/i })).not.toBeInTheDocument()
+    unmount()
+
+    montar(varios(6))
+    expect(screen.getByRole('searchbox', { name: /buscar contacto/i })).toBeInTheDocument()
+  })
+
+  it('buscar deja sólo los que coinciden, y lo dice cuando no hay ninguno', () => {
+    montar(varios(6))
+    const buscador = screen.getByRole('searchbox', { name: /buscar contacto/i })
+
+    fireEvent.change(buscador, { target: { value: 'Persona 4' } })
+    expect(screen.getByText('ZZ Persona 4')).toBeInTheDocument()
+    expect(screen.queryByText('ZZ Persona 3')).not.toBeInTheDocument()
+
+    fireEvent.change(buscador, { target: { value: 'zzzz' } })
+    expect(screen.getByText(/Ningún contacto coincide/)).toBeInTheDocument()
+  })
+
+  /**
+   * El formulario es el MISMO en las dos vistas, inyectado por prop: dos
+   * formularios para el mismo contacto terminarían en dos validaciones
+   * distintas y en un campo que existe en una vista y no en la otra.
+   */
+  it('en lista también se edita, con el mismo formulario', () => {
+    montar(varios(3))
+    fireEvent.click(screen.getByRole('button', { name: /Lista/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Editar ZZ Persona 1' }))
+    expect(screen.getByLabelText(/nombre/i)).toHaveValue('ZZ Persona 1')
   })
 })

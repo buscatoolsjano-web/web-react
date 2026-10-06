@@ -20,6 +20,15 @@ export interface OpcionContacto {
    * se hace es ofrecerlo para elegir; de eso se ocupa la pantalla.
    */
   activo: boolean
+  /**
+   * Para distinguir dos homónimos y para poder buscarlos (Fase 40).
+   *
+   * Con un desplegable no hacían falta: se elegía por nombre y listo. Con un
+   * buscador sí, porque «Juan» puede ser tres personas del mismo cliente y
+   * porque muchas veces lo que uno recuerda es el mail, no el apellido.
+   */
+  email: string | null
+  telefono: string | null
 }
 
 /**
@@ -31,7 +40,7 @@ export interface OpcionContacto {
 export async function contactosDeCliente(companyId: string, customerId: string): Promise<OpcionContacto[]> {
   const { data, error } = await supabase
     .from('customer_contacts')
-    .select('id, full_name, role, is_default, active')
+    .select('id, full_name, role, is_default, active, email, phone')
     .eq('company_id', companyId)
     .eq('customer_id', customerId)
     .order('active', { ascending: false })
@@ -44,6 +53,8 @@ export async function contactosDeCliente(companyId: string, customerId: string):
     rol: c.role,
     esPrincipal: c.is_default,
     activo: c.active,
+    email: c.email,
+    telefono: c.phone,
   }))
 }
 
