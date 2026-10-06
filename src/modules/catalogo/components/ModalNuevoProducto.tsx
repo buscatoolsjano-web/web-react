@@ -13,6 +13,7 @@ import {
   useMarcas,
 } from '../hooks/useCatalogoFacetas'
 import { useCrearProducto } from '../hooks/useCrearProducto'
+import { normalizarFoto } from '../lib/fotoProducto'
 import type { ProductoCreado } from '../services/altaProducto'
 import {
   atributosDeLaCategoria,
@@ -84,6 +85,17 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
   const [imagen, setImagen] = useState<File | null>(null)
   const [vistaPrevia, setVistaPrevia] = useState<string | null>(null)
   const [errorImagen, setErrorImagen] = useState<string | null>(null)
+  /*
+   * La foto, normalizada antes de subir (Fase 40).
+   *
+   * Se guarda el archivo ORIGINAL además del procesado: tildar y destildar
+   * «quitar el fondo» vuelve a procesar desde el original. Procesar sobre lo
+   * ya procesado degradaría la foto un poco más en cada vuelta.
+   */
+  const [original, setOriginal] = useState<File | null>(null)
+  const [quitarFondo, setQuitarFondo] = useState(false)
+  const [procesando, setProcesando] = useState(false)
+  const [avisoFoto, setAvisoFoto] = useState<string | null>(null)
   const [componentes, setComponentes] = useState<ComponenteElegido[]>([])
   const idImagen = useId()
 
@@ -100,6 +112,8 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
       setImagen(null)
       setVistaPrevia(null)
       setErrorImagen(null)
+      setOriginal(null)
+      setAvisoFoto(null)
       return
     }
     if (!TIPOS_DE_IMAGEN.includes(archivo.type)) {
@@ -114,9 +128,48 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
       setErrorImagen('El archivo pasa de 5 MB.')
       return
     }
-    setImagen(archivo)
-    setVistaPrevia(URL.createObjectURL(archivo))
-    setErrorImagen(null)
+    setOriginal(archivo)
+    void procesarFoto(archivo, quitarFondo)
+  }
+
+  /**
+   * Deja la foto en 500 × 500 y, si se pidió, sin fondo.
+   *
+   * Todo pasa en el navegador y antes de subir nada: lo que se ve en la vista
+   * previa es exactamente el archivo que se va a guardar, no una aproximación.
+   * Si el navegador no puede procesarla —un formato raro, un canvas
+   * bloqueado—, se sube la original: es peor no poder cargar la foto que
+   * cargarla sin normalizar.
+   */
+  const procesarFoto = async (archivo: File, sinFondo: boolean) => {
+    setProcesando(true)
+    setAvisoFoto(null)
+    try {
+      const r = await normalizarFoto(archivo, { quitarFondo: sinFondo })
+      if (vistaPrevia !== null) URL.revokeObjectURL(vistaPrevia)
+      setImagen(r.archivo)
+      setVistaPrevia(URL.createObjectURL(r.archivo))
+      setErrorImagen(null)
+      if (r.casiVacia) {
+        setAvisoFoto(
+          'Esta foto no tiene un fondo liso: quitarlo se llevaría casi todo. Se guarda sin tocar el fondo.',
+        )
+        setQuitarFondo(false)
+      }
+    } catch {
+      if (vistaPrevia !== null) URL.revokeObjectURL(vistaPrevia)
+      setImagen(archivo)
+      setVistaPrevia(URL.createObjectURL(archivo))
+      setErrorImagen(null)
+      setAvisoFoto('No se pudo ajustar la foto en este navegador: se sube tal como está.')
+    } finally {
+      setProcesando(false)
+    }
+  }
+
+  const cambiarFondo = (valor: boolean) => {
+    setQuitarFondo(valor)
+    if (original) void procesarFoto(original, valor)
   }
 
   const errores = validarNuevoProducto(f)
@@ -397,7 +450,7 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
             label="Foto del producto"
             optional
             error={errorImagen ?? undefined}
-            help="PNG, JPG, WEBP o AVIF, hasta 5 MB. Queda como foto principal."
+            help="PNG, JPG, WEBP o AVIF, hasta 5 MB. Se guarda en 500 × 500 para que todas se vean iguales en el catálogo."
           >
             <input
               id={idImagen}
@@ -407,15 +460,36 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
             />
           </Field>
 
-          {/* La miniatura sale del archivo elegido, sin subir nada: confirma que
-              es la foto que se quería antes de guardarla. */}
+          {/* La miniatura es el archivo YA procesado, sin subir nada: lo que se
+              ve es exactamente lo que se va a guardar, no una aproximación. */}
           {vistaPrevia !== null ? (
-            <div className={styles.pieDeReferencia}>
-              <img src={vistaPrevia} alt="" className={styles.miniatura} />
-              <Button variant="ghost" size="sm" onClick={() => elegirImagen(null)}>
-                Quitar la imagen
-              </Button>
-            </div>
+            <>
+              <Checkbox
+                label="Quitar el fondo"
+                checked={quitarFondo}
+                disabled={procesando}
+                onChange={(e) => cambiarFondo(e.target.checked)}
+                help="Sirve con fotos de fondo liso, que son las de catálogo. Con una foto sacada en el taller no hace nada bueno: mirá la vista previa antes de guardar."
+              />
+              {avisoFoto ? (
+                <Alert tone="warning" role="status" title="Sobre la foto">
+                  <p>{avisoFoto}</p>
+                </Alert>
+              ) : null}
+              <div className={styles.pieDeReferencia}>
+                {/* El damero detrás: sin él, un fondo transparente se vería
+                    blanco sobre el modal y nadie sabría si se quitó o no. */}
+                <span className={styles.lienzo}>
+                  <img src={vistaPrevia} alt="" className={styles.miniatura} />
+                </span>
+                <span className={styles.notaFoto}>
+                  {procesando ? 'Ajustando…' : `500 × 500 · ${Math.round((imagen?.size ?? 0) / 1024)} kB`}
+                </span>
+                <Button variant="ghost" size="sm" onClick={() => elegirImagen(null)}>
+                  Quitar la imagen
+                </Button>
+              </div>
+            </>
           ) : null}
         </fieldset>
 

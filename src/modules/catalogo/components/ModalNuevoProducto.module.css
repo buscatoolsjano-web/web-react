@@ -102,3 +102,29 @@
   margin: 0;
   color: var(--color-text-muted);
 }
+
+/* ── La foto, ya normalizada (Fase 40) ──────────────────────────────────── */
+
+/* El damero detrás de la miniatura. Sin él, una foto con el fondo quitado se
+   vería blanca sobre el modal y nadie podría saber si se quitó o no: justo lo
+   que la vista previa tiene que contestar. */
+.lienzo {
+  display: inline-grid;
+  place-items: center;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  background-image:
+    linear-gradient(45deg, var(--color-neutral-soft) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-neutral-soft) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-neutral-soft) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-neutral-soft) 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+}
+
+.notaFoto {
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  font-variant-numeric: tabular-nums;
+}

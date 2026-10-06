@@ -37,7 +37,7 @@ function producto(p: Partial<ProductoDetalle> = {}): ProductoDetalle {
     notasPrivadas: null,
     linksDeCompra: null,
     ...p,
-  } as ProductoDetalle
+  }
 }
 
 describe('El formulario arranca con lo que el producto tiene', () => {
@@ -72,7 +72,7 @@ describe('El formulario arranca con lo que el producto tiene', () => {
   })
 
   it('un atributo numérico llega como texto editable', () => {
-    const e = edicionDesdeProducto(producto({ atributos: { largo: 100 } as never }))
+    const e = edicionDesdeProducto(producto({ atributos: { largo: 100 } }))
     expect(e.atributos['largo']).toBe('100')
   })
 
