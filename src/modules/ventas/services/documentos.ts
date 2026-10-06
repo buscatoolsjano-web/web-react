@@ -29,6 +29,8 @@ interface Config {
   fkLinea: string
   /** Los contactos SECUNDARIOS del documento (Fase 40). El principal es `contact_id`. */
   tablaContactos: string
+  /** Los vendedores que acompañan (Fase 40). El remito no tiene vendedor. */
+  tablaVendedores: string | null
   campoFecha: string
   campoEstado: string
   /**
@@ -46,6 +48,7 @@ const CONFIG: Record<TipoDocumento, Config> = {
     lineas: 'sales_quote_lines',
     fkLinea: 'quote_id',
     tablaContactos: 'sales_quote_contacts',
+    tablaVendedores: 'sales_quote_salespeople',
     campoFecha: 'quote_date',
     campoEstado: 'status',
     tieneVendedor: true,
@@ -56,6 +59,7 @@ const CONFIG: Record<TipoDocumento, Config> = {
     lineas: 'sales_order_lines',
     fkLinea: 'order_id',
     tablaContactos: 'sales_order_contacts',
+    tablaVendedores: 'sales_order_salespeople',
     campoFecha: 'order_date',
     campoEstado: 'commercial_status',
     tieneVendedor: true,
@@ -66,6 +70,7 @@ const CONFIG: Record<TipoDocumento, Config> = {
     lineas: 'delivery_lines',
     fkLinea: 'delivery_id',
     tablaContactos: 'delivery_contacts',
+    tablaVendedores: null,
     campoFecha: 'delivery_date',
     campoEstado: 'status',
     tieneVendedor: false,
@@ -283,6 +288,11 @@ function columnasDetalle(tipo: TipoDocumento): string {
   // ya resueltos para poder imprimirlos sin un viaje más.
   const extras = `contactos_extra:${c.tablaContactos} ( contact_id, position,
       contacto:customer_contacts!contact_id ( full_name, role, email, phone ) ),`
+  // Los vendedores que acompañan, también en el mismo viaje.
+  const vendedoresExtra = c.tablaVendedores
+    ? `vendedores_extra:${c.tablaVendedores} ( salesperson_id, position,
+        vendedor:profiles!salesperson_id ( full_name ) ),`
+    : ''
   return `
     id, number, original_number, suspected_normalized_number, ${c.campoFecha},
     title, currency_code, exchange_rate, subtotal, tax_amount, total,
@@ -290,7 +300,7 @@ function columnasDetalle(tipo: TipoDocumento): string {
     series_code, imported_at, external_source, created_at, updated_at, notes,
     contact_id${c.tieneVendedor ? ', salesperson_id' : ''},
     customers!customer_id ( id, legal_name, trade_name, tax_id ),
-    contacto:customer_contacts!contact_id ( full_name, role, email, phone ),${extras}${entrega}
+    contacto:customer_contacts!contact_id ( full_name, role, email, phone ),${extras}${vendedoresExtra}${entrega}
     creador:profiles!created_by ( full_name )${vendedor}${origen}${tarifa}
   `
 }
@@ -376,6 +386,9 @@ export async function obtenerDocumento(
           contacto: { full_name: string | null; role: string | null; email: string | null; phone: string | null } | null
         }[]
       | null
+    vendedores_extra:
+      | { salesperson_id: string; position: number; vendedor: { full_name: string | null } | null }[]
+      | null
     tarifa?: { name: string | null; currency_code: string | null } | null
     creador: { full_name: string | null } | null
   }
@@ -412,6 +425,10 @@ export async function obtenerDocumento(
         telefono: x.contacto?.phone ?? null,
       })),
     vendedorId: (f['salesperson_id'] as string | null) ?? null,
+    /* Igual que los contactos: PostgREST no garantiza el orden de un embed. */
+    vendedoresExtra: [...(f.vendedores_extra ?? [])]
+      .sort((a, b) => a.position - b.position)
+      .map((x) => ({ id: x.salesperson_id, nombre: x.vendedor?.full_name ?? 'Sin nombre' })),
     listaPrecioId: (f['price_list_id'] as string | null) ?? null,
     direccionEntregaId: (f['shipping_address_id'] as string | null) ?? null,
     listaPrecioNombre: f.tarifa?.name ?? null,

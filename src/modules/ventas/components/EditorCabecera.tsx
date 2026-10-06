@@ -11,6 +11,7 @@ import type {
 } from '../services/opciones'
 import { BuscadorCliente } from './BuscadorCliente'
 import { ContactosDelDocumento } from './ContactosDelDocumento'
+import { VendedoresDelDocumento } from './VendedoresDelDocumento'
 import styles from './CabeceraCotizacion.module.css'
 
 /** Una serie con su autoridad, para el desplegable de la referencia. */
@@ -63,6 +64,8 @@ export interface EditorCabeceraProps {
    * al documento, entre una llamada y la otra, con dos principales o ninguno.
    */
   onCambiarContactos: (principal: string, secundarios: string[]) => void
+  /** Lo mismo para los vendedores, y por el mismo motivo (Fase 40). */
+  onCambiarVendedores: (principal: string, acompanan: string[]) => void
   onCambiarCliente: (customerId: string) => void
   onCambiarMoneda: (moneda: string) => void
 }
@@ -104,6 +107,7 @@ export function EditorCabecera({
   onCambiarCliente,
   onCambiarMoneda,
   onCambiarContactos,
+  onCambiarVendedores,
 }: EditorCabeceraProps) {
   const numeroInput = { type: 'number', step: 'any', min: '0' } as const
   // Sólo se ofrecen las tarifas de la moneda del documento: una de otra moneda
@@ -294,15 +298,18 @@ export function EditorCabecera({
       <fieldset className={styles.grupo}>
         <legend className={styles.leyenda}>4. Otros datos</legend>
         <div className={styles.grilla}>
-          <Field label="Agente" optional>
-            <Select value={valores.vendedorId} onChange={(e) => onCambiar('vendedorId', e.target.value)}>
-              <option value="">Sin asignar</option>
-              {vendedores.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.nombre}
-                </option>
-              ))}
-            </Select>
+          {/* Varios agentes, con uno principal (Fase 40): pasa seguido que
+              uno abra la cuenta y otro la siga, o que la parte técnica la
+              lleve uno y la comercial otro. Antes el segundo no figuraba en
+              ningún lado: ni en los rankings, ni para filtrar, ni para
+              repartir. */}
+          <Field label="Agentes" optional>
+            <VendedoresDelDocumento
+              vendedores={vendedores}
+              principal={valores.vendedorId}
+              acompanan={valores.vendedoresExtra}
+              onCambiar={onCambiarVendedores}
+            />
           </Field>
 
           <Field

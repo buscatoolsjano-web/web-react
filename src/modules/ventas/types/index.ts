@@ -180,6 +180,14 @@ export interface DocumentoDetalle {
    * cliente que sigue la venta: el que especifica, el que paga.
    */
   contactosExtra: ContactoDocumento[]
+  /**
+   * Los vendedores que ACOMPAÑAN al principal (Fase 40).
+   *
+   * El principal sigue siendo `vendedorId`, que es el que cuenta en los
+   * rankings y en los informes. El remito no tiene vendedor —es del pedido—,
+   * así que ahí esto siempre viene vacío.
+   */
+  vendedoresExtra: { id: string; nombre: string }[]
   /** Sólo el pedido: la dirección de entrega elegida (Fase 17 · E3). */
   direccionEntregaId?: string | null
   vendedorId: string | null

@@ -79,6 +79,9 @@ const espias = vi.hoisted(() => ({
 
 /* Los contactos del documento se guardan con su propia RPC (Fase 40). Acá
    sólo importa que el guardado del documento siga siendo UNA llamada. */
+vi.mock('../services/vendedoresDocumento', () => ({
+  guardarVendedoresDocumento: () => Promise.resolve(),
+}))
 vi.mock('../services/contactosDocumento', () => ({
   guardarContactosDocumento: () => Promise.resolve(),
 }))
@@ -191,6 +194,7 @@ const cotizacion = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle => ({
   contactoNombre: null,
   contactoId: null,
   contactosExtra: [],
+  vendedoresExtra: [],
   vendedorId: null,
   listaPrecioId: null,
   listaPrecioNombre: null,

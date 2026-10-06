@@ -1,5 +1,12 @@
 import { Icon } from '@/components/icons/Icon'
 import { detalleDeContacto } from '../lib/contactos'
+import {
+  agregarAlEquipo,
+  hacerPrincipal,
+  integrantes,
+  quitarDelEquipo,
+  type Equipo,
+} from '../lib/equipo'
 import type { OpcionContacto } from '../services/opciones'
 import { BuscadorContacto } from './BuscadorContacto'
 import styles from './ContactosDelDocumento.module.css'
@@ -44,42 +51,13 @@ export function ContactosDelDocumento({
   onCambiar,
 }: ContactosDelDocumentoProps) {
   const porId = new Map(contactos.map((c) => [c.id, c]))
-  const elegidos = [principal, ...secundarios].filter((id) => id !== '')
-
-  /**
-   * Agregar.
-   *
-   * El primero que entra es el principal: un documento con secundarios y sin
-   * principal es una cabecera que se imprime sin contacto, y nadie lo quiso
-   * así; lo quiso quien agregó al primero de la lista.
-   */
-  const agregar = (id: string) => {
-    if (id === '' || elegidos.includes(id)) return
-    if (principal === '') onCambiar(id, [...secundarios])
-    else onCambiar(principal, [...secundarios, id])
-  }
-
-  /**
-   * Hacer principal: un intercambio, no dos pasos.
-   *
-   * El que estaba sube a la lista de secundarios en el lugar del que baja, así
-   * la lista no se reordena sola debajo del cursor.
-   */
-  const hacerPrincipal = (id: string) => {
-    const resto = secundarios.filter((x) => x !== id)
-    onCambiar(id, principal === '' ? resto : [...resto, principal])
-  }
-
-  const quitar = (id: string) => {
-    if (id === principal) {
-      // Al sacar al principal, el primer secundario ocupa su lugar. Dejar el
-      // documento con secundarios y sin principal sería dejarlo peor.
-      const [primero, ...resto] = secundarios
-      onCambiar(primero ?? '', resto)
-      return
-    }
-    onCambiar(principal, secundarios.filter((x) => x !== id))
-  }
+  // Las tres operaciones viven en lib/equipo: son las mismas que las de los
+  // vendedores, y las reglas sutiles —el primero es el principal, ascender es
+  // un intercambio, sacar al principal asciende al siguiente— no se pueden
+  // escribir dos veces esperando que salgan iguales.
+  const equipo: Equipo = { principal, acompanan: [...secundarios] }
+  const elegidos = integrantes(equipo)
+  const aplicar = (e: Equipo) => onCambiar(e.principal, e.acompanan)
 
   return (
     <div className={styles.caja}>
@@ -116,7 +94,7 @@ export function ContactosDelDocumento({
                       disabled={esPrincipal}
                       title={esPrincipal ? 'Es el contacto principal' : `Hacer principal a ${nombre}`}
                       aria-label={esPrincipal ? `${nombre} es el principal` : `Hacer principal a ${nombre}`}
-                      onClick={() => hacerPrincipal(id)}
+                      onClick={() => aplicar(hacerPrincipal(equipo, id))}
                     >
                       <Icon name="star" size={16} />
                     </button>
@@ -125,7 +103,7 @@ export function ContactosDelDocumento({
                       className={styles.quitar}
                       aria-label={`Quitar a ${nombre} del documento`}
                       title="Quitar del documento"
-                      onClick={() => quitar(id)}
+                      onClick={() => aplicar(quitarDelEquipo(equipo, id))}
                     >
                       <Icon name="x" size={16} />
                     </button>
@@ -144,7 +122,7 @@ export function ContactosDelDocumento({
           valor=""
           excluir={elegidos}
           cargando={cargando}
-          onElegir={agregar}
+          onElegir={(id) => aplicar(agregarAlEquipo(equipo, id))}
         />
       )}
     </div>

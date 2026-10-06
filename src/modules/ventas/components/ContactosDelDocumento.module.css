@@ -2,6 +2,9 @@
    Ver el porqué en ContactosDelDocumento.tsx. */
 
 .caja {
+  /* Relativo porque el desplegable de vendedores flota desde acá: empujar el
+     formulario hacia abajo movería los campos de abajo al abrirlo. */
+  position: relative;
   display: grid;
   gap: var(--space-2);
   min-width: 0;
@@ -125,4 +128,77 @@
 .quitar:hover {
   color: var(--color-danger);
   border-color: var(--color-danger);
+}
+
+/* ── El agregar de los vendedores (Fase 40) ──────────────────────────────
+   Son pocos —los miembros de la empresa que venden— así que es un
+   desplegable propio y no un buscador: con cinco nombres, un campo de
+   búsqueda es un control de más que hay que mirar y descartar. */
+
+.agregar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h-md);
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text-soft);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.agregar:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.agregar:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.agregar:disabled {
+  cursor: not-allowed;
+  color: var(--color-text-disabled);
+}
+
+.opciones {
+  position: absolute;
+  z-index: var(--z-dropdown);
+  left: 0;
+  right: 0;
+  margin-top: var(--space-1);
+  padding: var(--space-1);
+  list-style: none;
+  max-height: 14rem;
+  overflow-y: auto;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.opcion {
+  display: block;
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.opcion:hover,
+.opcion:focus-visible {
+  outline: none;
+  background: var(--color-primary-soft);
 }

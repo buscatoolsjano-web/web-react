@@ -55,6 +55,7 @@ import { escribeVentas } from '../lib/permisos'
 import { tasaDe } from '../lib/tratamientos'
 import { crearCotizacion } from '../services/cotizaciones'
 import { guardarContactosDocumento } from '../services/contactosDocumento'
+import { guardarVendedoresDocumento } from '../services/vendedoresDocumento'
 import { productosPorId } from '../services/productosParaLinea'
 import { carritoActual, vaciarCarrito } from '@/modules/catalogo/hooks/useCarrito'
 import type { DocumentoDetalle } from '../types'
@@ -295,6 +296,14 @@ export function CotizacionNuevaPage() {
           b.cabecera.contactosExtra,
         )
       }
+      if (b.cabecera.vendedoresExtra.length > 0) {
+        await guardarVendedoresDocumento(
+          'cotizacion',
+          r.id,
+          b.cabecera.vendedorId === '' ? null : b.cabecera.vendedorId,
+          b.cabecera.vendedoresExtra,
+        )
+      }
       return r
     },
     onSuccess: (r) => {
@@ -352,6 +361,15 @@ export function CotizacionNuevaPage() {
     setB((x) => ({
       ...x,
       cabecera: { ...x.cabecera, contactoId: principal, contactosExtra: secundarios },
+    }))
+  }
+
+  /** Lo mismo para los vendedores (Fase 40): principal y acompañantes, juntos. */
+  const cambiarVendedores = (principal: string, acompanan: string[]) => {
+    setTocados((t) => new Set([...t, 'vendedorId']))
+    setB((x) => ({
+      ...x,
+      cabecera: { ...x.cabecera, vendedorId: principal, vendedoresExtra: acompanan },
     }))
   }
 
@@ -615,6 +633,7 @@ export function CotizacionNuevaPage() {
           avisoTarifa={avisoTarifa}
           onCambiar={cambiarCampoCabecera}
           onCambiarContactos={cambiarContactos}
+          onCambiarVendedores={cambiarVendedores}
           onCambiarCliente={elegirCliente}
           onCambiarMoneda={elegirMoneda}
         />

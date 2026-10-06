@@ -30,6 +30,11 @@ export interface CabeceraBorrador {
    */
   contactosExtra: string[]
   /**
+   * Los vendedores que ACOMPAÑAN al principal (Fase 40). Mismo trato que
+   * `contactosExtra`: sin columna propia, se guardan con su propia RPC.
+   */
+  vendedoresExtra: string[]
+  /**
    * La dirección de entrega del PEDIDO (Fase 17 · E3). Vacío = sin elegir, y
    * entonces el remito cae en la principal del cliente al emitirse.
    *
@@ -140,6 +145,7 @@ export function crearBorrador(doc: DocumentoDetalle, lineas: readonly LineaDocum
       customerId: doc.clienteId ?? '',
       contactoId: doc.contactoId ?? '',
       contactosExtra: doc.contactosExtra.map((c) => c.id),
+      vendedoresExtra: doc.vendedoresExtra.map((v) => v.id),
       direccionEntregaId: doc.direccionEntregaId ?? '',
       vendedorId: doc.vendedorId ?? '',
       listaPrecioId: doc.listaPrecioId ?? '',
@@ -179,6 +185,7 @@ export function borradorNuevo(hoy: string, formaPago = ''): Borrador {
       customerId: '',
       contactoId: '',
       contactosExtra: [],
+      vendedoresExtra: [],
       direccionEntregaId: '',
       vendedorId: '',
       listaPrecioId: '',

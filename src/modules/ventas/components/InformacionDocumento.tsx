@@ -112,7 +112,20 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
         ),
     },
     { seccion: 2, label: 'Contacto', value: contacto(doc) },
-    comercial && { seccion: 4, label: 'Agente', value: doc.vendedor ?? <Missing /> },
+    comercial && {
+      seccion: 4,
+      // Fase 40: los agentes que acompañan, nombrados. Antes el segundo no
+      // figuraba en ningún lado.
+      label: doc.vendedoresExtra.length > 0 ? 'Agentes' : 'Agente',
+      value:
+        doc.vendedor === null && doc.vendedoresExtra.length === 0 ? (
+          <Missing />
+        ) : (
+          [doc.vendedor, ...doc.vendedoresExtra.map((v) => v.nombre)]
+            .filter((x): x is string => !!x)
+            .join(', ')
+        ),
+    },
     comercial && { seccion: 3, label: 'Forma de pago', value: doc.formaPago ?? <Missing /> },
     { seccion: 4, label: 'Moneda', value: doc.moneda ?? <Missing>Sin moneda</Missing> },
     comercial && {

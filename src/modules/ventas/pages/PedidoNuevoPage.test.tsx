@@ -45,6 +45,26 @@ const estado = vi.hoisted((): {
   pantallaAncha: false,
 }))
 
+/**
+ * Quién es el agente principal, leído de la pantalla.
+ *
+ * Devuelve el ID para que las comparaciones de los tests sigan siendo las
+ * mismas: el botón dice el nombre, y acá se traduce con el mismo listado que
+ * usa la pantalla.
+ */
+/** Agrega un agente desde el desplegable de «Agregar vendedor». */
+function elegirAgente(nombre: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'Agregar vendedor' }))
+  fireEvent.click(screen.getByRole('option', { name: nombre }))
+}
+
+function idDelAgentePrincipal(): string {
+  const marcado = screen.queryByRole('button', { name: /es el principal$/ })
+  if (!marcado) return ''
+  const nombre = marcado.getAttribute('aria-label')!.replace(/ es el principal$/, '')
+  return estado.vendedores.find((v) => v.nombre === nombre)?.id ?? ''
+}
+
 const espias = vi.hoisted(() => ({
   crear: vi.fn(
     (
@@ -62,6 +82,9 @@ const espias = vi.hoisted(() => ({
 
 /* Los contactos del documento se guardan con su propia RPC (Fase 40). Acá
    sólo importa que el guardado del documento siga siendo UNA llamada. */
+vi.mock('../services/vendedoresDocumento', () => ({
+  guardarVendedoresDocumento: () => Promise.resolve(),
+}))
 vi.mock('../services/contactosDocumento', () => ({
   guardarContactosDocumento: () => Promise.resolve(),
 }))
@@ -219,7 +242,7 @@ describe('Nuevo pedido · borrador', () => {
     montar()
     completarMinimo()
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'mayorista' } })
-    fireEvent.change(screen.getByLabelText(/Agente/), { target: { value: 'u1' } })
+    elegirAgente('ZZ Vendedora')
     fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
     fireEvent.change(screen.getAllByLabelText('Cantidad')[0]!, { target: { value: '2' } })
     fireEvent.change(screen.getAllByLabelText('Precio unitario')[0]!, { target: { value: '50' } })
@@ -405,7 +428,7 @@ describe('Nuevo pedido · defaults del cliente', () => {
   fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
 
     await waitFor(() => expect(screen.getByLabelText('Moneda')).toHaveValue('USD'))
-    expect(screen.getByLabelText(/Agente/)).toHaveValue('u1')
+    expect(idDelAgentePrincipal()).toBe('u1')
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista')
     expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
   })

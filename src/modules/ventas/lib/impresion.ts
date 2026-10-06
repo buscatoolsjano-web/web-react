@@ -192,7 +192,15 @@ export function construirImprimible(
         : doc.contactoNombre,
     moneda: doc.moneda,
     formaPago: doc.formaPago,
-    vendedor: doc.vendedor,
+    /* El vendedor impreso: el principal y, si hay, los que acompañan
+       (Fase 40). En una línea, por el mismo motivo que los contactos: el
+       documento ya tiene su diseño y una fila por persona lo empujaría todo. */
+    vendedor:
+      doc.vendedoresExtra.length > 0
+        ? [doc.vendedor, ...doc.vendedoresExtra.map((v) => v.nombre)]
+            .filter((x): x is string => !!x)
+            .join(', ')
+        : doc.vendedor,
     // El remito dice adónde fue. Si no se registró, no se pone la dirección
     // de hoy del cliente: no es la misma información.
     domicilioEntrega: doc.tipo === 'entrega' ? formatearDomicilio(doc.domicilioEntrega) : null,

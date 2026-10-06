@@ -1,0 +1,55 @@
+-- Fase 40 · Varios vendedores en una misma venta
+--
+-- POR QUÉ
+--
+-- Pasa seguido: uno abre la cuenta y otro la sigue, o la venta técnica la
+-- lleva una persona y la comercial otra. Hasta ahora el documento tenía UN
+-- vendedor (`salesperson_id`) y el otro no figuraba en ningún lado: no
+-- aparecía en los rankings, no se podía filtrar por él y, a la hora de
+-- repartir, no había dato.
+--
+-- LA MISMA FORMA QUE LOS CONTACTOS, A PROPÓSITO
+--
+-- `salesperson_id` sigue siendo el principal —el que ya leen los informes, los
+-- rankings y la impresión— y la tabla nueva guarda sólo a los que acompañan.
+-- Mover el principal habría obligado a reescribir cada una de esas lecturas, y
+-- cada una es una oportunidad de romper algo que hoy anda.
+--
+-- Del lado de la pantalla, las tres operaciones —agregar, ascender, quitar—
+-- viven en un solo módulo (`lib/equipo.ts`) y las comparten contactos y
+-- vendedores. Las reglas que importan son sutiles: el primero que entra es el
+-- principal, ascender es un intercambio y no dos pasos, y sacar al principal
+-- asciende al primero que lo acompañaba. Escribirlas dos veces esperando que
+-- salgan iguales es como terminan dos pantallas comportándose distinto.
+--
+-- DOS TABLAS Y NO TRES
+--
+-- El remito NO tiene vendedor. El vendedor es del pedido; el remito sólo
+-- entrega lo que el pedido vendió. El servicio ni siquiera llama a la RPC para
+-- un remito, y la RPC la rechazaría igual (`TIPO_DESCONOCIDO`).
+--
+-- QUIÉN PUEDE VERLO
+--
+-- A diferencia de los contactos —que son del cliente, y el cliente puede
+-- verlos en su documento—, el reparto de la venta es interno: la policy de
+-- SELECT exige `current_internal_company_ids`. A nadie de afuera le importa, y
+-- a algunos les importaría demasiado.
+--
+-- LA INVARIANTE
+--
+-- `app.validar_vendedor_de_documento` rechaza un acompañante que sea el
+-- principal —figuraría dos veces y «quitarlo» no lo sacaría— y a cualquiera
+-- que no venda en ESTA empresa: un usuario de otra, o uno que sólo mira, no
+-- puede aparecer como vendedor de un documento, porque contaría en los
+-- rankings y en el reparto.
+--
+-- Aplicado en São Paulo como la migración `fase40_varios_vendedores_por_documento`.
+--
+-- ENSAYO (como `authenticated`, revertido):
+--
+--   1) principal + acompañantes     → Admin / [Facundo, Jano, Juan, Norberto]
+--   2) ascender a uno que ya estaba → Facundo / [Admin]
+--      (el caso que rompe si el orden de los pasos de la RPC está mal)
+--   3) alguien que no vende acá     → VENDEDOR_NO_HABILITADO, como acompañante
+--      y como principal
+--   4) un remito                    → TIPO_DESCONOCIDO

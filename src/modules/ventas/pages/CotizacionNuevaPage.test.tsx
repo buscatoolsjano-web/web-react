@@ -57,10 +57,32 @@ const leerPantalla = (): Record<string, string> => {
   }
   return {
     moneda: valor('Moneda'),
-    vendedor: valor(/Agente/),
+    /* Fase 40: el agente dejó de ser un `<select>` —ahora son varios, con uno
+       principal—, así que se lee de la lista y no del valor de un control. */
+    vendedor: idDelAgentePrincipal(),
     tarifa: valor(/Tarifa/),
     formaPago: valor(/Forma de pago/),
   }
+}
+
+/**
+ * Quién es el agente principal, leído de la pantalla.
+ *
+ * Devuelve el ID para que las comparaciones de los tests sigan siendo las
+ * mismas: el botón dice el nombre, y acá se traduce con el mismo listado que
+ * usa la pantalla.
+ */
+/** Agrega un agente desde el desplegable de «Agregar vendedor». */
+function elegirAgente(nombre: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'Agregar vendedor' }))
+  fireEvent.click(screen.getByRole('option', { name: nombre }))
+}
+
+function idDelAgentePrincipal(): string {
+  const marcado = screen.queryByRole('button', { name: /es el principal$/ })
+  if (!marcado) return ''
+  const nombre = marcado.getAttribute('aria-label')!.replace(/ es el principal$/, '')
+  return estado.vendedores.find((v) => v.nombre === nombre)?.id ?? ''
 }
 
 const espias = vi.hoisted(() => ({
@@ -80,6 +102,9 @@ const espias = vi.hoisted(() => ({
 
 /* Los contactos del documento se guardan con su propia RPC (Fase 40). Acá
    sólo importa que el guardado del documento siga siendo UNA llamada. */
+vi.mock('../services/vendedoresDocumento', () => ({
+  guardarVendedoresDocumento: () => Promise.resolve(),
+}))
 vi.mock('../services/contactosDocumento', () => ({
   guardarContactosDocumento: () => Promise.resolve(),
 }))
@@ -218,7 +243,7 @@ describe('Nueva cotización · borrador', () => {
     montar()
     completarMinimo()
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'mayorista' } })
-    fireEvent.change(screen.getByLabelText(/Agente/), { target: { value: 'u1' } })
+    elegirAgente('ZZ Vendedora')
     fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
     fireEvent.change(screen.getAllByLabelText('Cantidad')[0]!, { target: { value: '2' } })
     fireEvent.change(screen.getAllByLabelText('Precio unitario')[0]!, { target: { value: '50' } })
@@ -340,7 +365,7 @@ describe('Nueva cotización · defaults del cliente', () => {
   fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
 
     await waitFor(() => expect(screen.getByLabelText('Moneda')).toHaveValue('USD'))
-    expect(screen.getByLabelText(/Agente/)).toHaveValue('u1')
+    expect(idDelAgentePrincipal()).toBe('u1')
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista')
     expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
     expect(espias.defaults).toHaveBeenCalledTimes(1)
@@ -356,7 +381,7 @@ describe('Nueva cotización · defaults del cliente', () => {
 
     await waitFor(() => expect(espias.defaults).toHaveBeenCalled())
     expect(screen.getByLabelText('Moneda')).toHaveValue('')
-    expect(screen.getByLabelText(/Agente/)).toHaveValue('')
+    expect(idDelAgentePrincipal()).toBe('')
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('')
     expect(screen.queryByText(/Sobre los datos del cliente/)).toBeNull()
   })
@@ -382,7 +407,7 @@ describe('Nueva cotización · defaults del cliente', () => {
   fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
 
     expect(await screen.findByText(/vendedor predeterminado del cliente ya no está disponible/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Agente/)).toHaveValue('')
+    expect(idDelAgentePrincipal()).toBe('')
   })
 
   it('lo que eligió la persona NO se pisa al elegir el cliente', async () => {
@@ -400,7 +425,7 @@ describe('Nueva cotización · defaults del cliente', () => {
     // desde la Fase 19 · E1 los defaults se aplican en un efecto, un commit
     // después de que llega la respuesta. El vendedor no se tocó a mano, así
     // que ése sí se sugiere.
-    await waitFor(() => expect(screen.getByLabelText(/Agente/)).toHaveValue('u1'))
+    await waitFor(() => expect(idDelAgentePrincipal()).toBe('u1'))
 
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('lista-usd')
     expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('Contra entrega')
@@ -437,7 +462,7 @@ describe('Nueva cotización · defaults del cliente', () => {
     // con esto, el problema no es la aplicación de los defaults sino lo que
     // el alta lee del borrador.
     expect(screen.getByLabelText('Moneda')).toHaveValue('USD')
-    expect(screen.getByLabelText(/Agente/)).toHaveValue('u1')
+    expect(idDelAgentePrincipal()).toBe('u1')
     expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
 
     espias.crear.mockImplementationOnce((_c, cab, _l) => {
@@ -526,7 +551,7 @@ describe('Nueva cotización · defaults que llegan antes de que React confirme',
 
     expect(screen.getByLabelText('Moneda')).toHaveValue('USD')
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('mayorista')
-    expect(screen.getByLabelText(/Agente/)).toHaveValue('u1')
+    expect(idDelAgentePrincipal()).toBe('u1')
   })
 
   it('lo que se manda al servidor lleva cliente Y defaults', async () => {
@@ -618,7 +643,7 @@ describe('Nueva cotización · cambio de cliente rápido', () => {
 
     // Lo elegido a mano manda; lo que nadie tocó, se sugiere.
     expect(screen.getByLabelText(/Tarifa/)).toHaveValue('lista-usd')
-    expect(screen.getByLabelText(/Agente/)).toHaveValue('u1')
+    expect(idDelAgentePrincipal()).toBe('u1')
     expect(screen.getByLabelText(/Forma de pago/)).toHaveValue('60 días')
   })
 })

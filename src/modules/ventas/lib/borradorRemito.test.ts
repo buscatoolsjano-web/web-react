@@ -38,6 +38,7 @@ const doc = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle =>
     notas: null,
     contactoId: 'ct1',
     contactosExtra: [],
+    vendedoresExtra: [],
     actualizadoEn: '2026-09-18T12:00:00.000Z',
     ...p,
   }) as DocumentoDetalle

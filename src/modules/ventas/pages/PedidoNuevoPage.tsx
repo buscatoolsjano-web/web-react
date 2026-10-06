@@ -63,6 +63,7 @@ import { escribeVentas } from '../lib/permisos'
 import { tasaDe } from '../lib/tratamientos'
 import { crearPedido } from '../services/pedidos'
 import { guardarContactosDocumento } from '../services/contactosDocumento'
+import { guardarVendedoresDocumento } from '../services/vendedoresDocumento'
 import type { DocumentoDetalle } from '../types'
 import editor from './EditorCotizacion.module.css'
 
@@ -246,6 +247,14 @@ export function PedidoNuevoPage() {
           b.cabecera.contactosExtra,
         )
       }
+      if (b.cabecera.vendedoresExtra.length > 0) {
+        await guardarVendedoresDocumento(
+          'pedido',
+          r.id,
+          b.cabecera.vendedorId === '' ? null : b.cabecera.vendedorId,
+          b.cabecera.vendedoresExtra,
+        )
+      }
       return r
     },
     onSuccess: (r) => {
@@ -299,6 +308,15 @@ export function PedidoNuevoPage() {
     setB((x) => ({
       ...x,
       cabecera: { ...x.cabecera, contactoId: principal, contactosExtra: secundarios },
+    }))
+  }
+
+  /** Lo mismo para los vendedores (Fase 40): principal y acompañantes, juntos. */
+  const cambiarVendedores = (principal: string, acompanan: string[]) => {
+    setTocados((t) => new Set([...t, 'vendedorId']))
+    setB((x) => ({
+      ...x,
+      cabecera: { ...x.cabecera, vendedorId: principal, vendedoresExtra: acompanan },
     }))
   }
 
@@ -560,6 +578,7 @@ export function PedidoNuevoPage() {
           avisoTarifa={avisoTarifa}
           onCambiar={cambiarCampoCabecera}
           onCambiarContactos={cambiarContactos}
+          onCambiarVendedores={cambiarVendedores}
           onCambiarCliente={elegirCliente}
           onCambiarMoneda={elegirMoneda}
         />

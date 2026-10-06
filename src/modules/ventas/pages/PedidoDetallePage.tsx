@@ -87,6 +87,7 @@ import { FalloDeGuardado, ordenarLineas } from '../services/cotizaciones'
 import { crearEntregaDesdePedido, lineasParaEntregar } from '../services/entregas'
 import { cambiarEstadoPedido, editabilidadPedido, guardarPedido } from '../services/pedidos'
 import { guardarContactosDocumento } from '../services/contactosDocumento'
+import { guardarVendedoresDocumento } from '../services/vendedoresDocumento'
 import type { DocumentoDetalle } from '../types'
 import editor from './EditorCotizacion.module.css'
 
@@ -266,6 +267,12 @@ function Detalle() {
         borrador!.cabecera.contactoId === '' ? null : borrador!.cabecera.contactoId,
         borrador!.cabecera.contactosExtra,
       )
+      await guardarVendedoresDocumento(
+        'pedido',
+        doc!.id,
+        borrador!.cabecera.vendedorId === '' ? null : borrador!.cabecera.vendedorId,
+        borrador!.cabecera.vendedoresExtra,
+      )
       return r
     },
     onSuccess: () => {
@@ -402,6 +409,12 @@ function Detalle() {
   const cambiarContactos = (principal: string, secundarios: string[]) =>
     setBorrador((b) =>
       b ? { ...b, cabecera: { ...b.cabecera, contactoId: principal, contactosExtra: secundarios } } : b,
+    )
+
+  /** Lo mismo para los vendedores (Fase 40): principal y acompañantes, juntos. */
+  const cambiarVendedores = (principal: string, acompanan: string[]) =>
+    setBorrador((b) =>
+      b ? { ...b, cabecera: { ...b.cabecera, vendedorId: principal, vendedoresExtra: acompanan } } : b,
     )
 
   const elegirCliente = (customerId: string) =>
@@ -689,6 +702,7 @@ function Detalle() {
                 avisoTarifa={avisoTarifa}
                 onCambiar={cambiarCampoCabecera}
                 onCambiarContactos={cambiarContactos}
+                onCambiarVendedores={cambiarVendedores}
                 onCambiarCliente={elegirCliente}
                 onCambiarMoneda={elegirMoneda}
               />

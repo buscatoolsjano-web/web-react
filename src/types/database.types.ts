@@ -7750,6 +7750,15 @@ export type Database = {
           ultimo_pedido: string | null
         }[]
       }
+      guardar_vendedores_documento: {
+        Args: {
+          p_acompanantes?: string[]
+          p_documento: string
+          p_principal?: string | null
+          p_tipo: string
+        }
+        Returns: Json
+      }
       guardar_contactos_documento: {
         Args: {
           p_documento: string
