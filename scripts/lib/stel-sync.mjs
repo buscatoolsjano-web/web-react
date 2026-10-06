@@ -27,6 +27,9 @@ import { CATEGORIA_REVISION, ejecutarPlan, hashPlan, planificarE2 } from './stel
 const RUTA_PRODUCTOS = 'products'
 const RUTA_SERVICIOS = 'services'
 
+/** Cuántos bloqueados se detallan en el resumen. Ver `sincronizarDocumentos`. */
+const TOPE_DETALLE_BLOQUEADOS = 50
+
 /** Lo que STEL dice de un ítem, en los términos de React. */
 export function productoDeStel(item, { categoriaRevisionId, crear = false } = {}) {
   return {
@@ -211,6 +214,28 @@ export async function sincronizarDocumentos(sb, c, o) {
     resumen.insertados = plan.documentos.filter((d) => d.operacion === 'insert').length
     resumen.actualizados = plan.documentos.filter((d) => d.operacion === 'update').length
     resumen.bloqueados = plan.bloqueados.length
+    /*
+     * El DETALLE de los bloqueados, no sólo cuántos.
+     *
+     * Hasta acá el resumen guardaba `bloqueados: 5` y nada más. El detalle
+     * existía sólo dentro del plan, que vive en un archivo ignorado por git en
+     * la máquina de quien corrió el sync. Resultado: cinco documentos que STEL
+     * no podía meter —dos clientes nuevos, un número repetido, un producto y
+     * una cotización— estuvieron semanas en un número que nadie podía abrir.
+     *
+     * Un bloqueado NO es un error: es el planificador negándose a tocar algo
+     * porque hace falta que una persona decida. Para que esa persona decida,
+     * tiene que poder ver qué es. Va al resumen, que se guarda en
+     * `stel_reconciliation_runs.summary`, así que se puede consultar desde la
+     * base sin tener el archivo.
+     *
+     * Con tope: son casos para resolver a mano, y si alguna vez son cientos el
+     * problema es otro y no hay que meter un jsonb gigante en cada corrida.
+     */
+    resumen.bloqueadosDetalle = plan.bloqueados.slice(0, TOPE_DETALLE_BLOQUEADOS)
+    if (plan.bloqueados.length > TOPE_DETALLE_BLOQUEADOS) {
+      resumen.bloqueadosDetalleTruncado = plan.bloqueados.length - TOPE_DETALLE_BLOQUEADOS
+    }
     resumen.pendientesBorrado = plan.pendientesBorrado.length
     resumen.planHash = hashPlan(plan)
     if (o.soloLectura) {
@@ -228,7 +253,9 @@ export async function sincronizarDocumentos(sb, c, o) {
     resumen.cambios = hechos.cambios
     resumen.errores = hechos.fallidos
     await cerrar(sb, run, hechos.fallidos.length ? 'failed' : 'finished', hechos.fallidos.length ? null : new Date().toISOString(), null, c.llamadas(), resumen)
-    return { run, resumen, hechos }
+    // El plan también acá: los bloqueados no desaparecen porque la corrida haya
+    // aplicado el resto, y quien la corre tiene que poder verlos.
+    return { run, resumen, hechos, plan }
   } catch (e) {
     await cerrar(sb, run, 'failed', null, null, c.llamadas(), resumen, String(e.message).slice(0, 400))
     throw e

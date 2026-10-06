@@ -269,6 +269,32 @@ async function main() {
   cmp('O3 depende de Q5 (si Q5 falla, no se relinkea)', ['quote:COTI00093'], doc1('PDV00042').depende)
   cmp('el hash del plan es estable', hashPlan(plan1), hashPlan(structuredClone(plan1)))
 
+  /*
+   * El caso COTI02531 (Fase 40): aceptada en el ERP, «Pendiente» en STEL.
+   *
+   * Lo que distingue una regresión de verdad de un STEL atrasado es si la
+   * cotización ya tiene un pedido derivado. Si lo tiene, el `accepted` del ERP
+   * no es una opinión: es la consecuencia de un hecho que existe. Se prueban
+   * los dos lados con el MISMO STEL, para que la única variable sea el pedido.
+   */
+  const stelPendiente = structuredClone(stel)
+  stelPendiente.docs.quote.find((d) => d['full-reference'] === 'COTI00091')['document-state-id'] = 1
+  const reactParaRegresion = await leerReactEmpresa(s, slug)
+
+  const sinPedido = planificarE2(stelPendiente, structuredClone(reactParaRegresion), { listaBaseId: LISTA }).plan
+  const bloqueoRegresivo = sinPedido.bloqueados.find((b) => b.motivo === 'ESTADO_REGRESIVO')
+  cmp('aceptada que STEL dice Pendiente, SIN pedido derivado: se bloquea', ['COTI00091', 'accepted', 'Pendiente'],
+    [bloqueoRegresivo?.numero, bloqueoRegresivo?.react, bloqueoRegresivo?.stel])
+
+  const reactConPedido = structuredClone(reactParaRegresion)
+  reactConPedido.docs.order.find((o) => o.number === 'PDV00040').quote_id = Q2
+  const conPedido = planificarE2(stelPendiente, reactConPedido, { listaBaseId: LISTA }).plan
+  cmp('con pedido derivado: no se bloquea', [], conPedido.bloqueados.filter((b) => b.motivo === 'ESTADO_REGRESIVO'))
+  cmp('y NO se escribe el estado: el pedido ya existe', false,
+    'status' in (conPedido.documentos.find((d) => d.numero === 'COTI00091')?.cabecera ?? {}))
+  cmp('queda anotado para que se vea que se miró', [{ numero: 'COTI00091', react: 'accepted', stel: 'Pendiente' }],
+    conPedido.info.aceptadasConPedidoQueStelDejoPendiente)
+
   seccion('3 · Ejecución sin autorización')
   const real = ok(await s.from('companies').select('id').eq('slug', 'buscatools').single(), 'real').id
   const planReal = { ...structuredClone(plan1), empresa: real }

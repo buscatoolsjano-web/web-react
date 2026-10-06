@@ -77,7 +77,15 @@ export function planificarE2(stel, react, o = {}) {
   const stelDoc = Object.fromEntries(Object.keys(TIPOS).map((t) => [t, new Map([...(stel.docs[t] ?? []), ...(stel.padresExternos?.[t] ?? [])].map((d) => [d.id, d]))]))
   const bloqueados = []
   const excepciones = []
-  const info = { tipoDeCambioNoCopiado: 0, cambiosDeMonedaEnStel: [], soloEnReact: [], ordenDeLineasDistinto: [], totalesStelInconsistentes: [], categoriasStelSinMapeo: 0 }
+  const info = { tipoDeCambioNoCopiado: 0, cambiosDeMonedaEnStel: [], soloEnReact: [], ordenDeLineasDistinto: [], totalesStelInconsistentes: [], categoriasStelSinMapeo: 0, aceptadasConPedidoQueStelDejoPendiente: [] }
+  /*
+   * Cotizaciones del ERP que ya tienen un pedido derivado.
+   *
+   * Se usa para no tratar como regresión que STEL siga diciendo «Pendiente»
+   * sobre una cotización que el ERP marcó aceptada: ver el caso COTI02531
+   * más abajo. El pedido es el hecho; el estado es su consecuencia.
+   */
+  const cotizacionesConPedido = new Set((react.docs.order ?? []).map((o) => o.quote_id).filter(Boolean))
 
   // ── Productos ────────────────────────────────────────────────────────────
   const productos = []
@@ -247,8 +255,30 @@ export function planificarE2(stel, react, o = {}) {
         const e = estadoReact('quote', f.stel.estado)
         if (e && e !== r.status) {
           const regresivo = ['accepted', 'rejected'].includes(r.status) && e === 'sent'
-          if (regresivo && !regresivosAprobados.has(f.numero)) bloqueados.push({ tipo, numero: f.numero, motivo: 'ESTADO_REGRESIVO', react: r.status, stel: f.stel.estado })
-          else {
+          /*
+           * Aceptada Y con pedido derivado: no es una regresión, es STEL
+           * atrasado.
+           *
+           * Pasó con COTI02531. En el ERP estaba `accepted`; en STEL, todavía
+           * «Pendiente». Pero el pedido PDV01303 lo derivó STEL MISMO de esa
+           * cotización (id 59789722, hijo de 59789717): lo que quedó viejo es
+           * el estado de la cotización en STEL, no el del ERP.
+           *
+           * Las otras dos salidas estaban mal para este caso. Bloquear deja el
+           * documento trabado para siempre, porque no hay nada que decidir ni
+           * nada que arreglar del lado del ERP. Y aprobarlo como excepción
+           * escribe la regresión —`accepted` → `sent`—, o sea borra de la
+           * cotización el hecho de que ya hay un pedido.
+           *
+           * Entonces: ni se bloquea ni se escribe. El estado del ERP se deriva
+           * de un hecho que existe y se queda como está. Se anota en `info`
+           * para que se vea que pasó y no parezca que nadie lo miró.
+           */
+          if (regresivo && r.status === 'accepted' && cotizacionesConPedido.has(r.id)) {
+            info.aceptadasConPedidoQueStelDejoPendiente.push({ numero: f.numero, react: r.status, stel: f.stel.estado })
+          } else if (regresivo && !regresivosAprobados.has(f.numero)) {
+            bloqueados.push({ tipo, numero: f.numero, motivo: 'ESTADO_REGRESIVO', react: r.status, stel: f.stel.estado })
+          } else {
             poner('status', r.status, e)
             if (regresivo) excepciones.push({ tipo, numero: f.numero, motivo: 'ESTADO_REGRESIVO_APROBADO', react: r.status, stel: f.stel.estado })
           }

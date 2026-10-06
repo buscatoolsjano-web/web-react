@@ -81,14 +81,30 @@ async function documentos() {
   const aplicar = bandera('--aplicar')
   const c = crearCliente({ maxLlamadas: Number(arg('--max-llamadas') ?? 40), usarCache: false, log: () => {} })
   console.log(`  empresa ${EMPRESA} · ${aplicar ? 'APLICA' : 'sólo lectura'}`)
-  const { run, resumen } = await sincronizarDocumentos(sb, c, {
+  const { run, resumen, plan } = await sincronizarDocumentos(sb, c, {
     company, empresaSlug: EMPRESA, owner: dueño(), categoriaRevisionId, listaPreciosId: lista.id,
     desde: arg('--desde'), soloLectura: !aplicar,
     leerStel, leerReact: leerReactEmpresa,
     log: (m) => console.log(m),
   })
-  const f = guardar(`sync-documentos-${run}.json`, { run, llamadas: c.llamadas(), resumen })
+  const bloqueados = plan?.bloqueados ?? []
+  const f = guardar(`sync-documentos-${run}.json`, { run, llamadas: c.llamadas(), resumen, bloqueados })
   console.log(JSON.stringify({ run, llamadas: c.llamadas(), ...resumen }, null, 1))
+  /*
+   * Los bloqueados, en pantalla y uno por línea.
+   *
+   * Antes esto era un número en el resumen y nada más, y así cinco documentos
+   * que STEL no podía meter se quedaron semanas sin que nadie supiera cuáles
+   * eran. Un bloqueado no es un error: es el planificador negándose a tocar
+   * algo hasta que una persona decida. Para decidir hay que verlo.
+   */
+  if (bloqueados.length) {
+    console.log(`\n  ${bloqueados.length} bloqueado(s) — esperan una decisión, no se tocan solos:`)
+    for (const b of bloqueados) {
+      const qué = b.numero ?? b.sku ?? b.stel_id ?? '?'
+      console.log(`   · ${b.tipo} ${qué} — ${b.motivo}`)
+    }
+  }
   console.log(`  detalle: ${f}`)
 }
 
