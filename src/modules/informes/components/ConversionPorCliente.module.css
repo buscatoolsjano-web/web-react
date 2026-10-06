@@ -1,0 +1,46 @@
+/* Comparativa cotizaciones ↔ pedidos por cliente (Fase 40). */
+
+.moneda {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.cliente {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  font-weight: var(--weight-semibold);
+  min-width: 12rem;
+}
+
+.tasa {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * El tono de la fila, para que el ojo encuentre el problema sin leer números.
+ *
+ * Marca sólo los dos extremos. Si todas las filas están pintadas, ninguna lo
+ * está; y la franja de la izquierda va además del color porque el color solo
+ * no alcanza para quien no lo distingue.
+ */
+.alerta > th:first-child,
+.alerta > td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-danger);
+}
+
+.alerta .tasa {
+  color: var(--color-danger);
+}
+
+.bien > th:first-child,
+.bien > td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-success);
+}
+
+.bien .tasa {
+  color: var(--color-success);
+}

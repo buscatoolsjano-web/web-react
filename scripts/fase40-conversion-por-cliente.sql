@@ -1,0 +1,70 @@
+-- Fase 40 · Comparativa cotizaciones ↔ pedidos, CLIENTE POR CLIENTE
+--
+-- POR QUÉ
+--
+-- La conversión ya se informaba, pero sólo en total: «132 de 288 · 46 %». Ese
+-- número no deja hacer nada, porque no dice A QUIÉN le cotizamos de más. La
+-- pregunta que se hace el que vende es otra: quién pide mucho y compra poco.
+--
+-- LAS MISMAS DEFINICIONES, A PROPÓSITO
+--
+-- Convertida = la cotización tiene un pedido CONFIRMADO enlazado por
+-- `sales_orders.quote_id`; el estado «aceptada» no alcanza. Los borradores no
+-- cuentan, ni arriba ni abajo de la división. Son exactamente las reglas de
+-- `informe_pipeline_comercial`: dos informes que cuentan lo mismo de dos
+-- maneras distintas no se pueden leer juntos.
+--
+-- LA MONEDA NO SE CONVIERTE
+--
+-- Con `p_moneda` nulo se devuelven sólo CANTIDADES. Sumar pesos con dólares
+-- para llenar una columna sería inventar el número más importante de la
+-- pantalla. Con una moneda elegida, los importes son de los documentos en esa
+-- moneda; las cantidades siguen siendo de todos.
+--
+-- EL MÍNIMO NO ES UN DETALLE
+--
+-- Ordenar por tasa de conversión sin un piso de cotizaciones da basura, en los
+-- dos sentidos:
+--
+--   · «0 de 1 · 0 %» encabezaría «piden mucho y compran poco», y no es un
+--     problema: es un cliente nuevo.
+--   · «2 de 2 · 100 %» encabezaría «los que más compran», y no es un buen
+--     cliente: es poca evidencia.
+--
+-- Por eso los dos órdenes que rankean por tasa exigen `p_minimo` cotizaciones,
+-- y la pantalla dice cuál es ese mínimo. `cotizaciones` e `importe` no lo
+-- necesitan: no rankean por una proporción.
+--
+-- LAS ABIERTAS SE MUESTRAN APARTE
+--
+-- Enviadas o aceptadas y todavía sin pedido. No se descuentan del denominador:
+-- son la diferencia entre «nos dijo que no» y «todavía no contestó». Sin ellas
+-- una conversión baja parece siempre una pérdida, y muchas veces es trabajo
+-- sin terminar.
+--
+-- EL DESEMPATE ES ESTABLE
+--
+-- `order by … , cliente asc, customer_id asc`. Sin eso, dos clientes con los
+-- mismos números cambian de lugar entre páginas y una fila puede aparecer dos
+-- veces o ninguna.
+--
+-- Aplicado en São Paulo como la migración `fase40_informe_conversion_por_cliente`.
+--
+-- ENSAYO (como `authenticated`, 12 meses, mínimo 3):
+--
+--   piden_mucho      → Mazzarella Alberto Benjamin: 0 de 4 (0 %) · 4 abiertas
+--                      Leonardo Gomez: 1 de 10 (10 %) · 9 abiertas
+--                      PABLO CONIGLIARO: 1 de 7 (14 %) · 6 abiertas
+--                      GILERA MOTORS: 2 de 7 (29 %) · 5 abiertas
+--                      SAS AUTOMOTRIZ · MOTHERSON: 7 de 19 (37 %) · 12 abiertas
+--                      Grupo Mirgor S.A.: 66 de 120 (55 %) · 54 abiertas
+--
+--   importe, USD     → Grupo Mirgor: USD 110.021 de 467.721
+--                      SAS AUTOMOTRIZ: USD 17.437 de 236.720
+--                      Volkswagen Argentina: USD 0 de 225.783  ← una sola
+--                        cotización enorme que nunca se convirtió
+--                      Leonardo Gomez: USD 68.246 de 89.763  ← convirtió 1 de
+--                        10, pero casi toda la plata: por eso se muestran las
+--                        dos lecturas y no una sola
+--
+--   mejor_conversion → Consulta Mercadolibre: 8 de 8 (100 %)

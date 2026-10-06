@@ -351,3 +351,38 @@ export interface FilaKardex {
   referencia: string | null
   notas: string | null
 }
+
+// ── Fase 40 · comparativa cotizaciones ↔ pedidos, cliente por cliente ───────
+
+/** Cómo se ordena la comparativa. */
+export type OrdenConversion = 'piden_mucho' | 'cotizaciones' | 'mejor_conversion' | 'importe'
+
+/** El período que se compara: el mes elegido o los doce meses que terminan ahí. */
+export type PeriodoConversion = 'mes' | '12m'
+
+export interface ParametrosConversion {
+  periodo: PeriodoConversion
+  /** `null` = sólo cantidades. No se suman monedas distintas. */
+  moneda: string | null
+  orden: OrdenConversion
+  /** Cotizaciones mínimas para entrar al ranking de «piden mucho». */
+  minimo: number
+}
+
+/** Una fila de `informe_conversion_por_cliente`. */
+export interface ConversionCliente {
+  customer_id: string
+  cliente: string
+  referencia: string | null
+  cotizaciones: number
+  convertidas: number
+  /** Enviadas o aceptadas y todavía sin pedido: pueden convertirse aún. */
+  abiertas: number
+  tasa: number | null
+  /** `null` cuando no se eligió moneda: no se suman pesos con dólares. */
+  importe_cotizado: number | null
+  importe_convertido: number | null
+  ultima_cotizacion: string | null
+  ultimo_pedido: string | null
+  total_filas: number
+}

@@ -20,7 +20,7 @@ export function NavegacionInformes({ vista }: { vista: VistaInformes }) {
   const href = (v: VistaInformes) => {
     const n = new URLSearchParams()
     if (mes) n.set('mes', mes)
-    if (v === 'stock') n.set('vista', 'stock')
+    if (v !== 'comercial') n.set('vista', v)
     const q = n.toString()
     return q ? `?${q}` : '?'
   }
@@ -32,6 +32,7 @@ export function NavegacionInformes({ vista }: { vista: VistaInformes }) {
       onChange={(v) => void navigate({ search: href(v) })}
       items={[
         { key: 'comercial', label: 'Comercial' },
+        { key: 'clientes', label: 'Clientes' },
         { key: 'stock', label: 'Stock' },
       ]}
     />

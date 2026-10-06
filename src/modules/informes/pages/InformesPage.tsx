@@ -22,6 +22,7 @@ import { useDocumentosInforme } from '../hooks/useActividad'
 import { useFiltrosInformes } from '../hooks/useFiltrosInformes'
 import type { FiltrosInformes } from '../lib/filtrosInformes'
 import { leerVista } from '../lib/vista'
+import { ClientesVista } from '../components/ClientesVista'
 import { StockVista } from '../components/StockVista'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { ConversionCotizaciones } from '../components/ConversionCotizaciones'
@@ -74,7 +75,7 @@ function VistasInformes() {
       <div>
         <NavegacionInformes vista={vista} />
         <TabPanel tabsId={ID_PESTANAS_INFORMES} tabKey={vista}>
-          {vista === 'stock' ? <StockVista /> : <ActividadComercialVista />}
+          {vista === 'stock' ? <StockVista /> : vista === 'clientes' ? <ClientesVista /> : <ActividadComercialVista />}
         </TabPanel>
       </div>
     </div>

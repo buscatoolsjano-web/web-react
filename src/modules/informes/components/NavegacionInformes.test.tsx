@@ -43,10 +43,18 @@ describe('Pestañas de Informes (Tabs compartido)', () => {
     montar('/informes?mes=2026-08')
     const comercial = screen.getByRole('tab', { name: 'Comercial' })
     comercial.focus()
+    // Fase 40: entre Comercial y Stock entró Clientes, la comparativa
+    // cotizaciones ↔ pedidos. Va ahí y no al final porque se lee junto con
+    // Comercial: una dice cómo venimos, la otra con quién hay que hablar.
     fireEvent.keyDown(comercial, { key: 'ArrowRight' })
+    expect(screen.getByTestId('search')).toHaveTextContent('?mes=2026-08&vista=clientes')
+    expect(screen.getByRole('tab', { name: 'Clientes' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('Vista clientes')).toBeInTheDocument()
+
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Clientes' }), { key: 'ArrowRight' })
     expect(screen.getByTestId('search')).toHaveTextContent('?mes=2026-08&vista=stock')
-    expect(screen.getByRole('tab', { name: 'Stock' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('Vista stock')).toBeInTheDocument()
+
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Stock' }), { key: 'Home' })
     expect(screen.getByTestId('search')).toHaveTextContent('?mes=2026-08')
   })

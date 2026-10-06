@@ -1,6 +1,11 @@
-export type VistaInformes = 'comercial' | 'stock'
+export type VistaInformes = 'comercial' | 'clientes' | 'stock'
 
-/** `?vista=stock` elige la pestaña; cualquier otro valor (o ninguno) es Comercial. */
+/**
+ * `?vista=stock` o `?vista=clientes` eligen la pestaña; cualquier otro valor
+ * (o ninguno) es Comercial.
+ */
 export function leerVista(valor: string | null): VistaInformes {
-  return valor === 'stock' ? 'stock' : 'comercial'
+  if (valor === 'stock') return 'stock'
+  if (valor === 'clientes') return 'clientes'
+  return 'comercial'
 }

@@ -7724,6 +7724,32 @@ export type Database = {
           referencia: string | null
         }[]
       }
+      informe_conversion_por_cliente: {
+        Args: {
+          p_company: string
+          p_desplazamiento?: number
+          p_limite?: number
+          p_mes?: string | null
+          p_minimo?: number
+          p_moneda?: string | null
+          p_orden?: string
+          p_periodo?: string
+        }
+        Returns: {
+          abiertas: number
+          cliente: string
+          convertidas: number
+          cotizaciones: number
+          customer_id: string
+          importe_convertido: number | null
+          importe_cotizado: number | null
+          referencia: string | null
+          tasa: number | null
+          total_filas: number
+          ultima_cotizacion: string | null
+          ultimo_pedido: string | null
+        }[]
+      }
       borrar_con_motivo: {
         Args: { p_entidad: string; p_id: string; p_motivo: string }
         Returns: Json
