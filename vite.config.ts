@@ -75,6 +75,19 @@ export default defineConfig(({ mode }) => {
       // jsdom pesado (shell, Inicio, diálogo de apariencia) llegó a 5 s por pura
       // contención de CPU; solo tarda ~0,3 s. Ver arriba: ahora son 25.
       testTimeout: 25_000,
+      // El reporter, fijado a mano, y no es cosmético.
+      //
+      // Cuando la salida NO es una terminal —CI, o cualquier cosa que
+      // redirija— vitest elige el reporter mínimo, que esconde la consola de
+      // los tests que PASAN. Y hay avisos que salen justamente de un test que
+      // pasa: los `act(...)` de React, los rechazos sin dueño, los
+      // `console.error` de un fallo que el código decidió no mostrar en
+      // pantalla. Veintisiete avisos de act vivieron escondidos ahí.
+      //
+      // Fijándolo acá vale para `npm test`, para CI y para cualquier
+      // `npx vitest run` a mano, que es lo que importa: no depende de cómo se
+      // lo invoque. El precio es un log de CI más largo.
+      reporters: ['default'],
     },
   }
 })
