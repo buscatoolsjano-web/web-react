@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { afterEach } from 'vitest'
-import { cleanup, configure } from '@testing-library/react'
+import { act, cleanup, configure } from '@testing-library/react'
+import { notifyManager } from '@tanstack/react-query'
 
 /**
  * Cuánto espera `findBy*` y `waitFor` antes de darse por vencido.
@@ -29,11 +30,48 @@ import { cleanup, configure } from '@testing-library/react'
 configure({ asyncUtilTimeout: 10_000 })
 
 /**
+ * Las notificaciones de react-query, por adentro de `act`.
+ *
+ * EL PORQUÉ: cuando una consulta termina, react-query no avisa en el momento.
+ * Encola el aviso con `setTimeout(…, 0)` —`defaultScheduler` es
+ * `systemSetTimeoutZero`— y el `setState` que repinta el componente ocurre
+ * dentro de ese timer, o sea **afuera** de cualquier `act`. React lo detecta y
+ * escribe «An update to X inside a test was not wrapped in act(...)».
+ *
+ * No es un bug de la pantalla ni del test: es que el aviso llega en un turno
+ * del reloj que el test ya no controla. Por eso el warning aparecía y
+ * desaparecía: según la carga de la máquina, el timer alcanzaba a dispararse
+ * antes del `cleanup` o se lo comía el desmontaje.
+ *
+ * Y para encontrarlo hay un detalle del corredor que cuesta caro: con la
+ * salida redirigida —CI, o cualquier cosa que no sea una terminal— vitest usa
+ * el reporter mínimo, que **esconde la consola de los tests que pasan**. Los
+ * avisos de act salen de un test que pasa. Para verlos hay que correr
+ * `vitest run --reporter=default`.
+ *
+ * `setNotifyFunction` es el gancho que react-query expone para esto, con esta
+ * misma intención escrita en su código: «can be used to for example wrap
+ * notifications with React.act while running tests». No silencia nada ni
+ * cambia cuándo llega el aviso: lo hace entrar por `act`, que es lo único que
+ * React estaba reclamando.
+ */
+notifyManager.setNotifyFunction((aviso) => {
+  // El `void`: `act` con una función sincrónica ya hizo todo cuando vuelve, y
+  // lo que devuelve es un thenable que en este caso no hay que esperar.
+  void act(aviso)
+})
+
+/**
  * Setup común de los tests.
  *
  * `cleanup` desmonta lo que quedó montado entre un test y el siguiente. En
  * entorno `node` no hay nada que limpiar y la llamada es inofensiva, así que
  * el mismo archivo sirve para los dos entornos.
+ *
+ * Acá NO se intenta además «dejar aterrizar» lo que quedó en vuelo: una
+ * promesa ya resuelta corre en el microtask que sigue al cuerpo del test, o
+ * sea antes de que este hook empiece. Para eso no hay gancho global que
+ * sirva; el test tiene que esperar la consecuencia que él mismo disparó.
  */
 afterEach(() => {
   cleanup()

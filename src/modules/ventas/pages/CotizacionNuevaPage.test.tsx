@@ -196,14 +196,23 @@ const montar = (extra?: React.ReactNode, entrada = '/ventas/cotizaciones/nueva')
 /**
  * Lo mínimo para poder crear. Desde la Fase 27 · E1 incluye el TÍTULO: es
  * el renglón que sale impreso debajo del tipo de documento.
+ *
+ * Es `async` por el cliente: elegirlo dispara la consulta de sus defaults
+ * comerciales y la respuesta, aunque el espía la devuelva ya resuelta, aterriza
+ * en el microtask siguiente. El `act` de abajo es donde aterriza. Sin él cae
+ * entre el final del test y el `cleanup` —ya afuera de `act`— y React avisa
+ * «An update to CotizacionNuevaPage was not wrapped in act(...)»: no es un bug
+ * de la pantalla, es el test afirmando y yéndose antes de que termine de pasar
+ * lo que él mismo disparó.
  */
-const completarMinimo = () => {
+const completarMinimo = async () => {
   // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
   // hoja— porque se pidió poder elegirlo desde el documento. El del panel
   // es el primero.
   fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
   fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
   fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'ZZ Trabajo de prueba' } })
+  await act(async () => {})
 }
 
 beforeEach(() => {
@@ -231,9 +240,9 @@ describe('Nueva cotización · borrador', () => {
     expect(espias.crear).not.toHaveBeenCalled()
   })
 
-  it('cargar la cotización entera NO escribe nada hasta apretar Crear', () => {
+  it('cargar la cotización entera NO escribe nada hasta apretar Crear', async () => {
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
     fireEvent.change(screen.getAllByLabelText('Cantidad')[0]!, { target: { value: '3' } })
     expect(espias.crear).not.toHaveBeenCalled()
@@ -241,7 +250,7 @@ describe('Nueva cotización · borrador', () => {
 
   it('crea en UNA llamada, con lo cargado y sin campos de sistema, y abre el documento', async () => {
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'mayorista' } })
     elegirAgente('ZZ Vendedora')
     fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
@@ -271,16 +280,16 @@ describe('Nueva cotización · borrador', () => {
     const { FalloDeGuardado } = await import('../services/cotizaciones')
     espias.crear.mockRejectedValueOnce(new FalloDeGuardado('CLIENTE_INVALIDO', 'El cliente no es de esta empresa.'))
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('El cliente no es de esta empresa.')
     expect(screen.queryByText('detalle de la cotización')).not.toBeInTheDocument()
   })
 
-  it('con la numeración en STEL no se puede crear, y se dice por qué', () => {
+  it('con la numeración en STEL no se puede crear, y se dice por qué', async () => {
     estado.stel = { quote: true }
     montar()
-    completarMinimo()
+    await completarMinimo()
     expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeDisabled()
     expect(screen.getAllByText(/STEL/).length).toBeGreaterThan(0)
   })
@@ -299,16 +308,16 @@ describe('Nueva cotización · tarifa y precio sugerido', () => {
   // camino nuevo.
   it('el catálogo recibe la tarifa del documento', async () => {
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'mayorista' } })
     fireEvent.click(screen.getByRole('button', { name: 'Añadir producto' }))
     await waitFor(() => expect(espias.catalogo).toHaveBeenCalled(), { timeout: 2000 })
     expect(espias.catalogo.mock.calls.at(-1)![1]).toBe('mayorista')
   })
 
-  it('sólo se ofrecen tarifas de la moneda del documento', () => {
+  it('sólo se ofrecen tarifas de la moneda del documento', async () => {
     montar()
-    completarMinimo()
+    await completarMinimo()
     const tarifa = screen.getByLabelText(/Tarifa/)
     const opciones = within(tarifa).getAllByRole('option').map((o) => o.textContent)
     expect(opciones).toContain('Mayorista')
@@ -325,7 +334,7 @@ describe('Nueva cotización · salir con cambios', () => {
 
   it('con datos cargados pregunta antes de perderlos', async () => {
     montar(<Link to="/ventas/cotizaciones">volver</Link>)
-    completarMinimo()
+    await completarMinimo()
     fireEvent.click(screen.getByRole('link', { name: 'volver' }))
 
     const dialogo = await screen.findByRole('alertdialog', { name: 'Hay cambios sin guardar' })
@@ -341,7 +350,7 @@ describe('Nueva cotización · salir con cambios', () => {
 
   it('después de crear, navegar al documento no pregunta nada', async () => {
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     expect(await screen.findByText('detalle de la cotización', undefined, { timeout: 8000 })).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
@@ -655,9 +664,9 @@ describe('Nueva cotización · vista previa del borrador', () => {
     expect(screen.getByRole('button', { name: 'Vista previa' })).toBeInTheDocument()
   })
 
-  it('el botón la abre y la cierra, sin guardar nada', () => {
+  it('el botón la abre y la cierra, sin guardar nada', async () => {
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.click(screen.getByRole('button', { name: 'Vista previa' }))
 
     expect(screen.getByRole('region', { name: 'Documento' })).toBeInTheDocument()
@@ -675,10 +684,10 @@ describe('Nueva cotización · vista previa del borrador', () => {
     expect(screen.queryByRole('button', { name: 'Vista previa' })).toBeNull()
   })
 
-  it('muestra el borrador: cliente por nombre, líneas y moneda', () => {
+  it('muestra el borrador: cliente por nombre, líneas y moneda', async () => {
     estado.pantallaAncha = true
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
     fireEvent.change(screen.getAllByLabelText('Cantidad')[0]!, { target: { value: '3' } })
     fireEvent.change(screen.getAllByLabelText('Precio unitario')[0]!, { target: { value: '100' } })
@@ -701,10 +710,10 @@ describe('Nueva cotización · vista previa del borrador', () => {
    * Lo que la previa NO puede saber tiene que decirlo, no inventarlo: el
    * número y el total definitivo los pone el servidor al crear.
    */
-  it('no inventa el número ni el total definitivo', () => {
+  it('no inventa el número ni el total definitivo', async () => {
     estado.pantallaAncha = true
     montar()
-    completarMinimo()
+    await completarMinimo()
     const previa = screen.getByRole('region', { name: 'Documento' })
     expect(within(previa).getByText(/a asignar al crear/)).toBeInTheDocument()
     expect(within(previa).getByText(/El número y el total definitivo los pone el servidor/)).toBeInTheDocument()
@@ -730,20 +739,20 @@ describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
   })
 
   /** Lo que bloquea es la autoridad de la serie elegida, no la general. */
-  it('la serie por defecto es STEL: no se puede crear y se dice por qué', () => {
+  it('la serie por defecto es STEL: no se puede crear y se dice por qué', async () => {
     estado.series = DOS
     montar()
-    completarMinimo()
+    await completarMinimo()
     expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeDisabled()
     // Aparece dos veces —el cartel de arriba y la nota del botón—, que es
     // como venía de la Fase 12.
     expect(screen.getAllByText(/Emisión desde el ERP bloqueada/).length).toBeGreaterThan(0)
   })
 
-  it('eligiendo la serie ERP se habilita, y recién ahí', () => {
+  it('eligiendo la serie ERP se habilita, y recién ahí', async () => {
     estado.series = DOS
     montar()
-    completarMinimo()
+    await completarMinimo()
     expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeDisabled()
 
     fireEvent.change(screen.getByLabelText('Serie del documento'), { target: { value: 'COT-ERP' } })
@@ -759,7 +768,7 @@ describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
       { codigo: 'COT-ERP', esPorDefecto: false, autoridad: 'ERP' },
     ]
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
 
@@ -773,7 +782,7 @@ describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
       { codigo: 'COT-ERP', esPorDefecto: false, autoridad: 'ERP' },
     ]
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.change(screen.getByLabelText('Serie del documento'), { target: { value: 'COT-ERP' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear cotización' }))
     await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
@@ -783,10 +792,10 @@ describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
   })
 
   /** Fase 19 · E3 · §7-H: volver a la serie de STEL vuelve a bloquear. */
-  it('volver a la serie por defecto vuelve a bloquear', () => {
+  it('volver a la serie por defecto vuelve a bloquear', async () => {
     estado.series = DOS
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.change(screen.getByLabelText('Serie del documento'), { target: { value: 'COT-ERP' } })
     expect(screen.getByRole('button', { name: 'Crear cotización' })).toBeEnabled()
 
@@ -802,7 +811,7 @@ describe('Nueva cotización · selector de serie (Fase 19 · E3)', () => {
   it('abrir la pantalla no crea nada, ni siquiera con la serie ERP elegida', async () => {
     estado.series = DOS
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.change(screen.getByLabelText('Serie del documento'), { target: { value: 'COT-ERP' } })
     await act(async () => {})
     expect(espias.crear).not.toHaveBeenCalled()

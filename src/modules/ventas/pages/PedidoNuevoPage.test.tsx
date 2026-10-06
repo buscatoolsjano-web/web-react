@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { Link, RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type * as ServicioCotizaciones from '../services/cotizaciones'
@@ -188,14 +188,23 @@ const montar = (extra?: React.ReactNode) => {
 /**
  * Lo mínimo para poder crear. Desde la Fase 27 · E1 incluye el TÍTULO: es
  * el renglón que sale impreso debajo del tipo de documento.
+ *
+ * Es `async` por el cliente: elegirlo dispara la consulta de sus defaults
+ * comerciales y la respuesta, aunque el espía la devuelva ya resuelta, aterriza
+ * en el microtask siguiente. El `act` de abajo es donde aterriza. Sin él cae
+ * entre el final del test y el `cleanup` —ya afuera de `act`— y React avisa
+ * «An update to PedidoNuevoPage was not wrapped in act(...)»: no es un bug de
+ * la pantalla, es el test afirmando y yéndose antes de que termine de pasar lo
+ * que él mismo disparó.
  */
-const completarMinimo = () => {
+const completarMinimo = async () => {
   // Fase 27 · E2: hay DOS selectores de cliente —el del panel y el de la
   // hoja— porque se pidió poder elegirlo desde el documento. El del panel
   // es el primero.
   fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
   fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
   fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ Trabajo de prueba' } })
+  await act(async () => {})
 }
 
 beforeEach(() => {
@@ -229,9 +238,9 @@ describe('Nuevo pedido · borrador', () => {
     expect(screen.queryByLabelText(/Válida hasta/)).toBeNull()
   })
 
-  it('cargar el pedido entero NO escribe nada hasta apretar Crear', () => {
+  it('cargar el pedido entero NO escribe nada hasta apretar Crear', async () => {
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ pedido directo' } })
     fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
     fireEvent.change(screen.getAllByLabelText('Cantidad')[0]!, { target: { value: '3' } })
@@ -240,7 +249,7 @@ describe('Nuevo pedido · borrador', () => {
 
   it('crea en UNA llamada, con lo cargado y sin campos de sistema, y abre el pedido', async () => {
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'mayorista' } })
     elegirAgente('ZZ Vendedora')
     fireEvent.click(screen.getByRole('button', { name: 'Nueva línea' }))
@@ -275,16 +284,16 @@ describe('Nuevo pedido · borrador', () => {
     const { FalloDeGuardado } = await vi.importActual<typeof ServicioCotizaciones>('../services/cotizaciones')
     espias.crear.mockRejectedValueOnce(new FalloDeGuardado('CLIENTE_INVALIDO', 'El cliente no es de esta empresa.'))
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('El cliente no es de esta empresa.')
     expect(screen.queryByText('detalle del pedido')).not.toBeInTheDocument()
   })
 
-  it('con la numeración de pedidos en STEL no se puede crear, y se dice por qué', () => {
+  it('con la numeración de pedidos en STEL no se puede crear, y se dice por qué', async () => {
     estado.stel = { sales_order: true }
     montar()
-    completarMinimo()
+    await completarMinimo()
     expect(screen.getByRole('button', { name: 'Crear pedido' })).toBeDisabled()
     expect(screen.getAllByText(/STEL/).length).toBeGreaterThan(0)
   })
@@ -307,19 +316,19 @@ describe('Nuevo pedido · borrador', () => {
       expect(screen.queryByLabelText('Serie')).toBeNull()
     })
 
-    it('con dos, arranca SIEMPRE en la que está por defecto, y esa bloquea', () => {
+    it('con dos, arranca SIEMPRE en la que está por defecto, y esa bloquea', async () => {
       estado.series = DOS
       montar()
-      completarMinimo()
+      await completarMinimo()
       expect(screen.getByLabelText('Serie del documento')).toHaveValue('PDV')
       expect(screen.getByRole('button', { name: 'Crear pedido' })).toBeDisabled()
       expect(screen.getAllByText(/la serie PDV la numera STEL/i).length).toBeGreaterThan(0)
     })
 
-    it('eligiendo la serie del ERP se habilita, y volver a la otra vuelve a bloquear', () => {
+    it('eligiendo la serie del ERP se habilita, y volver a la otra vuelve a bloquear', async () => {
       estado.series = DOS
       montar()
-      completarMinimo()
+      await completarMinimo()
       fireEvent.change(screen.getByLabelText('Serie del documento'), { target: { value: 'PDV-ERP' } })
       expect(screen.getByRole('button', { name: 'Crear pedido' })).toBeEnabled()
 
@@ -333,7 +342,7 @@ describe('Nuevo pedido · borrador', () => {
         { codigo: 'PDV-ERP', esPorDefecto: false, autoridad: 'ERP' },
       ]
       const { unmount } = montar()
-      completarMinimo()
+      await completarMinimo()
       fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
       await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
       expect(Object.keys(espias.crear.mock.calls[0]![1])).not.toContain('series_code')
@@ -341,7 +350,7 @@ describe('Nuevo pedido · borrador', () => {
       espias.crear.mockClear()
 
       montar()
-      completarMinimo()
+      await completarMinimo()
       fireEvent.change(screen.getByLabelText('Serie del documento'), { target: { value: 'PDV-ERP' } })
       fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
       await waitFor(() => expect(espias.crear).toHaveBeenCalledTimes(1))
@@ -362,16 +371,16 @@ describe('Nuevo pedido · tarifa y precio sugerido', () => {
   // Fase 28 · E14: «Añadir producto» abre el catálogo. El invariante es el
   it('el catálogo recibe la tarifa del pedido', async () => {
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'mayorista' } })
     fireEvent.click(screen.getByRole('button', { name: 'Añadir producto' }))
     await waitFor(() => expect(espias.catalogo).toHaveBeenCalled(), { timeout: 2000 })
     expect(espias.catalogo.mock.calls.at(-1)![1]).toBe('mayorista')
   })
 
-  it('sólo se ofrecen tarifas de la moneda del pedido', () => {
+  it('sólo se ofrecen tarifas de la moneda del pedido', async () => {
     montar()
-    completarMinimo()
+    await completarMinimo()
     const tarifa = screen.getByLabelText(/Tarifa/)
     const opciones = within(tarifa).getAllByRole('option').map((o) => o.textContent)
     expect(opciones).toContain('Mayorista')
@@ -388,7 +397,7 @@ describe('Nuevo pedido · salir con cambios', () => {
 
   it('con datos cargados pregunta antes de perderlos', async () => {
     montar(<Link to="/ventas/pedidos">volver</Link>)
-    completarMinimo()
+    await completarMinimo()
     fireEvent.click(screen.getByRole('link', { name: 'volver' }))
 
     const dialogo = await screen.findByRole('alertdialog', { name: 'Hay cambios sin guardar' })
@@ -404,7 +413,7 @@ describe('Nuevo pedido · salir con cambios', () => {
 
   it('después de crear, navegar al pedido no pregunta nada', async () => {
     montar()
-    completarMinimo()
+    await completarMinimo()
     fireEvent.click(screen.getByRole('button', { name: 'Crear pedido' }))
     expect(await screen.findByText('detalle del pedido', undefined, { timeout: 8000 })).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()

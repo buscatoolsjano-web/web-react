@@ -4,10 +4,28 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { AdjuntoContenido, HiloIndice } from '../types'
 import { VisorAdjunto } from './VisorAdjunto'
 
+const espias = vi.hoisted(() => ({
+  traer: vi.fn(() => Promise.resolve(new Blob(['%PDF-1.4']))),
+}))
+
 vi.mock('../services/contenido', () => ({
-  traerAdjunto: vi.fn(() => Promise.resolve(new Blob(['%PDF-1.4']))),
+  traerAdjunto: espias.traer,
   guardarEnDisco: vi.fn(),
 }))
+
+/**
+ * Los bytes que NUNCA llegan.
+ *
+ * Una promesa que no se resuelve es la única forma honesta de probar el visor
+ * «todavía en blanco». Con la respuesta inmediata de arriba, los bytes llegan
+ * en el microtask siguiente al cuerpo del test —después de la afirmación y
+ * antes del `cleanup`—, el `setState` cae afuera de `act` y React lo canta.
+ * No es un bug del visor: es que el test afirmaba sobre un estado y se iba
+ * sin esperar al siguiente.
+ */
+const nuncaLlegan = () => {
+  espias.traer.mockImplementationOnce(() => new Promise<Blob>(() => {}))
+}
 
 // jsdom no implementa estas dos y el visor las usa para mostrar el blob.
 URL.createObjectURL = vi.fn(() => 'blob:prueba')
@@ -81,14 +99,18 @@ describe('<VisorAdjunto> · importar desde la vista previa', () => {
     expect(screen.queryByRole('button', { name: 'Importar como OC' })).toBeNull()
   })
 
-  it('SIN permiso de escritura en Ventas el botón no existe', () => {
+  it('SIN permiso de escritura en Ventas el botón no existe', async () => {
     // La página no pasa la función cuando el rol no puede escribir.
     montar(adj())
+    // Se espera a que el adjunto esté a la vista: lo que se afirma es que el
+    // botón no está NUNCA, ni con el archivo cargado.
+    await screen.findByRole('button', { name: /Descargar/ })
     expect(screen.queryByRole('button', { name: 'Importar como OC' })).toBeNull()
   })
 
   it('mientras los bytes no llegaron, no se puede importar nada', () => {
     // Sin blob el visor está en blanco: importar ahí mandaría un archivo vacío.
+    nuncaLlegan()
     montar(adj(), vi.fn())
     expect(screen.getByRole('button', { name: 'Importar como OC' })).toBeDisabled()
   })

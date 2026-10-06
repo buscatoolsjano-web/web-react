@@ -13,7 +13,15 @@ import type { DatosContacto } from '../lib/validacion'
  * documento se desactiva en vez de borrarse —incluso si alguien apretó Borrar—.
  */
 
-vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+/**
+ * El doble de supabase tiene `rpc` porque desactivar ESCRIBE: la baja lógica
+ * no borra la fila, así que el registro de por qué se fue va por
+ * `registrar_borrado` aparte del guardado. Con `supabase: {}` pelado la
+ * llamada moría en «supabase.rpc is not a function» y, al ser una promesa sin
+ * dueño, el test pasaba igual y el error salía como «unhandled rejection».
+ */
+const rpc = vi.hoisted(() => vi.fn((_fn: string, _args: Record<string, unknown>) => Promise.resolve({ data: {}, error: null })))
+vi.mock('@/services/supabase/client', () => ({ supabase: { rpc } }))
 
 const estado = vi.hoisted(() => ({
   guardarError: null as Error | null,
@@ -188,6 +196,14 @@ describe('EditorContactos · desactivar en vez de borrar', () => {
     expect(mut.borrar).not.toHaveBeenCalled()
     expect(mut.guardar).toHaveBeenCalledTimes(1)
     expect(llamada().datos.activo).toBe(false)
+    // Y el motivo no se pierde: la baja lógica queda registrada igual que un
+    // borrado, con la acción que la distingue.
+    expect(rpc).toHaveBeenCalledWith('registrar_borrado', {
+      p_entidad: 'customer_contact',
+      p_id: 'k1',
+      p_motivo: 'Era una prueba',
+      p_accion: 'deactivate',
+    })
   })
 
   it('sin referencias, Borrar borra de verdad, con el motivo', () => {

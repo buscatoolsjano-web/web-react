@@ -401,7 +401,15 @@ export function EditorContactos({
           if (!confirmando) return
           if (referenciado) {
             cambiarActivo(confirmando, false)
-            void registrarBaja('customer_contact', confirmando.id, motivo)
+            // El registro va aparte del update porque acá no se borra nada, y
+            // el `catch` no es decorativo: sin él, un fallo del registro queda
+            // como una promesa rechazada sin dueño —en la consola del
+            // navegador, y en los tests como «unhandled rejection»—. La baja
+            // ya pasó y no se deshace por esto; lo que corresponde es que el
+            // fallo se vea, igual que en `auditoria.ts`.
+            registrarBaja('customer_contact', confirmando.id, motivo).catch((e: unknown) => {
+              console.error('No se pudo registrar la baja del contacto:', e)
+            })
             setConfirmando(null)
             borrar.reset()
             return

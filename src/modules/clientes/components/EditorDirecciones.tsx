@@ -307,7 +307,12 @@ export function EditorDirecciones({
           if (!confirmando) return
           if (referenciada) {
             cambiarActivo(confirmando, false)
-            void registrarBaja('customer_address', confirmando.id, motivo)
+            // Ver el mismo caso en `EditorContactos`: el `catch` existe para
+            // que un fallo del registro se vea, en vez de quedar como una
+            // promesa rechazada sin dueño. La baja ya pasó y no se deshace.
+            registrarBaja('customer_address', confirmando.id, motivo).catch((e: unknown) => {
+              console.error('No se pudo registrar la baja de la dirección:', e)
+            })
             setConfirmando(null)
             borrar.reset()
             return

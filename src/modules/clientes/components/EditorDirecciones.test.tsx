@@ -13,7 +13,14 @@ import type { DatosDireccion } from '../lib/validacion'
  * y que el guardado sea uno solo y con testigo.
  */
 
-vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+/**
+ * El doble de supabase tiene `rpc` por lo mismo que en `EditorContactos`:
+ * desactivar no borra la fila, así que el motivo se registra aparte con
+ * `registrar_borrado`. Con `supabase: {}` pelado esa llamada quedaba como una
+ * promesa rechazada sin dueño y el test pasaba igual.
+ */
+const rpc = vi.hoisted(() => vi.fn((_fn: string, _args: Record<string, unknown>) => Promise.resolve({ data: {}, error: null })))
+vi.mock('@/services/supabase/client', () => ({ supabase: { rpc } }))
 
 const estado = vi.hoisted(() => ({
   guardarError: null as Error | null,
@@ -166,6 +173,14 @@ describe('EditorDirecciones · desactivar en vez de borrar', () => {
 
     expect(mut.borrar).not.toHaveBeenCalled()
     expect(llamada().datos.activo).toBe(false)
+    // Y el motivo queda registrado, con la acción que distingue la baja
+    // lógica del borrado.
+    expect(rpc).toHaveBeenCalledWith('registrar_borrado', {
+      p_entidad: 'customer_address',
+      p_id: 'd1',
+      p_motivo: 'Era una prueba',
+      p_accion: 'deactivate',
+    })
   })
 })
 
