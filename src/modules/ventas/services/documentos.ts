@@ -27,6 +27,8 @@ interface Config {
   tabla: TablaDocumento
   lineas: TablaLinea
   fkLinea: string
+  /** Los contactos SECUNDARIOS del documento (Fase 40). El principal es `contact_id`. */
+  tablaContactos: string
   campoFecha: string
   campoEstado: string
   /**
@@ -43,6 +45,7 @@ const CONFIG: Record<TipoDocumento, Config> = {
     tabla: 'sales_quotes',
     lineas: 'sales_quote_lines',
     fkLinea: 'quote_id',
+    tablaContactos: 'sales_quote_contacts',
     campoFecha: 'quote_date',
     campoEstado: 'status',
     tieneVendedor: true,
@@ -52,6 +55,7 @@ const CONFIG: Record<TipoDocumento, Config> = {
     tabla: 'sales_orders',
     lineas: 'sales_order_lines',
     fkLinea: 'order_id',
+    tablaContactos: 'sales_order_contacts',
     campoFecha: 'order_date',
     campoEstado: 'commercial_status',
     tieneVendedor: true,
@@ -61,6 +65,7 @@ const CONFIG: Record<TipoDocumento, Config> = {
     tabla: 'deliveries',
     lineas: 'delivery_lines',
     fkLinea: 'delivery_id',
+    tablaContactos: 'delivery_contacts',
     campoFecha: 'delivery_date',
     campoEstado: 'status',
     tieneVendedor: false,
@@ -273,6 +278,11 @@ function columnasDetalle(tipo: TipoDocumento): string {
   // `created_at`/`updated_at` y quién creó el documento son la ficha técnica
   // que la pestaña Información muestra al pie. Son columnas de la MISMA
   // consulta: no agregan un viaje más.
+  // Fase 40: los contactos SECUNDARIOS, en la misma consulta. El principal
+  // sigue siendo `contact_id`; acá vienen los demás, con el nombre y el cargo
+  // ya resueltos para poder imprimirlos sin un viaje más.
+  const extras = `contactos_extra:${c.tablaContactos} ( contact_id, position,
+      contacto:customer_contacts!contact_id ( full_name, role, email, phone ) ),`
   return `
     id, number, original_number, suspected_normalized_number, ${c.campoFecha},
     title, currency_code, exchange_rate, subtotal, tax_amount, total,
@@ -280,7 +290,7 @@ function columnasDetalle(tipo: TipoDocumento): string {
     series_code, imported_at, external_source, created_at, updated_at, notes,
     contact_id${c.tieneVendedor ? ', salesperson_id' : ''},
     customers!customer_id ( id, legal_name, trade_name, tax_id ),
-    contacto:customer_contacts!contact_id ( full_name, role, email, phone ),${entrega}
+    contacto:customer_contacts!contact_id ( full_name, role, email, phone ),${extras}${entrega}
     creador:profiles!created_by ( full_name )${vendedor}${origen}${tarifa}
   `
 }
@@ -359,6 +369,13 @@ export async function obtenerDocumento(
     created_at: string
     updated_at: string
     contacto: { full_name: string | null; role: string | null; email: string | null; phone: string | null } | null
+    contactos_extra:
+      | {
+          contact_id: string
+          position: number
+          contacto: { full_name: string | null; role: string | null; email: string | null; phone: string | null } | null
+        }[]
+      | null
     tarifa?: { name: string | null; currency_code: string | null } | null
     creador: { full_name: string | null } | null
   }
@@ -383,6 +400,17 @@ export async function obtenerDocumento(
     clienteCuit: f.customers?.tax_id ?? null,
     contactoNombre: f.contacto?.full_name ?? null,
     contactoId: (f['contact_id'] as string | null) ?? null,
+    /* Los secundarios, en el orden en que se guardaron. PostgREST no garantiza
+       el orden de un embed, así que se ordena acá por `position`. */
+    contactosExtra: [...(f.contactos_extra ?? [])]
+      .sort((a, b) => a.position - b.position)
+      .map((x) => ({
+        id: x.contact_id,
+        nombre: x.contacto?.full_name ?? 'Sin nombre',
+        rol: x.contacto?.role ?? null,
+        email: x.contacto?.email ?? null,
+        telefono: x.contacto?.phone ?? null,
+      })),
     vendedorId: (f['salesperson_id'] as string | null) ?? null,
     listaPrecioId: (f['price_list_id'] as string | null) ?? null,
     direccionEntregaId: (f['shipping_address_id'] as string | null) ?? null,

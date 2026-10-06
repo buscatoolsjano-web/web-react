@@ -88,6 +88,7 @@ import {
   guardarCotizacion,
   ordenarLineas,
 } from '../services/cotizaciones'
+import { guardarContactosDocumento } from '../services/contactosDocumento'
 import { convertirCotizacionEnPedido, convertirCotizacionEnPedidoEnSerie } from '../services/pedidos'
 import type { DocumentoDetalle } from '../types'
 import editor from './EditorCotizacion.module.css'
@@ -307,7 +308,25 @@ function Detalle() {
   const guardar = useMutation({
     mutationFn: async () => {
       const payload = aPayload(borrador!, original!)
-      return guardarCotizacion(doc!.id, borrador!.esperado, payload.cabecera, payload.lineas)
+      const r = await guardarCotizacion(doc!.id, borrador!.esperado, payload.cabecera, payload.lineas)
+      /*
+       * Los contactos van DESPUÉS y por su propia RPC (Fase 40).
+       *
+       * El principal es una columna del documento y viaja en la cabecera como
+       * siempre; los secundarios viven en su tabla. Se mandan los dos juntos
+       * para que la base mantenga la invariante —el principal nunca figura
+       * además como secundario— sin que la pantalla tenga que acordarse.
+       *
+       * Va después del guardado y no antes: si el documento no se pudo
+       * guardar, no tiene sentido haberle cambiado el equipo.
+       */
+      await guardarContactosDocumento(
+        'cotizacion',
+        doc!.id,
+        borrador!.cabecera.contactoId === '' ? null : borrador!.cabecera.contactoId,
+        borrador!.cabecera.contactosExtra,
+      )
+      return r
     },
     onSuccess: () => {
       setUltimoError(null)
@@ -423,6 +442,19 @@ function Detalle() {
 
   const cambiarCampoCabecera = (campo: CampoCabecera, valor: string) => {
     setBorrador((b) => (b ? cambiarCampo(b, campo, valor) : b))
+  }
+
+  /**
+   * El equipo de contactos: principal y secundarios cambian JUNTOS (Fase 40).
+   *
+   * Hacer principal a alguien que ya estaba en la lista mueve dos cosas a la
+   * vez; mandarlas por separado dejaría al documento, entre una y otra, con
+   * dos principales o con ninguno.
+   */
+  const cambiarContactos = (principal: string, secundarios: string[]) => {
+    setBorrador((b) =>
+      b ? { ...b, cabecera: { ...b.cabecera, contactoId: principal, contactosExtra: secundarios } } : b,
+    )
   }
 
   const elegirCliente = (customerId: string) => {
@@ -738,6 +770,7 @@ function Detalle() {
                 avisoContacto={avisoContacto}
                 avisoTarifa={avisoTarifa}
                 onCambiar={cambiarCampoCabecera}
+                onCambiarContactos={cambiarContactos}
                 onCambiarCliente={elegirCliente}
                 onCambiarMoneda={elegirMoneda}
               />

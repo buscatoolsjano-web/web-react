@@ -78,6 +78,12 @@ const espias = vi.hoisted(() => ({
   defaults: vi.fn((_c: string, _id: string) => Promise.resolve(estado.defaults)),
 }))
 
+/* Los contactos del documento se guardan con su propia RPC (Fase 40). Acá
+   sólo importa que el guardado del documento siga siendo UNA llamada. */
+vi.mock('../services/contactosDocumento', () => ({
+  guardarContactosDocumento: () => Promise.resolve(),
+}))
+
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
 // La vista previa al lado del editor depende del ancho (Fase 19 · E3).
 vi.mock('@/hooks/useMediaQuery', () => ({

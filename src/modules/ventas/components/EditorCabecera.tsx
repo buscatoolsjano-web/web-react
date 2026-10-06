@@ -10,7 +10,7 @@ import type {
   OpcionVendedor,
 } from '../services/opciones'
 import { BuscadorCliente } from './BuscadorCliente'
-import { BuscadorContacto } from './BuscadorContacto'
+import { ContactosDelDocumento } from './ContactosDelDocumento'
 import styles from './CabeceraCotizacion.module.css'
 
 /** Una serie con su autoridad, para el desplegable de la referencia. */
@@ -55,6 +55,14 @@ export interface EditorCabeceraProps {
   /** El número, cuando el documento ya lo tiene. En el alta lo pone el servidor. */
   numero?: string | undefined
   onCambiar: (campo: CampoCabecera, valor: string) => void
+  /**
+   * El equipo de contactos del documento (Fase 40).
+   *
+   * Va aparte de `onCambiar` porque son DOS valores que cambian juntos —quién
+   * es el principal y quiénes lo acompañan— y mandarlos por separado dejaría
+   * al documento, entre una llamada y la otra, con dos principales o ninguno.
+   */
+  onCambiarContactos: (principal: string, secundarios: string[]) => void
   onCambiarCliente: (customerId: string) => void
   onCambiarMoneda: (moneda: string) => void
 }
@@ -95,6 +103,7 @@ export function EditorCabecera({
   onCambiar,
   onCambiarCliente,
   onCambiarMoneda,
+  onCambiarContactos,
 }: EditorCabeceraProps) {
   const numeroInput = { type: 'number', step: 'any', min: '0' } as const
   // Sólo se ofrecen las tarifas de la moneda del documento: una de otra moneda
@@ -174,7 +183,7 @@ export function EditorCabecera({
           </div>
 
           <Field
-            label="Contacto"
+            label="Contactos"
             optional
             help={
               avisoContacto
@@ -184,15 +193,17 @@ export function EditorCabecera({
                   : undefined
             }
           >
-            {/* Un buscador y no un `<select>`: el cliente más poblado del
-                maestro tiene 22 contactos, y veintidós nombres en un
-                desplegable se recorren a ciegas. Ver BuscadorContacto.tsx. */}
-            <BuscadorContacto
+            {/* Varios contactos, con uno principal (Fase 40): una venta la
+                siguen el de compras, el que especifica y el que paga. Antes
+                había que elegir a uno y escribir los otros en las
+                observaciones, donde no sirven para nada. */}
+            <ContactosDelDocumento
               contactos={contactos}
-              valor={valores.contactoId}
+              principal={valores.contactoId}
+              secundarios={valores.contactosExtra}
               disabled={valores.customerId === ''}
               cargando={cargandoContactos}
-              onElegir={(id) => onCambiar('contactoId', id)}
+              onCambiar={onCambiarContactos}
             />
           </Field>
           {/* Fase 28 · E14: crear un contacto sin abandonar el documento. Antes

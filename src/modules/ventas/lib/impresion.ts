@@ -177,7 +177,19 @@ export function construirImprimible(
     fecha: doc.fecha,
     cliente: doc.clienteNombre,
     clienteCuit: doc.clienteCuit,
-    contacto: doc.contactoNombre,
+    /*
+     * El contacto impreso: el principal y, si hay, los acompañantes (Fase 40).
+     *
+     * En una sola línea y no en una lista aparte: el documento ya tiene su
+     * diseño y agregar una fila por persona lo empujaría todo. Lo que importa
+     * es que el que recibe el papel vea a quién más se le mandó.
+     */
+    contacto:
+      doc.contactosExtra.length > 0
+        ? [doc.contactoNombre, ...doc.contactosExtra.map((c) => c.nombre)]
+            .filter((x): x is string => !!x)
+            .join(', ')
+        : doc.contactoNombre,
     moneda: doc.moneda,
     formaPago: doc.formaPago,
     vendedor: doc.vendedor,

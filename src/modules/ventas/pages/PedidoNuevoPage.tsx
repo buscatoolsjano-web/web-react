@@ -62,6 +62,7 @@ import { CadenaDocumento } from '../components/CadenaDocumento'
 import { escribeVentas } from '../lib/permisos'
 import { tasaDe } from '../lib/tratamientos'
 import { crearPedido } from '../services/pedidos'
+import { guardarContactosDocumento } from '../services/contactosDocumento'
 import type { DocumentoDetalle } from '../types'
 import editor from './EditorCotizacion.module.css'
 
@@ -226,8 +227,27 @@ export function PedidoNuevoPage() {
    * puede mandar el borrador del render anterior.
    */
   const crear = useMutation({
-    mutationFn: (payload: ReturnType<typeof aPayloadCreacionPedido>) =>
-      crearPedido(activa!.companyId, payload.cabecera, payload.lineas),
+    mutationFn: async (payload: ReturnType<typeof aPayloadCreacionPedido>) => {
+      const r = await crearPedido(activa!.companyId, payload.cabecera, payload.lineas)
+      /*
+       * Los secundarios, recién después de que el documento exista (Fase 40).
+       *
+       * No es atómico y no puede serlo desde el navegador: el alta es una RPC
+       * que devuelve el id, y hasta tenerlo no hay a qué colgarlos. Si esta
+       * segunda llamada fallara, el pedido queda creado con su contacto
+       * principal —que sí viaja en el alta— y sin los acompañantes, que se
+       * agregan editándolo. Es el peor caso posible y es recuperable.
+       */
+      if (b.cabecera.contactosExtra.length > 0) {
+        await guardarContactosDocumento(
+          'pedido',
+          r.id,
+          b.cabecera.contactoId === '' ? null : b.cabecera.contactoId,
+          b.cabecera.contactosExtra,
+        )
+      }
+      return r
+    },
     onSuccess: (r) => {
       void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
       void navegar(`/ventas/pedidos/${r.id}`, { replace: true })
@@ -263,6 +283,23 @@ export function PedidoNuevoPage() {
       setTocados((t) => new Set([...t, campo]))
     }
     setB((x) => cambiarCampo(x, campo, valor))
+  }
+
+  /**
+   * El equipo de contactos: principal y secundarios cambian JUNTOS (Fase 40).
+   *
+   * Hacer principal a alguien que ya estaba en la lista mueve dos cosas a la
+   * vez; mandarlas por separado dejaría al documento, entre una y otra, con
+   * dos principales o con ninguno.
+   */
+  const cambiarContactos = (principal: string, secundarios: string[]) => {
+    // El contacto se sugiere solo al elegir el cliente; tocarlo a mano apaga
+    // esa sugerencia, igual que cualquier otro campo sugerible.
+    setTocados((t) => new Set([...t, 'contactoId']))
+    setB((x) => ({
+      ...x,
+      cabecera: { ...x.cabecera, contactoId: principal, contactosExtra: secundarios },
+    }))
   }
 
   const opcionesValidas = () => ({
@@ -522,6 +559,7 @@ export function PedidoNuevoPage() {
           avisoContacto={avisoContacto}
           avisoTarifa={avisoTarifa}
           onCambiar={cambiarCampoCabecera}
+          onCambiarContactos={cambiarContactos}
           onCambiarCliente={elegirCliente}
           onCambiarMoneda={elegirMoneda}
         />

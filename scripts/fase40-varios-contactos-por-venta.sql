@@ -1,0 +1,68 @@
+-- Fase 40 · Varios contactos en una misma venta: uno principal y los demás
+--
+-- POR QUÉ
+--
+-- Un documento tenía UN contacto (`contact_id`). En la realidad una venta la
+-- siguen dos o tres personas del cliente —el de compras que pide, el ingeniero
+-- que especifica, el de pagos que recibe la factura— y hasta ahora había que
+-- elegir a una y escribir las otras en las observaciones, donde no sirven para
+-- nada: no se puede filtrar por ellas ni mandarles el documento.
+--
+-- LA DECISIÓN DE FONDO: `contact_id` SIGUE SIENDO EL PRINCIPAL
+--
+-- Las tablas nuevas guardan SÓLO los secundarios. No duplican al principal.
+-- Tres razones, y la primera es la que manda:
+--
+--  1. Todo lo que ya lee `contact_id` —la impresión, el sync de STEL, el
+--     módulo de emails, los informes— sigue funcionando sin tocar una línea.
+--     Mover el principal a una tabla nueva habría obligado a reescribir cada
+--     una de esas lecturas, y cada una es una oportunidad de romper algo que
+--     hoy anda.
+--  2. No hay dos fuentes de verdad para «quién es el principal». Si viviera en
+--     los dos lados haría falta un trigger que los sincronice, y un trigger de
+--     sincronización es una promesa que algún día se incumple.
+--  3. Cambiar el principal es un intercambio dentro de una transacción: el
+--     viejo baja, el nuevo sube. Nunca hay dos ni ninguno.
+--
+-- TRES TABLAS Y NO UNA POLIMÓRFICA
+--
+-- `sales_quote_contacts`, `sales_order_contacts`, `delivery_contacts`. Es el
+-- patrón de la casa (`*_lines`) y compra integridad real: la clave foránea
+-- borra en cascada con el documento. Una tabla polimórfica con `entity_id` sin
+-- FK habría dejado filas huérfanas cada vez que se borra una cotización.
+--
+-- LA INVARIANTE LA IMPONE LA BASE, NO LA APLICACIÓN
+--
+-- `app.validar_contacto_de_documento` rechaza dos cosas que no pueden pasar:
+--
+--  · Un secundario que es el principal. Aparecería dos veces en la pantalla y
+--    en el papel, y «quitarlo de secundarios» no lo sacaría.
+--  · Un contacto de OTRO cliente. Es una fuga: el nombre y el mail de una
+--    persona de otra empresa impresos en el documento de ésta.
+--
+-- EL ORDEN DE LOS PASOS DE LA RPC NO ES CASUAL
+--
+--   1. se borran TODOS los secundarios,
+--   2. recién después se escribe el principal,
+--   3. y al final se insertan los secundarios nuevos.
+--
+-- Si se escribiera el principal primero, el trigger rechazaría el update
+-- mientras esa misma persona siguiera figurando como secundaria: el caso más
+-- común de todos, que es ascender a alguien que ya estaba en la lista.
+--
+-- Y el array de secundarios se deduplica CONSERVANDO EL ORDEN. La primera
+-- versión usaba `array_agg(distinct …)`, que ordena por valor: los secundarios
+-- volvían ordenados por uuid, que no es ningún orden. Se vio en el ensayo.
+--
+-- Aplicado en São Paulo como las migraciones `fase40_varios_contactos_por_documento`
+-- y `fase40_guardar_contactos_documento`.
+--
+-- ENSAYO (como `authenticated`, revertido):
+--
+--   1) principal + dos secundarios        → Alfredo / [Cesar, Celina]
+--   2) ascender a uno que YA era secundario → Celina / [Cesar, Alfredo]
+--      (el caso que rompe si el orden de los pasos está mal)
+--   3) el principal repetido entre los secundarios se limpia solo
+--   4) un contacto de otro cliente        → CONTACTO_DE_OTRO_CLIENTE
+--   5) sin principal, con secundarios     → válido, contact_id queda en NULL
+--   6) el orden que manda la pantalla     → 1·Cesar, 2·Alfredo, tal cual

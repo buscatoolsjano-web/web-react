@@ -60,6 +60,12 @@ const espias = vi.hoisted(() => ({
   defaults: vi.fn((_c: string, _id: string) => Promise.resolve(estado.defaults)),
 }))
 
+/* Los contactos del documento se guardan con su propia RPC (Fase 40). Acá
+   sólo importa que el guardado del documento siga siendo UNA llamada. */
+vi.mock('../services/contactosDocumento', () => ({
+  guardarContactosDocumento: () => Promise.resolve(),
+}))
+
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
 // Los datos de la empresa para la hoja: no hay base en los tests.
 vi.mock('../services/empresa', () => ({
@@ -462,11 +468,10 @@ describe('Nuevo pedido · contacto y domicilio de entrega (Fase 17 · E3)', () =
   // es el primero.
   fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
 
-    // Fase 40: el contacto dejó de ser un `<select>` y es un buscador —el
-    // cliente más poblado del maestro tiene 22 contactos—, así que el elegido
-    // se lee en el botón que lo abre y no en el valor de un combo.
+    // Fase 40: el documento lleva VARIOS contactos, con uno principal. El
+    // sugerido entra como principal y se lee en la lista, marcado.
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /^Contacto: ZZ Ana/ })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: 'ZZ Ana es el principal' })).toBeInTheDocument(),
     )
     expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1')
   })
@@ -525,15 +530,14 @@ describe('Nuevo pedido · contacto y domicilio de entrega (Fase 17 · E3)', () =
     await waitFor(() => expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1'))
 
     fireEvent.change(screen.getByLabelText(/Entregar en/), { target: { value: 'd2' } })
-    // Quitar el contacto: se abre el buscador y se elige «Sin contacto».
-    fireEvent.click(screen.getByRole('button', { name: /^Contacto: ZZ Ana/ }))
-    fireEvent.click(screen.getByRole('option', { name: 'Sin contacto' }))
+    // Sacar al contacto del documento: cada uno tiene su «Quitar».
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar a ZZ Ana del documento' }))
 
     // Un re-render no vuelve a sugerir: la sugerencia sólo llena lo vacío y no
     // tocado, y estos dos campos ya son una decisión.
     fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'USD' } })
     expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d2')
-    expect(screen.getByRole('button', { name: 'Elegir contacto' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /ZZ Ana/ })).not.toBeInTheDocument()
   })
 
   it('un principal desactivado no se sugiere ni se ofrece para elegir', async () => {
@@ -546,11 +550,11 @@ describe('Nuevo pedido · contacto y domicilio de entrega (Fase 17 · E3)', () =
   fireEvent.click(screen.getAllByRole('button', { name: 'elegir cliente' })[0]!)
     await waitFor(() => expect(espias.defaults).toHaveBeenCalled())
 
-    expect(screen.getByRole('button', { name: 'Elegir contacto' })).toBeInTheDocument()
+    expect(screen.getByText(/Sin contactos/)).toBeInTheDocument()
     expect(screen.getByLabelText(/Entregar en/)).toHaveValue('')
     // Y no están entre las opciones: en un documento nuevo no se ofrecen.
-    // El contacto hay que abrirlo para verlas, que es justo la prueba.
-    fireEvent.click(screen.getByRole('button', { name: 'Elegir contacto' }))
+    // Hay que abrir el buscador para verlas, que es justo la prueba.
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar contacto' }))
     expect(screen.queryByRole('option', { name: /ZZ Ana/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('option', { name: /Vieja/ })).not.toBeInTheDocument()
   })

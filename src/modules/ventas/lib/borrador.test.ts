@@ -43,6 +43,7 @@ const doc = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle =>
     tipo: 'cotizacion',
     clienteId: 'c1',
     contactoId: 'ct1',
+    contactosExtra: [],
     vendedorId: null,
     listaPrecioId: 'pl-usd',
     titulo: 'Original',

@@ -65,6 +65,7 @@ import { formatearCantidad, formatearImporte } from '../lib/formato'
 import { escribeVentas } from '../lib/permisos'
 import { FalloDeGuardado } from '../services/cotizaciones'
 import { confirmarEntrega, editabilidadEntrega, guardarRemito, lineasParaEntregar } from '../services/entregas'
+import { guardarContactosDocumento } from '../services/contactosDocumento'
 import lineasUi from '../components/EditorLineas.module.css'
 import editor from './EditorCotizacion.module.css'
 
@@ -197,9 +198,27 @@ function Detalle() {
 
   /** El ÚNICO camino de escritura del editor. */
   const guardar = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const payload = aPayloadRemito(borrador!, original!)
-      return guardarRemito(doc!.id, borrador!.esperado, payload.cabecera, payload.lineas)
+      const r = await guardarRemito(doc!.id, borrador!.esperado, payload.cabecera, payload.lineas)
+      /*
+       * Los contactos van DESPUÉS y por su propia RPC (Fase 40).
+       *
+       * El principal es una columna del documento y viaja en la cabecera como
+       * siempre; los secundarios viven en su tabla. Se mandan los dos juntos
+       * para que la base mantenga la invariante —el principal nunca figura
+       * además como secundario— sin que la pantalla tenga que acordarse.
+       *
+       * Va después del guardado y no antes: si el documento no se pudo
+       * guardar, no tiene sentido haberle cambiado el equipo.
+       */
+      await guardarContactosDocumento(
+        'entrega',
+        doc!.id,
+        borrador!.cabecera.contactoId === '' ? null : borrador!.cabecera.contactoId,
+        borrador!.cabecera.contactosExtra,
+      )
+      return r
     },
     onSuccess: (r) => {
       setUltimoError(null)

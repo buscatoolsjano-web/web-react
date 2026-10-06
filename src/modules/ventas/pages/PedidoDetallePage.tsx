@@ -86,6 +86,7 @@ import { tasaDe } from '../lib/tratamientos'
 import { FalloDeGuardado, ordenarLineas } from '../services/cotizaciones'
 import { crearEntregaDesdePedido, lineasParaEntregar } from '../services/entregas'
 import { cambiarEstadoPedido, editabilidadPedido, guardarPedido } from '../services/pedidos'
+import { guardarContactosDocumento } from '../services/contactosDocumento'
 import type { DocumentoDetalle } from '../types'
 import editor from './EditorCotizacion.module.css'
 
@@ -245,9 +246,27 @@ function Detalle() {
 
   /** El ÚNICO camino de escritura del editor. */
   const guardar = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const payload = aPayloadPedido(borrador!, original!)
-      return guardarPedido(doc!.id, borrador!.esperado, payload.cabecera, payload.lineas)
+      const r = await guardarPedido(doc!.id, borrador!.esperado, payload.cabecera, payload.lineas)
+      /*
+       * Los contactos van DESPUÉS y por su propia RPC (Fase 40).
+       *
+       * El principal es una columna del documento y viaja en la cabecera como
+       * siempre; los secundarios viven en su tabla. Se mandan los dos juntos
+       * para que la base mantenga la invariante —el principal nunca figura
+       * además como secundario— sin que la pantalla tenga que acordarse.
+       *
+       * Va después del guardado y no antes: si el documento no se pudo
+       * guardar, no tiene sentido haberle cambiado el equipo.
+       */
+      await guardarContactosDocumento(
+        'pedido',
+        doc!.id,
+        borrador!.cabecera.contactoId === '' ? null : borrador!.cabecera.contactoId,
+        borrador!.cabecera.contactosExtra,
+      )
+      return r
     },
     onSuccess: () => {
       setUltimoError(null)
@@ -372,6 +391,18 @@ function Detalle() {
 
   const cambiarCampoCabecera = (campo: CampoCabecera, valor: string) =>
     setBorrador((b) => (b ? cambiarCampo(b, campo, valor) : b))
+
+  /**
+   * El equipo de contactos: principal y secundarios cambian JUNTOS (Fase 40).
+   *
+   * Hacer principal a alguien que ya estaba en la lista mueve dos cosas a la
+   * vez; mandarlas por separado dejaría al documento, entre una y otra, con
+   * dos principales o con ninguno.
+   */
+  const cambiarContactos = (principal: string, secundarios: string[]) =>
+    setBorrador((b) =>
+      b ? { ...b, cabecera: { ...b.cabecera, contactoId: principal, contactosExtra: secundarios } } : b,
+    )
 
   const elegirCliente = (customerId: string) =>
     setBorrador((b) => {
@@ -657,6 +688,7 @@ function Detalle() {
                 avisoContacto={avisoContacto}
                 avisoTarifa={avisoTarifa}
                 onCambiar={cambiarCampoCabecera}
+                onCambiarContactos={cambiarContactos}
                 onCambiarCliente={elegirCliente}
                 onCambiarMoneda={elegirMoneda}
               />

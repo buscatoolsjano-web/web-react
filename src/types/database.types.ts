@@ -7750,6 +7750,15 @@ export type Database = {
           ultimo_pedido: string | null
         }[]
       }
+      guardar_contactos_documento: {
+        Args: {
+          p_documento: string
+          p_principal?: string | null
+          p_secundarios?: string[]
+          p_tipo: string
+        }
+        Returns: Json
+      }
       borrar_con_motivo: {
         Args: { p_entidad: string; p_id: string; p_motivo: string }
         Returns: Json

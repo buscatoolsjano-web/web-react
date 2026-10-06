@@ -17,6 +17,8 @@ export interface CabeceraRemito {
   titulo: string
   notas: string
   contactoId: string
+  /** Los secundarios, en orden (Fase 40). Ver `CabeceraBorrador`. */
+  contactosExtra: string[]
   transporte: string
   seguimiento: string
 }
@@ -56,6 +58,7 @@ export function crearBorradorRemito(
       titulo: doc.titulo ?? '',
       notas: doc.notas ?? '',
       contactoId: doc.contactoId ?? '',
+      contactosExtra: doc.contactosExtra.map((c) => c.id),
       transporte: extra.transporte ?? '',
       seguimiento: extra.seguimiento ?? '',
     },
@@ -140,7 +143,10 @@ export interface PayloadRemito {
   lineas: { id?: string | null; order_line_id?: string | null; quantity: number; description_snapshot: string | null }[]
 }
 
-const COLUMNA: Record<CampoRemito, string> = {
+/* `contactosExtra` no está: es un array y se guarda en su propia tabla, con
+   su propia RPC. Por eso el mapa es PARCIAL desde la Fase 40 —un campo sin
+   columna no se manda, y no hay que acordarse de excluirlo—. */
+const COLUMNA: Partial<Record<CampoRemito, string>> = {
   fecha: 'delivery_date',
   titulo: 'title',
   notas: 'notes',
@@ -156,8 +162,10 @@ const COLUMNA: Record<CampoRemito, string> = {
 export function aPayloadRemito(actual: BorradorRemito, original: BorradorRemito): PayloadRemito {
   const cabecera: Record<string, string | number | null> = {}
   for (const k of Object.keys(actual.cabecera) as CampoRemito[]) {
-    if (actual.cabecera[k] !== original.cabecera[k]) {
-      cabecera[COLUMNA[k]] = actual.cabecera[k] === '' ? null : actual.cabecera[k]
+    const columna = COLUMNA[k]
+    const valor = actual.cabecera[k]
+    if (columna && typeof valor === 'string' && valor !== original.cabecera[k]) {
+      cabecera[columna] = valor === '' ? null : valor
     }
   }
   return {

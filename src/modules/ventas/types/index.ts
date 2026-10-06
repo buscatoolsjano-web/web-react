@@ -144,6 +144,20 @@ export interface DomicilioSnapshot {
   notes?: string | null
 }
 
+/**
+ * Un contacto del cliente que figura en el documento (Fase 40).
+ *
+ * Con el nombre y el cargo ya resueltos: vienen en la misma consulta que el
+ * documento, asi que imprimirlos no cuesta un viaje mas.
+ */
+export interface ContactoDocumento {
+  id: string
+  nombre: string
+  rol: string | null
+  email: string | null
+  telefono: string | null
+}
+
 export interface DocumentoDetalle {
   id: string
   tipo: TipoDocumento
@@ -158,6 +172,14 @@ export interface DocumentoDetalle {
   contactoNombre: string | null
   /** Los ids que necesita el editor para preseleccionar en los desplegables. */
   contactoId: string | null
+  /**
+   * Los contactos SECUNDARIOS del documento (Fase 40).
+   *
+   * El principal sigue siendo `contactoId`, que es la columna que ya leen la
+   * impresión, el sync de STEL y los informes. Esto es el resto del equipo del
+   * cliente que sigue la venta: el que especifica, el que paga.
+   */
+  contactosExtra: ContactoDocumento[]
   /** Sólo el pedido: la dirección de entrega elegida (Fase 17 · E3). */
   direccionEntregaId?: string | null
   vendedorId: string | null

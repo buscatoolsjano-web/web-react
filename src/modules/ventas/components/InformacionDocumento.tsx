@@ -30,12 +30,21 @@ export interface InformacionDocumentoProps {
 
 /** El contacto, con lo que haya cargado de él. */
 function contacto(doc: DocumentoDetalle) {
-  if (!doc.contactoNombre) return <Missing>Sin contacto asignado</Missing>
+  const extras = doc.contactosExtra
+  if (!doc.contactoNombre) {
+    if (extras.length === 0) return <Missing>Sin contacto asignado</Missing>
+    // Puede pasar: alguien quitó al principal y dejó a los demás.
+    return <>{extras.map((c) => c.nombre).join('\n')}</>
+  }
   const extra = [doc.contactoRol, doc.contactoEmail, doc.contactoTelefono].filter(Boolean)
+  // Los acompañantes, nombrados (Fase 40): antes terminaban escritos en las
+  // observaciones, donde no se pueden filtrar ni usar para nada.
+  const acompanan = extras.map((c) => (c.rol ? `${c.nombre} · ${c.rol}` : c.nombre))
   return (
     <>
       {doc.contactoNombre}
       {extra.length > 0 ? `\n${extra.join(' · ')}` : ''}
+      {acompanan.length > 0 ? `\nTambién: ${acompanan.join(', ')}` : ''}
     </>
   )
 }

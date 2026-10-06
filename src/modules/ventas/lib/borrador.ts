@@ -14,7 +14,21 @@ import type { DocumentoDetalle, LineaDocumento } from '../types'
 
 export interface CabeceraBorrador {
   customerId: string
+  /**
+   * El contacto PRINCIPAL. Es el que viaja en `contact_id` del documento, el
+   * que sale impreso como «Contacto» y el que usan el sync de STEL y los
+   * emails.
+   */
   contactoId: string
+  /**
+   * Los contactos SECUNDARIOS, en orden (Fase 40).
+   *
+   * No tiene columna propia en el documento: se guardan en su tabla, con una
+   * RPC aparte, después de guardar la cabecera. Por eso no está en el mapa de
+   * columnas —un campo sin columna no se manda— y por eso tampoco entra en el
+   * diff de campos sensibles.
+   */
+  contactosExtra: string[]
   /**
    * La dirección de entrega del PEDIDO (Fase 17 · E3). Vacío = sin elegir, y
    * entonces el remito cae en la principal del cliente al emitirse.
@@ -125,6 +139,7 @@ export function crearBorrador(doc: DocumentoDetalle, lineas: readonly LineaDocum
     cabecera: {
       customerId: doc.clienteId ?? '',
       contactoId: doc.contactoId ?? '',
+      contactosExtra: doc.contactosExtra.map((c) => c.id),
       direccionEntregaId: doc.direccionEntregaId ?? '',
       vendedorId: doc.vendedorId ?? '',
       listaPrecioId: doc.listaPrecioId ?? '',
@@ -163,6 +178,7 @@ export function borradorNuevo(hoy: string, formaPago = ''): Borrador {
     cabecera: {
       customerId: '',
       contactoId: '',
+      contactosExtra: [],
       direccionEntregaId: '',
       vendedorId: '',
       listaPrecioId: '',
@@ -233,7 +249,9 @@ export function cambiarCliente(b: Borrador, customerId: string): { borrador: Bor
   return {
     borrador: {
       ...b,
-      cabecera: { ...b.cabecera, customerId, contactoId: '', direccionEntregaId: '' },
+      // Los secundarios también: son contactos del cliente anterior, y
+      // dejarlos sería imprimir en este documento a gente de otra empresa.
+      cabecera: { ...b.cabecera, customerId, contactoId: '', contactosExtra: [], direccionEntregaId: '' },
     },
     contactoLimpiado: habia,
   }
@@ -427,8 +445,12 @@ export function aPayload(actual: Borrador, original: Borrador): PayloadGuardado 
   const cabecera: Record<string, string | number | null> = {}
   for (const k of Object.keys(actual.cabecera) as CampoCabecera[]) {
     const columna = COLUMNA[k]
-    if (columna && actual.cabecera[k] !== original.cabecera[k]) {
-      cabecera[columna] = valorDeCampo(k, actual.cabecera[k])
+    const valor = actual.cabecera[k]
+    /* `contactosExtra` es un array y no tiene columna: se guarda aparte, con
+       su propia RPC. El `typeof` lo deja afuera de una, sin tener que
+       acordarse de excluirlo campo por campo. */
+    if (columna && typeof valor === 'string' && valor !== original.cabecera[k]) {
+      cabecera[columna] = valorDeCampo(k, valor)
     }
   }
 
@@ -466,7 +488,8 @@ export function aPayloadCreacion(b: Borrador): PayloadGuardado {
   const cabecera: Record<string, string | number | null> = {}
   for (const k of Object.keys(b.cabecera) as CampoCabecera[]) {
     const columna = COLUMNA[k]
-    if (columna) cabecera[columna] = valorDeCampo(k, b.cabecera[k])
+    const valor = b.cabecera[k]
+    if (columna && typeof valor === 'string') cabecera[columna] = valorDeCampo(k, valor)
   }
 
   // La serie va SÓLO si se eligió una, y SÓLO acá: `guardar_cotizacion` no la
@@ -502,8 +525,9 @@ export function aPayloadPedido(actual: Borrador, original: Borrador): PayloadGua
   const cabecera: Record<string, string | number | null> = {}
   for (const k of Object.keys(actual.cabecera) as CampoCabecera[]) {
     const columna = COLUMNA_PEDIDO[k]
-    if (columna && actual.cabecera[k] !== original.cabecera[k]) {
-      cabecera[columna] = valorDeCampo(k, actual.cabecera[k])
+    const valor = actual.cabecera[k]
+    if (columna && typeof valor === 'string' && valor !== original.cabecera[k]) {
+      cabecera[columna] = valorDeCampo(k, valor)
     }
   }
   return { cabecera, lineas: aPayload(actual, original).lineas }
@@ -514,7 +538,8 @@ export function aPayloadCreacionPedido(b: Borrador): PayloadGuardado {
   const cabecera: Record<string, string | number | null> = {}
   for (const k of Object.keys(b.cabecera) as CampoCabecera[]) {
     const columna = COLUMNA_PEDIDO[k]
-    if (columna) cabecera[columna] = valorDeCampo(k, b.cabecera[k])
+    const valor = b.cabecera[k]
+    if (columna && typeof valor === 'string') cabecera[columna] = valorDeCampo(k, valor)
   }
 
   // La serie, igual que en la cotización (Fase 19 · E4): sólo si se eligió, y
