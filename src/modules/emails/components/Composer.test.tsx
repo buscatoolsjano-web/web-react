@@ -2,6 +2,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
+/*
+ * El cliente de Supabase pide las variables de entorno AL IMPORTARSE, y acá
+ * llega de arrastre: el componente importa un service y el service lo importa
+ * a él. En local hay .env y no se nota; en CI el paso de tests no recibe
+ * secrets y el deploy se cae. Lo detecta `npm run test:isolated`, que corre
+ * la suite como si no existiera .env.
+ *
+ * El doble vacio alcanza porque este test no usa Supabase para nada.
+ */
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+
+
 // El hook real guarda borradores en Gmail: acá se reemplaza entero. El test
 // mira sólo la presentación (confirmación de descarte, estado del guardado).
 const estado = vi.hoisted(() => ({ tieneContenido: true, guardado: 'guardado' }))
