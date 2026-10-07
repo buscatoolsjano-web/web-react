@@ -29,7 +29,7 @@ export const CAMPOS_QUE_NO_ESTAN = [
   {
     campo: 'Precio de venta y tarifa',
     motivo:
-      'los precios viven en `product_prices`, que hoy es de sólo lectura desde el ERP: no está decidido si el maestro de precios es STEL o el ERP.',
+      'el maestro de precios es STEL: `product_prices` se llena desde el sync y es de sólo lectura para el ERP. Cargarlo acá crearía dos precios para el mismo producto.',
   },
   {
     campo: 'Precio de costo',
@@ -38,16 +38,11 @@ export const CAMPOS_QUE_NO_ESTAN = [
   {
     campo: 'Stock inicial, mínimo y máximo',
     motivo:
-      '`stock_balances` es de sólo lectura: el saldo lo mueve un movimiento de stock, nunca una carga a mano.',
-  },
-  {
-    campo: 'Subir un archivo de imagen',
-    motivo: 'falta el bucket de Storage para fotos de producto. La imagen por URL sí se guarda.',
+      '`stock_balances` es de sólo lectura y es a propósito: el saldo lo mueve un movimiento —una recepción, una entrega—, nunca una carga a mano. No existe todavía la operación de ajuste de inventario, que es la que haría falta. Mínimo y máximo no tienen dónde guardarse.',
   },
   {
     campo: 'Componentes del kit',
-    motivo:
-      'no hay tabla de componentes. El legacy tampoco los guardaba en la base: los dejaba en el navegador.',
+    motivo: 'la tabla existe (`product_kit_components`) y acepta escritura; falta la pantalla para cargarlos.',
   },
 ] as const
 
