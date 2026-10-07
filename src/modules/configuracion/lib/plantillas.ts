@@ -47,13 +47,13 @@ export const MARCADORES = [
 /**
  * Los HUECOS, que no son datos: son dónde entra lo que se escribe.
  *
- * Sólo tienen sentido en el envoltorio, y sin `{{cuerpo}}` un envoltorio no
- * sirve para nada: el mensaje no tendría dónde ir.
+ * Hay UNO solo, y la ausencia del otro tiene historia. Hubo un `{{firma}}`, y
+ * está mal: la firma se edita en el composer y viaja DENTRO del mensaje, así
+ * que un hueco de firma en el envoltorio la pondría una segunda vez. Peor: el
+ * envío sólo rellena `{{cuerpo}}`, así que el `{{firma}}` se fue literal al
+ * mail de un cliente antes de que alguien lo notara.
  */
-export const HUECOS = [
-  { clave: 'cuerpo', etiqueta: 'El mensaje', obligatorio: true },
-  { clave: 'firma', etiqueta: 'La firma de quien manda', obligatorio: false },
-] as const
+export const HUECOS = [{ clave: 'cuerpo', etiqueta: 'El mensaje', obligatorio: true }] as const
 
 const CLAVES_DATO: readonly string[] = MARCADORES.map((m) => m.clave)
 const CLAVES_HUECO: readonly string[] = HUECOS.map((h) => h.clave)
@@ -103,9 +103,6 @@ export function revisar(clase: ClasePlantilla, nombre: string, contenido: string
 
   if (clase === 'envoltorio' && !usados.includes('cuerpo')) {
     problemas.push({ gravedad: 'error', texto: 'Falta {{cuerpo}}: sin eso el mensaje no tiene dónde entrar.' })
-  }
-  if (clase === 'envoltorio' && !usados.includes('firma')) {
-    problemas.push({ gravedad: 'aviso', texto: 'No usás {{firma}}: los mails van a salir sin la firma de quien los manda.' })
   }
   return problemas
 }

@@ -850,3 +850,23 @@ describe('el envoltorio de la empresa', () => {
     expect(enviado(gmail)).toContain('hola')
   })
 })
+
+/**
+ * El hueco que se fue literal al cliente (Fase 41 · E3, incidente).
+ *
+ * El envoltorio sembrado traía `{{firma}}`, el envío sólo rellena `{{cuerpo}}`
+ * y el resolver de la base preserva los huecos a propósito. Resultado: un mail
+ * real salió con «{{firma}}» escrito en el medio. Se sacó del envoltorio, pero
+ * eso arregla UN contenido; esto arregla la clase de error.
+ */
+describe('huecos sin rellenar', () => {
+  it('ninguno sale al mail, aunque la plantilla los traiga', async () => {
+    const { ctx, registro, gmail } = armar()
+    registro.envoltorioHtml = '<div>{{cuerpo}}<span>{{firma}}</span>{{loquesea}}</div>'
+    await enviar(ctx, JWT, { ...base({ texto: 'hola' }), client_request_id: randomUUID() })
+
+    const html = cuerpo(gmail.enviados[0]!.raw, 'text/html') ?? ''
+    expect(html).toContain('hola')
+    expect(html).not.toContain('{{')
+  })
+})

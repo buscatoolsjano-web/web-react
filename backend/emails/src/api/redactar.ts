@@ -339,7 +339,13 @@ async function preparar(
    */
   const envoltorio = await ctx.registro.envoltorio(jwt, a.companyId).catch(() => null)
   const cuerpo = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">${textoAHtml(e.texto)}${c.html}</div>`
-  const html = envoltorio ? envoltorio.replace('{{cuerpo}}', cuerpo) : cuerpo
+  const html = envoltorio
+    ? // Cualquier hueco que quede sin rellenar se borra ANTES de salir. Pasó:
+      // un envoltorio con `{{firma}}` —que ya no se rellena acá, porque la
+      // firma viaja en el texto— se lo mandó literal a un cliente. Un mail con
+      // el nombre de una variable adentro es peor que uno sin membrete.
+      envoltorio.replace('{{cuerpo}}', cuerpo).replace(/\{\{[a-z_]+\}\}/g, '')
+    : cuerpo
   const raw = construirMime({
     de: { direccion: a.buzon, nombre: a.nombre },
     para: e.para.map(dir),

@@ -49,12 +49,20 @@ describe('Revisar antes de guardar', () => {
     expect(sePuedeGuardar(p)).toBe(false)
   })
 
-  it('un envoltorio sin {{firma}} se guarda igual, pero avisa', () => {
-    const p = revisar('envoltorio', 'Institucional', '<div>{{cuerpo}}</div>')
-    expect(p).toEqual([
-      { gravedad: 'aviso', texto: 'No usás {{firma}}: los mails van a salir sin la firma de quien los manda.' },
-    ])
-    expect(sePuedeGuardar(p)).toBe(true)
+  it('un envoltorio con {{cuerpo}} y nada más está bien', () => {
+    expect(revisar('envoltorio', 'Institucional', '<div>{{cuerpo}}</div>')).toEqual([])
+  })
+
+  /**
+   * `{{firma}}` existió y se sacó. La firma se edita en el composer y viaja
+   * dentro del mensaje: un hueco de firma la pondría dos veces, y como el
+   * envío sólo rellena `{{cuerpo}}`, el `{{firma}}` se fue LITERAL al mail de
+   * un cliente. Ahora se señala como lo que es: un marcador que no existe.
+   */
+  it('{{firma}} ya no existe, y se avisa en vez de mandarlo al cliente', () => {
+    const p = revisar('envoltorio', 'Institucional', '<div>{{cuerpo}}{{firma}}</div>')
+    expect(p).toEqual([{ gravedad: 'error', texto: '{{firma}} no existe: revisá cómo se escribe.' }])
+    expect(sePuedeGuardar(p)).toBe(false)
   })
 
   it('un marcador mal escrito se señala por su nombre', () => {
