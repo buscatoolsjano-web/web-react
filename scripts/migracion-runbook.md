@@ -25,6 +25,7 @@ Esto es lo que hace que un restore "sin errores" igual deje el sistema roto:
 | **Cron jobs** | Viajan como filas, pero conviene recrearlos | Después del restore |
 | **JWT secret** | Distinto por proyecto → las 13 sesiones se invalidan | Se acepta: todos vuelven a loguearse |
 | **Historial de migraciones** (314) | Va en su propio schema | Dump aparte |
+| **Clave HMAC del servicio de mails** (`app.email_api_secretos`) | **La genera el esquema al instalarse**, con `gen_random_bytes(32)`: el destino se hace una propia y el servicio en Cloud Run sigue firmando con la del origen | Después del restore, **obligatorio** — ver § 49 |
 
 ---
 
@@ -3174,3 +3175,104 @@ primer `querySelector`. Las dos cosas engañaban:
 La confirmación buena fue mirar el `<img>` renderizado: carga desde la URL
 firmada de Supabase, 1400×673. Y antes que eso, la base: el objeto en el
 bucket y la ruta registrada en la empresa.
+
+---
+
+## 49 · La clave que la base se genera sola, y 22 días sin poder mandar un mail
+
+Del **28/09 al 07/10** no salió un solo mail desde el ERP. Lo descubrió el
+dueño intentando mandar uno, tres semanas después.
+
+### Qué pasó
+
+Los envíos se firman: el servicio de mails calcula un HMAC-SHA256 con su clave
+y la base lo verifica con la suya (`app.firma_email_api_valida`). Si no
+coinciden, `reservar_envio_email` corta con `firma_invalida`.
+
+Esa clave **no se configura en ningún lado: la genera la base**. El esquema de
+la Fase 9 · E5 trae, literal:
+
+```sql
+insert into app.email_api_secretos (clave) values (extensions.gen_random_bytes(32));
+```
+
+La migración se hizo por FDW y el esquema se instaló de nuevo en São Paulo, así
+que esa línea corrió otra vez y salió una clave nueva. En Cloud Run,
+`EMAIL_API_HMAC` seguía apuntando a `email-api-hmac:1` — una versión **fija**,
+creada el 13/09 con la clave de Ohio.
+
+La línea de tiempo no deja lugar a dudas:
+
+```
+13/09 14:53   secreto email-api-hmac versión 1 creada   ← clave de Ohio
+13/09 15:35   primer envío OK
+15/09 13:14   último envío OK
+28/09 15:05   la base de São Paulo generó su propia clave
+              ↓  desde acá, firma_invalida en todos los envíos
+07/10 13:54   primer envío OK después del arreglo
+```
+
+### Por qué nadie se enteró
+
+Tres cosas se juntaron, y vale entender las tres porque se repiten:
+
+1. **El síntoma era la ausencia de síntomas.** `reservar_envio_email` valida la
+   firma *antes* de insertar, así que un envío roto no dejaba fila en
+   `email_send_requests`. La tabla donde uno iría a buscar el problema estaba
+   igual que si nadie hubiera intentado nada.
+2. **Nada más usa esa firma.** Leer la bandeja va directo a Supabase y la
+   autorización va por otro camino, así que todo lo demás seguía andando. El
+   servicio arrancaba sano, `/salud` contestaba `{ok: true}` y la cuenta
+   sincronizaba cada pocos minutos.
+3. **El cartel mentía.** `firma_invalida` caía en el mismo cajón que «la base no
+   responde», así que la pantalla decía *«La base no respondió. Probá de nuevo
+   en unos segundos»*. La base respondía perfecto; el consejo era inútil y la
+   búsqueda arrancó por el lado equivocado.
+
+### Cómo se arregló
+
+```bash
+# 1 · la clave actual de la base, a una versión nueva del secreto (no se muestra)
+curl -s -X POST "$SUPABASE_URL/rest/v1/rpc/clave_api_email_servicio" \
+  -H "apikey: $SECRET" -H "Authorization: Bearer $SECRET" \
+  -H 'Content-Type: application/json' -d '{}' | tr -d '"\n\r' \
+  | gcloud secrets versions add email-api-hmac --project buscatools-erp-email --data-file=-
+
+# 2 · el servicio deja de apuntar a la versión 1
+gcloud run services update buscatools-erp-email-api \
+  --project buscatools-erp-email --region us-east1 \
+  --update-secrets EMAIL_API_HMAC=email-api-hmac:2
+```
+
+El paso 2 **no es opcional**: la referencia a la versión `1` es fija, así que
+agregar una versión sin mover el servicio no cambia nada.
+
+Antes de desplegar conviene verificar que el valor quedó bien, sin mirarlo: el
+servicio valida que sean 64 hexadecimales y **se niega a arrancar** si no. Un
+espacio o un salto de línea de más convierten el arreglo en una caída.
+
+### Lo que se cambió para que no vuelva a tardar tres semanas
+
+* `clave_api_email_coincide(huella)` en la base, y una llamada **al arrancar**
+  el servicio: si no coinciden, lo grita en el log con qué hacer. Va la huella
+  —16 hex del sha256—, no la clave, y la base contesta sí o no.
+* `/salud` pasó a devolver `{ok, firma: ok | desalineada | sin_verificar}`.
+  Sigue devolviendo **200** aunque esté desalineada: el servicio está sano, lo
+  único que no puede es firmar, y un 503 haría que Cloud Run lo diera por caído
+  y se llevara puesta también la lectura de la bandeja. La alarma es el log.
+* Error propio `clave_desalineada` de punta a punta, con un cartel que dice qué
+  pasa y quién lo arregla, en vez de invitar a reintentar algo que no se
+  arregla reintentando.
+
+Ver `scripts/fase40-huella-clave-api-email.sql` y el commit `670cd1f`.
+
+### La lección, que es más general que este caso
+
+**Un secreto compartido que una de las dos puntas genera sola no sobrevive a
+una reinstalación del esquema.** No está en la lista de «lo que hay que copiar»
+porque nadie lo copió nunca: apareció solo la primera vez.
+
+Y el corolario operativo: cuando dos sistemas comparten una clave, **alguno de
+los dos tiene que comprobar que siguen de acuerdo**, y tiene que hacerlo al
+arrancar. Si la primera señal es un usuario que no puede trabajar, ya se
+perdieron semanas.
