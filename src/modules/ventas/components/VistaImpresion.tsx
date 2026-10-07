@@ -414,11 +414,12 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
               <tr key={l.id}>
                 {/* Referencia arriba y foto abajo, en una sola celda. El hueco
                     de la foto existe en TODAS las filas: con imagen se usa, sin
-                    imagen queda vacío, y así todas las filas miden lo mismo. */}
+                    imagen queda vacío, y así todas las filas miden lo mismo.
+                    Vacío NO se dibuja: ocupa el lugar y no se ve. */}
                 <td className={styles.celdaRef}>
                   <div className={styles.sku}>{l.sku ?? '—'}</div>
                   {opciones.conFotos ? (
-                    <div className={styles.marcoFoto}>
+                    <div className={l.foto ? styles.marcoFoto : `${styles.marcoFoto} ${styles.marcoVacio}`}>
                       {l.foto ? <img src={l.foto} alt="" className={styles.foto} loading="lazy" /> : null}
                     </div>
                   ) : null}
