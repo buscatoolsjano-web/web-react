@@ -24,6 +24,13 @@ export type EstadoProducto = (typeof ESTADOS_PRODUCTO)[number]['valor']
  * Lo que el formulario del legacy pide y acá **no se puede guardar todavía**,
  * con el motivo exacto. La pantalla lo muestra: es la diferencia entre «no lo
  * hicimos» y «no se puede hasta decidir X».
+ *
+ * ESTA LISTA ENVEJECE, y cuando envejece miente en la peor dirección: dice que
+ * algo no se puede justo al lado del campo que lo hace. Pasó con dos renglones
+ * —subir una imagen y los componentes del kit— que siguieron acá meses después
+ * de estar resueltos; alguien pudo no haber subido una foto por leer que no se
+ * podía. Antes de agregar algo acá, y cada vez que se toca el alta, conviene
+ * verificar los que quedan contra la base.
  */
 export const CAMPOS_QUE_NO_ESTAN = [
   {
@@ -39,10 +46,6 @@ export const CAMPOS_QUE_NO_ESTAN = [
     campo: 'Stock inicial, mínimo y máximo',
     motivo:
       '`stock_balances` es de sólo lectura y es a propósito: el saldo lo mueve un movimiento —una recepción, una entrega—, nunca una carga a mano. No existe todavía la operación de ajuste de inventario, que es la que haría falta. Mínimo y máximo no tienen dónde guardarse.',
-  },
-  {
-    campo: 'Componentes del kit',
-    motivo: 'la tabla existe (`product_kit_components`) y acepta escritura; falta la pantalla para cargarlos.',
   },
 ] as const
 
