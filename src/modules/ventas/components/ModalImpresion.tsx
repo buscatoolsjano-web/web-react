@@ -91,8 +91,15 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
 
   // ── La escala de la previsualización ──────────────────────────────────
   //
-  // `null` = ajustar a lo que haya; un número = el zoom que pidió la persona.
-  const [zoom, setZoom] = useState<number | null>(null)
+  /*
+   * `null` = ajustar a lo que haya; un número = el zoom que pidió la persona.
+   *
+   * Arranca en 1 y no en `null`: al abrir se ve al 100 %, el tamaño real del
+   * papel. Antes abría en «Ajustar» —ocupar todo el ancho— y en una pantalla
+   * grande eso daba 154 %, que no se parece a nada: ni a la hoja ni a lo que
+   * sale impreso. El botón «Ajustar» sigue estando para quien lo quiera.
+   */
+  const [zoom, setZoom] = useState<number | null>(1)
   const [escala, setEscala] = useState(1)
   const marco = useRef<HTMLDivElement>(null)
   const hoja = useRef<HTMLDivElement>(null)

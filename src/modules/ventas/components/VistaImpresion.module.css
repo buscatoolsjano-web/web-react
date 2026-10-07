@@ -554,11 +554,16 @@
        de más. Es 100 % y no `auto` a propósito: con `auto` el ancho queda
        indefinido y el navegador lo resuelve con un número enorme. */
     width: 100%;
-    /* El alto de UNA página, en las unidades de la página impresa: mientras el
-       documento entre en una hoja, la franja de abajo se reserva igual que en
-       la vista previa y los totales quedan ahí. Si el documento ocupa más,
-       el mínimo ya está cumplido y no agrega nada. */
-    min-height: 100vh;
+    /* SIN alto mínimo, y es a propósito.
+       Antes era `min-height: 100vh` para reservar la franja de abajo y dejar
+       los totales ahí, como en la vista previa. El problema es la cuenta:
+       `@page` tiene 12 mm de margen, así que en una A4 el área imprimible mide
+       273 mm y no 297. Pedir «una pantalla de alto» deja la hoja, en el mejor
+       caso, EXACTAMENTE del alto de la página — y cualquier redondeo la empuja
+       a una segunda hoja en blanco. Un documento de una línea salía en dos.
+       El precio: en un documento corto los totales quedan pegados a las
+       líneas en vez de al pie. Se cambia una diferencia estética por una hoja
+       de papel que no existía. */
     padding: 0;
     margin: 0;
   }
