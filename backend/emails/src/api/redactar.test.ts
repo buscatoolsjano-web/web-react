@@ -24,6 +24,7 @@ import {
   LIMITES,
   listarBorradores,
   obtenerBorradorEditable,
+  previsualizarEnvio,
   type ContextoRedactar,
 } from './redactar.js'
 import { firmar } from './registro.js'
@@ -868,5 +869,42 @@ describe('huecos sin rellenar', () => {
     const html = cuerpo(gmail.enviados[0]!.raw, 'text/html') ?? ''
     expect(html).toContain('hola')
     expect(html).not.toContain('{{')
+  })
+})
+
+/**
+ * La vista previa del composer (Fase 41 · E3).
+ *
+ * La razón de que exista en el servidor y no en el navegador: la previa tiene
+ * que ser el MISMO armado que el envío. Si se rearmara en el cliente serían
+ * dos implementaciones, y coincidirían hasta el día que alguien toque una
+ * sola.
+ */
+describe('vista previa del envío', () => {
+  const MARCO = '<div class="marco">{{cuerpo}}</div>'
+
+  it('devuelve el mismo HTML que saldría, con el envoltorio puesto', async () => {
+    const { ctx, registro } = armar()
+    registro.envoltorioHtml = MARCO
+    const { html } = await previsualizarEnvio(ctx, JWT, { account_id: CUENTA, texto: 'hola cliente' })
+    expect(html).toContain('class="marco"')
+    expect(html).toContain('hola cliente')
+    expect(html).not.toContain('{{')
+  })
+
+  it('no manda, no guarda y no le pide nada a Gmail', async () => {
+    const { ctx, registro, gmail } = armar()
+    registro.envoltorioHtml = MARCO
+    await previsualizarEnvio(ctx, JWT, { account_id: CUENTA, texto: 'hola' })
+    expect(gmail.enviados).toHaveLength(0)
+    expect(gmail.conteo.crearBorrador).toBe(0)
+    expect(registro.filas.size).toBe(0)
+  })
+
+  it('una cuenta que no es suya no se previsualiza', async () => {
+    const { ctx } = armar()
+    await expect(
+      previsualizarEnvio(ctx, JWT, { account_id: '99999999-9999-4999-8999-999999999999', texto: 'x' }),
+    ).rejects.toBeInstanceOf(NoEncontrado)
   })
 })

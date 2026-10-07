@@ -701,3 +701,38 @@ function codigoError(err: unknown): string {
   if (err instanceof NoEncontrado) return 'no_encontrado'
   return (err as Error)?.name?.slice(0, 60) || 'error'
 }
+
+/**
+ * El HTML que SALDRÍA, para verlo mientras se escribe (Fase 41 · E3).
+ *
+ * Existe para que la vista previa del composer no sea una imitación. La
+ * alternativa era rearmar el envoltorio y el `textoAHtml` en el navegador, y
+ * ahí la previa y el mail son dos implementaciones distintas: coinciden hasta
+ * el día que alguien toca una sola, y ese día nadie se entera hasta que un
+ * cliente recibe algo que nadie vio.
+ *
+ * No manda nada, no guarda nada y NO le pide nada a Gmail: por eso no incluye
+ * la cita del original en una respuesta. Lo que muestra es lo que la persona
+ * está escribiendo, que es lo que está mirando.
+ */
+export async function previsualizarEnvio(
+  ctx: ContextoRedactar,
+  jwt: string,
+  crudo: unknown,
+): Promise<{ html: string }> {
+  const c = (crudo ?? {}) as Record<string, unknown>
+  const accountId = typeof c['account_id'] === 'string' ? c['account_id'] : null
+  if (!validar.uuid(accountId)) throw new DatosInvalidos('account_id')
+  const texto = typeof c['texto'] === 'string' ? c['texto'] : ''
+  if (texto.length > LIMITES.textoPropio) throw new DatosInvalidos('texto')
+
+  const cuenta = await ctx.autorizador.autorizarCuenta(jwt, accountId)
+  const buzon = cuenta.buzon.trim().toLowerCase()
+  if (!ctx.buzones.has(buzon)) throw new NoEncontrado('buzón fuera del allowlist')
+
+  const envoltorio = await ctx.registro.envoltorio(jwt, cuenta.companyId).catch(() => null)
+  const cuerpo = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">${textoAHtml(texto)}</div>`
+  return {
+    html: envoltorio ? envoltorio.replace('{{cuerpo}}', cuerpo).replace(/\{\{[a-z_]+\}\}/g, '') : cuerpo,
+  }
+}

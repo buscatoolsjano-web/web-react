@@ -179,3 +179,21 @@ export async function firmaParaEnviar(companyId: string): Promise<string> {
   if (error) return ''
   return data?.[0]?.firma ?? ''
 }
+
+/**
+ * El HTML que saldría, para verlo mientras se escribe (Fase 41 · E3).
+ *
+ * Lo arma el SERVICIO, con el mismo código que el envío. Rearmarlo acá sería
+ * más rápido y sería otra implementación: coincidirían hasta el día que
+ * alguien toque una sola, y ese día la previa miente.
+ *
+ * No manda, no guarda y no le pide nada a Gmail — por eso no trae la cita del
+ * original en una respuesta: muestra lo que estás escribiendo.
+ */
+export async function previsualizarEnvio(accountId: string, texto: string): Promise<string> {
+  const r = await pedir('/gmail/previa', {}, undefined, {
+    metodo: 'POST',
+    cuerpo: { account_id: accountId, texto },
+  })
+  return ((await r.json()) as { html?: string }).html ?? ''
+}

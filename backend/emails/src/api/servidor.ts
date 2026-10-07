@@ -38,6 +38,7 @@ import {
   DatosInvalidos,
   descartarBorrador,
   enviar,
+  previsualizarEnvio,
   guardarBorrador,
   listarBorradores,
   obtenerBorradorEditable,
@@ -395,6 +396,10 @@ async function manejarRedactar(
       log('info', 'api.borrador.ok', { ...datos, recreado: r.recreado, adjuntos: r.adjuntos.length, ms: Date.now() - t0 })
       return json(ctx, req, res, 200, r)
     }
+    if (req.method === 'POST' && ruta === '/gmail/previa') {
+      // Sólo arma y devuelve: no manda, no guarda y no le pide nada a Gmail.
+      return json(ctx, req, res, 200, await previsualizarEnvio(c, jwt, await leerJson(req, TOPE_CUERPO_JSON)))
+    }
     if (req.method === 'POST' && ruta === '/gmail/send') {
       const r = await enviar(c, jwt, await leerJson(req, TOPE_CUERPO_JSON))
       log(r.estado === 'incierto' && r.motivo === 'conflicto' ? 'error' : 'info', 'api.envio.resultado', { ...datos, estado: r.estado, ...(r.estado === 'incierto' ? { motivo: r.motivo } : {}), ms: Date.now() - t0 })
@@ -431,7 +436,7 @@ export function construirServidorApi(ctx: ContextoApi) {
       if (req.method === 'GET' && ruta === '/gmail/attachment') {
         return manejarAdjunto(ctx, ritmo, req, res, url.searchParams)
       }
-      if (ruta === '/gmail/drafts' || ruta === '/gmail/draft' || ruta === '/gmail/send') {
+      if (ruta === '/gmail/drafts' || ruta === '/gmail/draft' || ruta === '/gmail/send' || ruta === '/gmail/previa') {
         return manejarRedactar(ctx, ritmo, req, res, ruta, url.searchParams)
       }
       // Nada de push, watch, sync ni perfil acá: viven en el servicio privado.

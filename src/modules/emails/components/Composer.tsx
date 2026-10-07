@@ -12,6 +12,7 @@ import { nuevaClave, useComposer, type OpcionesComposer } from '../hooks/useComp
 import { TOPE_ADJUNTOS_BYTES, totalAdjuntos } from '../lib/destinatarios'
 import { tamanoLegible } from '../lib/formato'
 import type { AdjuntoRedaccion, MotivoIncierto } from '../types'
+import { PreviaEnvio } from './PreviaEnvio'
 import styles from './Composer.module.css'
 
 export interface ComposerProps {
@@ -204,6 +205,8 @@ export function Composer({ opciones, titulo, mostrarTitulo = true, onCerrar, onE
       >
         <Textarea className={styles.texto} value={texto} disabled={bloqueado} rows={10} onChange={(e) => c.set.texto(e.target.value)} />
       </Field>
+
+      <PreviaEnvio accountId={opciones.accountId} texto={texto} />
 
       <div className={styles.campo}>
         <span className={styles.etiqueta}>Adjuntos</span>
