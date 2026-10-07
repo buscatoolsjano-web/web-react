@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { Badge } from '@/components/ui/Badge'
@@ -55,6 +55,42 @@ export interface ListadoProductosProps {
     FilaFiltrosColumnaProps,
     'filtros' | 'facetas' | 'onCambiar' | 'texto' | 'onTexto'
   >
+  /**
+   * Columnas propias al final de la fila, para cuando este listado se usa para
+   * ELEGIR y no para mirar: el modal de ventas pone ahí «Cant.» y «Agregar».
+   *
+   * Es un render-prop y no un `onAgregar` porque lo que cambia entre pantallas
+   * no es qué pasa al tocar: es qué controles tiene la fila. Van en el mismo
+   * lugar que la columna «Carrito» del Catálogo, que es la que reemplazan.
+   */
+  accion?: readonly ColumnaAccion[]
+  /**
+   * Qué va en la celda de precio. Por defecto, `PrecioCelda`.
+   *
+   * Lo pisa el modal de ventas: ahí el precio no es «el del catálogo» sino el
+   * que va a entrar en la línea, que puede venir del histórico de ese cliente
+   * y se muestra con la tarifa tachada debajo.
+   */
+  precioCelda?: (producto: ProductoListado) => ReactNode
+  /**
+   * `false` cuando el listado vive DENTRO de un documento.
+   *
+   * La fila deja de abrir el producto, la referencia deja de ser un enlace y
+   * la ficha al vuelo no se abre. No es una preferencia de estilo: un click
+   * mal dado navegaba fuera de la cotización y se perdía lo que no estaba
+   * guardado. El nombre completo sigue llegando por el `title` de la fila.
+   */
+  navegable?: boolean
+  /** Una clase extra por fila. La usa el modal para marcar lo ya agregado. */
+  claseDeFila?: (producto: ProductoListado) => string | undefined
+}
+
+/** Una columna propia al final de la fila (ver `accion`). */
+export interface ColumnaAccion {
+  clave: string
+  encabezado: ReactNode
+  celda: (producto: ProductoListado) => ReactNode
+  className?: string
 }
 
 /** Elegir 2 a 4 productos para compararlos, como el checkbox del legacy. */
@@ -127,6 +163,10 @@ export function ListadoProductos({
   columnasDinamicas = [],
   categoriaFija = false,
   filtroColumnas,
+  accion = [],
+  precioCelda,
+  navegable = true,
+  claseDeFila,
 }: ListadoProductosProps) {
   const isMobile = useIsMobile()
   const navigate = useNavigate()
@@ -209,9 +249,22 @@ export function ListadoProductos({
         {productos.map((p) => {
           // Uno o dos atributos, no quince: salen de los datos del propio producto.
           const destacados = atributosDestacados(p.atributos, 2, unidades)
+          // Dentro de un documento la tarjeta NO es un enlace: tocarla
+          // abandonaría la cotización. Mismo contenido, sin navegación.
+          const Envoltura = navegable
+            ? ({ children }: { children: ReactNode }) => (
+                <Link to={rutaProducto(p.sku)} className={styles.tarjeta}>
+                  {children}
+                </Link>
+              )
+            : ({ children }: { children: ReactNode }) => (
+                <div className={styles.tarjeta} title={p.nombre}>
+                  {children}
+                </div>
+              )
           return (
             <li key={p.id} className={styles.tarjetaConCarrito}>
-              <Link to={rutaProducto(p.sku)} className={styles.tarjeta}>
+              <Envoltura>
                 <span className={styles.tarjetaImagen}>
                   <ImagenProducto imagen={p.imagen} alt="" tamano="thumb" />
                 </span>
@@ -249,12 +302,19 @@ export function ListadoProductos({
                     </span>
                   </span>
                 </span>
-              </Link>
+              </Envoltura>
               {/* Fuera del <Link>: un stepper adentro de un enlace navega al
                   tocar «+», que es lo contrario de lo que se quiso hacer. */}
               {conCarrito ? (
                 <div className={styles.tarjetaCarrito}>
                   <CeldaCarrito producto={p} />
+                </div>
+              ) : null}
+              {accion.length > 0 ? (
+                <div className={styles.tarjetaCarrito}>
+                  {accion.map((c) => (
+                    <span key={c.clave}>{c.celda(p)}</span>
+                  ))}
                 </div>
               ) : null}
             </li>
@@ -343,6 +403,13 @@ export function ListadoProductos({
                 Carrito
               </th>
             ) : null}
+            {/* Las columnas propias de quien usa el listado, donde iría el
+                carrito: son lo que esa pantalla hace con la fila. */}
+            {accion.map((c) => (
+              <th scope="col" key={c.clave} className={c.className}>
+                {c.encabezado}
+              </th>
+            ))}
           </tr>
           {filtroColumnas ? (
             <FilaFiltrosColumna
@@ -361,8 +428,19 @@ export function ListadoProductos({
               key={p.id}
               data-fila-producto={p.id}
               aria-current={p.id === abierto ? 'true' : undefined}
-              className={p.id === abierto ? `${styles.fila} ${styles.abierta}` : styles.fila}
-              {...filaClickeable(() => (onAbrirProducto ? onAbrirProducto(p.id) : void navigate(rutaProducto(p.sku))))}
+              title={navegable ? undefined : p.nombre}
+              className={[
+                navegable ? styles.fila : undefined,
+                p.id === abierto ? styles.abierta : undefined,
+                claseDeFila?.(p),
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              {...(navegable
+                ? filaClickeable(() =>
+                    onAbrirProducto ? onAbrirProducto(p.id) : void navigate(rutaProducto(p.sku)),
+                  )
+                : {})}
             >
               {seleccion ? (
                 <td
@@ -386,8 +464,17 @@ export function ListadoProductos({
                 className={styles.colImagen}
                 // La ficha al vuelo es de la IMAGEN, no de la fila: pasar por
                 // encima del listado entero no puede tapar lo que se lee.
-                onMouseEnter={(e) => abrirPopover(p, e.currentTarget)}
-                onMouseLeave={cerrarPopover}
+                //
+                // Dentro de un documento no se abre: la ficha trae un
+                // comparador con enlaces a otros productos, y eso es recorrer
+                // el catálogo, no cargar una línea.
+                {...(navegable
+                  ? {
+                      onMouseEnter: (e: React.MouseEvent<HTMLTableCellElement>) =>
+                        abrirPopover(p, e.currentTarget),
+                      onMouseLeave: cerrarPopover,
+                    }
+                  : {})}
               >
                 <ImagenProducto imagen={p.imagen} alt="" tamano="thumb" />
               </td>
@@ -404,20 +491,26 @@ export function ListadoProductos({
                   del medio y «abrir en pestaña nueva» tienen que llevar a la
                   ficha, que es una URL compartible. El click pelado, no.
                 */}
-                <Link
-                  to={rutaProducto(p.sku)}
-                  className={styles.refEnlace}
-                  onClick={(e) => {
-                    if (!onAbrirProducto) return
-                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
-                    e.preventDefault()
-                    e.stopPropagation()
-                    onAbrirProducto(p.id)
-                  }}
-                  title={p.nombre}
-                >
-                  <code className={styles.sku}>{p.sku}</code>
-                </Link>
+                {navegable ? (
+                  <Link
+                    to={rutaProducto(p.sku)}
+                    className={styles.refEnlace}
+                    onClick={(e) => {
+                      if (!onAbrirProducto) return
+                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+                      e.preventDefault()
+                      e.stopPropagation()
+                      onAbrirProducto(p.id)
+                    }}
+                    title={p.nombre}
+                  >
+                    <code className={styles.sku}>{p.sku}</code>
+                  </Link>
+                ) : (
+                  <code className={styles.sku} title={p.nombre}>
+                    {p.sku}
+                  </code>
+                )}
                 <Estados producto={p} />
               </td>
               <td className={`${tabla.nowrap} ${styles.colModelo}`} title={p.nombre}>
@@ -456,13 +549,18 @@ export function ListadoProductos({
                 </td>
               )}
               <td className={tabla.num}>
-                <PrecioCelda monto={p.precio} moneda={moneda} />
+                {precioCelda ? precioCelda(p) : <PrecioCelda monto={p.precio} moneda={moneda} />}
               </td>
               {conCarrito ? (
                 <td className={styles.colCarrito}>
                   <CeldaCarrito producto={p} />
                 </td>
               ) : null}
+              {accion.map((c) => (
+                <td key={c.clave} className={c.className}>
+                  {c.celda(p)}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>

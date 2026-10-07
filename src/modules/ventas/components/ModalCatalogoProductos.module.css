@@ -8,71 +8,44 @@
   margin-bottom: var(--space-3);
 }
 
-/* La tabla desplaza sola: el modal no crece con los resultados. */
+/* La tabla desplaza sola: el modal no crece con los resultados.
+
+   El borde lo trae el contenedor del listado del catálogo, que es lo que se
+   renderiza acá adentro (Fase 42): ponerlo también acá daba dos marcos
+   concéntricos con 1 px de aire entre medio. */
 .cuerpo {
   overflow: auto;
   /* Alto: lo que sobre después de los filtros. En un diálogo de 1400px de
      ancho, 25 filas tienen que entrar sin pelear con el scroll de la página. */
   max-height: min(62vh, 46rem);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
 }
 
-.tabla {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-sm);
-}
+/* El encabezado queda a la vista mientras se recorren las 25 filas.
 
-.tabla th {
+   Es lo único que esta pantalla le cambia a la tabla del catálogo, y es por el
+   envase: allá el encabezado se va para arriba porque scrollea la página
+   entera; acá scrollea una caja de 62vh, y perderlo de vista a la quinta fila
+   dejaba ocho columnas de números sin rótulo. */
+.cuerpo thead th {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--color-surface);
-  text-align: left;
-  font-size: var(--text-label);
-  font-weight: var(--weight-semibold);
-  color: var(--color-text-soft);
-  padding: var(--space-2);
-  border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
+  background: var(--color-surface-alt);
 }
 
-.tabla td {
-  padding: var(--space-1) var(--space-2);
-  border-bottom: 1px solid var(--color-border);
-  vertical-align: middle;
-}
+/* Lo recién agregado queda marcado: con veinte filas hay que saber cuál fue.
 
-/* Lo recién agregado queda marcado: con veinte filas hay que saber cuál fue. */
+   En las celdas y no en la fila porque la tabla del catálogo pinta su `:hover`
+   sobre el `<tr>`: pasar el mouse por encima borraba la marca justo cuando se
+   la estaba buscando. */
 .filaAgregada td {
   background: var(--color-success-soft);
-}
-
-/* La foto es para reconocer el producto, no un ícono: a 44px no se distinguía
-   una punta TORX de una PHILLIPS. */
-.colImagen {
-  width: 64px;
-}
-
-.colNombre {
-  min-width: 16rem;
 }
 
 .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-.sku {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: var(--text-xs);
-  color: var(--color-primary);
-}
-
-.secundario {
-  color: var(--color-text-soft);
 }
 
 /* Sin precio en la tarifa del documento: se dice, no se muestra un cero. */
@@ -108,11 +81,6 @@
   padding: var(--space-2);
   color: var(--color-text-soft);
   font-size: var(--text-sm);
-}
-
-/* Un atributo no se parte en dos renglones: «1/4 HEX» es un valor solo. */
-.nowrap {
-  white-space: nowrap;
 }
 
 /*

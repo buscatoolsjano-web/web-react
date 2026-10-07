@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PlanDeConsulta } from '@/modules/catalogo/lib/planDeConsulta'
 import type { Facetas, ProductoListado } from '@/modules/catalogo/types'
@@ -9,6 +10,29 @@ import type { UltimoPrecio } from '@/modules/clientes/types'
 const estado = vi.hoisted(() => ({
   planes: [] as { plan: PlanDeConsulta; listaPrecioId: string | null; esInterno: boolean }[],
   esInterno: true,
+}))
+
+/*
+ * Escritorio fijo: la tabla del catálogo se vuelve tarjetas por debajo de
+ * 768 px, y lo que se prueba acá son las columnas.
+ */
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useIsMobile: () => false,
+  useMediaQuery: () => true,
+}))
+
+/*
+ * El listado del catálogo trae consigo `hooks/useProductos`, que importa tres
+ * servicios —productos, disponibilidad y movimientos— y cada uno importa el
+ * cliente de Supabase, que llama a `getEnv()` al importarse. En local hay
+ * `.env` y pasaría; en la suite aislada —que corre como si no existiera, para
+ * cachar justo esto— fallaría, y eso es lo que tira el deploy en CI.
+ *
+ * Se declara lo que esta pantalla usa y nada más.
+ */
+vi.mock('@/modules/catalogo/hooks/useProductos', () => ({
+  useDisponibilidad: () => ({ data: undefined }),
+  useSimilares: () => ({ data: { productos: [], fuentes: new Map() }, isPending: false }),
 }))
 
 vi.mock('@/features/empresa/useEmpresa', () => ({
@@ -71,7 +95,11 @@ function producto(id: string, sku: string, nombre: string, precio: number | null
     id,
     sku,
     nombre,
-    modelo: sku,
+    // El modelo es la parte de la referencia que sigue al punto, como en el
+    // catálogo de verdad: `CP.CP9911` es la marca CP más el modelo CP9911.
+    // Ponerlo igual a la referencia hacía que el mismo texto apareciera en dos
+    // columnas y ninguna búsqueda por texto fuera unívoca.
+    modelo: sku.split('.')[1] ?? sku,
     serie: null,
     tipo: null,
     esKit: false,
@@ -103,6 +131,8 @@ vi.mock('@/modules/catalogo/components/ModalNuevoProducto', () => ({
 }))
 
 const { ModalCatalogoProductos } = await import('./ModalCatalogoProductos')
+// Para comparar columna por columna contra la pantalla de Catálogo.
+const { ListadoProductos } = await import('@/modules/catalogo/components/ListadoProductos')
 
 function montar(
   props: Partial<{
@@ -115,16 +145,18 @@ function montar(
   const onAgregar = vi.fn()
   const onCerrar = vi.fn()
   render(
-    <QueryClientProvider client={qc}>
-      <ModalCatalogoProductos
-        listaPrecioId={props.listaPrecioId ?? 'lp-9'}
-        moneda={props.moneda ?? 'USD'}
-        esInterno={estado.esInterno}
-        historicos={props.historicos}
-        onCerrar={onCerrar}
-        onAgregar={onAgregar}
-      />
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={qc}>
+        <ModalCatalogoProductos
+          listaPrecioId={props.listaPrecioId ?? 'lp-9'}
+          moneda={props.moneda ?? 'USD'}
+          esInterno={estado.esInterno}
+          historicos={props.historicos}
+          onCerrar={onCerrar}
+          onAgregar={onAgregar}
+        />
+      </QueryClientProvider>
+    </MemoryRouter>,
   )
   return { onAgregar, onCerrar }
 }
@@ -139,13 +171,13 @@ describe('elegir productos del catálogo desde el documento', () => {
   // recorrer una categoría. Ése era el motivo del cambio.
   it('lista productos sin escribir nada', async () => {
     montar()
-    expect(await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')).toBeInTheDocument()
+    expect(await screen.findByText('CP.CP9911')).toBeInTheDocument()
     expect(estado.planes[0]?.plan.texto).toBeNull()
   })
 
   it('filtrar por categoría se lo pide al catálogo', async () => {
     montar()
-    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    await screen.findByText('CP.CP9911')
     fireEvent.click(await screen.findByRole('button', { name: /Balanceadores/ }))
     await waitFor(() => expect(estado.planes.some((p) => p.plan.categoria === 'cat-bal')).toBe(true))
   })
@@ -156,7 +188,7 @@ describe('elegir productos del catálogo desde el documento', () => {
    */
   it('con una categoría elegida aparecen sus atributos, y como columna', async () => {
     montar()
-    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    await screen.findByText('CP.CP9911')
     expect(screen.queryByRole('columnheader', { name: /Encastre/ })).toBeNull()
 
     fireEvent.click(await screen.findByRole('button', { name: /Puntas y tubos/ }))
@@ -173,8 +205,8 @@ describe('elegir productos del catálogo desde el documento', () => {
 
   it('tocar una columna ordena, y tocarla de nuevo la da vuelta', async () => {
     montar()
-    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
-    const encabezado = () => screen.getByRole('columnheader', { name: /SKU/ })
+    await screen.findByText('CP.CP9911')
+    const encabezado = () => screen.getByRole('columnheader', { name: /Referencia/ })
 
     fireEvent.click(within(encabezado()).getByRole('button'))
     await waitFor(() => expect(estado.planes.at(-1)?.plan.orden).toBe('sku'))
@@ -187,7 +219,7 @@ describe('elegir productos del catálogo desde el documento', () => {
 
   it('ordenar por un atributo se lo pide a la base como attr:<clave>', async () => {
     montar()
-    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    await screen.findByText('CP.CP9911')
     fireEvent.click(await screen.findByRole('button', { name: /Puntas y tubos/ }))
     const columna = await screen.findByRole('columnheader', { name: /Encastre/ })
     fireEvent.click(within(columna).getByRole('button'))
@@ -196,13 +228,13 @@ describe('elegir productos del catálogo desde el documento', () => {
 
   it('el precio sale de la tarifa del documento, no de la del catálogo', async () => {
     montar({ listaPrecioId: 'lp-9' })
-    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    await screen.findByText('CP.CP9911')
     expect(estado.planes[0]?.listaPrecioId).toBe('lp-9')
   })
 
   it('agrega con la cantidad elegida y no cierra la ventana', async () => {
     const { onAgregar, onCerrar } = montar()
-    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    await screen.findByText('CP.CP9911')
     fireEvent.change(screen.getByLabelText('Cantidad de CP.CP9911'), { target: { value: '3' } })
     fireEvent.click(screen.getAllByRole('button', { name: '+ Agregar' })[0]!)
     // Tercer argumento desde la Fase 40: el precio con el que entra la línea.
@@ -220,7 +252,7 @@ describe('elegir productos del catálogo desde el documento', () => {
 
   it('sin cantidad escrita agrega una unidad', async () => {
     const { onAgregar } = montar()
-    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    await screen.findByText('CP.CP9911')
     fireEvent.click(screen.getAllByRole('button', { name: '+ Agregar' })[0]!)
     expect(onAgregar).toHaveBeenCalledWith(
       expect.objectContaining({ sku: 'CP.CP9911' }),
@@ -254,7 +286,7 @@ describe('elegir productos del catálogo desde el documento', () => {
       ],
     ])
     const { onAgregar } = montar({ historicos })
-    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    await screen.findByText('CP.CP9911')
     // Se ve antes de agregar: el histórico, y abajo la tarifa tachada.
     expect(screen.getByTitle(/Último precio de este cliente/)).toBeInTheDocument()
     fireEvent.click(screen.getAllByRole('button', { name: '+ Agregar' })[0]!)
@@ -267,7 +299,7 @@ describe('elegir productos del catálogo desde el documento', () => {
   // Con el merge de líneas, «2 líneas agregadas» sería mentira.
   it('el pie cuenta productos, no líneas', async () => {
     montar()
-    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    await screen.findByText('CP.CP9911')
     fireEvent.click(screen.getAllByRole('button', { name: '+ Agregar' })[0]!)
     fireEvent.click(await screen.findByRole('button', { name: 'Sumar más' }))
     expect(await screen.findByText(/1 producto agregado/)).toBeInTheDocument()
@@ -275,14 +307,77 @@ describe('elegir productos del catálogo desde el documento', () => {
 
   it('un producto sin precio en la tarifa se ve, no se esconde', async () => {
     montar()
-    expect(await screen.findByText('ATORNILLADOR')).toBeInTheDocument()
+    expect(await screen.findByText('SP.TX40')).toBeInTheDocument()
     expect(screen.getByTitle('Sin precio en la tarifa del documento')).toBeInTheDocument()
   })
 
   it('el stock es sólo para adentro', async () => {
     montar()
-    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
-    expect(screen.getByRole('columnheader', { name: 'SR' })).toBeInTheDocument()
+    await screen.findByText('CP.CP9911')
+    expect(screen.getByRole('columnheader', { name: 'Stock real' })).toBeInTheDocument()
+  })
+})
+
+/*
+ * Las columnas tienen que ser LAS MISMAS que en el Catálogo (Fase 42).
+ *
+ * Durante tres fases fueron dos `<thead>` escritos a mano y se separaron: el
+ * Catálogo mostraba Modelo, Serie y Tipo y acá no estaban; acá había una
+ * columna Nombre que el Catálogo había sacado; y los dos saldos de stock
+ * estaban en orden inverso, así que el número bajo «SV» acá era el de «Stock
+ * real» allá. Eso último no se ve: se lee un número y es otro.
+ *
+ * La comparación es contra el listado de verdad, no contra una lista escrita
+ * acá: una lista escrita a mano se desactualiza igual que el `<thead>` que
+ * reemplazó. Si mañana el Catálogo agrega o saca una columna, este test pasa
+ * solo —o avisa, si alguien vuelve a escribir columnas propias acá—.
+ */
+describe('las columnas son las del catálogo', () => {
+  // Sin la flechita de ordenar: lo que se compara son las columnas, no el
+  // estado del orden.
+  const encabezados = () =>
+    screen
+      .getAllByRole('columnheader')
+      .map((th) => (th.textContent ?? '').replace(/[⇅↑↓]/g, '').trim())
+
+  it('las mismas, en el mismo orden, más «Cant.» y «Agregar»', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { unmount } = render(
+      <MemoryRouter>
+        <QueryClientProvider client={qc}>
+          <ListadoProductos
+            productos={[producto('p1', 'CP.CP9911', 'BALANCEADOR DE 0.4 A 1 KG', 46.03)]}
+            esInterno
+            moneda="USD"
+            disponibilidad={undefined}
+            unidades={new Map()}
+            cargando={false}
+            /* Con orden, como en la pantalla de Catálogo: sin esto los
+               encabezados no traen la flechita y la comparación fallaría por
+               un carácter, no por una columna. */
+            orden={{ campo: 'relevancia', direccion: 'asc', ordenar: () => {} }}
+          />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
+    const delCatalogo = encabezados()
+    expect(delCatalogo).toContain('Referencia')
+    unmount()
+
+    montar()
+    await screen.findByText('CP.CP9911')
+    expect(encabezados()).toEqual([...delCatalogo, 'Cant.', 'Agregar'])
+  })
+
+  /*
+   * Y tocar una fila no abre nada: dentro de una cotización, navegar al
+   * producto deja el documento a medio cargar. Es la única diferencia de
+   * comportamiento, y por eso se prueba.
+   */
+  it('la referencia no es un enlace acá', async () => {
+    montar()
+    await screen.findByText('CP.CP9911')
+    expect(screen.queryByRole('link', { name: /CP.CP9911/ })).toBeNull()
   })
 })
 
@@ -293,9 +388,11 @@ describe('con un rol externo', () => {
 
   it('no muestra columnas de stock', async () => {
     montar()
-    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
-    expect(screen.queryByRole('columnheader', { name: 'SR' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('columnheader', { name: 'SV' })).not.toBeInTheDocument()
+    await screen.findByText('CP.CP9911')
+    expect(screen.queryByRole('columnheader', { name: 'Stock real' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Stock virtual' })).not.toBeInTheDocument()
+    // Y en su lugar, la misma columna que ve un externo en el Catálogo.
+    expect(screen.getByRole('columnheader', { name: 'Disponibilidad' })).toBeInTheDocument()
   })
 })
 
@@ -309,7 +406,7 @@ describe('con un rol externo', () => {
 describe('crear un producto desde el documento', () => {
   it('el buscador ofrece crear uno, y al crearlo lo deja buscado por su SKU', async () => {
     montar()
-    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    await screen.findByText('CP.CP9911')
 
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo producto' }))
     fireEvent.click(await screen.findByRole('button', { name: 'crear' }))
@@ -329,7 +426,7 @@ describe('crear un producto desde el documento', () => {
    */
   it('no lo agrega solo: avisa que falta ponerle cantidad y mirar el precio', async () => {
     const { onAgregar } = montar()
-    await screen.findByText('BALANCEADOR DE 0.4 A 1 KG')
+    await screen.findByText('CP.CP9911')
 
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo producto' }))
     fireEvent.click(await screen.findByRole('button', { name: 'crear' }))

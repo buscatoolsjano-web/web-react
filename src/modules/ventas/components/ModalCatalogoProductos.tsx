@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Dialog } from '@/components/modals/Dialog'
 import { Alert } from '@/components/feedback/Alert'
 import { Button } from '@/components/ui/Button'
@@ -6,12 +6,12 @@ import { Field } from '@/components/forms/Field'
 import { Input } from '@/components/forms/controls'
 import { Spinner } from '@/components/ui/Spinner'
 import { Icon } from '@/components/icons/Icon'
-import { ImagenProducto } from '@/modules/catalogo/components/ImagenProducto'
 import { ModalNuevoProducto } from '@/modules/catalogo/components/ModalNuevoProducto'
 import type { ProductoCreado } from '@/modules/catalogo/services/altaProducto'
-import { EncabezadoOrdenable as Encabezado } from '@/modules/catalogo/components/EncabezadoOrdenable'
+import { ListadoProductos } from '@/modules/catalogo/components/ListadoProductos'
 import { PanelFacetas } from '@/modules/catalogo/components/PanelFacetas'
-import { columnasDinamicas, valorDinamico } from '@/modules/catalogo/lib/columnasDinamicas'
+import { useDisponibilidad } from '@/modules/catalogo/hooks/useProductos'
+import { columnasDinamicas } from '@/modules/catalogo/lib/columnasDinamicas'
 import {
   type FiltrosCatalogo,
   type OrdenCatalogo,
@@ -73,8 +73,22 @@ const SIN_HISTORICO: Map<string, UltimoPrecio> = new Map()
  * Elegir productos del catálogo sin salir del documento (Fase 28 · E1).
  *
  * Réplica de «Añadir productos o servicios» del sistema anterior: los filtros
- * del catálogo arriba, un buscador, y una tabla con foto, referencia, nombre,
- * categoría, marca, los dos saldos de stock, el precio y la cantidad.
+ * del catálogo arriba, un buscador, y la tabla del catálogo con una columna de
+ * cantidad y un botón de agregar al final.
+ *
+ * **La tabla es LA DEL CATÁLOGO, no una parecida** (Fase 42). Hasta ahora este
+ * modal tenía su propio `<thead>` escrito a mano, y pasó lo que pasa siempre:
+ * se separaron. El catálogo mostraba Modelo, Serie y Tipo; acá no estaban. Acá
+ * había una columna Nombre que el catálogo sacó en la Fase 38. Los dos saldos
+ * de stock estaban en orden inverso, así que el número que se leía bajo «SV»
+ * en una pantalla era el de «Stock real» en la otra —el peor de los errores
+ * posibles, porque no se ve—. Ahora las dos pantallas renderizan
+ * `ListadoProductos` y las columnas no pueden volver a divergir.
+ *
+ * Lo propio de acá entra por los tres huecos que ese listado deja: la celda de
+ * precio (que puede ser el histórico de este cliente y no el de la tarifa),
+ * las columnas «Cant.» y «Agregar», y la marca de lo ya agregado. Y se pide
+ * `navegable={false}`: tocar una fila no puede abandonar la cotización.
  *
  * Los filtros son los MISMOS de la pantalla de Catálogo —`PanelFacetas` sobre
  * `catalog_facets`—, así que al elegir una categoría aparecen sus atributos
@@ -123,7 +137,7 @@ export function ModalCatalogoProductos({
 
   const facetas = useFacetasParaDocumento(filtros)
   const { data, isPending, isFetching, error } = useCatalogoParaDocumento(filtros, listaPrecioId)
-  const productos = data?.productos ?? []
+  const productos = useMemo(() => data?.productos ?? [], [data])
   const total = data?.total ?? 0
   const paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
 
@@ -131,6 +145,18 @@ export function ModalCatalogoProductos({
   // Catálogo: salen de las facetas y no de un mapa escrito a mano.
   const dinamicas = columnasDinamicas(filtros.categoria, facetas.data?.atributos ?? [], total)
 
+  // Las unidades, para que un «1» suelto se lea «1 kg» en las tarjetas del
+  // teléfono. Salen de las mismas facetas, que ya vienen con label y unidad.
+  const unidades = useMemo(
+    () => new Map((facetas.data?.atributos ?? []).map((a) => [a.key, a.unidad] as const)),
+    [facetas.data],
+  )
+
+  // Un rol externo no ve saldos sino «Disponibilidad», igual que en el
+  // Catálogo. El hook ya se desactiva solo para los internos, así que esto no
+  // cuesta una consulta cuando no corresponde.
+  const idsPagina = useMemo(() => productos.map((p) => p.id), [productos])
+  const { data: disponibilidad } = useDisponibilidad(idsPagina)
 
   /**
    * Un click en el encabezado ordena por esa columna; otro, al revés. No hay
@@ -225,145 +251,53 @@ export function ModalCatalogoProductos({
       ) : null}
 
       <div className={styles.cuerpo} ref={cuerpo}>
-        {isPending ? (
-          <p className={styles.nota}>
-            <Spinner size={16} /> Buscando…
-          </p>
-        ) : productos.length === 0 ? (
+        {!isPending && productos.length === 0 ? (
           <p className={styles.nota}>Ningún producto coincide.</p>
         ) : (
-          <table className={styles.tabla}>
-            <caption className="sr-only">Productos del catálogo</caption>
-            <thead>
-              <tr>
-                <th scope="col" className={styles.colImagen}>
-                  <span className="sr-only">Imagen</span>
-                </th>
-                <Encabezado campo="sku" orden={orden}>
-                  SKU
-                </Encabezado>
-                <Encabezado campo="nombre" orden={orden}>
-                  Nombre
-                </Encabezado>
-                <Encabezado campo="categoria" orden={orden}>
-                  Categoría
-                </Encabezado>
-                <Encabezado campo="marca" orden={orden}>
-                  Marca
-                </Encabezado>
-                {/* Las columnas de la categoría elegida: en «Puntas y tubos»,
-                    medida, largo y encastre. Salen de las facetas, no de una
-                    lista escrita a mano, y ordenan como cualquier otra. */}
-                {dinamicas.map((c) => (
-                  <Encabezado key={c.key} campo={`attr:${c.key}`} orden={orden}>
-                    {c.label}
-                    {c.unidad ? <span className={styles.secundario}> {c.unidad}</span> : null}
-                  </Encabezado>
-                ))}
-                {esInterno ? (
-                  <>
-                    <Encabezado campo="stock_virtual" orden={orden} className={styles.num}>
-                      <span title="Stock virtual">SV</span>
-                    </Encabezado>
-                    <Encabezado campo="stock_real" orden={orden} className={styles.num}>
-                      <span title="Stock real">SR</span>
-                    </Encabezado>
-                  </>
-                ) : null}
-                {/* Precio NO ordena: sale de la tarifa del documento y se
-                    resuelve sobre la página ya traída, así que ordenar acá
-                    ordenaría 25 filas y mentiría sobre las otras 4.791. */}
-                <th scope="col" className={styles.num}>
-                  Precio
-                </th>
-                <th scope="col" className={styles.num}>
-                  Cant.
-                </th>
-                <th scope="col">
-                  <span className="sr-only">Agregar</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {productos.map((p) => (
-                <tr key={p.id} className={agregados.includes(p.id) ? styles.filaAgregada : undefined}>
-                  <td className={styles.colImagen}>
-                    <ImagenProducto imagen={p.imagen} alt="" tamano="thumb" prioridad="eager" />
-                  </td>
-                  <td>
-                    <code className={styles.sku}>{p.sku}</code>
-                  </td>
-                  <td className={styles.colNombre}>{p.nombre}</td>
-                  <td className={styles.secundario}>{p.categoria?.nombre ?? '—'}</td>
-                  <td className={styles.secundario}>{p.marca?.nombre ?? '—'}</td>
-                  {dinamicas.map((c) => (
-                    <td key={c.key} className={styles.nowrap}>
-                      {valorDinamico(p, c)}
-                    </td>
-                  ))}
-                  {esInterno ? (
-                    <>
-                      <td className={styles.num}>{p.stock ? p.stock.virtual : '—'}</td>
-                      <td className={styles.num}>{p.stock ? p.stock.real : '—'}</td>
-                    </>
-                  ) : null}
-                  <td className={styles.num}>
-                    {/*
-                      Si este cliente ya compró este producto, se muestra ESE
-                      precio, que es el que va a entrar en la línea. Mostrar el
-                      de la tarifa y después cargar otro sería la peor de las
-                      dos opciones. El de la tarifa queda abajo, tachado, para
-                      que se vea la diferencia antes de agregar.
-                    */}
-                    {(() => {
-                      const h = historicos.get(p.id)
-                      if (h && h.ultimoPrecio !== null) {
-                        return (
-                          <>
-                            <span
-                              className={styles.precioHistorico}
-                              title={`Último precio de este cliente · ${h.ultimoTipo === 'pedido' ? 'pedido' : 'cotización'} ${h.ultimoDocumento ?? ''}`}
-                            >
-                              {formatearImporte(h.ultimoPrecio, moneda)}
-                            </span>
-                            {p.precio !== null && !mismoPrecio(p.precio, h.ultimoPrecio) ? (
-                              <span className={styles.precioTarifa}>
-                                tarifa {formatearImporte(p.precio, moneda)}
-                              </span>
-                            ) : null}
-                          </>
-                        )
-                      }
-                      return p.precio === null ? (
-                        <span className={styles.sinPrecio} title="Sin precio en la tarifa del documento">
-                          —
-                        </span>
-                      ) : (
-                        formatearImporte(p.precio, moneda)
-                      )
-                    })()}
-                  </td>
-                  <td className={styles.num}>
-                    <Input
-                      className={styles.cantidad}
-                      type="number"
-                      min="0"
-                      step="any"
-                      inputMode="decimal"
-                      aria-label={`Cantidad de ${p.sku}`}
-                      value={cantidades[p.id] ?? '1'}
-                      onChange={(e) => setCantidades((c) => ({ ...c, [p.id]: e.target.value }))}
-                    />
-                  </td>
-                  <td>
-                    <Button size="sm" onClick={() => agregar(p)}>
-                      {agregados.includes(p.id) ? 'Sumar más' : '+ Agregar'}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ListadoProductos
+            productos={productos}
+            esInterno={esInterno}
+            moneda={moneda}
+            disponibilidad={disponibilidad}
+            unidades={unidades}
+            cargando={isPending}
+            columnasDinamicas={dinamicas}
+            categoriaFija={filtros.categoria !== null}
+            orden={orden}
+            /* Tocar una fila no abre nada: dentro de un documento, navegar al
+               producto deja la cotización a medio cargar. */
+            navegable={false}
+            claseDeFila={(p) => (agregados.includes(p.id) ? styles.filaAgregada : undefined)}
+            precioCelda={(p) => <CeldaPrecio producto={p} moneda={moneda} historico={historicos.get(p.id)} />}
+            accion={[
+              {
+                clave: 'cantidad',
+                encabezado: 'Cant.',
+                className: styles.num,
+                celda: (p) => (
+                  <Input
+                    className={styles.cantidad}
+                    type="number"
+                    min="0"
+                    step="any"
+                    inputMode="decimal"
+                    aria-label={`Cantidad de ${p.sku}`}
+                    value={cantidades[p.id] ?? '1'}
+                    onChange={(e) => setCantidades((c) => ({ ...c, [p.id]: e.target.value }))}
+                  />
+                ),
+              },
+              {
+                clave: 'agregar',
+                encabezado: <span className="sr-only">Agregar</span>,
+                celda: (p) => (
+                  <Button size="sm" onClick={() => agregar(p)}>
+                    {agregados.includes(p.id) ? 'Sumar más' : '+ Agregar'}
+                  </Button>
+                ),
+              },
+            ]}
+          />
         )}
       </div>
 
@@ -427,5 +361,46 @@ export function ModalCatalogoProductos({
         />
       ) : null}
     </Dialog>
+  )
+}
+
+/**
+ * El precio con el que va a entrar la línea.
+ *
+ * Si este cliente ya compró este producto, se muestra ESE precio, que es el
+ * que va a entrar. Mostrar el de la tarifa y después cargar otro sería la peor
+ * de las dos opciones. El de la tarifa queda abajo, tachado, para que se vea
+ * la diferencia antes de agregar.
+ */
+function CeldaPrecio({
+  producto,
+  moneda,
+  historico,
+}: {
+  producto: ProductoListado
+  moneda: string | null
+  historico: UltimoPrecio | undefined
+}) {
+  if (historico && historico.ultimoPrecio !== null) {
+    return (
+      <>
+        <span
+          className={styles.precioHistorico}
+          title={`Último precio de este cliente · ${historico.ultimoTipo === 'pedido' ? 'pedido' : 'cotización'} ${historico.ultimoDocumento ?? ''}`}
+        >
+          {formatearImporte(historico.ultimoPrecio, moneda)}
+        </span>
+        {producto.precio !== null && !mismoPrecio(producto.precio, historico.ultimoPrecio) ? (
+          <span className={styles.precioTarifa}>tarifa {formatearImporte(producto.precio, moneda)}</span>
+        ) : null}
+      </>
+    )
+  }
+  return producto.precio === null ? (
+    <span className={styles.sinPrecio} title="Sin precio en la tarifa del documento">
+      —
+    </span>
+  ) : (
+    <>{formatearImporte(producto.precio, moneda)}</>
   )
 }
