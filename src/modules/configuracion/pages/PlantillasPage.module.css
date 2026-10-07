@@ -1,0 +1,182 @@
+/* Configuración → Plantillas de correo (Fase 41 · E2). */
+
+.page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.bloque {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.ayuda {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-3);
+}
+
+/* La lista a la izquierda y el editor a la derecha; apiladas en pantalla
+   angosta, porque el editor necesita todo el ancho que haya. */
+.columnas {
+  display: grid;
+  grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 899px) {
+  .columnas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.lista,
+.sublista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.grupo {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-soft);
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.item:hover {
+  border-color: var(--color-primary);
+}
+
+.itemActivo {
+  border-color: var(--color-primary);
+  background: var(--color-surface-alt, var(--color-surface));
+}
+
+.editor {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Monoespaciada: acá se escribe HTML y marcadores, y alinear importa. */
+.caja {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: var(--text-sm) / 1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  resize: vertical;
+}
+
+.marcadores {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chip {
+  padding: 2px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-soft);
+  font: var(--text-xs) / 1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+/* Los huecos se distinguen de los datos: no se reemplazan por una ficha, se
+   rellenan al enviar. Confundirlos es el error que más cuesta. */
+.chipHueco {
+  border-style: dashed;
+}
+
+.problemas {
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.error {
+  color: var(--color-danger, #b42318);
+}
+
+.avisoLeve {
+  color: var(--color-warning, var(--color-text-soft));
+}
+
+.previa {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.marco {
+  width: 100%;
+  min-height: 18rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+}
+
+/* La firma va a un cuadro de texto plano: se previsualiza como lo que es, con
+   sus saltos de línea y sin interpretar marcado. */
+.textoPlano {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font: var(--text-sm) / 1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

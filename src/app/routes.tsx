@@ -288,6 +288,9 @@ const AuditoriaPage = lazyConRecarga(() =>
 const BorradosPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/BorradosPage').then((m) => ({ default: m.BorradosPage })),
 )
+const PlantillasPage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/PlantillasPage').then((m) => ({ default: m.PlantillasPage })),
+)
 const RecuperarPage = lazyConRecarga(() =>
   import('@/features/auth/pages/RecuperarPage').then((m) => ({ default: m.RecuperarPage })),
 )
@@ -454,6 +457,10 @@ export const routes: RouteObject[] = [
           { path: 'auditoria', element: conSuspense(<AuditoriaPage />) },
           // Fase 40: qué se borró, quién y por qué. Admin y employee, sólo lectura.
           { path: 'borrados', element: conSuspense(<BorradosPage />) },
+          // Fase 41 · E2: plantillas de correo. Admin y employee, que son los
+          // mismos que pueden usar Emails: la plantilla no le sirve a quien no
+          // manda mails.
+          { path: 'plantillas', element: conSuspense(<PlantillasPage />) },
           // Fase 16 · E3: IA de WhatsApp (modo, límites, informes, uso). Sólo admin; la RPC lo vuelve a validar.
           { path: 'whatsapp-ia', element: conSuspense(<ConfigIAWhatsappPage />) },
         ],

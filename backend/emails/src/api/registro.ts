@@ -54,6 +54,11 @@ export interface RegistroEnvios {
    * sin la función). «No sé» no es «está mal»: no se alarma por una red lenta.
    */
   claveCoincide(): Promise<boolean | null>
+  /**
+   * El envoltorio de la empresa, ya resuelto para quien manda. `null` si no hay
+   * ninguno configurado o si no se pudo leer.
+   */
+  envoltorio(jwt: string, companyId: string): Promise<string | null>
 }
 
 export function firmar(clave: Buffer, mensaje: string): string {
@@ -161,6 +166,28 @@ export class RegistroSupabase implements RegistroEnvios {
   async descartarBorrador(jwt: string, usuario: string, accountId: string, threadId: string | null): Promise<void> {
     const firma = firmar(this.clave, `descartar|${accountId}|${threadId ?? ''}|${usuario}`)
     await this.rpc(jwt, 'registrar_descarte_borrador_email', { p_account: accountId, p_thread: threadId, p_firma: firma })
+  }
+
+  /**
+   * El envoltorio de la empresa, resuelto para quien manda.
+   *
+   * Se pide con el JWT de la persona, así la base aplica su RLS y rellena los
+   * marcadores con SU ficha: dos personas piden lo mismo y reciben distinto.
+   *
+   * Si falla, falla: el que decide que un envío no se cae por una plantilla es
+   * QUIEN LLAMA, en `redactar.ts`. Tragarse el error acá adentro dejaba esa
+   * garantía dependiendo de la implementación —otra que tirara excepción
+   * tumbaba el envío— y además hacía imposible distinguir «no hay envoltorio»
+   * de «no se pudo leer».
+   */
+  async envoltorio(jwt: string, companyId: string): Promise<string | null> {
+    const filas = (await this.rpc(jwt, 'plantillas_para_enviar', { p_company: companyId })) as
+      | Array<{ envoltorio: string | null }>
+      | null
+    const e = filas?.[0]?.envoltorio ?? null
+    // Un envoltorio sin el hueco no envuelve nada: se trataría como si no
+    // hubiera. La pantalla no deja guardarlo así, pero esto no se fía de eso.
+    return e && e.includes('{{cuerpo}}') ? e : null
   }
 
   /**

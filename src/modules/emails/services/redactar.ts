@@ -162,3 +162,20 @@ export function esperarHiloIndexado(accountId: string, gmailThreadId: string, al
     void supabase.removeChannel(canal)
   }
 }
+
+/**
+ * La firma que le toca a quien está escribiendo, ya resuelta (Fase 41 · E3).
+ *
+ * La resuelve la base —la suya por defecto, y si no tiene, la de la empresa—
+ * con sus datos puestos. Acá no se elige nada ni se arma texto: elegir en dos
+ * lados es cómo se termina mandando una firma distinta de la que muestra la
+ * pantalla de plantillas.
+ *
+ * Devuelve '' si no hay ninguna. Nunca tira: quedarse sin firma no puede
+ * impedir escribir un mail.
+ */
+export async function firmaParaEnviar(companyId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('plantillas_para_enviar', { p_company: companyId })
+  if (error) return ''
+  return data?.[0]?.firma ?? ''
+}

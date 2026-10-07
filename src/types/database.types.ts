@@ -2175,6 +2175,59 @@ export type Database = {
           },
         ]
       }
+      email_templates: {
+        Row: {
+          activa: boolean
+          clase: string
+          company_id: string
+          contenido: string
+          created_at: string
+          created_by: string | null
+          es_default: boolean
+          id: string
+          nombre: string
+          updated_at: string
+          updated_by: string | null
+          user_id: string | null
+        }
+        Insert: {
+          activa?: boolean
+          clase: string
+          company_id: string
+          contenido: string
+          created_at?: string
+          created_by?: string | null
+          es_default?: boolean
+          id?: string
+          nombre: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          activa?: boolean
+          clase?: string
+          company_id?: string
+          contenido?: string
+          created_at?: string
+          created_by?: string | null
+          es_default?: boolean
+          id?: string
+          nombre?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_thread_labels: {
         Row: {
           account_id: string
@@ -4657,6 +4710,7 @@ export type Database = {
           full_name: string
           id: string
           is_active: boolean
+          job_title: string | null
           locale: string
           phone: string | null
           theme: string | null
@@ -4670,6 +4724,7 @@ export type Database = {
           full_name: string
           id: string
           is_active?: boolean
+          job_title?: string | null
           locale?: string
           phone?: string | null
           theme?: string | null
@@ -4683,6 +4738,7 @@ export type Database = {
           full_name?: string
           id?: string
           is_active?: boolean
+          job_title?: string | null
           locale?: string
           phone?: string | null
           theme?: string | null
@@ -8796,6 +8852,10 @@ export type Database = {
         }
       }
       guardar_mi_apariencia: { Args: { p_appearance: Json | null }; Returns: Json }
+      guardar_mi_firma: {
+        Args: { p_nombre: string | null; p_puesto: string | null; p_telefono: string | null }
+        Returns: Json
+      }
       guardar_pedido: {
         Args: {
           p_cabecera: Json
@@ -9238,10 +9298,22 @@ export type Database = {
         Args: never
         Returns: Record<string, unknown>[]
       }
+      plantillas_para_enviar: {
+        Args: { p_company: string; p_plantilla?: string | null }
+        Returns: {
+          envoltorio: string | null
+          firma: string | null
+          firma_id: string | null
+        }[]
+      }
       postgres_fdw_handler: { Args: never; Returns: unknown }
       precheck_cierre_mantenimiento: {
         Args: { p_order: string }
         Returns: Json
+      }
+      previsualizar_plantilla: {
+        Args: { p_company: string; p_contenido: string | null; p_html?: boolean | null }
+        Returns: string | null
       }
       precios_historicos_cliente: {
         Args: {

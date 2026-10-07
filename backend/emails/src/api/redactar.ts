@@ -201,6 +201,8 @@ interface Autorizado {
   nombre: string | null
   usuario: string
   accountId: string
+  /** La empresa de la cuenta: con eso se pide su envoltorio (Fase 41 · E3). */
+  companyId: string
 }
 
 async function autorizar(ctx: ContextoRedactar, jwt: string, e: EntradaRedaccion): Promise<Autorizado> {
@@ -211,7 +213,7 @@ async function autorizar(ctx: ContextoRedactar, jwt: string, e: EntradaRedaccion
   }
   const buzon = cuenta.buzon.trim().toLowerCase()
   if (!ctx.buzones.has(buzon)) throw new NoEncontrado('buzón fuera del allowlist')
-  return { buzon: cuenta.buzon, nombre: cuenta.nombre, usuario: cuenta.usuario, accountId: cuenta.accountId }
+  return { buzon: cuenta.buzon, nombre: cuenta.nombre, usuario: cuenta.usuario, accountId: cuenta.accountId, companyId: cuenta.companyId }
 }
 
 /** El mensaje original de una respuesta o un reenvío, validado contra el hilo. */
@@ -315,6 +317,29 @@ async function preparar(
 
   const c = cita(e.modo, ref?.original ?? null)
   const dir = (d: string): Direccion => ({ direccion: d })
+  /*
+   * El envoltorio de la empresa (Fase 41 · E3).
+   *
+   * Se aplica ACÁ y no en el navegador por dos razones: el marco es de la
+   * empresa y no una decisión de cada mail —desde el cliente se podría mandar
+   * sin él—, y así cualquier otra pantalla que mañana mande un mail lo hereda
+   * sin repetir nada.
+   *
+   * Sólo toca la parte HTML. La parte de texto plano sigue siendo el texto tal
+   * cual se escribió: ahí un membrete no aporta, estorba.
+   *
+   * La FIRMA no se inserta acá: viaja dentro de `e.texto` porque se edita en
+   * el composer. Si el envoltorio trajera además un hueco de firma, saldría
+   * dos veces.
+   *
+   * El `.catch(() => null)` es la decisión importante: si la plantilla no se
+   * puede leer, el mail sale SIN membrete en vez de no salir. Un mail sin
+   * membrete es una molestia; un cliente sin respuesta porque no cargó una
+   * plantilla es otra cosa.
+   */
+  const envoltorio = await ctx.registro.envoltorio(jwt, a.companyId).catch(() => null)
+  const cuerpo = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">${textoAHtml(e.texto)}${c.html}</div>`
+  const html = envoltorio ? envoltorio.replace('{{cuerpo}}', cuerpo) : cuerpo
   const raw = construirMime({
     de: { direccion: a.buzon, nombre: a.nombre },
     para: e.para.map(dir),
@@ -325,7 +350,7 @@ async function preparar(
     inReplyTo,
     references,
     texto: e.texto + c.texto,
-    html: `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">${textoAHtml(e.texto)}${c.html}</div>`,
+    html,
     adjuntos,
     ...(opciones.borrador
       ? {

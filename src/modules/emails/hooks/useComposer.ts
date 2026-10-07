@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ErrorContenido, mensajeDeError } from '../lib/errores'
 import { ASUNTO, destinatariosIniciales, sinDuplicados } from '../lib/destinatarios'
+import { useEmpresa } from '@/features/empresa/useEmpresa'
 import {
   descartarBorrador,
   enviar,
+  firmaParaEnviar,
   guardarBorrador,
   obtenerBorrador,
   type DatosRedaccion,
@@ -70,6 +72,7 @@ export function valoresIniciales(o: Pick<OpcionesComposer, 'modo' | 'refMensaje'
 }
 
 export function useComposer(o: OpcionesComposer) {
+  const companyId = useEmpresa().activa?.companyId ?? null
   const [iniciales] = useState(() => (o.draftId ? null : valoresIniciales(o)))
   const [para, setPara] = useState<string[]>(iniciales?.para ?? [])
   const [cc, setCc] = useState<string[]>(iniciales?.cc ?? [])
@@ -112,6 +115,32 @@ export function useComposer(o: OpcionesComposer) {
       ...sinDuplicados(para, cc, cco), asunto, texto, adjuntos,
     }
   }, [o.accountId, modo, threadId, refMessageId, draftId, para, cc, cco, asunto, texto, adjuntos])
+
+  /*
+   * La firma de quien escribe, al abrir (Fase 41 · E3).
+   *
+   * Va en el cuadro de texto y es editable, que es como se pidió: se puede
+   * sacar o cambiar en un mail puntual sin tocar la plantilla.
+   *
+   * Sólo en un composer NUEVO. Un borrador que se retoma ya tiene su texto —y
+   * su firma— adentro; volver a insertarla lo duplicaría. Y si la persona ya
+   * escribió algo mientras llegaba la respuesta, no se le pisa.
+   */
+  const [firmaInicial, setFirmaInicial] = useState('')
+  useEffect(() => {
+    if (o.draftId || !companyId) return
+    let vivo = true
+    void firmaParaEnviar(companyId).then((f) => {
+      if (!vivo || f.trim() === '') return
+      const conSalto = `\n\n${f}`
+      // Si la persona ya escribió algo mientras llegaba, se respeta lo suyo.
+      setTexto((actual) => (actual === '' ? conSalto : actual))
+      setFirmaInicial(conSalto)
+    })
+    return () => {
+      vivo = false
+    }
+  }, [o.draftId, companyId])
 
   // ── Recuperar un borrador de Gmail ───────────────────────────────────────
   useEffect(() => {
@@ -298,8 +327,19 @@ export function useComposer(o: OpcionesComposer) {
     opcionesRef.current.alCambiarUrl({ borrador: null, envio: null })
   }, [])
 
+  /*
+   * La firma SOLA no es contenido (Fase 41 · E3).
+   *
+   * El composer la trae puesta al abrirse. Si contara como contenido, abrir la
+   * pantalla y cerrarla dejaría un borrador en Gmail por cada vez, y además
+   * saltaría la pregunta de «¿querés descartar?» sin que nadie haya escrito
+   * nada. Se compara contra lo que se insertó: en cuanto se escribe una letra,
+   * deja de coincidir y vuelve a ser contenido.
+   */
   const tieneContenido =
-    texto.trim() !== '' || adjuntos.length > 0 || (modo === 'nuevo' && (para.length + cc.length + cco.length > 0 || asunto.trim() !== ''))
+    (texto.trim() !== '' && texto !== firmaInicial) ||
+    adjuntos.length > 0 ||
+    (modo === 'nuevo' && (para.length + cc.length + cco.length > 0 || asunto.trim() !== ''))
 
   return {
     campos: { para, cc, cco, asunto, texto, adjuntos, modo, threadId, refMessageId, draftId },

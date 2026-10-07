@@ -16,6 +16,10 @@
  *     employee porque es quien borra: el registro sirve para entenderse entre
  *     los que trabajan, no sólo para que el admin controle.
  *   · WhatsApp · IA: sólo admin (Fase 16 · E3).
+ *   · Plantillas de correo: admin y employee (Fase 41 · E2) — los mismos que
+ *     pueden usar Emails, porque una plantilla no le sirve a quien no manda
+ *     mails. Adentro, el envoltorio de la empresa sólo lo edita un admin y la
+ *     firma propia la edita su dueño; eso lo decide la RLS, no esta lista.
  */
 export const ROLES_CONFIGURACION = ['admin', 'employee'] as const
 
@@ -30,6 +34,7 @@ export const SECCIONES_CONFIGURACION = [
   { to: '/configuracion/auditoria', label: 'Auditoría', roles: ['admin'] },
   { to: '/configuracion/borrados', label: 'Borrados', roles: ['admin', 'employee'] },
   { to: '/configuracion/whatsapp-ia', label: 'WhatsApp · IA', roles: ['admin'] },
+  { to: '/configuracion/plantillas', label: 'Plantillas de correo', roles: ['admin', 'employee'] },
 ] as const
 
 export function puedeVerConfiguracion(rol: string | null | undefined): boolean {

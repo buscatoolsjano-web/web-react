@@ -40,10 +40,12 @@ describe('permisos de Configuración', () => {
   })
   it('Usuarios es sólo admin; employee ve el resto (Entrega 3: listas, marcas, categorías, atributos)', () => {
     expect(['admin', 'employee', 'salesperson'].map(puedeAdministrarUsuarios)).toEqual([true, false, false])
-    expect(seccionesVisibles('admin').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Usuarios', 'Listas de precios', 'Marcas', 'Categorías', 'Atributos', 'Auditoría', 'Borrados', 'WhatsApp · IA'])
+    expect(seccionesVisibles('admin').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Usuarios', 'Listas de precios', 'Marcas', 'Categorías', 'Atributos', 'Auditoría', 'Borrados', 'WhatsApp · IA', 'Plantillas de correo'])
     // Borrados lo ve también employee, que es quien borra: el registro sirve
     // para entenderse entre los que trabajan, no sólo para que el admin controle.
-    expect(seccionesVisibles('employee').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Listas de precios', 'Marcas', 'Categorías', 'Atributos', 'Borrados'])
+    // Plantillas, por la misma razón: la firma que sale es la suya, y el correo
+    // es de admin y employee.
+    expect(seccionesVisibles('employee').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Listas de precios', 'Marcas', 'Categorías', 'Atributos', 'Borrados', 'Plantillas de correo'])
     expect(seccionesVisibles('salesperson')).toEqual([])
     expect(seccionesVisibles('technician')).toEqual([])
   })

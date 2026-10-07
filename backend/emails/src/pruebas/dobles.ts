@@ -330,9 +330,15 @@ export class RegistroMemoria implements RegistroEnvios {
    * migración le cambió la clave a la base y el servicio siguió con la vieja.
    */
   clave: boolean | null = true
+  /** El envoltorio de «la empresa». `null` = no hay ninguno configurado. */
+  envoltorioHtml: string | null = null
 
   async claveCoincide(): Promise<boolean | null> {
     return this.clave
+  }
+
+  async envoltorio(): Promise<string | null> {
+    return this.envoltorioHtml
   }
 
   async reservar(_jwt: string, usuario: string, accountId: string, crid: string, operacion: Operacion): Promise<Reserva> {

@@ -789,3 +789,64 @@ describe('clave desalineada', () => {
     expect(await registro.claveCoincide()).toBeNull()
   })
 })
+
+/**
+ * El envoltorio de la empresa (Fase 41 · E3).
+ *
+ * Lo que vale probar no es que una cadena reemplace a otra: es que el membrete
+ * no se coma el mensaje, que no se aplique al texto plano, y que un problema
+ * con la plantilla NO impida mandar el mail. Eso último es la decisión de
+ * fondo: un mail sin membrete es una molestia, un mail que no sale es un
+ * cliente sin respuesta.
+ */
+describe('el envoltorio de la empresa', () => {
+  const MARCO = '<div class="marco"><p>Buscatools</p>{{cuerpo}}<p>pie</p></div>'
+  const enviado = (gmail: GmailFalso) => cuerpo(gmail.enviados[0]!.raw, 'text/html') ?? ''
+
+  it('envuelve el HTML y deja el mensaje adentro, donde estaba el hueco', async () => {
+    const { ctx, registro, gmail } = armar()
+    registro.envoltorioHtml = MARCO
+    const r = await enviar(ctx, JWT, { ...base({ texto: 'hola cliente' }), client_request_id: randomUUID() })
+    expect(r.estado).toBe('enviado')
+
+    const html = enviado(gmail)
+    expect(html).toContain('class="marco"')
+    expect(html).toContain('hola cliente')
+    expect(html).not.toContain('{{cuerpo}}')
+    // Donde estaba el hueco, no pegado al final.
+    expect(html.indexOf('hola cliente')).toBeGreaterThan(html.indexOf('Buscatools'))
+    expect(html.indexOf('hola cliente')).toBeLessThan(html.indexOf('pie'))
+  })
+
+  it('el texto plano NO se envuelve: ahí un membrete estorba', async () => {
+    const { ctx, registro, gmail } = armar()
+    registro.envoltorioHtml = MARCO
+    await enviar(ctx, JWT, { ...base({ texto: 'hola cliente' }), client_request_id: randomUUID() })
+    const texto = cuerpo(gmail.enviados[0]!.raw, 'text/plain') ?? ''
+    expect(texto).toContain('hola cliente')
+    expect(texto).not.toContain('marco')
+  })
+
+  it('sin envoltorio configurado, el mail sale como antes', async () => {
+    const { ctx, registro, gmail } = armar()
+    registro.envoltorioHtml = null
+    const r = await enviar(ctx, JWT, { ...base({ texto: 'hola' }), client_request_id: randomUUID() })
+    expect(r.estado).toBe('enviado')
+    expect(enviado(gmail)).toContain('hola')
+  })
+
+  /**
+   * La razón de ser del try/catch de `envoltorio()`: si la plantilla no se
+   * puede leer, se manda igual. Cambiar «mail sin membrete» por «mail que no
+   * sale» sería un pésimo negocio.
+   */
+  it('si la plantilla no se puede leer, el mail sale igual', async () => {
+    const { ctx, registro, gmail } = armar()
+    registro.envoltorio = async () => {
+      throw new Error('la base no contesta')
+    }
+    const r = await enviar(ctx, JWT, { ...base({ texto: 'hola' }), client_request_id: randomUUID() })
+    expect(r.estado).toBe('enviado')
+    expect(enviado(gmail)).toContain('hola')
+  })
+})
