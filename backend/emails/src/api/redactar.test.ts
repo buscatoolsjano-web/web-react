@@ -27,7 +27,7 @@ import {
   previsualizarEnvio,
   type ContextoRedactar,
 } from './redactar.js'
-import { firmar } from './registro.js'
+import { firmar, nombreDelFrom } from './registro.js'
 
 const CUENTA = '11111111-1111-4111-8111-111111111111'
 const BUZON = 'info@empresa.test'
@@ -906,5 +906,50 @@ describe('vista previa del envío', () => {
     await expect(
       previsualizarEnvio(ctx, JWT, { account_id: '99999999-9999-4999-8999-999999999999', texto: 'x' }),
     ).rejects.toBeInstanceOf(NoEncontrado)
+  })
+})
+
+/**
+ * Quién escribe, en el From (Fase 41 · E4).
+ *
+ * Todo sale desde la casilla de la empresa, así que la dirección no dice nada
+ * de quién escribió: «Buscatools · info@» era lo mismo viniera de quien
+ * viniera. Lo que NO cambia es la dirección: sigue siendo la de la cuenta
+ * autorizada, y eso se sigue probando aparte.
+ */
+describe('el nombre de quien escribe', () => {
+  it('arma «Persona (Empresa)»', () => {
+    expect(nombreDelFrom({ remitente: 'Jano', empresa: 'Buscatools' }, 'Casilla')).toBe('Jano (Buscatools)')
+  })
+
+  it('sin empresa, sólo la persona', () => {
+    expect(nombreDelFrom({ remitente: 'Jano', empresa: null }, 'Casilla')).toBe('Jano')
+  })
+
+  it('sin nombre cargado, queda el de la casilla: como estaba antes', () => {
+    expect(nombreDelFrom({ remitente: null, empresa: 'Buscatools' }, 'Buscatools · info@')).toBe('Buscatools · info@')
+    expect(nombreDelFrom({ remitente: '   ', empresa: 'Buscatools' }, 'Buscatools · info@')).toBe('Buscatools · info@')
+  })
+
+  it('el mail sale con ese nombre, y con la dirección de la cuenta', async () => {
+    const { ctx, registro, gmail } = armar()
+    registro.remitente = 'Jano'
+    registro.empresa = 'Buscatools'
+    await enviar(ctx, JWT, { ...base({ texto: 'hola' }), client_request_id: randomUUID() })
+
+    // Entre comillas, y esta bien: los parentesis delimitan COMENTARIOS en una
+    // cabecera de correo, asi que un nombre que los lleva tiene que ir citado.
+    // Lo verifica el constructor de MIME, no esto.
+    const from = decodificarPalabras(cabecera(gmail.enviados[0]!.raw, 'From'))
+    expect(from).toBe('"Jano (Buscatools)" <info@empresa.test>')
+  })
+
+  it('si no se pudo leer quién es, el From no se rompe', async () => {
+    const { ctx, registro, gmail } = armar()
+    registro.paraEnviar = async () => {
+      throw new Error('la base no contesta')
+    }
+    await enviar(ctx, JWT, { ...base({ texto: 'hola' }), client_request_id: randomUUID() })
+    expect(cabecera(gmail.enviados[0]!.raw, 'From')).toMatch(/<info@empresa\.test>$/)
   })
 })

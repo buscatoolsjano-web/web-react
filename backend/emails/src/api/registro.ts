@@ -58,7 +58,36 @@ export interface RegistroEnvios {
    * El envoltorio de la empresa, ya resuelto para quien manda. `null` si no hay
    * ninguno configurado o si no se pudo leer.
    */
-  envoltorio(jwt: string, companyId: string): Promise<string | null>
+  paraEnviar(jwt: string, companyId: string): Promise<ParaEnviar>
+}
+
+export interface ParaEnviar {
+  /** El marco de la empresa con sus marcadores resueltos, o `null` si no hay. */
+  envoltorio: string | null
+  /** El nombre de quien manda, para el From. */
+  remitente: string | null
+  /** El nombre de la empresa, para acompañarlo. */
+  empresa: string | null
+}
+
+/**
+ * El nombre que ve quien recibe.
+ *
+ * Todo sale desde la casilla de la empresa, así que la dirección no dice nada
+ * de quién escribió: «Buscatools · info@» era lo mismo viniera de quien
+ * viniera. Con el nombre de la persona delante, el que recibe sabe a quién le
+ * está contestando antes de abrir el mail.
+ *
+ * La empresa queda entre paréntesis y no se saca: la dirección sigue siendo la
+ * de la empresa, y un «Jano» suelto escribiendo desde info@ se lee raro.
+ *
+ * Si no hay nombre cargado se usa el de la casilla, que es lo que había antes.
+ */
+export function nombreDelFrom(p: Pick<ParaEnviar, 'remitente' | 'empresa'>, deLaCuenta: string | null): string | null {
+  const persona = p.remitente?.trim()
+  if (!persona) return deLaCuenta
+  const empresa = p.empresa?.trim()
+  return empresa ? `${persona} (${empresa})` : persona
 }
 
 export function firmar(clave: Buffer, mensaje: string): string {
@@ -180,14 +209,19 @@ export class RegistroSupabase implements RegistroEnvios {
    * tumbaba el envío— y además hacía imposible distinguir «no hay envoltorio»
    * de «no se pudo leer».
    */
-  async envoltorio(jwt: string, companyId: string): Promise<string | null> {
+  async paraEnviar(jwt: string, companyId: string): Promise<ParaEnviar> {
     const filas = (await this.rpc(jwt, 'plantillas_para_enviar', { p_company: companyId })) as
-      | Array<{ envoltorio: string | null }>
+      | Array<{ envoltorio: string | null; remitente: string | null; empresa: string | null }>
       | null
-    const e = filas?.[0]?.envoltorio ?? null
-    // Un envoltorio sin el hueco no envuelve nada: se trataría como si no
-    // hubiera. La pantalla no deja guardarlo así, pero esto no se fía de eso.
-    return e && e.includes('{{cuerpo}}') ? e : null
+    const f = filas?.[0]
+    const e = f?.envoltorio ?? null
+    return {
+      // Un envoltorio sin el hueco no envuelve nada: se trataría como si no
+      // hubiera. La pantalla no deja guardarlo así, pero esto no se fía de eso.
+      envoltorio: e && e.includes('{{cuerpo}}') ? e : null,
+      remitente: f?.remitente ?? null,
+      empresa: f?.empresa ?? null,
+    }
   }
 
   /**

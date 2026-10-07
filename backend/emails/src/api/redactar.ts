@@ -32,7 +32,7 @@ import {
   type Direccion,
 } from './mime.js'
 import { asuntoReenvio, asuntoRespuesta, cita, referencias, separarCita, textoAHtml, type Modo, type Original } from './redaccion.js'
-import type { RegistroEnvios } from './registro.js'
+import { nombreDelFrom, type RegistroEnvios } from './registro.js'
 
 export const LIMITES = {
   /** Total de adjuntos por mensaje. Decisión de la v1, por debajo de lo que acepta Gmail. */
@@ -337,7 +337,10 @@ async function preparar(
    * membrete es una molestia; un cliente sin respuesta porque no cargó una
    * plantilla es otra cosa.
    */
-  const envoltorio = await ctx.registro.envoltorio(jwt, a.companyId).catch(() => null)
+  const plantilla = await ctx.registro
+    .paraEnviar(jwt, a.companyId)
+    .catch(() => ({ envoltorio: null, remitente: null, empresa: null }))
+  const envoltorio = plantilla.envoltorio
   const cuerpo = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">${textoAHtml(e.texto)}${c.html}</div>`
   const html = envoltorio
     ? // Cualquier hueco que quede sin rellenar se borra ANTES de salir. Pasó:
@@ -347,7 +350,7 @@ async function preparar(
       envoltorio.replace('{{cuerpo}}', cuerpo).replace(/\{\{[a-z_]+\}\}/g, '')
     : cuerpo
   const raw = construirMime({
-    de: { direccion: a.buzon, nombre: a.nombre },
+    de: { direccion: a.buzon, nombre: nombreDelFrom(plantilla, a.nombre) },
     para: e.para.map(dir),
     cc: e.cc.map(dir),
     cco: e.cco.map(dir),
@@ -730,7 +733,10 @@ export async function previsualizarEnvio(
   const buzon = cuenta.buzon.trim().toLowerCase()
   if (!ctx.buzones.has(buzon)) throw new NoEncontrado('buzón fuera del allowlist')
 
-  const envoltorio = await ctx.registro.envoltorio(jwt, cuenta.companyId).catch(() => null)
+  const plantilla = await ctx.registro
+    .paraEnviar(jwt, cuenta.companyId)
+    .catch(() => ({ envoltorio: null, remitente: null, empresa: null }))
+  const envoltorio = plantilla.envoltorio
   const cuerpo = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">${textoAHtml(texto)}</div>`
   return {
     html: envoltorio ? envoltorio.replace('{{cuerpo}}', cuerpo).replace(/\{\{[a-z_]+\}\}/g, '') : cuerpo,

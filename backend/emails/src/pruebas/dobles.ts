@@ -332,13 +332,16 @@ export class RegistroMemoria implements RegistroEnvios {
   clave: boolean | null = true
   /** El envoltorio de «la empresa». `null` = no hay ninguno configurado. */
   envoltorioHtml: string | null = null
+  /** Quién manda y desde qué empresa, para el From. */
+  remitente: string | null = null
+  empresa: string | null = null
 
   async claveCoincide(): Promise<boolean | null> {
     return this.clave
   }
 
-  async envoltorio(): Promise<string | null> {
-    return this.envoltorioHtml
+  async paraEnviar(): Promise<{ envoltorio: string | null; remitente: string | null; empresa: string | null }> {
+    return { envoltorio: this.envoltorioHtml, remitente: this.remitente, empresa: this.empresa }
   }
 
   async reservar(_jwt: string, usuario: string, accountId: string, crid: string, operacion: Operacion): Promise<Reserva> {
