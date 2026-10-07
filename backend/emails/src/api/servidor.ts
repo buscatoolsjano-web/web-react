@@ -22,6 +22,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { buzonPermitido } from '../config.js'
 import { ErrorGmail, type ClienteGmail } from '../google/gmail.js'
 import {
+  ClaveDesalineada,
   IndiceNoDisponible,
   NoAutenticado,
   NoEncontrado,
@@ -52,6 +53,39 @@ export interface ContextoApi {
   /** Pedidos por persona por minuto, por instancia. */
   limitePorMinuto?: number
   ahora?: () => number
+}
+
+/**
+ * Si la clave de firma sigue alineada con la de la base, para `/salud`.
+ *
+ * `ok` | `desalineada` | `sin_verificar`. Lo último cubre dos casos distintos a
+ * propósito —no hay registro configurado, o la base no contestó— porque los dos
+ * significan lo mismo para quien mira: no se sabe, y no se afirma lo que no se
+ * sabe.
+ *
+ * `/salud` sigue devolviendo 200 cuando está desalineada. El servicio ESTÁ
+ * sano: responde, lee y autoriza; lo único que no puede es firmar. Devolver 503
+ * haría que Cloud Run lo diera por caído y tirara abajo también la lectura, que
+ * es lo único que seguía funcionando durante los 22 días de octubre de 2026.
+ * La alarma es el log de error del arranque, no este código HTTP.
+ *
+ * Se cachea un minuto: `/salud` lo puede llamar un chequeo automático cada
+ * pocos segundos y esto no tiene por qué pegarle a la base cada vez.
+ */
+const VIGENCIA_FIRMA_MS = 60_000
+
+/** El caché vive en el servidor, no en el módulo: dos servidores del mismo proceso no comparten estado. */
+function miradorDeLaFirma(ctx: ContextoApi): () => Promise<string> {
+  let visto: { en: number; estado: string } | null = null
+  return async () => {
+    const ahora = (ctx.ahora ?? Date.now)()
+    if (visto && ahora - visto.en < VIGENCIA_FIRMA_MS) return visto.estado
+    if (!ctx.registro) return 'sin_verificar'
+    const coincide = await ctx.registro.claveCoincide()
+    const estado = coincide === null ? 'sin_verificar' : coincide ? 'ok' : 'desalineada'
+    visto = { en: ahora, estado }
+    return estado
+  }
 }
 
 /** Tope de un adjunto: Gmail no deja mandar más de 25 MB. */
@@ -146,6 +180,13 @@ function responderFallo(
     return json(ctx, req, res, 429, { error: 'limite_envios' }, { 'Retry-After': '600' })
   }
   if (e instanceof NoEncontrado) return json(ctx, req, res, 404, { error: `${qué}_no_disponible` })
+  if (e instanceof ClaveDesalineada) {
+    // `error` y no `warn`: esto no se arregla solo ni reintentando. Mientras
+    // pase, NADIE puede mandar un mail, y el único que puede repararlo es quien
+    // administra la infraestructura.
+    log('error', `api.${qué}.clave_desalineada`, { ...datos, motivo: e.message })
+    return json(ctx, req, res, 503, { error: 'clave_desalineada' })
+  }
   if (e instanceof IndiceNoDisponible) {
     log('error', `api.${qué}.indice`, { ...datos, motivo: e.message })
     return json(ctx, req, res, 503, { error: 'indice_no_disponible' }, { 'Retry-After': '30' })
@@ -371,6 +412,7 @@ async function manejarRedactar(
 
 export function construirServidorApi(ctx: ContextoApi) {
   const ritmo = new Ritmo(ctx.limitePorMinuto ?? 120, ctx.ahora ?? Date.now)
+  const estadoDeLaFirma = miradorDeLaFirma(ctx)
   return createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://local')
     const ruta = url.pathname
@@ -380,7 +422,9 @@ export function construirServidorApi(ctx: ContextoApi) {
         res.writeHead('Access-Control-Allow-Origin' in cors ? 204 : 403, cors)
         return void res.end()
       }
-      if (req.method === 'GET' && ruta === '/salud') return json(ctx, req, res, 200, { ok: true })
+      if (req.method === 'GET' && ruta === '/salud') {
+        return json(ctx, req, res, 200, { ok: true, firma: await estadoDeLaFirma() })
+      }
       if (req.method === 'GET' && ruta === '/gmail/thread') {
         return manejarHilo(ctx, ritmo, req, res, url.searchParams)
       }

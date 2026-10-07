@@ -8,7 +8,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AddressInfo } from 'node:net'
 import type { Server } from 'node:http'
-import { GmailFalso } from '../pruebas/dobles.js'
+import { GmailFalso, RegistroMemoria } from '../pruebas/dobles.js'
 import { ErrorGmail } from '../google/gmail.js'
 import {
   AutorizadorSupabase,
@@ -20,6 +20,7 @@ import {
   type HiloAutorizado,
 } from './autorizacion.js'
 import { analizarMensaje, armarHilo, buscarParte, charsetDe, TOPE_CUERPO } from './mensajes.js'
+import type { RegistroEnvios } from './registro.js'
 import { construirServidorApi, disposicion } from './servidor.js'
 
 const b64 = (s: string | Buffer) => Buffer.from(s).toString('base64url')
@@ -263,7 +264,7 @@ describe('servidor de la bandeja', () => {
     usuario: 'usuario-1',
   }
 
-  async function levantar(opciones: { autorizador?: Autorizador; limite?: number; buzones?: string[] } = {}) {
+  async function levantar(opciones: { autorizador?: Autorizador; limite?: number; buzones?: string[]; registro?: RegistroEnvios } = {}) {
     const gmail = new GmailFalso()
     gmail.hilosCompletos.set(HILO, { id: HILO, messages: [mensajeFixture()] })
     gmail.mensajesCompletos.set(MSG, mensajeFixture())
@@ -287,6 +288,7 @@ describe('servidor de la bandeja', () => {
       autorizador,
       gmail,
       limitePorMinuto: opciones.limite ?? 100,
+      ...(opciones.registro ? { registro: opciones.registro } : {}),
     })
     await new Promise<void>((r) => servidor!.listen(0, r))
     const { port } = servidor.address() as AddressInfo
@@ -432,5 +434,60 @@ describe('servidor de la bandeja', () => {
     expect((await pedir(rutaHilo)).status).toBe(200)
     expect((await pedir(rutaHilo)).status).toBe(200)
     expect((await pedir(rutaHilo)).status).toBe(429)
+  })
+})
+
+/**
+ * `/salud` dice si la clave de firma sigue alineada con la de la base.
+ *
+ * Nace de octubre de 2026: la migración de la base generó una clave nueva, el
+ * servicio siguió con la vieja y durante 22 días `/salud` contestó `{ok:true}`
+ * tan campante mientras nadie podía enviar un mail.
+ */
+describe('/salud y la clave de firma', () => {
+  let servidor: Server | null = null
+  afterEach(() => {
+    servidor?.close()
+    servidor = null
+  })
+
+  const salud = async (registro?: RegistroEnvios) => {
+    servidor = construirServidorApi({
+      buzones: new Set(['buzon@prueba.invalid']),
+      origenes: new Set(['https://app.prueba.invalid']),
+      autorizador: { async autorizarHilo() { throw new Error('no se usa') }, async autorizarCuenta() { throw new Error('no se usa') } } as unknown as Autorizador,
+      gmail: new GmailFalso(),
+      ...(registro ? { registro } : {}),
+    })
+    await new Promise<void>((r) => servidor!.listen(0, r))
+    const { port } = servidor.address() as AddressInfo
+    const r = await fetch(`http://127.0.0.1:${port}/salud`)
+    return { status: r.status, cuerpo: (await r.json()) as { ok: boolean; firma: string } }
+  }
+
+  it('alineada: ok', async () => {
+    const registro = new RegistroMemoria()
+    expect(await salud(registro)).toEqual({ status: 200, cuerpo: { ok: true, firma: 'ok' } })
+  })
+
+  it('desalineada: lo dice, y sigue respondiendo 200', async () => {
+    const registro = new RegistroMemoria()
+    registro.clave = false
+    const r = await salud(registro)
+    // 200 a propósito: el servicio ESTÁ sano —lee, autoriza, responde— y lo
+    // único que no puede es firmar. Un 503 haría que Cloud Run lo diera por
+    // caído y se llevaría puesta también la lectura, que es lo único que seguía
+    // funcionando durante esos 22 días.
+    expect(r).toEqual({ status: 200, cuerpo: { ok: true, firma: 'desalineada' } })
+  })
+
+  it('sin poder averiguarlo no se inventa una alarma', async () => {
+    const registro = new RegistroMemoria()
+    registro.clave = null
+    expect((await salud(registro)).cuerpo.firma).toBe('sin_verificar')
+  })
+
+  it('sin registro configurado tampoco', async () => {
+    expect((await salud()).cuerpo.firma).toBe('sin_verificar')
   })
 })

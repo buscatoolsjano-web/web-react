@@ -22,7 +22,7 @@ import { ResultadoIncierto } from '../google/reintentos.js'
 import { cabecera, leerMime } from './mimeLector.js'
 import type { EstadoEnvio, Operacion, Reserva, RegistroEnvios } from '../api/registro.js'
 import { LimiteEnvios } from '../api/registro.js'
-import { NoEncontrado } from '../api/autorizacion.js'
+import { ClaveDesalineada, NoEncontrado } from '../api/autorizacion.js'
 import { ErrorGmail, HistorialVencido } from '../google/gmail.js'
 import type { Almacen, CuentaEmail, EntradaSync, FilaHilo } from '../almacen.js'
 
@@ -324,8 +324,21 @@ export class RegistroMemoria implements RegistroEnvios {
   readonly filas = new Map<string, FilaEnvio>()
   readonly eventos: Array<{ accion: string; threadId: string | null; messageId?: string | null }> = []
   limitePorUsuario = 30
+  /**
+   * Si este registro comparte la clave con «la base». `null` = no se pudo
+   * averiguar. Los tests lo mueven para reproducir el octubre de 2026: la
+   * migración le cambió la clave a la base y el servicio siguió con la vieja.
+   */
+  clave: boolean | null = true
+
+  async claveCoincide(): Promise<boolean | null> {
+    return this.clave
+  }
 
   async reservar(_jwt: string, usuario: string, accountId: string, crid: string, operacion: Operacion): Promise<Reserva> {
+    // Con la clave desalineada la base rechaza la firma ANTES de insertar: por
+    // eso un envío roto así no deja ni rastro en el registro.
+    if (this.clave === false) throw new ClaveDesalineada('PostgREST 400 firma_invalida')
     // Sin await entre leer y escribir: atómico, como el INSERT ... ON CONFLICT.
     const clave = `${accountId}|${crid}`
     const f = this.filas.get(clave)

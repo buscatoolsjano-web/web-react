@@ -33,6 +33,7 @@ const CONOCIDOS: readonly CodigoErrorContenido[] = [
   'borrador_no_disponible',
   'envio_no_disponible',
   'envio_no_configurado',
+  'clave_desalineada',
   'sesion_invalida',
   'hilo_no_disponible',
   'adjunto_no_disponible',
@@ -89,6 +90,16 @@ export function mensajeDeError(codigo: CodigoErrorContenido): string {
       return 'No se pudo enviar: el hilo o la cuenta no están disponibles.'
     case 'envio_no_configurado':
       return 'El envío no está habilitado en este entorno.'
+    /*
+     * Dice QUÉ pasa y QUIÉN lo arregla, y no promete que reintentando se
+     * componga. Antes este caso caía en `indice_no_disponible` y la pantalla
+     * decía «La base no respondió. Probá de nuevo en unos segundos»: la base
+     * respondía perfecto —decía que la firma no era válida—, así que el consejo
+     * era inútil y mandaba a buscar donde no era. Costó 22 días en octubre de
+     * 2026.
+     */
+    case 'clave_desalineada':
+      return 'El envío está desconfigurado: el servicio de correo y la base no comparten su clave. No se arregla reintentando; avisale a un administrador.'
     default:
       return 'No se pudo cargar el contenido.'
   }

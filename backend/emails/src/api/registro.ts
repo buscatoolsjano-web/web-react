@@ -10,8 +10,8 @@
  * El formato de cada mensaje firmado tiene que coincidir, carácter por carácter,
  * con el que arma la RPC.
  */
-import { createHmac } from 'node:crypto'
-import { IndiceNoDisponible, NoAutenticado, NoEncontrado } from './autorizacion.js'
+import { createHash, createHmac } from 'node:crypto'
+import { ClaveDesalineada, IndiceNoDisponible, NoAutenticado, NoEncontrado } from './autorizacion.js'
 
 export type EstadoEnvio = 'reservado' | 'enviado' | 'fallido' | 'incierto'
 export type Operacion = 'nuevo' | 'responder' | 'responder_todos' | 'reenviar'
@@ -47,6 +47,13 @@ export interface RegistroEnvios {
     error: string | null,
   ): Promise<void>
   descartarBorrador(jwt: string, usuario: string, accountId: string, threadId: string | null): Promise<void>
+  /**
+   * ¿Este servicio y la base comparten la clave?
+   *
+   * `null` cuando no se pudo averiguar (la base no contestó, o es una versión
+   * sin la función). «No sé» no es «está mal»: no se alarma por una red lenta.
+   */
+  claveCoincide(): Promise<boolean | null>
 }
 
 export function firmar(clave: Buffer, mensaje: string): string {
@@ -89,7 +96,11 @@ export class RegistroSupabase implements RegistroEnvios {
     if (mensaje === 'limite_envios_usuario') throw new LimiteEnvios('usuario')
     if (mensaje === 'limite_envios_cuenta') throw new LimiteEnvios('cuenta')
     if (/sin_permiso|solicitud_de_otro_usuario|solicitud_inexistente/.test(mensaje)) throw new NoEncontrado(mensaje)
-    // firma_invalida, transicion_invalida u otro: es un error del servicio, no del usuario.
+    // La base dice que la firma no le cierra: este servicio y ella tienen claves
+    // distintas. Tiene su propio error —no es la base caída— porque confundirlo
+    // con una indisponibilidad manda a buscar donde no es. Ver `ClaveDesalineada`.
+    if (mensaje === 'firma_invalida') throw new ClaveDesalineada(`PostgREST ${r.status} firma_invalida`)
+    // transicion_invalida u otro: es un error del servicio, no del usuario.
     throw new IndiceNoDisponible(`PostgREST ${r.status} ${mensaje.slice(0, 60)}`)
   }
 
@@ -150,5 +161,37 @@ export class RegistroSupabase implements RegistroEnvios {
   async descartarBorrador(jwt: string, usuario: string, accountId: string, threadId: string | null): Promise<void> {
     const firma = firmar(this.clave, `descartar|${accountId}|${threadId ?? ''}|${usuario}`)
     await this.rpc(jwt, 'registrar_descarte_borrador_email', { p_account: accountId, p_thread: threadId, p_firma: firma })
+  }
+
+  /**
+   * Compara la clave con la de la base, sin que ninguna de las dos viaje.
+   *
+   * Va la HUELLA —16 hexadecimales del sha256— y la base contesta sí o no. La
+   * llamada es con la clave publicable, como `anon`, porque esto corre al
+   * ARRANCAR el servicio, cuando todavía no hay ninguna persona logueada: es
+   * justo el momento en que sirve enterarse.
+   *
+   * Existe por los 22 días de octubre de 2026 en los que no se pudo mandar un
+   * solo mail y nadie lo supo: la migración de la base a São Paulo generó una
+   * clave nueva —la genera ella, con `gen_random_bytes`— y el servicio siguió
+   * con la vieja. El primero en enterarse fue un usuario, tres semanas después.
+   */
+  async claveCoincide(): Promise<boolean | null> {
+    const huella = createHash('sha256').update(this.clave).digest('hex').slice(0, 16)
+    try {
+      const r = await this.pedir(`${this.url}/rest/v1/rpc/clave_api_email_coincide`, {
+        method: 'POST',
+        headers: {
+          apikey: this.clavePublica,
+          Authorization: `Bearer ${this.clavePublica}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ p_huella: huella }),
+      })
+      if (!r.ok) return null
+      return (await r.json()) === true
+    } catch {
+      return null
+    }
   }
 }

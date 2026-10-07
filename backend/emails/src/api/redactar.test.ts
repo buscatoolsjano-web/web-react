@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest'
 import { createHash, randomUUID } from 'node:crypto'
 import { GmailFalso, RegistroMemoria } from '../pruebas/dobles.js'
 import { cabecera, decodificarPalabras, leerMime, type ParteLeida } from '../pruebas/mimeLector.js'
-import { NoEncontrado, type Autorizador } from './autorizacion.js'
+import { ClaveDesalineada, NoEncontrado, type Autorizador } from './autorizacion.js'
 import { construirMime, direccionValida, MimeInvalido, nombreArchivo } from './mime.js'
 import { htmlATexto, referencias, textoAHtml } from './redaccion.js'
 import {
@@ -745,5 +745,47 @@ describe('firma HMAC', () => {
     expect(a).toMatch(/^[0-9a-f]{64}$/)
     expect(firmar(clave, 'reservar|c|r|nuevo|u1')).toBe(a)
     expect(firmar(clave, 'reservar|c|r|nuevo|u2')).not.toBe(a)
+  })
+})
+
+/**
+ * La clave desalineada, que en octubre de 2026 dejó 22 días sin poder enviar.
+ *
+ * La base genera esa clave sola, con `gen_random_bytes`, cuando se instala el
+ * esquema. Al migrar el proyecto a São Paulo salió una nueva y el servicio
+ * siguió con la vieja. Lo que se prueba acá es lo que hizo que tardara tanto en
+ * encontrarse: que el error se distinga de «la base no responde», y que el
+ * servicio pueda darse cuenta solo en vez de esperar a que alguien lo intente.
+ */
+describe('clave desalineada', () => {
+  it('no se confunde con la base caída: es su propio error', async () => {
+    const { ctx, registro } = armar()
+    registro.clave = false
+    await expect(enviar(ctx, JWT, { ...base(), client_request_id: randomUUID() })).rejects.toThrow(ClaveDesalineada)
+  })
+
+  it('y no deja rastro en el registro: la base rechaza antes de insertar', async () => {
+    const { ctx, registro } = armar()
+    registro.clave = false
+    await enviar(ctx, JWT, { ...base(), client_request_id: randomUUID() }).catch(() => undefined)
+    expect(registro.filas.size).toBe(0)
+    expect(registro.eventos).toHaveLength(0)
+  })
+
+  it('con la clave alineada, el envío sale', async () => {
+    const { ctx, registro } = armar()
+    const r = await enviar(ctx, JWT, { ...base(), client_request_id: randomUUID() })
+    expect(r.estado).toBe('enviado')
+    expect(registro.filas.size).toBe(1)
+  })
+
+  it('el servicio puede preguntarle a la base si comparten la clave', async () => {
+    const { registro } = armar()
+    expect(await registro.claveCoincide()).toBe(true)
+    registro.clave = false
+    expect(await registro.claveCoincide()).toBe(false)
+    // «No sé» es un tercer estado a propósito: una red lenta no es una alarma.
+    registro.clave = null
+    expect(await registro.claveCoincide()).toBeNull()
   })
 })

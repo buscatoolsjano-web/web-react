@@ -77,7 +77,16 @@ function montar(adjunto = adj(), onImportarOc?: (a: File) => void) {
 describe('<VisorAdjunto> · importar desde la vista previa', () => {
   it('con un PDF ofrece importarlo como OC', async () => {
     montar(adj(), vi.fn())
-    expect(await screen.findByRole('button', { name: 'Importar como OC' })).toBeEnabled()
+    /*
+     * Se espera a que se HABILITE, no a que aparezca.
+     *
+     * El botón se renderiza desde el primer momento, deshabilitado hasta que
+     * llegan los bytes. `findBy*` lo encuentra enseguida —existe— y afirmar
+     * ahí mismo que está habilitado es una carrera: pasa cuando el blob llega
+     * primero y falla cuando la máquina está ocupada. Cayó en una corrida
+     * completa, y era el test el que estaba mal, no la pantalla.
+     */
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Importar como OC' })).toBeEnabled())
   })
 
   it('entrega un File armado con los bytes que YA tenía a la vista', async () => {

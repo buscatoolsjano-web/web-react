@@ -284,14 +284,39 @@ if (process.env['NODE_ENV'] !== 'test' && process.env['MODO'] === 'api') {
   const cfg = leerConfigApi()
   const tokens = new ProveedorDeTokens(cfg.serviceAccount, cfg.scopeGmail)
   const puerto = Number(process.env['PORT'] ?? 8080)
+  const registro = new RegistroSupabase(cfg.supabaseUrl, cfg.supabaseClavePublica, cfg.claveHmac)
   construirServidorApi({
     buzones: cfg.buzones,
     origenes: cfg.origenes,
     autorizador: new AutorizadorSupabase(cfg.supabaseUrl, cfg.supabaseClavePublica),
-    registro: new RegistroSupabase(cfg.supabaseUrl, cfg.supabaseClavePublica, cfg.claveHmac),
+    registro,
     gmail: new ClienteGmailReal((buzon) => tokens.para(buzon)),
   }).listen(puerto, () => {
     log('info', 'arranque', { modo: 'api', puerto, buzones: cfg.buzones.size })
+    /*
+     * ¿La clave de firma sigue siendo la misma que la de la base?
+     *
+     * Se pregunta acá, al arrancar, porque es el único momento garantizado: si
+     * se esperara al primer envío, un desalineamiento puede vivir semanas sin
+     * que nadie lo note. Pasó: la migración de la base a São Paulo el 28/09/2026
+     * generó una clave nueva —la genera ella— y hasta el 07/10 nadie pudo mandar
+     * un mail. El servicio arrancó contento todas esas veces.
+     *
+     * NO se cae ni se niega a arrancar: leer la bandeja y abrir adjuntos siguen
+     * funcionando sin la firma, y tirarlos abajo por esto sería cambiar una
+     * función rota por cuatro. Grita en el log, que es lo que hay que mirar, y
+     * queda en `/salud`.
+     */
+    void registro.claveCoincide().then((coincide) => {
+      if (coincide === true) return log('info', 'arranque.firma', { estado: 'ok' })
+      if (coincide === false) {
+        return log('error', 'arranque.firma', {
+          estado: 'desalineada',
+          que_hacer: 'EMAIL_API_HMAC no coincide con app.email_api_secretos: nadie puede enviar hasta alinearlos',
+        })
+      }
+      log('info', 'arranque.firma', { estado: 'sin_verificar' })
+    })
   })
 } else if (process.env['NODE_ENV'] !== 'test') {
   const cfg = leerConfig()

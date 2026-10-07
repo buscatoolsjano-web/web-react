@@ -235,6 +235,8 @@ export type CodigoErrorContenido =
   | 'borrador_no_disponible'
   | 'envio_no_disponible'
   | 'envio_no_configurado'
+  /** El servicio y la base no comparten la clave que firma los envíos. */
+  | 'clave_desalineada'
   | 'desconocido'
 
 // ── Redactar (entrega 5) ──────────────────────────────────────────────────

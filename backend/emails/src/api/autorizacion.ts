@@ -38,6 +38,26 @@ export class IndiceNoDisponible extends Error {
   }
 }
 
+/**
+ * Este servicio y la base ya no comparten la clave que firma los envíos.
+ *
+ * Es su propio error y no un `IndiceNoDisponible` porque no tiene nada que ver
+ * con que la base esté caída, y confundirlos cuesta caro: en octubre de 2026
+ * esto estuvo roto 22 días y el cartel decía «La base no respondió. Probá de
+ * nuevo en unos segundos». La base respondía perfecto —contestaba
+ * `firma_invalida`—, así que «probá de nuevo» era un consejo inútil y la
+ * búsqueda arrancó por el lado equivocado.
+ *
+ * No se reintenta y no lo arregla quien lo ve: lo arregla un administrador
+ * alineando `EMAIL_API_HMAC` con `app.email_api_secretos`.
+ */
+export class ClaveDesalineada extends Error {
+  constructor(motivo: string) {
+    super(motivo)
+    this.name = 'ClaveDesalineada'
+  }
+}
+
 export interface HiloAutorizado {
   accountId: string
   companyId: string
