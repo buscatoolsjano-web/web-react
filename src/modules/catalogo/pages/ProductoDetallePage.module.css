@@ -67,6 +67,16 @@
   color: var(--color-text-soft);
 }
 
+/* Lo que hay que mirar antes de cotizar: que STEL tenga otro precio, o que la
+   base de la fórmula no sea un costo real. No es un error —no va en rojo—,
+   pero tampoco es un detalle al que se le pueda pasar por encima. */
+.precioAviso {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-warning-text);
+}
+
 .descripcion {
   margin: 0;
   max-width: 70ch;

@@ -4208,6 +4208,50 @@ export type Database = {
         }
         Relationships: []
       }
+      /**
+       * Fase 51: el múltiplo con el que se saca el PVP del costo.
+       *
+       * `source_id` null es la regla general de la empresa; con `source_id`, la
+       * de esa lista, que le gana. `base_key` dice qué clave de
+       * `price_list_items.prices` es la base —el `anchor` de estas listas es el
+       * PVP del proveedor, no el costo—.
+       */
+      price_formulas: {
+        Row: {
+          id: string
+          company_id: string
+          source_id: string | null
+          multiplier: number
+          base_key: string | null
+          base_is_cost: boolean
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          source_id?: string | null
+          multiplier: number
+          base_key?: string | null
+          base_is_cost?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          source_id?: string | null
+          multiplier?: number
+          base_key?: string | null
+          base_is_cost?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_attribute_categories: {
         Row: {
           attribute_definition_id: string
@@ -7852,6 +7896,29 @@ export type Database = {
       }
     }
     Views: {
+      /**
+       * Fase 51: el PVP calculado sobre el costo de la última lista.
+       *
+       * No es una tabla a propósito: STEL es el maestro de `product_prices` y
+       * una fila guardada ahí la pisaría la próxima sincronización. Al ser
+       * derivada, «recalcular» pasa solo cuando entra una lista nueva.
+       */
+      product_pvp: {
+        Row: {
+          company_id: string | null
+          product_id: string | null
+          reference: string | null
+          source_id: string | null
+          fecha_costo: string | null
+          moneda_costo: string | null
+          costo: number | null
+          multiplier: number | null
+          /** `false` = la base no es un costo real sino la venta del proveedor. */
+          base_is_cost: boolean | null
+          pvp: number | null
+        }
+        Relationships: []
+      }
       /** Fase 50: una fila por referencia con sus precios por fecha, para la planilla. */
       price_list_matrix: {
         Row: {

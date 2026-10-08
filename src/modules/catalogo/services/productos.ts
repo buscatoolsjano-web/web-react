@@ -1,7 +1,9 @@
 import { supabase } from '@/services/supabase/client'
 import type { PlanDeConsulta } from '../lib/planDeConsulta'
 import { hoyIso, precioVigenteDe } from '../lib/precioVigente'
+import { resolverPrecio, type PvpDeProducto } from '../lib/pvp'
 import { ordenarPorRelevancia, type PosicionDeRelevancia } from '../lib/relevancia'
+import { pvpDeProductos } from './pvp'
 import type {
   ImagenProducto,
   PaginaDeProductos,
@@ -206,7 +208,11 @@ function mapearListado(f: FilaProducto): ProductoListado {
         }
       : null,
     atributos: atributosDe(f.attributes),
+    /* Lo que da la TARIFA. La fórmula se superpone después, en `aplicarPvp`,
+       porque necesita una consulta más y esto es una función pura. */
     precio,
+    precioOrigen: precio === null ? 'ninguno' : 'tarifa',
+    precioTarifa: precio,
     // Desde cuándo rige ese precio: es «la última actualización» que pide la
     // ficha. Null cuando no hay precio, o cuando la fila no trae fecha.
     precioDesde: vigente?.desde ?? null,
@@ -218,6 +224,45 @@ function mapearListado(f: FilaProducto): ProductoListado {
     // foto sería peor que no mostrar nada.
     imagen: mapearImagenes(f.product_images).find((i) => i.esPrincipal) ?? null,
   }
+}
+
+/**
+ * Superpone el PVP de la fórmula sobre el precio de la tarifa (Fase 51).
+ *
+ * Va acá, en el ÚNICO lugar por donde pasan todos los caminos que leen un
+ * producto —el listado, el detalle por id y el detalle por SKU—, y no en cada
+ * pantalla. Así el catálogo, la ficha, el modal de «Añadir productos» y el
+ * comparador muestran el mismo número sin que nadie tenga que acordarse de
+ * aplicar la fórmula: el bug clásico de este tipo de cambio es la pantalla que
+ * quedó mostrando el precio viejo.
+ *
+ * Una consulta más por página. Son hasta 50 ids en un solo viaje contra una
+ * vista indexada por producto, y la alternativa —calcular el PVP en la misma
+ * consulta— obligaría a meter `price_list_items` en el embed del catálogo.
+ *
+ * SI FALLA, NO ROMPE. Un error acá deja los precios de la tarifa, que es lo que
+ * se mostraba hasta la Fase 51: el catálogo tiene que abrir igual. Para un rol
+ * externo la RLS de la vista no devuelve nada y pasa lo mismo, sin ruido.
+ */
+async function aplicarPvp<T extends ProductoListado>(
+  companyId: string,
+  productos: readonly T[],
+): Promise<T[]> {
+  const ids = productos.map((p) => p.id)
+  if (ids.length === 0) return [...productos]
+
+  let mapa: Map<string, PvpDeProducto>
+  try {
+    mapa = await pvpDeProductos(companyId, ids)
+  } catch {
+    return [...productos]
+  }
+  if (mapa.size === 0) return [...productos]
+
+  return productos.map((p) => {
+    const resuelto = resolverPrecio(mapa.get(p.id), p.precioTarifa)
+    return { ...p, precio: resuelto.monto, precioOrigen: resuelto.origen }
+  })
 }
 
 function mapearDetalle(f: FilaProductoDetalle): ProductoDetalle {
@@ -328,7 +373,7 @@ export async function consultarProductos(
   // filas salen en orden arbitrario.
   const ordenadas = ordenarPorRelevancia(filas, filasRanking)
 
-  return { productos: ordenadas.map(mapearListado), total }
+  return { productos: await aplicarPvp(plan.companyId, ordenadas.map(mapearListado)), total }
 }
 
 /**
@@ -367,7 +412,8 @@ export async function obtenerProductoPorId(
   if (error) throw new Error(`No se pudo leer el producto: ${error.message}`)
   if (!data) return null
 
-  return mapearDetalle(data as unknown as FilaProductoDetalle)
+  const detalle = mapearDetalle(data as unknown as FilaProductoDetalle)
+  return (await aplicarPvp(companyId, [detalle]))[0] ?? detalle
 }
 
 /**
@@ -459,7 +505,8 @@ export async function obtenerProductoPorSku(
   if (error) throw new Error(`No se pudo leer el producto: ${error.message}`)
   if (!data) return null
 
-  return mapearDetalle(data as unknown as FilaProductoDetalle)
+  const detalle = mapearDetalle(data as unknown as FilaProductoDetalle)
+  return (await aplicarPvp(companyId, [detalle]))[0] ?? detalle
 }
 
 /**

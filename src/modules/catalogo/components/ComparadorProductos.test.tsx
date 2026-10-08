@@ -27,6 +27,8 @@ const producto = (x: Partial<ProductoListado> & { sku: string }): ProductoListad
   atributos: {},
   precio: null,
   precioDesde: null,
+  precioOrigen: 'ninguno',
+  precioTarifa: null,
   stock: null,
   disponible: null,
   imagen: null,

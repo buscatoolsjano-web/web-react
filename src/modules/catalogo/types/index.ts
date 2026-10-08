@@ -1,3 +1,5 @@
+import type { OrigenDePrecio } from '../lib/pvp'
+
 /**
  * Cómo se ordena el catálogo (Fase 22 · paridad, #13; stock en Fase 25 · E2).
  *
@@ -211,8 +213,24 @@ export interface ProductoListado {
   marca: MarcaResumen | null
   categoria: { id: string; nombre: string; slug: string } | null
   atributos: Record<string, unknown>
-  /** null = sin precio en la lista vigente. Se muestra "Consultar". */
+  /**
+   * El precio que APLICA. null = no hay, y se muestra "Consultar".
+   *
+   * Desde la Fase 51 puede venir de la fórmula (costo × múltiplo) y no de la
+   * tarifa de STEL: `precioOrigen` dice de cuál de las dos, y `precioTarifa`
+   * conserva la otra para poder compararlas.
+   */
   precio: number | null
+  /** De dónde salió `precio`. */
+  precioOrigen: OrigenDePrecio
+  /**
+   * Lo que STEL tiene cargado en la tarifa, siempre.
+   *
+   * Se conserva aunque mande la fórmula: son 84 productos de SPEEDRILL donde
+   * STEL tiene algo que no sigue ninguna regla —de ×2,33 a ×6,73 sobre el mismo
+   * costo— y esconder la diferencia sería esconder lo que hay que revisar.
+   */
+  precioTarifa: number | null
   /**
    * Desde cuándo rige ese precio, en ISO. Es la fecha de su última
    * actualización (Fase 51).

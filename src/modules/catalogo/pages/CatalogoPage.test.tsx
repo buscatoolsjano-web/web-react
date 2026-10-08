@@ -84,6 +84,8 @@ const producto = (i: number): ProductoListado => ({
   atributos: {},
   precio: i === 2 ? null : 100,
   precioDesde: null,
+  precioOrigen: i === 2 ? 'ninguno' : 'tarifa',
+  precioTarifa: i === 2 ? null : 100,
   stock: null,
   disponible: null,
   imagen: null,

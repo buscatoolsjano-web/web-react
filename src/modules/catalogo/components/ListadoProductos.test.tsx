@@ -70,6 +70,8 @@ const producto = (p: Partial<ProductoListado> = {}): ProductoListado => ({
   atributos: { encastre: '1/4 HEX', largo: '200', medida: '8' },
   precio: 83.37,
   precioDesde: null,
+  precioOrigen: 'tarifa',
+  precioTarifa: 83.37,
   stock: { real: 16, virtual: 16 },
   disponible: null,
   imagen: null,

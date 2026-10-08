@@ -25,6 +25,8 @@ function producto(p: Partial<ProductoDetalle> = {}): ProductoDetalle {
     atributos: {},
     precio: null,
     precioDesde: null,
+    precioOrigen: 'ninguno',
+    precioTarifa: null,
     stock: { real: 0, virtual: 0 },
     disponible: null,
     imagen: null,

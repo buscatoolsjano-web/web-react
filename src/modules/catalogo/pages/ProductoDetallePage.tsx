@@ -24,6 +24,7 @@ import { RelacionadosProducto } from '../components/RelacionadosProducto'
 import { EditorProducto } from '../components/EditorProducto'
 import { LinksDeCompra } from '../components/LinksDeCompra'
 import { edicionDesdeProducto, puedeEditarProductos } from '../lib/edicionProducto'
+import { explicarPvp, margenSobreCosto } from '../lib/pvp'
 import { guardarProducto, type EdicionProducto } from '../services/edicionProducto'
 import {
   useAtributosPorCategoria,
@@ -33,7 +34,8 @@ import {
   useMarcas,
 } from '../hooks/useCatalogoFacetas'
 import { useDisponibilidad, useMovimientos, useProducto, useSimilares } from '../hooks/useProductos'
-import { formatearCantidad, formatearFechaDePrecio } from '../lib/formato'
+import { usePvpDeProducto } from '../hooks/usePvp'
+import { formatearCantidad, formatearFechaDePrecio, formatearPrecio } from '../lib/formato'
 import { hojaDeCatalogo } from '../lib/hojaCatalogo'
 import styles from './ProductoDetallePage.module.css'
 
@@ -68,8 +70,27 @@ export function ProductoDetallePage() {
   const [verHistorial, setVerHistorial] = useState(false)
   const movimientos = useMovimientos(producto?.id ?? null, verHistorial)
 
-  /* Desde cuándo rige el precio que se muestra arriba (Fase 51). */
+  /* Desde cuándo rige el precio de la tarifa (Fase 51). */
   const fechaDelPrecio = formatearFechaDePrecio(producto?.precioDesde ?? null)
+
+  /*
+   * El PVP de la fórmula (Fase 51).
+   *
+   * Le gana al precio de la tarifa cuando existe, porque es el que se va a
+   * cotizar. El de STEL se sigue mostrando debajo cuando difieren: son 84
+   * productos de SPEEDRILL donde STEL tiene cargado algo sin regla —de ×2,33 a
+   * ×6,73 sobre el mismo costo— y esconder la diferencia sería esconder
+   * justamente lo que hay que revisar.
+   */
+  const pvp = usePvpDeProducto(producto?.id ?? null)
+  const margen = pvp.data ? margenSobreCosto(pvp.data) : null
+  /* El precio ya viene resuelto del servicio; acá sólo hace falta saber si la
+     tarifa de STEL dice otra cosa, para poder mostrarla al lado. */
+  const difiereDeStel =
+    producto?.precioOrigen === 'formula' &&
+    producto.precio !== null &&
+    producto.precioTarifa !== null &&
+    Math.abs(producto.precio - producto.precioTarifa) > 0.01
 
   /*
    * La edición (Fase 40). Lo que se está editando vive acá y no en la URL: es
@@ -202,24 +223,64 @@ export function ProductoDetallePage() {
         <div className={styles.resumen}>
           <dl className={styles.destacados}>
             <div className={styles.dato}>
-              <dt className={styles.datoEtiqueta}>Precio{porDefecto ? ` · ${porDefecto.nombre}` : ''}</dt>
+              <dt className={styles.datoEtiqueta}>
+                {producto.precioOrigen === 'formula'
+                  ? 'Precio · fórmula'
+                  : `Precio${porDefecto ? ` · ${porDefecto.nombre}` : ''}`}
+              </dt>
               <dd className={styles.datoValor}>
                 <PrecioCelda monto={producto.precio} moneda={porDefecto?.moneda ?? null} />
+
                 {/*
-                  Desde cuándo rige ese precio (Fase 51).
+                  De dónde salió el número, siempre.
+
+                  Un precio que aparece solo en una ficha es un precio en el que
+                  nadie confía. Con la fórmula se dice el costo y el múltiplo;
+                  con la tarifa, desde cuándo rige. Las dos respuestas a la
+                  misma pregunta: por qué dice eso.
+                */}
+                {producto.precioOrigen === 'formula' && pvp.data ? (
+                  <>
+                    <span className={styles.precioDesde}>
+                      {explicarPvp(pvp.data, formatearPrecio)}
+                      {margen !== null ? ` · ${formatearCantidad(margen)} % de margen` : ''}
+                    </span>
+                    {pvp.data.fechaCosto !== null ? (
+                      <span className={styles.precioDesde}>
+                        Costo de la lista del {formatearFechaDePrecio(pvp.data.fechaCosto)}
+                      </span>
+                    ) : null}
+                    {/*
+                      La base de TECNA no es un costo sino la venta del
+                      proveedor: su archivo no trae costo. Se dice, porque un
+                      «margen» contra el precio de venta de otro no es un
+                      margen.
+                    */}
+                    {!pvp.data.baseEsCosto ? (
+                      <span className={styles.precioAviso}>
+                        Esta lista no trae costo: la base es el precio de venta del proveedor.
+                      </span>
+                    ) : null}
+                  </>
+                ) : null}
+
+                {/*
+                  Desde cuándo rige el precio de la tarifa.
 
                   Un precio sin fecha no se puede usar para decidir: no se sabe
                   si es de la lista de este mes o de hace dos años. Sale del
-                  `valid_from` de la fila vigente, así que es la fecha desde la
-                  que el producto cuesta eso.
-
-                  Se calla cuando no hay precio —ahí dice «Consultar» y una
-                  fecha al lado no significaría nada— y cuando la fila no trae
-                  fecha, en vez de inventar un «sin fecha» que ocupa un renglón
-                  para no decir nada.
+                  `valid_from` de la fila vigente.
                 */}
-                {producto.precio !== null && fechaDelPrecio !== null ? (
+                {producto.precioOrigen === 'tarifa' && fechaDelPrecio !== null ? (
                   <span className={styles.precioDesde}>Actualizado el {fechaDelPrecio}</span>
+                ) : null}
+
+                {/* Lo que STEL tiene cargado, cuando no coincide con la fórmula. */}
+                {difiereDeStel ? (
+                  <span className={styles.precioAviso}>
+                    En STEL figura {formatearPrecio(producto.precioTarifa, porDefecto?.moneda ?? null)}
+                    {fechaDelPrecio !== null ? ` desde el ${fechaDelPrecio}` : ''}.
+                  </span>
                 ) : null}
               </dd>
             </div>

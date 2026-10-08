@@ -1,5 +1,7 @@
 import { supabase } from '@/services/supabase/client'
 import { precioVigenteDe } from '@/modules/catalogo/lib/precioVigente'
+import { resolverPrecio } from '@/modules/catalogo/lib/pvp'
+import { pvpDeProductos } from '@/modules/catalogo/services/pvp'
 
 export interface ProductoParaLinea {
   id: string
@@ -103,7 +105,7 @@ export async function buscarProductos(
   const hoy = new Date().toISOString().slice(0, 10)
 
   // Se respeta el orden del ranking: la RPC ya ordenó por relevancia.
-  return ids.flatMap((id) => {
+  const deLaTarifa = ids.flatMap((id) => {
     const p = porId.get(id)
     if (!p) return []
     return [{
@@ -117,6 +119,40 @@ export async function buscarProductos(
       tarifaNombre: lista?.name ?? null,
     }]
   })
+
+  return conPvp(companyId, deLaTarifa)
+}
+
+/**
+ * Superpone el PVP de la fórmula sobre el precio de la tarifa (Fase 51).
+ *
+ * TIENE que estar en los DOS caminos que agregan una línea. El catálogo ya
+ * aplica la fórmula —`aplicarPvp` en `modules/catalogo/services/productos`—,
+ * así que sin esto el mismo producto entraría con un precio distinto según se
+ * agregara desde el modal de «Añadir productos» o desde el buscador del
+ * editor. Dos precios para el mismo producto en la misma pantalla es peor que
+ * no tener la fórmula.
+ *
+ * El múltiplo ya viene aplicado desde la vista; acá sólo se elige cuál manda.
+ * Si la consulta falla quedan los precios de la tarifa: una cotización se tiene
+ * que poder cargar igual.
+ */
+async function conPvp(
+  companyId: string,
+  productos: readonly ProductoParaLinea[],
+): Promise<ProductoParaLinea[]> {
+  if (productos.length === 0) return []
+  try {
+    const mapa = await pvpDeProductos(companyId, productos.map((p) => p.id))
+    if (mapa.size === 0) return [...productos]
+    return productos.map((p) => {
+      const pvp = mapa.get(p.id)
+      if (!pvp) return p
+      return { ...p, precio: resolverPrecio(pvp, p.precio).monto }
+    })
+  } catch {
+    return [...productos]
+  }
 }
 
 export type MotivoPrecio = 'ok' | 'sin_tarifa' | 'sin_precio_en_tarifa' | 'otra_moneda'
@@ -195,7 +231,7 @@ export async function productosPorId(
   )
   const hoy = new Date().toISOString().slice(0, 10)
 
-  return ids.flatMap((id) => {
+  const deLaTarifa = ids.flatMap((id) => {
     const p = porId.get(id)
     if (!p) return []
     return [{
@@ -209,4 +245,6 @@ export async function productosPorId(
       tarifaNombre: lista?.name ?? null,
     }]
   })
+
+  return conPvp(companyId, deLaTarifa)
 }

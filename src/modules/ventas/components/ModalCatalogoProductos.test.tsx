@@ -109,6 +109,8 @@ function producto(id: string, sku: string, nombre: string, precio: number | null
     atributos: {},
     precio,
     precioDesde: null,
+    precioOrigen: precio === null ? 'ninguno' : 'tarifa',
+    precioTarifa: precio,
     stock: { real: 7, virtual: 9 },
     disponible: null,
     imagen: null,
