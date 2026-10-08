@@ -4,6 +4,7 @@ import { MAXIMO_PARTES, partesDeDescripcion, type DatosProductoImpreso } from '.
 
 const def = (key: string, label: string, over: Partial<DefinicionAtributo> = {}): DefinicionAtributo => ({
   key,
+  enFicha: true,
   label,
   unidad: null,
   tipo: 'text',

@@ -139,6 +139,20 @@ export interface DefinicionAtributo {
   enumerada: boolean
   /** Los valores permitidos, en orden. Vacío cuando no es enumerada. */
   opciones: string[]
+  /**
+   * `false` = residuo de la importación, no una característica del producto
+   * (Fase 43).
+   *
+   * Seis claves —`catalogo_id`, `catalogo_pagina`, `codigo`, `categoria_full`,
+   * `marca_disp` y `modelo`— se listaban en la ficha como si fueran datos
+   * técnicos. Dos de ellas repiten columnas que ya están en la tabla y las
+   * otras cuatro son plomería del import.
+   *
+   * El dato NO se borra y se sigue usando: la hoja de catálogo necesita
+   * `catalogo_id` y `catalogo_pagina` para encontrar la página escaneada. Lo
+   * que cambia es que deja de mostrarse como característica.
+   */
+  enFicha: boolean
 }
 
 export interface ListaDePrecios {

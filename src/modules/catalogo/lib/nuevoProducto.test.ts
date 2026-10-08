@@ -195,6 +195,7 @@ describe('Kilos a gramos', () => {
 describe('Los atributos que se ofrecen al cargar', () => {
   const def = (key: string, filtrable: boolean, posicion: number): DefinicionAtributo => ({
     key,
+    enFicha: true,
     label: key,
     unidad: null,
     tipo: 'text',

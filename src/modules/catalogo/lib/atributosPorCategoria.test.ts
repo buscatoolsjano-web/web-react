@@ -4,6 +4,7 @@ import type { DefinicionAtributo } from '../types'
 
 const def = (key: string, filtrable = true): DefinicionAtributo => ({
   key,
+  enFicha: true,
   label: key,
   unidad: null,
   tipo: 'text',

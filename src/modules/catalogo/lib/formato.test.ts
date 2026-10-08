@@ -9,9 +9,9 @@ import {
 import type { DefinicionAtributo } from '../types'
 
 const DEFS: DefinicionAtributo[] = [
-  { key: 'torq_max', label: 'Torque máximo', unidad: 'Nm', tipo: 'number', filtrable: true, posicion: 1, enumerada: false, opciones: [] },
-  { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'text', filtrable: true, posicion: 2, enumerada: false, opciones: [] },
-  { key: 'medida', label: 'Medida', unidad: null, tipo: 'text', filtrable: true, posicion: 3, enumerada: false, opciones: [] },
+  { key: 'torq_max', label: 'Torque máximo', unidad: 'Nm', tipo: 'number', filtrable: true, posicion: 1, enumerada: false, opciones: [], enFicha: true },
+  { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'text', filtrable: true, posicion: 2, enumerada: false, opciones: [], enFicha: true },
+  { key: 'medida', label: 'Medida', unidad: null, tipo: 'text', filtrable: true, posicion: 3, enumerada: false, opciones: [], enFicha: true },
 ]
 
 describe('formatearPrecio', () => {
@@ -73,9 +73,49 @@ describe('presentarAtributos', () => {
 
   it('muestra los booleanos como Sí/No', () => {
     const defs: DefinicionAtributo[] = [
-      { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'boolean', filtrable: false, posicion: 1, enumerada: false, opciones: [] },
+      { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'boolean', filtrable: false, posicion: 1, enumerada: false, opciones: [], enFicha: true },
     ]
     expect(presentarAtributos({ encastre: true }, defs)[0]?.valor).toBe('Sí')
   })
 })
 
+
+/*
+ * Lo que NO es una característica del producto (Fase 43).
+ *
+ * Seis claves eran residuo de la importación y se listaban en la ficha como si
+ * fueran datos técnicos: el id del catálogo, la página, el código alternativo,
+ * la categoría completa, la marca «de display» y el modelo. Las dos últimas
+ * repiten columnas que ya están en la tabla.
+ *
+ * El dato no se borra —la hoja de catálogo necesita `catalogo_id` y
+ * `catalogo_pagina` para encontrar la página escaneada—: deja de mostrarse.
+ */
+describe('presentarAtributos · el residuo de la importación', () => {
+  const def = (key: string, enFicha: boolean): DefinicionAtributo => ({
+    key, label: key, unidad: null, tipo: 'text', filtrable: false,
+    posicion: 1, enumerada: false, opciones: [], enFicha,
+  })
+
+  it('no lista lo que no es una característica', () => {
+    const defs = [def('encastre', true), def('catalogo_id', false), def('modelo', false)]
+    const salida = presentarAtributos(
+      { encastre: '1/4 QC', catalogo_id: 'speedrill', modelo: 'J2310H' },
+      defs,
+    )
+    expect(salida.map((a) => a.key)).toEqual(['encastre'])
+  })
+
+  /*
+   * Una definición SIN el campo tiene que mostrarse.
+   *
+   * Es el caso de una base sin la migración. Con `!def.enFicha` el `undefined`
+   * escondería TODOS los atributos de golpe —la ficha se vacía y nadie sabe
+   * por qué—, así que la comparación es contra `false` a propósito.
+   */
+  it('una definición sin el campo se muestra, no se esconde', () => {
+    const viejo = { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'text' as const,
+      filtrable: true, posicion: 1, enumerada: false, opciones: [] } as unknown as DefinicionAtributo
+    expect(presentarAtributos({ encastre: '1/4 QC' }, [viejo])).toHaveLength(1)
+  })
+})

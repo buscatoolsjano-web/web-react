@@ -4138,6 +4138,8 @@ export type Database = {
           /** Fase 30: si es true, el valor sale de `product_attribute_options`. */
           is_enumerated: boolean
           is_filterable: boolean
+          /** Fase 43: false = residuo del import, no se lista como caracteristica. */
+          show_in_sheet: boolean
           key: string
           label: string
           position: number
@@ -4151,6 +4153,8 @@ export type Database = {
           id?: string
           is_enumerated?: boolean
           is_filterable?: boolean
+          /** Fase 43: false = residuo del import, no se lista como caracteristica. */
+          show_in_sheet?: boolean
           key: string
           label: string
           position?: number
@@ -4164,6 +4168,8 @@ export type Database = {
           id?: string
           is_enumerated?: boolean
           is_filterable?: boolean
+          /** Fase 43: false = residuo del import, no se lista como caracteristica. */
+          show_in_sheet?: boolean
           key?: string
           label?: string
           position?: number

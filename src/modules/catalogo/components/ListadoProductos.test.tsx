@@ -78,8 +78,8 @@ const producto = (p: Partial<ProductoListado> = {}): ProductoListado => ({
 })
 
 const definiciones = [
-  { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'text' as const, filtrable: true, posicion: 1, enumerada: false, opciones: [] },
-  { key: 'largo', label: 'Largo', unidad: 'mm', tipo: 'text' as const, filtrable: true, posicion: 2, enumerada: false, opciones: [] },
+  { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'text' as const, filtrable: true, posicion: 1, enumerada: false, opciones: [], enFicha: true },
+  { key: 'largo', label: 'Largo', unidad: 'mm', tipo: 'text' as const, filtrable: true, posicion: 2, enumerada: false, opciones: [], enFicha: true },
 ]
 
 const montar = (props: Partial<Parameters<typeof ListadoProductos>[0]> = {}) =>

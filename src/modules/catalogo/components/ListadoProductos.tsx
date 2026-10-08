@@ -90,7 +90,10 @@ export interface ColumnaAccion {
   clave: string
   encabezado: ReactNode
   celda: (producto: ProductoListado) => ReactNode
-  className?: string
+  /* `| undefined` explícito: con `exactOptionalPropertyTypes` no es lo mismo
+     omitir la clave que pasarla en undefined, y quien la arma la saca de una
+     clase de CSS Modules, que puede no existir. */
+  className?: string | undefined
 }
 
 /** Elegir 2 a 4 productos para compararlos, como el checkbox del legacy. */

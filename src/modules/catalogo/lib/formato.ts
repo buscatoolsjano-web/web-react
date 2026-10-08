@@ -53,6 +53,12 @@ function valorAString(v: unknown): string | null {
  * insertarlas, así que si aparece una es un bug que hay que ver, no algo
  * para pintar en pantalla.
  *
+ * Y desde la Fase 43 también se descarta lo que no es una característica:
+ * `catalogo_id`, `catalogo_pagina`, `codigo`, `categoria_full`, `marca_disp` y
+ * `modelo` son residuo de la importación —las dos últimas repiten columnas que
+ * ya están en la tabla— y se listaban como si fueran datos técnicos. El dato
+ * se conserva y se sigue usando: la hoja de catálogo lo necesita.
+ *
  * El orden es el de las definiciones (`position`, después `key`), no el del
  * jsonb: el orden de las claves de un jsonb no es estable.
  */
@@ -66,6 +72,11 @@ export function presentarAtributos(
   for (const [key, bruto] of Object.entries(atributos)) {
     const def = porClave.get(key)
     if (!def) continue
+    // `=== false` y no `!def.enFicha`: una definición sin el campo —una base
+    // sin la migración, un fixture viejo— tiene que MOSTRARSE. Con `!` el
+    // `undefined` escondería todos los atributos de golpe, que es el error más
+    // caro posible acá: la ficha se vacía y nadie sabe por qué.
+    if (def.enFicha === false) continue
 
     const valor = valorAString(bruto)
     if (valor === null) continue

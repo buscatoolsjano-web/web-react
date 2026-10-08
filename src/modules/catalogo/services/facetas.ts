@@ -56,7 +56,7 @@ function tipoDeDato(v: string): DefinicionAtributo['tipo'] {
  * filtrable o no.
  */
 const COLUMNAS_BASE = 'key, label, unit, data_type, is_filterable, position'
-const COLUMNAS_CON_OPCIONES = `${COLUMNAS_BASE}, is_enumerated, product_attribute_options ( value, position )`
+const COLUMNAS_CON_OPCIONES = `${COLUMNAS_BASE}, is_enumerated, show_in_sheet, product_attribute_options ( value, position )`
 
 export async function listarDefinicionesDeAtributos(
   companyId: string,
@@ -71,11 +71,12 @@ export async function listarDefinicionesDeAtributos(
 
   let { data, error } = await pedir(COLUMNAS_CON_OPCIONES)
 
-  // La lista cerrada de valores vive sólo en la base de São Paulo (Fase 30).
-  // Contra una base que todavía no la tiene, PostgREST responde 42703 y sin
-  // este reintento se caería TODO el catálogo —etiquetas, unidades y filtros—
-  // por una columna que sólo hace falta para el alta. Degrada a texto libre,
-  // que es como funcionaba antes.
+  // La lista cerrada de valores vive sólo en la base de São Paulo (Fase 30), y
+  // `show_in_sheet` sólo a partir de la Fase 43. Contra una base que todavía no
+  // las tiene, PostgREST responde 42703 y sin este reintento se caería TODO el
+  // catálogo —etiquetas, unidades y filtros— por una columna que sólo hace
+  // falta para el alta y para la ficha. Degrada a lo de antes: texto libre, y
+  // todos los atributos visibles.
   if (error?.code === '42703') {
     ;({ data, error } = await pedir(COLUMNAS_BASE))
   }
@@ -90,6 +91,7 @@ export async function listarDefinicionesDeAtributos(
     is_filterable: boolean
     position: number
     is_enumerated?: boolean
+    show_in_sheet?: boolean
     product_attribute_options?: { value: string; position: number }[]
   }
 
@@ -101,6 +103,9 @@ export async function listarDefinicionesDeAtributos(
     filtrable: d.is_filterable,
     posicion: d.position,
     enumerada: d.is_enumerated ?? false,
+    // Sin la columna (base sin la migración) se muestra, que es como
+    // funcionaba antes: esconder de más es peor que mostrar de más.
+    enFicha: d.show_in_sheet ?? true,
     // PostgREST no garantiza el orden de los embebidos: se ordena acá, por
     // posición —que sale de cuántos productos usan cada valor— y después
     // alfabético, para que la lista salga siempre igual.
@@ -159,6 +164,7 @@ export function listaPorDefecto(listas: readonly ListaDePrecios[]): ListaDePreci
 
 import type { PlanDeConsulta } from '../lib/planDeConsulta'
 import { clasificarFaceta } from '../lib/clasificarFaceta'
+import { atributosEnOrden, type AtributosCrudos } from '../lib/ordenDeAtributos'
 import type { Facetas } from '../types'
 
 /** Forma cruda que devuelve `public.catalog_facets`. */
@@ -168,11 +174,13 @@ interface RespuestaFacetas {
   categories: { id: string; slug: string; name: string; count: number }[]
   product_types: { value: string; count: number }[]
   series: { value: string; count: number }[]
-  attributes: Record<
-    string,
-    { label: string; unit: string | null; values: { value: string; count: number }[] }
-  >
+  /**
+   * Array desde la Fase 43; objeto `{clave: {…}}` antes. Ver
+   * `atributosEnOrden`, que acepta las dos.
+   */
+  attributes: AtributosCrudos
 }
+
 
 /**
  * Opciones disponibles para cada filtro, dado el contexto de filtros actual.
@@ -207,8 +215,12 @@ export async function obtenerFacetas(plan: PlanDeConsulta): Promise<Facetas> {
   if (error) throw new Error(`No se pudieron leer los filtros: ${error.message}`)
 
   const r = (data ?? {
-    total: 0, brands: [], categories: [], product_types: [], series: [], attributes: {},
-  }) as RespuestaFacetas
+    total: 0, brands: [], categories: [], product_types: [], series: [], attributes: [],
+    // `as unknown as`: la RPC está tipada como `Json`, y desde que
+    // `attributes` puede ser un array el tipo generado ya no solapa lo
+    // suficiente para un cast directo. La forma se valida en
+    // `atributosEnOrden`, que acepta las dos y no confía en el tipo.
+  }) as unknown as RespuestaFacetas
 
   return {
     total: Number(r.total ?? 0),
@@ -224,8 +236,8 @@ export async function obtenerFacetas(plan: PlanDeConsulta): Promise<Facetas> {
     series: (r.series ?? []).map((t) => ({
       valor: t.value, etiqueta: t.value, cantidad: t.count,
     })),
-    atributos: Object.entries(r.attributes ?? {}).map(([key, a]) =>
-      clasificarFaceta(key, a.label, a.unit, a.values),
+    atributos: atributosEnOrden(r.attributes).map((a) =>
+      clasificarFaceta(a.key, a.label, a.unit, a.values),
     ),
   }
 }
