@@ -4224,6 +4224,14 @@ export type Database = {
           multiplier: number
           base_key: string | null
           base_is_cost: boolean
+          /**
+           * `false` = registra el costo pero NO reemplaza el precio de venta.
+           *
+           * Para una marca cuyo múltiplo todavía no se decidió. Ingersoll Rand
+           * está así: su costo sale de las facturas, y el ×3 daba el 26 % del
+           * precio que STEL tiene hoy.
+           */
+          applies_to_price: boolean
           notes: string | null
           created_at: string
           updated_at: string
@@ -4235,6 +4243,7 @@ export type Database = {
           multiplier: number
           base_key?: string | null
           base_is_cost?: boolean
+          applies_to_price?: boolean
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -4246,6 +4255,7 @@ export type Database = {
           multiplier?: number
           base_key?: string | null
           base_is_cost?: boolean
+          applies_to_price?: boolean
           notes?: string | null
           created_at?: string
           updated_at?: string

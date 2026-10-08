@@ -1,0 +1,62 @@
+{
+  "_lea_esto": [
+    "Zona de renglones de las facturas de compra de Ingersoll-Rand, tal como la",
+    "devuelve el lector de PDF del Drive. Se guarda el texto CRUDO, con su",
+    "desorden, para que la carga sea auditable y repetible sin volver al Drive.",
+    "",
+    "Sólo se conserva lo que va desde el encabezado de la tabla hasta",
+    "«Instrucciones especiales»: el resto del PDF es el articulado legal, que no",
+    "aporta datos y pesa diez veces más.",
+    "",
+    "`total` es el Importe Neto de la factura. Viene del nombre del archivo y del",
+    "pie del PDF, y sirve para verificar: si la suma de los renglones leídos lo",
+    "supera, hay importes contados dos veces y no se carga nada.",
+    "",
+    "Faltan 5 facturas del mismo período (7071535, 7075365, 7078017, 7078103 y",
+    "7078788). El cargador las toma sin cambios en cuanto se agreguen acá."
+  ],
+  "proveedor": "INGERSOLL RAND",
+  "moneda": "EUR",
+  "facturas": [
+    {
+      "numero": "7069375",
+      "fecha": "2025-12-18",
+      "total": 495.26,
+      "archivo": "2025 12 18 - Ingersoll-Rand Industrial Ireland Limited - FACTURA 7069375 - EUROS 495,26 - PAP00338 - 2025T4 - TORQUETOOLS.pdf",
+      "driveId": "1lJNtB9etEnlKZ4hUlvLwnstiLVU9US4R",
+      "texto": "Línea Artículo Descripción\n\nECCN No | HTS No | Prod Code 1 RTS060PS\n\n6\n\nOMétodo Notificación Términos Fecha rigde de GENK vencimiento de envío de Pago 3PL embarque inDISTRIBUTION a27565497 l\n\nORG BEST WAY-STANDARD-TL-Ground 985737120\n\nPago a 60 días fecha de factura 16-Feb-2026\n\nFecha pedido 17-Dic-2025\n\nComentarios del pedido\n\nOrigen Cdad. Enviada UDM Precio\n\nDescuento\n\nIVA Precio\n\nRecargo Plástico (kgs) Unitario\n\n%\n\nVenta (Neto) RTS 60NM - 3/8\" PIN\n\nCN 1 EA 938,00 47,20% 0,00% 495,26 0,00 .005 RETAINER NOCLASS | 8467292000 | 395\n\nInstrucciones especiales"
+    },
+    {
+      "numero": "7069619",
+      "fecha": "2025-12-19",
+      "total": 13698.42,
+      "archivo": "2025 12 19 - Ingersoll-Rand Industrial Ireland Limited - FACTURA 7069619 - EUROS 13698,42 - PAP00338 - 2025T4 - TORQUETOOLS.pdf",
+      "driveId": "1DDgsBTAbdeUMspFP9XWz3yqE68LyMtSZ",
+      "texto": "Línea Artículo Descripción\n\nECCN No | HTS No | Prod Code 1 IQI2LT025\n\n0PQ4\n\nOMétodo Notificación Términos Fecha rigde de GENK vencimiento de envío de Pago 3PL embarque inDISTRIBUTION a27565497 l\n\nORG BEST WAY-STANDARD-TL-Ground 985756305\n\nPago a 60 días fecha de factura 17-Feb-2026\n\nFecha pedido 17-Dic-2025\n\nComentarios del pedido\n\nOrigen Cdad. Enviada UDM Precio\n\nDescuento\n\nIVA Precio\n\nRecargo Plástico (kgs) Unitario\n\n%\n\nVenta (Neto) IQI\n\nCN 1 EA 5.446,00 47,20% 0,00% 2.875,49 0,00 .005 TRANSDUCERIZED, PUSH TO START -1/4\" QUICK CHANGE NOCLASS | 8467298500 | 395 2 IQI11-FM IQI SERIES\n\nCONTROLLER WITH FIELDBUS AND MES NOCLASS | 8537109199 | 395\n\nCN 1 EA 3.399,00 47,20% 0,00% 1.794,67 0,00 .005\n\n3 IQI-CABLE\n\n\\-2M\n\nCN 1 EA 110,00 47,20% 0,00% 58,08 0,00 .005\n\n4 IQI-CABLE\n\n\\-5M\n\nIQI CABLE 2 METER NOCLASS | 8544429090 | 395 IQI CABLE 5 METER\n\nCN 1 EA 231,00 47,20% 0,00% 121,97 0,00 .005 NOCLASS | 8544429090 | 395 5 IQI-PS-2 IQI CONTROLLER POWER SUPPLY, 400W NOCLASS | 8504408390 | 395\n\nCN 1 EA 499,00 47,20% 0,00% 263,47 0,00 .005\n\n6 92073956 BLD-1 BALANCER B\n\nNOCLASS | 8428909000 | 398\n\nIT 10 EA 84,00 47,20% 0,00% 443,50 0,00 .05\n\n7 92073972 BLD-3 BALANCER B\n\nNOCLASS | 8428909000 | 398\n\nIT 10 EA 103,00 47,20% 0,00% 543,80 0,00 .05\n\n8 BC1124-E U\n\nCN 2 EA 112,00 34,23% 0,00% 147,32 0,00 .002\n\n9 475109650 01\n\nCHARGER, 12V/20V, 12V/20V, EU NOCLASS | 8504408390 | DEFAULT\n\nUS 2 EA 28,00 52,46% 0,00% 26,62 0,00 .002\n\n10 475159030 01\n\nBATTERY BOOT, BL2005 - BL2005-BOOT NOCLASS | 3926909790 | DEFAULT BATTERY, 20V,\n\nTW 4 EA 211,00 52,48% 0,00% 401,08 0,00 .02 2.5AH NOCLASS | 8507600090 | 354\n\nPágina 2 de 3\n\n7069619\n\nFactura\n\n11 QCP2A30\n\nCORDLESS CLUTCH\n\nTW 2 EA 1.402,00 47,20% 0,00% 1.480,52 0,00 .01 S6-K2-EU\n\nPROGRAMMABLE 30 NM ANGLE - 3/8\" SQUARE DR BAT KIT NOCLASS | 8467292000 | 395 12 QCP2P02 Q4-K2-EU\n\nTW 1 EA 1.001,00 47,20% 0,00% 528,53 0,00 .005\n\n13 QCP2P04 Q4-K2-EU\n\nCORDLESS CLUTCH PROGRAMMABLE 2 NM PISTOL - 1/4\" QUICK-CHANGE BAT KIT NOCLASS | 8467292000 | 395\n\nTW 3 EA 1.001,00 47,20% 0,00% 1.585,59 0,00 .015\n\n14 QCP2P12 Q4-K2-EU\n\nCORDLESS CLUTCH PROGRAMMABLE 4 NM PISTOL - 1/4\" QUICK-CHANGE BAT KIT NOCLASS | 8467292000 | 395\n\nTW 5 EA 1.001,00 47,20% 0,00% 2.642,65 0,00 .025\n\n15 RTS025PQ\n\n4\n\nCORDLESS CLUTCH PROGRAMMABLE 12 NM PISTOL - 1/4\" QUICK-CHANGE BAT KIT NOCLASS | 8467292000 | 395 RTS 25NM - 1/4\" CN QUICK CHANGE NOCLASS | 8467292000 | 395 16 475159020\n\nBATTERY, 20V, TW 01\n\n5.0AH NOCLASS | 8507600090 | 354\n\nInstrucciones especiales"
+    },
+    {
+      "numero": "7070265",
+      "fecha": "2025-12-22",
+      "total": 2695.98,
+      "archivo": "2025 12 22 - Ingersoll-Rand Industrial Ireland Limited - FACTURA 7070265 - EUROS 2695,98 - PAP00338 - 2025T4 - TORQUETOOLS.pdf",
+      "driveId": "1EsE5xHEIsY5-rwBQjYATzJChV4nsFqHz",
+      "texto": "Línea Artículo Descripción\n\nECCN No | HTS No | Prod Code 1 MTC-SW- OPT4-EU\n\nOMétodo Notificación Términos Fecha rigde BUSSY de vencimiento de envío de Pago MANUFACTURING embarque ina27595601 l\n\nORG BEST WAY-STANDARD-TL-Ground Pago a 60 días fecha de factura 20-Feb-2026\n\nFecha pedido 22-Dic-2025\n\nComentarios del pedido\n\nOrigen Cdad. Enviada UDM Precio\n\nDescuento\n\nIVA Precio\n\nRecargo Plástico (kgs) Unitario\n\n%\n\nVenta (Neto) FR 1 EA 5.877,00 58,00% 0,00% 2.468,34 0,00 0\n\nNúm de pedido cliente\n\nSOFTWARE LICENSE PACKAGE 4 TOOLS NOCLASS | 8523519000 | DEFAULT\n\n27595660 Fecha pedido 22-Dic-2025\n\nCondiciones de envío\n\nPAP00338 LICENSE Número de\n\npedido\n\nFCA (Free Carrier) All transport\n\nAlmacén de\n\nBUSSY MANUFACTURING ORG Comentarios del modes\n\nsuministro\n\npedido\n\nLínea Artículo Descripción\n\nRecargo Plástico (kgs) ECCN No | HTS No | Prod Code 1 MTC-SW-B\n\nS-1-EU\n\nOrigen Cdad. Enviada UDM Precio\n\nDescuento\n\nIVA Precio Unitario\n\n%\n\nVenta (Neto) MTC ACTIVATION, 1\n\nFR 1 EA 542,00 58,00% 0,00% 227,64 0,00 0 TOOL ADD ON SOFTWARE PACKAGE NOCLASS | 395\n\nInstrucciones especiales"
+    },
+    {
+      "numero": "7070689",
+      "fecha": "2025-12-23",
+      "total": 6088.90,
+      "archivo": "2025 12 23 - Ingersoll-Rand Industrial Ireland Limited - FACTURA 7070689 - EUROS 6088,9 - PAP00338 - 2025T4 - TORQUETOOLS.pdf",
+      "driveId": "1Z4rj0T8lt8aZLiKLVK6mcYXTpmmv9Lcn",
+      "texto": "Línea Artículo Descripción\n\nECCN No | HTS No | Prod Code 1 QXXD2PT 004PQ04- EU\n\nOMétodo Notificación Términos Fecha rigde BUSSY de vencimiento de envío de Pago MANUFACTURING embarque ina27565497 l\n\nORG BEST WAY-STANDARD-TL-Ground FEDEX 8873667039\n\nPago a 60 días fecha de factura 21-Feb-2026\n\nFecha pedido 17-Dic-2025\n\nComentarios del pedido\n\nOrigen Cdad. Enviada UDM Precio\n\nDescuento\n\nIVA Precio\n\nRecargo Plástico (kgs) Unitario\n\n%\n\nVenta (Neto) FR 1 EA 2.686,00 47,20% 0,00% 1.418,21 0,00 0\n\n2 QXXD2AT 005PQ04- EU\n\nQX ZIGBEE AND BLUETOOTH, DISPLAY, 20V PISTOL 4 NM STANDARD ADAPTABLE QUICK CHANGE 1/4 INCH NOCLASS | 8467292000 | 395\n\nFR 1 EA 3.877,00 47,20% 0,00% 2.047,06 0,00 0\n\n3 QXXD2AT\n\n027ES06-E U\n\nQX ZIGBEE AND BLUETOOTH, DISPLAY, 20V ANGLE 5 NM STANDARD QUICK CONNECT 1/4 INCH NOCLASS | 8467292000 | 395 QX ZIGBEE AND\n\nFR 1 EA 4.969,00 47,20% 0,00% 2.623,63 0,00 0 BLUETOOTH, DISPLAY, 20V ANGLE 27 NM ETS SQUARE 3/8 INCH NOCLASS | 8467292000 | 395\n\nInstrucciones especiales"
+    },
+    {
+      "numero": "7071092",
+      "fecha": "2025-12-24",
+      "total": 11563.20,
+      "archivo": "2025 12 24 - Ingersoll-Rand Industrial Ireland Limited - FACTURA 7071092 - EUROS 11563,2 - PAP00338 - 2025T4 - TORQUETOOLS.pdf",
+      "driveId": "1Al4nL_hWJfgq92wqQ0ZHofpOxfbXDh-C",
+      "texto": "Línea Artículo Descripción\n\nECCN No | HTS No | Prod Code 1 QCXD11-F M\n\nOMétodo Notificación Términos Fecha rigde BUSSY de vencimiento de envío de Pago MANUFACTURING embarque ina27565497 l\n\nORG BEST WAY-STANDARD-TL-Ground FEDEX 8873 9398 1924\n\nPago a 60 días fecha de factura 22-Feb-2026\n\nFecha pedido 17-Dic-2025\n\nComentarios del pedido\n\nOrigen Cdad. Enviada UDM Precio\n\nDescuento\n\nIVA Precio\n\nRecargo Plástico (kgs) Unitario\n\n%\n\nVenta (Neto) INSIGHT QC\n\nUS 3 EA 7.300,00 47,20% 0,00% 11.563,20,00 0 CORDLESS\n\n0 CONTROLLER, D-TYPE, US, FIELDBUS & MES NOCLASS | 8526920090 | DEFAULT\n\nInstrucciones especiales"
+    }
+  ]
+}
