@@ -12,8 +12,10 @@
     "pie del PDF, y sirve para verificar: si la suma de los renglones leídos lo",
     "supera, hay importes contados dos veces y no se carga nada.",
     "",
-    "Faltan 5 facturas del mismo período (7071535, 7075365, 7078017, 7078103 y",
-    "7078788). El cargador las toma sin cambios en cuanto se agreguen acá."
+    "Estan las 10 facturas del periodo: 2025T4 completo y 2026T1 hasta el 27 de",
+    "enero. Dos comparten fecha (7078017 y 7078103, las dos del 23 de enero) y el",
+    "cargador las une en una sola version, porque dos envios del mismo dia son el",
+    "mismo costo."
   ],
   "proveedor": "INGERSOLL RAND",
   "moneda": "EUR",
@@ -57,6 +59,46 @@
       "archivo": "2025 12 24 - Ingersoll-Rand Industrial Ireland Limited - FACTURA 7071092 - EUROS 11563,2 - PAP00338 - 2025T4 - TORQUETOOLS.pdf",
       "driveId": "1Al4nL_hWJfgq92wqQ0ZHofpOxfbXDh-C",
       "texto": "Línea Artículo Descripción\n\nECCN No | HTS No | Prod Code 1 QCXD11-F M\n\nOMétodo Notificación Términos Fecha rigde BUSSY de vencimiento de envío de Pago MANUFACTURING embarque ina27565497 l\n\nORG BEST WAY-STANDARD-TL-Ground FEDEX 8873 9398 1924\n\nPago a 60 días fecha de factura 22-Feb-2026\n\nFecha pedido 17-Dic-2025\n\nComentarios del pedido\n\nOrigen Cdad. Enviada UDM Precio\n\nDescuento\n\nIVA Precio\n\nRecargo Plástico (kgs) Unitario\n\n%\n\nVenta (Neto) INSIGHT QC\n\nUS 3 EA 7.300,00 47,20% 0,00% 11.563,20,00 0 CORDLESS\n\n0 CONTROLLER, D-TYPE, US, FIELDBUS & MES NOCLASS | 8526920090 | DEFAULT\n\nInstrucciones especiales"
+    },
+    {
+      "numero": "7071535",
+      "fecha": "2025-12-29",
+      "total": 1585.59,
+      "archivo": "2025 12 29 - Ingersoll-Rand Industrial Ireland Limited - FACTURA 7071535 - EUROS 1585,59 - PAP00338 - 2025T4 - TORQUETOOLS.pdf",
+      "driveId": "1TIbuwfkMKFepYqjH-mlUvPNDeFt9yR-7",
+      "texto": "Línea Artículo Descripción\n\nECCN No | HTS No | Prod Code 1 QCP2P02 Q4-K2-EU\n\nOMétodo Notificación Términos Fecha rigde de GENK vencimiento de envío de Pago 3PL embarque inDISTRIBUTION a27565497 l\n\nORG BEST WAY-STANDARD-TL-Ground 986523125\n\nPago a 60 días fecha de factura 27-Feb-2026\n\nFecha pedido 17-Dic-2025\n\nComentarios del pedido\n\nOrigen Cdad. Enviada UDM Precio\n\nDescuento\n\nIVA Precio\n\nRecargo Plástico (kgs) Unitario\n\n%\n\nVenta (Neto) TW 1 EA 1.001,00 47,20% 0,00% 528,53 0,00 .005\n\n2 QCP2P04 Q4-K2-EU\n\nCORDLESS CLUTCH PROGRAMMABLE 2 NM PISTOL - 1/4\" QUICK-CHANGE BAT KIT NOCLASS | 8467292000 | 395 CORDLESS CLUTCH\n\nTW 2 EA 1.001,00 47,20% 0,00% 1.057,06 0,00 .01 PROGRAMMABLE 4 NM PISTOL - 1/4\" QUICK-CHANGE BAT KIT NOCLASS | 8467292000 | 395\n\nInstrucciones especiales"
+    },
+    {
+      "numero": "7075365",
+      "fecha": "2026-01-14",
+      "total": 2047.06,
+      "archivo": "2026 01 14 - Ingersoll-Rand Industrial Ireland Limited - FACTURA 7075365 - EUROS 2047,06 - PAP00338 - 2026T1.pdf",
+      "driveId": "1BMNDtEAHgb-19p4SPndXNovshwsj4yIK",
+      "texto": "Línea Artículo Descripción\n\nECCN No | HTS No | Prod Code 1 QXXD2AT\n\n010PS06-E U\n\nOMétodo Notificación Términos Fecha rigde BUSSY de vencimiento de envío de Pago MANUFACTURING embarque ina27565497 l\n\nORG BEST WAY-STANDARD-TL-Ground FEDEX 397744522030\n\nPago a 60 días fecha de factura 15-Mar-2026\n\nFecha pedido 17-Dic-2025\n\nComentarios del pedido\n\nOrigen Cdad. Enviada UDM Precio\n\nDescuento\n\nIVA Precio\n\nRecargo Plástico (kgs) Unitario\n\n%\n\nVenta (Neto) QX ZIGBEE AND\n\nFR 1 EA 3.794,00 46,04% 0,00% 2.047,06 0,00 0 BLUETOOTH, DISPLAY, 20V ANGLE 10 NM STANDARD SQUARE 3/8 INCH NOCLASS | 8467292000 | 395\n\nInstrucciones especiales"
+    },
+    {
+      "numero": "7078017",
+      "fecha": "2026-01-23",
+      "total": 380.16,
+      "archivo": "2026 01 23 - Ingersoll-Rand Industrial Ireland Limited - FACTURA 7078017 - EUROS 380,16 - PAP00338 - 2026T1.pdf",
+      "driveId": "14K-zeEg9n8kqcmY_C91wlU20CpBNf2CV",
+      "texto": "Línea Artículo Descripción\n\nECCN No | HTS No | Prod Code 1 92073964 BLD-2 BALANCER B\n\nNOCLASS | 8428909000 | 398\n\nOMétodo Notificación Términos Fecha rigde de GENK vencimiento de envío de Pago 3PL embarque inDISTRIBUTION a27565497 l\n\nORG BEST WAY-STANDARD-TL-Ground 990199560\n\nPago a 60 días fecha de factura 24-Mar-2026\n\nFecha pedido 17-Dic-2025\n\nComentarios del pedido\n\nOrigen Cdad. Enviada UDM Precio\n\nDescuento\n\nIVA Precio\n\nRecargo Plástico (kgs) Unitario\n\n%\n\nVenta (Neto) IT 8 EA 90,00 47,20% 0,00% 380,16 0,00 .04\n\nInstrucciones especiales"
+    },
+    {
+      "numero": "7078103",
+      "fecha": "2026-01-23",
+      "total": 95.04,
+      "archivo": "2026 01 23 - Ingersoll-Rand Industrial Ireland Limited - FACTURA 7078103 - EUROS 95,04 - PAP00338 - 2026T1.pdf",
+      "driveId": "1pU3-aoFmT0aXzHcHa7aflPInZQ37QHp5",
+      "texto": "Línea Artículo Descripción\n\nECCN No | HTS No | Prod Code 1 92073964 BLD-2 BALANCER B\n\nNOCLASS | 8428909000 | 398\n\nOMétodo Notificación Términos Fecha rigde de GENK vencimiento de envío de Pago 3PL embarque inDISTRIBUTION a27565497 l\n\nORG BEST WAY-STANDARD-TL-Ground 6597086941\n\nPago a 60 días fecha de factura 24-Mar-2026\n\nFecha pedido 17-Dic-2025\n\nComentarios del pedido\n\nOrigen Cdad. Enviada UDM Precio\n\nDescuento\n\nIVA Precio\n\nRecargo Plástico (kgs) Unitario\n\n%\n\nVenta (Neto) IT 2 EA 90,00 47,20% 0,00% 95,04 0,00 .01\n\nInstrucciones especiales"
+    },
+    {
+      "numero": "7078788",
+      "fecha": "2026-01-27",
+      "total": 157.87,
+      "archivo": "2026 01 27 - Ingersoll-Rand Industrial Ireland Limited - FACTURA 7078788 - EUROS 157,87 - PAP00338 - 2026T1.pdf",
+      "driveId": "1Zr-FTIfvG4gTEHs1aoSPHum4P53L42JM",
+      "texto": "Línea Artículo Descripción\n\nECCN No | HTS No | Prod Code 1 IQI-PS-1 IQI CONTROLLER\n\nPOWER SUPPLY， 200W NOCLASS | 8504408390 | 395\n\nOMétodo Notificación Términos Fecha rigde de GENK vencimiento de envío de Pago 3PL embarque inDISTRIBUTION a27565497 l\n\nORG BEST WAY-STANDARD-TL-Ground 990720820\n\nPago a 60 días fecha de factura 28-Mar-2026\n\nFecha pedido 17-Dic-2025\n\nComentarios del pedido\n\nOrigen Cdad. Enviada UDM Precio\n\nDescuento\n\nIVA Precio\n\nRecargo Plástico (kgs) Unitario\n\n%\n\nVenta (Neto) CN 1 EA 299,00 47,20% 0,00% 157,87 0,00 .005\n\nInstrucciones especiales"
     }
   ]
 }

@@ -151,7 +151,39 @@ if (!fuente) {
   fuente = r.data
 }
 
+/*
+ * UNA VERSIÓN POR FECHA, uniendo las facturas que compartan día.
+ *
+ * La unique de `price_list_versions` es (source, fecha, columna ancla), y hay
+ * días con dos facturas: la 7078017 y la 7078103 son las dos del 23 de enero.
+ * Indexando por fecha a secas, la segunda encontraba la versión de la primera y
+ * le borraba los renglones antes de insertar los suyos. Dos envíos del mismo
+ * día son el mismo costo, así que se juntan en una versión; si una referencia
+ * apareciera dos veces con distinto costo unitario, se avisa y se queda el
+ * primero.
+ */
+const porFecha = new Map()
 for (const f of resueltas) {
+  const previo = porFecha.get(f.fecha)
+  if (previo) {
+    previo.numeros.push(f.numero)
+    previo.renglones.push(...f.renglones)
+    previo.total += f.total
+  } else {
+    porFecha.set(f.fecha, {
+      fecha: f.fecha,
+      numeros: [f.numero],
+      renglones: [...f.renglones],
+      total: f.total,
+      archivo: f.archivo,
+      driveId: f.driveId,
+      cobertura: f.cobertura,
+    })
+  }
+}
+
+for (const f of porFecha.values()) {
+  const numero = f.numeros.join(' + ')
   let { data: version } = await sb
     .from('price_list_versions')
     .select('id')
@@ -174,23 +206,36 @@ for (const f of resueltas) {
         origin: 'factura',
         file_name: f.archivo,
         file_url: `https://drive.google.com/file/d/${f.driveId}/view`,
-        notes: `Factura de compra ${f.numero}. El costo es el neto unitario (neto del renglon / cantidad), con el descuento de distribuidor ya aplicado. Cobertura del total: ${f.cobertura} %.`,
+        notes: `Factura de compra ${numero}. El costo es el neto unitario (neto del renglon / cantidad), con el descuento de distribuidor ya aplicado. Cobertura del total: ${f.cobertura} %.`,
       })
       .select('id')
       .single()
-    if (r.error) throw new Error(`version ${f.numero}: ${r.error.message}`)
+    if (r.error) throw new Error(`version ${numero}: ${r.error.message}`)
     version = r.data
   }
 
-  /* Un mismo código puede repetirse en una factura; la unique es versión +
-     referencia, así que se queda el primero y se avisa. */
-  const vistos = new Set()
+  /*
+   * Una referencia puede repetirse dentro del día —dos envíos del mismo
+   * producto—. La unique es versión + referencia, así que se queda el primero.
+   *
+   * Si el costo unitario DIFIERE entre las dos, se avisa: significa que el
+   * proveedor cobró distinto el mismo día y hay que mirarlo, no elegir al azar.
+   * En el 23 de enero las dos facturan `92073964` al mismo unitario (47,52),
+   * así que no hay conflicto.
+   */
+  const vistos = new Map()
   const items = []
   for (const r of f.renglones) {
     if (r.ambiguo) continue
     const ref = r.codigo ?? r.base
-    if (vistos.has(ref)) continue
-    vistos.add(ref)
+    const anterior = vistos.get(ref)
+    if (anterior !== undefined) {
+      if (Math.abs(anterior - r.unitario) > 0.01) {
+        console.log(`   ⚠ ${f.fecha}: ${ref} aparece con dos costos (${anterior} y ${r.unitario}). Se queda ${anterior}.`)
+      }
+      continue
+    }
+    vistos.set(ref, r.unitario)
     items.push({
       company_id: emp.id,
       version_id: version.id,
@@ -212,9 +257,9 @@ for (const f of resueltas) {
 
   if (items.length > 0) {
     const { error } = await sb.from('price_list_items').insert(items)
-    if (error) throw new Error(`items ${f.numero}: ${error.message}`)
+    if (error) throw new Error(`items ${numero}: ${error.message}`)
   }
-  console.log(`${f.numero}: ${items.length} renglones cargados.`)
+  console.log(`${f.fecha} (${numero}): ${items.length} renglones cargados.`)
 }
 
 // ── 4 · la fórmula ──────────────────────────────────────────────────────────
