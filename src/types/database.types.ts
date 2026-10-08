@@ -4091,6 +4091,123 @@ export type Database = {
           },
         ]
       }
+      /** Fase 49: quien manda la lista (una marca del catalogo, o un proveedor). */
+      price_list_sources: {
+        Row: {
+          id: string
+          company_id: string
+          name: string
+          brand_id: string | null
+          kind: string
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          name: string
+          brand_id?: string | null
+          kind: string
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          name?: string
+          brand_id?: string | null
+          kind?: string
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      /** Fase 49: un archivo concreto de una fuente, con su fecha y sus factores. */
+      price_list_versions: {
+        Row: {
+          id: string
+          company_id: string
+          source_id: string
+          issued_on: string
+          currency: string
+          anchor_column: string
+          factors: Json
+          origin: string
+          file_name: string | null
+          file_ref: string | null
+          file_url: string | null
+          notes: string | null
+          loaded_at: string
+          loaded_by: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          source_id: string
+          issued_on: string
+          currency: string
+          anchor_column: string
+          factors?: Json
+          origin: string
+          file_name?: string | null
+          file_ref?: string | null
+          file_url?: string | null
+          notes?: string | null
+          loaded_at?: string
+          loaded_by?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          source_id?: string
+          issued_on?: string
+          currency?: string
+          anchor_column?: string
+          factors?: Json
+          origin?: string
+          file_name?: string | null
+          file_ref?: string | null
+          file_url?: string | null
+          notes?: string | null
+          loaded_at?: string
+          loaded_by?: string | null
+        }
+        Relationships: []
+      }
+      /** Fase 49: un renglon de una lista. `reference` es el modelo, no el SKU. */
+      price_list_items: {
+        Row: {
+          id: string
+          company_id: string
+          version_id: string
+          reference: string
+          description: string | null
+          anchor: number | null
+          prices: Json
+          product_id: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          version_id: string
+          reference: string
+          description?: string | null
+          anchor?: number | null
+          prices?: Json
+          product_id?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          version_id?: string
+          reference?: string
+          description?: string | null
+          anchor?: number | null
+          prices?: Json
+          product_id?: string | null
+        }
+        Relationships: []
+      }
       product_attribute_categories: {
         Row: {
           attribute_definition_id: string
@@ -7735,6 +7852,25 @@ export type Database = {
       }
     }
     Views: {
+      /** Fase 49: cada renglon contra la lista anterior de la misma fuente. */
+      price_list_changes: {
+        Row: {
+          company_id: string | null
+          source_id: string | null
+          version_id: string | null
+          issued_on: string | null
+          prev_version_id: string | null
+          prev_issued_on: string | null
+          reference: string | null
+          description: string | null
+          product_id: string | null
+          precio: number | null
+          precio_anterior: number | null
+          porcentaje: number | null
+          movimiento: string | null
+        }
+        Relationships: []
+      }
       product_availability: {
         Row: {
           company_id: string | null

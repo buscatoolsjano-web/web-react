@@ -151,6 +151,9 @@ const ClienteDetallePage = lazyConRecarga(() =>
     default: m.ClienteDetallePage,
   })),
 )
+const ListasDePreciosPage = lazyConRecarga(() =>
+  import('@/modules/precios/pages/ListasDePreciosPage').then((m) => ({ default: m.ListasDePreciosPage })),
+)
 const ProveedoresPage = lazyConRecarga(() =>
   import('@/modules/compras/pages/ProveedoresPage').then((m) => ({ default: m.ProveedoresPage })),
 )
@@ -343,6 +346,7 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: privada(<DashboardPage />) },
       { path: 'catalogo', element: privada(<CatalogoPage />) },
+      { path: 'precios', element: privada(<ListasDePreciosPage />) },
       // El identificador es el SKU y no el uuid: es legible, compartible y
       // mantiene la compatibilidad con las URLs del legacy
       // (#/producto/<sku>). Es único por empresa, así que la empresa activa

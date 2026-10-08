@@ -29,6 +29,11 @@ const AC = ['admin', 'employee']
 const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
   { to: '/' },
   { to: '/catalogo' },
+  // Fase 49: las listas de precios son COSTOS, o sea información comercial.
+  // Sólo roles internos, igual que Compras. Lo que de verdad lo protege es
+  // RLS con `app.current_internal_company_ids()`; esconder el enlace es una
+  // cortesía.
+  { to: '/precios', roles: AC },
   { to: '/ventas/cotizaciones' },
   { to: '/ventas/pedidos' },
   { to: '/ventas/entregas' },

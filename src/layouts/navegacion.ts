@@ -18,6 +18,13 @@ import { ROLES_CONFIGURACION } from '@/modules/configuracion/lib/permisos'
 const ESCRIBEN_COMPRAS = ['admin', 'employee'] as const
 
 /**
+ * Quién ve las listas de precios (Fase 49). Son costos: información
+ * comercial. Coincide con `app.current_internal_company_ids()`, que es lo que
+ * de verdad protege los datos — esconder el enlace es una cortesía.
+ */
+const SOLO_INTERNOS = ['admin', 'employee'] as const
+
+/**
  * Los roles de Mantenimiento. Hoy el mismo conjunto que Compras, pero por su
  * propia razón: `app.current_maintenance_company_ids()` es admin + employee.
  * Son dos helpers distintos y pueden divergir, así que son dos constantes.
@@ -89,6 +96,16 @@ export const NAVEGACION: GrupoNav[] = [
     label: 'Datos',
     entradas: [
       { id: 'catalogo', label: 'Catálogo', icon: 'package', destino: { to: '/catalogo', label: 'Catálogo' } },
+      // Al lado del Catálogo porque es donde uno la busca, pero con su propio
+      // destino: son los precios que MANDA el fabricante, no los de venta.
+      // Sólo roles internos: un costo es información comercial, y RLS lo
+      // vuelve a decidir (`app.current_internal_company_ids()`).
+      {
+        id: 'precios',
+        label: 'Listas de precios',
+        icon: 'inbox',
+        destino: { to: '/precios', label: 'Listas de precios', roles: SOLO_INTERNOS },
+      },
       { id: 'clientes', label: 'Clientes', icon: 'users', destino: { to: '/clientes', label: 'Clientes' } },
     ],
   },
