@@ -43,9 +43,10 @@ export type AtributosCrudos = AtributoCrudo[] | Record<string, Omit<AtributoCrud
  * forma vieja cuando igual trae `position`, y lo que impide que un cambio de
  * agregación en el servidor vuelva a perder el orden sin que nadie lo note.
  *
- * Sin `position` —base sin migrar— no se inventa un orden: se deja el que vino
- * y se desempata por clave, que es estable. Un orden inventado sería peor que
- * el accidental, porque parecería intencional.
+ * Si NADIE trae `position` —la base todavía sin migrar— se devuelve tal cual
+ * vino. Ordenar por clave ahí sería cambiar un orden malo por otro distinto e
+ * igual de arbitrario, justo en el rato que hay entre los dos deploys, y
+ * encima parecería intencional. Lo que no se puede ordenar bien no se toca.
  */
 export function atributosEnOrden(bruto: AtributosCrudos | null | undefined): AtributoCrudo[] {
   const lista = Array.isArray(bruto)
@@ -53,6 +54,7 @@ export function atributosEnOrden(bruto: AtributosCrudos | null | undefined): Atr
     : bruto && typeof bruto === 'object'
       ? Object.entries(bruto).map(([key, a]) => ({ key, ...a }))
       : []
+  if (!lista.some((a) => a.position !== undefined)) return lista
   return lista.sort(
     (a, b) => (a.position ?? 0) - (b.position ?? 0) || a.key.localeCompare(b.key, 'es'),
   )

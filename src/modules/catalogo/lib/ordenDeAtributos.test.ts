@@ -51,16 +51,37 @@ describe('el orden de los atributos del catálogo', () => {
   })
 
   /*
-   * Sin `position` no se inventa un orden. Un orden inventado sería PEOR que
-   * el accidental, porque parecería intencional y nadie lo revisaría.
+   * Sin `position` NO se reordena.
+   *
+   * Es el rato que hay entre el deploy del frontend y la corrida del SQL.
+   * Ordenar por clave ahí cambiaría un orden malo —el del jsonb— por otro
+   * distinto e igual de arbitrario, y encima parecería intencional. Lo que no
+   * se puede ordenar bien se deja como vino.
    */
-  it('sin posiciones no inventa un orden: desempata por clave', () => {
+  it('sin posiciones no reordena: devuelve lo que vino', () => {
     const bruto: AtributosCrudos = {
       max_kg: attr('Cap. máx.'),
+      medida: attr('Medida'),
       min_kg: attr('Cap. mín.'),
       carcasa: attr('Carcasa'),
     }
-    expect(atributosEnOrden(bruto).map((a) => a.key)).toEqual(['carcasa', 'max_kg', 'min_kg'])
+    expect(atributosEnOrden(bruto).map((a) => a.key)).toEqual([
+      'max_kg',
+      'medida',
+      'min_kg',
+      'carcasa',
+    ])
+  })
+
+  // Mezcla: alguno con posición y alguno sin. Se ordena, y el que no tiene
+  // queda primero (posición 0), que es visible y no se pierde entre el resto.
+  it('con posiciones a medias ordena igual', () => {
+    const bruto: AtributosCrudos = {
+      max_kg: attr('Cap. máx.', 2),
+      raro: attr('Raro'),
+      min_kg: attr('Cap. mín.', 1),
+    }
+    expect(atributosEnOrden(bruto).map((a) => a.key)).toEqual(['raro', 'min_kg', 'max_kg'])
   })
 
   it('la clave del objeto se conserva al pasarla a array', () => {
