@@ -116,6 +116,22 @@ export interface MarcaResumen {
   nombre: string
 }
 
+/**
+ * Una marca del catálogo, con el prefijo de sus referencias (Fase 45).
+ *
+ * Es aparte de `MarcaResumen` porque esa viaja dentro de cada producto del
+ * listado —miles por página— y ahí el prefijo no hace falta. Sólo lo necesita
+ * el alta, para proponer la referencia.
+ *
+ * `prefijo` es normalmente las dos primeras letras del nombre, pero no
+ * siempre: TOHNICHI es `TC` porque TORERO ya ocupa `TO`, y CHICAGO PNEUMATIC
+ * es `CP` porque es como se llama la marca a sí misma. Por eso es un dato
+ * guardado y no algo que se calcule.
+ */
+export interface MarcaDelCatalogo extends MarcaResumen {
+  prefijo: string | null
+}
+
 export interface CategoriaResumen {
   id: string
   nombre: string

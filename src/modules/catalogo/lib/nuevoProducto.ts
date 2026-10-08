@@ -113,7 +113,39 @@ export function skuSugerido(marca: string | null, modelo: string, ahora = Date.n
 }
 
 /**
- * La referencia que sale SOLA de la marca y el modelo: `SP.VPPH2/150`.
+ * El prefijo de las referencias de una marca (Fase 45).
+ *
+ * **No siempre son las dos primeras letras**, y durante mucho tiempo el código
+ * creyó que sí. Sobre los 21.816 productos del catálogo: 13.390 seguían esa
+ * regla y 3.824 NO, pero no por error — siete marcas usan un prefijo propio en
+ * el 100 % de sus productos:
+ *
+ *   TOHNICHI → TC   INGERSOLL RAND → IR   BREMEN → BM   NAC → NC
+ *   CHICAGO PNEUMATIC → CP   URYU → UY   RED ROOSTER → RR
+ *
+ * Y hay dos motivos, los dos buenos. **Colisión**: TORERO ya ocupa `TO`, así
+ * que TOHNICHI no puede ser `TO`; BROPPE ya ocupa `BR`, así que BREMEN no
+ * puede ser `BR`. La regla de dos letras choca sola en esos casos. Y **la
+ * abreviatura de la propia marca**: `IR` es Ingersoll Rand y `CP` es Chicago
+ * Pneumatic —sus productos se llaman CP9911—, que son las iniciales de las dos
+ * palabras y no las dos primeras letras.
+ *
+ * Por eso el prefijo es un DATO de la marca (`brands.sku_prefix`) y no algo
+ * que se calcule. Las dos letras quedan sólo como respaldo para una marca
+ * todavía sin prefijo cargado; cuando se usa el respaldo conviene avisar si
+ * choca (ver `marcaQueYaUsaElPrefijo`).
+ */
+export function prefijoDeMarca(nombre: string | null, guardado: string | null): string {
+  const g = (guardado ?? '').trim().toUpperCase()
+  if (/^[A-Z]{2,4}$/.test(g)) return g
+  return (nombre ?? '')
+    .replace(/[^a-zA-Z]/g, '')
+    .slice(0, 2)
+    .toUpperCase()
+}
+
+/**
+ * La referencia que sale SOLA del prefijo de la marca y el modelo: `SP.VPPH2/150`.
  *
  * Se separa de `skuSugerido` porque son dos cosas distintas. Ésta es
  * **determinística**: con los mismos datos da siempre lo mismo, así puede ser
@@ -125,13 +157,31 @@ export function skuSugerido(marca: string | null, modelo: string, ahora = Date.n
  * la pantalla deja escribirla a mano. No inventa un prefijo: `PRO-` no dice
  * nada de lo que es el producto.
  */
-export function referenciaDerivada(marca: string | null, modelo: string): string {
-  const letras = (marca ?? '')
-    .replace(/[^a-zA-Z]/g, '')
-    .slice(0, 2)
-    .toUpperCase()
+export function referenciaDerivada(prefijo: string, modelo: string): string {
+  const p = prefijo.trim().toUpperCase()
   const m = modelo.trim().toUpperCase()
-  return letras.length === 2 && m !== '' ? `${letras}.${m}` : ''
+  return p.length >= 2 && m !== '' ? `${p}.${m}` : ''
+}
+
+/**
+ * Otra marca que ya usa este prefijo, si la hay.
+ *
+ * Avisa, no prohíbe. Que dos marcas compartan prefijo es raro y casi siempre
+ * un descuido —y el catálogo tiene la cicatriz: TOHNICHI tuvo que ser `TC` y
+ * BREMEN `BM` justamente por esto—, pero prohibirlo sería decidir por quien
+ * carga, que puede tener un motivo que acá no se conoce.
+ */
+export function marcaQueYaUsaElPrefijo(
+  prefijo: string,
+  marcaId: string,
+  marcas: readonly { id: string; nombre: string; prefijo: string | null }[],
+): string | null {
+  const p = prefijo.trim().toUpperCase()
+  if (p === '') return null
+  const otra = marcas.find(
+    (m) => m.id !== marcaId && prefijoDeMarca(m.nombre, m.prefijo) === p,
+  )
+  return otra?.nombre ?? null
 }
 
 /** Espacios de más colapsados, como hace la base con los nombres de maestros. */

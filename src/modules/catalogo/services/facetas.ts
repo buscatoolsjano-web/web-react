@@ -3,20 +3,37 @@ import type {
   CategoriaResumen,
   DefinicionAtributo,
   ListaDePrecios,
-  MarcaResumen,
+  MarcaDelCatalogo,
 } from '../types'
 
-/** Marcas de la empresa activa. 25 filas: se cachean con staleTime largo. */
-export async function listarMarcas(companyId: string): Promise<MarcaResumen[]> {
-  const { data, error } = await supabase
-    .from('brands')
-    .select('id, name')
-    .eq('company_id', companyId)
-    .eq('is_active', true)
-    .order('name')
+/** Marcas de la empresa activa. 32 filas: se cachean con staleTime largo. */
+export async function listarMarcas(companyId: string): Promise<MarcaDelCatalogo[]> {
+  const pedir = (columnas: string) =>
+    supabase
+      .from('brands')
+      .select(columnas)
+      .eq('company_id', companyId)
+      .eq('is_active', true)
+      .order('name')
+
+  let { data, error } = await pedir('id, name, sku_prefix')
+
+  // `sku_prefix` existe desde la Fase 45. Contra una base sin la migración
+  // PostgREST responde 42703, y sin este reintento se caerían el filtro de
+  // marcas del catálogo y el alta entera por una columna que sólo hace falta
+  // para proponer una referencia. Degrada a lo de antes.
+  if (error?.code === '42703') {
+    ;({ data, error } = await pedir('id, name'))
+  }
 
   if (error) throw new Error(`No se pudieron leer las marcas: ${error.message}`)
-  return (data ?? []).map((b) => ({ id: b.id, nombre: b.name }))
+
+  type Fila = { id: string; name: string; sku_prefix?: string | null }
+  return ((data ?? []) as unknown as Fila[]).map((b) => ({
+    id: b.id,
+    nombre: b.name,
+    prefijo: b.sku_prefix ?? null,
+  }))
 }
 
 /**

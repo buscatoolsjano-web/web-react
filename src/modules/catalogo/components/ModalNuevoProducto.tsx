@@ -23,6 +23,8 @@ import {
   FORMULARIO_VACIO,
   gramosDesdeKg,
   hayErrores,
+  marcaQueYaUsaElPrefijo,
+  prefijoDeMarca,
   referenciaDerivada,
   validarNuevoProducto,
   type EstadoProducto,
@@ -184,8 +186,32 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
     [definiciones.data, f.categoriaId, porCategoria.data],
   )
 
-  const nombreDeMarca = (marcas.data ?? []).find((m) => m.id === f.marcaId)?.nombre ?? null
-  const nombreDe = (id: string) => (marcas.data ?? []).find((m) => m.id === id)?.nombre ?? null
+  const marcaDe = (id: string) => (marcas.data ?? []).find((m) => m.id === id) ?? null
+  const marcaElegida = marcaDe(f.marcaId)
+
+  /**
+   * El prefijo de la marca elegida (Fase 45).
+   *
+   * Sale de `brands.sku_prefix`, no de las dos primeras letras: TOHNICHI es
+   * `TC` porque TORERO ya ocupa `TO`, y CHICAGO PNEUMATIC es `CP` porque es
+   * como se llama la marca a sí misma. Antes esto proponía `CH.9958` para un
+   * Chicago Pneumatic nuevo contra los 73 existentes que son `CP.*`.
+   */
+  const prefijo = (id: string) => {
+    const m = marcaDe(id)
+    return m ? prefijoDeMarca(m.nombre, m.prefijo) : ''
+  }
+
+  /*
+   * Si la marca todavía no tiene prefijo cargado se cae a las dos primeras
+   * letras, y ahí sí puede chocar con otra marca. Se avisa, no se prohíbe:
+   * dos marcas con el mismo prefijo son casi siempre un descuido, pero quien
+   * carga puede tener un motivo que acá no se conoce.
+   */
+  const chocaCon =
+    marcaElegida && !marcaElegida.prefijo
+      ? marcaQueYaUsaElPrefijo(prefijo(f.marcaId), f.marcaId, marcas.data ?? [])
+      : null
 
   /**
    * La referencia se rearma en el mismo `setState` que cambia la marca o el
@@ -194,10 +220,10 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
    * exactamente lo que prohíbe `react-hooks/set-state-in-effect`.
    */
   const elegirMarca = (id: string) =>
-    setF((x) => ({ ...x, marcaId: id, sku: refManual ? x.sku : referenciaDerivada(nombreDe(id), x.modelo) }))
+    setF((x) => ({ ...x, marcaId: id, sku: refManual ? x.sku : referenciaDerivada(prefijo(id), x.modelo) }))
 
   const escribirModelo = (v: string) =>
-    setF((x) => ({ ...x, modelo: v, sku: refManual ? x.sku : referenciaDerivada(nombreDeMarca, v) }))
+    setF((x) => ({ ...x, modelo: v, sku: refManual ? x.sku : referenciaDerivada(prefijo(x.marcaId), v) }))
 
   // Un kit sin receta no se puede despachar (lo rechaza `confirmar_entrega`),
   // así que tampoco se deja crear: mejor el error acá que al querer entregarlo.
@@ -297,11 +323,24 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
             </Field>
           </div>
 
+          {chocaCon ? (
+            <Alert tone="warning" title={`«${prefijo(f.marcaId)}» ya lo usa ${chocaCon}`}>
+              <p>
+                {marcaElegida?.nombre} todavía no tiene prefijo propio, así que se propone con
+                las dos primeras letras — y esas ya son de otra marca. Escribí la referencia a
+                mano con otras letras: es lo que se hizo con TOHNICHI, que es «TC» porque TORERO
+                ya ocupaba «TO».
+              </p>
+            </Alert>
+          ) : null}
+
           <div className={styles.pieDeReferencia}>
             <p className={styles.nota}>
               {refManual
                 ? 'Referencia escrita a mano. Si volvés a la automática se rearma con la marca y el modelo.'
-                : 'La referencia se arma sola: las dos primeras letras de la marca, un punto y el modelo.'}
+                : marcaElegida
+                  ? `La referencia se arma sola: el prefijo de ${marcaElegida.nombre} («${prefijo(f.marcaId)}»), un punto y el modelo.`
+                  : 'La referencia se arma sola: el prefijo de la marca, un punto y el modelo.'}
             </p>
             <Button
               variant="ghost"
@@ -309,7 +348,7 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
               onClick={() => {
                 const manual = !refManual
                 setRefManual(manual)
-                if (!manual) cambiar('sku', referenciaDerivada(nombreDeMarca, f.modelo))
+                if (!manual) cambiar('sku', referenciaDerivada(prefijo(f.marcaId), f.modelo))
               }}
             >
               {refManual ? 'Volver a la automática' : 'Escribirla a mano'}

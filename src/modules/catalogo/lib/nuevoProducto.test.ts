@@ -6,6 +6,8 @@ import {
   FORMULARIO_VACIO,
   gramosDesdeKg,
   hayErrores,
+  marcaQueYaUsaElPrefijo,
+  prefijoDeMarca,
   puedeCrearProductos,
   referenciaDerivada,
   skuSugerido,
@@ -238,28 +240,101 @@ describe('Quién puede crear', () => {
   })
 })
 
-describe('La referencia que sale de la marca y el modelo', () => {
-  it('son las dos primeras letras de la marca, un punto y el modelo en mayúsculas', () => {
-    expect(referenciaDerivada('Speedrill', 'vpph2/150')).toBe('SP.VPPH2/150')
+/*
+ * El prefijo NO son siempre las dos primeras letras (Fase 45).
+ *
+ * Sobre los 21.816 productos del catálogo, 3.824 usan un prefijo propio de su
+ * marca, y en el 100 % de los productos de esa marca. Hay dos motivos:
+ * COLISIÓN —TORERO ya ocupa «TO», así que TOHNICHI es «TC»; BROPPE ya ocupa
+ * «BR», así que BREMEN es «BM»— y LA ABREVIATURA DE LA PROPIA MARCA: «CP» es
+ * Chicago Pneumatic, cuyos productos se llaman CP9911.
+ */
+describe('El prefijo de la marca', () => {
+  it('usa el guardado cuando la marca lo tiene', () => {
+    expect(prefijoDeMarca('CHICAGO PNEUMATIC', 'CP')).toBe('CP')
+    expect(prefijoDeMarca('TOHNICHI', 'TC')).toBe('TC')
   })
 
-  /** La marca puede empezar con un número —«3M»—: cuentan las LETRAS, no los caracteres. */
-  it('ignora lo que no es letra al tomar el prefijo', () => {
-    expect(referenciaDerivada('3M Argentina', 'x1')).toBe('MA.X1')
+  /* Sin prefijo cargado se cae a las dos primeras letras, que es lo que hacía
+     el código antes de la Fase 45 y sigue sirviendo para una marca nueva. */
+  it('sin prefijo guardado, las dos primeras letras', () => {
+    expect(prefijoDeMarca('Speedrill', null)).toBe('SP')
+    expect(prefijoDeMarca('Speedrill', '')).toBe('SP')
+  })
+
+  /** La marca puede empezar con un número —«3M»—: cuentan las LETRAS. */
+  it('ignora lo que no es letra', () => {
+    expect(prefijoDeMarca('3M Argentina', null)).toBe('MA')
+  })
+
+  // Un valor guardado que no tiene forma de prefijo no se usa a medias.
+  it('un guardado con basura cae al respaldo', () => {
+    expect(prefijoDeMarca('Speedrill', 'sp.')).toBe('SP')
+    expect(prefijoDeMarca('Speedrill', 'X')).toBe('SP')
+  })
+})
+
+describe('La referencia que sale del prefijo y el modelo', () => {
+  it('es el prefijo, un punto y el modelo en mayúsculas', () => {
+    expect(referenciaDerivada('SP', 'vpph2/150')).toBe('SP.VPPH2/150')
+  })
+
+  /* El caso que motivó todo: con las dos primeras letras daba CH.9958 contra
+     los 73 Chicago Pneumatic que ya son CP.*. */
+  it('con el prefijo de la marca da la referencia que usa el catálogo', () => {
+    expect(referenciaDerivada(prefijoDeMarca('CHICAGO PNEUMATIC', 'CP'), '9958')).toBe('CP.9958')
+    expect(referenciaDerivada(prefijoDeMarca('CHICAGO PNEUMATIC', null), '9958')).toBe('CH.9958')
   })
 
   /**
-   * Sin marca o sin modelo NO inventa nada. Un prefijo de relleno más la hora
-   * da una referencia distinta en cada tecla: imposible de leer mientras se
-   * escribe, e imposible de reproducir después.
+   * Sin prefijo o sin modelo NO inventa nada. Un prefijo de relleno más la
+   * hora da una referencia distinta en cada tecla: imposible de leer mientras
+   * se escribe, e imposible de reproducir después.
    */
   it('devuelve vacío cuando no alcanza para armarla', () => {
-    expect(referenciaDerivada(null, 'vpph2')).toBe('')
-    expect(referenciaDerivada('Speedrill', '   ')).toBe('')
+    expect(referenciaDerivada('', 'vpph2')).toBe('')
+    expect(referenciaDerivada('SP', '   ')).toBe('')
     expect(referenciaDerivada('X', 'vpph2')).toBe('')
   })
 
   it('es determinística: con los mismos datos da siempre lo mismo', () => {
-    expect(referenciaDerivada('Speedrill', 'a')).toBe(referenciaDerivada('Speedrill', 'a'))
+    expect(referenciaDerivada('SP', 'a')).toBe(referenciaDerivada('SP', 'a'))
+  })
+})
+
+/*
+ * El aviso de colisión. Avisa, no prohíbe: que dos marcas compartan prefijo es
+ * casi siempre un descuido, pero prohibirlo sería decidir por quien carga.
+ */
+describe('Dos marcas con el mismo prefijo', () => {
+  const MARCAS = [
+    { id: 'm1', nombre: 'BROPPE', prefijo: 'BR' },
+    { id: 'm2', nombre: 'BREMEN', prefijo: 'BM' },
+    { id: 'm3', nombre: 'SPEEDRILL', prefijo: 'SP' },
+    // Sin prefijo cargado: cae a las dos primeras letras, «BR», que ya es de
+    // BROPPE. Es exactamente el caso que el aviso tiene que cazar.
+    { id: 'm4', nombre: 'BROWN & SHARPE', prefijo: null },
+  ]
+
+  it('dice qué marca ya usa ese prefijo', () => {
+    expect(marcaQueYaUsaElPrefijo('BR', 'm4', MARCAS)).toBe('BROPPE')
+  })
+
+  it('no se acusa a sí misma', () => {
+    expect(marcaQueYaUsaElPrefijo('SP', 'm3', MARCAS)).toBeNull()
+  })
+
+  /*
+   * Se compara contra el prefijo EFECTIVO de cada marca, no contra el
+   * guardado: una marca sin prefijo igual ocupa sus dos letras, y si no se la
+   * contara el aviso no serviría justo cuando hace falta.
+   */
+  it('una marca sin prefijo guardado igual ocupa sus dos letras', () => {
+    expect(marcaQueYaUsaElPrefijo('BR', 'm1', MARCAS)).toBe('BROWN & SHARPE')
+  })
+
+  it('sin conflicto devuelve null', () => {
+    expect(marcaQueYaUsaElPrefijo('ZZ', 'm4', MARCAS)).toBeNull()
+    expect(marcaQueYaUsaElPrefijo('', 'm4', MARCAS)).toBeNull()
   })
 })

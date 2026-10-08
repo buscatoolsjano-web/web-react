@@ -120,6 +120,8 @@ export type Database = {
           is_active: boolean
           logo_path: string | null
           name: string
+          /** Fase 45: el prefijo de las referencias de esta marca (SP.VPPH2 -> SP). */
+          sku_prefix: string | null
         }
         Insert: {
           company_id: string
@@ -128,6 +130,8 @@ export type Database = {
           is_active?: boolean
           logo_path?: string | null
           name: string
+          /** Fase 45: el prefijo de las referencias de esta marca (SP.VPPH2 -> SP). */
+          sku_prefix: string | null
         }
         Update: {
           company_id?: string
@@ -136,6 +140,8 @@ export type Database = {
           is_active?: boolean
           logo_path?: string | null
           name?: string
+          /** Fase 45: el prefijo de las referencias de esta marca (SP.VPPH2 -> SP). */
+          sku_prefix?: string | null
         }
         Relationships: [
           {
