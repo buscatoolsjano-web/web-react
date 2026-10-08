@@ -54,55 +54,48 @@
 
 begin;
 
--- El rango primero: es lo que define la herramienta y es lo que se busca.
--- Mínimo antes que máximo, que es como se lee un rango y como lo tienen las
--- dos webs. Los dos pares nunca conviven en la misma categoría —capacidad es
--- de balanceadores y torque de herramientas— así que entre pares el orden da
--- igual; dentro de cada par, no.
-update product_attribute_definitions set position =  1 where key = 'min_kg';
-update product_attribute_definitions set position =  2 where key = 'max_kg';
-update product_attribute_definitions set position =  3 where key = 'torq_min';
-update product_attribute_definitions set position =  4 where key = 'torq_max';
+-- ESTA BASE TIENE DOS EMPRESAS. `torquetools` todavía no tiene definiciones
+-- ni balanceadores, así que hoy nada de esto la tocaría — pero está en armado,
+-- y un UPDATE sin `company_id` es una bomba de tiempo que explota el día que
+-- cargue sus datos. Todo lo de abajo va acotado a Buscatools.
+update product_attribute_definitions d
+   set position = v.pos
+  from (values
+    -- El rango primero: es lo que define la herramienta y lo que se busca.
+    -- Mínimo antes que máximo, que es como se lee un rango y como lo tienen
+    -- las dos webs. Los dos pares nunca conviven en la misma categoría
+    -- —capacidad es de balanceadores, torque de herramientas— así que entre
+    -- pares el orden da igual; dentro de cada par, no.
+    ('min_kg', 1), ('max_kg', 2), ('torq_min', 3), ('torq_max', 4),
 
--- Después, cómo se conecta. El encastre va antes que las medidas propias
--- porque es lo que decide si la herramienta sirve: una punta de 10 mm con
--- encastre 1/4 QC no reemplaza a una de 10 mm con 3/8 SQ.
-update product_attribute_definitions set position =  5 where key = 'encastre';
+    -- Después, cómo se conecta. El encastre va antes que las medidas propias
+    -- porque es lo que decide si la herramienta sirve: una punta de 10 mm con
+    -- encastre 1/4 QC no reemplaza a una de 10 mm con 3/8 SQ.
+    ('encastre', 5),
 
--- Y recién ahí las medidas del propio producto.
-update product_attribute_definitions set position =  6 where key = 'medida';
-update product_attribute_definitions set position =  7 where key = 'largo';
+    -- Y recién ahí las medidas del propio producto.
+    ('medida', 6), ('largo', 7),
 
--- Prestaciones.
-update product_attribute_definitions set position =  8 where key = 'rpm';
-update product_attribute_definitions set position =  9 where key = 'voltaje';
-update product_attribute_definitions set position = 10 where key = 'alimentacion';
+    -- Prestaciones.
+    ('rpm', 8), ('voltaje', 9), ('alimentacion', 10),
 
--- Lo propio del balanceador. `carcasa` antes que `longitud` porque así lo
--- tiene la web vieja, y esas dos claves no aparecen en ninguna otra categoría,
--- así que respetarla no le cuesta nada a las demás.
-update product_attribute_definitions set position = 11 where key = 'carcasa';
-update product_attribute_definitions set position = 12 where key = 'longitud';
-update product_attribute_definitions set position = 13 where key = 'eslinga';
+    -- Lo propio del balanceador. `carcasa` antes que `longitud` porque así lo
+    -- tiene la web vieja, y esas dos claves no aparecen en ninguna otra
+    -- categoría, así que respetarla no le cuesta nada a las demás.
+    ('carcasa', 11), ('longitud', 12), ('eslinga', 13),
 
--- Ergonomía y forma.
-update product_attribute_definitions set position = 14 where key = 'ergonomia';
-update product_attribute_definitions set position = 15 where key = 'sufijos';
+    -- Ergonomía y forma.
+    ('ergonomia', 14), ('sufijos', 15),
 
--- Físicos y embalaje: describen al producto, pero no es lo que se compara.
-update product_attribute_definitions set position = 16 where key = 'peso_kg';
-update product_attribute_definitions set position = 17 where key = 'dim_balanceador';
-update product_attribute_definitions set position = 18 where key = 'dim_caja';
-update product_attribute_definitions set position = 19 where key = 'peso_embalado_kg';
+    -- Físicos y embalaje: describen al producto, pero no es lo que se compara.
+    ('peso_kg', 16), ('dim_balanceador', 17), ('dim_caja', 18), ('peso_embalado_kg', 19),
 
--- Y al final el residuo de la importación.
-update product_attribute_definitions set position = 20 where key = 'longitud_raw';
-update product_attribute_definitions set position = 21 where key = 'catalogo_id';
-update product_attribute_definitions set position = 22 where key = 'catalogo_pagina';
-update product_attribute_definitions set position = 23 where key = 'codigo';
-update product_attribute_definitions set position = 24 where key = 'categoria_full';
-update product_attribute_definitions set position = 25 where key = 'marca_disp';
-update product_attribute_definitions set position = 26 where key = 'modelo';
+    -- Y al final el residuo de la importación.
+    ('longitud_raw', 20), ('catalogo_id', 21), ('catalogo_pagina', 22),
+    ('codigo', 23), ('categoria_full', 24), ('marca_disp', 25), ('modelo', 26)
+  ) as v(key, pos)
+ where d.key = v.key
+   and d.company_id = (select id from companies where slug = 'buscatools');
 
 
 -- ── 2 · LO QUE NO ES UNA CARACTERÍSTICA ──────────────────────────────────
@@ -127,7 +120,8 @@ comment on column product_attribute_definitions.show_in_sheet is
 update product_attribute_definitions
    set show_in_sheet = false
  where key in ('catalogo_id', 'catalogo_pagina', 'codigo',
-               'categoria_full', 'marca_disp', 'modelo');
+               'categoria_full', 'marca_disp', 'modelo')
+   and company_id = (select id from companies where slug = 'buscatools');
 
 
 -- ── 3 · «MEDIDA» EN BALANCEADORES ────────────────────────────────────────
@@ -160,6 +154,7 @@ select p.id, p.sku, p.attributes -> 'medida', p.attributes -> 'max_kg'
   from products p
   join product_categories c on c.id = p.category_id
  where c.slug = 'balanceador'
+   and p.company_id = (select id from companies where slug = 'buscatools')
    and p.attributes ? 'medida'
 on conflict (product_id) do nothing;
 
@@ -172,6 +167,7 @@ begin
     from products p
     join product_categories c on c.id = p.category_id
    where c.slug = 'balanceador'
+     and p.company_id = (select id from companies where slug = 'buscatools')
      and p.attributes ? 'medida'
      and (p.attributes -> 'max_kg') is distinct from to_jsonb((p.attributes ->> 'medida')::numeric);
   if n_distintos > 0 then
@@ -184,6 +180,7 @@ update products p
   from product_categories c
  where c.id = p.category_id
    and c.slug = 'balanceador'
+   and p.company_id = (select id from companies where slug = 'buscatools')
    and p.attributes ? 'medida';
 
 -- Y el vínculo con la categoría, que es lo que gobierna qué campos ofrece el
@@ -194,7 +191,8 @@ delete from product_attribute_categories pac
  where pac.attribute_definition_id = d.id
    and pac.category_id = c.id
    and d.key = 'medida'
-   and c.slug = 'balanceador';
+   and c.slug = 'balanceador'
+   and pac.company_id = (select id from companies where slug = 'buscatools');
 
 
 -- ── 4 · QUE EL ORDEN SOBREVIVA AL VIAJE ──────────────────────────────────
