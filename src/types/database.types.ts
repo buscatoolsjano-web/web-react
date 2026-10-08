@@ -7852,6 +7852,21 @@ export type Database = {
       }
     }
     Views: {
+      /** Fase 50: una fila por referencia con sus precios por fecha, para la planilla. */
+      price_list_matrix: {
+        Row: {
+          company_id: string | null
+          source_id: string | null
+          reference: string | null
+          description: string | null
+          product_id: string | null
+          precios: Json
+          en_listas: number | null
+          ultima: string | null
+          primera: string | null
+        }
+        Relationships: []
+      }
       /** Fase 49: cada renglon contra la lista anterior de la misma fuente. */
       price_list_changes: {
         Row: {

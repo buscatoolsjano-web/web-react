@@ -166,3 +166,82 @@
 .neutro {
   color: var(--color-text-soft);
 }
+
+/* ── La planilla (Fase 50) ───────────────────────────────────────────────── */
+
+.barra {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.campoBuscar {
+  flex: 1;
+  min-width: 14rem;
+}
+
+.planilla th,
+.planilla td {
+  padding: var(--space-2) var(--space-3);
+  vertical-align: middle;
+}
+
+/* La foto es lo primero que se mira para reconocer una punta de un tubo. */
+.colFoto {
+  width: 68px;
+  min-width: 68px;
+}
+
+.colFoto > * {
+  width: 52px;
+  min-width: 52px;
+}
+
+.colDesc {
+  min-width: 18rem;
+}
+
+/* La columna vigente se destaca: es la que se busca casi siempre, y con
+   varias listas al lado se pierde entre las demás. */
+.colVigente {
+  background: var(--color-surface-alt);
+}
+
+.vigente {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--color-text-soft);
+  text-transform: none;
+}
+
+.precio {
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
+.sku {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+}
+
+/* Una referencia que no cruzó con el catálogo: la marca la vende y nosotros
+   no la tenemos cargada. No es un error, es información. */
+.sinProducto {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-warning-text);
+}
+
+/* Celda vacía: no estaba en esa lista. Un cero diría que valía cero. */
+.ausente {
+  color: var(--color-text-muted);
+}
+
+.paginador {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}

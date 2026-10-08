@@ -136,3 +136,22 @@ export function ordenarParaMirar(cambios: readonly CambioDePrecio[]): CambioDePr
     return a.reference.localeCompare(b.reference, 'es')
   })
 }
+
+/**
+ * El cambio entre dos precios consecutivos de la planilla (Fase 50).
+ *
+ * Devuelve `null` —y no 0— cuando no se puede calcular: si el producto no
+ * estaba en la lista anterior, o si el precio anterior era cero. Un 0 % ahí
+ * diría «no cambió», que es una afirmación distinta de «no sé».
+ *
+ * El divisor por cero importa de verdad: hay productos cargados en 0 en el
+ * catálogo, y uno solo convierte la columna en «Infinity %».
+ */
+export function variacionEntre(
+  actual: number | null | undefined,
+  anterior: number | null | undefined,
+): number | null {
+  if (actual === null || actual === undefined) return null
+  if (anterior === null || anterior === undefined || anterior === 0) return null
+  return Math.round(((actual - anterior) / anterior) * 10000) / 100
+}

@@ -6,6 +6,7 @@ import {
   ordenarParaMirar,
   resumir,
   tonoDe,
+  variacionEntre,
   type CambioDePrecio,
 } from './comparativa'
 
@@ -171,5 +172,41 @@ describe('las etiquetas', () => {
     for (const m of ['subio', 'bajo', 'igual', 'entro', 'salio', 'sin dato', 'primera lista'] as const) {
       expect(ETIQUETA[m]).toBeTruthy()
     }
+  })
+})
+
+describe('la variación entre dos columnas de la planilla', () => {
+  it('es el cambio porcentual del anterior al actual', () => {
+    expect(variacionEntre(110, 100)).toBe(10)
+    expect(variacionEntre(90, 100)).toBe(-10)
+  })
+
+  it('redondea a dos decimales', () => {
+    expect(variacionEntre(100.555, 100)).toBe(0.56)
+  })
+
+  /*
+   * Null y no cero. Un 0 % diría «no cambió», que es una afirmación distinta
+   * de «no sé»: el producto puede no haber estado en la lista anterior.
+   */
+  it('sin precio anterior devuelve null, no cero', () => {
+    expect(variacionEntre(100, null)).toBeNull()
+    expect(variacionEntre(100, undefined)).toBeNull()
+  })
+
+  it('sin precio actual devuelve null', () => {
+    expect(variacionEntre(null, 100)).toBeNull()
+  })
+
+  /*
+   * Hay productos cargados en 0 —el catálogo tiene varios—. Dividir por cero
+   * ahí convierte la columna entera en «Infinity %».
+   */
+  it('un precio anterior en cero no divide: devuelve null', () => {
+    expect(variacionEntre(100, 0)).toBeNull()
+  })
+
+  it('sin cambio es cero, que sí es un dato', () => {
+    expect(variacionEntre(100, 100)).toBe(0)
   })
 })
