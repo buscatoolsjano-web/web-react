@@ -29,6 +29,26 @@ export function formatearPrecio(monto: number | null, moneda: string | null): st
   }
 }
 
+/**
+ * La fecha desde la que rige un precio, para mostrarla en la ficha.
+ *
+ * `2026-10-08` → `8 oct 2026`.
+ *
+ * El `T12:00:00` NO es decorativo. `new Date('2026-10-08')` se interpreta como
+ * medianoche UTC, que en Argentina son las 21:00 del día ANTERIOR: la fecha se
+ * mostraría corrida un día para atrás. Al mediodía no hay huso que la cruce.
+ */
+export function formatearFechaDePrecio(iso: string | null): string | null {
+  if (iso === null) return null
+  const soloFecha = iso.slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(soloFecha)) return null
+
+  const d = new Date(`${soloFecha}T12:00:00`)
+  if (Number.isNaN(d.getTime())) return null
+
+  return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 /** Formatea un entero de stock. 0 es un valor válido y se muestra. */
 export function formatearCantidad(n: number | null): string {
   if (n === null || !Number.isFinite(n)) return '—'

@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import { precioVigenteDe } from '@/modules/catalogo/lib/precioVigente'
 
 export interface ProductoParaLinea {
   id: string
@@ -29,18 +30,17 @@ interface FilaPrecio {
 /**
  * El precio vigente hoy de una lista.
  *
- * `product_prices` guarda historia: la misma lista puede tener varias filas del
- * mismo producto con distinta vigencia (la unique es lista + producto +
- * `valid_from`). Se toma la vigente; si ninguna lo está, la más reciente que
- * ya empezó. Una futura no se sugiere: todavía no rige.
+ * Acá sólo se acota a la lista pedida: **qué fila rige** lo decide
+ * `precioVigenteDe`, en el Catálogo, que es la misma función que usa la ficha
+ * del producto para mostrar el precio y su fecha.
+ *
+ * Esta regla vivía duplicada: el catálogo tomaba la primera fila que llegaba y
+ * acá se elegía la vigente. Con historia cargada eso significaba que un
+ * producto podía mostrar 50 en el catálogo y sugerir 60 en la cotización.
  */
 export function precioVigente(filas: readonly FilaPrecio[], listaId: string, hoy: string): number | null {
-  const dela = filas
-    .filter((f) => f.price_list_id === listaId)
-    .filter((f) => (f.valid_from ?? '') <= hoy)
-    .sort((a, b) => (b.valid_from ?? '').localeCompare(a.valid_from ?? ''))
-  const vigente = dela.find((f) => f.valid_to === null || f.valid_to >= hoy) ?? dela[0]
-  return vigente ? Number(vigente.amount) : null
+  const vigente = precioVigenteDe(filas.filter((f) => f.price_list_id === listaId), hoy)
+  return vigente ? vigente.monto : null
 }
 
 /**

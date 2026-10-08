@@ -108,6 +108,7 @@ function producto(id: string, sku: string, nombre: string, precio: number | null
     categoria: { id: 'cat-bal', nombre: 'Balanceadores', slug: 'balanceadores' },
     atributos: {},
     precio,
+    precioDesde: null,
     stock: { real: 7, virtual: 9 },
     disponible: null,
     imagen: null,

@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabase/client'
 import type { PlanDeConsulta } from '../lib/planDeConsulta'
+import { hoyIso, precioVigenteDe } from '../lib/precioVigente'
 import { ordenarPorRelevancia, type PosicionDeRelevancia } from '../lib/relevancia'
 import type {
   ImagenProducto,
@@ -23,7 +24,7 @@ const COLUMNAS_LISTADO = `
   id, sku, name, model_code, series, product_type, attributes, is_kit, needs_review,
   brands ( id, name, is_active ),
   product_categories ( id, name, slug, is_active ),
-  product_prices ( amount, price_list_id ),
+  product_prices ( amount, price_list_id, valid_from, valid_to ),
   product_images ( source_url, thumb_url, kind, position, is_primary )
 ` as const
 
@@ -38,7 +39,7 @@ const COLUMNAS_DETALLE = `
   weight_g, volume_cm3,
   brands ( id, name, is_active ),
   product_categories ( id, name, slug, is_active ),
-  product_prices ( amount, price_list_id ),
+  product_prices ( amount, price_list_id, valid_from, valid_to ),
   product_images ( source_url, thumb_url, kind, position, is_primary )
 ` as const
 
@@ -69,7 +70,7 @@ interface FilaProducto {
   needs_review: boolean
   brands: { id: string; name: string; is_active?: boolean } | null
   product_categories: { id: string; name: string; slug: string; is_active?: boolean } | null
-  product_prices: { amount: number; price_list_id: string }[] | null
+  product_prices: { amount: number; price_list_id: string; valid_from: string | null; valid_to: string | null }[] | null
   product_images: FilaImagen[] | null
   stock_balances?: { on_hand: number; reserved: number }[] | null
 }
@@ -163,8 +164,17 @@ function motivoFuera(f: FilaProducto): ProductoListado['motivoFueraDelCatalogo']
 }
 
 function mapearListado(f: FilaProducto): ProductoListado {
-  // El embed viene filtrado por price_list_id, así que hay 0 o 1 fila.
-  const precio = f.product_prices?.[0]?.amount ?? null
+  /*
+   * El embed viene filtrado por `price_list_id`, pero NO por vigencia: la
+   * unique de `product_prices` es lista + producto + `valid_from`, así que la
+   * misma lista puede traer varias filas del mismo producto.
+   *
+   * Hasta la Fase 51 se tomaba `[0]`, y con historia cargada eso es la fila
+   * que el planner quiso devolver primero. Ahora decide `precioVigenteDe`, la
+   * misma función que usa Ventas para sugerir el precio de una línea.
+   */
+  const vigente = precioVigenteDe(f.product_prices ?? [], hoyIso())
+  const precio = vigente?.monto ?? null
   const motivoFueraDelCatalogo = motivoFuera(f)
 
   return {
@@ -197,6 +207,9 @@ function mapearListado(f: FilaProducto): ProductoListado {
       : null,
     atributos: atributosDe(f.attributes),
     precio,
+    // Desde cuándo rige ese precio: es «la última actualización» que pide la
+    // ficha. Null cuando no hay precio, o cuando la fila no trae fecha.
+    precioDesde: vigente?.desde ?? null,
     stock: agregarStock(f.stock_balances),
     disponible: null,
     // Sólo una FOTO puede ser principal. Un producto cuya única imagen sea

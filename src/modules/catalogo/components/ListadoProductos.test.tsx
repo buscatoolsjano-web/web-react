@@ -69,6 +69,7 @@ const producto = (p: Partial<ProductoListado> = {}): ProductoListado => ({
   categoria: { id: 'c1', nombre: 'Puntas y tubos', slug: 'punta' },
   atributos: { encastre: '1/4 HEX', largo: '200', medida: '8' },
   precio: 83.37,
+  precioDesde: null,
   stock: { real: 16, virtual: 16 },
   disponible: null,
   imagen: null,

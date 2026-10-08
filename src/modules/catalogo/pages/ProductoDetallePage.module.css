@@ -57,6 +57,16 @@
   font-size: var(--text-lg);
 }
 
+/* La fecha del precio va DEBAJO y en chico: acompaña al importe, no compite
+   con él. En su propia línea porque al lado empujaría el precio cuando el
+   nombre de la lista ya es largo. */
+.precioDesde {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+}
+
 .descripcion {
   margin: 0;
   max-width: 70ch;

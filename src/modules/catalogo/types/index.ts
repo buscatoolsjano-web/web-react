@@ -213,6 +213,15 @@ export interface ProductoListado {
   atributos: Record<string, unknown>
   /** null = sin precio en la lista vigente. Se muestra "Consultar". */
   precio: number | null
+  /**
+   * Desde cuándo rige ese precio, en ISO. Es la fecha de su última
+   * actualización (Fase 51).
+   *
+   * Sale del `valid_from` de la fila que rige, no de un `updated_at`: lo que
+   * interesa es desde cuándo el producto cuesta eso, no cuándo se tocó el
+   * registro. Null cuando no hay precio.
+   */
+  precioDesde: string | null
   /** Sólo se completa para roles internos. */
   stock: StockProducto | null
   /** Sólo para roles externos: booleano de la vista product_availability. */

@@ -83,6 +83,7 @@ const producto = (i: number): ProductoListado => ({
   categoria: { id: 'c', nombre: 'ZZ Llaves', slug: 'otros' },
   atributos: {},
   precio: i === 2 ? null : 100,
+  precioDesde: null,
   stock: null,
   disponible: null,
   imagen: null,

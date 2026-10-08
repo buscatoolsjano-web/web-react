@@ -33,7 +33,7 @@ import {
   useMarcas,
 } from '../hooks/useCatalogoFacetas'
 import { useDisponibilidad, useMovimientos, useProducto, useSimilares } from '../hooks/useProductos'
-import { formatearCantidad } from '../lib/formato'
+import { formatearCantidad, formatearFechaDePrecio } from '../lib/formato'
 import { hojaDeCatalogo } from '../lib/hojaCatalogo'
 import styles from './ProductoDetallePage.module.css'
 
@@ -67,6 +67,9 @@ export function ProductoDetallePage() {
   // para que una cueste una consulta más que la otra.
   const [verHistorial, setVerHistorial] = useState(false)
   const movimientos = useMovimientos(producto?.id ?? null, verHistorial)
+
+  /* Desde cuándo rige el precio que se muestra arriba (Fase 51). */
+  const fechaDelPrecio = formatearFechaDePrecio(producto?.precioDesde ?? null)
 
   /*
    * La edición (Fase 40). Lo que se está editando vive acá y no en la URL: es
@@ -202,6 +205,22 @@ export function ProductoDetallePage() {
               <dt className={styles.datoEtiqueta}>Precio{porDefecto ? ` · ${porDefecto.nombre}` : ''}</dt>
               <dd className={styles.datoValor}>
                 <PrecioCelda monto={producto.precio} moneda={porDefecto?.moneda ?? null} />
+                {/*
+                  Desde cuándo rige ese precio (Fase 51).
+
+                  Un precio sin fecha no se puede usar para decidir: no se sabe
+                  si es de la lista de este mes o de hace dos años. Sale del
+                  `valid_from` de la fila vigente, así que es la fecha desde la
+                  que el producto cuesta eso.
+
+                  Se calla cuando no hay precio —ahí dice «Consultar» y una
+                  fecha al lado no significaría nada— y cuando la fila no trae
+                  fecha, en vez de inventar un «sin fecha» que ocupa un renglón
+                  para no decir nada.
+                */}
+                {producto.precio !== null && fechaDelPrecio !== null ? (
+                  <span className={styles.precioDesde}>Actualizado el {fechaDelPrecio}</span>
+                ) : null}
               </dd>
             </div>
             <div className={styles.dato}>

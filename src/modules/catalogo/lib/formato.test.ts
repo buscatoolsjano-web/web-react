@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatearCantidad,
+  formatearFechaDePrecio,
   formatearPrecio,
   presentarAtributos,
   SIN_PRECIO,
@@ -117,5 +118,35 @@ describe('presentarAtributos · el residuo de la importación', () => {
     const viejo = { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'text' as const,
       filtrable: true, posicion: 1, enumerada: false, opciones: [] } as unknown as DefinicionAtributo
     expect(presentarAtributos({ encastre: '1/4 QC' }, [viejo])).toHaveLength(1)
+  })
+})
+
+describe('la fecha desde la que rige un precio', () => {
+  /*
+   * El día TIENE que ser el 8. `new Date('2026-10-08')` es medianoche UTC, que
+   * en Argentina son las 21:00 del 7: sin el mediodía la ficha mostraría el
+   * día anterior, y un precio fechado un día antes de lo que dice la base es
+   * un dato equivocado en la pantalla donde se decide cuánto cobrar.
+   */
+  it('no se corre un día por el huso horario', () => {
+    expect(formatearFechaDePrecio('2026-10-08')).toContain('8')
+    expect(formatearFechaDePrecio('2026-10-08')).toContain('2026')
+    expect(formatearFechaDePrecio('2026-10-08')).not.toContain('7')
+  })
+
+  it('acepta un timestamp y se queda con la fecha', () => {
+    expect(formatearFechaDePrecio('2026-10-08T03:00:00Z')).toBe(formatearFechaDePrecio('2026-10-08'))
+  })
+
+  // Null y no una cadena: la pantalla decide si muestra el renglón. Un texto
+  // tipo «sin fecha» ocuparía una línea para no decir nada.
+  it('sin fecha devuelve null, no un texto', () => {
+    expect(formatearFechaDePrecio(null)).toBeNull()
+  })
+
+  it('una fecha que no es una fecha devuelve null', () => {
+    expect(formatearFechaDePrecio('')).toBeNull()
+    expect(formatearFechaDePrecio('ayer')).toBeNull()
+    expect(formatearFechaDePrecio('2026-13-45')).toBeNull()
   })
 })
