@@ -4232,6 +4232,13 @@ export type Database = {
            * precio que STEL tiene hoy.
            */
           applies_to_price: boolean
+          /**
+           * Un costo más viejo que esto queda como historia y NO fija precio.
+           *
+           * Un costo de hace dos años por el múltiplo no es un precio de hoy:
+           * se come los aumentos del proveedor. Un año por defecto.
+           */
+          max_age_days: number
           notes: string | null
           created_at: string
           updated_at: string
@@ -4244,6 +4251,7 @@ export type Database = {
           base_key?: string | null
           base_is_cost?: boolean
           applies_to_price?: boolean
+          max_age_days?: number
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -4256,6 +4264,7 @@ export type Database = {
           base_key?: string | null
           base_is_cost?: boolean
           applies_to_price?: boolean
+          max_age_days?: number
           notes?: string | null
           created_at?: string
           updated_at?: string

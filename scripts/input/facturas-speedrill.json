@@ -1,0 +1,87 @@
+{
+  "_lea_esto": [
+    "Cuerpo de las facturas de compra de SPEEDRILL, tal como lo devuelve el lector",
+    "de PDF del Drive. Se guarda el texto CRUDO, con su desorden, para que la",
+    "carga sea auditable y repetible sin volver al Drive.",
+    "",
+    "`suma` es «Suma Importes»: el subtotal de la mercaderia, SIN IVA ni portes.",
+    "NO es el importe del nombre del archivo, que lleva el 21 % de IVA y a veces",
+    "portes. Compararse contra ese daria siempre por debajo y la guardia frenaria",
+    "todas las facturas.",
+    "",
+    "Son 7 facturas en 4 fechas: dos el 2023-11-22, dos el 2024-04-02 y dos el",
+    "2024-04-08. El cargador une las del mismo dia en una sola version, porque dos",
+    "envios del mismo dia son el mismo costo.",
+    "",
+    "Falta al menos una mas, la FA240045 de enero de 2025, que esta en el Gmail",
+    "(de cristiane.sakamoto@speedrill.com) y NO en el Drive: no hay herramienta",
+    "para bajar adjuntos de Gmail, asi que hay que guardarla al Drive primero."
+  ],
+  "proveedor": "SPEEDRILL",
+  "moneda": "EUR",
+  "facturas": [
+    {
+      "numero": "FA230002",
+      "fecha": "2023-10-27",
+      "suma": 2315.84,
+      "totalConIva": 2802.17,
+      "archivo": "OK 2023 10 27 - SPEEDRILL S.L. - FACTURA FA230002 - EUROS 2802,17 - PAP00216.pdf",
+      "driveId": "1hJogeJZWzQotI0O1bJKF_8TA9WA4Hxd4",
+      "texto": "Código Referencia cliente\n\nDescripción Cantidad Precio Importe Albarán S/230005 del 16/10/2023. Contacto: JUAN MANUEL\n\nSPCOPMGR MAGNETIC RING 22 7,77 170,94 2007VPM ADAPTADOR INSERCIÓN MACHO 1/4 HEX 7 L=80MM 50 9,48 474,00 MAGNÉTICO STOCK\n\nVPPH2/50 PUNTA PHILLIPS DE INSERCIÓN 1/4, TIPO 2, L=50, D=\n\n250 0,50 125,00 6\n\nVPPH2/70 PUNTA PHILLIPS DE INSERCIÓN 1/4, TIPO 2, L=70, D=\n\n250 0,80 200,00 6\n\nVPPH2/90 PUNTA PHILLIPS DE INSERCIÓN 1/4, TIPO 2, L=90, D=\n\n250 0,87 217,50 6\n\nVPEM3/90 PUNTA HEXAGONAL DE INSERCIÓN 1/4, TIPO 3, L=90 100 3,50 350,00 2008/100VPM ADAPTADOR INSERCIÓN MACHO 1/4 HEX 8 L=100MM 20 11,50 230,00 MAGNÉTICO\n\n2008VP/100 ADAPTADOR INSERCIÓN MACHO 1/4 HEX 8 L=100MM 20 8,93 178,60 2010/100VPM ADAPTADOR INSERCIÓN MACHO 1/4 HEX 10 L= 20 11,27 225,40 100MM CON IMAN\n\n2010/100VP ADAPTADOR INSERCIÓN MACHO 1/4 HEX 10 L=\n\n20 7,22 144,40 100MM\n\nSuma Importes\n\nBase I.V.A. 21% R.E.\n\nImporte total 2.315,84 2.315,84 486,33\n\n2.802,17 €"
+    },
+    {
+      "numero": "FA230003",
+      "fecha": "2023-11-22",
+      "suma": 704.40,
+      "totalConIva": 852.32,
+      "archivo": "OK 2023 11 22 - SPEEDRILL S.L. - FACTURA FA230003 - EUROS 852,32 - PAP00221.pdf",
+      "driveId": "1gO0XAuUNf3L_gZer1niJrRas3PKpW6_j",
+      "texto": "Código Referencia cliente\n\nDescripción Cantidad Precio Importe Albarán S/230009 del 28/11/2023. Contacto: JUAN MANUEL\n\nEM3 PUNTA HEXAGONAL DE INSERCIÓN 1/4, TIPO 3, L=25 150 1,64 246,00 VPTX20/160 PUNTA TORX® DE INSERCIÓN 1/4, TIPO T20, L=160, 30 5,83 174,90 A=3,86, D=4,8\n\nVPTX20/300 PUNTA TORX® DE INSERCIÓN 1/4, TIPO T20, L=300,\n\n30 9,45 283,50 A=3,86, D=4,8\n\nSuma Importes\n\nBase I.V.A. 21% R.E.\n\nImporte total 704,40 704,40 147,92\n\n852,32 €"
+    },
+    {
+      "numero": "FA230004",
+      "fecha": "2023-11-22",
+      "suma": 1485.06,
+      "totalConIva": 1818.70,
+      "archivo": "OK 2023 11 22 - SPEEDRILL S.L. - FACTURA FA230004 - EUROS 1818,7 - PAP90216.pdf",
+      "driveId": "1L0MTwJsWK0GJluLBOh8lLZyXMUS5FVii",
+      "texto": "Código Referencia cliente\n\nDescripción Cantidad Precio Importe Albarán S/230007 del 07/11/2023. Contacto: JUAN MANUEL\n\nSPCOPMGR MAGNETIC RING 78 7,77 606,06 2006VPM ADAPTADOR INSERCIÓN MACHO 1/4 HEX 6 L=80MM 50 5,98 299,00 MAGNÉTICO\n\n2014VP/100 ADAPTADOR INSERCIÓN MACHO 1/4 HEX 14 L=\n\n20 14,50 290,00 100MM\n\n2014VPM/100 ADAPTADOR INSERCIÓN MACHO 1/4 HEX 14 L=\n\n20 14,50 290,00 100MM MAGNETICA\n\nSuma Importes Portes\n\nBase I.V.A. 21% R.E.\n\nImporte total 1.485,06 18,00 1.503,06 315,64\n\n1.818,70 €"
+    },
+    {
+      "numero": "FA240007",
+      "fecha": "2024-04-02",
+      "suma": 3522.01,
+      "totalConIva": 4297.93,
+      "archivo": "2024 04 02 - SPEEDRILL S.L. - FACTURA FA240007 - EUROS 4297,93 - PAP00237.pdf",
+      "driveId": "11d0YTCvYd_skbpzMhXq0FMn5aEJhKMS4",
+      "texto": "Código Referencia cliente\n\nDescripción Cantidad Precio Importe Albarán S/240004 del 18/03/2024. Contacto: CHRISTIAN CASTANO\n\n553 PORTAPUNTA MAGNÉTICO 1/4 L=60MM 40 5,43 217,27 553/4 PORTAPUNTA MAGNÉTICO 1/4 L=100MM 40 9,34 373,54 553/6 PORTAPUNTA MAGNÉTICO 1/4 L=150MM 40 9,69 387,54 VPPH2/50 PUNTA PHILLIPS 1/4, TIPO 2, L=50 500 0,57 284,06 VPPH2/70 PUNTA PHILLIPS 1/4, TIPO 2, L=70 500 0,90 451,92 VPPH2/90 VPPH2/90 PUNTA PHILLIPS 1/4, TIPO 2, L=90 500 0,99 494,95 JIM2308H EMBOCADURA DE IMPULSO 3/8 E/C8 L=43MM 10 18,64 186,38 JIM2310H EMBOCADURA DE IMPULSO 3/8 E/C10 L=43MM 10 18,64 186,38 JIM2312H EMBOCADURA DE IMPULSO 3/8 E/C12 L=43MM 7 18,64 130,47 JIM2312H EMBOCADURA DE IMPULSO 3/8 E/C12 L=43MM 1 18,64 18,64 JIM3024C EXTENSIÓN DE IMPULSO 3/8 (H) L=100MM CON 1 31,42 31,42 PASADOR\n\nSPCOPMGR MAGNETIC RING 50 8,81 440,56 2005.5VPCM ADAPTADOR INSERCIÓN MACHO 1/4 HEX 5.5 L= 30 6,44 193,20 50MM MAGNÉTICO\n\nJIM3024C EXTENSIÓN DE IMPULSO 3/8 (H) L=100MM CON\n\n4 31,42 125,68 PASADOR\n\nSuma Importes Portes\n\nBase I.V.A. 21% R.E.\n\nImporte total 3.522,01 30,00 3.552,01 745,92\n\n4.297,93 €"
+    },
+    {
+      "numero": "FA240008",
+      "fecha": "2024-04-02",
+      "suma": 5460.46,
+      "totalConIva": 6625.31,
+      "archivo": "2021 04 02 - SPEEDRILL S.L. - FACTURA FA240008 - EUROS 6625,31 - PAP00233.pdf",
+      "driveId": "1qM-RYOIW8mYH0W-_vB_JSVQHBG_mas8v",
+      "texto": "Código Referencia cliente\n\nDescripción Cantidad Precio Importe Albarán S/240006 del 02/04/2024. Contacto: CHRISTIAN CASTANO\n\nSPLMTA30 RUBBER TRIM FASTENER\n\n2 2.170,00 4.340,00 NUMEROS DE SERIE: 1 x SP240401 -1 , 1 x SP240401-2\n\n6J5-006 SLEEVE 4 15,61 62,44 0-241003 THRUST BALL BEARING(CRT8-16) 14 18,70 261,80 0-211006 NEEDLE BEARING(HK0810) 14 3,71 51,94 6G2-007 MIDDLE GEAR 19 4 16,07 64,28 6J2-ZG-009 ACTIVE SHAFT 4 48,22 192,88 6J5-009 PIN 25 4 15,45 61,80 6G2-008 MIDDLE GEAR 12 2 16,07 32,14 801-024 DRIVEN GEAR 15 2 24,88 49,76 801-023 BEVEL GEAR 35 2 24,88 49,76 0-132010 FLAT HEAD SCREW(M6X16L) 5 10 0,31 3,10 6J5-030 FLAT HEAD SCREW(M6X16L) 7 10 0,31 3,10 6J5-028 ACTIVE ROLLER 6 4 34,77 139,08 6J5-029 FIXED ROLLER 8 4 34,77 139,08 0-101064 CAP SCREW(M4X10L ) 9 10 0,31 3,10 0-101063 CAP SCREW(M4X45L ) 3 10 0,31 3,10 0-101005 CAP SCREW(M4X6L ) 2 10 0,31 3,10 Suma Importes Portes\n\nBase I.V.A. 21% R.E.\n\nImporte total 5.460,46 15,00 5.475,46 1.149,85\n\n6.625,31 €"
+    },
+    {
+      "numero": "FA240009",
+      "fecha": "2024-04-08",
+      "suma": 1489.09,
+      "totalConIva": 1838.10,
+      "archivo": "2024 04 08 - SPEEDRILL S.L. - FACTURA FA240009 - EUROS 1838,1 - PAP00228.pdf",
+      "driveId": "1FUfoU4VK5NN_8c9Jyt68wyu2SlB_H0Uf",
+      "texto": "Código Referencia cliente\n\nDescripción Cantidad Precio Importe Albarán S/240008 del 08/04/2024. Contacto: JUAN MANUEL\n\nSPCOPMGR MAGNETIC RING 169 8,81 1.489,09 Suma Importes Portes\n\nBase I.V.A. 21% R.E.\n\nImporte total 1.489,09 30,00 1.519,09 319,01\n\n1.838,10 €"
+    },
+    {
+      "numero": "FA240010",
+      "fecha": "2024-04-08",
+      "suma": 37.28,
+      "totalConIva": 45.11,
+      "archivo": "2024 04 08 - SPEEDRILL S.L. - FACTURA FA240010 - EUROS 45,11 - PAP00237.pdf",
+      "driveId": "1K19NhgI6hBefzeHFGfHS8SW37TeEpe_h",
+      "texto": "Código Referencia cliente\n\nDescripción Cantidad Precio Importe Albarán S/240007 del 08/04/2024. Contacto: CHRISTIAN CASTANO\n\nJIM2312H EMBOCADURA DE IMPULSO 3/8 E/C12 L=43MM 2 18,64 37,28 Suma Importes\n\nBase I.V.A. 21% R.E.\n\nImporte total 37,28 37,28 7,83\n\n45,11 €"
+    }
+  ]
+}
