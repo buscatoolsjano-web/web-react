@@ -23,6 +23,9 @@ vi.mock('../hooks/useComposer', () => ({
   nuevaClave: () => 'k',
   useComposer: () => ({
     campos: { para: ['cliente@ejemplo.test'], cc: [], cco: [], asunto: 'Consulta', texto: 'Hola', adjuntos: [], modo: 'nuevo', threadId: null, refMessageId: null, draftId: 'd1' },
+    // Fase 59 · E2: el papel con el membrete. Vacío acá: estos tests son de
+    // los controles del composer, y el papel tiene los suyos.
+    envoltorio: '',
     set: { para: vi.fn(), cc: vi.fn(), cco: vi.fn(), asunto: vi.fn(), texto: vi.fn(), adjuntos: vi.fn() },
     guardado: estado.guardado,
     errorGuardado: null,

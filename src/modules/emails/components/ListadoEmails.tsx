@@ -1,9 +1,22 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { Icon } from '@/components/icons/Icon'
 import { fechaBandeja, resumenParticipantes } from '../lib/formato'
 import type { EtiquetaEmail, FilaBandeja, UsuarioAsignable } from '../types'
 import { AccionesFila } from './AccionesFila'
+import { BarraSeleccion } from './BarraSeleccion'
+import { useAccionesEnLote } from '../hooks/useEmails'
+import {
+  accionesPosibles,
+  alternar,
+  alternarTodas,
+  elegidas,
+  estadoMaestra,
+  resumenLote,
+  VACIA,
+  type Seleccion,
+} from '../lib/seleccion'
 import { BadgeEstado } from './BadgeEstado'
 import styles from './Emails.module.css'
 
@@ -21,6 +34,13 @@ export interface ListadoEmailsProps {
   onEtiquetar?: ((fila: FilaBandeja, etiqueta: EtiquetaEmail, poner: boolean) => void) | undefined
   /** El hilo que está yendo o volviendo, para bloquear sus controles. */
   trabajando?: string | null | undefined
+  /**
+   * Dibujar las casillas de selección múltiple (Fase 59 · E3). Encendido por
+   * defecto: la bandeja es la única pantalla que usa esta lista y es
+   * exactamente donde se pidió. Se puede apagar si alguna vez se reusa en un
+   * lugar donde elegir varios no signifique nada.
+   */
+  conSeleccion?: boolean | undefined
 }
 
 /**
@@ -34,6 +54,13 @@ export interface ListadoEmailsProps {
  * Fase 28 · E2/E8: los controles —asignar, etiquetar, eliminar— van FUERA del
  * enlace: un control adentro de un `<a>` no es HTML válido y el teclado no
  * llega a los dos. La fila es un enlace y una columna de acciones, lado a lado.
+ *
+ * Fase 59 · E3: la casilla de selección múltiple, por la misma razón y en el
+ * mismo lugar que los otros controles: afuera del enlace.
+ *
+ * LA SELECCIÓN VIVE ACÁ, no en la página. Es estado de la lista —qué filas
+ * están marcadas— y además deja a `EmailsPage` sin cambios, que es lo que
+ * permitió hacer esto mientras otra rama trabaja sobre ese archivo.
  */
 export function ListadoEmails({
   filas,
@@ -44,12 +71,100 @@ export function ListadoEmails({
   etiquetas,
   onEtiquetar,
   trabajando,
+  conSeleccion = true,
 }: ListadoEmailsProps) {
   const { search } = useLocation()
   const hayAcciones = !!onEliminar && !!onAsignar && !!onEtiquetar
 
+  const [seleccion, setSeleccion] = useState<Seleccion>(VACIA)
+  const [aviso, setAviso] = useState<string | null>(null)
+  const lote = useAccionesEnLote()
+  const enLote = lote.marcarLeidos.isPending || lote.eliminar.isPending
+
+  /*
+   * Al cambiar de carpeta, de filtro o de página, la selección se limpia: lo
+   * elegido en «Recibidos» no tiene por qué seguir elegido en «Enviados», y
+   * una acción en lote sobre hilos que ya no se ven sería a ciegas.
+   */
+  const claveDeLista = filas.map((f) => f.id).join(',')
+  const primera = useRef(true)
+  useEffect(() => {
+    if (primera.current) {
+      primera.current = false
+      return
+    }
+    setSeleccion(VACIA)
+    setAviso(null)
+  }, [claveDeLista])
+
+  const acciones = accionesPosibles(filas, seleccion)
+  const maestra = estadoMaestra(filas, seleccion)
+
+  const correrLote = useCallback(
+    async (quienes: FilaBandeja[], correr: () => Promise<FilaBandeja[]>, hecho: string) => {
+      setAviso(null)
+      const fallaron = await correr().catch(() => quienes)
+      setAviso(resumenLote(quienes.length, fallaron.length, hecho))
+      // Se desmarcan los que salieron bien; los que fallaron quedan elegidos
+      // para poder reintentar sin volver a buscarlos uno por uno.
+      const malos = new Set(fallaron.map((f) => f.id))
+      setSeleccion(new Set(quienes.filter((f) => malos.has(f.id)).map((f) => f.id)))
+    },
+    [],
+  )
+
+  const marcarLeidos = () => {
+    const sinLeer = elegidas(filas, seleccion).filter((f) => f.sinLeer)
+    void correrLote(sinLeer, () => lote.marcarLeidos.mutateAsync(sinLeer), 'marcados como leídos')
+  }
+
+  /* Cada botón toca SU parte: con una selección mezclada —que no debería
+     poder armarse, pero— eliminar no restaura de paso. */
+  const moverALaPapelera = (eliminar: boolean) => {
+    const sel = elegidas(filas, seleccion).filter((f) => f.eliminado !== eliminar)
+    void correrLote(sel, () => lote.eliminar.mutateAsync({ filas: sel, eliminar }), eliminar ? 'eliminados' : 'restaurados')
+  }
+
   return (
-    <ul className={styles.lista} aria-label="Hilos de correo">
+    <>
+      {conSeleccion ? (
+        <div className={styles.cabeceraSeleccion}>
+          <label className={styles.casilla}>
+            <input
+              type="checkbox"
+              checked={maestra === 'todas'}
+              // «A medias» no es un tercer estado del checkbox en HTML: es una
+              // propiedad del DOM, así que se pone con un ref.
+              ref={(el) => {
+                if (el) el.indeterminate = maestra === 'algunas'
+              }}
+              disabled={enLote || filas.length === 0}
+              onChange={() => setSeleccion(alternarTodas(filas, seleccion))}
+            />
+            <span className="sr-only">Elegir todos los hilos de esta página</span>
+          </label>
+          <BarraSeleccion
+            acciones={acciones}
+            trabajando={enLote}
+            onMarcarLeidos={marcarLeidos}
+            onEliminar={() => moverALaPapelera(true)}
+            onRestaurar={() => moverALaPapelera(false)}
+            onLimpiar={() => {
+              setSeleccion(VACIA)
+              setAviso(null)
+            }}
+          />
+          {/* Vive fuera de la barra porque la barra desaparece al quedar sin
+              selección, y el resultado del lote tiene que poder leerse después. */}
+          {aviso ? (
+            <p className={styles.nota} role="status">
+              {aviso}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      <ul className={styles.lista} aria-label="Hilos de correo">
       {filas.map((f) => {
         const propia = buzones.get(f.accountId) ?? null
         const quien =
@@ -58,6 +173,18 @@ export function ListadoEmails({
             : (f.ultimoRemitente ?? resumenParticipantes(f.participantes, propia))
         return (
           <li key={f.id} className={styles.item}>
+            {/* Afuera del enlace, igual que las demás acciones de la fila. */}
+            {conSeleccion ? (
+              <label className={styles.casilla}>
+                <input
+                  type="checkbox"
+                  checked={seleccion.has(f.id)}
+                  disabled={enLote}
+                  onChange={() => setSeleccion(alternar(seleccion, f.id))}
+                />
+                <span className="sr-only">Elegir: {f.asunto?.trim() || '(sin asunto)'}</span>
+              </label>
+            ) : null}
             <Link
               to={`/emails/${f.id}`}
               // Volver desde el hilo recupera los filtros y la página.
@@ -113,6 +240,7 @@ export function ListadoEmails({
           </li>
         )
       })}
-    </ul>
+      </ul>
+    </>
   )
 }

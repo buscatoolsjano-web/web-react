@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Field } from '@/components/forms/Field'
 import { Input, Textarea } from '@/components/forms/controls'
 import { Alert } from '@/components/feedback/Alert'
@@ -12,7 +12,7 @@ import { nuevaClave, useComposer, type OpcionesComposer } from '../hooks/useComp
 import { TOPE_ADJUNTOS_BYTES, totalAdjuntos } from '../lib/destinatarios'
 import { tamanoLegible } from '../lib/formato'
 import type { AdjuntoRedaccion, MotivoIncierto } from '../types'
-import { PreviaEnvio } from './PreviaEnvio'
+import { PapelDeCarta } from './PapelDeCarta'
 import styles from './Composer.module.css'
 
 export interface ComposerProps {
@@ -203,10 +203,19 @@ export function Composer({ opciones, titulo, mostrarTitulo = true, onCerrar, onE
             : undefined
         }
       >
-        <Textarea className={styles.texto} value={texto} disabled={bloqueado} rows={10} onChange={(e) => c.set.texto(e.target.value)} />
+        {/*
+          Se escribe SOBRE la hoja con el membrete puesto (Fase 59 · E2). Si la
+          empresa no tiene envoltorio, el mismo cuadro de siempre.
+        */}
+        <PapelDeCarta
+          envoltorio={c.envoltorio}
+          sinMarco={
+            <Textarea className={styles.texto} value={texto} disabled={bloqueado} rows={10} onChange={(e) => c.set.texto(e.target.value)} />
+          }
+        >
+          <CuadroEnLaHoja valor={texto} deshabilitado={bloqueado} onCambiar={c.set.texto} />
+        </PapelDeCarta>
       </Field>
-
-      <PreviaEnvio accountId={opciones.accountId} texto={texto} />
 
       <div className={styles.campo}>
         <span className={styles.etiqueta}>Adjuntos</span>
@@ -319,5 +328,51 @@ export function Composer({ opciones, titulo, mostrarTitulo = true, onCerrar, onE
         onCancel={() => setConfirmandoDescarte(false)}
       />
     </section>
+  )
+}
+
+/**
+ * El cuadro de texto, montado dentro de la hoja (Fase 59 · E2).
+ *
+ * Sin borde, sin fondo y heredando la tipografía de la celda del envoltorio:
+ * la idea es que no se vea un control encima de la hoja, sino que se esté
+ * escribiendo en la hoja.
+ *
+ * CRECE CON LO QUE SE ESCRIBE. Un alto fijo con barra de scroll adentro
+ * rompería la ilusión —y encima dejaría media carta oculta—, así que el alto
+ * se recalcula en cada cambio. El `auto` antes de leer `scrollHeight` es
+ * necesario: sin eso el alto nunca baja al borrar texto, porque `scrollHeight`
+ * nunca es menor que el alto ya puesto.
+ */
+function CuadroEnLaHoja({
+  valor,
+  deshabilitado,
+  onCambiar,
+}: {
+  valor: string
+  deshabilitado: boolean
+  onCambiar: (v: string) => void
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+
+  // `useLayoutEffect` y no `useEffect`: con el segundo, el alto viejo llega a
+  // pintarse y la hoja pega un salto visible en cada tecla.
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [valor])
+
+  return (
+    <textarea
+      ref={ref}
+      className={styles.cuadroHoja}
+      value={valor}
+      disabled={deshabilitado}
+      aria-label="Mensaje"
+      rows={1}
+      onChange={(e) => onCambiar(e.target.value)}
+    />
   )
 }

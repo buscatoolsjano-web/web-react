@@ -323,28 +323,59 @@
 
 /* La previa de cómo sale el mail (Fase 41 · E3). Plegada por defecto: una
    previa siempre abierta empuja el botón de enviar fuera de la pantalla. */
-.previaBoton {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-text-soft);
-  font: inherit;
-  font-size: var(--text-sm);
-  cursor: pointer;
-}
+/* ── La hoja con el membrete, para escribir encima (Fase 59 · E2) ──────────
 
-.previaBoton:hover {
-  color: var(--color-text);
-}
+   Reemplaza al botón «Ver cómo sale» y su iframe: ya no hay una previa que
+   mirar aparte, porque lo que se ve mientras se escribe ES el papel.
 
-.previaMarco {
-  width: 100%;
-  min-height: 20rem;
-  margin-top: var(--space-2);
+   La hoja es BLANCA siempre, también en modo oscuro, y es a propósito: esto
+   no es una pantalla de la aplicación, es cómo va a verse el mail. Un
+   membrete gris oscuro mentiría sobre lo que va a recibir el cliente. Por eso
+   los colores van literales y no en tokens: los pone la plantilla. */
+.papel {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: #ffffff;
+  /* La carta puede ser larga; el composer no puede crecer sin fin. */
+  max-height: min(60vh, 640px);
+  overflow: auto;
+}
+
+.hoja {
+  padding: var(--space-4);
+  /* El envoltorio es una tabla de ancho fijo pensada para un cliente de
+     correo: que no empuje el diálogo a lo ancho. */
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* El cuadro de texto montado en el hueco del envoltorio. Sin borde ni fondo:
+   la idea es que no se vea un control sobre la hoja, sino que se esté
+   escribiendo EN la hoja. La tipografía y el color los hereda de la celda de
+   la plantilla, que es lo que hace que lo escrito se vea como va a salir. */
+.cuadroHoja {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  /* El alto lo maneja el componente, que lo recalcula con el contenido. */
+  resize: none;
+  overflow: hidden;
+}
+
+.cuadroHoja:focus-visible {
+  /* Por fuera del texto, para no mover ni un píxel de la carta al enfocar. */
+  outline: var(--focus-outline);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.cuadroHoja:disabled {
+  /* Mientras se envía: se sigue leyendo igual, no se apaga la carta. */
+  color: inherit;
+  opacity: 0.7;
 }

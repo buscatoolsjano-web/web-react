@@ -1,9 +1,23 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { FilaBandeja } from '../types'
-import { ListadoEmails } from './ListadoEmails'
+
+/*
+ * Desde la Fase 59 · E3 la lista hace las acciones en lote, así que arrastra
+ * el cliente de Supabase y la empresa activa. Estos tests son de PRESENTACIÓN
+ * —qué se dibuja y dónde— así que el lote va mockeado; el comportamiento de la
+ * selección tiene su propio archivo.
+ */
+vi.mock('../hooks/useEmails', () => ({
+  useAccionesEnLote: () => ({
+    marcarLeidos: { isPending: false, mutateAsync: () => Promise.resolve([]) },
+    eliminar: { isPending: false, mutateAsync: () => Promise.resolve([]) },
+  }),
+}))
+
+const { ListadoEmails } = await import('./ListadoEmails')
 
 const fila = (p: Partial<FilaBandeja> = {}): FilaBandeja => ({
   id: 'h1',

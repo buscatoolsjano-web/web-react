@@ -5,7 +5,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import {
   descartarBorrador,
   enviar,
-  firmaParaEnviar,
+  marcoParaEnviar,
   guardarBorrador,
   obtenerBorrador,
   type DatosRedaccion,
@@ -127,12 +127,27 @@ export function useComposer(o: OpcionesComposer) {
    * escribió algo mientras llegaba la respuesta, no se le pisa.
    */
   const [firmaInicial, setFirmaInicial] = useState('')
+  /**
+   * El envoltorio —el papel con el membrete— viene en la MISMA llamada que la
+   * firma (Fase 59 · E2): salen de la misma fila de la misma RPC, y desde acá
+   * cada ida y vuelta son ~220 ms.
+   *
+   * `''` mientras llega, y también si la empresa no tiene plantilla. En los
+   * dos casos el composer cae al cuadro de texto de siempre, así que escribir
+   * un mail nunca depende de que esto conteste.
+   */
+  const [envoltorio, setEnvoltorio] = useState('')
   useEffect(() => {
-    if (o.draftId || !companyId) return
+    if (!companyId) return
     let vivo = true
-    void firmaParaEnviar(companyId).then((f) => {
-      if (!vivo || f.trim() === '') return
-      const conSalto = `\n\n${f}`
+    void marcoParaEnviar(companyId).then((m) => {
+      if (!vivo) return
+      // El papel hace falta siempre, también al retomar un borrador.
+      setEnvoltorio(m.envoltorio)
+      // La firma, en cambio, sólo en un composer NUEVO: un borrador que se
+      // retoma ya la tiene adentro y volver a ponerla la duplicaría.
+      if (o.draftId || m.firma.trim() === '') return
+      const conSalto = `\n\n${m.firma}`
       // Si la persona ya escribió algo mientras llegaba, se respeta lo suyo.
       setTexto((actual) => (actual === '' ? conSalto : actual))
       setFirmaInicial(conSalto)
@@ -343,6 +358,8 @@ export function useComposer(o: OpcionesComposer) {
 
   return {
     campos: { para, cc, cco, asunto, texto, adjuntos, modo, threadId, refMessageId, draftId },
+    /** El papel sobre el que se escribe. '' mientras llega, o si no hay. */
+    envoltorio,
     set: {
       para: editar(setPara),
       cc: editar(setCc),

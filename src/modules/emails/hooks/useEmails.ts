@@ -35,6 +35,7 @@ import type {
   HiloIndice,
   PaginaBandeja,
 } from '../types'
+import { enTandas } from '../lib/seleccion'
 
 /**
  * `companyId` va primero en cada clave, como en el resto de los módulos: dos
@@ -380,4 +381,50 @@ export function useVincular(hilo: HiloIndice | null | undefined) {
       vincularCliente(hilo!.accountId, hilo!.gmailThreadId, c),
     onSettled: () => hilo && invalidar(hilo),
   })
+}
+
+// ── Acciones sobre varios hilos a la vez (Fase 59 · E3) ────────────────────
+
+/**
+ * Marcar como leídos y eliminar/restaurar, en lote.
+ *
+ * NO HAY ENDPOINT DE LOTE: cada hilo es una llamada. `enTandas` las corre de a
+ * seis —en fila, 25 hilos serían más de cinco segundos desde acá— y no corta
+ * ante un error, así que un hilo que falla no deja los otros 24 sin tocar.
+ *
+ * Devuelven cuántos fallaron, para poder decirlo en pantalla en vez de fingir
+ * que salió todo bien.
+ */
+export function useAccionesEnLote() {
+  const companyId = useCompany()
+  const qc = useQueryClient()
+
+  const refrescarContador = () =>
+    void qc.invalidateQueries({ queryKey: ['nav', companyId, 'sin-leer', 'emails'] })
+
+  return {
+    marcarLeidos: useMutation({
+      mutationFn: (filas: readonly FilaBandeja[]) =>
+        enTandas(filas, 6, (f) => marcarLeido(f.accountId, f.gmailThreadId)),
+      onSuccess: (fallaron, filas) => {
+        // Se parchean SÓLO los que salieron bien: pintar como leído uno que
+        // falló es mentirle a quien lo está mirando.
+        const malas = new Set(fallaron.map((f) => f.id))
+        const buenas = new Set(filas.filter((f) => !malas.has(f.id)).map((f) => f.id))
+        if (buenas.size > 0) parchearFilas(qc, companyId, (f) => buenas.has(f.id), { sinLeer: false })
+        refrescarContador()
+      },
+    }),
+
+    /** Mismo criterio que `useEliminarHilo`: cambian de carpeta, se repide. */
+    eliminar: useMutation({
+      mutationFn: ({ filas, eliminar }: { filas: readonly FilaBandeja[]; eliminar: boolean }) =>
+        enTandas(filas, 6, (f) => eliminarHilo(f.accountId, f.gmailThreadId, eliminar)),
+      onSuccess: () => {
+        void qc.invalidateQueries({ queryKey: claves.bandeja(companyId) })
+        qc.removeQueries({ queryKey: claves.bandeja(companyId), type: 'inactive' })
+        refrescarContador()
+      },
+    }),
+  }
 }

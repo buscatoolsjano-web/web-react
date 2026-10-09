@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { SANDBOX_IFRAME, cidsReferenciados, construirSrcdoc, prepararHtml } from '../lib/htmlSeguro'
 import { imagenInline } from '../services/contenido'
@@ -16,13 +16,12 @@ const MAX_INLINE = 10
 /**
  * El cuerpo de un mensaje. Ver `lib/htmlSeguro.ts` para las tres capas.
  *
- * Las imágenes inline (`cid:`) son parte del mensaje, no seguimiento: se piden
- * al backend y se muestran. Las remotas quedan bloqueadas hasta que la persona
- * las pida, para este mensaje.
+ * Las imágenes inline (`cid:`) viajan dentro del mensaje: hay que pedírselas a
+ * Gmail una por una. Las remotas las carga el navegador solo, desde la Fase 59
+ * y a pedido —ver la nota de `lib/htmlSeguro.ts` sobre por qué es una decisión
+ * de privacidad y no de seguridad—.
  */
 export function CuerpoSeguro({ hilo, mensaje }: CuerpoSeguroProps) {
-  const [remotas, setRemotas] = useState(false)
-
   const inlineNecesarias = useMemo(() => {
     if (!mensaje.html) return []
     const cids = new Set(cidsReferenciados(mensaje.html))
@@ -48,8 +47,8 @@ export function CuerpoSeguro({ hilo, mensaje }: CuerpoSeguroProps) {
   })
 
   const preparado = useMemo(
-    () => (mensaje.html ? prepararHtml(mensaje.html, { remotas, ...(inline.data ? { inline: inline.data } : {}) }) : null),
-    [mensaje.html, remotas, inline.data],
+    () => (mensaje.html ? prepararHtml(mensaje.html, inline.data ? { inline: inline.data } : {}) : null),
+    [mensaje.html, inline.data],
   )
 
   if (!preparado) {
@@ -62,28 +61,15 @@ export function CuerpoSeguro({ hilo, mensaje }: CuerpoSeguroProps) {
 
   return (
     <>
-      {preparado.hayRemotas && !remotas ? (
-        <div className={styles.aviso} role="note">
-          <span>
-            Este mensaje tiene imágenes remotas. Están bloqueadas para que el remitente no sepa que lo abriste.
-          </span>
-          <button type="button" className={styles.boton} onClick={() => setRemotas(true)}>
-            Cargar imágenes remotas
-          </button>
-        </div>
-      ) : null}
       {mensaje.truncado ? (
         <p className={styles.nota}>El mensaje es muy largo y se muestra recortado.</p>
       ) : null}
       <iframe
-        // El key fuerza un iframe nuevo al permitir remotas: la CSP de un
-        // documento no se afloja una vez cargado.
-        key={remotas ? 'con-remotas' : 'sin-remotas'}
         className={styles.iframe}
         title={`Cuerpo del mensaje: ${mensaje.asunto || 'sin asunto'}`}
         sandbox={SANDBOX_IFRAME}
         referrerPolicy="no-referrer"
-        srcDoc={construirSrcdoc(preparado.html, remotas)}
+        srcDoc={construirSrcdoc(preparado.html)}
       />
     </>
   )
