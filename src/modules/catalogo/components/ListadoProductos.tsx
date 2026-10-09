@@ -6,6 +6,7 @@ import { SkeletonRows } from '@/components/ui/Skeleton'
 import tabla from '@/components/tables/Tabla.module.css'
 import { CeldaCarrito } from './CeldaCarrito'
 import { DisponibilidadBadge, PrecioCelda, SaldoCelda, StockCelda } from './Celdas'
+import { rutaProducto } from '../lib/rutas'
 import { ImagenProducto } from './ImagenProducto'
 import { PopoverProducto } from './PopoverProducto'
 import { atributosDestacados } from '../lib/destacados'
@@ -109,7 +110,6 @@ export type { OrdenDeColumna } from './EncabezadoOrdenable'
 
 
 
-const rutaProducto = (sku: string) => `/catalogo/${encodeURIComponent(sku)}`
 
 /**
  * Kit es un dato del producto; se muestra con texto, no sólo color.

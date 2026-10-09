@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
@@ -7,9 +8,14 @@ import { Input } from '@/components/forms/controls'
 import { Button } from '@/components/ui/Button'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { ImagenProducto } from '@/modules/catalogo/components/ImagenProducto'
+import { rutaProducto } from '@/modules/catalogo/lib/rutas'
+import { filaClickeable } from '@/components/tables/filaClickeable'
 import tabla from '@/components/tables/Tabla.module.css'
+import { useIsMobile } from '@/hooks/useMediaQuery'
+import { ZoomDeFoto } from '../components/ZoomDeFoto'
 import { useFuentesDeListas, usePlanillaDePrecios, useVersionesDeLista } from '../hooks/useListas'
 import { formatearPct, variacionEntre } from '../lib/comparativa'
+import type { FilaDePlanilla } from '../services/listas'
 import styles from './ListasDePreciosPage.module.css'
 
 const POR_PAGINA = 25
@@ -39,6 +45,8 @@ const importe = (n: number | null | undefined) =>
  * en él ya costó una vez (Fase 43).
  */
 export function ListasDePreciosPage() {
+  const navigate = useNavigate()
+  const esMovil = useIsMobile()
   const fuentes = useFuentesDeListas()
   const [fuenteId, setFuenteId] = useState<string | null>(null)
   const [texto, setTexto] = useState('')
@@ -80,6 +88,35 @@ export function ListasDePreciosPage() {
     setTexto('')
     setBuscado('')
   }
+
+  /*
+   * El zoom de la foto (Fase 54).
+   *
+   * Con un retardo de 250 ms, igual que la ficha al vuelo del catálogo: sin él,
+   * recorrer la columna de fotos con el mouse dispara una tarjeta por fila y la
+   * pantalla parpadea. Y en un teléfono no se abre, porque no hay hover.
+   */
+  const temporizador = useRef<number | null>(null)
+  const [zoom, setZoom] = useState<{ fila: FilaDePlanilla; ancla: DOMRect } | null>(null)
+
+  const abrirZoom = (fila: FilaDePlanilla, el: HTMLElement) => {
+    if (esMovil) return
+    if (temporizador.current !== null) window.clearTimeout(temporizador.current)
+    const ancla = el.getBoundingClientRect()
+    temporizador.current = window.setTimeout(() => setZoom({ fila, ancla }), 250)
+  }
+
+  const cerrarZoom = () => {
+    if (temporizador.current !== null) window.clearTimeout(temporizador.current)
+    temporizador.current = null
+    setZoom(null)
+  }
+
+  /* Un temporizador vivo después de desmontar llama a `setZoom` sobre un
+     componente que ya no está. */
+  useEffect(() => () => {
+    if (temporizador.current !== null) window.clearTimeout(temporizador.current)
+  }, [])
 
   return (
     <div className={styles.pagina}>
@@ -173,8 +210,31 @@ export function ListasDePreciosPage() {
                   </thead>
                   <tbody>
                     {(planilla.data?.filas ?? []).map((fila) => (
-                      <tr key={fila.reference}>
-                        <td className={styles.colFoto}>
+                      <tr
+                        key={fila.reference}
+                        /*
+                          La fila abre la ficha, como en el catálogo (Fase 54).
+                          Se usa el MISMO helper —`filaClickeable`— y la misma
+                          ruta, así que el ctrl-click, la selección de texto y
+                          el teclado se comportan igual en las dos pantallas.
+
+                          Sólo cuando la referencia cruzó con el catálogo: sin
+                          producto no hay ficha que abrir, y la fila ya lo dice.
+                        */
+                        className={fila.sku !== null ? styles.filaAbrible : undefined}
+                        title={fila.sku !== null ? 'Abrir la ficha del producto' : undefined}
+                        {...(fila.sku !== null
+                          ? filaClickeable(() => void navigate(rutaProducto(fila.sku!)))
+                          : {})}
+                      >
+                        <td
+                          className={styles.colFoto}
+                          /* El zoom es de la FOTO, no de la fila: pasar por
+                             encima de la planilla entera no puede tapar los
+                             precios, que es lo que se vino a leer. */
+                          onMouseEnter={(e) => abrirZoom(fila, e.currentTarget)}
+                          onMouseLeave={cerrarZoom}
+                        >
                           <ImagenProducto imagen={fila.imagen} alt="" tamano="thumb" prioridad="eager" />
                         </td>
                         <td className={tabla.nowrap}>
@@ -218,7 +278,19 @@ export function ListasDePreciosPage() {
                     ))}
                   </tbody>
                 </table>
+                {/*
+                  La tarjeta va FUERA de la tabla y en `position: fixed`: este
+                  contenedor tiene scroll horizontal —una columna por fecha— y
+                  recorta cualquier cosa posicionada adentro.
+                */}
               </div>
+              {zoom ? (
+                <ZoomDeFoto
+                  imagen={zoom.fila.imagen}
+                  titulo={zoom.fila.description ?? zoom.fila.reference}
+                  ancla={zoom.ancla}
+                />
+              ) : null}
 
               {fechas.length === 1 ? (
                 /* Decirlo en vez de dejar una sola columna sin explicación. */

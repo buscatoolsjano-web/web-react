@@ -187,6 +187,24 @@
   vertical-align: middle;
 }
 
+/* La fila abre la ficha, como en el catálogo (Fase 54). Mismo cursor y mismo
+   foco visible que allá: son la misma acción y se tienen que sentir igual.
+
+   No todas las filas: una referencia que no cruzó con el catálogo no tiene
+   ficha que abrir, y mostrarle la manito sería prometer algo que no pasa. */
+.filaAbrible {
+  cursor: pointer;
+}
+
+.filaAbrible:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -2px;
+}
+
+.filaAbrible:hover {
+  background: var(--color-surface-alt);
+}
+
 /* La foto es lo primero que se mira para reconocer una punta de un tubo. */
 .colFoto {
   width: 68px;
