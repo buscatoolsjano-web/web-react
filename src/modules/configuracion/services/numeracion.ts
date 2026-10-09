@@ -63,3 +63,80 @@ export async function autoridadPorSerie(companyId: string): Promise<AutoridadSer
     motivo: f.reason,
   }))
 }
+
+// ── Editar la numeración (Fase 58 · E3) ─────────────────────────────────────
+/**
+ * `document_sequences` NO TIENE POLÍTICAS RLS: sólo se llega por funciones
+ * SECURITY DEFINER. Así que estas dos RPC son la única puerta de escritura, y
+ * no hay un camino `from('document_sequences').update()` que se pueda usar en
+ * su lugar.
+ */
+
+export class ErrorNumeracion extends Error {
+  constructor(readonly codigo: string) {
+    super(codigo)
+    this.name = 'ErrorNumeracion'
+  }
+}
+
+/* `numero_ocupado` y `serie_con_documentos` llegan con el número pegado
+   (`numero_ocupado:2585`) y se conserva: cuál es el número ocupado es la mitad
+   de la información útil. */
+const CON_DATO = ['numero_ocupado', 'serie_con_documentos'] as const
+const SIMPLES = [
+  'sin_permiso', 'autoridad_externa', 'tipo_invalido', 'serie_invalida',
+  'prefijo_invalido', 'relleno_invalido', 'numero_invalido',
+  'sin_predeterminada', 'es_predeterminada', 'no_encontrado',
+] as const
+
+function deError(e: { message: string }): ErrorNumeracion {
+  for (const c of CON_DATO) {
+    const i = e.message.indexOf(`${c}:`)
+    if (i >= 0) {
+      // Los dígitos que siguen a los dos puntos. Sin regex armada con `c`
+      // adentro: el prefijo ya está buscado, y lo único variable es el número.
+      const digitos = /^\d+/.exec(e.message.slice(i + c.length + 1))
+      return new ErrorNumeracion(digitos ? `${c}:${digitos[0]}` : c)
+    }
+    if (e.message.includes(c)) return new ErrorNumeracion(c)
+  }
+  const simple = SIMPLES.find((c) => e.message.includes(c))
+  if (simple) return new ErrorNumeracion(simple)
+  if (/failed to fetch|network/i.test(e.message)) return new ErrorNumeracion('sin_red')
+  return new ErrorNumeracion('desconocido')
+}
+
+export interface SerieAGuardar {
+  docType: string
+  serie: string
+  prefijo: string
+  relleno: number
+  proximo: number
+  esDefault: boolean
+  seleccionable: boolean
+}
+
+/** Alta o edición. Devuelve si creó o actualizó, para poder decirlo. */
+export async function guardarSerie(companyId: string, s: SerieAGuardar): Promise<'CREATED' | 'UPDATED'> {
+  const { data, error } = await supabase.rpc('config_numeracion_guardar', {
+    p_company: companyId,
+    p_doc_type: s.docType,
+    p_series_code: s.serie,
+    p_prefix: s.prefijo,
+    p_padding: s.relleno,
+    p_next_number: s.proximo,
+    p_is_default: s.esDefault,
+    p_is_selectable: s.seleccionable,
+  })
+  if (error) throw deError(error)
+  return data === 'CREATED' ? 'CREATED' : 'UPDATED'
+}
+
+export async function eliminarSerie(companyId: string, docType: string, serie: string): Promise<void> {
+  const { error } = await supabase.rpc('config_numeracion_eliminar', {
+    p_company: companyId,
+    p_doc_type: docType,
+    p_series_code: serie,
+  })
+  if (error) throw deError(error)
+}

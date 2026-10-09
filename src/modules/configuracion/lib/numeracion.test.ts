@@ -133,3 +133,119 @@ describe('autoridad por serie (Fase 14 E5)', () => {
     expect([rt.etiqueta, rt.tono]).toEqual(['ERP', 'ok'])
   })
 })
+
+// ── Editar la numeración (Fase 58 · E3) ─────────────────────────────────────
+
+import { mensajeErrorNumeracion, validarSerie, vistaPreviaNumero, type FormularioSerie } from './numeracion'
+
+const form = (p: Partial<FormularioSerie> = {}): FormularioSerie => ({
+  docType: 'quote',
+  serie: 'COT-2026',
+  prefijo: 'COT-2026',
+  relleno: '5',
+  proximo: '1',
+  esDefault: false,
+  seleccionable: true,
+  ...p,
+})
+
+describe('validarSerie', () => {
+  it('un formulario bien lleno pasa, y normaliza a mayúsculas', () => {
+    const r = validarSerie(form({ serie: ' cot-2026 ', prefijo: ' cot-2026 ' }), null)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.valor.serie).toBe('COT-2026')
+      expect(r.valor.prefijo).toBe('COT-2026')
+      expect(r.valor.relleno).toBe(5)
+      expect(r.valor.proximo).toBe(1)
+    }
+  })
+
+  /*
+   * EL ERROR QUE IMPORTA. Si el próximo número no está por encima del mayor ya
+   * emitido, el ERP emitiría un número repetido. Y el mensaje dice CUÁL es el
+   * número ocupado: sin eso, el usuario no sabe a qué subirlo.
+   */
+  it('rechaza un próximo número que ya se emitió, y dice cuál', () => {
+    const r = validarSerie(form({ prefijo: 'COTI', proximo: '2585' }), 2585)
+    expect(r.ok).toBe(false)
+    if (!r.ok) {
+      expect(r.errores.proximo).toContain('02585')
+      expect(r.errores.proximo).toContain('2585')
+    }
+  })
+
+  it('el siguiente al mayor emitido sí pasa', () => {
+    expect(validarSerie(form({ prefijo: 'COTI', proximo: '2586' }), 2585).ok).toBe(true)
+  })
+
+  // Sin documentos emitidos cualquier número sirve: no hay nada que repetir.
+  it('sin nada emitido acepta el 1', () => {
+    expect(validarSerie(form({ proximo: '1' }), null).ok).toBe(true)
+  })
+
+  it('rechaza un prefijo con espacios o con acento', () => {
+    for (const p of ['CO TI', 'COTÍ', '-COT', '']) {
+      const r = validarSerie(form({ prefijo: p }), null)
+      expect(r.ok).toBe(false)
+      if (!r.ok) expect(r.errores.prefijo).toBeDefined()
+    }
+  })
+
+  it('rechaza relleno y próximo fuera de rango, y lo no entero', () => {
+    expect(validarSerie(form({ relleno: '21' }), null).ok).toBe(false)
+    expect(validarSerie(form({ relleno: '-1' }), null).ok).toBe(false)
+    expect(validarSerie(form({ relleno: '2,5' }), null).ok).toBe(false)
+    expect(validarSerie(form({ proximo: '0' }), null).ok).toBe(false)
+    expect(validarSerie(form({ proximo: 'ocho' }), null).ok).toBe(false)
+  })
+
+  // Relleno 0 es válido: RT usa 10, pero una serie sin ceros a la izquierda
+  // también es legítima.
+  it('acepta relleno 0', () => {
+    expect(validarSerie(form({ relleno: '0' }), null).ok).toBe(true)
+  })
+
+  it('rechaza una serie vacía y un tipo que no existe', () => {
+    expect(validarSerie(form({ serie: '  ' }), null).ok).toBe(false)
+    expect(validarSerie(form({ docType: 'inventado' }), null).ok).toBe(false)
+  })
+
+  it('rechaza más de 20 caracteres en serie y prefijo', () => {
+    expect(validarSerie(form({ serie: 'A'.repeat(21) }), null).ok).toBe(false)
+    expect(validarSerie(form({ prefijo: 'A'.repeat(21) }), null).ok).toBe(false)
+  })
+})
+
+describe('vistaPreviaNumero', () => {
+  it('muestra cómo va a salir el número', () => {
+    expect(vistaPreviaNumero({ prefijo: 'cot-2026', relleno: '5', proximo: '7' })).toBe('COT-202600007')
+    expect(vistaPreviaNumero({ prefijo: 'RT', relleno: '10', proximo: '1434' })).toBe('RT0000001434')
+  })
+
+  it('sin un número todavía no inventa nada', () => {
+    expect(vistaPreviaNumero({ prefijo: 'COT', relleno: '5', proximo: '' })).toBe('—')
+    expect(vistaPreviaNumero({ prefijo: 'COT', relleno: '5', proximo: 'ocho' })).toBe('—')
+  })
+
+  // Mientras se escribe, el relleno puede estar en un estado inválido y la
+  // vista previa no tiene que romperse ni mentir: muestra sin relleno.
+  it('con un relleno inválido no se rompe', () => {
+    expect(vistaPreviaNumero({ prefijo: 'COT', relleno: '99', proximo: '7' })).toBe('COT7')
+  })
+})
+
+describe('mensajeErrorNumeracion', () => {
+  it('numero_ocupado y serie_con_documentos traen el número pegado y lo muestran', () => {
+    expect(mensajeErrorNumeracion('numero_ocupado:2585')).toContain('2585')
+    expect(mensajeErrorNumeracion('serie_con_documentos:2585')).toContain('2585')
+  })
+
+  it('cada código tiene su texto y el desconocido no queda vacío', () => {
+    for (const c of ['sin_permiso', 'autoridad_externa', 'tipo_invalido', 'serie_invalida',
+                     'prefijo_invalido', 'relleno_invalido', 'numero_invalido',
+                     'sin_predeterminada', 'es_predeterminada', 'no_encontrado', 'sin_red', 'raro']) {
+      expect(mensajeErrorNumeracion(c).length).toBeGreaterThan(10)
+    }
+  })
+})

@@ -8861,6 +8861,23 @@ export type Database = {
         Args: { p_caps: string[]; p_company: string; p_role: string }
         Returns: undefined
       }
+      config_numeracion_eliminar: {
+        Args: { p_company: string; p_doc_type: string; p_series_code: string }
+        Returns: undefined
+      }
+      config_numeracion_guardar: {
+        Args: {
+          p_company: string
+          p_doc_type: string
+          p_is_default: boolean
+          p_is_selectable?: boolean
+          p_next_number: number
+          p_padding: number
+          p_prefix: string
+          p_series_code: string
+        }
+        Returns: string
+      }
       config_numeracion_diagnostico: {
         Args: { p_company: string }
         Returns: {

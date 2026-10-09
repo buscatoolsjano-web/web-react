@@ -210,3 +210,147 @@ export function presentarFilaAutoridad(f: FilaAutoridad): Presentacion {
   }
   return { etiqueta: 'ERP', tono: 'ok', detalle: 'El ERP emite y numera esta serie con su propia secuencia.' }
 }
+
+// ── Editar la numeración (Fase 58 · E3) ─────────────────────────────────────
+/**
+ * La pantalla dejó de ser de sólo lectura.
+ *
+ * Se escribió cuando STEL emitía: con `authority = 'STEL'` la base bloquea la
+ * emisión desde el ERP y alinear la numeración era una decisión de cutover. Hoy
+ * las 25 secuencias de las dos empresas están en ERP, así que el cartel quedó
+ * viejo. La autoridad se sigue respetando: una serie en STEL no se edita, y las
+ * RPC lo rechazan con `autoridad_externa`.
+ *
+ * TODO LO DE ACÁ ES UNA AYUDA DE INTERFAZ. Cada regla la vuelve a aplicar
+ * `config_numeracion_guardar`, que es la que decide. Esto sólo evita un viaje a
+ * São Paulo para que vuelva un error que se podía ver antes de salir.
+ */
+
+export interface FormularioSerie {
+  docType: string
+  serie: string
+  prefijo: string
+  relleno: string
+  proximo: string
+  esDefault: boolean
+  seleccionable: boolean
+}
+
+export type ErroresSerie = Partial<Record<'docType' | 'serie' | 'prefijo' | 'relleno' | 'proximo', string>>
+
+/** Los diez tipos que el diagnóstico sabe contar; la RPC rechaza el resto. */
+export const TIPOS_CON_SECUENCIA = [
+  'quote', 'sales_order', 'delivery', 'customer', 'supplier',
+  'purchase_order', 'goods_receipt', 'supplier_invoice',
+  'maintenance_asset', 'maintenance_order',
+] as const
+
+/* Mayúsculas, números y guión: es lo que son las 25 series que ya existen
+   (CLI, RT-ERP, COT-BTS…). Un espacio o un acento dentro del prefijo rompería
+   el patrón `^prefijo[0-9]+$` con el que se reconocen los números emitidos. */
+const PREFIJO = /^[A-Z0-9][A-Z0-9-]*$/
+
+export interface SerieValida {
+  docType: string
+  serie: string
+  prefijo: string
+  relleno: number
+  proximo: number
+  esDefault: boolean
+  seleccionable: boolean
+}
+
+/**
+ * Valida el formulario.
+ *
+ * `mayorEmitido` es el mayor número que ya se emitió con ESE prefijo, que sale
+ * del diagnóstico. Sin él no se puede decir si el próximo número repetiría uno:
+ * es el único dato que la pantalla no puede deducir sola.
+ */
+export function validarSerie(
+  f: FormularioSerie,
+  mayorEmitido: number | null,
+): { ok: true; valor: SerieValida } | { ok: false; errores: ErroresSerie } {
+  const errores: ErroresSerie = {}
+  const serie = f.serie.trim().toUpperCase()
+  const prefijo = f.prefijo.trim().toUpperCase()
+
+  if (!(TIPOS_CON_SECUENCIA as readonly string[]).includes(f.docType)) {
+    errores.docType = 'Elegí un tipo de documento.'
+  }
+  if (!serie) errores.serie = 'Ingresá un nombre para la serie.'
+  else if (serie.length > 20) errores.serie = 'Máximo 20 caracteres.'
+
+  if (!prefijo) errores.prefijo = 'Ingresá el prefijo.'
+  else if (prefijo.length > 20) errores.prefijo = 'Máximo 20 caracteres.'
+  else if (!PREFIJO.test(prefijo)) errores.prefijo = 'Sólo letras, números y guiones, sin espacios.'
+
+  const relleno = Number(f.relleno)
+  if (!Number.isInteger(relleno) || relleno < 0 || relleno > 20) {
+    errores.relleno = 'Un número entero de 0 a 20.'
+  }
+
+  const proximo = Number(f.proximo)
+  if (!Number.isInteger(proximo) || proximo < 1) {
+    errores.proximo = 'Un número entero de 1 o más.'
+  } else if (mayorEmitido !== null && proximo <= mayorEmitido) {
+    // El error más importante del formulario: emitiría un número repetido.
+    errores.proximo = `Ya se emitió ${prefijo}${String(mayorEmitido).padStart(Math.max(relleno, 1) || 1, '0')}. El próximo tiene que ser mayor que ${mayorEmitido}.`
+  }
+
+  if (Object.keys(errores).length) return { ok: false, errores }
+  return {
+    ok: true,
+    valor: { docType: f.docType, serie, prefijo, relleno, proximo, esDefault: f.esDefault, seleccionable: f.seleccionable },
+  }
+}
+
+/** Cómo se verá el próximo número con lo que hay escrito en el formulario. */
+export function vistaPreviaNumero(f: Pick<FormularioSerie, 'prefijo' | 'relleno' | 'proximo'>): string {
+  const relleno = Number(f.relleno)
+  const n = f.proximo.trim()
+  if (!n || !/^\d+$/.test(n)) return '—'
+  const ancho = Number.isInteger(relleno) && relleno >= 0 && relleno <= 20 ? relleno : 0
+  return `${f.prefijo.trim().toUpperCase()}${n.padStart(ancho, '0')}`
+}
+
+/**
+ * Texto para cada código de las RPC de numeración.
+ *
+ * `numero_ocupado` y `serie_con_documentos` vienen con el número pegado
+ * (`numero_ocupado:2585`), porque saber CUÁL es el número ocupado es la mitad
+ * de la información útil.
+ */
+export function mensajeErrorNumeracion(codigo: string): string {
+  const [clave, dato] = codigo.split(':')
+  switch (clave) {
+    case 'sin_permiso':
+      return 'Sólo un administrador de esta empresa puede cambiar la numeración.'
+    case 'autoridad_externa':
+      return 'Este tipo de documento lo numera otro sistema, así que su secuencia no se edita desde acá.'
+    case 'tipo_invalido':
+      return 'Ese tipo de documento no tiene secuencia.'
+    case 'serie_invalida':
+      return 'El nombre de la serie no es válido.'
+    case 'prefijo_invalido':
+      return 'El prefijo sólo admite letras, números y guiones, sin espacios.'
+    case 'relleno_invalido':
+      return 'El relleno tiene que ser un número de 0 a 20.'
+    case 'numero_invalido':
+      return 'El próximo número tiene que ser 1 o más.'
+    case 'numero_ocupado':
+      return `Ese número ya se emitió: el mayor existente con ese prefijo es ${dato ?? '—'}. El próximo tiene que ser mayor.`
+    case 'sin_predeterminada':
+      return 'Cada tipo de documento necesita una serie predeterminada: marcá otra antes de desmarcar ésta.'
+    case 'es_predeterminada':
+      return 'No se puede eliminar la serie predeterminada. Marcá otra como predeterminada primero.'
+    case 'serie_con_documentos':
+      return `Esta serie ya emitió documentos (hasta el ${dato ?? '—'}), así que no se puede eliminar: su prefijo es lo que permite reconocer esos números.`
+    case 'no_encontrado':
+      return 'Esa serie ya no existe. Recargá la página.'
+    case 'sin_red':
+      return 'No se pudo contactar al servidor. Revisá la conexión.'
+    default:
+      return 'No se pudo guardar la numeración. Intentá de nuevo.'
+  }
+}

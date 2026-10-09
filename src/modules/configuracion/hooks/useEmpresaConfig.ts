@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { autoridadPorSerie, diagnosticoNumeracion, estadoSyncStel } from '../services/numeracion'
+import { autoridadPorSerie, diagnosticoNumeracion, eliminarSerie, estadoSyncStel, guardarSerie, type SerieAGuardar } from '../services/numeracion'
 import { ErrorEmpresa, actualizarEmpresa, obtenerEmpresa, quitarLogo, subirLogo, urlLogo } from '../services/empresa'
 import type { CampoEditable } from '../lib/empresa'
 
@@ -99,5 +99,31 @@ export function useAccionesEmpresa() {
       mutationFn: (v: { version: string }) => quitarLogo(companyId!, v.version),
     }),
     recargar: () => qc.invalidateQueries({ queryKey: clavesEmpresa.datos(companyId) }),
+  }
+}
+
+// ── Editar la numeración (Fase 58 · E3) ─────────────────────────────────────
+
+/**
+ * Alta, edición y baja de series.
+ *
+ * Invalida el diagnóstico entero y no sólo la fila tocada: el estado («Al día»,
+ * «Atrasada»), el mayor existente y las alertas se calculan en el servidor
+ * comparando contra los documentos, así que una copia local quedaría mintiendo.
+ */
+export function useAccionesNumeracion() {
+  const qc = useQueryClient()
+  const companyId = useEmpresa().activa?.companyId ?? null
+  const refrescar = () => qc.invalidateQueries({ queryKey: clavesEmpresa.numeracion(companyId) })
+
+  return {
+    guardar: useMutation({
+      mutationFn: (s: SerieAGuardar) => guardarSerie(companyId!, s),
+      onSettled: refrescar,
+    }),
+    eliminar: useMutation({
+      mutationFn: (v: { docType: string; serie: string }) => eliminarSerie(companyId!, v.docType, v.serie),
+      onSettled: refrescar,
+    }),
   }
 }
