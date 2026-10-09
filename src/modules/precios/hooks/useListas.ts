@@ -1,6 +1,13 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { cambiosDeVersion, listarFuentes, listarVersiones, planillaDePrecios } from '../services/listas'
+import {
+  cambiosDeVersion,
+  desgloseDeCelda,
+  listarFuentes,
+  listarVersiones,
+  planillaDePrecios,
+  type DesgloseDeCelda,
+} from '../services/listas'
 
 /**
  * Las consultas de Listas de precios (Fase 49).
@@ -65,5 +72,29 @@ export function usePlanillaDePrecios(
     enabled: companyId !== null && sourceId !== null,
     placeholderData: keepPreviousData,
     staleTime: MEDIA_HORA,
+  })
+}
+
+/**
+ * El desglose de una celda de la planilla (Fase 56).
+ *
+ * Se pide SÓLO cuando se abre el diálogo, no junto con la página: es un dato
+ * por celda y la planilla tiene cientos. `sourceId`, `reference` y `fecha`
+ * identifican la celda; sin los tres no hay nada que pedir.
+ */
+export function useDesgloseDeCelda(
+  sourceId: string | null,
+  reference: string | null,
+  fecha: string | null,
+) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery<DesgloseDeCelda | null>({
+    queryKey: ['precios', companyId, 'desglose', sourceId, reference, fecha],
+    queryFn: () => desgloseDeCelda(companyId!, sourceId!, reference!, fecha!),
+    enabled: companyId !== null && sourceId !== null && reference !== null && fecha !== null,
+    // El renglón de una lista ya emitida no cambia.
+    staleTime: Infinity,
   })
 }

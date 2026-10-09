@@ -12,21 +12,15 @@ import { rutaProducto } from '@/modules/catalogo/lib/rutas'
 import { filaClickeable } from '@/components/tables/filaClickeable'
 import tabla from '@/components/tables/Tabla.module.css'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { DesglosePrecio, type CeldaElegida } from '../components/DesglosePrecio'
 import { ZoomDeFoto } from '../components/ZoomDeFoto'
 import { useFuentesDeListas, usePlanillaDePrecios, useVersionesDeLista } from '../hooks/useListas'
 import { formatearPct, variacionEntre } from '../lib/comparativa'
 import type { FilaDePlanilla } from '../services/listas'
+import { fechaCorta, formatearImporte } from '../lib/formato'
 import styles from './ListasDePreciosPage.module.css'
 
 const POR_PAGINA = 25
-
-const fecha = (iso: string) =>
-  new Date(`${iso}T12:00:00`).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' })
-
-const importe = (n: number | null | undefined) =>
-  n === null || n === undefined
-    ? null
-    : n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /**
  * Listas de precios (Fase 49 · planilla en la Fase 50).
@@ -88,6 +82,10 @@ export function ListasDePreciosPage() {
     setTexto('')
     setBuscado('')
   }
+
+  /* La celda cuyo desglose se está mirando (Fase 56). */
+  const [celda, setCelda] = useState<CeldaElegida | null>(null)
+  const nombreFuente = (fuentes.data ?? []).find((f) => f.id === elegida)?.nombre ?? ''
 
   /*
    * El zoom de la foto (Fase 54).
@@ -202,10 +200,20 @@ export function ListasDePreciosPage() {
                       <th scope="col">Descripción</th>
                       {fechas.map((f, i) => (
                         <th key={f} scope="col" className={`${tabla.num} ${i === 0 ? styles.colVigente : ''}`}>
-                          {fecha(f)}
+                          {fechaCorta(f)}
                           {i === 0 ? <span className={styles.vigente}>vigente</span> : null}
                         </th>
                       ))}
+                      {/*
+                        Lo máximo vendido, al final (Fase 56). La fórmula dice
+                        un precio teórico y esta columna dice lo que de verdad
+                        se cobró: sin ella, el número de la fórmula se lee como
+                        si fuera el techo.
+                      */}
+                      <th scope="col" className={`${tabla.num} ${styles.colVenta}`}>
+                        Máx. vendido
+                        <span className={styles.vigente}>o cotizado</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -252,7 +260,7 @@ export function ListasDePreciosPage() {
                           const valor = fila.precios[f]
                           const previa = i + 1 < fechas.length ? fila.precios[fechas[i + 1]!] : undefined
                           const pct = variacionEntre(valor, previa)
-                          const texto = importe(valor)
+                          const texto = valor === null || valor === undefined ? null : formatearImporte(valor)
                           return (
                             <td key={f} className={`${tabla.num} ${i === 0 ? styles.colVigente : ''}`}>
                               {texto === null ? (
@@ -262,18 +270,82 @@ export function ListasDePreciosPage() {
                                   —
                                 </span>
                               ) : (
-                                <>
+                                /*
+                                  El precio es un BOTÓN: se toca y dice de dónde
+                                  sale. Un número en una celda es un número que
+                                  hay que creer; acá se abre el archivo, la
+                                  fecha, el renglón crudo y la cuenta.
+
+                                  Es un `<button>` de verdad para que llegue el
+                                  teclado, y para que el click no dispare
+                                  además la navegación de la fila.
+                                */
+                                <button
+                                  type="button"
+                                  className={styles.celdaPrecio}
+                                  title="Ver de dónde sale este precio"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    if (elegida === null) return
+                                    setCelda({
+                                      sourceId: elegida,
+                                      fuente: nombreFuente,
+                                      reference: fila.reference,
+                                      descripcion: fila.description,
+                                      fecha: f,
+                                      valor: valor ?? null,
+                                      ventaMaxima: fila.ventaMaxima,
+                                    })
+                                  }}
+                                >
                                   <span className={styles.precio}>{texto}</span>
                                   {pct !== null && pct !== 0 ? (
                                     <span className={pct > 0 ? styles.sube : styles.baja}>
                                       {formatearPct(pct)}
                                     </span>
                                   ) : null}
-                                </>
+                                </button>
                               )}
                             </td>
                           )
                         })}
+
+                        {/* Lo máximo vendido. También se toca: dice a quién,
+                            cuándo y en qué documento, con enlace para abrirlo. */}
+                        <td className={`${tabla.num} ${styles.colVenta}`}>
+                          {fila.ventaMaxima === null ? (
+                            <span className={styles.ausente} title="Todavía no se vendió ni se cotizó">
+                              —
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className={styles.celdaPrecio}
+                              title={`${fila.ventaMaxima.tipo === 'pedido' ? 'Vendido' : 'Cotizado'} a ${fila.ventaMaxima.cliente ?? ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (elegida === null) return
+                                setCelda({
+                                  sourceId: elegida,
+                                  fuente: nombreFuente,
+                                  reference: fila.reference,
+                                  descripcion: fila.description,
+                                  fecha: null,
+                                  valor: fila.ventaMaxima?.monto ?? null,
+                                  ventaMaxima: fila.ventaMaxima,
+                                })
+                              }}
+                            >
+                              <span className={styles.precio}>
+                                {formatearImporte(fila.ventaMaxima.monto)}
+                              </span>
+                              <span className={styles.monedaVenta}>
+                                {fila.ventaMaxima.moneda}
+                                {fila.ventaMaxima.tipo === 'cotizacion' ? ' · cot.' : ''}
+                              </span>
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -284,6 +356,7 @@ export function ListasDePreciosPage() {
                   recorta cualquier cosa posicionada adentro.
                 */}
               </div>
+              <DesglosePrecio celda={celda} onCerrar={() => setCelda(null)} />
               {zoom ? (
                 <ZoomDeFoto
                   imagen={zoom.fila.imagen}

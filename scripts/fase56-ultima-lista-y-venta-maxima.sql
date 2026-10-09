@@ -1,0 +1,52 @@
+-- Fase 56 · El PVP sale de la ULTIMA LISTA de la marca, y la venta maxima como
+-- referencia al lado.
+--
+-- Aplicado en las migraciones `fase56_el_pvp_sale_de_la_ultima_lista` y
+-- `fase56_venta_maxima_por_producto`.
+--
+-- ── 1 · Se fue `max_age_days` ──────────────────────────────────────────────
+--
+-- La Fase 55 lo puso para que un costo de 2023 no fijara el precio de 2026.
+-- Resolvia el problema pero con un numero arbitrario: vencio tambien la lista
+-- de CHICAGO PNEUMATIC, que es de enero de 2024 y es la UNICA de esa marca. Que
+-- una marca se quede sin precio porque su proveedor no manda lista nueva es
+-- castigar al dato por la edad del proveedor.
+--
+-- La regla correcta: rige la ULTIMA lista de cada fuente, sea de cuando sea. Lo
+-- que no puede pasar es que un producto tome su precio de una lista VIEJA de su
+-- propia marca habiendo una mas nueva —el bug original, 13 productos de
+-- SPEEDRILL con -82 %—. Se consigue filtrando los renglones a los de la ultima
+-- version de SU fuente ANTES de elegir uno por producto.
+--
+-- Resultado: SPEEDRILL 3.627 (del Excel 2026), TECNA 165, CHICAGO PNEUMATIC 62
+-- (de su lista de 2024, de vuelta), INGERSOLL 0 (no fija precio).
+--
+-- ── 2 · `product_venta_maxima` ─────────────────────────────────────────────
+--
+-- La formula dice un PVP teorico y la realidad dice otra cosa. Ejemplos reales:
+--
+--   J2926B    costo 21,48 EUR -> PVP 64,44  | maximo USD 124,82 a Mabe (PEDIDO)
+--   J3202B    costo 33,39 EUR -> PVP 100,17 | maximo USD  83,13 COTIZADO
+--   VPTX30/90 costo  3,31 EUR -> PVP  9,93  | maximo ARS 13.999 (Mercado Libre)
+--
+-- Sin esa referencia al lado, el numero de la formula se lee como si fuera el
+-- techo, y no lo es.
+--
+-- Tres decisiones que importan:
+--
+--  · EL PRECIO ES EL NETO, despues del descuento del renglon: es lo que de
+--    verdad se cobro. `unit_price` solo diria el precio de lista.
+--
+--  · UNA FILA POR PRODUCTO Y MONEDA. Un maximo en USD y otro en ARS son dos
+--    hechos distintos; juntarlos obligaria a convertir con un tipo de cambio
+--    que nadie confirmo. Y por eso la pantalla muestra la moneda al lado del
+--    numero y NUNCA un cociente contra el costo, que esta en EUR.
+--
+--  · SE GUARDA EL TIPO. Un pedido es una venta; una cotizacion es una oferta
+--    que pudo no cerrarse. Llamar «vendido» a lo segundo seria afirmar algo que
+--    no paso, asi que la pantalla dice «cot.» cuando es eso.
+--
+-- Ante empate de precio gana el PEDIDO sobre la cotizacion, y despues el mas
+-- reciente: asi el dato no cambia de documento al azar entre dos consultas.
+--
+-- El cuerpo completo de las dos vistas esta en las migraciones.

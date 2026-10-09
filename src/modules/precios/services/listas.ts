@@ -174,6 +174,39 @@ export interface FilaDePlanilla {
   sku: string | null
   /** Precio por fecha. Una fecha ausente es una lista donde no estaba. */
   precios: Record<string, number | null>
+  /** Lo máximo que se vendió, para tenerlo al lado del precio teórico. */
+  ventaMaxima: VentaMaxima | null
+}
+
+/**
+ * El precio más alto al que se vendió —u ofreció— un producto (Fase 56).
+ *
+ * PARA QUÉ. La fórmula dice un PVP teórico y la realidad dice otra cosa. El
+ * `2005.5VPCM` es el caso: el costo por 3 da 19,32 y a Grupo Mirgor se le
+ * vendió a 146,79. Sin esa referencia al lado, el número de la fórmula se lee
+ * como si fuera el techo, y no lo es.
+ *
+ * LA MONEDA VA SIEMPRE y no se compara contra el costo. El costo de estas
+ * listas está en EUR y lo vendido en USD o ARS; poner un cociente entre los dos
+ * sería inventar un tipo de cambio. Es una referencia al lado, no una cuenta.
+ */
+export interface VentaMaxima {
+  productId: string
+  monto: number
+  moneda: string
+  /** `pedido` es una venta; `cotizacion` es una oferta que pudo no cerrarse. */
+  tipo: 'pedido' | 'cotizacion'
+  documentoId: string | null
+  numero: string | null
+  fecha: string | null
+  cliente: string | null
+  clienteId: string | null
+  cantidad: number | null
+  precioLista: number | null
+  descuentoPct: number | null
+  /** Cuántas veces se cotizó o vendió, y cuántas de ésas fueron venta. */
+  veces: number
+  vecesVendido: number
 }
 
 export interface Planilla {
@@ -229,6 +262,7 @@ export async function planillaDePrecios(
     imagen: null as FilaDePlanilla['imagen'],
     sku: null as string | null,
     precios: (f.precios ?? {}) as Record<string, number | null>,
+    ventaMaxima: null as VentaMaxima | null,
   }))
 
   const ids = filas.map((f) => f.productId).filter((x): x is string => x !== null)
@@ -261,7 +295,153 @@ export async function planillaDePrecios(
           }
         : null
     }
+
+    /*
+     * Lo máximo vendido, en la misma consulta por página que la foto.
+     *
+     * La vista devuelve UNA FILA POR MONEDA. Acá se elige la de mayor importe
+     * sin convertir nada: comparar 520.000 ARS con 826 USD no tiene sentido,
+     * pero mostrar «lo más alto que se cobró, y en qué moneda» sí. La moneda
+     * viaja con el número para que la pantalla no pueda perderla.
+     */
+    const { data: maximos } = await supabase
+      .from('product_venta_maxima')
+      .select(
+        'product_id, moneda, maximo, tipo, documento_id, numero, fecha, customer_id, cliente, cantidad, precio_lista, descuento_pct, veces, veces_vendido',
+      )
+      .eq('company_id', companyId)
+      .in('product_id', ids)
+
+    const mejorPorProducto = new Map<string, VentaMaxima>()
+    for (const m of maximos ?? []) {
+      if (m.product_id === null || m.maximo === null) continue
+      const cand: VentaMaxima = {
+        productId: m.product_id,
+        monto: Number(m.maximo),
+        moneda: m.moneda ?? '',
+        tipo: m.tipo === 'pedido' ? 'pedido' : 'cotizacion',
+        documentoId: m.documento_id,
+        numero: m.numero,
+        fecha: m.fecha,
+        cliente: m.cliente,
+        clienteId: m.customer_id,
+        cantidad: m.cantidad === null ? null : Number(m.cantidad),
+        precioLista: m.precio_lista === null ? null : Number(m.precio_lista),
+        descuentoPct: m.descuento_pct === null ? null : Number(m.descuento_pct),
+        veces: Number(m.veces ?? 0),
+        vecesVendido: Number(m.veces_vendido ?? 0),
+      }
+      const previo = mejorPorProducto.get(m.product_id)
+      // Ante dos monedas se muestra la del importe más alto y se dice cuál es.
+      if (!previo || cand.monto > previo.monto) mejorPorProducto.set(m.product_id, cand)
+    }
+
+    for (const f of filas) {
+      if (f.productId === null) continue
+      f.ventaMaxima = mejorPorProducto.get(f.productId) ?? null
+    }
   }
 
   return { filas, total: count ?? 0 }
+}
+
+// ── La trazabilidad de una celda (Fase 56) ─────────────────────────────────
+
+export interface DesgloseDeCelda {
+  /** De qué fuente y versión salió el número. */
+  fuente: string
+  fecha: string
+  moneda: string
+  origen: string
+  columnaAncla: string
+  archivo: string | null
+  enlace: string | null
+  nota: string | null
+  /** El renglón tal como se cargó: el ancla y TODAS las columnas del archivo. */
+  reference: string
+  descripcion: string | null
+  anchor: number | null
+  columnas: Record<string, unknown>
+  /** La fórmula que rige esa fuente, para poder reproducir el PVP a mano. */
+  formula: {
+    multiplicador: number
+    claveBase: string | null
+    baseEsCosto: boolean
+    fijaPrecio: boolean
+    nota: string | null
+  } | null
+}
+
+/**
+ * De dónde sale un número de la planilla (Fase 56).
+ *
+ * Es lo que hace falta para poder tocar un precio y que diga de dónde vino: la
+ * fuente, el archivo con su enlace, la fecha, el renglón crudo con TODAS las
+ * columnas del original —no sólo la que se usó— y la fórmula que rige. Sin
+ * esto, un número en una celda es un número que hay que creer.
+ */
+export async function desgloseDeCelda(
+  companyId: string,
+  sourceId: string,
+  reference: string,
+  fecha: string,
+): Promise<DesgloseDeCelda | null> {
+  const { data: version, error: eV } = await supabase
+    .from('price_list_versions')
+    .select('id, issued_on, currency, anchor_column, origin, file_name, file_url, notes, price_list_sources ( name )')
+    .eq('company_id', companyId)
+    .eq('source_id', sourceId)
+    .eq('issued_on', fecha)
+    .maybeSingle()
+
+  if (eV) throw new Error(`No se pudo leer la versión: ${eV.message}`)
+  if (!version) return null
+
+  const { data: item, error: eI } = await supabase
+    .from('price_list_items')
+    .select('reference, description, anchor, prices')
+    .eq('version_id', version.id)
+    .eq('reference', reference)
+    .maybeSingle()
+
+  if (eI) throw new Error(`No se pudo leer el renglón: ${eI.message}`)
+
+  /* La fórmula de la fuente, y si no tiene, la general de la empresa. */
+  const { data: formulas } = await supabase
+    .from('price_formulas')
+    .select('source_id, multiplier, base_key, base_is_cost, applies_to_price, notes')
+    .eq('company_id', companyId)
+    .or(`source_id.eq.${sourceId},source_id.is.null`)
+
+  const dela = (formulas ?? []).find((f) => f.source_id === sourceId)
+  const general = (formulas ?? []).find((f) => f.source_id === null)
+  const f = dela ?? general ?? null
+
+  type ConFuente = { price_list_sources?: { name: string } | { name: string }[] | null }
+  const fuenteCruda = (version as unknown as ConFuente).price_list_sources
+  const nombreFuente = Array.isArray(fuenteCruda) ? (fuenteCruda[0]?.name ?? '') : (fuenteCruda?.name ?? '')
+
+  return {
+    fuente: nombreFuente,
+    fecha: version.issued_on,
+    moneda: version.currency,
+    origen: version.origin,
+    columnaAncla: version.anchor_column,
+    archivo: version.file_name,
+    enlace: version.file_url,
+    nota: version.notes,
+    reference,
+    descripcion: sinComillas(item?.description ?? null),
+    anchor: item?.anchor === null || item?.anchor === undefined ? null : Number(item.anchor),
+    columnas: (item?.prices ?? {}) as Record<string, unknown>,
+    formula: f
+      ? {
+          multiplicador: Number(f.multiplier),
+          claveBase: f.base_key,
+          baseEsCosto: f.base_is_cost,
+          fijaPrecio: f.applies_to_price,
+          nota: f.notes,
+        }
+      : null,
+  }
 }

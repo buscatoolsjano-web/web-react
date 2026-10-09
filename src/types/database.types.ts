@@ -4232,13 +4232,6 @@ export type Database = {
            * precio que STEL tiene hoy.
            */
           applies_to_price: boolean
-          /**
-           * Un costo más viejo que esto queda como historia y NO fija precio.
-           *
-           * Un costo de hace dos años por el múltiplo no es un precio de hoy:
-           * se come los aumentos del proveedor. Un año por defecto.
-           */
-          max_age_days: number
           notes: string | null
           created_at: string
           updated_at: string
@@ -4251,7 +4244,6 @@ export type Database = {
           base_key?: string | null
           base_is_cost?: boolean
           applies_to_price?: boolean
-          max_age_days?: number
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -4264,7 +4256,6 @@ export type Database = {
           base_key?: string | null
           base_is_cost?: boolean
           applies_to_price?: boolean
-          max_age_days?: number
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -7935,6 +7926,33 @@ export type Database = {
           /** `false` = la base no es un costo real sino la venta del proveedor. */
           base_is_cost: boolean | null
           pvp: number | null
+        }
+        Relationships: []
+      }
+      /**
+       * Fase 56: el precio más alto al que se vendió (u ofreció) cada producto.
+       *
+       * Una fila por producto y MONEDA: un máximo en USD y otro en ARS son dos
+       * hechos distintos y no existe uno que los mezcle.
+       */
+      product_venta_maxima: {
+        Row: {
+          company_id: string | null
+          product_id: string | null
+          moneda: string | null
+          maximo: number | null
+          /** 'pedido' es una venta; 'cotizacion' es una oferta que pudo no cerrarse. */
+          tipo: string | null
+          documento_id: string | null
+          numero: string | null
+          fecha: string | null
+          customer_id: string | null
+          cliente: string | null
+          cantidad: number | null
+          precio_lista: number | null
+          descuento_pct: number | null
+          veces: number | null
+          veces_vendido: number | null
         }
         Relationships: []
       }
