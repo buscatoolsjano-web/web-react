@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { ErrorUsuarios, cambiarEstado, cambiarRol, invitarUsuario, listarUsuarios, reenviarInvitacion } from '../services/usuarios'
+import { ErrorUsuarios, cambiarEstado, cambiarRol, eliminarMiembro, invitarUsuario, listarUsuarios, reenviarInvitacion } from '../services/usuarios'
 import type { DatosInvitacion, UsuarioEmpresa } from '../types'
 
 export const clavesConfiguracion = {
@@ -44,6 +44,12 @@ export function useAccionesUsuarios() {
     }),
     reenviar: useMutation({
       mutationFn: (membershipId: string) => reenviarInvitacion(membershipId),
+      onSettled: refrescar,
+    }),
+    // Fase 58 · E4: elimina, no suspende. La fila desaparece de la lista.
+    eliminar: useMutation({
+      mutationFn: (v: { membershipId: string; borrarCuenta: boolean }) =>
+        eliminarMiembro(v.membershipId, v.borrarCuenta),
       onSettled: refrescar,
     }),
   }

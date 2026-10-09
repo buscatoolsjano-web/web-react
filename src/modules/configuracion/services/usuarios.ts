@@ -20,7 +20,7 @@ export class ErrorUsuarios extends Error {
   }
 }
 
-const CODIGOS_RPC = ['sin_permiso', 'ultimo_admin', 'no_auto_suspension', 'rol_invalido', 'rol_externo', 'estado_invalido'] as const
+const CODIGOS_RPC = ['sin_permiso', 'ultimo_admin', 'no_auto_suspension', 'no_auto_eliminacion', 'no_encontrado', 'rol_invalido', 'rol_externo', 'estado_invalido'] as const
 
 function deErrorRpc(e: { message: string }): ErrorUsuarios {
   const codigo = CODIGOS_RPC.find((c) => e.message.includes(c))
@@ -94,4 +94,28 @@ export function invitarUsuario(d: DatosInvitacion): Promise<ResultadoInvitacion>
 
 export function reenviarInvitacion(membershipId: string): Promise<ResultadoInvitacion> {
   return llamarFuncion({ accion: 'reenviar', membership_id: membershipId })
+}
+
+/** Qué hizo el borrado: se quitó el acceso, o también se borró la cuenta. */
+export type ResultadoEliminacion = 'acceso_eliminado' | 'cuenta_eliminada'
+
+/**
+ * Elimina de verdad, no suspende (Fase 58 · E4).
+ *
+ * Borra la membresía —la fila desaparece de la lista— y, si `borrarCuenta` y la
+ * persona no tiene otras empresas ni dejó historial, también su cuenta de Auth.
+ *
+ * NO FALLA cuando la cuenta no se puede borrar: 84 claves foráneas con NO ACTION
+ * protegen a quien dejó documentos, y en ese caso la RPC revierte sólo el
+ * borrado de la cuenta y devuelve `acceso_eliminado`. Eliminar el acceso era lo
+ * pedido; borrar la cuenta era el extra. Por eso devuelve qué hizo en vez de
+ * void: la pantalla tiene que poder decirlo.
+ */
+export async function eliminarMiembro(membershipId: string, borrarCuenta: boolean): Promise<ResultadoEliminacion> {
+  const { data, error } = await supabase.rpc('config_eliminar_miembro', {
+    p_membership: membershipId,
+    p_borrar_cuenta: borrarCuenta,
+  })
+  if (error) throw deErrorRpc(error)
+  return data === 'cuenta_eliminada' ? 'cuenta_eliminada' : 'acceso_eliminado'
 }

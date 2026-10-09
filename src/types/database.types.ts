@@ -8853,6 +8853,10 @@ export type Database = {
           puede_editar: boolean
         }[]
       }
+      config_eliminar_miembro: {
+        Args: { p_borrar_cuenta?: boolean; p_membership: string }
+        Returns: string
+      }
       config_permisos_rol_guardar: {
         Args: { p_caps: string[]; p_company: string; p_role: string }
         Returns: undefined

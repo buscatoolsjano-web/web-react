@@ -7,9 +7,11 @@ import {
   filtrarUsuarios,
   mensajeError,
   puedeCambiarRol,
+  puedeEliminar,
   puedeReenviar,
   puedeSuspender,
   rolesPermitidos,
+  seguroQueBorraLaCuenta,
   textoResultadoInvitacion,
   validarInvitacion,
 } from './usuarios'
@@ -141,5 +143,71 @@ describe('filtrarUsuarios', () => {
     expect(filtrarUsuarios(lista, 'administ').map((x) => x.nombre)).toEqual(['Juan'])
     expect(filtrarUsuarios(lista, 'N@X').map((x) => x.nombre)).toEqual(['Norberto'])
     expect(filtrarUsuarios(lista, '  ')).toHaveLength(2)
+  })
+})
+
+/*
+ * Eliminar, no suspender (Fase 58 · E4).
+ *
+ * Las barreras son las mismas que para suspender y por la misma razón, pero acá
+ * pesan más: de esto no se vuelve apretando «Reactivar». La base las vuelve a
+ * aplicar; esto es sólo no ofrecer un botón que va a fallar.
+ */
+describe('puedeEliminar', () => {
+  it('no se puede eliminar a uno mismo', () => {
+    const yo = u({ esPropia: true })
+    expect(puedeEliminar(yo, [yo]).ok).toBe(false)
+    expect(puedeEliminar(yo, [yo]).motivo).toMatch(/tu propia cuenta/)
+  })
+
+  it('no se puede eliminar al único administrador activo', () => {
+    const admin = u({ rol: 'admin' })
+    expect(puedeEliminar(admin, [admin, u({ rol: 'employee' })]).ok).toBe(false)
+  })
+
+  it('con dos administradores activos, sí', () => {
+    const a = u({ rol: 'admin' })
+    const b = u({ rol: 'admin' })
+    expect(puedeEliminar(a, [a, b]).ok).toBe(true)
+  })
+
+  /* Un admin SUSPENDIDO no cuenta como el último: ya no puede entrar, así que
+     dejarlo sin borrar no protege a nadie. Es la misma cuenta que `puedeSuspender`. */
+  it('un admin suspendido no es «el último administrador activo»', () => {
+    const activo = u({ rol: 'admin' })
+    const suspendido = u({ rol: 'admin', estado: 'suspended' })
+    expect(puedeEliminar(suspendido, [activo, suspendido]).ok).toBe(true)
+  })
+
+  it('a un empleado cualquiera, sí', () => {
+    const e = u({ rol: 'employee' })
+    expect(puedeEliminar(e, [u({ rol: 'admin' }), e]).ok).toBe(true)
+  })
+})
+
+describe('seguroQueBorraLaCuenta', () => {
+  /*
+   * Sólo dice «seguro» cuando NO PUDO dejar historial. Es el caso que motivó el
+   * pedido —un email mal tipeado en una invitación— y el único en que la
+   * pantalla puede prometer que la cuenta se borra: con 84 claves foráneas
+   * protegiendo a quien cargó algo, para el resto se intenta y se informa.
+   */
+  it('una invitación que nunca se usó no pudo dejar historial', () => {
+    expect(seguroQueBorraLaCuenta(u({ emailConfirmado: false, ultimoIngreso: null }))).toBe(true)
+  })
+
+  it('quien ya entró puede haber cargado algo', () => {
+    expect(seguroQueBorraLaCuenta(u({ emailConfirmado: false, ultimoIngreso: '2026-01-05T10:00:00Z' }))).toBe(false)
+  })
+
+  it('una cuenta confirmada no se promete', () => {
+    expect(seguroQueBorraLaCuenta(u({ emailConfirmado: true, ultimoIngreso: null }))).toBe(false)
+  })
+})
+
+describe('los códigos nuevos de la base tienen texto', () => {
+  it('no_auto_eliminacion y no_encontrado', () => {
+    expect(mensajeError('no_auto_eliminacion')).toMatch(/tu propia cuenta/)
+    expect(mensajeError('no_encontrado')).toMatch(/Recargá/)
   })
 })

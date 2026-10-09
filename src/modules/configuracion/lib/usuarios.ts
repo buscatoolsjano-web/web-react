@@ -87,6 +87,35 @@ export function puedeSuspender(u: UsuarioEmpresa, lista: readonly UsuarioEmpresa
   return SI
 }
 
+/**
+ * ¿Se puede eliminar? (Fase 58 · E4)
+ *
+ * Las mismas dos barreras que suspender —uno mismo, y el último admin— porque
+ * son las mismas razones, pero acá pesan más: de esto no se vuelve apretando
+ * «Reactivar». La base las vuelve a aplicar (`no_auto_eliminacion`,
+ * `ultimo_admin`): esto es sólo no ofrecer un botón que va a fallar.
+ */
+export function puedeEliminar(u: UsuarioEmpresa, lista: readonly UsuarioEmpresa[]): Permitido {
+  if (u.esPropia) return no('No podés eliminar tu propia cuenta.')
+  if (esUnicoAdmin(u, lista)) return no('Es el único administrador activo: primero hacé administrador a otra persona.')
+  return SI
+}
+
+/**
+ * ¿Al eliminar se puede borrar también la cuenta entera?
+ *
+ * Es una PREGUNTA ABIERTA desde el navegador: si la persona dejó historial —una
+ * cotización, un producto, un mail—, 84 claves foráneas con NO ACTION frenan el
+ * borrado de la cuenta, y desde acá no hay forma de saberlo sin consultar esas
+ * 84 tablas. Así que la pantalla no promete: la RPC intenta y devuelve qué hizo.
+ *
+ * Lo único que sí se sabe acá es que una invitación que nunca se usó no pudo
+ * dejar historial, y es el caso que motivó el pedido (un email mal tipeado).
+ */
+export function seguroQueBorraLaCuenta(u: UsuarioEmpresa): boolean {
+  return !u.emailConfirmado && u.ultimoIngreso === null
+}
+
 export function puedeReenviar(u: UsuarioEmpresa): Permitido {
   if (u.estado !== 'active') return no('Reactivá el acceso antes de reenviar la invitación.')
   if (u.bloqueada) return no('La cuenta está bloqueada.')
@@ -135,6 +164,10 @@ export function mensajeError(codigo: string): string {
       return 'La empresa tiene que conservar al menos un administrador activo.'
     case 'no_auto_suspension':
       return 'No podés suspender tu propio acceso.'
+    case 'no_auto_eliminacion':
+      return 'No podés eliminar tu propia cuenta.'
+    case 'no_encontrado':
+      return 'Esa persona ya no está en la lista. Recargá la página.'
     case 'rol_invalido':
       return 'Ese rol no se puede asignar.'
     case 'rol_externo':

@@ -25,8 +25,10 @@ import {
   formatearFecha,
   mensajeError,
   puedeCambiarRol,
+  puedeEliminar,
   puedeReenviar,
   puedeSuspender,
+  seguroQueBorraLaCuenta,
   rolesPermitidos,
   textoResultadoInvitacion,
 } from '../lib/usuarios'
@@ -37,7 +39,7 @@ import styles from '../components/Configuracion.module.css'
 
 type Pendiente =
   | { tipo: 'rol'; u: UsuarioEmpresa; rol: string }
-  | { tipo: 'suspender' | 'reactivar' | 'reenviar'; u: UsuarioEmpresa }
+  | { tipo: 'suspender' | 'reactivar' | 'reenviar' | 'eliminar'; u: UsuarioEmpresa }
   | { tipo: 'invitar' }
 
 interface Aviso {
@@ -82,7 +84,7 @@ function UsuariosAdmin() {
   const lista = usuarios.data ?? []
   const visibles = filtrarUsuarios(lista, busqueda)
   const empresa = activa?.companyName ?? ''
-  const ocupado = acciones.cambiarRol.isPending || acciones.cambiarEstado.isPending || acciones.invitar.isPending || acciones.reenviar.isPending
+  const ocupado = acciones.cambiarRol.isPending || acciones.cambiarEstado.isPending || acciones.invitar.isPending || acciones.reenviar.isPending || acciones.eliminar.isPending
 
   const abrir = (p: Pendiente) => {
     setErrorDialogo(null)
@@ -100,6 +102,18 @@ function UsuariosAdmin() {
       if (pendiente.tipo === 'rol') {
         await acciones.cambiarRol.mutateAsync({ membershipId: u.membershipId, rol: pendiente.rol })
         setAviso({ tono: 'ok', titulo: `${quien(u)} ahora es ${etiquetaRol(pendiente.rol)}.` })
+      } else if (pendiente.tipo === 'eliminar') {
+        // Siempre se pide borrar la cuenta: la RPC decide si puede y dice qué hizo.
+        const r = await acciones.eliminar.mutateAsync({ membershipId: u.membershipId, borrarCuenta: true })
+        setAviso(
+          r === 'cuenta_eliminada'
+            ? { tono: 'ok', titulo: `${quien(u)} y su cuenta se eliminaron.` }
+            : {
+                tono: 'ok',
+                titulo: `${quien(u)} salió de ${empresa}.`,
+                detalle: 'Su cuenta sigue existiendo: dejó documentos cargados y su nombre está en ellos, o pertenece a otra empresa.',
+              },
+        )
       } else if (pendiente.tipo === 'suspender' || pendiente.tipo === 'reactivar') {
         const estado = pendiente.tipo === 'suspender' ? 'suspended' : 'active'
         await acciones.cambiarEstado.mutateAsync({ membershipId: u.membershipId, estado })
@@ -292,6 +306,7 @@ function ChipEstado({ u }: { u: UsuarioEmpresa }) {
 function Acciones({ u, lista, deshabilitado, abrir }: { u: UsuarioEmpresa; lista: UsuarioEmpresa[]; deshabilitado: boolean; abrir: (p: Pendiente) => void }) {
   const suspender = puedeSuspender(u, lista)
   const reenviar = puedeReenviar(u)
+  const eliminar = puedeEliminar(u, lista)
   return (
     <span className={styles.acciones}>
       {!u.emailConfirmado && reenviar.ok && (
@@ -308,12 +323,17 @@ function Acciones({ u, lista, deshabilitado, abrir }: { u: UsuarioEmpresa; lista
           Suspender
         </Button>
       )}
+      {/* Fase 58 E4: eliminar, no suspender. Va ultimo y en ghost: es el
+          irreversible de la fila. */}
+      <Button variant="ghost" onClick={() => abrir({ tipo: 'eliminar', u })} disabled={deshabilitado || !eliminar.ok} title={eliminar.motivo ?? undefined}>
+        Eliminar
+      </Button>
     </span>
   )
 }
 
 function esPeligrosa(p: Pendiente): boolean {
-  return p.tipo === 'rol' && esAutoDegradacion(p.u, p.rol)
+  return p.tipo === 'eliminar' || (p.tipo === 'rol' && esAutoDegradacion(p.u, p.rol))
 }
 
 function tituloConfirmacion(p: Exclude<Pendiente, { tipo: 'invitar' }>): string {
@@ -326,11 +346,13 @@ function tituloConfirmacion(p: Exclude<Pendiente, { tipo: 'invitar' }>): string 
       return 'Reactivar acceso'
     case 'reenviar':
       return 'Reenviar invitación'
+    case 'eliminar':
+      return seguroQueBorraLaCuenta(p.u) ? 'Eliminar la cuenta' : 'Eliminar del sistema'
   }
 }
 
 function textoBoton(p: Exclude<Pendiente, { tipo: 'invitar' }>): string {
-  return { rol: 'Cambiar rol', suspender: 'Suspender', reactivar: 'Reactivar', reenviar: 'Reenviar' }[p.tipo]
+  return { rol: 'Cambiar rol', suspender: 'Suspender', reactivar: 'Reactivar', reenviar: 'Reenviar', eliminar: 'Eliminar' }[p.tipo]
 }
 
 function textoConfirmacion(p: Exclude<Pendiente, { tipo: 'invitar' }>, empresa: string): string {
@@ -346,5 +368,15 @@ function textoConfirmacion(p: Exclude<Pendiente, { tipo: 'invitar' }>, empresa: 
       return `${nombre} vuelve a entrar a ${empresa} como ${etiquetaRol(p.u.rol)}.`
     case 'reenviar':
       return `Se manda un correo nuevo a ${p.u.email}. El enlace anterior deja de funcionar.`
+    /*
+     * Dice LAS DOS COSAS que pueden pasar, porque desde acá no se sabe cuál va
+     * a ser: si la persona dejó documentos, la base no deja borrar su cuenta
+     * —su nombre está en ellos— y sólo se va el acceso. Prometer «se borra
+     * todo» y que después no pase sería peor que explicarlo.
+     */
+    case 'eliminar':
+      return seguroQueBorraLaCuenta(p.u)
+        ? `${nombre} nunca usó su invitación, así que se borra la cuenta entera y no queda nada. Esto no se puede deshacer.`
+        : `${nombre} sale de ${empresa} y desaparece de esta lista. Esto no se puede deshacer: no hay «reactivar» como con suspender. Si nunca cargó nada, se borra también su cuenta; si dejó documentos, la cuenta sigue existiendo porque su nombre está en ellos.`
   }
 }
