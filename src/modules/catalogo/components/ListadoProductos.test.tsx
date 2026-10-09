@@ -319,3 +319,117 @@ describe('La ficha al vuelo', () => {
     expect(screen.queryByRole('tooltip')).toBeNull()
   })
 })
+
+/*
+ * ANCHOS AJUSTABLES EN EL CATÁLOGO (Fase 58 · E6).
+ *
+ * «Es importante que las columnas respeten su tamaño… pero también quiero yo
+ * poder ir modificando el tamaño de las columnas, tipo ir agarrando y
+ * ampliarlo, achicarlo».
+ *
+ * Que los anchos se RESPETEN ya lo resolvió la Fase 39 con
+ * `table-layout: fixed`. Lo que se prueba acá es lo otro: que se puedan
+ * cambiar, que el cambio quede, y sobre todo que agarrar el borde no dispare
+ * el orden de la columna ni abra la ficha del producto, que son las dos cosas
+ * que ya hacía un clic ahí.
+ */
+import { leerAnchos, MIN_PX } from '@/components/tables/anchoDeColumnas'
+
+const tiradorDe = (etiqueta: string) => screen.getByRole('separator', { name: `Ancho de ${etiqueta}` })
+
+const anchoTh = (etiqueta: string) =>
+  Number.parseInt(screen.getByRole('columnheader', { name: new RegExp(etiqueta) }).style.width, 10)
+
+function arrastrarEn(etiqueta: string, deltaPx: number) {
+  const t = tiradorDe(etiqueta)
+  act(() => {
+    fireEvent.pointerDown(t, { clientX: 400 })
+  })
+  act(() => {
+    fireEvent.pointerMove(window, { clientX: 400 + deltaPx })
+  })
+  act(() => {
+    fireEvent.pointerUp(window, { clientX: 400 + deltaPx })
+  })
+}
+
+describe('El ancho de las columnas del catálogo', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('las columnas de texto traen un tirador y un ancho declarado', () => {
+    montar()
+    for (const etiqueta of ['Modelo', 'Marca', 'Serie', 'Tipo']) {
+      expect(tiradorDe(etiqueta)).toBeInTheDocument()
+      expect(anchoTh(etiqueta)).toBeGreaterThanOrEqual(MIN_PX)
+    }
+  })
+
+  /* Las de ancho conocido lo piden en píxeles en el CSS desde la Fase 39: ahí
+     el reparto ya es el bueno y no hay nada que ajustar a mano. */
+  it('las columnas de ancho fijo no llevan tirador', () => {
+    montar()
+    expect(screen.queryByRole('separator', { name: 'Ancho de Precio' })).toBeNull()
+    expect(screen.queryByRole('separator', { name: 'Ancho de Referencia' })).toBeNull()
+    expect(screen.queryByRole('separator', { name: 'Ancho de Stock real' })).toBeNull()
+  })
+
+  it('arrastrar ensancha esa columna y no la de al lado', () => {
+    montar()
+    const antes = anchoTh('Modelo')
+    const vecina = anchoTh('Marca')
+
+    arrastrarEn('Modelo', 70)
+
+    expect(anchoTh('Modelo')).toBe(antes + 70)
+    expect(anchoTh('Marca')).toBe(vecina)
+  })
+
+  it('el ancho queda guardado y vuelve al recargar', () => {
+    const { unmount } = montar()
+    arrastrarEn('Marca', 90)
+    const dejado = anchoTh('Marca')
+    expect(leerAnchos('catalogo').marca).toBe(dejado)
+    unmount()
+
+    montar()
+    expect(anchoTh('Marca')).toBe(dejado)
+  })
+
+  /*
+   * LAS DOS COSAS QUE YA HACÍA UN CLIC AHÍ. La cabecera ordena y la fila abre
+   * el producto: si el tirador no detuviera el evento, cada ajuste de ancho
+   * reordenaría la tabla de paso.
+   */
+  it('agarrar el borde no reordena la columna', () => {
+    const ordenar = vi.fn()
+    montar({ orden: { campo: 'sku', direccion: 'asc', ordenar } })
+    act(() => {
+      fireEvent.click(tiradorDe('Modelo'))
+    })
+    expect(ordenar).not.toHaveBeenCalled()
+  })
+
+  // Las flechas, para quien no puede hacer un arrastre preciso con el mouse.
+  it('se puede ajustar con el teclado', () => {
+    montar()
+    const antes = anchoTh('Tipo')
+    act(() => {
+      fireEvent.keyDown(tiradorDe('Tipo'), { key: 'ArrowRight' })
+    })
+    expect(anchoTh('Tipo')).toBeGreaterThan(antes)
+  })
+
+  it('las columnas de atributos también se ajustan, cada una con su clave', () => {
+    montar({ columnasDinamicas: [{ key: 'encastre', label: 'Encastre', unidad: null }] })
+    arrastrarEn('Encastre', 50)
+    // Con el prefijo `attr:`, para que un atributo llamado como una columna
+    // fija no le pise el ancho.
+    expect(Object.keys(leerAnchos('catalogo'))).toContain('attr:encastre')
+  })
+
+  it('en mobile no hay tiradores: son cards, no columnas', () => {
+    estado.movil = true
+    montar()
+    expect(screen.queryByRole('separator')).toBeNull()
+  })
+})

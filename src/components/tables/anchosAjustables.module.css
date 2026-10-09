@@ -1,0 +1,33 @@
+/*
+ * El tirador de ancho (Fase 58 · E6).
+ *
+ * Angosto a la vista pero con 11px de zona de agarre, que es lo mínimo para
+ * poder tomarlo sin apuntar con precisión de cirujano. El `th` que lo contiene
+ * tiene que ser `position: relative`.
+ */
+.tirador {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  width: 11px;
+  height: 100%;
+  cursor: col-resize;
+  /* Por encima del contenido de la cabecera vecina. */
+  z-index: var(--z-base);
+  /* La línea visible: 1px en el medio de la zona de agarre. */
+  background: linear-gradient(var(--color-border), var(--color-border)) no-repeat center / 1px 60%;
+  /* Sin esto, en una pantalla táctil el gesto scrollea la tabla en vez de
+     mover la columna. */
+  touch-action: none;
+}
+
+.tirador:hover,
+.tirador:focus-visible,
+.tiradorActivo {
+  background: linear-gradient(var(--color-primary), var(--color-primary)) no-repeat center / 2px 100%;
+}
+
+.tirador:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}

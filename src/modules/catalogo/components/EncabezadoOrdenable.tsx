@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import styles from './ListadoProductos.module.css'
 
 /** El estado del orden y cómo pedirle otro. */
@@ -30,24 +30,34 @@ export function EncabezadoOrdenable({
   orden,
   className,
   children,
+  style,
+  extra,
 }: {
   campo: string
   orden: OrdenDeColumna | undefined
   className?: string | undefined
   children: ReactNode
+  /** Ancho declarado de la columna (Fase 58 E6). */
+  style?: CSSProperties | undefined
+  /**
+   * Contenido que va DENTRO del th pero FUERA del boton de ordenar: el tirador
+   * de ancho. Adentro del boton, agarrarlo pediria otro orden.
+   */
+  extra?: ReactNode | undefined
 }) {
   const clase = className ? `${styles.th} ${className}` : styles.th
   if (!orden) {
     return (
-      <th scope="col" className={className}>
+      <th scope="col" className={className} style={style}>
         {children}
+        {extra}
       </th>
     )
   }
   const activo = orden.campo === campo
   const asc = activo && orden.direccion === 'asc'
   return (
-    <th scope="col" className={clase} aria-sort={activo ? (asc ? 'ascending' : 'descending') : 'none'}>
+    <th scope="col" className={clase} style={style} aria-sort={activo ? (asc ? 'ascending' : 'descending') : 'none'}>
       <button type="button" className={styles.ordenar} onClick={() => orden.ordenar(campo)}>
         {children}
         {/* El indicador va marcado como decorativo: la dirección ya la dice
@@ -56,6 +66,7 @@ export function EncabezadoOrdenable({
           {activo ? (asc ? '▲' : '▼') : '⇅'}
         </span>
       </button>
+      {extra}
     </th>
   )
 }

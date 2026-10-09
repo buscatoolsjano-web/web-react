@@ -3,6 +3,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { cx } from '@/utils/cx'
 import { deriveCard, resolveCell } from './deriveCard'
+import { useAnchosAjustables } from './anchosAjustables'
 import type { Column } from './types'
 import styles from './ResponsiveTable.module.css'
 
@@ -22,6 +23,17 @@ export interface ResponsiveTableProps<T> {
    * pelearse con el layout genérico. Ver ADR-008.
    */
   renderCard?: (row: T) => ReactNode
+  /**
+   * Activa anchos de columna fijos y ajustables arrastrando (Fase 58 · E6).
+   *
+   * El valor es el identificador con el que se recuerdan en este navegador
+   * (p. ej. `'catalogo'`), así que tiene que ser estable entre recargas.
+   *
+   * Sin esta prop la tabla se comporta igual que siempre —`table-layout: auto`,
+   * el navegador reparte— porque hay unas cuarenta tablas en la app que andan
+   * bien así y cambiárselas todas de una vez sería mover algo que nadie pidió.
+   */
+  anchosAjustables?: string
 }
 
 /**
@@ -42,8 +54,10 @@ export function ResponsiveTable<T>({
   onRowClick,
   actions,
   renderCard,
+  anchosAjustables,
 }: ResponsiveTableProps<T>) {
   const isMobile = useIsMobile()
+  const anchos = useAnchosAjustables(anchosAjustables, columns as Column<unknown>[])
 
   if (isLoading) {
     return (
@@ -99,12 +113,29 @@ export function ResponsiveTable<T>({
   return (
     <div className={styles.wrap}>
       <div className={styles.scroller}>
-        <table className={styles.table}>
+        <table className={cx(styles.table, anchos && styles.anchoFijo)}>
+          {/* Con `table-layout: fixed` los anchos se declaran una sola vez en
+              el colgroup; ponerlos en cada `th` funcionaría igual pero habría
+              que repetirlos, y el borde de arrastre vive en el `th`. */}
+          {anchos && (
+            <colgroup>
+              {columns.map((c) => (
+                <col key={c.key} style={anchos.estilo(c.key)} />
+              ))}
+              {actions && <col />}
+            </colgroup>
+          )}
           <thead>
             <tr>
               {columns.map((c) => (
-                <th key={c.key} scope="col" style={c.width ? { width: c.width } : undefined} className={cx(alineacion(c.align), prioridad(c.hideBelow))}>
+                <th
+                  key={c.key}
+                  scope="col"
+                  style={!anchos && c.width ? { width: c.width } : undefined}
+                  className={cx(alineacion(c.align), prioridad(c.hideBelow), anchos && styles.thAjustable)}
+                >
                   {c.header}
+                  {anchos?.tirador(c.key, c.header)}
                 </th>
               ))}
               {actions && <th scope="col" aria-label="Acciones" />}
@@ -143,3 +174,4 @@ function prioridad(hideBelow: Column<unknown>['hideBelow']): string | undefined 
   if (hideBelow === 'lg') return styles.ocultaBajoLg
   return undefined
 }
+

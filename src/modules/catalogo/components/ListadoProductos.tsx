@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { Badge } from '@/components/ui/Badge'
@@ -13,6 +13,7 @@ import { atributosDestacados } from '../lib/destacados'
 import { valorDinamico, type ColumnaDinamica } from '../lib/columnasDinamicas'
 import { FilaFiltrosColumna, type FilaFiltrosColumnaProps } from './FilaFiltrosColumna'
 import { filaClickeable } from '@/components/tables/filaClickeable'
+import { useAnchosAjustables } from '@/components/tables/anchosAjustables'
 import { EncabezadoOrdenable as Encabezado, type OrdenDeColumna } from './EncabezadoOrdenable'
 import type { DefinicionAtributo, ProductoListado } from '../types'
 import styles from './ListadoProductos.module.css'
@@ -173,6 +174,34 @@ export function ListadoProductos({
 }: ListadoProductosProps) {
   const isMobile = useIsMobile()
   const navigate = useNavigate()
+
+  /*
+   * ANCHOS AJUSTABLES (Fase 58 · E6). «También quiero yo poder ir modificando
+   * el tamaño de las columnas, tipo ir agarrando y ampliarlo, achicarlo».
+   *
+   * SÓLO LAS COLUMNAS DE TEXTO. Las de ancho conocido —casillero, imagen,
+   * referencia, stock, precio, carrito— lo piden en píxeles en el CSS desde la
+   * Fase 39, y ahí el reparto ya es el bueno. Las de texto, en cambio, se
+   * reparten el sobrante EN PARTES IGUALES, y eso es justo lo que molestaba:
+   * Modelo necesita más que Serie, y cuánto más depende de los datos que haya
+   * cargados en cada una, que es algo que sólo sabe quien la está mirando.
+   *
+   * La tabla ya está en `table-layout: fixed` desde la Fase 39, que es el
+   * requisito para que un ancho declarado se cumpla en vez de ser una
+   * sugerencia que el navegador ignora.
+   */
+  const columnasAjustables = useMemo(
+    () => [
+      { key: 'modelo', header: 'Modelo', tipo: 'texto' as const },
+      { key: 'marca', header: 'Marca', tipo: 'texto' as const },
+      { key: 'categoria', header: 'Categoría', tipo: 'texto' as const },
+      { key: 'serie', header: 'Serie', tipo: 'texto' as const },
+      { key: 'tipo', header: 'Tipo', tipo: 'texto' as const },
+      ...columnasDinamicas.map((c) => ({ key: claveAncho(c.key), header: c.label, tipo: 'texto' as const })),
+    ],
+    [columnasDinamicas],
+  )
+  const anchos = useAnchosAjustables('catalogo', columnasAjustables)
 
   /**
    * La ficha al vuelo (§11).
@@ -354,14 +383,18 @@ export function ListadoProductos({
               El nombre completo sigue estando: en el popover de la imagen, en
               la ficha y en el modal.
             */}
-            <Encabezado campo="modelo" orden={orden}>Modelo</Encabezado>
-            <Encabezado campo="marca" orden={orden}>Marca</Encabezado>
+            <Encabezado campo="modelo" orden={orden} style={anchos?.estilo('modelo')} extra={anchos?.tirador('modelo', 'Modelo')}>
+              Modelo
+            </Encabezado>
+            <Encabezado campo="marca" orden={orden} style={anchos?.estilo('marca')} extra={anchos?.tirador('marca', 'Marca')}>
+              Marca
+            </Encabezado>
             {categoriaFija ? null : (
-              <Encabezado campo="categoria" orden={orden} className={`${styles.soloAncho}`}>
+              <Encabezado campo="categoria" orden={orden} className={`${styles.soloAncho}`} style={anchos?.estilo('categoria')} extra={anchos?.tirador('categoria', 'Categoría')}>
                 Categoría
               </Encabezado>
             )}
-            <Encabezado campo="serie" orden={orden} className={`${styles.soloAncho}`}>
+            <Encabezado campo="serie" orden={orden} className={`${styles.soloAncho}`} style={anchos?.estilo('serie')} extra={anchos?.tirador('serie', 'Serie')}>
               Serie
             </Encabezado>
             {/*
@@ -371,14 +404,21 @@ export function ListadoProductos({
               productos —más que la serie, que llega al 42 %—, así que es de
               las columnas que más dicen.
             */}
-            <Encabezado campo="tipo" orden={orden} className={`${styles.soloAncho}`}>
+            <Encabezado campo="tipo" orden={orden} className={`${styles.soloAncho}`} style={anchos?.estilo('tipo')} extra={anchos?.tirador('tipo', 'Tipo')}>
               Tipo
             </Encabezado>
             {/* Fase 28 · E7: también ordenan. `search_products` acepta
                 `attr:<clave>`, y dentro de una familia el atributo ES la
                 columna por la que se busca. */}
             {columnasDinamicas.map((c) => (
-              <Encabezado key={c.key} campo={`attr:${c.key}`} orden={orden} className={`${styles.colDinamica}`}>
+              <Encabezado
+                key={c.key}
+                campo={`attr:${c.key}`}
+                orden={orden}
+                className={`${styles.colDinamica}`}
+                style={anchos?.estilo(claveAncho(c.key))}
+                extra={anchos?.tirador(claveAncho(c.key), c.label)}
+              >
                 {c.label}
                 {c.unidad ? <span className={styles.aclaracion}> {c.unidad}</span> : null}
               </Encabezado>
@@ -588,3 +628,15 @@ export function ListadoProductos({
   )
 }
 
+
+/**
+ * La clave con la que se recuerda el ancho de una columna de atributo.
+ *
+ * El mismo prefijo que usa el orden (`attr:torq_max`), para que no haya dos
+ * nombres para la misma columna: el día que se agregue un atributo que se
+ * llame igual que una columna fija —`tipo`, por ejemplo, que existe como
+ * columna Y podría existir como atributo— los anchos no se pisan.
+ */
+function claveAncho(clave: string): string {
+  return `attr:${clave}`
+}

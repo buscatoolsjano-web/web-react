@@ -550,3 +550,15 @@
     width: 6.75rem;
   }
 }
+
+/* ── El ancla del tirador de ancho (Fase 58 · E6) ──────────────────────────
+
+   El tirador es `position: absolute` sobre el borde derecho de su columna, así
+   que necesita que el `th` sea su contexto de posicionamiento. Va en TODOS los
+   encabezados y no sólo en los que lo llevan: `EncabezadoOrdenable` aplica su
+   clase `.th` sólo cuando la columna ordena, y una columna ajustable que no
+   ordenara se quedaría con el tirador posicionado contra la tabla entera —o
+   sea, en una esquina cualquiera—. `relative` en un `th` no cambia nada más. */
+.tabla.tabla :global(thead) :global(th) {
+  position: relative;
+}

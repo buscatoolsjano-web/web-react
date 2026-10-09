@@ -18,6 +18,14 @@ export interface Column<T> {
   align?: 'left' | 'center' | 'right'
   /** Ancho CSS de la columna en desktop (ej. '120px', '20%'). */
   width?: string
+  /**
+   * Qué clase de dato lleva, para darle un ancho de arranque sensato
+   * (Fase 58 · E6). Sólo lo usan las tablas con `anchosAjustables`: una fecha
+   * no necesita lo mismo que un nombre, y repartir todo en partes iguales deja
+   * unas columnas enormes y otras ilegibles. Sin esto se usa la alineación
+   * como pista. Ver `anchoDeColumnas.ts`.
+   */
+  tipo?: 'texto' | 'numero' | 'fecha' | 'codigo' | 'estado' | undefined
   /** Rol en la card mobile. Default: 'field'. */
   mobile?: MobileRole
   /**

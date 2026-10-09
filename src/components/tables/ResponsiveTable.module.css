@@ -173,3 +173,39 @@ button.card:focus-visible {
   color: var(--color-text-soft);
   font-size: var(--text-sm);
 }
+
+/* ── Anchos ajustables (Fase 58 · E6) ───────────────────────────────────── */
+/*
+ * `fixed` es lo que hace que los anchos SE CUMPLAN. Con el `auto` que había,
+ * el width de una columna era una sugerencia que el navegador ignoraba en
+ * cuanto el contenido era más ancho: una celda con un texto largo se comía el
+ * espacio de las demás. Se activa sólo con la prop `anchosAjustables`.
+ */
+.anchoFijo {
+  table-layout: fixed;
+  /* Sin esto la tabla se encogería a su caja y los anchos volverían a ser
+     relativos; con `auto` el ancho declarado es el mínimo y aparece el scroll
+     horizontal que el .scroller ya maneja. */
+  width: auto;
+  min-width: 100%;
+}
+
+/* Con anchos fijos hay que decidir qué pasa con lo que no entra. Puntos
+   suspensivos y no envolver: una fila que crece en alto rompe la lectura de
+   la tabla, y el valor completo sigue estando en la card mobile. */
+.anchoFijo td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Una celda con contenido propio (chips, botones, varias líneas a propósito)
+   no se recorta: su componente ya decidió cómo se ve. */
+.anchoFijo td > * {
+  max-width: 100%;
+}
+
+.thAjustable {
+  position: relative;
+}
+
