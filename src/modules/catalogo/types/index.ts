@@ -155,6 +155,15 @@ export interface DefinicionAtributo {
    * pasó, en 1.176 productos.
    */
   enumerada: boolean
+  /**
+   * Si esta definición es un extremo de un rango de DOS atributos (Fase 57).
+   *
+   * `torq_min` y `torq_max` comparten grupo: la pantalla muestra UN filtro
+   * «Torque desde … hasta …» en vez de cuatro controles. Viene de la base y no
+   * se deduce del nombre, porque las dos convenciones que hay no coinciden:
+   * `torq_min`/`torq_max` usa sufijo y `min_kg`/`max_kg` usa prefijo.
+   */
+  rango: { grupo: string; rol: 'min' | 'max'; label: string } | null
   /** Los valores permitidos, en orden. Vacío cuando no es enumerada. */
   opciones: string[]
   /**
@@ -328,6 +337,14 @@ export interface FacetaAtributo {
   /** Sólo para 'range': extremos reales del conjunto actual. */
   min: number | null
   max: number | null
+  /**
+   * Cuando la faceta es el apareo de DOS atributos, sus dos claves (Fase 57).
+   *
+   * El filtro se sigue guardando en las claves REALES, no en una clave
+   * inventada del par: así el plan de consulta no cambia y las URLs con
+   * filtros que ya andan siguen andando.
+   */
+  par?: { claveMin: string; claveMax: string } | undefined
 }
 
 export interface Facetas {

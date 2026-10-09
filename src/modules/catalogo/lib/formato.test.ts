@@ -10,9 +10,9 @@ import {
 import type { DefinicionAtributo } from '../types'
 
 const DEFS: DefinicionAtributo[] = [
-  { key: 'torq_max', label: 'Torque máximo', unidad: 'Nm', tipo: 'number', filtrable: true, posicion: 1, enumerada: false, opciones: [], enFicha: true },
-  { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'text', filtrable: true, posicion: 2, enumerada: false, opciones: [], enFicha: true },
-  { key: 'medida', label: 'Medida', unidad: null, tipo: 'text', filtrable: true, posicion: 3, enumerada: false, opciones: [], enFicha: true },
+  { key: 'torq_max', label: 'Torque máximo', unidad: 'Nm', tipo: 'number', filtrable: true, posicion: 1, enumerada: false, rango: null, opciones: [], enFicha: true },
+  { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'text', filtrable: true, posicion: 2, enumerada: false, rango: null, opciones: [], enFicha: true },
+  { key: 'medida', label: 'Medida', unidad: null, tipo: 'text', filtrable: true, posicion: 3, enumerada: false, rango: null, opciones: [], enFicha: true },
 ]
 
 describe('formatearPrecio', () => {
@@ -74,7 +74,7 @@ describe('presentarAtributos', () => {
 
   it('muestra los booleanos como Sí/No', () => {
     const defs: DefinicionAtributo[] = [
-      { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'boolean', filtrable: false, posicion: 1, enumerada: false, opciones: [], enFicha: true },
+      { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'boolean', filtrable: false, posicion: 1, enumerada: false, rango: null, opciones: [], enFicha: true },
     ]
     expect(presentarAtributos({ encastre: true }, defs)[0]?.valor).toBe('Sí')
   })
@@ -95,7 +95,7 @@ describe('presentarAtributos', () => {
 describe('presentarAtributos · el residuo de la importación', () => {
   const def = (key: string, enFicha: boolean): DefinicionAtributo => ({
     key, label: key, unidad: null, tipo: 'text', filtrable: false,
-    posicion: 1, enumerada: false, opciones: [], enFicha,
+    posicion: 1, enumerada: false, rango: null, opciones: [], enFicha,
   })
 
   it('no lista lo que no es una característica', () => {
@@ -116,7 +116,7 @@ describe('presentarAtributos · el residuo de la importación', () => {
    */
   it('una definición sin el campo se muestra, no se esconde', () => {
     const viejo = { key: 'encastre', label: 'Encastre', unidad: null, tipo: 'text' as const,
-      filtrable: true, posicion: 1, enumerada: false, opciones: [] } as unknown as DefinicionAtributo
+      filtrable: true, posicion: 1, enumerada: false, rango: null, opciones: [] } as unknown as DefinicionAtributo
     expect(presentarAtributos({ encastre: '1/4 QC' }, [viejo])).toHaveLength(1)
   })
 })

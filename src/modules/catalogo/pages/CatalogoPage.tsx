@@ -32,6 +32,7 @@ import { MINIMO_COMPARAR, useSeleccionComparar } from '../hooks/useSeleccionComp
 import { useProductoSeleccionado } from '../hooks/useProductoSeleccionado'
 import { contarFiltrosActivos } from '../lib/planDeConsulta'
 import { columnasDinamicas } from '../lib/columnasDinamicas'
+import { aparearFacetas } from '../lib/rangoApareado'
 import { debePropagarBusqueda } from '../lib/busquedaDiferida'
 import { puedeCrearProductos } from '../lib/nuevoProducto'
 import { OPCIONES_POR_PAGINA } from '../types'
@@ -110,6 +111,21 @@ export function CatalogoPage() {
   // Las etiquetas y unidades de los atributos: las usan el modal y la ficha
   // al vuelo para no mostrar nunca el jsonb crudo.
   const { data: definiciones = [] } = useDefinicionesDeAtributos(companyId)
+
+  /*
+   * Las facetas con los pares de rango ya fundidos (Fase 57).
+   *
+   * SÓLO PARA LOS FILTROS. En la tabla, «Torque mín.» y «Torque máx.» como dos
+   * columnas está bien: son dos datos del producto. Lo que no servía era
+   * pedirlos como cuatro controles de filtro, que es lo que se aparea acá.
+   */
+  const facetasFiltrables = useMemo(
+    () =>
+      facetas === undefined
+        ? undefined
+        : { ...facetas, atributos: aparearFacetas(facetas.atributos, definiciones) },
+    [facetas, definiciones],
+  )
 
   // Qué producto está abierto vive en la URL, al lado de la búsqueda y los
   // filtros: cerrar no toca nada de lo demás.
@@ -226,7 +242,7 @@ export function CatalogoPage() {
       <FilterBar label="Buscar y filtrar productos" className={styles.barra} activeCount={activos}>
         <PanelFacetas
           filtros={filtros}
-          facetas={facetas}
+          facetas={facetasFiltrables}
           cargando={facetasCargando}
           onCambiar={actualizar}
           extra={

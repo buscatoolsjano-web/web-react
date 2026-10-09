@@ -203,7 +203,7 @@ describe('Los atributos que se ofrecen al cargar', () => {
     tipo: 'text',
     filtrable,
     posicion,
-    enumerada: false,
+    enumerada: false, rango: null,
     opciones: [],
   })
   const definiciones = [def('largo', true, 2), def('encastre', true, 1), def('nota', false, 3)]

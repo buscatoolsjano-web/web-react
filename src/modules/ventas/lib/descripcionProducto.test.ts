@@ -9,7 +9,7 @@ const def = (key: string, label: string, over: Partial<DefinicionAtributo> = {})
   unidad: null,
   tipo: 'text',
   filtrable: true,
-  posicion: 0, enumerada: false, opciones: [],
+  posicion: 0, enumerada: false, rango: null, opciones: [],
   ...over,
 })
 

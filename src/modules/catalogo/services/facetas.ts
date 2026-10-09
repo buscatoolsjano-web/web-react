@@ -73,7 +73,9 @@ function tipoDeDato(v: string): DefinicionAtributo['tipo'] {
  * filtrable o no.
  */
 const COLUMNAS_BASE = 'key, label, unit, data_type, is_filterable, position'
-const COLUMNAS_CON_OPCIONES = `${COLUMNAS_BASE}, is_enumerated, show_in_sheet, product_attribute_options ( value, position )`
+const COLUMNAS_CON_RANGO = 'range_group, range_role, range_label'
+
+const COLUMNAS_CON_OPCIONES = `${COLUMNAS_BASE}, is_enumerated, show_in_sheet, product_attribute_options ( value, position ), ${COLUMNAS_CON_RANGO}`
 
 export async function listarDefinicionesDeAtributos(
   companyId: string,
@@ -110,6 +112,12 @@ export async function listarDefinicionesDeAtributos(
     is_enumerated?: boolean
     show_in_sheet?: boolean
     product_attribute_options?: { value: string; position: number }[]
+    /* El par de rango (Fase 57). Opcionales como el resto de lo que vino
+       después: contra una base sin la migración, el reintento de abajo pide
+       sólo las columnas base y estos quedan sin definir. */
+    range_group?: string | null
+    range_role?: string | null
+    range_label?: string | null
   }
 
   return ((data ?? []) as unknown as Fila[]).map((d) => ({
@@ -123,6 +131,12 @@ export async function listarDefinicionesDeAtributos(
     // Sin la columna (base sin la migración) se muestra, que es como
     // funcionaba antes: esconder de más es peor que mostrar de más.
     enFicha: d.show_in_sheet ?? true,
+    // Las tres columnas del par van juntas o no va ninguna: lo garantiza un
+    // check en la base, asi que alcanza con mirar una.
+    rango:
+      d.range_group && (d.range_role === 'min' || d.range_role === 'max')
+        ? { grupo: d.range_group, rol: d.range_role, label: d.range_label ?? d.range_group }
+        : null,
     // PostgREST no garantiza el orden de los embebidos: se ordena acá, por
     // posición —que sale de cuántos productos usan cada valor— y después
     // alfabético, para que la lista salga siempre igual.

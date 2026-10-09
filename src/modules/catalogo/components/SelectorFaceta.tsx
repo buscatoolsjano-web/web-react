@@ -1,5 +1,6 @@
 import type { ChangeEvent } from 'react'
 import type { FacetaAtributo, OpcionFaceta, RangoNumerico } from '../types'
+import { aFiltrosPorClave, desdeFiltrosPorClave } from '../lib/rangoApareado'
 import styles from './SelectorFaceta.module.css'
 
 /**
@@ -134,6 +135,82 @@ export function SelectorRango({
         opciones={opcionesHasta}
         className={className ?? styles.control}
         onElegir={(v) => onCambiar({ min: desde, max: v === '' ? null : aNumero(v) })}
+      />
+    </>
+  )
+}
+
+/**
+ * Un rango sobre DOS atributos, con un solo desde/hasta (Fase 57).
+ *
+ * Antes esto eran CUATRO controles —«Torque mín. desde/hasta» y «Torque máx.
+ * desde/hasta»— y no servían para la pregunta que uno hace. Quien busca un
+ * atornillador «de 10 Nm» quiere los que PUEDEN dar 10, o sea los que tienen
+ * `torq_min ≤ 10 ≤ torq_max`; con cuatro controles hay que razonar al revés.
+ *
+ * Acá se pide un solo rango y la traducción a los dos filtros reales la hace
+ * `rangoApareado`, que está probada contra la definición de «solaparse».
+ */
+export function SelectorRangoApareado({
+  faceta,
+  rangos,
+  onCambiar,
+  className,
+}: {
+  faceta: FacetaAtributo
+  rangos: Readonly<Record<string, RangoNumerico>>
+  onCambiar: (rangos: Record<string, RangoNumerico>) => void
+  className?: string | undefined
+}) {
+  const par = faceta.par
+  if (!par) return null
+
+  const pedido = desdeFiltrosPorClave(par, rangos)
+  const unidad = faceta.unidad ? ` (${faceta.unidad})` : ''
+
+  const aplicar = (nuevo: RangoNumerico) => {
+    const salida = { ...rangos }
+    for (const [clave, valor] of Object.entries(aFiltrosPorClave(par, nuevo))) {
+      if (valor === null) delete salida[clave]
+      else salida[clave] = valor
+    }
+    onCambiar(salida)
+  }
+
+  /* El «hasta» no ofrece valores por debajo del «desde»: un rango invertido no
+     devuelve nada y parece que no hay productos. */
+  const opcionesHasta = faceta.opciones.filter((o) => {
+    if (pedido.min === null) return true
+    const n = Number(o.valor)
+    return Number.isNaN(n) || n >= pedido.min
+  })
+
+  return (
+    <>
+      <SelectorFaceta
+        etiqueta={`${faceta.label}${unidad} desde`}
+        todos="cualquiera"
+        valor={pedido.min === null ? '' : String(pedido.min)}
+        opciones={faceta.opciones}
+        className={className ?? styles.control}
+        onElegir={(v) => {
+          const n = v === '' ? null : Number(v)
+          const desde = n === null || Number.isNaN(n) ? null : n
+          // Si el nuevo «desde» deja al «hasta» por debajo, se limpia.
+          const hasta = pedido.max !== null && desde !== null && pedido.max < desde ? null : pedido.max
+          aplicar({ min: desde, max: hasta })
+        }}
+      />
+      <SelectorFaceta
+        etiqueta={`${faceta.label}${unidad} hasta`}
+        todos="cualquiera"
+        valor={pedido.max === null ? '' : String(pedido.max)}
+        opciones={opcionesHasta}
+        className={className ?? styles.control}
+        onElegir={(v) => {
+          const n = v === '' ? null : Number(v)
+          aplicar({ min: pedido.min, max: n === null || Number.isNaN(n) ? null : n })
+        }}
       />
     </>
   )

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { cx } from '@/utils/cx'
 import { mostrarFacetaSubtipo } from '../lib/clasificarFaceta'
-import { SelectorFaceta, SelectorRango } from './SelectorFaceta'
+import { SelectorFaceta, SelectorRango, SelectorRangoApareado } from './SelectorFaceta'
 import type { Facetas, FiltrosCatalogo, OpcionFaceta } from '../types'
 import styles from './PanelFacetas.module.css'
 
@@ -137,7 +137,16 @@ export function PanelFacetas({ filtros, facetas, cargando, onCambiar, extra }: P
             )}
 
             {atributos.map((a) =>
-              a.clase === 'range' ? (
+              /* Un par de atributos que son los extremos de un rango se
+                 muestra como UN solo desde/hasta (Fase 57). */
+              a.par ? (
+                <SelectorRangoApareado
+                  key={a.key}
+                  faceta={a}
+                  rangos={filtros.rangos}
+                  onCambiar={(rangos) => onCambiar({ rangos })}
+                />
+              ) : a.clase === 'range' ? (
                 <SelectorRango
                   key={a.key}
                   faceta={a}
