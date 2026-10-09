@@ -153,6 +153,30 @@ export type Database = {
           },
         ]
       }
+      capability_catalog: {
+        Row: {
+          description: string
+          enforced_by: string
+          key: string
+          label: string
+          position: number
+        }
+        Insert: {
+          description: string
+          enforced_by: string
+          key: string
+          label: string
+          position: number
+        }
+        Update: {
+          description?: string
+          enforced_by?: string
+          key?: string
+          label?: string
+          position?: number
+        }
+        Relationships: []
+      }
       catalog_audit: {
         Row: {
           action: string
@@ -5254,6 +5278,97 @@ export type Database = {
           },
         ]
       }
+      role_capabilities: {
+        Row: {
+          capability: string
+          company_id: string
+          granted_at: string
+          granted_by: string | null
+          role: string
+        }
+        Insert: {
+          capability: string
+          company_id: string
+          granted_at?: string
+          granted_by?: string | null
+          role: string
+        }
+        Update: {
+          capability?: string
+          company_id?: string
+          granted_at?: string
+          granted_by?: string | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_capabilities_capability_fkey"
+            columns: ["capability"]
+            isOneToOne: false
+            referencedRelation: "capability_catalog"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "role_capabilities_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_capabilities_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_capabilities_audit: {
+        Row: {
+          actor_id: string | null
+          capabilities_after: string[]
+          capabilities_before: string[]
+          company_id: string
+          created_at: string
+          id: number
+          role: string
+        }
+        Insert: {
+          actor_id?: string | null
+          capabilities_after: string[]
+          capabilities_before: string[]
+          company_id: string
+          created_at?: string
+          id?: never
+          role: string
+        }
+        Update: {
+          actor_id?: string | null
+          capabilities_after?: string[]
+          capabilities_before?: string[]
+          company_id?: string
+          created_at?: string
+          id?: never
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_capabilities_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_capabilities_audit_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_audit: {
         Row: {
           action: string
@@ -8738,6 +8853,10 @@ export type Database = {
           puede_editar: boolean
         }[]
       }
+      config_permisos_rol_guardar: {
+        Args: { p_caps: string[]; p_company: string; p_role: string }
+        Returns: undefined
+      }
       config_numeracion_diagnostico: {
         Args: { p_company: string }
         Returns: {
@@ -9470,6 +9589,13 @@ export type Database = {
         Returns: undefined
       }
       metricas_ia_whatsapp: { Args: { p_company: string }; Returns: Json }
+      mis_capacidades: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          capability: string
+          company_id: string
+        }[]
+      }
       next_document_number: {
         Args: { p_company: string; p_doc_type: string; p_series?: string }
         Returns: string

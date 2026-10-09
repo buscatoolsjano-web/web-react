@@ -14,6 +14,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { cx } from '@/utils/cx'
 import { Dialogo } from '../components/Dialogo'
 import { FormularioInvitacion } from '../components/FormularioInvitacion'
+import { PermisosPorRol } from '../components/PermisosPorRol'
 import { useAccionesUsuarios, useUsuarios } from '../hooks/useUsuarios'
 import {
   ETIQUETA_ESTADO,
@@ -204,6 +205,11 @@ function UsuariosAdmin() {
               </article>
             )}
           />
+
+          {/* Fase 58 · E2: qué puede cada rol, y cómo cambiarlo. Va acá, debajo
+              de la lista, porque es la respuesta a «le cambié el rol pero no sé
+              qué le estoy dando». */}
+          <PermisosPorRol />
         </>
       )}
 

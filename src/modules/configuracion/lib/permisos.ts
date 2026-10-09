@@ -6,20 +6,21 @@
  * Functions, que rechazan a cualquier otro rol con `sin_permiso`— sino no
  * ofrecerle a nadie una pantalla que va a volver vacía.
  *
- *   · Usuarios:   sólo admin (Entrega 1).
+ *   · Usuarios:   sólo admin (Entrega 1). Adentro están los permisos por rol.
  *   · Empresa:    admin edita; employee lee (Entrega 2).
- *   · Numeración: admin y employee leen; nadie edita (Entrega 2).
- *   · Listas de precios y Atributos: admin y employee leen; nadie edita (Entrega 3).
- *   · Marcas y Categorías: admin administra; employee lee (Entrega 3).
- *   · Auditoría: sólo admin, sólo lectura (Entrega 4).
- *   · Borrados: admin y employee leen; nadie edita (Fase 40). Lo ve también
- *     employee porque es quien borra: el registro sirve para entenderse entre
- *     los que trabajan, no sólo para que el admin controle.
+ *   · Numeración: admin y employee leen; sólo admin edita (Fase 58 · E3).
+ *   · Listas de precios: admin y employee leen; nadie edita (Entrega 3).
  *   · WhatsApp · IA: sólo admin (Fase 16 · E3).
  *   · Plantillas de correo: admin y employee (Fase 41 · E2) — los mismos que
  *     pueden usar Emails, porque una plantilla no le sirve a quien no manda
  *     mails. Adentro, el envoltorio de la empresa sólo lo edita un admin y la
  *     firma propia la edita su dueño; eso lo decide la RLS, no esta lista.
+ *
+ * FUERA DEL MENÚ (Fase 58 · E1). Marcas, Categorías, Atributos, Auditoría y
+ * Borrados salieron de la lista: once secciones hacían que no se entendiera
+ * cuáles son las que importan. Las RUTAS siguen existiendo —son chunks que
+ * sólo se bajan si se visitan— así que un enlace guardado no da 404 y volver
+ * a mostrarlas es agregar su renglón acá. Nadie más en la app las enlaza.
  */
 export const ROLES_CONFIGURACION = ['admin', 'employee'] as const
 
@@ -28,11 +29,6 @@ export const SECCIONES_CONFIGURACION = [
   { to: '/configuracion/numeracion', label: 'Numeración', roles: ['admin', 'employee'] },
   { to: '/configuracion/usuarios', label: 'Usuarios', roles: ['admin'] },
   { to: '/configuracion/listas-precios', label: 'Listas de precios', roles: ['admin', 'employee'] },
-  { to: '/configuracion/marcas', label: 'Marcas', roles: ['admin', 'employee'] },
-  { to: '/configuracion/categorias', label: 'Categorías', roles: ['admin', 'employee'] },
-  { to: '/configuracion/atributos', label: 'Atributos', roles: ['admin', 'employee'] },
-  { to: '/configuracion/auditoria', label: 'Auditoría', roles: ['admin'] },
-  { to: '/configuracion/borrados', label: 'Borrados', roles: ['admin', 'employee'] },
   { to: '/configuracion/whatsapp-ia', label: 'WhatsApp · IA', roles: ['admin'] },
   { to: '/configuracion/plantillas', label: 'Plantillas de correo', roles: ['admin', 'employee'] },
 ] as const

@@ -38,16 +38,27 @@ describe('permisos de Configuración', () => {
       true, true, false, false, false, false, false, false, false,
     ])
   })
-  it('Usuarios es sólo admin; employee ve el resto (Entrega 3: listas, marcas, categorías, atributos)', () => {
+  /*
+   * Fase 58 · E1: de once secciones a seis. Marcas, Categorías, Atributos,
+   * Auditoría y Borrados salieron del menú —«tanta información hace que se
+   * entienda menos el sistema»—. Las rutas siguen existiendo, así que un
+   * enlace guardado no da 404; lo que cambia es qué se ofrece.
+   */
+  it('Usuarios es sólo admin, y el menú quedó en seis secciones', () => {
     expect(['admin', 'employee', 'salesperson'].map(puedeAdministrarUsuarios)).toEqual([true, false, false])
-    expect(seccionesVisibles('admin').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Usuarios', 'Listas de precios', 'Marcas', 'Categorías', 'Atributos', 'Auditoría', 'Borrados', 'WhatsApp · IA', 'Plantillas de correo'])
-    // Borrados lo ve también employee, que es quien borra: el registro sirve
-    // para entenderse entre los que trabajan, no sólo para que el admin controle.
-    // Plantillas, por la misma razón: la firma que sale es la suya, y el correo
-    // es de admin y employee.
-    expect(seccionesVisibles('employee').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Listas de precios', 'Marcas', 'Categorías', 'Atributos', 'Borrados', 'Plantillas de correo'])
+    expect(seccionesVisibles('admin').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Usuarios', 'Listas de precios', 'WhatsApp · IA', 'Plantillas de correo'])
+    // Plantillas lo ve también employee: la firma que sale es la suya, y el
+    // correo es de admin y employee.
+    expect(seccionesVisibles('employee').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Listas de precios', 'Plantillas de correo'])
     expect(seccionesVisibles('salesperson')).toEqual([])
     expect(seccionesVisibles('technician')).toEqual([])
+  })
+
+  it('las cinco que se sacaron ya no están en el menú', () => {
+    const etiquetas = seccionesVisibles('admin').map((s) => s.label)
+    for (const fuera of ['Marcas', 'Categorías', 'Atributos', 'Auditoría', 'Borrados']) {
+      expect(etiquetas).not.toContain(fuera)
+    }
   })
 })
 
