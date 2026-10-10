@@ -49,7 +49,7 @@ vi.mock('@/features/empresa/useEmpresa', () => ({
 vi.mock('@/modules/catalogo/services/facetas', () => ({
   obtenerFacetas: (plan: PlanDeConsulta): Promise<Facetas> =>
     Promise.resolve({
-      total: 2,
+      total: 2, totalCatalogo: 2,
       marcas: [{ valor: 'm1', etiqueta: 'CHICAGO PNEUMATIC', cantidad: 2 }],
       categorias: [
         { valor: 'cat-bal', etiqueta: 'Balanceadores', cantidad: 1 },

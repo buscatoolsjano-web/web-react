@@ -201,6 +201,11 @@ import type { Facetas } from '../types'
 /** Forma cruda que devuelve `public.catalog_facets`. */
 interface RespuestaFacetas {
   total: number
+  /**
+   * Fase 60. Opcional porque contra una base sin la migración no viene, y
+   * entonces se cae al total filtrado: exactamente como se comportaba antes.
+   */
+  total_catalogo?: number
   brands: { id: string; name: string; count: number }[]
   categories: { id: string; slug: string; name: string; count: number }[]
   product_types: { value: string; count: number }[]
@@ -241,12 +246,22 @@ export async function obtenerFacetas(plan: PlanDeConsulta): Promise<Facetas> {
     // filtro prometía 4.200 productos de una marca desactivada y la lista
     // mostraba cero.
     p_solo_catalogo: true,
+    /*
+     * Fase 60: no calcular la faceta de atributos cuando la pantalla no la va
+     * a mostrar. Son 100 de los 160 ms de esta consulta —expandir el jsonb de
+     * 21.806 productos en 33.342 pares y agruparlos— y en la carga inicial,
+     * sin categoría elegida, no se dibuja ni un desplegable de atributos.
+     *
+     * Quién decide es `necesitaFacetasDeAtributo`, la misma función que usa
+     * el panel para saber si los dibuja.
+     */
+    p_con_atributos: plan.conAtributos,
   })
 
   if (error) throw new Error(`No se pudieron leer los filtros: ${error.message}`)
 
   const r = (data ?? {
-    total: 0, brands: [], categories: [], product_types: [], series: [], attributes: [],
+    total: 0, total_catalogo: 0, brands: [], categories: [], product_types: [], series: [], attributes: [],
     // `as unknown as`: la RPC está tipada como `Json`, y desde que
     // `attributes` puede ser un array el tipo generado ya no solapa lo
     // suficiente para un cast directo. La forma se valida en
@@ -255,6 +270,9 @@ export async function obtenerFacetas(plan: PlanDeConsulta): Promise<Facetas> {
 
   return {
     total: Number(r.total ?? 0),
+    // Sin el campo —base sin la Fase 60— se cae al total filtrado, que es
+    // como se comportaba el chip «Todas» antes de arreglarlo.
+    totalCatalogo: Number(r.total_catalogo ?? r.total ?? 0),
     marcas: (r.brands ?? []).map((b) => ({
       valor: b.id, etiqueta: b.name, cantidad: b.count,
     })),

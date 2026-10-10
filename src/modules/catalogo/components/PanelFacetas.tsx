@@ -2,9 +2,10 @@ import { type ReactNode } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { cx } from '@/utils/cx'
-import { mostrarFacetaSubtipo } from '../lib/clasificarFaceta'
+import { facetaSirveParaFiltrar, mostrarFacetaSubtipo } from '../lib/clasificarFaceta'
+import { necesitaFacetasDeAtributo } from '../lib/planDeConsulta'
 import { SelectorFaceta, SelectorRango, SelectorRangoApareado } from './SelectorFaceta'
-import type { Facetas, FiltrosCatalogo, OpcionFaceta } from '../types'
+import type { FacetaAtributo, Facetas, FiltrosCatalogo, OpcionFaceta } from '../types'
 import styles from './PanelFacetas.module.css'
 
 export interface PanelFacetasProps {
@@ -55,6 +56,12 @@ export interface PanelFacetasProps {
  *
  * Ninguna categoría está nombrada en el código: qué se dibuja sale de los datos.
  */
+/** ¿Este atributo ya tiene un filtro puesto? Con un par, cualquiera de sus dos claves. */
+function estaElegida(a: FacetaAtributo, filtros: FiltrosCatalogo): boolean {
+  const claves = a.par ? [a.par.claveMin, a.par.claveMax] : [a.key]
+  return claves.some((k) => filtros.atributos[k] !== undefined || filtros.rangos[k] !== undefined)
+}
+
 export function PanelFacetas({ filtros, facetas, cargando, onCambiar, extra }: PanelFacetasProps) {
   const hayCategoria = filtros.categoria !== null
 
@@ -65,21 +72,31 @@ export function PanelFacetas({ filtros, facetas, cargando, onCambiar, extra }: P
     filtros.subtipos,
   )
 
-  const atributos = facetas?.atributos ?? []
-  const marcas = facetas?.marcas ?? []
+  /*
+   * UN FILTRO CON UNA SOLA OPCIÓN NO ES UN FILTRO (Fase 60). «Si es sólo uno,
+   * ¿qué vas a filtrar si es sólo eso?». Adentro de una categoría chica la
+   * mitad de los atributos tienen un único valor, y cada uno se llevaba un
+   * desplegable que invitaba a tocarlo para no cambiar nada.
+   *
+   * El que ya está elegido se muestra igual aunque le quede una sola opción:
+   * si desapareciera, el filtro quedaría puesto sin forma de soltarlo.
+   */
+  const atributos = (facetas?.atributos ?? []).filter((a) =>
+    facetaSirveParaFiltrar(a, estaElegida(a, filtros)),
+  )
+  const marcas = (facetas?.marcas ?? []).length > 1 || filtros.marca !== null ? (facetas?.marcas ?? []) : []
 
-  // Sin categoría elegida se muestran SÓLO las categorías. Los 14
-  // desplegables del catálogo entero ocupaban cinco líneas y empujaban los
-  // resultados hacia abajo, que es justo lo que veníamos a evitar.
-  //
-  // La excepción son los filtros ya activos: un link compartido puede traer
-  // una marca o un atributo sin categoría, y entonces la fila tiene que
-  // estar para poder editarlo.
-  const hayFiltroDeAtributo =
-    filtros.marca !== null ||
-    Object.keys(filtros.atributos).length > 0 ||
-    Object.keys(filtros.rangos).length > 0
-  const verDesplegables = hayCategoria || hayFiltroDeAtributo
+  /*
+   * Sin categoría elegida se muestran SÓLO las categorías: los 14
+   * desplegables del catálogo entero ocupaban cinco líneas y empujaban los
+   * resultados fuera de la pantalla.
+   *
+   * La MISMA función decide si se le piden al servidor (Fase 60): calcular la
+   * faceta de atributos cuesta 100 de los 160 ms de la consulta, así que en
+   * la carga inicial no se pide. Una sola regla para las dos decisiones, o el
+   * día que cambie una quedan desparejas.
+   */
+  const verDesplegables = necesitaFacetasDeAtributo(filtros)
 
   return (
     <div className={styles.facetas} aria-busy={cargando}>
@@ -89,7 +106,7 @@ export function PanelFacetas({ filtros, facetas, cargando, onCambiar, extra }: P
         extra={extra}
         opciones={facetas?.categorias ?? []}
         seleccionados={filtros.categoria ? [filtros.categoria] : []}
-        totalTodas={facetas?.total ?? null}
+        totalTodas={facetas?.totalCatalogo ?? null}
         multiple={false}
         onElegir={(valores) =>
           // Al cambiar de categoría se descartan subtipos, atributos y rangos:
@@ -118,7 +135,7 @@ export function PanelFacetas({ filtros, facetas, cargando, onCambiar, extra }: P
         <div className={styles.fila}>
           <span className={styles.rotulo}>Filtrar por</span>
           <div className={styles.desplegables}>
-            {verSubtipos && (facetas?.subtipos.length ?? 0) > 0 && (
+            {verSubtipos && ((facetas?.subtipos.length ?? 0) > 1 || filtros.subtipos.length > 0) && (
               <SelectorFaceta
                 etiqueta="Subcategoría"
                 valor={filtros.subtipos[0] ?? ''}

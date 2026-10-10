@@ -38,6 +38,12 @@ export interface PlanDeConsulta {
    * ordena por score sola. Se traduce a 'nombre', que es el desempate.
    */
   orden: OrdenCatalogo
+  /**
+   * Pedir la faceta de atributos (Fase 60). Ver `necesitaFacetasDeAtributo`:
+   * cuesta 100 de los 160 ms de la consulta y en la carga inicial no se usa.
+   * El listado lo ignora; sólo lo mira `obtenerFacetas`.
+   */
+  conAtributos: boolean
 }
 
 export const MAX_POR_PAGINA = 100
@@ -91,6 +97,7 @@ export function construirPlanDeConsulta(
     limite: porPagina,
     desplazamiento: (pagina - 1) * porPagina,
     orden: filtros.orden === 'relevancia' ? 'nombre' : filtros.orden,
+    conAtributos: necesitaFacetasDeAtributo(filtros),
   }
 }
 
@@ -115,4 +122,29 @@ export function contarFiltrosActivos(filtros: FiltrosCatalogo): number {
     if (r.min !== null || r.max !== null) n++
   }
   return n
+}
+
+/**
+ * ¿Hace falta calcular la faceta de ATRIBUTOS? (Fase 60)
+ *
+ * La pantalla sólo dibuja los desplegables de atributos cuando hay una
+ * categoría elegida —sin categoría eran catorce desplegables que empujaban
+ * los productos fuera de la pantalla— o cuando ya hay algún filtro de los que
+ * viven en esa fila, porque un enlace compartido puede traer una marca o un
+ * atributo sin categoría y entonces hay que poder editarlo.
+ *
+ * ESA REGLA VIVE ACÁ Y NO EN EL COMPONENTE porque ahora decide dos cosas: qué
+ * se dibuja y qué se le pide al servidor. Calcular la faceta de atributos
+ * cuesta 100 de los 160 ms de la consulta —hay que expandir el jsonb de 21.806
+ * productos en 33.342 pares y agruparlos— y en la carga inicial no se muestra.
+ * Si las dos decisiones se tomaran en lugares distintos, el día que una cambie
+ * la pantalla queda con un desplegable vacío o pidiendo algo que no usa.
+ */
+export function necesitaFacetasDeAtributo(filtros: FiltrosCatalogo): boolean {
+  return (
+    filtros.categoria !== null ||
+    filtros.marca !== null ||
+    Object.keys(filtros.atributos).length > 0 ||
+    Object.keys(filtros.rangos).length > 0
+  )
 }

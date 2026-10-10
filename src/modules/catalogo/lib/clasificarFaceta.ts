@@ -109,3 +109,29 @@ export function mostrarFacetaSubtipo(
   }
   return true
 }
+
+/**
+ * ¿Esta faceta sirve para filtrar? (Fase 60)
+ *
+ * «Si voy a Balanceadores, en su categoría sólo aparece Balanceadores.
+ * Entonces, si es sólo uno, ¿qué vas a filtrar si es sólo eso?»
+ *
+ * Una faceta con UNA sola opción no filtra: elegirla deja los mismos
+ * productos que ya están en pantalla. Ocupa un desplegable, invita a tocarlo
+ * y no hace nada. Pasa todo el tiempo adentro de una categoría chica, donde
+ * la mitad de los atributos tienen un único valor.
+ *
+ * UN RANGO CON LOS DOS EXTREMOS IGUALES es el mismo caso: «de 5 a 5» no parte
+ * nada. Y un rango sin extremos tampoco se puede mover.
+ *
+ * LA QUE ESTÁ ELEGIDA SE MUESTRA IGUAL, aunque le quede una sola opción: si
+ * desapareciera, no habría desde dónde soltarla y el filtro quedaría puesto
+ * sin forma de verlo ni sacarlo.
+ */
+export function facetaSirveParaFiltrar(faceta: FacetaAtributo, elegida: boolean): boolean {
+  if (elegida) return true
+  if (faceta.clase === 'range') {
+    return faceta.min !== null && faceta.max !== null && faceta.min !== faceta.max
+  }
+  return faceta.opciones.length > 1
+}

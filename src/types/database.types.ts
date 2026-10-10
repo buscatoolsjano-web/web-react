@@ -8523,6 +8523,7 @@ export type Database = {
           p_brand?: string
           p_category?: string
           p_company: string
+          p_con_atributos?: boolean
           p_query?: string
           p_ranges?: Json
           p_series?: string[]

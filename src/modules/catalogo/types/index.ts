@@ -348,7 +348,18 @@ export interface FacetaAtributo {
 }
 
 export interface Facetas {
+  /** Los que quedan con TODOS los filtros puestos. Es lo que cuenta el listado. */
   total: number
+  /**
+   * A cuántos se vuelve soltando todos los filtros menos la búsqueda
+   * (Fase 60).
+   *
+   * Es el número del chip «Todas». Ese botón sirve para QUITAR el filtro de
+   * categoría, así que tiene que decir a dónde lleva, no dónde estoy parado:
+   * con «Puntas y tubos» puesto mostraba 8.600 —lo ya filtrado— cuando lo
+   * que hace al apretarlo es volver a 21.802.
+   */
+  totalCatalogo: number
   marcas: OpcionFaceta[]
   categorias: OpcionFaceta[]
   subtipos: OpcionFaceta[]

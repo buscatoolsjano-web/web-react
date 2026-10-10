@@ -53,16 +53,41 @@ div.facetas {
 
 /* ── Chips en fila ─────────────────────────────────────────────────────── */
 
+/* ── Los chips: todos visibles, aunque haya que apretarlos ─────────────────
+
+   En MOBILE scrollean de costado: envolver ocho categorías en 390 px se
+   llevaba media pantalla.
+
+   En ESCRITORIO ENVUELVEN (Fase 60). El scroll horizontal sin barra visible
+   esconde las últimas sin avisar —«no leo Llaves dinamométricas y Otros»— y
+   una fila que esconde opciones es peor que una fila de dos renglones: las
+   categorías son por dónde se navega y tienen que estar todas a la vista. */
 .chips {
   display: flex;
   gap: var(--space-2);
   min-width: 0;
-  /* Scroll horizontal en vez de envolver en cinco líneas: en 390 px las 8
-     categorías ocupaban media pantalla. */
   overflow-x: auto;
   overflow-y: hidden;
   padding: 2px;
   scrollbar-width: none;
+}
+
+@media (min-width: 768px) {
+  .chips {
+    flex-wrap: wrap;
+    /* Con wrap no hay nada que scrollear, y `visible` deja que el foco no
+       quede recortado contra el borde de la caja. */
+    overflow: visible;
+  }
+}
+
+/* Antes de partir en dos renglones, achicar: a partir de acá el aire de cada
+   chip baja y entran dos o tres más por línea. */
+@media (max-width: 1439px) {
+  .chip {
+    padding: 0 var(--space-2);
+    gap: var(--space-1);
+  }
 }
 
 .chips::-webkit-scrollbar {
@@ -350,8 +375,22 @@ div.facetas {
 /* El buscador comparte fila con los chips de categoría y se va a la derecha.
    `flex: 0 1 auto` con un mínimo: cede ancho a los chips antes que
    desaparecer, pero nunca baja de lo que hace falta para escribir un SKU. */
+/* ── Lo que va pegado a la derecha de la fila de categorías ────────────────
+
+   `flex: 0 0 auto`, no `0 0 24rem` (Fase 60).
+
+   Los 24rem venían de cuando ahí vivía el BUSCADOR (Fase 38), que necesitaba
+   ese ancho. Cuando el buscador subió al encabezado y quedó sólo «Limpiar
+   filtros» —un botón de unos 130 px— el hueco de 384 px se quedó reservado
+   igual, y se lo sacaba a la fila de chips, que scrollea: con «Puntas y
+   tubos» puesto, «Llaves dinamométricas» y «Otros» quedaban fuera de la
+   vista. Un botón que aparece al filtrar no puede esconder justamente las
+   categorías a las que uno querría saltar.
+
+   Con `auto` se lleva lo que ocupa y nada más, y `margin-left: auto` lo
+   mantiene contra el margen derecho. */
 .extra {
-  flex: 0 0 24rem;
+  flex: 0 0 auto;
   margin-left: auto;
 }
 
