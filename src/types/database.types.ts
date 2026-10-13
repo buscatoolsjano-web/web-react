@@ -8180,17 +8180,10 @@ export type Database = {
           estado: string
         }[]
       }
-      _verificar_datos: {
-        Args: { p_tablas?: string[] }
-        Returns: {
-          coincide: boolean
-          filas_destino: number
-          filas_origen: number
-          huella_destino: string
-          huella_origen: string
-          nombre_tabla: string
-        }[]
-      }
+      /* BORRADA A MANO · Fase 65. `_verificar_datos` comparaba filas y huellas
+         entre São Paulo y Ohio a través del FDW. Se desmontó el andamiaje
+         —server, 118 tablas foráneas y los cinco schemas `remoto*`—, así que
+         ya no hay con qué comparar y la función no existe más. */
       abierta: {
         Args: { q: Database["public"]["Tables"]["sales_quotes"]["Row"] }
         Returns: boolean
