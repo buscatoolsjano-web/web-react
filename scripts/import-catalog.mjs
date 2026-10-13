@@ -150,7 +150,7 @@ async function traerTodo(sb, tabla, select, filtro = (q) => q, orden = 'id', pag
 
 // ── Conexión ─────────────────────────────────────────────────
 function conectar() {
-  const url = process.env.SUPABASE_URL ?? 'https://uaxcfufvapzulqvynanp.supabase.co'
+  const url = process.env.SUPABASE_URL ?? 'https://jiudqbusyknubonpedde.supabase.co'
   const clave = process.env.SUPABASE_SECRET_KEY
   if (!clave) {
     console.error(

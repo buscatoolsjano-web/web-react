@@ -19,7 +19,7 @@ const HTML = process.argv[2]
 const STORE = process.argv[3]
 
 const sb = createClient(
-  process.env.SUPABASE_URL ?? 'https://uaxcfufvapzulqvynanp.supabase.co',
+  process.env.SUPABASE_URL ?? 'https://jiudqbusyknubonpedde.supabase.co',
   process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } })
 
 const normCuit = (s) => (s ?? '').replace(/\D/g, '') || null

@@ -17,7 +17,7 @@ const ENTRADA = process.argv[2]
 if (!ENTRADA) { console.error('Falta el archivo del legacy'); process.exit(1) }
 
 const sb = createClient(
-  process.env.SUPABASE_URL ?? 'https://uaxcfufvapzulqvynanp.supabase.co',
+  process.env.SUPABASE_URL ?? 'https://jiudqbusyknubonpedde.supabase.co',
   process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } })
 
 let fallos = 0

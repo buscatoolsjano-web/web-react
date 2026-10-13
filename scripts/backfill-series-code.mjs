@@ -18,7 +18,7 @@ import { createClient } from '@supabase/supabase-js'
 const APLICAR = process.argv.includes('--apply')
 
 const sb = createClient(
-  process.env.SUPABASE_URL ?? 'https://uaxcfufvapzulqvynanp.supabase.co',
+  process.env.SUPABASE_URL ?? 'https://jiudqbusyknubonpedde.supabase.co',
   process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } })
 
 // Series conocidas por tipo. Las más largas primero: 'RT-ML' antes que 'RT',

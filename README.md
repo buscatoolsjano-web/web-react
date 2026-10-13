@@ -12,7 +12,7 @@ Vite + Supabase.
 | | Legacy | Esta versión |
 |---|---|---|
 | Repo | `buscatoolsjano-web/Buscatools` | `buscatoolsjano-web/web-react` |
-| Supabase | `hnyngsejohkmlaccpkux` | `uaxcfufvapzulqvynanp` |
+| Supabase | `hnyngsejohkmlaccpkux` | `jiudqbusyknubonpedde` (São Paulo) |
 | URL | `…github.io/Buscatools/` | https://buscatoolsjano-web.github.io/web-react/ |
 
 Los dos sistemas están **completamente aislados**: repos distintos,

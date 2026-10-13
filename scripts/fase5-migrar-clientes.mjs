@@ -29,7 +29,7 @@ const APLICAR = process.argv.includes('--apply')
 if (!HTML) { console.error('Falta el index.html del legacy'); process.exit(1) }
 
 const sb = createClient(
-  process.env.SUPABASE_URL ?? 'https://uaxcfufvapzulqvynanp.supabase.co',
+  process.env.SUPABASE_URL ?? 'https://jiudqbusyknubonpedde.supabase.co',
   process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } })
 
 // ── Normalización ──────────────────────────────────────────────────────────

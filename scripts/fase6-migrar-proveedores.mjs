@@ -42,7 +42,7 @@ const EMPRESA = process.env.COMPANY_ID ?? 'bbcb2cee-aeaa-43c9-a7a0-da0fb2b2f59c'
 const ORIGEN = 'BuscatoolsERP.html#proveedores-data'
 
 const sb = createClient(
-  process.env.SUPABASE_URL ?? 'https://uaxcfufvapzulqvynanp.supabase.co',
+  process.env.SUPABASE_URL ?? 'https://jiudqbusyknubonpedde.supabase.co',
   process.env.SUPABASE_SECRET_KEY,
   { auth: { persistSession: false } },
 )

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { parseEnv } from './env'
 
 const valido = {
-  VITE_SUPABASE_URL: 'https://uaxcfufvapzulqvynanp.supabase.co',
+  VITE_SUPABASE_URL: 'https://jiudqbusyknubonpedde.supabase.co',
   VITE_SUPABASE_ANON_KEY: 'sb_publishable_rw9cMuxu6rPtLGyubr5Qog_qrX0VzjY',
 }
 

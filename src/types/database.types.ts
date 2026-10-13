@@ -2,9 +2,14 @@
  * Tipos generados desde el schema de Supabase (proyecto jiudqbusyknubonpedde,
  * São Paulo / sa-east-1). Es la base que usa la app: el secreto de GitHub
  * `VITE_SUPABASE_URL` apunta ahí —verificado en el bundle que sirve
- * app.buscatools.com— y `.env.local` también. El proyecto uaxcfufvapzulqvynanp
- * (Ohio) quedó atrás y NO sirve como fuente: le faltan 3 tablas y 26
- * funciones que São Paulo sí tiene (Fases 30, 39 y 40).
+ * app.buscatools.com— y `.env` también. El proyecto de Ohio quedó atrás y NO
+ * sirve como fuente: le faltan 3 tablas y 26 funciones que São Paulo sí tiene
+ * (Fases 30, 39 y 40).
+ *
+ * Hasta la Fase 65 el repo apuntaba a los dos lados a la vez: `.env` tenía la
+ * URL y la clave de Ohio y lo tapaba un `.env.local` que Vite prioriza, y
+ * trece scripts de mantenimiento traían Ohio como valor por omisión. Ya no:
+ * la única mención que queda es histórica, en `docs/` y en el runbook.
  *
  * NO editar a mano. Se regenera con:
  *   npx supabase gen types typescript --project-id jiudqbusyknubonpedde
@@ -9689,12 +9694,13 @@ export type Database = {
        * reemplaza solo. Lo mismo con los dos parámetros nuevos de
        * `listar_bandeja_email`.
        *
-       * OJO: el encabezado de este archivo dice que se generó desde el
-       * proyecto `uaxcfufvapzulqvynanp`, que es el de Ohio. La base en uso es
-       * la de São Paulo —ahí entra el correo—, así que al regenerar hay que
-       * apuntar a ésa y revisar qué más quedó desactualizado: por ejemplo
-       * `ultimo_precio_cliente` acá no declara `ultimo_documento_id`, que la
-       * función sí devuelve y `clientes/services/precios.ts` sí lee.
+       * Al regenerar, apuntar a São Paulo (`jiudqbusyknubonpedde`) y revisar
+       * qué más quedó desactualizado: por ejemplo `ultimo_precio_cliente` acá
+       * no declara `ultimo_documento_id`, que la función sí devuelve y
+       * `clientes/services/precios.ts` sí lee.
+       *
+       * (Este comentario avisaba que el encabezado decía Ohio. Ya no: el
+       * encabezado y el resto del repo apuntan a São Paulo.)
        */
       pendiente_por_persona: {
         Args: { p_company: string }

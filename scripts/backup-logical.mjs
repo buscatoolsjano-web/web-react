@@ -39,7 +39,7 @@ if (/web-react[\\/](?!.*\.\.)/.test(SALIDA.replace(/\\/g, '/')) && !SALIDA.inclu
   process.exit(1)
 }
 
-const PROYECTO = 'uaxcfufvapzulqvynanp'
+const PROYECTO = 'jiudqbusyknubonpedde'
 const URL = process.env.SUPABASE_URL ?? `https://${PROYECTO}.supabase.co`
 const CLAVE = process.env.SUPABASE_SECRET_KEY
 if (!CLAVE) {

@@ -66,7 +66,7 @@ function conectar() {
     process.exit(1)
   }
   return createClient(
-    process.env.SUPABASE_URL ?? 'https://uaxcfufvapzulqvynanp.supabase.co',
+    process.env.SUPABASE_URL ?? 'https://jiudqbusyknubonpedde.supabase.co',
     clave,
     { auth: { persistSession: false } },
   )

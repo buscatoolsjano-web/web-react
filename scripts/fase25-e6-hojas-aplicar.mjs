@@ -48,7 +48,7 @@ const ENTRADA = 'scripts/output/fase25-hojas-catalogo.json'
 let cliente = null
 const sb = () => {
   cliente ??= createClient(
-    process.env.SUPABASE_URL ?? 'https://uaxcfufvapzulqvynanp.supabase.co',
+    process.env.SUPABASE_URL ?? 'https://jiudqbusyknubonpedde.supabase.co',
     process.env.SUPABASE_SECRET_KEY,
     { auth: { persistSession: false } },
   )

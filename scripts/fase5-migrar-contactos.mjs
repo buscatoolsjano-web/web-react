@@ -33,7 +33,7 @@ const APLICAR = process.argv.includes('--apply')
 if (!HTML || !STORE) { console.error('Uso: <BuscatoolsERP.html> <erp_store.json> [--apply]'); process.exit(1) }
 
 const sb = createClient(
-  process.env.SUPABASE_URL ?? 'https://uaxcfufvapzulqvynanp.supabase.co',
+  process.env.SUPABASE_URL ?? 'https://jiudqbusyknubonpedde.supabase.co',
   process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } })
 
 const normNombre = (s) =>
