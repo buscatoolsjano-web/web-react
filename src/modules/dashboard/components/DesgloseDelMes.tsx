@@ -69,11 +69,13 @@ export function DesgloseDelMes({ mes, moneda, cuentas, onCerrar }: DesgloseDelMe
             const total = cuentas[tipo] ?? 0
             const etiqueta = ETIQUETA_SERIE[tipo]
             return (
-              <div key={tipo} className={styles.columna}>
+              <div key={tipo} className={styles.columna} data-slot={slot}>
                 <h4 className={styles.columnaTitulo}>
                   {/* La misma muestra de color que la leyenda: es lo que ata
-                      cada columna a su barra sin tener que decirlo. */}
-                  <span className={styles.muestra} data-slot={slot} aria-hidden="true" />
+                      cada columna a su barra sin tener que decirlo. El color
+                      lo pone el `data-slot` de la columna, que además pinta
+                      la regla de arriba con el mismo hue. */}
+                  <span className={styles.muestra} aria-hidden="true" />
                   {etiqueta.titulo}
                   <span className={styles.columnaCuenta}>
                     {total} {total === 1 ? etiqueta.singular : etiqueta.plural}

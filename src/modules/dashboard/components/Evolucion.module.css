@@ -72,11 +72,20 @@
   --serie-3: #1baf7a;
 }
 
+/* El desglose usa LA MISMA paleta que las barras, y tiene que usarla: es lo
+   único que ata cada columna a la serie que se acaba de tocar. */
+.desglose {
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+  --serie-3: #1baf7a;
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .leyenda,
   :root:not([data-theme='light']) .grafico,
   :root:not([data-theme='light']) .tip,
-  :root:not([data-theme='light']) .tipIzquierda {
+  :root:not([data-theme='light']) .tipIzquierda,
+  :root:not([data-theme='light']) .desglose {
     --serie-1: #3987e5;
     --serie-2: #d95926;
     --serie-3: #199e70;
@@ -86,7 +95,8 @@
 :root[data-theme='dark'] .leyenda,
 :root[data-theme='dark'] .grafico,
 :root[data-theme='dark'] .tip,
-:root[data-theme='dark'] .tipIzquierda {
+:root[data-theme='dark'] .tipIzquierda,
+:root[data-theme='dark'] .desglose {
   --serie-1: #3987e5;
   --serie-2: #d95926;
   --serie-3: #199e70;
@@ -488,29 +498,70 @@
   gap: var(--space-4);
 }
 
+/* CADA COLUMNA ES UN PANEL, no tres listas sueltas en una grilla.
+
+   Tres listas de números pegadas, sin más separación que el espacio entre
+   ellas, se leen como una sola tabla mal alineada —hay que contar columnas
+   para saber si el renglón que se está mirando es cotización o remito—. El
+   recuadro cierra cada grupo y la regla de 3 px de arriba dice de cuál es,
+   con el mismo color que su barra.
+
+   El color va en la REGLA y en la muestra, nunca en el fondo ni en el texto:
+   un bloque entero teñido taparía los importes, que es justo lo que se vino
+   a leer. */
 .columna {
   min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-top-width: 3px;
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+}
+
+.columna[data-slot='1'] { border-top-color: var(--serie-1); }
+.columna[data-slot='2'] { border-top-color: var(--serie-2); }
+.columna[data-slot='3'] { border-top-color: var(--serie-3); }
+
+/* La muestra de la leyenda sólo se pinta dentro de `.serie`; acá hay que
+   decirlo otra vez o queda un cuadrado de 12 px invisible. */
+.columna[data-slot='1'] .muestra { color: var(--serie-1); }
+.columna[data-slot='2'] .muestra { color: var(--serie-2); }
+.columna[data-slot='3'] .muestra { color: var(--serie-3); }
+
+.columnaTitulo .muestra {
+  background: currentColor;
 }
 
 .columnaTitulo {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   margin: 0 0 var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
   font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  /* El rótulo NO lleva el color de la serie: lo lleva la muestra de al lado. */
-  color: var(--text-muted);
+  /* El rótulo NO lleva el color de la serie: lo lleva la muestra de al lado.
+     Sí sube de `--text-muted` a `--text`: ahora es la cabecera de un panel y
+     tiene que ganarle al listado que está abajo. */
+  color: var(--text);
 }
 
+/* El total, en pastilla: separa de un vistazo «cuántos hay» del nombre del
+   grupo, que si no se leen como una sola frase larga. */
 .columnaCuenta {
   margin-left: auto;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--surface);
   font-weight: 400;
   text-transform: none;
   letter-spacing: 0;
   white-space: nowrap;
+  color: var(--text-muted);
 }
 
 .columnaVacia {
@@ -550,8 +601,10 @@
   min-width: 0;
 }
 
+/* `--surface`, no `--surface-alt`: el panel de la columna YA es
+   `--surface-alt`, así que el hover de antes no se veía. */
 .doc:hover {
-  background: var(--surface-alt);
+  background: var(--surface);
 }
 
 .doc:focus-visible {
@@ -586,9 +639,13 @@
   white-space: nowrap;
 }
 
+/* El pie del panel, con su propia línea: cierra la columna en vez de quedar
+   colgando como si fuera un documento más del listado. */
 .verTodos {
-  display: inline-block;
+  display: block;
   margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
   font-size: var(--text-sm);
   color: var(--accent);
   text-decoration: none;
