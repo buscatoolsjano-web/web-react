@@ -122,3 +122,38 @@ describe('mismasColumnas', () => {
     expect(mismasColumnas(['a', 'b'], ['b', 'a'])).toBe(false)
   })
 })
+
+/*
+ * ── LOS TRES NÚMEROS, CONTRA LA TABLA REAL ──────────────────────────────────
+ *
+ * Están medidos en el navegador sobre el catálogo: padding 8+8, flecha de
+ * ordenar 27 px, y un `<select>` que le suma ~30 a su opción más larga.
+ *
+ * La primera versión los supuso (24 y 22) y daba el resultado correcto por
+ * compensación: sobraban 8 de padding y faltaban 5 de flecha. Estos casos
+ * fijan cada uno por separado, así el día que alguien corrija el padding no
+ * descubra de golpe que los títulos se cortan.
+ */
+describe('los márgenes, contra lo medido en la tabla', () => {
+  it('una columna mandada por su dato le suma sólo el padding', () => {
+    // «1/2 Cuadrado» mide 73 px en la tabla y su columna salió 89.
+    expect(anchoNecesario({ cabecera: 45, valores: [73] })).toBe(73 + 16)
+  })
+
+  it('una columna mandada por su título le deja lugar a la flecha', () => {
+    // «Torque mín. Nm» mide 88 px, la flecha 27, el padding 16: 131 en pantalla.
+    expect(anchoNecesario({ cabecera: 88, valores: [42] })).toBe(88 + 28 + 16)
+  })
+
+  it('el título cabe entero: nunca menos que texto + flecha + padding', () => {
+    for (const cab of [30, 60, 88, 97, 150]) {
+      expect(anchoNecesario({ cabecera: cab, valores: [10] })).toBeGreaterThanOrEqual(
+        Math.min(MAX_CONTENIDO_PX, cab + 27 + 16),
+      )
+    }
+  })
+
+  it('el filtro cabe entero: nunca menos que su opción más larga más su flecha', () => {
+    expect(anchoNecesario({ cabecera: 20, valores: [10], filtro: 120 })).toBeGreaterThanOrEqual(120 + 30 + 16)
+  })
+})

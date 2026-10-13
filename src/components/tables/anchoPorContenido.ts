@@ -29,20 +29,30 @@
  * ninguna columna más ancha de lo que necesita.
  */
 
-/** Lo que ocupa el padding de la celda: `--space-3` de cada lado. */
-const PADDING_PX = 24
+/*
+ * Los tres números de abajo están MEDIDOS en la tabla real, no supuestos.
+ *
+ * La primera versión los supuso —24 de padding, 22 de flecha— y daba la
+ * respuesta correcta por compensación: sobraban 8 de padding y faltaban 5 de
+ * flecha. Andaba, y se habría roto el día que alguien corrigiera uno solo de
+ * los dos. Con los valores de verdad, cada uno se puede ajustar sin tener que
+ * descubrir que el otro lo estaba tapando.
+ */
+
+/** Padding de la celda y del encabezado: 8 px de cada lado. */
+const PADDING_PX = 16
 
 /**
- * El aire del encabezado, además del padding: la flecha de ordenar y el
- * tirador para arrastrar el borde.
+ * La flecha de ordenar y su hueco, al lado del título. Medida: 27 px; va uno
+ * más para que un redondeo a subpíxel no corte la última letra.
  */
-const CABECERA_EXTRA_PX = 22
+const CABECERA_EXTRA_PX = 28
 
 /**
- * Lo mínimo que mide un `<select>` de filtro para seguir siendo usable: su
- * texto, la flecha y el padding propio del control.
+ * Lo que un `<select>` de filtro le suma a su opción más larga: su propio
+ * padding y la flecha del desplegable.
  */
-const FILTRO_EXTRA_PX = 34
+const FILTRO_EXTRA_PX = 30
 
 /** Lo más angosto que puede quedar una columna sin dejar de ser legible. */
 export const MIN_CONTENIDO_PX = 56

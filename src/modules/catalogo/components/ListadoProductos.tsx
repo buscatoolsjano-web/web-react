@@ -210,16 +210,28 @@ export function ListadoProductos({
   const columnasAjustables = useMemo<ColumnaMedible[]>(() => {
     const textos = (f: (p: ProductoListado) => string | null | undefined) =>
       productos.map((p) => f(p) ?? '—')
-    const opciones = (clave: string) =>
-      (facetasDeFiltro as Record<string, { valor: string }[] | undefined> | undefined)?.[clave]?.map(
-        (o) => o.valor,
-      ) ?? []
+    /*
+     * Las opciones del desplegable, que es lo que el `<select>` del
+     * encabezado tiene que poder mostrar. Se lee la ETIQUETA y no el valor:
+     * es lo que se dibuja.
+     *
+     * Y se nombran una por una en vez de armar la clave con una plantilla:
+     * la primera versión buscaba `facetas['marca']` cuando la faceta se
+     * llama `marcas`, así que devolvía siempre vacío y el mínimo del filtro
+     * no se aplicaba nunca. Andaba de casualidad —los títulos alcanzaban—
+     * y no había forma de notarlo leyendo el código.
+     */
+    const etiquetas = (os: readonly { etiqueta: string }[] | undefined) =>
+      ['Todos', ...(os ?? []).map((o) => o.etiqueta)]
+    const delAtributo = (key: string) =>
+      etiquetas(facetasDeFiltro?.atributos.find((a) => a.key === key)?.opciones)
+
     return [
       { key: 'modelo', header: 'Modelo', tipo: 'texto', valores: textos((p) => p.modelo) },
-      { key: 'marca', header: 'Marca', tipo: 'texto', valores: textos((p) => p.marca?.nombre), opcionesDeFiltro: opciones('marca') },
-      { key: 'categoria', header: 'Categoría', tipo: 'texto', valores: textos((p) => p.categoria?.nombre), opcionesDeFiltro: opciones('categoria') },
-      { key: 'serie', header: 'Serie', tipo: 'texto', valores: textos((p) => p.serie), opcionesDeFiltro: opciones('serie') },
-      { key: 'tipo', header: 'Tipo', tipo: 'texto', valores: textos((p) => p.tipo), opcionesDeFiltro: opciones('tipo') },
+      { key: 'marca', header: 'Marca', tipo: 'texto', valores: textos((p) => p.marca?.nombre), opcionesDeFiltro: etiquetas(facetasDeFiltro?.marcas) },
+      { key: 'categoria', header: 'Categoría', tipo: 'texto', valores: textos((p) => p.categoria?.nombre), opcionesDeFiltro: etiquetas(facetasDeFiltro?.categorias) },
+      { key: 'serie', header: 'Serie', tipo: 'texto', valores: textos((p) => p.serie), opcionesDeFiltro: etiquetas(facetasDeFiltro?.series) },
+      { key: 'tipo', header: 'Tipo', tipo: 'texto', valores: textos((p) => p.tipo), opcionesDeFiltro: etiquetas(facetasDeFiltro?.subtipos) },
       ...columnasDinamicas.map((c) => ({
         key: claveAncho(c.key),
         // El encabezado incluye la unidad, que se dibuja al lado: «Torque
@@ -227,7 +239,7 @@ export function ListadoProductos({
         header: c.unidad ? `${c.label} ${c.unidad}` : c.label,
         tipo: 'texto' as const,
         valores: productos.map((p) => valorDinamico(p, c)),
-        opcionesDeFiltro: opciones(`attr:${c.key}`),
+        opcionesDeFiltro: delAtributo(c.key),
       })),
     ]
   }, [columnasDinamicas, productos, facetasDeFiltro])
