@@ -67,7 +67,34 @@ export interface PedidoAlModelo {
    * módulo sigue sin saber qué es OpenAI.
    */
   agenteId: string
+  /**
+   * Si está, el proveedor va avisando lo que el modelo escribe, pedazo a
+   * pedazo. Si no está, contesta de una sola vez como siempre.
+   *
+   * Es OPCIONAL a propósito: el bucle no cambia de forma según haya o no
+   * alguien escuchando, y los tests siguen corriendo con un modelo guionado
+   * que nunca llama a esto.
+   */
+  onTexto?: (pedazo: string) => void
 }
+
+/**
+ * Lo que va pasando, mientras pasa (Fase 65).
+ *
+ * El servidor contestaba de una sola vez al final, así que la pantalla no
+ * tenía nada que mostrar durante 21 segundos y ponía una barra que avanzaba
+ * sola —una animación que no sabía nada—. Con esto puede contar lo que de
+ * verdad está ocurriendo.
+ *
+ * `turno` es el que hace que esto no mienta: cada vez que un agente arranca
+ * una vuelta nueva, lo que venía escribiendo ya no vale. Sin ese aviso, un
+ * agente que empieza a redactar y después decide usar una herramienta dejaría
+ * en pantalla medio párrafo que nunca fue la respuesta.
+ */
+export type EventoDelBucle =
+  | { tipo: 'turno'; agente: string }
+  | { tipo: 'delta'; texto: string }
+  | { tipo: 'paso'; agente: string; clase: 'herramienta' | 'consulta'; nombre: string }
 
 export interface RespuestaModelo {
   texto: string
@@ -112,6 +139,16 @@ export interface Entorno {
    */
   contexto?: string
   limites?: Partial<Limites>
+  /**
+   * Para contar lo que va pasando mientras pasa. Opcional: sin esto el bucle
+   * se comporta exactamente igual, y por eso los tests que no miran eventos
+   * no tuvieron que cambiar.
+   *
+   * Nunca puede tumbar una consulta: si quien escucha falla, se ignora. Un
+   * error escribiendo en el stream no puede costar la respuesta, que es lo
+   * que la persona vino a buscar y lo que ya se pagó.
+   */
+  emitir?: (e: EventoDelBucle) => void
 }
 
 /** Un paso de lo que pasó, para poder mostrarlo y para poder depurarlo. */
@@ -132,6 +169,23 @@ export interface Resultado {
   llamadas: number
   /** Qué corte se tocó, si se tocó alguno. Para poder verlo en la pantalla. */
   corte: 'ninguno' | 'vueltas' | 'presupuesto'
+}
+
+/**
+ * Avisar sin poder romper nada.
+ *
+ * Quien escucha es un stream HTTP que se puede haber cortado —la persona
+ * cerró el panel, se le fue el wifi—. Que eso tire una excepción en medio del
+ * bucle costaría la respuesta entera, que ya se pagó en llamadas al modelo.
+ * Se ignora y se sigue: terminar la consulta vale más que contarla.
+ */
+function avisar(entorno: Entorno, e: EventoDelBucle): void {
+  if (!entorno.emitir) return
+  try {
+    entorno.emitir(e)
+  } catch {
+    // a propósito
+  }
 }
 
 const RESUMEN_MAX = 300
@@ -231,11 +285,15 @@ async function correr(
     }
 
     cuenta.llamadas++
+    avisar(entorno, { tipo: 'turno', agente: agenteId })
     const r = await entorno.modelo({
       sistema: sistemaDe(agenteId, entorno.contexto),
       mensajes,
       herramientas,
       agenteId,
+      ...(entorno.emitir
+        ? { onTexto: (pedazo: string) => avisar(entorno, { tipo: 'delta', texto: pedazo }) }
+        : {}),
     })
 
     // Sin llamadas, contestó: se termina.
@@ -309,8 +367,12 @@ async function correr(
   if (cuenta.llamadas >= limites.llamadasAlModelo) return textoDeCorte(agenteId, cuenta)
 
   cuenta.llamadas++
+  avisar(entorno, { tipo: 'turno', agente: agenteId })
   const cierre = await entorno.modelo({
     agenteId,
+    ...(entorno.emitir
+      ? { onTexto: (pedazo: string) => avisar(entorno, { tipo: 'delta', texto: pedazo }) }
+      : {}),
     sistema: sistemaDe(agenteId, entorno.contexto),
     mensajes: [
       ...mensajes,
@@ -368,6 +430,10 @@ async function atender(
       resumen: '',
     }
     cuenta.pasos.push(paso)
+    // Se avisa ACÁ y no al volver: consultar a un colega es lo que más tarda
+    // de toda la consulta, y es justo el rato en que la pantalla no tenía nada
+    // que decir.
+    avisar(entorno, { tipo: 'paso', agente: agenteId, clase: 'consulta', nombre: colega })
 
     let texto: string
     let respondioElColega = false
@@ -391,6 +457,9 @@ async function atender(
     }
   }
 
+  // Igual que con el colega: se avisa ANTES de ejecutar, que es cuando
+  // empieza la espera, no después.
+  avisar(entorno, { tipo: 'paso', agente: agenteId, clase: 'herramienta', nombre: ll.nombre })
   const texto = await entorno.ejecutar(ll.nombre, ll.argumentos)
   cuenta.pasos.push({
     agente: agenteId,

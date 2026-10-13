@@ -129,56 +129,121 @@ function argumentosDe(crudo: unknown): Record<string, unknown> {
  */
 const DERIVADORES = new Set(['general'])
 
+/** Un ítem de los que devuelve el proveedor, en lo poco que miramos de él. */
+interface ItemDeSalida {
+  type?: string
+  call_id?: string
+  id?: string
+  name?: string
+  arguments?: unknown
+  content?: { type?: string; text?: string }[]
+}
+
+/**
+ * De los ítems del proveedor a lo que entiende el bucle.
+ *
+ * Está aparte porque ahora hay dos caminos —de una sola vez y en vivo— y la
+ * forma de la salida es la misma en los dos. Duplicarla sería duplicar el
+ * lugar donde se rompe el apareo de `call_id`.
+ */
+function interpretar(salida: ItemDeSalida[]): RespuestaModelo {
+  const llamadas: LlamadaHerramienta[] = salida
+    .filter((o) => o.type === 'function_call' && typeof o.name === 'string')
+    .map((o) => ({
+      id: o.call_id ?? o.id ?? '',
+      nombre: o.name as string,
+      argumentos: argumentosDe(o.arguments),
+    }))
+
+  const texto = salida
+    .flatMap((o) => o.content ?? [])
+    .filter((c) => c.type === 'output_text')
+    .map((c) => c.text ?? '')
+    .join('')
+
+  // Los ítems se guardan enteros para devolverlos en la vuelta siguiente.
+  return { texto, llamadas, crudo: salida as unknown[] }
+}
+
 function proveedorOpenAI(cliente: OpenAI, modelo: string, esfuerzo: string): Proveedor {
+  const pedir = (pedido: PedidoAlModelo, enVivo: boolean) => ({
+    model: modelo,
+    instructions: pedido.sistema,
+    input: aEntrada(pedido.mensajes),
+    tools: pedido.herramientas,
+    reasoning: { effort: DERIVADORES.has(pedido.agenteId) ? 'none' : esfuerzo },
+    max_output_tokens: MAX_OUTPUT_TOKENS,
+    // Lo que se consulta acá son datos de clientes y precios de la
+    // empresa: no se guarda del otro lado.
+    store: false,
+    ...(enVivo ? { stream: true } : {}),
+  })
+
   return {
     nombre: 'openai',
     listo: true,
     async responder(pedido: PedidoAlModelo): Promise<RespuestaModelo> {
+      /**
+       * EN VIVO (Fase 65), sólo si alguien está escuchando.
+       *
+       * Se emiten los pedazos de texto a medida que el modelo los escribe,
+       * pero el RESULTADO se arma con el `response.completed`, que trae la
+       * salida entera —incluidas las llamadas a herramienta y los bloques de
+       * razonamiento que hay que devolver apareados—. Acumular los deltas
+       * para armar el texto daría lo mismo en el caso feliz y perdería todo
+       * lo demás.
+       */
+      if (pedido.onTexto) {
+        const avisar = pedido.onTexto
+        let completado: ItemDeSalida[] | null = null
+        const terminados: ItemDeSalida[] = []
+        try {
+          const flujo = (await cliente.responses.create(
+            pedir(pedido, true) as unknown as Parameters<typeof cliente.responses.create>[0],
+          )) as unknown as AsyncIterable<Record<string, unknown>>
+
+          for await (const ev of flujo) {
+            const t = ev['type']
+            if (t === 'response.output_text.delta') {
+              if (typeof ev['delta'] === 'string' && ev['delta'] !== '') avisar(ev['delta'])
+            } else if (t === 'response.output_item.done') {
+              // La red de seguridad: ver abajo.
+              if (ev['item']) terminados.push(ev['item'] as ItemDeSalida)
+            } else if (t === 'response.completed') {
+              const r = ev['response'] as { output?: ItemDeSalida[] } | undefined
+              completado = r?.output ?? []
+            } else if (t === 'error' || t === 'response.failed') {
+              throw new FalloProveedor('caido', 'el proveedor cortó la respuesta')
+            }
+          }
+        } catch (e) {
+          if (e instanceof FalloProveedor) throw e
+          throw new FalloProveedor(clasificar(e), 'el proveedor no respondió')
+        }
+
+        /*
+         * SI `completed` VINO VACÍO, se arma con los ítems que sí llegaron.
+         *
+         * Es un modo de fallo conocido de las pasarelas que se meten en el
+         * medio: mandan los deltas bien y después un `response.completed` con
+         * `output` en cero. Un cliente que arma el resultado sólo de ahí da
+         * una respuesta vacía con el texto ya escrito en pantalla, que es la
+         * peor combinación posible.
+         */
+        const salida = completado !== null && completado.length > 0 ? completado : terminados
+        return interpretar(salida)
+      }
+
       let respuesta: unknown
       try {
-        respuesta = await cliente.responses.create({
-          model: modelo,
-          instructions: pedido.sistema,
-          input: aEntrada(pedido.mensajes),
-          tools: pedido.herramientas,
-          reasoning: { effort: DERIVADORES.has(pedido.agenteId) ? 'none' : esfuerzo },
-          max_output_tokens: MAX_OUTPUT_TOKENS,
-          // Lo que se consulta acá son datos de clientes y precios de la
-          // empresa: no se guarda del otro lado.
-          store: false,
-        } as unknown as Parameters<typeof cliente.responses.create>[0])
+        respuesta = await cliente.responses.create(
+          pedir(pedido, false) as unknown as Parameters<typeof cliente.responses.create>[0],
+        )
       } catch (e) {
         throw new FalloProveedor(clasificar(e), 'el proveedor no respondió')
       }
 
-      const r = (respuesta ?? {}) as {
-        output?: {
-          type?: string
-          call_id?: string
-          id?: string
-          name?: string
-          arguments?: unknown
-          content?: { type?: string; text?: string }[]
-        }[]
-      }
-      const salida = r.output ?? []
-
-      const llamadas: LlamadaHerramienta[] = salida
-        .filter((o) => o.type === 'function_call' && typeof o.name === 'string')
-        .map((o) => ({
-          id: o.call_id ?? o.id ?? '',
-          nombre: o.name as string,
-          argumentos: argumentosDe(o.arguments),
-        }))
-
-      const texto = salida
-        .flatMap((o) => o.content ?? [])
-        .filter((c) => c.type === 'output_text')
-        .map((c) => c.text ?? '')
-        .join('')
-
-      // Los ítems se guardan enteros para devolverlos en la vuelta siguiente.
-      return { texto, llamadas, crudo: salida as unknown[] }
+      return interpretar(((respuesta ?? {}) as { output?: ItemDeSalida[] }).output ?? [])
     },
   }
 }

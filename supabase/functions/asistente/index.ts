@@ -10,7 +10,7 @@
  * confirmación en pantalla.
  */
 import { createClient } from 'npm:@supabase/supabase-js@2.58.0'
-import { type Mensaje, responder } from './bucle.ts'
+import { type Mensaje, type Resultado, responder } from './bucle.ts'
 import { type Bandeja, crearEjecutor } from './ejecutor.ts'
 import { FalloProveedor, MAX_BYTES_AUDIO, proveedorConfigurado, transcribir } from './proveedor.ts'
 import { AGENTE_RAIZ, agente, todosLosAgentes } from './agentes.ts'
@@ -45,6 +45,20 @@ const MAX_TEXTO_ARCHIVO = 20_000
 
 /** Cuántos mensajes de la charla se le pasan al modelo. */
 const HISTORIAL = 12
+
+/**
+ * Qué se le dice a la persona según qué falló.
+ *
+ * Está acá arriba y no adentro del `catch` porque ahora lo usan dos caminos
+ * —el JSON de siempre y el evento `error` del stream— y dos copias del mismo
+ * diccionario es una que se queda vieja.
+ */
+const MENSAJES_DE_FALLO: Record<string, string> = {
+  sin_configurar: 'La IA todavía no está configurada.',
+  rechazo: 'El proveedor de IA rechazó la consulta.',
+  limite: 'Se alcanzó el límite del proveedor de IA. Probá en un rato.',
+  caido: 'El proveedor de IA no responde.',
+}
 
 /** Los mensajes que llegaron, validados. Lo que no tenga forma, se descarta. */
 function mensajesDe(crudo: unknown): Mensaje[] {
@@ -246,6 +260,97 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // y los productos que se nombraron. Va aparte del texto a propósito.
   const bandeja: Bandeja = { propuesta: null, productos: [] }
 
+  const cerrar = (r: Resultado) => ({
+    texto: r.texto,
+    // La traza se muestra: «consulté a Catálogo, busqué productos». Es lo
+    // que convierte una espera muda en algo que se entiende, y lo que
+    // permite ver de dónde salió un dato cuando parece raro.
+    pasos: r.pasos.map((p) => ({ agente: p.agente, tipo: p.tipo, nombre: p.nombre })),
+    llamadas: r.llamadas,
+    corte: r.corte,
+    proveedor: proveedor.nombre,
+    propuesta: bandeja.propuesta,
+    // Los productos nombrados, para dibujarlos como tarjetas con sus botones.
+    productos: bandeja.productos,
+  })
+
+  /**
+   * EN VIVO (Fase 65), si el cliente lo pide con `Accept: text/event-stream`.
+   *
+   * Medido: la consulta tarda 21 s y antes no se veía nada hasta el final. No
+   * baja el total —el modelo tarda lo que tarda—, pero el primer signo de
+   * vida pasa de 21 s a dos o tres: se ve a quién se consultó, qué herramienta
+   * se usó, y después la respuesta escribiéndose.
+   *
+   * ES OPCIONAL A PROPÓSITO. Sin esa cabecera contesta el JSON de siempre, de
+   * una sola vez. Así el camino viejo sigue existiendo y sirve de refugio: si
+   * el stream se corta a mitad en alguna red, el cliente puede reintentar sin
+   * streaming y obtener la misma respuesta.
+   *
+   * LOS ERRORES VAN COMO EVENTO, no como status. Para cuando falla el modelo
+   * ya se mandaron las cabeceras con un 200: no hay forma de cambiar el
+   * código después. El cliente tiene que leer el evento `error`.
+   */
+  if ((req.headers.get('accept') ?? '').includes('text/event-stream')) {
+    const codificador = new TextEncoder()
+    const flujo = new ReadableStream({
+      async start(control) {
+        let vivo = true
+        const mandar = (evento: string, dato: unknown) => {
+          if (!vivo) return
+          try {
+            control.enqueue(codificador.encode(`event: ${evento}\ndata: ${JSON.stringify(dato)}\n\n`))
+          } catch {
+            // El cliente cerró. Se deja de escribir, pero la consulta sigue
+            // hasta el final: ya se pagó, y cortarla a la mitad no devuelve
+            // nada de eso.
+            vivo = false
+          }
+        }
+
+        try {
+          const r = await responder(
+            {
+              modelo: (pedido) => proveedor.responder(pedido),
+              ejecutar: crearEjecutor({ token, companyId, userId }, bandeja),
+              contexto,
+              emitir: (e) => mandar(e.tipo, e),
+            },
+            mensajes,
+            inicial,
+          )
+          mandar('fin', cerrar(r))
+        } catch (e) {
+          mandar('error', {
+            motivo: e instanceof FalloProveedor ? e.motivo : 'interno',
+            mensaje:
+              e instanceof FalloProveedor
+                ? (MENSAJES_DE_FALLO[e.motivo] ?? 'No pude consultar la IA.')
+                : 'No pude responder en este momento.',
+          })
+        } finally {
+          try {
+            control.close()
+          } catch {
+            // ya estaba cerrado
+          }
+        }
+      },
+    })
+
+    return new Response(flujo, {
+      headers: {
+        ...CORS,
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        // Sin esto algún proxy guarda el cuerpo entero y lo entrega junto al
+        // final, que es exactamente lo que vinimos a evitar.
+        'X-Accel-Buffering': 'no',
+      },
+    })
+  }
+
   try {
     const r = await responder(
       {
@@ -256,28 +361,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       mensajes,
       inicial,
     )
-    return json({
-      texto: r.texto,
-      // La traza se muestra: «consulté a Catálogo, busqué productos». Es lo
-      // que convierte una espera muda en algo que se entiende, y lo que
-      // permite ver de dónde salió un dato cuando parece raro.
-      pasos: r.pasos.map((p) => ({ agente: p.agente, tipo: p.tipo, nombre: p.nombre })),
-      llamadas: r.llamadas,
-      corte: r.corte,
-      proveedor: proveedor.nombre,
-      propuesta: bandeja.propuesta,
-      // Los productos nombrados, para dibujarlos como tarjetas con sus botones.
-      productos: bandeja.productos,
-    })
+    return json(cerrar(r))
   } catch (e) {
     if (e instanceof FalloProveedor) {
-      const mensajes: Record<string, string> = {
-        sin_configurar: 'La IA todavía no está configurada.',
-        rechazo: 'El proveedor de IA rechazó la consulta.',
-        limite: 'Se alcanzó el límite del proveedor de IA. Probá en un rato.',
-        caido: 'El proveedor de IA no responde.',
-      }
-      return falla(e.motivo, mensajes[e.motivo] ?? 'No pude consultar la IA.', 502)
+      return falla(e.motivo, MENSAJES_DE_FALLO[e.motivo] ?? 'No pude consultar la IA.', 502)
     }
     return falla('interno', 'No pude responder en este momento.', 500)
   }

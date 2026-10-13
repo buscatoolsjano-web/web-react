@@ -3,6 +3,7 @@ import { AGENTE_RAIZ, nombreDeConsulta, revisarRegistro, todosLosAgentes } from 
 import { HERRAMIENTAS, esquemaParaModelo, herramienta } from './herramientas.ts'
 import {
   type Entorno,
+  type EventoDelBucle,
   type LlamadaHerramienta,
   type Mensaje,
   type PedidoAlModelo,
@@ -443,5 +444,118 @@ describe('Cada pedido dice qué agente lo hace', () => {
     expect(pedidos.map((p) => p.agenteId)).toEqual([AGENTE_RAIZ, 'catalogo'])
     // Y coincide con el prompt que se armó, que es la otra forma de saberlo.
     for (const p of pedidos) expect(p.agenteId).toBe(agenteDe(p))
+  })
+})
+
+/*
+ * ── LO QUE VA PASANDO, MIENTRAS PASA (Fase 65) ──────────────────────────────
+ *
+ * El servidor contestaba de una sola vez al final: 21 segundos sin nada que
+ * mostrar, tapados con una barra que avanzaba sola. Ahora el bucle cuenta lo
+ * que hace, y la pantalla puede decir la verdad.
+ */
+describe('Los eventos del bucle', () => {
+  const conEventos = (entorno: Entorno) => {
+    const vistos: EventoDelBucle[] = []
+    return { entorno: { ...entorno, emitir: (e: EventoDelBucle) => vistos.push(e) }, vistos }
+  }
+
+  it('avisa cada derivación y cada herramienta ANTES de esperarlas', async () => {
+    const orden: string[] = []
+    const { modelo } = modeloGuionado((p, n) => {
+      if (agenteDe(p) === AGENTE_RAIZ) return pide(llamada(nombreDeConsulta('catalogo'), { pregunta: 'PH2' }))
+      return n === 1 ? pide(llamada('buscar_productos', { texto: 'PH2' })) : contesta('Hay tres.')
+    })
+    const { entorno, vistos } = conEventos({
+      modelo,
+      ejecutar: () => {
+        orden.push('se ejecutó la herramienta')
+        return Promise.resolve('3 resultados')
+      },
+    })
+
+    await responder(entorno, preguntar('puntas PH2'))
+
+    const pasos = vistos.filter((e) => e.tipo === 'paso')
+    expect(pasos).toEqual([
+      { tipo: 'paso', agente: 'general', clase: 'consulta', nombre: 'catalogo' },
+      { tipo: 'paso', agente: 'catalogo', clase: 'herramienta', nombre: 'buscar_productos' },
+    ])
+    // El aviso llega ANTES de ejecutar, que es cuando empieza la espera. Al
+    // revés, la pantalla contaría cada paso recién cuando ya terminó, que es
+    // justo el rato en que no hace falta.
+    expect(orden).toEqual(['se ejecutó la herramienta'])
+  })
+
+  /*
+   * `turno` es lo que impide que la pantalla mienta: un agente que empieza a
+   * escribir y después decide usar una herramienta dejaría medio párrafo
+   * colgado que nunca fue la respuesta. El aviso le dice al cliente que
+   * descarte lo que venía mostrando.
+   */
+  it('avisa cada turno nuevo, para que el cliente descarte lo anterior', async () => {
+    const { modelo } = modeloGuionado((p, n) => {
+      if (agenteDe(p) === AGENTE_RAIZ) return pide(llamada(nombreDeConsulta('catalogo'), { pregunta: 'x' }))
+      return n === 1 ? pide(llamada('buscar_productos', { texto: 'x' })) : contesta('listo')
+    })
+    const { entorno, vistos } = conEventos({ modelo, ejecutar: () => Promise.resolve('') })
+
+    await responder(entorno, preguntar('x'))
+
+    expect(vistos.filter((e) => e.tipo === 'turno')).toEqual([
+      { tipo: 'turno', agente: 'general' },
+      { tipo: 'turno', agente: 'catalogo' },
+      { tipo: 'turno', agente: 'catalogo' },
+    ])
+  })
+
+  /* El `onTexto` viaja al proveedor sólo si hay alguien escuchando: sin eso
+     el pedido tendría una función que nadie usa y el proveedor pediría el
+     stream al cuete. */
+  it('sin quien escuche, el pedido no lleva onTexto', async () => {
+    const { modelo, pedidos } = modeloGuionado(() => contesta('ok'))
+    await responder({ modelo, ejecutar: () => Promise.resolve('') }, preguntar('x'))
+    expect(pedidos[0]?.onTexto).toBeUndefined()
+  })
+
+  it('con quien escuche, lo que el modelo escribe sale como deltas', async () => {
+    const { modelo } = modeloGuionado((p) => {
+      // El modelo de mentira «escribe» en pedazos, como el de verdad.
+      for (const t of ['Hay ', 'tres ', 'puntas.']) p.onTexto?.(t)
+      return contesta('Hay tres puntas.')
+    })
+    const { entorno, vistos } = conEventos({ modelo, ejecutar: () => Promise.resolve('') })
+
+    const r = await responder(entorno, preguntar('puntas'))
+
+    expect(vistos.filter((e) => e.tipo === 'delta').map((e) => (e as { texto: string }).texto))
+      .toEqual(['Hay ', 'tres ', 'puntas.'])
+    // Y el texto final sigue siendo el autoritativo, no la suma de deltas.
+    expect(r.texto).toBe('Hay tres puntas.')
+  })
+
+  /*
+   * QUIEN ESCUCHA NO PUEDE TUMBAR LA CONSULTA.
+   *
+   * Es un stream HTTP: la persona cierra el panel, se corta el wifi, y
+   * escribir explota. Que eso cueste la respuesta entera —ya pagada en
+   * llamadas al modelo— sería cambiar un problema de red por uno de plata.
+   */
+  it('si quien escucha explota, la consulta igual termina', async () => {
+    const { modelo } = modeloGuionado((p) => {
+      p.onTexto?.('algo')
+      return contesta('la respuesta igual')
+    })
+    const r = await responder(
+      {
+        modelo,
+        ejecutar: () => Promise.resolve(''),
+        emitir: () => {
+          throw new Error('el cliente se fue')
+        },
+      },
+      preguntar('x'),
+    )
+    expect(r.texto).toBe('la respuesta igual')
   })
 })

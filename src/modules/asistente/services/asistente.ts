@@ -1,3 +1,4 @@
+import { getEnv } from '@/lib/env'
 import { supabase } from '@/services/supabase/client'
 
 /**
@@ -273,6 +274,183 @@ export interface Adjunto {
   /** `true` si el documento era más largo que lo que entra en una consulta. */
   recortado: boolean
   texto: string
+}
+
+/**
+ * Lo que va pasando mientras el asistente trabaja (Fase 65).
+ *
+ * `turno` es el que impide que la pantalla mienta: cada vez que un agente
+ * arranca una vuelta nueva, lo que venía escribiendo ya no vale. Sin ese
+ * aviso, un agente que empieza a redactar y después decide usar una
+ * herramienta dejaría medio párrafo colgado que nunca fue la respuesta.
+ */
+export type AvisoEnVivo =
+  | { tipo: 'turno' }
+  | { tipo: 'delta'; texto: string }
+  | { tipo: 'paso'; clase: 'herramienta' | 'consulta'; nombre: string }
+
+/** Lo que el servidor manda en el evento `fin`: lo mismo que el JSON de antes. */
+function leerRespuesta(o: Record<string, unknown>): RespuestaAsistente {
+  const pasos = Array.isArray(o['pasos']) ? o['pasos'] : []
+  return {
+    texto: cadena(o['texto']),
+    pasos: pasos.map((p) => {
+      const x = (p ?? {}) as Record<string, unknown>
+      return {
+        agente: cadena(x['agente']),
+        tipo: x['tipo'] === 'consulta' ? 'consulta' : 'herramienta',
+        nombre: cadena(x['nombre']),
+      }
+    }),
+    llamadas: typeof o['llamadas'] === 'number' ? o['llamadas'] : 0,
+    corte: o['corte'] === 'vueltas' || o['corte'] === 'presupuesto' ? o['corte'] : 'ninguno',
+    propuesta: leerPropuesta(o['propuesta']),
+    productos: leerProductos(o['productos']),
+  }
+}
+
+/**
+ * Preguntar y que vaya contando (Fase 65).
+ *
+ * POR QUÉ `fetch` A MANO Y NO `functions.invoke`. El SDK resuelve la promesa
+ * con el cuerpo entero: para leer un stream hay que quedarse con el
+ * `Response`, y eso no lo expone. El token sale de la misma sesión que usa el
+ * SDK, así que la autorización no cambia.
+ *
+ * EL TEXTO BUENO ES EL DEL FINAL, no la suma de los deltas. Los deltas son
+ * para que se vea algo mientras tanto; el evento `fin` trae el texto
+ * autoritativo, los productos y el borrador. Si el stream mostró algo raro a
+ * mitad de camino, el estado final igual queda bien.
+ *
+ * SI NO HAY STREAM, NO SE ROMPE. Si el servidor contesta JSON —porque es una
+ * versión vieja, o porque algo en el medio no deja pasar `text/event-stream`—
+ * se lee como antes y se devuelve lo mismo. La única diferencia es que no
+ * hubo avisos.
+ */
+export async function preguntarEnVivo(
+  params: {
+    companyId: string
+    mensajes: readonly MensajeChat[]
+    agente?: string | null
+  },
+  avisar: (a: AvisoEnVivo) => void,
+): Promise<RespuestaAsistente> {
+  const { data: sesion } = await supabase.auth.getSession()
+  const token = sesion.session?.access_token
+  if (!token) throw new FalloAsistente('sin_sesion', 'Se cerró la sesión. Volvé a entrar.')
+
+  const env = getEnv()
+  let r: Response
+  try {
+    r = await fetch(`${env.VITE_SUPABASE_URL}/functions/v1/asistente`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: env.VITE_SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+      },
+      body: JSON.stringify({
+        companyId: params.companyId,
+        mensajes: params.mensajes,
+        agente: params.agente ?? null,
+      }),
+    })
+  } catch {
+    throw new FalloAsistente('caido', 'No pude consultar al asistente: no hay conexión.')
+  }
+
+  if (!r.ok) {
+    const cuerpo: unknown = await r.json().catch(() => null)
+    const e = (cuerpo as { error?: { motivo?: unknown; mensaje?: unknown } } | null)?.error
+    throw new FalloAsistente(
+      typeof e?.motivo === 'string' ? e.motivo : 'error',
+      typeof e?.mensaje === 'string'
+        ? e.mensaje
+        : r.status === 404
+          ? 'El asistente todavía no está disponible: falta desplegar su función.'
+          : 'No pude consultar al asistente.',
+    )
+  }
+
+  // Contestó de una sola vez: se lee como siempre.
+  if (!(r.headers.get('content-type') ?? '').includes('text/event-stream')) {
+    return leerRespuesta(((await r.json()) ?? {}) as Record<string, unknown>)
+  }
+
+  const lector = r.body?.getReader()
+  if (!lector) throw new FalloAsistente('caido', 'El asistente no mandó nada.')
+
+  const decodificador = new TextDecoder()
+  let resto = ''
+
+  /**
+   * Un cuadro de SSE: `event: <nombre>` y `data: <json>`, separados por una
+   * línea en blanco.
+   *
+   * DEVUELVE el desenlace en vez de guardarlo en una variable de afuera. Con
+   * la versión que asignaba a un `let` del closure, TypeScript llegaba al
+   * `throw` de abajo creyendo que la variable seguía en `null` —su análisis
+   * de flujo no sigue una asignación hecha dentro de una función anidada— y
+   * el tipo terminaba en `never`. Devolviendo, el flujo es el que se ve.
+   */
+  const procesar = (
+    cuadro: string,
+  ): { fin: RespuestaAsistente } | { fallo: FalloAsistente } | null => {
+    let evento = 'message'
+    const datos: string[] = []
+    for (const linea of cuadro.split('\n')) {
+      if (linea.startsWith('event:')) evento = linea.slice(6).trim()
+      else if (linea.startsWith('data:')) datos.push(linea.slice(5).trim())
+    }
+    if (datos.length === 0) return null
+    let o: Record<string, unknown>
+    try {
+      o = JSON.parse(datos.join('\n')) as Record<string, unknown>
+    } catch {
+      return null
+    }
+
+    if (evento === 'delta') avisar({ tipo: 'delta', texto: cadena(o['texto']) })
+    else if (evento === 'turno') avisar({ tipo: 'turno' })
+    else if (evento === 'paso') {
+      avisar({
+        tipo: 'paso',
+        clase: o['clase'] === 'consulta' ? 'consulta' : 'herramienta',
+        nombre: cadena(o['nombre']),
+      })
+    } else if (evento === 'fin') return { fin: leerRespuesta(o) }
+    else if (evento === 'error') {
+      return {
+        fallo: new FalloAsistente(
+          cadena(o['motivo']) || 'error',
+          cadena(o['mensaje']) || 'No pude responder.',
+        ),
+      }
+    }
+    return null
+  }
+
+  let desenlace: { fin: RespuestaAsistente } | { fallo: FalloAsistente } | null = null
+  for (;;) {
+    const { done, value } = await lector.read()
+    if (done) break
+    resto += decodificador.decode(value, { stream: true })
+    // Los cuadros se separan con una línea en blanco, y un cuadro puede venir
+    // partido entre dos lecturas: por eso se guarda el resto.
+    const partes = resto.split('\n\n')
+    resto = partes.pop() ?? ''
+    for (const p of partes) if (p.trim() !== '') desenlace = procesar(p) ?? desenlace
+  }
+  if (resto.trim() !== '') desenlace = procesar(resto) ?? desenlace
+
+  if (desenlace === null) {
+    // Llegó el fin del stream sin `fin` ni `error`: se cortó a mitad. Se dice
+    // así, en vez de devolver una respuesta vacía que parezca una respuesta.
+    throw new FalloAsistente('caido', 'Se cortó la respuesta antes de terminar. Probá de nuevo.')
+  }
+  if ('fallo' in desenlace) throw desenlace.fallo
+  return desenlace.fin
 }
 
 /**

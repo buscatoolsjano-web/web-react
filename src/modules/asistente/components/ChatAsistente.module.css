@@ -315,40 +315,71 @@
   text-decoration: underline;
 }
 
-/* ── la barra de progreso ─────────────────────────────────────────────────
-   Riel fino y relleno con la primaria. La transición es lo que hace que se
-   lea como movimiento continuo y no como saltos: el componente actualiza el
-   ancho cada 120 ms, y sin esto se vería a tirones.
+/* ── lo que se ve mientras trabaja (Fase 65) ────────────────────────
 
-   SE LLAMA «progreso» Y NO «barra», y eso no es cosmética: «barra» ya era el
-   formulario de abajo. Dos reglas con el mismo nombre en el mismo módulo
-   compilan a la MISMA clase y gana la última, así que este bloque le aplicaba
-   «height: 4px» y «overflow: hidden» AL FORMULARIO: la caja de texto quedaba
-   de cuatro píxeles y recortada, o sea invisible. Nadie podía escribir.
+   Acá había una barra que avanzaba sola hacia el 92 %. No era capricho: el
+   servidor contestaba de una sola vez al final y no había progreso real que
+   informar. Ahora el servidor va contando, así que hay algo cierto que
+   mostrar y la animación inventada sobra.
 
-   Y al revés, la barra de progreso heredaba el «display: flex», el
-   «padding-top» y el «border-top» del formulario, así que tampoco se veía
-   como una barra que avanza. Un solo nombre repetido rompió las dos. */
-.progreso {
-  overflow: hidden;
-  width: 100%;
+   Quedan tres puntitos que laten. La diferencia con la barra es que no fingen
+   saber cuánto falta: sólo dicen «sigue vivo», que es todo lo que un
+   indicador indeterminado puede decir sin mentir. */
+.puntos {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: var(--space-2);
+  vertical-align: middle;
+}
+
+.puntos span {
+  width: 4px;
   height: 4px;
-  margin-bottom: var(--space-2);
-  background: var(--color-neutral-soft);
-  border-radius: 999px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  animation: latir 1.2s ease-in-out infinite;
 }
 
-.progresoRelleno {
-  height: 100%;
-  background: var(--color-primary);
-  border-radius: inherit;
-  transition: width 200ms linear;
+.puntos span:nth-child(2) { animation-delay: 0.2s; }
+.puntos span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes latir {
+  0%, 60%, 100% { opacity: 0.25; }
+  30%           { opacity: 1; }
 }
 
-/* Quien pidió menos movimiento no necesita ver la barra crecer: el cartel de
-   «Buscando en el ERP…» ya dice lo mismo. */
+/* El texto que el modelo está escribiendo. Apagado respecto de una respuesta
+   terminada, porque es PROVISORIO: el agente puede descartarlo y empezar de
+   nuevo. Cuando queda firme, se redibuja con el estilo normal. */
+.enVivoTexto {
+  margin: var(--space-2) 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--color-text-soft);
+}
+
+/* La barrita que dice «esto todavía se está escribiendo», que es lo que
+   distingue un texto a medias de una respuesta corta. */
+.cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  background: currentColor;
+  vertical-align: text-bottom;
+  animation: parpadear 1s step-end infinite;
+}
+
+@keyframes parpadear {
+  50% { opacity: 0; }
+}
+
+/* Quien pidió menos movimiento no necesita ni los puntos ni el cursor
+   latiendo: la frase ya dice en qué anda. */
 @media (prefers-reduced-motion: reduce) {
-  .progresoRelleno {
-    transition: none;
+  .puntos span,
+  .cursor {
+    animation: none;
   }
 }

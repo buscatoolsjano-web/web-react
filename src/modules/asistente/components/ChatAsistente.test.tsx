@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type * as ServicioAsistente from '../services/asistente'
 import type { RespuestaAsistente } from '../services/asistente'
@@ -20,6 +20,16 @@ const estado = vi.hoisted(() => ({
   error: null as Error | null,
   /** Lo último que se le mandó a la función. */
   enviado: null as Record<string, unknown> | null,
+  /** Lo que el servidor va contando antes de contestar. */
+  avisos: [] as ServicioAsistente.AvisoEnVivo[],
+  /**
+   * Para congelar la respuesta a mitad de camino.
+   *
+   * Sin esto no se puede probar lo único que importa de esta fase: lo que se
+   * ve MIENTRAS espera. Los avisos y la respuesta llegarían en el mismo tick
+   * y el test sólo vería el final, que es justo lo que ya andaba.
+   */
+  soltar: null as (() => void) | null,
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
@@ -44,10 +54,26 @@ vi.mock('../services/asistente', async (original) => {
           { id: 'ventas', titulo: 'Ventas', paraQue: '' },
         ],
       }),
-    preguntar: (p: Record<string, unknown>) => {
+    /*
+     * Desde la Fase 65 el chat pide la respuesta EN VIVO: el servidor va
+     * contando lo que hace y manda el texto mientras lo escribe. El doble
+     * reproduce esa secuencia —los avisos primero, la respuesta al final—
+     * porque lo que hay que probar es que la pantalla cuente lo correcto
+     * mientras espera, no sólo que muestre bien el resultado.
+     */
+    preguntarEnVivo: (
+      p: Record<string, unknown>,
+      avisar: (a: ServicioAsistente.AvisoEnVivo) => void,
+    ) => {
+      for (const a of estado.avisos) avisar(a)
       estado.enviado = p
       if (estado.error) return Promise.reject(estado.error)
-      return Promise.resolve(
+      const esperar = estado.soltar
+        ? new Promise<void>((ok) => {
+            estado.soltar = ok
+          })
+        : Promise.resolve()
+      return esperar.then(() =>
         estado.respuesta ?? { texto: 'Listo.', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null, productos: [] },
       )
     },
@@ -58,6 +84,8 @@ const { ChatAsistente } = await import('./ChatAsistente')
 
 function montar() {
   estado.enviado = null
+  estado.avisos = []
+  estado.soltar = null
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <ChatAsistente />
@@ -181,5 +209,90 @@ describe('El chat del asistente', () => {
       const p = estado.enviado as unknown as { mensajes: { texto: string }[] }
       expect(p.mensajes[0]?.texto).toMatch(/mejor cliente del mes pasado/i)
     })
+  })
+})
+
+/*
+ * ── LO QUE SE VE MIENTRAS ESPERA (Fase 65) ──────────────────────────────────
+ *
+ * Medido: la consulta tarda 21 s. Antes no se veía nada hasta el final, y eso
+ * se tapaba con una barra que avanzaba sola —una animación que no sabía
+ * cuánto faltaba porque nadie lo sabía—. Ahora el servidor va contando.
+ */
+describe('El chat mientras espera', () => {
+  /** Congela la respuesta para poder mirar la pantalla a mitad de camino. */
+  const congelar = (avisos: ServicioAsistente.AvisoEnVivo[]) => {
+    estado.soltar = () => {}
+    estado.avisos = avisos
+  }
+
+  it('dice a quién consultó, con el nombre de pantalla del colega', async () => {
+    montar()
+    congelar([{ tipo: 'paso', clase: 'consulta', nombre: 'catalogo' }])
+    escribirYEnviar('puntas PH2')
+
+    expect(await screen.findByText(/Consultando a Catálogo/)).toBeInTheDocument()
+    await act(() => Promise.resolve(estado.soltar?.()))
+  })
+
+  it('dice qué está buscando, en castellano y no por el id de la herramienta', async () => {
+    montar()
+    congelar([{ tipo: 'paso', clase: 'herramienta', nombre: 'buscar_productos' }])
+    escribirYEnviar('puntas PH2')
+
+    expect(await screen.findByText(/Buscando en el catálogo/)).toBeInTheDocument()
+    expect(screen.queryByText(/buscar_productos/)).toBeNull()
+    await act(() => Promise.resolve(estado.soltar?.()))
+  })
+
+  it('muestra la respuesta mientras se escribe', async () => {
+    montar()
+    congelar([
+      { tipo: 'turno' },
+      { tipo: 'delta', texto: 'Sí, hay ' },
+      { tipo: 'delta', texto: 'tres puntas.' },
+    ])
+    escribirYEnviar('puntas PH2')
+
+    expect(await screen.findByText(/Sí, hay tres puntas\./)).toBeInTheDocument()
+    await act(() => Promise.resolve(estado.soltar?.()))
+  })
+
+  /*
+   * EL CASO QUE JUSTIFICA EL EVENTO «turno». Un agente empieza a redactar y
+   * después decide usar una herramienta: lo que escribió NO era la respuesta
+   * y no puede quedar en pantalla, porque quien mira no tiene cómo saber que
+   * se descartó.
+   */
+  it('lo que el agente descarta no queda en pantalla', async () => {
+    montar()
+    congelar([
+      { tipo: 'delta', texto: 'Voy a fijarme en el stock' },
+      { tipo: 'paso', clase: 'herramienta', nombre: 'stock_actual' },
+    ])
+    escribirYEnviar('hay stock?')
+
+    expect(await screen.findByText(/Mirando el stock/)).toBeInTheDocument()
+    expect(screen.queryByText(/Voy a fijarme/)).toBeNull()
+    await act(() => Promise.resolve(estado.soltar?.()))
+  })
+
+  /* Y cuando llega, manda el texto del final: el de los deltas era provisorio. */
+  it('la respuesta final reemplaza a lo que se vino mostrando', async () => {
+    montar()
+    estado.respuesta = {
+      texto: 'La respuesta de verdad.',
+      pasos: [],
+      llamadas: 3,
+      corte: 'ninguno',
+      propuesta: null,
+      productos: [],
+    }
+    estado.avisos = [{ tipo: 'delta', texto: 'algo provisorio' }]
+    escribirYEnviar('x')
+
+    expect(await screen.findByText('La respuesta de verdad.')).toBeInTheDocument()
+    expect(screen.queryByText(/algo provisorio/)).toBeNull()
+    estado.respuesta = null
   })
 })

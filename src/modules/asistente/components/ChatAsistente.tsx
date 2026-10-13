@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/features/auth/useAuth'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
@@ -10,7 +10,7 @@ import {
   FalloAsistente,
   estadoAsistente,
   leerAdjunto,
-  preguntar,
+  preguntarEnVivo,
   transcribir,
   type Adjunto,
   type MensajeChat,
@@ -19,6 +19,7 @@ import {
   type PropuestaCotizacion,
 } from '../services/asistente'
 import { pedazos } from '../lib/formatoRespuesta'
+import { EN_VIVO_INICIAL, aplicar, fraseDelPaso, type EstadoEnVivo } from '../lib/enVivo'
 import { TarjetaCotizacion } from './TarjetaCotizacion'
 import { TarjetasProductos } from './TarjetasProductos'
 import { empezarAGrabar, FalloGrabacion, sePuedeGrabar, type Grabacion } from '../lib/grabador'
@@ -130,8 +131,31 @@ export function ChatAsistente() {
     staleTime: 5 * 60_000,
   })
 
+  /**
+   * Lo que se ve mientras trabaja (Fase 65).
+   *
+   * Antes acá había una barra que avanzaba sola, porque el servidor contestaba
+   * de una sola vez al final y no había NADA real que informar. Ahora el
+   * servidor va contando, así que la barra inventada se fue: se muestra a
+   * quién consultó, qué está buscando y la respuesta mientras se escribe.
+   */
+  const [enVivo, setEnVivo] = useState<EstadoEnVivo>(EN_VIVO_INICIAL)
+
+  /* El id del agente a como se lo nombra en pantalla. La lista la manda el
+     servidor en `estado`, así que no hay una copia acá que se desincronice.
+     Se usa AL DIBUJAR y no al recibir el aviso: ver `EstadoEnVivo`. */
+  const tituloDeAgente = useCallback(
+    (id: string) => estado.data?.agentes.find((a) => a.id === id)?.titulo ?? '',
+    [estado.data],
+  )
+
   const consultar = useMutation({
-    mutationFn: (hilo: readonly MensajeChat[]) => preguntar({ companyId: companyId!, mensajes: hilo }),
+    mutationFn: (hilo: readonly MensajeChat[]) => {
+      setEnVivo(EN_VIVO_INICIAL)
+      return preguntarEnVivo({ companyId: companyId!, mensajes: hilo }, (aviso) =>
+        setEnVivo((e) => aplicar(e, aviso)),
+      )
+    },
     onSuccess: (r) => {
       setTurnos((t) => [
         ...t,
@@ -297,7 +321,7 @@ export function ChatAsistente() {
           </article>
         ))}
 
-        {consultar.isPending ? <Progreso /> : null}
+        {consultar.isPending ? <EnVivo estado={enVivo} titulo={tituloDeAgente} /> : null}
 
         <div ref={finRef} />
       </div>
@@ -403,56 +427,50 @@ export function ChatAsistente() {
 }
 
 /**
- * La barra mientras el asistente trabaja (Fase 39).
+ * Lo que se ve mientras el asistente trabaja (Fase 65).
  *
- * Antes decía «Pensando…» y nada más. Una consulta tarda entre 20 y 45
- * segundos —el asistente deriva a un especialista y ése consulta la base
- * varias veces— y medio minuto mirando un texto quieto se siente como un
- * cuelgue: lo primero que uno hace es volver a apretar.
+ * ── Lo que había, y por qué se va ───────────────────────────────────────────
  *
- * LA BARRA NO MIENTE, Y ESO DEFINE CÓMO ESTÁ HECHA.
+ * Una barra que avanzaba sola, acercándose al 92 % sin llegar nunca. No era
+ * un capricho: el servidor contestaba de una sola vez al final, así que NO
+ * HABÍA progreso real que informar y lo honesto era una barra que no fingiera
+ * saber cuánto faltaba.
  *
- * No hay progreso real que informar: el servidor contesta de una sola vez al
- * final, así que nadie sabe cuánto falta. Entonces avanza rápido al principio
- * y se va frenando sola, acercándose al 92 % sin llegar nunca. Cuando la
- * respuesta llega, la barra desaparece junto con el cartel.
+ * Ahora el servidor va contando —a quién consultó, qué herramienta usó, y el
+ * texto mientras lo escribe—, así que hay algo cierto para mostrar y la
+ * animación inventada sobra. Medido: la consulta sigue tardando 21 s, pero el
+ * primer signo de vida pasa de 21 s a dos o tres.
  *
- * Una barra que llega al 100 % y SIGUE esperando es peor que no tener barra:
- * la primera vez molesta y a partir de la segunda ya no se le cree a ninguna.
+ * ── Y lo que sigue igual ────────────────────────────────────────────────────
  *
- * Por eso tampoco lleva `aria-valuenow`: un `progressbar` sin valor es, por
- * definición, indeterminado, que es exactamente lo que esto es. Poner un
- * número inventado ahí le mentiría al lector de pantalla con más precisión
- * todavía.
+ * El texto que se ve acá es PROVISORIO. Es el del turno en curso, y un agente
+ * que empieza a redactar puede después decidir usar una herramienta: ahí lo
+ * escrito se descarta (ver `aplicar` en `lib/enVivo`). El texto que queda es
+ * el del evento `fin`, que es el único autoritativo.
+ *
+ * `aria-live="polite"` sobre la frase y NO sobre el texto: un lector de
+ * pantalla leyendo cada pedacito a medida que llega es inusable. Se anuncia
+ * en qué anda, y la respuesta se lee entera cuando está.
  */
-function Progreso() {
-  const [avance, setAvance] = useState(0)
-
-  useEffect(() => {
-    const inicio = performance.now()
-    // 14 segundos de constante: a los 14 va por el 51 %, a los 30 por el 88,
-    // y de ahí en más se arrastra. Está elegido contra los tiempos medidos
-    // (20 a 45 s), para que la mayor parte del avance ocurra mientras la
-    // espera todavía se siente corta.
-    const id = window.setInterval(() => {
-      const t = (performance.now() - inicio) / 1000
-      setAvance(Math.min(0.92, 1 - Math.exp(-t / 14)))
-    }, 120)
-    return () => window.clearInterval(id)
-  }, [])
-
+function EnVivo({ estado, titulo }: { estado: EstadoEnVivo; titulo: (id: string) => string }) {
   return (
     <article className={styles.suyo}>
-      <div
-        className={styles.progreso}
-        role="progressbar"
-        aria-label="El asistente está buscando la respuesta"
-      >
-        <div className={styles.progresoRelleno} style={{ width: `${Math.round(avance * 100)}%` }} />
-      </div>
       <p className={styles.pensando} aria-live="polite">
-        Buscando en el ERP…
+        {fraseDelPaso(estado.paso, titulo)}
+        <span className={styles.puntos} aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </span>
       </p>
+      {estado.texto !== "" ? (
+        <p className={styles.enVivoTexto}>
+          {estado.texto}
+          {/* El cursor dice «esto todavía se está escribiendo», que es lo que
+              diferencia un texto a medias de una respuesta corta. */}
+          <span className={styles.cursor} aria-hidden="true" />
+        </p>
+      ) : null}
     </article>
   )
 }
