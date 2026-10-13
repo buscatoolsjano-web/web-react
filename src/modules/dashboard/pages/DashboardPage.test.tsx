@@ -53,10 +53,7 @@ const estado = vi.hoisted<Estado>(() => ({
   porPersona: {
     isPending: false,
     error: null,
-    data: [
-      { userId: 'u-nor', nombre: 'Norberto', rol: 'employee', correos: 4, cotizaciones: 0, pedidos: 0 },
-      { userId: null, nombre: 'Sin asignar', rol: '', correos: 717, cotizaciones: 143, pedidos: 28 },
-    ],
+    data: [],
   },
   ultimos: { documentos: [], cargando: false, error: null, parcial: false },
   porEntregar: { total: 28, filas: [] },
@@ -194,6 +191,32 @@ const DOC = (tipo: string, numero: string, fecha: string, moneda: string, total:
    datos llega por hooks mockeados, pero ése se ejerce entero, así que el
    panel necesita su cliente. Sin reintentos: un fallo en un test tiene que
    verse enseguida, no después de tres vueltas. */
+/**
+ * El tablero por persona, tal como lo devuelve la RPC.
+ *
+ * Es una FUNCIÓN y no una constante porque algunos tests le sacan la fila
+ * propia o la vacían, y un objeto compartido se llevaría ese cambio al test
+ * siguiente.
+ */
+const POR_PERSONA = () => [
+  {
+    userId: 'u-nor', nombre: 'Norberto', rol: 'employee', esMio: false,
+    correos: 4, cotizaciones: 0, pedidos: 0,
+    hecho: { cotizaciones: 0, pedidos: 0, entregas: 0, correos: 0 },
+  },
+  // La fila del que mira, que el servidor marca con `auth.uid()`.
+  {
+    userId: 'u-yo', nombre: 'Jano', rol: 'admin', esMio: true,
+    correos: 2, cotizaciones: 1, pedidos: 0,
+    hecho: { cotizaciones: 3, pedidos: 1, entregas: 2, correos: 5 },
+  },
+  {
+    userId: null, nombre: 'Sin asignar', rol: '', esMio: false,
+    correos: 717, cotizaciones: 143, pedidos: 28,
+    hecho: { cotizaciones: 9, pedidos: 4, entregas: 4, correos: 0 },
+  },
+]
+
 const montar = () =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -219,6 +242,7 @@ beforeEach(() => {
   }
   estado.documentos = { sent: { total: 2, filas: [] }, draft: { total: 1, filas: [] } }
   estado.porEntregar = { total: 28, filas: [] }
+  estado.porPersona = { isPending: false, error: null, data: POR_PERSONA() }
   refetch.mockClear()
   reintentar.mockClear()
 })
@@ -535,5 +559,110 @@ describe('E · El desglose del mes', () => {
     await screen.findByRole('region', { name: /Detalle de/ })
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar el detalle del mes' }))
     expect(screen.queryByRole('region', { name: /Detalle de/ })).toBeNull()
+  })
+})
+
+/*
+ * «Primero quiero ver lo que yo tengo pendiente o qué estuve haciendo este
+ * mes, y después abajo el pendiente del resto» (Fase 64).
+ */
+describe('F · Lo tuyo, antes que lo del resto', () => {
+  const miBloque = () => screen.getByRole('region', { name: /Lo tuyo/ })
+
+  it('mi fila sale arriba, con mi nombre y mi rol', () => {
+    montar()
+    const mio = miBloque()
+    expect(within(mio).getByText('Jano')).toBeInTheDocument()
+    expect(within(mio).getByText('Administrador')).toBeInTheDocument()
+  })
+
+  it('mi pendiente se dice con palabras, no con una fila de números sueltos', () => {
+    montar()
+    /*
+     * `toHaveTextContent` y no `getByText`: el número va en un `<strong>`, y
+     * el matcher de `getByText` sólo mira los nodos de texto DIRECTOS del
+     * elemento, así que «3 cotizaciones» nunca le llega entero.
+     */
+    const mio = miBloque()
+    expect(mio).toHaveTextContent('2 correos sin responder')
+    expect(mio).toHaveTextContent('1 cotización esperando')
+    // Cero pedidos NO se lista: un cero no es trabajo pendiente.
+    expect(mio).not.toHaveTextContent('pedido por entregar')
+  })
+
+  it('mi correo pendiente lleva a la bandeja filtrada por mí', () => {
+    montar()
+    expect(within(miBloque()).getByRole('link', { name: /2\s*correos sin responder/ })).toHaveAttribute(
+      'href',
+      '/emails?sinresponder=1&asignado=u-yo',
+    )
+  })
+
+  it('lo que hice este mes se nombra por el mes del encabezado', () => {
+    montar()
+    const mio = miBloque()
+    expect(within(mio).getByRole('heading', { name: /Hiciste en septiembre/ })).toBeInTheDocument()
+    expect(mio).toHaveTextContent('3 cotizaciones')
+    expect(mio).toHaveTextContent('1 pedido')
+    expect(mio).toHaveTextContent('2 remitos')
+    expect(mio).toHaveTextContent('5 correos enviados')
+  })
+
+  /*
+   * EL PIE QUE IMPIDE QUE EL BLOQUE MIENTA.
+   *
+   * `created_by` sólo lo tienen los documentos nacidos en el ERP; los demás
+   * entran por la sincronización de STEL y no registran autor. Sin esta línea,
+   * «1 pedido» se leería como «este mes hiciste un solo pedido».
+   */
+  it('dice cuántos documentos del mes no registran autor', () => {
+    montar()
+    // 9 + 4 + 4 de la fila «Sin asignar»; el correo no se cuenta porque un
+    // correo enviado siempre sabe quién lo mandó.
+    expect(within(miBloque()).getByText(/otros 17 documentos de septiembre/)).toBeInTheDocument()
+  })
+
+  it('sin nada asignado lo dice, y manda a mirar lo que está sin repartir', () => {
+    estado.porPersona = {
+      isPending: false,
+      error: null,
+      data: POR_PERSONA().map((f) => (f.esMio ? { ...f, correos: 0, cotizaciones: 0, pedidos: 0 } : f)),
+    }
+    montar()
+    expect(within(miBloque()).getByText(/No tenés nada asignado/)).toBeInTheDocument()
+  })
+
+  /* Mi fila va ARRIBA y no se repite abajo: leerla dos veces es ruido. */
+  it('mi fila no se repite en la tabla del resto', () => {
+    montar()
+    const resto = screen.getByRole('heading', { name: 'Pendiente del resto' }).closest('section')!
+    expect(within(resto).queryByText('Jano')).toBeNull()
+    expect(within(resto).getByText('Norberto')).toBeInTheDocument()
+    // «Sin asignar» NUNCA es mía: es el montón que no repartió nadie, y es
+    // justamente el dato que hay que seguir viendo abajo.
+    expect(within(resto).getByText('Sin asignar')).toBeInTheDocument()
+  })
+
+  it('la tabla del resto suma el total de cada quien', () => {
+    montar()
+    const resto = screen.getByRole('heading', { name: 'Pendiente del resto' }).closest('section')!
+    // 717 + 143 + 28 de la fila sin asignar.
+    expect(within(resto).getByText('888')).toBeInTheDocument()
+  })
+
+  /*
+   * Si el que mira no es miembro listado de la empresa no hay fila propia, y
+   * entonces no hay bloque personal: el de abajo queda completo, que es
+   * exactamente lo que había antes de esta fase.
+   */
+  it('sin fila propia no se inventa un bloque personal', () => {
+    estado.porPersona = {
+      isPending: false,
+      error: null,
+      data: POR_PERSONA().filter((f) => !f.esMio),
+    }
+    montar()
+    expect(screen.queryByRole('region', { name: /Lo tuyo/ })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Pendiente del resto' })).toBeInTheDocument()
   })
 })

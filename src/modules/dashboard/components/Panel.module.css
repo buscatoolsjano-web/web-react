@@ -460,3 +460,174 @@
   border-top: 2px solid var(--color-border-strong, var(--color-border));
   background: var(--color-surface-alt);
 }
+
+/* ── «Lo tuyo» (Fase 64) ──────────────────────────────────────────────────
+
+   El bloque personal es una TARJETA y el del resto una tabla suelta, a
+   propósito: son dos cosas distintas —lo que me toca a mí y cómo está
+   repartido el equipo— y si se vieran igual habría que leer el título para
+   saber cuál es cuál. */
+.miTrabajo {
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.miCabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.miTitulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* El nombre propio NO va en versalitas ni apagado: es el que dice de quién es
+   todo lo que sigue, así que se lee como un nombre. */
+.miNombre {
+  font-size: var(--text-base);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+}
+
+.miRol {
+  margin-left: auto;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--surface-alt);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.miColumnas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--space-3);
+}
+
+.miCaja {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+}
+
+.miCajaTitulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.miCajaCuenta {
+  margin-left: auto;
+  min-width: 1.5rem;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  font-weight: 400;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.miLista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.miLinea {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.miLinea svg {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.miDato {
+  min-width: 0;
+  color: inherit;
+}
+
+a.miDato {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a.miDato:hover {
+  text-decoration: underline;
+}
+
+/* El número adelante y en tabulares: la columna de izquierda se lee de un
+   vistazo aunque los sustantivos sean de largos distintos. */
+.miNumero {
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+}
+
+.miVacio {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+}
+
+/* El pie que impide que el bloque mienta: sin esta línea, «1 pedido» se lee
+   como «hiciste uno solo». Ver `MiTrabajo.tsx`. */
+.miPie {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+}
+
+/* ── La tabla del resto ───────────────────────────────────────────────────*/
+
+.colTitulo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.colTitulo svg {
+  flex: none;
+}
+
+.totalCol {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}

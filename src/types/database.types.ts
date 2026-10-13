@@ -9699,9 +9699,14 @@ export type Database = {
       pendiente_por_persona: {
         Args: { p_company: string }
         Returns: {
+          correos_enviados_mes: number
           correos_sin_responder: number
           cotizaciones_enviadas: number
+          cotizaciones_mes: number
+          entregas_mes: number
+          es_mio: boolean
           nombre: string
+          pedidos_mes: number
           pedidos_sin_entregar: number
           rol: string
           user_id: string | null

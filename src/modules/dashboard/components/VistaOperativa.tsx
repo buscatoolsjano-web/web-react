@@ -13,7 +13,9 @@ import type { DocTypeVentas } from '@/modules/ventas/lib/autoridad'
 import { cotizacionesAbiertas, textoAutoridadStel } from '../lib/inicio'
 import { avisoDeMesParcial, etiquetaDeTramo, mesLargo } from '../lib/panel'
 import { useAtencion, usePendientePorPersona, useUltimosDocumentos } from '../hooks/useDashboard'
+import { documentosSinAutor, separarMiFila } from '../services/pendientePorPersona'
 import { AtencionHoy, type TarjetaAtencion } from './AtencionHoy'
+import { MiTrabajo } from './MiTrabajo'
 import { PendientePorPersona } from './PendientePorPersona'
 import { EvolucionComercial } from './EvolucionComercial'
 import { KpiComercial } from './KpiComercial'
@@ -156,6 +158,9 @@ export function VistaOperativa() {
   const tramo = actividad.data?.actual
   const parcial = tramo ? avisoDeMesParcial(tramo) : null
 
+  // Mi fila sale del mismo tablero que las demás: la marca el servidor.
+  const { mio, resto } = separarMiFila(porPersona.data ?? [])
+
   return (
     <>
       {tiposStel.length > 0 ? (
@@ -240,12 +245,27 @@ export function VistaOperativa() {
       <AtencionHoy tarjetas={tarjetas} atencion={atencion.data} />
 
       {/*
-        Debajo de «Atención hoy» y no arriba: primero QUÉ hay pendiente, después
-        DE QUIÉN. El orden importa porque el segundo panel sólo tiene sentido
-        cuando ya se vio el primero.
+        E · LO MÍO Y DESPUÉS LO DEL RESTO (Fase 64).
+
+        «Si entro con el usuario Jano, primero quiero ver lo que yo tengo
+        pendiente o qué estuve haciendo este mes; y después abajo, el pendiente
+        del resto».
+
+        Son DOS BLOQUES Y UNA SOLA CONSULTA: la RPC marca con `auth.uid()` cuál
+        de sus filas es la del que mira y el cliente la separa acá. Pedir «lo
+        mío» por separado serían 220 ms para traer una fila que ya está.
+
+        Van debajo de «Atención hoy» y no arriba: primero QUÉ hay pendiente en
+        la empresa, después de quién —incluido uno mismo—.
       */}
+      <MiTrabajo
+        mio={mio}
+        sinAutor={documentosSinAutor(porPersona.data ?? [])}
+        mes={tramo?.desde ?? null}
+        cargando={porPersona.isPending}
+      />
       <PendientePorPersona
-        filas={porPersona.data}
+        filas={resto}
         cargando={porPersona.isPending}
         error={!!porPersona.error}
         onReintentar={() => void porPersona.refetch()}
