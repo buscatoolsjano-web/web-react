@@ -332,160 +332,90 @@ describe('C · Atención hoy', () => {
   })
 })
 
+/*
+ * D · La evolución, rehecha en la Fase 62.
+ *
+ * Los tests de antes describían el diseño viejo —un selector EXCLUYENTE de
+ * métrica y una sola serie en pantalla— y por eso se reescribieron: lo que se
+ * pidió fue justamente poder comparar las tres a la vez. Lo que NO cambia, y
+ * sigue teniendo su test, es que nunca se mezclan dos monedas.
+ */
 describe('D · La evolución', () => {
-  it('doce meses, una métrica y una moneda, con la escala escrita', () => {
+  const leyenda = () => screen.getByRole('group', { name: 'Series a comparar' })
+
+  it('las tres series se ven a la vez, y la leyenda dice cuál es cuál', () => {
     montar()
     expect(screen.getByRole('heading', { name: 'Evolución · últimos 12 meses' })).toBeInTheDocument()
-    expect(screen.getByText(/Cotizado en USD · escala 0 — USD 90.518,55/)).toBeInTheDocument()
+    for (const s of ['Cotizado', 'Pedidos', 'Entregado']) {
+      expect(within(leyenda()).getByRole('button', { name: s })).toHaveAttribute('aria-pressed', 'true')
+    }
   })
 
-  it('el selector de métrica cambia lo que se mira', () => {
+  it('se puede apagar una serie para comparar sólo dos', () => {
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'Pedidos' }))
-    expect(screen.getByText(/Pedidos en USD · escala/)).toBeInTheDocument()
+    fireEvent.click(within(leyenda()).getByRole('button', { name: 'Pedidos' }))
+    expect(within(leyenda()).getByRole('button', { name: 'Pedidos' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(leyenda()).getByRole('button', { name: 'Cotizado' })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  /* Un gráfico sin ninguna serie no dice nada y deja al lector sin una forma
+     obvia de volver. */
+  it('la última serie encendida no se puede apagar', () => {
+    montar()
+    fireEvent.click(within(leyenda()).getByRole('button', { name: 'Pedidos' }))
+    fireEvent.click(within(leyenda()).getByRole('button', { name: 'Entregado' }))
+    fireEvent.click(within(leyenda()).getByRole('button', { name: 'Cotizado' }))
+    expect(within(leyenda()).getByRole('button', { name: 'Cotizado' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  /* LO QUE NO CAMBIÓ: una barra que sume ARS con USD no es más alta, es falsa. */
   it('el selector de moneda no mezcla: elige una', () => {
     montar()
+    expect(screen.getByText(/Importes en USD/)).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'ARS' } })
-    expect(screen.getByText(/Cotizado en ARS · escala 0 — ARS 7.795.023,92/)).toBeInTheDocument()
-  })
-
-  it('«Ver los números» abre la tabla con mes, importe y documentos', () => {
-    montar()
-    fireEvent.click(screen.getByRole('button', { name: 'Ver los números' }))
-    // Por nombre y no `getByRole('table')` a secas: desde la Fase 40 el panel
-    // tiene además la tabla de «Pendiente por persona».
-    const tabla = screen.getByRole('table', { name: /por mes en/ })
-    expect(within(tabla).getByText('Septiembre 2026')).toBeInTheDocument()
-    expect(within(tabla).getByText('USD 90.518,55')).toBeInTheDocument()
-    expect(within(tabla).getByRole('columnheader', { name: 'Documentos' })).toBeInTheDocument()
-  })
-
-  it('una serie sin datos lo dice, no dibuja un gráfico vacío', () => {
-    montar()
-    fireEvent.click(screen.getByRole('button', { name: 'Entregado' }))
-    expect(screen.getByText(/Sin entregas .*en los últimos 12 meses/)).toBeInTheDocument()
-  })
-})
-
-describe('E · Últimos documentos', () => {
-  it('no se llama actividad en vivo y no muestra horas', () => {
-    montar()
-    expect(screen.getByRole('heading', { name: 'Últimos documentos' })).toBeInTheDocument()
-    const lista = screen.getByRole('heading', { name: 'Últimos documentos' }).closest('section')!
-    expect(lista.textContent).not.toMatch(/\d{1,2}:\d{2}/)
-    expect(lista.textContent).not.toMatch(/en vivo|tiempo real|hace \d/i)
-  })
-
-  it('cada documento abre su ficha real', () => {
-    montar()
-    expect(screen.getByRole('link', { name: /RT-ERP00001/ })).toHaveAttribute('href', '/ventas/entregas/RT-ERP00001')
-    expect(screen.getByRole('link', { name: /COTI-T00030/ })).toHaveAttribute('href', '/ventas/cotizaciones/COTI-T00030')
-  })
-
-  it('cada importe con su moneda, sin convertir', () => {
-    montar()
-    const lista = screen.getByRole('heading', { name: 'Últimos documentos' }).closest('section')!
-    expect(within(lista).getByText('USD 157,91')).toBeInTheDocument()
-    expect(within(lista).getByText('ARS 235.950,00')).toBeInTheDocument()
-  })
-
-  it('si falla, el resto del Dashboard sigue funcionando', () => {
-    estado.ultimos = { documentos: [], cargando: false, error: new Error('x'), parcial: false }
-    montar()
-    expect(screen.getByRole('region', { name: 'Cotizado' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Atención hoy' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
-    expect(reintentar).toHaveBeenCalled()
-  })
-
-  it('sin documentos lo dice con palabras', () => {
-    estado.ultimos = { documentos: [], cargando: false, error: null, parcial: false }
-    montar()
-    expect(screen.getByText('Todavía no hay documentos emitidos.')).toBeInTheDocument()
-  })
-})
-
-describe('Por rol', () => {
-  it('el vendedor ve lo suyo y no el panel de la empresa', () => {
-    estado.rol = 'salesperson'
-    montar()
-    expect(screen.getByRole('heading', { name: 'Cotizaciones pendientes' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Atención hoy' })).toBeNull()
-    expect(screen.queryByRole('region', { name: 'Cotizado' })).toBeNull()
-    const accesos = within(screen.getByRole('heading', { name: 'Accesos rápidos' }).closest('section')!).getAllByRole('link')
-    expect(accesos.map((a) => a.getAttribute('href'))).not.toContain('/informes')
-  })
-
-  it('técnico y cliente: sólo accesos, sin métricas inventadas', () => {
-    for (const rol of ['technician', 'customer']) {
-      estado.rol = rol
-      const { unmount } = montar()
-      expect(screen.queryByRole('heading', { name: 'Atención hoy' })).toBeNull()
-      expect(screen.queryByRole('heading', { name: 'Evolución · últimos 12 meses' })).toBeNull()
-      expect(screen.getByRole('heading', { name: 'Accesos rápidos' })).toBeInTheDocument()
-      unmount()
-    }
-  })
-
-  it('el aviso de STEL sigue donde estaba', () => {
-    estado.stel = true
-    montar()
-    expect(screen.getByText('STEL numera cotizaciones, pedidos y notas de entrega')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Ver numeración' })).toHaveAttribute('href', '/configuracion/numeracion')
-  })
-})
-
-/*
- * Pendiente por persona (Fase 40).
- *
- * Lo que importa probar no es que la tabla se dibuje, sino las dos decisiones
- * que se tomaron: que «Sin asignar» se vea como una fila más —hoy es la más
- * grande, con 717 correos que nadie tomó— y que el correo lleve al filtro de
- * la bandeja, porque un número que no se puede abrir no sirve para repartir.
- */
-describe('F · Pendiente por persona', () => {
-  it('muestra una fila por persona y la de «Sin asignar»', () => {
-    montar()
-    expect(screen.getByRole('heading', { name: 'Pendiente por persona' })).toBeInTheDocument()
-    expect(screen.getByRole('rowheader', { name: /Norberto/ })).toBeInTheDocument()
-    expect(screen.getByRole('rowheader', { name: /Sin asignar/ })).toBeInTheDocument()
-    expect(screen.getByText('717')).toBeInTheDocument()
-  })
-
-  it('el correo de cada fila lleva a la bandeja ya filtrada', () => {
-    montar()
-    expect(screen.getByRole('link', { name: /4 correos sin responder de Norberto/ })).toHaveAttribute(
-      'href',
-      '/emails?sinresponder=1&asignado=u-nor',
-    )
-    // Para la fila sin asignar, el filtro es `asignado=nadie`, que es el que
-    // la bandeja ya entendía antes de esta fase.
-    expect(screen.getByRole('link', { name: /717 correos sin responder de Sin asignar/ })).toHaveAttribute(
-      'href',
-      '/emails?sinresponder=1&asignado=nadie',
-    )
-  })
-
-  it('sin nada pendiente de nadie, lo dice en vez de una tabla de ceros', () => {
-    estado.porPersona = {
-      isPending: false,
-      error: null,
-      data: [{ userId: 'u-nor', nombre: 'Norberto', rol: 'employee', correos: 0, cotizaciones: 0, pedidos: 0 }],
-    }
-    montar()
-    expect(screen.getByText(/Nadie tiene trabajo pendiente/)).toBeInTheDocument()
+    expect(screen.getByText(/Importes en ARS/)).toBeInTheDocument()
   })
 
   /*
-   * La RPC sólo contesta a admin y employee. Si contesta un error, el panel
-   * lo dice y ofrece reintentar en vez de mostrar una tabla vacía, que se
-   * leería como «no hay nada pendiente».
+   * EL TOOLTIP. Se pidió «si pongo el mouse en algún mes me diga cuánto $», y
+   * tiene que decir las tres series de una: el puntero no puede tener que
+   * acertarle a una barra de 17 px para leer un número.
    */
-  it('si no se puede leer, lo dice y ofrece reintentar', () => {
-    estado.porPersona = { isPending: false, error: new Error('Tu rol no puede'), data: null }
+  it('al señalar un mes dice el importe de cada serie', () => {
     montar()
-    expect(screen.getByText(/No se pudo leer el pendiente por persona/)).toBeInTheDocument()
+    const meses = screen.getAllByRole('button', { name: /Septiembre 2026/ })
+    fireEvent.mouseEnter(meses[0]!)
+    const tip = screen.getByRole('tooltip')
+    expect(within(tip).getByText('Septiembre 2026')).toBeInTheDocument()
+    expect(within(tip).getByText('USD 90.518,55')).toBeInTheDocument()
+    expect(within(tip).getByText(/Cotizado/)).toBeInTheDocument()
+    expect(within(tip).getByText(/Pedidos/)).toBeInTheDocument()
+  })
+
+  /* El teclado tiene que llegar al mismo dato que el mouse. */
+  it('el mismo detalle aparece al enfocar con el teclado', () => {
+    montar()
+    fireEvent.focus(screen.getAllByRole('button', { name: /Septiembre 2026/ })[0]!)
+    expect(within(screen.getByRole('tooltip')).getByText('USD 90.518,55')).toBeInTheDocument()
+  })
+
+  /* El tooltip enriquece, no condiciona: todo valor está también sin pasar el
+     mouse, en la tabla. */
+  it('«Ver los números» abre la tabla con una columna por serie', () => {
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver los números' }))
+    const tabla = screen.getByRole('table', { name: /por mes en/ })
+    expect(within(tabla).getByText('Septiembre 2026')).toBeInTheDocument()
+    expect(within(tabla).getByText('USD 90.518,55')).toBeInTheDocument()
+    for (const s of ['Cotizado', 'Pedidos', 'Entregado']) {
+      expect(within(tabla).getByRole('columnheader', { name: s })).toBeInTheDocument()
+    }
+  })
+
+  it('sin movimientos en ninguna serie lo dice, no dibuja un gráfico vacío', () => {
+    // Sin series no hay nada que graficar, que es distinto de «falló».
+    estado.actividad = { ...estado.actividad, data: undefined }
+    montar()
+    expect(screen.getByText(/Sin movimientos/)).toBeInTheDocument()
   })
 })

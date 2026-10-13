@@ -28,103 +28,342 @@
   color: var(--text-muted);
 }
 
-.controles {
+/* ── La paleta de las series (Fase 62) ────────────────────────────────────
+
+   Tres hues categóricos, uno por serie, en el orden fijo del embudo:
+   cotizado · pedidos · entregado. El color sigue a la SERIE, nunca a su
+   posición: apagar «Pedidos» no repinta a las otras dos.
+
+   Los valores salen de una paleta categórica validada y se verificaron con el
+   validador contra las superficies REALES de este proyecto: el blanco del
+   tema claro (#ffffff) y los tres fondos oscuros que usa (#1c1c1c, #1e293b y
+   #1b2740). Pasan las cinco comprobaciones en los tres fondos oscuros —banda
+   de luminosidad, piso de croma, separación para daltonismo (ΔE 9,4 en el peor
+   par), piso de visión normal (ΔE 20,9) y contraste ≥ 3:1—.
+
+   En el tema CLARO el verde queda en 2,82:1 contra el blanco, por debajo de
+   3:1. Eso obliga a que los valores se puedan leer sin depender del color, y
+   por eso son obligatorios la leyenda con su rótulo, el tooltip y «Ver los
+   números». No es una licencia: es la condición para usar este verde.
+
+   Los pasos oscuros NO son los claros aclarados: son los que la paleta define
+   para fondo oscuro, validados contra él. */
+.leyenda {
+  --serie-1: #2a78d6; /* azul   · cotizado */
+  --serie-2: #eb6834; /* naranja · pedidos */
+  --serie-3: #1baf7a; /* verde  · entregado */
+}
+
+.grafico {
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+  --serie-3: #1baf7a;
+}
+
+.tip {
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+  --serie-3: #1baf7a;
+}
+
+.tipIzquierda {
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+  --serie-3: #1baf7a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .leyenda,
+  :root:not([data-theme='light']) .grafico,
+  :root:not([data-theme='light']) .tip,
+  :root:not([data-theme='light']) .tipIzquierda {
+    --serie-1: #3987e5;
+    --serie-2: #d95926;
+    --serie-3: #199e70;
+  }
+}
+
+:root[data-theme='dark'] .leyenda,
+:root[data-theme='dark'] .grafico,
+:root[data-theme='dark'] .tip,
+:root[data-theme='dark'] .tipIzquierda {
+  --serie-1: #3987e5;
+  --serie-2: #d95926;
+  --serie-3: #199e70;
+}
+
+/* ── La leyenda, que además prende y apaga cada serie ────────────────────── */
+
+.leyenda {
   display: flex;
   flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.serie,
+.serieActiva {
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
-}
-
-.grupo {
-  display: flex;
-  gap: var(--space-1);
-}
-
-.chip,
-.chipActivo {
-  padding: var(--space-1) var(--space-3);
+  gap: var(--space-2);
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   background: var(--surface);
   font: inherit;
   font-size: var(--text-xs);
-  color: var(--text-soft);
+  /* El texto NUNCA lleva el color de la serie: lo lleva la muestra de al lado.
+     Un hue claro como texto sobre el fondo es ilegible. */
+  color: var(--text-muted);
   cursor: pointer;
   white-space: nowrap;
 }
 
-.chipActivo {
-  background: var(--color-primary-soft);
-  border-color: var(--primary);
+.serieActiva {
   color: var(--text);
   font-weight: 600;
-}
-
-.chip:hover {
   border-color: var(--text-muted);
 }
 
-.selector {
+.serie:hover,
+.serieActiva:hover {
+  border-color: var(--text);
+}
+
+.serie:focus-visible,
+.serieActiva:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+/* La muestra copia la marca: un rectángulo, porque el gráfico son barras. */
+.muestra {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.serie .muestra {
+  /* Apagada: se sigue viendo DE QUÉ color es, en hueco. Rellena de gris se
+     perdería cuál era. */
+  background: transparent;
+  box-shadow: inset 0 0 0 2px currentColor;
+  opacity: 0.6;
+}
+
+.serie[data-slot='1'] .muestra,
+.serieActiva[data-slot='1'] .muestra { color: var(--serie-1); }
+.serie[data-slot='2'] .muestra,
+.serieActiva[data-slot='2'] .muestra { color: var(--serie-2); }
+.serie[data-slot='3'] .muestra,
+.serieActiva[data-slot='3'] .muestra { color: var(--serie-3); }
+
+.serieActiva .muestra {
+  background: currentColor;
+}
+
+/* ── El gráfico ───────────────────────────────────────────────────────────
+
+   Barras de CSS y no un SVG con viewBox. El SVG anterior tenía
+   `preserveAspectRatio="none"` y un viewBox de 720 dentro de una caja de
+   ~1500 px: el navegador lo estiraba al doble a lo ancho y las barras salían
+   chatas. Con barras de CSS no hay relación de aspecto que deformar, el tope
+   de 24 px de grueso es 24 px de verdad, y cada mes puede ser un botón —o sea
+   que el teclado llega al mismo dato que el mouse—. */
+
+.grafico {
+  position: relative;
+  /* Alto cómodo y fijo: lo que varía es el ancho, y las barras se reparten.
+     Incluye la banda de los nombres de mes, para que no aparezca un scroll
+     interno de 20 px. */
+  height: 260px;
+  padding-left: 3.25rem; /* la columna de las marcas del eje */
+  padding-bottom: 1.5rem; /* la banda de los meses */
+  min-width: 0;
+}
+
+/* Las referencias: líneas enteras de 1 px, un escalón por encima del fondo.
+   Punteadas leerían «proyección» o «límite» cuando son sólo una guía. */
+.rejilla {
+  position: absolute;
+  inset: 0 0 1.5rem 3.25rem;
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
 }
 
-.selectorLabel {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
+.referencia {
+  position: relative;
+  border-top: 1px solid var(--border);
 }
 
-.select {
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-size: var(--text-xs);
-}
-
-/* La escala, dicha: un mes enorme achata a los otros once y eso no se puede
-   esconder normalizando en silencio. */
-.escala {
-  margin: 0 0 var(--space-2);
+.marcaY {
+  position: absolute;
+  right: calc(100% + var(--space-2));
+  top: -0.6em;
   font-size: var(--text-xs);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.grafico {
-  width: 100%;
-  height: 190px;
-  display: block;
+.meses {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
 }
 
-.eje {
-  stroke: var(--border);
-  stroke-width: 1;
+.banda,
+.bandaActiva {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
 }
 
+/* El mes entero es el blanco, no cada barra: nadie le acierta a una barra de
+   17 px para leer un número. */
 .zona {
-  fill: transparent;
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  z-index: 2;
 }
 
-.zona:hover {
-  fill: var(--surface-alt);
+.zona:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+/* El mes señalado se levanta, para que se vea que respondió. */
+.bandaActiva::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+}
+
+.barras {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  /* La separación entre barras vecinas la hace el fondo, no un borde. */
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  padding: 0 12%;
+  z-index: 1;
 }
 
 .barra {
-  fill: var(--text-muted);
+  flex: 1 1 0;
+  /* Nunca más de 24 px: por encima deja de ser una marca y pasa a ser un
+     bloque. Lo que sobra en la banda es el aire que separa un mes del otro. */
+  max-width: 24px;
+  min-width: 0;
+  /* Redondeada ARRIBA y cuadrada abajo: una barra redondeada abajo se
+     despega de la línea de base y se lee como flotando. */
+  border-radius: 4px 4px 0 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
 }
 
-/* El color se gasta una sola vez: el mes en curso. */
-.barraActual {
-  fill: var(--primary);
-}
+.barra[data-slot='1'] { background: var(--serie-1); }
+.barra[data-slot='2'] { background: var(--serie-2); }
+.barra[data-slot='3'] { background: var(--serie-3); }
 
 .mes {
-  fill: var(--text-muted);
-  font-size: 11px;
+  position: absolute;
+  bottom: -1.5rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ── El tooltip ───────────────────────────────────────────────────────────
+
+   No es la única vía al dato —está la tabla y está el texto para lectores de
+   pantalla—, que es lo que lo hace legítimo: enriquece, no condiciona. */
+
+.tip,
+.tipIzquierda {
+  position: absolute;
+  bottom: calc(100% - 2.5rem);
+  z-index: 5;
+  min-width: 13rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+}
+
+.tip {
+  left: 50%;
+}
+
+/* En los últimos meses se abre hacia la izquierda: pegado al borde derecho
+   del panel, un tooltip centrado se corta. */
+.tipIzquierda {
+  right: 50%;
+}
+
+.tipMes {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tipFila {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-1);
+  white-space: nowrap;
+}
+
+/* Una raya, no un cuadrado relleno: a este tamaño un bloque es tinta de peso
+   de dato haciendo el trabajo de un rótulo. */
+.tipClave {
+  width: 12px;
+  height: 2px;
+  border-radius: 1px;
+  flex: none;
+  align-self: center;
+}
+
+.tipClave[data-slot='1'] { background: var(--serie-1); }
+.tipClave[data-slot='2'] { background: var(--serie-2); }
+.tipClave[data-slot='3'] { background: var(--serie-3); }
+
+/* El valor manda y el nombre acompaña: al revés que en la leyenda, porque acá
+   el lector ya sabe de qué serie es y lo que quiere es el número. */
+.tipValor {
+  font-size: var(--text-sm);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.tipSerie {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
 }
 
 .verNumeros {
@@ -175,7 +414,7 @@
 
 @media (max-width: 640px) {
   .grafico {
-    height: 150px;
+    height: 200px;
   }
 
   .cabecera {

@@ -1,9 +1,18 @@
-import { useId, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { formatearImporte } from '@/modules/ventas/lib/formato'
 import type { ActividadComercial, Moneda, TipoActividad } from '@/modules/informes/types'
-import { ETIQUETA_SERIE, mesLargo, monedaPorDefecto, serieDeMoneda } from '../lib/panel'
+import { ETIQUETA_SERIE, mesLargo, serieDeMoneda } from '../lib/panel'
+import {
+  alternarSerie,
+  escalaY,
+  maximoDe,
+  monedaPrincipal,
+  monedasDisponibles,
+  SERIES,
+  type PuntoSerie,
+} from '../lib/evolucion'
 import styles from './Evolucion.module.css'
 
 export interface EvolucionComercialProps {
@@ -13,52 +22,83 @@ export interface EvolucionComercialProps {
   onReintentar: () => void
 }
 
-const TIPOS: readonly TipoActividad[] = ['cotizaciones', 'pedidos', 'entregas']
-
 const MES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 const etiquetaCorta = (iso: string) => MES_CORTO[Number(iso.split('-')[1]) - 1] ?? ''
 
+/** Las marcas del eje, cortas: 500 k se lee, 500.000,00 ocupa media pantalla. */
+function marcaCorta(v: number): string {
+  if (v === 0) return '0'
+  if (v >= 1_000_000) return `${(v / 1_000_000).toLocaleString('es-AR', { maximumFractionDigits: 1 })} M`
+  if (v >= 1000) return `${(v / 1000).toLocaleString('es-AR', { maximumFractionDigits: 0 })} k`
+  return v.toLocaleString('es-AR', { maximumFractionDigits: 0 })
+}
+
 /**
- * Doce meses, UNA métrica y UNA moneda (Fase 21 · E2).
+ * Doce meses, hasta TRES series, UNA moneda (Fase 62).
  *
- * SVG a mano, doce barras: traer una librería de gráficos suma cientos de kB
- * para resolver lo fácil. Lo difícil no es dibujar, es no mezclar: **nunca hay
- * dos monedas en el mismo gráfico**, porque una barra que sume ARS con USD no
- * es más alta, es falsa.
+ * QUÉ CAMBIÓ Y POR QUÉ.
  *
- * El color se gasta una sola vez, en el mes en curso. Doce barras de colores
- * serían un semáforo del que no se lee nada.
+ * 1. Dejó de verse aplastado. Era un SVG con `viewBox` de 720 y
+ *    `preserveAspectRatio="none"` dentro de una caja de ~1500 px: el navegador
+ *    lo estiraba al doble a lo ancho y dejaba las barras chatas y anchas. Ahora
+ *    son barras de CSS, así que no hay relación de aspecto que deformar — el
+ *    problema no puede volver.
  *
- * Y los números se pueden consultar: la escala está escrita y «Ver los
- * números» abre la tabla, que además es la alternativa accesible al SVG.
+ * 2. Se comparan las tres. Antes los botones eran excluyentes: o cotizado, o
+ *    pedidos, o entregado. Ahora se prenden y apagan, y es el embudo completo
+ *    en un gráfico. La última encendida no se apaga.
+ *
+ * 3. Hay color, y sigue a la serie. Tres hues categóricos validados contra las
+ *    superficies claras y oscuras del proyecto (ver `Evolucion.module.css`).
+ *    El color va atado al TIPO, no a la posición: apagar «Pedidos» no
+ *    repinta a las otras dos.
+ *
+ * 4. El mes se puede consultar con el mouse Y con el teclado. Cada mes es un
+ *    botón: al pasarle el mouse o al enfocarlo muestra los importes de todas
+ *    las series visibles. El tooltip no es la única vía —«Ver los números»
+ *    sigue abriendo la tabla—, que es lo que lo hace legítimo.
+ *
+ * LO QUE NO CAMBIÓ: **nunca hay dos monedas en el mismo gráfico**. Una barra
+ * que sume ARS con USD no es más alta, es falsa. Las tres series se comparan
+ * en la MISMA moneda, y lo que una no tenga en esa moneda sale sin barra.
  */
 export function EvolucionComercial({ actividad, cargando, error, onReintentar }: EvolucionComercialProps) {
   const id = useId()
-  const [tipo, setTipo] = useState<TipoActividad>('cotizaciones')
+  const [visibles, setVisibles] = useState<TipoActividad[]>(['cotizaciones', 'pedidos', 'entregas'])
   const [monedaElegida, setMonedaElegida] = useState<Moneda | null | undefined>(undefined)
   const [verNumeros, setVerNumeros] = useState(false)
+  const [mesActivo, setMesActivo] = useState<number | null>(null)
 
-  const serie = actividad?.series.find((s) => s.tipo === tipo)
-  const monedas = serie?.monedas ?? []
-  const moneda = monedaElegida === undefined ? monedaPorDefecto(serie) : monedaElegida
-  const etiqueta = ETIQUETA_SERIE[tipo]
-  const puntos = serieDeMoneda(serie, moneda)
-  const maximo = Math.max(...puntos.map((p) => p.importe), 0)
-  const ultimo = puntos.length - 1
+  const seriesVisibles = useMemo(
+    () => SERIES.filter((s) => visibles.includes(s.tipo)).map((s) => ({
+      ...s,
+      datos: actividad?.series.find((x) => x.tipo === s.tipo),
+    })),
+    [visibles, actividad],
+  )
 
-  const detalle = (i: number) => {
-    const p = puntos[i]
-    if (!p) return ''
-    if (p.documentos === 0) return `${mesLargo(p.mes)} · sin movimientos`
-    return `${mesLargo(p.mes)} · ${formatearImporte(p.importe, moneda)} · ${p.documentos} ${p.documentos === 1 ? etiqueta.singular : etiqueta.plural}`
-  }
+  const monedas = useMemo(
+    () => monedasDisponibles(seriesVisibles.flatMap((s) => (s.datos ? [s.datos] : []))),
+    [seriesVisibles],
+  )
+  const moneda = monedaElegida === undefined
+    ? monedaPrincipal(seriesVisibles.flatMap((s) => (s.datos ? [s.datos] : [])))
+    : monedaElegida
 
-  const ANCHO = 720
-  const ALTO = 190
-  const PIE = 26
-  const util = ALTO - PIE
-  const paso = puntos.length > 0 ? ANCHO / puntos.length : ANCHO
-  const ancho = Math.min(paso - 10, 34)
+  /** Una fila por serie visible, con sus doce puntos en la moneda elegida. */
+  const trazos = useMemo(
+    () => seriesVisibles.map((s) => ({ ...s, puntos: serieDeMoneda(s.datos, moneda) })),
+    [seriesVisibles, moneda],
+  )
+
+  const maximo = maximoDe(trazos.map((t) => t.puntos))
+  const { tope, marcas } = escalaY(maximo)
+
+  /** Los doce meses, del más viejo al más nuevo. Sale de la primera serie que tenga datos. */
+  const meses: string[] = trazos.find((t) => t.puntos.length > 0)?.puntos.map((p) => p.mes) ?? []
+  const hayDatos = meses.length > 0 && maximo > 0
+
+  const puntoDe = (t: { puntos: PuntoSerie[] }, i: number) => t.puntos[i]
 
   return (
     <section className={styles.bloque} aria-labelledby={`${id}-t`}>
@@ -66,101 +106,177 @@ export function EvolucionComercial({ actividad, cargando, error, onReintentar }:
         <h2 id={`${id}-t`} className={styles.titulo}>
           Evolución · últimos 12 meses
         </h2>
-        <div className={styles.controles}>
-          <div className={styles.grupo} role="group" aria-label="Qué se mira">
-            {TIPOS.map((t) => (
-              <button
-                key={t}
-                type="button"
-                className={t === tipo ? styles.chipActivo : styles.chip}
-                aria-pressed={t === tipo}
-                onClick={() => {
-                  setTipo(t)
-                  // La moneda vuelve a elegirse sola: la que más documentos
-                  // tiene en cotizado puede no tener ninguno en entregado.
-                  setMonedaElegida(undefined)
-                }}
-              >
-                {ETIQUETA_SERIE[t].titulo}
-              </button>
-            ))}
-          </div>
-          {monedas.length > 1 ? (
-            <label className={styles.selector}>
-              <span className={styles.selectorLabel}>Moneda</span>
-              <select className={styles.select} value={moneda ?? ''} onChange={(e) => setMonedaElegida(e.target.value || null)}>
-                {monedas.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-        </div>
+        {monedas.length > 1 ? (
+          <label className={styles.selector}>
+            <span className={styles.selectorLabel}>Moneda</span>
+            <select className={styles.select} value={moneda ?? ''} onChange={(e) => setMonedaElegida(e.target.value || null)}>
+              {monedas.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+
+      {/*
+        LA LEYENDA ES TAMBIÉN EL CONTROL. Con dos o más series la leyenda es
+        obligatoria —la identidad nunca puede depender sólo del color— y acá
+        además es lo que prende y apaga cada una: un solo lugar para saber qué
+        es cada color y para elegir qué se mira.
+
+        El texto NO lleva el color de la serie: lo lleva la muestra de al lado.
+        Un hue claro como texto sobre el fondo es ilegible.
+      */}
+      <div className={styles.leyenda} role="group" aria-label="Series a comparar">
+        {SERIES.map(({ tipo, slot }) => {
+          const encendida = visibles.includes(tipo)
+          return (
+            <button
+              key={tipo}
+              type="button"
+              className={encendida ? styles.serieActiva : styles.serie}
+              data-slot={slot}
+              aria-pressed={encendida}
+              onClick={() => {
+                setVisibles((v) => alternarSerie(v, tipo))
+                // La moneda vuelve a elegirse sola: la que más documentos tiene
+                // en cotizado puede no tener ninguno en entregado.
+                setMonedaElegida(undefined)
+              }}
+            >
+              <span className={styles.muestra} aria-hidden="true" />
+              {ETIQUETA_SERIE[tipo].titulo}
+            </button>
+          )
+        })}
       </div>
 
       {cargando ? (
         <SkeletonRows rows={3} columns={4} label="Cargando la evolución…" />
       ) : error ? (
         <ErrorState compact title="No se pudo leer la evolución." onRetry={onReintentar} />
-      ) : puntos.length === 0 || maximo === 0 ? (
+      ) : !hayDatos ? (
         <p className={styles.vacio}>
-          Sin {etiqueta.plural} {moneda ? `en ${moneda} ` : ''}en los últimos 12 meses.
+          Sin movimientos {moneda ? `en ${moneda} ` : ''}en los últimos 12 meses.
         </p>
       ) : (
         <>
           <p className={styles.escala} id={`${id}-esc`}>
-            {etiqueta.titulo} en {moneda} · escala 0 — {formatearImporte(maximo, moneda)}
+            Importes en {moneda} · de 0 a {formatearImporte(tope, moneda)}
           </p>
-          <svg className={styles.grafico} viewBox={`0 0 ${ANCHO} ${ALTO}`} role="img" aria-labelledby={`${id}-esc`} preserveAspectRatio="none">
-            <line x1="0" y1={util} x2={ANCHO} y2={util} className={styles.eje} />
-            {puntos.map((p, i) => {
-              const alto = (p.importe / maximo) * (util - 10)
-              return (
-                <g key={p.mes}>
-                  <rect x={i * paso} y={0} width={paso} height={util} className={styles.zona}>
-                    <title>{detalle(i)}</title>
-                  </rect>
-                  {p.importe > 0 ? (
-                    <rect
-                      x={i * paso + (paso - ancho) / 2}
-                      y={util - Math.max(alto, 2)}
-                      width={ancho}
-                      height={Math.max(alto, 2)}
-                      rx="2"
-                      className={i === ultimo ? styles.barraActual : styles.barra}
-                    />
-                  ) : null}
-                  <text x={i * paso + paso / 2} y={ALTO - 8} textAnchor="middle" className={styles.mes}>
-                    {etiquetaCorta(p.mes)}
-                  </text>
-                </g>
-              )
-            })}
-          </svg>
+
+          <div className={styles.grafico}>
+            {/* Las referencias: líneas enteras de 1 px, un escalón por encima
+                del fondo. Punteadas se leerían como «proyección» o «límite». */}
+            <div className={styles.rejilla} aria-hidden="true">
+              {[...marcas].reverse().map((v) => (
+                <div key={v} className={styles.referencia}>
+                  <span className={styles.marcaY}>{marcaCorta(v)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className={styles.meses}>
+              {meses.map((mes, i) => {
+                const activo = mesActivo === i
+                return (
+                  <div key={mes} className={activo ? styles.bandaActiva : styles.banda}>
+                    <button
+                      type="button"
+                      className={styles.zona}
+                      /* El mes es el blanco, no cada barra: así el puntero no
+                         tiene que acertarle a una barra de 17 px para leer un
+                         número, y el tooltip muestra las tres de una. */
+                      onMouseEnter={() => setMesActivo(i)}
+                      onMouseLeave={() => setMesActivo((a) => (a === i ? null : a))}
+                      onFocus={() => setMesActivo(i)}
+                      onBlur={() => setMesActivo((a) => (a === i ? null : a))}
+                      aria-describedby={activo ? `${id}-tip` : undefined}
+                    >
+                      <span className="sr-only">{detalleDelMes(mes, trazos, i, moneda)}</span>
+                    </button>
+
+                    <div className={styles.barras} aria-hidden="true">
+                      {trazos.map((t) => {
+                        const p = puntoDe(t, i)
+                        const alto = p && p.importe > 0 && tope > 0 ? (p.importe / tope) * 100 : 0
+                        return (
+                          <span
+                            key={t.tipo}
+                            className={styles.barra}
+                            data-slot={t.slot}
+                            /* Lo que no llega a 1,5 % igual se ve: una barra
+                               invisible se lee como «no hubo», que es otra cosa
+                               que «hubo poco». El número exacto está en el
+                               tooltip y en la tabla. */
+                            style={{ height: alto > 0 ? `max(${alto}%, 3px)` : '0' }}
+                          />
+                        )
+                      })}
+                    </div>
+
+                    {activo ? (
+                      <div id={`${id}-tip`} role="tooltip" className={i > 7 ? styles.tipIzquierda : styles.tip}>
+                        <p className={styles.tipMes}>{mesLargo(mes)}</p>
+                        {trazos.map((t) => {
+                          const p = puntoDe(t, i)
+                          const etiqueta = ETIQUETA_SERIE[t.tipo]
+                          return (
+                            <p key={t.tipo} className={styles.tipFila}>
+                              {/* Una raya del color de la serie, no un bloque:
+                                  a este tamaño un cuadrado relleno es tinta de
+                                  peso de dato haciendo el trabajo de un rótulo. */}
+                              <span className={styles.tipClave} data-slot={t.slot} aria-hidden="true" />
+                              {/* El valor manda y el nombre acompaña: acá el
+                                  lector ya sabe de qué serie es y quiere el número. */}
+                              <strong className={styles.tipValor}>
+                                {p && p.documentos > 0 ? formatearImporte(p.importe, moneda) : '—'}
+                              </strong>
+                              <span className={styles.tipSerie}>
+                                {etiqueta.titulo}
+                                {p && p.documentos > 0 ? ` · ${p.documentos} ${p.documentos === 1 ? etiqueta.singular : etiqueta.plural}` : ''}
+                              </span>
+                            </p>
+                          )
+                        })}
+                      </div>
+                    ) : null}
+
+                    <span className={styles.mes}>{etiquetaCorta(mes)}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
 
           <button type="button" className={styles.verNumeros} onClick={() => setVerNumeros((v) => !v)} aria-expanded={verNumeros}>
             {verNumeros ? 'Ocultar los números' : 'Ver los números'}
           </button>
           {verNumeros ? (
             <table className={styles.tabla}>
-              <caption className="sr-only">
-                {etiqueta.titulo} por mes en {moneda}
-              </caption>
+              <caption className="sr-only">Importes por mes en {moneda}</caption>
               <thead>
                 <tr>
                   <th scope="col">Mes</th>
-                  <th scope="col">Importe</th>
-                  <th scope="col">Documentos</th>
+                  {trazos.map((t) => (
+                    <th key={t.tipo} scope="col">
+                      {ETIQUETA_SERIE[t.tipo].titulo}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {puntos.map((p) => (
-                  <tr key={p.mes}>
-                    <th scope="row">{mesLargo(p.mes)}</th>
-                    <td>{p.documentos === 0 ? '—' : formatearImporte(p.importe, moneda)}</td>
-                    <td>{p.documentos}</td>
+                {meses.map((mes, i) => (
+                  <tr key={mes}>
+                    <th scope="row">{mesLargo(mes)}</th>
+                    {trazos.map((t) => {
+                      const p = puntoDe(t, i)
+                      return (
+                        <td key={t.tipo}>{p && p.documentos > 0 ? formatearImporte(p.importe, moneda) : '—'}</td>
+                      )
+                    })}
                   </tr>
                 ))}
               </tbody>
@@ -170,4 +286,20 @@ export function EvolucionComercial({ actividad, cargando, error, onReintentar }:
       )}
     </section>
   )
+}
+
+/** Lo mismo que dice el tooltip, para quien no ve el gráfico. */
+function detalleDelMes(
+  mes: string,
+  trazos: readonly { tipo: TipoActividad; puntos: PuntoSerie[] }[],
+  i: number,
+  moneda: Moneda | null,
+): string {
+  const partes = trazos.map((t) => {
+    const p = t.puntos[i]
+    const titulo = ETIQUETA_SERIE[t.tipo].titulo
+    if (!p || p.documentos === 0) return `${titulo}: sin movimientos`
+    return `${titulo}: ${formatearImporte(p.importe, moneda)}, ${p.documentos} ${p.documentos === 1 ? ETIQUETA_SERIE[t.tipo].singular : ETIQUETA_SERIE[t.tipo].plural}`
+  })
+  return `${mesLargo(mes)}. ${partes.join('. ')}`
 }
