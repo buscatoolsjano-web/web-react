@@ -50,10 +50,18 @@ export type FiltroCliente = 'con' | 'sin'
  * desde «Todos». Sin esta carpeta se volvían invisibles. Separar bien las
  * bandejas no puede costar perder correo.
  *
- * Los BORRADORES no son una carpeta de acá: tienen su propia pantalla, en
- * /emails/borradores. Eran 311 de los 1516 hilos y la RPC ya no los devuelve.
+ * `borradores` SÍ es una carpeta, desde la Fase 42. Antes vivían sólo en una
+ * pantalla aparte a la que se llegaba por un botón, y nadie los encontraba:
+ * uno busca los borradores donde están las demás carpetas. La pantalla sigue
+ * existiendo —lista los borradores de Gmail uno por uno, con su modo, que es
+ * lo que sirve para retomarlos—; la carpeta muestra los HILOS que tienen uno.
+ *
+ * Y es la única carpeta que muestra un hilo que es sólo un borrador. Las demás
+ * lo esconden, pero sólo cuando es SÓLO eso: un hilo con un mensaje enviado o
+ * recibido y además un borrador abierto es una conversación de verdad y se ve
+ * donde corresponde. Confundir esas dos cosas tapó un mail enviado (Fase 42).
  */
-export const CARPETAS_BANDEJA = ['recibidos', 'enviados', 'archivados', 'eliminados'] as const
+export const CARPETAS_BANDEJA = ['recibidos', 'enviados', 'borradores', 'archivados', 'eliminados'] as const
 export type CarpetaBandeja = (typeof CARPETAS_BANDEJA)[number]
 
 export interface FiltrosEmails {

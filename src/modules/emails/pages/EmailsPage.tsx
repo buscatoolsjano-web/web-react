@@ -46,6 +46,7 @@ const HILO = { singular: 'hilo', plural: 'hilos' }
 const CARPETAS: readonly TabItem<CarpetaBandeja>[] = [
   { key: 'recibidos', label: 'Recibidos' },
   { key: 'enviados', label: 'Enviados' },
+  { key: 'borradores', label: 'Borradores' },
   { key: 'archivados', label: 'Archivados' },
   { key: 'eliminados', label: 'Eliminados' },
 ]
@@ -53,6 +54,7 @@ const CARPETAS: readonly TabItem<CarpetaBandeja>[] = [
 const VACIA: Record<CarpetaBandeja, string> = {
   recibidos: 'No hay correo recibido',
   enviados: 'Todavía no enviaste ninguno',
+  borradores: 'No tenés borradores sin terminar',
   archivados: 'No hay correo archivado',
   eliminados: 'No eliminaste ningún hilo',
 }
