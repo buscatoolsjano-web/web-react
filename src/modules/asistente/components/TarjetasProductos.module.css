@@ -1,7 +1,18 @@
-/* Los productos que nombró el asistente, como tarjetas (Fase 40). */
-
+/*
+ * DE DOS EN DOS, con la foto arriba (Fase 64).
+ *
+ * Antes era una columna de tarjetas anchas: cuatro productos ocupaban toda la
+ * altura del panel y había que scrollear para comparar el primero con el
+ * último, que es exactamente lo que uno quiere hacer cuando el asistente
+ * ofrece varias puntas PH2. En dos columnas entran cuatro de un vistazo.
+ *
+ * Dos y no tres: el panel mide 34 rem, así que una tercera columna dejaría
+ * ~150 px por tarjeta y ahí el nombre —que acá es largo de verdad— se
+ * convierte en una tira de ocho renglones.
+ */
 .lista {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
   margin: var(--space-3) 0 0;
   padding: 0;
@@ -9,17 +20,45 @@
 }
 
 /*
- * Una tarjeta por producto. En COLUMNA y no en fila: esto vive en un panel
- * lateral de ~380 px, y nombre + precio + dos botones en una sola línea
- * obligaba a elegir entre truncar el nombre o desbordar.
+ * En un teléfono el panel ocupa el ancho entero de la pantalla, o sea ~375 px:
+ * dos columnas ahí dan 170 px cada una y los dos botones no entran ni
+ * apilados sin verse apretados. Una sola columna.
+ */
+@media (max-width: 30rem) {
+  .lista {
+    grid-template-columns: 1fr;
+  }
+}
+
+/*
+ * Una tarjeta por producto. En COLUMNA y no en fila: nombre + precio + dos
+ * botones en una sola línea obligaba a elegir entre truncar el nombre o
+ * desbordar, y ahora encima hay una foto arriba.
+ *
+ * `align-content: start` para que las dos tarjetas de una fila no estiren su
+ * contenido cuando una tiene el nombre más largo que la otra: lo que se
+ * estira es la caja, no los renglones de adentro.
  */
 .tarjeta {
   display: grid;
+  align-content: start;
   gap: var(--space-2);
   padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
+  min-width: 0;
+}
+
+/*
+ * La foto, a lo ancho de la tarjeta y cuadrada.
+ *
+ * `ImagenProducto` ya reserva el alto con `aspect-ratio`, así que las
+ * tarjetas no saltan mientras las imágenes van llegando. El tope de alto es
+ * para que la foto no se coma la tarjeta en una columna ancha.
+ */
+.foto {
+  max-height: 9rem;
 }
 
 .datos {
@@ -74,9 +113,15 @@
   color: var(--color-text-muted);
 }
 
+/*
+ * Los botones ocupan el ancho entero de la tarjeta y se reparten.
+ *
+ * En una columna de ~235 px, «Ver» y «Agregar» a su tamaño natural dejaban un
+ * hueco raro a la derecha y se leían como si fueran de distinta jerarquía.
+ */
 .acciones {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto 1fr;
   gap: var(--space-2);
   align-items: center;
 }
@@ -87,6 +132,7 @@
 .ver {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
   padding: var(--space-1) var(--space-3);
   border: 1px solid var(--color-border-strong);
@@ -94,6 +140,7 @@
   color: var(--color-text);
   font-size: var(--text-sm);
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .ver:hover {

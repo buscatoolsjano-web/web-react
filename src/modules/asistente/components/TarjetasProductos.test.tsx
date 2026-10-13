@@ -123,3 +123,66 @@ describe('<TarjetasProductos>', () => {
     expect(container.querySelector('ul')).toBeNull()
   })
 })
+
+/*
+ * LA FOTO (Fase 64).
+ *
+ * Viene de la MISMA consulta que resuelve el id —no de una aparte—, así que
+ * aparece cuando aparece el botón «Agregar» y no medio segundo después.
+ */
+describe('La foto del producto', () => {
+  it('muestra la miniatura verificada cuando existe', async () => {
+    estado.resueltos = new Map([
+      ['SP.PH2', {
+        id: 'p-1', sku: 'SP.PH2', nombre: 'SPEEDRILL PH2 PHILLIPS',
+        imagen: { url: 'https://x/full.jpg', thumbUrl: 'https://x/thumb.jpg', kind: 'product_image', posicion: 0, esPrincipal: true },
+      }],
+    ])
+    montar([prod()])
+
+    const img = await screen.findByRole('presentation')
+    expect(img).toHaveAttribute('src', 'https://x/thumb.jpg')
+  })
+
+  /* Sin miniatura verificada se usa el original: `thumbUrl` sólo viene
+     poblada si la verificación offline la encontró con HTTP 200. */
+  it('sin miniatura usa el original', async () => {
+    estado.resueltos = new Map([
+      ['SP.PH2', {
+        id: 'p-1', sku: 'SP.PH2', nombre: 'SPEEDRILL PH2 PHILLIPS',
+        imagen: { url: 'https://x/full.jpg', thumbUrl: null, kind: 'product_image', posicion: 0, esPrincipal: true },
+      }],
+    ])
+    montar([prod()])
+
+    expect(await screen.findByRole('presentation')).toHaveAttribute('src', 'https://x/full.jpg')
+  })
+
+  /*
+   * Sin foto NO se rompe ni se deja un hueco mudo: va el placeholder, que
+   * además reserva el alto para que la tarjeta no salte.
+   */
+  it('sin foto muestra el placeholder, no un hueco', async () => {
+    estado.resueltos = new Map([
+      ['SP.PH2', { id: 'p-1', sku: 'SP.PH2', nombre: 'SPEEDRILL PH2 PHILLIPS', imagen: null }],
+    ])
+    montar([prod()])
+
+    expect(await screen.findByText('Sin imagen')).toBeInTheDocument()
+    expect(screen.queryByRole('presentation')).toBeNull()
+  })
+
+  /*
+   * Mientras la consulta no volvió tampoco hay hueco: la tarjeta ya se ve con
+   * su SKU, su nombre y su precio —que vienen en la respuesta del asistente—
+   * y la foto entra en su caja, que ya estaba reservada.
+   */
+  it('mientras resuelve, la tarjeta ya se ve entera', () => {
+    estado.resueltos = new Map()
+    montar([prod()])
+
+    expect(screen.getByText('SP.PH2')).toBeInTheDocument()
+    expect(screen.getByText('USD 1,81')).toBeInTheDocument()
+    expect(screen.getByText('Sin imagen')).toBeInTheDocument()
+  })
+})

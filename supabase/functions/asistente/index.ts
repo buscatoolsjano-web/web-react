@@ -10,7 +10,6 @@
  * confirmación en pantalla.
  */
 import { createClient } from 'npm:@supabase/supabase-js@2.58.0'
-import { extractText, getDocumentProxy } from 'npm:unpdf@1.3.2'
 import { type Mensaje, responder } from './bucle.ts'
 import { type Bandeja, crearEjecutor } from './ejecutor.ts'
 import { FalloProveedor, MAX_BYTES_AUDIO, proveedorConfigurado, transcribir } from './proveedor.ts'
@@ -114,6 +113,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
         return falla('demasiado_grande', 'El archivo pesa más de 10 MB.')
       }
       try {
+        /**
+         * `unpdf` se carga ACÁ y no arriba de todo.
+         *
+         * Trae pdf.js entero —varios megas— y en un `import` de módulo eso se
+         * paga en CADA arranque en frío de la función, incluido el de alguien
+         * que sólo escribió «hola». Adjuntar un PDF es lo raro; empezar una
+         * conversación es lo común. Quien adjunta espera esos milisegundos
+         * una vez y de todas formas ya está esperando a que se lea el archivo.
+         */
+        const { extractText, getDocumentProxy } = await import('npm:unpdf@1.3.2')
         const doc = await getDocumentProxy(new Uint8Array(await archivo.arrayBuffer()))
         const { text, totalPages } = await extractText(doc, { mergePages: true })
         const crudo = (typeof text === 'string' ? text : text.join('\n')).trim()
@@ -188,15 +197,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
     },
   )
 
-  const { data: usuario } = await comoElUsuario.auth.getUser()
+  /**
+   * Las dos comprobaciones de entrada, JUNTAS.
+   *
+   * Estaban en serie y no se necesitan: la empresa se consulta con el token,
+   * no con el id del usuario, así que esperar a `getUser()` para recién
+   * entonces preguntar por la empresa era una ida y vuelta de regalo delante
+   * de cada consulta. Las dos siguen siendo obligatorias y las dos siguen
+   * validándose con el token de quien pregunta.
+   */
+  const [{ data: usuario }, { data: empresa }] = await Promise.all([
+    comoElUsuario.auth.getUser(),
+    comoElUsuario.from('companies').select('id').eq('id', companyId).maybeSingle(),
+  ])
+
   const userId = usuario?.user?.id ?? ''
   if (userId === '') return falla('sin_sesion', 'La sesión no es válida.', 401)
-
-  const { data: empresa } = await comoElUsuario
-    .from('companies')
-    .select('id')
-    .eq('id', companyId)
-    .maybeSingle()
   if (!empresa) return falla('sin_empresa', 'Esa empresa no es tuya.', 403)
 
   const proveedor = proveedorConfigurado()

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AGENTE_RAIZ, revisarRegistro, todosLosAgentes } from './agentes.ts'
+import { AGENTE_RAIZ, nombreDeConsulta, revisarRegistro, todosLosAgentes } from './agentes.ts'
 import { HERRAMIENTAS, esquemaParaModelo, herramienta } from './herramientas.ts'
 import {
   type Entorno,
@@ -318,5 +318,130 @@ describe('Lo que ve cada agente', () => {
   it('sólo el agente de correo puede buscar emails', () => {
     const conEmails = todosLosAgentes().filter((a) => a.herramientas.includes('buscar_emails'))
     expect(conEmails.map((a) => a.id)).toEqual(['emails'])
+  })
+})
+
+/*
+ * ── EL ATAJO DEL DERIVADOR (Fase 64) ────────────────────────────────────────
+ *
+ * Medido en producción: una consulta tardaba 28.674 ms. Para «dame puntas
+ * PH2» eran CUATRO llamadas al modelo y la cuarta sólo reescribía con otras
+ * palabras lo que ya había contestado Catálogo, porque el general no tiene
+ * herramientas de datos: no puede agregar nada que no le haya dicho el colega.
+ */
+describe('El atajo del derivador', () => {
+  it('una sola derivación se devuelve tal cual: no se paga una llamada para reescribirla', async () => {
+    const { modelo, pedidos } = modeloGuionado((p, n) => {
+      if (agenteDe(p) === AGENTE_RAIZ) return pide(llamada(nombreDeConsulta('catalogo'), { pregunta: 'puntas PH2' }))
+      return n === 1 ? pide(llamada('buscar_productos', { texto: 'PH2' })) : contesta('Hay tres: SP.PH2, BR.PH2 y NO.PH2X50.')
+    })
+    const entorno: Entorno = { modelo, ejecutar: () => Promise.resolve('3 resultados') }
+
+    const r = await responder(entorno, preguntar('dame puntas PH2'))
+
+    expect(r.texto).toBe('Hay tres: SP.PH2, BR.PH2 y NO.PH2X50.')
+    // TRES llamadas y no cuatro: general deriva · catálogo busca · catálogo
+    // contesta. La que se ahorra es la del general reescribiendo.
+    expect(r.llamadas).toBe(3)
+    expect(pedidos.filter((p) => agenteDe(p) === AGENTE_RAIZ)).toHaveLength(1)
+  })
+
+  /* La traza NO se pierde: se sigue viendo que se consultó a Catálogo. */
+  it('el atajo no se come la traza', async () => {
+    const { modelo } = modeloGuionado((p) =>
+      agenteDe(p) === AGENTE_RAIZ
+        ? pide(llamada(nombreDeConsulta('catalogo'), { pregunta: 'puntas PH2' }))
+        : contesta('Hay tres.'),
+    )
+    const r = await responder({ modelo, ejecutar: () => Promise.resolve('') }, preguntar('puntas'))
+
+    expect(r.pasos.map((p) => p.nombre)).toContain('catalogo')
+  })
+
+  /*
+   * CON DOS COLEGAS NO HAY ATAJO. «¿Qué le cotizamos a Mirgor y hay stock?»
+   * necesita unir dos respuestas en una, y unir sí es trabajo: ahí la llamada
+   * del general se gana su lugar.
+   */
+  it('dos derivaciones a la vez SÍ se unen: eso no es reescribir', async () => {
+    const { modelo } = modeloGuionado((p, n) => {
+      if (agenteDe(p) === AGENTE_RAIZ) {
+        return n === 0
+          ? pide(
+              llamada(nombreDeConsulta('ventas'), { pregunta: 'qué le cotizamos a Mirgor' }),
+              llamada(nombreDeConsulta('catalogo'), { pregunta: 'hay stock de eso' }),
+            )
+          : contesta('Le cotizamos USD 300 y quedan 40.')
+      }
+      return contesta('lo mío')
+    })
+
+    const r = await responder({ modelo, ejecutar: () => Promise.resolve('') }, preguntar('mirgor y stock'))
+
+    expect(r.texto).toBe('Le cotizamos USD 300 y quedan 40.')
+  })
+
+  /*
+   * UN ESPECIALISTA NO TOMA EL ATAJO aunque consulte a un colega: él sí tiene
+   * herramientas, así que después de oír al colega todavía le queda decidir
+   * qué hacer con eso. Devolver la respuesta del colega tal cual le sacaría
+   * justamente la conclusión.
+   */
+  it('un agente con herramientas propias sigue cerrando él la respuesta', async () => {
+    const { modelo } = modeloGuionado((p, n) => {
+      if (agenteDe(p) === AGENTE_RAIZ) {
+        return n === 0 ? pide(llamada(nombreDeConsulta('ventas'), { pregunta: 'y el stock?' })) : contesta('cierre del general')
+      }
+      if (agenteDe(p) === 'ventas') {
+        return n === 1
+          ? pide(llamada(nombreDeConsulta('catalogo'), { pregunta: 'stock de SP.PH2' }))
+          : contesta('Ventas concluye: alcanza.')
+      }
+      return contesta('Catálogo dice: 40 disponibles.')
+    })
+
+    const r = await responder({ modelo, ejecutar: () => Promise.resolve('') }, preguntar('alcanza el stock?'))
+
+    // Ventas NO devolvió «Catálogo dice: 40 disponibles» tal cual: sacó su
+    // conclusión. Y el general, al ser una sola derivación, la pasó derecho.
+    expect(r.texto).toBe('Ventas concluye: alcanza.')
+  })
+
+  /*
+   * Si el general escribió algo ANTES de derivar, eso es suyo y se perdería:
+   * ahí cierra él.
+   */
+  it('si el derivador dijo algo propio antes de derivar, no se atajá', async () => {
+    const { modelo } = modeloGuionado((p, n) => {
+      if (agenteDe(p) === AGENTE_RAIZ) {
+        return n === 0
+          ? { texto: 'Dale, fijate que esto va a tardar.', llamadas: [llamada(nombreDeConsulta('catalogo'), { pregunta: 'x' })] }
+          : contesta('cierre con lo que dije antes')
+      }
+      return contesta('respuesta del colega')
+    })
+
+    const r = await responder({ modelo, ejecutar: () => Promise.resolve('') }, preguntar('x'))
+
+    expect(r.texto).toBe('cierre con lo que dije antes')
+  })
+})
+
+/*
+ * El proveedor afina el pedido por agente —cuánto razonar—, así que el bucle
+ * tiene que decirle cuál está preguntando. Sin esto el derivador razonaría
+ * como un especialista y se pagarían segundos por elegir entre cinco colegas.
+ */
+describe('Cada pedido dice qué agente lo hace', () => {
+  it('el agenteId viaja en el pedido al modelo', async () => {
+    const { modelo, pedidos } = modeloGuionado((p, n) => {
+      if (agenteDe(p) === AGENTE_RAIZ) return pide(llamada(nombreDeConsulta('catalogo'), { pregunta: 'x' }))
+      return n === 1 ? contesta('ok') : contesta('ok')
+    })
+    await responder({ modelo, ejecutar: () => Promise.resolve('') }, preguntar('x'))
+
+    expect(pedidos.map((p) => p.agenteId)).toEqual([AGENTE_RAIZ, 'catalogo'])
+    // Y coincide con el prompt que se armó, que es la otra forma de saberlo.
+    for (const p of pedidos) expect(p.agenteId).toBe(agenteDe(p))
   })
 })

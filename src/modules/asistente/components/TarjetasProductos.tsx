@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { ImagenProducto } from '@/modules/catalogo/components/ImagenProducto'
 import { useCarrito } from '@/modules/catalogo/hooks/useCarrito'
 import { formatearImporte } from '@/modules/ventas/lib/formato'
 import { resolverPorSku } from '../services/porSku'
@@ -56,6 +57,18 @@ export function TarjetasProductos({ productos }: TarjetasProductosProps) {
         const enCarrito = real ? carrito.cantidadDe(real.id) : 0
         return (
           <li key={p.sku} className={styles.tarjeta}>
+            {/*
+              LA FOTO VA ARRIBA DEL TEXTO Y NO AL COSTADO. Al costado, en una
+              columna que a 1200 px mide ~290 px, la foto se comía el ancho
+              donde entra el nombre —que acá es largo de verdad: «SPEEDRILL
+              VPPH2/152 PUNTA PHILLIPS DE INSERCIÓN 1/4, TIPO 1, L=152»—.
+
+              `alt` vacío a propósito: el nombre del producto está escrito al
+              lado, y repetirlo en la imagen haría que el lector de pantalla
+              lo diga dos veces.
+            */}
+            <ImagenProducto imagen={real?.imagen ?? null} alt="" tamano="thumb" className={styles.foto} />
+
             <div className={styles.datos}>
               <code className={styles.sku}>{p.sku}</code>
               <span className={styles.nombre}>{p.nombre}</span>

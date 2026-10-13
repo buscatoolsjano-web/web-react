@@ -58,6 +58,15 @@ export interface PedidoAlModelo {
   sistema: string
   mensajes: readonly Mensaje[]
   herramientas: readonly Record<string, unknown>[]
+  /**
+   * Qué agente está preguntando.
+   *
+   * El bucle no lo usa para nada: lo pasa para que el proveedor pueda afinar
+   * el pedido por agente —cuánto esfuerzo de razonamiento, qué clave de caché
+   * de prompt— sin que las decisiones de modelo se metan acá adentro. Este
+   * módulo sigue sin saber qué es OpenAI.
+   */
+  agenteId: string
 }
 
 export interface RespuestaModelo {
@@ -222,7 +231,12 @@ async function correr(
     }
 
     cuenta.llamadas++
-    const r = await entorno.modelo({ sistema: sistemaDe(agenteId, entorno.contexto), mensajes, herramientas })
+    const r = await entorno.modelo({
+      sistema: sistemaDe(agenteId, entorno.contexto),
+      mensajes,
+      herramientas,
+      agenteId,
+    })
 
     // Sin llamadas, contestó: se termina.
     if (r.llamadas.length === 0) return r.texto
@@ -240,7 +254,52 @@ async function correr(
     const resultados = await Promise.all(
       r.llamadas.map((ll) => atender(entorno, limites, cuenta, agenteId, ll, pila)),
     )
-    for (const m of resultados) mensajes.push(m)
+
+    /**
+     * ── EL ATAJO DEL DERIVADOR (Fase 64) ────────────────────────────────────
+     *
+     * Medido: una consulta tardaba 28,7 s. Para «dame puntas PH2» eso eran
+     * CUATRO llamadas al modelo —general deriva · catálogo pide la
+     * herramienta · catálogo contesta · general reescribe—, y la cuarta no
+     * aportaba nada: el general no tiene herramientas de datos, así que lo
+     * único que podía hacer con la respuesta del colega era repetirla con
+     * otras palabras. Se paga una espera entera por un parafraseo.
+     *
+     * Cuando se cumplen las tres condiciones, la respuesta del colega SE
+     * DEVUELVE TAL CUAL y esa llamada no se hace:
+     *
+     *   1. el agente no tiene herramientas propias —es un derivador puro, no
+     *      alguien que juntó datos y todavía tiene que sacar una conclusión—;
+     *   2. pidió UNA sola cosa y es una consulta a un colega: con dos hay que
+     *      unir dos respuestas, y unir es trabajo de verdad;
+     *   3. no escribió nada propio antes de derivar, así que no hay nada suyo
+     *      que se pierda.
+     *
+     * No se pierde calidad porque el colega contesta bajo el MISMO
+     * `PROMPT_COMUN` —voseo, importes a la argentina, no inventar—: lo que el
+     * general devolvía ya era eso mismo, reescrito.
+     */
+    const atajo = resultados[0]
+    if (
+      atajo !== undefined &&
+      resultados.length === 1 &&
+      /*
+       * `respondioElColega` y no «es una consulta»: cuando el modelo deriva
+       * sin pasar la pregunta, o a un colega que ya está en la pila, lo que
+       * vuelve es un RECLAMO para que reintente —«no me pasaste la
+       * pregunta»—, no una respuesta. Devolver eso como si fuera la
+       * respuesta final le muestra a la persona las tripas del bucle y le
+       * saca al modelo la vuelta en la que se corregía solo. Lo encontró un
+       * test que ya existía.
+       */
+      atajo.respondioElColega &&
+      r.texto.trim() === '' &&
+      (agente(agenteId)?.herramientas.length ?? 0) === 0
+    ) {
+      return atajo.mensaje.texto
+    }
+
+    for (const m of resultados) mensajes.push(m.mensaje)
   }
 
   // Se quedó sin vueltas. Se le pide que conteste con lo que juntó, sin
@@ -251,6 +310,7 @@ async function correr(
 
   cuenta.llamadas++
   const cierre = await entorno.modelo({
+    agenteId,
     sistema: sistemaDe(agenteId, entorno.contexto),
     mensajes: [
       ...mensajes,
@@ -266,6 +326,19 @@ async function correr(
   return cierre.texto
 }
 
+/**
+ * Lo que vuelve de atender una llamada.
+ *
+ * `respondioElColega` distingue «el colega contestó» de «la derivación ni
+ * siquiera se pudo intentar». Las dos cosas vuelven como texto para el modelo
+ * —ése es el criterio de todo el módulo—, pero sólo la primera sirve como
+ * respuesta final: ver `EL ATAJO DEL DERIVADOR`.
+ */
+interface Atendida {
+  mensaje: Mensaje
+  respondioElColega: boolean
+}
+
 /** Una llamada: o es una consulta a un colega, o es una herramienta de datos. */
 async function atender(
   entorno: Entorno,
@@ -274,7 +347,7 @@ async function atender(
   agenteId: string,
   ll: LlamadaHerramienta,
   pila: readonly string[],
-): Promise<Mensaje> {
+): Promise<Atendida> {
   const colega = agenteDeConsulta(ll.nombre)
 
   if (colega !== null) {
@@ -297,6 +370,7 @@ async function atender(
     cuenta.pasos.push(paso)
 
     let texto: string
+    let respondioElColega = false
     if (pregunta.trim() === '') {
       texto = 'No me pasaste la pregunta. Volvé a llamarme con el texto completo.'
     } else if (pila.includes(colega)) {
@@ -308,9 +382,13 @@ async function atender(
         ...pila,
         agenteId,
       ])
+      respondioElColega = true
     }
     paso.resumen = recortar(texto)
-    return { rol: 'herramienta', id: ll.id, nombre: ll.nombre, texto }
+    return {
+      mensaje: { rol: 'herramienta', id: ll.id, nombre: ll.nombre, texto },
+      respondioElColega,
+    }
   }
 
   const texto = await entorno.ejecutar(ll.nombre, ll.argumentos)
@@ -321,7 +399,10 @@ async function atender(
     argumentos: ll.argumentos,
     resumen: recortar(texto),
   })
-  return { rol: 'herramienta', id: ll.id, nombre: ll.nombre, texto }
+  return {
+    mensaje: { rol: 'herramienta', id: ll.id, nombre: ll.nombre, texto },
+    respondioElColega: false,
+  }
 }
 
 function textoDeCorte(agenteId: string, cuenta: Cuenta): string {

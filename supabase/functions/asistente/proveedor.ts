@@ -116,6 +116,19 @@ function argumentosDe(crudo: unknown): Record<string, unknown> {
   }
 }
 
+/**
+ * Los agentes que sólo DERIVAN, y por eso no necesitan razonar.
+ *
+ * El general no tiene herramientas de datos: su única decisión es a cuál de
+ * cinco colegas le corresponde la pregunta, y cada colega viene con un texto
+ * que dice qué sabe y qué no. Eso es clasificar, no razonar, y el esfuerzo de
+ * razonamiento ahí se paga entero en segundos sin cambiar a quién elige.
+ *
+ * Los especialistas lo conservan: ellos sí encadenan búsquedas, comparan
+ * resultados y deciden si insistir con menos palabras antes de decir «no hay».
+ */
+const DERIVADORES = new Set(['general'])
+
 function proveedorOpenAI(cliente: OpenAI, modelo: string, esfuerzo: string): Proveedor {
   return {
     nombre: 'openai',
@@ -128,7 +141,7 @@ function proveedorOpenAI(cliente: OpenAI, modelo: string, esfuerzo: string): Pro
           instructions: pedido.sistema,
           input: aEntrada(pedido.mensajes),
           tools: pedido.herramientas,
-          reasoning: { effort: esfuerzo },
+          reasoning: { effort: DERIVADORES.has(pedido.agenteId) ? 'none' : esfuerzo },
           max_output_tokens: MAX_OUTPUT_TOKENS,
           // Lo que se consulta acá son datos de clientes y precios de la
           // empresa: no se guarda del otro lado.
