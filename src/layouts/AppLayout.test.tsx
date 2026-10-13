@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { iniciales, nombreVisible } from './sesion'
 
 interface EstadoPrueba {
@@ -72,13 +73,18 @@ const { AppLayout } = await import('./AppLayout')
 function montar(ruta = '/ventas/pedidos') {
   document.body.innerHTML = '<div id="root"></div>'
   return render(
-    <MemoryRouter initialEntries={[ruta]}>
-      <Routes>
-        <Route element={<AppLayout />}>
-          <Route path="*" element={<h1>Pantalla</h1>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    /* El ERP entero vive bajo un QueryClientProvider, y desde la Fase 66
+       AppLayout también lo necesita: precalienta la primera página del
+       catálogo. El arnés refleja lo que hay en producción. */
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={[ruta]}>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route path="*" element={<h1>Pantalla</h1>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
     { container: document.getElementById('root')! },
   )
 }

@@ -13,7 +13,7 @@ import { atributosDestacados } from '../lib/destacados'
 import { valorDinamico, type ColumnaDinamica } from '../lib/columnasDinamicas'
 import { FilaFiltrosColumna, type FilaFiltrosColumnaProps } from './FilaFiltrosColumna'
 import { filaClickeable } from '@/components/tables/filaClickeable'
-import { useAnchosAjustables } from '@/components/tables/anchosAjustables'
+import { useAnchosAjustables, type ColumnaMedible } from '@/components/tables/anchosAjustables'
 import { EncabezadoOrdenable as Encabezado, type OrdenDeColumna } from './EncabezadoOrdenable'
 import type { DefinicionAtributo, ProductoListado } from '../types'
 import styles from './ListadoProductos.module.css'
@@ -190,18 +190,50 @@ export function ListadoProductos({
    * requisito para que un ancho declarado se cumpla en vez de ser una
    * sugerencia que el navegador ignora.
    */
-  const columnasAjustables = useMemo(
-    () => [
-      { key: 'modelo', header: 'Modelo', tipo: 'texto' as const },
-      { key: 'marca', header: 'Marca', tipo: 'texto' as const },
-      { key: 'categoria', header: 'Categoría', tipo: 'texto' as const },
-      { key: 'serie', header: 'Serie', tipo: 'texto' as const },
-      { key: 'tipo', header: 'Tipo', tipo: 'texto' as const },
-      ...columnasDinamicas.map((c) => ({ key: claveAncho(c.key), header: c.label, tipo: 'texto' as const })),
-    ],
-    [columnasDinamicas],
-  )
-  const anchos = useAnchosAjustables('catalogo', columnasAjustables)
+  /*
+   * Y CADA UNA SE MIDE POR LO QUE TIENE ADENTRO (Fase 66).
+   *
+   * «Torque mínimo siempre van a ser un número y Nm, entonces la columna no
+   * puede ser así de grande. Lo mismo con la serie: hay tres series de tres
+   * letras nada más. Si no, no se ven las otras columnas».
+   *
+   * Antes toda columna de texto arrancaba en 220 px fijos, mirara lo que
+   * mirara: «Serie» ocupaba lo mismo que «Modelo». Ahora se le pasan los
+   * valores que se están viendo y el ancho sale de medirlos de verdad, con la
+   * tipografía de la tabla. El encabezado y el filtro ponen su piso: ver
+   * `anchoPorContenido`.
+   *
+   * Las opciones del filtro también se miden, porque el `<select>` vive en el
+   * encabezado y tiene que poder mostrar la suya más larga.
+   */
+  const facetasDeFiltro = filtroColumnas?.facetas
+  const columnasAjustables = useMemo<ColumnaMedible[]>(() => {
+    const textos = (f: (p: ProductoListado) => string | null | undefined) =>
+      productos.map((p) => f(p) ?? '—')
+    const opciones = (clave: string) =>
+      (facetasDeFiltro as Record<string, { valor: string }[] | undefined> | undefined)?.[clave]?.map(
+        (o) => o.valor,
+      ) ?? []
+    return [
+      { key: 'modelo', header: 'Modelo', tipo: 'texto', valores: textos((p) => p.modelo) },
+      { key: 'marca', header: 'Marca', tipo: 'texto', valores: textos((p) => p.marca?.nombre), opcionesDeFiltro: opciones('marca') },
+      { key: 'categoria', header: 'Categoría', tipo: 'texto', valores: textos((p) => p.categoria?.nombre), opcionesDeFiltro: opciones('categoria') },
+      { key: 'serie', header: 'Serie', tipo: 'texto', valores: textos((p) => p.serie), opcionesDeFiltro: opciones('serie') },
+      { key: 'tipo', header: 'Tipo', tipo: 'texto', valores: textos((p) => p.tipo), opcionesDeFiltro: opciones('tipo') },
+      ...columnasDinamicas.map((c) => ({
+        key: claveAncho(c.key),
+        // El encabezado incluye la unidad, que se dibuja al lado: «Torque
+        // mín.» sin el « Nm» mediría de menos y el título quedaría cortado.
+        header: c.unidad ? `${c.label} ${c.unidad}` : c.label,
+        tipo: 'texto' as const,
+        valores: productos.map((p) => valorDinamico(p, c)),
+        opcionesDeFiltro: opciones(`attr:${c.key}`),
+      })),
+    ]
+  }, [columnasDinamicas, productos, facetasDeFiltro])
+
+  const refTabla = useRef<HTMLTableElement | null>(null)
+  const anchos = useAnchosAjustables('catalogo', columnasAjustables, refTabla)
 
   /**
    * La ficha al vuelo (§11).
@@ -358,7 +390,7 @@ export function ListadoProductos({
 
   return (
     <div className={tabla.contenedor} aria-busy={cargando}>
-      <table className={`${tabla.tabla} ${styles.tabla}`}>
+      <table ref={refTabla} className={`${tabla.tabla} ${styles.tabla}`}>
         <thead>
           <tr>
             {seleccion ? (

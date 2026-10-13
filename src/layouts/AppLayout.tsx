@@ -7,6 +7,7 @@ import { EmpresaSelector } from '@/features/empresa/EmpresaSelector'
 import { BotonApariencia } from '@/features/apariencia/BotonApariencia'
 import { moduloDeRuta } from '@/features/apariencia/opciones'
 import { precargarAlDescansar, precargarRuta } from '@/app/precarga'
+import { usePrecalentarCatalogo } from '@/modules/catalogo/hooks/usePrecalentarCatalogo'
 import { Icon } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
 import { navegacionPara } from './navegacion'
@@ -148,6 +149,22 @@ export function AppLayout() {
     const t = window.setTimeout(precargarAlDescansar, 1_500)
     return () => window.clearTimeout(t)
   }, [session])
+
+  /*
+   * Y LA PRIMERA PÁGINA DEL CATÁLOGO, pedida antes de que la pidan (Fase 66).
+   *
+   * Lo de arriba baja el CÓDIGO de las pantallas; esto trae los DATOS de la
+   * única cuya primera consulta se siente: medido, `search_products` tarda
+   * 2.455 ms con la caché de Postgres fría y 452 ms con la siguiente. Son 45
+   * MB de tabla e índices que hay que leer una vez, y no se arreglan con un
+   * índice porque el total exacto del paginador obliga a recorrer las 21.893
+   * filas igual. Lo que cambia es cuándo se paga.
+   *
+   * Para TODOS los roles, porque el Catálogo lo es: es la única entrada del
+   * menú sin restricción de rol (ver `navegacion.ts`). Lo que cada uno ve
+   * adentro lo sigue decidiendo RLS, igual que si hubiera entrado a mano.
+   */
+  usePrecalentarCatalogo(session !== null)
 
   // Identidad por módulo (Fase 14): Ventas verde, Compras azul, Mantenimiento
   // grafito. Va en el <html> para que los diálogos (portal en body) la hereden.

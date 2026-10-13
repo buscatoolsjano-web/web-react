@@ -1,5 +1,16 @@
-import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from 'react'
 import { anchosDe, aplicarArrastre, guardarAnchos, leerAnchos, MIN_PX } from './anchoDeColumnas'
+import { anchoNecesario, anchosQueSoloCrecen, mismasColumnas } from './anchoPorContenido'
+import { medidorDe } from './medirTexto'
 import { TiradorDeAncho } from './TiradorDeAncho'
 import type { Column } from './types'
 
@@ -34,13 +45,30 @@ export interface AnchosAjustables {
 }
 
 /**
+ * Una columna que además se puede medir por su contenido (Fase 66).
+ *
+ * `valores` son los textos que se ven AHORA en esa columna. Si vienen, el
+ * ancho de arranque sale de medirlos en vez del valor por omisión del tipo,
+ * que era 220 px para toda columna de texto y dejaba a «Serie» —tres letras—
+ * tan ancha como «Modelo».
+ */
+export interface ColumnaMedible extends Column<unknown> {
+  valores?: readonly string[]
+  /** Las opciones del filtro de la columna, si tiene uno en el encabezado. */
+  opcionesDeFiltro?: readonly string[]
+}
+
+/**
  * @param id      Con qué nombre se recuerdan en este navegador. `undefined`
  *                desactiva todo y deja la tabla como estaba.
  * @param columnas Las columnas ajustables, para saber su ancho de arranque.
+ * @param refTabla La tabla, para leer de ahí la tipografía con la que medir.
+ *                 Sin esto no se mide y valen los anchos de siempre.
  */
 export function useAnchosAjustables(
   id: string | undefined,
-  columnas: readonly Column<unknown>[],
+  columnas: readonly ColumnaMedible[],
+  refTabla?: RefObject<HTMLTableElement | null>,
 ): AnchosAjustables | null {
   /* Lo guardado se lee UNA vez, en el inicializador del estado. Leerlo en un
      efecto agregaría un render con los anchos iniciales y la tabla pegaría un
@@ -50,17 +78,83 @@ export function useAnchosAjustables(
   // Las columnas aparecen y desaparecen (atributos por categoría, columnas
   // condicionales), así que los anchos se recalculan desde ellas.
   const claves = columnas.map((c) => c.key).join('|')
+
+  /**
+   * LO QUE MIDE EL CONTENIDO (Fase 66).
+   *
+   * En `useLayoutEffect` y no en `useEffect`: para medir hace falta que la
+   * tabla exista, así que hay un segundo render sí o sí. `useLayoutEffect`
+   * corre ANTES de que el navegador pinte, y entonces ese segundo render no
+   * se ve. Con `useEffect` la tabla aparecía con los anchos viejos y pegaba
+   * un salto.
+   */
+  const [medidos, setMedidos] = useState<Record<string, number>>({})
+  const clavesMedidas = useRef<string[]>([])
+  // Las celdas cambian de contenido sin cambiar de columna —paginar, filtrar—
+  // y entonces hay que volver a medir.
+  const huella = columnas.map((c) => `${c.key}:${(c.valores ?? []).join('\u0001')}`).join('\u0002')
+
+  useLayoutEffect(() => {
+    const tabla = refTabla?.current
+    if (!id || !tabla) return
+    // El encabezado y las celdas tienen tipografías distintas —el `th` es más
+    // chico—, así que se mide cada uno con la suya.
+    const medirCabecera = medidorDe(tabla.querySelector('thead th'))
+    const medirCelda = medidorDe(tabla.querySelector('tbody td') ?? tabla.querySelector('thead th'))
+    if (!medirCabecera || !medirCelda) return
+
+    const nuevos: Record<string, number> = {}
+    for (const c of columnas) {
+      if (!c.valores) continue
+      const opciones = c.opcionesDeFiltro ?? []
+      nuevos[c.key] = anchoNecesario({
+        cabecera: medirCabecera(c.header ?? c.key),
+        valores: c.valores.map(medirCelda),
+        ...(opciones.length > 0 ? { filtro: Math.max(...opciones.map(medirCelda)) } : {}),
+      })
+    }
+
+    setMedidos((prev) => {
+      const ahora = columnas.map((c) => c.key)
+      // Si cambió el juego de columnas se arranca de cero: arrastrar el ancho
+      // de unas columnas que ya no están no tiene sentido.
+      const base = mismasColumnas(clavesMedidas.current, ahora) ? prev : {}
+      clavesMedidas.current = ahora
+      const siguiente = anchosQueSoloCrecen(base, nuevos)
+      // Sin esto el `setState` dispara un render por cada medición aunque no
+      // haya cambiado nada, y medir en layout haría un bucle.
+      const igual =
+        Object.keys(siguiente).length === Object.keys(prev).length &&
+        Object.entries(siguiente).every(([k, v]) => prev[k] === v)
+      return igual ? prev : siguiente
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `huella` representa a `columnas` con sus valores.
+  }, [id, huella, refTabla])
+
   const valores = useMemo(
-    () => (id ? anchosDe(columnas, guardados) : {}),
+    // Lo guardado por la persona gana sobre lo medido: si arrastró el borde,
+    // es porque quiso ese ancho.
+    () => (id ? anchosDe(columnas, { ...medidos, ...guardados }) : {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `claves` representa a `columnas`: el array es nuevo en cada render.
-    [id, guardados, claves],
+    [id, guardados, medidos, claves],
   )
 
   const arrastrar = useCallback(
     (clave: string, anchoAlEmpezar: number, deltaPx: number, final: boolean) => {
       if (!id) return
       setGuardados((prev) => {
-        const siguiente = aplicarArrastre(anchosDe(columnas, prev), clave, anchoAlEmpezar, deltaPx)
+        /*
+         * Se guarda SÓLO la columna que se arrastró.
+         *
+         * Antes esto era `aplicarArrastre(anchosDe(columnas, prev), ...)`, que
+         * expande el mapa a TODAS las columnas con su ancho por omisión. Daba
+         * igual mientras el ancho por omisión fuera el único que había; desde
+         * que el ancho sale de medir el contenido (Fase 66) sería un
+         * desastre: arrastrar una sola columna guardaba 220 px para las
+         * demás y pisaba la medición para siempre, en este navegador, sin que
+         * nadie hubiera tocado esas columnas.
+         */
+        const siguiente = aplicarArrastre(prev, clave, anchoAlEmpezar, deltaPx)
         // Se guarda sólo al soltar: escribir en cada píxel del arrastre
         // golpearía localStorage cientos de veces por gesto.
         if (final) guardarAnchos(id, siguiente)
