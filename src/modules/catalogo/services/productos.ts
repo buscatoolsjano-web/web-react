@@ -3,7 +3,7 @@ import type { PlanDeConsulta } from '../lib/planDeConsulta'
 import { hoyIso, precioVigenteDe } from '../lib/precioVigente'
 import { resolverPrecio, type PvpDeProducto } from '../lib/pvp'
 import { ordenarPorRelevancia, type PosicionDeRelevancia } from '../lib/relevancia'
-import { pvpDeProductos } from './pvp'
+import { pedirPvp } from './pvp'
 import type {
   ImagenProducto,
   PaginaDeProductos,
@@ -244,25 +244,37 @@ function mapearListado(f: FilaProducto): ProductoListado {
  * se mostraba hasta la Fase 51: el catálogo tiene que abrir igual. Para un rol
  * externo la RLS de la vista no devuelve nada y pasa lo mismo, sin ruido.
  */
-async function aplicarPvp<T extends ProductoListado>(
-  companyId: string,
+/**
+ * Superpone el PVP ya traído. PURA: no sale a la red (Fase 61).
+ *
+ * Separar el pedido de la aplicación es lo que permite pedirlo EN PARALELO con
+ * las filas en `consultarProductos`. Antes era una sola función que pedía y
+ * aplicaba, y por eso sólo podía arrancar cuando las filas ya habían llegado.
+ */
+function conPvpAplicado<T extends ProductoListado>(
   productos: readonly T[],
-): Promise<T[]> {
-  const ids = productos.map((p) => p.id)
-  if (ids.length === 0) return [...productos]
-
-  let mapa: Map<string, PvpDeProducto>
-  try {
-    mapa = await pvpDeProductos(companyId, ids)
-  } catch {
-    return [...productos]
-  }
+  mapa: ReadonlyMap<string, PvpDeProducto>,
+): T[] {
   if (mapa.size === 0) return [...productos]
-
   return productos.map((p) => {
     const resuelto = resolverPrecio(mapa.get(p.id), p.precioTarifa)
     return { ...p, precio: resuelto.monto, precioOrigen: resuelto.origen }
   })
+}
+
+/**
+ * Pide el PVP y lo aplica, en ese orden.
+ *
+ * Para los caminos donde NO se puede paralelizar: la ficha busca por SKU, así
+ * que el id del producto no se conoce hasta que la fila llegó. Un producto
+ * solo, una vez: no vale la pena mover nada para eso.
+ */
+async function aplicarPvp<T extends ProductoListado>(
+  companyId: string,
+  productos: readonly T[],
+): Promise<T[]> {
+  if (productos.length === 0) return [...productos]
+  return conPvpAplicado(productos, await pedirPvp(companyId, productos.map((p) => p.id)))
 }
 
 function mapearDetalle(f: FilaProductoDetalle): ProductoDetalle {
@@ -363,7 +375,25 @@ export async function consultarProductos(
   // acota el precio a la lista vigente.
   if (priceListId) q = q.eq('product_prices.price_list_id', priceListId)
 
-  const { data, error } = await q
+  /*
+   * LAS FILAS Y EL PVP, A LA VEZ (Fase 61).
+   *
+   * El listado eran TRES viajes en fila: la RPC que da los ids, las filas de
+   * esos ids, y después el PVP de esos mismos ids. Desde Argentina cada uno
+   * cuesta ~220 ms fijos de red, así que la cadena se llevaba ~660 ms antes de
+   * pintar nada — y el tercero no tenía por qué esperar al segundo: el PVP
+   * sólo necesita los IDS, que ya están desde el primero.
+   *
+   * Ahora son dos: la RPC, y después las filas y el PVP juntos. El que manda
+   * es el más lento de los dos, no la suma.
+   *
+   * `pedirPvp` no tira a propósito: dentro de un `Promise.all` una excepción
+   * acá voltearía también las filas, y el catálogo dejaría de abrir por no
+   * haber podido calcular un precio. Si falla, quedan los de la tarifa.
+   */
+  const [respuesta, pvp] = await Promise.all([q, pedirPvp(plan.companyId, ids)])
+
+  const { data, error } = respuesta
   if (error) throw new Error(`No se pudieron leer los resultados: ${error.message}`)
 
   const filas = (data ?? []) as unknown as FilaProducto[]
@@ -373,7 +403,7 @@ export async function consultarProductos(
   // filas salen en orden arbitrario.
   const ordenadas = ordenarPorRelevancia(filas, filasRanking)
 
-  return { productos: await aplicarPvp(plan.companyId, ordenadas.map(mapearListado)), total }
+  return { productos: conPvpAplicado(ordenadas.map(mapearListado), pvp), total }
 }
 
 /**

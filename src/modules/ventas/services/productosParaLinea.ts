@@ -1,7 +1,8 @@
 import { supabase } from '@/services/supabase/client'
 import { precioVigenteDe } from '@/modules/catalogo/lib/precioVigente'
 import { resolverPrecio } from '@/modules/catalogo/lib/pvp'
-import { pvpDeProductos } from '@/modules/catalogo/services/pvp'
+import { pedirPvp } from '@/modules/catalogo/services/pvp'
+import type { PvpDeProducto } from '@/modules/catalogo/lib/pvp'
 
 export interface ProductoParaLinea {
   id: string
@@ -79,18 +80,39 @@ export async function buscarProductos(
   const ids = (ranking ?? []).map((r) => r.id)
   if (ids.length === 0) return []
 
+  /*
+   * LAS TRES CONSULTAS QUE SIGUEN, A LA VEZ (Fase 61).
+   *
+   * Esto eran CUATRO viajes en fila —la RPC, la lista de precios, las filas y
+   * el PVP— y desde Argentina cada uno cuesta ~220 ms fijos: casi un segundo
+   * antes de mostrar la primera sugerencia, en un buscador donde se tipea.
+   *
+   * Ninguna de las tres últimas depende de las otras dos: la lista de precios
+   * sólo necesita la empresa —ni siquiera los ids, así que podría salir antes
+   * que la RPC—, y las filas y el PVP necesitan los ids, que ya están. La
+   * cadena era costumbre, no una dependencia.
+   *
+   * Quedan dos viajes, y el segundo dura lo que el más lento de los tres.
+   */
   // La tarifa del documento, o la lista por defecto de la empresa. En los dos
   // casos se exige que sea de ESTA empresa.
   const base = supabase.from('price_lists').select('id, name, currency_code').eq('company_id', companyId)
-  const { data: lista } = opciones.listaPrecioId
-    ? await base.eq('id', opciones.listaPrecioId).maybeSingle()
-    : await base.eq('is_default', true).maybeSingle()
+  const pedidoLista = opciones.listaPrecioId
+    ? base.eq('id', opciones.listaPrecioId).maybeSingle()
+    : base.eq('is_default', true).maybeSingle()
 
-  const { data: filas, error: eP } = await supabase
-    .from('products')
-    .select('id, sku, name, brands!brand_id ( name ), product_prices ( amount, price_list_id, valid_from, valid_to )')
-    .eq('company_id', companyId)
-    .in('id', ids)
+  const [{ data: lista }, { data: filas, error: eP }, pvp] = await Promise.all([
+    pedidoLista,
+    supabase
+      .from('products')
+      .select('id, sku, name, brands!brand_id ( name ), product_prices ( amount, price_list_id, valid_from, valid_to )')
+      .eq('company_id', companyId)
+      .in('id', ids),
+    // No tira: si el PVP falla quedan los precios de la tarifa, y una
+    // cotización se tiene que poder cargar igual. Dentro del `Promise.all`,
+    // además, una excepción acá voltearía las otras dos.
+    pedirPvp(companyId, ids),
+  ])
   if (eP) throw new Error(`No se pudieron leer los productos: ${eP.message}`)
 
   const porId = new Map(
@@ -120,7 +142,7 @@ export async function buscarProductos(
     }]
   })
 
-  return conPvp(companyId, deLaTarifa)
+  return conPvp(deLaTarifa, pvp)
 }
 
 /**
@@ -137,22 +159,16 @@ export async function buscarProductos(
  * Si la consulta falla quedan los precios de la tarifa: una cotización se tiene
  * que poder cargar igual.
  */
-async function conPvp(
-  companyId: string,
+function conPvp(
   productos: readonly ProductoParaLinea[],
-): Promise<ProductoParaLinea[]> {
-  if (productos.length === 0) return []
-  try {
-    const mapa = await pvpDeProductos(companyId, productos.map((p) => p.id))
-    if (mapa.size === 0) return [...productos]
-    return productos.map((p) => {
-      const pvp = mapa.get(p.id)
-      if (!pvp) return p
-      return { ...p, precio: resolverPrecio(pvp, p.precio).monto }
-    })
-  } catch {
-    return [...productos]
-  }
+  mapa: ReadonlyMap<string, PvpDeProducto>,
+): ProductoParaLinea[] {
+  if (productos.length === 0 || mapa.size === 0) return [...productos]
+  return productos.map((p) => {
+    const pvp = mapa.get(p.id)
+    if (!pvp) return p
+    return { ...p, precio: resolverPrecio(pvp, p.precio).monto }
+  })
 }
 
 export type MotivoPrecio = 'ok' | 'sin_tarifa' | 'sin_precio_en_tarifa' | 'otra_moneda'
@@ -208,16 +224,26 @@ export async function productosPorId(
 ): Promise<ProductoParaLinea[]> {
   if (ids.length === 0) return []
 
+  /*
+   * LAS TRES, DE UNA (Fase 61). Acá los ids llegan como argumento, así que no
+   * hay nada que esperar: la lista de precios, las filas y el PVP salen a la
+   * vez. Eran tres viajes en fila —~660 ms de red desde Argentina— para
+   * reabrir una cotización guardada.
+   */
   const base = supabase.from('price_lists').select('id, name, currency_code').eq('company_id', companyId)
-  const { data: lista } = opciones.listaPrecioId
-    ? await base.eq('id', opciones.listaPrecioId).maybeSingle()
-    : await base.eq('is_default', true).maybeSingle()
+  const pedidoLista = opciones.listaPrecioId
+    ? base.eq('id', opciones.listaPrecioId).maybeSingle()
+    : base.eq('is_default', true).maybeSingle()
 
-  const { data: filas, error } = await supabase
-    .from('products')
-    .select('id, sku, name, brands!brand_id ( name ), product_prices ( amount, price_list_id, valid_from, valid_to )')
-    .eq('company_id', companyId)
-    .in('id', ids)
+  const [{ data: lista }, { data: filas, error }, pvp] = await Promise.all([
+    pedidoLista,
+    supabase
+      .from('products')
+      .select('id, sku, name, brands!brand_id ( name ), product_prices ( amount, price_list_id, valid_from, valid_to )')
+      .eq('company_id', companyId)
+      .in('id', ids),
+    pedirPvp(companyId, ids),
+  ])
   if (error) throw new Error(`No se pudieron leer los productos: ${error.message}`)
 
   const porId = new Map(
@@ -246,5 +272,5 @@ export async function productosPorId(
     }]
   })
 
-  return conPvp(companyId, deLaTarifa)
+  return conPvp(deLaTarifa, pvp)
 }

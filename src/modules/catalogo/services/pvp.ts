@@ -58,3 +58,34 @@ export async function pvpDeProducto(
   const mapa = await pvpDeProductos(companyId, [productId])
   return mapa.get(productId) ?? null
 }
+
+/**
+ * El PVP, pedido para correr EN PARALELO con otra consulta (Fase 61).
+ *
+ * Es `pvpDeProductos` con dos diferencias, y las dos existen para que se pueda
+ * meter en un `Promise.all` sin pensarlo:
+ *
+ *  1. NO TIRA. Un error devuelve el mapa vacío, que la pantalla interpreta
+ *     como «no hay fórmula» y deja los precios de la tarifa —lo que se
+ *     mostraba hasta la Fase 51—. Dentro de un `Promise.all`, en cambio, una
+ *     excepción acá voltearía también la consulta de los productos, y el
+ *     catálogo dejaría de abrir por no haber podido calcular un precio.
+ *  2. Con la lista de ids vacía no sale a la red.
+ *
+ * POR QUÉ IMPORTA EL PARALELO. El PVP sólo necesita los ids, y los ids ya
+ * están en cuanto contesta `search_products`: no hay ninguna razón para
+ * esperar a que lleguen las filas de los productos. Desde Argentina cada ida
+ * y vuelta a São Paulo son ~220 ms fijos, así que encadenarlas de más es la
+ * forma más cara de no hacer nada.
+ */
+export async function pedirPvp(
+  companyId: string,
+  ids: readonly string[],
+): Promise<Map<string, PvpDeProducto>> {
+  if (ids.length === 0) return new Map()
+  try {
+    return await pvpDeProductos(companyId, ids)
+  } catch {
+    return new Map()
+  }
+}
