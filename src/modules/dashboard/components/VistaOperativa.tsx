@@ -188,7 +188,26 @@ export function VistaOperativa() {
         ) : null}
       </div>
 
-      {/* B · Situación del mes: un protagonista y dos secundarios. */}
+      {/*
+        B · LA EVOLUCIÓN, ARRIBA DE TODO (Fase 63).
+
+        Estaba cuarta, debajo de los números. Se subió a pedido, y la razón es
+        buena: «lo que está arriba ahora son números, pero al no haber muchos
+        gráficos no se entiende bien». Un KPI dice «bajó 22 %» sin decir contra
+        qué forma: doce meses a la vista son el contexto que vuelve legibles a
+        los números que siguen, no al revés.
+
+        Queda debajo del período, que es el marco —de qué mes se habla y contra
+        qué se compara— y sin eso ni el gráfico ni los números se leen bien.
+      */}
+      <EvolucionComercial
+        actividad={actividad.data}
+        cargando={actividad.isPending}
+        error={!!actividad.error}
+        onReintentar={() => void actividad.refetch()}
+      />
+
+      {/* C · Situación del mes: un protagonista y dos secundarios. */}
       <div className={styles.situacion}>
         <KpiComercial
           actividad={actividad.data}
@@ -217,7 +236,7 @@ export function VistaOperativa() {
         />
       </div>
 
-      {/* C */}
+      {/* D */}
       <AtencionHoy tarjetas={tarjetas} atencion={atencion.data} />
 
       {/*
@@ -232,15 +251,7 @@ export function VistaOperativa() {
         onReintentar={() => void porPersona.refetch()}
       />
 
-      {/* D */}
-      <EvolucionComercial
-        actividad={actividad.data}
-        cargando={actividad.isPending}
-        error={!!actividad.error}
-        onReintentar={() => void actividad.refetch()}
-      />
-
-      {/* E */}
+      {/* F */}
       <UltimosDocumentos
         documentos={ultimos.documentos}
         cargando={ultimos.cargando}

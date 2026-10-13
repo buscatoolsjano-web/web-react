@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 /*
  * El cliente de Supabase pide las variables de entorno AL IMPORTARSE, y acá
@@ -67,6 +68,27 @@ const reintentar = vi.hoisted(() => vi.fn())
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({ activa: { companyId: 'c1', companyName: 'ZZ Empresa', rol: estado.rol, esInterno: true }, cargando: false }),
 }))
+/* Fase 63: el desglose de un mes pide los documentos de ese mes. Acá se
+   mockea el servicio —estos tests son del panel, no de la consulta— y se
+   devuelve lo que pida cada tipo. */
+vi.mock('@/modules/informes/services/documentos', () => ({
+  obtenerDocumentosInforme: (_c: string, f: { tipo?: string | null }) =>
+    Promise.resolve({
+      total: 0,
+      totalImporte: 0,
+      filas:
+        f.tipo === 'cotizaciones'
+          ? [{ tipo: 'cotizaciones', id: 'c1', numero: 'COTI02585', fecha: '2026-09-04', clienteId: null,
+               cliente: 'Grupo Mirgor S.A.', estado: 'sent', serie: null, origen: null, moneda: 'USD',
+               importe: 15210.91, enRevision: false }]
+          : f.tipo === 'pedidos'
+            ? [{ tipo: 'pedidos', id: 'p1', numero: 'PDV01321', fecha: '2026-09-06', clienteId: null,
+                 cliente: 'Dacatec S.R.L.', estado: 'confirmed', serie: null, origen: null, moneda: 'USD',
+                 importe: 975.32, enRevision: false }]
+            : [],
+    }),
+}))
+
 vi.mock('@/modules/informes/services/actividad', () => ({
   ErrorInforme: class ErrorInforme extends Error {},
 }))
@@ -168,11 +190,17 @@ const DOC = (tipo: string, numero: string, fecha: string, moneda: string, total:
   necesitaRevision: false, motivosRevision: [], numeroFueraDeSerie: false,
 })
 
+/* El desglose del mes usa `useQuery` de verdad (Fase 63): el resto de los
+   datos llega por hooks mockeados, pero ése se ejerce entero, así que el
+   panel necesita su cliente. Sin reintentos: un fallo en un test tiene que
+   verse enseguida, no después de tres vueltas. */
 const montar = () =>
   render(
-    <MemoryRouter>
-      <DashboardPage />
-    </MemoryRouter>,
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 
 beforeEach(() => {
@@ -206,11 +234,28 @@ describe('A · El período se dice, y se dice que está a medias', () => {
 })
 
 describe('B · Situación del mes', () => {
-  it('Cotizado es el protagonista y va primero', () => {
+  /*
+   * Fase 63: el gráfico pasó a estar arriba de todo, así que «va primero» ya
+   * no es «es el primer encabezado de la página» sino «es el primero de los
+   * KPI». El orden ENTRE los tres es lo que este test siempre cuidó.
+   */
+  it('Cotizado es el protagonista y va primero de los tres', () => {
     montar()
     const titulos = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
-    expect(titulos[0]).toBe('Cotizado')
-    expect(titulos.slice(0, 3)).toEqual(['Cotizado', 'Pedidos', 'Entregado'])
+    const kpis = titulos.filter((t) => t === 'Cotizado' || t === 'Pedidos' || t === 'Entregado')
+    expect(kpis).toEqual(['Cotizado', 'Pedidos', 'Entregado'])
+  })
+
+  /*
+   * Y ESTO ES LO NUEVO. «Lo que está arriba ahora son números, pero al no
+   * haber muchos gráficos no se entiende bien». Un KPI dice «bajó 22 %» sin
+   * decir contra qué forma: los doce meses son el contexto que vuelve
+   * legibles a los números que siguen.
+   */
+  it('el gráfico va arriba de los números', () => {
+    montar()
+    const titulos = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+    expect(titulos.indexOf('Evolución · últimos 12 meses')).toBeLessThan(titulos.indexOf('Cotizado'))
   })
 
   it('una línea por moneda, sin ningún total entre monedas', () => {
@@ -417,5 +462,78 @@ describe('D · La evolución', () => {
     estado.actividad = { ...estado.actividad, data: undefined }
     montar()
     expect(screen.getByText(/Sin movimientos/)).toBeInTheDocument()
+  })
+})
+
+/*
+ * E · El desglose del mes (Fase 63).
+ *
+ * «Toco octubre y abajo del gráfico se me desglosa qué es lo que hay, así
+ * puedo ver qué se cotizó, qué se pidió, qué se entregó».
+ */
+describe('E · El desglose del mes', () => {
+  const mesDe = (nombre: string) => screen.getAllByRole('button', { name: new RegExp(nombre) })[0]!
+
+  it('sin tocar nada no hay desglose, pero invita a tocar', () => {
+    montar()
+    expect(screen.getByText('Tocá un mes para ver qué hay adentro.')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /Detalle de/ })).toBeNull()
+  })
+
+  it('al tocar un mes se abre el detalle de ESE mes, debajo del gráfico', async () => {
+    montar()
+    fireEvent.click(mesDe('Septiembre 2026'))
+    const detalle = await screen.findByRole('region', { name: 'Detalle de Septiembre 2026' })
+    expect(detalle).toBeInTheDocument()
+    // Debajo del gráfico y no encima: un modal taparía la barra recién tocada.
+    const grafico = screen.getByRole('heading', { name: 'Evolución · últimos 12 meses' }).closest('section')!
+    expect(grafico.contains(detalle)).toBe(true)
+  })
+
+  /* Las tres columnas, que es la pregunta tal cual se hizo. */
+  it('separa qué se cotizó, qué se pidió y qué se entregó', async () => {
+    montar()
+    fireEvent.click(mesDe('Septiembre 2026'))
+    const detalle = await screen.findByRole('region', { name: /Detalle de/ })
+    // Se espera al CONTENIDO: mientras la consulta va y viene, el panel
+    // existe pero muestra el esqueleto.
+    await within(detalle).findByRole('heading', { name: /Cotizado/ })
+    for (const t of ['Pedidos', 'Entregado']) {
+      expect(within(detalle).getByRole('heading', { name: new RegExp(t) })).toBeInTheDocument()
+    }
+  })
+
+  it('cada documento se lista y lleva a su ficha', async () => {
+    montar()
+    fireEvent.click(mesDe('Septiembre 2026'))
+    const detalle = await screen.findByRole('region', { name: /Detalle de/ })
+    const enlace = await within(detalle).findByRole('link', { name: /COTI02585/ })
+    expect(enlace).toHaveAttribute('href', '/ventas/cotizaciones/c1')
+    expect(within(detalle).getByText('Grupo Mirgor S.A.')).toBeInTheDocument()
+  })
+
+  /* Un tipo sin movimientos lo dice con palabras: una columna vacía se lee
+     como «no cargó» y es otra cosa. */
+  it('un tipo sin movimientos lo dice, no deja la columna muda', async () => {
+    montar()
+    fireEvent.click(mesDe('Septiembre 2026'))
+    const detalle = await screen.findByRole('region', { name: /Detalle de/ })
+    expect((await within(detalle).findAllByText('Sin movimientos.')).length).toBeGreaterThan(0)
+  })
+
+  it('volver a tocar el mismo mes lo cierra', async () => {
+    montar()
+    fireEvent.click(mesDe('Septiembre 2026'))
+    await screen.findByRole('region', { name: /Detalle de/ })
+    fireEvent.click(mesDe('Septiembre 2026'))
+    expect(screen.queryByRole('region', { name: /Detalle de/ })).toBeNull()
+  })
+
+  it('se puede cerrar con su botón', async () => {
+    montar()
+    fireEvent.click(mesDe('Septiembre 2026'))
+    await screen.findByRole('region', { name: /Detalle de/ })
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar el detalle del mes' }))
+    expect(screen.queryByRole('region', { name: /Detalle de/ })).toBeNull()
   })
 })

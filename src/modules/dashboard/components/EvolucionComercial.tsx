@@ -4,6 +4,7 @@ import { ErrorState } from '@/components/feedback/ErrorState'
 import { formatearImporte } from '@/modules/ventas/lib/formato'
 import type { ActividadComercial, Moneda, TipoActividad } from '@/modules/informes/types'
 import { ETIQUETA_SERIE, mesLargo, serieDeMoneda } from '../lib/panel'
+import { DesgloseDelMes } from './DesgloseDelMes'
 import {
   alternarSerie,
   escalaY,
@@ -68,6 +69,12 @@ export function EvolucionComercial({ actividad, cargando, error, onReintentar }:
   const [monedaElegida, setMonedaElegida] = useState<Moneda | null | undefined>(undefined)
   const [verNumeros, setVerNumeros] = useState(false)
   const [mesActivo, setMesActivo] = useState<number | null>(null)
+  /*
+   * El mes ELEGIDO, que es otra cosa que el señalado: señalar muestra el
+   * tooltip y se va con el puntero; elegir abre el desglose de abajo y se
+   * queda hasta que se cierre. Dos estados porque son dos intenciones.
+   */
+  const [mesElegido, setMesElegido] = useState<string | null>(null)
 
   const seriesVisibles = useMemo(
     () => SERIES.filter((s) => visibles.includes(s.tipo)).map((s) => ({
@@ -181,14 +188,23 @@ export function EvolucionComercial({ actividad, cargando, error, onReintentar }:
             <div className={styles.meses}>
               {meses.map((mes, i) => {
                 const activo = mesActivo === i
+                const elegido = mesElegido === mes
                 return (
-                  <div key={mes} className={activo ? styles.bandaActiva : styles.banda}>
+                  <div
+                    key={mes}
+                    /* Elegido pesa más que señalado: el desglose de abajo
+                       sigue siendo de ESTE mes aunque el puntero ya se haya
+                       ido a otro, y la marca tiene que decir cuál. */
+                    className={elegido ? styles.bandaElegida : activo ? styles.bandaActiva : styles.banda}
+                  >
                     <button
                       type="button"
                       className={styles.zona}
                       /* El mes es el blanco, no cada barra: así el puntero no
                          tiene que acertarle a una barra de 17 px para leer un
                          número, y el tooltip muestra las tres de una. */
+                      onClick={() => setMesElegido((m) => (m === mes ? null : mes))}
+                      aria-expanded={mesElegido === mes}
                       onMouseEnter={() => setMesActivo(i)}
                       onMouseLeave={() => setMesActivo((a) => (a === i ? null : a))}
                       onFocus={() => setMesActivo(i)}
@@ -250,6 +266,27 @@ export function EvolucionComercial({ actividad, cargando, error, onReintentar }:
               })}
             </div>
           </div>
+
+          {/*
+            El desglose del mes elegido, DEBAJO del gráfico (Fase 63). Acá y no
+            en un modal: lo que se pidió fue poder mirar las dos cosas a la
+            vez, y un modal taparía justo la barra que se acaba de tocar.
+
+            Las cuentas se las pasa el GRÁFICO, no las vuelve a contar: así el
+            desglose no puede decir un total distinto del que mide la barra.
+          */}
+          {mesElegido ? (
+            <DesgloseDelMes
+              mes={mesElegido}
+              moneda={moneda}
+              cuentas={Object.fromEntries(
+                trazos.map((t) => [t.tipo, t.puntos[meses.indexOf(mesElegido)]?.documentos ?? 0]),
+              )}
+              onCerrar={() => setMesElegido(null)}
+            />
+          ) : (
+            <p className={styles.pista}>Tocá un mes para ver qué hay adentro.</p>
+          )}
 
           <button type="button" className={styles.verNumeros} onClick={() => setVerNumeros((v) => !v)} aria-expanded={verNumeros}>
             {verNumeros ? 'Ocultar los números' : 'Ver los números'}

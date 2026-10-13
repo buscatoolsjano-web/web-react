@@ -132,3 +132,34 @@ export function alternarSerie(
   if (visibles.length === 1) return [...visibles]
   return visibles.filter((t) => t !== tipo)
 }
+
+// ── El mes que se toca ──────────────────────────────────────────────────────
+
+export interface RangoDeMes {
+  /** `YYYY-MM-DD` del día 1. */
+  desde: string
+  /** `YYYY-MM-DD` del último día, sea 28, 29, 30 o 31. */
+  hasta: string
+}
+
+/**
+ * El primer y el último día del mes, para pedir sus documentos (Fase 63).
+ *
+ * Se arma con aritmética de texto y `Date.UTC`, NO con `new Date('2026-05-01')`
+ * en hora local: eso es medianoche UTC, que en Argentina son las 21:00 del día
+ * anterior, y el rango arrancaría el 30 de abril. El mismo desfasaje que ya
+ * mordió en las fechas de los precios.
+ *
+ * El último día sale de pedirle al calendario el día 0 del mes SIGUIENTE, que
+ * es el último del actual: así febrero da 28 o 29 sin tener que saber cuál.
+ */
+export function rangoDelMes(iso: string): RangoDeMes | null {
+  const m = /^(\d{4})-(\d{2})/.exec(iso)
+  if (!m) return null
+  const anio = Number(m[1])
+  const mes = Number(m[2])
+  if (mes < 1 || mes > 12) return null
+  const ultimo = new Date(Date.UTC(anio, mes, 0)).getUTCDate()
+  const dd = (n: number) => String(n).padStart(2, '0')
+  return { desde: `${m[1]}-${m[2]}-01`, hasta: `${m[1]}-${m[2]}-${dd(ultimo)}` }
+}

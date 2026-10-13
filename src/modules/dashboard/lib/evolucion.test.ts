@@ -5,6 +5,7 @@ import {
   maximoDe,
   monedaPrincipal,
   monedasDisponibles,
+  rangoDelMes,
   SERIES,
 } from './evolucion'
 import type { SerieActividad, TipoActividad } from '@/modules/informes/types'
@@ -148,5 +149,43 @@ describe('prender y apagar series', () => {
      saliera del índice, apagar una repintaría a las otras. */
   it('cada serie tiene su slot de color fijo', () => {
     expect(SERIES.map((s) => s.slot)).toEqual([1, 2, 3])
+  })
+})
+
+describe('el rango de un mes', () => {
+  it('va del día 1 al último, sea cual sea', () => {
+    expect(rangoDelMes('2026-05-01')).toEqual({ desde: '2026-05-01', hasta: '2026-05-31' })
+    expect(rangoDelMes('2026-04-01')).toEqual({ desde: '2026-04-01', hasta: '2026-04-30' })
+  })
+
+  /* Febrero sin tener que saber si es bisiesto: el día 0 del mes siguiente. */
+  it('febrero da 28, y 29 el año bisiesto', () => {
+    expect(rangoDelMes('2026-02-01')?.hasta).toBe('2026-02-28')
+    expect(rangoDelMes('2024-02-01')?.hasta).toBe('2024-02-29')
+  })
+
+  it('diciembre no se pasa al año siguiente', () => {
+    expect(rangoDelMes('2026-12-01')).toEqual({ desde: '2026-12-01', hasta: '2026-12-31' })
+  })
+
+  /*
+   * EL DESFASAJE QUE YA MORDIÓ ANTES. `new Date('2026-05-01')` es medianoche
+   * UTC, que en Argentina son las 21:00 del 30 de abril: el rango arrancaría
+   * un día antes y el desglose traería documentos de otro mes.
+   */
+  it('no se corre un día por el huso horario', () => {
+    for (const mes of ['2026-01-01', '2026-05-01', '2026-09-01', '2026-12-01']) {
+      expect(rangoDelMes(mes)?.desde).toBe(mes)
+    }
+  })
+
+  it('una entrada que no es un mes no devuelve un rango inventado', () => {
+    for (const malo of ['', 'mayo', '2026', '2026-13-01', '2026-00-01']) {
+      expect(rangoDelMes(malo)).toBeNull()
+    }
+  })
+
+  it('acepta el día que venga: lo que importa es el mes', () => {
+    expect(rangoDelMes('2026-05-17')).toEqual({ desde: '2026-05-01', hasta: '2026-05-31' })
   })
 })
