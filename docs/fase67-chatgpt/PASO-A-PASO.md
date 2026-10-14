@@ -5,6 +5,7 @@ Lo que ya está hecho y desplegado:
 | Pieza | Dónde | Estado |
 |---|---|---|
 | Servidor MCP | `https://jiudqbusyknubonpedde.supabase.co/functions/v1/erp-mcp` | desplegado, 14 pruebas pasando |
+| La skill con los prompts | la sirve el MCP (`skills/list`) | desplegada; el import lo valida ChatGPT |
 | API REST (opcional, para clientes que no hablen MCP) | `…/functions/v1/erp-api` | desplegada, 15 pruebas pasando |
 | Pantalla de consentimiento | `https://app.buscatools.com/#/oauth/consent` | **publicada y verificada** |
 
@@ -137,9 +138,23 @@ De vuelta en la pantalla del paso 4:
      hace falta, y aparece la pantalla de consentimiento.
    - Mirá el destino que muestra: tiene que ser la URL de ChatGPT del paso 4.5.
      Para eso está.
-   - **Conectar** → vuelve a ChatGPT y escanea las herramientas.
-5. Si el escaneo anda, tienen que aparecer **13 herramientas**.
+   - **Conectar** → vuelve a ChatGPT y escanea.
+5. Tienen que aparecer **14 herramientas** (las trece de datos más
+   `quien_soy`) **y una skill**, `erp-buscatools`.
+
+   **Fijate en la skill, no sólo en las herramientas.** Ahí viven los prompts:
+   las reglas de no inventar, de insistir antes de decir que no hay, de no
+   sumar monedas distintas. Si el import de la skill falla, ChatGPT **igual
+   importa las herramientas** y no avisa de nada: el agente funciona y contesta
+   peor. Es la falla que no se nota.
+
+   Si no aparece, decime y lo miro: el servidor la sirve y hay pruebas, pero la
+   validación del import la hace OpenAI de su lado.
 6. **Create**.
+
+> **Las skills son un snapshot, no algo vivo.** Si más adelante cambiamos el
+> texto de los prompts y desplegamos, ChatGPT sigue usando el que importó: hay
+> que volver a correr **Scan Tools**, revisar y publicar una versión nueva.
 
 ---
 
@@ -179,10 +194,6 @@ el mismo prompt.
 
 ## Lo que todavía no está, y conviene tener presente
 
-- **La skill con los prompts.** Hoy el servidor manda unas instrucciones
-  mínimas en el `initialize`. Los prompts buenos —los cinco especialistas de
-  `agentes.ts`— están en [INSTRUCCIONES.md](INSTRUCCIONES.md) y hay que
-  volcarlos como skill del plugin.
 - **Escribir.** Las trece herramientas de hoy leen. Crear cotizaciones desde
   ChatGPT es la etapa siguiente: una RPC nueva que re-resuelve el borrador del
   lado del servidor —así lo que se crea es lo que se mostró— con idempotencia
