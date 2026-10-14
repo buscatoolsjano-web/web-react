@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Buscatools ERP</title>
+    <meta name="robots" content="noindex" />
+    <script>
+      /*
+       * Rescate de las rutas de OAuth servidas como path, no como hash.
+       *
+       * La aplicación usa un router de HASH —se sirve desde GitHub Pages, donde
+       * un path que no es un archivo da 404—, así que sus URL son del tipo
+       * `/#/oauth/consent`. Pero Supabase Auth arma la redirección del
+       * consentimiento pegándole el query a la ruta configurada, y si esa ruta
+       * se configura lisa («/oauth/consent») el navegador pide un path que acá
+       * no existe y GitHub contesta esto.
+       *
+       * Entonces esto traduce: `/oauth/consent?authorization_id=x` pasa a ser
+       * `/#/oauth/consent?authorization_id=x`, que el router sí entiende.
+       *
+       * ── Por qué SÓLO /oauth/ ──────────────────────────────────────────────
+       *
+       * Podría ser un fallback general para toda la aplicación, y es lo que
+       * suele hacerse. No lo es a propósito: hoy una URL mal escrita muestra el
+       * 404 del hosting, y convertir eso en «entra a la app» es un cambio de
+       * comportamiento en todo el sitio que nadie pidió. Acá hace falta para
+       * una ruta concreta, así que arregla esa.
+       *
+       * El destino se arma sólo con la ruta y el query de la propia dirección,
+       * y siempre relativo: no hay forma de que esto mande a otro sitio.
+       */
+      (function () {
+        var ruta = window.location.pathname
+        var corte = ruta.indexOf('/oauth/')
+        if (corte === -1) return
+
+        var interna = ruta.slice(corte) // «/oauth/consent»
+        window.location.replace(
+          window.location.origin + '/#' + interna + window.location.search,
+        )
+      })()
+    </script>
+  </head>
+  <body>
+    <p>Buscatools ERP</p>
+  </body>
+</html>

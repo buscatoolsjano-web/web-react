@@ -303,6 +303,11 @@ const DefinirContrasenaPage = lazyConRecarga(() =>
 const LoginPage = lazyConRecarga(() =>
   import('@/features/auth/pages/LoginPage').then((m) => ({ default: m.LoginPage })),
 )
+const ConsentimientoOAuthPage = lazyConRecarga(() =>
+  import('@/features/auth/pages/ConsentimientoOAuthPage').then((m) => ({
+    default: m.ConsentimientoOAuthPage,
+  })),
+)
 const NotFoundPage = lazyConRecarga(() =>
   import('@/app/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 )
@@ -486,6 +491,27 @@ export const routes: RouteObject[] = [
       // URL: capturarCallback los saca antes de montar el router).
       { path: 'definir-contrasena', element: conSuspense(<DefinirContrasenaPage />) },
     ],
+  },
+
+  /*
+   * Consentimiento de OAuth (Fase 67 · E0).
+   *
+   * Supabase Auth es el servidor de autorización, pero manda a la persona ACÁ
+   * para que apruebe, con un `authorization_id` en la URL. Es una rama propia
+   * y no una pantalla del ERP a propósito: no se entra por el menú, se llega
+   * desde afuera y se vuelve a salir.
+   *
+   * Reusa `AuthLayout` —la tarjeta centrada con el logo— porque es la misma
+   * situación: una decisión sola, sin navegación alrededor.
+   *
+   * Va PRIVADA: no se puede consentir sin estar logueado, y `ProtectedRoute`
+   * ya manda al login con `?next=` y vuelve con el id intacto.
+   */
+  {
+    path: '/oauth',
+    element: <AuthLayout />,
+    errorElement: <ErrorPage />,
+    children: [{ path: 'consent', element: privada(<ConsentimientoOAuthPage />) }],
   },
   ...rutasDesarrollo,
 ]
