@@ -6,29 +6,26 @@ Lo que ya está hecho y desplegado:
 |---|---|---|
 | Servidor MCP | `https://jiudqbusyknubonpedde.supabase.co/functions/v1/erp-mcp` | desplegado, 14 pruebas pasando |
 | API REST (opcional, para clientes que no hablen MCP) | `…/functions/v1/erp-api` | desplegada, 15 pruebas pasando |
-| Pantalla de consentimiento | `/#/oauth/consent` | escrita y probada, **falta publicarla** |
+| Pantalla de consentimiento | `https://app.buscatools.com/#/oauth/consent` | **publicada y verificada** |
 
 Lo que falta es todo configuración, y va en este orden porque cada paso
 necesita un dato del anterior.
 
 ---
 
-## 1 · Publicar la web (si no, el paso 4 falla)
+## 1 · Publicar la web — ✅ hecho
 
-La pantalla de consentimiento existe en el repo pero no en producción. Supabase
-va a mandar a la gente ahí, así que tiene que estar publicada **antes** de
-conectar nada.
+Commiteado y publicado el 2026-10-14 (`678dd3f`). De paso se arregló la suite
+aislada, que venía frenando el deploy desde `771eb86`: CI exige
+`npm run test:isolated` antes de publicar y fallaba en cuatro archivos, así que
+nada se estaba publicando. Ver ese commit.
 
-Decime y hago el commit y el push; el workflow de GitHub publica solo. O lo
-hacés vos. Para comprobar que quedó, esta URL tiene que mostrar la tarjeta del
-ERP y no un 404:
+Si querés comprobarlo con tus propios ojos, esta URL tiene que mostrar la
+tarjeta del ERP (y, sin sesión, mandarte al login):
 
 ```
 https://app.buscatools.com/#/oauth/consent
 ```
-
-(Sin `authorization_id` va a decir «no hay nada que aprobar». Eso está bien: es
-la pantalla andando.)
 
 ---
 
@@ -51,13 +48,20 @@ Dashboard → **Authentication** → **OAuth Apps**.
    su configuración hay **Advanced OAuth settings → cliente definido por el
    usuario**, que es el camino del paso 4.
 3. **Site URL**: `https://app.buscatools.com`
-4. **Authorization Path**: `/#/oauth/consent`
+4. **Authorization Path**: `/oauth/consent` o `/#/oauth/consent`, las dos
+   andan.
 
-   Probá esa primero. Si el campo no acepta el `#`, poné `/oauth/consent`: dejé
-   un `404.html` que traduce una cosa en la otra. **Aviso honesto**: la forma
-   con `#` está probada de punta a punta; la lisa depende de ese fallback, que
-   no se puede probar sin publicar en GitHub Pages. Si tenés que usar la lisa,
-   decime y lo verifico en cuanto esté arriba.
+   Verificado en producción el 2026-10-14: la forma lisa cae en el 404 de
+   GitHub Pages, el `404.html` la traduce al hash, y el `authorization_id`
+   sobrevive ese salto **y** el del login si la persona no tenía sesión. La
+   cadena completa queda así:
+
+   ```
+   /oauth/consent?authorization_id=X
+     → /#/oauth/consent?authorization_id=X
+     → /#/auth/login?next=%2Foauth%2Fconsent%3Fauthorization_id%3DX
+     → (se loguea) → la pantalla de consentimiento, con el pedido intacto
+   ```
 
 Cuando termines esto, **avisame**: corro un chequeo de tres cosas que deciden si
 hace falta escribir código de autenticación o no.
