@@ -80,8 +80,26 @@ describe('el despachador JSON-RPC', () => {
     expect(resolver({ method: 'metodo/inventado' }).clase).toBe('nada')
   })
 
+  /*
+   * Varios clientes sondean métodos de capacidades que el servidor no declaró.
+   * Contestarles «no conozco ese método» puede hacer que abandonen la conexión
+   * entera, y el síntoma que se ve —«no se encontraron herramientas»— no se
+   * parece en nada a la causa. Listas vacías, que además es la verdad.
+   */
+  it('los sondeos de recursos y prompts se contestan vacíos, no con un error', () => {
+    for (const [metodo, clave] of [
+      ['resources/list', 'resources'],
+      ['resources/templates/list', 'resourceTemplates'],
+      ['prompts/list', 'prompts'],
+    ]) {
+      const r = resolver({ id: 1, method: metodo })
+      expect(r.clase, metodo).toBe('resultado')
+      expect(r.clase === 'resultado' && r.resultado[clave!]).toEqual([])
+    }
+  })
+
   it('un método desconocido CON id sí se contesta', () => {
-    const r = resolver({ id: 7, method: 'resources/list' })
+    const r = resolver({ id: 7, method: 'completion/complete' })
     expect(r.clase).toBe('error')
     if (r.clase !== 'error') return
     expect(r.codigo).toBe(SIN_METODO)

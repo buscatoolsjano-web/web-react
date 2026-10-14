@@ -150,6 +150,32 @@ Deno.serve(async (req: Request): Promise<Response> => {
     })
   }
 
+  /**
+   * Qué método pidieron. UNA línea por petición.
+   *
+   * No es ruido: Supabase registra el método HTTP y el status, pero no el
+   * cuerpo, y en MCP todo es `POST /` con 200. Sin esto, un «no se encontraron
+   * herramientas» se ve en los logs exactamente igual que una conexión
+   * perfecta —tres POST con 200— y no hay por dónde empezar.
+   *
+   * Se registran el método y la versión del protocolo, nunca los argumentos:
+   * un `tools/call` lleva nombres de clientes y precios adentro.
+   */
+  const metodo = typeof peticion['method'] === 'string' ? peticion['method'] : '(sin método)'
+  const params = (
+    typeof peticion['params'] === 'object' && peticion['params'] !== null ? peticion['params'] : {}
+  ) as Record<string, unknown>
+  anotar({
+    rpc: metodo,
+    ...(metodo === 'initialize'
+      ? {
+          pidioVersion: String(params['protocolVersion'] ?? ''),
+          cliente: String((params['clientInfo'] as { name?: unknown })?.name ?? ''),
+        }
+      : {}),
+    ...(metodo === 'tools/call' ? { herramienta: String(params['name'] ?? '') } : {}),
+  })
+
   const resuelto = resolver(peticion, { digestDelMd: DIGEST_SKILL })
 
   /*
@@ -159,12 +185,28 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (resuelto.clase === 'nada') return new Response(null, { status: 202 })
 
   if (resuelto.clase === 'resultado') {
-    return new Response(JSON.stringify(sobre(resuelto.id, resuelto.resultado)), {
-      status: 200,
-      headers: JSON_CAB,
+    const cuerpo = JSON.stringify(sobre(resuelto.id, resuelto.resultado))
+    // Cuántas herramientas salieron de verdad: es el número que hay que poder
+    // comparar contra el que muestra ChatGPT cuando dice que no encontró nada.
+    anotar({
+      rpc: metodo,
+      contesto: 'resultado',
+      bytes: cuerpo.length,
+      ...(metodo === 'tools/list'
+        ? { herramientas: (resuelto.resultado['tools'] as unknown[] | undefined)?.length ?? 0 }
+        : {}),
+      ...(metodo === 'initialize'
+        ? { doyVersion: String(resuelto.resultado['protocolVersion'] ?? '') }
+        : {}),
     })
+    return new Response(cuerpo, { status: 200, headers: JSON_CAB })
   }
   if (resuelto.clase === 'error') {
+    // Un método que no conocemos sale con 200 y un error JSON-RPC adentro, así
+    // que en los logs de Supabase es indistinguible de una respuesta buena.
+    // Acá sí se ve: si el cliente prueba `resources/list` o `prompts/list` y se
+    // va, este renglón es la explicación.
+    anotar({ rpc: metodo, contesto: 'error', codigo: resuelto.codigo })
     return new Response(
       JSON.stringify(sobreError(resuelto.id, resuelto.codigo, resuelto.mensaje)),
       { status: 200, headers: JSON_CAB },

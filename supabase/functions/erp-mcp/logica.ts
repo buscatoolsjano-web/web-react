@@ -363,6 +363,29 @@ export function resolver(p: Peticion, opciones: OpcionesDeResolver = {}): Resuel
     return { clase: 'resultado', id, resultado: entradaDeSkill(digest) }
   }
 
+  /*
+   * ── LOS SONDEOS QUE NO TIENEN QUE DOLER ───────────────────────────────────
+   *
+   * Un cliente no debería pedir métodos de capacidades que el servidor no
+   * declaró, pero varios los sondean igual, y acá hay un motivo extra para
+   * que lo hagan: declaramos la extensión de skills, que se apoya en
+   * recursos. Contestar «no conozco ese método» a un sondeo puede hacer que
+   * el cliente abandone la conexión entera, y el síntoma —«no se encontraron
+   * herramientas»— no se parece en nada a la causa.
+   *
+   * Listas vacías, que además es la verdad: los recursos de la skill se
+   * enumeran en su propio manifiesto, no acá, y prompts no tenemos.
+   */
+  if (metodo === 'resources/list') {
+    return { clase: 'resultado', id, resultado: { resources: [] } }
+  }
+  if (metodo === 'resources/templates/list') {
+    return { clase: 'resultado', id, resultado: { resourceTemplates: [] } }
+  }
+  if (metodo === 'prompts/list') {
+    return { clase: 'resultado', id, resultado: { prompts: [] } }
+  }
+
   if (metodo === 'resources/read') {
     const params = (typeof p.params === 'object' && p.params !== null ? p.params : {}) as {
       uri?: unknown
