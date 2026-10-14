@@ -14,7 +14,11 @@
  *
  *   1. Entrá a la app y logueate.
  *   2. En la consola del navegador:
- *      JSON.parse(Object.entries(localStorage).find(([k]) => k.includes('auth-token'))[1]).access_token
+ *      JSON.parse(localStorage.getItem('bt-auth')).access_token
+ *
+ *   La clave es 'bt-auth', NO la de por omisión de Supabase: este proyecto la
+ *   renombra en services/supabase/client.ts. Buscarla por el texto
+ *   «auth-token» no encuentra nada y tira un TypeError que no dice por qué.
  *   3. Exportalo como ERP_API_TOKEN. Dura una hora.
  *
  * El token no se imprime nunca.
