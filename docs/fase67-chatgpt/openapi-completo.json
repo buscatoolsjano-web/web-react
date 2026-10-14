@@ -628,6 +628,82 @@
         }
       }
     },
+    "/h/crear_cotizacion": {
+      "post": {
+        "operationId": "crear_cotizacion",
+        "summary": "CREA la cotización de verdad en el ERP y devuelve su número",
+        "description": "CREA la cotización de verdad en el ERP y devuelve su número. Usala sólo cuando la persona ya vio el borrador de preparar_cotizacion y pidió crearla. Resuelve el borrador de nuevo en el servidor, así que mandale los MISMOS argumentos que le pasaste a preparar_cotizacion. Si algún renglón no se puede resolver no crea nada y te dice cuál. Si la acabás de crear, no crea una segunda: devuelve la que ya existe.",
+        "x-openai-isConsequential": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cliente": {
+                    "type": "string",
+                    "description": "El nombre del cliente, el mismo que usaste en preparar_cotizacion."
+                  },
+                  "productos": {
+                    "type": "array",
+                    "description": "Los mismos renglones que le pasaste a preparar_cotizacion.",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "producto": {
+                          "type": "string",
+                          "description": "El SKU si lo sabés, o el nombre tal como lo dijeron."
+                        },
+                        "cantidad": {
+                          "type": "integer",
+                          "description": "Cuántas unidades. Si no lo dijeron, 1."
+                        }
+                      },
+                      "required": [
+                        "producto",
+                        "cantidad"
+                      ]
+                    }
+                  },
+                  "moneda": {
+                    "type": "string",
+                    "description": "USD, ARS o EUR. Por defecto USD."
+                  },
+                  "empresa": {
+                    "type": "string",
+                    "description": "Sólo si trabajás en más de una empresa y querés una distinta de la habitual. Normalmente se omite: el servidor usa la tuya. Es el nombre, como lo devuelve /yo."
+                  }
+                },
+                "required": [
+                  "cliente",
+                  "productos"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    },
     "/h/ultimo_costo": {
       "post": {
         "operationId": "ultimo_costo",

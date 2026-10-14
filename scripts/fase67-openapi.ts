@@ -21,7 +21,7 @@
  * fallaría sin que nadie supiera por qué.
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { documentoOpenAPI, gptsAArmar, herramientasDelGpt } from '../supabase/functions/erp-api/logica.ts'
+import { documentoOpenAPI, gptsAArmar } from '../supabase/functions/erp-api/logica.ts'
 
 const url = process.env['VITE_SUPABASE_URL'] ?? process.env['SUPABASE_URL'] ?? ''
 if (url === '') {
@@ -46,5 +46,11 @@ for (const gpt of gptsAArmar()) {
   escribir(`openapi-${gpt.id}.json`, documentoOpenAPI(servidor, gpt.herramientas))
 }
 
-// El de «todo en uno», por si se prefiere un solo GPT en vez de cinco.
-escribir('openapi-unico.json', documentoOpenAPI(servidor, herramientasDelGpt('general')))
+/*
+ * No hay un «todo en uno» aparte: para eso está `openapi-completo.json`.
+ *
+ * Hubo uno, derivado de `herramientasDelGpt('general')`, y daba una operación
+ * MENOS que el completo: `crear_cotizacion` no se le da a ningún agente de la
+ * web a propósito, así que la unión de lo que saben los cinco no la incluye.
+ * Un archivo que dice «todo» y no lo es confunde más de lo que ayuda.
+ */

@@ -82,9 +82,9 @@ async function main() {
    * puerta a propósito y publicarla porque alguien tocó otro archivo.
    */
   cmp(
-    'una herramienta no expuesta no existe: 404',
+    'una herramienta inventada no existe: 404',
     404,
-    (await pedir('/h/crear_cotizacion', { metodo: 'POST', cuerpo: {} })).status,
+    (await pedir('/h/buscar_productos_x', { metodo: 'POST', cuerpo: {} })).status,
   )
 
   console.log('\n  El documento OpenAPI')
@@ -107,11 +107,17 @@ async function main() {
   })
   cmp('ninguna operación pide un identificador', 0, conIdentificador.length)
 
-  // Las lecturas no pueden pedir confirmación: sería un clic por búsqueda.
+  /*
+   * Las lecturas no pueden pedir confirmación —sería un clic por búsqueda— y
+   * lo que escribe TIENE que pedirla: una cotización creada sin que nadie la
+   * viera es la falla que importa. Se compara la lista completa de las dos
+   * cosas de una vez, así que agregar una escritura sin marcarla rompe acá.
+   */
   const pidenConfirmacion = Object.entries(doc.paths ?? {})
     .filter(([, m]) => m.post?.['x-openai-isConsequential'] === true)
     .map(([ruta]) => ruta)
-  cmp('ninguna lectura pide confirmación', '', pidenConfirmacion.join(','))
+    .sort()
+  cmp('sólo lo que escribe pide confirmación', '/h/crear_cotizacion', pidenConfirmacion.join(','))
 
   if (TOKEN === '') {
     console.log('\n  (Sin ERP_API_TOKEN: me salto lo que necesita una persona de verdad.)')

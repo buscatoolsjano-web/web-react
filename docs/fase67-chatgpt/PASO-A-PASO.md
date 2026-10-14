@@ -6,6 +6,7 @@ Lo que ya está hecho y desplegado:
 |---|---|---|
 | Servidor MCP | `https://jiudqbusyknubonpedde.supabase.co/functions/v1/erp-mcp` | desplegado, 14 pruebas pasando |
 | La skill con los prompts | la sirve el MCP (`skills/list`) | desplegada; el import lo valida ChatGPT |
+| Crear cotizaciones | RPC `asistente_crear_cotizacion` | aplicada; los caminos que se niegan, probados |
 | API REST (opcional, para clientes que no hablen MCP) | `…/functions/v1/erp-api` | desplegada, 15 pruebas pasando |
 | Pantalla de consentimiento | `https://app.buscatools.com/#/oauth/consent` | **publicada y verificada** |
 
@@ -180,8 +181,8 @@ De vuelta en la pantalla del paso 4:
    - Mirá el destino que muestra: tiene que ser la URL de ChatGPT del paso 4.5.
      Para eso está.
    - **Conectar** → vuelve a ChatGPT y escanea.
-5. Tienen que aparecer **14 herramientas** (las trece de datos más
-   `quien_soy`) **y una skill**, `erp-buscatools`.
+5. Tienen que aparecer **15 herramientas** (trece de lectura, `crear_cotizacion`
+   y `quien_soy`) **y una skill**, `erp-buscatools`.
 
    **Fijate en la skill, no sólo en las herramientas.** Ahí viven los prompts:
    las reglas de no inventar, de insistir antes de decir que no hay, de no
@@ -233,12 +234,44 @@ el mismo prompt.
 
 ---
 
+## Crear cotizaciones: cómo quedó
+
+`crear_cotizacion` es la única herramienta que escribe, y hay tres cosas que
+conviene saber antes de usarla.
+
+**ChatGPT va a pedir confirmación cada vez.** Está marcada `readOnlyHint:
+false`, que es lo que hace que no ofrezca «permitir siempre». La confirmación
+ahora vive en ChatGPT y no en nuestra pantalla, así que es el único momento en
+que alguien ve los datos antes de que la cotización exista. La skill además le
+prohíbe crearla sin haber mostrado antes el borrador.
+
+**El modelo no puede alterar lo que se crea.** Manda un nombre de cliente y una
+lista de «producto, cantidad» —lo mismo que a `preparar_cotizacion`— y la RPC
+vuelve a resolver el borrador del lado del servidor. Nunca manda un
+identificador, ni un precio, ni un total.
+
+**Un reintento no crea una segunda.** La idempotencia es por huella —empresa,
+cliente, moneda, autor, subtotal y cantidad de renglones dentro de 10 minutos—
+y no por una clave que mande el modelo, porque en un reintento el modelo
+generaría otra clave y no serviría de nada. Ante la duda no crea: devuelve la
+que ya existe con su número.
+
+Y un límite que no es un error: **un rol `salesperson` no puede crear
+cotizaciones**, porque `crear_cotizacion` del ERP exige `admin` o `employee`. La
+herramienta lo dice con un mensaje claro en vez de fallar con un código, y en
+ese caso el agente muestra el borrador y dice a quién pedírselo.
+
+Lo que **no** está probado de punta a punta es la creación real: una prueba
+automática dejaría un documento de verdad y consumiría un número de la
+secuencia. Lo que sí está probado, como `authenticated` y no como `postgres`,
+son los cuatro caminos que se niegan: empresa ajena, rol insuficiente, cliente
+inexistente y renglón sin resolver. La primera creación conviene hacerla a mano
+y mirarla.
+
+---
+
 ## Lo que todavía no está, y conviene tener presente
 
-- **Escribir.** Las trece herramientas de hoy leen. Crear cotizaciones desde
-  ChatGPT es la etapa siguiente: una RPC nueva que re-resuelve el borrador del
-  lado del servidor —así lo que se crea es lo que se mostró— con idempotencia
-  para que un reintento no deje dos cotizaciones.
 - **`mi_contexto`.** Para que el agente sepa de entrada en qué anda cada uno
   (sus clientes, sus pendientes, sus marcas) sin tener que aprenderlo. El ERP ya
   tiene el dato en `created_by`, con la limitación conocida: sólo ve lo que

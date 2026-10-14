@@ -13,7 +13,7 @@ import {
   versionAUsar,
   VERSIONES,
 } from './logica'
-import { EXPUESTAS } from '../erp-api/logica'
+import { ESCRITURAS, EXPUESTAS } from '../erp-api/logica'
 import {
   entradaDeSkill,
   INSTRUCCIONES,
@@ -123,7 +123,7 @@ describe('el despachador JSON-RPC', () => {
    * una puerta tiene que ser una decisión, no una consecuencia.
    */
   it('una herramienta no expuesta no se ejecuta', () => {
-    for (const nombre of ['crear_cotizacion', 'inventada', '']) {
+    for (const nombre of ['buscar_productos_x', 'inventada', '']) {
       const r = resolver({ id: 5, method: 'tools/call', params: { name: nombre } })
       expect(r.clase, nombre).toBe('error')
       expect(r.clase === 'error' && r.codigo).toBe(PARAMS_MAL)
@@ -247,7 +247,9 @@ describe('el contenido de la skill', () => {
       ['sin datos no es cero', /No es lo mismo que cero/i],
       ['rankear con orden=importe, no a ojo', /orden=importe/],
       ['no inventar un producto para completar una cotización', /Nunca elijas un producto parecido/i],
-      ['que la cotización la crea la persona', /Vos no la creás/i],
+      ['que no se crea una cotización sin mostrar antes el borrador', /sin haber mostrado antes el borrador/i],
+      ['que el borrador no crea nada', /\*\*No crea nada\.\*\*/],
+      ['que un reintento no crea una segunda', /ya_existia/],
       ['el stock que importa es el disponible', /disponible/i],
       ['lo que se ve depende de los permisos', /permisos de la persona conectada/i],
     ]
@@ -318,12 +320,32 @@ describe('las herramientas que se publican', () => {
    * un clic por búsqueda, o —al revés, el día que entre una escritura— una
    * escritura sin confirmar.
    */
-  it('todas dicen que sólo leen, porque hoy sólo leen', () => {
+  it('las lecturas dicen que sólo leen', () => {
     for (const t of tools) {
       const a = t['annotations'] as Record<string, boolean>
-      expect(a['readOnlyHint'], String(t['name'])).toBe(true)
-      expect(a['destructiveHint'], String(t['name'])).toBe(false)
-      expect(a['openWorldHint'], String(t['name'])).toBe(false)
+      const nombre = String(t['name'])
+      if (ESCRITURAS.has(nombre)) continue
+      expect(a['readOnlyHint'], nombre).toBe(true)
+      expect(a['destructiveHint'], nombre).toBe(false)
+      expect(a['openWorldHint'], nombre).toBe(false)
+    }
+  })
+
+  /*
+   * Y el que de verdad importa: una escritura marcada como lectura es una
+   * cotización creada y mandada a un cliente sin que nadie la viera. Tiene que
+   * coincidir con el `x-openai-isConsequential` del OpenAPI, y por eso las dos
+   * salen de `ESCRITURAS` y no de dos listas escritas a mano.
+   */
+  it('lo que escribe NO dice que sólo lee', () => {
+    expect(ESCRITURAS.size, 'si no hay escrituras este test no prueba nada').toBeGreaterThan(0)
+    for (const nombre of ESCRITURAS) {
+      const t = tools.find((x) => x['name'] === nombre)
+      expect(t, `${nombre} escribe y no está publicada`).toBeDefined()
+      const a = t?.['annotations'] as Record<string, boolean>
+      expect(a['readOnlyHint'], nombre).toBe(false)
+      // Crear no es destructivo: agrega un documento, no pisa ni borra nada.
+      expect(a['destructiveHint'], nombre).toBe(false)
     }
   })
 
@@ -344,8 +366,8 @@ describe('las herramientas que se publican', () => {
       PERFIL,
       'buscar_productos',
     ])
-    // Y pedir una no expuesta no la publica.
-    expect(herramientasMCP(['crear_cotizacion']).map((x) => x['name'])).toEqual([PERFIL])
+    // Y pedir una que no existe no la publica.
+    expect(herramientasMCP(['inventada']).map((x) => x['name'])).toEqual([PERFIL])
   })
 })
 

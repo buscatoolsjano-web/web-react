@@ -43,6 +43,9 @@ export const EXPUESTAS: readonly string[] = [
   'buscar_documentos',
   'ver_documento',
   'preparar_cotizacion',
+  // La única que escribe. Ver `ESCRITURAS` en `erp-mcp/logica.ts`: es lo que
+  // hace que ChatGPT pida confirmación antes de llamarla.
+  'crear_cotizacion',
   // compras
   'ultimo_costo',
   // informes
@@ -52,12 +55,15 @@ export const EXPUESTAS: readonly string[] = [
 ]
 
 /**
- * Las que ESCRIBEN. Hoy ninguna; `crear_cotizacion` entra acá en la E3.
+ * Las que ESCRIBEN.
  *
- * Importa porque decide si ChatGPT pide confirmación cada vez. Ver
- * `consecuente()`.
+ * Importa porque decide si el cliente pide confirmación antes de llamarlas:
+ * acá sale como `x-openai-isConsequential` en el OpenAPI, y en MCP como
+ * `readOnlyHint: false`. Está exportado porque las dos puertas tienen que
+ * coincidir: una herramienta que escribe y que en una de las dos pasa por
+ * lectura es una escritura sin confirmar.
  */
-const ESCRITURAS: ReadonlySet<string> = new Set<string>([])
+export const ESCRITURAS: ReadonlySet<string> = new Set<string>(['crear_cotizacion'])
 
 /**
  * El parámetro que NO viene del catálogo.

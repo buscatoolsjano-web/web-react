@@ -315,6 +315,47 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
     fijos: ['company'],
     maxFilas: 1,
   },
+  {
+    /*
+     * ── LA ÚNICA QUE ESCRIBE (Fase 67 · E3) ───────────────────────────────
+     *
+     * No la tiene ningún agente de `agentes.ts`, y eso es a propósito: el
+     * asistente de la web no necesita crear nada, porque ahí la persona tiene
+     * el botón. Esta existe para las puertas de afuera, donde no hay botón.
+     *
+     * Recibe LO MISMO que `preparar_cotizacion` —un nombre y una lista de
+     * «producto, cantidad»— y la RPC vuelve a resolver el borrador del lado
+     * del servidor. El modelo nunca manda un identificador, ni un precio, ni
+     * un total: no puede alterar lo que se va a crear aunque quiera.
+     */
+    id: 'crear_cotizacion',
+    descripcion:
+      'CREA la cotización de verdad en el ERP y devuelve su número. ' +
+      'Usala sólo cuando la persona ya vio el borrador de preparar_cotizacion y pidió crearla. ' +
+      'Resuelve el borrador de nuevo en el servidor, así que mandale los MISMOS argumentos ' +
+      'que le pasaste a preparar_cotizacion. Si algún renglón no se puede resolver no crea ' +
+      'nada y te dice cuál. Si la acabás de crear, no crea una segunda: devuelve la que ya existe.',
+    parametros: {
+      cliente: texto('El nombre del cliente, el mismo que usaste en preparar_cotizacion.'),
+      productos: {
+        type: 'array',
+        description: 'Los mismos renglones que le pasaste a preparar_cotizacion.',
+        items: {
+          type: 'object',
+          properties: {
+            producto: texto('El SKU si lo sabés, o el nombre tal como lo dijeron.'),
+            cantidad: entero('Cuántas unidades. Si no lo dijeron, 1.'),
+          },
+          required: ['producto', 'cantidad'],
+        },
+      },
+      moneda: texto('USD, ARS o EUR. Por defecto USD.'),
+    },
+    obligatorios: ['cliente', 'productos'],
+    rpc: 'asistente_crear_cotizacion',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
 
   // ── compras ───────────────────────────────────────────────────────────────
   {

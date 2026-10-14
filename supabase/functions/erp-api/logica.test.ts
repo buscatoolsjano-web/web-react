@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   documentoOpenAPI,
   elegirEmpresa,
+  ESCRITURAS,
   EXPUESTAS,
   gptsAArmar,
   herramientasDelGpt,
@@ -102,12 +103,27 @@ describe('la confirmación de ChatGPT', () => {
    */
   it('ninguna lectura pide confirmación', () => {
     for (const id of EXPUESTAS) {
+      if (ESCRITURAS.has(id)) continue
       expect(
         paths[`/h/${id}`]?.['post']?.['x-openai-isConsequential'],
         `${id} pide confirmación`,
       ).toBe(false)
     }
     expect(paths['/yo']?.['get']?.['x-openai-isConsequential']).toBe(false)
+  })
+
+  /*
+   * Y al revés, que es el que duele: una escritura SIN confirmación es una
+   * cotización creada y mandada a un cliente sin que nadie la viera.
+   */
+  it('lo que escribe SÍ pide confirmación, siempre', () => {
+    expect(ESCRITURAS.size, 'si no hay escrituras este test no prueba nada').toBeGreaterThan(0)
+    for (const id of ESCRITURAS) {
+      expect(
+        paths[`/h/${id}`]?.['post']?.['x-openai-isConsequential'],
+        `${id} escribe y no pide confirmación`,
+      ).toBe(true)
+    }
   })
 })
 
@@ -132,9 +148,26 @@ describe('el reparto de herramientas por GPT', () => {
    * persona al elegir con quién habla—, pero su lista sigue siendo útil: es el
    * esquema completo, el que se pega si uno prefiere UN solo GPT que haga todo.
    */
-  it('el derivador no es un GPT, pero su lista es la superficie entera', () => {
+  it('el derivador no es un GPT, pero su lista es todo lo que saben los cinco', () => {
     expect(gptsAArmar().map((g) => g.id)).not.toContain('general')
-    expect(herramientasDelGpt('general')).toEqual([...EXPUESTAS])
+    const todas = new Set(gptsAArmar().flatMap((g) => g.herramientas))
+    expect(herramientasDelGpt('general')).toEqual([...EXPUESTAS].filter((id) => todas.has(id)))
+  })
+
+  /*
+   * ── QUE EL ASISTENTE DE LA WEB NO PUEDA ESCRIBIR ──────────────────────────
+   *
+   * `crear_cotizacion` está en el catálogo y expuesta hacia afuera, pero NO se
+   * le da a ningún agente de `agentes.ts`. No es un olvido: en la web la
+   * persona tiene el botón de la tarjeta, y el día que alguien agregue la
+   * herramienta a la lista de Ventas «para que sea más cómodo», el asistente
+   * de la pantalla pasaría a crear documentos sin que nadie lo decidiera.
+   */
+  it('ningún agente de la web tiene una herramienta que escriba', () => {
+    const deLosAgentes = new Set(gptsAArmar().flatMap((g) => g.herramientas))
+    for (const id of ESCRITURAS) {
+      expect(deLosAgentes.has(id), `${id} escribe y se la dieron a un agente de la web`).toBe(false)
+    }
   })
 
   it('un agente que no existe no da herramientas', () => {
@@ -149,9 +182,10 @@ describe('el reparto de herramientas por GPT', () => {
    * los beneficios. Pasa solo, en silencio, el día que se agrega a EXPUESTAS y
    * se olvida de dársela a algún agente.
    */
-  it('toda herramienta expuesta la lleva al menos un GPT', () => {
+  it('toda herramienta expuesta la lleva un GPT, salvo las que escriben', () => {
     const cubiertas = new Set(gptsAArmar().flatMap((g) => g.herramientas))
     for (const id of EXPUESTAS) {
+      if (ESCRITURAS.has(id)) continue // a propósito: ver el test de arriba
       expect(cubiertas.has(id), `${id} está expuesta y ningún GPT la lleva`).toBe(true)
     }
   })
@@ -173,7 +207,7 @@ describe('el reparto de herramientas por GPT', () => {
 
   /* Un id que no está expuesto no entra por pedirlo en la lista. */
   it('el filtro no puede publicar algo que no esté expuesto', () => {
-    const doc = documentoOpenAPI('https://x', ['crear_cotizacion', 'buscar_productos'])
+    const doc = documentoOpenAPI('https://x', ['inventada', 'buscar_productos'])
     const rutas = Object.keys(doc['paths'] as Record<string, unknown>)
     expect(rutas).toEqual(['/yo', '/h/buscar_productos'])
   })
@@ -255,7 +289,8 @@ describe('el enrutado', () => {
    */
   it('una herramienta no expuesta no existe', () => {
     expect(rutaDe('POST', `${base}/erp-api/h/inventada`)).toEqual({ clase: 'desconocida' })
-    expect(rutaDe('POST', `${base}/erp-api/h/crear_cotizacion`)).toEqual({ clase: 'desconocida' })
+    // Ni algo que suene parecido a una que sí existe.
+    expect(rutaDe('POST', `${base}/erp-api/h/buscar_productos_x`)).toEqual({ clase: 'desconocida' })
   })
 
   it('distingue el método equivocado de la ruta inexistente', () => {

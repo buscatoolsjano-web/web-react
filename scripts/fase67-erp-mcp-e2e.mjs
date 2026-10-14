@@ -132,8 +132,18 @@ async function main() {
 
     const lista = await (await rpc('tools/list', undefined, { token: TOKEN })).json()
     const tools = lista.result?.tools ?? []
-    cmp('tools/list trae el perfil más las trece', 14, tools.length)
-    cmp('todas dicen que sólo leen', true, tools.every((t) => t.annotations?.readOnlyHint === true))
+    cmp('tools/list trae el perfil más las catorce', 15, tools.length)
+
+    /*
+     * Las lecturas dicen que leen, y lo que escribe dice que NO. Una escritura
+     * marcada como lectura es una cotización creada y mandada a un cliente sin
+     * que nadie la viera. Se compara la lista entera, así que agregar una
+     * escritura sin marcarla rompe acá.
+     */
+    const escriben = tools.filter((t) => t.annotations?.readOnlyHint === false).map((t) => t.name)
+    cmp('sólo crear_cotizacion dice que escribe', 'crear_cotizacion', escriben.sort().join(','))
+    cmp('y ninguna se declara destructiva', true,
+      tools.every((t) => t.annotations?.destructiveHint === false))
     cmp('todas tienen título legible', true, tools.every((t) => t.title && !t.title.includes('_')))
     cmp('ninguna pide un identificador', true,
       tools.every((t) => !('company' in (t.inputSchema?.properties ?? {}))))
@@ -163,14 +173,14 @@ async function main() {
 
     const uri = skill?.resources?.[0]?.uri
     const leido = await (await rpc('resources/read', { uri }, { token: TOKEN })).json()
-    const texto = leido.result?.contents?.[0]?.text ?? ''
+    const textoSkill = leido.result?.contents?.[0]?.text ?? ''
     cmp('resources/read devuelve un solo item', 1, leido.result?.contents?.length)
-    cmp('y es el SKILL.md', true, texto.startsWith('---\nname: erp-buscatools'))
+    cmp('y es el SKILL.md', true, textoSkill.startsWith('---\nname: erp-buscatools'))
 
     /* El digest declarado tiene que ser el del archivo servido: es lo que
        OpenAI verifica, y si no coincide rechaza el import entero. */
     const { createHash } = await import('node:crypto')
-    const real = `sha256:${createHash('sha256').update(texto, 'utf8').digest('hex')}`
+    const real = `sha256:${createHash('sha256').update(textoSkill, 'utf8').digest('hex')}`
     cmp('el digest coincide con el archivo', skill?.resources?.[0]?.digest, real)
 
     /* Que no se hayan perdido las reglas que evitan contestar mal. */
@@ -180,16 +190,16 @@ async function main() {
       ['costo contra precio', /el costo es lo que paga BuscaTools/i],
       ['nunca sumar monedas', /nunca sumes monedas distintas/i],
     ]) {
-      cmp(`la skill conserva: ${queEs}`, true, patron.test(texto))
+      cmp(`la skill conserva: ${queEs}`, true, patron.test(textoSkill))
     }
 
     console.log('\n  El perfil')
     const yo = await (await rpc('tools/call', { name: 'quien_soy', arguments: {} }, { token: TOKEN })).json()
-    const datos = JSON.parse(yo.result?.content?.[0]?.text ?? '{}')
-    console.log(`          sos «${datos.nombre}» en «${datos.empresa}»`)
-    cmp('dice quién sos', true, typeof datos.nombre === 'string' && datos.nombre.length > 0)
+    const quienSoy = JSON.parse(yo.result?.content?.[0]?.text ?? '{}')
+    console.log(`          sos «${quienSoy.nombre}» en «${quienSoy.empresa}»`)
+    cmp('dice quién sos', true, typeof quienSoy.nombre === 'string' && quienSoy.nombre.length > 0)
     cmp('y marca una empresa por defecto', 1,
-      (datos.empresas ?? []).filter((e) => e.porDefecto).length)
+      (quienSoy.empresas ?? []).filter((e) => e.porDefecto).length)
 
     /* Una notificación no se contesta: 202 y nada de cuerpo. */
     const noti = await rpc('notifications/initialized', undefined, { token: TOKEN, id: null })
@@ -200,11 +210,47 @@ async function main() {
     const noExiste = await (await rpc('resources/list', undefined, { token: TOKEN })).json()
     cmp('método desconocido: -32601', -32601, noExiste.error?.code)
 
-    /* Una herramienta no expuesta no se ejecuta aunque exista en el catálogo. */
+    /* Una herramienta que no existe no se ejecuta. */
     const vedada = await (
-      await rpc('tools/call', { name: 'crear_cotizacion', arguments: {} }, { token: TOKEN })
+      await rpc('tools/call', { name: 'buscar_productos_x', arguments: {} }, { token: TOKEN })
     ).json()
-    cmp('una herramienta no expuesta: -32602', -32602, vedada.error?.code)
+    cmp('una herramienta inventada: -32602', -32602, vedada.error?.code)
+
+    /*
+     * ── LA ESCRITURA, PROBADA SIN ESCRIBIR ──────────────────────────────────
+     *
+     * No se crea una cotización de verdad desde una prueba automática: dejaría
+     * un documento real y consumiría un número de la secuencia. Lo que sí se
+     * prueba es que se NIEGUE cuando tiene que negarse, que es la mitad que
+     * puede salir mal en silencio.
+     */
+    const sinResolver = await (
+      await rpc(
+        'tools/call',
+        {
+          name: 'crear_cotizacion',
+          arguments: {
+            cliente: 'mirgor',
+            productos: [{ producto: 'zz-producto-inexistente-xyz', cantidad: 1 }],
+          },
+        },
+        { token: TOKEN },
+      )
+    ).json()
+    const t = sinResolver.result?.content?.[0]?.text ?? '{}'
+    cmp('con un renglón sin resolver NO crea nada', true, /sin resolver/i.test(t))
+    cmp('y viene marcada como error, que es una instrucción para el modelo', true,
+      sinResolver.result?.isError === true)
+
+    const ajena2 = await (
+      await rpc(
+        'tools/call',
+        { name: 'crear_cotizacion', arguments: { cliente: 'zz-no-existe', productos: [{ producto: 'x', cantidad: 1 }] } },
+        { token: TOKEN },
+      )
+    ).json()
+    cmp('con un cliente que no existe tampoco', true,
+      /no encontré al cliente/i.test(ajena2.result?.content?.[0]?.text ?? ''))
 
     console.log('\n  Una herramienta de verdad')
     const llamada = await (

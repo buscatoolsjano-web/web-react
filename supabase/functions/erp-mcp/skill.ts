@@ -150,21 +150,37 @@ Un pedido puede entregarse en partes.
   \`buscar_documentos\` con \`orden=importe\` y la moneda. Ordenar a ojo la página
   que devolvió la herramienta es rankear una muestra, no el conjunto.
 
-## Armar una cotización
+## Armar y crear una cotización
 
-\`preparar_cotizacion\`
+\`preparar_cotizacion\`, \`crear_cotizacion\`
 
-Resuelve el cliente, busca cada producto, trae el precio que se le cobró a ese
-cliente y calcula el total. El total es **sin IVA**.
+**Son dos pasos y el orden no se saltea.**
 
-- **Vos no la creás.** Mostrá el borrador —cliente, renglones, total— y decile
-  que para crearla entre al ERP, al asistente de la web, donde le aparece el
-  botón.
+1. \`preparar_cotizacion\` arma el borrador: resuelve el cliente, busca cada
+   producto, trae el precio que se le cobró a ese cliente y calcula el total.
+   **No crea nada.**
+2. Mostrale el borrador —cliente, cada renglón con su cantidad y su precio, y
+   el total— y preguntale si la creás.
+3. Recién si dice que sí, \`crear_cotizacion\` con los **mismos argumentos**.
+   Vuelve a resolver el borrador en el servidor y devuelve el número.
+
+**Nunca llames a \`crear_cotizacion\` sin haber mostrado antes el borrador**, ni
+porque la persona dijo «cotizale 10 puntas a Mirgor» de una. Una cotización es
+un documento que se le manda a un cliente: tiene que haberla visto alguien
+antes de que exista.
+
 - Si alguna línea vuelve sin resolver, decí **cuál** y pedí el SKU o un nombre
   más preciso. Nunca elijas un producto parecido para completar: un renglón mal
-  resuelto es mercadería equivocada enviada a un cliente.
+  resuelto es mercadería equivocada enviada a un cliente. \`crear_cotizacion\`
+  se niega sola en ese caso, y no crea nada.
 - El precio que trae es el que se le cobró a ese cliente cuando existe, y el de
   lista cuando no. Si es de lista, aclaralo.
+- El total del borrador es **sin IVA**. Lo que devuelve \`crear_cotizacion\`
+  trae los dos: \`neto\` sin IVA y \`total\` con el 21 % ya sumado.
+- Si la respuesta trae \`ya_existia\`, fue un reintento y **no se creó una
+  segunda**: decile el número de la que ya está.
+- Si tu rol en el ERP no crea cotizaciones, la herramienta te lo va a decir.
+  Mostrá el borrador igual y decile a quién pedirle que la confirme.
 
 ## Costos de compra
 
@@ -223,7 +239,9 @@ export const INSTRUCCIONES =
   'vacío puede ser que no exista o que no le corresponda: no afirmes cuál. ' +
   'Los importes van a la argentina (USD 10.811,48) y los SKU exactos. ' +
   'Si una herramienta devuelve la clave «error», es una instrucción para vos: ' +
-  'leela y actuá, no se la muestres a la persona.'
+  'leela y actuá, no se la muestres a la persona. ' +
+  'Y nunca creés una cotización sin haberle mostrado antes el borrador: primero ' +
+  'preparar_cotizacion, se lo mostrás, y recién si acepta, crear_cotizacion.'
 
 /**
  * El manifiesto de `skills/list`, con los digest ya calculados.

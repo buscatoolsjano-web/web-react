@@ -29,7 +29,7 @@
  * tenga la postura que su protocolo necesita en vez de bajar las dos a la más
  * débil.
  */
-import { esquemaDeEntrada, EXPUESTAS } from '../erp-api/logica.ts'
+import { ESCRITURAS, esquemaDeEntrada, EXPUESTAS } from '../erp-api/logica.ts'
 import { herramienta } from '../asistente/herramientas.ts'
 import { entradaDeSkill, INSTRUCCIONES, RECURSOS, SKILL_URI } from './skill.ts'
 
@@ -69,6 +69,7 @@ const TITULOS: Readonly<Record<string, string>> = {
   buscar_documentos: 'Buscar documentos',
   ver_documento: 'Ver un documento',
   preparar_cotizacion: 'Preparar una cotización',
+  crear_cotizacion: 'Crear la cotización',
   ultimo_costo: 'Último costo de compra',
   ranking_comercial: 'Ranking comercial',
   buscar_emails: 'Buscar correos',
@@ -175,10 +176,21 @@ export function herramientasMCP(soloEstas?: readonly string[]): Record<string, u
         description: h.descripcion,
         inputSchema: esquemaDeEntrada(h),
         annotations: {
-          // Las trece expuestas hoy LEEN. Cuando entre `crear_cotizacion`,
-          // ésta es la línea que tiene que cambiar para ella y sólo para ella.
-          readOnlyHint: true,
+          /*
+           * De `ESCRITURAS`, no a mano. Es lo que decide si ChatGPT pide
+           * confirmación antes de llamarla, y tiene que coincidir con el
+           * `x-openai-isConsequential` del OpenAPI: una herramienta que
+           * escribe y que en una de las dos puertas pasa por lectura es una
+           * escritura sin confirmar.
+           */
+          readOnlyHint: !ESCRITURAS.has(id),
+          /*
+           * Crear una cotización NO es destructivo: agrega un documento, no
+           * pisa ni borra nada. Marcarla destructiva haría que el cliente la
+           * trate como un borrado, que es otra cosa y asusta de más.
+           */
           destructiveHint: false,
+          // Un reintento no crea una segunda: la RPC lo detecta por huella.
           idempotentHint: true,
           // No sale a internet: habla con nuestra base y nada más.
           openWorldHint: false,
