@@ -1,0 +1,804 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ERP BuscaTools",
+    "version": "1.0.0",
+    "description": "Los datos del ERP de BuscaTools: catálogo, clientes, documentos de venta, costos de compra, stock y bandeja de correo. Todo se lee con los permisos de la persona que pregunta."
+  },
+  "servers": [
+    {
+      "url": "https://jiudqbusyknubonpedde.supabase.co/functions/v1/erp-api"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "sesion": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {
+      "sesion": []
+    }
+  ],
+  "paths": {
+    "/yo": {
+      "get": {
+        "operationId": "quien_soy",
+        "summary": "Quién sos y en qué empresa estás trabajando.",
+        "description": "Devuelve tu nombre, tu correo y las empresas a las que perteneces, marcando cuál se usa por omisión. Llamala una sola vez al empezar si hace falta saber con qué empresa se está trabajando.",
+        "x-openai-isConsequential": false,
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    },
+    "/h/buscar_productos": {
+      "post": {
+        "operationId": "buscar_productos",
+        "summary": "Busca productos del catálogo por texto libre: nombre, SKU, marca, modelo o características",
+        "description": "Busca productos del catálogo por texto libre: nombre, SKU, marca, modelo o características. Devuelve SKU, nombre, marca, categoría, precio de lista y stock. Usala siempre antes de afirmar que un producto existe o no existe.",
+        "x-openai-isConsequential": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "texto": {
+                    "type": "string",
+                    "description": "Qué buscar. Puede ser un SKU, un nombre, una marca o una descripción."
+                  },
+                  "limite": {
+                    "type": "integer",
+                    "description": "Cuántos traer (1 a 40). Por defecto 15."
+                  },
+                  "empresa": {
+                    "type": "string",
+                    "description": "Sólo si trabajás en más de una empresa y querés una distinta de la habitual. Normalmente se omite: el servidor usa la tuya. Es el nombre, como lo devuelve /yo."
+                  }
+                },
+                "required": [
+                  "texto"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    },
+    "/h/ficha_producto": {
+      "post": {
+        "operationId": "ficha_producto",
+        "summary": "La ficha completa de UN producto por su SKU: todos sus atributos técnicos, precio, stock por depósito y equivalentes",
+        "description": "La ficha completa de UN producto por su SKU: todos sus atributos técnicos, precio, stock por depósito y equivalentes. Usala cuando haga falta el detalle y no el listado.",
+        "x-openai-isConsequential": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sku": {
+                    "type": "string",
+                    "description": "El SKU exacto, como lo devolvió buscar_productos."
+                  },
+                  "empresa": {
+                    "type": "string",
+                    "description": "Sólo si trabajás en más de una empresa y querés una distinta de la habitual. Normalmente se omite: el servidor usa la tuya. Es el nombre, como lo devuelve /yo."
+                  }
+                },
+                "required": [
+                  "sku"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    },
+    "/h/resumen_catalogo": {
+      "post": {
+        "operationId": "resumen_catalogo",
+        "summary": "Cuántos productos hay por categoría y por marca",
+        "description": "Cuántos productos hay por categoría y por marca. Usala para preguntas sobre el TAMAÑO o la composición del catálogo, no para buscar un producto puntual.",
+        "x-openai-isConsequential": false,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "empresa": {
+                    "type": "string",
+                    "description": "Sólo si trabajás en más de una empresa y querés una distinta de la habitual. Normalmente se omite: el servidor usa la tuya. Es el nombre, como lo devuelve /yo."
+                  }
+                },
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    },
+    "/h/stock_actual": {
+      "post": {
+        "operationId": "stock_actual",
+        "summary": "El stock por producto y depósito: en mano, reservado y disponible",
+        "description": "El stock por producto y depósito: en mano, reservado y disponible. Usala para «¿hay stock de X?» o «¿qué está en negativo?».",
+        "x-openai-isConsequential": false,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "texto": {
+                    "type": "string",
+                    "description": "SKU o nombre del producto. Vacío: todo."
+                  },
+                  "limite": {
+                    "type": "integer",
+                    "description": "Cuántas filas (1 a 40). Por defecto 20."
+                  },
+                  "empresa": {
+                    "type": "string",
+                    "description": "Sólo si trabajás en más de una empresa y querés una distinta de la habitual. Normalmente se omite: el servidor usa la tuya. Es el nombre, como lo devuelve /yo."
+                  }
+                },
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    },
+    "/h/buscar_cliente": {
+      "post": {
+        "operationId": "buscar_cliente",
+        "summary": "Encuentra un cliente por nombre, CUIT, email o teléfono",
+        "description": "Encuentra un cliente por nombre, CUIT, email o teléfono. Devuelve los que se parecen. Si vuelve más de uno, PREGUNTÁ cuál es antes de seguir: equivocarse de cliente manda la mercadería a otra empresa.",
+        "x-openai-isConsequential": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "texto": {
+                    "type": "string",
+                    "description": "Nombre, CUIT, email o teléfono del cliente."
+                  },
+                  "empresa": {
+                    "type": "string",
+                    "description": "Sólo si trabajás en más de una empresa y querés una distinta de la habitual. Normalmente se omite: el servidor usa la tuya. Es el nombre, como lo devuelve /yo."
+                  }
+                },
+                "required": [
+                  "texto"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    },
+    "/h/historial_del_cliente": {
+      "post": {
+        "operationId": "historial_del_cliente",
+        "summary": "Los últimos documentos de un cliente (cotizaciones, pedidos, remitos, facturas) con su estado e importe",
+        "description": "Los últimos documentos de un cliente (cotizaciones, pedidos, remitos, facturas) con su estado e importe. Sirve para «¿qué le vendimos a X?» o «¿cómo viene X?».",
+        "x-openai-isConsequential": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cliente": {
+                    "type": "string",
+                    "description": "El nombre exacto del cliente, como lo devolvió buscar_cliente."
+                  },
+                  "limite": {
+                    "type": "integer",
+                    "description": "Cuántos documentos traer (1 a 30). Por defecto 15."
+                  },
+                  "empresa": {
+                    "type": "string",
+                    "description": "Sólo si trabajás en más de una empresa y querés una distinta de la habitual. Normalmente se omite: el servidor usa la tuya. Es el nombre, como lo devuelve /yo."
+                  }
+                },
+                "required": [
+                  "cliente"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    },
+    "/h/precios_del_cliente": {
+      "post": {
+        "operationId": "precios_del_cliente",
+        "summary": "A qué precio se le vendió cada producto a un cliente, con la fecha y el documento",
+        "description": "A qué precio se le vendió cada producto a un cliente, con la fecha y el documento. Es la herramienta para «¿a cuánto le cotizamos esto la última vez?».",
+        "x-openai-isConsequential": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cliente": {
+                    "type": "string",
+                    "description": "El nombre exacto del cliente."
+                  },
+                  "producto": {
+                    "type": "string",
+                    "description": "SKU o texto del producto. Vacío: todos los productos del cliente."
+                  },
+                  "empresa": {
+                    "type": "string",
+                    "description": "Sólo si trabajás en más de una empresa y querés una distinta de la habitual. Normalmente se omite: el servidor usa la tuya. Es el nombre, como lo devuelve /yo."
+                  }
+                },
+                "required": [
+                  "cliente"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    },
+    "/h/buscar_documentos": {
+      "post": {
+        "operationId": "buscar_documentos",
+        "summary": "Busca documentos de venta o de compra por tipo, fecha, estado o cliente",
+        "description": "Busca documentos de venta o de compra por tipo, fecha, estado o cliente. Usala para «¿qué cotizaciones hay pendientes?» o «¿qué se facturó en agosto?».",
+        "x-openai-isConsequential": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tipo": {
+                    "type": "string",
+                    "description": "Qué tipo de documento. Sólo documentos de VENTA.",
+                    "enum": [
+                      "cotizacion",
+                      "pedido",
+                      "remito"
+                    ]
+                  },
+                  "desde": {
+                    "type": "string",
+                    "description": "Fecha inicial en formato AAAA-MM-DD. Por defecto, hace 30 días."
+                  },
+                  "hasta": {
+                    "type": "string",
+                    "description": "Fecha final en formato AAAA-MM-DD. Por defecto, hoy."
+                  },
+                  "estado": {
+                    "type": "string",
+                    "description": "Estado del documento. Vacío: todos, que suele ser lo que conviene. Una cotización «pendiente» o «sin respuesta» es `sent`: ya salió y el cliente todavía no la aceptó. `accepted` es la que el cliente aceptó. Los pedidos en curso son `confirmed` y las entregas hechas, `delivered`. Los borradores no se listan nunca.",
+                    "enum": [
+                      "sent",
+                      "accepted",
+                      "confirmed",
+                      "delivered"
+                    ]
+                  },
+                  "cliente": {
+                    "type": "string",
+                    "description": "Nombre del cliente. Vacío: todos."
+                  },
+                  "orden": {
+                    "type": "string",
+                    "description": "Cómo ordenar. `fecha` (por defecto) trae los más recientes. `importe` trae los de mayor monto, ordenando sobre TODOS los del período y no sobre la página. Usá `importe` siempre que te pidan «los más grandes», «el más caro» o un ranking por plata. Con `importe` la moneda es obligatoria.",
+                    "enum": [
+                      "fecha",
+                      "importe"
+                    ]
+                  },
+                  "moneda": {
+                    "type": "string",
+                    "description": "USD, ARS o EUR. Vacío: todas, que sólo sirve ordenando por fecha. Obligatoria cuando el orden es `importe`."
+                  },
+                  "limite": {
+                    "type": "integer",
+                    "description": "Cuántos traer (1 a 40). Por defecto 20."
+                  },
+                  "empresa": {
+                    "type": "string",
+                    "description": "Sólo si trabajás en más de una empresa y querés una distinta de la habitual. Normalmente se omite: el servidor usa la tuya. Es el nombre, como lo devuelve /yo."
+                  }
+                },
+                "required": [
+                  "tipo"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    },
+    "/h/ver_documento": {
+      "post": {
+        "operationId": "ver_documento",
+        "summary": "Un documento completo por su número (COT-00012, PED-00034…): cabecera, líneas y la cadena de documentos relacionados",
+        "description": "Un documento completo por su número (COT-00012, PED-00034…): cabecera, líneas y la cadena de documentos relacionados. Usala cuando la persona nombre un documento.",
+        "x-openai-isConsequential": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "numero": {
+                    "type": "string",
+                    "description": "El número del documento, tal cual."
+                  },
+                  "empresa": {
+                    "type": "string",
+                    "description": "Sólo si trabajás en más de una empresa y querés una distinta de la habitual. Normalmente se omite: el servidor usa la tuya. Es el nombre, como lo devuelve /yo."
+                  }
+                },
+                "required": [
+                  "numero"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    },
+    "/h/preparar_cotizacion": {
+      "post": {
+        "operationId": "preparar_cotizacion",
+        "summary": "Arma el BORRADOR de una cotización: resuelve el cliente, busca cada producto, trae el precio que se le cobró a ese cliente y calcula el total",
+        "description": "Arma el BORRADOR de una cotización: resuelve el cliente, busca cada producto, trae el precio que se le cobró a ese cliente y calcula el total. NO la crea: crearla es un botón que aprieta la persona. Usala cuando te pidan cotizar, presupuestar o «armame una cotización».",
+        "x-openai-isConsequential": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cliente": {
+                    "type": "string",
+                    "description": "El nombre del cliente, como lo devolvió buscar_cliente."
+                  },
+                  "productos": {
+                    "type": "array",
+                    "description": "Los renglones de la cotización, en el orden en que los pidieron.",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "producto": {
+                          "type": "string",
+                          "description": "El SKU si lo sabés, o el nombre tal como lo dijeron."
+                        },
+                        "cantidad": {
+                          "type": "integer",
+                          "description": "Cuántas unidades. Si no lo dijeron, 1."
+                        }
+                      },
+                      "required": [
+                        "producto",
+                        "cantidad"
+                      ]
+                    }
+                  },
+                  "moneda": {
+                    "type": "string",
+                    "description": "USD, ARS o EUR. Por defecto USD."
+                  },
+                  "empresa": {
+                    "type": "string",
+                    "description": "Sólo si trabajás en más de una empresa y querés una distinta de la habitual. Normalmente se omite: el servidor usa la tuya. Es el nombre, como lo devuelve /yo."
+                  }
+                },
+                "required": [
+                  "cliente",
+                  "productos"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    },
+    "/h/ultimo_costo": {
+      "post": {
+        "operationId": "ultimo_costo",
+        "summary": "A qué costo se compró un producto por última vez, con el proveedor y la fecha",
+        "description": "A qué costo se compró un producto por última vez, con el proveedor y la fecha. Es distinto del precio de venta: esto es lo que NOSOTROS pagamos.",
+        "x-openai-isConsequential": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sku": {
+                    "type": "string",
+                    "description": "El SKU del producto."
+                  },
+                  "empresa": {
+                    "type": "string",
+                    "description": "Sólo si trabajás en más de una empresa y querés una distinta de la habitual. Normalmente se omite: el servidor usa la tuya. Es el nombre, como lo devuelve /yo."
+                  }
+                },
+                "required": [
+                  "sku"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    },
+    "/h/ranking_comercial": {
+      "post": {
+        "operationId": "ranking_comercial",
+        "summary": "El ranking de clientes o de productos en un período, sobre lo ENTREGADO",
+        "description": "El ranking de clientes o de productos en un período, sobre lo ENTREGADO. Los clientes se miden por importe y hay que decir en qué moneda; los productos, por cantidad de unidades. Es la herramienta para «el mejor cliente de agosto».",
+        "x-openai-isConsequential": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dimension": {
+                    "type": "string",
+                    "description": "Qué rankear.",
+                    "enum": [
+                      "clientes",
+                      "productos"
+                    ]
+                  },
+                  "mes": {
+                    "type": "string",
+                    "description": "El mes en formato AAAA-MM-01. Vacío: el mes en curso."
+                  },
+                  "moneda": {
+                    "type": "string",
+                    "description": "Para clientes: la moneda del ranking (USD, ARS, EUR). Por defecto USD."
+                  },
+                  "limite": {
+                    "type": "integer",
+                    "description": "Cuántos puestos (1 a 20). Por defecto 10."
+                  },
+                  "empresa": {
+                    "type": "string",
+                    "description": "Sólo si trabajás en más de una empresa y querés una distinta de la habitual. Normalmente se omite: el servidor usa la tuya. Es el nombre, como lo devuelve /yo."
+                  }
+                },
+                "required": [
+                  "dimension"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    },
+    "/h/buscar_emails": {
+      "post": {
+        "operationId": "buscar_emails",
+        "summary": "Busca en la bandeja de entrada por texto, estado o remitente",
+        "description": "Busca en la bandeja de entrada por texto, estado o remitente. Devuelve asunto, remitente, fecha y a quién está asignado. Es el único que ve los correos.",
+        "x-openai-isConsequential": false,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "texto": {
+                    "type": "string",
+                    "description": "Qué buscar en asunto o cuerpo. Vacío: los más recientes."
+                  },
+                  "sin_leer": {
+                    "type": "boolean",
+                    "description": "Sólo los no leídos."
+                  },
+                  "limite": {
+                    "type": "integer",
+                    "description": "Cuántos traer (1 a 25). Por defecto 15."
+                  },
+                  "empresa": {
+                    "type": "string",
+                    "description": "Sólo si trabajás en más de una empresa y querés una distinta de la habitual. Normalmente se omite: el servidor usa la tuya. Es el nombre, como lo devuelve /yo."
+                  }
+                },
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que devolvió la herramienta. Si trae la clave «error», es una instrucción para vos: leela y actuá, no se la muestres tal cual a la persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la sesión o el token venció."
+          },
+          "403": {
+            "description": "Esa empresa no es tuya."
+          }
+        }
+      }
+    }
+  }
+}

@@ -34,6 +34,15 @@
     "supabase/functions/asistente/agentes.ts",
     "supabase/functions/asistente/herramientas.ts",
     "supabase/functions/asistente/bucle.ts",
-    "supabase/functions/asistente/bucle.test.ts"
+    "supabase/functions/asistente/bucle.test.ts",
+    // La API del ERP para ChatGPT (Fase 67 · E1). Igual que arriba: `index.ts`
+    // usa `Deno` y `npm:` y queda afuera; lo puro entra. El script que escribe
+    // los documentos OpenAPI entra también porque si no, ESLint no tiene con
+    // qué tipar un `.ts` de `scripts/` y falla por archivo fuera de proyecto.
+    "supabase/functions/erp-api/logica.ts",
+    "supabase/functions/erp-api/logica.test.ts",
+    "supabase/functions/erp-mcp/logica.ts",
+    "supabase/functions/erp-mcp/logica.test.ts",
+    "scripts/fase67-openapi.ts"
   ]
 }
