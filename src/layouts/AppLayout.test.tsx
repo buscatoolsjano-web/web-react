@@ -23,6 +23,11 @@ const estado = vi.hoisted<EstadoPrueba>(() => ({
 }))
 const llamadas = vi.hoisted(() => ({ salir: vi.fn(), reintentar: vi.fn(), cambiar: vi.fn(), cambiarApariencia: vi.fn() }))
 
+/* El árbol de este test llega al cliente de Supabase, que valida el entorno al
+   cargarse. Sin este mock el test exige variables VITE_* y falla en la suite
+   aislada y en CI, donde no existen. Ver ADR-019. */
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+
 vi.mock('@/hooks/useMediaQuery', () => ({
   useIsMobile: () => estado.ancho < 768,
   useMediaQuery: (q: string) => (q.includes('1023') ? estado.ancho >= 768 && estado.ancho < 1024 : false),

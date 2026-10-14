@@ -22,6 +22,11 @@ const estado = vi.hoisted(() => ({
   falla: null as string | null,
 }))
 
+/* El árbol de este test llega al cliente de Supabase, que valida el entorno al
+   cargarse. Sin este mock el test exige variables VITE_* y falla en la suite
+   aislada y en CI, donde no existen. Ver ADR-019. */
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({ activa: { companyId: 'c1', companyName: 'Buscatools', rol: 'admin' }, cargando: false }),
 }))

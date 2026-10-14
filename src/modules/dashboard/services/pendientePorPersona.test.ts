@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   documentosSinAutor,
   separarMiFila,
@@ -6,6 +6,14 @@ import {
   totalHecho,
   type PendienteDePersona,
 } from './pendientePorPersona'
+
+/* Lo que se prueba acá son funciones puras, pero viven en el mismo módulo que
+   la consulta, que importa el cliente de Supabase y valida el entorno al
+   cargarse. `vi.mock` se eleva arriba de los imports, así que el cliente queda
+   reemplazado antes de que el módulo se cargue. Sin esto el test exige
+   variables VITE_* y falla en la suite aislada y en CI, donde no existen.
+   Ver ADR-019. */
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
 
 const fila = (p: Partial<PendienteDePersona> & { nombre: string }): PendienteDePersona => ({
   userId: p.nombre.toLowerCase(),
