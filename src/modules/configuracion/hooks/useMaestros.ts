@@ -14,12 +14,18 @@ import {
   listarItemsDeLista,
   listarListasPrecios,
   listarMarcas,
+  listarFormasDePago,
+  crearFormaDePago,
+  renombrarFormaDePago,
+  cambiarEstadoFormaDePago,
+  eliminarFormaDePago,
   renombrarCategoria,
   type ConsultaItems,
 } from '../services/maestros'
 
 export const clavesMaestros = {
   marcas: (c: string | null) => ['configuracion', c, 'marcas'] as const,
+  formasDePago: (c: string | null) => ['configuracion', c, 'formas-de-pago'] as const,
   categorias: (c: string | null) => ['configuracion', c, 'categorias'] as const,
   atributos: (c: string | null) => ['configuracion', c, 'atributos'] as const,
   listas: (c: string | null) => ['configuracion', c, 'listas-precios'] as const,
@@ -75,6 +81,22 @@ export function useItemsDeLista(listaId: string, q: ConsultaItems) {
  * (bien o mal): los conteos y el estado real los da el servidor. También se
  * invalida el Catálogo, que filtra por marcas activas y categorías.
  */
+/**
+ * Las formas de pago de la empresa, con sus usos (Fase 68).
+ *
+ * Trae también las desactivadas: esta pantalla es la que las administra, y sin
+ * verlas no se pueden reactivar.
+ */
+export function useFormasDePagoConfig() {
+  const c = useCompany()
+  return useQuery({
+    queryKey: clavesMaestros.formasDePago(c),
+    queryFn: () => listarFormasDePago(c!),
+    enabled: c !== null,
+    retry: sinReintentoPorPermiso,
+  })
+}
+
 export function useAccionesMaestros() {
   const qc = useQueryClient()
   const c = useCompany()
@@ -84,6 +106,10 @@ export function useAccionesMaestros() {
   }
   const marcas = refrescar(clavesMaestros.marcas(c))
   const categorias = refrescar(clavesMaestros.categorias(c))
+  const formasPago = async () => {
+    await qc.invalidateQueries({ queryKey: clavesMaestros.formasDePago(c) })
+    await qc.invalidateQueries({ queryKey: ['ventas', c, 'formas-de-pago'] })
+  }
 
   return {
     crearMarca: useMutation({ mutationFn: (nombre: string) => crearMarca(c!, nombre), onSettled: marcas }),
@@ -96,5 +122,22 @@ export function useAccionesMaestros() {
     }),
     estadoCategoria: useMutation({ mutationFn: (v: { id: string; activa: boolean }) => cambiarEstadoCategoria(c!, v.id, v.activa), onSettled: categorias }),
     eliminarCategoria: useMutation({ mutationFn: (id: string) => eliminarCategoria(c!, id), onSettled: categorias }),
+
+    /*
+     * Formas de pago. Invalidan DOS claves: la de configuración y la de
+     * ventas, porque el desplegable de la cabecera lee el mismo catálogo y si
+     * no, seguiría mostrando la lista vieja hasta que venza su `staleTime` de
+     * diez minutos.
+     */
+    crearFormaPago: useMutation({ mutationFn: (nombre: string) => crearFormaDePago(c!, nombre), onSettled: formasPago }),
+    renombrarFormaPago: useMutation({
+      mutationFn: (v: { id: string; nombre: string }) => renombrarFormaDePago(c!, v.id, v.nombre),
+      onSettled: formasPago,
+    }),
+    estadoFormaPago: useMutation({
+      mutationFn: (v: { id: string; activa: boolean }) => cambiarEstadoFormaDePago(c!, v.id, v.activa),
+      onSettled: formasPago,
+    }),
+    eliminarFormaPago: useMutation({ mutationFn: (id: string) => eliminarFormaDePago(c!, id), onSettled: formasPago }),
   }
 }

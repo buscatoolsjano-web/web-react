@@ -1,5 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
+import { useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { crearFormaDePago, ErrorMaestro, listarFormasDePago } from '@/modules/configuracion/services/maestros'
+import { mensajeErrorMaestro } from '@/modules/configuracion/lib/maestros'
 import { buscarClientesParaFiltro, nombreDeCliente } from '../services/clientes'
 import { listarEventos, type EntidadAuditable } from '../services/auditoria'
 import {
@@ -342,4 +345,63 @@ export function useAvanceDeRemito(remitoId: string | undefined, pedidoId: string
     enabled: companyId !== null && remitoId !== undefined && !!pedidoId,
     staleTime: 60_000,
   })
+}
+
+/**
+ * Las formas de pago de la empresa (Fase 68).
+ *
+ * Es el mismo catálogo que administra Configuración, así que el servicio vive
+ * con el resto de los maestros. Acá se usa para que la cabecera ofrezca
+ * opciones en vez de un campo de texto libre.
+ *
+ * `staleTime` largo: una lista de seis renglones que cambia cada tanto no
+ * necesita refrescarse al volver a la pestaña, y `crearFormaDePago` invalida
+ * la clave cuando se agrega una.
+ */
+export function useFormasDePago(habilitado = true) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+
+  return useQuery({
+    queryKey: ['ventas', companyId, 'formas-de-pago'],
+    queryFn: () => listarFormasDePago(companyId!),
+    enabled: companyId !== null && habilitado,
+    staleTime: 10 * 60_000,
+  })
+}
+
+/**
+ * Guardar una forma de pago nueva desde la cabecera (Fase 68).
+ *
+ * Devuelve el nombre YA NORMALIZADO por la base —sin espacios de más— para que
+ * el desplegable seleccione exactamente el texto que se guardó, y no el que se
+ * tipeó. Si quedaran distintos, la opción recién creada aparecería como «fuera
+ * de la lista» en su propio formulario.
+ *
+ * El error se traduce acá y no en el componente: el servicio tira el CÓDIGO
+ * (`nombre_duplicado`), que no es algo para mostrarle a nadie.
+ */
+export function useAgregarFormaDePago() {
+  const { activa } = useEmpresa()
+  const cliente = useQueryClient()
+  const companyId = activa?.companyId ?? null
+
+  return useCallback(
+    async (nombre: string): Promise<string> => {
+      if (companyId === null) throw new Error('No hay una empresa activa.')
+      try {
+        const creada = await crearFormaDePago(companyId, nombre)
+        await cliente.invalidateQueries({ queryKey: ['ventas', companyId, 'formas-de-pago'] })
+        return creada.nombre
+      } catch (e) {
+        // Con `cause`: el texto es para la persona, el original para quien
+        // mire la consola cuando algo no cierre.
+        if (e instanceof ErrorMaestro) {
+          throw new Error(mensajeErrorMaestro(e.codigo), { cause: e })
+        }
+        throw e
+      }
+    },
+    [companyId, cliente],
+  )
 }

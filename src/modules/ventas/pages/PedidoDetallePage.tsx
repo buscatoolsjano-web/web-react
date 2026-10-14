@@ -53,6 +53,8 @@ import {
   useRevision,
   useSeries,
   useTarifas,
+  useFormasDePago,
+  useAgregarFormaDePago,
   useVendedores,
 } from '../hooks/useDocumentos'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
@@ -233,6 +235,8 @@ function Detalle() {
   const faltaGuardar = borrador ? faltaParaGuardar(borrador) : []
 
   const tarifas = useTarifas(editando)
+  const formasDePago = useFormasDePago(editando)
+  const agregarFormaDePago = useAgregarFormaDePago()
   const vendedores = useVendedores(editando)
   const contactos = useContactos(editando ? borrador.cabecera.customerId || null : null)
   // Fase 17 · E3. Igual que los contactos: sólo se piden en modo edición, que
@@ -696,6 +700,9 @@ function Detalle() {
                 direcciones={direcciones.data ?? []}
                 cargandoDirecciones={direcciones.isPending && borrador.cabecera.customerId !== ''}
                 tarifas={tarifas.data ?? []}
+                formasDePago={formasDePago.data ?? []}
+                cargandoFormasDePago={formasDePago.isPending}
+                onAgregarFormaDePago={agregarFormaDePago}
                 vendedores={vendedores.data ?? []}
                 cargandoContactos={contactos.isPending && borrador.cabecera.customerId !== ''}
                 avisoContacto={avisoContacto}

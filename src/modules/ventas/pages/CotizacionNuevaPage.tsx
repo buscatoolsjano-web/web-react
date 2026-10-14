@@ -24,7 +24,7 @@ import { TotalesDocumento } from '../components/TotalesDocumento'
 import { ControlesDeHoja } from '../components/ControlesDeHoja'
 import { useOpcionesDeHoja } from '../hooks/useOpcionesDeHoja'
 import { VistaPreviaBorrador } from '../components/VistaPreviaBorrador'
-import { useContactos, useNombreDeCliente, useSeries, useTarifas, useVendedores } from '../hooks/useDocumentos'
+import { useContactos, useNombreDeCliente, useSeries, useTarifas, useVendedores, useFormasDePago, useAgregarFormaDePago } from '../hooks/useDocumentos'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { defaultsDeCliente } from '../services/clientes'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
@@ -261,6 +261,8 @@ export function CotizacionNuevaPage() {
       : motivoBloqueo(DOC_TYPE_DE['cotizacion'])
 
   const tarifas = useTarifas(escribe)
+  const formasDePago = useFormasDePago(escribe)
+  const agregarFormaDePago = useAgregarFormaDePago()
   const vendedores = useVendedores(escribe)
   const contactos = useContactos(b.cabecera.customerId || null)
   // Misma clave que usa el buscador de cliente: sale de la caché.
@@ -627,6 +629,9 @@ export function CotizacionNuevaPage() {
           valores={b.cabecera}
           contactos={contactos.data ?? []}
           tarifas={tarifas.data ?? []}
+          formasDePago={formasDePago.data ?? []}
+          cargandoFormasDePago={formasDePago.isPending}
+          onAgregarFormaDePago={agregarFormaDePago}
           vendedores={vendedores.data ?? []}
           cargandoContactos={contactos.isPending && b.cabecera.customerId !== ''}
           avisoContacto={avisoContacto}

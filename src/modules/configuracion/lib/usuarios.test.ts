@@ -46,12 +46,20 @@ describe('permisos de Configuración', () => {
    * entienda menos el sistema»—. Las rutas siguen existiendo, así que un
    * enlace guardado no da 404; lo que cambia es qué se ofrece.
    */
-  it('Usuarios es sólo admin, y el menú quedó en seis secciones', () => {
+  /*
+   * Fase 68: entra «Formas de pago» y son siete. Marcas y Categorías siguen
+   * afuera, y la diferencia es quién las mantiene: ésas llegan con la
+   * sincronización del catálogo y casi nunca se tocan a mano, mientras que las
+   * formas de pago las escribe la empresa de a una y salen impresas en una
+   * cotización. Employee la ve porque puede agregar una; administrarlas es de
+   * admin y eso lo decide la pantalla, no esta lista.
+   */
+  it('Usuarios es sólo admin, y el menú quedó en siete secciones', () => {
     expect(['admin', 'employee', 'salesperson'].map(puedeAdministrarUsuarios)).toEqual([true, false, false])
-    expect(seccionesVisibles('admin').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Usuarios', 'Listas de precios', 'WhatsApp · IA', 'Plantillas de correo'])
+    expect(seccionesVisibles('admin').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Usuarios', 'Listas de precios', 'Formas de pago', 'WhatsApp · IA', 'Plantillas de correo'])
     // Plantillas lo ve también employee: la firma que sale es la suya, y el
     // correo es de admin y employee.
-    expect(seccionesVisibles('employee').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Listas de precios', 'Plantillas de correo'])
+    expect(seccionesVisibles('employee').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Listas de precios', 'Formas de pago', 'Plantillas de correo'])
     expect(seccionesVisibles('salesperson')).toEqual([])
     expect(seccionesVisibles('technician')).toEqual([])
   })

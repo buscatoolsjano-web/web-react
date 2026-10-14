@@ -9,7 +9,9 @@ import type {
   OpcionTarifa,
   OpcionVendedor,
 } from '../services/opciones'
+import type { FormaDePago } from '@/modules/configuracion/services/maestros'
 import { BuscadorCliente } from './BuscadorCliente'
+import { SelectorFormaDePago } from './SelectorFormaDePago'
 import { ContactosDelDocumento } from './ContactosDelDocumento'
 import { VendedoresDelDocumento } from './VendedoresDelDocumento'
 import styles from './CabeceraCotizacion.module.css'
@@ -31,6 +33,19 @@ export interface EditorCabeceraProps {
   cargandoDirecciones?: boolean | undefined
   tarifas: readonly OpcionTarifa[]
   vendedores: readonly OpcionVendedor[]
+  /**
+   * Las formas de pago de la empresa (Fase 68). El campo dejó de ser texto
+   * libre. Vacío es válido: el campo es opcional.
+   */
+  formasDePago?: readonly FormaDePago[] | undefined
+  cargandoFormasDePago?: boolean | undefined
+  /**
+   * Guardar una forma de pago nueva sin salir de la cabecera.
+   *
+   * Sin esto el desplegable no ofrece agregar: no toda pantalla tiene por qué
+   * poder escribir en el catálogo.
+   */
+  onAgregarFormaDePago?: ((nombre: string) => Promise<string>) | undefined
   cargandoContactos: boolean
   /** El cambio de cliente dejó al documento sin contacto. */
   avisoContacto: boolean
@@ -95,6 +110,9 @@ export function EditorCabecera({
   contactos,
   tarifas,
   vendedores,
+  formasDePago = [],
+  cargandoFormasDePago = false,
+  onAgregarFormaDePago,
   cargandoContactos,
   avisoContacto,
   onAbrirContactos,
@@ -276,7 +294,13 @@ export function EditorCabecera({
         <legend className={styles.leyenda}>3. Condiciones</legend>
         <div className={styles.grilla}>
           <Field label="Forma de pago" optional className={styles.ancho}>
-            <Input value={valores.formaPago} onChange={(e) => onCambiar('formaPago', e.target.value)} />
+            <SelectorFormaDePago
+              valor={valores.formaPago}
+              opciones={formasDePago}
+              cargando={cargandoFormasDePago}
+              onCambiar={(v) => onCambiar('formaPago', v)}
+              onAgregar={onAgregarFormaDePago}
+            />
           </Field>
 
           <Field label="% Dto. global" optional>

@@ -29,6 +29,13 @@ export const SECCIONES_CONFIGURACION = [
   { to: '/configuracion/numeracion', label: 'Numeración', roles: ['admin', 'employee'] },
   { to: '/configuracion/usuarios', label: 'Usuarios', roles: ['admin'] },
   { to: '/configuracion/listas-precios', label: 'Listas de precios', roles: ['admin', 'employee'] },
+  // Fase 68. Entra al menú aunque Marcas y Categorías hayan salido, y la
+  // diferencia es quién la mantiene: marcas y categorías llegan con la
+  // sincronización del catálogo y casi nunca se tocan a mano; las formas de
+  // pago las escribe la empresa, de a una, y son las que salen impresas en una
+  // cotización. Employee entra porque puede agregar; administrar es de admin,
+  // y eso lo decide la pantalla.
+  { to: '/configuracion/formas-de-pago', label: 'Formas de pago', roles: ['admin', 'employee'] },
   { to: '/configuracion/whatsapp-ia', label: 'WhatsApp · IA', roles: ['admin'] },
   { to: '/configuracion/plantillas', label: 'Plantillas de correo', roles: ['admin', 'employee'] },
 ] as const

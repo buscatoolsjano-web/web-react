@@ -123,6 +123,16 @@ vi.mock('../hooks/useAutoridadNumeracion', () => ({
 }))
 vi.mock('../hooks/useDocumentos', () => ({
   useTarifas: () => ({ data: estado.tarifas, isPending: false }),
+  // Fase 68: el desplegable de forma de pago. Vacío alcanza, porque lo que se
+  // prueba acá es la página; el selector tiene sus propias pruebas.
+  useFormasDePago: () => ({
+    data: [
+      { id: 'f1', nombre: 'Contra entrega', activa: true, orden: 10, usos: 0 },
+      { id: 'f2', nombre: '60 días', activa: true, orden: 20, usos: 0 },
+    ],
+    isPending: false,
+  }),
+  useAgregarFormaDePago: () => (n: string) => Promise.resolve(n),
   useVendedores: () => ({ data: estado.vendedores, isPending: false }),
   useContactos: () => ({ data: estado.contactos, isPending: false }),
   useSeries: () => ({ data: estado.series, isPending: false }),
@@ -419,6 +429,12 @@ describe('Nueva cotización · defaults del cliente', () => {
     expect(idDelAgentePrincipal()).toBe('')
   })
 
+  /*
+   * Fase 68: la forma de pago se ELIGE de una lista, no se escribe. El test
+   * sigue probando lo mismo —que el default del cliente no pise lo que la
+   * persona decidió— pero ahora «Contra entrega» tiene que ser una opción
+   * real: un `<select>` no toma un valor que no está entre sus opciones.
+   */
   it('lo que eligió la persona NO se pisa al elegir el cliente', async () => {
     estado.defaults = { vendedorId: 'u1', tarifaId: 'mayorista', formaPago: '60 días', moneda: 'USD' }
     montar()

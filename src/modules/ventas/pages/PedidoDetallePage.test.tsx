@@ -147,6 +147,10 @@ vi.mock('../hooks/useDocumentos', () => ({
   // Fase 17 · E3: los domicilios de entrega del cliente.
   useDireccionesEntrega: () => ({ data: estado.direcciones, isPending: false }),
   useTarifas: () => ({ data: estado.tarifas, isPending: false }),
+  // Fase 68: el desplegable de forma de pago. Vacío alcanza, porque lo que se
+  // prueba acá es la página; el selector tiene sus propias pruebas.
+  useFormasDePago: () => ({ data: [], isPending: false }),
+  useAgregarFormaDePago: () => (n: string) => Promise.resolve(n),
   useVendedores: () => ({ data: estado.vendedores, isPending: false }),
 }))
 // El guardado es el único camino de escritura del editor; se espía para probar

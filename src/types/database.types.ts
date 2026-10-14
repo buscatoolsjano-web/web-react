@@ -8819,6 +8819,29 @@ export type Database = {
           vigencia_hasta: string | null
         }[]
       }
+      // Fase 68 · formas de pago. Agregadas A MANO: regenerar este archivo
+      // cambia tipos en todo el proyecto. Devuelven `jsonb`, así que el tipo
+      // es `Json` y el servicio lo valida al mapear.
+      config_forma_pago_crear: {
+        Args: { p_company: string; p_nombre: string }
+        Returns: Json
+      }
+      config_forma_pago_eliminar: {
+        Args: { p_company: string; p_id: string }
+        Returns: undefined
+      }
+      config_forma_pago_estado: {
+        Args: { p_activa: boolean; p_company: string; p_id: string }
+        Returns: Json
+      }
+      config_forma_pago_renombrar: {
+        Args: { p_company: string; p_id: string; p_nombre: string }
+        Returns: Json
+      }
+      config_formas_pago_listar: {
+        Args: { p_company: string }
+        Returns: Json
+      }
       config_marca_crear: {
         Args: { p_company: string; p_datos: Json }
         Returns: {

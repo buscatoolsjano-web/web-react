@@ -1,0 +1,36 @@
+/* Alta de una forma de pago sin salir de la cabecera (Fase 68). */
+
+.alta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.linea {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* El campo se lleva el espacio; los botones, el suyo. */
+.linea > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.ayuda {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* En teléfono los botones no entran al lado del campo. */
+@media (max-width: 480px) {
+  .linea {
+    flex-wrap: wrap;
+  }
+
+  .linea > :first-child {
+    flex-basis: 100%;
+  }
+}

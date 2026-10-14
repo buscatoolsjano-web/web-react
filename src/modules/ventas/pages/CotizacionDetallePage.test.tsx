@@ -117,7 +117,7 @@ vi.mock('../hooks/useAutoridadNumeracion', () => ({
   useAutoridadNumeracion: () => ({ stel: (t: string) => estado.stel[t] ?? false, cargando: false }),
 }))
 vi.mock('../hooks/useDocumentos', () => ({
-  useDocumento: () => ({ data: estado.doc, isPending: false, error: null }),
+  useDocumento: () => ({ data: estado.doc, isPending: false, error: null }),
   // La cadena del documento (Fase 29 · E6). Por defecto sólo el propio: lo
   // que prueba cada test es su pantalla, no la barra del circuito.
   useCadenaDocumento: () => ({ data: estado.cadena, isPending: false }),
@@ -128,6 +128,10 @@ vi.mock('../hooks/useDocumentos', () => ({
   // Fase 15 E2: las opciones del editor.
   useContactos: () => ({ data: estado.contactos, isPending: false }),
   useTarifas: () => ({ data: estado.tarifas, isPending: false }),
+  // Fase 68: el desplegable de forma de pago. Vacío alcanza, porque lo que se
+  // prueba acá es la página; el selector tiene sus propias pruebas.
+  useFormasDePago: () => ({ data: [], isPending: false }),
+  useAgregarFormaDePago: () => (n: string) => Promise.resolve(n),
   useVendedores: () => ({ data: estado.vendedores, isPending: false }),
   // Fase 19 · E3/E4: la autoridad de la serie, por tipo de documento.
   useSeries: (tipo: string) => ({

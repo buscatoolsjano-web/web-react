@@ -261,6 +261,9 @@ const ConfiguracionShell = lazyConRecarga(() =>
 const EmpresaPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/EmpresaPage').then((m) => ({ default: m.EmpresaPage })),
 )
+const FormasDePagoPage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/FormasDePagoPage').then((m) => ({ default: m.FormasDePagoPage })),
+)
 const NumeracionPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/NumeracionPage').then((m) => ({ default: m.NumeracionPage })),
 )
@@ -459,6 +462,9 @@ export const routes: RouteObject[] = [
           // Entrega 3: listas y atributos sólo lectura; marcas y categorías las administra el admin.
           { path: 'listas-precios', element: conSuspense(<ListasPreciosPage />) },
           { path: 'listas-precios/:id', element: conSuspense(<ListaPreciosDetallePage />) },
+          // Fase 68: el catálogo que llena el desplegable de forma de pago de
+          // cotizaciones y pedidos.
+          { path: 'formas-de-pago', element: conSuspense(<FormasDePagoPage />) },
           { path: 'marcas', element: conSuspense(<MarcasPage />) },
           { path: 'categorias', element: conSuspense(<CategoriasPage />) },
           { path: 'atributos', element: conSuspense(<AtributosPage />) },

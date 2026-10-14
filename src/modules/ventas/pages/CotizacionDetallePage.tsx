@@ -79,6 +79,8 @@ import {
   useRevision,
   useSeries,
   useTarifas,
+  useFormasDePago,
+  useAgregarFormaDePago,
   useVendedores,
 } from '../hooks/useDocumentos'
 import {
@@ -259,6 +261,8 @@ function Detalle() {
 
   // Las opciones de los desplegables se piden sólo al entrar en edición.
   const tarifas = useTarifas(editando)
+  const formasDePago = useFormasDePago(editando)
+  const agregarFormaDePago = useAgregarFormaDePago()
   const vendedores = useVendedores(editando)
   const contactos = useContactos(editando ? borrador.cabecera.customerId || null : null)
 
@@ -778,6 +782,9 @@ function Detalle() {
                 valores={borrador.cabecera}
                 contactos={contactos.data ?? []}
                 tarifas={tarifas.data ?? []}
+                formasDePago={formasDePago.data ?? []}
+                cargandoFormasDePago={formasDePago.isPending}
+                onAgregarFormaDePago={agregarFormaDePago}
                 vendedores={vendedores.data ?? []}
                 cargandoContactos={contactos.isPending && borrador.cabecera.customerId !== ''}
                 avisoContacto={avisoContacto}

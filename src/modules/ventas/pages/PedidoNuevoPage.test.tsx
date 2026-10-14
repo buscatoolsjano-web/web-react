@@ -107,6 +107,10 @@ vi.mock('../hooks/useAutoridadNumeracion', () => ({
 }))
 vi.mock('../hooks/useDocumentos', () => ({
   useTarifas: () => ({ data: estado.tarifas, isPending: false }),
+  // Fase 68: el desplegable de forma de pago. Vacío alcanza, porque lo que se
+  // prueba acá es la página; el selector tiene sus propias pruebas.
+  useFormasDePago: () => ({ data: [], isPending: false }),
+  useAgregarFormaDePago: () => (n: string) => Promise.resolve(n),
   // Sin series propias se deriva de la autoridad general: es lo que pasa con
   // PDV, que no tiene fila de autoridad por serie.
   useSeries: () => ({

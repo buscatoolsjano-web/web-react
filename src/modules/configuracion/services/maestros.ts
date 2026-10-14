@@ -203,3 +203,90 @@ export async function listarItemsDeLista(companyId: string, listaId: string, q: 
     })),
   }
 }
+
+/* ── Formas de pago (Fase 68) ──────────────────────────────────────────────
+ *
+ * Viven acá, con el resto de los maestros, y las usa también el formulario de
+ * cotización: es el mismo catálogo y duplicar el servicio sería duplicar el
+ * vocabulario de errores.
+ *
+ * Los documentos guardan el TEXTO de la forma de pago, no el id. Por eso
+ * renombrar y hasta borrar una opción es seguro: ninguna cotización queda
+ * colgada, y las viejas conservan lo que se acordó. Ver el comentario de la
+ * tabla en `docs/database/FASE_68_FORMAS_DE_PAGO.sql`.
+ */
+
+export interface FormaDePago {
+  id: string
+  nombre: string
+  activa: boolean
+  orden: number
+  /** En cuántos documentos está escrita hoy. Sirve para no borrar a ciegas. */
+  usos: number
+}
+
+/** Lo que devuelve la RPC es `jsonb`: se valida fila por fila al mapear. */
+function aFormaDePago(x: unknown): FormaDePago | null {
+  if (typeof x !== 'object' || x === null) return null
+  const o = x as Record<string, unknown>
+  if (typeof o['id'] !== 'string' || typeof o['nombre'] !== 'string') return null
+  return {
+    id: o['id'],
+    nombre: o['nombre'],
+    activa: o['activa'] !== false,
+    orden: Number(o['orden'] ?? 100),
+    usos: Number(o['usos'] ?? 0),
+  }
+}
+
+export async function listarFormasDePago(companyId: string): Promise<FormaDePago[]> {
+  const { data, error } = await supabase.rpc('config_formas_pago_listar', { p_company: companyId })
+  if (error) throw deError(error)
+  const filas = Array.isArray(data) ? data : []
+  return filas.map(aFormaDePago).filter((f): f is FormaDePago => f !== null)
+}
+
+export async function crearFormaDePago(companyId: string, nombre: string): Promise<FormaDePago> {
+  const { data, error } = await supabase.rpc('config_forma_pago_crear', {
+    p_company: companyId,
+    p_nombre: nombre,
+  })
+  if (error) throw deError(error)
+  const creada = aFormaDePago(data)
+  if (!creada) throw new ErrorMaestro('desconocido')
+  return creada
+}
+
+export async function renombrarFormaDePago(
+  companyId: string,
+  id: string,
+  nombre: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('config_forma_pago_renombrar', {
+    p_company: companyId,
+    p_id: id,
+    p_nombre: nombre,
+  })
+  if (error) throw deError(error)
+}
+
+export async function cambiarEstadoFormaDePago(
+  companyId: string,
+  id: string,
+  activa: boolean,
+): Promise<void> {
+  const { error } = await supabase.rpc('config_forma_pago_estado', {
+    p_company: companyId,
+    p_id: id,
+    p_activa: activa,
+  })
+  if (error) throw deError(error)
+}
+
+export async function eliminarFormaDePago(companyId: string, id: string): Promise<void> {
+  const { error } = await supabase.rpc('config_forma_pago_eliminar', {
+    p_company: companyId,
+    p_id: id,
+  })
+  if (error) throw deError(error)
+}

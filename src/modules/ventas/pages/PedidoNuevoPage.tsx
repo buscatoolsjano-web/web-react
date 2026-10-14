@@ -31,6 +31,8 @@ import {
   useDireccionesEntrega,
   useSeries,
   useTarifas,
+  useFormasDePago,
+  useAgregarFormaDePago,
   useVendedores,
 } from '../hooks/useDocumentos'
 import { defaultsDeCliente } from '../services/clientes'
@@ -177,6 +179,8 @@ export function PedidoNuevoPage() {
       : motivoBloqueo(DOC_TYPE_DE['pedido'])
 
   const tarifas = useTarifas(escribe)
+  const formasDePago = useFormasDePago(escribe)
+  const agregarFormaDePago = useAgregarFormaDePago()
   const vendedores = useVendedores(escribe)
   const contactos = useContactos(b.cabecera.customerId || null)
   // Para la hoja hace falta el NOMBRE del cliente, no su id.
@@ -572,6 +576,9 @@ export function PedidoNuevoPage() {
           direcciones={direcciones.data ?? []}
           cargandoDirecciones={direcciones.isPending && b.cabecera.customerId !== ''}
           tarifas={tarifas.data ?? []}
+          formasDePago={formasDePago.data ?? []}
+          cargandoFormasDePago={formasDePago.isPending}
+          onAgregarFormaDePago={agregarFormaDePago}
           vendedores={vendedores.data ?? []}
           cargandoContactos={contactos.isPending && b.cabecera.customerId !== ''}
           avisoContacto={avisoContacto}
