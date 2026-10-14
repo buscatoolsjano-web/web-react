@@ -93,39 +93,52 @@ export function versionAUsar(pedida: unknown): string {
 export const SERVIDOR = { name: 'erp-buscatools', version: '1.0.0' } as const
 
 /**
- * El alcance que se pide. Uno solo y por ahora nominal.
- *
- * Los permisos de verdad no viven acá: viven en la RLS, que filtra por la
- * persona del token. Un alcance por herramienta sería una segunda lista de
- * permisos que hay que mantener de acuerdo con la primera, y cuando dos listas
- * de permisos discrepan gana la equivocada.
- */
-export const ALCANCE = 'erp'
-
-/**
  * El documento de RFC 9728 que dice quién autoriza el acceso a este servidor.
  *
  * `authorization_servers` apunta al proyecto de Supabase, que es el que emite
  * los tokens. El cliente lo lee, va a buscar los metadatos del servidor de
  * autorización y arma el flujo solo.
  *
- * No lleva `offline_access` a propósito: el spec dice que un recurso protegido
- * NO debería pedirlo, porque un refresh token no es un requisito del recurso
- * sino del cliente. Que ChatGPT pueda renovar depende de que Supabase lo
- * anuncie en SUS metadatos, no en los nuestros.
+ * ── POR QUÉ NO DECLARA NINGÚN ALCANCE ───────────────────────────────────────
+ *
+ * Declaraba `scopes_supported: ['erp']`, y eso ROMPÍA el flujo. Medido contra
+ * el proyecto el 2026-10-14: los alcances que acepta Supabase son `openid`,
+ * `profile`, `email`, `phone` y `offline_access`, y pedir uno propio devuelve
+ * `error=invalid_request&error_description=unsupported scope: erp` antes de
+ * llegar a la pantalla de consentimiento.
+ *
+ * Sin alcance declarado, el cliente omite el parámetro —el spec lo dice
+ * explícitamente: si `scopes_supported` no está definido, se omite— y la
+ * autorización pasa. Comprobado: el mismo pedido sin `scope` redirige al
+ * consentimiento.
+ *
+ * Y no hace falta ninguno, porque acá los permisos no los decide el token:
+ * los decide la RLS, que filtra por la persona. Un alcance por herramienta
+ * sería una segunda lista de permisos que mantener de acuerdo con la primera,
+ * y cuando dos listas de permisos discrepan gana la equivocada.
+ *
+ * `offline_access` tampoco va: el spec dice que un recurso protegido no
+ * debería pedirlo, porque un refresh token es un requisito del CLIENTE. Que
+ * ChatGPT pueda renovar depende de que Supabase lo anuncie en SUS metadatos,
+ * y lo anuncia.
  */
 export function metadatosDelRecurso(recurso: string, supabaseUrl: string): Record<string, unknown> {
   return {
     resource: recurso,
     authorization_servers: [`${supabaseUrl.replace(/\/+$/, '')}/auth/v1`],
-    scopes_supported: [ALCANCE],
     bearer_methods_supported: ['header'],
   }
 }
 
-/** La cabecera que arranca el descubrimiento. Sin esto, nada funciona. */
-export function desafio(urlDeMetadatos: string, alcance = ALCANCE): string {
-  return `Bearer resource_metadata="${urlDeMetadatos}", scope="${alcance}"`
+/**
+ * La cabecera que arranca el descubrimiento. Sin esto, nada funciona.
+ *
+ * Va SIN `scope` por lo mismo que arriba: el spec dice que el alcance del
+ * desafío es autoritativo para el cliente, así que mandar uno que el servidor
+ * de autorización rechaza es peor que no mandar ninguno.
+ */
+export function desafio(urlDeMetadatos: string): string {
+  return `Bearer resource_metadata="${urlDeMetadatos}"`
 }
 
 /**

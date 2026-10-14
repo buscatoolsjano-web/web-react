@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ALCANCE,
+
   desafio,
   herramientasMCP,
   metadatosDelRecurso,
@@ -366,17 +366,32 @@ describe('el descubrimiento de la autorización', () => {
    * pueda renovar depende de que Supabase lo anuncie en sus propios
    * metadatos, y eso no se arregla desde acá.
    */
-  it('no pide offline_access', () => {
-    expect(META['scopes_supported']).toEqual([ALCANCE])
+  /*
+   * ── NO DECLARA NINGÚN ALCANCE, Y ESO ESTÁ MEDIDO ──────────────────────────
+   *
+   * Declaraba `scopes_supported: ['erp']` y rompía el flujo: los alcances que
+   * acepta Supabase son openid, profile, email, phone y offline_access, y uno
+   * propio devuelve `unsupported scope: erp` antes de llegar al
+   * consentimiento. Sin alcance declarado el cliente omite el parámetro —el
+   * spec lo dice— y la autorización pasa.
+   *
+   * `offline_access` tampoco: el spec dice que un recurso protegido no debería
+   * pedirlo, porque un refresh token es un requisito del cliente.
+   */
+  it('no declara alcances, que es lo que hace que la autorización pase', () => {
+    expect('scopes_supported' in META).toBe(false)
+    expect(JSON.stringify(META)).not.toContain('erp"')
     expect(JSON.stringify(META)).not.toContain('offline_access')
   })
 
   /* Sin esta cabecera exacta, el cliente no sabe a dónde ir y no arranca nada. */
-  it('el desafío dice dónde están los metadatos y qué alcance hace falta', () => {
+  it('el desafío dice dónde están los metadatos, y nada más', () => {
     const h = desafio('https://p.supabase.co/functions/v1/erp-mcp/.well-known/oauth-protected-resource')
-    expect(h).toContain('Bearer ')
-    expect(h).toContain('resource_metadata="https://p.supabase.co/')
-    expect(h).toContain(`scope="${ALCANCE}"`)
+    expect(h).toBe(
+      'Bearer resource_metadata="https://p.supabase.co/functions/v1/erp-mcp/.well-known/oauth-protected-resource"',
+    )
+    // Y sobre todo: sin `scope`, que es lo que Supabase rechazaba.
+    expect(h).not.toContain('scope=')
   })
 })
 

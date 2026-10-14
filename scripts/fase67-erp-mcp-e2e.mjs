@@ -84,7 +84,14 @@ async function main() {
   const desafio = sinToken.headers.get('www-authenticate') ?? ''
   cmp('el 401 trae WWW-Authenticate', true, desafio.startsWith('Bearer '))
   cmp('y dice dónde están los metadatos', true, desafio.includes(`resource_metadata="${URL_FN}/`))
-  cmp('y qué alcance hace falta', true, desafio.includes('scope="erp"'))
+  /*
+   * Y NO manda alcance. Medido contra el proyecto el 2026-10-14: Supabase sólo
+   * acepta openid, profile, email, phone y offline_access, y uno propio
+   * devuelve `unsupported scope` antes de llegar al consentimiento. El spec
+   * dice que el alcance del desafío es autoritativo para el cliente, así que
+   * mandar uno que el servidor de autorización rechaza rompe el flujo entero.
+   */
+  cmp('y no pide un alcance que Supabase rechace', false, desafio.includes('scope='))
 
   /*
    * LA QUE MÁS IMPORTA. Esta función no tiene el gateway delante, así que si

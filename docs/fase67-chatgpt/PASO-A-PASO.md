@@ -72,19 +72,29 @@ Está en beta y es gratis durante la beta, en todos los planes.
      → (se loguea) → la pantalla de consentimiento, con el pedido intacto
    ```
 
-Cuando termines esto, **avisame**: corro un chequeo de tres cosas que deciden si
-hace falta escribir código de autenticación o no.
+### Hecho el 2026-10-14, y lo que dio
 
-- si anuncia `offline_access` (sin eso ChatGPT pierde el acceso cuando vence el
-  token y hay que reconectar a mano),
-- si acepta el parámetro `resource` (el protocolo obliga al cliente a mandarlo,
-  y hay un bug reportado que devuelve 400 justo con eso),
-- si deja pre-registrar clientes confidenciales,
-- y si acepta `erp` como alcance. Nuestro servidor MCP lo pide en la cabecera
-  `WWW-Authenticate`, pero los alcances estándar de Supabase son `openid`,
-  `email`, `profile` y `phone`. Si no admite uno propio, se saca el alcance del
-  desafío —el protocolo lo permite— y listo: el token identifica a la persona
-  igual, que es lo único que la RLS necesita.
+Cuatro chequeos contra el proyecto ya habilitado. No hizo falta escribir código
+de autenticación: Supabase alcanza tal como viene.
+
+| Chequeo | Resultado |
+|---|---|
+| ¿Anuncia `offline_access`? | ✅ sí — ChatGPT va a poder renovar el token sin que nadie reconecte a mano |
+| ¿Acepta el parámetro `resource` (RFC 8707)? | ✅ sí — redirige al consentimiento igual que sin él. El bug reportado no afecta a este proyecto |
+| ¿Deja pre-registrar clientes confidenciales? | ✅ sí — `client_secret_basic` y `client_secret_post`, PKCE con `S256`. No hace falta el registro dinámico |
+| ¿Acepta `erp` como alcance? | ❌ **no** — `unsupported scope: erp` |
+
+**El último rompía el flujo y se corrigió.** El servidor MCP pedía `scope="erp"`
+en la cabecera `WWW-Authenticate`; los alcances que acepta Supabase son
+`openid`, `profile`, `email`, `phone` y `offline_access`, y uno propio falla
+antes de llegar a la pantalla de consentimiento. Ahora no declara ninguno: el
+spec dice que si el recurso no publica alcances el cliente omite el parámetro, y
+así la autorización pasa. Tampoco hacía falta ninguno, porque acá los permisos
+no los decide el token: los decide la RLS, que filtra por la persona.
+
+Cómo se midió: se registró un cliente OAuth público descartable, se probó el
+`/authorize` con y sin `resource` y con cada alcance, y se borró. Quedaron **0
+clientes** registrados.
 
 ### Una recomendación de Supabase que conviene leer antes de decidir
 
@@ -93,9 +103,9 @@ Supabase recomienda, para uso de OAuth, migrar la firma de los JWT de HS256
 pueden validar los tokens con la clave pública del JWKS sin que haya que
 compartirles el secreto.
 
-**No es obligatorio para lo nuestro**, porque el alcance que pedimos es `erp` y
-no `openid`. Pero si alguna vez se pide `openid`, la generación del ID token
-**falla con HS256**, así que ahí sí hace falta.
+**No es obligatorio para lo nuestro**, porque no pedimos el alcance `openid`.
+Pero si alguna vez se pidiera, la generación del ID token **falla con HS256**,
+así que ahí sí haría falta.
 
 Lo dejo señalado y no lo hago: cambiar cómo se firman los tokens de producción
 es una decisión con su propio riesgo y no corresponde meterla de contrabando en
@@ -160,7 +170,10 @@ De vuelta en la pantalla del paso 4:
 1. Pegar **client ID** y **client secret**.
 2. **Registration URL: dejarla vacía.** Eso es lo que le dice que no use
    registro dinámico.
-3. Alcance (`scope`): `erp`
+3. Alcance (`scope`): **dejalo vacío.** Nuestro servidor no pide ninguno a
+   propósito —ver el chequeo del paso 2— y Supabase rechaza los que no conoce.
+   Si el campo fuera obligatorio, poné `offline_access`, que es el único que
+   sirve para algo acá: es el que habilita el refresh token.
 4. **Scan Tools**.
    - Se abre la autorización → te lleva a `app.buscatools.com`, te logueás si
      hace falta, y aparece la pantalla de consentimiento.
