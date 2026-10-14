@@ -28,7 +28,7 @@
  * que también se autentican solas.
  */
 import { crearEjecutor } from '../asistente/ejecutor.ts'
-import { elegirEmpresa } from '../erp-api/logica.ts'
+import { elegirEmpresa, perfil } from '../erp-api/logica.ts'
 import { abrirSesion, tokenDe } from '../erp-api/sesion.ts'
 import {
   desafio,
@@ -39,6 +39,25 @@ import {
   sobre,
   sobreError,
 } from './logica.ts'
+import { SKILL_MD } from './skill.ts'
+
+/**
+ * El SHA-256 del SKILL.md, en el formato que pide el manifiesto.
+ *
+ * Se calcula UNA vez al arrancar, no por llamada: el contenido es una
+ * constante del módulo. OpenAI verifica este digest contra el archivo que
+ * después descarga por `resources/read`, así que tiene que salir del mismo
+ * texto que se sirve —de ahí que se hashee la constante y no una copia.
+ */
+async function sha256(texto: string): Promise<string> {
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto))
+  const hex = Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+  return `sha256:${hex}`
+}
+
+const DIGEST_SKILL = await sha256(SKILL_MD)
 
 const JSON_CAB = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
 
@@ -139,7 +158,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     })
   }
 
-  const resuelto = resolver(peticion)
+  const resuelto = resolver(peticion, { digestDelMd: DIGEST_SKILL })
 
   /*
    * Una notificación se acepta y no se contesta: 202 sin cuerpo. Mandarle una
@@ -156,6 +175,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (resuelto.clase === 'error') {
     return new Response(
       JSON.stringify(sobreError(resuelto.id, resuelto.codigo, resuelto.mensaje)),
+      { status: 200, headers: JSON_CAB },
+    )
+  }
+
+  /*
+   * El perfil se contesta con la sesión, sin tocar la base.
+   *
+   * Va como texto JSON igual que el resto de las herramientas, para que el
+   * modelo lo lea de la misma forma en todos los casos.
+   */
+  if (resuelto.clase === 'perfil') {
+    const { quien, correo, membresias } = apertura.sesion
+    const datos = perfil({ quien, correo, membresias })
+    anotar({ herramienta: 'quien_soy', usuario: apertura.sesion.userId })
+    return new Response(
+      JSON.stringify(respuestaDeHerramienta(resuelto.id, JSON.stringify(datos))),
       { status: 200, headers: JSON_CAB },
     )
   }

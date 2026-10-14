@@ -28,7 +28,7 @@
  * 3. **Nada escribe todavía.** Las trece herramientas expuestas leen.
  */
 import { crearEjecutor } from '../asistente/ejecutor.ts'
-import { documentoOpenAPI, elegirEmpresa, rutaDe } from './logica.ts'
+import { documentoOpenAPI, elegirEmpresa, perfil, rutaDe } from './logica.ts'
 import { abrirSesion, tokenDe } from './sesion.ts'
 
 const CABECERAS = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
@@ -77,23 +77,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
    * la séptima tiene dos, y necesita poder ver cuál se asumió antes de creerle
    * a un total.
    */
-  if (ruta.clase === 'yo') {
-    const elegida = elegirEmpresa(membresias)
-    return json({
-      nombre: quien,
-      correo,
-      empresa: elegida.ok ? elegida.empresa.nombre : null,
-      empresas: membresias.map((m) => ({
-        nombre: m.nombre,
-        rol: m.rol,
-        porDefecto: elegida.ok && m.companyId === elegida.empresa.companyId,
-      })),
-      nota:
-        membresias.length > 1
-          ? 'Trabajás en más de una empresa. Para preguntar por otra, mandá «empresa» con su nombre.'
-          : null,
-    })
-  }
+  if (ruta.clase === 'yo') return json(perfil({ quien, correo, membresias }))
 
   let cuerpo: Record<string, unknown>
   try {

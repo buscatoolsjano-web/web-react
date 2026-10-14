@@ -125,10 +125,64 @@ async function main() {
 
     const lista = await (await rpc('tools/list', undefined, { token: TOKEN })).json()
     const tools = lista.result?.tools ?? []
-    cmp('tools/list trae las trece', 13, tools.length)
+    cmp('tools/list trae el perfil más las trece', 14, tools.length)
     cmp('todas dicen que sólo leen', true, tools.every((t) => t.annotations?.readOnlyHint === true))
+    cmp('todas tienen título legible', true, tools.every((t) => t.title && !t.title.includes('_')))
     cmp('ninguna pide un identificador', true,
       tools.every((t) => !('company' in (t.inputSchema?.properties ?? {}))))
+    // La convención con la que ChatGPT reconoce la cuenta conectada.
+    const perfil = tools.find((t) => t.name === 'quien_soy')
+    cmp('el perfil está marcado', true, perfil?._meta?.['openai/profile'] === true)
+
+    /*
+     * ── LA SKILL ──────────────────────────────────────────────────────────
+     *
+     * Es donde viven los prompts. Si el servidor no declara la extensión o el
+     * digest no coincide con el archivo, "Scan Tools" importa las herramientas
+     * y NO la skill, EN SILENCIO: el agente funciona y contesta peor. Por eso
+     * esto se verifica acá y no se confía en que ande.
+     */
+    console.log('\n  La skill')
+    cmp('initialize declara la extensión', true,
+      !!r.result?.capabilities?.extensions?.['io.modelcontextprotocol/skills'])
+    cmp('instructions pone lo importante primero', true,
+      /volvé a buscar con menos/i.test((r.result?.instructions ?? '').slice(0, 512)))
+
+    const skills = await (await rpc('skills/list', {}, { token: TOKEN })).json()
+    const skill = skills.result?.skills?.[0]
+    cmp('skills/list devuelve una', 1, skills.result?.skills?.length)
+    cmp('con el nombre en el front matter', 'erp-buscatools', skill?.frontmatter?.name)
+    cmp('y una descripción', true, (skill?.frontmatter?.description ?? '').length > 40)
+
+    const uri = skill?.resources?.[0]?.uri
+    const leido = await (await rpc('resources/read', { uri }, { token: TOKEN })).json()
+    const texto = leido.result?.contents?.[0]?.text ?? ''
+    cmp('resources/read devuelve un solo item', 1, leido.result?.contents?.length)
+    cmp('y es el SKILL.md', true, texto.startsWith('---\nname: erp-buscatools'))
+
+    /* El digest declarado tiene que ser el del archivo servido: es lo que
+       OpenAI verifica, y si no coincide rechaza el import entero. */
+    const { createHash } = await import('node:crypto')
+    const real = `sha256:${createHash('sha256').update(texto, 'utf8').digest('hex')}`
+    cmp('el digest coincide con el archivo', skill?.resources?.[0]?.digest, real)
+
+    /* Que no se hayan perdido las reglas que evitan contestar mal. */
+    for (const [queEs, patron] of [
+      ['insistir antes de decir que no hay', /no es una respuesta: es un primer intento/i],
+      ['los importes a la argentina', /USD 10\.811,48/],
+      ['costo contra precio', /el costo es lo que paga BuscaTools/i],
+      ['nunca sumar monedas', /nunca sumes monedas distintas/i],
+    ]) {
+      cmp(`la skill conserva: ${queEs}`, true, patron.test(texto))
+    }
+
+    console.log('\n  El perfil')
+    const yo = await (await rpc('tools/call', { name: 'quien_soy', arguments: {} }, { token: TOKEN })).json()
+    const datos = JSON.parse(yo.result?.content?.[0]?.text ?? '{}')
+    console.log(`          sos «${datos.nombre}» en «${datos.empresa}»`)
+    cmp('dice quién sos', true, typeof datos.nombre === 'string' && datos.nombre.length > 0)
+    cmp('y marca una empresa por defecto', 1,
+      (datos.empresas ?? []).filter((e) => e.porDefecto).length)
 
     /* Una notificación no se contesta: 202 y nada de cuerpo. */
     const noti = await rpc('notifications/initialized', undefined, { token: TOKEN, id: null })

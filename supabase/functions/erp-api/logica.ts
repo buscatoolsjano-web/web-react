@@ -351,6 +351,37 @@ export function elegirEmpresa(ms: readonly Membresia[], pedida?: string): Elecci
 }
 
 /**
+ * Quién sos y con qué empresa se está trabajando.
+ *
+ * Lo piden las dos puertas —`GET /yo` en REST y la herramienta `quien_soy` en
+ * MCP— y es la misma respuesta, así que se arma una sola vez acá. Existe para
+ * que la elección de empresa NUNCA sea silenciosa: seis de las siete personas
+ * tienen una sola y no se van a enterar de que esto existe, la séptima tiene
+ * dos y necesita poder ver cuál se asumió antes de creerle a un total.
+ */
+export function perfil(datos: {
+  quien: string
+  correo: string | null
+  membresias: readonly Membresia[]
+}): Record<string, unknown> {
+  const elegida = elegirEmpresa(datos.membresias)
+  return {
+    nombre: datos.quien,
+    correo: datos.correo,
+    empresa: elegida.ok ? elegida.empresa.nombre : null,
+    empresas: datos.membresias.map((m) => ({
+      nombre: m.nombre,
+      rol: m.rol,
+      porDefecto: elegida.ok && m.companyId === elegida.empresa.companyId,
+    })),
+    nota:
+      datos.membresias.length > 1
+        ? 'Trabajás en más de una empresa. Para preguntar por otra, mandá «empresa» con su nombre.'
+        : null,
+  }
+}
+
+/**
  * Revisa que lo expuesto sea coherente. Corre en un test, no en producción.
  *
  * Mismo criterio que `revisarRegistro()` de `agentes.ts`: los errores que

@@ -5,6 +5,7 @@ import {
   herramientasMCP,
   metadatosDelRecurso,
   PARAMS_MAL,
+  PERFIL,
   PETICION_MAL,
   resolver,
   respuestaDeHerramienta,
@@ -13,6 +14,16 @@ import {
   VERSIONES,
 } from './logica'
 import { EXPUESTAS } from '../erp-api/logica'
+import {
+  entradaDeSkill,
+  INSTRUCCIONES,
+  SKILL_DESCRIPCION,
+  SKILL_MD,
+  SKILL_NOMBRE,
+  SKILL_URI,
+} from './skill'
+
+const DIGEST = `sha256:${'a'.repeat(64)}`
 
 describe('la versión del protocolo', () => {
   /*
@@ -38,8 +49,21 @@ describe('el despachador JSON-RPC', () => {
     expect(r.clase).toBe('resultado')
     if (r.clase !== 'resultado') return
     expect(r.resultado['protocolVersion']).toBe('2026-07-28')
-    expect(r.resultado['capabilities']).toEqual({ tools: { listChanged: false } })
     expect((r.resultado['serverInfo'] as { name: string }).name).toBe('erp-buscatools')
+  })
+
+  /*
+   * La extensión tiene que ir bajo `capabilities.extensions` y con ese nombre
+   * exacto: la declaración experimental anterior ya no se reconoce. Sin esto,
+   * «Scan Tools» importa las herramientas y NO la skill, en silencio: las
+   * herramientas andan y el agente contesta peor, que es la falla que no se nota.
+   */
+  it('initialize declara la extensión de skills donde OpenAI la lee', () => {
+    const r = resolver({ id: 1, method: 'initialize' })
+    expect(r.clase === 'resultado' && r.resultado['capabilities']).toEqual({
+      tools: { listChanged: false },
+      extensions: { 'io.modelcontextprotocol/skills': {} },
+    })
   })
 
   /*
@@ -107,25 +131,185 @@ describe('el despachador JSON-RPC', () => {
   })
 
   it('y tampoco una que exista pero no le toque a este cliente', () => {
-    const soloCatalogo = ['buscar_productos', 'ficha_producto']
     const r = resolver(
       { id: 6, method: 'tools/call', params: { name: 'buscar_emails', arguments: {} } },
-      soloCatalogo,
+      { herramientas: ['buscar_productos', 'ficha_producto'] },
     )
     expect(r.clase).toBe('error')
+  })
+
+  /* El perfil no es una RPC: lo contesta `index.ts` con la sesión. */
+  it('quien_soy sale por su propio camino, no por el ejecutor', () => {
+    const r = resolver({ id: 9, method: 'tools/call', params: { name: PERFIL } })
+    expect(r).toEqual({ clase: 'perfil', id: 9 })
+  })
+})
+
+describe('las skills', () => {
+  it('skills/list devuelve una, sin cursor porque no hay más páginas', () => {
+    const r = resolver({ id: 1, method: 'skills/list', params: {} }, { digestDelMd: DIGEST })
+    expect(r.clase).toBe('resultado')
+    if (r.clase !== 'resultado') return
+    expect(r.resultado['skills']).toEqual([entradaDeSkill(DIGEST)])
+    // El cursor se OMITE cuando terminó; mandar `null` es decir otra cosa.
+    expect('nextCursor' in r.resultado).toBe(false)
+  })
+
+  /*
+   * `skills/get` devuelve la MISMA entrada completa que `skills/list`, no una
+   * reducida: OpenAI compara las dos y rechaza el import si no coinciden.
+   */
+  it('skills/get devuelve la entrada completa, igual que list', () => {
+    const r = resolver({ id: 2, method: 'skills/get', params: { uri: SKILL_URI } }, { digestDelMd: DIGEST })
+    expect(r.clase === 'resultado' && r.resultado).toEqual(entradaDeSkill(DIGEST))
+  })
+
+  it('una skill que no existe no se inventa', () => {
+    const r = resolver({ id: 3, method: 'skills/get', params: { uri: 'skill://otra/x/SKILL.md' } }, { digestDelMd: DIGEST })
+    expect(r.clase === 'error' && r.codigo).toBe(PARAMS_MAL)
+  })
+
+  it('sin digest no se contesta un manifiesto que OpenAI va a rechazar', () => {
+    const r = resolver({ id: 4, method: 'skills/list', params: {} })
+    expect(r.clase).toBe('error')
+  })
+
+  it('resources/read devuelve exactamente un item, con la URI que se pidió', () => {
+    const r = resolver({ id: 5, method: 'resources/read', params: { uri: SKILL_URI } })
+    expect(r.clase).toBe('resultado')
+    if (r.clase !== 'resultado') return
+    const contents = r.resultado['contents'] as { uri: string; text: string }[]
+    expect(contents.length).toBe(1)
+    expect(contents[0]?.uri).toBe(SKILL_URI)
+    expect(contents[0]?.text).toBe(SKILL_MD)
+  })
+
+  it('un recurso desconocido no se sirve', () => {
+    const r = resolver({ id: 6, method: 'resources/read', params: { uri: 'skill://x/y/Z.md' } })
+    expect(r.clase === 'error' && r.codigo).toBe(PARAMS_MAL)
+  })
+
+  /*
+   * ── EL TEST QUE EVITA UN IMPORT RECHAZADO ─────────────────────────────────
+   *
+   * OpenAI verifica que el front matter del SKILL.md que descarga coincida
+   * EXACTAMENTE con la entrada del catálogo. Son dos lugares —la constante y
+   * el encabezado del markdown— y si se despegan, el import falla con un
+   * mensaje que no dice cuál de los dos está mal.
+   */
+  it('el front matter del archivo coincide con el catálogo', () => {
+    const bloque = /^---\n([\s\S]*?)\n---\n/.exec(SKILL_MD)
+    expect(bloque, 'el SKILL.md no empieza con front matter').not.toBeNull()
+
+    const campos = new Map<string, string>()
+    for (const linea of (bloque?.[1] ?? '').split('\n')) {
+      const i = linea.indexOf(':')
+      if (i > 0) campos.set(linea.slice(0, i).trim(), linea.slice(i + 1).trim())
+    }
+
+    const esperado = entradaDeSkill(DIGEST)['frontmatter'] as Record<string, string>
+    expect(campos.get('name')).toBe(esperado['name'])
+    expect(campos.get('description')).toBe(esperado['description'])
+    // Y el nombre tiene que ser el de la carpeta que contiene el SKILL.md.
+    expect(SKILL_URI).toContain(`/${SKILL_NOMBRE}/SKILL.md`)
+    expect(esperado['description']).toBe(SKILL_DESCRIPCION)
+  })
+
+  /*
+   * OpenAI pide lo más importante en los primeros 512 caracteres de
+   * `instructions`, y que no se repitan las descripciones de las herramientas
+   * ni se intente cambiar la personalidad del modelo. Lo que más daño evita es
+   * la regla de no dar por inexistente algo que sí está, así que tiene que
+   * entrar en esa ventana.
+   */
+  it('las instrucciones del initialize ponen lo importante primero', () => {
+    expect(INSTRUCCIONES.slice(0, 512)).toMatch(/volvé a buscar con menos/i)
+    // Y no son el prompt entero: eso vive en la skill.
+    expect(INSTRUCCIONES.length).toBeLessThan(1200)
+  })
+})
+
+describe('el contenido de la skill', () => {
+  /*
+   * Lo que se verifica acá no es la prosa, es que no se hayan perdido las
+   * reglas que hacen que la respuesta sea VERDADERA. Cada una de éstas
+   * corresponde a un error concreto que el asistente de la web cometió antes
+   * de que su prompt lo prohibiera.
+   */
+  it('conserva las reglas que evitan contestar mal', () => {
+    const casos: [string, RegExp][] = [
+      ['insistir antes de decir que no hay', /no es una respuesta: es un primer intento/i],
+      ['el ejemplo concreto de la búsqueda ancha', /mirgor/i],
+      ['los importes a la argentina', /USD 10\.811,48/],
+      ['el SKU junto al nombre', /SKU y el nombre juntos/i],
+      ['costo contra precio', /el costo es lo que paga BuscaTools/i],
+      ['nunca sumar monedas distintas', /nunca sumes monedas distintas/i],
+      ['sin datos no es cero', /No es lo mismo que cero/i],
+      ['rankear con orden=importe, no a ojo', /orden=importe/],
+      ['no inventar un producto para completar una cotización', /Nunca elijas un producto parecido/i],
+      ['que la cotización la crea la persona', /Vos no la creás/i],
+      ['el stock que importa es el disponible', /disponible/i],
+      ['lo que se ve depende de los permisos', /permisos de la persona conectada/i],
+    ]
+    for (const [queEs, patron] of casos) {
+      expect(SKILL_MD, `se perdió: ${queEs}`).toMatch(patron)
+    }
+  })
+
+  /* Las trece herramientas tienen que estar nombradas: si una no aparece, el
+     modelo no sabe que existe aunque esté en `tools/list`. */
+  it('nombra todas las herramientas expuestas', () => {
+    for (const id of EXPUESTAS) {
+      expect(SKILL_MD, `la skill no menciona ${id}`).toContain(id)
+    }
+    expect(SKILL_MD).toContain(PERFIL)
+  })
+
+  /*
+   * NO decide la personalidad. OpenAI pide no hacerlo desde el servidor, y
+   * ChatGPT ya habla como la persona le pidió. Lo que la skill trae son las
+   * reglas de verdad, no el tono.
+   */
+  it('no le dice al modelo cómo hablar', () => {
+    expect(SKILL_MD).not.toMatch(/voseo/i)
+    expect(SKILL_MD).not.toMatch(/dos o tres frases/i)
+    expect(SKILL_MD).not.toMatch(/castellano rioplatense/i)
   })
 })
 
 describe('las herramientas que se publican', () => {
   const tools = herramientasMCP()
 
-  it('son las expuestas, con nombre, descripción y esquema', () => {
-    expect(tools.map((t) => t['name'])).toEqual([...EXPUESTAS])
+  it('son el perfil más las expuestas, con nombre, título, descripción y esquema', () => {
+    expect(tools.map((t) => t['name'])).toEqual([PERFIL, ...EXPUESTAS])
     for (const t of tools) {
       expect(typeof t['description']).toBe('string')
       expect((t['description'] as string).length).toBeGreaterThan(20)
       expect((t['inputSchema'] as { type: string }).type).toBe('object')
     }
+  })
+
+  /*
+   * El título es lo que ve la persona en la interfaz de ChatGPT. Está escrito
+   * a mano porque derivarlo del id en castellano sale mal —`resumen_catalogo`
+   * daría «Resumen catalogo», sin la tilde—, y este test es lo que impide que
+   * la lista se quede corta en silencio cuando se exponga una herramienta nueva.
+   */
+  it('todas tienen un título legible, no el id', () => {
+    for (const t of tools) {
+      const titulo = t['title']
+      expect(typeof titulo, String(t['name'])).toBe('string')
+      expect(titulo, `${String(t['name'])} no tiene título propio`).not.toBe(t['name'])
+      expect(titulo as string).not.toContain('_')
+    }
+  })
+
+  /* La convención de ChatGPT para reconocer la cuenta conectada. */
+  it('el perfil está marcado como perfil', () => {
+    const p = tools.find((t) => t['name'] === PERFIL)
+    expect(p?.['_meta']).toEqual({ 'openai/profile': true })
+    // Y no pide nada: es sobre quien pregunta.
+    expect((p?.['inputSchema'] as { properties: object }).properties).toEqual({})
   })
 
   /*
@@ -155,11 +339,13 @@ describe('las herramientas que se publican', () => {
     expect(JSON.stringify(tools)).not.toContain('p_company')
   })
 
-  it('se pueden publicar sólo algunas', () => {
-    const t = herramientasMCP(['buscar_productos'])
-    expect(t.map((x) => x['name'])).toEqual(['buscar_productos'])
+  it('se pueden publicar sólo algunas, y el perfil va siempre', () => {
+    expect(herramientasMCP(['buscar_productos']).map((x) => x['name'])).toEqual([
+      PERFIL,
+      'buscar_productos',
+    ])
     // Y pedir una no expuesta no la publica.
-    expect(herramientasMCP(['crear_cotizacion'])).toEqual([])
+    expect(herramientasMCP(['crear_cotizacion']).map((x) => x['name'])).toEqual([PERFIL])
   })
 })
 

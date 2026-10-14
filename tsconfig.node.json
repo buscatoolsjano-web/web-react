@@ -43,6 +43,7 @@
     "supabase/functions/erp-api/logica.test.ts",
     "supabase/functions/erp-mcp/logica.ts",
     "supabase/functions/erp-mcp/logica.test.ts",
+    "supabase/functions/erp-mcp/skill.ts",
     "scripts/fase67-openapi.ts"
   ]
 }

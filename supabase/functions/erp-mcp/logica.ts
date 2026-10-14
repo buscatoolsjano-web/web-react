@@ -31,6 +31,48 @@
  */
 import { esquemaDeEntrada, EXPUESTAS } from '../erp-api/logica.ts'
 import { herramienta } from '../asistente/herramientas.ts'
+import { entradaDeSkill, INSTRUCCIONES, RECURSOS, SKILL_URI } from './skill.ts'
+
+/**
+ * La herramienta de perfil: quién está conectado.
+ *
+ * No es una RPC del catálogo, así que no sale de `herramientas.ts`: la contesta
+ * `index.ts` con los datos de la sesión. Va marcada con `openai/profile`, una
+ * convención de ChatGPT para identificar cuentas conectadas y que la persona
+ * pueda distinguirlas cuando tiene más de una.
+ *
+ * Y sirve para algo más concreto: que la elección de empresa nunca sea
+ * silenciosa. Seis de las siete personas tienen una sola empresa y no se van a
+ * enterar; la séptima tiene dos y necesita poder ver cuál se asumió antes de
+ * creerle a un total.
+ */
+export const PERFIL = 'quien_soy'
+
+/**
+ * El título legible de cada herramienta, para la interfaz de ChatGPT.
+ *
+ * Están acá y no en `herramientas.ts` porque son PRESENTACIÓN de esta
+ * superficie, no parte del catálogo. Y están escritos a mano y no derivados
+ * del id porque en castellano derivarlos sale mal: `resumen_catalogo` daría
+ * «Resumen catalogo», sin la tilde. Un test comprueba que no falte ninguno, así
+ * que esta lista no se puede quedar corta en silencio.
+ */
+const TITULOS: Readonly<Record<string, string>> = {
+  [PERFIL]: 'Quién soy',
+  buscar_productos: 'Buscar productos',
+  ficha_producto: 'Ficha de un producto',
+  resumen_catalogo: 'Resumen del catálogo',
+  stock_actual: 'Stock actual',
+  buscar_cliente: 'Buscar un cliente',
+  historial_del_cliente: 'Historial de un cliente',
+  precios_del_cliente: 'Precios de un cliente',
+  buscar_documentos: 'Buscar documentos',
+  ver_documento: 'Ver un documento',
+  preparar_cotizacion: 'Preparar una cotización',
+  ultimo_costo: 'Último costo de compra',
+  ranking_comercial: 'Ranking comercial',
+  buscar_emails: 'Buscar correos',
+}
 
 /**
  * Las versiones del protocolo que sabemos hablar, la preferida primero.
@@ -96,12 +138,27 @@ export function desafio(urlDeMetadatos: string, alcance = ALCANCE): string {
  */
 export function herramientasMCP(soloEstas?: readonly string[]): Record<string, unknown>[] {
   const cuales = soloEstas ?? EXPUESTAS
-  return EXPUESTAS.filter((id) => cuales.includes(id)).flatMap((id) => {
+
+  const perfil = {
+    name: PERFIL,
+    title: TITULOS[PERFIL],
+    description:
+      'Quién sos y en qué empresa estás trabajando: tu nombre, tu correo y las empresas ' +
+      'a las que perteneces, marcando la que se usa por omisión. Llamala una vez si hace ' +
+      'falta saber con qué empresa se está trabajando.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    // La convención de ChatGPT para reconocer la cuenta conectada.
+    _meta: { 'openai/profile': true },
+  }
+
+  const resto = EXPUESTAS.filter((id) => cuales.includes(id)).flatMap((id) => {
     const h = herramienta(id)
     if (!h) return []
     return [
       {
         name: id,
+        title: TITULOS[id] ?? id,
         description: h.descripcion,
         inputSchema: esquemaDeEntrada(h),
         annotations: {
@@ -116,6 +173,9 @@ export function herramientasMCP(soloEstas?: readonly string[]): Record<string, u
       },
     ]
   })
+
+  // El perfil primero: es lo que se llama al empezar, y así queda a la vista.
+  return [perfil, ...resto]
 }
 
 /* ── JSON-RPC ──────────────────────────────────────────────────────────────── */
@@ -132,6 +192,20 @@ export type Resuelto =
   | { clase: 'error'; id: unknown; codigo: number; mensaje: string }
   | { clase: 'nada' }
   | { clase: 'llamada'; id: unknown; nombre: string; argumentos: Record<string, unknown> }
+  /** `quien_soy`: lo contesta `index.ts` con la sesión, sin tocar la base. */
+  | { clase: 'perfil'; id: unknown }
+
+export interface OpcionesDeResolver {
+  /** Para publicar sólo algunas herramientas. Por omisión, todas las expuestas. */
+  herramientas?: readonly string[] | undefined
+  /**
+   * El SHA-256 del SKILL.md, que `index.ts` calcula con WebCrypto.
+   *
+   * Sin él no se pueden contestar los métodos de skills: OpenAI verifica el
+   * digest de cada recurso al importar y rechaza el import si no coincide.
+   */
+  digestDelMd?: string | undefined
+}
 
 /** Los códigos de JSON-RPC 2.0 que usamos. */
 export const SIN_METODO = -32601
@@ -150,7 +224,8 @@ export const PETICION_MAL = -32600
  * una notificación es un error de protocolo que algunos clientes toleran y
  * otros no.
  */
-export function resolver(p: Peticion, herramientasVisibles?: readonly string[]): Resuelto {
+export function resolver(p: Peticion, opciones: OpcionesDeResolver = {}): Resuelto {
+  const herramientasVisibles = opciones.herramientas
   const id = p.id ?? null
   const esNotificacion = p.id === undefined || p.id === null
   const metodo = typeof p.method === 'string' ? p.method : ''
@@ -173,12 +248,21 @@ export function resolver(p: Peticion, herramientasVisibles?: readonly string[]):
       id,
       resultado: {
         protocolVersion: versionAUsar(params.protocolVersion),
-        capabilities: { tools: { listChanged: false } },
+        capabilities: {
+          tools: { listChanged: false },
+          /*
+           * La extensión de skills, declarada donde OpenAI la lee.
+           *
+           * Tiene que ir bajo `capabilities.extensions` y con este nombre
+           * exacto: la declaración experimental anterior ya no se reconoce.
+           * Sin esto, «Scan Tools» importa las herramientas y NO la skill, en
+           * silencio: las herramientas andan y el agente contesta peor, que es
+           * la clase de falla que no se nota.
+           */
+          extensions: { 'io.modelcontextprotocol/skills': {} },
+        },
         serverInfo: SERVIDOR,
-        instructions:
-          'Los datos del ERP de BuscaTools. Todo se lee con los permisos de la persona ' +
-          'conectada. Una búsqueda vacía casi siempre significa que buscaste con ' +
-          'demasiadas palabras juntas: volvé a buscar con menos antes de decir que no hay.',
+        instructions: INSTRUCCIONES,
       },
     }
   }
@@ -189,6 +273,52 @@ export function resolver(p: Peticion, herramientasVisibles?: readonly string[]):
     return { clase: 'resultado', id, resultado: { tools: herramientasMCP(herramientasVisibles) } }
   }
 
+  /*
+   * ── Las skills ────────────────────────────────────────────────────────────
+   *
+   * Es una sola y entra en una página, así que no hay `nextCursor`: el cursor
+   * se omite cuando no hay más, que es como el cliente sabe que terminó.
+   *
+   * `skills/get` devuelve la MISMA entrada completa que `skills/list`, no una
+   * versión reducida: OpenAI compara el front matter del archivo contra la
+   * entrada del catálogo y rechaza el import si no coinciden exactamente.
+   */
+  if (metodo === 'skills/list' || metodo === 'skills/get') {
+    const digest = opciones.digestDelMd
+    if (digest === undefined || digest === '') {
+      return { clase: 'error', id, codigo: -32603, mensaje: 'No pude calcular el digest de la skill.' }
+    }
+
+    if (metodo === 'skills/list') {
+      return { clase: 'resultado', id, resultado: { skills: [entradaDeSkill(digest)] } }
+    }
+
+    const params = (typeof p.params === 'object' && p.params !== null ? p.params : {}) as {
+      uri?: unknown
+    }
+    if (params.uri !== SKILL_URI) {
+      return { clase: 'error', id, codigo: PARAMS_MAL, mensaje: `No conozco la skill «${String(params.uri)}».` }
+    }
+    return { clase: 'resultado', id, resultado: entradaDeSkill(digest) }
+  }
+
+  if (metodo === 'resources/read') {
+    const params = (typeof p.params === 'object' && p.params !== null ? p.params : {}) as {
+      uri?: unknown
+    }
+    const uri = typeof params.uri === 'string' ? params.uri : ''
+    const texto = RECURSOS[uri]
+    if (texto === undefined) {
+      return { clase: 'error', id, codigo: PARAMS_MAL, mensaje: `No conozco el recurso «${uri}».` }
+    }
+    // Exactamente UN item, y con la misma URI que se pidió.
+    return {
+      clase: 'resultado',
+      id,
+      resultado: { contents: [{ uri, mimeType: 'text/markdown', text: texto }] },
+    }
+  }
+
   if (metodo === 'tools/call') {
     const params = (typeof p.params === 'object' && p.params !== null ? p.params : {}) as {
       name?: unknown
@@ -196,6 +326,9 @@ export function resolver(p: Peticion, herramientasVisibles?: readonly string[]):
     }
     const nombre = typeof params.name === 'string' ? params.name : ''
     const visibles = herramientasVisibles ?? EXPUESTAS
+
+    // El perfil no es una RPC: lo contesta `index.ts` con la sesión.
+    if (nombre === PERFIL) return { clase: 'perfil', id }
 
     if (nombre === '' || !visibles.includes(nombre)) {
       return {
