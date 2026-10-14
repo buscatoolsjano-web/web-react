@@ -210,9 +210,20 @@ async function main() {
     cmp('una notificación: 202', 202, noti.status)
     cmp('y sin cuerpo', 0, (await noti.text()).length)
 
-    /* Un método que no existe se contesta con el código de JSON-RPC, no con un 500. */
-    const noExiste = await (await rpc('resources/list', undefined, { token: TOKEN })).json()
+    /*
+     * Un método que no existe se contesta con el código de JSON-RPC, no con un
+     * 500. El ejemplo era `resources/list` hasta que ese método pasó a existir
+     * —se contesta vacío a propósito, para que un sondeo no tire la conexión—,
+     * así que acá hace falta uno que de verdad no conozcamos.
+     */
+    const noExiste = await (await rpc('completion/complete', undefined, { token: TOKEN })).json()
     cmp('método desconocido: -32601', -32601, noExiste.error?.code)
+
+    /* Y que los sondeos que SÍ contestamos devuelvan vacío, no un error. */
+    for (const metodo of ['resources/list', 'prompts/list']) {
+      const r = await (await rpc(metodo, undefined, { token: TOKEN })).json()
+      cmp(`${metodo} contesta vacío, no error`, undefined, r.error?.code)
+    }
 
     /* Una herramienta que no existe no se ejecuta. */
     const vedada = await (
