@@ -32,10 +32,15 @@ https://app.buscatools.com/#/oauth/consent
 
 ## 2 · Habilitar el servidor OAuth en Supabase
 
-Dashboard → **Authentication** → **OAuth Apps**.
+Dashboard → **Authentication** → **OAuth Server** (en la barra lateral). Ojo que
+**no** es «OAuth Apps»: ésa es para registrar clientes y viene después, en el
+paso 5.
 
-1. Habilitar el servidor OAuth 2.1.
-2. **Dejar el registro dinámico de clientes (DCR) APAGADO.**
+Está en beta y es gratis durante la beta, en todos los planes.
+
+1. Habilitar las capacidades del servidor OAuth 2.1.
+2. **Dejar el registro dinámico de clientes (DCR) APAGADO.** El toggle está en
+   esta misma pantalla.
 
    No es un detalle. Con el registro dinámico encendido, cualquiera que llegue
    al endpoint puede registrar un cliente OAuth —Supabase lo advierte en su
@@ -48,9 +53,12 @@ Dashboard → **Authentication** → **OAuth Apps**.
    Se puede dejar apagado porque ChatGPT permite pre-registrar el cliente: en
    su configuración hay **Advanced OAuth settings → cliente definido por el
    usuario**, que es el camino del paso 4.
-3. **Site URL**: `https://app.buscatools.com`
-4. **Authorization Path**: `/oauth/consent` o `/#/oauth/consent`, las dos
-   andan.
+3. **Authorization Path**: `/oauth/consent` o `/#/oauth/consent`, las dos
+   andan. Está en esta misma pantalla, debajo del toggle.
+4. **Site URL**: tiene que ser `https://app.buscatools.com`, y ese campo vive en
+   otra pantalla: **Authentication** → **URL Configuration**. Supabase arma la
+   URL del consentimiento pegando Site URL + Authorization Path, así que si el
+   Site URL quedó apuntando a otra parte, la gente va a caer en otro lado.
 
    Verificado en producción el 2026-10-14: la forma lisa cae en el 404 de
    GitHub Pages, el `404.html` la traduce al hash, y el `authorization_id`
@@ -71,7 +79,27 @@ hace falta escribir código de autenticación o no.
   token y hay que reconectar a mano),
 - si acepta el parámetro `resource` (el protocolo obliga al cliente a mandarlo,
   y hay un bug reportado que devuelve 400 justo con eso),
-- si deja pre-registrar clientes confidenciales.
+- si deja pre-registrar clientes confidenciales,
+- y si acepta `erp` como alcance. Nuestro servidor MCP lo pide en la cabecera
+  `WWW-Authenticate`, pero los alcances estándar de Supabase son `openid`,
+  `email`, `profile` y `phone`. Si no admite uno propio, se saca el alcance del
+  desafío —el protocolo lo permite— y listo: el token identifica a la persona
+  igual, que es lo único que la RLS necesita.
+
+### Una recomendación de Supabase que conviene leer antes de decidir
+
+Supabase recomienda, para uso de OAuth, migrar la firma de los JWT de HS256
+(simétrica) a una asimétrica como RS256. El motivo es bueno: los clientes
+pueden validar los tokens con la clave pública del JWKS sin que haya que
+compartirles el secreto.
+
+**No es obligatorio para lo nuestro**, porque el alcance que pedimos es `erp` y
+no `openid`. Pero si alguna vez se pide `openid`, la generación del ID token
+**falla con HS256**, así que ahí sí hace falta.
+
+Lo dejo señalado y no lo hago: cambiar cómo se firman los tokens de producción
+es una decisión con su propio riesgo y no corresponde meterla de contrabando en
+este paso.
 
 ---
 
