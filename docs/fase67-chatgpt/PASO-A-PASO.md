@@ -272,7 +272,27 @@ y mirarla.
 
 ## Lo que todavía no está, y conviene tener presente
 
-- **`mi_contexto`.** Para que el agente sepa de entrada en qué anda cada uno
-  (sus clientes, sus pendientes, sus marcas) sin tener que aprenderlo. El ERP ya
-  tiene el dato en `created_by`, con la limitación conocida: sólo ve lo que
-  nació en el ERP, no lo que vino de STEL.
+- **`mi_contexto` — descartada, y por qué.** La idea era que el agente supiera
+  de entrada en qué anda cada uno: sus clientes, sus pendientes, sus marcas.
+  **No se puede.** Medido el 2026-10-14, antes de escribir código:
+
+  | dato | cobertura |
+  |---|---|
+  | `salesperson_id` en documentos de venta | **0 de 534** |
+  | `created_by` en documentos | **9 de 752** |
+  | `customers` con vendedor asignado | **1 de 1013** |
+
+  Casi todo entró por la sincronización con STEL, que no trae usuarios
+  nuestros. Una herramienta así devolvería cero para todos **y parecería
+  autoritativa**, que es el peor resultado posible: un «no tenés nada
+  pendiente» con 340 cotizaciones abiertas.
+
+  Lo que se hizo en su lugar: la skill le prohíbe al agente contestar «lo tuyo»
+  con los documentos de la empresa y le pide que aclare la limitación. La
+  excepción son los correos, que sí guardan a quién está asignado cada hilo.
+
+  Para que esto sea posible algún día hace falta que los documentos empiecen a
+  tener dueño. Se va a dar solo con los que nazcan en el ERP y en ChatGPT
+  —`created_by` se llena—, pero `salesperson_id` en documentos hoy no lo setea
+  nadie, ni la web. Si quieren que el creador quede como vendedor, es una
+  decisión de negocio y hay que tomarla a propósito.

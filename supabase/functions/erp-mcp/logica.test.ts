@@ -252,6 +252,14 @@ describe('el contenido de la skill', () => {
       ['que un reintento no crea una segunda', /ya_existia/],
       ['el stock que importa es el disponible', /disponible/i],
       ['lo que se ve depende de los permisos', /permisos de la persona conectada/i],
+      /*
+       * Medido el 2026-10-14: `salesperson_id` está en null en los 534
+       * documentos de venta y `created_by` en 9 de 752. Sin esta regla, un
+       * «¿qué tengo pendiente?» se contesta con el total de la empresa y nadie
+       * tiene cómo darse cuenta.
+       */
+      ['que «lo mío» no se puede contestar', /No contestes con los documentos de la empresa como si fueran suyos/i],
+      ['y que los correos son la excepción', /bandeja sí guarda a quién está asignado/i],
     ]
     for (const [queEs, patron] of casos) {
       expect(SKILL_MD, `se perdió: ${queEs}`).toMatch(patron)
