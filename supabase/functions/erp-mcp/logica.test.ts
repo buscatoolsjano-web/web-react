@@ -8,7 +8,9 @@ import {
   PERFIL,
   PETICION_MAL,
   resolver,
+  recursoDe,
   respuestaDeHerramienta,
+  SUFIJO_META,
   SIN_METODO,
   versionAUsar,
   VERSIONES,
@@ -412,6 +414,49 @@ describe('el descubrimiento de la autorización', () => {
     expect('scopes_supported' in META).toBe(false)
     expect(JSON.stringify(META)).not.toContain('erp"')
     expect(JSON.stringify(META)).not.toContain('offline_access')
+  })
+
+  /*
+   * ── EL BUG QUE SE VIO CONTRA LO DESPLEGADO ───────────────────────────────
+   *
+   * El gateway de Supabase consume `/functions/v1` antes de llamar a la
+   * función, así que el `pathname` que llega es `/erp-mcp/…`. La primera
+   * versión reconstruía la URL externa con origen + pathname y publicaba
+   * `https://proyecto.supabase.co/erp-mcp`, que no existe. El token se emite
+   * PARA un recurso y un cliente estricto compara: habría sido un 401 en
+   * bucle, sin nada en pantalla que dijera por qué.
+   */
+  it('le devuelve el /functions/v1 que el gateway se comió', () => {
+    expect(recursoDe('https://p.supabase.co', '/erp-mcp')).toBe(
+      'https://p.supabase.co/functions/v1/erp-mcp',
+    )
+  })
+
+  /*
+   * ChatGPT pide «la URL del servidor MCP, incluyendo el path /mcp». Acá el
+   * servidor es la función entera, así que las dos formas tienen que andar y
+   * cada una declararse a sí misma.
+   */
+  it('cada forma de conectarse se declara a sí misma', () => {
+    expect(recursoDe('https://p.supabase.co', '/erp-mcp/mcp')).toBe(
+      'https://p.supabase.co/functions/v1/erp-mcp/mcp',
+    )
+    // Y los metadatos de cada una devuelven su propio recurso.
+    expect(recursoDe('https://p.supabase.co', `/erp-mcp/mcp${SUFIJO_META}`)).toBe(
+      'https://p.supabase.co/functions/v1/erp-mcp/mcp',
+    )
+  })
+
+  it('no duplica el prefijo si ya viene puesto', () => {
+    expect(recursoDe('https://p.supabase.co', '/functions/v1/erp-mcp')).toBe(
+      'https://p.supabase.co/functions/v1/erp-mcp',
+    )
+  })
+
+  it('aguanta la barra final y la barra de más en la base', () => {
+    expect(recursoDe('https://p.supabase.co/', '/erp-mcp/')).toBe(
+      'https://p.supabase.co/functions/v1/erp-mcp',
+    )
   })
 
   /* Sin esta cabecera exacta, el cliente no sabe a dónde ir y no arranca nada. */

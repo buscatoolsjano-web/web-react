@@ -33,9 +33,11 @@ import { abrirSesion, tokenDe } from '../erp-api/sesion.ts'
 import {
   desafio,
   metadatosDelRecurso,
+  recursoDe,
   PARAMS_MAL,
   resolver,
   respuestaDeHerramienta,
+  SUFIJO_META,
   sobre,
   sobreError,
 } from './logica.ts'
@@ -65,38 +67,28 @@ const anotar = (datos: Record<string, unknown>) =>
   console.log(JSON.stringify({ fn: 'erp-mcp', ...datos }))
 
 const BASE = (Deno.env.get('SUPABASE_URL') ?? '').replace(/\/+$/, '')
-/** La URI canónica de este servidor: lo que un token tiene que venir a usar. */
-const RECURSO = `${BASE}/functions/v1/erp-mcp`
-/**
- * Dónde servimos los metadatos del recurso.
- *
- * La forma canónica de RFC 9728 insertaría el path después del `.well-known`
- * —`/.well-known/oauth-protected-resource/functions/v1/erp-mcp`—, y eso cae
- * FUERA de esta función: no lo podemos servir. No importa, porque el cliente
- * tiene que usar la URL que le damos en `WWW-Authenticate` y ésa es ésta. Si
- * algún cliente la adivinara en vez de leerla, no la encontraría.
- */
-const META = `${RECURSO}/.well-known/oauth-protected-resource`
 
 /** El 401 que arranca el descubrimiento. */
-const sinSesion = (mensaje: string) =>
+const sinSesion = (mensaje: string, recurso: string) =>
   new Response(JSON.stringify({ error: 'unauthorized', error_description: mensaje }), {
     status: 401,
-    headers: { ...JSON_CAB, 'WWW-Authenticate': desafio(META) },
+    headers: { ...JSON_CAB, 'WWW-Authenticate': desafio(`${recurso}${SUFIJO_META}`) },
   })
 
 Deno.serve(async (req: Request): Promise<Response> => {
-  const ruta = new URL(req.url).pathname
+  const url = new URL(req.url)
+  const ruta = url.pathname
+  const recurso = recursoDe(BASE, url.pathname)
 
   // Paso 1: sin sesión, a propósito.
-  if (ruta.endsWith('/.well-known/oauth-protected-resource')) {
+  if (ruta.endsWith(SUFIJO_META)) {
     if (req.method !== 'GET') {
       return new Response(JSON.stringify({ error: 'metodo_no_permitido' }), {
         status: 405,
         headers: JSON_CAB,
       })
     }
-    return new Response(JSON.stringify(metadatosDelRecurso(RECURSO, BASE)), {
+    return new Response(JSON.stringify(metadatosDelRecurso(recurso, BASE)), {
       status: 200,
       // Éste SÍ se puede cachear: cambia cuando cambia el proyecto, o sea nunca.
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=3600' },
@@ -135,11 +127,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
    * bastante de cómo opera la empresa: no hay razón para regalarla.
    */
   const token = tokenDe(req.headers.get('Authorization'))
-  if (token === '') return sinSesion('Conectá tu cuenta del ERP.')
+  if (token === '') return sinSesion('Conectá tu cuenta del ERP.', recurso)
 
   const apertura = await abrirSesion(token)
   if (!apertura.ok) {
-    if (apertura.status === 401) return sinSesion(apertura.mensaje)
+    if (apertura.status === 401) return sinSesion(apertura.mensaje, recurso)
     return new Response(JSON.stringify(sobreError(null, -32603, apertura.mensaje)), {
       status: 200,
       headers: JSON_CAB,

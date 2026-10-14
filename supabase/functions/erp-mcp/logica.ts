@@ -131,6 +131,42 @@ export function metadatosDelRecurso(recurso: string, supabaseUrl: string): Recor
   }
 }
 
+/** El sufijo de RFC 9728 donde se publican los metadatos del recurso. */
+export const SUFIJO_META = '/.well-known/oauth-protected-resource'
+
+/**
+ * La URI canónica de este servidor, a partir del path con el que llamaron.
+ *
+ * ── Por qué no es una constante ─────────────────────────────────────────────
+ *
+ * Esta función contesta en cualquier path. Y eso importa porque ChatGPT pide
+ * «la URL del servidor MCP, incluyendo el path /mcp», que es la convención de
+ * los servidores hechos con el SDK; acá el servidor es la función entera. Las
+ * dos formas tienen que andar, y cada una tiene que declararse a sí misma: el
+ * token se emite PARA un recurso (RFC 8707) y un cliente estricto compara. Si
+ * no coincidiera, el síntoma sería un 401 en bucle sin explicación.
+ *
+ * ── Y POR QUÉ LLEVA `/functions/v1` A MANO ──────────────────────────────────
+ *
+ * Porque adentro de la función ya no está: el gateway de Supabase lo consume y
+ * el `pathname` que llega es `/erp-mcp/…`. Reconstruir la URL externa con
+ * origen + pathname da `https://proyecto.supabase.co/erp-mcp`, que no existe.
+ * No es hipotético: la primera versión hacía exactamente eso, y se vio porque
+ * se probó contra lo desplegado en vez de confiar.
+ *
+ * El ORIGEN viene aparte y sale de `SUPABASE_URL`, nunca de la cabecera
+ * `Host`: reflejar lo que manda el cliente dejaría que alguien se sirva un
+ * documento de metadatos idéntico al nuestro apuntando a otra parte.
+ */
+export function recursoDe(base: string, pathname: string): string {
+  const sinMeta = pathname.endsWith(SUFIJO_META)
+    ? pathname.slice(0, -SUFIJO_META.length)
+    : pathname
+  const limpio = sinMeta.replace(/\/+$/, '')
+  const conPrefijo = limpio.startsWith('/functions/v1/') ? limpio : `/functions/v1${limpio}`
+  return `${base.replace(/\/+$/, '')}${conPrefijo}`
+}
+
 /**
  * La cabecera que arranca el descubrimiento. Sin esto, nada funciona.
  *
