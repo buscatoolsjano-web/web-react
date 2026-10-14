@@ -216,6 +216,16 @@ export async function listarItemsDeLista(companyId: string, listaId: string, q: 
  * tabla en `docs/database/FASE_68_FORMAS_DE_PAGO.sql`.
  */
 
+/**
+ * Dos listas, no una.
+ *
+ * Comparten vocabulario en parte —«30 días F/F con ECHEQ» está en las dos— pero
+ * no sirven para lo mismo: las de proveedores traen medios de pago
+ * (TRANSFERENCIA BANCARIA, MERCADOPAGO) e incoterms (FOB 180 DIAS, ExWorks) que
+ * no tienen nada que hacer en el desplegable de una cotización.
+ */
+export type AmbitoFormaDePago = 'sales' | 'purchases'
+
 export interface FormaDePago {
   id: string
   nombre: string
@@ -239,17 +249,29 @@ function aFormaDePago(x: unknown): FormaDePago | null {
   }
 }
 
-export async function listarFormasDePago(companyId: string): Promise<FormaDePago[]> {
-  const { data, error } = await supabase.rpc('config_formas_pago_listar', { p_company: companyId })
+/** El ambito separa dos listas que no se mezclan: ver `AmbitoFormaDePago`. */
+export async function listarFormasDePago(
+  companyId: string,
+  ambito: AmbitoFormaDePago = 'sales',
+): Promise<FormaDePago[]> {
+  const { data, error } = await supabase.rpc('config_formas_pago_listar', {
+    p_company: companyId,
+    p_ambito: ambito,
+  })
   if (error) throw deError(error)
   const filas = Array.isArray(data) ? data : []
   return filas.map(aFormaDePago).filter((f): f is FormaDePago => f !== null)
 }
 
-export async function crearFormaDePago(companyId: string, nombre: string): Promise<FormaDePago> {
+export async function crearFormaDePago(
+  companyId: string,
+  nombre: string,
+  ambito: AmbitoFormaDePago = 'sales',
+): Promise<FormaDePago> {
   const { data, error } = await supabase.rpc('config_forma_pago_crear', {
     p_company: companyId,
     p_nombre: nombre,
+    p_ambito: ambito,
   })
   if (error) throw deError(error)
   const creada = aFormaDePago(data)

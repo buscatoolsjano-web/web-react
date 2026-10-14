@@ -11,7 +11,7 @@ import type {
 } from '../services/opciones'
 import type { FormaDePago } from '@/modules/configuracion/services/maestros'
 import { BuscadorCliente } from './BuscadorCliente'
-import { SelectorFormaDePago } from './SelectorFormaDePago'
+import { SelectorFormaDePago } from '@/features/formasDePago/SelectorFormaDePago'
 import { ContactosDelDocumento } from './ContactosDelDocumento'
 import { VendedoresDelDocumento } from './VendedoresDelDocumento'
 import styles from './CabeceraCotizacion.module.css'

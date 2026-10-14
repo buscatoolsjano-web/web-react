@@ -162,23 +162,16 @@ export async function paisesUsados(companyId: string): Promise<string[]> {
   return [...vistos].sort()
 }
 
-/** Las formas de pago que ya existen, para sugerirlas sin cerrarlas. */
-export async function formasDePagoUsadas(companyId: string): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('suppliers')
-    .select('payment_terms')
-    .eq('company_id', companyId)
-    .not('payment_terms', 'is', null)
-    .is('deleted_at', null)
-    .limit(2000)
-  if (error) throw new Error(`No se pudieron leer las formas de pago: ${error.message}`)
-  const vistos = new Set<string>()
-  for (const f of (data ?? []) as unknown as { payment_terms: string | null }[]) {
-    const t = (f.payment_terms ?? '').trim()
-    if (t !== '') vistos.add(t)
-  }
-  return [...vistos].sort((a, b) => a.localeCompare(b, 'es'))
-}
+/*
+ * Acá vivía `formasDePagoUsadas()`, que leía los `payment_terms` distintos de
+ * los proveedores para sugerirlos en un `datalist`. Se fue en la Fase 68: las
+ * formas de pago son un catálogo con su propio ámbito, y se leen con
+ * `listarFormasDePago(companyId, 'purchases')`.
+ *
+ * Leer los valores escritos para sugerirlos tenía un problema de fondo: cada
+ * error de tipeo entraba a la lista de sugerencias y se ofrecía al siguiente,
+ * así que las erratas se propagaban solas.
+ */
 
 // ── Ficha ──────────────────────────────────────────────────────────────────
 

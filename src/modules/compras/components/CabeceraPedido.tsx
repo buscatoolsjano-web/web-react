@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import { BuscadorProveedor } from './BuscadorProveedor'
-import { useFormasDePago } from '../hooks/useProveedores'
+import { useAgregarFormaDePago, useFormasDePago } from '../hooks/useProveedores'
+import { SelectorFormaDePago } from '@/features/formasDePago/SelectorFormaDePago'
 import { MONEDAS, type DatosPedidoCompra, type ErrorDePedido } from '../lib/validacion'
 import type { ProveedorBuscado } from '../services/catalogo'
 import styles from './CabeceraPedido.module.css'
@@ -42,6 +43,7 @@ export function CabeceraPedido({
 }: CabeceraPedidoProps) {
   const id = useId()
   const formasDePago = useFormasDePago()
+  const agregarFormaDePago = useAgregarFormaDePago()
 
   const errorDe = (campo: ErrorDePedido['campo']) =>
     errores.find((e) => e.campo === campo)?.mensaje ?? null
@@ -162,22 +164,25 @@ export function CabeceraPedido({
         <label className={styles.etiqueta} htmlFor={`${id}-pago`}>
           Condición de pago
         </label>
-        {/* Un `input` con `datalist` y no un `select`: las 13 condiciones del
-            legacy mezclan incoterms, medios de pago y plazos. Son una
-            sugerencia, no una lista cerrada. */}
-        <input
-          id={`${id}-pago`}
-          className={styles.control}
-          list={`${id}-pagos`}
-          value={datos.formaPago}
-          disabled={!editaLogistica}
-          onChange={(e) => onCambiar({ formaPago: e.target.value })}
+        {/*
+          Fase 68: era un `input` con `datalist`, con este argumento: «las 13
+          condiciones del legacy mezclan incoterms, medios de pago y plazos;
+          son una sugerencia, no una lista cerrada».
+
+          La mezcla era cierta y sigue siéndolo —ahí están FOB 180 DIAS y
+          MERCADOPAGO al lado de 30 DIAS F/F—, pero abrir la lista por eso
+          resultó peor que ordenarla: en 139 proveedores quedaron
+          «TRANSFERENCIA BANCARIA» y «Transferencia bancaria» como dos
+          condiciones distintas, y un «ExWorks 30 dais FF». Ahora la lista es
+          cerrada y se amplía a propósito, que es lo que se pidió.
+        */}
+        <SelectorFormaDePago
+          valor={datos.formaPago}
+          opciones={formasDePago.data ?? []}
+          cargando={formasDePago.isPending || !editaLogistica}
+          onCambiar={(v) => onCambiar({ formaPago: v })}
+          {...(editaLogistica ? { onAgregar: agregarFormaDePago } : {})}
         />
-        <datalist id={`${id}-pagos`}>
-          {(formasDePago.data ?? []).map((f) => (
-            <option key={f} value={f} />
-          ))}
-        </datalist>
         <span className={styles.ayuda}>
           Se copia del proveedor al elegirlo, pero queda guardada acá: si mañana cambia la
           condición del proveedor, este pedido no cambia.

@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Field } from '@/components/forms/Field'
+import { Select } from '@/components/forms/controls'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge } from '@/components/ui/Badge'
 import { Icon } from '@/components/icons/Icon'
@@ -12,7 +14,7 @@ import { DialogoNombre } from '../components/DialogoNombre'
 
 import { useAccionesMaestros, useFormasDePagoConfig } from '../hooks/useMaestros'
 import { mensajeErrorMaestro } from '../lib/maestros'
-import { ErrorMaestro, type FormaDePago } from '../services/maestros'
+import { ErrorMaestro, type AmbitoFormaDePago, type FormaDePago } from '../services/maestros'
 import styles from '../components/Configuracion.module.css'
 
 type Pendiente =
@@ -41,9 +43,20 @@ const codigo = (e: unknown) => (e instanceof ErrorMaestro ? e.codigo : 'desconoc
  * Crear puede `admin` y `employee` —son los mismos que cotizan, y el pedido era
  * poder agregar una opción sobre la marcha—; administrar la lista es de admin.
  */
+const AMBITOS = [
+  { valor: 'sales', etiqueta: 'Ventas', donde: 'cotizaciones y pedidos de venta' },
+  { valor: 'purchases', etiqueta: 'Compras', donde: 'proveedores y pedidos de compra' },
+] as const
+
 export function FormasDePagoPage() {
   const { activa } = useEmpresa()
-  const q = useFormasDePagoConfig()
+  /*
+   * Dos listas separadas (Fase 68). No se mezclan porque las de proveedores
+   * traen medios de pago e incoterms —TRANSFERENCIA BANCARIA, FOB 180 DIAS—
+   * que no tienen nada que hacer en el desplegable de una cotización.
+   */
+  const [ambito, setAmbito] = useState<AmbitoFormaDePago>('sales')
+  const q = useFormasDePagoConfig(ambito)
   const acciones = useAccionesMaestros()
   const [pendiente, setPendiente] = useState<Pendiente | null>(null)
   const [errorDialogo, setErrorDialogo] = useState<string | null>(null)
@@ -70,7 +83,7 @@ export function FormasDePagoPage() {
   async function guardarNombre(nombre: string) {
     try {
       if (pendiente?.tipo === 'crear') {
-        const r = await acciones.crearFormaPago.mutateAsync(nombre)
+        const r = await acciones.crearFormaPago.mutateAsync({ nombre, ambito })
         setAviso({ tono: 'ok', titulo: `Forma de pago «${r.nombre}» creada.` })
       } else if (pendiente?.tipo === 'renombrar') {
         await acciones.renombrarFormaPago.mutateAsync({ id: pendiente.f.id, nombre })
@@ -147,7 +160,7 @@ export function FormasDePagoPage() {
     <>
       <PageHeader
         title="Formas de pago"
-        subtitle={`Las opciones que ofrece el desplegable de cotizaciones y pedidos de ${activa?.companyName ?? 'la empresa'}.`}
+        subtitle={`Las opciones que ofrece el desplegable de ${AMBITOS.find((a) => a.valor === ambito)?.donde ?? ''} en ${activa?.companyName ?? 'la empresa'}.`}
         actions={
           puedeCrear ? (
             <Button icon={<Icon name="plus" size={16} />} onClick={() => abrir({ tipo: 'crear' })} disabled={ocupado}>
@@ -165,9 +178,33 @@ export function FormasDePagoPage() {
         />
       )}
 
+      <div className={styles.barra}>
+        <Field label="Lista" hideLabel>
+          <Select
+            value={ambito}
+            onChange={(e) => {
+              setAmbito(e.target.value as AmbitoFormaDePago)
+              setAviso(null)
+            }}
+            disabled={ocupado}
+          >
+            {AMBITOS.map((a) => (
+              <option key={a.valor} value={a.valor}>
+                {a.etiqueta}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <span className={styles.nota}>
+          {ambito === 'sales'
+            ? 'Lo que se le ofrece a un cliente.'
+            : 'Lo que nos dan los proveedores. Son dos listas aparte: acá entran también medios de pago e incoterms.'}
+        </span>
+      </div>
+
       <p className={styles.nota}>
         Los documentos guardan el texto de la forma de pago, no una referencia. Renombrar o
-        eliminar una opción no cambia lo que dicen las cotizaciones ya emitidas.
+        eliminar una opción no cambia lo que dicen los documentos ya emitidos.
       </p>
 
       {aviso && <StatusMessage tono={aviso.tono} titulo={aviso.titulo} />}

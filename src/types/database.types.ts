@@ -8823,7 +8823,7 @@ export type Database = {
       // cambia tipos en todo el proyecto. Devuelven `jsonb`, así que el tipo
       // es `Json` y el servicio lo valida al mapear.
       config_forma_pago_crear: {
-        Args: { p_company: string; p_nombre: string }
+        Args: { p_ambito?: string; p_company: string; p_nombre: string }
         Returns: Json
       }
       config_forma_pago_eliminar: {
@@ -8839,7 +8839,7 @@ export type Database = {
         Returns: Json
       }
       config_formas_pago_listar: {
-        Args: { p_company: string }
+        Args: { p_ambito?: string; p_company: string }
         Returns: Json
       }
       config_marca_crear: {

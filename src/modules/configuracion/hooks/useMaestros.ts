@@ -15,6 +15,7 @@ import {
   listarListasPrecios,
   listarMarcas,
   listarFormasDePago,
+  type AmbitoFormaDePago,
   crearFormaDePago,
   renombrarFormaDePago,
   cambiarEstadoFormaDePago,
@@ -87,11 +88,11 @@ export function useItemsDeLista(listaId: string, q: ConsultaItems) {
  * Trae también las desactivadas: esta pantalla es la que las administra, y sin
  * verlas no se pueden reactivar.
  */
-export function useFormasDePagoConfig() {
+export function useFormasDePagoConfig(ambito: AmbitoFormaDePago = 'sales') {
   const c = useCompany()
   return useQuery({
-    queryKey: clavesMaestros.formasDePago(c),
-    queryFn: () => listarFormasDePago(c!),
+    queryKey: [...clavesMaestros.formasDePago(c), ambito],
+    queryFn: () => listarFormasDePago(c!, ambito),
     enabled: c !== null,
     retry: sinReintentoPorPermiso,
   })
@@ -106,9 +107,16 @@ export function useAccionesMaestros() {
   }
   const marcas = refrescar(clavesMaestros.marcas(c))
   const categorias = refrescar(clavesMaestros.categorias(c))
+  /*
+   * Invalida TRES claves: la de esta pantalla y las dos de los desplegables
+   * —ventas y compras—, que leen el mismo catálogo con su propio `staleTime`
+   * de diez minutos. Sin esto, renombrar una condición acá dejaría el nombre
+   * viejo en el formulario de proveedores durante ese rato.
+   */
   const formasPago = async () => {
     await qc.invalidateQueries({ queryKey: clavesMaestros.formasDePago(c) })
     await qc.invalidateQueries({ queryKey: ['ventas', c, 'formas-de-pago'] })
+    await qc.invalidateQueries({ queryKey: ['compras', c, 'formas-de-pago'] })
   }
 
   return {
@@ -129,7 +137,11 @@ export function useAccionesMaestros() {
      * no, seguiría mostrando la lista vieja hasta que venza su `staleTime` de
      * diez minutos.
      */
-    crearFormaPago: useMutation({ mutationFn: (nombre: string) => crearFormaDePago(c!, nombre), onSettled: formasPago }),
+    crearFormaPago: useMutation({
+      mutationFn: (v: { nombre: string; ambito: AmbitoFormaDePago }) =>
+        crearFormaDePago(c!, v.nombre, v.ambito),
+      onSettled: formasPago,
+    }),
     renombrarFormaPago: useMutation({
       mutationFn: (v: { id: string; nombre: string }) => renombrarFormaDePago(c!, v.id, v.nombre),
       onSettled: formasPago,

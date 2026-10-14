@@ -130,3 +130,47 @@ select distinct d.company_id, btrim(d.payment_terms), 100
   ) d
  where coalesce(btrim(d.payment_terms), '') <> ''
 on conflict do nothing;
+
+-- ── Compras: el ámbito ──────────────────────────────────────────────────────
+--
+-- Las formas de pago de VENTA y las de COMPRA son dos listas, no una.
+-- Comparten vocabulario en parte —«30 DIAS F/F con ECHEQ» está en las dos— pero
+-- no sirven para lo mismo: las de proveedores traen medios de pago
+-- (TRANSFERENCIA BANCARIA, MERCADOPAGO, AMEX) e incoterms (FOB 180 DIAS,
+-- ExWorks) que no tienen nada que hacer en el desplegable de una cotización.
+
+alter table public.payment_terms
+  add column if not exists scope text not null default 'sales';
+alter table public.payment_terms
+  add constraint payment_terms_scope_valido check (scope in ('sales', 'purchases'));
+
+-- El nombre es único DENTRO de su ámbito.
+drop index if exists public.payment_terms_empresa_nombre_uk;
+create unique index payment_terms_empresa_ambito_nombre_uk
+  on public.payment_terms (company_id, scope, lower(btrim(name)));
+
+-- La semilla de compras sale de lo que ya estaba escrito a mano en los
+-- proveedores, ORDENADA POR USO DESCENDENTE, y eso no es un detalle: el índice
+-- único ignora mayúsculas, así que «TRANSFERENCIA BANCARIA» (41 proveedores) y
+-- «Transferencia bancaria» (1) colapsan en una sola. Ordenando por uso gana la
+-- grafía que más se escribió.
+--
+-- Lo que tiene erratas —«ExWorks 30 dais FF»— entra igual: borrar datos de
+-- alguien sin preguntar no corresponde. Se corrigen desde Configuración, y
+-- renombrar no toca ningún proveedor.
+
+-- ── Las RPC cambian de firma ────────────────────────────────────────────────
+--
+-- `config_formas_pago_listar(p_company, p_ambito default 'sales')`
+-- `config_forma_pago_crear(p_company, p_nombre, p_ambito default 'sales')`
+--
+-- OJO: `create or replace` con una firma distinta NO reemplaza, CREA UNA
+-- SOBRECARGA. Y como el parámetro nuevo tiene valor por defecto, la llamada con
+-- los argumentos viejos pasaba a ser ambigua (42725, «function is not unique»).
+-- Hubo que borrar las viejas a mano:
+--
+--   drop function public.config_formas_pago_listar(uuid);
+--   drop function public.config_forma_pago_crear(uuid, text);
+--
+-- `renombrar`, `estado` y `eliminar` no cambiaron de firma: trabajan por id, y
+-- el id ya dice a qué lista pertenece la fila.

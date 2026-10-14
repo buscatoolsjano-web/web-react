@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { ETIQUETA_NOMBRE_COMERCIAL } from '../lib/formato'
-import { useFormasDePago } from '../hooks/useProveedores'
+import { useAgregarFormaDePago, useFormasDePago } from '../hooks/useProveedores'
+import { SelectorFormaDePago } from '@/features/formasDePago/SelectorFormaDePago'
 import {
   validarProveedor,
   type DatosProveedor,
@@ -49,6 +50,7 @@ export function FormularioProveedor({
 }: FormularioProveedorProps) {
   const id = useId()
   const formasDePago = useFormasDePago()
+  const agregarFormaDePago = useAgregarFormaDePago()
   const [datos, setDatos] = useState<DatosProveedor>(valores)
   const [errores, setErrores] = useState<ErrorDeCampo[]>([])
   const [intentado, setIntentado] = useState(false)
@@ -119,18 +121,18 @@ export function FormularioProveedor({
           <label className={styles.etiqueta} htmlFor={`${id}-formaPago`}>
             Forma de pago
           </label>
-          <input
-            id={`${id}-formaPago`}
-            className={styles.control}
-            list={`${id}-formasDePago`}
-            value={datos.formaPago}
-            onChange={(e) => cambiar('formaPago', e.target.value)}
+          {/* Fase 68: era un `input` con `datalist` —sugerencias, pero se
+              podía escribir cualquier cosa— y así aparecieron
+              «TRANSFERENCIA BANCARIA» y «Transferencia bancaria» como dos
+              condiciones distintas. Ahora es una lista cerrada que se puede
+              ampliar a propósito. */}
+          <SelectorFormaDePago
+            valor={datos.formaPago}
+            opciones={formasDePago.data ?? []}
+            cargando={formasDePago.isPending}
+            onCambiar={(v) => cambiar('formaPago', v)}
+            onAgregar={agregarFormaDePago}
           />
-          <datalist id={`${id}-formasDePago`}>
-            {(formasDePago.data ?? []).map((f) => (
-              <option key={f} value={f} />
-            ))}
-          </datalist>
         </div>
 
         <div className={styles.campo}>
