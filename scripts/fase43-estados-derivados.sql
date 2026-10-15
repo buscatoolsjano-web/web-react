@@ -66,11 +66,19 @@ begin
 end
 $$;
 
+-- En INSERT y en UPDATE. Crear una cotización ES guardarla —el alta escribe el
+-- documento entero de una vez, no hay un «a medias»— así que si sólo mirara el
+-- update quedaría una puerta por la que una cotización nace Borrador y se
+-- queda ahí para siempre, que es exactamente el caso que se vino a arreglar.
+--
+-- Sólo actúa si el estado que llega es `draft`: el importador de STEL escribe
+-- `sent` o `accepted` explícitos y no se los toca.
+
 drop trigger if exists cotizacion_sale_de_borrador on public.sales_quotes;
 create trigger cotizacion_sale_de_borrador
-  before update on public.sales_quotes
+  before insert or update on public.sales_quotes
   for each row
-  when (old.status = 'draft' and new.status = 'draft')
+  when (new.status = 'draft')
   execute function app.cotizacion_sale_de_borrador();
 
 -- ── 2 · Con pedido, cerrada. Sin pedido, pendiente. ────────────────────────
@@ -154,9 +162,32 @@ update public.sales_quotes q
 -- («Facturada») como cierre. Hoy se ve igual que ahora y mejora solo el día
 -- que empiecen a facturar. Decidido con el usuario el 2026-10-15.
 
-alter table public.deliveries drop constraint if exists deliveries_status_check;
-alter table public.deliveries add constraint deliveries_status_check
-  check (status in ('draft', 'shipped', 'delivered', 'invoiced', 'cancelled'));
+-- El CHECK se busca por su definición, no por su nombre.
+--
+-- Escribirlo como `drop constraint if exists deliveries_status_check` era una
+-- trampa: si el nombre real fuera otro, el drop no haría nada —el `if exists`
+-- lo silencia— y el check viejo seguiría rechazando `invoiced`. El resultado
+-- sería una restricción que bloquea el estado nuevo sin que nada falle al
+-- aplicar. Se busca cuál es y se lo reemplaza.
+
+do $$
+declare r record;
+begin
+  for r in
+    select conname
+      from pg_constraint
+     where conrelid = 'public.deliveries'::regclass
+       and contype = 'c'
+       and pg_get_constraintdef(oid) ilike '%status%'
+  loop
+    execute format('alter table public.deliveries drop constraint %I', r.conname);
+  end loop;
+
+  execute $ck$
+    alter table public.deliveries add constraint deliveries_status_check
+      check (status in ('draft', 'shipped', 'delivered', 'invoiced', 'cancelled'))
+  $ck$;
+end $$;
 
 create or replace function app.remito_sigue_a_su_factura()
 returns trigger
