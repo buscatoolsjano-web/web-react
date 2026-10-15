@@ -30,12 +30,17 @@ const COLUMNAS: readonly { clave: string; icono: IconName; titulo: string }[] = 
  * El panel ya decía cuánto hay pendiente; esto dice DE QUIÉN, que es lo que
  * hace falta para repartir trabajo o para ver si alguien quedó tapado.
  *
- * HOY VA A ESTAR CASI TODO EN «SIN ASIGNAR», y está bien que se vea así.
- * Medido: 718 de los 719 correos sin responder no tienen a nadie asignado, y
- * las 143 cotizaciones enviadas y los 28 pedidos abiertos no tienen vendedor
- * —`salesperson_id` es null en los 308 documentos—. El panel no reparte lo que
- * nadie repartió: poner esos 718 a nombre de alguien sería inventarlo. Que la
- * última fila esté enorme y las demás en cero ES el dato.
+ * HOY VA A ESTAR CASI TODO EN «SIN ASIGNAR», y está bien que se vea así. El
+ * panel no reparte lo que nadie repartió: ponerle nombre a eso sería
+ * inventarlo, y que la última fila esté enorme ES el dato.
+ *
+ * Lo que sí cambió en la Fase 72 es que ya no está TODO ahí. Las cotizaciones
+ * y los pedidos se reparten por el vendedor y, cuando no hay, por quien los
+ * creó —la misma regla que la columna Vendedor del listado—, así que los que
+ * nacieron en el ERP aparecen a nombre de alguien. Medido con ese criterio:
+ * de 159 cotizaciones enviadas, 4 tienen dueño y 155 vinieron de STEL; de 32
+ * pedidos sin entregar, 1 y 31. El correo sigue repartiéndose por
+ * `assigned_to`, y ahí sí está casi todo sin asignar: 1.038 hilos.
  *
  * SÓLO EL CORREO SE PUEDE ABRIR FILTRADO POR PERSONA. La bandeja tiene el
  * filtro `asignado` —y `asignado=nadie` para la fila de abajo—, así que esos

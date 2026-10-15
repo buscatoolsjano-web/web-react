@@ -13,6 +13,13 @@ import { supabase } from '@/services/supabase/client'
  * la app: correo recibido con el último mensaje entrante y sin resolver (igual
  * que la tarjeta y el filtro de la bandeja), cotizaciones `sent`, y pedidos
  * con `fulfillment_status = 'pending'`.
+ *
+ * DE QUIÉN ES CADA UNO (Fase 72). El correo, de `assigned_to`, que es un campo
+ * que la gente usa de verdad. Las cotizaciones y los pedidos, del vendedor y
+ * —cuando no hay, que es siempre— de quien los creó: la misma regla que la
+ * columna Vendedor del listado de Ventas. Repartiendo sólo por
+ * `salesperson_id` no se repartía nada, porque está en null en los 751
+ * documentos, y el bloque «Lo tuyo» salía vacío para todos.
  */
 export interface PendienteDePersona {
   /** `null` es la fila «Sin asignar», no un usuario que falta. */

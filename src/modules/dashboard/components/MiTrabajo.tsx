@@ -76,6 +76,13 @@ function Lineas({ lineas, vacio }: { lineas: Linea[]; vacio: string }) {
  * `created_by`, y la tienen nada más que los documentos creados acá. Los demás
  * entran por la sincronización de STEL. Sin ese pie, «1 pedido» se leería como
  * «este mes hiciste un solo pedido» cuando la empresa hizo veintidós.
+ *
+ * LO PENDIENTE ES LO MISMO PERO AL REVÉS (Fase 72). «Tenés pendiente» estaba
+ * vacío para todos, siempre, porque repartía por `salesperson_id` —el campo
+ * que está en null en los 751—. Ahora cuenta lo que tiene tu nombre O lo que
+ * creaste vos, que es la misma regla que la columna Vendedor del listado desde
+ * la Fase 43. Los de STEL no tienen ninguno de los dos y siguen cayendo abajo,
+ * en «Sin asignar», que es donde corresponde.
  */
 export function MiTrabajo({ mio, sinAutor, mes, cargando }: MiTrabajoProps) {
   const id = useId()
@@ -152,7 +159,7 @@ export function MiTrabajo({ mio, sinAutor, mes, cargando }: MiTrabajoProps) {
               </h3>
               <Lineas
                 lineas={pendientes}
-                vacio="No tenés nada asignado a tu nombre. Lo que está sin repartir se ve abajo."
+                vacio="No tenés nada pendiente a tu nombre. Lo que no es de nadie se ve abajo."
               />
             </div>
 

@@ -590,6 +590,27 @@ describe('F · Lo tuyo, antes que lo del resto', () => {
     expect(mio).not.toHaveTextContent('pedido por entregar')
   })
 
+  /*
+   * El pedido pendiente, que es lo que se pidió ver (Fase 72).
+   *
+   * Hasta ahora este renglón no aparecía NUNCA: el servidor repartía por
+   * `salesperson_id`, que está en null en los 751 documentos, así que todo
+   * caía en «Sin asignar». Ahora cuenta también lo que creaste vos, y un
+   * pedido sin entregar es exactamente lo que uno quiere ver al entrar.
+   */
+  it('un pedido mío sin entregar aparece en «Tenés pendiente»', () => {
+    estado.porPersona = {
+      isPending: false,
+      error: null,
+      data: POR_PERSONA().map((f) => (f.esMio ? { ...f, pedidos: 1 } : f)),
+    }
+    montar()
+    const mio = miBloque()
+    expect(mio).toHaveTextContent('1 pedido por entregar')
+    // Y el total de la caja los suma: 2 correos + 1 cotización + 1 pedido.
+    expect(within(mio).getByRole('heading', { name: /Tenés pendiente/ })).toHaveTextContent('4')
+  })
+
   it('mi correo pendiente lleva a la bandeja filtrada por mí', () => {
     montar()
     expect(within(miBloque()).getByRole('link', { name: /2\s*correos sin responder/ })).toHaveAttribute(
@@ -622,14 +643,20 @@ describe('F · Lo tuyo, antes que lo del resto', () => {
     expect(within(miBloque()).getByText(/otros 17 documentos de septiembre/)).toBeInTheDocument()
   })
 
-  it('sin nada asignado lo dice, y manda a mirar lo que está sin repartir', () => {
+  /*
+   * El vacío manda a mirar abajo, que es donde está el montón de STEL. Desde
+   * la Fase 72 un vacío acá quiere decir algo más fuerte que antes: no sólo
+   * que nadie te asignó nada, sino que tampoco quedó pendiente nada de lo que
+   * creaste vos.
+   */
+  it('sin nada pendiente lo dice, y manda a mirar lo que no es de nadie', () => {
     estado.porPersona = {
       isPending: false,
       error: null,
       data: POR_PERSONA().map((f) => (f.esMio ? { ...f, correos: 0, cotizaciones: 0, pedidos: 0 } : f)),
     }
     montar()
-    expect(within(miBloque()).getByText(/No tenés nada asignado/)).toBeInTheDocument()
+    expect(within(miBloque()).getByText(/No tenés nada pendiente/)).toBeInTheDocument()
   })
 
   /* Mi fila va ARRIBA y no se repite abajo: leerla dos veces es ruido. */
