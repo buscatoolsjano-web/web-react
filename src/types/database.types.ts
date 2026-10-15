@@ -4965,6 +4965,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          inicio: Json | null
           appearance: Json | null
           avatar_path: string | null
           created_at: string
@@ -4979,6 +4980,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          inicio?: Json | null
           appearance?: Json | null
           avatar_path?: string | null
           created_at?: string
@@ -4993,6 +4995,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          inicio?: Json | null
           appearance?: Json | null
           avatar_path?: string | null
           created_at?: string
@@ -9365,6 +9368,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      guardar_mi_inicio: { Args: { p_inicio: Json | null }; Returns: Json }
       guardar_mi_apariencia: { Args: { p_appearance: Json | null }; Returns: Json }
       guardar_mi_firma: {
         Args: { p_nombre: string | null; p_puesto: string | null; p_telefono: string | null }

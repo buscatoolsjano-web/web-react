@@ -185,10 +185,15 @@
 
 .grafico {
   position: relative;
-  /* Alto cómodo y fijo: lo que varía es el ancho, y las barras se reparten.
-     Incluye la banda de los nombres de mes, para que no aparezca un scroll
-     interno de 20 px. */
-  height: 260px;
+  /* Alto cómodo: lo que varía es el ancho, y las barras se reparten. Incluye
+     la banda de los nombres de mes, para que no aparezca un scroll interno de
+     20 px.
+
+     Desde la Fase 76 lo elige quien mira: la rejilla del inicio pone
+     `--alto-grafico` según el tamaño del widget. El 260 que queda acá es el
+     que tenía antes, y sigue siendo el que vale donde este gráfico se use
+     fuera de esa rejilla. */
+  height: var(--alto-grafico, 260px);
   padding-left: 3.25rem; /* la columna de las marcas del eje */
   padding-bottom: 1.5rem; /* la banda de los meses */
   min-width: 0;
@@ -424,7 +429,9 @@
 
 @media (max-width: 640px) {
   .grafico {
-    height: 200px;
+    /* En un celular ni el más grande pasa de 200: lo que sobra es alto que
+       empuja todo lo demás fuera de la pantalla. */
+    height: min(var(--alto-grafico, 200px), 200px);
   }
 
   .cabecera {

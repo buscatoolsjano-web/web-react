@@ -161,6 +161,14 @@
   --duration-base: 200ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
+  /* Alto del gráfico de evolución del inicio (Fase 76).
+
+     Es un token y no una medida adentro de su CSS porque desde que el inicio
+     se acomoda por usuario lo decide OTRA hoja: la rejilla lo pisa según el
+     tamaño que eligió cada uno. Acá vive el valor con el que nació, que es el
+     que vale donde ese gráfico se use fuera de la rejilla. */
+  --alto-grafico: 260px;
+
   /* Layout del shell */
   --sidebar-w: 240px;
   --sidebar-w-compact: 64px;

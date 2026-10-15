@@ -1,0 +1,126 @@
+/*
+ * La rejilla del inicio (Fase 76).
+ *
+ * Dos columnas en pantalla ancha y una sola abajo de 60rem. Lo que elige cada
+ * persona es cuántas ocupa cada bloque —`chico` una, los demás las dos— y,
+ * donde el alto significa algo, cuánto mide.
+ *
+ * El gap es el mismo que separaba las secciones cuando esto era una pila
+ * vertical: la pantalla no tiene que verse distinta por haber ganado la
+ * posibilidad de acomodarla.
+ */
+.rejilla {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5, 1.5rem);
+  align-items: start;
+}
+
+.celda {
+  grid-column: span 2;
+  min-width: 0;
+}
+
+.celda[data-tamano='chico'] {
+  grid-column: span 1;
+}
+
+/*
+ * El alto, SÓLO donde quiere decir algo.
+ *
+ * Lo resuelve una variable que el gráfico lee para su propia altura: el resto
+ * de los bloques miden lo que mide su contenido, y estirarlos dejaría aire
+ * abajo en vez de mostrar más. Ver `Evolucion.module.css`.
+ *
+ * Los tres valores salen del alto con el que nació el gráfico —260 px—: lo
+ * pedido fue «el gráfico está perfecto, sólo un poco más chico», así que
+ * `normal` es ese «un poco más chico» y `grande` lo devuelve a como estaba.
+ */
+.celda[data-tamano='chico'] {
+  --alto-grafico: 170px;
+}
+
+.celda[data-tamano='normal'] {
+  --alto-grafico: 210px;
+}
+
+.celda[data-tamano='grande'] {
+  --alto-grafico: 260px;
+}
+
+/* En una pantalla angosta no hay dos columnas que repartir: todo ocupa el
+   ancho, y el tamaño sigue mandando sólo sobre el alto. */
+@media (max-width: 60rem) {
+  .rejilla {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .celda,
+  .celda[data-tamano='chico'] {
+    grid-column: span 1;
+  }
+}
+
+/* ── el modo acomodar ───────────────────────────────────────────────────── */
+
+/*
+ * El marco punteado dice «esto se puede mover» sin tapar lo que hay adentro.
+ * El bloque se sigue viendo entero: uno está decidiendo si el tamaño nuevo le
+ * queda bien, y para eso tiene que ver el contenido, no una caja con el
+ * nombre.
+ */
+.celdaAcomodando {
+  padding: var(--space-2);
+  border: 1px dashed var(--border-strong, var(--border));
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+}
+
+.barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.nombre {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.botones {
+  display: flex;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.boton {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.boton:hover:not(:disabled),
+.boton:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Deshabilitado y no escondido: que el botón de subir esté apagado en el
+   primero explica por qué no se mueve. Sin él habría que probarlo para
+   entenderlo. */
+.boton:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

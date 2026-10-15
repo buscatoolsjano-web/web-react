@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -62,6 +62,20 @@ const estado = vi.hoisted<Estado>(() => ({
 const refetch = vi.hoisted(() => vi.fn())
 const reintentar = vi.hoisted(() => vi.fn())
 
+/* Quién mira: el inicio acomodado se guarda en SU perfil (Fase 76). */
+vi.mock('@/features/auth/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'u-yo', email: 'jano@buscatools.com.ar' } }),
+}))
+/* Y la preferencia misma: estos tests son del tablero, no del guardado, pero
+   se anota lo que se manda para poder comprobar que se guarda. */
+const guardados = vi.hoisted(() => [] as unknown[])
+vi.mock('../services/inicio', () => ({
+  leerInicio: () => Promise.resolve(null),
+  guardarInicio: (v: unknown) => {
+    guardados.push(v)
+    return Promise.resolve(v)
+  },
+}))
 vi.mock('@/features/empresa/useEmpresa', () => ({
   useEmpresa: () => ({ activa: { companyId: 'c1', companyName: 'ZZ Empresa', rol: estado.rol, esInterno: true }, cargando: false }),
 }))
@@ -761,5 +775,76 @@ describe('F · Lo tuyo, antes que lo del resto', () => {
     montar()
     expect(screen.queryByRole('region', { name: /Lo tuyo/ })).toBeNull()
     expect(screen.getByRole('heading', { name: 'Pendiente del resto' })).toBeInTheDocument()
+  })
+})
+
+/*
+ * El inicio que cada uno acomoda (Fase 76).
+ *
+ * «Quiero que todos los módulos del inicio sean widgets modificables por
+ * usuario, para que cada uno pueda agrandar, achicar, subir y bajar lo que
+ * quiera. Y el predeterminado: las acciones rápidas arriba de todo.»
+ *
+ * Lo que se prueba acá es la pantalla; las reglas de mover y redimensionar
+ * están probadas aparte y son puras (`lib/widgets.test.ts`).
+ */
+describe('G · El inicio se acomoda', () => {
+  const titulos = () => screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent?.trim())
+
+  it('de fábrica, los accesos rápidos abren la pantalla', () => {
+    montar()
+    expect(titulos()[0]).toBe('Accesos rápidos')
+  })
+
+  /* Sin encender el modo no hay flechas: el inicio es para mirarlo, no para
+     acomodarlo todos los días. */
+  it('sin acomodar no hay botones de mover', () => {
+    montar()
+    expect(screen.queryByRole('button', { name: /^Bajar / })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Acomodar' })).toBeInTheDocument()
+  })
+
+  it('acomodando, bajar un bloque lo mueve y lo deja guardado', async () => {
+    guardados.length = 0
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Acomodar' }))
+
+    expect(titulos()[0]).toBe('Accesos rápidos')
+    fireEvent.click(screen.getByRole('button', { name: 'Bajar Accesos rápidos' }))
+
+    await waitFor(() => expect(titulos()[0]).not.toBe('Accesos rápidos'))
+    // Se guarda solo: no hay botón de guardar.
+    expect(guardados).toHaveLength(1)
+    const v = guardados[0] as { widgets: { clave: string }[] }
+    expect(v.widgets[1]?.clave).toBe('accesos')
+  })
+
+  /* El primero no se puede subir y el último no se puede bajar: el botón está
+     apagado en vez de escondido, que es lo que explica por qué no se mueve. */
+  it('en los bordes los botones están apagados', () => {
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Acomodar' }))
+    expect(screen.getByRole('button', { name: 'Subir Accesos rápidos' })).toBeDisabled()
+  })
+
+  it('agrandar y achicar guardan el tamaño nuevo', async () => {
+    guardados.length = 0
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Acomodar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Agrandar Evolución comercial' }))
+
+    await waitFor(() => expect(guardados).toHaveLength(1))
+    const v = guardados[0] as { widgets: { clave: string; tamano: string }[] }
+    expect(v.widgets.find((w) => w.clave === 'evolucion')?.tamano).toBe('grande')
+  })
+
+  /* Lo que no se puede ver tampoco se acomoda: el pendiente del resto es de
+     admin, así que para un empleado no está ni en la lista. */
+  it('un empleado no acomoda el pendiente del resto', () => {
+    estado.rol = 'employee'
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Acomodar' }))
+    expect(screen.queryByRole('button', { name: /Pendiente del resto/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Subir Lo tuyo' })).toBeInTheDocument()
   })
 })
