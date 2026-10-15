@@ -70,6 +70,13 @@ export interface LineaEmparejada {
 export interface CandidataCotizacion {
   quoteId: string
   numero: string
+  /**
+   * El título de la cotización, que es donde vive el número de orden del
+   * cliente: «OC 4800027334». Es lo que permite saber si la candidata es LA
+   * cotización o sólo otra con los mismos productos. `null` cuando no lo
+   * cargaron.
+   */
+  titulo: string | null
   fecha: string
   estado: string
   total: number

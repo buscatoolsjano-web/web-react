@@ -117,6 +117,9 @@ export async function cotizacionesPara(
   return ((data ?? []) as Record<string, unknown>[]).map((q) => ({
     quoteId: cadena(q['quote_id']),
     numero: cadena(q['numero']),
+    // Donde vive el número de orden del cliente: «OC 4800027334». Puede estar
+    // vacío —no todas lo tienen cargado— y entonces no se muestra nada.
+    titulo: (q['titulo'] as string | null) ?? null,
     fecha: cadena(q['fecha']),
     estado: cadena(q['estado']),
     total: numero(q['total']),

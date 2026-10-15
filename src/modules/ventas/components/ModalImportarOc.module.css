@@ -326,6 +326,17 @@
   font-size: var(--text-base);
 }
 
+/* El título de la cotización: ahí suele estar el número de orden del cliente.
+   Se corta con puntos suspensivos porque algunos son largos y lo que importa
+   —el «OC 48000…»— está al principio. El título completo va en el `title`. */
+.cotiTitulo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-soft);
+}
+
 @media (max-width: 767px) {
   .previa {
     grid-template-columns: minmax(0, 1fr);

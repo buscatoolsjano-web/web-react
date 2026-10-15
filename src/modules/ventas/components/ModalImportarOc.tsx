@@ -37,6 +37,7 @@ import {
   type OcLeida,
   type ResultadoImportacion,
 } from '../services/importarOc'
+import { subirAdjunto } from '../services/adjuntos'
 import { formatearImporte } from '../lib/formato'
 import styles from './ModalImportarOc.module.css'
 
@@ -129,7 +130,8 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
   const [numero, setNumero] = useState('')
   const [fecha, setFecha] = useState('')
   const [moneda, setMoneda] = useState('ARS')
-  const [hecho, setHecho] = useState<ResultadoImportacion | null>(null)
+  /** Lo que devolvió la importación, más si el PDF llegó a la cotización. */
+  const [hecho, setHecho] = useState<(ResultadoImportacion & { falloElAdjunto: string | null }) | null>(null)
 
   /* El cartel de arriba tiene que decir la verdad: se le pregunta a la
      función, que es la única que sabe si hay proveedor configurado. */
@@ -323,6 +325,27 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
     setEditando(null)
   }
 
+  /*
+   * El PDF de la orden va a la cotización (Fase 44).
+   *
+   * Se sube DESPUÉS de importar y el resultado no decide si la importación
+   * sirvió: los datos ya están guardados. Si el archivo no se puede subir, se
+   * dice —no se traga el error— y se puede subir a mano desde Adjuntos; perder
+   * la importación entera por un archivo que no pudo viajar sería un pésimo
+   * negocio.
+   *
+   * Va con la clase `customer_po`, que es literalmente lo que es.
+   */
+  const adjuntarLaOrden = async (quoteId: string): Promise<string | null> => {
+    if (!archivo || !companyId) return 'sin-archivo'
+    try {
+      await subirAdjunto(companyId, 'cotizacion', quoteId, archivo, 'customer_po')
+      return null
+    } catch (e) {
+      return e instanceof Error ? e.message : 'No se pudo adjuntar el archivo.'
+    }
+  }
+
   const importar = useMutation({
     mutationFn: () =>
       importarOc({
@@ -343,7 +366,7 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
          * deducir. Decidirlo acá obligaría a duplicar esa comparación.
          */
         clienteLeido: leida?.cliente ?? null,
-      }),
+      }).then(async (r) => ({ ...r, falloElAdjunto: await adjuntarLaOrden(r.quoteId) })),
     onSuccess: setHecho,
   })
 
@@ -377,12 +400,40 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
           </>
         }
       >
-        <Alert tone="success" role="status" title={`Se creó la cotización ${hecho.cotizacion}`}>
+        {/*
+          El título depende de lo que REALMENTE pasó.
+          Antes decía siempre «Se creó la cotización X», incluso cuando la
+          orden se había enganchado a una cotización que ya existía: el cartel
+          se contradecía con su propio texto de abajo, y decía que acababa de
+          nacer algo que estaba desde antes.
+        */}
+        <Alert
+          tone="success"
+          role="status"
+          title={
+            hecho.vinculada
+              ? `La orden quedó en ${hecho.cotizacion}`
+              : `Se creó la cotización ${hecho.cotizacion}`
+          }
+        >
           <p>
             {hecho.vinculada
-              ? 'La orden quedó vinculada a la cotización que elegiste.'
+              ? 'Se enganchó a la cotización que elegiste, que ya existía. No se creó ninguna nueva.'
               : 'Se armó una cotización nueva con lo que pedía la orden.'}
           </p>
+          {/*
+            El PDF. Si no pudo subir se dice, con el motivo y qué hacer: la
+            importación ya quedó hecha, así que callarlo dejaría la cotización
+            sin el papel que la originó y a nadie enterado.
+          */}
+          {hecho.falloElAdjunto === null ? (
+            <p>El PDF de la orden quedó adjunto a la cotización.</p>
+          ) : hecho.falloElAdjunto === 'sin-archivo' ? null : (
+            <p>
+              No se pudo adjuntar el PDF ({hecho.falloElAdjunto}). La cotización está bien; el archivo se
+              puede subir desde su pestaña Adjuntos.
+            </p>
+          )}
           {hecho.sinMatch > 0 ? (
             <p>
               {hecho.sinMatch === 1 ? 'Una línea quedó' : `${hecho.sinMatch} líneas quedaron`} sin producto
@@ -857,6 +908,19 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
                     />
                     <span className={styles.cotiNumero}>{c.numero}</span>
                     <span>{c.fecha}</span>
+                    {/*
+                      El título es donde vive el número de orden del cliente
+                      («OC 4800027334»). Con varias cotizaciones del mismo
+                      cliente y los mismos productos, «5 de 5 en común» se
+                      repite en todas y no distingue ninguna; el número de
+                      orden sí. Cuando no está cargado no se muestra nada: un
+                      hueco es más honesto que un «sin título».
+                    */}
+                    {c.titulo ? (
+                      <span className={styles.cotiTitulo} title={c.titulo}>
+                        {c.titulo}
+                      </span>
+                    ) : null}
                     <span>
                       {c.lineasEnComun} de {c.lineasOc} productos en común
                     </span>
