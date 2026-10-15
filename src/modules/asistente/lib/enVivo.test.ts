@@ -3,8 +3,10 @@ import {
   EN_VIVO_INICIAL,
   FRASE_GENERICA,
   FRASE_INICIAL,
+  TOPE,
   aplicar,
   avanceDe,
+  avanzarConElTiempo,
   fraseDelPaso,
   type EstadoEnVivo,
 } from './enVivo'
@@ -115,14 +117,14 @@ describe('aplicar', () => {
 })
 
 /*
- * La barra de progreso (Fase 69).
+ * La barra de progreso (Fase 69, con reloj desde la 71).
  *
- * Lo que hay que probar no es que avance —eso es aritmética— sino las dos
- * promesas que la distinguen de la barra inventada que se sacó en la Fase 65:
- * que NO se mueva sin que pase algo, y que no vuelva para atrás.
+ * Tiene dos motores —los avisos del servidor y el reloj— y lo que hay que
+ * probar es que ninguno de los dos pueda mentir de más: que la barra no vuelva
+ * para atrás y que nunca prometa el final hasta que el final llegue.
  */
 describe('la barra de progreso', () => {
-  it('no se mueve si no pasa nada', () => {
+  it('los avisos repetidos no la mueven: eso es trabajo del reloj', () => {
     const e = aplicar(EN_VIVO_INICIAL, { tipo: 'paso', clase: 'consulta', nombre: 'catalogo' })
     /* Mil deltas vacíos no son novedad ninguna: el avance es el mismo que el
        del primer pedacito de texto. */
@@ -167,5 +169,59 @@ describe('la barra de progreso', () => {
       expect(ahora).toBeLessThan(1)
       antes = ahora
     }
+  })
+})
+
+/*
+ * El reloj de la barra (Fase 71).
+ *
+ * La barra de la 69 se movía sólo con hechos y se sentía rota: entre un paso y
+ * el siguiente pasan cinco segundos sin que llegue nada, y una barra congelada
+ * se lee como que el programa se colgó. Ahora también la empuja el tiempo.
+ *
+ * Lo que hay que probar es lo único que puede salir mal con eso: que no
+ * prometa el final. Una barra llena mientras la respuesta no llegó es la que
+ * de verdad miente.
+ */
+describe('el reloj de la barra', () => {
+  it('avanza, nunca retrocede y nunca llega al final', () => {
+    let a = 0
+    let anterior = 0
+    for (let tic = 0; tic < 2000; tic++) {
+      a = avanzarConElTiempo(a)
+      expect(a).toBeGreaterThanOrEqual(anterior)
+      expect(a).toBeLessThan(TOPE)
+      /* El primer minuto sigue moviéndose de verdad, que es lo que hace que
+         no se lea como colgada. Después se pega al tope y ahí se queda: dos
+         mil tics son casi siete minutos de espera. */
+      if (tic < 300) expect(a).toBeGreaterThan(anterior)
+      anterior = a
+    }
+    expect(a).toBeGreaterThan(0.98)
+  })
+
+  it('el primer tramo se nota y el último se arrastra', () => {
+    const tras = (tics: number) => {
+      let a = 0
+      for (let i = 0; i < tics; i++) a = avanzarConElTiempo(a)
+      return a
+    }
+    const primerSegundo = tras(5)
+    const quinto = tras(25) - tras(20)
+    /* El primer segundo mueve más que el quinto: es lo que hace que se sienta
+       rápida al principio sin llegar nunca. */
+    expect(primerSegundo).toBeGreaterThan(quinto)
+    expect(tras(5)).toBeGreaterThan(0.15)
+    expect(tras(50)).toBeGreaterThan(0.85)
+  })
+
+  /* El reloj empuja, pero si el servidor ya avisó algo que está más adelante,
+     manda el hecho. Una consulta rápida llega al final porque TERMINÓ. */
+  it('un hecho del servidor puede adelantar al reloj', () => {
+    let e = EN_VIVO_INICIAL
+    for (let i = 0; i < 3; i++) e = { ...e, avance: avanzarConElTiempo(e.avance) }
+    const conReloj = e.avance
+    e = aplicar(e, { tipo: 'paso', clase: 'herramienta', nombre: 'buscar_productos' })
+    expect(e.avance).toBeGreaterThan(conReloj)
   })
 })

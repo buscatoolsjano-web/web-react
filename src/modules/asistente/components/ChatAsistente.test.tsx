@@ -258,16 +258,31 @@ describe('El chat mientras espera', () => {
     await act(() => Promise.resolve(estado.soltar?.()))
   })
 
-  it('muestra la respuesta mientras se escribe', async () => {
+  /*
+   * HASTA LA FASE 71 ESTO SE MOSTRABA, Y AHORA NO (a propósito).
+   *
+   * El texto del modelo se veía tecleándose a medida que llegaba. Para dos
+   * frases estaba bien; para «¿qué hay de ph1?» eran veintinueve renglones
+   * escribiéndose quince segundos y después, abajo, los mismos veintinueve
+   * productos como tarjetas. Pedido textual: «quiero sacar el texto plano y
+   * directamente que me muestre los productos».
+   *
+   * Mientras espera se ve que avanza y en qué anda. La respuesta aparece una
+   * vez, entera.
+   */
+  it('mientras espera NO escribe la respuesta en pantalla', async () => {
     montar()
     congelar([
+      { tipo: 'paso', clase: 'herramienta', nombre: 'buscar_productos' },
       { tipo: 'turno' },
       { tipo: 'delta', texto: 'Sí, hay ' },
       { tipo: 'delta', texto: 'tres puntas.' },
     ])
     escribirYEnviar('puntas PH2')
 
-    expect(await screen.findByText(/Sí, hay tres puntas\./)).toBeInTheDocument()
+    /* Lo que sí se ve: en qué anda. */
+    expect(await screen.findByText(/Buscando en el catálogo/)).toBeInTheDocument()
+    expect(screen.queryByText(/Sí, hay tres puntas/)).toBeNull()
     await act(() => Promise.resolve(estado.soltar?.()))
   })
 
@@ -381,5 +396,52 @@ describe('El chat · la respuesta no repite lo que ya está en las tarjetas', ()
     expect(screen.getByText('FACTURA DE VENTA ALQUILER MAQUINA ESTIC')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /ver mail/i })).toHaveAttribute('href', '/emails/hilo-1')
     estado.respuesta = null
+  })
+})
+
+/*
+ * La barra de progreso (Fase 71).
+ *
+ * El pedido: «se siente lento porque no hay barra; que haya una que vaya
+ * aumentando y sume % mientras abajo dice lo que va haciendo. No hace falta
+ * que sea REAL: si llega al final y la IA no terminó, que se quede al 99 %».
+ *
+ * O sea que la barra es sensación de avance y la frase es el dato. Por eso lo
+ * que se prueba acá es que la barra se mueva SOLA mientras se espera —ésa es
+ * la parte nueva— y que la frase siga diciendo la verdad al lado.
+ */
+describe('El chat · la barra mientras espera', () => {
+  it('avanza sola con el tiempo, sin que el servidor diga nada', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      montar()
+      estado.soltar = () => {}
+      estado.avisos = [{ tipo: 'paso', clase: 'herramienta', nombre: 'buscar_productos' }]
+      escribirYEnviar('puntas PH2')
+
+      /* La frase es la de verdad: sale de lo que avisó el servidor. */
+      expect(await screen.findByText(/Buscando en el catálogo/)).toBeInTheDocument()
+      const leer = () => Number(/(\d+) %/.exec(screen.getByText(/%/).textContent ?? '')?.[1] ?? -1)
+      const alEmpezar = leer()
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000)
+      })
+      const alosTres = leer()
+      expect(alosTres).toBeGreaterThan(alEmpezar)
+
+      /* Y no se desboca: por más que se espere, se estaciona antes del final.
+         Una barra llena con la respuesta sin llegar es la que miente de
+         verdad. */
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(120_000)
+      })
+      expect(leer()).toBeGreaterThan(alosTres)
+      expect(leer()).toBeLessThanOrEqual(99)
+
+      await act(() => Promise.resolve(estado.soltar?.()))
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

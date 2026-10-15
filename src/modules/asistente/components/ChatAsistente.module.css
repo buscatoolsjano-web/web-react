@@ -77,8 +77,20 @@
   color: var(--color-danger);
 }
 
+/* El porcentaje, adelante de la frase: es lo que convierte «está pensando»
+   en «va por acá». En tabular para que no baile al cambiar de 9 a 10. */
+.porciento {
+  display: inline-block;
+  min-width: 2.6rem;
+  margin-right: var(--space-2);
+  font-variant-numeric: tabular-nums;
+  font-style: normal;
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary-text);
+}
+
 .pensando {
-  margin: 0;
+  margin: var(--space-1) 0 0;
   color: var(--color-text-soft);
   font-style: italic;
 }
@@ -350,20 +362,14 @@
 }
 
 /*
- * La barra de progreso (Fase 69).
+ * La barra de progreso (Fase 69, arriba de todo desde la 71).
  *
- * Fina y debajo de la frase: lo que informa de verdad es la frase —«Buscando
- * en el catálogo»—, y la barra es la señal periférica de que esto avanza y no
- * se colgó. Al revés, una barra gorda con una frase chiquita abajo haría mirar
- * el adorno en vez del dato.
- *
- * El relleno se mueve con una transición, no con una animación: lo que la
- * empuja son los avisos del servidor, y entre aviso y aviso se queda quieta.
- * La transición es sólo para que el salto no sea un parpadeo.
+ * Fina pero PRIMERO: es lo que se mira de reojo mientras uno hace otra cosa.
+ * Debajo van el porcentaje y la frase, que es la que dice en qué anda de
+ * verdad. Gorda no: el dato sigue siendo la frase, no el adorno.
  */
 .progreso {
-  height: 3px;
-  margin-top: var(--space-2);
+  height: 4px;
   border-radius: 2px;
   background: var(--color-border);
   overflow: hidden;
@@ -373,40 +379,15 @@
   height: 100%;
   border-radius: 2px;
   background: var(--color-primary);
-  transition: width 0.4s ease-out;
+  /* Un poco más que el tic del reloj (200 ms) y lineal: así los saltos se
+     empalman y lo que se ve es un movimiento continuo, no veinte escalones. */
+  transition: width 0.24s linear;
 }
 
-/* El texto que el modelo está escribiendo. Apagado respecto de una respuesta
-   terminada, porque es PROVISORIO: el agente puede descartarlo y empezar de
-   nuevo. Cuando queda firme, se redibuja con el estilo normal. */
-.enVivoTexto {
-  margin: var(--space-2) 0 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  color: var(--color-text-soft);
-}
-
-/* La barrita que dice «esto todavía se está escribiendo», que es lo que
-   distingue un texto a medias de una respuesta corta. */
-.cursor {
-  display: inline-block;
-  width: 2px;
-  height: 1em;
-  margin-left: 2px;
-  background: currentColor;
-  vertical-align: text-bottom;
-  animation: parpadear 1s step-end infinite;
-}
-
-@keyframes parpadear {
-  50% { opacity: 0; }
-}
-
-/* Quien pidió menos movimiento no necesita ni los puntos ni el cursor
-   latiendo: la frase ya dice en qué anda. */
+/* Quien pidió menos movimiento no necesita los puntos latiendo: la frase ya
+   dice en qué anda, y el porcentaje también. */
 @media (prefers-reduced-motion: reduce) {
-  .puntos span,
-  .cursor {
+  .puntos span {
     animation: none;
   }
   /* La barra sigue estando —dice cuánto se avanzó— pero salta en vez de

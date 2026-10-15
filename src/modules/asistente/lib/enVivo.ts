@@ -55,10 +55,10 @@ export interface EstadoEnVivo {
   paso: PasoEnVivo | null
   /** Lo que el modelo lleva escrito del turno en curso. */
   texto: string
-  /** Cuántos pasos reales se vieron. Es lo único que mueve la barra. */
+  /** Cuántos pasos reales se vieron. Es uno de los dos motores de la barra. */
   pasos: number
   /**
-   * Cuánto lleva la barra, de 0 a 1 (Fase 69).
+   * Cuánto lleva la barra, de 0 a 1 (Fase 69, con reloj desde la 71).
    *
    * VIVE EN EL ESTADO Y NO SE CALCULA AL DIBUJAR, por una sola razón: así no
    * puede retroceder. Un agente que empieza a redactar y después usa una
@@ -72,34 +72,64 @@ export interface EstadoEnVivo {
 export const EN_VIVO_INICIAL: EstadoEnVivo = { paso: null, texto: '', pasos: 0, avance: 0 }
 
 /**
- * Hasta dónde llega la barra con lo que pasó hasta ahora.
+ * La barra: dos motores, y el reloj es uno de ellos (Fase 71).
  *
- * ── Por qué una barra, después de haber sacado una ──────────────────────────
+ * ── Qué cambió respecto de la 69, y por qué ─────────────────────────────────
  *
- * La Fase 65 sacó una barra que avanzaba SOLA, con un temporizador, acercándose
- * al 92 % sin llegar nunca. Esa fingía saber cuánto faltaba. Ésta no avanza si
- * no pasa nada: cada tramo es un hecho —un agente consultado, una herramienta
- * usada, la respuesta empezando a escribirse— y entre hecho y hecho se queda
- * quieta, aunque la espera se haga larga. Quedarse quieta ES la información:
- * dice que todavía está en lo mismo.
+ * La barra de la Fase 69 se movía SÓLO con hechos del servidor. Era lo
+ * honesto y se sentía rota: entre un paso y el siguiente pasan cinco o seis
+ * segundos en los que no llega nada, la barra quedaba congelada, y una barra
+ * congelada se lee como que el programa se colgó. Peor que no tenerla.
  *
- * ── Por qué cada paso avanza menos que el anterior ──────────────────────────
+ * Pedido textual: «no hace falta que la barra sea REAL, es para que el usuario
+ * piense que tarda menos; que avance a velocidad normal y, si llega al final y
+ * la IA no terminó, que se quede al 99 % esperando».
  *
- * Porque no sabemos cuántos pasos faltan. Una consulta se resuelve en uno y
- * otra encadena seis. Repartiendo en partes iguales, la de seis llegaría al
- * final en el tercero y tendría que esperar ahí, llena, la mitad del tiempo:
- * exactamente la mentira que se sacó. Acortando lo que falta cada vez, la
- * barra siempre tiene a dónde ir y nunca promete el final.
+ * Así que la barra ahora se mueve también con el reloj. Lo que NO se toca es
+ * la frase de abajo —«Buscando en el catálogo»—, que sigue saliendo de lo que
+ * el servidor informa: la barra da la sensación de avance y la frase dice la
+ * verdad de en qué anda. Ninguna de las dos hace el trabajo de la otra.
+ *
+ * ── Por qué nunca llega al 100 ──────────────────────────────────────────────
+ *
+ * Porque no sabemos cuánto falta. Cada tic avanza una fracción de lo que
+ * QUEDA, así que la barra corre al principio, se va frenando y se estaciona
+ * en el 99 % hasta que la respuesta llega de verdad. Una barra que llega al
+ * 100 y se queda ahí es la que de verdad miente: dice «terminé» cuando no.
+ *
+ * ── Y los hechos siguen empujando ───────────────────────────────────────────
+ *
+ * `avanceDe` quedó igual: cuando el servidor avisa un paso, la barra salta a
+ * donde corresponda si el reloj venía más atrás. Una consulta rápida llega al
+ * final porque terminó, no porque pasó el tiempo.
  */
 const ARRANQUE = 0.06
 const PRIMER_PASO = 0.25
 /** Escribiendo la respuesta: lo último que pasa antes de terminar. */
 const ESCRIBIENDO = 0.9
+/** Donde la barra se estaciona a esperar. Nunca llega al 100: ver arriba. */
+export const TOPE = 0.99
 
 export function avanceDe(pasos: number, escribiendo: boolean): number {
   if (escribiendo) return ESCRIBIENDO
   if (pasos <= 0) return ARRANQUE
   return ESCRIBIENDO - (ESCRIBIENDO - PRIMER_PASO) * 0.62 ** (pasos - 1)
+}
+
+/**
+ * Cuánto avanza la barra en un tic del reloj.
+ *
+ * Una fracción de lo que falta, no una cantidad fija: eso es lo que da la
+ * velocidad variable —rápido al principio, lento sobre el final— sin ningún
+ * número mágico por tramo. Con un tic cada 200 ms y una consulta típica de 21
+ * segundos, pasa el 20 % al primer segundo, el 70 % a los cinco y el 90 % a
+ * los diez.
+ */
+export const TIC_MS = 200
+const POR_TIC = 0.045
+
+export function avanzarConElTiempo(avance: number): number {
+  return avance + (TOPE - avance) * POR_TIC
 }
 
 /**

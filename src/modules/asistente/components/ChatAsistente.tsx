@@ -21,7 +21,14 @@ import {
 } from '../services/asistente'
 import { pedazos } from '../lib/formatoRespuesta'
 import { podarDuplicados } from '../lib/podar'
-import { EN_VIVO_INICIAL, aplicar, fraseDelPaso, type EstadoEnVivo } from '../lib/enVivo'
+import {
+  EN_VIVO_INICIAL,
+  TIC_MS,
+  aplicar,
+  avanzarConElTiempo,
+  fraseDelPaso,
+  type EstadoEnVivo,
+} from '../lib/enVivo'
 import { TarjetaCotizacion } from './TarjetaCotizacion'
 import { TarjetasCorreos } from './TarjetasCorreos'
 import { TarjetasProductos } from './TarjetasProductos'
@@ -145,6 +152,14 @@ export function ChatAsistente() {
    * quién consultó, qué está buscando y la respuesta mientras se escribe.
    */
   const [enVivo, setEnVivo] = useState<EstadoEnVivo>(EN_VIVO_INICIAL)
+
+  /* Un tic del reloj de la barra. Va acá —y no adentro de `EnVivo`— para que
+     el estado siga teniendo un solo dueño: los avisos del servidor y el reloj
+     empujan la MISMA barra, y por eso ninguno puede hacerla retroceder. */
+  const avanzarLaBarra = useCallback(
+    () => setEnVivo((e) => ({ ...e, avance: avanzarConElTiempo(e.avance) })),
+    [],
+  )
 
   /* El id del agente a como se lo nombra en pantalla. La lista la manda el
      servidor en `estado`, así que no hay una copia acá que se desincronice.
@@ -351,7 +366,7 @@ export function ChatAsistente() {
           )
         })}
 
-        {consultar.isPending ? <EnVivo estado={enVivo} titulo={tituloDeAgente} /> : null}
+        {consultar.isPending ? <EnVivo estado={enVivo} titulo={tituloDeAgente} avanzar={avanzarLaBarra} /> : null}
 
         <div ref={finRef} />
       </div>
@@ -457,66 +472,84 @@ export function ChatAsistente() {
 }
 
 /**
- * Lo que se ve mientras el asistente trabaja (Fase 65).
+ * Lo que se ve mientras el asistente trabaja (Fase 65, rehecho en la 71).
  *
- * ── Lo que había, y por qué se va ───────────────────────────────────────────
+ * Tres cosas: una barra, el porcentaje y la frase de en qué anda. Nada más.
  *
- * Una barra que avanzaba sola, acercándose al 92 % sin llegar nunca. No era
- * un capricho: el servidor contestaba de una sola vez al final, así que NO
- * HABÍA progreso real que informar y lo honesto era una barra que no fingiera
- * saber cuánto faltaba.
+ * ── Por qué ya no se ve la respuesta escribiéndose ──────────────────────────
  *
- * Ahora el servidor va contando —a quién consultó, qué herramienta usó, y el
- * texto mientras lo escribe—, así que hay algo cierto para mostrar y la
- * animación inventada sobra. Medido: la consulta sigue tardando 21 s, pero el
- * primer signo de vida pasa de 21 s a dos o tres.
+ * Desde la Fase 65 el texto del modelo se mostraba a medida que llegaba. Para
+ * una respuesta de dos frases estaba bien. Para «¿qué hay de ph1?» eran
+ * veintinueve renglones de «SKU — nombre — precio — disponible» tecleándose en
+ * pantalla durante quince segundos, y después, debajo, los mismos veintinueve
+ * productos como tarjetas con foto y botones. Lo dicho por quien lo usa: «no
+ * quiero ver cómo va escribiendo todo en texto plano y después me muestra los
+ * productos; que muestre directo lo de abajo».
  *
- * ── Y lo que sigue igual ────────────────────────────────────────────────────
+ * Así que mientras espera no se muestra texto: se muestra que avanza y en qué
+ * anda. La respuesta aparece una vez, entera, ya sin lo que repetía a las
+ * tarjetas (ver `lib/podar`).
  *
- * El texto que se ve acá es PROVISORIO. Es el del turno en curso, y un agente
- * que empieza a redactar puede después decidir usar una herramienta: ahí lo
- * escrito se descarta (ver `aplicar` en `lib/enVivo`). El texto que queda es
- * el del evento `fin`, que es el único autoritativo.
+ * Esto además arregla algo que el texto en vivo nunca resolvió bien: era
+ * PROVISORIO. Un agente que empieza a redactar puede después decidir usar una
+ * herramienta, y lo escrito se descarta (ver `aplicar` en `lib/enVivo`). Se
+ * veían párrafos que nunca fueron la respuesta.
  *
- * `aria-live="polite"` sobre la frase y NO sobre el texto: un lector de
- * pantalla leyendo cada pedacito a medida que llega es inusable. Se anuncia
- * en qué anda, y la respuesta se lee entera cuando está.
+ * Si alguna vez se lo quiere de vuelta —para las respuestas largas de prosa,
+ * donde sí se leía bien—, es un bloque: `estado.texto` se sigue acumulando.
+ *
+ * `aria-live="polite"` va sobre la frase y sobre nada más: lo que se anuncia
+ * es en qué anda, y la respuesta se lee entera cuando está.
  */
-function EnVivo({ estado, titulo }: { estado: EstadoEnVivo; titulo: (id: string) => string }) {
+function EnVivo({
+  estado,
+  titulo,
+  avanzar,
+}: {
+  estado: EstadoEnVivo
+  titulo: (id: string) => string
+  avanzar: () => void
+}) {
+  /*
+   * El reloj de la barra (Fase 71).
+   *
+   * Vive acá y no en el estado del chat porque empieza y termina con este
+   * cartel: mientras se ve, corre; cuando llega la respuesta, el cartel se
+   * desmonta y el intervalo se va con él. Ver `avanzarConElTiempo`.
+   */
+  useEffect(() => {
+    const reloj = setInterval(avanzar, TIC_MS)
+    return () => clearInterval(reloj)
+  }, [avanzar])
+
   const porciento = Math.round(estado.avance * 100)
   return (
     <article className={styles.suyo}>
-      <p className={styles.pensando} aria-live="polite">
-        {fraseDelPaso(estado.paso, titulo)}
+      {/*
+        La barra ARRIBA y la frase abajo (Fase 71).
+
+        Las dos contestan preguntas distintas: la barra, cuánto falta; la
+        frase, en qué anda. Y la barra va primero porque es lo que se mira de
+        reojo mientras uno hace otra cosa.
+
+        `aria-hidden` en la barra y en el número: el rótulo accesible lo da la
+        frase, que es la que vive. Un lector de pantalla anunciando «treinta y
+        siete por ciento» cinco veces por segundo tapa lo único que importa.
+      */}
+      <div className={styles.progreso} aria-hidden="true">
+        <div className={styles.progresoRelleno} style={{ width: `${porciento}%` }} />
+      </div>
+      <p className={styles.pensando}>
+        <span className={styles.porciento} aria-hidden="true">
+          {porciento} %
+        </span>
+        <span aria-live="polite">{fraseDelPaso(estado.paso, titulo)}</span>
         <span className={styles.puntos} aria-hidden="true">
           <span />
           <span />
           <span />
         </span>
       </p>
-      {/*
-        La barra, al lado de la frase y no en su lugar (Fase 69).
-
-        La frase dice EN QUÉ ANDA y la barra CUÁNTO LLEVA: son dos preguntas
-        distintas y antes sólo se contestaba la primera. Se mueve únicamente
-        cuando el servidor avisa algo —ver `avanceDe`—, así que quedarse
-        quieta también informa: sigue en lo mismo.
-
-        `aria-hidden` porque el rótulo accesible ya lo da la frase de arriba,
-        que es `aria-live`: un lector de pantalla anunciando «37 por ciento»
-        cada vez que la barra se mueve tapa lo único que importa.
-      */}
-      <div className={styles.progreso} aria-hidden="true">
-        <div className={styles.progresoRelleno} style={{ width: `${porciento}%` }} />
-      </div>
-      {estado.texto !== "" ? (
-        <p className={styles.enVivoTexto}>
-          {estado.texto}
-          {/* El cursor dice «esto todavía se está escribiendo», que es lo que
-              diferencia un texto a medias de una respuesta corta. */}
-          <span className={styles.cursor} aria-hidden="true" />
-        </p>
-      ) : null}
     </article>
   )
 }
