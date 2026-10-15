@@ -42,7 +42,16 @@ async function correosParaMi(companyId: string, userId: string): Promise<Notific
       titulo: c.asunto,
       detalle: c.resumen,
       cuando: c.cuando,
-      destino: '/emails',
+      /*
+       * Al hilo, no a la bandeja.
+       *
+       * Llevaba a `/emails` y eso obligaba a buscar a mano, entre mil
+       * noventa hilos, el mismo correo que la notificación acababa de
+       * mostrar. El id es el de `email_threads` —el mismo que usa cada
+       * fila del listado para enlazar— porque las dos cosas salen de
+       * `listar_bandeja_email`.
+       */
+      destino: `/emails/${c.id}`,
     }))
   } catch {
     // Un fallo no rompe el panel: se muestra lo que se pueda. Que no cargue
