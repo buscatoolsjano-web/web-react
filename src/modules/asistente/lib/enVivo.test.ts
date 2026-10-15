@@ -4,6 +4,7 @@ import {
   FRASE_GENERICA,
   FRASE_INICIAL,
   aplicar,
+  avanceDe,
   fraseDelPaso,
   type EstadoEnVivo,
 } from './enVivo'
@@ -85,7 +86,8 @@ describe('aplicar', () => {
   it('un paso nuevo también borra lo escrito, y cambia el paso', () => {
     let e = aplicar(EN_VIVO_INICIAL, { tipo: 'delta', texto: 'mmm' })
     e = aplicar(e, { tipo: 'paso', clase: 'consulta', nombre: 'catalogo' })
-    expect(e).toEqual({ paso: { clase: 'consulta', nombre: 'catalogo' }, texto: '' })
+    expect(e.paso).toEqual({ clase: 'consulta', nombre: 'catalogo' })
+    expect(e.texto).toBe('')
   })
 
   /* Un turno nuevo NO cambia el paso: sigue haciendo lo mismo que decía. */
@@ -109,5 +111,61 @@ describe('aplicar', () => {
     const e: EstadoEnVivo = avisos.reduce(aplicar, EN_VIVO_INICIAL)
     expect(e.texto).toBe('Sí, hay tres.')
     expect(fraseDelPaso(e.paso, titulo)).toBe('Buscando en el catálogo')
+  })
+})
+
+/*
+ * La barra de progreso (Fase 69).
+ *
+ * Lo que hay que probar no es que avance —eso es aritmética— sino las dos
+ * promesas que la distinguen de la barra inventada que se sacó en la Fase 65:
+ * que NO se mueva sin que pase algo, y que no vuelva para atrás.
+ */
+describe('la barra de progreso', () => {
+  it('no se mueve si no pasa nada', () => {
+    const e = aplicar(EN_VIVO_INICIAL, { tipo: 'paso', clase: 'consulta', nombre: 'catalogo' })
+    /* Mil deltas vacíos no son novedad ninguna: el avance es el mismo que el
+       del primer pedacito de texto. */
+    const uno = aplicar(e, { tipo: 'delta', texto: 'a' })
+    let muchos = uno
+    for (let i = 0; i < 1000; i++) muchos = aplicar(muchos, { tipo: 'delta', texto: 'a' })
+    expect(muchos.avance).toBe(uno.avance)
+  })
+
+  /*
+   * EL CASO QUE LA JUSTIFICA. Un agente empieza a redactar —la barra llega al
+   * tramo de «escribiendo»— y después decide usar una herramienta. El paso
+   * nuevo es un paso ANTERIOR en la secuencia, y una barra que calcula su
+   * posición de cero volvería para atrás. Que retroceda se lee como que algo
+   * se rompió.
+   */
+  it('nunca retrocede, ni cuando el agente descarta lo que venía escribiendo', () => {
+    const avisos = [
+      { tipo: 'paso', clase: 'consulta', nombre: 'catalogo' } as const,
+      { tipo: 'delta', texto: 'Voy a fijarme' } as const,
+      { tipo: 'paso', clase: 'herramienta', nombre: 'buscar_productos' } as const,
+      { tipo: 'turno' } as const,
+      { tipo: 'delta', texto: 'Sí, hay tres.' } as const,
+    ]
+    let e = EN_VIVO_INICIAL
+    let antes = 0
+    for (const a of avisos) {
+      e = aplicar(e, a)
+      expect(e.avance).toBeGreaterThanOrEqual(antes)
+      antes = e.avance
+    }
+  })
+
+  it('arranca mostrando algo, y nunca promete el final', () => {
+    expect(avanceDe(0, false)).toBeGreaterThan(0)
+    let antes = avanceDe(0, false)
+    for (let pasos = 1; pasos <= 20; pasos++) {
+      const ahora = avanceDe(pasos, false)
+      expect(ahora).toBeGreaterThan(antes)
+      /* Ni el paso veinte llega al 100 %: el que termina es el servidor, no
+         la barra. */
+      expect(ahora).toBeLessThan(1)
+      antes = ahora
+    }
   })
 })

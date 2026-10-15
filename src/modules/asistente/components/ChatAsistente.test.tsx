@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router-dom'
 import type * as ServicioAsistente from '../services/asistente'
 import type { RespuestaAsistente } from '../services/asistente'
 
@@ -33,6 +34,13 @@ const estado = vi.hoisted(() => ({
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+/* Las tarjetas de producto resuelven el id real del SKU y escriben en el
+   carrito. Acá no se prueban ellas —tienen su propio archivo—, así que se
+   doblan para que el chat se pueda dibujar entero. */
+vi.mock('../services/porSku', () => ({ resolverPorSku: () => Promise.resolve(new Map()) }))
+vi.mock('@/modules/catalogo/hooks/useCarrito', () => ({
+  useCarrito: () => ({ cantidadDe: () => 0, producto: () => ({ sumar: () => {} }) }),
+}))
 // El saludo usa el nombre de quien pregunta (Fase 35).
 vi.mock('@/features/auth/useAuth', () => ({
   useAuth: () => ({ user: { id: 'u1', email: 'juan@buscatools.com.ar', user_metadata: { full_name: 'Juan Manuel Mocciaro' } } }),
@@ -74,7 +82,7 @@ vi.mock('../services/asistente', async (original) => {
           })
         : Promise.resolve()
       return esperar.then(() =>
-        estado.respuesta ?? { texto: 'Listo.', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null, productos: [] },
+        estado.respuesta ?? { texto: 'Listo.', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null, productos: [], correos: [] },
       )
     },
   }
@@ -87,8 +95,12 @@ function montar() {
   estado.avisos = []
   estado.soltar = null
   render(
+    /* Las tarjetas de producto y de correo enlazan al catálogo y a la bandeja,
+       así que el chat necesita un router alrededor (Fase 69). */
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <ChatAsistente />
+      <MemoryRouter>
+        <ChatAsistente />
+      </MemoryRouter>
     </QueryClientProvider>,
   )
 }
@@ -123,6 +135,7 @@ describe('El chat del asistente', () => {
       corte: 'ninguno',
       propuesta: null,
       productos: [],
+      correos: [],
     }
     montar()
 
@@ -144,7 +157,7 @@ describe('El chat del asistente', () => {
   it('manda el hilo ENTERO, no sólo el último mensaje', async () => {
     estado.listo = true
     estado.error = null
-    estado.respuesta = { texto: 'Mirgor compró 8 cosas.', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null, productos: [] }
+    estado.respuesta = { texto: 'Mirgor compró 8 cosas.', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null, productos: [], correos: [] }
     montar()
 
     escribirYEnviar('¿qué le vendimos a Mirgor?')
@@ -190,7 +203,7 @@ describe('El chat del asistente', () => {
   it('avisa cuando la consulta se cortó por llegar a su tope', async () => {
     estado.listo = true
     estado.error = null
-    estado.respuesta = { texto: 'Con lo que junté…', pasos: [], llamadas: 24, corte: 'presupuesto', propuesta: null, productos: [] }
+    estado.respuesta = { texto: 'Con lo que junté…', pasos: [], llamadas: 24, corte: 'presupuesto', propuesta: null, productos: [], correos: [] }
     montar()
 
     escribirYEnviar('algo largo')
@@ -200,7 +213,7 @@ describe('El chat del asistente', () => {
   it('los ejemplos de arranque preguntan al tocarlos', async () => {
     estado.listo = true
     estado.error = null
-    estado.respuesta = { texto: 'ok', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null, productos: [] }
+    estado.respuesta = { texto: 'ok', pasos: [], llamadas: 1, corte: 'ninguno', propuesta: null, productos: [], correos: [] }
     montar()
 
     const ejemplo = await screen.findByRole('button', { name: /mejor cliente del mes pasado/i })
@@ -287,12 +300,86 @@ describe('El chat mientras espera', () => {
       corte: 'ninguno',
       propuesta: null,
       productos: [],
+      correos: [],
     }
     estado.avisos = [{ tipo: 'delta', texto: 'algo provisorio' }]
     escribirYEnviar('x')
 
     expect(await screen.findByText('La respuesta de verdad.')).toBeInTheDocument()
     expect(screen.queryByText(/algo provisorio/)).toBeNull()
+    estado.respuesta = null
+  })
+})
+
+/*
+ * Lo que se ve de la respuesta (Fase 69).
+ *
+ * El pedido, textual: «no quiero ver cómo va escribiendo todo así en texto
+ * plano y abajo me muestra los productos con las imágenes, sino que directo
+ * muestre lo de abajo: sería menos output y más intuitivo».
+ */
+describe('El chat · la respuesta no repite lo que ya está en las tarjetas', () => {
+  it('el producto enumerado en el texto desaparece, y queda su tarjeta', async () => {
+    montar()
+    estado.respuesta = {
+      texto: [
+        'Encontré **3 productos** relacionados con "ph1":',
+        '- **SP.VPPH1/70** — SPEEDRILL VPPH1/70 PHILLIPS. **USD 10,53**. Disponible: **544**.',
+      ].join('\n'),
+      pasos: [],
+      llamadas: 1,
+      corte: 'ninguno',
+      propuesta: null,
+      productos: [
+        { sku: 'SP.VPPH1/70', nombre: 'SPEEDRILL VPPH1/70 PHILLIPS', precio: 10.53, moneda: 'USD', disponible: 544 },
+      ],
+      correos: [],
+    }
+    escribirYEnviar('que hay de ph1')
+
+    /* El resumen queda: dice cuántos hay, que es lo que la tarjeta no dice. */
+    expect(await screen.findByText(/Encontré/)).toBeInTheDocument()
+    /* El renglón enumerado se fue… */
+    expect(screen.queryByText(/Disponible/)).toBeNull()
+    /* …y el producto sigue estando, como tarjeta con su botón. */
+    expect(screen.getByRole('link', { name: /ver/i })).toHaveAttribute(
+      'href',
+      '/catalogo/SP.VPPH1%2F70',
+    )
+    estado.respuesta = null
+  })
+
+  /*
+   * Y los correos, que es el otro pedido: «que me aparezca quién me mandó un
+   * mail, cuál es el título, y opciones de click como Ver mail».
+   */
+  it('los correos vienen con quién, qué asunto y el botón para abrirlos', async () => {
+    montar()
+    estado.respuesta = {
+      texto: 'Hay **1.036 correos** sin responder. Estos son los más recientes:',
+      pasos: [],
+      llamadas: 1,
+      corte: 'ninguno',
+      propuesta: null,
+      productos: [],
+      correos: [
+        {
+          id: 'hilo-1',
+          asunto: 'FACTURA DE VENTA ALQUILER MAQUINA ESTIC',
+          de: '"Compras Mirgor" <compras@mirgor.com.ar>',
+          fecha: '2026-10-15T16:03:00Z',
+          sinLeer: true,
+          adjuntos: false,
+          asignadoA: null,
+          cliente: null,
+        },
+      ],
+    }
+    escribirYEnviar('que correos quedaron sin responder')
+
+    expect(await screen.findByText('Compras Mirgor')).toBeInTheDocument()
+    expect(screen.getByText('FACTURA DE VENTA ALQUILER MAQUINA ESTIC')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /ver mail/i })).toHaveAttribute('href', '/emails/hilo-1')
     estado.respuesta = null
   })
 })

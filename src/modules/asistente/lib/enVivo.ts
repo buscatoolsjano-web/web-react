@@ -55,9 +55,52 @@ export interface EstadoEnVivo {
   paso: PasoEnVivo | null
   /** Lo que el modelo lleva escrito del turno en curso. */
   texto: string
+  /** Cuántos pasos reales se vieron. Es lo único que mueve la barra. */
+  pasos: number
+  /**
+   * Cuánto lleva la barra, de 0 a 1 (Fase 69).
+   *
+   * VIVE EN EL ESTADO Y NO SE CALCULA AL DIBUJAR, por una sola razón: así no
+   * puede retroceder. Un agente que empieza a redactar y después usa una
+   * herramienta vuelve a un paso anterior —es lo que pasa de verdad—, y una
+   * barra que da marcha atrás se lee como que algo se rompió. Se guarda el
+   * máximo alcanzado, que es lo que ya se vio.
+   */
+  avance: number
 }
 
-export const EN_VIVO_INICIAL: EstadoEnVivo = { paso: null, texto: '' }
+export const EN_VIVO_INICIAL: EstadoEnVivo = { paso: null, texto: '', pasos: 0, avance: 0 }
+
+/**
+ * Hasta dónde llega la barra con lo que pasó hasta ahora.
+ *
+ * ── Por qué una barra, después de haber sacado una ──────────────────────────
+ *
+ * La Fase 65 sacó una barra que avanzaba SOLA, con un temporizador, acercándose
+ * al 92 % sin llegar nunca. Esa fingía saber cuánto faltaba. Ésta no avanza si
+ * no pasa nada: cada tramo es un hecho —un agente consultado, una herramienta
+ * usada, la respuesta empezando a escribirse— y entre hecho y hecho se queda
+ * quieta, aunque la espera se haga larga. Quedarse quieta ES la información:
+ * dice que todavía está en lo mismo.
+ *
+ * ── Por qué cada paso avanza menos que el anterior ──────────────────────────
+ *
+ * Porque no sabemos cuántos pasos faltan. Una consulta se resuelve en uno y
+ * otra encadena seis. Repartiendo en partes iguales, la de seis llegaría al
+ * final en el tercero y tendría que esperar ahí, llena, la mitad del tiempo:
+ * exactamente la mentira que se sacó. Acortando lo que falta cada vez, la
+ * barra siempre tiene a dónde ir y nunca promete el final.
+ */
+const ARRANQUE = 0.06
+const PRIMER_PASO = 0.25
+/** Escribiendo la respuesta: lo último que pasa antes de terminar. */
+const ESCRIBIENDO = 0.9
+
+export function avanceDe(pasos: number, escribiendo: boolean): number {
+  if (escribiendo) return ESCRIBIENDO
+  if (pasos <= 0) return ARRANQUE
+  return ESCRIBIENDO - (ESCRIBIENDO - PRIMER_PASO) * 0.62 ** (pasos - 1)
+}
 
 /**
  * La frase de un paso.
@@ -85,16 +128,30 @@ export function fraseDelPaso(paso: PasoEnVivo | null, titulo: (id: string) => st
  * saber que eso se descartó.
  */
 export function aplicar(estado: EstadoEnVivo, aviso: AvisoEnVivo): EstadoEnVivo {
+  /* La barra se queda con lo más lejos que llegó. Ver `avance`. */
+  const hasta = (pasos: number, escribiendo: boolean) => ({
+    pasos,
+    avance: Math.max(estado.avance, avanceDe(pasos, escribiendo)),
+  })
+
   switch (aviso.tipo) {
     case 'turno':
       // Vuelta nueva: lo de antes no era la respuesta. El paso se conserva
       // —sigue haciendo lo mismo— y lo escrito se tira.
-      return { paso: estado.paso, texto: '' }
+      return { paso: estado.paso, texto: '', ...hasta(estado.pasos, false) }
     case 'paso':
       // Un paso nuevo arranca una espera nueva: lo escrito antes del paso era
       // del turno que acaba de pedirlo, no de la respuesta.
-      return { paso: { clase: aviso.clase, nombre: aviso.nombre }, texto: '' }
+      return {
+        paso: { clase: aviso.clase, nombre: aviso.nombre },
+        texto: '',
+        ...hasta(estado.pasos + 1, false),
+      }
     case 'delta':
-      return { paso: estado.paso, texto: estado.texto + aviso.texto }
+      return {
+        paso: estado.paso,
+        texto: estado.texto + aviso.texto,
+        ...hasta(estado.pasos, true),
+      }
   }
 }

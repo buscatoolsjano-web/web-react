@@ -257,8 +257,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const contexto = `CONTEXTO DE ESTA CONSULTA\nHoy es ${ahora}. Cuando digan un mes sin año, es el más reciente que ya pasó.\nQuien pregunta es ${quien}.`
 
   // Lo que las herramientas dejan para la pantalla: el borrador de cotización
-  // y los productos que se nombraron. Va aparte del texto a propósito.
-  const bandeja: Bandeja = { propuesta: null, productos: [] }
+  // y los productos y correos que se nombraron. Va aparte del texto a
+  // propósito.
+  const bandeja: Bandeja = { propuesta: null, productos: [], correos: [] }
 
   const cerrar = (r: Resultado) => ({
     texto: r.texto,
@@ -272,6 +273,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     propuesta: bandeja.propuesta,
     // Los productos nombrados, para dibujarlos como tarjetas con sus botones.
     productos: bandeja.productos,
+    // Y los correos, con su id, para que cada uno tenga su «Ver mail».
+    correos: bandeja.correos,
   })
 
   /**

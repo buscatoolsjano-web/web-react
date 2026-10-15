@@ -56,6 +56,15 @@ export interface Bandeja {
    * falla en producción. La web vieja lo hacía así, con expresiones regulares.
    */
   productos: ProductoNombrado[]
+  /**
+   * Y los correos, por lo mismo y con una razón más (Fase 69).
+   *
+   * Un listado de correos en prosa es lo más inútil que puede devolver el
+   * asistente: nueve renglones de «remitente — asunto — fecha» que hay que
+   * leer enteros para después ir a buscar el correo a mano. Con la tarjeta,
+   * cada uno tiene su botón y se abre de un clic.
+   */
+  correos: CorreoNombrado[]
 }
 
 /** Lo mínimo para dibujar una tarjeta y poder actuar sobre ella. */
@@ -65,6 +74,24 @@ export interface ProductoNombrado {
   precio: number | null
   moneda: string | null
   disponible: number | null
+}
+
+/**
+ * Lo mínimo para dibujar la tarjeta de un correo y poder abrirlo.
+ *
+ * El `id` es el del hilo, que es lo que la pantalla necesita para enlazar.
+ * NO se lo mostramos a quien pregunta —un uuid no le dice nada— ni se le pide
+ * al modelo que lo escriba: viaja por acá, por afuera del texto.
+ */
+export interface CorreoNombrado {
+  id: string
+  asunto: string
+  de: string | null
+  fecha: string | null
+  sinLeer: boolean
+  adjuntos: boolean
+  asignadoA: string | null
+  cliente: string | null
 }
 
 /** Un número que puede venir como texto —`numeric` de Postgres— o faltar. */
@@ -108,8 +135,50 @@ function cosecharProductos(datos: unknown, acumulado: ProductoNombrado[]): void 
   }
 }
 
+/**
+ * Saca los correos de lo que devolvió `buscar_emails`.
+ *
+ * Una fila sin `id` se descarta: sin él la tarjeta no puede abrir nada, y una
+ * tarjeta con un botón que no lleva a ningún lado es peor que un renglón de
+ * texto. Sin repetir, igual que los productos: una consulta puede buscar dos
+ * veces —ancha después de angosta— y el mismo hilo volvería en las dos.
+ */
+function cosecharCorreos(datos: unknown, acumulado: CorreoNombrado[]): void {
+  if (typeof datos !== 'object' || datos === null) return
+  const d = datos as Record<string, unknown>
+  if (!Array.isArray(d['correos'])) return
+  for (const f of d['correos']) {
+    if (typeof f !== 'object' || f === null) continue
+    const c = f as Record<string, unknown>
+    const id = typeof c['id'] === 'string' ? c['id'] : null
+    if (id === null || acumulado.some((x) => x.id === id)) continue
+    const texto = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null)
+    acumulado.push({
+      id,
+      // «(sin asunto)» y no vacío: la tarjeta tiene que decir algo donde va el
+      // asunto, y un hueco se lee como que la pantalla se rompió.
+      asunto: texto(c['asunto']) ?? '(sin asunto)',
+      de: texto(c['de']),
+      fecha: texto(c['fecha']),
+      sinLeer: c['sin_leer'] === true,
+      adjuntos: c['adjuntos'] === true,
+      asignadoA: texto(c['asignado_a']),
+      cliente: texto(c['cliente']),
+    })
+  }
+}
+
 /** Cuántas tarjetas se mandan como mucho. Más que esto es una lista, no un atajo. */
 const MAX_PRODUCTOS = 12
+
+/**
+ * Los correos toleran más que los productos.
+ *
+ * Una tarjeta de correo es un renglón alto; una de producto trae foto, precio
+ * y dos botones. Y la pregunta típica —«¿qué quedó sin responder?»— espera una
+ * bandeja, no tres ejemplos. La herramienta trae 25 como mucho.
+ */
+const MAX_CORREOS = 25
 
 export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
   const supabase = createClient(
@@ -192,6 +261,12 @@ export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
         cosecharProductos(datos, bandeja.productos)
         bandeja.productos.length = Math.min(bandeja.productos.length, MAX_PRODUCTOS)
       }
+    }
+
+    // Y los correos, por lo mismo (Fase 69).
+    if (bandeja && nombre === 'buscar_emails' && bandeja.correos.length < MAX_CORREOS) {
+      cosecharCorreos(datos, bandeja.correos)
+      bandeja.correos.length = Math.min(bandeja.correos.length, MAX_CORREOS)
     }
 
     const texto = JSON.stringify(datos ?? null)

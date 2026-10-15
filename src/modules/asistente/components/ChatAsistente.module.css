@@ -349,6 +349,33 @@
   30%           { opacity: 1; }
 }
 
+/*
+ * La barra de progreso (Fase 69).
+ *
+ * Fina y debajo de la frase: lo que informa de verdad es la frase —«Buscando
+ * en el catálogo»—, y la barra es la señal periférica de que esto avanza y no
+ * se colgó. Al revés, una barra gorda con una frase chiquita abajo haría mirar
+ * el adorno en vez del dato.
+ *
+ * El relleno se mueve con una transición, no con una animación: lo que la
+ * empuja son los avisos del servidor, y entre aviso y aviso se queda quieta.
+ * La transición es sólo para que el salto no sea un parpadeo.
+ */
+.progreso {
+  height: 3px;
+  margin-top: var(--space-2);
+  border-radius: 2px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.progresoRelleno {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--color-primary);
+  transition: width 0.4s ease-out;
+}
+
 /* El texto que el modelo está escribiendo. Apagado respecto de una respuesta
    terminada, porque es PROVISORIO: el agente puede descartarlo y empezar de
    nuevo. Cuando queda firme, se redibuja con el estilo normal. */
@@ -381,5 +408,10 @@
   .puntos span,
   .cursor {
     animation: none;
+  }
+  /* La barra sigue estando —dice cuánto se avanzó— pero salta en vez de
+     deslizarse. */
+  .progresoRelleno {
+    transition: none;
   }
 }

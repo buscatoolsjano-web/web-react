@@ -77,6 +77,24 @@ export interface ProductoNombrado {
   disponible: number | null
 }
 
+/**
+ * Lo mínimo para dibujar la tarjeta de un correo y poder abrirlo (Fase 69).
+ *
+ * El `id` es el del hilo: con él la tarjeta enlaza a `/emails/:id`. Viaja por
+ * acá y no por el texto, igual que el SKU de un producto, para que el botón no
+ * dependa de que el modelo haya escrito un uuid sin equivocarse.
+ */
+export interface CorreoNombrado {
+  id: string
+  asunto: string
+  de: string | null
+  fecha: string | null
+  sinLeer: boolean
+  adjuntos: boolean
+  asignadoA: string | null
+  cliente: string | null
+}
+
 export interface RespuestaAsistente {
   texto: string
   pasos: PasoAsistente[]
@@ -88,6 +106,8 @@ export interface RespuestaAsistente {
   propuesta: PropuestaCotizacion | null
   /** Los productos que nombró, para las tarjetas. Vacío si no nombró ninguno. */
   productos: ProductoNombrado[]
+  /** Los correos que nombró, por lo mismo. */
+  correos: CorreoNombrado[]
 }
 
 export interface AgenteDisponible {
@@ -188,6 +208,7 @@ export async function preguntar(params: {
     corte: o['corte'] === 'vueltas' || o['corte'] === 'presupuesto' ? o['corte'] : 'ninguno',
     propuesta: leerPropuesta(o['propuesta']),
     productos: leerProductos(o['productos']),
+    correos: leerCorreos(o['correos']),
   }
 }
 
@@ -216,6 +237,33 @@ function leerProductos(v: unknown): ProductoNombrado[] {
       precio: num(o['precio']),
       moneda: cadena(o['moneda']) || null,
       disponible: num(o['disponible']),
+    }]
+  })
+}
+
+/**
+ * Los correos nombrados, por lo mismo (Fase 69).
+ *
+ * Una fila sin `id` se descarta: sin él la tarjeta no puede abrir el hilo, y
+ * una tarjeta cuyo único botón no lleva a ningún lado es peor que no estar.
+ */
+function leerCorreos(v: unknown): CorreoNombrado[] {
+  if (!Array.isArray(v)) return []
+  return v.flatMap((c) => {
+    if (typeof c !== 'object' || c === null) return []
+    const o = c as Record<string, unknown>
+    const id = cadena(o['id'])
+    if (id === '') return []
+    const opcional = (x: unknown): string | null => cadena(x) || null
+    return [{
+      id,
+      asunto: cadena(o['asunto']) || '(sin asunto)',
+      de: opcional(o['de']),
+      fecha: opcional(o['fecha']),
+      sinLeer: o['sinLeer'] === true,
+      adjuntos: o['adjuntos'] === true,
+      asignadoA: opcional(o['asignadoA']),
+      cliente: opcional(o['cliente']),
     }]
   })
 }
@@ -306,6 +354,7 @@ function leerRespuesta(o: Record<string, unknown>): RespuestaAsistente {
     corte: o['corte'] === 'vueltas' || o['corte'] === 'presupuesto' ? o['corte'] : 'ninguno',
     propuesta: leerPropuesta(o['propuesta']),
     productos: leerProductos(o['productos']),
+    correos: leerCorreos(o['correos']),
   }
 }
 

@@ -13,14 +13,17 @@ import {
   preguntarEnVivo,
   transcribir,
   type Adjunto,
+  type CorreoNombrado,
   type MensajeChat,
   type PasoAsistente,
   type ProductoNombrado,
   type PropuestaCotizacion,
 } from '../services/asistente'
 import { pedazos } from '../lib/formatoRespuesta'
+import { podarDuplicados } from '../lib/podar'
 import { EN_VIVO_INICIAL, aplicar, fraseDelPaso, type EstadoEnVivo } from '../lib/enVivo'
 import { TarjetaCotizacion } from './TarjetaCotizacion'
+import { TarjetasCorreos } from './TarjetasCorreos'
 import { TarjetasProductos } from './TarjetasProductos'
 import { empezarAGrabar, FalloGrabacion, sePuedeGrabar, type Grabacion } from '../lib/grabador'
 import styles from './ChatAsistente.module.css'
@@ -46,6 +49,8 @@ interface Turno {
   propuesta?: PropuestaCotizacion | null
   /** Los productos que nombró, para dibujarlos como tarjetas con sus botones. */
   productos?: ProductoNombrado[]
+  /** Y los correos, por lo mismo. */
+  correos?: CorreoNombrado[]
   corte?: 'ninguno' | 'vueltas' | 'presupuesto'
   error?: boolean
 }
@@ -166,6 +171,7 @@ export function ChatAsistente() {
           corte: r.corte,
           propuesta: r.propuesta,
           productos: r.productos,
+          correos: r.correos,
         },
       ])
     },
@@ -274,52 +280,76 @@ export function ChatAsistente() {
           </div>
         ) : null}
 
-        {turnos.map((t, i) => (
-          <article
-            key={i}
-            className={t.rol === 'usuario' ? styles.mio : styles.suyo}
-            aria-label={t.rol === 'usuario' ? 'Lo que preguntaste' : 'Respuesta del asistente'}
-          >
-            {/* Las negritas se arman con elementos de React, no con HTML: el
-                texto del modelo no puede inyectar nada en la página. */}
-            <p className={t.error ? styles.textoError : styles.texto}>
-              {pedazos(t.texto).map((z, k) =>
-                z.negrita ? <strong key={k}>{z.texto}</strong> : <span key={k}>{z.texto}</span>,
-              )}
-            </p>
+        {turnos.map((t, i) => {
+          /*
+            Lo que se MUESTRA del texto (Fase 69).
 
-            {/* El borrador va DEBAJO de lo que dijo, como una tarjeta
-                aparte: es lo que va a pasar si apretás, no algo que dijo. */}
-            {t.propuesta ? <TarjetaCotizacion propuesta={t.propuesta} /> : null}
+            Si el modelo enumeró los productos o los correos que están ahí
+            abajo como tarjetas, esos renglones se sacan: eran lo mismo escrito
+            dos veces. Se poda al dibujar y no al guardar, porque el hilo que
+            se le manda en la pregunta siguiente lleva el texto entero —un «¿y
+            el tercero de la lista?» necesita la lista—. Ver `lib/podar`.
+          */
+          const visible = podarDuplicados(t.texto, {
+            skus: (t.productos ?? []).map((p) => p.sku),
+            correos: t.correos ?? [],
+          })
+          return (
+            <article
+              key={i}
+              className={t.rol === 'usuario' ? styles.mio : styles.suyo}
+              aria-label={t.rol === 'usuario' ? 'Lo que preguntaste' : 'Respuesta del asistente'}
+            >
+              {/* Las negritas se arman con elementos de React, no con HTML: el
+                  texto del modelo no puede inyectar nada en la página.
 
-            {/* Y los productos que nombró, para poder hacer algo con ellos sin
-                copiar el SKU e irse al catálogo a buscarlo. */}
-            {t.productos && t.productos.length > 0 ? (
-              <TarjetasProductos productos={t.productos} />
-            ) : null}
+                  Y si no quedó texto —porque todo lo que dijo ya está en las
+                  tarjetas— no se dibuja un párrafo vacío: la respuesta son las
+                  tarjetas. */}
+              {visible !== '' ? (
+                <p className={t.error ? styles.textoError : styles.texto}>
+                  {pedazos(visible).map((z, k) =>
+                    z.negrita ? <strong key={k}>{z.texto}</strong> : <span key={k}>{z.texto}</span>,
+                  )}
+                </p>
+              ) : null}
 
-            {t.corte && t.corte !== 'ninguno' ? (
-              <p className={styles.aviso}>
-                La consulta llegó a su tope y se cortó: puede estar incompleta.
-              </p>
-            ) : null}
+              {/* El borrador va DEBAJO de lo que dijo, como una tarjeta
+                  aparte: es lo que va a pasar si apretás, no algo que dijo. */}
+              {t.propuesta ? <TarjetaCotizacion propuesta={t.propuesta} /> : null}
 
-            {/*
-              La traza ya NO se dibuja (Fase 39).
+              {/* Y los productos que nombró, para poder hacer algo con ellos sin
+                  copiar el SKU e irse al catálogo a buscarlo. */}
+              {t.productos && t.productos.length > 0 ? (
+                <TarjetasProductos productos={t.productos} />
+              ) : null}
 
-              Decía «Consultó a Catálogo · Catálogo usó buscar_productos». Era
-              útil mientras se construía esto —para ver por qué un dato salía
-              raro— y es ruido para quien sólo quiere la respuesta: nombra
-              piezas internas que no le significan nada a quien pregunta.
+              {/* Y los correos, con su «Ver mail». */}
+              {t.correos && t.correos.length > 0 ? <TarjetasCorreos correos={t.correos} /> : null}
 
-              Lo que NO cambia es lo de abajo: el asistente sigue derivando a
-              sus especialistas igual que antes. Esto es la pantalla, no el
-              mecanismo. `pasos` sigue llegando y sigue guardado en el mensaje,
-              así que volver a mostrarlo —o volcarlo a un log cuando algo
-              parezca mal— es dibujar de nuevo este bloque y nada más.
-            */}
-          </article>
-        ))}
+              {t.corte && t.corte !== 'ninguno' ? (
+                <p className={styles.aviso}>
+                  La consulta llegó a su tope y se cortó: puede estar incompleta.
+                </p>
+              ) : null}
+
+              {/*
+                La traza ya NO se dibuja (Fase 39).
+
+                Decía «Consultó a Catálogo · Catálogo usó buscar_productos». Era
+                útil mientras se construía esto —para ver por qué un dato salía
+                raro— y es ruido para quien sólo quiere la respuesta: nombra
+                piezas internas que no le significan nada a quien pregunta.
+
+                Lo que NO cambia es lo de abajo: el asistente sigue derivando a
+                sus especialistas igual que antes. Esto es la pantalla, no el
+                mecanismo. `pasos` sigue llegando y sigue guardado en el mensaje,
+                así que volver a mostrarlo —o volcarlo a un log cuando algo
+                parezca mal— es dibujar de nuevo este bloque y nada más.
+              */}
+            </article>
+          )
+        })}
 
         {consultar.isPending ? <EnVivo estado={enVivo} titulo={tituloDeAgente} /> : null}
 
@@ -453,6 +483,7 @@ export function ChatAsistente() {
  * en qué anda, y la respuesta se lee entera cuando está.
  */
 function EnVivo({ estado, titulo }: { estado: EstadoEnVivo; titulo: (id: string) => string }) {
+  const porciento = Math.round(estado.avance * 100)
   return (
     <article className={styles.suyo}>
       <p className={styles.pensando} aria-live="polite">
@@ -463,6 +494,21 @@ function EnVivo({ estado, titulo }: { estado: EstadoEnVivo; titulo: (id: string)
           <span />
         </span>
       </p>
+      {/*
+        La barra, al lado de la frase y no en su lugar (Fase 69).
+
+        La frase dice EN QUÉ ANDA y la barra CUÁNTO LLEVA: son dos preguntas
+        distintas y antes sólo se contestaba la primera. Se mueve únicamente
+        cuando el servidor avisa algo —ver `avanceDe`—, así que quedarse
+        quieta también informa: sigue en lo mismo.
+
+        `aria-hidden` porque el rótulo accesible ya lo da la frase de arriba,
+        que es `aria-live`: un lector de pantalla anunciando «37 por ciento»
+        cada vez que la barra se mueve tapa lo único que importa.
+      */}
+      <div className={styles.progreso} aria-hidden="true">
+        <div className={styles.progresoRelleno} style={{ width: `${porciento}%` }} />
+      </div>
       {estado.texto !== "" ? (
         <p className={styles.enVivoTexto}>
           {estado.texto}
