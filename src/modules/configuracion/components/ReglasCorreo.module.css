@@ -1,0 +1,221 @@
+/* Reglas de correo (Fase 70 · E2). */
+
+/* ── la lista ───────────────────────────────────────────────────────────── */
+
+.lista {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.regla {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+/* Una regla pausada se ve apagada: sigue en la lista —se va a volver a
+   prender— pero no tiene que leerse como si estuviera trabajando. */
+.pausada {
+  background: var(--color-surface-alt);
+}
+
+.pausada .nombre {
+  color: var(--color-text-soft);
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.nombre {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+/* La regla leída en voz alta. Es lo que de verdad dice qué hace, así que no es
+   letra chica: va al tamaño del cuerpo, no al de una nota al pie. */
+.frase {
+  margin: 0;
+  color: var(--color-text-soft);
+  overflow-wrap: anywhere;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+/* ── el formulario ──────────────────────────────────────────────────────── */
+
+.formulario {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* Las dos mitades de la frase —el «si» y el «entonces»— encuadradas y
+   rotuladas con esas palabras. Sin el encuadre, ocho desplegables seguidos se
+   leen como un solo montón y no se ve dónde termina una cosa y empieza la
+   otra. */
+.mitad {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.legend {
+  padding: 0 var(--space-1);
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-soft);
+}
+
+/*
+ * Un renglón por condición o acción.
+ *
+ * `auto` para los desplegables y `1fr` para el texto: el campo de texto es el
+ * que tiene que estirarse, porque «stelorder.com» puede ser una frase entera y
+ * «contiene» mide siempre lo mismo.
+ */
+.renglon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.renglon > input {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.sacar {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.sacar:hover:not(:disabled),
+.sacar:focus-visible {
+  border-color: var(--color-border-strong);
+  color: var(--color-danger);
+}
+
+.sacar:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.problemas {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-4);
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+}
+
+.pie {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* ── aplicar a los que ya están ─────────────────────────────────────────── */
+
+.previa {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.contador {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+.detalle {
+  margin: 0;
+  color: var(--color-text-soft);
+}
+
+.ejemplos {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ejemplo {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2);
+  border-left: 3px solid var(--color-border-strong);
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+
+.ejemploDe {
+  color: var(--color-text-soft);
+}
+
+.ejemploQue {
+  color: var(--color-primary-text);
+}
+
+/* El avance de las tandas. Mismo criterio que la del asistente: se mueve
+   cuando vuelve una tanda, no con un reloj. */
+.avance {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.avanceRelleno {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--color-primary);
+  transition: width 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avanceRelleno {
+    transition: none;
+  }
+}

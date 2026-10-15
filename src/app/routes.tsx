@@ -297,6 +297,9 @@ const BorradosPage = lazyConRecarga(() =>
 const PlantillasPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/PlantillasPage').then((m) => ({ default: m.PlantillasPage })),
 )
+const ReglasCorreoPage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/ReglasCorreoPage').then((m) => ({ default: m.ReglasCorreoPage })),
+)
 const RecuperarPage = lazyConRecarga(() =>
   import('@/features/auth/pages/RecuperarPage').then((m) => ({ default: m.RecuperarPage })),
 )
@@ -476,6 +479,9 @@ export const routes: RouteObject[] = [
           // mismos que pueden usar Emails: la plantilla no le sirve a quien no
           // manda mails.
           { path: 'plantillas', element: conSuspense(<PlantillasPage />) },
+          // Fase 70 · E2: las reglas de correo, al lado de las plantillas y
+          // para los mismos roles: las dos son del que trabaja con el correo.
+          { path: 'reglas-correo', element: conSuspense(<ReglasCorreoPage />) },
           // Fase 16 · E3: IA de WhatsApp (modo, límites, informes, uso). Sólo admin; la RPC lo vuelve a validar.
           { path: 'whatsapp-ia', element: conSuspense(<ConfigIAWhatsappPage />) },
         ],

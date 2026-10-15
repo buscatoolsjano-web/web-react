@@ -38,6 +38,10 @@ export const SECCIONES_CONFIGURACION = [
   { to: '/configuracion/formas-de-pago', label: 'Formas de pago', roles: ['admin', 'employee'] },
   { to: '/configuracion/whatsapp-ia', label: 'WhatsApp · IA', roles: ['admin'] },
   { to: '/configuracion/plantillas', label: 'Plantillas de correo', roles: ['admin', 'employee'] },
+  // Fase 70 · E2. Los mismos roles que las plantillas y por lo mismo: una
+  // regla que etiqueta el correo no le sirve a quien no ve el correo. Adentro,
+  // la RPC vuelve a comprobar que quien escribe tenga acceso a esa bandeja.
+  { to: '/configuracion/reglas-correo', label: 'Reglas de correo', roles: ['admin', 'employee'] },
 ] as const
 
 export function puedeVerConfiguracion(rol: string | null | undefined): boolean {

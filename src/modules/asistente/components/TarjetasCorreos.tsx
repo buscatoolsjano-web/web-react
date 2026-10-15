@@ -57,7 +57,7 @@ export function TarjetasCorreos({ correos }: TarjetasCorreosProps) {
               {c.asignadoA !== null ? <span className={styles.dato}>Asignado: {c.asignadoA}</span> : null}
               {c.adjuntos ? (
                 <span className={styles.dato} title="Tiene adjuntos">
-                  <Icon name="paperclip" size={14} />
+                  <Icon name="paperclip" size={16} />
                   <span className="sr-only">Tiene adjuntos</span>
                 </span>
               ) : null}

@@ -2087,6 +2087,56 @@ export type Database = {
           },
         ]
       }
+      email_rules: {
+        Row: {
+          acciones: Json
+          activa: boolean
+          company_id: string
+          condiciones: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          nombre: string
+          orden: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          acciones: Json
+          activa?: boolean
+          company_id: string
+          condiciones: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nombre: string
+          orden?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          acciones?: Json
+          activa?: boolean
+          company_id?: string
+          condiciones?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nombre?: string
+          orden?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_send_requests: {
         Row: {
           account_id: string
@@ -8471,7 +8521,12 @@ export type Database = {
       }
       borrar_contacto: { Args: { p_contacto: string; p_motivo: string }; Returns: Json }
       borrar_direccion: { Args: { p_direccion: string; p_motivo: string }; Returns: Json }
+      aplicar_regla_email_ahora: {
+        Args: { p_desde?: number; p_limite?: number; p_regla: string }
+        Returns: Json
+      }
       borrar_etiqueta_email: { Args: { p_label: string }; Returns: undefined }
+      borrar_regla_email: { Args: { p_regla: string }; Returns: undefined }
       borrar_mensaje_grupo_whatsapp: {
         Args: {
           p_account: string
@@ -9280,6 +9335,36 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      guardar_regla_email: {
+        Args: {
+          p_acciones: Json
+          p_activa?: boolean
+          p_company: string
+          p_condiciones: Json
+          p_id?: string | null
+          p_nombre: string
+          p_orden?: number
+        }
+        Returns: {
+          acciones: Json
+          activa: boolean
+          company_id: string
+          condiciones: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          nombre: string
+          orden: number
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "email_rules"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       guardar_mi_apariencia: { Args: { p_appearance: Json | null }; Returns: Json }
       guardar_mi_firma: {
         Args: { p_nombre: string | null; p_puesto: string | null; p_telefono: string | null }
@@ -9751,6 +9836,10 @@ export type Database = {
       postgres_fdw_handler: { Args: never; Returns: unknown }
       precheck_cierre_mantenimiento: {
         Args: { p_order: string }
+        Returns: Json
+      }
+      previsualizar_regla_email: {
+        Args: { p_desde?: number; p_limite?: number; p_regla: string }
         Returns: Json
       }
       previsualizar_plantilla: {
