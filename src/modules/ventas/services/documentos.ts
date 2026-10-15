@@ -278,8 +278,13 @@ export async function listarDocumentos(
    * PostgREST no hace sobre una relación de muchos-a-uno sin vista. Queda
    * anotado acá para que nadie lo lea como un a-z y se sorprenda.
    *
-   * `estado` ordena por el código (`draft`, `sent`, `accepted`…), no por la
-   * etiqueta en castellano. Alcanza para agrupar.
+   * `estado` ordena por `estado_visible`, que es una columna CALCULADA por la
+   * base y devuelve la MISMA palabra que dibuja el chip (Fase 74). Antes
+   * ordenaba por el código guardado, y el código y la palabra no se parecen:
+   * a-z daba «Cerrada · Borrador · Vencida · Rechazada · Pendiente», que de
+   * alfabético no tiene nada. En pedidos era peor —ordenaba por
+   * `commercial_status`, que vale `confirmed` en 166 de 195— así que la
+   * columna no ordenaba: ordenaba otra cosa.
    */
   const columnaOrden = {
     fecha: c.campoFecha,
@@ -287,7 +292,7 @@ export async function listarDocumentos(
     cliente: 'customer_id',
     total: 'total',
     titulo: 'title',
-    estado: c.campoEstado,
+    estado: 'estado_visible',
   }[filtros.orden]
   const asc = filtros.direccion === 'asc'
   q = q.order(columnaOrden, { ascending: asc, nullsFirst: false })

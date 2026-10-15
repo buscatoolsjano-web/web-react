@@ -399,74 +399,13 @@
   }
 }
 
-/*
- * Pendiente por persona (Fase 40).
- *
- * Una tabla y no tarjetas: son cuatro números por fila y lo que se hace con
- * ellos es COMPARAR entre personas. En tarjetas, comparar obliga a saltar de
- * una a otra; en columnas alineadas se lee de un golpe quién está tapado.
- */
-.tablaPendiente {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-sm);
-}
+/* ── «Lo tuyo» y, con la misma forma, el del resto ───────────────────────
 
-.tablaPendiente th,
-.tablaPendiente td {
-  padding: var(--space-2);
-  border-bottom: 1px solid var(--color-border);
-  text-align: left;
-}
-
-.tablaPendiente thead th {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--color-text-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.tablaPendiente .numCol {
-  width: 7rem;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.persona {
-  font-weight: var(--weight-semibold);
-  color: var(--color-text);
-}
-
-/* El rol en chico al lado del nombre: dos personas pueden llamarse igual. */
-.rol {
-  display: block;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-regular, 400);
-  color: var(--color-text-soft);
-}
-
-/* Un cero no es una noticia: se apaga para que resalten los que sí son trabajo. */
-.cero {
-  color: var(--color-text-muted);
-}
-
-/*
- * La fila «Sin asignar». Va al final y se despega del resto porque no es una
- * persona: es el trabajo que nadie tomó, y es la fila que hay que vaciar.
- */
-.filaSinAsignar th,
-.filaSinAsignar td {
-  border-top: 2px solid var(--color-border-strong, var(--color-border));
-  background: var(--color-surface-alt);
-}
-
-/* ── «Lo tuyo» (Fase 64) ──────────────────────────────────────────────────
-
-   El bloque personal es una TARJETA y el del resto una tabla suelta, a
-   propósito: son dos cosas distintas —lo que me toca a mí y cómo está
-   repartido el equipo— y si se vieran igual habría que leer el título para
-   saber cuál es cuál. */
+   Fase 64: el bloque personal es una tarjeta con dos cajas. Fase 74: el del
+   resto pasó a ser una tarjeta por persona con las MISMAS cajas y los mismos
+   renglones. Antes era una tabla de cinco columnas, elegida para comparar
+   entre personas; en los hechos casi todas las celdas decían 0 y la
+   comparación era entre cuatro ceros y un montón. */
 .miTrabajo {
   margin-bottom: var(--space-5);
   padding: var(--space-4);
@@ -506,6 +445,9 @@
   color: var(--text);
 }
 
+/* En «Lo tuyo» el rol va a la derecha del todo, porque es lo único que
+   acompaña al nombre. En las tarjetas del resto comparte el renglón con la
+   cuenta, así que ahí se queda al lado del nombre: ver `.miCaja .miRol`. */
 .miRol {
   margin-left: auto;
   padding: 0 var(--space-2);
@@ -615,19 +557,10 @@ a.miDato:hover {
   color: var(--text-soft);
 }
 
-/* ── La tabla del resto ───────────────────────────────────────────────────*/
 
-.colTitulo {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.colTitulo svg {
-  flex: none;
-}
-
-.totalCol {
-  font-weight: var(--weight-semibold);
-  color: var(--color-text);
+/* Dentro de una tarjeta de persona el rol acompaña al nombre y la cuenta se
+   queda sola a la derecha. Sin esto los dos `margin-left: auto` se reparten
+   el hueco y el rol queda flotando en el medio. */
+.miCaja .miRol {
+  margin-left: 0;
 }

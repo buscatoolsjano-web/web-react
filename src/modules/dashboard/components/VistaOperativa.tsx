@@ -264,12 +264,27 @@ export function VistaOperativa() {
         mes={tramo?.desde ?? null}
         cargando={porPersona.isPending}
       />
-      <PendientePorPersona
-        filas={resto}
-        cargando={porPersona.isPending}
-        error={!!porPersona.error}
-        onReintentar={() => void porPersona.refetch()}
-      />
+      {/*
+        El de los demás, SÓLO PARA ADMIN (Fase 74).
+
+        «Lo tuyo» lo ve cualquiera que entre: es su propio trabajo. Cómo está
+        repartido el equipo —quién está tapado y quién libre— es información
+        de quien reparte, y además deja ver el pendiente ajeno a alguien que
+        no tiene nada que hacer con él.
+
+        La consulta NO cambia: es la misma que alimenta el bloque de arriba,
+        y el servidor sigue dejándola para admin y employee. Esto es la
+        pantalla eligiendo qué mostrar, no una puerta: si alguna vez hace
+        falta cerrarla de verdad, se cierra en la RPC.
+      */}
+      {rol === 'admin' ? (
+        <PendientePorPersona
+          filas={resto}
+          cargando={porPersona.isPending}
+          error={!!porPersona.error}
+          onReintentar={() => void porPersona.refetch()}
+        />
+      ) : null}
 
       {/* F */}
       <UltimosDocumentos

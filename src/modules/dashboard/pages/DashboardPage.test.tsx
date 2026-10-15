@@ -684,7 +684,7 @@ describe('F · Lo tuyo, antes que lo del resto', () => {
   })
 
   /* Mi fila va ARRIBA y no se repite abajo: leerla dos veces es ruido. */
-  it('mi fila no se repite en la tabla del resto', () => {
+  it('mi tarjeta no se repite abajo', () => {
     montar()
     const resto = screen.getByRole('heading', { name: 'Pendiente del resto' }).closest('section')!
     expect(within(resto).queryByText('Jano')).toBeNull()
@@ -694,22 +694,57 @@ describe('F · Lo tuyo, antes que lo del resto', () => {
     expect(within(resto).getByText('Sin asignar')).toBeInTheDocument()
   })
 
-  /* La última fila es el montón que no repartió nadie: su link pide
-     justamente ésos, los que no tienen vendedor ni autor. */
+  /* El montón que no repartió nadie: su link pide justamente ésos, los que
+     no tienen vendedor ni autor. */
   it('«Sin asignar» abre la lista de los que no son de nadie', () => {
     montar()
     const resto = screen.getByRole('heading', { name: 'Pendiente del resto' }).closest('section')!
-    expect(within(resto).getByRole('link', { name: /cotizaciones enviadas de Sin asignar/ })).toHaveAttribute(
+    expect(within(resto).getByRole('link', { name: /143\s*cotizaciones esperando/ })).toHaveAttribute(
       'href',
       '/ventas/cotizaciones?estado=sent&vendedor=nadie',
     )
+    expect(within(resto).getByRole('link', { name: /28\s*pedidos por entregar/ })).toHaveAttribute(
+      'href',
+      '/ventas/pedidos?pendiente=1&vendedor=nadie',
+    )
   })
-
-  it('la tabla del resto suma el total de cada quien', () => {
+  it('cada tarjeta lleva el total de esa persona', () => {
     montar()
     const resto = screen.getByRole('heading', { name: 'Pendiente del resto' }).closest('section')!
     // 717 + 143 + 28 de la fila sin asignar.
     expect(within(resto).getByText('888')).toBeInTheDocument()
+  })
+
+  /*
+   * Quien no tiene nada pendiente no gasta una tarjeta: va al pie, en una
+   * línea. Antes ocupaba una fila entera de ceros, y con cinco personas eso
+   * era casi toda la tabla (Fase 74).
+   */
+  it('los que están libres se nombran al pie, sin tarjeta propia', () => {
+    estado.porPersona = {
+      isPending: false,
+      error: null,
+      data: [
+        ...POR_PERSONA(),
+        {
+          userId: 'u-fac', nombre: 'Facundo', rol: 'salesperson', esMio: false,
+          correos: 0, cotizaciones: 0, pedidos: 0,
+          hecho: { cotizaciones: 0, pedidos: 0, entregas: 0, correos: 0 },
+        },
+      ],
+    }
+    montar()
+    const resto = screen.getByRole('heading', { name: 'Pendiente del resto' }).closest('section')!
+    expect(within(resto).getByText(/Sin nada pendiente: Facundo/)).toBeInTheDocument()
+  })
+
+  /* Y el panel entero es de quien reparte: un empleado ve lo suyo y nada más. */
+  it('el pendiente del resto sólo lo ve un admin', () => {
+    estado.rol = 'employee'
+    montar()
+    expect(screen.queryByRole('heading', { name: 'Pendiente del resto' })).toBeNull()
+    // El bloque propio sigue estando: es su trabajo, no el ajeno.
+    expect(screen.getByRole('heading', { name: /Lo tuyo/ })).toBeInTheDocument()
   })
 
   /*

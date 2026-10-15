@@ -1,9 +1,8 @@
 import { useId } from 'react'
-import { Link } from 'react-router-dom'
-import { Icon, type IconName } from '@/components/icons/Icon'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { etiquetaRol } from '@/modules/configuracion/lib/usuarios'
 import { mesLargo } from '../lib/panel'
+import { Lineas, type Linea } from './LineasDeTrabajo'
 import { totalDe, totalHecho, type PendienteDePersona } from '../services/pendientePorPersona'
 import styles from './Panel.module.css'
 
@@ -15,47 +14,6 @@ export interface MiTrabajoProps {
   /** `YYYY-MM-DD` del mes en curso, el mismo que titula el panel. */
   mes: string | null
   cargando: boolean
-}
-
-interface Linea {
-  clave: string
-  icono: IconName
-  n: number
-  singular: string
-  plural: string
-  destino?: string
-}
-
-/** Una línea: el número adelante y el sustantivo que le corresponde. */
-function Lineas({ lineas, vacio }: { lineas: Linea[]; vacio: string }) {
-  const hay = lineas.some((l) => l.n > 0)
-  if (!hay) return <p className={styles.miVacio}>{vacio}</p>
-
-  return (
-    <ul className={styles.miLista}>
-      {lineas
-        .filter((l) => l.n > 0)
-        .map((l) => {
-          const palabra = l.n === 1 ? l.singular : l.plural
-          return (
-            <li key={l.clave} className={styles.miLinea}>
-              {/* Decorativo —`Icon` ya es `aria-hidden`—: la línea se lee
-                  «4 correos enviados» sin él. */}
-              <Icon name={l.icono} size={16} />
-              {l.destino ? (
-                <Link to={l.destino} className={styles.miDato}>
-                  <strong className={styles.miNumero}>{l.n}</strong> {palabra}
-                </Link>
-              ) : (
-                <span className={styles.miDato}>
-                  <strong className={styles.miNumero}>{l.n}</strong> {palabra}
-                </span>
-              )}
-            </li>
-          )
-        })}
-    </ul>
-  )
 }
 
 /**

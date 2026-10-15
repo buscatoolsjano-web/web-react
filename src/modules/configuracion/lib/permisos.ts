@@ -16,9 +16,13 @@
  *     mails. Adentro, el envoltorio de la empresa sólo lo edita un admin y la
  *     firma propia la edita su dueño; eso lo decide la RLS, no esta lista.
  *
- * FUERA DEL MENÚ (Fase 58 · E1). Marcas, Categorías, Atributos, Auditoría y
- * Borrados salieron de la lista: once secciones hacían que no se entendiera
- * cuáles son las que importan. Las RUTAS siguen existiendo —son chunks que
+ * FUERA DEL MENÚ (Fase 58 · E1). Marcas, Categorías, Atributos y Auditoría
+ * salieron de la lista: once secciones hacían que no se entendiera cuáles son
+ * las que importan. Borrados salió con ellas y volvió en la Fase 74, porque
+ * no era como las otras: las demás se miran una vez por año y «qué se borró y
+ * quién lo borró» se busca justo cuando falta algo y hay apuro.
+ *
+ * Las RUTAS de las que siguen afuera existen igual —son chunks que
  * sólo se bajan si se visitan— así que un enlace guardado no da 404 y volver
  * a mostrarlas es agregar su renglón acá. Nadie más en la app las enlaza.
  */
@@ -42,6 +46,10 @@ export const SECCIONES_CONFIGURACION = [
   // regla que etiqueta el correo no le sirve a quien no ve el correo. Adentro,
   // la RPC vuelve a comprobar que quien escribe tenga acceso a esa bandeja.
   { to: '/configuracion/reglas-correo', label: 'Reglas de correo', roles: ['admin', 'employee'] },
+  // Fase 74: vuelve al menú. Una pantalla a la que sólo se llega sabiendo la
+  // URL de memoria no existe el día que hace falta, y a ésta se la busca con
+  // apuro. Ver el encabezado.
+  { to: '/configuracion/borrados', label: 'Borrados', roles: ['admin', 'employee'] },
 ] as const
 
 export function puedeVerConfiguracion(rol: string | null | undefined): boolean {

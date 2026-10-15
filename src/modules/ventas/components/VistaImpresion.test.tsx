@@ -243,3 +243,47 @@ describe('El documento impreso', () => {
     expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
   })
 })
+
+/*
+ * Todas las filas del mismo alto (Fase 74).
+ *
+ * «Cuando pongo imprimir no todas las líneas tienen el mismo tamaño.» Pasaba
+ * porque cada fila medía lo que ocupaba su contenido: un nombre de dos
+ * renglones o una descripción de tres estiraban ésa y no las otras.
+ *
+ * El alto lo decide el DOCUMENTO y no cada línea, y eso es lo que se prueba
+ * acá: la altura de una fila no puede depender de lo que diga esa fila. La
+ * medida en milímetros la pone el CSS; un test en jsdom no la puede mirar.
+ */
+describe('las filas de productos miden todas lo mismo', () => {
+  const tabla = () => screen.getAllByRole('table')[0]!
+
+  it('sin descripciones, la tabla usa el alto corto', () => {
+    montar(doc({ lineas: [linea(), linea({ id: 'l2', nombre: 'Otro' })] }))
+    expect(tabla().className).toMatch(/filasSimples/)
+  })
+
+  /* Alcanza con que UNA línea traiga algo abajo del nombre: si sólo creciera
+     esa fila, volveríamos a tener filas de dos alturas. */
+  it('con que una sola línea tenga descripción, todas reservan ese lugar', () => {
+    montar(doc({ lineas: [linea(), linea({ id: 'l2', descripcion: 'Acero templado, 8 mm' })] }))
+    expect(tabla().className).toMatch(/filasDesc/)
+  })
+
+  it('los atributos del producto cuentan como descripción', () => {
+    montar(doc({ lineas: [linea({ partes: [{ etiqueta: 'Marca', valor: 'Speedrill' }] })] }))
+    expect(tabla().className).toMatch(/filasDesc/)
+  })
+
+  /* Una descripción que repite el nombre no se imprime, así que tampoco
+     cambia el alto: reservar lugar para algo que no se dibuja es papel. */
+  it('una descripción igual al nombre no cuenta', () => {
+    montar(doc({ lineas: [linea({ descripcion: 'Candado de bloqueo LOTO' })] }))
+    expect(tabla().className).toMatch(/filasSimples/)
+  })
+
+  it('con fotos manda el marco, aunque no haya descripciones', () => {
+    montar(doc({ lineas: [linea()] }), { ...OPCIONES_INICIALES, conFotos: true })
+    expect(tabla().className).toMatch(/filasFoto/)
+  })
+})

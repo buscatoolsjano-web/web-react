@@ -175,6 +175,13 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
   }
 
   const columnas = 3 + (ver.precios ? 3 : 0) + (ver.impuestos ? 1 : 0)
+
+  /* Con fotos manda el marco de 20 mm. Sin fotos, el alto depende de si
+     alguna línea tiene algo escrito debajo del nombre. */
+  const hayDescripcion = doc.lineas.some(
+    (l) => l.partes.length > 0 || (l.descripcion !== null && l.descripcion !== l.nombre),
+  )
+  const altoDeFila = opciones.conFotos ? 'filasFoto' : hayDescripcion ? 'filasDesc' : 'filasSimples'
   // La columna del botón de borrar sólo existe en pantalla y sólo editando.
   const columnasVisibles = columnas + (edicion ? 1 : 0)
 
@@ -327,7 +334,13 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
       </section>
 
       {/* ── D · productos ───────────────────────────────────────────── */}
-      <table className={styles.tabla}>
+      {/*
+        Todas las filas miden lo mismo, y cuánto lo decide el DOCUMENTO
+        (Fase 74). Si ninguna línea trae descripción no se reserva lugar para
+        ninguna: así un presupuesto de 19 renglones simples sigue entrando en
+        una hoja. El detalle de las tres alturas está en el CSS.
+      */}
+      <table className={`${styles.tabla} ${styles[altoDeFila]}`}>
         <colgroup>
           {/* La referencia lleva la foto abajo, en la misma celda: es como lo
               arma el sistema anterior (`app.js:25439`, `td.ref-cell`). Una

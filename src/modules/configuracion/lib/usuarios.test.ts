@@ -54,21 +54,21 @@ describe('permisos de Configuración', () => {
    * cotización. Employee la ve porque puede agregar una; administrarlas es de
    * admin y eso lo decide la pantalla, no esta lista.
    */
-  it('Usuarios es sólo admin, y el menú quedó en ocho secciones', () => {
+  it('Usuarios es sólo admin, y el menú quedó en nueve secciones', () => {
     expect(['admin', 'employee', 'salesperson'].map(puedeAdministrarUsuarios)).toEqual([true, false, false])
-    expect(seccionesVisibles('admin').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Usuarios', 'Listas de precios', 'Formas de pago', 'WhatsApp · IA', 'Plantillas de correo', 'Reglas de correo'])
+    expect(seccionesVisibles('admin').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Usuarios', 'Listas de precios', 'Formas de pago', 'WhatsApp · IA', 'Plantillas de correo', 'Reglas de correo', 'Borrados'])
     // Plantillas y Reglas las ve también employee: el correo es de admin y
     // employee, y una regla que etiqueta el correo no le sirve a quien no lo
     // ve. Dentro de Plantillas, el envoltorio de la empresa sigue siendo de
     // admin; eso lo decide la RLS, no esta lista (Fase 70).
-    expect(seccionesVisibles('employee').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Listas de precios', 'Formas de pago', 'Plantillas de correo', 'Reglas de correo'])
+    expect(seccionesVisibles('employee').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Listas de precios', 'Formas de pago', 'Plantillas de correo', 'Reglas de correo', 'Borrados'])
     expect(seccionesVisibles('salesperson')).toEqual([])
     expect(seccionesVisibles('technician')).toEqual([])
   })
 
-  it('las cinco que se sacaron ya no están en el menú', () => {
+  it('las que se sacaron ya no están en el menú', () => {
     const etiquetas = seccionesVisibles('admin').map((s) => s.label)
-    for (const fuera of ['Marcas', 'Categorías', 'Atributos', 'Auditoría', 'Borrados']) {
+    for (const fuera of ['Marcas', 'Categorías', 'Atributos', 'Auditoría']) {
       expect(etiquetas).not.toContain(fuera)
     }
   })
