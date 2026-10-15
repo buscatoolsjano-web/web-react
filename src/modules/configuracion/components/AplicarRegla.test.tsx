@@ -42,6 +42,15 @@ const tanda = (desde: number, mirados: number, total: number, coinciden: number)
       : [],
 })
 
+/*
+ * El doble del cliente de Supabase, aunque acá no se consulte nada.
+ *
+ * El mock de abajo importa el módulo REAL para quedarse con lo que no dobla
+ * —`mensajeDeRegla`—, y ese módulo importa el cliente, que valida las
+ * variables de entorno al cargarse. Sin esto el archivo falla en la suite
+ * aislada, que corre justamente sin `.env` para encontrar estos enganches.
+ */
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
 vi.mock('../services/reglasCorreo', async (original) => {
   const real = await original<typeof Servicio>()
   return {
