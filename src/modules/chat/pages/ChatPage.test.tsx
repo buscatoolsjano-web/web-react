@@ -58,11 +58,11 @@ const mensaje = (p: Partial<MensajeChat> = {}): MensajeChat => ({
   ...p,
 })
 
-function montar() {
+function montar(ruta = '/chat') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[ruta]}>
         <ChatPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -181,6 +181,39 @@ describe('El chat interno', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
     await waitFor(() => expect(espias.enviar).toHaveBeenCalledWith('conv-1', 'Hola'))
     expect(espias.abrir).not.toHaveBeenCalled()
+  })
+
+  /*
+   * ── LA CONVERSACIÓN SE PUEDE ENLAZAR ──────────────────────────────────────
+   *
+   * Con quién se habla vivía en `useState`, así que la notificación «Te
+   * escribió un mensaje» te dejaba en el chat y tenías que buscar a la persona
+   * en la lista: el aviso sabía quién era y lo perdía al llegar.
+   *
+   * Va la PERSONA y no la conversación, igual que el estado que reemplaza: una
+   * fila sin conversación todavía no tiene id, y cuando se crea al mandar el
+   * primer mensaje la fila sigue siendo la misma.
+   */
+  it('abre la conversación que dice la URL, sin tocar nada', async () => {
+    estado.conversaciones = [
+      conversacion(),
+      conversacion({ id: 'conv-2', conQuien: 'Ana', conQuienId: 'u-ana' }),
+    ]
+    montar('/chat?con=u-ana')
+
+    expect(await screen.findByRole('heading', { name: 'Ana', level: 2 })).toBeInTheDocument()
+  })
+
+  /*
+   * Una persona que ya no está en la lista —se fue de la empresa, o el enlace
+   * es viejo— cae en el mismo estado que entrar sin elegir a nadie. Lo que no
+   * puede es romper ni dejar la pantalla muda.
+   */
+  it('un enlace a alguien que ya no está cae en «elegí con quién hablar»', async () => {
+    montar('/chat?con=u-que-no-existe')
+
+    expect(await screen.findByText('Elegí con quién hablar')).toBeInTheDocument()
+    expect(screen.getByRole('complementary', { name: 'Conversaciones' })).toBeInTheDocument()
   })
 
   it('sin nadie más en el equipo lo dice en vez de dejar la pantalla vacía', async () => {

@@ -48,6 +48,40 @@ describe('a dónde lleva cada notificación', () => {
   })
 
   /*
+   * Mismo problema que tenían los correos: «Te escribió un mensaje» te dejaba
+   * en el chat y tenías que buscar a la persona en la lista. Va la PERSONA y
+   * no la conversación, que es lo que `ChatPage` usa para saber qué abrir.
+   */
+  it('un mensaje de chat abre ESA conversación', async () => {
+    chat.listarChats.mockResolvedValue([
+      {
+        id: 'conv-1',
+        conQuienId: 'persona-7',
+        conQuien: 'Ana',
+        sinLeer: 2,
+        ultimoMensaje: 'hola',
+        ultimoMensajeEn: '2026-10-14T10:00:00Z',
+      },
+    ])
+
+    const [n] = await misNotificaciones('c1', 'u1')
+
+    expect(n?.destino).toBe('/chat?con=persona-7')
+  })
+
+  /* Sin con quién, al chat a secas: abrir una conversación que no existe
+     mostraría una pantalla vacía sin decir por qué. */
+  it('una conversación sin persona lleva al chat, no a una pantalla vacía', async () => {
+    chat.listarChats.mockResolvedValue([
+      { id: null, conQuienId: null, conQuien: null, sinLeer: 1, ultimoMensaje: null, ultimoMensajeEn: null },
+    ])
+
+    const [n] = await misNotificaciones('c1', 'u1')
+
+    expect(n?.destino).toBe('/chat')
+  })
+
+  /*
    * El aviso de sincronización SÍ va a la bandeja, y no es una inconsistencia:
    * no habla de un correo, habla de que dejaron de entrar todos.
    */

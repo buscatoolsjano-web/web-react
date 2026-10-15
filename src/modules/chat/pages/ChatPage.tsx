@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import doc from '@/components/document/Document.module.css'
 import { Alert } from '@/components/feedback/Alert'
@@ -52,8 +53,35 @@ function Chat() {
    * Con quién se está hablando. Se recuerda la PERSONA y no la conversación
    * (Fase 28 · E16): una fila sin conversación todavía no tiene id, y cuando
    * se crea al mandar el primer mensaje, la fila sigue siendo la misma.
+   *
+   * ── Y vive en la URL, no en el componente ─────────────────────────────────
+   *
+   * Estaba en `useState`, y eso hacía que la conversación abierta no se
+   * pudiera enlazar. La notificación «Te escribió un mensaje» te dejaba en el
+   * chat y tenías que buscar a la persona en la lista: el aviso sabía quién
+   * era y lo perdía al llegar.
+   *
+   * Con el parámetro en la URL se arregla eso y dos cosas más que salen de
+   * arriba: recargar la página no te devuelve a la pantalla vacía, y se puede
+   * pasar el enlace de una conversación.
+   *
+   * `replace` para no llenar el historial: cambiar de conversación es mirar
+   * otra cosa, no navegar, y con `push` el botón de atrás recorrería una por
+   * una todas las que abriste.
    */
-  const [conQuien, setConQuien] = useState<string | null>(null)
+  const [params, setParams] = useSearchParams()
+  const conQuien = params.get('con')
+  /* `id` puede ser nulo: una fila sin conversación ni persona todavía. En ese
+     caso se saca el parámetro, que es lo mismo que no tener nada abierto. */
+  const abrirCon = (id: string | null) =>
+    setParams(
+      (p) => {
+        if (id === null) p.delete('con')
+        else p.set('con', id)
+        return p
+      },
+      { replace: true },
+    )
   const [texto, setTexto] = useState('')
 
   const conversaciones = useConversaciones()
@@ -129,7 +157,7 @@ function Chat() {
                       type="button"
                       className={`${styles.conversacion} ${(c.conQuienId ?? c.id) === conQuien ? styles.activa : ''}`}
                       aria-current={(c.conQuienId ?? c.id) === conQuien ? 'true' : undefined}
-                      onClick={() => setConQuien(c.conQuienId ?? c.id)}
+                      onClick={() => abrirCon(c.conQuienId ?? c.id)}
                     >
                       <span className={styles.quien}>{c.conQuien}</span>
                       {c.sinLeer > 0 ? (

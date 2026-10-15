@@ -89,6 +89,17 @@ async function problemasDeCorreo(companyId: string): Promise<Notificacion[]> {
   }
 }
 
+/**
+ * A dónde lleva una notificación de chat.
+ *
+ * Sin con quién —una fila sin conversación ni persona— lleva al chat a secas,
+ * que es lo único honesto: abrir una conversación que no existe mostraría una
+ * pantalla vacía sin decir por qué.
+ */
+function destinoDeChat(conQuien: string | null): string {
+  return conQuien === null ? '/chat' : `/chat?con=${encodeURIComponent(conQuien)}`
+}
+
 /** Las conversaciones del chat con mensajes que todavía no leí. */
 async function chatsParaMi(companyId: string): Promise<Notificacion[]> {
   try {
@@ -104,7 +115,15 @@ async function chatsParaMi(companyId: string): Promise<Notificacion[]> {
           (c.sinLeer ?? 0) === 1 ? 'Te escribió un mensaje' : `Te escribió ${c.sinLeer} mensajes`,
         detalle: c.ultimoMensaje ?? null,
         cuando: c.ultimoMensajeEn ?? null,
-        destino: '/chat',
+        /*
+         * A la conversación, no al chat.
+         *
+         * Va la PERSONA y no la conversación, que es lo que `ChatPage` usa
+         * para saber qué abrir: una fila sin conversación todavía no tiene
+         * id, y cuando se crea al mandar el primer mensaje la fila sigue
+         * siendo la misma.
+         */
+        destino: destinoDeChat(c.conQuienId ?? c.id),
       }))
   } catch {
     return []
