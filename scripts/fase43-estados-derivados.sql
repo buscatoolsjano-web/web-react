@@ -242,3 +242,55 @@ commit;
 --   `created_by` sólo lo traen los nacidos en el ERP. Se muestra quien creó
 --   donde existe, y «Importado de STEL» donde no — en vez de un guión mudo que
 --   se lee como «nadie».
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- APLICADO el 2026-10-15, en dos migraciones:
+--   fase43_estados_derivados
+--   fase43_reabrir_cotizacion_al_borrar_pedido   ← lo de abajo
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- LO QUE FALTABA, Y LO ENCONTRÓ EL ENSAYO
+--
+-- La primera migración dejó la mitad de la regla andando: crear el pedido
+-- cerraba la cotización, pero BORRAR el pedido fallaba entero con
+--
+--     La cotización COTI02541 está accepted y no se puede modificar
+--
+-- `app.bloquear_cotizacion_cerrada` impide tocar una cotización cerrada, y
+-- hace bien: está para que nadie edite a mano un documento resuelto. Pero el
+-- trigger nuevo intentaba exactamente eso —devolverla a `sent` porque su
+-- pedido dejó de existir— y el guardia no distingue «alguien está editando»
+-- de «el sistema está recalculando». Como el error sube, el borrado del pedido
+-- tampoco se podía hacer.
+--
+-- No lo encontró un usuario: lo encontró probar las reglas en una transacción
+-- que se revierte, en vez de dar por hecho que andaban porque el script aplicó
+-- sin errores. Aplicar sin errores no es funcionar.
+--
+-- LA SALIDA YA ESTABA INVENTADA EN LA CASA
+--
+-- `app.workflow_ctx` + `app.en_workflow(accion, id)`: un permiso anotado para
+-- UNA transacción y UNA entidad. El trigger declara «estoy derivando el estado
+-- de esta cotización» y el guardia lo reconoce. Se prefiere esto a aflojar el
+-- guardia porque la diferencia entre «nadie puede» y «nadie salvo el sistema,
+-- para esto puntual» es toda la diferencia.
+--
+-- VERIFICADO, en transacciones que se revirtieron:
+--
+--   al empezar: pendiente y sin pedido ........... sent
+--   nace el pedido ............................... accepted
+--   se borra el pedido ........................... sent
+--   nace pidiendo draft .......................... sent
+--   y se edita de nuevo .......................... sent
+--
+-- Y que no se haya abierto un agujero, que es lo que de verdad importa:
+--
+--   editar el total de una cerrada ............... rechazado
+--   reabrirla a mano ............................. rechazado
+--   con permiso para OTRA, reabrir una tercera ... rechazado
+--
+-- RESULTADO SOBRE LOS DATOS
+--
+--   en borrador   5 → 0        pendientes 156 → 158
+--   cerradas    180 → 183      con pedido sin cerrar: 0
+--   check del remito: draft · shipped · delivered · invoiced · cancelled
