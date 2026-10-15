@@ -411,10 +411,19 @@ describe('Cotización · acciones', () => {
     expect(generar).toBeVisible()
   })
 
-  it('en borrador la principal es enviar, y generar el pedido sigue disponible', () => {
+  /**
+   * Fase 43: «Marcar como enviada» ya no existe.
+   *
+   * Guardar una cotización la deja Pendiente sola —lo hace un trigger de la
+   * base— así que el estado `draft` dejó de ser alcanzable y el botón no tenía
+   * nada que marcar. Lo que se prueba acá es que, aun recibiendo una
+   * cotización en borrador —un documento viejo, una caché— la pantalla ofrece
+   * la acción que SÍ sirve y no una que ya no hace nada.
+   */
+  it('aunque llegue una en borrador, la acción es generar el pedido', () => {
     estado.doc = cotizacion({ estado: 'draft' })
     montar()
-    expect(screen.getByRole('button', { name: 'Marcar como enviada' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Marcar como enviada' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Generar pedido' })).toBeEnabled()
   })
 

@@ -527,11 +527,9 @@ function Detalle() {
     serie: doc.serie,
   })
 
-  const esBorrador = doc.estado === 'draft'
-
   const botonGenerarPedido = escribe && doc.estado !== 'rejected' ? (
     <Button
-      variant={esBorrador ? 'secondary' : 'primary'}
+      variant="primary"
       icon={yaTienePedido ? <Icon name="check" size={16} /> : <Icon name="arrow-right" size={16} />}
       loading={convertir.isPending}
       disabled={yaTienePedido || stelPedido || autoridad.cargando}
@@ -690,22 +688,13 @@ function Detalle() {
           pegajosa
           volver={volver}
           pasos={circuito}
-          primary={
-            esBorrador ? (
-              escribe ? (
-                <Button
-                  icon={<Icon name="arrow-right" size={16} />}
-                  disabled={stelCotizacion || autoridad.cargando}
-                  aria-describedby={stelCotizacion ? describePorBloqueo : undefined}
-                  onClick={() => transicion.mutate({ hasta: 'sent' })}
-                >
-                  Marcar como enviada
-                </Button>
-              ) : null
-            ) : (
-              botonGenerarPedido
-            )
-          }
+          /*
+            Acá vivía «Marcar como enviada», que se sacó en la Fase 43.
+            Guardar una cotización YA la deja Pendiente —lo hace un trigger, no
+            la pantalla— así que el estado `draft` no existe más y el botón no
+            tenía nada que marcar. La acción principal es generar el pedido.
+          */
+          primary={botonGenerarPedido}
           secondary={
             <>
               {permiso.editable ? (
@@ -717,7 +706,6 @@ function Detalle() {
                   Editar
                 </Button>
               ) : null}
-              {esBorrador ? botonGenerarPedido : null}
               {escribe && doc.estado === 'sent' ? (
                 <Button
                   variant="secondary"

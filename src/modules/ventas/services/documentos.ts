@@ -104,12 +104,23 @@ function columnasListado(tipo: TipoDocumento): string {
   // referenciadas por más de una FK y sin él PostgREST devuelve PGRST201.
   const origen = c.fkOrigen ? `, origen:${c.fkOrigen.tabla}!${c.fkOrigen.columna} ( id, number )` : ''
   const vendedor = c.tieneVendedor ? ', vendedor:profiles!salesperson_id ( full_name )' : ''
+  /*
+   * Quién lo creó (Fase 43).
+   *
+   * `salesperson_id` está vacío en los 751 documentos: nunca se cargó. Lo que
+   * sí existe es `created_by`, y SÓLO en los que nacieron en el ERP — los
+   * importados de STEL no tienen autor, y no se perdió: nunca lo tuvieron.
+   *
+   * Se piden los dos: la columna muestra el vendedor si está y el creador si
+   * no. Ver `nombreDelVendedor`.
+   */
+  const creador = ', creador:profiles!created_by ( full_name )'
   const segundo = tipo === 'pedido' ? ', fulfillment_status' : ''
   return `
     id, number, original_number, ${c.campoFecha}, title, currency_code, total,
     ${c.campoEstado}${segundo}, needs_review, review_reason, number_outlier,
     series_code, imported_at,
-    customers!customer_id ( id, legal_name, trade_name )${vendedor}${origen}
+    customers!customer_id ( id, legal_name, trade_name )${vendedor}${creador}${origen}
   `
 }
 
@@ -128,6 +139,7 @@ type FilaCruda = Record<string, unknown> & {
   imported_at: string | null
   customers: FilaCliente | null
   vendedor?: { full_name: string | null } | null
+  creador?: { full_name: string | null } | null
   origen?: { id: string; number: string } | null
 }
 
@@ -159,7 +171,8 @@ function aFila(tipo: TipoDocumento, f: FilaCruda): DocumentoListado {
     total: aNumero(f.total),
     estado: aTexto(f[c.campoEstado]),
     estadoSecundario: tipo === 'pedido' ? aTexto(f['fulfillment_status']) : null,
-    vendedor: f.vendedor?.full_name ?? null,
+    // El vendedor si lo hay; si no, quien lo creó. Ver `columnasListado`.
+    vendedor: f.vendedor?.full_name ?? f.creador?.full_name ?? null,
     serie: f.series_code,
     origen: f.origen?.number ?? null,
     necesitaRevision: f.needs_review,

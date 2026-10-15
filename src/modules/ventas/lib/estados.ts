@@ -69,6 +69,31 @@ export function presentarCumplimiento(estado: string | null): EstadoPresentable 
   return PEDIDO_CUMPLIMIENTO[estado] ?? { etiqueta: estado, tono: 'neutro' }
 }
 
+/**
+ * El estado de un PEDIDO, el que se lee de un vistazo (Fase 43).
+ *
+ * Un pedido tiene cuatro estados —comercial, cumplimiento, facturación y
+ * cobro— y en una lista entra uno. El que importa para saber en qué anda es el
+ * AVANCE DE ENTREGA: «Sin entregar», «Entrega parcial», «Entregado».
+ *
+ * Antes mandaba el comercial, y por eso un pedido ya entregado se leía
+ * «Confirmado»: cierto, pero no dice nada. Y uno recién creado decía
+ * «Borrador» aunque ya tuviera remitos.
+ *
+ * El comercial sólo gana cuando dice algo que el avance no puede decir:
+ * todavía es un borrador, o se canceló. En esos dos casos el avance es
+ * irrelevante —un pedido cancelado no «está sin entregar», está cancelado—.
+ */
+export function presentarEstadoPedido(
+  comercial: string | null,
+  cumplimiento: string | null,
+): EstadoPresentable {
+  if (comercial === 'draft' || comercial === 'cancelled') {
+    return PEDIDO_COMERCIAL[comercial]!
+  }
+  return presentarCumplimiento(cumplimiento)
+}
+
 /** Opciones del filtro de estado, por documento. */
 export function estadosDisponibles(tipo: TipoDocumento): { valor: string; etiqueta: string }[] {
   return Object.entries(TABLA[tipo]).map(([valor, e]) => ({ valor, etiqueta: e.etiqueta }))

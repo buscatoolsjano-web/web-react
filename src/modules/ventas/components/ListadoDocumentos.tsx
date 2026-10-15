@@ -4,7 +4,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { Icon } from '@/components/icons/Icon'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import tabla from '@/components/tables/Tabla.module.css'
-import { presentarCumplimiento, presentarEstado } from '../lib/estados'
+import { presentarEstado, presentarEstadoPedido } from '../lib/estados'
 import { formatearFecha, formatearImporte } from '../lib/formato'
 import { ChipEstado } from './ChipEstado'
 import { RUTA_DE, type DireccionOrden, type DocumentoListado, type OrdenVentas } from '../types'
@@ -42,6 +42,18 @@ const COLUMNAS: { clave: OrdenVentas; etiqueta: string; num?: boolean; clase?: s
 ]
 
 const observaciones = (n: number) => `${n} ${n === 1 ? 'observación' : 'observaciones'}`
+
+/**
+ * El chip de estado de una fila, igual en la tabla y en la tarjeta del celular.
+ *
+ * Está acá y no escrito dos veces porque son la MISMA lista mirada de dos
+ * maneras: si un día el pedido vuelve a leerse por su estado comercial, tiene
+ * que cambiar en los dos lados o se contradicen.
+ */
+const chipDe = (d: DocumentoListado) =>
+  d.tipo === 'pedido'
+    ? presentarEstadoPedido(d.estado, d.estadoSecundario)
+    : presentarEstado(d.tipo, d.estado)
 
 /**
  * El mismo listado para los tres documentos.
@@ -93,7 +105,7 @@ export function ListadoDocumentos({
             <Link to={`${RUTA_DE[d.tipo]}/${d.id}`} state={vuelta} className={tabla.tarjeta}>
               <span className={tabla.tarjetaTitulo}>{d.numero}</span>
               <span className={tabla.tarjetaDerecha}>
-                <ChipEstado estado={presentarEstado(d.tipo, d.estado)} />
+                <ChipEstado estado={chipDe(d)} />
               </span>
               <span className={tabla.tarjetaTexto}>{d.clienteNombre}</span>
               <span className={tabla.tarjetaMeta}>{formatearFecha(d.fecha)}</span>
@@ -198,13 +210,27 @@ export function ListadoDocumentos({
               <td className={tabla.num}>{formatearImporte(d.total, d.moneda)}</td>
               <td className={`${tabla.secundario} ${tabla.texto} ${tabla.ocultaBajoXl}`}>{d.titulo ?? '—'}</td>
               <td>
+                {/*
+                  En un pedido manda el AVANCE DE ENTREGA, y el comercial sólo
+                  cuando dice algo que el avance no puede decir —borrador o
+                  cancelado—. Eso ya lo resuelve `presentarEstadoPedido`, así
+                  que acá hay un chip y no dos: el segundo, con el pedido
+                  confirmado, sólo repetía «Confirmado» al lado de «Entregado».
+                */}
                 <span className={tabla.estados}>
-                  <ChipEstado estado={presentarEstado(d.tipo, d.estado)} />
-                  {d.estadoSecundario ? <ChipEstado estado={presentarCumplimiento(d.estadoSecundario)} /> : null}
+                  <ChipEstado estado={chipDe(d)} />
                 </span>
               </td>
               {etiquetaOrigen ? <td className={`${tabla.nowrap} ${tabla.ocultaBajoLg}`}>{d.origen ?? '—'}</td> : null}
-              <td className={`${tabla.nowrap} ${tabla.secundario} ${tabla.ocultaBajoXl}`}>{d.vendedor ?? '—'}</td>
+              {/*
+                Sin vendedor ni creador, el documento vino importado de STEL:
+                nadie lo cargó acá. Un guión se lee como «no tiene vendedor
+                asignado», que es otra cosa y manda a buscar a quién asignarle
+                algo que no pasó por el ERP.
+              */}
+              <td className={`${tabla.nowrap} ${tabla.secundario} ${tabla.ocultaBajoXl}`}>
+                {d.vendedor ?? (d.esHistorico ? 'Importado de STEL' : '—')}
+              </td>
             </tr>
           ))}
         </tbody>
