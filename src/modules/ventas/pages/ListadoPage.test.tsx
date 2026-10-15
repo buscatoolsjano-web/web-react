@@ -42,6 +42,8 @@ vi.mock('../hooks/useDocumentos', () => ({
   useBuscarClientesParaFiltro: () => ({ data: [], isFetching: false, error: null }),
   useSeries: () => ({ data: estado.series, isPending: estado.seriesPendientes }),
   useFacetas: () => ({ data: { monedas: ['USD'], series: ['COTI'] } }),
+  // El desplegable de vendedor del filtro (Fase 73).
+  useVendedores: () => ({ data: [{ id: 'u-jano', nombre: 'Jano' }] }),
   useDocumentos: () =>
     estado.error
       ? { data: undefined, isPending: false, isFetching: false, error: new Error('red'), refetch: llamadas.refetch }

@@ -4,7 +4,8 @@ import { Field } from '@/components/forms/Field'
 import { Checkbox, Input, Select } from '@/components/forms/controls'
 import { FiltroCliente } from './FiltroCliente'
 import { estadosDisponibles } from '../lib/estados'
-import { useFacetas } from '../hooks/useDocumentos'
+import { useFacetas, useVendedores } from '../hooks/useDocumentos'
+import { SIN_VENDEDOR } from '../types'
 import type { FiltrosVentas, TipoDocumento } from '../types'
 
 export interface FiltrosDocumentosProps {
@@ -17,7 +18,7 @@ export interface FiltrosDocumentosProps {
 
 /** Filtros aplicados además de la búsqueda (para el contador en mobile). */
 function contarActivos(f: FiltrosVentas): number {
-  return [f.clienteId, f.estado, f.moneda, f.desde, f.hasta, f.soloRevision, f.serie, f.origen, f.pendienteDeEntrega, f.soloAbiertas].filter(Boolean).length
+  return [f.clienteId, f.estado, f.moneda, f.desde, f.hasta, f.soloRevision, f.serie, f.origen, f.pendienteDeEntrega, f.soloAbiertas, f.vendedorId].filter(Boolean).length
 }
 
 /**
@@ -37,6 +38,7 @@ export function FiltrosDocumentos({
   onLimpiar,
 }: FiltrosDocumentosProps) {
   const facetas = useFacetas(tipo)
+  const vendedores = useVendedores()
 
   // El número se escribe letra por letra: se espera a que la persona pare de
   // tipear antes de pedirle nada al servidor.
@@ -119,6 +121,29 @@ export function FiltrosDocumentos({
           </Select>
         </Field>
       ) : null}
+
+      {/*
+        De quién es (Fase 73).
+
+        Dice lo mismo que la columna Vendedor: el vendedor cargado y, cuando
+        no hay, quien lo creó. Y «Sin vendedor» no es un hueco: son los que
+        entraron por la sincronización de STEL, que es el montón que hay que
+        repartir y por eso se puede pedir.
+      */}
+      <Field label="Vendedor" hideLabel>
+        <Select
+          value={filtros.vendedorId ?? ''}
+          onChange={(e) => onAplicar({ vendedorId: e.target.value || null })}
+        >
+          <option value="">Todos los vendedores</option>
+          {(vendedores.data ?? []).map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.nombre}
+            </option>
+          ))}
+          <option value={SIN_VENDEDOR}>Sin vendedor</option>
+        </Select>
+      </Field>
 
       {/* El origen no existe en cotizaciones: son el principio de la cadena. */}
       {tipo !== 'cotizacion' ? (

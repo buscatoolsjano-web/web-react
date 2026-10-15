@@ -611,6 +611,30 @@ describe('F · Lo tuyo, antes que lo del resto', () => {
     expect(within(mio).getByRole('heading', { name: /Tenés pendiente/ })).toHaveTextContent('4')
   })
 
+  /*
+   * Y se puede abrir (Fase 73). El listado de Ventas ya filtra por vendedor,
+   * con la misma regla que la columna: el vendedor y, si no hay, quien lo
+   * creó. Antes estos números eran murallas: decían «tenés uno» y había que
+   * ir a buscarlo a mano entre los 193 pedidos.
+   */
+  it('mi pendiente de ventas lleva al listado filtrado por mí', () => {
+    estado.porPersona = {
+      isPending: false,
+      error: null,
+      data: POR_PERSONA().map((f) => (f.esMio ? { ...f, pedidos: 1 } : f)),
+    }
+    montar()
+    const mio = miBloque()
+    expect(within(mio).getByRole('link', { name: /1\s*cotización esperando/ })).toHaveAttribute(
+      'href',
+      '/ventas/cotizaciones?estado=sent&vendedor=u-yo',
+    )
+    expect(within(mio).getByRole('link', { name: /1\s*pedido por entregar/ })).toHaveAttribute(
+      'href',
+      '/ventas/pedidos?pendiente=1&vendedor=u-yo',
+    )
+  })
+
   it('mi correo pendiente lleva a la bandeja filtrada por mí', () => {
     montar()
     expect(within(miBloque()).getByRole('link', { name: /2\s*correos sin responder/ })).toHaveAttribute(
@@ -668,6 +692,17 @@ describe('F · Lo tuyo, antes que lo del resto', () => {
     // «Sin asignar» NUNCA es mía: es el montón que no repartió nadie, y es
     // justamente el dato que hay que seguir viendo abajo.
     expect(within(resto).getByText('Sin asignar')).toBeInTheDocument()
+  })
+
+  /* La última fila es el montón que no repartió nadie: su link pide
+     justamente ésos, los que no tienen vendedor ni autor. */
+  it('«Sin asignar» abre la lista de los que no son de nadie', () => {
+    montar()
+    const resto = screen.getByRole('heading', { name: 'Pendiente del resto' }).closest('section')!
+    expect(within(resto).getByRole('link', { name: /cotizaciones enviadas de Sin asignar/ })).toHaveAttribute(
+      'href',
+      '/ventas/cotizaciones?estado=sent&vendedor=nadie',
+    )
   })
 
   it('la tabla del resto suma el total de cada quien', () => {

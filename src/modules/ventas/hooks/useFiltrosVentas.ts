@@ -22,8 +22,18 @@ function aEntero(v: string | null, porDefecto: number): number {
   return Number.isInteger(n) && n > 0 ? n : porDefecto
 }
 
+/**
+ * La clave de orden que venga en la URL, si es una de las que existen.
+ *
+ * `titulo` y `estado` faltaban acá desde la Fase 43, que las agregó a la
+ * tabla y al servidor pero no a esta lista. El efecto era silencioso y
+ * desconcertante: tocabas Título, la URL decía `orden=titulo`, y al releerla
+ * volvía a Fecha. O sea que dos de las seis columnas no ordenaban, que es
+ * justo lo que esa fase venía a arreglar.
+ */
 function aOrden(v: string | null): OrdenVentas {
-  return v === 'numero' || v === 'cliente' || v === 'total' || v === 'fecha'
+  return v === 'numero' || v === 'cliente' || v === 'total' || v === 'fecha' ||
+    v === 'titulo' || v === 'estado'
     ? v
     : FILTROS_INICIALES.orden
 }
@@ -50,6 +60,7 @@ export function leerFiltros(params: URLSearchParams): FiltrosVentas {
     origen: aOrigen(params.get('origen')),
     pendienteDeEntrega: params.get('pendiente') === '1',
     soloAbiertas: params.get('abierta') === '1',
+    vendedorId: params.get('vendedor'),
     pagina: aEntero(params.get('page'), 1),
     porPagina: (TAMANOS as readonly number[]).includes(porPagina)
       ? porPagina
@@ -74,6 +85,7 @@ export function escribirFiltros(f: FiltrosVentas): URLSearchParams {
   if (f.origen) p.set('origen', f.origen)
   if (f.pendienteDeEntrega) p.set('pendiente', '1')
   if (f.soloAbiertas) p.set('abierta', '1')
+  if (f.vendedorId) p.set('vendedor', f.vendedorId)
   if (f.pagina > 1) p.set('page', String(f.pagina))
   if (f.porPagina !== FILTROS_INICIALES.porPagina) p.set('per', String(f.porPagina))
   if (f.orden !== FILTROS_INICIALES.orden) p.set('orden', f.orden)
@@ -113,6 +125,7 @@ export function useFiltrosVentas() {
     filtros.origen !== null ||
     filtros.pendienteDeEntrega ||
     filtros.soloAbiertas ||
+    filtros.vendedorId !== null ||
     filtros.soloRevision
 
   return { filtros, aplicar, limpiar, hayFiltros }

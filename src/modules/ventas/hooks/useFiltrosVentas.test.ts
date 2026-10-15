@@ -13,7 +13,7 @@ describe('leerFiltros', () => {
     const f = leerFiltros(
       url(
         'q=COTI02251&cliente=abc&estado=sent&moneda=USD&desde=2026-01-01&hasta=2026-06-30&revision=1' +
-          '&serie=COT-ERP&origen=sin&pendiente=1&abierta=1&page=3&per=50&orden=total&dir=asc',
+          '&serie=COT-ERP&origen=sin&pendiente=1&abierta=1&vendedor=u-jano&page=3&per=50&orden=total&dir=asc',
       ),
     )
     expect(f).toEqual({
@@ -28,6 +28,7 @@ describe('leerFiltros', () => {
       origen: 'sin',
       pendienteDeEntrega: true,
       soloAbiertas: true,
+      vendedorId: 'u-jano',
       pagina: 3,
       porPagina: 50,
       orden: 'total',
@@ -64,6 +65,7 @@ describe('escribirFiltros', () => {
       origen: 'sin',
       pendienteDeEntrega: true,
       soloAbiertas: true,
+      vendedorId: 'u-jano',
       pagina: 4,
       porPagina: 100,
       orden: 'cliente',
@@ -79,5 +81,27 @@ describe('escribirFiltros', () => {
 
   it('una búsqueda en blanco no ensucia la URL', () => {
     expect(escribirFiltros({ ...FILTROS_INICIALES, q: '   ' }).toString()).toBe('')
+  })
+})
+
+/*
+ * El filtro por vendedor (Fase 73), y las dos claves de orden que no volvían.
+ *
+ * Lo segundo era un error silencioso: la Fase 43 agregó Título y Estado a la
+ * tabla y al servidor pero no a la lista de claves válidas, así que al releer
+ * la URL volvían a Fecha. Tocabas la columna, la flecha se iba a otra parte, y
+ * no había nada que mirar para entender por qué.
+ */
+describe('lo que viaja en la URL', () => {
+  it('el vendedor va y vuelve, incluido «sin vendedor»', () => {
+    expect(leerFiltros(url('vendedor=u-jano')).vendedorId).toBe('u-jano')
+    expect(leerFiltros(url('vendedor=nadie')).vendedorId).toBe('nadie')
+    expect(leerFiltros(url('')).vendedorId).toBeNull()
+    expect(escribirFiltros({ ...FILTROS_INICIALES, vendedorId: 'u-jano' }).get('vendedor')).toBe('u-jano')
+  })
+
+  it('ordenar por Título o por Estado sobrevive a la URL', () => {
+    expect(leerFiltros(url('orden=titulo')).orden).toBe('titulo')
+    expect(leerFiltros(url('orden=estado')).orden).toBe('estado')
   })
 })

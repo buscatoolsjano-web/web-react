@@ -5,6 +5,7 @@ import { ErrorState } from '@/components/feedback/ErrorState'
 import { etiquetaRol } from '@/modules/configuracion/lib/usuarios'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { totalDe, type PendienteDePersona } from '../services/pendientePorPersona'
+import { SIN_VENDEDOR } from '@/modules/ventas/types'
 import styles from './Panel.module.css'
 
 export interface PendientePorPersonaProps {
@@ -16,6 +17,9 @@ export interface PendientePorPersonaProps {
 }
 
 const TITULO = 'Pendiente del resto'
+
+/** Cómo se nombra a esta fila en la URL del listado: su id, o «nadie». */
+const quien = (f: PendienteDePersona) => f.userId ?? SIN_VENDEDOR
 
 /** Los mismos íconos que «Lo tuyo», para que las dos mitades se lean igual. */
 const COLUMNAS: readonly { clave: string; icono: IconName; titulo: string }[] = [
@@ -42,11 +46,12 @@ const COLUMNAS: readonly { clave: string; icono: IconName; titulo: string }[] = 
  * pedidos sin entregar, 1 y 31. El correo sigue repartiéndose por
  * `assigned_to`, y ahí sí está casi todo sin asignar: 1.038 hilos.
  *
- * SÓLO EL CORREO SE PUEDE ABRIR FILTRADO POR PERSONA. La bandeja tiene el
- * filtro `asignado` —y `asignado=nadie` para la fila de abajo—, así que esos
- * números son links. Cotizaciones y pedidos NO tienen filtro por vendedor en
- * el listado, así que van como número y no como enlace: un link que lleva al
- * listado completo le hace buscar a la persona lo que el panel ya encontró.
+ * TODOS LOS NÚMEROS SE PUEDEN ABRIR. Cada uno lleva a su lista ya filtrada
+ * por esa persona —o por «nadie», para la última fila—: la bandeja con el
+ * filtro `asignado`, y el listado de Ventas con `vendedor`, que existe desde
+ * la Fase 73. Antes cotizaciones y pedidos eran números muertos, y no por
+ * capricho: sin ese filtro, el link llevaba al listado completo y le hacía
+ * buscar a la persona lo que el panel ya había encontrado.
  */
 export function PendientePorPersona({ filas, cargando, error, onReintentar }: PendientePorPersonaProps) {
   const id = useId()
@@ -135,12 +140,32 @@ export function PendientePorPersona({ filas, cargando, error, onReintentar }: Pe
                     <span className={styles.cero}>0</span>
                   )}
                 </td>
-                {/* Sin link: el listado de Ventas no filtra por vendedor. */}
+                {/* Desde la Fase 73 el listado SÍ filtra por vendedor —con la
+                    misma regla que la columna: el vendedor y, si no hay, quien
+                    lo creó—, así que estos números también llevan a la lista. */}
                 <td className={styles.numCol}>
-                  {f.cotizaciones > 0 ? f.cotizaciones : <span className={styles.cero}>0</span>}
+                  {f.cotizaciones > 0 ? (
+                    <Link
+                      to={`/ventas/cotizaciones?estado=sent&vendedor=${quien(f)}`}
+                      aria-label={`Ver las ${f.cotizaciones} cotizaciones enviadas de ${f.nombre}`}
+                    >
+                      {f.cotizaciones}
+                    </Link>
+                  ) : (
+                    <span className={styles.cero}>0</span>
+                  )}
                 </td>
                 <td className={styles.numCol}>
-                  {f.pedidos > 0 ? f.pedidos : <span className={styles.cero}>0</span>}
+                  {f.pedidos > 0 ? (
+                    <Link
+                      to={`/ventas/pedidos?pendiente=1&vendedor=${quien(f)}`}
+                      aria-label={`Ver los ${f.pedidos} pedidos sin entregar de ${f.nombre}`}
+                    >
+                      {f.pedidos}
+                    </Link>
+                  ) : (
+                    <span className={styles.cero}>0</span>
+                  )}
                 </td>
                 {/* El total es lo que se compara entre filas: quién está más
                     tapado. Las tres columnas de al lado dicen de qué. */}

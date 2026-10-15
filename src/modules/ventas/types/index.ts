@@ -52,6 +52,14 @@ export interface PaginaDeDocumentos {
   total: number
 }
 
+/**
+ * Los que no son de nadie: ni vendedor cargado ni autor.
+ *
+ * Son los que entraron por la sincronización de STEL, y es un filtro que se
+ * usa: es el montón que hay que repartir.
+ */
+export const SIN_VENDEDOR = 'nadie'
+
 export type OrdenVentas = 'fecha' | 'numero' | 'cliente' | 'total' | 'titulo' | 'estado'
 export type DireccionOrden = 'asc' | 'desc'
 
@@ -90,6 +98,16 @@ export interface FiltrosVentas {
    * pueden separarse.
    */
   soloAbiertas: boolean
+  /**
+   * De quién es el documento (Fase 73).
+   *
+   * El id de la persona, o `SIN_VENDEDOR` para los que no son de nadie. Y
+   * «de quién» quiere decir lo MISMO que la columna Vendedor: el vendedor
+   * cargado y, cuando no hay —que es casi siempre—, quien lo creó. Dos
+   * definiciones distintas de la misma palabra en la misma pantalla serían
+   * una lista que se contradice con su propia columna.
+   */
+  vendedorId: string | null
   pagina: number
   porPagina: number
   orden: OrdenVentas
@@ -108,6 +126,7 @@ export const FILTROS_INICIALES: FiltrosVentas = {
   origen: null,
   pendienteDeEntrega: false,
   soloAbiertas: false,
+  vendedorId: null,
   pagina: 1,
   porPagina: 25,
   orden: 'fecha',

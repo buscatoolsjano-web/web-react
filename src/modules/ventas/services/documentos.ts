@@ -11,6 +11,7 @@ import type {
   TipoDocumento,
   FiltrosVentas,
 } from '../types'
+import { SIN_VENDEDOR } from '../types'
 
 /**
  * Los tres documentos difieren en el nombre de la tabla, el de la fecha y el
@@ -227,6 +228,34 @@ export async function listarDocumentos(
     // `fulfillment_status` sólo existe en `sales_orders`.
     const campo: string = 'fulfillment_status'
     q = q.neq(campo, 'delivered')
+  }
+
+  /*
+   * De quién es el documento (Fase 73).
+   *
+   * «De quién» es lo MISMO que muestra la columna Vendedor: el vendedor
+   * cargado y, cuando no hay —que es casi siempre, porque `salesperson_id`
+   * está vacío en los 751 documentos—, quien lo creó. Si el filtro mirara sólo
+   * `salesperson_id`, elegir a alguien devolvería una lista vacía al lado de
+   * una columna que dice su nombre en veinte filas.
+   *
+   * El remito no tiene `salesperson_id` —el vendedor es del pedido, no del
+   * remito—, así que ahí la pregunta es sólo por el autor.
+   */
+  if (filtros.vendedorId) {
+    const creador: string = 'created_by'
+    const nadie = filtros.vendedorId === SIN_VENDEDOR
+    if (!c.tieneVendedor) {
+      q = nadie ? q.is(creador, null) : q.eq(creador, filtros.vendedorId)
+    } else if (nadie) {
+      const vendedor: string = 'salesperson_id'
+      q = q.is(vendedor, null).is(creador, null)
+    } else {
+      // El `or` de PostgREST: o es su venta, o no es de nadie y la creó él.
+      q = q.or(
+        `salesperson_id.eq.${filtros.vendedorId},and(salesperson_id.is.null,created_by.eq.${filtros.vendedorId})`,
+      )
+    }
   }
 
   // «Abiertas» es de la cotización, y la regla vive en la base: `abierta` es

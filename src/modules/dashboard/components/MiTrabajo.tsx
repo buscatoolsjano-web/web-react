@@ -103,12 +103,16 @@ export function MiTrabajo({ mio, sinAutor, mes, cargando }: MiTrabajoProps) {
           plural: 'correos sin responder',
           destino: `/emails?sinresponder=1&asignado=${mio.userId}`,
         },
+        /* Los tres llevan a su lista ya filtrada por mí. El de Ventas usa el
+           filtro `vendedor`, que entiende la misma regla que la columna: el
+           vendedor y, si no hay, quien lo creó (Fase 73). */
         {
           clave: 'cotizaciones',
           icono: 'cart',
           n: mio.cotizaciones,
           singular: 'cotización esperando',
           plural: 'cotizaciones esperando',
+          destino: `/ventas/cotizaciones?estado=sent&vendedor=${mio.userId}`,
         },
         {
           clave: 'pedidos',
@@ -116,6 +120,7 @@ export function MiTrabajo({ mio, sinAutor, mes, cargando }: MiTrabajoProps) {
           n: mio.pedidos,
           singular: 'pedido por entregar',
           plural: 'pedidos por entregar',
+          destino: `/ventas/pedidos?pendiente=1&vendedor=${mio.userId}`,
         },
       ]
     : []
