@@ -52,7 +52,7 @@ export interface PaginaDeDocumentos {
   total: number
 }
 
-export type OrdenVentas = 'fecha' | 'numero' | 'cliente' | 'total'
+export type OrdenVentas = 'fecha' | 'numero' | 'cliente' | 'total' | 'titulo' | 'estado'
 export type DireccionOrden = 'asc' | 'desc'
 
 export interface FiltrosVentas {

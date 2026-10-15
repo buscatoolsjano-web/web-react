@@ -90,6 +90,20 @@
   color: var(--color-text-muted);
 }
 
+/* La flecha de una columna que SE PUEDE ordenar pero no es la activa.
+   Apagada, no ausente: es lo que avisa que la cabecera es un botón. Se
+   enciende al pasar el mouse o al enfocar con el teclado. */
+.ordenIconoApagado {
+  color: var(--color-text-muted);
+  opacity: 0.25;
+  transition: opacity 120ms ease;
+}
+
+.orden:hover .ordenIconoApagado,
+.orden:focus-visible .ordenIconoApagado {
+  opacity: 0.7;
+}
+
 .num {
   text-align: right;
   white-space: nowrap;

@@ -23,11 +23,22 @@ export interface ListadoDocumentosProps {
   onSeleccionarTodos?: (marcado: boolean) => void
 }
 
-const COLUMNAS: { clave: OrdenVentas; etiqueta: string; num?: boolean }[] = [
+/**
+ * Las columnas por las que se puede ordenar, en el orden en que salen.
+ *
+ * Tiene que coincidir con el orden de las celdas del cuerpo: acá se dibujan
+ * las cabeceras y allá los datos, y nadie los ata.
+ *
+ * `clase` es la misma regla de visibilidad que tenía cada `th` suelto: Título
+ * se esconde abajo de XL porque es largo y es lo primero que sobra.
+ */
+const COLUMNAS: { clave: OrdenVentas; etiqueta: string; num?: boolean; clase?: string | undefined }[] = [
   { clave: 'numero', etiqueta: 'Número' },
   { clave: 'cliente', etiqueta: 'Cliente' },
   { clave: 'fecha', etiqueta: 'Fecha' },
   { clave: 'total', etiqueta: 'Total', num: true },
+  { clave: 'titulo', etiqueta: 'Título', clase: tabla.ocultaBajoXl },
+  { clave: 'estado', etiqueta: 'Estado' },
 ]
 
 const observaciones = (n: number) => `${n} ${n === 1 ? 'observación' : 'observaciones'}`
@@ -121,20 +132,26 @@ export function ListadoDocumentos({
                 <th
                   key={c.clave}
                   scope="col"
-                  className={c.num ? tabla.num : undefined}
+                  className={c.num ? tabla.num : c.clase}
                   aria-sort={activa ? (direccion === 'asc' ? 'ascending' : 'descending') : 'none'}
                 >
                   <button type="button" className={tabla.orden} onClick={() => onOrdenar(c.clave)}>
                     {c.etiqueta}
-                    {activa ? <Icon name={direccion === 'asc' ? 'arrow-up' : 'arrow-down'} size={16} className={tabla.ordenIcono} /> : null}
+                    {/*
+                      La flecha está SIEMPRE, apagada cuando la columna no es la
+                      activa. Antes se dibujaba sólo en la activa, y el efecto
+                      era que parecía que únicamente se podía ordenar por Fecha:
+                      las otras tres ordenaban igual, pero nada lo decía.
+                    */}
+                    <Icon
+                      name={activa && direccion === 'desc' ? 'arrow-down' : 'arrow-up'}
+                      size={16}
+                      className={activa ? tabla.ordenIcono : tabla.ordenIconoApagado}
+                    />
                   </button>
                 </th>
               )
             })}
-            <th scope="col" className={tabla.ocultaBajoXl}>
-              Título
-            </th>
-            <th scope="col">Estado</th>
             {etiquetaOrigen ? (
               <th scope="col" className={tabla.ocultaBajoLg}>
                 {etiquetaOrigen}

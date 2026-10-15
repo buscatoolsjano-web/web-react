@@ -227,11 +227,25 @@ export async function listarDocumentos(
     q = q.is(campo, true)
   }
 
+  /*
+   * Por qué columna ordena cada clave.
+   *
+   * `cliente` ordena por `customer_id`, que es un uuid y NO el nombre: agrupa
+   * los documentos de un mismo cliente, que es para lo que se usa, pero no es
+   * alfabético. Ordenar por nombre exige ordenar por una tabla embebida, que
+   * PostgREST no hace sobre una relación de muchos-a-uno sin vista. Queda
+   * anotado acá para que nadie lo lea como un a-z y se sorprenda.
+   *
+   * `estado` ordena por el código (`draft`, `sent`, `accepted`…), no por la
+   * etiqueta en castellano. Alcanza para agrupar.
+   */
   const columnaOrden = {
     fecha: c.campoFecha,
     numero: 'number',
     cliente: 'customer_id',
     total: 'total',
+    titulo: 'title',
+    estado: c.campoEstado,
   }[filtros.orden]
   const asc = filtros.direccion === 'asc'
   q = q.order(columnaOrden, { ascending: asc, nullsFirst: false })
