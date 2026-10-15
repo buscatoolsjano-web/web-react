@@ -26,12 +26,15 @@ export function ModalComparar({
   onQuitar,
   onAbrirProducto,
   onCerrar,
+  esInterno,
 }: {
   productos: readonly ProductoListado[]
   moneda: string | null
   onQuitar: (producto: ProductoListado) => void
   onAbrirProducto: (id: string) => void
   onCerrar: () => void
+  /** Si quien mira ve el stock. Viaja hasta el comparador (Fase 75). */
+  esInterno: boolean
 }) {
   const idTitulo = useId()
   const caja = useRef<HTMLDivElement>(null)
@@ -80,6 +83,7 @@ export function ModalComparar({
             moneda={moneda}
             onAbrirProducto={onAbrirProducto}
             variante="completa"
+            esInterno={esInterno}
           />
         </div>
 

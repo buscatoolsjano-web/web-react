@@ -315,6 +315,7 @@ function Contenido({
             moneda={moneda}
             onAbrirProducto={onAbrirOtro}
             variante="completa"
+            esInterno={esInterno}
           />
         ) : null}
         <RelacionadosProducto

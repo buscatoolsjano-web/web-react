@@ -159,6 +159,7 @@ export function PopoverProducto({
         onVerTodos={() => setVerTodos(true)}
         moneda={moneda}
         onAbrirProducto={onAbrirProducto}
+        esInterno={esInterno}
       />
     </div>
   )
@@ -186,6 +187,7 @@ interface ComparadorProps {
   onVerTodos: () => void
   moneda: string | null
   onAbrirProducto: (id: string) => void
+  esInterno: boolean
 }
 
 /**
@@ -208,6 +210,7 @@ function Comparador({
   onVerTodos,
   moneda,
   onAbrirProducto,
+  esInterno,
 }: ComparadorProps) {
   if (!comparable) {
     return (
@@ -232,6 +235,7 @@ function Comparador({
         moneda={moneda}
         onAbrirProducto={onAbrirProducto}
         variante="compacta"
+        esInterno={esInterno}
       />
       {/* Más de los que entran en el hover: se ven completos en el modal, que
           tiene espacio. Meter cinco columnas acá lo volvería una pantalla. */}

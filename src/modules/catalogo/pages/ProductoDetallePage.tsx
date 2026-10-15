@@ -322,6 +322,7 @@ export function ProductoDetallePage() {
             moneda={porDefecto?.moneda ?? null}
             onAbrirProducto={(id) => void navigate(`/catalogo?producto=${id}`)}
             variante="completa"
+            esInterno={esInterno}
           />
         ) : null}
         <RelacionadosProducto

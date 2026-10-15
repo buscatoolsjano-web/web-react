@@ -1,6 +1,7 @@
 import { columnasDe, type ColumnaComparable } from '../lib/familias'
 import { compararValor, textoDe } from '../lib/similitud'
 import { ImagenProducto } from './ImagenProducto'
+import { StockCelda } from './Celdas'
 import { formatearPrecio } from '../lib/formato'
 import type { ProductoListado } from '../types'
 import styles from './ComparadorProductos.module.css'
@@ -30,6 +31,14 @@ export interface ComparadorProductosProps {
   columnas?: readonly ColumnaComparable[] | undefined
   /** Sin tope: el manual muestra los que el usuario eligió, ni uno menos. */
   sinTope?: boolean
+  /**
+   * Si quien mira ve el stock (Fase 75).
+   *
+   * Viene por prop y no de un hook: este componente dibuja lo que le dan, y
+   * es lo que permite que el mismo comparador sirva en el hover, en el modal
+   * y en el detalle sin preguntar nada por su cuenta.
+   */
+  esInterno: boolean
 }
 
 /** Cuántos similares entran sin que el hover se vuelva una pantalla. */
@@ -62,6 +71,7 @@ export function ComparadorProductos({
   variante,
   columnas,
   sinTope = false,
+  esInterno,
 }: ComparadorProductosProps) {
   const filas = columnas ?? columnasDe(familia)
   if (filas.length === 0) return null
@@ -89,6 +99,7 @@ export function ComparadorProductos({
                   moneda={moneda}
                   onAbrir={() => onAbrirProducto(p.id)}
                   variante={variante}
+                  esInterno={esInterno}
                 />
               </th>
             ))}
@@ -155,6 +166,7 @@ interface CabeceraProps {
   moneda: string | null
   onAbrir: () => void
   variante: 'compacta' | 'completa'
+  esInterno: boolean
 }
 
 /**
@@ -163,7 +175,7 @@ interface CabeceraProps {
  * Baja a propósito. Una cabecera alta empuja los atributos fuera de la
  * pantalla, y los atributos son el motivo por el que uno abrió esto.
  */
-function Cabecera({ producto, esPrincipal, fuente, moneda, onAbrir, variante }: CabeceraProps) {
+function Cabecera({ producto, esPrincipal, fuente, moneda, onAbrir, variante, esInterno }: CabeceraProps) {
   return (
     <div className={styles.cabecera}>
       {esPrincipal ? <span className={styles.estasViendo}>Estás viendo</span> : null}
@@ -186,6 +198,25 @@ function Cabecera({ producto, esPrincipal, fuente, moneda, onAbrir, variante }: 
         <span className={styles.sku}>{producto.sku}</span>
       </button>
       <span className={styles.precio}>{formatearPrecio(producto.precio, moneda)}</span>
+      {/*
+        El stock, debajo del precio (Fase 75).
+
+        Comparar dos alternativas sin saber cuál se puede entregar es comparar
+        a medias: la que gana la comparación técnica y está en cero no sirve
+        hoy. Va en la cabecera y no como una fila más porque no es un atributo
+        que se compare —un «=» entre dos stocks no significaría nada—: es el
+        dato con el que se decide, al lado del precio, igual que arriba.
+
+        Sólo para roles internos: el saldo lo decide la RLS y para los demás
+        `stock` viene siempre en null. `StockCelda` es el mismo componente del
+        listado, así que «sin saldo registrado» se dibuja igual acá: un
+        producto sin movimientos muestra «—» y no un cero que nadie midió.
+      */}
+      {esInterno ? (
+        <span className={styles.stock}>
+          <StockCelda stock={producto.stock} />
+        </span>
+      ) : null}
     </div>
   )
 }

@@ -53,6 +53,7 @@ const montar = (props: Partial<Parameters<typeof ComparadorProductos>[0]> = {}) 
       moneda="USD"
       onAbrirProducto={vi.fn()}
       variante="compacta"
+      esInterno
       {...props}
     />,
   )
@@ -197,5 +198,55 @@ describe('Familias sin datos', () => {
   it('«Otros» no dibuja un comparador vacío', () => {
     const { container } = montar({ familia: 'otros' })
     expect(container.querySelector('table')).toBeNull()
+  })
+})
+
+/*
+ * El stock de cada columna (Fase 75).
+ *
+ * «Quiero que acá aparezca el stock de los similares.» Comparar dos
+ * alternativas sin saber cuál se puede entregar es comparar a medias: la que
+ * gana la comparación técnica y está en cero no sirve hoy.
+ *
+ * Va en la cabecera, al lado del precio, y no como una fila más: no es un
+ * atributo que se compare —un «=» entre dos stocks no significaría nada—.
+ */
+describe('el stock en cada columna', () => {
+  const con = (p: ProductoListado, real: number, virtual: number): ProductoListado => ({
+    ...p,
+    stock: { real, virtual },
+  })
+
+  it('cada producto muestra el suyo, el principal incluido', () => {
+    montar({
+      principal: con(PRINCIPAL, 37, 30),
+      similares: [con(IGUAL, 5, 5), con(OTRA_CARCASA, 0, 0)],
+    })
+    /* Real y virtual, como en el listado: «37 / 30». El texto se lee junto
+       porque los dos números viven en la misma celda. */
+    const cabeceras = screen.getAllByRole('columnheader')
+    expect(cabeceras[0]!).toHaveTextContent('37 real/ 30 virtual')
+    expect(cabeceras[1]!).toHaveTextContent('5 real/ 5 virtual')
+    expect(cabeceras[2]!).toHaveTextContent('0 real/ 0 virtual')
+  })
+
+  /*
+   * Sin saldo registrado NO es cero: son los productos que nunca tuvieron
+   * movimientos. Lo resuelve `StockCelda`, el mismo componente del listado, y
+   * se prueba acá porque es la diferencia entre «no hay» y «no sabemos».
+   */
+  it('el que nunca tuvo movimientos no dice cero', () => {
+    montar({ principal: con(PRINCIPAL, 37, 30), similares: [IGUAL] })
+    const cabeceras = screen.getAllByRole('columnheader')
+    expect(within(cabeceras[1]!).getByText('Sin saldo registrado')).toBeInTheDocument()
+    expect(within(cabeceras[1]!).queryByText('0')).toBeNull()
+  })
+
+  /* Para un rol externo el saldo ni siquiera llega: la RLS no lo devuelve, y
+     la pantalla no dibuja un hueco donde no hay dato. */
+  it('un rol externo no ve la línea del stock', () => {
+    montar({ principal: con(PRINCIPAL, 37, 30), similares: [con(IGUAL, 5, 5)], esInterno: false })
+    expect(screen.queryByText('37')).toBeNull()
+    expect(screen.queryByText('Sin saldo registrado')).toBeNull()
   })
 })

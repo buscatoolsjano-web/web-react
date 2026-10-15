@@ -126,6 +126,13 @@
   color: var(--text-soft);
 }
 
+/* El stock, abajo del precio y más chico: es lo segundo que se mira, después
+   de si el producto sirve y de cuánto sale (Fase 75). */
+.stock {
+  font-size: 0.85em;
+  color: var(--text-muted);
+}
+
 /* El <td> se queda como celda de tabla. Ponerle "display: flex" lo saca del
    layout de la tabla y las columnas se apilan una debajo de otra: pasó, y el
    comparador quedó siendo una lista vertical. El flex va adentro. */

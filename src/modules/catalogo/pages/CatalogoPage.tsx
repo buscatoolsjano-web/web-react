@@ -435,6 +435,7 @@ export function CatalogoPage() {
         <ModalComparar
           productos={seleccion.elegidos}
           moneda={moneda}
+          esInterno={esInterno}
           onQuitar={(p) => {
             seleccion.quitar(p)
             // Con uno solo no hay comparación: el legacy tampoco deja abrirla.
