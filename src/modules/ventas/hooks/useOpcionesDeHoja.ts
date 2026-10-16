@@ -2,30 +2,61 @@ import { useState } from 'react'
 import { OPCIONES_INICIALES, type FormatoImpresion, type OpcionesImpresion } from '../lib/impresion'
 
 /**
- * El formato de la hoja y si los precios llevan impuesto adentro.
+ * El formato de la hoja mientras se arma el documento.
  *
  * Vive acá arriba y no adentro de `PanelHoja` (Fase 28 · E12) para que la
  * pantalla decida DÓNDE ponerlo: en el alta va adentro de la barra de
  * acciones, que es donde está todo lo que se puede hacer, y así el renglón de
  * controles no le come 40 px a la hoja.
+ *
+ * ── LA HOJA DEL ALTA MIDE COMO EL PAPEL (Fase 80) ───────────────────────────
+ *
+ * Hasta acá las fotos estaban FORZADAS en `true` (Fase 28 · E9: «la hoja lleva
+ * foto siempre»), mientras que la impresión arranca sin ellas. Como la foto
+ * reserva un cuadro de 20 mm en cada renglón, la misma cotización se veía con
+ * renglones de 28 mm mientras se armaba y salía con renglones de 12 en el
+ * papel.
+ *
+ * Dicho por quien lo usa: «cuando estoy armando la cotización se nota que hay
+ * mucho más espacio que cuando imprimo; me gusta el tamaño de cuando imprimo,
+ * ese mismo tiene que estar en el preview».
+ *
+ * Así que las fotos pasan a ser un interruptor, con el MISMO valor inicial que
+ * la impresión. Las dos superficies arrancan iguales y se mueven juntas, que
+ * es lo que hace que la vista previa sea una vista previa.
+ *
+ * No alcanzaba con achicar el cuadro de la foto: eso las dejaría PARECIDAS, y
+ * lo que se pidió es que midan lo mismo.
  */
 export function useOpcionesDeHoja(): {
   opciones: OpcionesImpresion
-  controles: { formato: FormatoImpresion; conImpuestos: boolean; onFormato: (f: FormatoImpresion) => void; onImpuestos: (v: boolean) => void }
+  controles: {
+    formato: FormatoImpresion
+    conImpuestos: boolean
+    conFotos: boolean
+    onFormato: (f: FormatoImpresion) => void
+    onImpuestos: (v: boolean) => void
+    onFotos: (v: boolean) => void
+  }
 } {
   const [formato, setFormato] = useState<FormatoImpresion>(OPCIONES_INICIALES.formato)
   const [conImpuestos, setConImpuestos] = useState(OPCIONES_INICIALES.preciosConImpuestos)
+  const [conFotos, setConFotos] = useState(OPCIONES_INICIALES.conFotos)
 
   return {
     opciones: {
       formato,
       preciosConImpuestos: conImpuestos,
       papel: OPCIONES_INICIALES.papel,
-      // Fase 28 · E9: la hoja lleva foto siempre; el hueco existe en todas las
-      // filas aunque el producto no tenga imagen.
-      conFotos: true,
+      conFotos,
     },
-    controles: { formato, conImpuestos, onFormato: setFormato, onImpuestos: setConImpuestos },
+    controles: {
+      formato,
+      conImpuestos,
+      conFotos,
+      onFormato: setFormato,
+      onImpuestos: setConImpuestos,
+      onFotos: setConFotos,
+    },
   }
 }
-
