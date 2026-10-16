@@ -104,11 +104,39 @@
 
 /* ── La leyenda, que además prende y apaga cada serie ────────────────────── */
 
+/*
+ * La leyenda y la escala, en un renglón (Fase 79).
+ *
+ * La escala se va a la derecha y, si no entra, baja sola debajo de los
+ * botones: con el bloque en un tercio de pantalla las dos cosas no caben al
+ * lado, y apretarlas sería peor que el renglón que se vino a ahorrar.
+ */
+.leyendaFila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
 .leyenda {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
+}
+
+/*
+ * La regla del eje. NO TENÍA ESTILO: la clase se usaba en el componente y no
+ * existía en esta hoja, así que el párrafo salía con los márgenes de fábrica
+ * del navegador —16 px arriba y abajo— y con el tamaño del cuerpo. Ahora es
+ * lo que siempre quiso ser: letra chica al costado.
+ */
+.escala {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  min-width: 0;
 }
 
 .serie,
@@ -381,8 +409,18 @@
   color: var(--text-muted);
 }
 
-.verNumeros {
+/* El pie: el botón y la pista, en el mismo renglón (Fase 79). La pista se va
+   a la derecha y baja sola si el bloque es angosto. */
+.pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
   margin-top: var(--space-2);
+}
+
+.verNumeros {
   padding: 0;
   border: 0;
   background: none;
@@ -466,7 +504,7 @@
 }
 
 .pista {
-  margin: var(--space-3) 0 0;
+  margin: 0;
   font-size: var(--text-xs);
   color: var(--text-muted);
 }

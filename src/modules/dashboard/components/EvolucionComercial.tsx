@@ -136,28 +136,43 @@ export function EvolucionComercial({ actividad, cargando, error, onReintentar }:
         El texto NO lleva el color de la serie: lo lleva la muestra de al lado.
         Un hue claro como texto sobre el fondo es ilegible.
       */}
-      <div className={styles.leyenda} role="group" aria-label="Series a comparar">
-        {SERIES.map(({ tipo, slot }) => {
-          const encendida = visibles.includes(tipo)
-          return (
-            <button
-              key={tipo}
-              type="button"
-              className={encendida ? styles.serieActiva : styles.serie}
-              data-slot={slot}
-              aria-pressed={encendida}
-              onClick={() => {
-                setVisibles((v) => alternarSerie(v, tipo))
-                // La moneda vuelve a elegirse sola: la que más documentos tiene
-                // en cotizado puede no tener ninguno en entregado.
-                setMonedaElegida(undefined)
-              }}
-            >
-              <span className={styles.muestra} aria-hidden="true" />
-              {ETIQUETA_SERIE[tipo].titulo}
-            </button>
-          )
-        })}
+      {/*
+        La leyenda y la escala comparten renglón (Fase 79).
+
+        «Importes en USD · de 0 a USD 600.000,00» es la regla del eje: aclara
+        lo que las barras ya dibujan, así que no merecía un renglón propio
+        arriba del gráfico. Al lado de los botones dice lo mismo y el bloque
+        mide menos.
+      */}
+      <div className={styles.leyendaFila}>
+        <div className={styles.leyenda} role="group" aria-label="Series a comparar">
+          {SERIES.map(({ tipo, slot }) => {
+            const encendida = visibles.includes(tipo)
+            return (
+              <button
+                key={tipo}
+                type="button"
+                className={encendida ? styles.serieActiva : styles.serie}
+                data-slot={slot}
+                aria-pressed={encendida}
+                onClick={() => {
+                  setVisibles((v) => alternarSerie(v, tipo))
+                  // La moneda vuelve a elegirse sola: la que más documentos tiene
+                  // en cotizado puede no tener ninguno en entregado.
+                  setMonedaElegida(undefined)
+                }}
+              >
+                <span className={styles.muestra} aria-hidden="true" />
+                {ETIQUETA_SERIE[tipo].titulo}
+              </button>
+            )
+          })}
+        </div>
+        {hayDatos && !cargando && !error ? (
+          <p className={styles.escala} id={`${id}-esc`}>
+            Importes en {moneda} · de 0 a {formatearImporte(tope, moneda)}
+          </p>
+        ) : null}
       </div>
 
       {cargando ? (
@@ -170,10 +185,6 @@ export function EvolucionComercial({ actividad, cargando, error, onReintentar }:
         </p>
       ) : (
         <>
-          <p className={styles.escala} id={`${id}-esc`}>
-            Importes en {moneda} · de 0 a {formatearImporte(tope, moneda)}
-          </p>
-
           <div className={styles.grafico}>
             {/* Las referencias: líneas enteras de 1 px, un escalón por encima
                 del fondo. Punteadas se leerían como «proyección» o «límite». */}
@@ -284,13 +295,26 @@ export function EvolucionComercial({ actividad, cargando, error, onReintentar }:
               )}
               onCerrar={() => setMesElegido(null)}
             />
-          ) : (
-            <p className={styles.pista}>Tocá un mes para ver qué hay adentro.</p>
-          )}
+          ) : null}
 
-          <button type="button" className={styles.verNumeros} onClick={() => setVerNumeros((v) => !v)} aria-expanded={verNumeros}>
-            {verNumeros ? 'Ocultar los números' : 'Ver los números'}
-          </button>
+          {/*
+            El pie, en un solo renglón (Fase 79).
+
+            La pista y el botón decían dos cosas del mismo tema —cómo ver el
+            detalle— y ocupaban dos renglones, uno debajo del otro. Juntos
+            miden la mitad y se leen igual.
+
+            La pista desaparece cuando hay un mes abierto: ahí ya está el
+            desglose y decir «tocá un mes» sería explicar lo que ya pasó.
+          */}
+          <div className={styles.pie}>
+            <button type="button" className={styles.verNumeros} onClick={() => setVerNumeros((v) => !v)} aria-expanded={verNumeros}>
+              {verNumeros ? 'Ocultar los números' : 'Ver los números'}
+            </button>
+            {mesElegido ? null : (
+              <p className={styles.pista}>Tocá un mes para ver qué hay adentro.</p>
+            )}
+          </div>
           {verNumeros ? (
             <table className={styles.tabla}>
               <caption className="sr-only">Importes por mes en {moneda}</caption>

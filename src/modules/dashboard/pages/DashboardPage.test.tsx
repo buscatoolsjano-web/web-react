@@ -482,6 +482,11 @@ describe('D · La evolución', () => {
   it('el selector de moneda no mezcla: elige una', () => {
     montar()
     expect(screen.getByText(/Importes en USD/)).toBeInTheDocument()
+    /* En el mismo renglón que los botones de las series (Fase 79): era un
+       renglón propio arriba del gráfico y es la letra chica del eje. */
+    const fila = screen.getByText(/Importes en USD/).parentElement!
+    expect(fila).toHaveTextContent('Cotizado')
+    expect(fila).toHaveTextContent('Entregado')
     fireEvent.change(screen.getByLabelText('Moneda'), { target: { value: 'ARS' } })
     expect(screen.getByText(/Importes en ARS/)).toBeInTheDocument()
   })
@@ -543,6 +548,18 @@ describe('E · El desglose del mes', () => {
     montar()
     expect(screen.getByText('Tocá un mes para ver qué hay adentro.')).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: /Detalle de/ })).toBeNull()
+  })
+
+  /*
+   * Con el desglose abierto la pista se va (Fase 79). Ahora comparte renglón
+   * con «Ver los números», y decir «tocá un mes» al lado del mes ya abierto
+   * sería explicar lo que acaba de pasar.
+   */
+  it('con un mes abierto, la pista deja de invitar', async () => {
+    montar()
+    fireEvent.click(mesDe('Septiembre 2026'))
+    await screen.findByRole('region', { name: 'Detalle de Septiembre 2026' })
+    expect(screen.queryByText('Tocá un mes para ver qué hay adentro.')).toBeNull()
   })
 
   it('al tocar un mes se abre el detalle de ESE mes, debajo del gráfico', async () => {

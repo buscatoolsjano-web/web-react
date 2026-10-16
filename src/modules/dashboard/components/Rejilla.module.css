@@ -50,29 +50,34 @@
 
 .celda[data-tamano='tercio'] {
   grid-column: span 2;
-  --alto-grafico: 150px;
+  --alto-grafico: 140px;
 }
 
 .celda[data-tamano='mitad'] {
   grid-column: span 3;
-  --alto-grafico: 180px;
+  --alto-grafico: 165px;
 }
 
 .celda[data-tamano='dosTercios'] {
   grid-column: span 4;
-  --alto-grafico: 205px;
+  --alto-grafico: 185px;
 }
 
 /*
- * El alto del gráfico acompaña al ancho, y el más grande es 230 y no los 260
- * con los que nació: eso fue «el gráfico está perfecto, sólo un poco más
- * chico» (Fase 77). Lo lee `Evolucion.module.css`; el resto de los bloques
- * miden lo que mide su contenido, porque estirarlos dejaría aire abajo en vez
- * de mostrar más.
+ * El alto del gráfico acompaña al ancho.
+ *
+ * El tope bajó dos veces y por pedido: de los 260 con los que nació a 230
+ * —«el gráfico está perfecto, sólo un poco más chico», Fase 77— y de ahí a
+ * 205, cuando el bloque entero seguía siendo demasiado alto (Fase 79). Junto
+ * con los dos renglones que se fusionaron en el gráfico, el bloque perdió
+ * unos 80 px sin perder una sola barra.
+ *
+ * Lo lee `Evolucion.module.css`; el resto de los bloques miden lo que mide su
+ * contenido, porque estirarlos dejaría aire abajo en vez de mostrar más.
  */
 .celda[data-tamano='completo'] {
   grid-column: span 6;
-  --alto-grafico: 230px;
+  --alto-grafico: 205px;
 }
 
 /*

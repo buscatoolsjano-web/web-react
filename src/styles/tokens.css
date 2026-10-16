@@ -166,8 +166,10 @@
      Es un token y no una medida adentro de su CSS porque desde que el inicio
      se acomoda por usuario lo decide OTRA hoja: la rejilla lo pisa según el
      tamaño que eligió cada uno. Acá vive el valor con el que nació, que es el
-     que vale donde ese gráfico se use fuera de la rejilla. */
-  --alto-grafico: 260px;
+     que vale donde ese gráfico se use fuera de la rejilla. Bajó de 260 a 205
+     en dos pedidos: la Fase 77 lo quiso «un poco más chico» y la 79 achicó el
+     bloque entero. */
+  --alto-grafico: 205px;
 
   /* Layout del shell */
   --sidebar-w: 240px;
