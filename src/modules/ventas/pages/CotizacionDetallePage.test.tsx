@@ -982,6 +982,18 @@ describe('El encabezado del documento', () => {
     expect(within(cabecera).getByText('Pendiente')).toBeInTheDocument()
   })
 
+  /* Y una sola vez: la barra tenía el suyo, que era el mismo enlace al mismo
+     listado dos renglones más abajo (Fase 83). */
+  it('la vuelta no se repite en la barra de acciones', async () => {
+    estado.pantallaAncha = true
+    conCadena()
+    montar()
+    await waitFor(() => expect(circuito()).toBeInTheDocument())
+
+    expect(screen.getAllByRole('link', { name: /^←?s*Cotizaciones$/ })).toHaveLength(1)
+    expect(within(barra()).queryByRole('link', { name: /Cotizaciones/ })).toBeNull()
+  })
+
   it('el circuito vive en la barra de acciones y una sola vez', async () => {
     estado.pantallaAncha = true
     conCadena()

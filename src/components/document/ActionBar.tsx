@@ -5,7 +5,18 @@ import { LinkButton } from '@/components/ui/LinkButton'
 import styles from './Document.module.css'
 
 export interface ActionBarProps {
-  /** Vuelta al listado. Sólo tiene sentido en una barra pegada: el enlace del encabezado se va con el scroll. */
+  /**
+   * Vuelta al listado, para las pantallas que NO dibujan encabezado.
+   *
+   * Es el caso del alta: ahí la barra es el encabezado —lleva el h1 invisible
+   * y el «volver»— porque arriba no hay nada más.
+   *
+   * En el detalle de un documento no se usa desde la Fase 83: el encabezado ya
+   * tiene su «← Cotizaciones» a la izquierda del número, y repetirlo acá era
+   * un botón de ancho completo que empujaba al resto. Lo que se pierde es que,
+   * con la barra pegada y el documento scrolleado, la vuelta queda arriba
+   * fuera de la vista.
+   */
   volver?: { to: string; label: string } | undefined
   /**
    * El h1 de la página, invisible (Fase 28 · E12).
