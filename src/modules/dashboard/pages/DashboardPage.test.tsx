@@ -854,15 +854,35 @@ describe('G · El inicio se acomoda', () => {
     expect(screen.getByRole('button', { name: 'Subir Accesos rápidos' })).toBeDisabled()
   })
 
-  it('agrandar y achicar guardan el tamaño nuevo', async () => {
+  /*
+   * De a un escalón, y hay cuatro (Fase 78). De fábrica todo está en «ancho
+   * completo», así que lo único que se puede hacer es achicar: el primer paso
+   * lleva a dos tercios y no a la mitad de la pantalla de una, que era lo que
+   * se sentía brusco.
+   */
+  it('achicar baja un escalón por vez, y lo guarda', async () => {
     guardados.length = 0
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Acomodar' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Agrandar Evolución comercial' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Achicar Evolución comercial' }))
 
     await waitFor(() => expect(guardados).toHaveLength(1))
     const v = guardados[0] as { widgets: { clave: string; tamano: string }[] }
-    expect(v.widgets.find((w) => w.clave === 'evolucion')?.tamano).toBe('grande')
+    expect(v.widgets.find((w) => w.clave === 'evolucion')?.tamano).toBe('dosTercios')
+
+    // Y otra vez: a la mitad, no al mínimo.
+    fireEvent.click(screen.getByRole('button', { name: 'Achicar Evolución comercial' }))
+    await waitFor(() => expect(guardados).toHaveLength(2))
+    const v2 = guardados[1] as { widgets: { clave: string; tamano: string }[] }
+    expect(v2.widgets.find((w) => w.clave === 'evolucion')?.tamano).toBe('mitad')
+  })
+
+  /* El ancho actual, escrito: con cuatro escalones, dos flechas no alcanzan
+     para saber dónde está uno parado. */
+  it('la barra dice cuánto ocupa cada bloque', () => {
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Acomodar' }))
+    expect(screen.getAllByText('Ancho completo').length).toBeGreaterThan(0)
   })
 
   /* Lo que no se puede ver tampoco se acomoda: el pendiente del resto es de

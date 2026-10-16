@@ -31,15 +31,23 @@
   color: var(--text-muted);
 }
 
+/* `auto-fit` y no tres columnas fijas (Fase 78): las tarjetas se reparten por
+   el ancho que tenga el BLOQUE. En un tercio de pantalla entra una y las tres
+   se apilan; en la pantalla entera van las tres. Antes eran tres pasara lo que
+   pasara, y en un tercio partían los importes al medio: «ARS 1.211.187,0 / 1».
+   Lo mismo que hace el bloque de Atención hoy desde que nació. */
 .situacion {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
   gap: var(--space-3);
   align-items: start;
 }
 
+/* Cada tarjeta es su propio contenedor: el importe de adentro se mide contra
+   el ancho de SU tarjeta (Fase 78). Ver `.kpiImporte`. */
 .kpiProtagonista,
 .kpiSecundario {
+  container-type: inline-size;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -104,20 +112,25 @@
   min-width: 0;
 }
 
-/* UN SOLO TAMAÑO PARA LOS TRES (Fase 77).
-
-   Cotizado llegaba a 2,25 rem y los otros dos a 1,125: era el titular del
-   tablero. Emparejarlos hacia abajo lo dejaba chico y hacia arriba estiraba
-   las tres tarjetas a lo alto, que es justo el espacio que se vino a ganar.
-   Este valor está en el medio: el número sigue leyéndose como el dato
-   principal de su tarjeta y las tres miden lo mismo. */
+/*
+ * UN SOLO TAMAÑO PARA LOS TRES (Fase 77), QUE SIGUE A SU TARJETA (Fase 78).
+ *
+ * Cotizado llegaba a 2,25 rem y los otros dos a 1,125: era el titular del
+ * tablero. Ahora miden lo mismo, con un valor en el medio de esos dos.
+ *
+ * Y la medida es `cqi` —uno por ciento del ancho de la tarjeta— y no `vw`,
+ * que es el de la ventana. Desde que el inicio se acomoda, una tarjeta puede
+ * ser angosta en una pantalla ancha, y con `vw` el número seguía grande y
+ * partía el importe al medio: «ARS 1.211.187,0 / 1». Con `cqi` el número se
+ * achica con su tarjeta, que es lo que se pidió que pasara al achicar.
+ */
 .kpiImporte {
   margin: 0;
   font-weight: 700;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
-  font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+  font-size: clamp(1.25rem, 5cqi, 1.6rem);
 }
 
 .kpiDocumentos {
@@ -163,8 +176,10 @@
 
 /* ── C · Atención hoy ──────────────────────────────────────────────────── */
 
+/* Sin margen abajo: el espacio entre bloques lo pone la rejilla del inicio
+   desde la Fase 76, y sumar los dos deja un hueco doble (Fase 78). */
 .seccion {
-  margin-bottom: var(--space-5);
+  min-width: 0;
 }
 
 .seccionCabecera {
@@ -369,19 +384,38 @@
 
 /* En 375 el orden es el de la lectura: el cotizado primero, entero, y recién
    después los secundarios. Nada de tres columnas de 100 px. */
-@media (max-width: 1023px) {
-  /* De a dos, y el tercero abajo. Ya no hay uno que ocupe la fila entera: las
-     tres son del mismo tamaño desde la Fase 77. */
-  .situacion {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+/*
+ * Las filas de documentos, por el ancho del BLOQUE y no de la ventana
+ * (Fase 78).
+ *
+ * Eran seis columnas fijas que se apilaban recién abajo de 640 px de VENTANA.
+ * Desde que el inicio se acomoda, el mismo bloque puede tener un tercio de
+ * una pantalla ancha: seis columnas ahí no entran, y la ventana no se entera.
+ * `@container` pregunta por el ancho que le tocó, que es el que importa.
+ */
+@container (max-width: 34rem) {
+  .documento {
+    grid-template-columns: 1fr auto;
+    row-gap: var(--space-1);
+  }
+
+  .docTipo,
+  .docCliente {
+    grid-column: 1 / -1;
+  }
+
+  .docEstado {
+    grid-column: 1;
+  }
+
+  .docImporte {
+    grid-column: 2;
   }
 }
 
+/* Y en una ventana angosta, lo mismo: el bloque ocupa todo el ancho, así que
+   la consulta de arriba no se dispara sola en un teléfono de 375. */
 @media (max-width: 640px) {
-  .situacion {
-    grid-template-columns: 1fr;
-  }
-
   .documento {
     grid-template-columns: 1fr auto;
     row-gap: var(--space-1);
@@ -409,7 +443,6 @@
    entre personas; en los hechos casi todas las celdas decían 0 y la
    comparación era entre cuatro ceros y un montón. */
 .miTrabajo {
-  margin-bottom: var(--space-5);
   padding: var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);

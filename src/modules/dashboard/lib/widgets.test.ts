@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  COLUMNAS_DE,
   INICIO_POR_DEFECTO,
+  TAMANOS,
   WIDGETS,
   esElDeFabrica,
   mover,
@@ -11,6 +13,7 @@ import {
   sePuedeAgrandar,
   sePuedeBajar,
   sePuedeSubir,
+  type TamanoWidget,
   type Widget,
 } from './widgets'
 
@@ -26,10 +29,12 @@ describe('el inicio que viene de fábrica', () => {
     expect(INICIO_POR_DEFECTO[0]?.clave).toBe('accesos')
   })
 
-  it('el gráfico sigue segundo, y no en el tamaño más grande', () => {
+  /* Sigue segundo y a lo ancho de la pantalla: lo que bajó es el ALTO, que
+     ahora acompaña al ancho en una escala de cuatro escalones (Fase 78). */
+  it('el gráfico sigue segundo y a lo ancho', () => {
     expect(INICIO_POR_DEFECTO[1]?.clave).toBe('evolucion')
-    expect(INICIO_POR_DEFECTO[1]?.tamano).toBe('normal')
-    expect(sePuedeAgrandar(INICIO_POR_DEFECTO[1]!)).toBe(true)
+    expect(INICIO_POR_DEFECTO[1]?.tamano).toBe('completo')
+    expect(sePuedeAchicar(INICIO_POR_DEFECTO[1]!)).toBe(true)
   })
 
   it('están todos los widgets, sin repetir', () => {
@@ -46,9 +51,9 @@ describe('normalizarInicio', () => {
   })
 
   it('respeta el orden y el tamaño guardados', () => {
-    const guardado = { version: 1, widgets: [{ clave: 'ultimos', tamano: 'chico' }] }
+    const guardado = { version: 1, widgets: [{ clave: 'ultimos', tamano: 'tercio' }] }
     const r = normalizarInicio(guardado)
-    expect(r[0]).toEqual({ clave: 'ultimos', tamano: 'chico' })
+    expect(r[0]).toEqual({ clave: 'ultimos', tamano: 'tercio' })
   })
 
   /*
@@ -61,7 +66,7 @@ describe('normalizarInicio', () => {
    * —que no tiene nada guardado— se ve perfecto.
    */
   it('lo que falta se agrega al final, no se pierde', () => {
-    const guardado = { version: 1, widgets: [{ clave: 'ultimos', tamano: 'normal' }] }
+    const guardado = { version: 1, widgets: [{ clave: 'ultimos', tamano: 'completo' }] }
     const r = normalizarInicio(guardado)
     expect(r).toHaveLength(WIDGETS.length)
     expect(r[0]?.clave).toBe('ultimos')
@@ -72,30 +77,30 @@ describe('normalizarInicio', () => {
     const guardado = {
       version: 1,
       widgets: [
-        { clave: 'unWidgetQueYaNoExiste', tamano: 'normal' },
+        { clave: 'unWidgetQueYaNoExiste', tamano: 'completo' },
         { clave: 'kpis', tamano: 'enorme' },
-        { clave: 'atencion', tamano: 'chico' },
+        { clave: 'atencion', tamano: 'tercio' },
       ],
     }
     const r = normalizarInicio(guardado)
     expect(claves(r)).not.toContain('unWidgetQueYaNoExiste')
-    expect(r[0]).toEqual({ clave: 'atencion', tamano: 'chico' })
+    expect(r[0]).toEqual({ clave: 'atencion', tamano: 'tercio' })
     // `kpis` venía con un tamaño inválido: se descarta la entrada y vuelve a
     // entrar por la puerta de los que faltan, con su tamaño de fábrica.
-    expect(r.find((w) => w.clave === 'kpis')?.tamano).toBe('normal')
+    expect(r.find((w) => w.clave === 'kpis')?.tamano).toBe('completo')
   })
 
   it('no repite: dos entradas de lo mismo son un solo widget', () => {
     const guardado = {
       version: 1,
       widgets: [
-        { clave: 'kpis', tamano: 'chico' },
-        { clave: 'kpis', tamano: 'grande' },
+        { clave: 'kpis', tamano: 'tercio' },
+        { clave: 'kpis', tamano: 'completo' },
       ],
     }
     const r = normalizarInicio(guardado)
     expect(r.filter((w) => w.clave === 'kpis')).toHaveLength(1)
-    expect(r[0]?.tamano).toBe('chico')
+    expect(r[0]?.tamano).toBe('tercio')
   })
 
   /* Quien no puede ver un bloque tampoco lo acomoda: el pendiente del resto es
@@ -116,9 +121,9 @@ describe('normalizarInicio', () => {
 
 describe('mover', () => {
   const lista: Widget[] = [
-    { clave: 'accesos', tamano: 'normal' },
-    { clave: 'evolucion', tamano: 'normal' },
-    { clave: 'kpis', tamano: 'normal' },
+    { clave: 'accesos', tamano: 'completo' },
+    { clave: 'evolucion', tamano: 'completo' },
+    { clave: 'kpis', tamano: 'completo' },
   ]
 
   it('subir lo intercambia con el de arriba', () => {
@@ -150,34 +155,74 @@ describe('mover', () => {
 })
 
 describe('redimensionar', () => {
-  const lista: Widget[] = [{ clave: 'evolucion', tamano: 'normal' }]
+  const desde = (t: TamanoWidget): Widget[] => [{ clave: 'evolucion', tamano: t }]
 
+  /*
+   * DE A UN ESCALÓN, Y QUE HAYA ESCALONES.
+   *
+   * El pedido fue «que haya al menos tres achiques distintos, como para ir
+   * regulando»: antes de la Fase 78 achicar saltaba del ancho entero a la
+   * mitad y no había nada en el medio.
+   */
   it('agranda y achica de a un escalón', () => {
-    expect(redimensionar(lista, 'evolucion', 1)[0]?.tamano).toBe('grande')
-    expect(redimensionar(lista, 'evolucion', -1)[0]?.tamano).toBe('chico')
+    expect(redimensionar(desde('mitad'), 'evolucion', 1)[0]?.tamano).toBe('dosTercios')
+    expect(redimensionar(desde('mitad'), 'evolucion', -1)[0]?.tamano).toBe('tercio')
+  })
+
+  /*
+   * LA PROPIEDAD QUE HACE QUE LAS FILAS CIERREN.
+   *
+   * No es que cada ancho divida a seis —dos tercios son 4 y 4 no divide a 6—
+   * sino que a cada uno le quede un COMPLEMENTO que también sea un ancho
+   * posible: 2 con 4, 3 con 3, y 6 solo. Eso es lo que evita que los bloques
+   * queden desfasados.
+   */
+  it('hay cuatro escalones y todos cierran la fila de seis', () => {
+    expect(TAMANOS).toHaveLength(4)
+    const anchos2 = TAMANOS.map((t) => COLUMNAS_DE[t])
+    for (const w of anchos2) {
+      const resto = 6 - w
+      expect(resto === 0 || anchos2.includes(resto)).toBe(true)
+    }
+    // De menor a mayor, sin repetir: es lo que hace que «achicar» achique.
+    const anchos = TAMANOS.map((t) => COLUMNAS_DE[t])
+    expect(anchos).toEqual([...anchos].sort((a, b) => a - b))
+    expect(new Set(anchos).size).toBe(anchos.length)
+  })
+
+  /* Un inicio guardado con la escala vieja no se tira: se traduce. */
+  it('los nombres viejos se entienden', () => {
+    const guardado = {
+      version: 1,
+      widgets: [
+        { clave: 'kpis', tamano: 'chico' },
+        { clave: 'evolucion', tamano: 'grande' },
+      ],
+    }
+    const r = normalizarInicio(guardado)
+    expect(r[0]).toEqual({ clave: 'kpis', tamano: 'mitad' })
+    expect(r[1]).toEqual({ clave: 'evolucion', tamano: 'completo' })
   })
 
   it('no se pasa de los extremos', () => {
-    const grande: Widget[] = [{ clave: 'evolucion', tamano: 'grande' }]
-    const chico: Widget[] = [{ clave: 'evolucion', tamano: 'chico' }]
-    expect(redimensionar(grande, 'evolucion', 1)[0]?.tamano).toBe('grande')
-    expect(redimensionar(chico, 'evolucion', -1)[0]?.tamano).toBe('chico')
-    expect(sePuedeAgrandar(grande[0]!)).toBe(false)
-    expect(sePuedeAchicar(chico[0]!)).toBe(false)
+    expect(redimensionar(desde('completo'), 'evolucion', 1)[0]?.tamano).toBe('completo')
+    expect(redimensionar(desde('tercio'), 'evolucion', -1)[0]?.tamano).toBe('tercio')
+    expect(sePuedeAgrandar(desde('completo')[0]!)).toBe(false)
+    expect(sePuedeAchicar(desde('tercio')[0]!)).toBe(false)
   })
 
   it('no toca a los demás', () => {
     const dos: Widget[] = [
-      { clave: 'kpis', tamano: 'normal' },
-      { clave: 'ultimos', tamano: 'chico' },
+      { clave: 'kpis', tamano: 'completo' },
+      { clave: 'ultimos', tamano: 'tercio' },
     ]
-    expect(redimensionar(dos, 'kpis', 1)[1]?.tamano).toBe('chico')
+    expect(redimensionar(dos, 'kpis', 1)[1]?.tamano).toBe('tercio')
   })
 })
 
 describe('lo que se guarda', () => {
   it('lleva la versión y sólo las dos claves que la base acepta', () => {
-    const r = paraGuardar([{ clave: 'kpis', tamano: 'chico' }])
+    const r = paraGuardar([{ clave: 'kpis', tamano: 'tercio' }])
     expect(r.version).toBe(1)
     expect(Object.keys(r.widgets[0]!).sort()).toEqual(['clave', 'tamano'])
   })

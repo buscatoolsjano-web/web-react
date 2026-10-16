@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Icon } from '@/components/icons/Icon'
 import {
+  ETIQUETA_TAMANO,
   ETIQUETA_WIDGET,
   sePuedeAchicar,
   sePuedeAgrandar,
@@ -78,6 +79,10 @@ export function RejillaInicio({
             {acomodando ? (
               <div className={styles.barra}>
                 <span className={styles.nombre}>{nombre}</span>
+                {/* Cuánto ocupa, en palabras: con cuatro escalones, dos
+                    flechas apagadas o encendidas no alcanzan para saber
+                    dónde está uno parado. */}
+                <span className={styles.tamano}>{ETIQUETA_TAMANO[w.tamano]}</span>
                 <span className={styles.botones}>
                   <Boton
                     icono="arrow-up"

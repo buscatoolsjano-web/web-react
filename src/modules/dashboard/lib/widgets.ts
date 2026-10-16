@@ -23,8 +23,53 @@
 export const WIDGETS = ['accesos', 'evolucion', 'kpis', 'atencion', 'miTrabajo', 'equipo', 'ultimos'] as const
 export type ClaveWidget = (typeof WIDGETS)[number]
 
-export const TAMANOS = ['chico', 'normal', 'grande'] as const
+/**
+ * Los anchos, de menor a mayor (Fase 78).
+ *
+ * ── Por qué cuatro, y por qué ésos ──────────────────────────────────────────
+ *
+ * Los tres de la Fase 76 eran en realidad DOS anchos: `chico` ocupaba media
+ * pantalla y `normal` y `grande` la entera —entre esos dos sólo cambiaba el
+ * alto del gráfico—. Achicar saltaba del 100 % al 50 % sin nada en el medio,
+ * y así se sentía: «te achica mucho de la nada».
+ *
+ * Ahora la rejilla tiene SEIS columnas y cada ancho es una fracción que la
+ * llena sin dejar restos: 2, 3, 4 y 6 de seis. Eso es lo que permite que las
+ * filas cierren —dos tercios + un tercio, mitad + mitad, tres tercios— en vez
+ * de quedar los bloques desfasados.
+ */
+export const TAMANOS = ['tercio', 'mitad', 'dosTercios', 'completo'] as const
 export type TamanoWidget = (typeof TAMANOS)[number]
+
+/** Cómo se dice cada ancho cuando hay que mostrarlo. */
+export const ETIQUETA_TAMANO: Record<TamanoWidget, string> = {
+  tercio: 'Un tercio',
+  mitad: 'La mitad',
+  dosTercios: 'Dos tercios',
+  completo: 'Ancho completo',
+}
+
+/** Cuántas de las seis columnas ocupa cada uno. Lo usa el CSS y lo dice acá
+ *  para que el número viva en un solo lado. */
+export const COLUMNAS_DE: Record<TamanoWidget, number> = {
+  tercio: 2,
+  mitad: 3,
+  dosTercios: 4,
+  completo: 6,
+}
+
+/**
+ * Los nombres viejos, traducidos (Fase 78).
+ *
+ * Un inicio guardado con la escala anterior no se tira: `chico` ocupaba media
+ * pantalla y los otros dos la entera, así que eso es lo que pasan a ser. Sin
+ * esto, quien lo había acomodado ayer lo encontraba desarmado hoy.
+ */
+const RENOMBRADOS: Record<string, TamanoWidget> = {
+  chico: 'mitad',
+  normal: 'completo',
+  grande: 'completo',
+}
 
 export interface Widget {
   clave: ClaveWidget
@@ -51,18 +96,19 @@ export const ETIQUETA_WIDGET: Record<ClaveWidget, string> = {
  *    «Para que sea más accesible»: son los enlaces que se usan todos los días,
  *    y estaban después de seis bloques de análisis.
  *
- *  · El gráfico queda donde estaba —«está PERFECTO»— pero en `normal`, que es
- *    un escalón más chico que el alto con el que nació. Agrandarlo lo devuelve
- *    exactamente a como estaba.
+ *  · El gráfico queda donde estaba —«está PERFECTO»— y a lo ancho de la
+ *    pantalla, pero más bajo que el alto con el que nació: 230 px en vez de
+ *    260. Eso fue «un poco más chico», y desde la Fase 78 el alto baja de a
+ *    poco con cada achique en vez de saltar.
  */
 export const INICIO_POR_DEFECTO: readonly Widget[] = [
-  { clave: 'accesos', tamano: 'normal' },
-  { clave: 'evolucion', tamano: 'normal' },
-  { clave: 'kpis', tamano: 'normal' },
-  { clave: 'atencion', tamano: 'normal' },
-  { clave: 'miTrabajo', tamano: 'normal' },
-  { clave: 'equipo', tamano: 'normal' },
-  { clave: 'ultimos', tamano: 'normal' },
+  { clave: 'accesos', tamano: 'completo' },
+  { clave: 'evolucion', tamano: 'completo' },
+  { clave: 'kpis', tamano: 'completo' },
+  { clave: 'atencion', tamano: 'completo' },
+  { clave: 'miTrabajo', tamano: 'completo' },
+  { clave: 'equipo', tamano: 'completo' },
+  { clave: 'ultimos', tamano: 'completo' },
 ]
 
 const esClave = (v: unknown): v is ClaveWidget => (WIDGETS as readonly string[]).includes(v as string)
@@ -110,9 +156,14 @@ function leerLista(guardado: unknown): Widget[] {
   return (o['widgets'] as unknown[]).flatMap((x) => {
     if (typeof x !== 'object' || x === null) return []
     const w = x as Record<string, unknown>
-    return esClave(w['clave']) && esTamano(w['tamano'])
-      ? [{ clave: w['clave'], tamano: w['tamano'] }]
-      : []
+    if (!esClave(w['clave'])) return []
+    const crudo = w['tamano']
+    const tamano = esTamano(crudo)
+      ? crudo
+      : typeof crudo === 'string'
+        ? RENOMBRADOS[crudo]
+        : undefined
+    return tamano ? [{ clave: w['clave'], tamano }] : []
   })
 }
 
@@ -162,8 +213,10 @@ export const sePuedeBajar = (widgets: readonly Widget[], clave: ClaveWidget) => 
   return i !== -1 && i < widgets.length - 1
 }
 
-export const sePuedeAgrandar = (w: Widget) => w.tamano !== 'grande'
-export const sePuedeAchicar = (w: Widget) => w.tamano !== 'chico'
+/* Contra los extremos de la escala y no contra un nombre: cuando la escala
+   gane un escalón, esto sigue siendo cierto sin tocarlo. */
+export const sePuedeAgrandar = (w: Widget) => w.tamano !== TAMANOS[TAMANOS.length - 1]
+export const sePuedeAchicar = (w: Widget) => w.tamano !== TAMANOS[0]
 
 /** ¿Está igual que el de fábrica? Decide si ofrecer «Restaurar». */
 export function esElDeFabrica(widgets: readonly Widget[]): boolean {

@@ -6,7 +6,7 @@
   border-radius: var(--radius-lg);
   background: var(--surface);
   padding: var(--space-4);
-  margin-bottom: var(--space-5);
+  /* El espacio entre bloques lo pone la rejilla del inicio (Fase 78). */
   min-width: 0;
 }
 

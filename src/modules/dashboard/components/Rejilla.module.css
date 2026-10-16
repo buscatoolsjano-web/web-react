@@ -1,62 +1,114 @@
 /*
- * La rejilla del inicio (Fase 76).
+ * La rejilla del inicio (Fase 76, con cuatro anchos desde la 78).
  *
- * Dos columnas en pantalla ancha y una sola abajo de 60rem. Lo que elige cada
- * persona es cuántas ocupa cada bloque —`chico` una, los demás las dos— y,
- * donde el alto significa algo, cuánto mide.
+ * ── Seis columnas y no dos ──────────────────────────────────────────────────
  *
- * El gap es el mismo que separaba las secciones cuando esto era una pila
- * vertical: la pantalla no tiene que verse distinta por haber ganado la
- * posibilidad de acomodarla.
+ * Con dos columnas los anchos posibles eran dos —media pantalla o entera— y
+ * achicar saltaba del 100 % al 50 %. Con seis hay cuatro escalones que llenan
+ * la fila sin dejar restos: 2 (un tercio), 3 (la mitad), 4 (dos tercios) y 6.
+ * A cada uno le queda un complemento que también es un ancho posible —2 con 4,
+ * 3 con 3, 6 solo— y eso es lo que hace que las filas cierren en vez de quedar
+ * los bloques desfasados.
+ *
+ * ── Y por qué se estiran a lo alto ──────────────────────────────────────────
+ *
+ * `align-items: stretch` más el hijo ocupando el alto entero. Sin eso, dos
+ * bloques de la misma fila terminan a alturas distintas —uno tiene tres
+ * renglones y el otro ocho— y la pantalla se ve desprolija por abajo. Con
+ * esto, la fila cierra arriba y abajo.
  */
 .rejilla {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--space-5, 1.5rem);
-  align-items: start;
-}
-
-.celda {
-  grid-column: span 2;
-  min-width: 0;
-}
-
-.celda[data-tamano='chico'] {
-  grid-column: span 1;
+  align-items: stretch;
 }
 
 /*
- * El alto, SÓLO donde quiere decir algo.
+ * Cada bloque es un CONTENEDOR de consulta.
  *
- * Lo resuelve una variable que el gráfico lee para su propia altura: el resto
- * de los bloques miden lo que mide su contenido, y estirarlos dejaría aire
- * abajo en vez de mostrar más. Ver `Evolucion.module.css`.
- *
- * Los tres valores salen del alto con el que nació el gráfico —260 px—: lo
- * pedido fue «el gráfico está perfecto, sólo un poco más chico», así que
- * `normal` es ese «un poco más chico» y `grande` lo devuelve a como estaba.
+ * Es la otra mitad de «que tengan la misma coherencia de achique»: lo que
+ * tiene que reacomodarse cuando un bloque se achica es lo de ADENTRO, y lo de
+ * adentro no sabe nada del ancho de la ventana —sabe del ancho que le tocó—.
+ * Sin esto, las tres tarjetas de números seguían siendo tres columnas en un
+ * tercio de pantalla y partían los importes al medio.
  */
-.celda[data-tamano='chico'] {
-  --alto-grafico: 170px;
+.celda {
+  grid-column: span 6;
+  min-width: 0;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
 }
 
-.celda[data-tamano='normal'] {
-  --alto-grafico: 210px;
+/* Lo que hay adentro ocupa el alto que le tocó a la celda. `:last-child`
+   porque en modo acomodar el primero es la barra de botones. */
+.celda > :last-child {
+  flex: 1;
+  min-width: 0;
 }
 
-.celda[data-tamano='grande'] {
-  --alto-grafico: 260px;
+.celda[data-tamano='tercio'] {
+  grid-column: span 2;
+  --alto-grafico: 150px;
 }
 
-/* En una pantalla angosta no hay dos columnas que repartir: todo ocupa el
-   ancho, y el tamaño sigue mandando sólo sobre el alto. */
+.celda[data-tamano='mitad'] {
+  grid-column: span 3;
+  --alto-grafico: 180px;
+}
+
+.celda[data-tamano='dosTercios'] {
+  grid-column: span 4;
+  --alto-grafico: 205px;
+}
+
+/*
+ * El alto del gráfico acompaña al ancho, y el más grande es 230 y no los 260
+ * con los que nació: eso fue «el gráfico está perfecto, sólo un poco más
+ * chico» (Fase 77). Lo lee `Evolucion.module.css`; el resto de los bloques
+ * miden lo que mide su contenido, porque estirarlos dejaría aire abajo en vez
+ * de mostrar más.
+ */
+.celda[data-tamano='completo'] {
+  grid-column: span 6;
+  --alto-grafico: 230px;
+}
+
+/*
+ * En pantalla angosta no hay seis columnas que repartir.
+ *
+ * Dos escalones y no uno: hasta un tercio sigue entrando de a dos en una
+ * tablet, y recién en el teléfono todo pasa a ocupar el ancho. Apilar todo
+ * desde los 60 rem desperdiciaría media pantalla.
+ */
 @media (max-width: 60rem) {
+  .rejilla {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .celda[data-tamano='tercio'],
+  .celda[data-tamano='mitad'] {
+    grid-column: span 1;
+  }
+
+  .celda,
+  .celda[data-tamano='dosTercios'],
+  .celda[data-tamano='completo'] {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 40rem) {
   .rejilla {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .celda,
-  .celda[data-tamano='chico'] {
+  .celda[data-tamano='tercio'],
+  .celda[data-tamano='mitad'],
+  .celda[data-tamano='dosTercios'],
+  .celda[data-tamano='completo'] {
     grid-column: span 1;
   }
 }
@@ -123,4 +175,12 @@
 .boton:disabled {
   opacity: 0.35;
   cursor: default;
+}
+
+/* El tamaño, en palabras, al lado de los botones: «un tercio» dice cuánto
+   falta para el borde mejor que dos flechas apagadas o encendidas. */
+.tamano {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
