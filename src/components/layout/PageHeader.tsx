@@ -51,8 +51,15 @@ export interface PageHeaderProps {
    * elemento de contexto y no compite con nada.
    */
   backInline?: boolean | undefined
-  /** A la derecha del título, en su misma línea. Para una cinta de pasos. */
-  aside?: ReactNode | undefined
+  /**
+   * Sin el margen de abajo (Fase 83).
+   *
+   * Para cuando lo que sigue es una barra pegada al encabezado —el documento:
+   * título y barra de acciones son una sola cosa—. Los 24 px del margen más
+   * los 16 del hueco de la página los separaban como si fueran dos bloques
+   * distintos, y eran 24 px que el documento miraba vacíos.
+   */
+  pegado?: boolean | undefined
   breadcrumbs?: Miga[] | undefined
   /** Estado junto al título (p. ej. un `Badge`). */
   status?: ReactNode | undefined
@@ -72,18 +79,18 @@ export function PageHeader({
   subtitleInline = false,
   back,
   backInline = false,
+  pegado = false,
   breadcrumbs,
   status,
-  aside,
   actions,
   className,
 }: PageHeaderProps) {
   // Con el título oculto y sin estado ni acciones, la fila no dibuja nada:
   // dejarla puesta sería un renglón vacío, que es justo lo que se quería sacar.
-  const filaVacia = hideTitle && !status && !subtitle && !actions && !aside && !(back && backInline)
+  const filaVacia = hideTitle && !status && !subtitle && !actions && !(back && backInline)
 
   return (
-    <header className={cx(styles.header, hideTitle && styles.sinTitulo, className)}>
+    <header className={cx(styles.header, (hideTitle || pegado) && styles.sinMargen, className)}>
       {back && !backInline ? (
         <Link to={back.to} className={styles.volver}>
           <Icon name="arrow-left" size={16} />
@@ -112,7 +119,7 @@ export function PageHeader({
         <h1 className="sr-only">{title}</h1>
       ) : (
         <div className={styles.fila}>
-          <div className={cx(styles.titulos, aside ? styles.titulosAncho : null)}>
+          <div className={styles.titulos}>
             <div className={styles.tituloLinea}>
               {back && backInline ? (
                 <Link to={back.to} className={styles.volverEnLinea}>
@@ -126,8 +133,6 @@ export function PageHeader({
                   subtítulo sigue siendo un párrafo —y no parte del h1— para
                   quien escucha la página. */}
               {subtitle && subtitleInline ? <p className={styles.subtituloAlLado}>{subtitle}</p> : null}
-              {/* A la derecha del todo: la cinta de pasos del documento. */}
-              {aside ? <div className={styles.alCostado}>{aside}</div> : null}
             </div>
             {subtitle && !subtitleInline && <p className={styles.subtitulo}>{subtitle}</p>}
           </div>

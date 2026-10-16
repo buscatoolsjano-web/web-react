@@ -550,14 +550,16 @@ function Detalle() {
   ) : null
 
   /**
-   * El circuito de la venta, al lado del número (Fase 29 · E16; se mudó al
-   * encabezado en la 83).
+   * El circuito de la venta, en la barra de acciones (Fase 29 · E16).
    *
-   * Estaba en la barra de acciones y ahí entraba en la fila de los botones
-   * sólo si quedaba lugar: con seis botones se iba a un segundo renglón y la
-   * barra crecía. En la fila del número tiene todo el ancho de la derecha, que
-   * estaba vacío, y no se duplica —era el mismo dato en las dos barras, la de
-   * edición y la de lectura—.
+   * La Fase 83 lo probó arriba, en la fila del número, y se volvió: la barra
+   * es el lugar —es lo que se puede hacer con el documento, y el circuito es
+   * justamente por dónde va—. Lo que sí se fue de la barra es un botón, así
+   * que ahora entra en la misma fila.
+   *
+   * Se arma una vez y se pasa a las DOS barras —la de edición y la de
+   * lectura—: es el mismo dato en los dos estados, y tenerlo en una sola
+   * variable evita que una quede vieja cuando se toque la otra.
    *
    * «Generar» llama al MISMO handler que el botón de la barra, con el mismo
    * motivo de bloqueo: dos botones para lo mismo que se comportan distinto
@@ -611,7 +613,6 @@ function Detalle() {
           </Badge>
         ))}
         aviso={editando ? <Badge tone="info">Editando</Badge> : null}
-        pasos={circuito}
       />
 
       <AvisosHistoricos documento={doc} revision={revision.data} />
@@ -664,6 +665,7 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
+          pasos={circuito}
           primary={
             <Button
               icon={<Icon name="check" size={16} />}
@@ -704,6 +706,7 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
+          pasos={circuito}
           /*
             Acá vivía «Marcar como enviada», que se sacó en la Fase 43.
             Guardar una cotización YA la deja Pendiente —lo hace un trigger, no
@@ -722,16 +725,20 @@ function Detalle() {
                   Editar
                 </Button>
               ) : null}
-              {escribe && doc.estado === 'sent' ? (
-                <Button
-                  variant="secondary"
-                  disabled={stelCotizacion || autoridad.cargando}
-                  aria-describedby={stelCotizacion ? describePorBloqueo : undefined}
-                  onClick={() => transicion.mutate({ hasta: 'accepted' })}
-                >
-                  Marcar aceptada
-                </Button>
-              ) : null}
+              {/*
+                Acá vivía «Marcar aceptada», que se sacó en la Fase 83.
+
+                «Eso sería casi lo mismo que generar pedido, sacalo.» Y es
+                más que parecido: el estado lo DERIVA la base. El trigger
+                `cotizacion_sigue_a_su_pedido` pone `accepted` en cuanto la
+                cotización tiene un pedido y la devuelve a `sent` si ese
+                pedido se borra. Marcarla a mano escribía una aceptación que
+                ningún pedido respaldaba, y que el primer movimiento de
+                pedidos corregía sin avisar.
+
+                «Marcar rechazada» se queda, en «Más»: eso sí es una decisión
+                de una persona y no hay nada de dónde derivarla.
+              */}
               {/* El formato de la hoja, acá y no arriba de la hoja (Fase 81):
                   es la misma barra donde está todo lo que se puede hacer con
                   el documento, y el renglón que ocupaba arriba era alto que le

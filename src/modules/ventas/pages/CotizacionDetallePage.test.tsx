@@ -427,6 +427,27 @@ describe('Cotización · acciones', () => {
     expect(screen.getByRole('button', { name: 'Generar pedido' })).toBeEnabled()
   })
 
+  /**
+   * Fase 83: «Marcar aceptada» tampoco.
+   *
+   * «Eso sería casi lo mismo que generar pedido, sacalo.» Y lo es: el estado
+   * lo deriva la base. El trigger `cotizacion_sigue_a_su_pedido` pone
+   * `accepted` en cuanto la cotización tiene un pedido y la devuelve a `sent`
+   * si ese pedido se borra, así que marcarla a mano escribía una aceptación
+   * que ningún pedido respaldaba y que el primer movimiento de pedidos
+   * corregía sin avisar.
+   *
+   * «Marcar rechazada» tiene que quedarse: esa sí es una decisión de una
+   * persona, y no hay nada de dónde derivarla.
+   */
+  it('no se marca aceptada a mano: la deriva el pedido', () => {
+    montar()
+    expect(screen.queryByRole('button', { name: 'Marcar aceptada' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /Más/ }))
+    expect(screen.getByRole('button', { name: 'Marcar rechazada' })).toBeVisible()
+  })
+
   it('con autoridad STEL la acción se ve deshabilitada y con el motivo, no escondida', () => {
     estado.stel = { quote: true, sales_order: true }
     montar()
@@ -435,7 +456,6 @@ describe('Cotización · acciones', () => {
     expect(generar).toBeVisible()
     expect(generar).toBeDisabled()
     expect(generar).toHaveAccessibleDescription(/Emisión desde el ERP bloqueada/)
-    expect(screen.getByRole('button', { name: 'Marcar aceptada' })).toBeDisabled()
   })
 
   it('el bloqueo de autoridad se cuenta UNA vez por pantalla', () => {
@@ -467,7 +487,6 @@ describe('Cotización · acciones', () => {
     // Ni el motivo ni el título pueden hablar de las cotizaciones: esta la
     // numeró el ERP.
     expect(screen.queryByText(/STEL numera las cotizaciones/)).toBeNull()
-    expect(screen.getByRole('button', { name: 'Marcar aceptada' })).toBeEnabled()
     // El pedido que saldría de acá nace con la serie por defecto de pedidos,
     // que sigue en STEL: ese bloqueo se mantiene, con su motivo.
     const generar = screen.getByRole('button', { name: 'Generar pedido' })
@@ -482,7 +501,6 @@ describe('Cotización · acciones', () => {
     estado.doc = cotizacion({ serie: 'COTI' })
     montar()
 
-    expect(screen.getByRole('button', { name: 'Marcar aceptada' })).toBeDisabled()
     expect(screen.getByText(/STEL numera las cotizaciones y los pedidos/)).toBeVisible()
   })
 
@@ -572,7 +590,7 @@ describe('Cotización · acciones', () => {
   it('quien no escribe no ve acciones de escritura', () => {
     estado.rol = 'salesperson'
     montar()
-    for (const nombre of ['Generar pedido', 'Editar', 'Marcar aceptada', 'Eliminar']) {
+    for (const nombre of ['Generar pedido', 'Editar', 'Eliminar']) {
       expect(screen.queryByRole('button', { name: nombre })).toBeNull()
     }
     expect(screen.getByRole('button', { name: 'Ver / Imprimir' })).toBeInTheDocument()
@@ -585,7 +603,7 @@ describe('Cotización · acciones', () => {
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
     // Las acciones incompatibles con un borrador a medias no se ofrecen.
-    for (const nombre of ['Generar pedido', 'Marcar aceptada', 'Duplicar', 'Ver / Imprimir', 'Eliminar']) {
+    for (const nombre of ['Generar pedido', 'Duplicar', 'Ver / Imprimir', 'Eliminar']) {
       expect(screen.queryByRole('button', { name: nombre })).toBeNull()
     }
   })
@@ -930,19 +948,21 @@ describe('Los controles de la hoja', () => {
  * El encabezado del documento, en un solo renglón (Fase 83).
  *
  * «El número de cotización, pendiente y emitido en el ERP tiene que estar
- * arriba, al lado de Cotizaciones. Y los círculos de cotización, pedido,
- * entrega, factura subilos también: el rectángulo va a ser más chiquito y
- * ganamos un montón de espacio.»
+ * arriba, al lado de Cotizaciones.»
  *
- * Eran TRES renglones —«← Cotizaciones», el número con sus chips, y el
- * circuito adentro de la barra, que ahí peleaba la fila con seis botones— y
- * pasan a ser uno. Lo que se prueba es dónde vive cada cosa, que es lo único
- * que se pidió: si alguna vuelve a su renglón, se pierde el alto otra vez.
+ * Eran dos renglones —«← Cotizaciones» arriba, el número abajo— y pasan a
+ * ser uno, pegado a la barra de acciones.
+ *
+ * El circuito se probó acá arriba y se volvió a la barra: «la trazabilidad de
+ * cotización, pedido, entrega, factura tiene que ir dentro de ese rectángulo».
+ * Así que lo que se prueba es que siga ahí, una sola vez, y no en el
+ * encabezado.
  */
 describe('El encabezado del documento', () => {
   /* La barra de acciones también es un `header`, así que «el encabezado» es
      el que lleva el h1: el número del documento. */
   const encabezado = () => screen.getByRole('heading', { level: 1, name: 'COTI02558' }).closest('header')!
+  const barra = () => screen.getByRole('group', { name: 'Acciones del documento' })
   const circuito = () => screen.getByRole('navigation', { name: 'Circuito de la venta' })
   /* Por omisión el mock de la cadena no devuelve nada y el circuito no se
      dibuja. Acá el circuito ES lo que se prueba, así que hace falta una. */
@@ -950,7 +970,7 @@ describe('El encabezado del documento', () => {
     estado.cadena = { cotizacion: null, pedido: null, entrega: null, factura: null }
   }
 
-  it('la vuelta, el número y el estado comparten renglón con el circuito', async () => {
+  it('la vuelta, el número y el estado comparten renglón', async () => {
     estado.pantallaAncha = true
     conCadena()
     montar()
@@ -960,26 +980,20 @@ describe('El encabezado del documento', () => {
     expect(within(cabecera).getByRole('link', { name: /Cotizaciones/ })).toBeInTheDocument()
     expect(within(cabecera).getByRole('heading', { level: 1 })).toHaveTextContent('COTI02558')
     expect(within(cabecera).getByText('Pendiente')).toBeInTheDocument()
-    expect(cabecera.contains(circuito())).toBe(true)
   })
 
-  it('el circuito ya no está en la barra de acciones', async () => {
+  it('el circuito vive en la barra de acciones y una sola vez', async () => {
     estado.pantallaAncha = true
     conCadena()
     montar()
     await waitFor(() => expect(circuito()).toBeInTheDocument())
 
-    // Una sola vez en la pantalla, y fuera de la barra: antes se pasaba a las
-    // dos barras —la de lectura y la de edición— y volvía a aparecer al editar.
-    expect(screen.getAllByRole('navigation', { name: 'Circuito de la venta' })).toHaveLength(1)
-    const barra = screen.getByRole('group', { name: 'Acciones del documento' })
-    expect(barra.contains(circuito())).toBe(false)
+    expect(barra().contains(circuito())).toBe(true)
+    expect(encabezado().contains(circuito())).toBe(false)
 
-    // Y tampoco vuelve al editar, que es la otra barra.
+    // También al editar, que es la otra barra: es el mismo dato y no se repite.
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
     expect(screen.getAllByRole('navigation', { name: 'Circuito de la venta' })).toHaveLength(1)
-    expect(
-      screen.getByRole('group', { name: 'Acciones del documento' }).contains(circuito()),
-    ).toBe(false)
+    expect(barra().contains(circuito())).toBe(true)
   })
 })

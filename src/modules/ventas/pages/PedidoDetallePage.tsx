@@ -485,12 +485,10 @@ function Detalle() {
   ]
 
   /**
-   * El circuito de la venta, al lado del número (Fase 29 · E16; se mudó al
-   * encabezado en la 83).
+   * El circuito de la venta, en la barra de acciones (Fase 29 · E16).
    *
-   * Estaba en la barra de acciones, repetido en la de edición y en la de
-   * lectura, y ahí le disputaba la fila a los botones. En la fila del número
-   * tiene el ancho de la derecha, que estaba vacío, y va una sola vez.
+   * Se arma una vez y se pasa a las DOS barras —la de edición y la de
+   * lectura—: es el mismo dato en los dos estados.
    *
    * «Generar» abre el MISMO modal de cantidades que el botón de la barra: un
    * remito nunca se crea a ciegas, hay que decir cuánto se entrega de cada
@@ -551,7 +549,6 @@ function Detalle() {
           ) : null
         }
         aviso={editando ? <Badge tone="info">Editando</Badge> : null}
-        pasos={circuito}
       />
 
 
@@ -601,6 +598,7 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
+          pasos={circuito}
           primary={
             <Button
               icon={<Icon name="check" size={16} />}
@@ -641,6 +639,7 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
+          pasos={circuito}
           primary={
             escribe && doc.estado === 'confirmed' ? (
               <Button

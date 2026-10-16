@@ -146,9 +146,7 @@ function Detalle() {
   const stelEntrega = autoridad.stel('delivery')
 
   /**
-   * El circuito de la venta, al lado del número (Fase 29 · E16; se mudó al
-   * encabezado en la 83, donde la fila de la derecha estaba vacía y la de los
-   * botones no).
+   * El circuito de la venta, para la barra de acciones (Fase 29 · E16).
    *
    * Acá sin «Generar»: el paso siguiente es la factura, y todavía no se emite
    * desde el remito.
@@ -402,7 +400,6 @@ function Detalle() {
             </span>
           ) : null
         }
-        pasos={circuito}
       />
 
       <AvisosHistoricos documento={doc} revision={revision.data} />
@@ -448,6 +445,7 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
+          pasos={circuito}
           primary={
             <Button
               icon={<Icon name="check" size={16} />}
@@ -488,6 +486,7 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
+          pasos={circuito}
           primary={
             permiso.confirmable ? (
               <Button

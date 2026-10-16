@@ -12,16 +12,6 @@ export interface DocumentHeaderProps {
   origen?: ReactNode | undefined
   /** Señal efímera junto al estado («Guardando…»). */
   aviso?: ReactNode | undefined
-  /**
-   * El circuito del documento —cotización, pedido, entrega, factura— a la
-   * derecha de esta misma línea (Fase 83).
-   *
-   * Vivía en la barra de acciones, y ahí entraba en su fila sólo si los
-   * botones dejaban lugar: con seis botones se iba a un segundo renglón y la
-   * barra crecía. Acá tiene toda la fila del título para él, que está casi
-   * vacía a la derecha, y la barra vuelve a medir una fila.
-   */
-  pasos?: ReactNode | undefined
 }
 
 /**
@@ -41,15 +31,17 @@ export interface DocumentHeaderProps {
  * vuelta, el único h1 y el comportamiento en mobile son los mismos que en el
  * resto del sistema.
  */
-export function DocumentHeader({ back, numero, estados, origen, aviso, pasos }: DocumentHeaderProps) {
+export function DocumentHeader({ back, numero, estados, origen, aviso }: DocumentHeaderProps) {
   return (
     <PageHeader
       back={back}
       /* El «volver» y el número comparten renglón: eran dos, y los dos juntos
          entran en uno (Fase 83). */
       backInline
+      /* Y pegado a la barra de acciones, que es la continuación del título:
+         los 24 px de margen que los separaban eran alto vacío. */
+      pegado
       title={numero}
-      aside={pasos}
       status={
         estados || origen || aviso ? (
           <>

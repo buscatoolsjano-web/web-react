@@ -4,9 +4,12 @@
   margin-bottom: var(--space-5);
 }
 
-/* Sin título a la vista (Fase 28 · E5): queda sólo el «volver», así que el
-   margen propio del encabezado sobra —el hueco lo pone el gap de la página—. */
-.sinTitulo {
+/* Sin el margen de abajo. Lo usan dos casos y por el mismo motivo —el hueco
+   que haga falta lo pone el gap de la página, y 24 px más lo separan de lo que
+   sigue como si fueran dos bloques distintos—: el encabezado sin título a la
+   vista (Fase 28 · E5), que queda reducido al «volver», y el del documento,
+   donde la barra de acciones es la continuación del título (Fase 83). */
+.sinMargen {
   margin-bottom: 0;
 }
 
@@ -51,25 +54,6 @@
 .volverEnLinea:hover {
   color: var(--color-primary-text);
   text-decoration: underline;
-}
-
-/* A la derecha del todo de la línea del título: la cinta de pasos.
-
-   `margin-left: auto` la empuja contra el borde derecho, y para que haya un
-   borde derecho que valga la pena los títulos tienen que ocupar el ancho
-   libre: eso lo hace `.titulosAncho`, que se pone sólo cuando hay algo al
-   costado para no cambiarle el ancho a los encabezados que no tienen nada.
-
-   `flex-shrink: 0` para que, cuando no entre, baje entera a su propio renglón
-   en vez de aplastarse: los rótulos de los pasos son palabras, no texto que se
-   pueda recortar. */
-.alCostado {
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.titulosAncho {
-  flex: 1 1 auto;
 }
 
 .volver:focus-visible,
@@ -164,11 +148,6 @@
 }
 
 @media (max-width: 767px) {
-  /* Ya bajó a su propio renglón: pegarla a la derecha la dejaría sola y
-     desalineada del título que tiene arriba. */
-  .alCostado {
-    margin-left: 0;
-  }
   .acciones {
     width: 100%;
   }
