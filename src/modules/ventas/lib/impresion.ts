@@ -50,7 +50,19 @@ export const OPCIONES_INICIALES: OpcionesImpresion = {
   formato: 'valorado',
   preciosConImpuestos: false,
   papel: 'A4',
-  conFotos: false,
+  /*
+   * CON FOTO (Fase 82).
+   *
+   * Estuvo en `false` exactamente una fase: la 80 las apagó para que la hoja
+   * del alta midiera como el papel, y lo que hacía falta era que las dos
+   * midieran IGUAL, no que midieran poco. Dicho por quien lo usa: «puse tres
+   * productos con imágenes y no se les ve; es importante que si tiene imagen
+   * se le vea».
+   *
+   * El renglón mide lo mismo tenga foto o no: el cuadro existe siempre y
+   * cuando no hay imagen queda vacío y transparente. Ver `.marcoVacio`.
+   */
+  conFotos: true,
 }
 
 /** Qué muestra cada formato. Es la misma tabla del legacy, explícita. */

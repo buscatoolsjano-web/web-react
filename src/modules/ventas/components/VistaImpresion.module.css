@@ -262,7 +262,8 @@
 }
 
 .filasDesc tbody td {
-  height: 21mm;
+  /* Nombre 2 renglones (8,1 mm) + descripción 3 (13,2) + 3 de padding. */
+  height: 25mm;
 }
 
 .filasFoto tbody td {
@@ -302,13 +303,17 @@
   font-size: 7.5pt;
   line-height: 1.6;
   margin-top: 0.5mm;
-  /* Dos renglones. Era tres, y bajó cuando las filas pasaron a medir todas lo
-     mismo (Fase 74): el tope tiene que entrar en la fila, o el mínimo deja de
-     ser el máximo y vuelve el problema. El texto va ENTERO en el HTML —cuántos
-     datos entran depende del ancho, y el ancho lo sabe el navegador—. */
+  /* TRES renglones. Fueron tres, bajaron a dos cuando las filas pasaron a
+     medir todas lo mismo (Fase 74) y volvieron a tres en la 82, a pedido: «la
+     descripción no se ve por completo; que sea hasta tres filas». La fila se
+     hizo más alta para que entren, porque el tope tiene que CABER en la fila
+     o el mínimo deja de ser el máximo y vuelven las filas desparejas.
+
+     El texto va ENTERO en el HTML: cuántos datos entran depende del ancho, y
+     el ancho lo sabe el navegador. */
   display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

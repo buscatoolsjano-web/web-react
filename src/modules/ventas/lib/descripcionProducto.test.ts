@@ -28,6 +28,10 @@ const producto = (over: Partial<DatosProductoImpreso> = {}): DatosProductoImpres
   origen: 'ESPAÑA',
   ncm: '8204.20.00',
   tipo: 'Adaptador',
+  serie: null,
+  // Sin categoría conocida: vale el orden general. Los de una familia tienen
+  // su propio describe, abajo.
+  categoria: null,
   atributos: { encastre: '1/4 HEX', largo: '250', medida: '10' },
   ...over,
 })
@@ -85,5 +89,72 @@ describe('la descripción de una línea del documento', () => {
     expect(texto(d)).toContain('Medida: 10')
     expect(texto(d)).not.toContain('Encastre')
     expect(texto(d)).not.toContain('object')
+  })
+})
+
+/*
+ * El orden por familia (Fase 82).
+ *
+ * «La idea es que la descripción de todos los productos sea concatenada para
+ * que todos respeten el mismo orden: todos los de puntas y tubos con marca,
+ * modelo, serie, encastre, largo. Y lo mismo con todas las otras categorías.»
+ *
+ * No hace falta una tabla nueva: `ATRIBUTOS_POR_FAMILIA` ya dice qué describe
+ * a cada familia —la usa el comparador del catálogo— y es la que manda acá.
+ * Dos listas de «qué describe a una punta» se separan el día que alguien toca
+ * una sola.
+ */
+describe('cuando la familia se conoce, manda su orden', () => {
+  it('una punta sale siempre en el mismo orden', () => {
+    const punta = producto({
+      categoria: 'punta',
+      serie: 'Power Drive',
+      atributos: { encastre: '1/4 HEX', largo: '50', medida: '1/4"' },
+    })
+    expect(texto(punta)).toBe(
+      'Marca: SPEEDRILL · Modelo: 2520/10B · Tipo: Adaptador · Medida: 1/4" · Encastre: 1/4 HEX · Largo: 50 mm · Serie: Power Drive',
+    )
+  })
+
+  /* Dos productos de la MISMA familia con distintos datos cargados salen en el
+     mismo orden: lo que falta se saltea, no corre a los demás de lugar. */
+  it('lo que falta no desordena al resto', () => {
+    const sinMedida = producto({
+      categoria: 'punta',
+      serie: null,
+      atributos: { encastre: '1/4 HEX', largo: '50' },
+    })
+    expect(texto(sinMedida)).toBe(
+      'Marca: SPEEDRILL · Modelo: 2520/10B · Tipo: Adaptador · Encastre: 1/4 HEX · Largo: 50 mm',
+    )
+  })
+
+  it('cada familia tiene lo suyo: un balanceador no tiene encastre', () => {
+    const balanceador = producto({
+      categoria: 'balanceador',
+      tipo: null,
+      atributos: { min_kg: '6', max_kg: '8', longitud: '2', carcasa: 'ALUMINIO', encastre: '1/4 HEX' },
+    })
+    expect(texto(balanceador)).toBe(
+      'Marca: SPEEDRILL · Modelo: 2520/10B · Cap. mín.: 6 kg · Cap. máx.: 8 kg · Recorrido: 2 m · Carcasa: ALUMINIO',
+    )
+  })
+
+  /*
+   * El SKU no se repite. El comparador del catálogo muestra el SKU bajo el
+   * título «Modelo», pero en el documento el SKU ya es la primera columna:
+   * repetirlo gastaría uno de los pocos datos que entran.
+   */
+  it('«Modelo» es el modelo del fabricante, no el SKU', () => {
+    const punta = producto({ categoria: 'punta', modelo: '2520/10B', serie: null, atributos: {} })
+    expect(texto(punta)).toContain('Modelo: 2520/10B')
+  })
+
+  /* Una categoría que no está en la tabla —12.588 productos en «otros»— sigue
+     con el orden general de siempre. */
+  it('sin familia conocida, el orden general', () => {
+    const otro = producto({ categoria: 'una-categoria-cualquiera' })
+    expect(texto(otro)).toContain('Marca: SPEEDRILL')
+    expect(texto(otro)).toContain('NCM: 8204.20.00')
   })
 })

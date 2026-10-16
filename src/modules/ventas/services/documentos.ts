@@ -664,7 +664,9 @@ export async function datosDeProductosImpresos(
   const [productos, imagenes] = await Promise.all([
     supabase
       .from('products')
-      .select('id, model_code, origin_country, ncm_code, product_type, attributes, brands ( name )')
+      .select(
+        'id, model_code, series, origin_country, ncm_code, product_type, attributes, brands ( name ), product_categories ( slug )',
+      )
       .eq('company_id', companyId)
       .in('id', ids),
     supabase
@@ -695,6 +697,10 @@ export async function datosDeProductosImpresos(
       origen: p.origin_country,
       ncm: p.ncm_code,
       tipo: p.product_type,
+      serie: p.series,
+      // El slug de la categoría: con él, la descripción impresa sale en el
+      // orden que esa familia usa para compararse (Fase 82).
+      categoria: p.product_categories?.slug ?? null,
       atributos: (p.attributes ?? {}) as Record<string, unknown>,
     })
   }
@@ -702,7 +708,17 @@ export async function datosDeProductosImpresos(
   // foto igual se muestra si quedó, porque el documento es lo que fue.
   for (const [id, url] of fotos) {
     if (!datos.has(id)) {
-      datos.set(id, { foto: url, marca: null, modelo: null, origen: null, ncm: null, tipo: null, atributos: {} })
+      datos.set(id, {
+        foto: url,
+        marca: null,
+        modelo: null,
+        origen: null,
+        ncm: null,
+        tipo: null,
+        serie: null,
+        categoria: null,
+        atributos: {},
+      })
     }
   }
   return datos

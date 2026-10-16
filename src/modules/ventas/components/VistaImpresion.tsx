@@ -174,7 +174,21 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
     )
   }
 
-  const columnas = 3 + (ver.precios ? 3 : 0) + (ver.impuestos ? 1 : 0)
+  /*
+   * La columna de descuento sólo existe si hay alguno (Fase 82).
+   *
+   * Pedido: «si no hay descuento que ni aparezca; así todo se desplaza un
+   * poco más y entra bien la descripción». Son 16 mm que casi siempre están
+   * llenos de guiones, y se los lleva la columna del nombre, que es la que
+   * se queda corta.
+   *
+   * Mientras se edita SIEMPRE está: si no, no habría dónde escribir el
+   * primer descuento —la columna aparecería recién después de cargarlo, que
+   * es justo cuando ya no hace falta—.
+   */
+  const hayDescuento = edicion !== null || doc.lineas.some((l) => l.descuentoPct > 0)
+  const verDescuento = ver.precios && hayDescuento
+  const columnas = 3 + (ver.precios ? 2 : 0) + (verDescuento ? 1 : 0) + (ver.impuestos ? 1 : 0)
 
   /* Con fotos manda el marco de 20 mm. Sin fotos, el alto depende de si
      alguna línea tiene algo escrito debajo del nombre. */
@@ -349,7 +363,7 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
           <col />
           <col style={{ width: '16mm' }} />
           {ver.precios ? <col style={{ width: '24mm' }} /> : null}
-          {ver.precios ? <col style={{ width: '16mm' }} /> : null}
+          {verDescuento ? <col style={{ width: '16mm' }} /> : null}
           {ver.precios ? <col style={{ width: '26mm' }} /> : null}
           {ver.impuestos ? <col style={{ width: '18mm' }} /> : null}
         </colgroup>
@@ -365,7 +379,7 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
                 Precio
               </th>
             ) : null}
-            {ver.precios ? (
+            {verDescuento ? (
               <th scope="col" className={styles.num}>
                 % Dto.
               </th>
@@ -461,7 +475,7 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
                     )}
                   </td>
                 ) : null}
-                {ver.precios ? (
+                {verDescuento ? (
                   <td className={styles.num}>
                     {edicion ? (
                       <CeldaEditable valor={l.descuentoPct} etiqueta="Descuento por ciento" min={0} max={100} paso={1} onCambiar={(v) => edicion.onDescuento(l.id, v)}>

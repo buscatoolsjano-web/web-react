@@ -921,8 +921,9 @@ describe('Los controles de la hoja', () => {
     montar()
     await waitFor(() => expect(hoja()).not.toBeNull())
     const fotos = screen.getByLabelText('Con foto del producto')
-    expect(fotos).not.toBeChecked()
-    fireEvent.click(fotos)
+    // Prendidas de fábrica (Fase 82): si el producto tiene imagen, se ve.
     expect(fotos).toBeChecked()
+    fireEvent.click(fotos)
+    expect(fotos).not.toBeChecked()
   })
 })

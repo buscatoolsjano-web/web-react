@@ -32,16 +32,19 @@ describe('las opciones de la hoja del alta', () => {
 
   /* Y se pueden cambiar: la foto no se fue, pasó a ser un interruptor —el
      mismo que ofrece el diálogo de imprimir—. */
+  /* Arrancan prendidas —«si tiene imagen que se le vea», Fase 82— y se
+     pueden apagar. El renglón mide lo mismo de los dos modos: el cuadro de la
+     foto existe aunque el producto no tenga ninguna. */
   it('las fotos se prenden y se apagan', () => {
     const { result } = renderHook(() => useOpcionesDeHoja())
-    expect(result.current.opciones.conFotos).toBe(false)
-
-    act(() => result.current.controles.onFotos(true))
     expect(result.current.opciones.conFotos).toBe(true)
-    expect(result.current.controles.conFotos).toBe(true)
 
     act(() => result.current.controles.onFotos(false))
     expect(result.current.opciones.conFotos).toBe(false)
+    expect(result.current.controles.conFotos).toBe(false)
+
+    act(() => result.current.controles.onFotos(true))
+    expect(result.current.opciones.conFotos).toBe(true)
   })
 
   it('el formato sigue andando', () => {

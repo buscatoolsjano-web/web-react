@@ -100,7 +100,7 @@ describe('El documento impreso', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(titulo)
     expect(screen.getByRole('heading', { name: bloque })).toBeInTheDocument()
     // Y las mismas columnas: el documento no cambia de forma según el tipo.
-    expect(encabezados()).toEqual(['Ref.', 'Nombre / descripción', 'Uds.', 'Precio', '% Dto.', 'Subtotal', 'Imp.'])
+    expect(encabezados()).toEqual(['Ref.', 'Nombre / descripción', 'Uds.', 'Precio', 'Subtotal', 'Imp.'])
   })
 
   it('un campo opcional vacío no rompe la estructura: el CUIT sin cargar dice «—»', () => {
@@ -143,8 +143,14 @@ describe('El documento impreso', () => {
       expect(filas.filter((f) => f.querySelector('img') !== null)).toHaveLength(1)
     })
 
+    /* Apagando las fotos la tabla no cambia de forma: las mismas columnas y
+       ninguna imagen. Desde la Fase 82 hay que apagarlas a mano, porque el
+       documento viene CON foto de fábrica. */
     it('sin fotos las columnas son las mismas: el formato no cambia la tabla', () => {
-      montar(doc({ lineas: [linea({ foto: 'https://ejemplo/1.png' })] }))
+      montar(doc({ lineas: [linea({ foto: 'https://ejemplo/1.png' })] }), {
+        ...OPCIONES_INICIALES,
+        conFotos: false,
+      })
       expect(encabezados()[0]).toBe('Ref.')
       // El logo de la empresa no cuenta: se mira la tabla, no la hoja entera.
       expect(screen.getByRole('table').querySelector('img')).toBeNull()
@@ -190,7 +196,7 @@ describe('El documento impreso', () => {
 
     it('una descripción larga no agrega columnas ni cambia el orden', () => {
       montar(doc({ lineas: [linea({ descripcion: 'x'.repeat(600) })] }))
-      expect(encabezados()).toEqual(['Ref.', 'Nombre / descripción', 'Uds.', 'Precio', '% Dto.', 'Subtotal', 'Imp.'])
+      expect(encabezados()).toEqual(['Ref.', 'Nombre / descripción', 'Uds.', 'Precio', 'Subtotal', 'Imp.'])
     })
   })
 
@@ -257,33 +263,83 @@ describe('El documento impreso', () => {
  */
 describe('las filas de productos miden todas lo mismo', () => {
   const tabla = () => screen.getAllByRole('table')[0]!
+  /* Con fotos manda el marco de 20 mm y las tres alturas no se distinguen:
+     estos casos son sobre el alto que elige el TEXTO, así que se apagan.
+     Desde la Fase 82 las fotos vienen prendidas de fábrica. */
+  const sinFotos = { ...OPCIONES_INICIALES, conFotos: false }
 
   it('sin descripciones, la tabla usa el alto corto', () => {
-    montar(doc({ lineas: [linea(), linea({ id: 'l2', nombre: 'Otro' })] }))
+    montar(doc({ lineas: [linea(), linea({ id: 'l2', nombre: 'Otro' })] }), sinFotos)
     expect(tabla().className).toMatch(/filasSimples/)
   })
 
   /* Alcanza con que UNA línea traiga algo abajo del nombre: si sólo creciera
      esa fila, volveríamos a tener filas de dos alturas. */
   it('con que una sola línea tenga descripción, todas reservan ese lugar', () => {
-    montar(doc({ lineas: [linea(), linea({ id: 'l2', descripcion: 'Acero templado, 8 mm' })] }))
+    montar(doc({ lineas: [linea(), linea({ id: 'l2', descripcion: 'Acero templado, 8 mm' })] }), sinFotos)
     expect(tabla().className).toMatch(/filasDesc/)
   })
 
   it('los atributos del producto cuentan como descripción', () => {
-    montar(doc({ lineas: [linea({ partes: [{ etiqueta: 'Marca', valor: 'Speedrill' }] })] }))
+    montar(doc({ lineas: [linea({ partes: [{ etiqueta: 'Marca', valor: 'Speedrill' }] })] }), sinFotos)
     expect(tabla().className).toMatch(/filasDesc/)
   })
 
   /* Una descripción que repite el nombre no se imprime, así que tampoco
      cambia el alto: reservar lugar para algo que no se dibuja es papel. */
   it('una descripción igual al nombre no cuenta', () => {
-    montar(doc({ lineas: [linea({ descripcion: 'Candado de bloqueo LOTO' })] }))
+    montar(doc({ lineas: [linea({ descripcion: 'Candado de bloqueo LOTO' })] }), sinFotos)
     expect(tabla().className).toMatch(/filasSimples/)
   })
 
   it('con fotos manda el marco, aunque no haya descripciones', () => {
     montar(doc({ lineas: [linea()] }), { ...OPCIONES_INICIALES, conFotos: true })
     expect(tabla().className).toMatch(/filasFoto/)
+  })
+})
+
+/*
+ * La columna de descuento sólo existe si hay descuentos (Fase 82).
+ *
+ * «Si no hay descuento, que ni aparezca. Entonces todo se desplaza un poco más
+ * y va a hacer que entre bien la descripción.» Son 16 mm que casi siempre
+ * están llenos de guiones, y se los lleva la columna del nombre, que es la que
+ * se queda corta.
+ */
+describe('la columna de descuento', () => {
+  const encabezadosDe = () => screen.getAllByRole('columnheader').map((th) => th.textContent?.trim())
+
+  it('no está cuando ninguna línea tiene descuento', () => {
+    montar(doc({ lineas: [linea(), linea({ id: 'l2', descuentoPct: 0 })] }))
+    expect(encabezadosDe()).not.toContain('% Dto.')
+  })
+
+  it('aparece en cuanto UNA línea lo tiene', () => {
+    montar(doc({ lineas: [linea(), linea({ id: 'l2', descuentoPct: 10 })] }))
+    expect(encabezadosDe()).toContain('% Dto.')
+    expect(screen.getByText('10%')).toBeInTheDocument()
+  })
+
+  /*
+   * Mientras se edita está SIEMPRE, aunque no haya ninguno: si no, no habría
+   * dónde escribir el primero —la columna aparecería recién después de
+   * cargarlo, que es justo cuando ya no hace falta—.
+   */
+  it('editando está siempre, para poder cargar el primero', () => {
+    render(
+      <VistaImpresion
+        doc={doc({ lineas: [linea()] })}
+        empresa={empresa}
+        opciones={OPCIONES_INICIALES}
+        edicion={{
+          onCantidad: () => {},
+          onPrecio: () => {},
+          onDescuento: () => {},
+          onEliminar: () => {},
+          onAgregar: () => {},
+        }}
+      />,
+    )
+    expect(encabezadosDe()).toContain('% Dto.')
   })
 })
