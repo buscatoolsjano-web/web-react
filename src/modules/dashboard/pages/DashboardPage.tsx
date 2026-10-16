@@ -66,6 +66,10 @@ export function DashboardPage() {
       <PageHeader
         title="Dashboard"
         subtitle={activa ? `Resumen operativo y comercial de ${activa.companyName} · ${etiquetaRol(rol)}` : undefined}
+        // Al lado del título y no abajo (Fase 77): ese renglón no cambia nunca
+        // —quién sos y de qué empresa— y se llevaba un alto que le corresponde
+        // a lo que se vino a mirar.
+        subtitleInline
         actions={
           puedeAcomodar ? (
             <>

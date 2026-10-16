@@ -24,6 +24,20 @@ export interface PageHeaderProps {
    */
   hideTitle?: boolean | undefined
   subtitle?: ReactNode | undefined
+  /**
+   * El subtítulo al LADO del título y no abajo (Fase 77).
+   *
+   * Para pantallas donde ese renglón es contexto y no información nueva —el
+   * inicio dice «Resumen operativo y comercial de Buscatools · Administrador»,
+   * que no cambia nunca— y ocupa un renglón entero arriba de todo. Al lado
+   * dice lo mismo y devuelve ese alto al contenido, que es lo que se vino a
+   * ver.
+   *
+   * No es el caso general: en un listado o en un documento el subtítulo SÍ
+   * trae información propia —cuántos hay, de qué cliente— y ahí merece su
+   * renglón.
+   */
+  subtitleInline?: boolean | undefined
   /** Enlace de vuelta («← Pedidos»). Excluyente con `breadcrumbs`. */
   back?: { to: string; label: string } | undefined
   breadcrumbs?: Miga[] | undefined
@@ -38,7 +52,17 @@ export interface PageHeaderProps {
  * Encabezado de página del sistema: contexto (volver o migas), título, estado,
  * subtítulo y acciones. En mobile las acciones bajan debajo del título.
  */
-export function PageHeader({ title, hideTitle, subtitle, back, breadcrumbs, status, actions, className }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  hideTitle,
+  subtitle,
+  subtitleInline = false,
+  back,
+  breadcrumbs,
+  status,
+  actions,
+  className,
+}: PageHeaderProps) {
   // Con el título oculto y sin estado ni acciones, la fila no dibuja nada:
   // dejarla puesta sería un renglón vacío, que es justo lo que se quería sacar.
   const filaVacia = hideTitle && !status && !subtitle && !actions
@@ -77,8 +101,12 @@ export function PageHeader({ title, hideTitle, subtitle, back, breadcrumbs, stat
             <div className={styles.tituloLinea}>
               <h1 className={hideTitle ? 'sr-only' : styles.titulo}>{title}</h1>
               {status}
+              {/* Al lado: el `<p>` es el mismo, cambia dónde se cuelga. Así el
+                  subtítulo sigue siendo un párrafo —y no parte del h1— para
+                  quien escucha la página. */}
+              {subtitle && subtitleInline ? <p className={styles.subtituloAlLado}>{subtitle}</p> : null}
             </div>
-            {subtitle && <p className={styles.subtitulo}>{subtitle}</p>}
+            {subtitle && !subtitleInline && <p className={styles.subtitulo}>{subtitle}</p>}
           </div>
           {actions && <div className={styles.acciones}>{actions}</div>}
         </div>

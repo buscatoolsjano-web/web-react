@@ -1,40 +1,41 @@
 /* ─────────────────────────────────────────────────────────────────────────
    Dashboard (Fase 21 · E2).
 
-   La jerarquía es el diseño: lo primero que se lee es el cotizado del mes,
-   después lo que hay que ir a resolver, y recién al final el detalle. Por eso
-   las tarjetas NO pesan todas lo mismo —doce cards iguales no son una
-   jerarquía, son una lista— y el color se gasta en pocos lugares.
+   La jerarquía es el diseño: el color se gasta en pocos lugares y no hay doce
+   tarjetas iguales, que no son una jerarquía sino una lista.
+
+   Desde la Fase 76 el ORDEN de los bloques lo elige cada uno, y desde la 77
+   los tres números del mes miden lo mismo: lo que distingue al primero es una
+   raya de acento, que no le cobra ancho a los otros dos.
    ───────────────────────────────────────────────────────────────────────── */
 
-.periodo {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-4);
-  margin-bottom: var(--space-3);
-}
-
-.periodoTexto {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--text-soft);
-}
-
-.periodoMes {
-  font-weight: 600;
-  color: var(--text);
-}
 
 /* ── B · Situación del mes ─────────────────────────────────────────────── */
 
+/* Las tres del mismo ancho (Fase 77). Cotizado tenía 1,6 de las 3,6 partes
+   —casi la mitad de la fila para una de las tres— y se pidió emparejarlas.
+   Sigue siendo el primero y lo dice su raya de acento, que no cuesta ancho.
+
+   Sin margen abajo: el espacio entre bloques lo pone la rejilla del inicio, y
+   sumar los dos dejaba un hueco doble justo acá. */
+.kpis {
+  min-width: 0;
+}
+
+/* Contra qué se compara: la letra chica de los tres números, apoyada arriba
+   de ellos. Estaba arriba de todo, a dos pantallas de los porcentajes que
+   explica. */
+.comparacion {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 .situacion {
   display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3);
   align-items: start;
-  margin-bottom: var(--space-5);
 }
 
 .kpiProtagonista,
@@ -103,17 +104,20 @@
   min-width: 0;
 }
 
+/* UN SOLO TAMAÑO PARA LOS TRES (Fase 77).
+
+   Cotizado llegaba a 2,25 rem y los otros dos a 1,125: era el titular del
+   tablero. Emparejarlos hacia abajo lo dejaba chico y hacia arriba estiraba
+   las tres tarjetas a lo alto, que es justo el espacio que se vino a ganar.
+   Este valor está en el medio: el número sigue leyéndose como el dato
+   principal de su tarjeta y las tres miden lo mismo. */
 .kpiImporte {
   margin: 0;
   font-weight: 700;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
-  font-size: var(--text-lg);
-}
-
-.kpiProtagonista .kpiImporte {
-  font-size: clamp(1.6rem, 3.2vw, 2.25rem);
+  font-size: clamp(1.35rem, 2.4vw, 1.75rem);
 }
 
 .kpiDocumentos {
@@ -366,12 +370,10 @@
 /* En 375 el orden es el de la lectura: el cotizado primero, entero, y recién
    después los secundarios. Nada de tres columnas de 100 px. */
 @media (max-width: 1023px) {
+  /* De a dos, y el tercero abajo. Ya no hay uno que ocupe la fila entera: las
+     tres son del mismo tamaño desde la Fase 77. */
   .situacion {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .kpiProtagonista {
-    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

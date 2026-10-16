@@ -12,7 +12,7 @@ import { useDocumentos } from '@/modules/ventas/hooks/useDocumentos'
 import { FILTROS_INICIALES as FILTROS_VENTAS } from '@/modules/ventas/types'
 import type { DocTypeVentas } from '@/modules/ventas/lib/autoridad'
 import { cotizacionesAbiertas, textoAutoridadStel } from '../lib/inicio'
-import { avisoDeMesParcial, etiquetaDeTramo, mesLargo } from '../lib/panel'
+import { etiquetaDeTramo } from '../lib/panel'
 import { useAtencion, usePendientePorPersona, useUltimosDocumentos } from '../hooks/useDashboard'
 import { documentosSinAutor, separarMiFila } from '../services/pendientePorPersona'
 import { AtencionHoy, type TarjetaAtencion } from './AtencionHoy'
@@ -172,8 +172,11 @@ export function VistaOperativa({ accesos, inicio }: VistaOperativaProps) {
       : []),
   ]
 
+  /* El mes en curso: lo usa «Lo tuyo» para titular «Hiciste en octubre».
+     El renglón del período que lo mostraba arriba de todo se fue en la Fase
+     77: cada tarjeta de números ya dice su ventana —«1–16 de octubre»— abajo
+     del porcentaje, que es donde se la necesita. */
   const tramo = actividad.data?.actual
-  const parcial = tramo ? avisoDeMesParcial(tramo) : null
 
   // Mi fila sale del mismo tablero que las demás: la marca el servidor.
   const { mio, resto } = separarMiFila(porPersona.data ?? [])
@@ -196,19 +199,6 @@ export function VistaOperativa({ accesos, inicio }: VistaOperativaProps) {
         </Alert>
       ) : null}
 
-      {/* A · El período, explícito. Un mes a medias se dice que está a medias:
-          si no, «bajó 22 %» parece un derrumbe y son ocho días que faltan. */}
-      <div className={styles.periodo}>
-        <p className={styles.periodoTexto}>
-          <span className={styles.periodoMes}>{tramo ? mesLargo(tramo.desde) : '…'}</span>
-          {parcial ? ` · ${parcial}` : ''}
-        </p>
-        {actividad.data ? (
-          <p className={styles.periodoTexto}>
-            Se compara {etiquetaDeTramo(actividad.data.actual)} contra {etiquetaDeTramo(actividad.data.anterior)}
-          </p>
-        ) : null}
-      </div>
 
       {/*
         B en adelante · LOS BLOQUES, EN EL ORDEN QUE ELIGIÓ QUIEN MIRA
@@ -245,33 +235,52 @@ export function VistaOperativa({ accesos, inicio }: VistaOperativaProps) {
             />
           ),
           kpis: (
-            /* Un protagonista y dos secundarios. */
-            <div className={styles.situacion}>
-              <KpiComercial
-                actividad={actividad.data}
-                tipo="cotizaciones"
-                protagonista
-                destino="/ventas/cotizaciones"
-                cargando={actividad.isPending}
-                error={!!actividad.error}
-                onReintentar={() => void actividad.refetch()}
-              />
-              <KpiComercial
-                actividad={actividad.data}
-                tipo="pedidos"
-                destino="/ventas/pedidos"
-                cargando={actividad.isPending}
-                error={!!actividad.error}
-                onReintentar={() => void actividad.refetch()}
-              />
-              <KpiComercial
-                actividad={actividad.data}
-                tipo="entregas"
-                destino="/ventas/entregas"
-                cargando={actividad.isPending}
-                error={!!actividad.error}
-                onReintentar={() => void actividad.refetch()}
-              />
+            /*
+              Los tres del mismo tamaño (Fase 77).
+
+              Cotizado era más ancho y con el número más grande. Se pidió
+              emparejarlos, y la raya de acento alcanza para decir cuál es el
+              primero sin cobrarle espacio a los otros dos.
+
+              Y acá abajo entra el renglón de contra qué se compara, que
+              estaba arriba de todo: es la letra chica de ESTOS números —cada
+              tarjeta dice «bajó 71,2 % vs 1–16 de septiembre»— así que arriba
+              era un renglón suelto a dos pantallas de lo que explicaba.
+            */
+            <div className={styles.kpis}>
+              {actividad.data ? (
+                <p className={styles.comparacion}>
+                  Se compara {etiquetaDeTramo(actividad.data.actual)} contra{' '}
+                  {etiquetaDeTramo(actividad.data.anterior)}
+                </p>
+              ) : null}
+              <div className={styles.situacion}>
+                <KpiComercial
+                  actividad={actividad.data}
+                  tipo="cotizaciones"
+                  protagonista
+                  destino="/ventas/cotizaciones"
+                  cargando={actividad.isPending}
+                  error={!!actividad.error}
+                  onReintentar={() => void actividad.refetch()}
+                />
+                <KpiComercial
+                  actividad={actividad.data}
+                  tipo="pedidos"
+                  destino="/ventas/pedidos"
+                  cargando={actividad.isPending}
+                  error={!!actividad.error}
+                  onReintentar={() => void actividad.refetch()}
+                />
+                <KpiComercial
+                  actividad={actividad.data}
+                  tipo="entregas"
+                  destino="/ventas/entregas"
+                  cargando={actividad.isPending}
+                  error={!!actividad.error}
+                  onReintentar={() => void actividad.refetch()}
+                  />
+              </div>
             </div>
           ),
           atencion: <AtencionHoy tarjetas={tarjetas} atencion={atencion.data} />,

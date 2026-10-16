@@ -99,6 +99,19 @@
   color: var(--color-text-soft);
 }
 
+/* El subtítulo al lado del título (Fase 77). Mismo tono y tamaño: lo que
+   cambia es que no se lleva un renglón para él solo. `align-self: baseline`
+   lo apoya sobre la misma línea del título y no sobre el medio, que con un
+   h1 de 24 px y un párrafo de 14 lo dejaría flotando. */
+.subtituloAlLado {
+  margin: 0;
+  align-self: baseline;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text-soft);
+  min-width: 0;
+}
+
 .acciones {
   display: flex;
   flex-wrap: wrap;

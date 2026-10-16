@@ -261,13 +261,40 @@ beforeEach(() => {
   reintentar.mockClear()
 })
 
-describe('A · El período se dice, y se dice que está a medias', () => {
-  it('mes, aviso de parcial y contra qué ventana se compara', () => {
+/*
+ * EL PERÍODO YA NO TIENE RENGLÓN PROPIO (Fase 77).
+ *
+ * Arriba de todo decía «Septiembre 2026 · Datos al 22 de septiembre» y, al
+ * costado, contra qué ventana se compara. Se pidió sacarlo para ganar alto, y
+ * se puede: cada tarjeta de números YA dice su ventana —«1–22 de septiembre»—
+ * abajo del porcentaje, que es donde hace falta para no leer «bajó 22 %» como
+ * un derrumbe cuando son ocho días que faltan.
+ *
+ * Lo único que no estaba repetido —contra qué se compara— bajó a los números,
+ * que es lo que explica.
+ */
+describe('A · El período se dice donde se usa', () => {
+  it('el encabezado ya no se lleva un renglón para el mes', () => {
     montar()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Dashboard')
-    expect(screen.getByText('Septiembre 2026')).toBeInTheDocument()
-    expect(screen.getByText(/· Datos al 22 de septiembre/)).toBeInTheDocument()
-    expect(screen.getByText('Se compara 1–22 de septiembre contra 1–22 de agosto')).toBeInTheDocument()
+    expect(screen.queryByText('Septiembre 2026')).toBeNull()
+    expect(screen.queryByText(/· Datos al 22 de septiembre/)).toBeNull()
+  })
+
+  it('el subtítulo va al lado del título, no abajo', () => {
+    montar()
+    const linea = screen.getByRole('heading', { level: 1 }).parentElement!
+    expect(linea).toHaveTextContent(/Resumen operativo y comercial de ZZ Empresa/)
+  })
+
+  it('contra qué se compara está con los números', () => {
+    montar()
+    const texto = screen.getByText('Se compara 1–22 de septiembre contra 1–22 de agosto')
+    // En el mismo bloque que las tres tarjetas, no en el encabezado.
+    const bloque = texto.parentElement!
+    expect(bloque).toHaveTextContent('Cotizado')
+    expect(bloque).toHaveTextContent('Pedidos')
+    expect(bloque).toHaveTextContent('Entregado')
   })
 })
 

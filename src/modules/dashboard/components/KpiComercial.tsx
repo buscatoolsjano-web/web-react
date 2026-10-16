@@ -9,7 +9,13 @@ import styles from './Panel.module.css'
 export interface KpiComercialProps {
   actividad: ActividadComercial | undefined
   tipo: TipoActividad
-  /** El protagonista se ve más grande y va primero. */
+  /**
+   * El primero de los tres.
+   *
+   * Desde la Fase 77 NO es más grande: las tres tarjetas miden lo mismo y lo
+   * que lo distingue es una raya de acento arriba, que no le cobra ancho a los
+   * otros dos. Sigue existiendo porque sigue siendo el que se lee primero.
+   */
   protagonista?: boolean
   destino: string
   cargando: boolean
@@ -48,7 +54,10 @@ export function KpiComercial({ actividad, tipo, protagonista = false, destino, c
 
       {cargando ? (
         <div className={styles.kpiCuerpo}>
-          <Skeleton width="60%" height={protagonista ? '2.5rem' : '1.75rem'} />
+          {/* El mismo alto en las tres: desde la Fase 77 el número mide igual en
+              todas, y un esqueleto más alto en una haría saltar esa tarjeta al
+              llegar el dato. */}
+          <Skeleton width="60%" height="1.9rem" />
           <Skeleton width="40%" />
         </div>
       ) : error ? (
