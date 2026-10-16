@@ -365,9 +365,10 @@ function Detalle() {
 
   // Mientras se edita, las acciones del documento no se ofrecen: duplicar o
   // cancelar con un borrador a medias es perder el borrador.
-  /* El formato de la hoja y la foto del producto. Viven en la barra de
-     acciones, como en el alta: arriba de la hoja eran 40 px que le sacaban
-     al documento (Fase 81). */
+  /* El formato de la hoja. Vive en la barra de acciones, como en el alta:
+     arriba de la hoja era un renglón que le sacaba alto al documento
+     (Fase 81). Quedó solo: la foto del producto dejó de ser una opción y el
+     renglón impreso la lleva siempre (Fase 83). */
   const { opciones: opcionesDeHoja, controles: controlesDeHoja } = useOpcionesDeHoja()
 
   const acciones = useAccionesDocumento(editando ? null : doc, {
@@ -549,11 +550,14 @@ function Detalle() {
   ) : null
 
   /**
-   * El circuito de la venta, para la barra de acciones (Fase 29 · E16).
+   * El circuito de la venta, al lado del número (Fase 29 · E16; se mudó al
+   * encabezado en la 83).
    *
-   * Se arma una vez y se pasa a las DOS barras —la de edición y la de
-   * lectura—: es el mismo dato en los dos estados, y tenerlo en una sola
-   * variable evita que una quede vieja cuando se toque la otra.
+   * Estaba en la barra de acciones y ahí entraba en la fila de los botones
+   * sólo si quedaba lugar: con seis botones se iba a un segundo renglón y la
+   * barra crecía. En la fila del número tiene todo el ancho de la derecha, que
+   * estaba vacío, y no se duplica —era el mismo dato en las dos barras, la de
+   * edición y la de lectura—.
    *
    * «Generar» llama al MISMO handler que el botón de la barra, con el mismo
    * motivo de bloqueo: dos botones para lo mismo que se comportan distinto
@@ -607,6 +611,7 @@ function Detalle() {
           </Badge>
         ))}
         aviso={editando ? <Badge tone="info">Editando</Badge> : null}
+        pasos={circuito}
       />
 
       <AvisosHistoricos documento={doc} revision={revision.data} />
@@ -659,7 +664,6 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
-          pasos={circuito}
           primary={
             <Button
               icon={<Icon name="check" size={16} />}
@@ -700,7 +704,6 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
-          pasos={circuito}
           /*
             Acá vivía «Marcar como enviada», que se sacó en la Fase 43.
             Guardar una cotización YA la deja Pendiente —lo hace un trigger, no
@@ -729,10 +732,10 @@ function Detalle() {
                   Marcar aceptada
                 </Button>
               ) : null}
-              {/* El formato de la hoja y la foto, acá y no arriba de la hoja
-                  (Fase 81): es la misma barra donde está todo lo que se
-                  puede hacer con el documento, y el renglón que ocupaban
-                  arriba era alto que le sacaban al documento. */}
+              {/* El formato de la hoja, acá y no arriba de la hoja (Fase 81):
+                  es la misma barra donde está todo lo que se puede hacer con
+                  el documento, y el renglón que ocupaba arriba era alto que le
+                  sacaba al documento. */}
               <ControlesDeHoja {...controlesDeHoja} />
               {acciones.secundarias}
             </>

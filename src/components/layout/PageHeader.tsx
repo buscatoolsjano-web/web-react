@@ -40,6 +40,19 @@ export interface PageHeaderProps {
   subtitleInline?: boolean | undefined
   /** Enlace de vuelta («← Pedidos»). Excluyente con `breadcrumbs`. */
   back?: { to: string; label: string } | undefined
+  /**
+   * La vuelta en la MISMA línea que el título (Fase 83).
+   *
+   * Para los documentos: «← Cotizaciones» ocupaba un renglón entero arriba
+   * del número, y los dos juntos entran en uno. Son dos renglones de alto que
+   * le saca a lo que se vino a mirar.
+   *
+   * No es el caso general: en un listado el enlace de vuelta es el único
+   * elemento de contexto y no compite con nada.
+   */
+  backInline?: boolean | undefined
+  /** A la derecha del título, en su misma línea. Para una cinta de pasos. */
+  aside?: ReactNode | undefined
   breadcrumbs?: Miga[] | undefined
   /** Estado junto al título (p. ej. un `Badge`). */
   status?: ReactNode | undefined
@@ -58,23 +71,25 @@ export function PageHeader({
   subtitle,
   subtitleInline = false,
   back,
+  backInline = false,
   breadcrumbs,
   status,
+  aside,
   actions,
   className,
 }: PageHeaderProps) {
   // Con el título oculto y sin estado ni acciones, la fila no dibuja nada:
   // dejarla puesta sería un renglón vacío, que es justo lo que se quería sacar.
-  const filaVacia = hideTitle && !status && !subtitle && !actions
+  const filaVacia = hideTitle && !status && !subtitle && !actions && !aside && !(back && backInline)
 
   return (
     <header className={cx(styles.header, hideTitle && styles.sinTitulo, className)}>
-      {back ? (
+      {back && !backInline ? (
         <Link to={back.to} className={styles.volver}>
           <Icon name="arrow-left" size={16} />
           {back.label}
         </Link>
-      ) : (
+      ) : back && backInline ? null : (
         breadcrumbs &&
         breadcrumbs.length > 0 && (
           <nav aria-label="Ruta" className={styles.migas}>
@@ -97,14 +112,22 @@ export function PageHeader({
         <h1 className="sr-only">{title}</h1>
       ) : (
         <div className={styles.fila}>
-          <div className={styles.titulos}>
+          <div className={cx(styles.titulos, aside ? styles.titulosAncho : null)}>
             <div className={styles.tituloLinea}>
+              {back && backInline ? (
+                <Link to={back.to} className={styles.volverEnLinea}>
+                  <Icon name="arrow-left" size={16} />
+                  {back.label}
+                </Link>
+              ) : null}
               <h1 className={hideTitle ? 'sr-only' : styles.titulo}>{title}</h1>
               {status}
               {/* Al lado: el `<p>` es el mismo, cambia dónde se cuelga. Así el
                   subtítulo sigue siendo un párrafo —y no parte del h1— para
                   quien escucha la página. */}
               {subtitle && subtitleInline ? <p className={styles.subtituloAlLado}>{subtitle}</p> : null}
+              {/* A la derecha del todo: la cinta de pasos del documento. */}
+              {aside ? <div className={styles.alCostado}>{aside}</div> : null}
             </div>
             {subtitle && !subtitleInline && <p className={styles.subtitulo}>{subtitle}</p>}
           </div>

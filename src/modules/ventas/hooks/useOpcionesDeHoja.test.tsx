@@ -17,7 +17,9 @@ import { OPCIONES_INICIALES } from '../lib/impresion'
  * Lo que se prueba acá es el invariante, no el valor: la hoja del alta arranca
  * con LO MISMO que la impresión. Si mañana la impresión cambia de opinión
  * sobre las fotos, esto sigue siendo cierto sin tocarlo, y si alguien vuelve a
- * forzar una opción de un solo lado, falla.
+ * forzar una opción de un solo lado, falla. Desde la Fase 83 el invariante es
+ * todo lo que hay: ninguna de las dos opciones tiene interruptor en la barra,
+ * las dos salen del mismo lugar.
  */
 describe('las opciones de la hoja del alta', () => {
   it('arrancan igual que las de imprimir', () => {
@@ -30,21 +32,15 @@ describe('las opciones de la hoja del alta', () => {
     })
   })
 
-  /* Y se pueden cambiar: la foto no se fue, pasó a ser un interruptor —el
-     mismo que ofrece el diálogo de imprimir—. */
-  /* Arrancan prendidas —«si tiene imagen que se le vea», Fase 82— y se
-     pueden apagar. El renglón mide lo mismo de los dos modos: el cuadro de la
-     foto existe aunque el producto no tenga ninguna. */
-  it('las fotos se prenden y se apagan', () => {
+  /* La foto dejó de ser una opción (Fase 83): «siempre va a ir con foto del
+     producto». El interruptor que tenía acá se fue, así que lo que se prueba
+     es que el valor sigue llegando prendido y que ya no hay forma de apagarlo
+     desde la barra —si alguien vuelve a poner uno, falla—. */
+  it('la foto viene prendida y sin interruptor', () => {
     const { result } = renderHook(() => useOpcionesDeHoja())
     expect(result.current.opciones.conFotos).toBe(true)
-
-    act(() => result.current.controles.onFotos(false))
-    expect(result.current.opciones.conFotos).toBe(false)
-    expect(result.current.controles.conFotos).toBe(false)
-
-    act(() => result.current.controles.onFotos(true))
-    expect(result.current.opciones.conFotos).toBe(true)
+    expect('onFotos' in result.current.controles).toBe(false)
+    expect('conFotos' in result.current.controles).toBe(false)
   })
 
   it('el formato sigue andando', () => {

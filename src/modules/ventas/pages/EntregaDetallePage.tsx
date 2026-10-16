@@ -146,7 +146,9 @@ function Detalle() {
   const stelEntrega = autoridad.stel('delivery')
 
   /**
-   * El circuito de la venta, para la barra de acciones (Fase 29 · E16).
+   * El circuito de la venta, al lado del número (Fase 29 · E16; se mudó al
+   * encabezado en la 83, donde la fila de la derecha estaba vacía y la de los
+   * botones no).
    *
    * Acá sin «Generar»: el paso siguiente es la factura, y todavía no se emite
    * desde el remito.
@@ -258,9 +260,10 @@ function Detalle() {
     },
   })
 
-  /* El formato de la hoja y la foto del producto. Viven en la barra de
-     acciones, como en el alta: arriba de la hoja eran 40 px que le sacaban
-     al documento (Fase 81). */
+  /* El formato de la hoja. Vive en la barra de acciones, como en el alta:
+     arriba de la hoja era un renglón que le sacaba alto al documento
+     (Fase 81). Quedó solo: la foto del producto dejó de ser una opción y el
+     renglón impreso la lleva siempre (Fase 83). */
   const { opciones: opcionesDeHoja, controles: controlesDeHoja } = useOpcionesDeHoja()
 
   const acciones = useAccionesDocumento(editando ? null : doc)
@@ -399,6 +402,7 @@ function Detalle() {
             </span>
           ) : null
         }
+        pasos={circuito}
       />
 
       <AvisosHistoricos documento={doc} revision={revision.data} />
@@ -444,7 +448,6 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
-          pasos={circuito}
           primary={
             <Button
               icon={<Icon name="check" size={16} />}
@@ -485,7 +488,6 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
-          pasos={circuito}
           primary={
             permiso.confirmable ? (
               <Button
@@ -506,10 +508,10 @@ function Detalle() {
                   Editar
                 </Button>
               ) : null}
-              {/* El formato de la hoja y la foto, acá y no arriba de la hoja
-                  (Fase 81): es la misma barra donde está todo lo que se
-                  puede hacer con el documento, y el renglón que ocupaban
-                  arriba era alto que le sacaban al documento. */}
+              {/* El formato de la hoja, acá y no arriba de la hoja (Fase 81):
+                  es la misma barra donde está todo lo que se puede hacer con
+                  el documento, y el renglón que ocupaba arriba era alto que le
+                  sacaba al documento. */}
               <ControlesDeHoja {...controlesDeHoja} />
               {acciones.secundarias}
             </>

@@ -329,9 +329,10 @@ function Detalle() {
 
   // Mientras se edita, las acciones del documento no se ofrecen: duplicar o
   // cancelar con un borrador a medias es perderlo.
-  /* El formato de la hoja y la foto del producto. Viven en la barra de
-     acciones, como en el alta: arriba de la hoja eran 40 px que le sacaban
-     al documento (Fase 81). */
+  /* El formato de la hoja. Vive en la barra de acciones, como en el alta:
+     arriba de la hoja era un renglón que le sacaba alto al documento
+     (Fase 81). Quedó solo: la foto del producto dejó de ser una opción y el
+     renglón impreso la lleva siempre (Fase 83). */
   const { opciones: opcionesDeHoja, controles: controlesDeHoja } = useOpcionesDeHoja()
 
   const acciones = useAccionesDocumento(borrador !== null ? null : doc)
@@ -484,10 +485,12 @@ function Detalle() {
   ]
 
   /**
-   * El circuito de la venta, para la barra de acciones (Fase 29 · E16).
+   * El circuito de la venta, al lado del número (Fase 29 · E16; se mudó al
+   * encabezado en la 83).
    *
-   * Se arma una vez y se pasa a las DOS barras —la de edición y la de
-   * lectura—: es el mismo dato en los dos estados.
+   * Estaba en la barra de acciones, repetido en la de edición y en la de
+   * lectura, y ahí le disputaba la fila a los botones. En la fila del número
+   * tiene el ancho de la derecha, que estaba vacío, y va una sola vez.
    *
    * «Generar» abre el MISMO modal de cantidades que el botón de la barra: un
    * remito nunca se crea a ciegas, hay que decir cuánto se entrega de cada
@@ -548,6 +551,7 @@ function Detalle() {
           ) : null
         }
         aviso={editando ? <Badge tone="info">Editando</Badge> : null}
+        pasos={circuito}
       />
 
 
@@ -597,7 +601,6 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
-          pasos={circuito}
           primary={
             <Button
               icon={<Icon name="check" size={16} />}
@@ -638,7 +641,6 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
-          pasos={circuito}
           primary={
             escribe && doc.estado === 'confirmed' ? (
               <Button
@@ -671,10 +673,10 @@ function Detalle() {
                   Editar
                 </Button>
               ) : null}
-              {/* El formato de la hoja y la foto, acá y no arriba de la hoja
-                  (Fase 81): es la misma barra donde está todo lo que se
-                  puede hacer con el documento, y el renglón que ocupaban
-                  arriba era alto que le sacaban al documento. */}
+              {/* El formato de la hoja, acá y no arriba de la hoja (Fase 81):
+                  es la misma barra donde está todo lo que se puede hacer con
+                  el documento, y el renglón que ocupaba arriba era alto que le
+                  sacaba al documento. */}
               <ControlesDeHoja {...controlesDeHoja} />
               {acciones.secundarias}
             </>

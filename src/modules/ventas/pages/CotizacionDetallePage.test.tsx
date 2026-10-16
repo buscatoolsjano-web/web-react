@@ -914,16 +914,72 @@ describe('Los controles de la hoja', () => {
     expect(screen.queryByLabelText(/Precios con impuestos/)).toBeNull()
   })
 
-  /* La foto sí, porque es la que hace que la hoja mida como el papel: el
-     cuadro de 20 mm por renglón es toda la diferencia (Fase 80). */
-  it('la foto del producto se puede prender y apagar', async () => {
+  /* «Con foto del producto» tampoco, desde la Fase 83: la foto se va a ver
+     siempre, así que el interruptor no decidía nada y le comía ancho a la
+     barra. El valor sigue viajando prendido —eso lo prueba el test del
+     hook—; lo que se prueba acá es que no quedó el control. */
+  it('«Con foto del producto» ya no está', async () => {
     estado.pantallaAncha = true
     montar()
     await waitFor(() => expect(hoja()).not.toBeNull())
-    const fotos = screen.getByLabelText('Con foto del producto')
-    // Prendidas de fábrica (Fase 82): si el producto tiene imagen, se ve.
-    expect(fotos).toBeChecked()
-    fireEvent.click(fotos)
-    expect(fotos).not.toBeChecked()
+    expect(screen.queryByLabelText(/Con foto del producto/)).toBeNull()
+  })
+})
+
+/*
+ * El encabezado del documento, en un solo renglón (Fase 83).
+ *
+ * «El número de cotización, pendiente y emitido en el ERP tiene que estar
+ * arriba, al lado de Cotizaciones. Y los círculos de cotización, pedido,
+ * entrega, factura subilos también: el rectángulo va a ser más chiquito y
+ * ganamos un montón de espacio.»
+ *
+ * Eran TRES renglones —«← Cotizaciones», el número con sus chips, y el
+ * circuito adentro de la barra, que ahí peleaba la fila con seis botones— y
+ * pasan a ser uno. Lo que se prueba es dónde vive cada cosa, que es lo único
+ * que se pidió: si alguna vuelve a su renglón, se pierde el alto otra vez.
+ */
+describe('El encabezado del documento', () => {
+  /* La barra de acciones también es un `header`, así que «el encabezado» es
+     el que lleva el h1: el número del documento. */
+  const encabezado = () => screen.getByRole('heading', { level: 1, name: 'COTI02558' }).closest('header')!
+  const circuito = () => screen.getByRole('navigation', { name: 'Circuito de la venta' })
+  /* Por omisión el mock de la cadena no devuelve nada y el circuito no se
+     dibuja. Acá el circuito ES lo que se prueba, así que hace falta una. */
+  const conCadena = () => {
+    estado.cadena = { cotizacion: null, pedido: null, entrega: null, factura: null }
+  }
+
+  it('la vuelta, el número y el estado comparten renglón con el circuito', async () => {
+    estado.pantallaAncha = true
+    conCadena()
+    montar()
+    await waitFor(() => expect(circuito()).toBeInTheDocument())
+
+    const cabecera = encabezado()
+    expect(within(cabecera).getByRole('link', { name: /Cotizaciones/ })).toBeInTheDocument()
+    expect(within(cabecera).getByRole('heading', { level: 1 })).toHaveTextContent('COTI02558')
+    expect(within(cabecera).getByText('Pendiente')).toBeInTheDocument()
+    expect(cabecera.contains(circuito())).toBe(true)
+  })
+
+  it('el circuito ya no está en la barra de acciones', async () => {
+    estado.pantallaAncha = true
+    conCadena()
+    montar()
+    await waitFor(() => expect(circuito()).toBeInTheDocument())
+
+    // Una sola vez en la pantalla, y fuera de la barra: antes se pasaba a las
+    // dos barras —la de lectura y la de edición— y volvía a aparecer al editar.
+    expect(screen.getAllByRole('navigation', { name: 'Circuito de la venta' })).toHaveLength(1)
+    const barra = screen.getByRole('group', { name: 'Acciones del documento' })
+    expect(barra.contains(circuito())).toBe(false)
+
+    // Y tampoco vuelve al editar, que es la otra barra.
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    expect(screen.getAllByRole('navigation', { name: 'Circuito de la venta' })).toHaveLength(1)
+    expect(
+      screen.getByRole('group', { name: 'Acciones del documento' }).contains(circuito()),
+    ).toBe(false)
   })
 })

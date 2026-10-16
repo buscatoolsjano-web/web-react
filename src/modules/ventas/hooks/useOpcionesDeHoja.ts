@@ -11,45 +11,40 @@ import { OPCIONES_INICIALES, type FormatoImpresion, type OpcionesImpresion } fro
  *
  * ── LA HOJA DEL ALTA MIDE COMO EL PAPEL (Fase 80) ───────────────────────────
  *
- * Hasta acá las fotos estaban FORZADAS en `true` (Fase 28 · E9: «la hoja lleva
- * foto siempre»), mientras que la impresión arranca sin ellas. Como la foto
- * reserva un cuadro de 20 mm en cada renglón, la misma cotización se veía con
- * renglones de 28 mm mientras se armaba y salía con renglones de 12 en el
- * papel.
+ * Hasta la Fase 80 las fotos estaban FORZADAS en `true` acá, mientras que la
+ * impresión arrancaba sin ellas. Como la foto reserva un cuadro en cada
+ * renglón, la misma cotización se veía con renglones altos mientras se armaba
+ * y salía con renglones bajos en el papel.
  *
  * Dicho por quien lo usa: «cuando estoy armando la cotización se nota que hay
  * mucho más espacio que cuando imprimo; me gusta el tamaño de cuando imprimo,
  * ese mismo tiene que estar en el preview».
  *
- * Así que las fotos pasan a ser un interruptor, con el MISMO valor inicial que
- * la impresión. Las dos superficies arrancan iguales y se mueven juntas, que
- * es lo que hace que la vista previa sea una vista previa.
- *
- * No alcanzaba con achicar el cuadro de la foto: eso las dejaría PARECIDAS, y
- * lo que se pidió es que midan lo mismo.
+ * Lo que arregló eso no fue el interruptor que se agregó entonces, sino que
+ * las dos superficies arranquen del MISMO valor. Así que desde la Fase 83 no
+ * hay interruptor: el valor inicial de la impresión —hoy con foto, que es como
+ * se pidió que salga el renglón— se usa tal cual. Un control menos en la barra
+ * y una forma menos de que las dos hojas se separen.
  */
 export function useOpcionesDeHoja(): {
   opciones: OpcionesImpresion
   controles: {
     formato: FormatoImpresion
-    conFotos: boolean
     onFormato: (f: FormatoImpresion) => void
-    onFotos: (v: boolean) => void
   }
 } {
   const [formato, setFormato] = useState<FormatoImpresion>(OPCIONES_INICIALES.formato)
-  const [conFotos, setConFotos] = useState(OPCIONES_INICIALES.conFotos)
 
   return {
     opciones: {
       formato,
-      /* Sin control propio desde la Fase 81: el que había no se usaba. El
-         valor es el mismo con el que arranca la impresión, así que las dos
-         superficies siguen mostrando lo mismo. */
+      /* Sin control propio: los que había no se usaban (Fase 81 y 83). Los
+         valores son los mismos con los que arranca la impresión, así que las
+         dos superficies siguen mostrando lo mismo. */
       preciosConImpuestos: OPCIONES_INICIALES.preciosConImpuestos,
       papel: OPCIONES_INICIALES.papel,
-      conFotos,
+      conFotos: OPCIONES_INICIALES.conFotos,
     },
-    controles: { formato, conFotos, onFormato: setFormato, onFotos: setConFotos },
+    controles: { formato, onFormato: setFormato },
   }
 }

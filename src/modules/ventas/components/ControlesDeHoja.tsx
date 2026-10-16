@@ -1,14 +1,11 @@
 import { Field } from '@/components/forms/Field'
-import { Checkbox, Select } from '@/components/forms/controls'
+import { Select } from '@/components/forms/controls'
 import { FORMATOS, type FormatoImpresion } from '../lib/impresion'
 import styles from './PanelHoja.module.css'
 
 export interface ControlesDeHojaProps {
   formato: FormatoImpresion
-  /** La foto del producto en cada renglón (Fase 80). */
-  conFotos: boolean
   onFormato: (f: FormatoImpresion) => void
-  onFotos: (v: boolean) => void
 }
 
 /**
@@ -18,8 +15,14 @@ export interface ControlesDeHojaProps {
  * los mismos valores iniciales: la hoja que se arma y la que sale impresa
  * tienen que medir igual, y para eso no alcanza con que se parezcan —tienen
  * que estar configuradas igual— (Fase 80).
+ *
+ * Quedó uno solo. Los otros dos se fueron por el mismo motivo —nadie los
+ * tocaba y le comían ancho al que sí—: «precios con impuestos» en la Fase 81 y
+ * «con foto del producto» en la 83, esta última porque la foto ya no es una
+ * opción: el renglón impreso la lleva siempre. Las dos siguen existiendo en el
+ * diálogo de imprimir, que es de donde sale el papel.
  */
-export function ControlesDeHoja({ formato, conFotos, onFormato, onFotos }: ControlesDeHojaProps) {
+export function ControlesDeHoja({ formato, onFormato }: ControlesDeHojaProps) {
   return (
     <div className={styles.controlesEnBarra}>
       <Field label="Formato" hideLabel>
@@ -31,17 +34,6 @@ export function ControlesDeHoja({ formato, conFotos, onFormato, onFotos }: Contr
           ))}
         </Select>
       </Field>
-      {/* El mismo nombre que en el diálogo de imprimir: es la misma opción.
-
-          «Precios con impuestos» ESTABA acá y se fue (Fase 81): no se usa, y
-          un control que nadie toca le come ancho a los que sí. Sigue estando
-          en el diálogo de imprimir, que es de donde sale el papel. */}
-      <Checkbox
-        label="Con foto del producto"
-        checked={conFotos}
-        disabled={formato === 'ticket'}
-        onChange={(e) => onFotos(e.target.checked)}
-      />
     </div>
   )
 }
