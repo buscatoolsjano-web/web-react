@@ -1,4 +1,4 @@
-import { useCallback, useId, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useId, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -41,7 +41,19 @@ import { ModalContactos } from '../components/ModalContactos'
 import { TablaLineas } from '../components/TablaLineas'
 import { TotalesDocumento } from '../components/TotalesDocumento'
 import { VistaPreviaDocumento } from '../components/VistaPreviaDocumento'
+import { puedeUsarEmails } from '@/modules/emails/lib/permisos'
 import { ControlesDeHoja } from '../components/ControlesDeHoja'
+/*
+ * El modal de enviar por mail, perezoso (Fase 84).
+ *
+ * Adentro va el composer entero —destinatarios, borradores de Gmail, envío—,
+ * que es mucho código para una pantalla donde la mayoría de las veces nadie
+ * lo abre. Y de paso el test de esta página no levanta el cliente de Supabase
+ * al cargar el módulo, que es lo que rompe la suite aislada.
+ */
+const ModalEnviarPorMail = lazy(() =>
+  import('../components/ModalEnviarPorMail').then((m) => ({ default: m.ModalEnviarPorMail })),
+)
 import { useOpcionesDeHoja } from '../hooks/useOpcionesDeHoja'
 import {
   agregarLinea,
@@ -235,6 +247,7 @@ function Detalle() {
   // Cuál se elige. Arranca SIEMPRE en la de por defecto: a `PDV-ERP` se llega
   // eligiéndola, nunca sola.
   const [eligiendoSerie, setEligiendoSerie] = useState(false)
+  const [enviandoPorMail, setEnviandoPorMail] = useState(false)
   const [serieDestino, setSerieDestino] = useState('')
   const serieDestinoVisible = serieDestino || seriePedidoPorDefecto?.codigo || ''
   const serieDestinoElegida =
@@ -603,6 +616,12 @@ function Detalle() {
 
   return (
     <div className={`${docUi.pagina} ${docUi.paginaAncha}`}>
+      {enviandoPorMail && doc ? (
+        <Suspense fallback={null}>
+          <ModalEnviarPorMail doc={doc} onCerrar={() => setEnviandoPorMail(false)} />
+        </Suspense>
+      ) : null}
+
       <DocumentHeader
         back={volver}
         numero={doc.numero}
@@ -745,6 +764,20 @@ function Detalle() {
                   sacaba al documento. */}
               <ControlesDeHoja {...controlesDeHoja} />
               {acciones.secundarias}
+              {/* Después de «Ver / Imprimir» y antes de «Más», que es donde se
+                  pidió: mandarla es lo que se hace con una cotización recién
+                  terminada, no una acción de rincón (Fase 84). Sólo para
+                  quien tiene Emails: el resto vería un botón que abre un
+                  cartel de «sin cuenta». */}
+              {puedeUsarEmails(activa?.rol) ? (
+                <Button
+                  variant="secondary"
+                  icon={<Icon name="mail" size={16} />}
+                  onClick={() => setEnviandoPorMail(true)}
+                >
+                  Enviar por mail
+                </Button>
+              ) : null}
             </>
           }
           more={

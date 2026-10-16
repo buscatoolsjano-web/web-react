@@ -46,29 +46,58 @@ export interface OpcionesComposer {
   clientRequestId: string | null
   /** Refleja borrador y envío en la URL; `null` los quita. */
   alCambiarUrl: (cambios: { borrador?: string | null; envio?: string | null }) => void
+  /**
+   * Con qué abrir un composer NUEVO (Fase 84).
+   *
+   * La trae quien lo abre desde otra pantalla —«Enviar por mail» en una
+   * cotización—, que sabe a quién va, cómo se llama el documento y qué va
+   * adjunto. Acá es sólo el punto de partida: lo que se abre es un formulario,
+   * y quien vende lo corrige antes de mandarlo.
+   *
+   * No se aplica a un borrador que se retoma ni a una respuesta: ahí los
+   * valores salen del borrador o del mensaje al que se contesta, y pisarlos
+   * con una semilla sería perder lo que ya estaba escrito.
+   */
+  semilla?: SemillaComposer | undefined
+}
+
+export interface SemillaComposer {
+  para?: readonly string[] | undefined
+  cc?: readonly string[] | undefined
+  asunto?: string | undefined
+  texto?: string | undefined
+  adjuntos?: readonly AdjuntoRedaccion[] | undefined
 }
 
 let contadorClaves = 0
 export const nuevaClave = () => `adj-${Date.now()}-${++contadorClaves}`
 
 /** Valores iniciales de un composer SIN borrador: los de la respuesta o el reenvío. */
-export function valoresIniciales(o: Pick<OpcionesComposer, 'modo' | 'refMensaje' | 'propia'>) {
+export function valoresIniciales(o: Pick<OpcionesComposer, 'modo' | 'refMensaje' | 'propia' | 'semilla'>) {
   const ref = o.refMensaje
   if (ref && (o.modo === 'responder' || o.modo === 'responder_todos')) {
     const d = destinatariosIniciales(o.modo, ref, o.propia)
-    return { para: d.para, cc: d.cc, asunto: ASUNTO.respuesta(ref.asunto), adjuntos: [] as AdjuntoRedaccion[] }
+    return { para: d.para, cc: d.cc, asunto: ASUNTO.respuesta(ref.asunto), texto: '', adjuntos: [] as AdjuntoRedaccion[] }
   }
   if (ref && o.modo === 'reenviar') {
     return {
       para: [],
       cc: [],
       asunto: ASUNTO.reenvio(ref.asunto),
+      texto: '',
       adjuntos: ref.adjuntos
         .filter((a) => !a.inline)
         .map<AdjuntoRedaccion>((a) => ({ clave: nuevaClave(), tipo: 'original', nombre: a.nombre, mime: a.mime, tamano: a.tamano, messageId: ref.id, partId: a.partId })),
     }
   }
-  return { para: [], cc: [], asunto: '', adjuntos: [] as AdjuntoRedaccion[] }
+  const s = o.semilla
+  return {
+    para: [...(s?.para ?? [])],
+    cc: [...(s?.cc ?? [])],
+    asunto: s?.asunto ?? '',
+    texto: s?.texto ?? '',
+    adjuntos: [...(s?.adjuntos ?? [])] as AdjuntoRedaccion[],
+  }
 }
 
 export function useComposer(o: OpcionesComposer) {
@@ -78,7 +107,7 @@ export function useComposer(o: OpcionesComposer) {
   const [cc, setCc] = useState<string[]>(iniciales?.cc ?? [])
   const [cco, setCco] = useState<string[]>([])
   const [asunto, setAsunto] = useState(iniciales?.asunto ?? '')
-  const [texto, setTexto] = useState('')
+  const [texto, setTexto] = useState(iniciales?.texto ?? '')
   const [adjuntos, setAdjuntos] = useState<AdjuntoRedaccion[]>(iniciales?.adjuntos ?? [])
   const [modo, setModo] = useState<ModoRedaccion>(o.modo)
   const [threadId, setThreadId] = useState<string | null>(o.threadId)
@@ -127,6 +156,9 @@ export function useComposer(o: OpcionesComposer) {
    * escribió algo mientras llegaba la respuesta, no se le pisa.
    */
   const [firmaInicial, setFirmaInicial] = useState('')
+  /* Con qué arrancó el cuadro de texto: lo necesita el efecto de la firma
+     para saber si la persona escribió algo mientras llegaba la plantilla. */
+  const sembrado = iniciales?.texto ?? ''
   /**
    * El envoltorio —el papel con el membrete— viene en la MISMA llamada que la
    * firma (Fase 59 · E2): salen de la misma fila de la misma RPC, y desde acá
@@ -149,13 +181,18 @@ export function useComposer(o: OpcionesComposer) {
       if (o.draftId || m.firma.trim() === '') return
       const conSalto = `\n\n${m.firma}`
       // Si la persona ya escribió algo mientras llegaba, se respeta lo suyo.
-      setTexto((actual) => (actual === '' ? conSalto : actual))
+      // «Lo suyo» incluye no haber tocado nada: ahí el cuadro tiene lo que
+      // sembró quien abrió el composer —vacío, o el cuerpo que trajo (Fase
+      // 84)— y la firma va DESPUÉS, que es donde iría si la escribiera.
+      setTexto((actual) => (actual === sembrado ? `${actual}${conSalto}` : actual))
       setFirmaInicial(conSalto)
     })
     return () => {
       vivo = false
     }
-  }, [o.draftId, companyId])
+    // `sembrado` sale de un `useState` inicial: no cambia en la vida del
+    // composer, así que estar en la lista no hace que esto corra de nuevo.
+  }, [o.draftId, companyId, sembrado])
 
   // ── Recuperar un borrador de Gmail ───────────────────────────────────────
   useEffect(() => {

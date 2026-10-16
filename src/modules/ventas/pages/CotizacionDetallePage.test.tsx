@@ -1017,3 +1017,49 @@ describe('El encabezado del documento', () => {
     expect(barra().contains(circuito())).toBe(true)
   })
 })
+
+/*
+ * Mandarle la cotización al cliente (Fase 84).
+ *
+ * «Entre el botón de Ver/Imprimir y Más quiero que esté la opción de enviar
+ * por mail. Entonces ahí se abre como una plantilla enviando la cotización
+ * por mail al cliente correspondiente.»
+ *
+ * El modal es perezoso y adentro lleva el composer entero, así que acá NO se
+ * abre: abrirlo arrastraría el cliente de Supabase al módulo y rompería la
+ * suite que corre sin `.env`. Lo que se prueba es lo que se pidió del botón
+ * —que exista, dónde está y quién lo ve—; lo de adentro tiene sus propios
+ * tests en `mailDocumento`.
+ */
+describe('Enviar por mail', () => {
+  const nombres = () =>
+    screen
+      .getAllByRole('button')
+      .map((b) => b.textContent?.trim() ?? '')
+
+  it('está entre «Ver / Imprimir» y «Más»', () => {
+    montar()
+    const orden = nombres()
+    const imprimir = orden.findIndex((n) => n.startsWith('Ver / Imprimir'))
+    const enviar = orden.findIndex((n) => n === 'Enviar por mail')
+    const mas = orden.findIndex((n) => n.startsWith('Más'))
+
+    expect(imprimir).toBeGreaterThanOrEqual(0)
+    expect(enviar).toBeGreaterThan(imprimir)
+    expect(mas).toBeGreaterThan(enviar)
+  })
+
+  /* Emails es de admin y employee: a un vendedor el botón le abriría un
+     cartel de «sin cuenta», que es peor que no ofrecerlo. */
+  it('un vendedor no lo ve', () => {
+    estado.rol = 'salesperson'
+    montar()
+    expect(screen.queryByRole('button', { name: 'Enviar por mail' })).toBeNull()
+  })
+
+  it('tampoco aparece mientras se edita, como el resto de las acciones', () => {
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    expect(screen.queryByRole('button', { name: 'Enviar por mail' })).toBeNull()
+  })
+})
