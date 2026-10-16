@@ -343,3 +343,44 @@ describe('la columna de descuento', () => {
     expect(encabezadosDe()).toContain('% Dto.')
   })
 })
+
+/*
+ * Lo que la hoja NO dice (Fase 84).
+ *
+ * «Cuando se imprime, lo de observaciones no quiero que se muestre: eso es
+ * algo privado. Y lo de buscatools.com, sacalo. Y que subtotal, impuestos y
+ * total vayan al margen inferior, así entran más productos por hoja.»
+ *
+ * Los dos primeros son fáciles de volver a agregar sin querer —parecen datos
+ * del documento como cualquier otro—, así que valen un test: uno manda una
+ * nota de adentro a un cliente, el otro le saca 12 mm a los productos.
+ */
+describe('Lo que la hoja no imprime', () => {
+  it('las observaciones del documento no salen', () => {
+    montar(doc({ notas: 'Generada al importar la orden de compra 4800027334.' }))
+
+    expect(screen.queryByText(/orden de compra 4800027334/)).toBeNull()
+    expect(screen.queryByText(/Observaciones/i)).toBeNull()
+  })
+
+  /* La web sigue arriba, en el bloque de contacto: lo que se fue es la
+     REPETICIÓN de abajo, que además traía su propia raya y su renglón. */
+  it('la dirección web va una sola vez, arriba', () => {
+    montar()
+    expect(screen.getAllByText('www.buscatools.com')).toHaveLength(1)
+  })
+
+  /* Y sin pie, los totales son lo último de la hoja: contra el margen. */
+  it('los totales son lo último de la hoja', () => {
+    const { container } = montar()
+    const hoja = container.querySelector('[data-impresion="hoja"]')!
+    expect(hoja.lastElementChild?.textContent).toContain('TOTAL')
+  })
+
+  /* La excepción: un documento migrado sí lleva pie, porque esa aclaración
+     explica por qué su número no sigue la numeración de acá. */
+  it('un documento migrado conserva su aclaración al pie', () => {
+    montar(doc({ esHistorico: true }))
+    expect(screen.getByText('Documento migrado del sistema anterior')).toBeInTheDocument()
+  })
+})

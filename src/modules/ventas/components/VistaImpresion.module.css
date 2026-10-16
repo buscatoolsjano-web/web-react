@@ -17,7 +17,7 @@
      C · datos del documento / cliente
      D · productos
      E · relleno flexible           ← lo que empuja los totales abajo
-     F · observaciones + totales
+     F · totales
      G · pie
 
    La zona E es la regla 13: con uno o con siete productos, los totales
@@ -408,44 +408,29 @@
 
 /* ── E · el relleno que ancla los totales abajo ────────────────────────── */
 
+/* Empuja el cierre contra el margen de abajo: `flex: 1` se come todo el
+   hueco que sobra. El mínimo es el aire entre la última línea y los totales,
+   y bajó de 8 a 6 mm en la Fase 84 —junto con los 4 de margen del cierre, que
+   se fueron— porque cada milímetro de acá es alto que no tienen los
+   productos. */
 .relleno {
   flex: 1 1 auto;
-  min-height: 8mm;
+  min-height: 6mm;
 }
 
-/* ── F · observaciones y totales ───────────────────────────────────────── */
+/* ── F · los totales ───────────────────────────────────────────────────── */
 
+/* Era una grilla de dos columnas: observaciones a la izquierda, totales a la
+   derecha. Las observaciones no se imprimen más (Fase 84), así que queda una
+   sola cosa y se alinea sola a la derecha. */
 .cierre {
-  display: grid;
-  grid-template-columns: 1fr 72mm;
-  gap: 8mm;
-  align-items: end;
-  margin-top: 4mm;
+  display: flex;
+  justify-content: flex-end;
   break-inside: avoid;
 }
 
-.observaciones {
-  font-size: 8pt;
-  color: var(--tinta-suave);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  /* Acotadas: las observaciones no empujan los totales fuera de la hoja. */
-  display: -webkit-box;
-  -webkit-line-clamp: 6;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.tituloObs {
-  color: var(--naranja);
-  font-size: 7.5pt;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-bottom: 1mm;
-}
-
 .totales {
+  width: 72mm;
   font-size: 9pt;
 }
 
@@ -470,12 +455,14 @@
 
 /* ── G · pie ───────────────────────────────────────────────────────────── */
 
+/* Sólo para los documentos migrados: la dirección web que llevaba antes ya
+   está arriba, en el bloque de contacto (Fase 84). */
 .pie {
   margin-top: 5mm;
   padding-top: 2mm;
   border-top: 1px solid var(--linea);
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 4mm;
   font-size: 7.5pt;
   color: var(--tinta-suave);

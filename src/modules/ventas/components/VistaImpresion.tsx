@@ -536,17 +536,20 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
       {/* ── E · el relleno que ancla el cierre abajo ────────────────── */}
       <div className={styles.relleno} />
 
-      {/* ── F · observaciones y totales ─────────────────────────────── */}
-      <section className={styles.cierre}>
-        <div>
-          {doc.notas ? (
-            <>
-              <div className={styles.tituloObs}>Observaciones</div>
-              <div className={styles.observaciones}>{doc.notas}</div>
-            </>
-          ) : null}
-        </div>
-        {ver.totales ? (
+      {/* ── F · los totales, contra el margen de abajo ──────────────── */}
+      {/*
+        Acá al lado iban las OBSERVACIONES del documento, y se fueron en la
+        Fase 84: «eso es algo privado». Son notas de trabajo —«generada al
+        importar la orden de compra 4800027334», el motivo de un precio, con
+        quién se habló— escritas para adentro, y la hoja va al cliente. Siguen
+        en «Información del documento» y en la exportación, que es donde se
+        las mira.
+
+        El renglón que SÍ es para el cliente es el título del documento, que
+        sale arriba debajo del tipo: ahí va lo que se le quiera decir.
+      */}
+      {ver.totales ? (
+        <section className={styles.cierre}>
           <div className={styles.totales}>
             <div>
               <span>Subtotal</span>
@@ -563,18 +566,24 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
               <b>{formatearImporte(doc.total, moneda)}</b>
             </div>
           </div>
-        ) : (
-          <div />
-        )}
-      </section>
+        </section>
+      ) : null}
 
       {/* ── G · pie ─────────────────────────────────────────────────── */}
-      <footer className={styles.pie}>
-        <span>{empresa.web ?? ''}</span>
-        {doc.esHistorico ? (
+      {/*
+        El pie llevaba la dirección web, que ya está arriba en el bloque de
+        contacto de la empresa: era el mismo dato dos veces y un renglón con
+        su raya que le sacaba 12 mm a los productos (Fase 84). Sin él, los
+        totales quedan contra el margen de abajo.
+
+        Queda sólo para los documentos migrados, donde la aclaración no es
+        decoración: explica por qué el número no sigue la numeración de acá.
+      */}
+      {doc.esHistorico ? (
+        <footer className={styles.pie}>
           <span className={styles.historico}>Documento migrado del sistema anterior</span>
-        ) : null}
-      </footer>
+        </footer>
+      ) : null}
     </div>
   )
 }
