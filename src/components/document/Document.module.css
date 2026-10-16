@@ -68,6 +68,34 @@
   transition: padding 120ms ease-out;
 }
 
+/*
+ * La rendija de arriba (Fase 84).
+ *
+ * La barra se pega 8 px más abajo que el header —ese aire es lo que la hace
+ * ver como una pieza aparte y no pegada al borde—, y esos 8 px no son de
+ * nadie: el documento pasa por ahí mientras se scrollea y se ve una tira de
+ * texto deslizándose entre el header y la barra. Dicho por quien lo usa:
+ * «cuando voy bajando, el header traspasa lo que se va arrastrando y queda
+ * raro».
+ *
+ * Esta placa tapa la rendija con el fondo de la página. Va pegada arriba de
+ * la barra y del mismo ancho, que alcanza: todo lo que scrollea vive dentro
+ * de `.pagina`, que mide lo mismo.
+ *
+ * No hace falta esperar a que la barra se pegue: suelta, esos 8 px son parte
+ * del hueco que deja el gap de la página, o sea fondo tapando fondo.
+ */
+.actionBarPegajosa::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: var(--space-2);
+  background: var(--color-bg);
+  pointer-events: none;
+}
+
 /* El centinela de `useBarraPegada`: un píxel invisible arriba de la barra.
    No ocupa alto propio —el margen negativo lo compensa— para no mover nada. */
 .centinela {
