@@ -32,31 +32,24 @@ export function useOpcionesDeHoja(): {
   opciones: OpcionesImpresion
   controles: {
     formato: FormatoImpresion
-    conImpuestos: boolean
     conFotos: boolean
     onFormato: (f: FormatoImpresion) => void
-    onImpuestos: (v: boolean) => void
     onFotos: (v: boolean) => void
   }
 } {
   const [formato, setFormato] = useState<FormatoImpresion>(OPCIONES_INICIALES.formato)
-  const [conImpuestos, setConImpuestos] = useState(OPCIONES_INICIALES.preciosConImpuestos)
   const [conFotos, setConFotos] = useState(OPCIONES_INICIALES.conFotos)
 
   return {
     opciones: {
       formato,
-      preciosConImpuestos: conImpuestos,
+      /* Sin control propio desde la Fase 81: el que había no se usaba. El
+         valor es el mismo con el que arranca la impresión, así que las dos
+         superficies siguen mostrando lo mismo. */
+      preciosConImpuestos: OPCIONES_INICIALES.preciosConImpuestos,
       papel: OPCIONES_INICIALES.papel,
       conFotos,
     },
-    controles: {
-      formato,
-      conImpuestos,
-      conFotos,
-      onFormato: setFormato,
-      onImpuestos: setConImpuestos,
-      onFotos: setConFotos,
-    },
+    controles: { formato, conFotos, onFormato: setFormato, onFotos: setConFotos },
   }
 }

@@ -44,11 +44,18 @@ describe('las opciones de la hoja del alta', () => {
     expect(result.current.opciones.conFotos).toBe(false)
   })
 
-  it('el formato y los impuestos siguen andando', () => {
+  it('el formato sigue andando', () => {
     const { result } = renderHook(() => useOpcionesDeHoja())
     act(() => result.current.controles.onFormato('ticket'))
-    act(() => result.current.controles.onImpuestos(true))
     expect(result.current.opciones.formato).toBe('ticket')
-    expect(result.current.opciones.preciosConImpuestos).toBe(true)
+  })
+
+  /* «Precios con impuestos» se fue de la barra (Fase 81): no se usaba. El
+     valor sigue viajando —lo necesita la hoja— con el mismo que trae la
+     impresión, que es de donde sale el papel. */
+  it('los precios con impuestos quedan como los deja la impresión', () => {
+    const { result } = renderHook(() => useOpcionesDeHoja())
+    expect(result.current.opciones.preciosConImpuestos).toBe(OPCIONES_INICIALES.preciosConImpuestos)
+    expect('onImpuestos' in result.current.controles).toBe(false)
   })
 })

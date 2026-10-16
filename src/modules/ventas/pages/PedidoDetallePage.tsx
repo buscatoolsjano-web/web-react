@@ -42,6 +42,8 @@ import { ModalContactos } from '../components/ModalContactos'
 import { TablaLineas } from '../components/TablaLineas'
 import { TotalesDocumento } from '../components/TotalesDocumento'
 import { VistaPreviaDocumento } from '../components/VistaPreviaDocumento'
+import { ControlesDeHoja } from '../components/ControlesDeHoja'
+import { useOpcionesDeHoja } from '../hooks/useOpcionesDeHoja'
 import {
   useContactos,
   useDireccionesEntrega,
@@ -327,6 +329,11 @@ function Detalle() {
 
   // Mientras se edita, las acciones del documento no se ofrecen: duplicar o
   // cancelar con un borrador a medias es perderlo.
+  /* El formato de la hoja y la foto del producto. Viven en la barra de
+     acciones, como en el alta: arriba de la hoja eran 40 px que le sacaban
+     al documento (Fase 81). */
+  const { opciones: opcionesDeHoja, controles: controlesDeHoja } = useOpcionesDeHoja()
+
   const acciones = useAccionesDocumento(borrador !== null ? null : doc)
 
   const abrirEdicion = useCallback((d: DocumentoDetalle) => {
@@ -602,13 +609,19 @@ function Detalle() {
             </Button>
           }
           secondary={
-            <Button
-              variant="secondary"
-              disabled={guardar.isPending}
-              onClick={() => (sucio ? setConfirmarSalida(true) : descartar())}
-            >
-              Descartar
-            </Button>
+            <>
+              {/* También mientras se edita: la hoja de al lado es la que se
+                  está editando, y poder cambiarle el formato es parte de
+                  mirarla (Fase 81). */}
+              <ControlesDeHoja {...controlesDeHoja} />
+              <Button
+                variant="secondary"
+                disabled={guardar.isPending}
+                onClick={() => (sucio ? setConfirmarSalida(true) : descartar())}
+              >
+                Descartar
+              </Button>
+            </>
           }
           note={
             <>
@@ -658,6 +671,11 @@ function Detalle() {
                   Editar
                 </Button>
               ) : null}
+              {/* El formato de la hoja y la foto, acá y no arriba de la hoja
+                  (Fase 81): es la misma barra donde está todo lo que se
+                  puede hacer con el documento, y el renglón que ocupaban
+                  arriba era alto que le sacaban al documento. */}
+              <ControlesDeHoja {...controlesDeHoja} />
               {acciones.secundarias}
             </>
           }
@@ -779,6 +797,7 @@ function Detalle() {
           {verPrevia ? (
             <div className={editor.columnaPrevia}>
               <VistaPreviaDocumento
+                opciones={opcionesDeHoja}
                 doc={docVisible}
                 lineas={lineasVisibles}
                 ajustarAlAncho={pantallaAncha}

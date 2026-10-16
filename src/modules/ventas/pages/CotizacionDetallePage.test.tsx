@@ -882,3 +882,47 @@ describe('La hoja del documento', () => {
     expect(within(hoja()!).getByRole('button', { name: /Agregar producto/ })).toBeInTheDocument()
   })
 })
+
+/*
+ * Los controles de la hoja, en la barra de acciones (Fase 81).
+ *
+ * «Lo de precios con impuestos directamente sacalo porque no va a ir. Y lo de
+ * valorado subilo al rectángulo de arriba, donde están Cotizaciones, Ya tiene
+ * pedido, Ver/Imprimir y Más, para ganar más espacio.»
+ *
+ * El renglón que ocupaban arriba de la hoja eran 40 px que le sacaban al
+ * documento. El alta ya lo hacía así desde la Fase 28 · E12; esto lo empareja.
+ */
+describe('Los controles de la hoja', () => {
+  const hoja = () => screen.queryByRole('region', { name: 'Documento' })
+
+  it('el formato vive en la barra de acciones y no arriba de la hoja', async () => {
+    estado.pantallaAncha = true
+    montar()
+    await waitFor(() => expect(hoja()).not.toBeNull())
+
+    const formato = screen.getByLabelText('Formato')
+    expect(formato).toBeInTheDocument()
+    // En la barra pegajosa, con el resto de las acciones del documento.
+    expect(hoja()!.contains(formato)).toBe(false)
+  })
+
+  it('«Precios con impuestos» ya no está', async () => {
+    estado.pantallaAncha = true
+    montar()
+    await waitFor(() => expect(hoja()).not.toBeNull())
+    expect(screen.queryByLabelText(/Precios con impuestos/)).toBeNull()
+  })
+
+  /* La foto sí, porque es la que hace que la hoja mida como el papel: el
+     cuadro de 20 mm por renglón es toda la diferencia (Fase 80). */
+  it('la foto del producto se puede prender y apagar', async () => {
+    estado.pantallaAncha = true
+    montar()
+    await waitFor(() => expect(hoja()).not.toBeNull())
+    const fotos = screen.getByLabelText('Con foto del producto')
+    expect(fotos).not.toBeChecked()
+    fireEvent.click(fotos)
+    expect(fotos).toBeChecked()
+  })
+})

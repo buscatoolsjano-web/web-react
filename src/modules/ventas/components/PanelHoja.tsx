@@ -1,15 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { Field } from '@/components/forms/Field'
-import { Checkbox, Select } from '@/components/forms/controls'
-import {
-  FORMATOS,
-  OPCIONES_INICIALES,
-  type EmpresaImpresion,
-  type FormatoImpresion,
-  type OpcionesImpresion,
-} from '../lib/impresion'
+import type { EmpresaImpresion, OpcionesImpresion } from '../lib/impresion'
 import { datosDeEmpresa } from '../services/empresa'
 import styles from './PanelHoja.module.css'
 
@@ -34,13 +26,18 @@ export interface PanelHojaProps {
   /** Al lado del editor la hoja A4 no entra a tamaño real: se escala. */
   ajustarAlAncho?: boolean
   /**
-   * Las opciones de la hoja, cuando las maneja la pantalla (Fase 28 · E12).
+   * Las opciones de la hoja. Las maneja SIEMPRE la pantalla (Fase 81).
    *
-   * Con esto el panel NO dibuja su renglón de controles: los pone la pantalla
-   * donde quiera —en el alta, adentro de la barra de acciones—. Sin esto se
-   * comporta como siempre y los maneja él.
+   * Hasta acá eran opcionales y, sin ellas, el panel dibujaba su propio
+   * renglón de controles arriba de la hoja. Ahora los controles viven en la
+   * barra de acciones en las dos pantallas —el alta ya lo hacía desde la
+   * Fase 28 · E12— así que ese renglón no existe más: son 40 px que le sacaba
+   * al documento.
+   *
+   * Y además las forzaba con `conFotos: true`, que era por qué la hoja del
+   * detalle medía distinto que el papel (Fase 80).
    */
-  opciones?: OpcionesImpresion | undefined
+  opciones: OpcionesImpresion
   /** La hoja, armada con las opciones y los datos de empresa que da el panel. */
   children: (opciones: OpcionesImpresion, empresa: EmpresaImpresion) => ReactNode
 }
@@ -66,10 +63,8 @@ export interface PanelHojaProps {
  * La hoja en sí la arma quien lo usa, con `VistaImpresion`: no hay una
  * plantilla para la pantalla y otra para el papel.
  */
-export function PanelHoja({ etiqueta, aclaracion, ajustarAlAncho = false, opciones: opcionesDeAfuera, children }: PanelHojaProps) {
+export function PanelHoja({ etiqueta, aclaracion, ajustarAlAncho = false, opciones, children }: PanelHojaProps) {
   const { activa } = useEmpresa()
-  const [formato, setFormato] = useState<FormatoImpresion>(OPCIONES_INICIALES.formato)
-  const [conImpuestos, setConImpuestos] = useState(OPCIONES_INICIALES.preciosConImpuestos)
 
   // La misma consulta y la misma clave que usa el modal de impresión.
   const { data: empresaDb } = useQuery({
@@ -90,14 +85,6 @@ export function PanelHoja({ etiqueta, aclaracion, ajustarAlAncho = false, opcion
     color: '#1f2937',
   }
 
-  const opciones: OpcionesImpresion = opcionesDeAfuera ?? {
-    formato,
-    preciosConImpuestos: conImpuestos,
-    papel: OPCIONES_INICIALES.papel,
-    // Fase 28 · E9: la hoja lleva foto SIEMPRE. El hueco existe en todas las
-    // filas aunque el producto no tenga imagen, así todas miden lo mismo.
-    conFotos: true,
-  }
 
   /**
    * La hoja ocupa TODO el ancho disponible, y el resto se desplaza
@@ -161,31 +148,14 @@ export function PanelHoja({ etiqueta, aclaracion, ajustarAlAncho = false, opcion
 
   return (
     <section className={styles.panel} aria-label={etiqueta}>
-      {/* El renglón de controles sólo existe cuando el panel maneja sus
-          opciones. Si las pone la pantalla —que las lleva a la barra de
-          acciones— acá no queda nada que dibujar, y son 40 px más de hoja. */}
-      {opcionesDeAfuera === undefined || aclaracion ? (
+      {/* Lo único que puede quedar arriba de la hoja es la aclaración, y sólo
+          cuando hay algo que aclarar. Los controles viven en la barra de
+          acciones (Fase 81): acá eran 40 px que le sacaban al documento.
+
+          La aclaración no puede vivir en un tooltip: el dato hace falta. */}
+      {aclaracion ? (
         <div className={styles.controles}>
-          {opcionesDeAfuera === undefined ? (
-            <>
-              <Field label="Formato" hideLabel>
-                <Select value={formato} onChange={(e) => setFormato(e.target.value as FormatoImpresion)}>
-                  {FORMATOS.map((f) => (
-                    <option key={f.valor} value={f.valor}>
-                      {f.etiqueta}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Checkbox
-                label="Precios con impuestos"
-                checked={conImpuestos}
-                onChange={(e) => setConImpuestos(e.target.checked)}
-              />
-            </>
-          ) : null}
-          {/* La aclaración no puede vivir en un tooltip: el dato hace falta. */}
-          {aclaracion ? <span className={styles.aclaracion}>{aclaracion}</span> : null}
+          <span className={styles.aclaracion}>{aclaracion}</span>
         </div>
       ) : null}
 

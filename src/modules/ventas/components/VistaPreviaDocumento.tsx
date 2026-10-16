@@ -1,5 +1,5 @@
 import { useDatosDeProductos } from '../hooks/useDatosDeProductos'
-import { construirImprimible } from '../lib/impresion'
+import { construirImprimible, type OpcionesImpresion } from '../lib/impresion'
 import { PanelHoja } from './PanelHoja'
 import { VistaImpresion, type EdicionEnHoja } from './VistaImpresion'
 import type { DocumentoDetalle, LineaDocumento } from '../types'
@@ -20,6 +20,15 @@ export interface VistaPreviaDocumentoProps {
   edicion?: EdicionEnHoja | null
   /** Qué aclarar. Mientras se edita, que los totales son previsualización. */
   aclaracion?: string | null
+  /**
+   * Las opciones de la hoja (Fase 81).
+   *
+   * Las maneja la pantalla y sus controles viven en la barra de acciones,
+   * igual que en el alta. Hasta acá las manejaba `PanelHoja` en un renglón
+   * propio arriba de la hoja, y además forzaba las fotos: por eso el detalle
+   * medía distinto que el papel.
+   */
+  opciones: OpcionesImpresion
 }
 
 /**
@@ -42,6 +51,7 @@ export function VistaPreviaDocumento({
   ajustarAlAncho = false,
   edicion = null,
   aclaracion = null,
+  opciones: opcionesDeLaPantalla,
 }: VistaPreviaDocumentoProps) {
   // La hoja muestra lo MISMO que se imprime: foto y descripción armada con
   // los datos del producto (Fase 28 · E9).
@@ -52,6 +62,7 @@ export function VistaPreviaDocumento({
       etiqueta="Documento"
       aclaracion={aclaracion}
       ajustarAlAncho={ajustarAlAncho}
+      opciones={opcionesDeLaPantalla}
     >
       {(opciones, empresa) => (
         <VistaImpresion

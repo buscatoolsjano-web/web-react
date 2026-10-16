@@ -17,8 +17,11 @@ export interface VistaPreviaBorradorProps {
   lineas: readonly LineaDocumento[]
   /** Al lado del editor la hoja A4 no entra a tamaño real: se achica. */
   ajustarAlAncho?: boolean
-  /** Las opciones de la hoja, cuando las maneja la pantalla (Fase 28 · E12). */
-  opcionesDeHoja?: OpcionesImpresion | undefined
+  /**
+   * Las opciones de la hoja. Las maneja la pantalla, que las muestra en la
+   * barra de acciones (Fase 28 · E12, obligatorias desde la 81).
+   */
+  opcionesDeHoja: OpcionesImpresion
   /** Si viene, la hoja se puede editar (Fase 22 · A3). */
   edicion?: EdicionEnHoja | null
 }

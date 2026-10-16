@@ -5,11 +5,9 @@ import styles from './PanelHoja.module.css'
 
 export interface ControlesDeHojaProps {
   formato: FormatoImpresion
-  conImpuestos: boolean
   /** La foto del producto en cada renglón (Fase 80). */
   conFotos: boolean
   onFormato: (f: FormatoImpresion) => void
-  onImpuestos: (v: boolean) => void
   onFotos: (v: boolean) => void
 }
 
@@ -21,14 +19,7 @@ export interface ControlesDeHojaProps {
  * tienen que medir igual, y para eso no alcanza con que se parezcan —tienen
  * que estar configuradas igual— (Fase 80).
  */
-export function ControlesDeHoja({
-  formato,
-  conImpuestos,
-  conFotos,
-  onFormato,
-  onImpuestos,
-  onFotos,
-}: ControlesDeHojaProps) {
+export function ControlesDeHoja({ formato, conFotos, onFormato, onFotos }: ControlesDeHojaProps) {
   return (
     <div className={styles.controlesEnBarra}>
       <Field label="Formato" hideLabel>
@@ -40,8 +31,11 @@ export function ControlesDeHoja({
           ))}
         </Select>
       </Field>
-      <Checkbox label="Precios con impuestos" checked={conImpuestos} onChange={(e) => onImpuestos(e.target.checked)} />
-      {/* El mismo nombre que en el diálogo de imprimir: es la misma opción. */}
+      {/* El mismo nombre que en el diálogo de imprimir: es la misma opción.
+
+          «Precios con impuestos» ESTABA acá y se fue (Fase 81): no se usa, y
+          un control que nadie toca le come ancho a los que sí. Sigue estando
+          en el diálogo de imprimir, que es de donde sale el papel. */}
       <Checkbox
         label="Con foto del producto"
         checked={conFotos}

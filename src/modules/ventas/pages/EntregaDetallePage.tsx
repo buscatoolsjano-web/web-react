@@ -34,6 +34,8 @@ import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
 import { PanelAvanceRemito } from '../components/PanelAvanceRemito'
 import { VistaPreviaDocumento } from '../components/VistaPreviaDocumento'
+import { ControlesDeHoja } from '../components/ControlesDeHoja'
+import { useOpcionesDeHoja } from '../hooks/useOpcionesDeHoja'
 import { TablaLineas } from '../components/TablaLineas'
 import {
   useAvanceDeRemito,
@@ -256,6 +258,11 @@ function Detalle() {
     },
   })
 
+  /* El formato de la hoja y la foto del producto. Viven en la barra de
+     acciones, como en el alta: arriba de la hoja eran 40 px que le sacaban
+     al documento (Fase 81). */
+  const { opciones: opcionesDeHoja, controles: controlesDeHoja } = useOpcionesDeHoja()
+
   const acciones = useAccionesDocumento(editando ? null : doc)
 
   const descartar = useCallback(() => {
@@ -449,13 +456,19 @@ function Detalle() {
             </Button>
           }
           secondary={
-            <Button
-              variant="secondary"
-              disabled={guardar.isPending}
-              onClick={() => (sucio ? setConfirmarSalida(true) : descartar())}
-            >
-              Descartar
-            </Button>
+            <>
+              {/* También mientras se edita: la hoja de al lado es la que se
+                  está editando, y poder cambiarle el formato es parte de
+                  mirarla (Fase 81). */}
+              <ControlesDeHoja {...controlesDeHoja} />
+              <Button
+                variant="secondary"
+                disabled={guardar.isPending}
+                onClick={() => (sucio ? setConfirmarSalida(true) : descartar())}
+              >
+                Descartar
+              </Button>
+            </>
           }
           note={
             <>
@@ -493,6 +506,11 @@ function Detalle() {
                   Editar
                 </Button>
               ) : null}
+              {/* El formato de la hoja y la foto, acá y no arriba de la hoja
+                  (Fase 81): es la misma barra donde está todo lo que se
+                  puede hacer con el documento, y el renglón que ocupaban
+                  arriba era alto que le sacaban al documento. */}
+              <ControlesDeHoja {...controlesDeHoja} />
               {acciones.secundarias}
             </>
           }
@@ -742,6 +760,7 @@ function Detalle() {
           {verPrevia ? (
             <div className={editor.columnaPrevia}>
               <VistaPreviaDocumento
+                opciones={opcionesDeHoja}
                 doc={doc}
                 lineas={lineasParaHoja}
                 ajustarAlAncho={pantallaAncha}
