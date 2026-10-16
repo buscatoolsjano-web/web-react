@@ -6,16 +6,21 @@ import styles from './Document.module.css'
 
 export interface ActionBarProps {
   /**
-   * Vuelta al listado, para las pantallas que NO dibujan encabezado.
+   * Vuelta al listado.
    *
-   * Es el caso del alta: ahí la barra es el encabezado —lleva el h1 invisible
-   * y el «volver»— porque arriba no hay nada más.
+   * Sí, el encabezado del documento ya tiene la suya desde la Fase 83, al
+   * lado del número. Y sí, se probó sacar esta por duplicada —el botón ocupa
+   * ancho y empuja a los demás—. Duró una tarde: la barra está PEGADA y el
+   * encabezado no, así que con el documento scrolleado no quedaba forma de
+   * salir del documento sin el botón del navegador. «Cuando scrolleo no puedo
+   * salir de ahí directo.»
    *
-   * En el detalle de un documento no se usa desde la Fase 83: el encabezado ya
-   * tiene su «← Cotizaciones» a la izquierda del número, y repetirlo acá era
-   * un botón de ancho completo que empujaba al resto. Lo que se pierde es que,
-   * con la barra pegada y el documento scrolleado, la vuelta queda arriba
-   * fuera de la vista.
+   * No está duplicada: hay una arriba y una que te sigue. Si alguna vez
+   * molesta de verdad, lo que hay que arreglar es que el encabezado no se
+   * pega, no esta ranura.
+   *
+   * En el alta no hay encabezado y esta es la única: ahí la barra lleva
+   * también el h1 invisible.
    */
   volver?: { to: string; label: string } | undefined
   /**

@@ -444,6 +444,7 @@ function Detalle() {
       {editando ? (
         <ActionBar
           pegajosa
+          volver={volver}
           pasos={circuito}
           primary={
             <Button
@@ -484,6 +485,7 @@ function Detalle() {
       ) : (
         <ActionBar
           pegajosa
+          volver={volver}
           pasos={circuito}
           primary={
             permiso.confirmable ? (

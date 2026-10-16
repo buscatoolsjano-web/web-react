@@ -664,6 +664,7 @@ function Detalle() {
         // borrador a medias es perderlo.
         <ActionBar
           pegajosa
+          volver={volver}
           pasos={circuito}
           primary={
             <Button
@@ -704,6 +705,7 @@ function Detalle() {
       ) : (
         <ActionBar
           pegajosa
+          volver={volver}
           pasos={circuito}
           /*
             Acá vivía «Marcar como enviada», que se sacó en la Fase 43.

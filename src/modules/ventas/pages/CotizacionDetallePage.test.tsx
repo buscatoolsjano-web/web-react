@@ -982,16 +982,24 @@ describe('El encabezado del documento', () => {
     expect(within(cabecera).getByText('Pendiente')).toBeInTheDocument()
   })
 
-  /* Y una sola vez: la barra tenía el suyo, que era el mismo enlace al mismo
-     listado dos renglones más abajo (Fase 83). */
-  it('la vuelta no se repite en la barra de acciones', async () => {
+  /**
+   * Y la barra conserva la SUYA, que parece la misma y no lo es.
+   *
+   * Se sacó por duplicada y se volvió a poner el mismo día: la barra está
+   * pegada y el encabezado no, así que con el documento scrolleado la del
+   * encabezado ya no está en pantalla. «Cuando scrolleo no puedo salir de ahí
+   * directo.»
+   *
+   * Este test existe para que no se la vuelvan a llevar por limpieza: dos
+   * enlaces al mismo listado parecen uno de más hasta que se baja la página.
+   */
+  it('la barra conserva su propia vuelta, porque es la que acompaña al scroll', async () => {
     estado.pantallaAncha = true
     conCadena()
     montar()
     await waitFor(() => expect(circuito()).toBeInTheDocument())
 
-    expect(screen.getAllByRole('link', { name: /^←?s*Cotizaciones$/ })).toHaveLength(1)
-    expect(within(barra()).queryByRole('link', { name: /Cotizaciones/ })).toBeNull()
+    expect(within(barra()).getByRole('link', { name: /Cotizaciones/ })).toBeInTheDocument()
   })
 
   it('el circuito vive en la barra de acciones y una sola vez', async () => {
