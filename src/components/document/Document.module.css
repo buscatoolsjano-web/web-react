@@ -107,26 +107,43 @@
 /* Pegada, la barra pasa a UNA sola fila (Fase 29 · E5).
    Suelta ocupa dos bloques apilados: los botones y la nota de qué falta. Ese
    alto, fijo sobre el documento, tapaba media columna del formulario al
-   bajar. Pegada, la nota se corre AL LADO de los botones —segunda columna del
-   mismo grid— y queda en un renglón con puntos suspensivos: se sigue leyendo
-   qué falta, sin comerse la pantalla.
+   bajar.
 
    El `h1` del título no molesta acá: es `.sr-only`, o sea `position:
-   absolute`, así que no ocupa celda del grid.
-
-   Entera vuelve a verse al subir, que es donde se está cuando se completa el
-   formulario. */
+   absolute`, así que no ocupa celda del grid. */
 .actionBarPegajosa[data-pegada='true'] {
-  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   padding-block: var(--space-2);
 }
 
+/*
+ * Pegada, la nota no se ve (Fase 84).
+ *
+ * La Fase 29 la corría al lado de los botones, en un renglón con puntos
+ * suspensivos, para seguir leyendo qué falta sin comerse la pantalla. En la
+ * barra del documento ese renglón ya no entra —los botones y el circuito lo
+ * llenan— y la frase sale cortada a la mitad: «la cotización está cerrada y
+ * no se puede mod». Dicho por quien lo usa: «para que aparezca cortada, mejor
+ * que ni aparezca».
+ *
+ * Se esconde a la vista, no del todo: sigue en el árbol de accesibilidad
+ * porque es el `aria-describedby` del botón principal —en el alta explica qué
+ * falta para crear— y apagarla con `display: none` dejaría a ese botón
+ * deshabilitado sin motivo para quien no ve la pantalla.
+ *
+ * Entera vuelve a verse al subir, que es donde se está cuando se completa el
+ * formulario.
+ */
 .actionBarPegajosa[data-pegada='true'] .actionNota {
-  white-space: nowrap;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: right;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .actionFila {
