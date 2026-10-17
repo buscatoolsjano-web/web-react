@@ -1,4 +1,4 @@
-import { useCallback, useId, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useId, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/Badge'
@@ -34,7 +34,19 @@ import { PanelRelacionados } from '../components/PanelRelacionados'
 import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
 import { PanelAvanceRemito } from '../components/PanelAvanceRemito'
 import { VistaPreviaDocumento } from '../components/VistaPreviaDocumento'
+import { puedeUsarEmails } from '@/modules/emails/lib/permisos'
 import { ControlesDeHoja } from '../components/ControlesDeHoja'
+/*
+ * El modal de enviar por mail, perezoso (Fase 84).
+ *
+ * Adentro va el composer entero y las librerías que arman el PDF, que es
+ * mucho código para una pantalla donde la mayoría de las veces nadie lo abre.
+ * Y de paso el test de esta página no levanta el cliente de Supabase al
+ * cargar el módulo, que es lo que rompe la suite aislada.
+ */
+const ModalEnviarPorMail = lazy(() =>
+  import('../components/ModalEnviarPorMail').then((m) => ({ default: m.ModalEnviarPorMail })),
+)
 import { useOpcionesDeHoja } from '../hooks/useOpcionesDeHoja'
 import { TablaLineas } from '../components/TablaLineas'
 import {
@@ -115,6 +127,7 @@ function Detalle() {
   const [original, setOriginal] = useState<BorradorRemito | null>(null)
   const [ultimoError, setUltimoError] = useState<string | null>(null)
   const [conflicto, setConflicto] = useState(false)
+  const [enviandoPorMail, setEnviandoPorMail] = useState(false)
   const [resultado, setResultado] = useState<string | null>(null)
   const [confirmarSalida, setConfirmarSalida] = useState(false)
   /** La ficha rápida del cliente, sin salir del documento (Fase 19 · E4). */
@@ -375,6 +388,20 @@ function Detalle() {
 
   return (
     <div className={`${docUi.pagina} ${docUi.paginaAncha}`}>
+      {enviandoPorMail && doc ? (
+        <Suspense fallback={null}>
+          <ModalEnviarPorMail
+            doc={doc}
+            /* La MISMA hoja que se está mirando: las líneas visibles y las
+               opciones de la barra. Si en pantalla está sin precios, el PDF
+               que recibe el cliente también. */
+            lineas={lineasParaHoja}
+            opciones={opcionesDeHoja}
+            onCerrar={() => setEnviandoPorMail(false)}
+          />
+        </Suspense>
+      ) : null}
+
       <DocumentHeader
         back={volver}
         numero={doc.numero}
@@ -513,6 +540,18 @@ function Detalle() {
                   sacaba al documento. */}
               <ControlesDeHoja {...controlesDeHoja} />
               {acciones.secundarias}
+              {/* Después de «Ver / Imprimir» y antes de «Más», igual que en la
+                  cotización: mandarlo es lo que se hace con un documento
+                  terminado. Sólo para quien tiene Emails. */}
+              {puedeUsarEmails(activa?.rol) ? (
+                <Button
+                  variant="secondary"
+                  icon={<Icon name="mail" size={16} />}
+                  onClick={() => setEnviandoPorMail(true)}
+                >
+                  Enviar por mail
+                </Button>
+              ) : null}
             </>
           }
           more={

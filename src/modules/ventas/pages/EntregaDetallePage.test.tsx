@@ -597,3 +597,37 @@ describe('La hoja del remito', () => {
     expect(within(hoja()!).queryByRole('button', { name: /Agregar producto/ })).toBeNull()
   })
 })
+
+/*
+ * Mandarle el remito al cliente (Fase 84).
+ *
+ * El mismo botón y el mismo modal que la cotización: «ponelo también en
+ * pedido y remito». El modal es perezoso y adentro lleva el composer y las
+ * librerías del PDF, así que acá NO se abre —arrastraría el cliente de
+ * Supabase al módulo y rompería la suite que corre sin `.env`—. Lo que se
+ * prueba es el botón: que exista, dónde está y quién lo ve.
+ */
+describe('Enviar por mail', () => {
+  const nombres = () => screen.getAllByRole('button').map((b) => b.textContent?.trim() ?? '')
+
+  it('está entre «Ver / Imprimir» y «Más»', () => {
+    montar()
+    const orden = nombres()
+    const imprimir = orden.findIndex((n) => n.startsWith('Ver / Imprimir'))
+    const enviar = orden.findIndex((n) => n === 'Enviar por mail')
+
+    expect(imprimir).toBeGreaterThanOrEqual(0)
+    expect(enviar).toBeGreaterThan(imprimir)
+    const mas = orden.findIndex((n) => n.startsWith('Más'))
+    // «Más» no siempre está: cuando está, va después.
+    if (mas >= 0) expect(mas).toBeGreaterThan(enviar)
+  })
+
+  /* Emails es de admin y employee: a un vendedor el botón le abriría un
+     cartel de «sin cuenta», que es peor que no ofrecerlo. */
+  it('un vendedor no lo ve', () => {
+    estado.rol = 'salesperson'
+    montar()
+    expect(screen.queryByRole('button', { name: 'Enviar por mail' })).toBeNull()
+  })
+})
