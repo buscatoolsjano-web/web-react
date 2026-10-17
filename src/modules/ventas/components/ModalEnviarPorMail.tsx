@@ -1,19 +1,28 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Dialog } from '@/components/modals/Dialog'
 import { Alert } from '@/components/feedback/Alert'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { SkeletonRows } from '@/components/ui/Skeleton'
+import { Spinner } from '@/components/ui/Spinner'
 import { Composer } from '@/modules/emails/components/Composer'
 import { useCuentas } from '@/modules/emails/hooks/useEmails'
 import { useParamsUrl } from '@/modules/emails/hooks/useParamsUrl'
-import type { OpcionesComposer } from '@/modules/emails/hooks/useComposer'
+import { nuevaClave, type OpcionesComposer } from '@/modules/emails/hooks/useComposer'
+import type { AdjuntoRedaccion } from '@/modules/emails/types'
 import { asuntoDeDocumento, cuerpoDeDocumento, destinatariosDeDocumento } from '../lib/mailDocumento'
-import type { DocumentoDetalle } from '../types'
+import { base64DeBlob, nombreDePdf, pdfDeHoja } from '../lib/pdfDeHoja'
+import type { OpcionesImpresion } from '../lib/impresion'
+import { HojaParaPdf } from './HojaParaPdf'
+import type { DocumentoDetalle, LineaDocumento } from '../types'
 
 export interface ModalEnviarPorMailProps {
   doc: DocumentoDetalle
+  /** Las mismas que dibuja la hoja de la pantalla: el PDF tiene que ser ESA hoja. */
+  lineas: readonly LineaDocumento[]
+  /** Y con las mismas opciones: si en pantalla está sin precios, el PDF también. */
+  opciones: OpcionesImpresion
   onCerrar: () => void
 }
 
@@ -32,26 +41,60 @@ const TITULO: Record<DocumentoDetalle['tipo'], string> = {
  * ERP como cualquier otro. Un formulario propio acá habría sido un segundo
  * camino de envío que hay que mantener y que se iba a comportar distinto.
  *
- * Lo único que agrega esta pantalla es la SEMILLA: a quién va, el asunto con
- * el número del documento y un cuerpo corto. Todo editable: lo que se abre es
- * un borrador, y quien vende lo lee antes de apretar «Enviar».
+ * Lo que agrega esta pantalla son dos cosas. La SEMILLA —a quién va, el
+ * asunto con el número y un cuerpo corto—, todo editable porque lo que se
+ * abre es un borrador. Y el PDF de la hoja, que se arma ANTES de mostrar el
+ * composer: el adjunto tiene que estar puesto cuando el formulario aparece,
+ * porque después el composer es dueño de su estado y meterle un archivo por
+ * atrás sería pelearle.
  *
- * Por qué los parámetros van a la URL de la cotización: el composer escribe
- * ahí el id del borrador y el del envío, y de eso depende que un refresh en
- * el medio no mande el mail dos veces. Son los mismos nombres que usa la
- * sección de Emails.
+ * Si el PDF falla, el mail se escribe igual y se avisa. Quedarse sin mandar
+ * una cotización porque no se pudo dibujar un adjunto sería lo peor de los
+ * dos mundos.
  */
-export function ModalEnviarPorMail({ doc, onCerrar }: ModalEnviarPorMailProps) {
+export function ModalEnviarPorMail({ doc, lineas, opciones, onCerrar }: ModalEnviarPorMailProps) {
   const [params, cambiarUrl] = useParamsUrl()
   const cuentas = useCuentas()
   const cuenta = cuentas.data?.[0] ?? null
   const [enviado, setEnviado] = useState(false)
 
+  /** El PDF: mientras se arma el composer no se monta. */
+  const [pdf, setPdf] = useState<{ adjunto: AdjuntoRedaccion | null; aviso: string | null } | null>(null)
+
   // Se congelan al montar: que el composer escriba en la URL no lo reinicia.
   const [inicial] = useState(() => ({ borrador: params.get('borrador'), envio: params.get('envio') }))
 
-  const opciones = useMemo<OpcionesComposer | null>(() => {
-    if (!cuenta) return null
+  const armar = useCallback(
+    (nodo: HTMLElement) => {
+      void (async () => {
+        try {
+          const blob = await pdfDeHoja(nodo)
+          setPdf({
+            adjunto: {
+              clave: nuevaClave(),
+              tipo: 'nuevo',
+              nombre: nombreDePdf(doc.tipo, doc.numero),
+              mime: 'application/pdf',
+              tamano: blob.size,
+              datos: await base64DeBlob(blob),
+            },
+            aviso: null,
+          })
+        } catch (e) {
+          setPdf({
+            adjunto: null,
+            aviso: e instanceof Error ? e.message : 'No se pudo armar el PDF.',
+          })
+        }
+      })()
+    },
+    [doc.tipo, doc.numero],
+  )
+
+  const sinPdf = useCallback((mensaje: string) => setPdf({ adjunto: null, aviso: mensaje }), [])
+
+  const opcionesComposer = useMemo<OpcionesComposer | null>(() => {
+    if (!cuenta || !pdf) return null
     const destinos = destinatariosDeDocumento(doc)
     return {
       accountId: cuenta.id,
@@ -67,9 +110,10 @@ export function ModalEnviarPorMail({ doc, onCerrar }: ModalEnviarPorMailProps) {
         cc: destinos.cc,
         asunto: asuntoDeDocumento(doc),
         texto: cuerpoDeDocumento(doc),
+        adjuntos: pdf.adjunto ? [pdf.adjunto] : [],
       },
     }
-  }, [cuenta, doc, inicial, cambiarUrl])
+  }, [cuenta, doc, inicial, cambiarUrl, pdf])
 
   const cerrar = () => {
     // La URL vuelve como estaba: el borrador ya está guardado en Gmail y se
@@ -80,6 +124,8 @@ export function ModalEnviarPorMail({ doc, onCerrar }: ModalEnviarPorMailProps) {
     onCerrar()
   }
 
+  const nombreCorto = doc.tipo === 'cotizacion' ? 'la cotización' : doc.tipo === 'pedido' ? 'el pedido' : 'el remito'
+
   return (
     <Dialog
       open
@@ -89,14 +135,24 @@ export function ModalEnviarPorMail({ doc, onCerrar }: ModalEnviarPorMailProps) {
       size="lg"
       closeOnOverlay={false}
     >
+      {/* La hoja de la que sale la foto. Vive fuera de la pantalla y se
+          desmonta en cuanto el PDF está. */}
+      {cuenta && pdf === null ? (
+        <HojaParaPdf doc={doc} lineas={lineas} opciones={opciones} onLista={armar} onFallo={sinPdf} />
+      ) : null}
+
       {cuentas.isPending ? (
         <SkeletonRows rows={4} columns={1} label="Cargando la cuenta de correo…" />
-      ) : !cuenta || !opciones ? (
+      ) : !cuenta ? (
         <EmptyState
           icon="mail"
           title="Sin cuenta de correo"
           description="Esta empresa no tiene ninguna cuenta conectada, así que no hay desde dónde mandarlo."
         />
+      ) : pdf === null ? (
+        <p role="status">
+          <Spinner size={16} /> Armando el PDF de {nombreCorto}…
+        </p>
       ) : enviado ? (
         <Alert tone="success" role="status" title="El mail salió">
           <p>
@@ -105,13 +161,25 @@ export function ModalEnviarPorMail({ doc, onCerrar }: ModalEnviarPorMailProps) {
           <Button onClick={cerrar}>Cerrar</Button>
         </Alert>
       ) : (
-        <Composer
-          opciones={opciones}
-          titulo={TITULO[doc.tipo]}
-          mostrarTitulo={false}
-          onCerrar={cerrar}
-          onEnviado={() => setEnviado(true)}
-        />
+        <>
+          {pdf.aviso ? (
+            <Alert tone="warning" role="status" title="El PDF no se pudo armar">
+              <p>
+                {pdf.aviso} El mail se puede mandar igual: adjuntá {nombreCorto} a mano desde «Ver /
+                Imprimir» → «Guardar como PDF».
+              </p>
+            </Alert>
+          ) : null}
+          {opcionesComposer ? (
+            <Composer
+              opciones={opcionesComposer}
+              titulo={TITULO[doc.tipo]}
+              mostrarTitulo={false}
+              onCerrar={cerrar}
+              onEnviado={() => setEnviado(true)}
+            />
+          ) : null}
+        </>
       )}
     </Dialog>
   )

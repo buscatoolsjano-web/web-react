@@ -618,7 +618,15 @@ function Detalle() {
     <div className={`${docUi.pagina} ${docUi.paginaAncha}`}>
       {enviandoPorMail && doc ? (
         <Suspense fallback={null}>
-          <ModalEnviarPorMail doc={doc} onCerrar={() => setEnviandoPorMail(false)} />
+          <ModalEnviarPorMail
+            doc={docVisible}
+            /* La MISMA hoja que se está mirando: las líneas visibles y las
+               opciones de la barra. Si en pantalla está sin precios, el PDF
+               que recibe el cliente también. */
+            lineas={lineasVisibles}
+            opciones={opcionesDeHoja}
+            onCerrar={() => setEnviandoPorMail(false)}
+          />
         </Suspense>
       ) : null}
 

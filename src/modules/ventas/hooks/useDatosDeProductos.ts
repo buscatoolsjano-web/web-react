@@ -38,5 +38,21 @@ export function useDatosDeProductos(lineas: readonly LineaDocumento[]) {
     staleTime: 10 * 60_000,
   })
 
-  return { datos: datos.data ?? VACIO, definiciones: definiciones.data ?? [] }
+  /*
+   * Si todavía están viajando (Fase 84).
+   *
+   * `isLoading` y no `isPending`: una consulta apagada —un documento sin
+   * ningún producto del catálogo— se queda en `pending` para siempre, y quien
+   * espere eso no arranca nunca.
+   *
+   * Lo mira el PDF que se adjunta al mail: la hoja se fotografía una sola vez,
+   * y sacarle la foto antes de que lleguen las fotos de los productos y los
+   * atributos daría un PDF con los huecos vacíos. La hoja de la pantalla no lo
+   * necesita: se redibuja sola cuando llegan.
+   */
+  return {
+    datos: datos.data ?? VACIO,
+    definiciones: definiciones.data ?? [],
+    cargando: datos.isLoading || definiciones.isLoading,
+  }
 }
