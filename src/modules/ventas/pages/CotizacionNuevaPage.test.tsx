@@ -693,11 +693,25 @@ describe('Nueva cotización · vista previa del borrador', () => {
     expect(screen.queryByRole('region', { name: 'Documento' })).toBeNull()
   })
 
-  it('en pantalla ancha va al lado del editor y no hay botón que apretar', () => {
+  /*
+   * En pantalla ancha se abre sola, y se puede cerrar (Fase 84).
+   *
+   * «Quiero que haya un botón para cerrar la vista previa, así para completar
+   * los datos ocupa todo el ancho, pero que el predeterminado siga siendo con
+   * la vista previa abierta.» Las dos mitades de esa frase son este test:
+   * abierta de entrada, y que el botón la cierre de verdad.
+   */
+  it('en pantalla ancha se abre sola, y el botón la cierra', () => {
     estado.pantallaAncha = true
     montar()
     expect(screen.getByRole('region', { name: 'Documento' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Vista previa' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar vista previa' }))
+    expect(screen.queryByRole('region', { name: 'Documento' })).toBeNull()
+
+    // Y vuelve: cerrarla no es una puerta de una sola dirección.
+    fireEvent.click(screen.getByRole('button', { name: 'Vista previa' }))
+    expect(screen.getByRole('region', { name: 'Documento' })).toBeInTheDocument()
   })
 
   it('muestra el borrador: cliente por nombre, líneas y moneda', async () => {

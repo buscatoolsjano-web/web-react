@@ -200,8 +200,17 @@ export function CotizacionNuevaPage() {
   // Fase 22: desde 1280 entran el panel y la hoja. Antes eran 1440 y la
   // hoja quedaba chica igual.
   const pantallaAncha = useMediaQuery('(min-width: 1280px)')
-  const [previaAbierta, setPreviaAbierta] = useState(false)
-  const verPrevia = pantallaAncha || previaAbierta
+  /*
+   * `null` = nadie lo eligió todavía, y entonces manda la pantalla: con
+   * 1280 px o más la hoja entra al lado del editor y se muestra sola. Una vez
+   * que se toca el botón, gana lo que pidió la persona (Fase 84).
+   *
+   * Antes era un `boolean` y la pantalla ancha le ganaba siempre: la hoja no
+   * se podía cerrar, y para completar los datos quedaba un tercio del ancho.
+   * Es la misma forma que ya usaba el detalle del documento.
+   */
+  const [previaPedida, setPreviaPedida] = useState<boolean | null>(null)
+  const verPrevia = previaPedida ?? pantallaAncha
   const [avisoContacto, setAvisoContacto] = useState(false)
   const [avisoTarifa, setAvisoTarifa] = useState(false)
   // Fase 17 · E2. `tocados` es la memoria de lo que eligió la persona: el
@@ -568,17 +577,18 @@ export function CotizacionNuevaPage() {
             {/* Fase 28 · E12: el formato de la hoja vive acá y no arriba de la
                 hoja: son 40 px que le sacaba al documento. */}
             <ControlesDeHoja {...controles} />
-            {/* Con pantalla ancha la previa ya está al lado: el botón sobra. */}
-            {!pantallaAncha ? (
-              <Button
-                variant="secondary"
-                icon={<Icon name="eye" size={16} />}
-                onClick={() => setPreviaAbierta((v) => !v)}
-                aria-expanded={previaAbierta}
-              >
-                {previaAbierta ? 'Ocultar vista previa' : 'Vista previa'}
-              </Button>
-            ) : null}
+            {/* También con pantalla ancha (Fase 84): «que se pueda cerrar si
+                el usuario lo desea, así para completar los datos ocupa todo
+                el ancho». Cerrada, el formulario deja de ser una columna de
+                un tercio y se estira. */}
+            <Button
+              variant="secondary"
+              icon={<Icon name="eye" size={16} />}
+              onClick={() => setPreviaPedida(!verPrevia)}
+              aria-expanded={verPrevia}
+            >
+              {verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
+            </Button>
             <LinkButton to="/ventas/cotizaciones" variant="ghost">
               Cancelar
             </LinkButton>
