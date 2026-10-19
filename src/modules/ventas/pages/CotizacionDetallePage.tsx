@@ -563,6 +563,23 @@ function Detalle() {
   ) : null
 
   /**
+   * «Enviar por mail», adentro de «Más» (Fase 84).
+   *
+   * Estaba suelto en la barra y la barra pasaba de ancho: con siete botones y
+   * el circuito al costado se iba a un segundo renglón. «Más» es donde va lo
+   * que no se hace todos los días, y mandar el documento es de ésas: se hace
+   * una vez, cuando está listo.
+   *
+   * Sólo para quien tiene Emails —admin y empleados—: al resto el botón le
+   * abriría un cartel de «sin cuenta de correo».
+   */
+  const enviarPorMail = puedeUsarEmails(activa?.rol) ? (
+    <Button variant="secondary" icon={<Icon name="mail" size={16} />} onClick={() => setEnviandoPorMail(true)}>
+      Enviar por mail
+    </Button>
+  ) : null
+
+  /**
    * El circuito de la venta, en la barra de acciones (Fase 29 · E16).
    *
    * La Fase 83 lo probó arriba, en la fila del número, y se volvió: la barra
@@ -797,20 +814,6 @@ function Detalle() {
                 {verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
               </Button>
               {acciones.secundarias}
-              {/* Después de «Ver / Imprimir» y antes de «Más», que es donde se
-                  pidió: mandarla es lo que se hace con una cotización recién
-                  terminada, no una acción de rincón (Fase 84). Sólo para
-                  quien tiene Emails: el resto vería un botón que abre un
-                  cartel de «sin cuenta». */}
-              {puedeUsarEmails(activa?.rol) ? (
-                <Button
-                  variant="secondary"
-                  icon={<Icon name="mail" size={16} />}
-                  onClick={() => setEnviandoPorMail(true)}
-                >
-                  Enviar por mail
-                </Button>
-              ) : null}
             </>
           }
           more={
@@ -819,10 +822,14 @@ function Detalle() {
                 <Button variant="secondary" onClick={() => transicion.mutate({ hasta: 'rejected' })}>
                   Marcar rechazada
                 </Button>
+                {enviarPorMail}
                 {acciones.mas}
               </MoreMenu>
-            ) : acciones.hayMas ? (
-              <MoreMenu>{acciones.mas}</MoreMenu>
+            ) : acciones.hayMas || enviarPorMail ? (
+              <MoreMenu>
+                {enviarPorMail}
+                {acciones.mas}
+              </MoreMenu>
             ) : null
           }
           note={

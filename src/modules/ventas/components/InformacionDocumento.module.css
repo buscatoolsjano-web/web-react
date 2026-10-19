@@ -20,3 +20,70 @@
   outline-offset: var(--focus-offset);
   border-radius: var(--radius-sm);
 }
+
+/* ── La ficha con la hoja cerrada (Fase 84) ─────────────────────────────────
+ *
+ * «Cuando oculto la vista previa, la idea es que sea como la imagen del
+ * sistema anterior. Fijate que todos los datos, como mucho, son 5 renglones,
+ * porque se ocupa todo el ancho posible. Mientras más espacio se optimice,
+ * mejor.»
+ *
+ * Lo que hace esa densidad son tres cosas, y acá están las tres:
+ *
+ * 1. El rótulo va a la IZQUIERDA del dato y no arriba. Es la mitad del alto:
+ *    cada dato pasa de dos renglones a uno.
+ * 2. Las cuatro secciones numeradas dejan de ser bloques apilados. Con
+ *    `display: contents` sus datos caen en la MISMA grilla, así que no hay
+ *    cuatro grupos que arrancan en su propio renglón: hay un solo reparto que
+ *    llena de izquierda a derecha.
+ * 3. Los títulos de sección se van. Con el rótulo al lado cada renglón ya se
+ *    explica solo —«Cliente: Grupo Mirgor»— y cuatro títulos son cuatro
+ *    renglones que no dicen un dato.
+ *
+ * Nada de esto pasa con la hoja abierta: ahí la columna mide 500 px, el
+ * rótulo al lado dejaría el dato en 250, y las secciones numeradas son lo que
+ * hace que mirar un documento guardado se vea igual que cargar uno nuevo
+ * (Fase 27 · E5). Lo que decide es el ancho de la COLUMNA, no el del monitor.
+ *
+ * Los selectores van por estructura —`section`, `dl`, `div`, `dt`, `dd`—
+ * porque esas clases viven en otros módulos y desde acá no se pueden nombrar.
+ * El marcado lo pone `MetaList`, que es de la casa y no cambia de forma.
+ */
+@container editor (min-width: 950px) {
+  .ficha {
+    grid-template-columns: repeat(auto-fill, minmax(24rem, 1fr));
+    column-gap: var(--space-5);
+    row-gap: 0;
+    align-items: start;
+  }
+
+  /* Las secciones y sus listas desaparecen como cajas: quedan sus datos. */
+  .ficha > section,
+  .ficha > section > dl {
+    display: contents;
+  }
+
+  .ficha > section > p {
+    display: none;
+  }
+
+  /* Cada dato, un renglón: rótulo a la derecha de su columna, dato al lado.
+     La raya de abajo es lo que deja seguir el renglón hasta el valor cuando
+     la columna es ancha. */
+  .ficha > section > dl > div {
+    display: grid;
+    grid-template-columns: minmax(6rem, 10rem) minmax(0, 1fr);
+    align-items: baseline;
+    gap: var(--space-3);
+    padding-block: var(--space-1);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .ficha > section > dl > div > dt {
+    text-align: right;
+  }
+
+  .ficha > section > dl > div > dd {
+    margin: 0;
+  }
+}

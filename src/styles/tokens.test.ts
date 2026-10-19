@@ -358,6 +358,18 @@ describe('la cabecera y los totales con la hoja cerrada (Fase 84)', () => {
     expect(cabecera.slice(0, i)).toContain('minmax(150px, 1fr)')
   })
 
+  it('la ficha del documento guardado se vuelve densa en el mismo corte', () => {
+    const ficha = sinComentarios(TODOS_LOS_CSS['modules/ventas/components/InformacionDocumento.module.css'] ?? '')
+    const i = ficha.indexOf(CORTE)
+    expect(i).toBeGreaterThanOrEqual(0)
+    const bloque = ficha.slice(i)
+    // Las secciones dejan de ser bloques apilados y sus datos caen en la misma
+    // grilla; los títulos numerados se van; el rótulo pasa al costado.
+    expect(bloque).toContain('display: contents')
+    expect(bloque).toContain('display: none')
+    expect(bloque).toContain('text-align: right')
+  })
+
   it('los totales pasan a un renglón pegado abajo, en el mismo corte', () => {
     const i = documento.indexOf(CORTE)
     expect(i).toBeGreaterThanOrEqual(0)

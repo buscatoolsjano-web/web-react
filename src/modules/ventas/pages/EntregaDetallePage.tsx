@@ -159,6 +159,23 @@ function Detalle() {
   const stelEntrega = autoridad.stel('delivery')
 
   /**
+   * «Enviar por mail», adentro de «Más» (Fase 84).
+   *
+   * Estaba suelto en la barra y la barra pasaba de ancho: con siete botones y
+   * el circuito al costado se iba a un segundo renglón. «Más» es donde va lo
+   * que no se hace todos los días, y mandar el documento es de ésas: se hace
+   * una vez, cuando está listo.
+   *
+   * Sólo para quien tiene Emails —admin y empleados—: al resto el botón le
+   * abriría un cartel de «sin cuenta de correo».
+   */
+  const enviarPorMail = puedeUsarEmails(activa?.rol) ? (
+    <Button variant="secondary" icon={<Icon name="mail" size={16} />} onClick={() => setEnviandoPorMail(true)}>
+      Enviar por mail
+    </Button>
+  ) : null
+
+  /**
    * El circuito de la venta, para la barra de acciones (Fase 29 · E16).
    *
    * Acá sin «Generar»: el paso siguiente es la factura, y todavía no se emite
@@ -565,22 +582,15 @@ function Detalle() {
                 {verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
               </Button>
               {acciones.secundarias}
-              {/* Después de «Ver / Imprimir» y antes de «Más», igual que en la
-                  cotización: mandarlo es lo que se hace con un documento
-                  terminado. Sólo para quien tiene Emails. */}
-              {puedeUsarEmails(activa?.rol) ? (
-                <Button
-                  variant="secondary"
-                  icon={<Icon name="mail" size={16} />}
-                  onClick={() => setEnviandoPorMail(true)}
-                >
-                  Enviar por mail
-                </Button>
-              ) : null}
             </>
           }
           more={
-            acciones.hayMas ? <MoreMenu>{acciones.mas}</MoreMenu> : null
+            acciones.hayMas || enviarPorMail ? (
+              <MoreMenu>
+                {enviarPorMail}
+                {acciones.mas}
+              </MoreMenu>
+            ) : null
           }
           note={
             <>

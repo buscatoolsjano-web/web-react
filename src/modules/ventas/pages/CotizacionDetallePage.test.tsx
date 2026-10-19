@@ -1060,21 +1060,16 @@ describe('El encabezado del documento', () => {
  * tests en `mailDocumento`.
  */
 describe('Enviar por mail', () => {
-  const nombres = () =>
-    screen
-      .getAllByRole('button')
-      .map((b) => b.textContent?.trim() ?? '')
 
-  it('está entre «Ver / Imprimir» y «Más»', () => {
+  /* Adentro de «Más» y no suelto en la barra (Fase 84): con siete botones y
+     el circuito al costado la barra se iba a un segundo renglón. Mandar el
+     documento se hace una vez, cuando está listo. */
+  it('vive adentro de «Más»', () => {
     montar()
-    const orden = nombres()
-    const imprimir = orden.findIndex((n) => n.startsWith('Ver / Imprimir'))
-    const enviar = orden.findIndex((n) => n === 'Enviar por mail')
-    const mas = orden.findIndex((n) => n.startsWith('Más'))
+    expect(screen.queryByRole('button', { name: 'Enviar por mail' })).toBeNull()
 
-    expect(imprimir).toBeGreaterThanOrEqual(0)
-    expect(enviar).toBeGreaterThan(imprimir)
-    expect(mas).toBeGreaterThan(enviar)
+    fireEvent.click(screen.getByRole('button', { name: /Más/ }))
+    expect(screen.getByRole('button', { name: 'Enviar por mail' })).toBeVisible()
   })
 
   /* Emails es de admin y employee: a un vendedor el botón le abriría un

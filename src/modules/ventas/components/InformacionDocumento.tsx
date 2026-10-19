@@ -199,7 +199,7 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
 
   const de = (n: NumeroSeccion) => items.filter((i): i is Dato => !!i && i.seccion === n)
   return (
-    <div className={cabecera.bloques}>
+    <div className={`${cabecera.bloques} ${styles.ficha}`}>
       {SECCIONES.map(([n, titulo]) => {
         const suyos = de(n)
         if (suyos.length === 0) return null
