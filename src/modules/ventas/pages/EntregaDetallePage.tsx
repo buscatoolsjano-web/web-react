@@ -74,10 +74,16 @@ import {
 import { formatearCantidad, formatearImporte } from '../lib/formato'
 import { escribeVentas } from '../lib/permisos'
 import { FalloDeGuardado } from '../services/cotizaciones'
-import { confirmarEntrega, editabilidadEntrega, guardarRemito, lineasParaEntregar } from '../services/entregas'
+import {
+  confirmarEntrega,
+  editabilidadEntrega,
+  guardarRemito,
+  lineasParaEntregar,
+} from '../services/entregas'
 import { guardarContactosDocumento } from '../services/contactosDocumento'
 import lineasUi from '../components/EditorLineas.module.css'
 import editor from './EditorCotizacion.module.css'
+import cabecera from '../components/CabeceraCotizacion.module.css'
 
 /*
  * Fase 27 · E5: «Información» dejó de ser pestaña. Los datos del remito
@@ -166,7 +172,11 @@ function Detalle() {
    * abriría un cartel de «sin cuenta de correo».
    */
   const enviarPorMail = puedeUsarEmails(activa?.rol) ? (
-    <Button variant="secondary" icon={<Icon name="mail" size={16} />} onClick={() => setEnviandoPorMail(true)}>
+    <Button
+      variant="secondary"
+      icon={<Icon name="mail" size={16} />}
+      onClick={() => setEnviandoPorMail(true)}
+    >
       Enviar por mail
     </Button>
   ) : null
@@ -203,7 +213,10 @@ function Detalle() {
     for (const l of doc?.lineas ?? []) {
       if (l.ordenLineaId) enEste.set(l.ordenLineaId, (enEste.get(l.ordenLineaId) ?? 0) + l.cantidad)
     }
-    const m = new Map<string, { pedida: number; otros: number; pendiente: number; enEsteRemito: number }>()
+    const m = new Map<
+      string,
+      { pedida: number; otros: number; pendiente: number; enEsteRemito: number }
+    >()
     for (const p of pendientes.data ?? []) {
       const propio = enEste.get(p.orderLineId) ?? 0
       m.set(p.orderLineId, {
@@ -218,7 +231,8 @@ function Detalle() {
 
   const topes = useMemo(() => {
     const m = new Map<string, { pendiente: number; enEsteRemito: number }>()
-    for (const [k, v] of porLineaDePedido) m.set(k, { pendiente: v.pendiente, enEsteRemito: v.enEsteRemito })
+    for (const [k, v] of porLineaDePedido)
+      m.set(k, { pendiente: v.pendiente, enEsteRemito: v.enEsteRemito })
     return m
   }, [porLineaDePedido])
 
@@ -255,7 +269,9 @@ function Detalle() {
       setOriginal(null)
       setResultado(`Cambios guardados. ${r.lineasTocadas} línea(s) tocada(s).`)
       void refrescar()
-      void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId, 'entrega', 'trazabilidad', id] })
+      void queryClient.invalidateQueries({
+        queryKey: ['ventas', activa?.companyId, 'entrega', 'trazabilidad', id],
+      })
     },
     onError: (e: Error) => {
       // El borrador NO se toca: si el guardado falla, lo escrito sigue ahí.
@@ -273,8 +289,8 @@ function Detalle() {
         r.yaConfirmada
           ? 'El remito ya estaba despachado: no se repitió ningún movimiento de stock.'
           : `Despachado. ${r.movimientos} movimiento(s) de stock` +
-            (r.reservasLiberadas > 0 ? `, ${r.reservasLiberadas} reserva(s) liberada(s)` : '') +
-            '.',
+              (r.reservasLiberadas > 0 ? `, ${r.reservasLiberadas} reserva(s) liberada(s)` : '') +
+              '.',
       )
       void refrescar()
     },
@@ -308,7 +324,8 @@ function Detalle() {
       </p>
     )
   }
-  if (error) return <ErrorState title="No se pudo leer la nota de entrega." description={error.message} />
+  if (error)
+    return <ErrorState title="No se pudo leer la nota de entrega." description={error.message} />
   if (!doc) {
     return (
       <EmptyState
@@ -344,7 +361,12 @@ function Detalle() {
     .filter(([ol, v]) => v.pendiente > 0 && !borrador?.lineas.some((l) => l.orderLineId === ol))
     .map(([ol, v]) => {
       const dato = (pendientes.data ?? []).find((p) => p.orderLineId === ol)
-      return { orderLineId: ol, sku: dato?.sku ?? null, nombre: dato?.nombre ?? null, pendiente: v.pendiente }
+      return {
+        orderLineId: ol,
+        sku: dato?.sku ?? null,
+        nombre: dato?.nombre ?? null,
+        pendiente: v.pendiente,
+      }
     })
 
   const lineasVisibles = borrador
@@ -377,9 +399,10 @@ function Detalle() {
    */
   const lineasParaHoja = borrador
     ? lineasVisibles.map((l) => {
-        const guardada = l.ordenLineaId === null
-          ? undefined
-          : doc.lineas.find((o) => o.ordenLineaId === l.ordenLineaId)
+        const guardada =
+          l.ordenLineaId === null
+            ? undefined
+            : doc.lineas.find((o) => o.ordenLineaId === l.ordenLineaId)
         return guardada
           ? {
               ...l,
@@ -453,7 +476,8 @@ function Detalle() {
         >
           <p>
             Alguien más lo guardó, así que para no pisar su trabajo no se guardó nada.{' '}
-            <strong>Lo que escribiste sigue en pantalla</strong>: anotá lo que haga falta antes de recargar.
+            <strong>Lo que escribiste sigue en pantalla</strong>: anotá lo que haga falta antes de
+            recargar.
           </p>
         </Alert>
       ) : null}
@@ -550,7 +574,11 @@ function Detalle() {
           secondary={
             <>
               {permiso.editable ? (
-                <Button variant="secondary" icon={<Icon name="edit" size={16} />} onClick={abrirEdicion}>
+                <Button
+                  variant="secondary"
+                  icon={<Icon name="edit" size={16} />}
+                  onClick={abrirEdicion}
+                >
                   Editar
                 </Button>
               ) : null}
@@ -591,8 +619,8 @@ function Detalle() {
                   )
                 ) : (
                   <p>
-                    Descuenta el stock de cada línea y libera las reservas del pedido. Se puede apretar una
-                    sola vez: el servidor no repite el movimiento.
+                    Descuenta el stock de cada línea y libera las reservas del pedido. Se puede
+                    apretar una sola vez: el servidor no repite el movimiento.
                   </p>
                 )
               ) : null}
@@ -612,219 +640,293 @@ function Detalle() {
         />
       )}
 
-      <DocumentTabs id={idPestanas} items={pestanas} value={pestana} onChange={setPestana} label="Secciones del remito">
+      <DocumentTabs
+        id={idPestanas}
+        items={pestanas}
+        value={pestana}
+        onChange={setPestana}
+        label="Secciones del remito"
+      >
         {pestana === 'lineas' ? (
           /* Fase 26 · E2: el editor a la izquierda y la HOJA a la derecha,
              igual que en el alta de una cotización. La hoja del remito es de
              sólo lectura: ver la nota de `lineasParaHoja`. */
           <div className={verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
-          <div className={editor.columnaEditor}>
-          <DocSection title="Datos de la entrega">
-            {editando ? (
-              <div className={editor.formulario}>
-                <Field label="Fecha del remito">
-                  <Input
-                    type="date"
-                    value={borrador.cabecera.fecha}
-                    onChange={(e) => cambiarCabecera('fecha', e.target.value)}
-                  />
-                </Field>
-                <Field label="Contacto" optional>
-                  <Select
-                    value={borrador.cabecera.contactoId}
-                    disabled={contactos.isPending}
-                    onChange={(e) => cambiarCabecera('contactoId', e.target.value)}
-                  >
-                    <option value="">Sin contacto</option>
-                    {(contactos.data ?? []).map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.rol ? `${c.nombre} · ${c.rol}` : c.nombre}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="Título" optional>
-                  <Input value={borrador.cabecera.titulo} onChange={(e) => cambiarCabecera('titulo', e.target.value)} />
-                </Field>
-                <Field label="Transporte" optional>
-                  <Input
-                    value={borrador.cabecera.transporte}
-                    onChange={(e) => cambiarCabecera('transporte', e.target.value)}
-                  />
-                </Field>
-                <Field label="Seguimiento" optional help="El número que da el transporte, si lo hay.">
-                  <Input
-                    value={borrador.cabecera.seguimiento}
-                    onChange={(e) => cambiarCabecera('seguimiento', e.target.value)}
-                  />
-                </Field>
-                <Field label="Observaciones" optional>
-                  <Textarea
-                    rows={3}
-                    value={borrador.cabecera.notas}
-                    onChange={(e) => cambiarCabecera('notas', e.target.value)}
-                  />
-                </Field>
-              </div>
-            ) : (
-              <InformacionDocumento doc={doc} onVerCliente={() => setViendoCliente(true)} />
-            )}
-          </DocSection>
+            <div className={editor.columnaEditor}>
+              <DocSection title="Datos de la entrega">
+                {editando ? (
+                  /*
+                La MISMA forma que la cabecera de la cotización y la del
+                pedido (Fase 84): un grupo con su grilla adentro de
+                `.bloques .denso`. Con la hoja cerrada eso le da el rótulo a
+                la izquierda y las dos o tres columnas; con la hoja al lado,
+                la grilla de siempre.
 
-          <DocSection
-            title="Líneas"
-            actions={
-              <>
-              {editando && agregables.length > 0 ? (
-                <>
-                  <Select
-                    aria-label="Línea del pedido para agregar"
-                    value={aAgregar}
-                    onChange={(e) => setAAgregar(e.target.value)}
-                  >
-                    <option value="">Agregar una línea pendiente…</option>
-                    {agregables.map((a) => (
-                      <option key={a.orderLineId} value={a.orderLineId}>
-                        {[a.sku, a.nombre].filter(Boolean).join(' · ')} — pendiente {formatearCantidad(a.pendiente)}
-                      </option>
-                    ))}
-                  </Select>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    icon={<Icon name="plus" size={16} />}
-                    disabled={aAgregar === ''}
-                    onClick={() => {
-                      const a = agregables.find((x) => x.orderLineId === aAgregar)
-                      if (!a) return
-                      setBorrador((b) =>
-                        b ? agregarLineaRemito(b, { orderLineId: a.orderLineId, sku: a.sku, nombre: a.nombre, cantidad: a.pendiente }) : b,
-                      )
-                      setAAgregar('')
-                    }}
-                  >
-                    Agregar
-                  </Button>
-                </>
-              ) : null}
-              </>
-            }
-          >
-            {editando ? (
-              <div className={lineasUi.scroll}>
-                <table className={lineasUi.tabla}>
-                  <caption className="sr-only">Líneas del remito, en edición</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col" className={lineasUi.num}>#</th>
-                      <th scope="col">Referencia</th>
-                      <th scope="col">Producto</th>
-                      <th scope="col">Descripción</th>
-                      <th scope="col">Cantidad</th>
-                      <th scope="col">Pedida</th>
-                      <th scope="col">Pendiente después</th>
-                      <th scope="col"><span className="sr-only">Quitar</span></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {borrador.lineas.map((l, i) => {
-                      const info = l.orderLineId ? porLineaDePedido.get(l.orderLineId) : undefined
-                      const tope = topeDeLinea(l, topes)
-                      const cantidad = Number(l.cantidad.replace(',', '.')) || 0
-                      return (
-                        <tr key={l.clave}>
-                          <td className={lineasUi.num}>{i + 1}</td>
-                          <td>{l.sku ?? '—'}</td>
-                          <td>{l.nombre ?? '—'}</td>
-                          <td>
-                            <input
-                              className={lineasUi.texto}
-                              value={l.descripcion}
-                              aria-label={`Descripción de ${l.sku ?? 'la línea'}`}
-                              placeholder="Texto del remito"
-                              onChange={(e) =>
-                                setBorrador((b) => (b ? cambiarLineaRemito(b, l.clave, 'descripcion', e.target.value) : b))
-                              }
-                            />
-                          </td>
-                          <td>
-                            <input
-                              type="number"
-                              className={lineasUi.numero}
-                              min="0"
-                              step="any"
-                              {...(tope !== null ? { max: tope } : {})}
-                              value={l.cantidad}
-                              aria-label={`Cantidad de ${l.sku ?? 'la línea'}`}
-                              onChange={(e) =>
-                                setBorrador((b) => (b ? cambiarLineaRemito(b, l.clave, 'cantidad', e.target.value) : b))
-                              }
-                            />
-                          </td>
-                          <td>{info ? formatearCantidad(info.pedida) : '—'}</td>
-                          <td>{info ? formatearCantidad(Math.max(0, info.pedida - info.otros - cantidad)) : '—'}</td>
-                          <td>
-                            <IconButton
-                              aria-label={`Quitar ${l.sku ?? 'la línea'}`}
-                              icon="trash"
-                              onClick={() => setBorrador((b) => (b ? quitarLineaRemito(b, l.clave) : b))}
-                            />
-                          </td>
+                Antes era un `div` con `editor.formulario`, una clase que NO
+                existe en ese módulo: el `className` llegaba `undefined` y los
+                seis campos quedaban apilados a lo ancho. Por eso el remito
+                era el único que no se parecía a los otros dos.
+
+                El `legend` va oculto a la vista: el título de la sección ya
+                dice «Datos de la entrega» y repetirlo sería decirlo dos
+                veces, pero un `fieldset` sin `legend` deja al grupo sin
+                nombre para quien lo escucha.
+              */
+                  <div className={`${cabecera.bloques} ${cabecera.denso}`}>
+                    <fieldset className={cabecera.grupo}>
+                      <legend className="sr-only">Datos de la entrega</legend>
+                      <div className={cabecera.grilla}>
+                        <Field label="Fecha del remito">
+                          <Input
+                            type="date"
+                            value={borrador.cabecera.fecha}
+                            onChange={(e) => cambiarCabecera('fecha', e.target.value)}
+                          />
+                        </Field>
+                        <Field label="Contacto" optional>
+                          <Select
+                            value={borrador.cabecera.contactoId}
+                            disabled={contactos.isPending}
+                            onChange={(e) => cambiarCabecera('contactoId', e.target.value)}
+                          >
+                            <option value="">Sin contacto</option>
+                            {(contactos.data ?? []).map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.rol ? `${c.nombre} · ${c.rol}` : c.nombre}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
+                        <Field label="Título" optional>
+                          <Input
+                            value={borrador.cabecera.titulo}
+                            onChange={(e) => cambiarCabecera('titulo', e.target.value)}
+                          />
+                        </Field>
+                        <Field label="Transporte" optional>
+                          <Input
+                            value={borrador.cabecera.transporte}
+                            onChange={(e) => cambiarCabecera('transporte', e.target.value)}
+                          />
+                        </Field>
+                        <Field
+                          label="Seguimiento"
+                          optional
+                          help="El número que da el transporte, si lo hay."
+                        >
+                          <Input
+                            value={borrador.cabecera.seguimiento}
+                            onChange={(e) => cambiarCabecera('seguimiento', e.target.value)}
+                          />
+                        </Field>
+                        <Field label="Observaciones" optional>
+                          <Textarea
+                            rows={3}
+                            value={borrador.cabecera.notas}
+                            onChange={(e) => cambiarCabecera('notas', e.target.value)}
+                          />
+                        </Field>
+                      </div>
+                    </fieldset>
+                  </div>
+                ) : (
+                  <InformacionDocumento doc={doc} onVerCliente={() => setViendoCliente(true)} />
+                )}
+              </DocSection>
+
+              <DocSection
+                title="Líneas"
+                actions={
+                  <>
+                    {editando && agregables.length > 0 ? (
+                      <>
+                        <Select
+                          aria-label="Línea del pedido para agregar"
+                          value={aAgregar}
+                          onChange={(e) => setAAgregar(e.target.value)}
+                        >
+                          <option value="">Agregar una línea pendiente…</option>
+                          {agregables.map((a) => (
+                            <option key={a.orderLineId} value={a.orderLineId}>
+                              {[a.sku, a.nombre].filter(Boolean).join(' · ')} — pendiente{' '}
+                              {formatearCantidad(a.pendiente)}
+                            </option>
+                          ))}
+                        </Select>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={<Icon name="plus" size={16} />}
+                          disabled={aAgregar === ''}
+                          onClick={() => {
+                            const a = agregables.find((x) => x.orderLineId === aAgregar)
+                            if (!a) return
+                            setBorrador((b) =>
+                              b
+                                ? agregarLineaRemito(b, {
+                                    orderLineId: a.orderLineId,
+                                    sku: a.sku,
+                                    nombre: a.nombre,
+                                    cantidad: a.pendiente,
+                                  })
+                                : b,
+                            )
+                            setAAgregar('')
+                          }}
+                        >
+                          Agregar
+                        </Button>
+                      </>
+                    ) : null}
+                  </>
+                }
+              >
+                {editando ? (
+                  <div className={lineasUi.scroll}>
+                    <table className={lineasUi.tabla}>
+                      <caption className="sr-only">Líneas del remito, en edición</caption>
+                      <thead>
+                        <tr>
+                          <th scope="col" className={lineasUi.num}>
+                            #
+                          </th>
+                          <th scope="col">Referencia</th>
+                          <th scope="col">Producto</th>
+                          <th scope="col">Descripción</th>
+                          <th scope="col">Cantidad</th>
+                          <th scope="col">Pedida</th>
+                          <th scope="col">Pendiente después</th>
+                          <th scope="col">
+                            <span className="sr-only">Quitar</span>
+                          </th>
                         </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <TablaLineas lineas={doc.lineas} moneda={doc.moneda} tipo="entrega" />
-            )}
+                      </thead>
+                      <tbody>
+                        {borrador.lineas.map((l, i) => {
+                          const info = l.orderLineId
+                            ? porLineaDePedido.get(l.orderLineId)
+                            : undefined
+                          const tope = topeDeLinea(l, topes)
+                          const cantidad = Number(l.cantidad.replace(',', '.')) || 0
+                          return (
+                            <tr key={l.clave}>
+                              <td className={lineasUi.num}>{i + 1}</td>
+                              <td>{l.sku ?? '—'}</td>
+                              <td>{l.nombre ?? '—'}</td>
+                              <td>
+                                <input
+                                  className={lineasUi.texto}
+                                  value={l.descripcion}
+                                  aria-label={`Descripción de ${l.sku ?? 'la línea'}`}
+                                  placeholder="Texto del remito"
+                                  onChange={(e) =>
+                                    setBorrador((b) =>
+                                      b
+                                        ? cambiarLineaRemito(
+                                            b,
+                                            l.clave,
+                                            'descripcion',
+                                            e.target.value,
+                                          )
+                                        : b,
+                                    )
+                                  }
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className={lineasUi.numero}
+                                  min="0"
+                                  step="any"
+                                  {...(tope !== null ? { max: tope } : {})}
+                                  value={l.cantidad}
+                                  aria-label={`Cantidad de ${l.sku ?? 'la línea'}`}
+                                  onChange={(e) =>
+                                    setBorrador((b) =>
+                                      b
+                                        ? cambiarLineaRemito(b, l.clave, 'cantidad', e.target.value)
+                                        : b,
+                                    )
+                                  }
+                                />
+                              </td>
+                              <td>{info ? formatearCantidad(info.pedida) : '—'}</td>
+                              <td>
+                                {info
+                                  ? formatearCantidad(
+                                      Math.max(0, info.pedida - info.otros - cantidad),
+                                    )
+                                  : '—'}
+                              </td>
+                              <td>
+                                <IconButton
+                                  aria-label={`Quitar ${l.sku ?? 'la línea'}`}
+                                  icon="trash"
+                                  onClick={() =>
+                                    setBorrador((b) => (b ? quitarLineaRemito(b, l.clave) : b))
+                                  }
+                                />
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <TablaLineas lineas={doc.lineas} moneda={doc.moneda} tipo="entrega" />
+                )}
 
-            {editando ? (
-              <p className={editor.nota}>
-                El precio, el descuento y el impuesto vienen del pedido y no se editan acá: un remito dice
-                qué se entrega, no a qué precio se vendió.
-              </p>
-            ) : (
-              <Totals
-                rows={[
-                  { label: 'Subtotal', value: formatearImporte(doc.subtotal, doc.moneda) },
-                  { label: 'Impuestos', value: formatearImporte(doc.impuesto, doc.moneda) },
-                  { label: 'Total', value: formatearImporte(doc.total, doc.moneda), strong: true },
-                ]}
-              />
-            )}
-          </DocSection>
+                {editando ? (
+                  <p className={editor.nota}>
+                    El precio, el descuento y el impuesto vienen del pedido y no se editan acá: un
+                    remito dice qué se entrega, no a qué precio se vendió.
+                  </p>
+                ) : (
+                  <Totals
+                    rows={[
+                      { label: 'Subtotal', value: formatearImporte(doc.subtotal, doc.moneda) },
+                      { label: 'Impuestos', value: formatearImporte(doc.impuesto, doc.moneda) },
+                      {
+                        label: 'Total',
+                        value: formatearImporte(doc.total, doc.moneda),
+                        strong: true,
+                      },
+                    ]}
+                  />
+                )}
+              </DocSection>
 
-        {/* Fase 19 · E5: los cuatro números contra el pedido, sin salir del
+              {/* Fase 19 · E5: los cuatro números contra el pedido, sin salir del
             remito. Sólo con pedido de origen: uno suelto no tiene contra qué
             compararse. */}
-        {!editando && doc.origen?.tipo === 'pedido' ? (
-          <DocSection title="Avance del pedido">
-            <PanelAvanceRemito
-              avance={avance.data}
-              cargando={avance.isPending}
-              despachado={doc.estado === 'shipped' || doc.estado === 'delivered'}
-            />
-          </DocSection>
-        ) : null}
-          </div>
-
-          {verPrevia ? (
-            <div className={editor.columnaPrevia}>
-              <VistaPreviaDocumento
-                opciones={opcionesDeHoja}
-                doc={doc}
-                lineas={lineasParaHoja}
-                ajustarAlAncho={pantallaAncha}
-                aclaracion={
-                  editando
-                    ? 'La hoja muestra las cantidades que estás editando. El precio y el impuesto vienen del pedido y no se editan acá.'
-                    : null
-                }
-              />
+              {!editando && doc.origen?.tipo === 'pedido' ? (
+                <DocSection title="Avance del pedido">
+                  <PanelAvanceRemito
+                    avance={avance.data}
+                    cargando={avance.isPending}
+                    despachado={doc.estado === 'shipped' || doc.estado === 'delivered'}
+                  />
+                </DocSection>
+              ) : null}
             </div>
-          ) : null}
+
+            {verPrevia ? (
+              <div className={editor.columnaPrevia}>
+                <VistaPreviaDocumento
+                  opciones={opcionesDeHoja}
+                  doc={doc}
+                  lineas={lineasParaHoja}
+                  ajustarAlAncho={pantallaAncha}
+                  aclaracion={
+                    editando
+                      ? 'La hoja muestra las cantidades que estás editando. El precio y el impuesto vienen del pedido y no se editan acá.'
+                      : null
+                  }
+                />
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -836,7 +938,12 @@ function Detalle() {
 
         {pestana === 'relacionados' ? (
           <DocSection title="Relacionados">
-            <PanelRelacionados relacionados={relacionados.data} cargando={relacionados.isPending} idActual={doc.id} tipoActual="entrega" />
+            <PanelRelacionados
+              relacionados={relacionados.data}
+              cargando={relacionados.isPending}
+              idActual={doc.id}
+              tipoActual="entrega"
+            />
           </DocSection>
         ) : null}
 
@@ -847,7 +954,11 @@ function Detalle() {
         ) : null}
       </DocumentTabs>
 
-      <DialogoCambiosSinGuardar open={salida.preguntando} onSalir={salida.salir} onQuedarse={salida.quedarse} />
+      <DialogoCambiosSinGuardar
+        open={salida.preguntando}
+        onSalir={salida.salir}
+        onQuedarse={salida.quedarse}
+      />
 
       <ConfirmDialog
         open={confirmarSalida}

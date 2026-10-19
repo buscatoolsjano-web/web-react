@@ -262,7 +262,15 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
     esEntrega && doc.seguimiento ? { seccion: 4, label: 'Seguimiento', value: doc.seguimiento } : null,
   ]
 
-  if (!agrupado) return <MetaList items={items} />
+  /* Sin agrupar —el remito— va igual adentro de `.ficha`: es la clase que
+     la vuelve densa con la hoja cerrada, y eso vale para los tres
+     documentos (Fase 84). */
+  if (!agrupado)
+    return (
+      <div className={styles.ficha}>
+        <MetaList items={items} />
+      </div>
+    )
 
   const de = (n: NumeroSeccion) => items.filter((i): i is Dato => !!i && i.seccion === n)
   return (

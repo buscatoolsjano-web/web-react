@@ -190,3 +190,38 @@ describe('Información · remito', () => {
     expect(screen.getByText('Sin pedido relacionado')).toBeInTheDocument()
   })
 })
+
+/*
+ * Los tres documentos entran por la misma puerta (Fase 84).
+ *
+ * «Fijate lo mismo en pedido y remito, que esté todo igual.»
+ *
+ * La cotización y el pedido muestran la ficha AGRUPADA en las cuatro
+ * secciones numeradas; el remito, suelta, porque su editor es un solo grupo.
+ * Eran dos marcados distintos y sólo uno llevaba la clase que la vuelve densa
+ * con la hoja cerrada: por eso el remito era el único que no se parecía.
+ *
+ * La clase se busca por su nombre sin el hash, que es lo que se puede desde
+ * un test: lo que importa es que esté en los dos caminos.
+ */
+describe('la ficha es la misma en los tres documentos', () => {
+  const ficha = (c: HTMLElement) => c.querySelector('[class*="ficha"]')
+
+  it('agrupada —cotización y pedido— lleva la clase que la vuelve densa', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <InformacionDocumento agrupado doc={doc({ tipo: 'pedido', numero: 'PDV00001', serie: 'PDV' })} />
+      </MemoryRouter>,
+    )
+    expect(ficha(container)).not.toBeNull()
+  })
+
+  it('suelta —el remito— también', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <InformacionDocumento doc={doc({ tipo: 'entrega', numero: 'RT00001', serie: 'RT' })} />
+      </MemoryRouter>,
+    )
+    expect(ficha(container)).not.toBeNull()
+  })
+})

@@ -635,3 +635,29 @@ describe('Enviar por mail', () => {
     expect(screen.queryByRole('button', { name: 'Enviar por mail' })).toBeNull()
   })
 })
+
+/*
+ * El remito se edita con la misma forma que los otros dos (Fase 84).
+ *
+ * «Fijate lo mismo en pedido y remito, que esté todo igual.»
+ *
+ * El pedido y la cotización comparten `EditorCabecera`, que agrupa sus campos
+ * en `fieldset` con grilla. El remito tiene su propio formulario —sus campos
+ * son otros: transporte, seguimiento— y era un `div` suelto con una clase que
+ * NO existía: el `className` llegaba `undefined` y los seis campos quedaban
+ * apilados a lo ancho, que es por qué no se parecía a los otros.
+ *
+ * Ahora es un grupo de verdad. Eso es lo que se prueba: que exista, con su
+ * nombre, que es además lo que lo hace navegable por lector de pantalla.
+ */
+describe('El formulario del remito', () => {
+  it('es un grupo con nombre, como la cabecera de los otros documentos', () => {
+    montar()
+    editar()
+    const grupo = screen.getByRole('group', { name: 'Datos de la entrega' })
+    expect(grupo).toBeInTheDocument()
+    // Y los campos viven adentro, no sueltos en la sección.
+    expect(within(grupo).getByLabelText('Fecha del remito')).toBeInTheDocument()
+    expect(within(grupo).getByLabelText(/Transporte/)).toBeInTheDocument()
+  })
+})

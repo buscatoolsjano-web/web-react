@@ -60,24 +60,34 @@
    * no se mueve solo (Fase 84).
    */
   .ficha {
+    /* `display: grid` acá y no sólo las columnas: agrupada, la ficha ya es
+       una grilla porque comparte la clase del editor, pero suelta —el
+       remito— es un `div` pelado, y sin esto las columnas no existen y los
+       datos salen de a uno por renglón. */
+    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: var(--space-5);
     row-gap: 0;
     align-items: start;
   }
 
-  /* Las secciones y sus listas desaparecen como cajas: quedan sus datos. */
-  .ficha > section,
-  .ficha > section > dl {
+  /* Las secciones y sus listas desaparecen como cajas: quedan sus datos.
+
+     Van por DESCENDENCIA y no por hijo directo: el remito no agrupa en las
+     cuatro secciones numeradas —su editor es uno solo— así que su ficha es
+     una lista pelada, sin `section` en el medio. Con el selector flojo las
+     dos formas entran por la misma puerta (Fase 84). */
+  .ficha section,
+  .ficha dl {
     display: contents;
   }
 
-  .ficha > section > p {
+  .ficha section > p {
     display: none;
   }
 
   /* Cada dato, un renglón: rótulo a la derecha de su columna, dato al lado. */
-  .ficha > section > dl > div {
+  .ficha dl > div {
     display: grid;
     grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr);
     align-items: center;
@@ -85,7 +95,7 @@
     padding-block: 3px;
   }
 
-  .ficha > section > dl > div > dt {
+  .ficha dl > div > dt {
     text-align: right;
   }
 
@@ -101,7 +111,7 @@
    * campo activo: acá no se edita, se edita con «Editar». Prometer con la
    * forma algo que el click no cumple sería peor que no tener caja.
    */
-  .ficha > section > dl > div > dd {
+  .ficha dl > div > dd {
     margin: 0;
     min-height: var(--control-h-sm);
     display: flex;
@@ -113,7 +123,7 @@
   }
 
   /* Los de ancho completo —un domicilio— respiran arriba y abajo. */
-  .ficha > section > dl > div > dd:has(> *) {
+  .ficha dl > div > dd:has(> *) {
     align-items: center;
   }
 }
