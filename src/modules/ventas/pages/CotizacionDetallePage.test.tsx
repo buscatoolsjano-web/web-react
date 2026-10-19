@@ -712,15 +712,15 @@ describe('Cotización · pestañas', () => {
   it('Información muestra lo que falta como faltante, y la tarifa vacía se dice así', () => {
     montar()
 
-    expect(screen.getByText('Sin contacto asignado')).toBeInTheDocument()
     // Vendedor y forma de pago: decisiones de negocio tomadas, hoy vacías.
     expect(screen.getAllByText('Sin registrar').length).toBeGreaterThanOrEqual(2)
     // Fase 15 · E2: el documento sí guarda su tarifa. Sin ella, se dice que
     // no quedó registrada, que no es lo mismo que inferir la del cliente.
     expect(screen.getByText('Tarifa')).toBeInTheDocument()
     expect(screen.getByText('Sin tarifa registrada')).toBeInTheDocument()
-    // Una vez como badge en la cabecera y otra como dato en Información.
-    expect(screen.getAllByText(/Migrado desde STEL/).length).toBeGreaterThan(0)
+    // De dónde salió el documento se dice UNA vez, en el chip de la cabecera:
+    // la fila «Origen» de Información era la misma frase (Fase 84).
+    expect(screen.getAllByText(/Migrado desde STEL/)).toHaveLength(1)
   })
 
   it('con tarifa registrada, Información muestra su nombre (Fase 15 E2)', () => {
@@ -731,7 +731,14 @@ describe('Cotización · pestañas', () => {
     expect(screen.queryByText('Sin tarifa registrada')).toBeNull()
   })
 
-  it('Información muestra el contacto con sus datos cuando existe', () => {
+  /*
+   * El contacto salió de Información en la Fase 84 —no está en la ficha del
+   * sistema anterior, que es lo que se pidió replicar— y sigue estando en la
+   * hoja impresa, que es la que va al cliente, y en la ficha rápida que abre
+   * el nombre del cliente. Este test pasa a custodiar eso: que no vuelva a
+   * ocupar una fila, y que el camino para verlo siga ahí.
+   */
+  it('el contacto no ocupa una fila: se abre desde el cliente', () => {
     estado.doc = cotizacion({
       contactoNombre: 'Ana Pérez',
       contactoRol: 'Compras',
@@ -739,8 +746,8 @@ describe('Cotización · pestañas', () => {
       contactoTelefono: null,
     })
     montar()
-    expect(screen.getByText(/Ana Pérez/)).toBeInTheDocument()
-    expect(screen.getByText(/Compras · ana@ejemplo.com/)).toBeInTheDocument()
+    expect(screen.queryByText(/Compras · ana@ejemplo.com/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Consulta MercadoLibre' })).toBeInTheDocument()
   })
 
   it('Adjuntos dice que no hay, sin prometer nada más', async () => {

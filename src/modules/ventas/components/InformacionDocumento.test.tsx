@@ -87,15 +87,42 @@ describe('Información · cotización', () => {
 
   it('lo que falta y debería estar, se dice', () => {
     montar(doc())
-    expect(screen.getByText('Sin contacto asignado')).toBeInTheDocument()
     expect(screen.getByText('Sin tarifa registrada')).toBeInTheDocument()
+    expect(screen.getByText('Sin título')).toBeInTheDocument()
     expect(screen.getAllByText('Sin registrar').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('un opcional vacío no ocupa una fila', () => {
-    montar(doc())
-    expect(etiquetas()).not.toContain('Tipo de cambio')
-    expect(etiquetas()).not.toContain('Observaciones')
+  /**
+   * Sólo lo que muestra el sistema anterior, y en su orden (Fase 84).
+   *
+   * «Sólo poné los datos que aparecen en STEL, así ganamos espacio, y en el
+   * mismo orden.» La ficha tenía catorce filas y la de allá tiene ocho.
+   *
+   * Lo que se prueba es la LISTA y su ORDEN, que es lo que se pidió, y que
+   * nada de lo que se sacó era información que sólo estaba acá: «Origen» es
+   * el chip del encabezado, «Moneda» está en cada precio, «Creado» y
+   * «Última modificación» están en Trazabilidad y el contacto se abre
+   * tocando el cliente.
+   */
+  it('muestra los ocho datos del sistema anterior, en su orden', () => {
+    montar(doc({ titulo: 'VENTAS MERCADO LIBRE', creadoPor: 'Juan' }))
+    expect(etiquetas()).toEqual([
+      'Serie',
+      'Fecha',
+      'Título',
+      'Cliente',
+      'Forma de pago',
+      'Creado por',
+      'Agente',
+      'Tarifa',
+    ])
+  })
+
+  it('no repite lo que ya está en otro lado de la pantalla', () => {
+    montar(doc({ notas: 'Generada al importar la orden de compra 4800027323.', tipoCambio: 1100 }))
+    for (const ausente of ['Origen', 'Moneda', 'Contacto', 'Observaciones', 'Creado', 'Última modificación', 'Tipo de cambio']) {
+      expect(etiquetas()).not.toContain(ausente)
+    }
   })
 })
 

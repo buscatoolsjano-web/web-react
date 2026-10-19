@@ -3,9 +3,7 @@ import { MetaList, Missing, type MetaItem } from '@/components/document/DocSecti
 import cabecera from './CabeceraCotizacion.module.css'
 import docUi from '@/components/document/Document.module.css'
 import styles from './InformacionDocumento.module.css'
-import { formatearDomicilio } from '../lib/formato'
-import { presentarOrigen } from '../lib/origen'
-import { formatearMomento } from '../lib/trazabilidad'
+import { formatearDomicilio, formatearFecha } from '../lib/formato'
 import { RUTA_DE, type DocumentoDetalle } from '../types'
 
 export interface InformacionDocumentoProps {
@@ -28,26 +26,14 @@ export interface InformacionDocumentoProps {
   onVerCliente?: () => void
 }
 
-/** El contacto, con lo que haya cargado de él. */
-function contacto(doc: DocumentoDetalle) {
-  const extras = doc.contactosExtra
-  if (!doc.contactoNombre) {
-    if (extras.length === 0) return <Missing>Sin contacto asignado</Missing>
-    // Puede pasar: alguien quitó al principal y dejó a los demás.
-    return <>{extras.map((c) => c.nombre).join('\n')}</>
-  }
-  const extra = [doc.contactoRol, doc.contactoEmail, doc.contactoTelefono].filter(Boolean)
-  // Los acompañantes, nombrados (Fase 40): antes terminaban escritos en las
-  // observaciones, donde no se pueden filtrar ni usar para nada.
-  const acompanan = extras.map((c) => (c.rol ? `${c.nombre} · ${c.rol}` : c.nombre))
-  return (
-    <>
-      {doc.contactoNombre}
-      {extra.length > 0 ? `\n${extra.join(' · ')}` : ''}
-      {acompanan.length > 0 ? `\nTambién: ${acompanan.join(', ')}` : ''}
-    </>
-  )
-}
+/*
+ * Acá vivía `contacto()`, que armaba el contacto del documento con su cargo,
+ * su correo, su teléfono y los acompañantes. Se fue con la fila en la
+ * Fase 84: el contacto no está en la ficha del sistema anterior, y acá se
+ * sigue viendo tocando el nombre del cliente —que abre la ficha rápida con
+ * toda su agenda— y en la hoja impresa, que lo lleva porque es para el
+ * cliente.
+ */
 
 /** Cómo se llama el documento del que salió éste. */
 const ETIQUETA_ORIGEN: Record<string, string> = {
@@ -85,17 +71,66 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
   const esEntrega = doc.tipo === 'entrega'
   const esPedido = doc.tipo === 'pedido'
   const comercial = !esEntrega
-  const origen = presentarOrigen({
-    externalSource: doc.externalSource,
-    esHistorico: doc.esHistorico,
-    serie: doc.serie,
-  })
 
   /**
-   * Cada dato con su sección, para poder mostrarlos agrupados igual que en
-   * el editor. Sin agrupar salen todos en una lista, como hasta ahora.
+   * Los datos, en el recorte y el orden del sistema anterior (Fase 84).
+   *
+   * «Sólo poné los datos que aparecen en STEL, así ganamos espacio, y en el
+   * mismo orden.» La ficha tenía catorce filas y la de allá tiene ocho. Las
+   * seis que sobraban estaban todas dichas en otro lado de la MISMA pantalla:
+   *
+   *  · «Origen» es el chip «Emitido en el ERP» que está arriba al lado del
+   *    número, y encima se llevaba dos renglones de ancho completo.
+   *  · «Moneda» está en cada precio de las líneas y en los totales.
+   *  · «Creado» y «Última modificación» están en Trazabilidad, ahí con quién
+   *    y qué cambió, que es más de lo que decía la fila.
+   *  · «Tipo de cambio» sólo aparecía con el dato cargado, que es casi nunca.
+   *  · «Contacto» se abre tocando el cliente, que es la ficha rápida.
+   *
+   * La única que NO estaba repetida es «Observaciones», que queda sólo en el
+   * editor. Son notas de trabajo —las que hay dicen «generada al importar la
+   * orden de compra»—, y por eso desde la Fase 84 tampoco se imprimen.
+   *
+   * Y se SUMAN dos que allá están y acá faltaban: la fecha del documento y su
+   * título. Que el título no se viera era un hueco: es el renglón que sale
+   * impreso debajo del tipo de documento y es lo único de la hoja que se
+   * escribe para el cliente.
+   *
+   * Lo que el sistema anterior guarda en «Más información» y acá no tiene
+   * dónde ir —el domicilio de un remito, el transporte, de qué documento
+   * salió éste— se queda: esconderlo sería perderlo.
+   *
+   * Cada dato lleva su sección para agruparlos igual que el editor cuando la
+   * columna es angosta. Con la columna ancha las secciones se disuelven y el
+   * orden que se ve es el de esta lista.
    */
   const items: (Dato | null | false)[] = [
+    { seccion: 1, label: 'Serie', value: doc.serie ?? '—' },
+    { seccion: 1, label: 'Fecha', value: formatearFecha(doc.fecha) },
+    { seccion: 1, label: 'Título', value: doc.titulo ?? <Missing>Sin título</Missing> },
+    // «Válida hasta» se fue en la Fase 28 · E11: no aplica, y de las 307
+    // cotizaciones de la base ninguna la tenía cargada.
+    // De dónde salió el documento. La fila se muestra AUNQUE no tenga origen:
+    // que un remito no venga de un pedido, o que un pedido sea manual, es un
+    // dato del negocio —y en el histórico hay 37 remitos así—, no un olvido.
+    // Allá esto vive en el título de la tarjeta («generado a partir del pedido
+    // de venta PDV01347»); acá no hay título donde ponerlo, así que es una
+    // fila más de los datos generales.
+    doc.origen
+      ? {
+          label: ETIQUETA_ORIGEN[doc.origen.tipo] ?? 'Documento de origen',
+          seccion: 1,
+          value: (
+            <Link to={`${RUTA_DE[doc.origen.tipo]}/${doc.origen.id}`} className={docUi.enlace}>
+              {doc.origen.numero}
+            </Link>
+          ),
+        }
+      : esEntrega
+        ? { seccion: 1, label: 'Pedido de origen', value: <Missing>Sin pedido relacionado</Missing> }
+        : doc.tipo === 'pedido'
+          ? { seccion: 1, label: 'Cotización de origen', value: <Missing>Sin cotización: pedido manual</Missing> }
+          : null,
     {
       label: 'Cliente',
       seccion: 2,
@@ -111,7 +146,8 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
           doc.clienteNombre
         ),
     },
-    { seccion: 2, label: 'Contacto', value: contacto(doc) },
+    comercial && { seccion: 3, label: 'Forma de pago', value: doc.formaPago ?? <Missing /> },
+    doc.creadoPor ? { seccion: 4, label: 'Creado por', value: doc.creadoPor } : null,
     comercial && {
       seccion: 4,
       // Fase 40: los agentes que acompañan, nombrados. Antes el segundo no
@@ -126,17 +162,11 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
             .join(', ')
         ),
     },
-    comercial && { seccion: 3, label: 'Forma de pago', value: doc.formaPago ?? <Missing /> },
-    { seccion: 4, label: 'Moneda', value: doc.moneda ?? <Missing>Sin moneda</Missing> },
     comercial && {
       label: 'Tarifa',
       seccion: 4,
       value: doc.listaPrecioNombre ?? <Missing>Sin tarifa registrada</Missing>,
     },
-    doc.tipoCambio !== null && { seccion: 4, label: 'Tipo de cambio', value: doc.tipoCambio },
-    { seccion: 1, label: 'Serie', value: doc.serie ?? '—' },
-    // «Válida hasta» se fue en la Fase 28 · E11: no aplica, y de las 307
-    // cotizaciones de la base ninguna la tenía cargada.
     // Fase 15 · E6: el domicilio congelado al emitir el remito. Si no quedó
     // registrado se dice; NO se muestra el domicilio de hoy del cliente, que
     // es otra información.
@@ -160,39 +190,6 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
     },
     esEntrega && doc.transporte ? { seccion: 4, label: 'Transporte', value: doc.transporte } : null,
     esEntrega && doc.seguimiento ? { seccion: 4, label: 'Seguimiento', value: doc.seguimiento } : null,
-    // De dónde salió el documento. La fila se muestra AUNQUE no tenga origen:
-    // que un remito no venga de un pedido, o que un pedido sea manual, es un
-    // dato del negocio —y en el histórico hay 37 remitos así—, no un olvido.
-    doc.origen
-      ? {
-          label: ETIQUETA_ORIGEN[doc.origen.tipo] ?? 'Documento de origen',
-          seccion: 1,
-          value: (
-            <Link to={`${RUTA_DE[doc.origen.tipo]}/${doc.origen.id}`} className={docUi.enlace}>
-              {doc.origen.numero}
-            </Link>
-          ),
-        }
-      : esEntrega
-        ? { seccion: 1, label: 'Pedido de origen', value: <Missing>Sin pedido relacionado</Missing> }
-        : doc.tipo === 'pedido'
-          ? { seccion: 1, label: 'Cotización de origen', value: <Missing>Sin cotización: pedido manual</Missing> }
-          : null,
-    {
-      label: 'Origen',
-      seccion: 1,
-      value: (
-        <>
-          {origen.map((o) => o.texto).join(' · ')}
-          {origen[0] ? `\n${origen[0].detalle}` : ''}
-        </>
-      ),
-      wide: true,
-    },
-    doc.notas ? { seccion: 4, label: 'Observaciones', value: doc.notas, wide: true } : null,
-    doc.creadoPor ? { seccion: 4, label: 'Creado por', value: doc.creadoPor } : null,
-    { seccion: 4, label: 'Creado', value: formatearMomento(doc.creadoEn) },
-    { seccion: 4, label: 'Última modificación', value: formatearMomento(doc.actualizadoEn) },
   ]
 
   if (!agrupado) return <MetaList items={items} />
