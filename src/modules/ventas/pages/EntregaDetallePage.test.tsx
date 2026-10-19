@@ -294,7 +294,9 @@ describe('Remito · shell documental', () => {
     // anterior. Arriba queda sólo lo que identifica al remito.
     const vacio = montar()
     fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
-    expect(screen.queryByText('Transporte')).toBeNull()
+    // La fila está siempre: lo que cambia es si dice el dato o que falta.
+    expect(screen.getByText('Transporte')).toBeInTheDocument()
+    expect(screen.getAllByText('Sin registrar').length).toBeGreaterThan(0)
     vacio.unmount()
 
     estado.doc = remito({ transporte: 'Andreani', seguimiento: 'AR-993' })

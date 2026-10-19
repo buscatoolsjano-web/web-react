@@ -178,9 +178,21 @@ describe('Información · remito', () => {
     expect(screen.getByText('Sin domicilio registrado')).toBeInTheDocument()
   })
 
-  it('el transporte sólo aparece si existe', () => {
-    montarMas(remito())
-    expect(etiquetas()).not.toContain('Transporte')
+  /*
+   * El transporte y el seguimiento SIEMPRE tienen su fila en «Más
+   * información», aunque estén vacíos (Fase 84).
+   *
+   * Es al revés que en la tarjeta de arriba, y a propósito: esta pestaña es
+   * la que se abre para ver si algo está puesto, y además es la misma que se
+   * edita. Si las filas vacías no estuvieran, apretar «Editar» agregaría
+   * campos y la pestaña cambiaría de forma, que es justo lo que se vino a
+   * arreglar.
+   */
+  it('el transporte y el seguimiento tienen su fila, con dato o sin él', () => {
+    const vacio = montarMas(remito())
+    expect(etiquetas()).toContain('Transporte')
+    expect(etiquetas()).toContain('Seguimiento')
+    vacio.unmount()
 
     montarMas(remito({ transporte: 'Andreani', seguimiento: 'AR-993' }))
     expect(screen.getByText('Andreani')).toBeInTheDocument()

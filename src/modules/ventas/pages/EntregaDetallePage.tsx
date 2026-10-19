@@ -905,6 +905,15 @@ function Detalle() {
           Se edita con el MISMO borrador y se guarda con el mismo botón.
         */}
         {pestana === 'masinfo' ? (
+          /*
+            La pestaña va DENTRO de la columna del editor (Fase 84).
+            `.columnaEditor` no es sólo una columna: es el contenedor que
+            miden las reglas densas —el rótulo al costado, las dos o tres
+            columnas de campos—. Sin él, acá nada de eso aplicaba y los
+            campos salían con el rótulo arriba y aplastados en nueve columnas
+            de 150 px.
+          */
+          <div className={editor.columnaEditor}>
           <DocSection title="Más información">
             {editando ? (
               <div className={`${cabecera.bloques} ${cabecera.denso}`}>
@@ -959,6 +968,7 @@ function Detalle() {
               />
             )}
           </DocSection>
+          </div>
         ) : null}
 
         {pestana === 'adjuntos' ? (

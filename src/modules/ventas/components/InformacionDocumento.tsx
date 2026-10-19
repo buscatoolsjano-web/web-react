@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { MetaList, Missing, type MetaItem } from '@/components/document/DocSection'
 import docUi from '@/components/document/Document.module.css'
 import styles from './InformacionDocumento.module.css'
-import { formatearDomicilio, formatearFecha } from '../lib/formato'
+import { formatearCantidad, formatearDomicilio, formatearFecha } from '../lib/formato'
 import { presentarCumplimiento, presentarEstado } from '../lib/estados'
 import { presentarOrigen } from '../lib/origen'
 import { ChipEstado } from './ChipEstado'
@@ -33,14 +33,32 @@ export interface InformacionDocumentoProps {
   onVerCliente?: () => void
 }
 
-/*
- * Acá vivía `contacto()`, que armaba el contacto del documento con su cargo,
- * su correo, su teléfono y los acompañantes. Se fue con la fila en la
- * Fase 84: el contacto no está en la ficha del sistema anterior, y acá se
- * sigue viendo tocando el nombre del cliente —que abre la ficha rápida con
- * toda su agenda— y en la hoja impresa, que lo lleva porque es para el
- * cliente.
+/**
+ * El contacto, con lo que haya cargado de él.
+ *
+ * No está en la tarjeta de arriba —allá tampoco— sino en «Más información»,
+ * que es donde se elige (Fase 84). Toda su agenda sigue a un clic del nombre
+ * del cliente, y el principal va en la hoja impresa, que es para el cliente.
  */
+function contacto(doc: DocumentoDetalle) {
+  const extras = doc.contactosExtra
+  if (!doc.contactoNombre) {
+    if (extras.length === 0) return <Missing>Sin contacto asignado</Missing>
+    // Puede pasar: alguien quitó al principal y dejó a los demás.
+    return <>{extras.map((c) => c.nombre).join('\n')}</>
+  }
+  const extra = [doc.contactoRol, doc.contactoEmail, doc.contactoTelefono].filter(Boolean)
+  // Los acompañantes, nombrados (Fase 40): antes terminaban escritos en las
+  // observaciones, donde no se pueden filtrar ni usar para nada.
+  const acompanan = extras.map((c) => (c.rol ? `${c.nombre} · ${c.rol}` : c.nombre))
+  return (
+    <>
+      {doc.contactoNombre}
+      {extra.length > 0 ? `\n${extra.join(' · ')}` : ''}
+      {acompanan.length > 0 ? `\nTambién: ${acompanan.join(', ')}` : ''}
+    </>
+  )
+}
 
 /**
  * La referencia: la serie y el número, en dos cajas como el sistema anterior.
@@ -263,7 +281,42 @@ export function InformacionDocumento({ doc, onVerCliente, parte = 'principal' }:
       wide: true,
     },
     esEntrega && doc.transporte ? { parte: 'mas', label: 'Transporte', value: doc.transporte } : null,
+    esEntrega && doc.transporte === null ? { parte: 'mas', label: 'Transporte', value: <Missing /> } : null,
     esEntrega && doc.seguimiento ? { parte: 'mas', label: 'Seguimiento', value: doc.seguimiento } : null,
+    esEntrega && doc.seguimiento === null ? { parte: 'mas', label: 'Seguimiento', value: <Missing /> } : null,
+    /*
+     * Y lo que se edita en «Más información», para que la pestaña diga lo
+     * mismo mirando que editando (Fase 84).
+     *
+     * Acá SÍ se muestran los opcionales vacíos, al revés que en la tarjeta de
+     * arriba: lo que se mira en esta pestaña es justamente si están puestos.
+     * Un «% Dto. global» ausente es un descuento que nadie cargó, y eso es la
+     * información; esconderlo haría que la pestaña cambiara de forma al
+     * apretar «Editar», que es lo que se vino a arreglar.
+     */
+    { parte: 'mas', label: 'Contacto', value: contacto(doc) },
+    comercial && {
+      parte: 'mas',
+      label: '% Dto. global',
+      value: doc.descuentoPct ? `${formatearCantidad(doc.descuentoPct)} %` : <Missing>Sin descuento</Missing>,
+    },
+    comercial && {
+      parte: 'mas',
+      label: '% Percep. IIBB',
+      value: doc.percepcionPct ? `${formatearCantidad(doc.percepcionPct)} %` : <Missing>Sin percepción</Missing>,
+    },
+    comercial && { parte: 'mas', label: 'Moneda', value: doc.moneda ?? <Missing>Sin moneda</Missing> },
+    comercial && {
+      parte: 'mas',
+      label: 'Tipo de cambio',
+      value: doc.tipoCambio ?? <Missing>Sin tipo de cambio</Missing>,
+    },
+    {
+      parte: 'mas',
+      label: 'Observaciones',
+      value: doc.notas ?? <Missing>Sin observaciones</Missing>,
+      wide: true,
+    },
   ]
 
   /*
