@@ -1,18 +1,10 @@
 import { Field } from '@/components/forms/Field'
-import { Input, Select, Textarea } from '@/components/forms/controls'
-import { Button } from '@/components/ui/Button'
-import { MONEDAS_DOCUMENTO as MONEDAS } from '../lib/moneda'
+import { Input, Select } from '@/components/forms/controls'
 import type { CabeceraBorrador, CampoCabecera } from '../lib/borrador'
-import type {
-  OpcionContacto,
-  OpcionDireccion,
-  OpcionTarifa,
-  OpcionVendedor,
-} from '../services/opciones'
+import type { OpcionTarifa, OpcionVendedor } from '../services/opciones'
 import type { FormaDePago } from '@/modules/configuracion/services/maestros'
 import { BuscadorCliente } from './BuscadorCliente'
 import { SelectorFormaDePago } from '@/features/formasDePago/SelectorFormaDePago'
-import { ContactosDelDocumento } from './ContactosDelDocumento'
 import { VendedoresDelDocumento } from './VendedoresDelDocumento'
 import styles from './CabeceraCotizacion.module.css'
 
@@ -24,13 +16,6 @@ export interface OpcionSerie {
 
 export interface EditorCabeceraProps {
   valores: CabeceraBorrador
-  contactos: readonly OpcionContacto[]
-  /**
-   * Los domicilios de entrega del cliente (Fase 17 · E3). Sin la prop no se
-   * muestra el campo: la cotización no entrega nada, el pedido sí.
-   */
-  direcciones?: readonly OpcionDireccion[] | undefined
-  cargandoDirecciones?: boolean | undefined
   tarifas: readonly OpcionTarifa[]
   vendedores: readonly OpcionVendedor[]
   /**
@@ -46,16 +31,6 @@ export interface EditorCabeceraProps {
    * poder escribir en el catálogo.
    */
   onAgregarFormaDePago?: ((nombre: string) => Promise<string>) | undefined
-  cargandoContactos: boolean
-  /** El cambio de cliente dejó al documento sin contacto. */
-  avisoContacto: boolean
-  /**
-   * Abrir la agenda de contactos del cliente (Fase 28 · E14).
-   *
-   * Sin esto no se dibuja el botón: hay pantallas donde el documento no se
-   * edita, y ahí no hay nada que agendar.
-   */
-  onAbrirContactos?: (() => void) | undefined
   /** El cambio de moneda dejó la tarifa incompatible. */
   avisoTarifa: boolean
   /**
@@ -71,22 +46,10 @@ export interface EditorCabeceraProps {
   /** El número, cuando el documento ya lo tiene. En el alta lo pone el servidor. */
   numero?: string | undefined
   onCambiar: (campo: CampoCabecera, valor: string) => void
-  /**
-   * El equipo de contactos del documento (Fase 40).
-   *
-   * Va aparte de `onCambiar` porque son DOS valores que cambian juntos —quién
-   * es el principal y quiénes lo acompañan— y mandarlos por separado dejaría
-   * al documento, entre una llamada y la otra, con dos principales o ninguno.
-   */
-  onCambiarContactos: (principal: string, secundarios: string[]) => void
   /** Lo mismo para los vendedores, y por el mismo motivo (Fase 40). */
   onCambiarVendedores: (principal: string, acompanan: string[]) => void
   onCambiarCliente: (customerId: string) => void
-  onCambiarMoneda: (moneda: string) => void
 }
-
-/** La percepción del legacy es 2,5 %, pero la alícuota se guarda, no se fija. */
-const PERCEPCION_HABITUAL = '2.5'
 
 /**
  * Cabecera del documento en modo edición (Fase 15 · E2, rehecha en 27 · E1).
@@ -94,28 +57,22 @@ const PERCEPCION_HABITUAL = '2.5'
  * Todo lo que se escribe acá va al BORRADOR: **ni un solo control escribe en
  * la base**. El único camino de escritura es «Guardar».
  *
- * **Cuatro secciones numeradas**, las del sistema anterior y en su orden:
- * datos generales, cliente, condiciones y otros datos. No es decoración: el
- * orden es el de la conversación con el cliente —qué documento es, para quién,
- * en qué condiciones, y recién después el resto— y numerarlas deja nombrarlas
- * sin describirlas.
+ * **Es la mitad de arriba**: los mismos campos que muestra la ficha cuando
+ * el documento no se edita, en el mismo orden, para que apretar «Editar» no
+ * reacomode la pantalla (Fase 84). El resto —moneda, tipo de cambio,
+ * domicilio, observaciones, contactos— vive en `EditorMasInformacion`, que
+ * escribe en el MISMO borrador y se guarda con el mismo botón.
  *
  * La densidad también es del pedido: cada fila que se ahorra acá es una fila
  * menos de scroll antes de llegar a las líneas.
  */
 export function EditorCabecera({
-  direcciones,
-  cargandoDirecciones = false,
   valores,
-  contactos,
   tarifas,
   vendedores,
   formasDePago = [],
   cargandoFormasDePago = false,
   onAgregarFormaDePago,
-  cargandoContactos,
-  avisoContacto,
-  onAbrirContactos,
   avisoTarifa,
   series,
   serie,
@@ -123,29 +80,33 @@ export function EditorCabecera({
   numero,
   onCambiar,
   onCambiarCliente,
-  onCambiarMoneda,
-  onCambiarContactos,
   onCambiarVendedores,
 }: EditorCabeceraProps) {
-  const numeroInput = { type: 'number', step: 'any', min: '0' } as const
   // Sólo se ofrecen las tarifas de la moneda del documento: una de otra moneda
   // exigiría un tipo de cambio que nadie definió, y la base la rechaza.
   const compatibles = tarifas.filter((t) => t.moneda === valores.moneda)
   const ocultas = tarifas.length - compatibles.length
-  // Una dirección desactivada no se ofrece… salvo que el documento ya la
-  // nombre. En ese caso se muestra, marcada: esconderla haría que el
-  // desplegable quedara en blanco y que guardar borrara el dato sin que nadie
-  // lo pidiera. (La misma regla para los contactos vive en lib/contactos.)
-  const direccionesVisibles = (direcciones ?? []).filter(
-    (d) => d.activa || d.id === valores.direccionEntregaId,
-  )
   const hayReferencia = series !== undefined || numero !== undefined
 
   return (
     <div className={`${styles.bloques} ${styles.denso}`}>
-      {/* ── 1 · datos generales ─────────────────────────────────────── */}
+      {/*
+        Un solo grupo, no cuatro (Fase 84).
+
+        Las cuatro secciones numeradas —«1. Datos generales», «2. Cliente»…—
+        existían para que el editor y la ficha del documento guardado se
+        vieran iguales (Fase 27 · E5). Lo siguen haciendo, pero ahora la que
+        manda es la del sistema anterior: una tarjeta arriba con lo que
+        identifica al documento, y una pestaña «Más información» con el resto.
+        Son dos grupos, uno por pestaña, y cada uno ya tiene su título en la
+        sección que lo contiene.
+
+        El rotulo del grupo va oculto a la vista por eso mismo —repetirlo
+        seria decirlo dos veces— pero existe: un fieldset sin legend deja al
+        grupo sin nombre para quien lo escucha.
+      */}
       <fieldset className={styles.grupo}>
-        <legend className={styles.leyenda}>1. Datos generales</legend>
+        <legend className="sr-only">Datos del documento</legend>
         <div className={styles.grilla}>
           {hayReferencia ? (
             <div className={`${styles.campo} ${styles.ancho}`}>
@@ -186,13 +147,6 @@ export function EditorCabecera({
           <Field label="Título" required className={styles.ancho}>
             <Input value={valores.titulo} onChange={(e) => onCambiar('titulo', e.target.value)} />
           </Field>
-        </div>
-      </fieldset>
-
-      {/* ── 2 · cliente ─────────────────────────────────────────────── */}
-      <fieldset className={styles.grupo}>
-        <legend className={styles.leyenda}>2. Cliente</legend>
-        <div className={styles.grilla}>
           <div className={`${styles.campo} ${styles.ancho}`}>
             {/* El buscador tiene su propio input con su `aria-label`, así que
                 acá va un rótulo y no un `<label for>` que apuntaría a nada. */}
@@ -204,103 +158,7 @@ export function EditorCabecera({
             />
           </div>
 
-          <Field
-            label="Contactos"
-            optional
-            help={
-              avisoContacto
-                ? 'Cambió el cliente, así que se quitó el contacto: era de otro.'
-                : valores.customerId !== '' && contactos.length === 0 && !cargandoContactos
-                  ? 'Este cliente todavía no tiene contactos cargados.'
-                  : undefined
-            }
-          >
-            {/* Varios contactos, con uno principal (Fase 40): una venta la
-                siguen el de compras, el que especifica y el que paga. Antes
-                había que elegir a uno y escribir los otros en las
-                observaciones, donde no sirven para nada. */}
-            <div className={styles.linea}>
-              <ContactosDelDocumento
-                contactos={contactos}
-                principal={valores.contactoId}
-                secundarios={valores.contactosExtra}
-                disabled={valores.customerId === ''}
-                cargando={cargandoContactos}
-                onCambiar={onCambiarContactos}
-              />
-              {/* Fase 28 · E14: crear un contacto sin abandonar el documento.
-                  Antes había que irse a la ficha del cliente y volver a
-                  empezar.
 
-                  Va DENTRO del campo desde la Fase 84. Era un hermano más de
-                  la grilla, o sea una celda entera sin rótulo al lado de los
-                  campos que sí lo tienen, y con la hoja cerrada eso abría un
-                  hueco en la columna. Adentro es lo que es: una acción del
-                  campo «Contactos».
-
-                  El texto es corto a propósito. «Contactos del cliente…» no
-                  entra en una línea de la columna, y al estirarse el botón
-                  quedaba del alto del label más el select. De qué contactos
-                  habla se entiende por dónde está; el nombre largo queda en
-                  el `aria-label`.
-
-                  Ese `aria-label` nombra la ACCIÓN («abrir la agenda…») y no
-                  la cosa («contactos del cliente») a propósito: con el
-                  segundo, el botón y el select pasaban a tener dos nombres
-                  accesibles casi iguales dentro del mismo grupo, y quedaba
-                  ambiguo para quien navega por lector de pantalla. */}
-              {onAbrirContactos ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className={styles.botonAgenda}
-                  aria-label="Abrir la agenda de contactos del cliente"
-                  disabled={valores.customerId === ''}
-                  onClick={onAbrirContactos}
-                >
-                  Contactos…
-                </Button>
-              ) : null}
-            </div>
-          </Field>
-
-          {direcciones ? (
-            <Field
-              label="Entregar en"
-              optional
-              className={styles.ancho}
-              help={
-                valores.customerId !== '' &&
-                direccionesVisibles.length === 0 &&
-                !cargandoDirecciones
-                  ? 'Este cliente no tiene domicilios de entrega cargados. Se cargan en su ficha.'
-                  : valores.direccionEntregaId === '' && direccionesVisibles.length > 0
-                    ? 'Sin elegir, el remito usa el domicilio principal del cliente en el momento de emitirlo.'
-                    : undefined
-              }
-            >
-              <Select
-                value={valores.direccionEntregaId}
-                disabled={valores.customerId === '' || cargandoDirecciones}
-                onChange={(e) => onCambiar('direccionEntregaId', e.target.value)}
-              >
-                <option value="">Domicilio principal del cliente</option>
-                {direccionesVisibles.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {`${d.texto}${d.activa ? '' : ' (desactivada)'}`}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          ) : null}
-        </div>
-      </fieldset>
-
-      {/* ── 3 · condiciones ─────────────────────────────────────────── */}
-      <fieldset className={styles.grupo}>
-        <legend className={styles.leyenda}>3. Condiciones</legend>
-        <div className={styles.grilla}>
           <Field label="Forma de pago" optional className={styles.ancho}>
             <SelectorFormaDePago
               valor={valores.formaPago}
@@ -311,25 +169,7 @@ export function EditorCabecera({
             />
           </Field>
 
-          <Field label="% Dto. global" optional>
-            <Input {...numeroInput} max="100" inputMode="decimal" value={valores.descuentoPct} onChange={(e) => onCambiar('descuentoPct', e.target.value)} />
-          </Field>
 
-          <Field label="% Percep. IIBB" optional>
-            <div className={styles.linea}>
-              <Input {...numeroInput} max="100" inputMode="decimal" value={valores.percepcionPct} onChange={(e) => onCambiar('percepcionPct', e.target.value)} />
-              <Button variant="ghost" size="sm" onClick={() => onCambiar('percepcionPct', PERCEPCION_HABITUAL)}>
-                {PERCEPCION_HABITUAL} %
-              </Button>
-            </div>
-          </Field>
-        </div>
-      </fieldset>
-
-      {/* ── 4 · otros datos ─────────────────────────────────────────── */}
-      <fieldset className={styles.grupo}>
-        <legend className={styles.leyenda}>4. Otros datos</legend>
-        <div className={styles.grilla}>
           {/* Varios agentes, con uno principal (Fase 40): pasa seguido que
               uno abra la cuenta y otro la siga, o que la parte técnica la
               lleve uno y la comercial otro. Antes el segundo no figuraba en
@@ -367,27 +207,8 @@ export function EditorCabecera({
             </Select>
           </Field>
 
-          <Field label="Moneda" help="Cambiarla puede dejar la tarifa incompatible.">
-            <Select value={valores.moneda} required onChange={(e) => onCambiarMoneda(e.target.value)}>
-              {/* Fase 14 · E3: sin moneda por defecto. En un documento que ya la
-                  tiene esta opción no aparece; en el alta es lo primero que hay
-                  que elegir y se dice así. */}
-              {valores.moneda === '' ? <option value="">Elegí la moneda</option> : null}
-              {MONEDAS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </Select>
-          </Field>
 
-          <Field label="Tipo de cambio" optional>
-            <Input {...numeroInput} inputMode="decimal" value={valores.tipoCambio} onChange={(e) => onCambiar('tipoCambio', e.target.value)} />
-          </Field>
 
-          <Field label="Observaciones" optional className={styles.ancho}>
-            <Textarea rows={2} value={valores.notas} onChange={(e) => onCambiar('notas', e.target.value)} />
-          </Field>
         </div>
       </fieldset>
     </div>

@@ -23,6 +23,7 @@ import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { CadenaDocumento } from '../components/CadenaDocumento'
 import { InformacionDocumento } from '../components/InformacionDocumento'
 import { EditorCabecera } from '../components/EditorCabecera'
+import { EditorMasInformacion } from '../components/EditorMasInformacion'
 import { useUltimoPrecio } from '../hooks/useUltimoPrecio'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalEntregaParcial } from '../components/ModalEntregaParcial'
@@ -103,13 +104,20 @@ import { guardarVendedoresDocumento } from '../services/vendedoresDocumento'
 import type { DocumentoDetalle } from '../types'
 import editor from './EditorCotizacion.module.css'
 
-type Pestana = 'lineas' | 'entregas' | 'adjuntos' | 'relacionados' | 'trazabilidad'
+type Pestana = 'lineas' | 'masinfo' | 'entregas' | 'adjuntos' | 'relacionados' | 'trazabilidad'
 /*
  * Fase 27 · E5: «Información» dejó de ser pestaña. El panel de cuatro
  * secciones está siempre a la vista, arriba de las líneas, igual que en el
  * alta.
  */
-const PESTANAS: Pestana[] = ['lineas', 'entregas', 'adjuntos', 'relacionados', 'trazabilidad']
+const PESTANAS: Pestana[] = [
+  'lineas',
+  'masinfo',
+  'entregas',
+  'adjuntos',
+  'relacionados',
+  'trazabilidad',
+]
 
 /** Campo del editor de líneas → campo del borrador. */
 const CAMPO_BORRADOR: Record<CampoLinea, Parameters<typeof cambiarLineaBorrador>[2]> = {
@@ -225,7 +233,10 @@ function Detalle() {
       : autoridad.stel('delivery')
 
   const lineas = useMemo(() => (doc ? ordenarLineas(doc.lineas) : []), [doc])
-  const productIds = useMemo(() => lineas.flatMap((l) => (l.productId ? [l.productId] : [])), [lineas])
+  const productIds = useMemo(
+    () => lineas.flatMap((l) => (l.productId ? [l.productId] : [])),
+    [lineas],
+  )
   const stock = useDisponibilidad(productIds)
 
   const tieneEntregas = (relacionados.data?.entregas.length ?? 0) > 0
@@ -297,7 +308,9 @@ function Detalle() {
       setOriginal(null)
       setGuardado(true)
       void refrescar()
-      void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId, 'pedido', 'trazabilidad', id] })
+      void queryClient.invalidateQueries({
+        queryKey: ['ventas', activa?.companyId, 'pedido', 'trazabilidad', id],
+      })
     },
     onError: (e: Error) => {
       // El borrador NO se toca: si el guardado falla, lo escrito sigue ahí.
@@ -325,8 +338,15 @@ function Detalle() {
   })
 
   const crearRemito = useMutation({
-    mutationFn: ({ cantidades, fecha, serie }: { cantidades: Map<string, number>; fecha: string; serie: string }) =>
-      crearEntregaDesdePedido(id!, cantidades, fecha, null, serie),
+    mutationFn: ({
+      cantidades,
+      fecha,
+      serie,
+    }: {
+      cantidades: Map<string, number>
+      fecha: string
+      serie: string
+    }) => crearEntregaDesdePedido(id!, cantidades, fecha, null, serie),
     onSuccess: (remito) => {
       setGenerando(false)
       setErrorRemito(null)
@@ -409,7 +429,10 @@ function Detalle() {
         // de la percepción, y mostrar una cifra propia sería inventar el total.
         subtotal: lineasVisibles.reduce(
           (s, l) =>
-            s + (l.tipoLinea === 'chapter' ? 0 : l.cantidad * (l.precioUnitario ?? 0) * (1 - (l.descuentoPct ?? 0) / 100)),
+            s +
+            (l.tipoLinea === 'chapter'
+              ? 0
+              : l.cantidad * (l.precioUnitario ?? 0) * (1 - (l.descuentoPct ?? 0) / 100)),
           0,
         ),
         impuesto: null,
@@ -429,13 +452,17 @@ function Detalle() {
    */
   const cambiarContactos = (principal: string, secundarios: string[]) =>
     setBorrador((b) =>
-      b ? { ...b, cabecera: { ...b.cabecera, contactoId: principal, contactosExtra: secundarios } } : b,
+      b
+        ? { ...b, cabecera: { ...b.cabecera, contactoId: principal, contactosExtra: secundarios } }
+        : b,
     )
 
   /** Lo mismo para los vendedores (Fase 40): principal y acompañantes, juntos. */
   const cambiarVendedores = (principal: string, acompanan: string[]) =>
     setBorrador((b) =>
-      b ? { ...b, cabecera: { ...b.cabecera, vendedorId: principal, vendedoresExtra: acompanan } } : b,
+      b
+        ? { ...b, cabecera: { ...b.cabecera, vendedorId: principal, vendedoresExtra: acompanan } }
+        : b,
     )
 
   const elegirCliente = (customerId: string) =>
@@ -470,9 +497,17 @@ function Detalle() {
     setBorrador((b) =>
       b
         ? agregarLinea(b, {
-            tipoLinea: 'item', productId: null, sku: null, nombre: null, descripcion: null,
-            cantidad: 1, precioUnitario: 0, descuentoPct: 0,
-            tratamientoImpuesto: 'vat_21', tasaImpuesto: 21, ...over,
+            tipoLinea: 'item',
+            productId: null,
+            sku: null,
+            nombre: null,
+            descripcion: null,
+            cantidad: 1,
+            precioUnitario: 0,
+            descuentoPct: 0,
+            tratamientoImpuesto: 'vat_21',
+            tasaImpuesto: 21,
+            ...over,
           })
         : b,
     )
@@ -487,6 +522,7 @@ function Detalle() {
 
   const pestanas = [
     { key: 'lineas' as const, label: 'Líneas', count: lineasVisibles.length },
+    { key: 'masinfo' as const, label: 'Más información' },
     { key: 'entregas' as const, label: 'Entregas' },
     { key: 'adjuntos' as const, label: 'Adjuntos' },
     { key: 'relacionados' as const, label: 'Relacionados' },
@@ -505,7 +541,11 @@ function Detalle() {
    * abriría un cartel de «sin cuenta de correo».
    */
   const enviarPorMail = puedeUsarEmails(activa?.rol) ? (
-    <Button variant="secondary" icon={<Icon name="mail" size={16} />} onClick={() => setEnviandoPorMail(true)}>
+    <Button
+      variant="secondary"
+      icon={<Icon name="mail" size={16} />}
+      onClick={() => setEnviandoPorMail(true)}
+    >
       Enviar por mail
     </Button>
   ) : null
@@ -613,7 +653,8 @@ function Detalle() {
         >
           <p>
             Alguien más lo guardó, así que para no pisar su trabajo no se guardó nada.{' '}
-            <strong>Lo que escribiste sigue en pantalla</strong>: anotá lo que haga falta antes de recargar.
+            <strong>Lo que escribiste sigue en pantalla</strong>: anotá lo que haga falta antes de
+            recargar.
           </p>
         </Alert>
       ) : null}
@@ -722,7 +763,11 @@ function Detalle() {
           secondary={
             <>
               {permiso.editable ? (
-                <Button variant="secondary" icon={<Icon name="edit" size={16} />} onClick={() => abrirEdicion(doc)}>
+                <Button
+                  variant="secondary"
+                  icon={<Icon name="edit" size={16} />}
+                  onClick={() => abrirEdicion(doc)}
+                >
                   Editar
                 </Button>
               ) : null}
@@ -770,130 +815,147 @@ function Detalle() {
         />
       )}
 
-      <DocumentTabs id={idPestanas} items={pestanas} value={pestana} onChange={setPestana} label="Secciones del pedido">
+      <DocumentTabs
+        id={idPestanas}
+        items={pestanas}
+        value={pestana}
+        onChange={setPestana}
+        label="Secciones del pedido"
+      >
         {pestana === 'lineas' ? (
           /* Fase 26 · E2: el editor a la izquierda y la HOJA a la derecha,
              igual que en el alta. Antes esta pantalla no tenía hoja y para ver
              cómo salía el documento había que abrir el modal de impresión —
              donde no se puede editar. */
           <div className={verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
-          <div className={editor.columnaEditor}>
-          <DocSection title="Información del pedido">
-            {editando ? (
-              <EditorCabecera
-                onAbrirContactos={() => setContactosAbiertos(true)}
-                valores={borrador.cabecera}
-                contactos={contactos.data ?? []}
-                direcciones={direcciones.data ?? []}
-                cargandoDirecciones={direcciones.isPending && borrador.cabecera.customerId !== ''}
-                tarifas={tarifas.data ?? []}
-                formasDePago={formasDePago.data ?? []}
-                cargandoFormasDePago={formasDePago.isPending}
-                onAgregarFormaDePago={agregarFormaDePago}
-                vendedores={vendedores.data ?? []}
-                cargandoContactos={contactos.isPending && borrador.cabecera.customerId !== ''}
-                avisoContacto={avisoContacto}
-                avisoTarifa={avisoTarifa}
-                onCambiar={cambiarCampoCabecera}
-                onCambiarContactos={cambiarContactos}
-                onCambiarVendedores={cambiarVendedores}
-                onCambiarCliente={elegirCliente}
-                onCambiarMoneda={elegirMoneda}
-              />
-            ) : (
-              <InformacionDocumento agrupado doc={doc} onVerCliente={() => setViendoCliente(true)} />
-            )}
-          </DocSection>
+            <div className={editor.columnaEditor}>
+              <DocSection title="Información del pedido">
+                {editando ? (
+                  <EditorCabecera
+                    valores={borrador.cabecera}
+                    tarifas={tarifas.data ?? []}
+                    formasDePago={formasDePago.data ?? []}
+                    cargandoFormasDePago={formasDePago.isPending}
+                    onAgregarFormaDePago={agregarFormaDePago}
+                    vendedores={vendedores.data ?? []}
+                    avisoTarifa={avisoTarifa}
+                    onCambiar={cambiarCampoCabecera}
+                    onCambiarVendedores={cambiarVendedores}
+                    onCambiarCliente={elegirCliente}
+                  />
+                ) : (
+                  <InformacionDocumento doc={doc} onVerCliente={() => setViendoCliente(true)} />
+                )}
+              </DocSection>
 
-          <DocSection
-            title="Líneas"
-            actions={
-              <>
+              <DocSection
+                title="Líneas"
+                actions={
+                  <>
+                    {editando ? (
+                      <>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={<Icon name="search" size={16} />}
+                          onClick={() => setCatalogoAbierto(true)}
+                        >
+                          Añadir producto
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={<Icon name="plus" size={16} />}
+                          onClick={() => nueva()}
+                        >
+                          Nueva línea
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => nueva({ tipoLinea: 'chapter', tasaImpuesto: 0 })}
+                        >
+                          Nuevo capítulo
+                        </Button>
+                      </>
+                    ) : null}
+                  </>
+                }
+              >
                 {editando ? (
                   <>
-                    <Button variant="secondary" size="sm" icon={<Icon name="search" size={16} />} onClick={() => setCatalogoAbierto(true)}>
-                      Añadir producto
-                    </Button>
-                    <Button variant="secondary" size="sm" icon={<Icon name="plus" size={16} />} onClick={() => nueva()}>
-                      Nueva línea
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => nueva({ tipoLinea: 'chapter', tasaImpuesto: 0 })}>
-                      Nuevo capítulo
-                    </Button>
+                    <EditorLineas
+                      lineas={lineasVisibles}
+                      moneda={borrador.cabecera.moneda}
+                      editable
+                      documento="del pedido"
+                      historicos={historicos}
+                      onCambiar={cambiarLinea}
+                      onEliminar={(clave) => setBorrador((b) => (b ? quitarLinea(b, clave) : b))}
+                      onMover={(clave, d) => setBorrador((b) => (b ? moverLinea(b, clave, d) : b))}
+                    />
                   </>
-                ) : null}
-              </>
-            }
-          >
-            {editando ? (
-              <>
-                <EditorLineas
+                ) : (
+                  <TablaLineas lineas={lineasVisibles} moneda={doc.moneda} tipo="pedido" />
+                )}
+
+                <TotalesDocumento
+                  doc={docVisible}
                   lineas={lineasVisibles}
-                  moneda={borrador.cabecera.moneda}
-                  editable
-                  documento="del pedido"
-                  historicos={historicos}
-                  onCambiar={cambiarLinea}
-                  onEliminar={(clave) => setBorrador((b) => (b ? quitarLinea(b, clave) : b))}
-                  onMover={(clave, d) => setBorrador((b) => (b ? moverLinea(b, clave, d) : b))}
+                  nota={
+                    editando
+                      ? 'Previsualización. Los totales definitivos los calcula el servidor al guardar, a partir de las líneas, el descuento global y la percepción.'
+                      : undefined
+                  }
                 />
-              </>
-            ) : (
-              <TablaLineas lineas={lineasVisibles} moneda={doc.moneda} tipo="pedido" />
-            )}
+              </DocSection>
+            </div>
 
-            <TotalesDocumento
-              doc={docVisible}
-              lineas={lineasVisibles}
-              nota={
-                editando
-                  ? 'Previsualización. Los totales definitivos los calcula el servidor al guardar, a partir de las líneas, el descuento global y la percepción.'
-                  : undefined
-              }
-            />
-          </DocSection>
-          </div>
-
-          {verPrevia ? (
-            <div className={editor.columnaPrevia}>
-              <VistaPreviaDocumento
-                opciones={opcionesDeHoja}
-                doc={docVisible}
-                lineas={lineasVisibles}
-                ajustarAlAncho={pantallaAncha}
-                aclaracion={
-                  editando
-                    ? 'Mientras editás, el total es una previsualización: el definitivo lo calcula el servidor al guardar.'
-                    : null
-                }
-                /* La hoja edita EL MISMO borrador que el panel de la izquierda,
+            {verPrevia ? (
+              <div className={editor.columnaPrevia}>
+                <VistaPreviaDocumento
+                  opciones={opcionesDeHoja}
+                  doc={docVisible}
+                  lineas={lineasVisibles}
+                  ajustarAlAncho={pantallaAncha}
+                  aclaracion={
+                    editando
+                      ? 'Mientras editás, el total es una previsualización: el definitivo lo calcula el servidor al guardar.'
+                      : null
+                  }
+                  /* La hoja edita EL MISMO borrador que el panel de la izquierda,
                    y sólo cuando el documento se puede editar: si no, es el
                    documento y no un editor. */
-                edicion={
-                  editando
-                    ? {
-                        // El título también desde la hoja (Fase 29 · E17):
-                        // es obligatorio y es donde se ve el hueco.
-                        onTitulo: (valor) => setBorrador((b) => (b ? cambiarCampo(b, 'titulo', valor) : b)),
-                        onTextoCapitulo: (id, texto) => cambiarLinea(id, 'name_snapshot', texto),
-                        onCantidad: (id, valor) => cambiarLinea(id, 'quantity', valor),
-                        onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
-                        onDescuento: (id, valor) => cambiarLinea(id, 'discount_pct', valor),
-                        onEliminar: (id) => setBorrador((b) => (b ? quitarLinea(b, id) : b)),
-                        onAgregar: () => setCatalogoAbierto(true),
-                      }
-                    : null
-                }
-              />
-            </div>
-          ) : null}
+                  edicion={
+                    editando
+                      ? {
+                          // El título también desde la hoja (Fase 29 · E17):
+                          // es obligatorio y es donde se ve el hueco.
+                          onTitulo: (valor) =>
+                            setBorrador((b) => (b ? cambiarCampo(b, 'titulo', valor) : b)),
+                          onTextoCapitulo: (id, texto) => cambiarLinea(id, 'name_snapshot', texto),
+                          onCantidad: (id, valor) => cambiarLinea(id, 'quantity', valor),
+                          onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
+                          onDescuento: (id, valor) => cambiarLinea(id, 'discount_pct', valor),
+                          onEliminar: (id) => setBorrador((b) => (b ? quitarLinea(b, id) : b)),
+                          onAgregar: () => setCatalogoAbierto(true),
+                        }
+                      : null
+                  }
+                />
+              </div>
+            ) : null}
           </div>
         ) : null}
 
         {pestana === 'entregas' ? (
           <>
             <DocSection title="Entregas">
-              <PanelPendientes lineas={lineasVisibles} resultado={pendientes.data} cargando={pendientes.isPending} />
+              <PanelPendientes
+                lineas={lineasVisibles}
+                resultado={pendientes.data}
+                cargando={pendientes.isPending}
+              />
             </DocSection>
             {esInterno ? (
               <DocSection title="Stock">
@@ -908,6 +970,43 @@ function Detalle() {
           </>
         ) : null}
 
+        {/*
+          «Más información», la otra mitad de la cabecera (Fase 84).
+
+          La tarjeta de arriba muestra lo que identifica al documento y es
+          igual mirándolo que editándolo; el resto —contactos, moneda, tipo de
+          cambio, domicilio de entrega, observaciones— vive acá, y acá también
+          se edita. Es la forma del sistema anterior, y resuelve lo que se
+          pidió: que «Editar» no agregue un montón de filas nuevas arriba.
+
+          Se edita con el MISMO borrador y se guarda con el mismo botón de la
+          barra: esto no es un formulario aparte.
+        */}
+        {pestana === 'masinfo' ? (
+          <DocSection title="Más información">
+            {editando ? (
+              <EditorMasInformacion
+                valores={borrador.cabecera}
+                onCambiar={cambiarCampoCabecera}
+                onAbrirContactos={() => setContactosAbiertos(true)}
+                contactos={contactos.data ?? []}
+                cargandoContactos={contactos.isPending && borrador.cabecera.customerId !== ''}
+                avisoContacto={avisoContacto}
+                onCambiarContactos={cambiarContactos}
+                onCambiarMoneda={elegirMoneda}
+                direcciones={direcciones.data ?? []}
+                cargandoDirecciones={direcciones.isPending}
+              />
+            ) : (
+              <InformacionDocumento
+                parte="mas"
+                doc={doc}
+                onVerCliente={() => setViendoCliente(true)}
+              />
+            )}
+          </DocSection>
+        ) : null}
+
         {pestana === 'adjuntos' ? (
           <DocSection title="Adjuntos">
             <PanelAdjuntos tipo="pedido" documentoId={doc.id} />
@@ -916,7 +1015,12 @@ function Detalle() {
 
         {pestana === 'relacionados' ? (
           <DocSection title="Relacionados">
-            <PanelRelacionados relacionados={relacionados.data} cargando={relacionados.isPending} idActual={doc.id} tipoActual="pedido" />
+            <PanelRelacionados
+              relacionados={relacionados.data}
+              cargando={relacionados.isPending}
+              idActual={doc.id}
+              tipoActual="pedido"
+            />
           </DocSection>
         ) : null}
 
@@ -935,7 +1039,9 @@ function Detalle() {
           error={errorRemito}
           onCerrar={() => setGenerando(false)}
           series={seriesRemito.data ?? []}
-          onConfirmar={(cantidades, fecha, serie) => crearRemito.mutate({ cantidades, fecha, serie })}
+          onConfirmar={(cantidades, fecha, serie) =>
+            crearRemito.mutate({ cantidades, fecha, serie })
+          }
         />
       ) : null}
 
@@ -972,7 +1078,11 @@ function Detalle() {
         />
       ) : null}
 
-      <DialogoCambiosSinGuardar open={salida.preguntando} onSalir={salida.salir} onQuedarse={salida.quedarse} />
+      <DialogoCambiosSinGuardar
+        open={salida.preguntando}
+        onSalir={salida.salir}
+        onQuedarse={salida.quedarse}
+      />
 
       <ConfirmDialog
         open={confirmarSalida}

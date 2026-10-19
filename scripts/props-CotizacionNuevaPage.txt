@@ -1,0 +1,10 @@
+<EditorMasInformacion
+                valores={b.cabecera}
+                onCambiar={cambiarCampoCabecera}
+                onAbrirContactos={() => setContactosAbiertos(true)}
+                contactos={contactos.data ?? []}
+                cargandoContactos={contactos.isPending && b.cabecera.customerId !== ''}
+                avisoContacto={avisoContacto}
+                onCambiarContactos={cambiarContactos}
+                onCambiarMoneda={elegirMoneda}
+              />

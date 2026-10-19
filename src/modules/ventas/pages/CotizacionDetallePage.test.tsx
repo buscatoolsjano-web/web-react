@@ -376,7 +376,7 @@ describe('Cotización · shell documental', () => {
     expect(screen.getAllByText('ARS 484,00').length).toBeGreaterThan(0)
 
     const pestanas = screen.getAllByRole('tab').map((t) => t.textContent)
-    expect(pestanas).toEqual(['Líneas1', 'Adjuntos', 'Relacionados', 'Trazabilidad'])
+    expect(pestanas).toEqual(['Líneas1', 'Más información', 'Adjuntos', 'Relacionados', 'Trazabilidad'])
     expect(screen.getByRole('tab', { name: /Líneas/ })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('Candado de bloqueo LOTO')).toBeInTheDocument()
   })
@@ -389,8 +389,11 @@ describe('Cotización · shell documental', () => {
     expect(within(totales).getByText('ARS 484,00')).toBeInTheDocument()
   })
 
+  /* La procedencia se mudó a «Más información» con la Fase 84: es de las
+     cosas que se miran una vez, no en cada visita. */
   it('el origen se muestra como dato, no como alerta', () => {
     montar()
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
     expect(screen.getAllByText('Migrado desde STEL').length).toBeGreaterThan(0)
     // No es un Alert: el documento migrado es normal, no un problema.
     expect(screen.queryByRole('note')).toBeNull()
@@ -723,9 +726,9 @@ describe('Cotización · pestañas', () => {
     // no quedó registrada, que no es lo mismo que inferir la del cliente.
     expect(screen.getByText('Tarifa')).toBeInTheDocument()
     expect(screen.getByText('Sin tarifa registrada')).toBeInTheDocument()
-    // De dónde salió el documento se dice UNA vez, en el chip de la cabecera:
-    // la fila «Origen» de Información era la misma frase (Fase 84).
-    expect(screen.getAllByText(/Migrado desde STEL/)).toHaveLength(1)
+    // De dónde salió el documento no está en la tarjeta de arriba: es una
+    // fila de «Más información» (Fase 84).
+    expect(screen.queryByText(/Migrado desde STEL/)).toBeNull()
   })
 
   it('con tarifa registrada, Información muestra su nombre (Fase 15 E2)', () => {

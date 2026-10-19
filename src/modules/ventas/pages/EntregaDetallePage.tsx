@@ -89,8 +89,8 @@ import cabecera from '../components/CabeceraCotizacion.module.css'
  * Fase 27 · E5: «Información» dejó de ser pestaña. Los datos del remito
  * están siempre a la vista, arriba de las líneas, igual que en el alta.
  */
-type Pestana = 'lineas' | 'adjuntos' | 'relacionados' | 'trazabilidad'
-const PESTANAS: Pestana[] = ['lineas', 'adjuntos', 'relacionados', 'trazabilidad']
+type Pestana = 'lineas' | 'masinfo' | 'adjuntos' | 'relacionados' | 'trazabilidad'
+const PESTANAS: Pestana[] = ['lineas', 'masinfo', 'adjuntos', 'relacionados', 'trazabilidad']
 
 export function EntregaDetallePage() {
   const { id } = useParams<{ id: string }>()
@@ -417,6 +417,7 @@ function Detalle() {
 
   const pestanas = [
     { key: 'lineas' as const, label: 'Líneas', count: lineasVisibles.length },
+    { key: 'masinfo' as const, label: 'Más información' },
     { key: 'adjuntos' as const, label: 'Adjuntos' },
     { key: 'relacionados' as const, label: 'Relacionados' },
     { key: 'trazabilidad' as const, label: 'Trazabilidad' },
@@ -683,47 +684,10 @@ function Detalle() {
                             onChange={(e) => cambiarCabecera('fecha', e.target.value)}
                           />
                         </Field>
-                        <Field label="Contacto" optional>
-                          <Select
-                            value={borrador.cabecera.contactoId}
-                            disabled={contactos.isPending}
-                            onChange={(e) => cambiarCabecera('contactoId', e.target.value)}
-                          >
-                            <option value="">Sin contacto</option>
-                            {(contactos.data ?? []).map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.rol ? `${c.nombre} · ${c.rol}` : c.nombre}
-                              </option>
-                            ))}
-                          </Select>
-                        </Field>
                         <Field label="Título" optional>
                           <Input
                             value={borrador.cabecera.titulo}
                             onChange={(e) => cambiarCabecera('titulo', e.target.value)}
-                          />
-                        </Field>
-                        <Field label="Transporte" optional>
-                          <Input
-                            value={borrador.cabecera.transporte}
-                            onChange={(e) => cambiarCabecera('transporte', e.target.value)}
-                          />
-                        </Field>
-                        <Field
-                          label="Seguimiento"
-                          optional
-                          help="El número que da el transporte, si lo hay."
-                        >
-                          <Input
-                            value={borrador.cabecera.seguimiento}
-                            onChange={(e) => cambiarCabecera('seguimiento', e.target.value)}
-                          />
-                        </Field>
-                        <Field label="Observaciones" optional>
-                          <Textarea
-                            rows={3}
-                            value={borrador.cabecera.notas}
-                            onChange={(e) => cambiarCabecera('notas', e.target.value)}
                           />
                         </Field>
                       </div>
@@ -928,6 +892,73 @@ function Detalle() {
               </div>
             ) : null}
           </div>
+        ) : null}
+
+        {/*
+          «Más información», la otra mitad de los datos (Fase 84).
+
+          Lo mismo que en la cotización y el pedido: arriba queda lo que
+          identifica al remito —y es igual mirándolo que editándolo— y el
+          resto —contacto, transporte, seguimiento, observaciones— vive acá, y
+          acá también se edita. Así «Editar» no agrega filas arriba.
+
+          Se edita con el MISMO borrador y se guarda con el mismo botón.
+        */}
+        {pestana === 'masinfo' ? (
+          <DocSection title="Más información">
+            {editando ? (
+              <div className={`${cabecera.bloques} ${cabecera.denso}`}>
+                <fieldset className={cabecera.grupo}>
+                  <legend className="sr-only">Más información</legend>
+                  <div className={cabecera.grilla}>
+                    <Field label="Contacto" optional>
+                      <Select
+                        value={borrador.cabecera.contactoId}
+                        disabled={contactos.isPending}
+                        onChange={(e) => cambiarCabecera('contactoId', e.target.value)}
+                      >
+                        <option value="">Sin contacto</option>
+                        {(contactos.data ?? []).map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.rol ? `${c.nombre} · ${c.rol}` : c.nombre}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field label="Transporte" optional>
+                      <Input
+                        value={borrador.cabecera.transporte}
+                        onChange={(e) => cambiarCabecera('transporte', e.target.value)}
+                      />
+                    </Field>
+                    <Field
+                      label="Seguimiento"
+                      optional
+                      help="El número que da el transporte, si lo hay."
+                    >
+                      <Input
+                        value={borrador.cabecera.seguimiento}
+                        onChange={(e) => cambiarCabecera('seguimiento', e.target.value)}
+                      />
+                    </Field>
+                    <Field label="Observaciones" optional>
+                      <Textarea
+                        rows={3}
+                        value={borrador.cabecera.notas}
+                        onChange={(e) => cambiarCabecera('notas', e.target.value)}
+                      />
+                    </Field>
+                  </div>
+                </fieldset>
+              </div>
+            ) : (
+              <InformacionDocumento
+                parte="mas"
+                doc={doc}
+                onVerCliente={() => setViendoCliente(true)}
+              />
+            )}
+          </DocSection>
         ) : null}
 
         {pestana === 'adjuntos' ? (

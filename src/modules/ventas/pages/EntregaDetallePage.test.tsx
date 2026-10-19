@@ -263,7 +263,7 @@ describe('Remito · shell documental', () => {
     expect(screen.getAllByText('Consulta MercadoLibre').length).toBeGreaterThan(0)
 
     const pestanas = screen.getAllByRole('tab').map((t) => t.textContent)
-    expect(pestanas).toEqual(['Líneas1', 'Adjuntos', 'Relacionados', 'Trazabilidad'])
+    expect(pestanas).toEqual(['Líneas1', 'Más información', 'Adjuntos', 'Relacionados', 'Trazabilidad'])
     expect(screen.getByRole('tab', { name: /Líneas/ })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('Candado de bloqueo LOTO')).toBeInTheDocument()
   })
@@ -273,8 +273,11 @@ describe('Remito · shell documental', () => {
     expect(screen.getByRole('tab', { name: 'Trazabilidad' })).toHaveAttribute('aria-selected', 'true')
   })
 
+  /* De dónde salió el remito vive en «Más información» desde la Fase 84:
+     en la tarjeta de arriba va sólo lo que lo identifica. */
   it('Información enlaza el pedido de origen', () => {
     montar()
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
     expect(screen.getByText('Pedido de origen')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'PDV01321' })).toHaveAttribute('href', '/ventas/pedidos/o1')
   })
@@ -282,17 +285,21 @@ describe('Remito · shell documental', () => {
   it('un remito sin pedido lo dice, no lo inventa', () => {
     estado.doc = remito({ origen: null })
     montar()
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
     expect(screen.getByText('Sin pedido relacionado')).toBeInTheDocument()
   })
 
   it('muestra transporte y seguimiento sólo cuando existen', () => {
-    montar()
+    // Fase 84: el transporte es de «Más información», como en el sistema
+    // anterior. Arriba queda sólo lo que identifica al remito.
+    const vacio = montar()
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
     expect(screen.queryByText('Transporte')).toBeNull()
+    vacio.unmount()
 
     estado.doc = remito({ transporte: 'Andreani', seguimiento: 'AR-993' })
     montar()
-    // Fase 27 · E5: los datos del remito están siempre a la vista, arriba
-    // de las líneas. Ya no hay pestaña que abrir.
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
     expect(screen.getByText('Andreani')).toBeInTheDocument()
     expect(screen.getByText('AR-993')).toBeInTheDocument()
   })
@@ -411,6 +418,9 @@ describe('Remito · edición del borrador', () => {
     montar()
     editar()
     fireEvent.change(screen.getByLabelText(/Cantidad de PRO10022/), { target: { value: '6' } })
+    // El transporte se edita en la otra pestaña (Fase 84) y viaja en el MISMO
+    // guardado: es un solo borrador, no dos formularios.
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
     fireEvent.change(screen.getByLabelText(/Transporte/), { target: { value: 'Andreani' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
@@ -658,6 +668,17 @@ describe('El formulario del remito', () => {
     expect(grupo).toBeInTheDocument()
     // Y los campos viven adentro, no sueltos en la sección.
     expect(within(grupo).getByLabelText('Fecha del remito')).toBeInTheDocument()
+    expect(within(grupo).getByLabelText(/Título/)).toBeInTheDocument()
+  })
+
+  /* La otra mitad es su propio grupo, en su pestaña, y se edita con el mismo
+     borrador: lo que se escribe acá viaja en el mismo «Guardar» (Fase 84). */
+  it('y el transporte se edita en «Más información»', () => {
+    montar()
+    editar()
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
+    const grupo = screen.getByRole('group', { name: 'Más información' })
     expect(within(grupo).getByLabelText(/Transporte/)).toBeInTheDocument()
+    expect(within(grupo).getByLabelText(/Observaciones/)).toBeInTheDocument()
   })
 })

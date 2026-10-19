@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import { MetaList, Missing, type MetaItem } from '@/components/document/DocSection'
-import cabecera from './CabeceraCotizacion.module.css'
 import docUi from '@/components/document/Document.module.css'
 import styles from './InformacionDocumento.module.css'
 import { formatearDomicilio, formatearFecha } from '../lib/formato'
@@ -12,14 +11,19 @@ import { RUTA_DE, type DocumentoDetalle } from '../types'
 export interface InformacionDocumentoProps {
   doc: DocumentoDetalle
   /**
-   * En las MISMAS cuatro secciones numeradas que el editor (Fase 27 · E5).
+   * Qué mitad de los datos (Fase 84).
    *
-   * Es lo que hace que un documento guardado se vea igual que uno que se
-   * está cargando: los mismos títulos, en el mismo orden, en el mismo lugar
-   * de la pantalla. Sin esto, mirar una cotización vieja y cargar una nueva
-   * eran dos pantallas distintas para el mismo documento.
+   * El sistema anterior parte la ficha en dos: la tarjeta de arriba, con lo
+   * que identifica al documento y se mira siempre, y una pestaña «Más
+   * información» con el resto —moneda, tipo de cambio, domicilios,
+   * observaciones—.
+   *
+   * Acá se hace igual, y por el motivo con el que lo pidieron: la tarjeta de
+   * arriba muestra los MISMOS campos que el editor de arriba, así que apretar
+   * «Editar» ya no agrega filas. Lo que sobraba no se escondió: se mudó a su
+   * pestaña, donde también se edita.
    */
-  agrupado?: boolean | undefined
+  parte?: 'principal' | 'mas' | undefined
   /**
    * Abrir la ficha rápida del cliente sin salir del documento.
    *
@@ -90,7 +94,7 @@ const ETIQUETA_ORIGEN: Record<string, string> = {
  * que es distinto de inventarle la lista actual del cliente: esa es la de hoy,
  * no necesariamente con la que se vendió.
  */
-export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: InformacionDocumentoProps) {
+export function InformacionDocumento({ doc, onVerCliente, parte = 'principal' }: InformacionDocumentoProps) {
   const esEntrega = doc.tipo === 'entrega'
   const esPedido = doc.tipo === 'pedido'
   const comercial = !esEntrega
@@ -145,15 +149,15 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
      * pantalla: el encabezado que lo repetía arriba se fue, y con él los
      * 80 px que ocupaba.
      */
-    { seccion: 1, label: 'Referencia', value: referencia(doc) },
-    { seccion: 1, label: 'Fecha', value: formatearFecha(doc.fecha) },
+    { parte: 'principal', label: 'Referencia', value: referencia(doc) },
+    { parte: 'principal', label: 'Fecha', value: formatearFecha(doc.fecha) },
     /*
      * El estado, que antes era el chip del encabezado (Fase 84). El pedido
      * tiene dos —el comercial y el de cumplimiento— y van los dos, que es lo
      * que mostraba la cabecera.
      */
     {
-      seccion: 1,
+      parte: 'principal',
       label: 'Estado',
       value: (
         <span className={styles.estados}>
@@ -162,7 +166,7 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
         </span>
       ),
     },
-    { seccion: 1, label: 'Título', value: doc.titulo ?? <Missing>Sin título</Missing> },
+    { parte: 'principal', label: 'Título', value: doc.titulo ?? <Missing>Sin título</Missing> },
     /*
      * De dónde vino, SÓLO cuando no es lo de siempre (Fase 84).
      *
@@ -173,7 +177,7 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
      */
     origenPropio.length > 0
       ? {
-          seccion: 1,
+          parte: 'mas',
           label: 'Procedencia',
           value: origenPropio.map((o) => o.texto).join(' · '),
         }
@@ -189,7 +193,7 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
     doc.origen
       ? {
           label: ETIQUETA_ORIGEN[doc.origen.tipo] ?? 'Documento de origen',
-          seccion: 1,
+          parte: 'mas',
           value: (
             <Link to={`${RUTA_DE[doc.origen.tipo]}/${doc.origen.id}`} className={docUi.enlace}>
               {doc.origen.numero}
@@ -197,13 +201,13 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
           ),
         }
       : esEntrega
-        ? { seccion: 1, label: 'Pedido de origen', value: <Missing>Sin pedido relacionado</Missing> }
+        ? { parte: 'mas', label: 'Pedido de origen', value: <Missing>Sin pedido relacionado</Missing> }
         : doc.tipo === 'pedido'
-          ? { seccion: 1, label: 'Cotización de origen', value: <Missing>Sin cotización: pedido manual</Missing> }
+          ? { parte: 'mas', label: 'Cotización de origen', value: <Missing>Sin cotización: pedido manual</Missing> }
           : null,
     {
       label: 'Cliente',
-      seccion: 2,
+      parte: 'principal',
       // Fase 19 · E3: con un modo de abrir la ficha rápida, el nombre deja de
       // ser texto. Sin él sigue siendo texto: el componente lo usan tres
       // documentos y no todos tienen a dónde llevar.
@@ -216,10 +220,10 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
           doc.clienteNombre
         ),
     },
-    comercial && { seccion: 3, label: 'Forma de pago', value: doc.formaPago ?? <Missing /> },
-    doc.creadoPor ? { seccion: 4, label: 'Creado por', value: doc.creadoPor } : null,
+    comercial && { parte: 'principal', label: 'Forma de pago', value: doc.formaPago ?? <Missing /> },
+    doc.creadoPor ? { parte: 'principal', label: 'Creado por', value: doc.creadoPor } : null,
     comercial && {
-      seccion: 4,
+      parte: 'principal',
       // Fase 40: los agentes que acompañan, nombrados. Antes el segundo no
       // figuraba en ningún lado.
       label: doc.vendedoresExtra.length > 0 ? 'Agentes' : 'Agente',
@@ -234,7 +238,7 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
     },
     comercial && {
       label: 'Tarifa',
-      seccion: 4,
+      parte: 'principal',
       value: doc.listaPrecioNombre ?? <Missing>Sin tarifa registrada</Missing>,
     },
     // Fase 15 · E6: el domicilio congelado al emitir el remito. Si no quedó
@@ -242,7 +246,7 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
     // es otra información.
     esEntrega && {
       label: 'Dirección de entrega',
-      seccion: 2,
+      parte: 'mas',
       value: formatearDomicilio(doc.domicilioEntrega) ?? <Missing>Sin domicilio registrado</Missing>,
       wide: true,
     },
@@ -252,52 +256,32 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
     // efectivamente va a pasar.
     esPedido && {
       label: 'Entregar en',
-      seccion: 2,
+      parte: 'mas',
       value: formatearDomicilio(doc.domicilioElegido) ?? (
         <Missing>Sin elegir: el remito usará el domicilio principal del cliente</Missing>
       ),
       wide: true,
     },
-    esEntrega && doc.transporte ? { seccion: 4, label: 'Transporte', value: doc.transporte } : null,
-    esEntrega && doc.seguimiento ? { seccion: 4, label: 'Seguimiento', value: doc.seguimiento } : null,
+    esEntrega && doc.transporte ? { parte: 'mas', label: 'Transporte', value: doc.transporte } : null,
+    esEntrega && doc.seguimiento ? { parte: 'mas', label: 'Seguimiento', value: doc.seguimiento } : null,
   ]
 
-  /* Sin agrupar —el remito— va igual adentro de `.ficha`: es la clase que
-     la vuelve densa con la hoja cerrada, y eso vale para los tres
-     documentos (Fase 84). */
-  if (!agrupado)
-    return (
-      <div className={styles.ficha}>
-        <MetaList items={items} />
-      </div>
-    )
-
-  const de = (n: NumeroSeccion) => items.filter((i): i is Dato => !!i && i.seccion === n)
+  /*
+   * Una sola lista, sin las cuatro secciones numeradas (Fase 84).
+   *
+   * Las secciones existían para que la ficha se viera igual que el editor,
+   * que las tenía (Fase 27 · E5). El editor ahora está partido en dos
+   * —la tarjeta y «Más información»— como el sistema anterior, así que son
+   * dos grupos y no cuatro, y cada uno tiene su propio título arriba: el de
+   * la sección de la pantalla. Un segundo título adentro era decirlo dos
+   * veces.
+   */
   return (
-    <div className={`${cabecera.bloques} ${styles.ficha}`}>
-      {SECCIONES.map(([n, titulo]) => {
-        const suyos = de(n)
-        if (suyos.length === 0) return null
-        return (
-          <section key={n} className={cabecera.grupo}>
-            <p className={cabecera.leyenda}>{`${n}. ${titulo}`}</p>
-            <MetaList items={suyos} />
-          </section>
-        )
-      })}
+    <div className={styles.ficha}>
+      <MetaList items={items.filter((i) => !i || i.parte === parte)} />
     </div>
   )
 }
 
-/** Las cuatro secciones, con el mismo número y nombre que en el editor. */
-type NumeroSeccion = 1 | 2 | 3 | 4
-
-const SECCIONES: readonly (readonly [NumeroSeccion, string])[] = [
-  [1, 'Datos generales'],
-  [2, 'Cliente'],
-  [3, 'Condiciones'],
-  [4, 'Otros datos'],
-]
-
-/** Un dato de la ficha, con la sección a la que pertenece. */
-type Dato = MetaItem & { seccion: NumeroSeccion }
+/** Un dato de la ficha, con la mitad a la que pertenece. */
+type Dato = MetaItem & { parte: 'principal' | 'mas' }

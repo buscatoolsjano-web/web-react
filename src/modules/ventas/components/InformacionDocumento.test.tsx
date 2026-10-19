@@ -65,12 +65,17 @@ const doc = (p: Partial<DocumentoDetalle> = {}): DocumentoDetalle => ({
     ...p,
   })
 
-const montar = (d: DocumentoDetalle) =>
+const montar = (d: DocumentoDetalle, parte: 'principal' | 'mas' = 'principal') =>
   render(
     <MemoryRouter>
-      <InformacionDocumento doc={d} />
+      <InformacionDocumento doc={d} parte={parte} />
     </MemoryRouter>,
   )
+
+/* Los datos que el sistema anterior guarda en «Más información» viven en la
+   otra mitad desde la Fase 84: de dónde salió el documento, el domicilio, el
+   transporte. Montar con `parte="mas"` es mirar esa pestaña. */
+const montarMas = (d: DocumentoDetalle) => montar(d, 'mas')
 
 const etiquetas = () => screen.getAllByRole('term').map((t) => t.textContent)
 
@@ -136,10 +141,10 @@ describe('Información · pedido', () => {
   })
 
   it('enlaza la cotización de origen, y dice cuándo es manual', () => {
-    montar(doc({ tipo: 'pedido', origen: { tipo: 'cotizacion', id: 'q1', numero: 'COTI02558' } }))
+    montarMas(doc({ tipo: 'pedido', origen: { tipo: 'cotizacion', id: 'q1', numero: 'COTI02558' } }))
     expect(screen.getByRole('link', { name: 'COTI02558' })).toHaveAttribute('href', '/ventas/cotizaciones/q1')
 
-    montar(doc({ tipo: 'pedido' }))
+    montarMas(doc({ tipo: 'pedido' }))
     expect(screen.getByText('Sin cotización: pedido manual')).toBeInTheDocument()
   })
 })
@@ -149,14 +154,14 @@ describe('Información · remito', () => {
     doc({ tipo: 'entrega', numero: 'RT00001', serie: 'RT', ...p })
 
   it('no muestra lo que el remito no decide', () => {
-    montar(remito())
+    montarMas(remito())
     for (const ausente of ['Vendedor', 'Forma de pago', 'Tarifa', 'Válida hasta']) {
       expect(etiquetas()).not.toContain(ausente)
     }
   })
 
   it('muestra la dirección de entrega congelada', () => {
-    montar(
+    montarMas(
       remito({
         domicilioEntrega: {
           street: 'Av. Siempreviva 742', city: 'Springfield', state: 'Buenos Aires',
@@ -168,25 +173,25 @@ describe('Información · remito', () => {
   })
 
   it('sin domicilio registrado lo dice, y no pone el del cliente de hoy', () => {
-    montar(remito())
+    montarMas(remito())
     expect(etiquetas()).toContain('Dirección de entrega')
     expect(screen.getByText('Sin domicilio registrado')).toBeInTheDocument()
   })
 
   it('el transporte sólo aparece si existe', () => {
-    montar(remito())
+    montarMas(remito())
     expect(etiquetas()).not.toContain('Transporte')
 
-    montar(remito({ transporte: 'Andreani', seguimiento: 'AR-993' }))
+    montarMas(remito({ transporte: 'Andreani', seguimiento: 'AR-993' }))
     expect(screen.getByText('Andreani')).toBeInTheDocument()
     expect(screen.getByText('AR-993')).toBeInTheDocument()
   })
 
   it('enlaza el pedido de origen, y dice cuándo no hay', () => {
-    montar(remito({ origen: { tipo: 'pedido', id: 'o1', numero: 'PDV01321' } }))
+    montarMas(remito({ origen: { tipo: 'pedido', id: 'o1', numero: 'PDV01321' } }))
     expect(screen.getByRole('link', { name: 'PDV01321' })).toHaveAttribute('href', '/ventas/pedidos/o1')
 
-    montar(remito())
+    montarMas(remito())
     expect(screen.getByText('Sin pedido relacionado')).toBeInTheDocument()
   })
 })
@@ -210,7 +215,7 @@ describe('la ficha es la misma en los tres documentos', () => {
   it('agrupada —cotización y pedido— lleva la clase que la vuelve densa', () => {
     const { container } = render(
       <MemoryRouter>
-        <InformacionDocumento agrupado doc={doc({ tipo: 'pedido', numero: 'PDV00001', serie: 'PDV' })} />
+        <InformacionDocumento doc={doc({ tipo: 'pedido', numero: 'PDV00001', serie: 'PDV' })} />
       </MemoryRouter>,
     )
     expect(ficha(container)).not.toBeNull()

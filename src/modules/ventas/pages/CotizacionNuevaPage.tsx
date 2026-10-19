@@ -15,6 +15,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { BuscadorCliente } from '../components/BuscadorCliente'
 import { EditorCabecera } from '../components/EditorCabecera'
+import { EditorMasInformacion } from '../components/EditorMasInformacion'
 import { useUltimoPrecio } from '../hooks/useUltimoPrecio'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
@@ -24,7 +25,15 @@ import { TotalesDocumento } from '../components/TotalesDocumento'
 import { ControlesDeHoja } from '../components/ControlesDeHoja'
 import { useOpcionesDeHoja } from '../hooks/useOpcionesDeHoja'
 import { VistaPreviaBorrador } from '../components/VistaPreviaBorrador'
-import { useContactos, useNombreDeCliente, useSeries, useTarifas, useVendedores, useFormasDePago, useAgregarFormaDePago } from '../hooks/useDocumentos'
+import {
+  useContactos,
+  useNombreDeCliente,
+  useSeries,
+  useTarifas,
+  useVendedores,
+  useFormasDePago,
+  useAgregarFormaDePago,
+} from '../hooks/useDocumentos'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { defaultsDeCliente } from '../services/clientes'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
@@ -45,10 +54,7 @@ import {
   type Borrador,
   type CampoCabecera,
 } from '../lib/borrador'
-import {
-  aplicarDefaults,
-  type DefaultsComerciales,
-} from '../lib/defaults'
+import { aplicarDefaults, type DefaultsComerciales } from '../lib/defaults'
 import { cadenaVacia } from '../lib/cadena'
 import { CadenaDocumento } from '../components/CadenaDocumento'
 import { escribeVentas } from '../lib/permisos'
@@ -63,7 +69,9 @@ import editor from './EditorCotizacion.module.css'
 
 /** El día de hoy en Argentina: a las 22 h acá, en UTC ya es mañana. */
 const hoyLocal = () =>
-  new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date())
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(
+    new Date(),
+  )
 
 /** Lo que el legacy ponía en todas las cotizaciones; se puede cambiar. */
 const FORMA_PAGO_HABITUAL = '30 DIAS F/F con ECHEQ'
@@ -174,7 +182,9 @@ export function CotizacionNuevaPage() {
             })
           }, x),
         )
-        const sinPrecio = items.filter((i) => typeof porId.get(i.productId)?.precio !== 'number').length
+        const sinPrecio = items.filter(
+          (i) => typeof porId.get(i.productId)?.precio !== 'number',
+        ).length
         if (sinPrecio > 0) {
           setAvisoCarrito(
             sinPrecio === 1
@@ -260,8 +270,10 @@ export function CotizacionNuevaPage() {
   const serieVisible = b.cabecera.serie || porDefecto?.codigo || ''
   const serieElegida = (series.data ?? []).find((x) => x.codigo === serieVisible) ?? null
   // Mientras las series no llegaron se usa la autoridad general, que es lo
-   // que se hacía siempre: no se desbloquea nada por no saber.
-  const stel = serieElegida ? serieElegida.autoridad === 'STEL' : autoridad.stel(DOC_TYPE_DE['cotizacion'])
+  // que se hacía siempre: no se desbloquea nada por no saber.
+  const stel = serieElegida
+    ? serieElegida.autoridad === 'STEL'
+    : autoridad.stel(DOC_TYPE_DE['cotizacion'])
   // Si hay de dónde elegir, el motivo habla de LA SERIE y dice qué hacer; si
   // no, del tipo, que es todo lo que hay para decir.
   const motivo =
@@ -493,9 +505,17 @@ export function CotizacionNuevaPage() {
   const nueva = (over: Partial<Parameters<typeof agregarLinea>[1]> = {}) =>
     setB((x) =>
       agregarLinea(x, {
-        tipoLinea: 'item', productId: null, sku: null, nombre: null, descripcion: null,
-        cantidad: 1, precioUnitario: 0, descuentoPct: 0,
-        tratamientoImpuesto: 'vat_21', tasaImpuesto: 21, ...over,
+        tipoLinea: 'item',
+        productId: null,
+        sku: null,
+        nombre: null,
+        descripcion: null,
+        cantidad: 1,
+        precioUnitario: 0,
+        descuentoPct: 0,
+        tratamientoImpuesto: 'vat_21',
+        tasaImpuesto: 21,
+        ...over,
       }),
     )
 
@@ -526,7 +546,11 @@ export function CotizacionNuevaPage() {
   const previo = {
     moneda: b.cabecera.moneda,
     subtotal: lineasVisibles.reduce(
-      (s, l) => s + (l.tipoLinea === 'chapter' ? 0 : l.cantidad * (l.precioUnitario ?? 0) * (1 - (l.descuentoPct ?? 0) / 100)),
+      (s, l) =>
+        s +
+        (l.tipoLinea === 'chapter'
+          ? 0
+          : l.cantidad * (l.precioUnitario ?? 0) * (1 - (l.descuentoPct ?? 0) / 100)),
       0,
     ),
     descuentoPct: numero(b.cabecera.descuentoPct),
@@ -626,67 +650,89 @@ export function CotizacionNuevaPage() {
 
       <div className={verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
         <div className={editor.columnaEditor}>
-
-      {/* Fase 27 · E1: la serie vive dentro de «1. Datos generales», al lado
+          {/* Fase 27 · E1: la serie vive dentro de «1. Datos generales», al lado
           del número. Era una tarjeta aparte con su propio texto de ayuda:
           tres renglones de alto para un desplegable que casi nunca se toca. */}
-      <DocSection title="Datos del documento">
-        <EditorCabecera
-                onAbrirContactos={() => setContactosAbiertos(true)}
-          series={series.data ?? []}
-          serie={serieVisible}
-          onCambiarSerie={(codigo) => setB((x) => cambiarCampo(x, 'serie', codigo))}
-          valores={b.cabecera}
-          contactos={contactos.data ?? []}
-          tarifas={tarifas.data ?? []}
-          formasDePago={formasDePago.data ?? []}
-          cargandoFormasDePago={formasDePago.isPending}
-          onAgregarFormaDePago={agregarFormaDePago}
-          vendedores={vendedores.data ?? []}
-          cargandoContactos={contactos.isPending && b.cabecera.customerId !== ''}
-          avisoContacto={avisoContacto}
-          avisoTarifa={avisoTarifa}
-          onCambiar={cambiarCampoCabecera}
-          onCambiarContactos={cambiarContactos}
-          onCambiarVendedores={cambiarVendedores}
-          onCambiarCliente={elegirCliente}
-          onCambiarMoneda={elegirMoneda}
-        />
-      </DocSection>
+          <DocSection title="Datos del documento">
+            <EditorCabecera
+              series={series.data ?? []}
+              serie={serieVisible}
+              onCambiarSerie={(codigo) => setB((x) => cambiarCampo(x, 'serie', codigo))}
+              valores={b.cabecera}
+              tarifas={tarifas.data ?? []}
+              formasDePago={formasDePago.data ?? []}
+              cargandoFormasDePago={formasDePago.isPending}
+              onAgregarFormaDePago={agregarFormaDePago}
+              vendedores={vendedores.data ?? []}
+              avisoTarifa={avisoTarifa}
+              onCambiar={cambiarCampoCabecera}
+              onCambiarVendedores={cambiarVendedores}
+              onCambiarCliente={elegirCliente}
+            />
+          </DocSection>
 
-      <DocSection
-        title="Líneas"
-        actions={
-          <>
-            <Button variant="secondary" size="sm" icon={<Icon name="search" size={16} />} onClick={() => setCatalogoAbierto(true)}>
-              Añadir producto
-            </Button>
-            <Button variant="secondary" size="sm" icon={<Icon name="plus" size={16} />} onClick={() => nueva()}>
-              Nueva línea
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => nueva({ tipoLinea: 'chapter', tasaImpuesto: 0 })}>
-              Nuevo capítulo
-            </Button>
-          </>
-        }
-      >
-        <EditorLineas
-          lineas={lineasVisibles}
-          moneda={b.cabecera.moneda}
-          editable
-          historicos={historicos}
-          onCambiar={cambiarLinea}
-          onEliminar={(clave) => setB((x) => quitarLinea(x, clave))}
-          onMover={(clave, d) => setB((x) => moverLinea(x, clave, d))}
-        />
+          {/* La otra mitad de la cabecera (Fase 84). En el detalle vive en la
+          pestaña «Más información»; acá no hay pestañas —se está creando el
+          documento y hace falta todo— así que va abajo, en su sección. */}
+          <DocSection title="Más información">
+            <EditorMasInformacion
+              valores={b.cabecera}
+              onCambiar={cambiarCampoCabecera}
+              onAbrirContactos={() => setContactosAbiertos(true)}
+              contactos={contactos.data ?? []}
+              cargandoContactos={contactos.isPending && b.cabecera.customerId !== ''}
+              avisoContacto={avisoContacto}
+              onCambiarContactos={cambiarContactos}
+              onCambiarMoneda={elegirMoneda}
+            />
+          </DocSection>
 
-        <TotalesDocumento
-          doc={previo}
-          lineas={lineasVisibles}
-          nota="Previsualización. Los totales definitivos los calcula el servidor al crear la cotización, a partir de las líneas, el descuento global y la percepción."
-        />
-      </DocSection>
+          <DocSection
+            title="Líneas"
+            actions={
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Icon name="search" size={16} />}
+                  onClick={() => setCatalogoAbierto(true)}
+                >
+                  Añadir producto
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Icon name="plus" size={16} />}
+                  onClick={() => nueva()}
+                >
+                  Nueva línea
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => nueva({ tipoLinea: 'chapter', tasaImpuesto: 0 })}
+                >
+                  Nuevo capítulo
+                </Button>
+              </>
+            }
+          >
+            <EditorLineas
+              lineas={lineasVisibles}
+              moneda={b.cabecera.moneda}
+              editable
+              historicos={historicos}
+              onCambiar={cambiarLinea}
+              onEliminar={(clave) => setB((x) => quitarLinea(x, clave))}
+              onMover={(clave, d) => setB((x) => moverLinea(x, clave, d))}
+            />
 
+            <TotalesDocumento
+              doc={previo}
+              lineas={lineasVisibles}
+              nota="Previsualización. Los totales definitivos los calcula el servidor al crear la cotización, a partir de las líneas, el descuento global y la percepción."
+            />
+          </DocSection>
         </div>
 
         {verPrevia ? (
@@ -720,7 +766,13 @@ export function CotizacionNuevaPage() {
                   />
                 ),
                 onNuevoCapitulo: () =>
-                  nueva({ tipoLinea: 'chapter', cantidad: 0, precioUnitario: 0, tasaImpuesto: 0, tratamientoImpuesto: 'exempt' }),
+                  nueva({
+                    tipoLinea: 'chapter',
+                    cantidad: 0,
+                    precioUnitario: 0,
+                    tasaImpuesto: 0,
+                    tratamientoImpuesto: 'exempt',
+                  }),
                 onTextoCapitulo: (id, texto) => cambiarLinea(id, 'name_snapshot', texto),
                 onCantidad: (id, valor) => cambiarLinea(id, 'quantity', valor),
                 onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
@@ -732,7 +784,6 @@ export function CotizacionNuevaPage() {
           </div>
         ) : null}
       </div>
-
 
       {/* Fase 28 · E1: el catálogo entero, con sus categorías, para elegir
           sin salir del documento. Agrega con el MISMO `nueva()` que el
@@ -767,7 +818,11 @@ export function CotizacionNuevaPage() {
         />
       ) : null}
 
-      <DialogoCambiosSinGuardar open={salida.preguntando} onSalir={salida.salir} onQuedarse={salida.quedarse} />
+      <DialogoCambiosSinGuardar
+        open={salida.preguntando}
+        onSalir={salida.salir}
+        onQuedarse={salida.quedarse}
+      />
     </div>
   )
 }

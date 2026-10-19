@@ -328,7 +328,7 @@ describe('Pedido · shell documental', () => {
     expect(screen.getAllByText('ARS 484,00').length).toBeGreaterThan(0)
 
     const pestanas = screen.getAllByRole('tab').map((t) => t.textContent)
-    expect(pestanas).toEqual(['Líneas1', 'Entregas', 'Adjuntos', 'Relacionados', 'Trazabilidad'])
+    expect(pestanas).toEqual(['Líneas1', 'Más información', 'Entregas', 'Adjuntos', 'Relacionados', 'Trazabilidad'])
     expect(screen.getByRole('tab', { name: /Líneas/ })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('Candado de bloqueo LOTO')).toBeInTheDocument()
   })
@@ -371,6 +371,9 @@ describe('Pedido · edición por borrador', () => {
     ]
     montar()
     editar()
+    // El domicilio se edita en «Más información» (Fase 84) y viaja en el
+    // MISMO guardado: es un solo borrador, no dos formularios.
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
     fireEvent.change(screen.getByLabelText(/Entregar en/), { target: { value: 'd2' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
@@ -384,6 +387,8 @@ describe('Pedido · edición por borrador', () => {
     estado.doc = pedido({ direccionEntregaId: 'd1' })
     montar()
     editar()
+    // El domicilio vive en «Más información» desde la Fase 84.
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
     expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1')
     fireEvent.change(screen.getByLabelText(/Entregar en/), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
@@ -397,7 +402,9 @@ describe('Pedido · edición por borrador', () => {
     estado.doc = pedido({ direccionEntregaId: 'd1' })
     montar()
     editar()
-    // Esconderla dejaría el desplegable en blanco y guardar borraría el dato
+     // El domicilio vive en «Más información» desde la Fase 84.
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
+   // Esconderla dejaría el desplegable en blanco y guardar borraría el dato
     // sin que nadie lo pidiera.
     expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1')
     expect(screen.getByRole('option', { name: /La de antes \(desactivada\)/ })).toBeInTheDocument()
@@ -646,9 +653,11 @@ describe('Pedido · pestañas', () => {
     expect(screen.getByRole('link', { name: /COTI02558/ })).toHaveAttribute('href', '/ventas/cotizaciones/q1')
   })
 
+  /* De dónde nació el pedido vive en «Más información» desde la Fase 84. */
   it('Información enlaza la cotización de la que nació el pedido', () => {
     estado.doc = pedido({ origen: { tipo: 'cotizacion', id: 'q1', numero: 'COTI02558' } })
     montar()
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
     expect(screen.getByText('Cotización de origen')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'COTI02558' })).toHaveAttribute('href', '/ventas/cotizaciones/q1')
   })
