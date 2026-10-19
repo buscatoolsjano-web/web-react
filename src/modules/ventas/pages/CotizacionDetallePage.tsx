@@ -621,7 +621,7 @@ function Detalle() {
   ]
 
   return (
-    <div className={`${docUi.pagina} ${docUi.paginaAncha}`}>
+    <div className={`${docUi.pagina} ${docUi.paginaAncha} ${docUi.arrancaEnLaBarra}`}>
       {enviandoPorMail && doc ? (
         <Suspense fallback={null}>
           <ModalEnviarPorMail

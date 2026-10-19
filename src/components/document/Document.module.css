@@ -13,6 +13,28 @@
   width: 100%;
 }
 
+/*
+ * Las pantallas que arrancan con la barra de acciones (Fase 84).
+ *
+ * Desde que el encabezado del documento se fue, lo primero de la página es la
+ * barra. El área de contenido deja 24 px arriba, pero la barra PEGADA se
+ * queda a 8 del header: o sea que al bajar la barra sube 16 px y al subir
+ * vuelve a caer. Acá se la deja desde el principio donde va a estar pegada,
+ * que además son 16 px menos de aire antes del documento. «Subí apenas px
+ * para arriba, así se ve un poco más.»
+
+ * El tirón es exactamente el padding del área de contenido menos el tope del
+ * sticky, así que no hay número mágico: si cambia uno, cambia solo.
+ *
+ * En mobile no: ahí el área deja 16 px, el header no es el mismo y los 8 de
+ * arriba se agradecen con el dedo.
+ */
+@media (min-width: 768px) {
+  .arrancaEnLaBarra {
+    margin-top: calc(var(--space-2) - var(--space-5));
+  }
+}
+
 /* Un documento con su hoja al lado usa más: el panel y la hoja ya están
    pensados hasta 1800 px, y el tope de 1200 los apretaba sin motivo. */
 .paginaAncha {

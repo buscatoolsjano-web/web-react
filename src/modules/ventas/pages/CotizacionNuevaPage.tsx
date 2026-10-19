@@ -536,7 +536,7 @@ export function CotizacionNuevaPage() {
   } as DocumentoDetalle
 
   return (
-    <div className={`${docUi.pagina} ${docUi.paginaAncha}`}>
+    <div className={`${docUi.pagina} ${docUi.paginaAncha} ${docUi.arrancaEnLaBarra}`}>
       {/* Fase 28 · E12: el encabezado entero se fue. El título ya no se
           dibujaba (E5) y el «volver» se mudó a la barra de acciones, que es
           donde está el resto de lo que se puede hacer acá. El h1 vive en la
