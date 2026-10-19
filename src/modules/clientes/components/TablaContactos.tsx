@@ -74,10 +74,18 @@ export function TablaContactos({
               </tr>
             ) : (
               <tr key={c.id} className={c.activo ? undefined : styles.filaInactiva}>
+                {/* El nombre y sus chips se acomodan en un `span` ADENTRO de la
+                    celda, no en la celda (Fase 84). Una celda con
+                    `display: flex` deja de ser celda: no comparte el alto de
+                    la fila, su raya de abajo mide sólo lo que mide su texto y
+                    la columna arranca a otra altura que las demás. Era eso lo
+                    que se veía desfasado. */}
                 <th scope="row" className={styles.celdaNombre}>
-                  {c.nombre}
-                  {c.esPrincipal ? <Badge tone="brand">Principal</Badge> : null}
-                  {c.activo ? null : <Badge tone="neutral">Desactivado</Badge>}
+                  <span className={styles.nombreConChips}>
+                    {c.nombre}
+                    {c.esPrincipal ? <Badge tone="brand">Principal</Badge> : null}
+                    {c.activo ? null : <Badge tone="neutral">Desactivado</Badge>}
+                  </span>
                 </th>
                 <td>{c.cargo ?? '—'}</td>
                 <td>
@@ -92,29 +100,31 @@ export function TablaContactos({
                 <td className={styles.celdaTelefono}>{c.telefono ?? '—'}</td>
                 {puedeEditar ? (
                   <td className={styles.celdaAcciones}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={<Icon name="edit" size={16} />}
-                      aria-label={`Editar ${c.nombre}`}
-                      onClick={() => onEditar(c)}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={guardando}
-                      onClick={() => onCambiarActivo(c, !c.activo)}
-                    >
-                      {c.activo ? 'Desactivar' : 'Reactivar'}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={styles.peligro}
-                      icon={<Icon name="trash" size={16} />}
-                      aria-label={`Borrar ${c.nombre}`}
-                      onClick={() => onBorrar(c)}
-                    />
+                    <div className={styles.accionesFila}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={<Icon name="edit" size={16} />}
+                        aria-label={`Editar ${c.nombre}`}
+                        onClick={() => onEditar(c)}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={guardando}
+                        onClick={() => onCambiarActivo(c, !c.activo)}
+                      >
+                        {c.activo ? 'Desactivar' : 'Reactivar'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={styles.peligro}
+                        icon={<Icon name="trash" size={16} />}
+                        aria-label={`Borrar ${c.nombre}`}
+                        onClick={() => onBorrar(c)}
+                      />
+                    </div>
                   </td>
                 ) : null}
               </tr>

@@ -379,3 +379,32 @@ describe('la cabecera y los totales con la hoja cerrada (Fase 84)', () => {
     expect(bloque).toContain('grid-auto-flow: column')
   })
 })
+
+/*
+ * Una celda de tabla no puede ser un contenedor flex (Fase 84).
+ *
+ * `display: flex` sobre un `td` o un `th` lo saca de la tabla: deja de
+ * compartir el alto de su fila, su borde de abajo mide sólo lo que mide su
+ * contenido y la columna arranca a otra altura que las demás. Medido en el
+ * navegador sobre los contactos: la celda del nombre terminaba 4 px más
+ * arriba que las otras cuatro. «Los contactos están desfasados.»
+ *
+ * Es una trampa fácil de pisar —poner el `flex` donde está la clase, que es
+ * la celda— y el daño no rompe nada, sólo se ve torcido. Por eso el test.
+ */
+describe('las celdas de la tabla de contactos (Fase 84)', () => {
+  const css = sinComentarios(TODOS_LOS_CSS['modules/clientes/components/EditorContactos.module.css'] ?? '')
+  const bloqueDe = (clase: string) => css.match(new RegExp(`\\.${clase}\\s*\\{([^}]*)\\}`))?.[1] ?? ''
+
+  it('ninguna de las tres clases de celda declara display: flex', () => {
+    expect(css).not.toBe('')
+    for (const clase of ['celdaNombre', 'celdaAcciones', 'celdaTelefono', 'celdaForm']) {
+      expect(bloqueDe(clase)).not.toContain('display: flex')
+    }
+  })
+
+  it('el flex vive en un elemento de adentro, que sí puede serlo', () => {
+    expect(bloqueDe('nombreConChips')).toContain('display: flex')
+    expect(bloqueDe('accionesFila')).toContain('display: flex')
+  })
+})

@@ -210,10 +210,25 @@
   margin-bottom: var(--space-3);
 }
 
+/*
+ * Un ancho mínimo para que el mail no se parta en tres renglones (Fase 84).
+ *
+ * Adentro del diálogo la tabla tiene unos 900 px y cuatro columnas; sin piso,
+ * la del mail quedaba en 130 y «Alfredo.Dalesson@mirgor.com.ar» salía cortado
+ * a la mitad de una palabra. Con el piso, si no entra scrollea en horizontal
+ * —para eso está `.tablaScroll`—, que es mejor que leer un mail en pedazos.
+ */
 .tabla {
   width: 100%;
+  min-width: 42rem;
   border-collapse: collapse;
   font-size: var(--text-sm);
+  table-layout: auto;
+}
+
+/* El mail no se parte por la mitad de una palabra si hay otra forma. */
+.tabla td a {
+  overflow-wrap: break-word;
 }
 
 .tabla th {
@@ -236,12 +251,23 @@
   text-align: left;
 }
 
+/*
+ * El nombre y sus chips (Fase 84).
+ *
+ * El `display: flex` va en un `span` de adentro y NO en la celda. Una celda
+ * de tabla con `display: flex` deja de ser celda: no comparte el alto de la
+ * fila, su borde de abajo mide sólo lo que mide su texto y queda a distinta
+ * altura que las otras columnas. «Los contactos están desfasados.»
+ */
 .celdaNombre {
+  font-weight: var(--weight-semibold);
+}
+
+.nombreConChips {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  font-weight: var(--weight-semibold);
 }
 
 /* El teléfono en monoespaciada: se compara dígito por dígito. */
@@ -250,11 +276,15 @@
   white-space: nowrap;
 }
 
+/* Lo mismo con los botones: el `flex` adentro, la celda sigue siendo celda. */
 .celdaAcciones {
+  white-space: nowrap;
+}
+
+.accionesFila {
   display: flex;
   gap: var(--space-1);
   justify-content: flex-end;
-  white-space: nowrap;
 }
 
 /* Un contacto desactivado sigue a la vista, atenuado: esconderlo haría creer
