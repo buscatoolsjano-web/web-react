@@ -140,3 +140,24 @@
     flex: 1 1 100%;
   }
 }
+
+/* ── El visor (Fase 84) ────────────────────────────────────────────────────
+   El adjunto se mira acá y no en otra pestaña: la OC del cliente se revisa
+   CONTRA la cotización, no en lugar de ella. Mismas medidas que el visor de
+   Emails, que ya resolvió esto: alto acotado a la ventana para que el pie del
+   diálogo —descargar, cerrar— no quede fuera de la vista. */
+.visor {
+  width: 100%;
+  height: min(72vh, 900px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+}
+
+.visorImagen {
+  display: block;
+  max-width: 100%;
+  max-height: min(72vh, 900px);
+  margin: 0 auto;
+  object-fit: contain;
+}

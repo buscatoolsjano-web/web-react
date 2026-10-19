@@ -134,3 +134,75 @@
   align-self: end;
   white-space: nowrap;
 }
+
+/* ── El formulario, denso, cuando hay ancho (Fase 84) ───────────────────────
+ *
+ * «Cuando oculto la vista previa y se ve así, que ahora está perfecto, cuando
+ * pongo editar se rompe todo. La idea es que siga manteniendo este formato y
+ * lo pueda editar desde este formato.»
+ *
+ * Tenía razón: la ficha del documento guardado se había puesto densa y el
+ * editor no, así que apretar «Editar» cambiaba de pantalla en vez de cambiar
+ * de modo. Esto le hace al editor las mismas tres cosas que a la ficha:
+ *
+ *  1. El rótulo va a la IZQUIERDA del control y no arriba. Es la mitad del
+ *     alto por campo.
+ *  2. Las cuatro secciones numeradas dejan de ser bloques apilados: con
+ *     `display: contents` sus campos caen en la MISMA grilla y se llenan de
+ *     izquierda a derecha, sin que cada grupo arranque en su renglón.
+ *  3. Los títulos de sección se van, como en la ficha.
+ *
+ * Y con la hoja abierta no pasa nada de esto: ahí la columna mide 500 px, el
+ * rótulo al lado dejaría el control en 250, y las secciones numeradas son lo
+ * que hace que cargar un documento nuevo se vea igual que mirar uno viejo
+ * (Fase 27 · E5).
+ *
+ * Los selectores van por estructura porque los campos son de dos clases
+ * distintas —`Field`, que es de la casa, y los `.campo` propios de acá— y las
+ * dos tienen la misma forma: el rótulo primero y el control después.
+ */
+@container editor (min-width: 950px) {
+  .denso {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-5);
+    row-gap: var(--space-1);
+    align-items: start;
+  }
+
+  .denso > fieldset,
+  .denso > fieldset > .grilla {
+    display: contents;
+  }
+
+  .denso > fieldset > legend {
+    display: none;
+  }
+
+  /* Cada campo: rótulo a la derecha de su columna, control al lado. */
+  .denso .grilla > * {
+    grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .denso .grilla > * > :first-child {
+    justify-self: end;
+    text-align: right;
+  }
+
+  /* La ayuda y el error van DEBAJO del control, no debajo del rótulo. */
+  .denso .grilla > * > :nth-child(n + 3) {
+    grid-column: 2;
+  }
+
+  /* Los de dos columnas —cliente, título— siguen ocupando dos. */
+  .denso .grilla > .ancho {
+    grid-column: span 2;
+  }
+}
+
+@container editor (min-width: 1300px) {
+  .denso {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

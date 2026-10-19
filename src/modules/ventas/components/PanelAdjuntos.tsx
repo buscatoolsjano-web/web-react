@@ -8,6 +8,7 @@ import {
   borrarAdjunto,
   formatearBytes,
   listarAdjuntos,
+  sePuedeVer,
   subirAdjunto,
   urlDeDescarga,
   type Adjunto,
@@ -20,6 +21,7 @@ import { ConfirmBorrado } from '@/components/modals/ConfirmBorrado'
 import { Field } from '@/components/forms/Field'
 import { Select } from '@/components/forms/controls'
 import { escribeVentas } from '../lib/permisos'
+import { VisorAdjuntoDocumento } from './VisorAdjuntoDocumento'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './PanelAdjuntos.module.css'
 
@@ -62,6 +64,8 @@ export function PanelAdjuntos({ tipo, documentoId }: PanelAdjuntosProps) {
   const [error, setError] = useState<string | null>(null)
   const [clase, setClase] = useState('other')
   const [aBorrar, setABorrar] = useState<Adjunto | null>(null)
+  /* El que se está mirando. Fase 84: antes todo se abría en otra pestaña. */
+  const [aVer, setAVer] = useState<Adjunto | null>(null)
 
   // Subir y borrar es de admin y employee (`attachments_write`); ver es de los internos.
   const escribe = escribeVentas(activa?.rol)
@@ -100,9 +104,21 @@ export function PanelAdjuntos({ tipo, documentoId }: PanelAdjuntosProps) {
     },
   })
 
-  const abrir = async (ruta: string) => {
+  /**
+   * Mirarlo acá si se puede; bajarlo si no.
+   *
+   * Un PDF o una imagen se ven en el visor, que es lo que se pidió. Una
+   * planilla o un .docx no: el navegador no los muestra adentro de la página,
+   * así que para esos se sigue pidiendo la URL firmada y se los baja, que es
+   * lo que de verdad se va a hacer con ellos.
+   */
+  const abrir = async (a: Adjunto) => {
+    if (sePuedeVer(a.tipoMime)) {
+      setAVer(a)
+      return
+    }
     try {
-      const url = await urlDeDescarga(ruta)
+      const url = await urlDeDescarga(a.ruta)
       window.open(url, '_blank', 'noopener,noreferrer')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo abrir el archivo')
@@ -124,8 +140,8 @@ export function PanelAdjuntos({ tipo, documentoId }: PanelAdjuntosProps) {
               <button
                 type="button"
                 className={styles.nombre}
-                onClick={() => void abrir(a.ruta)}
-                aria-label={`Descargar ${a.nombre}`}
+                onClick={() => void abrir(a)}
+                aria-label={`${sePuedeVer(a.tipoMime) ? 'Ver' : 'Descargar'} ${a.nombre}`}
               >
                 {a.nombre}
               </button>
@@ -195,6 +211,8 @@ export function PanelAdjuntos({ tipo, documentoId }: PanelAdjuntosProps) {
           {error}
         </p>
       ) : null}
+
+      {aVer ? <VisorAdjuntoDocumento adjunto={aVer} onCerrar={() => setAVer(null)} /> : null}
 
       <ConfirmBorrado
         open={aBorrar !== null}

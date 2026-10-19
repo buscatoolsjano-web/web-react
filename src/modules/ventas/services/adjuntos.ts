@@ -64,6 +64,19 @@ export const TIPOS_PERMITIDOS = [
 
 export const TIPOS_ACEPTADOS = TIPOS_PERMITIDOS.join(',')
 
+/**
+ * Los que el navegador sabe mostrar DENTRO de la página (Fase 84).
+ *
+ * Es un subconjunto de los que se aceptan, no el mismo: una planilla o un
+ * .docx se pueden subir y bajar, pero un `iframe` con eso adentro no muestra
+ * nada o, peor, se lo baja solo. Esos siguen abriéndose como antes.
+ */
+const SE_VEN_EN_PANTALLA = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp'])
+
+export function sePuedeVer(mime: string | null): boolean {
+  return mime !== null && SE_VEN_EN_PANTALLA.has(mime)
+}
+
 /** Lo que dice el servidor → lo que lee una persona. */
 const MOTIVOS: Record<string, string> = {
   DOCUMENTO_INEXISTENTE: 'Ese documento no existe en esta empresa.',

@@ -78,26 +78,59 @@ describe('Adjuntos · lista', () => {
   it('muestra nombre, tipo, para qué es, tamaño, fecha y quién lo subió', async () => {
     estado.lista = [adjunto()]
     montar()
-    expect(await screen.findByRole('button', { name: 'Descargar orden-de-compra.pdf' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Ver orden-de-compra.pdf' })).toBeInTheDocument()
     expect(screen.getByText(/PDF · OC del cliente · 2 kB · 17\/09\/2026 · Lisandro/)).toBeInTheDocument()
   })
 
   it('NO pide una URL firmada por archivo: sólo al hacer clic', async () => {
     estado.lista = [adjunto(), adjunto({ id: 'a2', nombre: 'foto.png', ruta: 'c1/quote/q1/uuid-foto.png' })]
     montar()
-    await screen.findByRole('button', { name: 'Descargar orden-de-compra.pdf' })
+    await screen.findByRole('button', { name: 'Ver orden-de-compra.pdf' })
     expect(espias.url).not.toHaveBeenCalled()
 
-    vi.spyOn(window, 'open').mockImplementation(() => null)
-    fireEvent.click(screen.getByRole('button', { name: 'Descargar foto.png' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ver foto.png' }))
     await waitFor(() => expect(espias.url).toHaveBeenCalledTimes(1))
     expect(espias.url.mock.calls[0]![0]).toBe('c1/quote/q1/uuid-foto.png')
+  })
+
+  /**
+   * El adjunto se mira acá, no en otra pestaña (Fase 84).
+   *
+   * «Cuando se sube un adjunto quiero que se vea ahí la vista previa; que se
+   * abra desde ahí, no una pestaña nueva.» Abrir afuera obligaba a volver, y
+   * la OC del cliente se revisa CONTRA la cotización, no en lugar de ella.
+   */
+  it('un PDF se abre en el visor, sin salir del documento', async () => {
+    const abrirVentana = vi.spyOn(window, 'open').mockImplementation(() => null)
+    estado.lista = [adjunto()]
+    montar()
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver orden-de-compra.pdf' }))
+
+    expect(await screen.findByRole('dialog', { name: 'orden-de-compra.pdf' })).toBeInTheDocument()
+    expect(abrirVentana).not.toHaveBeenCalled()
+  })
+
+  /* Lo que el navegador no sabe mostrar adentro de la página se sigue
+     bajando: un `iframe` con una planilla no muestra nada o se la baja solo. */
+  it('una planilla no se intenta mostrar: se baja', async () => {
+    const abrirVentana = vi.spyOn(window, 'open').mockImplementation(() => null)
+    estado.lista = [
+      adjunto({
+        nombre: 'precios.xlsx',
+        tipoMime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }),
+    ]
+    montar()
+    fireEvent.click(await screen.findByRole('button', { name: 'Descargar precios.xlsx' }))
+
+    await waitFor(() => expect(abrirVentana).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('dos archivos con el mismo nombre se muestran los dos', async () => {
     estado.lista = [adjunto(), adjunto({ id: 'a2', ruta: 'c1/quote/q1/otro-uuid-orden-de-compra.pdf' })]
     montar()
-    expect(await screen.findAllByRole('button', { name: 'Descargar orden-de-compra.pdf' })).toHaveLength(2)
+    expect(await screen.findAllByRole('button', { name: 'Ver orden-de-compra.pdf' })).toHaveLength(2)
   })
 })
 
@@ -189,7 +222,7 @@ describe('Adjuntos · permisos', () => {
     estado.rol = 'salesperson'
     estado.lista = [adjunto()]
     montar()
-    expect(await screen.findByRole('button', { name: 'Descargar orden-de-compra.pdf' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Ver orden-de-compra.pdf' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Elegir archivo para adjuntar')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Eliminar orden-de-compra.pdf' })).toBeNull()
   })

@@ -142,7 +142,7 @@ export function EditorCabecera({
   const hayReferencia = series !== undefined || numero !== undefined
 
   return (
-    <div className={styles.bloques}>
+    <div className={`${styles.bloques} ${styles.denso}`}>
       {/* ── 1 · datos generales ─────────────────────────────────────── */}
       <fieldset className={styles.grupo}>
         <legend className={styles.leyenda}>1. Datos generales</legend>
