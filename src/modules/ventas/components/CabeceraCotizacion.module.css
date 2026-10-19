@@ -60,6 +60,28 @@
   }
 }
 
+/*
+ * Con la hoja cerrada, campos anchos (Fase 84).
+ *
+ * «Se tiene que ver similar al STEL para que sea fácil de completar.» En el
+ * sistema anterior los campos de la cabecera son pocos y anchos, no muchos y
+ * finitos: un «Título» de 150 px no deja leer lo que se escribió.
+ *
+ * El piso de 150 px es el que corresponde cuando la columna mide 500 —con la
+ * hoja al lado—: ahí entran tres campos y está bien. Cuando la columna toma
+ * la página entera, ese mismo piso da diez columnas de 150. Subirlo a 320
+ * deja tres o cuatro campos de ~400 px, y los que ya span 2 —Cliente,
+ * Título— quedan en ~800, que es la proporción del sistema anterior.
+ *
+ * Mide el CONTENEDOR y no la ventana: lo que decide es el ancho que tiene el
+ * formulario, que depende de si la hoja está abierta y no del monitor.
+ */
+@container editor (min-width: 950px) {
+  .grilla {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+}
+
 /* El rótulo de «Cliente», que no puede usar `Field` porque el buscador trae su
    propio input. Copia exacta de `.label` de Forms, `line-height` incluido: sin
    él quedaba unos píxeles más alto que «Contacto», que está al lado. */

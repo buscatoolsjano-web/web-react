@@ -327,3 +327,43 @@ describe('tamaño «Grande» en tablas (Fase 14 · E0)', () => {
     expect(bloque(config, 'min-width: 1024px) and (max-width: 1151px', 'soloTablaAngosta')).toBe(true)
   })
 })
+
+/*
+ * El formulario se acomoda al ancho que TIENE, no al del monitor (Fase 84).
+ *
+ * «Se tiene que ver similar al STEL para que sea fácil de completar»: con la
+ * hoja cerrada, campos anchos de a tres o cuatro y los totales en un renglón
+ * pegado abajo; con la hoja al lado, lo de siempre.
+ *
+ * Eso se sostiene con un contenedor declarado en un archivo y dos consultas
+ * escritas en otros dos. Es la clase de atadura que se corta sin querer —se
+ * renombra la columna, se saca el `container`, y las dos reglas dejan de
+ * aplicar sin que nada falle a la vista—, así que vale un test.
+ */
+describe('la cabecera y los totales con la hoja cerrada (Fase 84)', () => {
+  const editor = sinComentarios(TODOS_LOS_CSS['modules/ventas/pages/EditorCotizacion.module.css'] ?? '')
+  const cabecera = sinComentarios(TODOS_LOS_CSS['modules/ventas/components/CabeceraCotizacion.module.css'] ?? '')
+  const documento = sinComentarios(TODOS_LOS_CSS['components/document/Document.module.css'] ?? '')
+  const CORTE = '@container editor (min-width: 950px)'
+
+  it('la columna del editor es el contenedor que mide', () => {
+    expect(editor).toContain('container: editor / inline-size')
+  })
+
+  it('los campos se ensanchan contra ESE contenedor, no contra la ventana', () => {
+    const i = cabecera.indexOf(CORTE)
+    expect(i).toBeGreaterThanOrEqual(0)
+    expect(cabecera.slice(i)).toContain('minmax(320px, 1fr)')
+    // Y el piso angosto sigue existiendo para cuando la hoja está al lado.
+    expect(cabecera.slice(0, i)).toContain('minmax(150px, 1fr)')
+  })
+
+  it('los totales pasan a un renglón pegado abajo, en el mismo corte', () => {
+    const i = documento.indexOf(CORTE)
+    expect(i).toBeGreaterThanOrEqual(0)
+    const bloque = documento.slice(i)
+    expect(bloque).toContain('position: sticky')
+    expect(bloque).toContain('bottom: 0')
+    expect(bloque).toContain('grid-auto-flow: column')
+  })
+})

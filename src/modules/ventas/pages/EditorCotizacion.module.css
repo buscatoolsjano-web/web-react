@@ -74,7 +74,20 @@
   }
 }
 
+/*
+ * La columna del formulario. Es un CONTENEDOR (Fase 84).
+ *
+ * Con la hoja al lado mide unos 500 px; con la hoja cerrada, el ancho entero
+ * de la página. Las dos cosas que hay adentro —la cabecera y los totales— se
+ * acomodan a eso con `@container`, cada una desde su propio archivo: campos
+ * anchos de a tres o cuatro y una barra de totales pegada abajo cuando hay
+ * lugar, como en el sistema anterior, y lo de siempre cuando no.
+ *
+ * Mide por `inline-size` y no por `size`: el alto lo pone el contenido, y un
+ * contenedor que también mide alto no puede depender de lo que tiene adentro.
+ */
 .columnaEditor {
+  container: editor / inline-size;
   display: grid;
   gap: var(--space-4);
   min-width: 0;
