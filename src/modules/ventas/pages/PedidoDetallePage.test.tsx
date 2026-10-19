@@ -993,7 +993,7 @@ describe('La hoja del documento', () => {
     estado.pantallaAncha = false
     montar()
     expect(hoja()).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Ver documento' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Vista previa' }))
     await waitFor(() => expect(hoja()).not.toBeNull())
   })
 

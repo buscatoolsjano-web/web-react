@@ -642,6 +642,22 @@ function Detalle() {
                   está editando, y poder cambiarle el formato es parte de
                   mirarla (Fase 81). */}
               <ControlesDeHoja {...controlesDeHoja} />
+              {/*
+                Mostrar u ocultar la hoja (Fase 26 · E2, mudado acá en la 84).
+                Vivía en la cabecera de «Líneas», que queda abajo del documento y
+                fuera de la vista: «no veo el botón para cerrar la vista previa».
+                Acá está donde se lo busca —al lado del formato de la hoja, que
+                es la otra cosa que se le hace— y en el mismo lugar que en el
+                alta. Cerrada, el panel de datos ocupa el ancho entero.
+              */}
+              <Button
+                variant="secondary"
+                icon={<Icon name="eye" size={16} />}
+                onClick={() => setPreviaPedida(!verPrevia)}
+                aria-expanded={verPrevia}
+              >
+                {verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
+              </Button>
               <Button
                 variant="secondary"
                 disabled={guardar.isPending}
@@ -704,6 +720,15 @@ function Detalle() {
                   el documento, y el renglón que ocupaba arriba era alto que le
                   sacaba al documento. */}
               <ControlesDeHoja {...controlesDeHoja} />
+              {/* El mismo interruptor de la hoja que en la otra barra. */}
+              <Button
+                variant="secondary"
+                icon={<Icon name="eye" size={16} />}
+                onClick={() => setPreviaPedida(!verPrevia)}
+                aria-expanded={verPrevia}
+              >
+                {verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
+              </Button>
               {acciones.secundarias}
               {/* Después de «Ver / Imprimir» y antes de «Más», igual que en la
                   cotización: mandarlo es lo que se hace con un documento
@@ -793,15 +818,6 @@ function Detalle() {
                     </Button>
                   </>
                 ) : null}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={<Icon name="eye" size={16} />}
-                  onClick={() => setPreviaPedida(!verPrevia)}
-                  aria-expanded={verPrevia}
-                >
-                  {verPrevia ? 'Ocultar documento' : 'Ver documento'}
-                </Button>
               </>
             }
           >

@@ -866,7 +866,7 @@ describe('La hoja del documento', () => {
     estado.pantallaAncha = false
     montar()
     expect(hoja()).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Ver documento' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Vista previa' }))
     await waitFor(() => expect(hoja()).not.toBeNull())
   })
 
@@ -874,8 +874,36 @@ describe('La hoja del documento', () => {
     estado.pantallaAncha = true
     montar()
     await waitFor(() => expect(hoja()).not.toBeNull())
-    fireEvent.click(screen.getByRole('button', { name: 'Ocultar documento' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar vista previa' }))
     expect(hoja()).toBeNull()
+  })
+
+  /**
+   * Y el botón está DONDE SE LO BUSCA (Fase 84).
+   *
+   * Vivía en la cabecera de «Líneas», que en un documento con la hoja al lado
+   * queda abajo y fuera de la vista: «no veo el botón para cerrar la vista
+   * previa». Ahora está en la barra de acciones, al lado del formato de la
+   * hoja, que es la otra cosa que se le hace.
+   */
+  it('el botón vive en la barra de acciones', async () => {
+    estado.pantallaAncha = true
+    montar()
+    await waitFor(() => expect(hoja()).not.toBeNull())
+
+    const barra = screen.getByRole('group', { name: 'Acciones del documento' })
+    expect(within(barra).getByRole('button', { name: 'Ocultar vista previa' })).toBeInTheDocument()
+  })
+
+  /* También en la barra de edición, que es la otra: editando es justamente
+     cuando más falta hace el ancho entero para el formulario. */
+  it('y también mientras se edita', () => {
+    estado.pantallaAncha = true
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+
+    const barra = screen.getByRole('group', { name: 'Acciones del documento' })
+    expect(within(barra).getByRole('button', { name: 'Ocultar vista previa' })).toBeInTheDocument()
   })
 
   /**
