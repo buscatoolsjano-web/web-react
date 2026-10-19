@@ -219,43 +219,51 @@ export function EditorCabecera({
                 siguen el de compras, el que especifica y el que paga. Antes
                 había que elegir a uno y escribir los otros en las
                 observaciones, donde no sirven para nada. */}
-            <ContactosDelDocumento
-              contactos={contactos}
-              principal={valores.contactoId}
-              secundarios={valores.contactosExtra}
-              disabled={valores.customerId === ''}
-              cargando={cargandoContactos}
-              onCambiar={onCambiarContactos}
-            />
+            <div className={styles.linea}>
+              <ContactosDelDocumento
+                contactos={contactos}
+                principal={valores.contactoId}
+                secundarios={valores.contactosExtra}
+                disabled={valores.customerId === ''}
+                cargando={cargandoContactos}
+                onCambiar={onCambiarContactos}
+              />
+              {/* Fase 28 · E14: crear un contacto sin abandonar el documento.
+                  Antes había que irse a la ficha del cliente y volver a
+                  empezar.
+
+                  Va DENTRO del campo desde la Fase 84. Era un hermano más de
+                  la grilla, o sea una celda entera sin rótulo al lado de los
+                  campos que sí lo tienen, y con la hoja cerrada eso abría un
+                  hueco en la columna. Adentro es lo que es: una acción del
+                  campo «Contactos».
+
+                  El texto es corto a propósito. «Contactos del cliente…» no
+                  entra en una línea de la columna, y al estirarse el botón
+                  quedaba del alto del label más el select. De qué contactos
+                  habla se entiende por dónde está; el nombre largo queda en
+                  el `aria-label`.
+
+                  Ese `aria-label` nombra la ACCIÓN («abrir la agenda…») y no
+                  la cosa («contactos del cliente») a propósito: con el
+                  segundo, el botón y el select pasaban a tener dos nombres
+                  accesibles casi iguales dentro del mismo grupo, y quedaba
+                  ambiguo para quien navega por lector de pantalla. */}
+              {onAbrirContactos ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className={styles.botonAgenda}
+                  aria-label="Abrir la agenda de contactos del cliente"
+                  disabled={valores.customerId === ''}
+                  onClick={onAbrirContactos}
+                >
+                  Contactos…
+                </Button>
+              ) : null}
+            </div>
           </Field>
-          {/* Fase 28 · E14: crear un contacto sin abandonar el documento. Antes
-              había que irse a la ficha del cliente y volver a empezar.
-
-              El texto es corto a propósito. «Contactos del cliente…» no entraba
-              en una línea de la columna, y al estirarse el botón quedaba del
-              alto del label más el select: un bloque que pesaba más que el
-              campo al que acompaña. Está pegado a «Contacto», así que de qué
-              contactos habla se entiende por dónde está; el nombre largo queda
-              en el `aria-label`.
-
-              Ese `aria-label` nombra la ACCIÓN («abrir la agenda…») y no la
-              cosa («contactos del cliente») a propósito: con el segundo, el
-              botón y el select «Contacto» pasaban a tener dos nombres
-              accesibles casi iguales dentro del mismo grupo, y quedaba
-              ambiguo para quien navega por lector de pantalla. */}
-          {onAbrirContactos ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className={styles.botonAgenda}
-              aria-label="Abrir la agenda de contactos del cliente"
-              disabled={valores.customerId === ''}
-              onClick={onAbrirContactos}
-            >
-              Contactos…
-            </Button>
-          ) : null}
 
           {direcciones ? (
             <Field

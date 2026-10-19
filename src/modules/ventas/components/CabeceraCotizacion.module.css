@@ -129,9 +129,10 @@
    estira al alto de su fila, y como la fila la marca «Contacto» —label más
    select— el botón salía como un bloque de dos renglones de alto. Alineado
    abajo queda a la altura del select, que es el control al que pertenece. */
+/* Va adentro del campo «Contactos», en su misma línea (Fase 84): `flex: none`
+   para que el selector se quede con el ancho y el botón sólo con su texto. */
 .botonAgenda {
-  justify-self: start;
-  align-self: end;
+  flex: none;
   white-space: nowrap;
 }
 
@@ -195,9 +196,21 @@
     grid-column: 2;
   }
 
-  /* Los de dos columnas —cliente, título— siguen ocupando dos. */
+  /*
+   * Y NINGUNO ocupa dos columnas.
+   *
+   * Con la hoja al lado, el cliente, el título y la forma de pago ocupan dos
+   * de tres columnas finitas, y ahí está bien: son los campos largos. Con la
+   * hoja cerrada son cinco campos de ancho completo sobre diez, y el
+   * formulario pierde el ritmo de la ficha que reemplaza —una fila, dos
+   * datos—: «cuando pongo editar se deforma todo el formato».
+   *
+   * Acá cada campo ocupa una celda, como cada dato de la ficha. La celda ya
+   * mide lo que mide un campo largo —unos 400 px—, así que lo que se ganaba
+   * con dos columnas no compensa romper la grilla.
+   */
   .denso .grilla > .ancho {
-    grid-column: span 2;
+    grid-column: auto;
   }
 }
 
