@@ -355,7 +355,10 @@ describe('la cabecera y los totales con la hoja cerrada (Fase 84)', () => {
     expect(i).toBeGreaterThanOrEqual(0)
     expect(cabecera.slice(i)).toContain('minmax(320px, 1fr)')
     // Y el piso angosto sigue existiendo para cuando la hoja está al lado.
-    expect(cabecera.slice(0, i)).toContain('minmax(150px, 1fr)')
+    // Son 14 rem y no 150 px desde la Fase 84: con 150 entraban tres columnas
+    // de nada en la columna de 460, y cualquier texto las partía en una
+    // palabra por renglón.
+    expect(cabecera.slice(0, i)).toContain('minmax(min(100%, 14rem), 1fr)')
   })
 
   it('la ficha del documento guardado se vuelve densa en el mismo corte', () => {

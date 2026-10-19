@@ -475,7 +475,7 @@ function Detalle() {
                   onChange={(e) => cambiarCabecera('transporte', e.target.value)}
                 />
               </Field>
-              <Field label="Seguimiento" optional help="El número que da el transporte, si lo hay.">
+              <Field label="Seguimiento" optional>
                 <Input
                   value={borrador.cabecera.seguimiento}
                   onChange={(e) => cambiarCabecera('seguimiento', e.target.value)}

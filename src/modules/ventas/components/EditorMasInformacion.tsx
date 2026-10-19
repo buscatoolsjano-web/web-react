@@ -105,9 +105,9 @@ export function EditorMasInformacion({
             optional
             help={
               avisoContacto
-                ? 'Cambió el cliente, así que se quitó el contacto: era de otro.'
+                ? 'Cambió el cliente: se quitó el contacto anterior.'
                 : valores.customerId !== '' && contactos.length === 0 && !cargandoContactos
-                  ? 'Este cliente todavía no tiene contactos cargados.'
+                  ? 'El cliente no tiene contactos cargados.'
                   : undefined
             }
           >
@@ -154,10 +154,14 @@ export function EditorMasInformacion({
               label="Entregar en"
               optional
               help={
+                /* Cortos a propósito (Fase 84): en la columna angosta —220 px—
+                   una frase de catorce palabras son cuatro renglones debajo
+                   del campo, y el resto de la grilla se desacomoda. Lo que
+                   hay que saber entra en una línea. */
                 valores.customerId !== '' && direccionesVisibles.length === 0 && !cargandoDirecciones
-                  ? 'Este cliente no tiene domicilios de entrega cargados. Se cargan en su ficha.'
+                  ? 'El cliente no tiene domicilios cargados.'
                   : valores.direccionEntregaId === '' && direccionesVisibles.length > 0
-                    ? 'Sin elegir, el remito usa el domicilio principal del cliente en el momento de emitirlo.'
+                    ? 'Sin elegir, usa el principal del cliente.'
                     : undefined
               }
             >
@@ -205,7 +209,11 @@ export function EditorMasInformacion({
             </div>
           </Field>
 
-          <Field label="Moneda" help="Cambiarla puede dejar la tarifa incompatible.">
+          {/* Sin ayuda fija (Fase 84): «si no hace falta aclarar nada, no
+              pongas nada, así todo queda alineado». Decía que cambiarla puede
+              dejar la tarifa incompatible, y eso ya lo avisa la TARIFA cuando
+              efectivamente pasa —`avisoTarifa`—, que es cuando sirve. */}
+          <Field label="Moneda">
             <Select value={valores.moneda} required onChange={(e) => onCambiarMoneda(e.target.value)}>
               {/* Fase 14 · E3: sin moneda por defecto. En un documento que ya la
                   tiene esta opción no aparece; en el alta es lo primero que hay

@@ -63,7 +63,11 @@ export function ContactosDelDocumento({
     <div className={styles.caja}>
       {elegidos.length === 0 ? (
         <p className={styles.vacio}>
-          {cargando ? 'Cargando…' : 'Sin contactos. Agregá al menos uno si querés que figure en el documento.'}
+          {/* Corto a propósito (Fase 84): el desplegable que está justo
+              abajo dice «Agregar contacto…», así que explicar que se puede
+              agregar uno era repetir lo que ya se ve. En una columna angosta
+              esa frase larga partía el campo en una palabra por renglón. */}
+          {cargando ? 'Cargando…' : 'Sin contactos.'}
         </p>
       ) : (
         <ul className={styles.lista}>

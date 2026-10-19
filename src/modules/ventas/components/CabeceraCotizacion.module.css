@@ -36,9 +36,20 @@
   letter-spacing: 0.04em;
 }
 
+/*
+ * El piso de 150 px daba TRES columnas al lado de la hoja (Fase 84).
+ *
+ * En una columna de 460 px eso son campos de 145, y ahí un desplegable con
+ * su botón al lado, o un texto de ayuda, se parten en una palabra por
+ * renglón: «cuando hay mucho texto se deforma todo». Con 14 rem entran dos
+ * columnas de ~220, que es lo que mide un campo de verdad.
+ *
+ * El `min(100%, …)` es para que en un teléfono no quede una columna más
+ * ancha que la pantalla: ahí cae a una sola y listo.
+ */
 .grilla {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
   gap: var(--space-2) var(--space-3);
 }
 
@@ -92,14 +103,20 @@
   color: var(--color-text-soft);
 }
 
+/* Un control con su botón al lado. `wrap` para que, cuando la columna es
+   angosta, el botón baje entero en vez de aplastar al control (Fase 84). */
 .linea {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
 }
 
+/* El control pide 9 rem antes de dejar que el botón le gane lugar: con menos
+   que eso un desplegable muestra «Agregar cor…» y deja de servir. Si los dos
+   no entran, el `wrap` de arriba baja el botón al renglón siguiente. */
 .linea > :first-child {
-  flex: 1;
+  flex: 1 1 9rem;
   min-width: 0;
 }
 
