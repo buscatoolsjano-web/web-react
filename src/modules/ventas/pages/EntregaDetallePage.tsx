@@ -151,6 +151,19 @@ function Detalle() {
   const [previaPedida, setPreviaPedida] = useState<boolean | null>(null)
   const verPrevia = previaPedida ?? pantallaAncha
   const [pestana, setPestana] = useTabDeUrl<Pestana>(PESTANAS, 'lineas')
+  /*
+   * «Más información» es pestaña sólo con la hoja cerrada (Fase 84).
+   *
+   * Con la hoja al lado la columna mide unos 500 px, y mandar cuatro campos a
+   * una pestaña ahí es un viaje de ida y vuelta para ver dos datos: va
+   * adentro de «Líneas», debajo de la tarjeta. Con la hoja cerrada hay ancho
+   * de sobra y se gana su pestaña, como en el sistema anterior.
+   *
+   * Si alguien la tenía abierta y muestra la hoja, la pestaña deja de
+   * existir: se vuelve a «Líneas» en vez de quedar mirando una que ya no está.
+   */
+  const hayPestanaMasInfo = !verPrevia
+  const pestanaVisible = pestana === 'masinfo' && !hayPestanaMasInfo ? 'lineas' : pestana
   const idPestanas = useId()
 
   const esInterno = activa?.esInterno ?? false
@@ -417,11 +430,72 @@ function Detalle() {
 
   const pestanas = [
     { key: 'lineas' as const, label: 'Líneas', count: lineasVisibles.length },
-    { key: 'masinfo' as const, label: 'Más información' },
+    ...(hayPestanaMasInfo ? [{ key: 'masinfo' as const, label: 'Más información' }] : []),
     { key: 'adjuntos' as const, label: 'Adjuntos' },
     { key: 'relacionados' as const, label: 'Relacionados' },
     { key: 'trazabilidad' as const, label: 'Trazabilidad' },
   ]
+
+  /**
+   * «Más información»: pestaña con la hoja cerrada, sección con la hoja
+   * abierta (Fase 84).
+   *
+   * «Cuando está la vista previa, lo de Más información tiene que ir en
+   * líneas.» Y es lo correcto: con la hoja al lado la columna del editor mide
+   * unos 500 px y una pestaña de seis campos ahí es un viaje de ida y vuelta
+   * para ver dos datos. Con la hoja cerrada hay ancho de sobra y la pestaña
+   * se gana el lugar, que es como está en el sistema anterior.
+   *
+   * Es el MISMO bloque en los dos casos: lo que cambia es dónde se monta.
+   */
+  const bloqueMasInfo = (
+    <DocSection title="Más información">
+      {editando ? (
+        <div className={`${cabecera.bloques} ${cabecera.denso}`}>
+          <fieldset className={cabecera.grupo}>
+            <legend className="sr-only">Más información</legend>
+            <div className={cabecera.grilla}>
+              <Field label="Contacto" optional>
+                <Select
+                  value={borrador.cabecera.contactoId}
+                  disabled={contactos.isPending}
+                  onChange={(e) => cambiarCabecera('contactoId', e.target.value)}
+                >
+                  <option value="">Sin contacto</option>
+                  {(contactos.data ?? []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.rol ? `${c.nombre} · ${c.rol}` : c.nombre}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Transporte" optional>
+                <Input
+                  value={borrador.cabecera.transporte}
+                  onChange={(e) => cambiarCabecera('transporte', e.target.value)}
+                />
+              </Field>
+              <Field label="Seguimiento" optional help="El número que da el transporte, si lo hay.">
+                <Input
+                  value={borrador.cabecera.seguimiento}
+                  onChange={(e) => cambiarCabecera('seguimiento', e.target.value)}
+                />
+              </Field>
+              <Field label="Observaciones" optional>
+                <Textarea
+                  rows={3}
+                  value={borrador.cabecera.notas}
+                  onChange={(e) => cambiarCabecera('notas', e.target.value)}
+                />
+              </Field>
+            </div>
+          </fieldset>
+        </div>
+      ) : (
+        <InformacionDocumento parte="mas" doc={doc} onVerCliente={() => setViendoCliente(true)} />
+      )}
+    </DocSection>
+  )
 
   return (
     <div className={`${docUi.pagina} ${docUi.paginaAncha} ${docUi.arrancaEnLaBarra}`}>
@@ -644,11 +718,13 @@ function Detalle() {
       <DocumentTabs
         id={idPestanas}
         items={pestanas}
-        value={pestana}
+        /* La pestaña VISIBLE, no la guardada: si la de «Más información» dejó
+           de existir, la marcada tiene que ser la que se está mostrando. */
+        value={pestanaVisible}
         onChange={setPestana}
         label="Secciones del remito"
       >
-        {pestana === 'lineas' ? (
+        {pestanaVisible === 'lineas' ? (
           /* Fase 26 · E2: el editor a la izquierda y la HOJA a la derecha,
              igual que en el alta de una cotización. La hoja del remito es de
              sólo lectura: ver la nota de `lineasParaHoja`. */
@@ -697,6 +773,9 @@ function Detalle() {
                   <InformacionDocumento doc={doc} onVerCliente={() => setViendoCliente(true)} />
                 )}
               </DocSection>
+
+              {/* Con la hoja al lado, acá: es el mismo bloque que la pestaña. */}
+              {hayPestanaMasInfo ? null : bloqueMasInfo}
 
               <DocSection
                 title="Líneas"
@@ -904,80 +983,18 @@ function Detalle() {
 
           Se edita con el MISMO borrador y se guarda con el mismo botón.
         */}
-        {pestana === 'masinfo' ? (
-          /*
-            La pestaña va DENTRO de la columna del editor (Fase 84).
-            `.columnaEditor` no es sólo una columna: es el contenedor que
-            miden las reglas densas —el rótulo al costado, las dos o tres
-            columnas de campos—. Sin él, acá nada de eso aplicaba y los
-            campos salían con el rótulo arriba y aplastados en nueve columnas
-            de 150 px.
-          */
-          <div className={editor.columnaEditor}>
-          <DocSection title="Más información">
-            {editando ? (
-              <div className={`${cabecera.bloques} ${cabecera.denso}`}>
-                <fieldset className={cabecera.grupo}>
-                  <legend className="sr-only">Más información</legend>
-                  <div className={cabecera.grilla}>
-                    <Field label="Contacto" optional>
-                      <Select
-                        value={borrador.cabecera.contactoId}
-                        disabled={contactos.isPending}
-                        onChange={(e) => cambiarCabecera('contactoId', e.target.value)}
-                      >
-                        <option value="">Sin contacto</option>
-                        {(contactos.data ?? []).map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.rol ? `${c.nombre} · ${c.rol}` : c.nombre}
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
-                    <Field label="Transporte" optional>
-                      <Input
-                        value={borrador.cabecera.transporte}
-                        onChange={(e) => cambiarCabecera('transporte', e.target.value)}
-                      />
-                    </Field>
-                    <Field
-                      label="Seguimiento"
-                      optional
-                      help="El número que da el transporte, si lo hay."
-                    >
-                      <Input
-                        value={borrador.cabecera.seguimiento}
-                        onChange={(e) => cambiarCabecera('seguimiento', e.target.value)}
-                      />
-                    </Field>
-                    <Field label="Observaciones" optional>
-                      <Textarea
-                        rows={3}
-                        value={borrador.cabecera.notas}
-                        onChange={(e) => cambiarCabecera('notas', e.target.value)}
-                      />
-                    </Field>
-                  </div>
-                </fieldset>
-              </div>
-            ) : (
-              <InformacionDocumento
-                parte="mas"
-                doc={doc}
-                onVerCliente={() => setViendoCliente(true)}
-              />
-            )}
-          </DocSection>
-          </div>
+
+        {pestanaVisible === 'masinfo' ? (
+          <div className={editor.columnaEditor}>{bloqueMasInfo}</div>
         ) : null}
 
-        {pestana === 'adjuntos' ? (
+        {pestanaVisible === 'adjuntos' ? (
           <DocSection title="Adjuntos">
             <PanelAdjuntos tipo="entrega" documentoId={doc.id} />
           </DocSection>
         ) : null}
 
-        {pestana === 'relacionados' ? (
+        {pestanaVisible === 'relacionados' ? (
           <DocSection title="Relacionados">
             <PanelRelacionados
               relacionados={relacionados.data}
@@ -988,7 +1005,7 @@ function Detalle() {
           </DocSection>
         ) : null}
 
-        {pestana === 'trazabilidad' ? (
+        {pestanaVisible === 'trazabilidad' ? (
           <DocSection title="Trazabilidad">
             <PanelTrazabilidad tipo="entrega" documentoId={doc.id} />
           </DocSection>

@@ -1118,3 +1118,51 @@ describe('Enviar por mail', () => {
     expect(screen.queryByRole('button', { name: 'Enviar por mail' })).toBeNull()
   })
 })
+
+/*
+ * Dónde vive «Más información» según esté la hoja (Fase 84).
+ *
+ * «Cuando está la vista previa, lo de Más información tiene que ir en
+ * líneas.» Con la hoja al lado la columna mide unos 500 px y mandar seis
+ * campos a una pestaña es un viaje de ida y vuelta para ver dos datos; con la
+ * hoja cerrada hay ancho y la pestaña se gana el lugar.
+ *
+ * Es el MISMO bloque: lo que cambia es dónde se monta. Y lo que no puede
+ * pasar es quedar mirando una pestaña que dejó de existir.
+ */
+describe('Más información, según la hoja', () => {
+  it('con la hoja cerrada es una pestaña', () => {
+    estado.pantallaAncha = true
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar vista previa' }))
+
+    expect(screen.getByRole('tab', { name: 'Más información' })).toBeInTheDocument()
+    // Y su contenido no está hasta que se la abre.
+    expect(screen.queryByText('Tipo de cambio')).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
+    expect(screen.getByText('Tipo de cambio')).toBeInTheDocument()
+  })
+
+  it('con la hoja abierta no hay pestaña: va adentro de «Líneas»', () => {
+    estado.pantallaAncha = true
+    montar()
+
+    expect(screen.queryByRole('tab', { name: 'Más información' })).toBeNull()
+    // El bloque está igual, abajo de la tarjeta, sin tener que ir a ningún lado.
+    expect(screen.getByText('Tipo de cambio')).toBeInTheDocument()
+  })
+
+  /* Y si se la abre y después se muestra la hoja, no se queda en una pestaña
+     que ya no existe: vuelve a «Líneas». */
+  it('abrir la hoja con la pestaña abierta no deja la pantalla en blanco', () => {
+    estado.pantallaAncha = true
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar vista previa' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Vista previa' }))
+
+    expect(screen.queryByRole('tab', { name: 'Más información' })).toBeNull()
+    expect(screen.getByRole('tab', { name: /Líneas/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('Tipo de cambio')).toBeInTheDocument()
+  })
+})

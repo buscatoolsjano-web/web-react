@@ -459,3 +459,37 @@
   color: var(--color-text-soft);
   overflow-wrap: anywhere;
 }
+
+/* ── Los campos de la ficha, con caja (Fase 84) ─────────────────────────────
+ *
+ * En la TABLA los controles son invisibles hasta que se los toca, y está
+ * bien: con diez columnas y treinta filas, un borde por celda sería una reja.
+ *
+ * En la ficha es al revés. Son cuatro campos con su rótulo arriba, y sin caja
+ * «35», «0» y «4» quedan colgando como texto suelto, sin saber dónde empieza
+ * uno y termina el otro. Dicho por quien lo usa: «al no tener fondo, no tener
+ * nada concreto, no se llega a leer bien».
+ *
+ * La misma caja que el nombre, que ya la tenía: fondo hundido y borde suave.
+ * Y la misma regla para cuando NO se edita —sin caja— que ya usaba el nombre:
+ * un documento que se mira no tiene por qué parecer un formulario.
+ */
+.ficha .numero,
+.ficha .select,
+.ficha .descripcion {
+  background: var(--color-surface-alt);
+  border-color: var(--color-border);
+}
+
+.ficha .numero[readonly],
+.ficha .select:disabled,
+.ficha .descripcion[readonly] {
+  background: none;
+  border-color: transparent;
+}
+
+/* El subtotal no es un campo: es el resultado. Se distingue por el peso, no
+   por la caja, así no compite con los tres que sí se escriben. */
+.ficha .subtotal {
+  font-weight: var(--weight-semibold);
+}

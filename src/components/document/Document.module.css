@@ -242,16 +242,34 @@
 }
 
 .seccionFlush > .seccionCabecera {
-  padding: var(--space-4) var(--space-4) 0;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
 }
 
+/*
+ * El título de la sección, en su franja (Fase 84).
+ *
+ * «Entre una sección y otra me gustaría que se separe mejor con otros
+ * colores, para que se interprete mejor.» Las tarjetas tenían el mismo fondo
+ * que su contenido y la misma que la de al lado, así que con tres o cuatro
+ * apiladas la pantalla era un solo bloque y había que leer los títulos para
+ * saber dónde terminaba una.
+ *
+ * Una franja de fondo hundido con su raya abajo las corta de un vistazo, sin
+ * agregar alto: los márgenes negativos la estiran hasta el borde de la
+ * tarjeta y el `padding` le devuelve el aire que tenía el título.
+ */
 .seccionCabecera {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-3);
+  margin: calc(var(--space-4) * -1) calc(var(--space-4) * -1) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-alt);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .seccionTitulo {
@@ -342,12 +360,24 @@
   color: var(--color-text);
 }
 
+/*
+ * La aclaración del pie, centrada (Fase 84).
+ *
+ * «Todo ese bottom necesito que esté centrado y con mejor letra.» Y tiene
+ * razón: es una frase larga —de dónde salen los números mientras se edita—
+ * alineada a la derecha y en el tamaño más chico de la escala, o sea la parte
+ * más difícil de leer de la pantalla puesta donde menos se mira.
+ *
+ * Centrada y un punto más grande se lee de corrido, y queda claro que habla
+ * de todo el bloque y no de la última cifra.
+ */
 .totalesNota {
-  margin: 0;
-  max-width: 60ch;
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  text-align: right;
+  margin: var(--space-2) auto 0;
+  max-width: 70ch;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text-soft);
+  text-align: center;
 }
 
 /*
