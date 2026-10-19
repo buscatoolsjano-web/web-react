@@ -14,6 +14,24 @@ body,
   height: 100%;
 }
 
+/*
+ * La canaleta del scroll se reserva SIEMPRE (Fase 84).
+ *
+ * Sin esto, el ancho útil de la página cambia unos 15 px según haya barra de
+ * scroll o no, y eso no es cosmético: un diálogo bloquea el scroll del body
+ * mientras está abierto —le saca la barra— y los repartos en columnas que
+ * miden su contenedor cambian de cantidad de columnas al abrirlo.
+ *
+ * Y se realimenta: la ficha del documento pasaba de dos columnas a tres, con
+ * tres ocupaba menos alto, sin ese alto ya no hacía falta barra, y entonces
+ * se QUEDABA en tres después de cerrar el diálogo. Dicho por quien lo usa:
+ * «cuando toco cliente me abre la ficha y la cierro, se pone tres columnas en
+ * vez de dos, es raro eso».
+ */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   font-family: var(--font-sans);
   font-size: var(--text-sm);

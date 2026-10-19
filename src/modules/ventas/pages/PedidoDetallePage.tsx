@@ -1,7 +1,6 @@
 import { Suspense, lazy, useCallback, useId, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { Icon } from '@/components/icons/Icon'
@@ -11,7 +10,6 @@ import { ErrorState } from '@/components/feedback/ErrorState'
 import { ActionBar } from '@/components/document/ActionBar'
 import { MoreMenu } from '@/components/document/MoreMenu'
 import { DocSection } from '@/components/document/DocSection'
-import { DocumentHeader } from '@/components/document/DocumentHeader'
 import { DocumentTabs } from '@/components/document/DocumentTabs'
 import { useTabDeUrl } from '@/components/document/useTabDeUrl'
 import docUi from '@/components/document/Document.module.css'
@@ -23,7 +21,6 @@ import { useAccionesDocumento } from '../components/AccionesDocumento'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { CadenaDocumento } from '../components/CadenaDocumento'
-import { ChipEstado } from '../components/ChipEstado'
 import { InformacionDocumento } from '../components/InformacionDocumento'
 import { EditorCabecera } from '../components/EditorCabecera'
 import { useUltimoPrecio } from '../hooks/useUltimoPrecio'
@@ -96,7 +93,6 @@ import {
   type CampoCabecera,
   faltaParaGuardar,
 } from '../lib/borrador'
-import { presentarCumplimiento, presentarEstado } from '../lib/estados'
 import { escribeVentas } from '../lib/permisos'
 import { tasaDe } from '../lib/tratamientos'
 import { FalloDeGuardado, ordenarLineas } from '../services/cotizaciones'
@@ -576,25 +572,21 @@ function Detalle() {
         </Suspense>
       ) : null}
 
-      <DocumentHeader
-        back={volver}
-        numero={doc.numero}
-        estados={
-          <>
-            <ChipEstado estado={presentarEstado('pedido', doc.estado)} />
-            {doc.estadoSecundario ? <ChipEstado estado={presentarCumplimiento(doc.estadoSecundario)} /> : null}
-          </>
-        }
-        origen={
-          doc.esHistorico ? (
-            <Badge tone="neutral" outline className={docUi.origen}>
-              Migrado del sistema anterior
-            </Badge>
-          ) : null
-        }
-        aviso={editando ? <Badge tone="info">Editando</Badge> : null}
-      />
+      {/*
+        Acá vivía el encabezado del documento: el «volver», el número, los
+        chips de estado y de dónde vino. Se fue entero en la Fase 84.
 
+        «Eso quiero que lo saques, así se sube todo mucho más. El número de
+        cotización va a ir en la serie, y pendiente vas a agregar un campo
+        más, como en el sistema anterior, que dice Estado.»
+
+        Y es donde van: la referencia y el estado son ahora dos filas de la
+        ficha, que es donde el sistema anterior los tiene. La vuelta al
+        listado ya estaba repetida en la barra de acciones, que además es la
+        que acompaña el scroll. El h1 pasa a la barra, invisible, igual que en
+        el alta desde la Fase 28 · E12: la página no se queda sin encabezado
+        para quien navega saltando por títulos.
+      */}
 
       <AvisosHistoricos documento={doc} revision={revision.data} />
 
@@ -642,6 +634,7 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
+          titulo={doc.numero}
           pasos={circuito}
           primary={
             <Button
@@ -699,6 +692,7 @@ function Detalle() {
         <ActionBar
           pegajosa
           volver={volver}
+          titulo={doc.numero}
           pasos={circuito}
           primary={
             escribe && doc.estado === 'confirmed' ? (

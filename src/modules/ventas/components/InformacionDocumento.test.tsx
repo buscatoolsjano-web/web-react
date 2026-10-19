@@ -104,11 +104,12 @@ describe('Información · cotización', () => {
    * «Última modificación» están en Trazabilidad y el contacto se abre
    * tocando el cliente.
    */
-  it('muestra los ocho datos del sistema anterior, en su orden', () => {
+  it('muestra los nueve datos del sistema anterior, en su orden', () => {
     montar(doc({ titulo: 'VENTAS MERCADO LIBRE', creadoPor: 'Juan' }))
     expect(etiquetas()).toEqual([
-      'Serie',
+      'Referencia',
       'Fecha',
+      'Estado',
       'Título',
       'Cliente',
       'Forma de pago',

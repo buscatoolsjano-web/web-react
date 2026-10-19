@@ -4,6 +4,9 @@ import cabecera from './CabeceraCotizacion.module.css'
 import docUi from '@/components/document/Document.module.css'
 import styles from './InformacionDocumento.module.css'
 import { formatearDomicilio, formatearFecha } from '../lib/formato'
+import { presentarCumplimiento, presentarEstado } from '../lib/estados'
+import { presentarOrigen } from '../lib/origen'
+import { ChipEstado } from './ChipEstado'
 import { RUTA_DE, type DocumentoDetalle } from '../types'
 
 export interface InformacionDocumentoProps {
@@ -34,6 +37,26 @@ export interface InformacionDocumentoProps {
  * toda su agenda— y en la hoja impresa, que lo lleva porque es para el
  * cliente.
  */
+
+/**
+ * La referencia: la serie y el número, en dos cajas como el sistema anterior.
+ *
+ * El número ya arranca con la serie —`COT-BTS` + `00008`—, así que se corta
+ * en vez de repetirla. Un documento viejo cuyo número no empiece con su serie
+ * se muestra entero: partirlo a la fuerza sería inventar.
+ */
+function referencia(doc: DocumentoDetalle) {
+  const serie = doc.serie ?? ''
+  if (serie !== '' && doc.numero.startsWith(serie)) {
+    return (
+      <span className={styles.referencia}>
+        <span>{serie}</span>
+        <span>{doc.numero.slice(serie.length)}</span>
+      </span>
+    )
+  }
+  return doc.numero
+}
 
 /** Cómo se llama el documento del que salió éste. */
 const ETIQUETA_ORIGEN: Record<string, string> = {
@@ -71,6 +94,12 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
   const esEntrega = doc.tipo === 'entrega'
   const esPedido = doc.tipo === 'pedido'
   const comercial = !esEntrega
+  /* Sólo lo que NO es «emitido en el ERP», que es el caso de todos los días. */
+  const origenPropio = presentarOrigen({
+    externalSource: doc.externalSource,
+    esHistorico: doc.esHistorico,
+    serie: doc.serie,
+  }).filter((o) => o.texto !== 'Emitido en el ERP')
 
   /**
    * Los datos, en el recorte y el orden del sistema anterior (Fase 84).
@@ -105,9 +134,50 @@ export function InformacionDocumento({ doc, onVerCliente, agrupado = false }: In
    * orden que se ve es el de esta lista.
    */
   const items: (Dato | null | false)[] = [
-    { seccion: 1, label: 'Serie', value: doc.serie ?? '—' },
+    /*
+     * La referencia: la serie y el número, como las dos cajas de allá.
+     *
+     * El número YA empieza con la serie —«COT-BTS» + «00008»—, así que se
+     * parte en vez de repetirla. Si algún documento viejo no cumple eso, se
+     * muestra entero y listo: inventarle un corte sería peor.
+     *
+     * Desde la Fase 84 ésta es la única vez que el número se ve en la
+     * pantalla: el encabezado que lo repetía arriba se fue, y con él los
+     * 80 px que ocupaba.
+     */
+    { seccion: 1, label: 'Referencia', value: referencia(doc) },
     { seccion: 1, label: 'Fecha', value: formatearFecha(doc.fecha) },
+    /*
+     * El estado, que antes era el chip del encabezado (Fase 84). El pedido
+     * tiene dos —el comercial y el de cumplimiento— y van los dos, que es lo
+     * que mostraba la cabecera.
+     */
+    {
+      seccion: 1,
+      label: 'Estado',
+      value: (
+        <span className={styles.estados}>
+          <ChipEstado estado={presentarEstado(doc.tipo, doc.estado)} />
+          {doc.estadoSecundario ? <ChipEstado estado={presentarCumplimiento(doc.estadoSecundario)} /> : null}
+        </span>
+      ),
+    },
     { seccion: 1, label: 'Título', value: doc.titulo ?? <Missing>Sin título</Missing> },
+    /*
+     * De dónde vino, SÓLO cuando no es lo de siempre (Fase 84).
+     *
+     * «Lo del emitido en el ERP no hace falta que esté»: es el caso normal y
+     * no dice nada. «Migrado desde STEL» o «MercadoLibre» sí: explican por
+     * qué el número no sigue la numeración de acá y qué se puede hacer con el
+     * documento.
+     */
+    origenPropio.length > 0
+      ? {
+          seccion: 1,
+          label: 'Procedencia',
+          value: origenPropio.map((o) => o.texto).join(' · '),
+        }
+      : null,
     // «Válida hasta» se fue en la Fase 28 · E11: no aplica, y de las 307
     // cotizaciones de la base ninguna la tenía cargada.
     // De dónde salió el documento. La fila se muestra AUNQUE no tenga origen:

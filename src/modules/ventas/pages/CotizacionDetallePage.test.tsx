@@ -396,10 +396,15 @@ describe('Cotización · shell documental', () => {
     expect(screen.queryByRole('note')).toBeNull()
   })
 
-  it('un documento del ERP dice que se emitió acá', () => {
+  /* Un documento del ERP ya no dice de dónde vino: es el caso de todos los
+     días y no agrega nada. «Lo del emitido en el ERP no hace falta que esté»
+     (Fase 84). Los que SÍ tienen algo que contar —migrados, MercadoLibre—
+     siguen con su fila, que es el test de arriba. */
+  it('un documento del ERP no gasta una fila en decir que se emitió acá', () => {
     estado.doc = cotizacion({ esHistorico: false, externalSource: null })
     montar()
-    expect(screen.getByText('Emitido en el ERP')).toBeInTheDocument()
+    expect(screen.queryByText('Emitido en el ERP')).toBeNull()
+    expect(screen.queryByText('Procedencia')).toBeNull()
   })
 })
 
@@ -994,9 +999,6 @@ describe('Los controles de la hoja', () => {
  * encabezado.
  */
 describe('El encabezado del documento', () => {
-  /* La barra de acciones también es un `header`, así que «el encabezado» es
-     el que lleva el h1: el número del documento. */
-  const encabezado = () => screen.getByRole('heading', { level: 1, name: 'COTI02558' }).closest('header')!
   const barra = () => screen.getByRole('group', { name: 'Acciones del documento' })
   const circuito = () => screen.getByRole('navigation', { name: 'Circuito de la venta' })
   /* Por omisión el mock de la cadena no devuelve nada y el circuito no se
@@ -1005,16 +1007,37 @@ describe('El encabezado del documento', () => {
     estado.cadena = { cotizacion: null, pedido: null, entrega: null, factura: null }
   }
 
-  it('la vuelta, el número y el estado comparten renglón', async () => {
+  /**
+   * Ya no hay encabezado propio (Fase 84).
+   *
+   * «Lo de arriba que dice COT-BTS00008, pendiente, emitido en el ERP, eso
+   * sacalo, así se sube todo mucho más.» El número y el estado pasaron a ser
+   * dos filas de la ficha, que es donde el sistema anterior los tiene, y la
+   * vuelta al listado ya estaba en la barra.
+   *
+   * Lo que NO puede irse es el h1: sin él la página se queda sin encabezado
+   * para quien navega saltando por títulos. Vive invisible en la barra, como
+   * en el alta desde la Fase 28 · E12. Eso es lo que se prueba acá.
+   */
+  it('el número es el h1 invisible de la barra, y no un renglón aparte', async () => {
     estado.pantallaAncha = true
     conCadena()
     montar()
     await waitFor(() => expect(circuito()).toBeInTheDocument())
 
-    const cabecera = encabezado()
-    expect(within(cabecera).getByRole('link', { name: /Cotizaciones/ })).toBeInTheDocument()
-    expect(within(cabecera).getByRole('heading', { level: 1 })).toHaveTextContent('COTI02558')
-    expect(within(cabecera).getByText('Pendiente')).toBeInTheDocument()
+    // El h1 del número, adentro de la barra y sin verse. (La hoja de al lado
+    // tiene el suyo, que es el título del documento impreso: por eso se busca
+    // por nombre y no se cuentan los h1 de la pantalla.)
+    const titulo = screen.getByRole('heading', { level: 1, name: 'COTI02558' })
+    expect(barra().contains(titulo)).toBe(true)
+    expect(titulo).toHaveClass('sr-only')
+  })
+
+  /* Y el estado se lee en la ficha, que es donde fue a parar. */
+  it('el estado pasa a ser una fila de la ficha', () => {
+    montar()
+    expect(screen.getAllByRole('term').map((t) => t.textContent)).toContain('Estado')
+    expect(screen.getByText('Pendiente')).toBeInTheDocument()
   })
 
   /**
@@ -1044,7 +1067,6 @@ describe('El encabezado del documento', () => {
     await waitFor(() => expect(circuito()).toBeInTheDocument())
 
     expect(barra().contains(circuito())).toBe(true)
-    expect(encabezado().contains(circuito())).toBe(false)
 
     // También al editar, que es la otra barra: es el mismo dato y no se repite.
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))

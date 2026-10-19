@@ -50,8 +50,17 @@
  * El marcado lo pone `MetaList`, que es de la casa y no cambia de forma.
  */
 @container editor (min-width: 950px) {
+  /*
+   * Dos columnas, y tres recién con bastante lugar. FIJAS, no `auto-fill`.
+   *
+   * Con `auto-fill` la cantidad de columnas cambiaba cada vez que el ancho
+   * cruzaba un múltiplo del mínimo, y eso pasa por cosas que no tienen nada
+   * que ver: abrir un diálogo le saca la barra de scroll a la página y la
+   * ensancha 15 px. Con dos cortes lejos de los anchos habituales, el reparto
+   * no se mueve solo (Fase 84).
+   */
   .ficha {
-    grid-template-columns: repeat(auto-fill, minmax(24rem, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: var(--space-5);
     row-gap: 0;
     align-items: start;
@@ -67,23 +76,70 @@
     display: none;
   }
 
-  /* Cada dato, un renglón: rótulo a la derecha de su columna, dato al lado.
-     La raya de abajo es lo que deja seguir el renglón hasta el valor cuando
-     la columna es ancha. */
+  /* Cada dato, un renglón: rótulo a la derecha de su columna, dato al lado. */
   .ficha > section > dl > div {
     display: grid;
-    grid-template-columns: minmax(6rem, 10rem) minmax(0, 1fr);
-    align-items: baseline;
+    grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr);
+    align-items: center;
     gap: var(--space-3);
-    padding-block: var(--space-1);
-    border-bottom: 1px solid var(--color-border);
+    padding-block: 3px;
   }
 
   .ficha > section > dl > div > dt {
     text-align: right;
   }
 
+  /*
+   * El dato, dentro de una caja (Fase 84).
+   *
+   * «Que se note que son cuadrados editables, como está en el sistema
+   * anterior; así se lee mejor.» Y es verdad que se lee mejor: con el rótulo
+   * al lado y tres columnas, sin una caja no se sabe dónde termina un dato y
+   * empieza el rótulo del siguiente.
+   *
+   * Es una caja de campo APAGADO —fondo hundido, borde suave— y no una de
+   * campo activo: acá no se edita, se edita con «Editar». Prometer con la
+   * forma algo que el click no cumple sería peor que no tener caja.
+   */
   .ficha > section > dl > div > dd {
     margin: 0;
+    min-height: var(--control-h-sm);
+    display: flex;
+    align-items: center;
+    padding: 2px var(--space-2);
+    background: var(--color-surface-sunken);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
   }
+
+  /* Los de ancho completo —un domicilio— respiran arriba y abajo. */
+  .ficha > section > dl > div > dd:has(> *) {
+    align-items: center;
+  }
+}
+
+@container editor (min-width: 1300px) {
+  .ficha {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* La serie y el número, pegados como las dos cajas del sistema anterior: lo
+   que se lee es «COT-BTS 00008», no dos datos distintos. */
+.referencia {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.referencia > span:last-child {
+  font-weight: var(--weight-semibold);
+}
+
+/* Un pedido tiene dos estados: el comercial y el de cumplimiento. */
+.estados {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
 }

@@ -354,7 +354,9 @@ describe('Pedido · edición por borrador', () => {
 
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
-    expect(screen.getByText('Editando')).toBeInTheDocument()
+    // El cartel «Editando» se fue con el encabezado (Fase 84). Que se está
+    // editando lo dice la barra entera: cambia a dos acciones y nada más.
+    expect(screen.queryByText('Editando')).toBeNull()
     for (const nombre of ['Confirmar pedido', 'Más', 'Ver / Imprimir']) {
       expect(screen.queryByRole('button', { name: nombre })).toBeNull()
     }

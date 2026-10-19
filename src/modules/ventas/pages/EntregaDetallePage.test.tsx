@@ -253,7 +253,12 @@ describe('Remito · shell documental', () => {
     montar()
     expect(screen.getByRole('heading', { level: 1, name: 'RT00001321' })).toBeInTheDocument()
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    expect(screen.getByText('Serie RT')).toBeInTheDocument()
+    // La serie ya no es un badge del encabezado: es la referencia de la
+    // ficha, partida en serie y número como en el sistema anterior (Fase 84).
+    // «Referencia» también es una columna de la tabla de líneas: se mira la
+    // de la ficha, que es un término de la lista de datos.
+    expect(screen.getAllByRole('term').map((t) => t.textContent)).toContain('Referencia')
+    expect(screen.getByText('RT')).toBeInTheDocument()
     // El nombre del cliente está en el encabezado, en el panel y en la hoja.
     expect(screen.getAllByText('Consulta MercadoLibre').length).toBeGreaterThan(0)
 
@@ -378,7 +383,9 @@ describe('Remito · edición del borrador', () => {
     editar()
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
-    expect(screen.getByText('Editando')).toBeInTheDocument()
+    // El cartel «Editando» se fue con el encabezado (Fase 84). Que se está
+    // editando lo dice la barra entera: cambia a dos acciones y nada más.
+    expect(screen.queryByText('Editando')).toBeNull()
     for (const nombre of ['Confirmar y despachar', 'Ver / Imprimir', 'Eliminar']) {
       expect(screen.queryByRole('button', { name: nombre })).toBeNull()
     }
