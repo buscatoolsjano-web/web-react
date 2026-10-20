@@ -1,0 +1,169 @@
+/* La llamada con Cata (Fase 85).
+ *
+ * Dos zonas: el cartel de estado arriba, que es a lo que se le mira mientras
+ * se habla, y la transcripción abajo, que es lo único que scrollea. Mismo
+ * reparto que el chat del asistente, y por el mismo motivo: el que crece lo
+ * dice él mismo, así que da igual cuántos hermanos condicionales haya.
+ */
+
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── El cartel de estado ───────────────────────────────────────────────────── */
+
+/* Centrado y con aire: es un teléfono, no un formulario. El `flex: none` es
+   para que no le coma alto a la transcripción cuando el texto parcial crece. */
+.cartel {
+  flex: none;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4);
+  text-align: center;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+/* El redondel del ícono. Es lo que cambia de color según el estado, y es a
+   propósito el único que lo hace: dos cosas cambiando de color a la vez no
+   dicen el doble, marean. */
+.ruedo {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  border: 2px solid var(--color-border);
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/*
+ * Escuchando: late.
+ *
+ * Es el único estado con animación, y hace falta. Un micrófono abierto no
+ * hace ruido: sin algo que se mueva, no hay forma de distinguir «te escucho»
+ * de «me colgué», y la gente se queda esperando en silencio.
+ *
+ * El latido es la MISMA idea que los puntitos del chat: no finge saber cuánto
+ * falta, sólo dice que sigue vivo.
+ */
+.escuchando {
+  background: var(--color-success-soft);
+  color: var(--color-success-text);
+  border-color: var(--color-success);
+  animation: latido 1.6s ease-in-out infinite;
+}
+
+.pensando {
+  background: var(--color-info-soft);
+  color: var(--color-info-text);
+  border-color: var(--color-info);
+}
+
+.hablando {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+  border-color: var(--color-primary);
+}
+
+@keyframes latido {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--color-success) 0%, transparent);
+  }
+}
+
+/* Quien pide no animaciones no las recibe: un pulso constante en el borde de
+   la vista es justo lo que molesta a quien lo pidió. El color sigue diciendo
+   el estado, que es el dato. */
+@media (prefers-reduced-motion: reduce) {
+  .escuchando {
+    animation: none;
+  }
+}
+
+.estado {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+/* Acá va lo que se está oyendo, que cambia con cada palabra. El alto mínimo
+   de dos renglones es para que el botón de abajo NO se mueva cuando el texto
+   crece: un botón que salta mientras uno habla se aprieta mal. */
+.ayuda {
+  margin: 0;
+  min-height: 2.6em;
+  max-width: 34rem;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text-soft);
+}
+
+/* ── La transcripción ─────────────────────────────────────────────────────── */
+
+.hilo {
+  flex: 1;
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: var(--space-2);
+}
+
+/* Más chico y más apretado que el chat escrito: esto no se lee de corrido, se
+   busca con la vista cuando hace falta anotar un SKU. */
+.mio,
+.suyo,
+.oyendo {
+  margin: 0;
+  max-width: 90%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.mio {
+  justify-self: end;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+}
+
+.suyo {
+  justify-self: start;
+  background: var(--color-surface-sunken);
+}
+
+/* Lo que se está oyendo todavía puede cambiar, y se ve que puede cambiar: en
+   cursiva y apagado. Mostrarlo igual que un turno cerrado haría parecer que
+   ya viajó, y entonces una palabra mal transcripta parecería culpa de Cata. */
+.oyendo {
+  justify-self: end;
+  color: var(--color-text-muted);
+  font-style: italic;
+  border: 1px dashed var(--color-border);
+}
+
+.pie {
+  flex: none;
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}

@@ -138,6 +138,24 @@ export interface Entorno {
    * año. Tenía razón el modelo: no lo podía saber.
    */
   contexto?: string
+  /**
+   * Qué herramientas se le OFRECEN al modelo, en vez de las del agente.
+   *
+   * Existe por Cata (Fase 85), que contesta con el agente de Catálogo pero
+   * además necesita el último costo, que es del agente de Compras. Agregárselo
+   * a `agentes.ts` se lo daría también al asistente escrito y a la API, donde
+   * ese dato no corresponde.
+   *
+   * Es OFRECER, no permitir: lo que se puede ejecutar sigue dependiendo de lo
+   * que haga `ejecutar`, que es donde está el candado de verdad —este bucle
+   * nunca comprobó el nombre contra la lista del agente—. Las dos cosas van
+   * juntas: ofrecer sin permitir deja al modelo golpeando una puerta cerrada,
+   * y permitir sin ofrecer es lo que pasaba acá, que no se usaba nunca.
+   *
+   * Vale para todos los agentes de la corrida, no sólo el primero. Hoy el
+   * único que la usa corre con un agente solo y sin colegas.
+   */
+  herramientas?: readonly string[]
   limites?: Partial<Limites>
   /**
    * Para contar lo que va pasando mientras pasa. Opcional: sin esto el bucle
@@ -208,11 +226,16 @@ interface Cuenta {
  * rechazarlo después: un modelo al que se le rechaza una herramienta que ve
  * disponible la vuelve a intentar, y se gastan vueltas en eso.
  */
-function herramientasVisibles(agenteId: string, pila: readonly string[], limites: Limites) {
+function herramientasVisibles(
+  agenteId: string,
+  pila: readonly string[],
+  limites: Limites,
+  enLugarDeLasSuyas?: readonly string[],
+) {
   const a = agente(agenteId)
   if (!a) return []
 
-  const propias = a.herramientas
+  const propias = (enLugarDeLasSuyas ?? a.herramientas)
     .map((id) => herramienta(id))
     .filter((h): h is NonNullable<typeof h> => h !== null)
     .map(esquemaParaModelo)
@@ -276,7 +299,7 @@ async function correr(
   pila: readonly string[],
 ): Promise<string> {
   const mensajes: Mensaje[] = [...historial]
-  const herramientas = herramientasVisibles(agenteId, pila, limites)
+  const herramientas = herramientasVisibles(agenteId, pila, limites, entorno.herramientas)
 
   for (let vuelta = 0; vuelta < limites.vueltasPorAgente; vuelta++) {
     if (cuenta.llamadas >= limites.llamadasAlModelo) {

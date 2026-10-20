@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AGENTE_RAIZ, nombreDeConsulta, revisarRegistro, todosLosAgentes } from './agentes.ts'
+import { agente, AGENTE_RAIZ, nombreDeConsulta, revisarRegistro, todosLosAgentes } from './agentes.ts'
 import { HERRAMIENTAS, esquemaParaModelo, herramienta } from './herramientas.ts'
 import {
   type Entorno,
@@ -319,6 +319,44 @@ describe('Lo que ve cada agente', () => {
   it('sólo el agente de correo puede buscar emails', () => {
     const conEmails = todosLosAgentes().filter((a) => a.herramientas.includes('buscar_emails'))
     expect(conEmails.map((a) => a.id)).toEqual(['emails'])
+  })
+
+  /*
+   * La lista que pone la PUERTA (Fase 85).
+   *
+   * Cata contesta con el agente de Catálogo y además necesita el último
+   * costo, que es de Compras. Sin esto habría que agregárselo a `agentes.ts`,
+   * y entonces lo tendrían también el asistente escrito y la API.
+   */
+  it('una puerta puede ofrecer otras herramientas en lugar de las del agente', async () => {
+    let vistas: string[] = []
+    const { modelo } = modeloGuionado((p) => {
+      vistas = p.herramientas.map((h) => String((h as { name: string }).name))
+      return contesta('ok')
+    })
+    const entorno: Entorno = {
+      modelo,
+      ejecutar: () => Promise.resolve(''),
+      herramientas: ['buscar_productos', 'ultimo_costo'],
+    }
+
+    await responder(entorno, preguntar('¿a cuánto compramos la PH2?'), 'catalogo')
+
+    expect(vistas.sort()).toEqual(['buscar_productos', 'ultimo_costo'])
+  })
+
+  it('sin esa lista, el agente sigue viendo exactamente las suyas', async () => {
+    // Es lo que protege al asistente escrito: la prop es opcional y ausente
+    // no cambia nada.
+    let vistas: string[] = []
+    const { modelo } = modeloGuionado((p) => {
+      vistas = p.herramientas.map((h) => String((h as { name: string }).name))
+      return contesta('ok')
+    })
+
+    await responder({ modelo, ejecutar: () => Promise.resolve('') }, preguntar('x'), 'catalogo')
+
+    expect(vistas.sort()).toEqual([...(agente('catalogo')?.herramientas ?? [])].sort())
   })
 })
 

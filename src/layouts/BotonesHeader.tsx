@@ -33,6 +33,15 @@ const PanelNotificaciones = lazy(() =>
 const PanelAsistente = lazy(() =>
   import('@/features/notificaciones/PanelAsistente').then((m) => ({ default: m.PanelAsistente })),
 )
+/**
+ * Cata, la llamada del catálogo (Fase 85).
+ *
+ * `lazy` como los otros dos, y acá importa más: trae el reconocedor de voz y
+ * el sintetizador, que no los usa nadie que no llame.
+ */
+const PanelCata = lazy(() =>
+  import('@/modules/cata/components/PanelCata').then((m) => ({ default: m.PanelCata })),
+)
 
 /** Cada dos minutos, igual que los contadores del menú. */
 const CADA = 2 * 60_000
@@ -54,7 +63,7 @@ export function BotonesHeader() {
   const companyId = activa?.companyId ?? null
   const rol = activa?.rol ?? ''
   const userId = useAuth().user?.id ?? null
-  const [abierto, setAbierto] = useState<'nada' | 'notificaciones' | 'asistente'>('nada')
+  const [abierto, setAbierto] = useState<'nada' | 'notificaciones' | 'asistente' | 'cata'>('nada')
 
   /**
    * El contador de la campana.
@@ -115,6 +124,20 @@ export function BotonesHeader() {
         <span className={styles.pildoraTexto}>Asistente Digital</span>
       </button>
 
+      {/* Cata, que es una LLAMADA y no un chat: entra voz y sale voz, y sabe
+          sólo del catálogo. Botón propio y no un modo del asistente porque es
+          otra cosa, y porque el límite de lo que sabe está en la puerta —ver
+          `supabase/functions/cata/logica.ts`—, no en un parámetro. */}
+      <button
+        type="button"
+        className={`${styles.pildora} ${styles.pildoraCata}`}
+        aria-haspopup="dialog"
+        onClick={() => setAbierto('cata')}
+      >
+        <Icon name="phone" size={16} />
+        <span className={styles.pildoraTexto}>Cata</span>
+      </button>
+
       {/* Sin `fallback` visible: el cajón tarda un pestañeo y un cartel de
           «cargando» que aparece y desaparece molesta más que la espera. */}
       <Suspense fallback={null}>
@@ -122,6 +145,7 @@ export function BotonesHeader() {
           <PanelNotificaciones onCerrar={() => setAbierto('nada')} />
         ) : null}
         {abierto === 'asistente' ? <PanelAsistente onCerrar={() => setAbierto('nada')} /> : null}
+        {abierto === 'cata' ? <PanelCata onCerrar={() => setAbierto('nada')} /> : null}
       </Suspense>
     </>
   )
