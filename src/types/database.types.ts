@@ -8427,6 +8427,10 @@ export type Database = {
         Args: Record<string, never>
         Returns: Json
       }
+      catalogo_publico_facetas: {
+        Args: { p_categoria?: string | null }
+        Returns: Json
+      }
       catalogo_publico_listar: {
         Args: {
           p_categoria?: string | null
@@ -8434,6 +8438,8 @@ export type Database = {
           p_texto?: string | null
           p_pagina?: number
           p_por_pagina?: number
+          p_serie?: string | null
+          p_tipo?: string | null
         }
         Returns: Json
       }

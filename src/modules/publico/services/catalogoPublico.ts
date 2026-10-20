@@ -122,16 +122,22 @@ export async function categorias(): Promise<CategoriaPublica[]> {
  * El tope de `porPagina` lo pone el servidor, no esto: un tope que viva sólo
  * acá es un tope que se saltea escribiendo la llamada a mano.
  */
-export async function listar(params: {
+export interface Filtros {
   categoria?: string | null
   marca?: string | null
+  serie?: string | null
+  tipo?: string | null
   texto?: string | null
   pagina?: number
   porPagina?: number
-}): Promise<PaginaDeCatalogo> {
+}
+
+export async function listar(params: Filtros): Promise<PaginaDeCatalogo> {
   const { data, error } = await supabase.rpc('catalogo_publico_listar', {
     p_categoria: params.categoria ?? null,
     p_marca: params.marca ?? null,
+    p_serie: params.serie ?? null,
+    p_tipo: params.tipo ?? null,
     p_texto: params.texto ?? null,
     p_pagina: params.pagina ?? 1,
     p_por_pagina: params.porPagina ?? 24,
@@ -179,5 +185,53 @@ export async function producto(slug: string): Promise<FichaPublica | null> {
       esKit: p['esKit'] === true,
     },
     relacionados: relacionados.map(resumenDe),
+  }
+}
+
+/**
+ * Las opciones de los filtros, para lo que YA está filtrado (Fase 87 · E2b).
+ *
+ * Dependen de la categoría elegida y no del catálogo entero: con
+ * «Balanceadores» puesto, las marcas que se pueden ofrecer son las tres que
+ * tienen balanceadores, no las treinta y tres del catálogo. Un desplegable
+ * con opciones que devuelven cero resultados es peor que no tener filtro.
+ */
+export interface OpcionFaceta {
+  /** Para la marca, que va en la URL y no puede llevar espacios. */
+  slug?: string
+  nombre: string
+  cuantos: number
+}
+
+export interface FacetasPublicas {
+  total: number
+  marcas: OpcionFaceta[]
+  series: OpcionFaceta[]
+  tipos: OpcionFaceta[]
+}
+
+export async function facetas(categoria?: string | null): Promise<FacetasPublicas> {
+  const { data, error } = await supabase.rpc('catalogo_publico_facetas', {
+    p_categoria: categoria ?? null,
+  })
+  if (error) throw new FalloCatalogoPublico(`No se pudieron leer los filtros: ${error.message}`)
+
+  const o = (data ?? {}) as Record<string, unknown>
+  const lista = (v: unknown): OpcionFaceta[] =>
+    (Array.isArray(v) ? v : []).map((x) => {
+      const f = (x ?? {}) as Record<string, unknown>
+      const slug = opcional(f['slug'])
+      return {
+        ...(slug !== null ? { slug } : {}),
+        nombre: cadena(f['nombre']),
+        cuantos: numero(f['cuantos']),
+      }
+    })
+
+  return {
+    total: numero(o['total']),
+    marcas: lista(o['marcas']),
+    series: lista(o['series']),
+    tipos: lista(o['tipos']),
   }
 }

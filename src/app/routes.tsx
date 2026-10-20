@@ -322,9 +322,6 @@ const NotFoundPage = lazyConRecarga(() =>
 // El sitio público. `lazy` como todo lo demás, aunque sea lo primero que ve
 // un visitante: la portada y el catálogo son dos chunks chicos y el ERP
 // entero no tiene por qué viajar con ellos.
-const LandingPage = lazyConRecarga(() =>
-  import('@/modules/publico/pages/LandingPage').then((m) => ({ default: m.LandingPage })),
-)
 const CatalogoPublicoPage = lazyConRecarga(() =>
   import('@/modules/publico/pages/CatalogoPublicoPage').then((m) => ({
     default: m.CatalogoPublicoPage,
@@ -396,7 +393,11 @@ const rutasPublicas: RouteObject[] = [
     element: <PublicoLayout />,
     errorElement: <ErrorPage />,
     children: [
-      { path: '/', element: conSuspense(<LandingPage />) },
+      // La raiz ES el catalogo (Fase 87 · E2b): «entras a la web y ya
+      // tenes el catalogo ahi listo para filtrar». La portada con hero que
+      // habia antes dejaba el catalogo a un clic, y ese clic estaba entre
+      // alguien que llego buscando un producto y el producto.
+      { path: '/', element: conSuspense(<CatalogoPublicoPage />) },
       { path: '/productos', element: conSuspense(<CatalogoPublicoPage />) },
       { path: '/productos/:categoria', element: conSuspense(<CatalogoPublicoPage />) },
       {
