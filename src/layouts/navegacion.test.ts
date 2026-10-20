@@ -27,7 +27,7 @@ import { ROLES_CHAT } from '@/modules/chat/lib/permisos'
  */
 const AC = ['admin', 'employee']
 const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
-  { to: '/' },
+  { to: '/inicio' },
   { to: '/catalogo' },
   // Fase 49: las listas de precios son COSTOS, o sea información comercial.
   // Sólo roles internos, igual que Compras. Lo que de verdad lo protege es
@@ -93,7 +93,7 @@ describe('navegación agrupada', () => {
     // Por id y no por posición: el orden de los grupos cambió en la Fase 27
     // y un test que cuenta posiciones se rompe cada vez que se reordena.
     const ventas = NAVEGACION.flatMap((g) => g.entradas).find((e) => e.id === 'ventas')!
-    expect(entradaActiva(inicio!, '/')).toBe(true)
+    expect(entradaActiva(inicio!, '/inicio')).toBe(true)
     expect(entradaActiva(inicio!, '/catalogo')).toBe(false)
     expect(entradaActiva(ventas, '/ventas/pedidos/123')).toBe(true)
     expect(entradaActiva(ventas, '/ventas-historicas')).toBe(false)

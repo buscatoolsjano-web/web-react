@@ -1,6 +1,7 @@
 import { lazy, useState, Suspense, type ComponentType, type ReactNode } from 'react'
 import { Navigate, type RouteObject } from 'react-router-dom'
 import { AppLayout } from '@/layouts/AppLayout'
+import { PublicoLayout } from '@/layouts/PublicoLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
 import { ErrorPage } from '@/app/ErrorPage'
@@ -318,6 +319,23 @@ const NotFoundPage = lazyConRecarga(() =>
   import('@/app/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 )
 
+// El sitio público. `lazy` como todo lo demás, aunque sea lo primero que ve
+// un visitante: la portada y el catálogo son dos chunks chicos y el ERP
+// entero no tiene por qué viajar con ellos.
+const LandingPage = lazyConRecarga(() =>
+  import('@/modules/publico/pages/LandingPage').then((m) => ({ default: m.LandingPage })),
+)
+const CatalogoPublicoPage = lazyConRecarga(() =>
+  import('@/modules/publico/pages/CatalogoPublicoPage').then((m) => ({
+    default: m.CatalogoPublicoPage,
+  })),
+)
+const ProductoPublicoPage = lazyConRecarga(() =>
+  import('@/modules/publico/pages/ProductoPublicoPage').then((m) => ({
+    default: m.ProductoPublicoPage,
+  })),
+)
+
 // Fase 13: pantalla de primitivas SÓLO en desarrollo. `import.meta.env.DEV` es
 // `false` literal en el build de producción, así que ni la ruta ni su chunk llegan a dist/.
 const rutasDesarrollo: RouteObject[] = import.meta.env.DEV
@@ -349,13 +367,54 @@ function privada(nodo: ReactNode): ReactNode {
   return <ProtectedRoute>{conSuspense(nodo)}</ProtectedRoute>
 }
 
+/*
+ * ── EL SITIO PÚBLICO (Fase 87 · E2) ─────────────────────────────────────────
+ *
+ * Va PRIMERO y con su propia cáscara, no adentro de `AppLayout`: son dos
+ * productos distintos. El ERP tiene barra lateral, veinte secciones y
+ * densidad alta para quien pasa ocho horas adentro; esto es para alguien que
+ * llegó de un buscador y se va en treinta segundos si no encuentra lo que
+ * vino a buscar.
+ *
+ * Y NO lleva `privada()`: es el punto entero. Lo que protege los datos es que
+ * del otro lado hay tres funciones que devuelven columnas elegidas a mano
+ * —ver `scripts/fase87-catalogo-publico.sql`—, no que la pantalla pida
+ * sesión.
+ *
+ * LA RAÍZ ES LA LANDING. El tablero del ERP se mudó a `/inicio`: no se puede
+ * decidir la cáscara según haya sesión o no, porque esa decisión es
+ * asincrónica y la portada —que es la página que tiene que rendir en el
+ * buscador— quedaría en blanco mientras se resuelve. Quien trabaja acá entra
+ * por el botón de arriba a la derecha, y su marcador de `/` le muestra la
+ * portada con ese botón puesto.
+ */
+const rutasPublicas: RouteObject[] = [
+  {
+    element: <PublicoLayout />,
+    errorElement: <ErrorPage />,
+    children: [
+      { path: '/', element: conSuspense(<LandingPage />) },
+      { path: '/productos', element: conSuspense(<CatalogoPublicoPage />) },
+      { path: '/productos/:categoria', element: conSuspense(<CatalogoPublicoPage />) },
+      {
+        path: '/productos/:categoria/:producto',
+        element: conSuspense(<ProductoPublicoPage />),
+      },
+    ],
+  },
+]
+
 export const routes: RouteObject[] = [
+  ...rutasPublicas,
   {
     path: '/',
     element: <AppLayout />,
     errorElement: <ErrorPage />,
     children: [
-      { index: true, element: privada(<DashboardPage />) },
+      // El tablero, que vivía en la raíz hasta que la raíz pasó a ser la
+      // portada pública. El menú, la marca del encabezado y el destino por
+      // omisión del login apuntan acá.
+      { path: 'inicio', element: privada(<DashboardPage />) },
       { path: 'catalogo', element: privada(<CatalogoPage />) },
       { path: 'precios', element: privada(<ListasDePreciosPage />) },
       // El identificador es el SKU y no el uuid: es legible, compartible y

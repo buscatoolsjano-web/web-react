@@ -1,0 +1,199 @@
+/* La ficha pública (Fase 87 · E2). */
+
+.pagina {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.migaja {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.migaja a {
+  color: var(--color-text-soft);
+}
+
+/* La foto a la izquierda y los datos a la derecha, y en el teléfono uno
+   arriba del otro. El `minmax(0, …)` es lo que evita que un nombre largo
+   empuje la columna: sin él, una palabra sin espacios desborda la grilla. */
+.ficha {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: start;
+}
+
+@media (max-width: 767px) {
+  .ficha {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
+.foto {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: var(--space-5);
+}
+
+.sinFoto {
+  color: #c4c4c4;
+}
+
+.datos {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.marca {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary-text);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+}
+
+.sku {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.descripcion {
+  margin: 0;
+  max-width: 60ch;
+  line-height: var(--leading-normal);
+  color: var(--color-text-soft);
+}
+
+/*
+ * Los atributos, en dos columnas de etiqueta y valor.
+ *
+ * Es la parte que de verdad se lee: quien llegó buscando «punta phillips 2»
+ * viene a confirmar la medida y el encastre. Por eso van con fondo propio y
+ * no sueltos en el texto.
+ */
+.atributos {
+  margin: 0;
+  display: grid;
+  gap: 1px;
+  background: var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.atributos > div {
+  display: grid;
+  grid-template-columns: minmax(7rem, 12rem) minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+}
+
+.atributos dt {
+  color: var(--color-text-soft);
+}
+
+.atributos dd {
+  margin: 0;
+  font-weight: var(--weight-semibold);
+}
+
+/* Lo que ocupa el lugar del precio. */
+.consulta {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.consultaTexto {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.75rem;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.boton:hover {
+  background: var(--color-primary-hover);
+}
+
+/* ── Los relacionados ─────────────────────────────────────────────────────── */
+
+.relacionados {
+  display: grid;
+  gap: var(--space-4);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.subtitulo {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.grilla {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+}
+
+@media (max-width: 480px) {
+  .grilla {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+}
+
+.centrado {
+  display: grid;
+  place-items: center;
+  padding: var(--space-8) 0;
+}
+
+.aviso {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-8) 0;
+  text-align: center;
+  color: var(--color-text-soft);
+}

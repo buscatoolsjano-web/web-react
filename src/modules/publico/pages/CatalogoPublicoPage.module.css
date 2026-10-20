@@ -1,0 +1,106 @@
+/* El catálogo público (Fase 87 · E2). */
+
+.pagina {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.encabezado {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.migaja {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.migaja a {
+  color: var(--color-text-soft);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+}
+
+.bajada {
+  margin: 0;
+  max-width: 60ch;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+/*
+ * La grilla.
+ *
+ * `auto-fill` con un piso de 13 rem: en un monitor entran seis por fila y en
+ * un teléfono dos, sin un solo punto de corte escrito a mano. El piso es lo
+ * que decide cuántas: con menos de 13 rem el nombre de dos renglones empieza
+ * a cortarse en la primera palabra.
+ */
+.grilla {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+}
+
+@media (max-width: 480px) {
+  .grilla {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+}
+
+.centrado {
+  display: grid;
+  place-items: center;
+  padding: var(--space-8) 0;
+}
+
+.vacio {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  color: var(--color-text-soft);
+}
+
+.vacioAyuda {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.paginas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.paginas button {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.paginas button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.paginas button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}

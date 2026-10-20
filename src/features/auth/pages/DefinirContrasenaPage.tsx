@@ -71,7 +71,7 @@ export function DefinirContrasenaPage() {
   const motivo = enlace.ok ? enlace.motivo : contrasenaPendiente()
   if (!session || (motivo !== 'invite' && motivo !== 'recovery')) {
     // Sin enlace de invitación o recuperación, ni un cambio pendiente: nada que hacer acá.
-    return session ? <Navigate to="/" replace /> : <Navigate to="/auth/login" replace />
+    return session ? <Navigate to="/inicio" replace /> : <Navigate to="/auth/login" replace />
   }
 
   return <FormularioContrasena esInvitacion={motivo === 'invite'} email={session.user.email ?? ''} />

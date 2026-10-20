@@ -8420,6 +8420,27 @@ export type Database = {
         Args: { p_company: string; p_limite?: number; p_texto: string }
         Returns: Json
       }
+      // Fase 87: el catálogo público. Las únicas tres funciones que puede
+      // ejecutar alguien sin sesión. Agregadas a mano, como todo lo nuevo:
+      // el generador reescribe tipos de todo el proyecto.
+      catalogo_publico_categorias: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      catalogo_publico_listar: {
+        Args: {
+          p_categoria?: string | null
+          p_marca?: string | null
+          p_texto?: string | null
+          p_pagina?: number
+          p_por_pagina?: number
+        }
+        Returns: Json
+      }
+      catalogo_publico_producto: {
+        Args: { p_slug: string }
+        Returns: Json
+      }
       asistente_ficha_producto: {
         Args: { p_company: string; p_sku: string }
         Returns: Json

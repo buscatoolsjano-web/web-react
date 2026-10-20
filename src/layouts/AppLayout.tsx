@@ -193,7 +193,7 @@ export function AppLayout() {
             onClick={() => abrirCajon(null)}
           />
         )}
-        <Link to="/" className={styles.marca} aria-label="Buscatools ERP, ir al inicio">
+        <Link to="/inicio" className={styles.marca} aria-label="Buscatools ERP, ir al inicio">
           <span className={styles.logoFondo}>
             <img src={`${import.meta.env.BASE_URL}brand/buscatools-logo.png`} alt="" className={styles.logo} width={1400} height={673} />
           </span>

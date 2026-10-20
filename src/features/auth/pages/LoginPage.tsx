@@ -27,7 +27,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
-  const destino = params.get('next') ?? '/'
+  const destino = params.get('next') ?? '/inicio'
 
   // Ya hay sesión: no tiene sentido mostrar el formulario.
   if (!cargando && session) return <Navigate to={destino} replace />

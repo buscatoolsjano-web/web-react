@@ -1,0 +1,227 @@
+/* La cáscara del sitio público (Fase 87 · E2).
+ *
+ * Más aire y más tamaño que el ERP, y es deliberado: el ERP lo mira alguien
+ * que pasa ocho horas adentro y quiere densidad; esto lo mira alguien que
+ * llegó de un buscador y decide en diez segundos si se queda. */
+
+.sitio {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Quien navega con teclado no tiene por qué pasar por las ocho categorías en
+   cada página. Invisible hasta que se la enfoca, que es cuando sirve. */
+.saltar {
+  position: absolute;
+  left: -9999px;
+  z-index: 100;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.saltar:focus {
+  left: var(--space-3);
+  top: var(--space-3);
+}
+
+/* ── El encabezado ────────────────────────────────────────────────────────── */
+
+.cabecera {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.barra {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+}
+
+.marca {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.marca img {
+  height: 28px;
+  width: auto;
+}
+
+/* El buscador se lleva el lugar que sobra: en un catálogo de nueve mil
+   fichas, buscar no es una opción más del menú, es la forma de usarlo. */
+.buscador {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  height: 2.5rem;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+}
+
+.buscador:focus-within {
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.buscador input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.entrar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 2.5rem;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.entrar:hover {
+  background: var(--color-primary-hover);
+}
+
+/* ── Las categorías ───────────────────────────────────────────────────────── */
+
+/* En una sola línea que scrollea de costado en el teléfono, en vez de
+   envolver en tres renglones: en un encabezado pegajoso, tres renglones de
+   menú son media pantalla que no se puede usar para nada. */
+.categorias {
+  display: flex;
+  gap: var(--space-1);
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 0 var(--space-4) var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.categorias::-webkit-scrollbar {
+  display: none;
+}
+
+.cat,
+.catActiva {
+  flex: none;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  color: var(--color-text-soft);
+}
+
+.cat:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
+.catActiva {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+  font-weight: var(--weight-semibold);
+}
+
+/* ── El contenido ─────────────────────────────────────────────────────────── */
+
+.contenido {
+  flex: 1;
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-8);
+}
+
+/* ── El pie ───────────────────────────────────────────────────────────────── */
+
+.pie {
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-alt);
+  padding: var(--space-6) var(--space-4) var(--space-4);
+}
+
+.pieColumnas {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  max-width: 80rem;
+  margin: 0 auto;
+}
+
+@media (max-width: 767px) {
+  .pieColumnas {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pieTitulo {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.pieTexto {
+  margin: 0;
+  max-width: 48ch;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text-soft);
+}
+
+.pieLista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.pieLista a {
+  color: var(--color-text-soft);
+}
+
+.pieLista a:hover {
+  color: var(--color-text);
+}
+
+.pieCuantos {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pieLegal {
+  max-width: 80rem;
+  margin: var(--space-5) auto 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}

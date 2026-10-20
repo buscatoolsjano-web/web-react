@@ -30,7 +30,9 @@ const enLayout = (ruta: string, pagina: ReactNode) =>
         <Route path="/auth" element={<AuthLayout />}>
           <Route path="*" element={pagina} />
         </Route>
-        <Route path="/" element={<p>Inicio del ERP</p>} />
+        {/* El tablero se mudó de `/` a `/inicio` cuando la raíz pasó a ser la
+            portada pública (Fase 87 · E2). */}
+        <Route path="/inicio" element={<p>Inicio del ERP</p>} />
       </Routes>
     </MemoryRouter>,
   )

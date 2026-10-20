@@ -71,7 +71,7 @@ export const NAVEGACION: GrupoNav[] = [
     id: 'inicio',
     label: null,
     entradas: [
-      { id: 'inicio', label: 'Inicio', icon: 'home', destino: { to: '/', label: 'Inicio', end: true } },
+      { id: 'inicio', label: 'Inicio', icon: 'home', destino: { to: '/inicio', label: 'Inicio', end: true } },
     ],
   },
   /**

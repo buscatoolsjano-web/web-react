@@ -104,7 +104,7 @@ describe('header', () => {
   it('logo oficial con nombre accesible, empresa activa visible y sin hamburguesa en desktop', () => {
     montar()
     const marca = screen.getByRole('link', { name: 'Buscatools ERP, ir al inicio' })
-    expect(marca).toHaveAttribute('href', '/')
+    expect(marca).toHaveAttribute('href', '/inicio')
     expect(marca.querySelector('img')).toHaveAttribute('src', expect.stringMatching(/brand\/buscatools-logo\.png$/))
     expect(marca.querySelector('img')).toHaveAttribute('alt', '')
     expect(screen.getByText('Buscatools')).toBeInTheDocument()
