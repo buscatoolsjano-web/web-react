@@ -335,6 +335,9 @@ const ProductoPublicoPage = lazyConRecarga(() =>
     default: m.ProductoPublicoPage,
   })),
 )
+const CotizarPage = lazyConRecarga(() =>
+  import('@/modules/publico/pages/CotizarPage').then((m) => ({ default: m.CotizarPage })),
+)
 
 // Fase 13: pantalla de primitivas SÓLO en desarrollo. `import.meta.env.DEV` es
 // `false` literal en el build de producción, así que ni la ruta ni su chunk llegan a dist/.
@@ -400,6 +403,8 @@ const rutasPublicas: RouteObject[] = [
         path: '/productos/:categoria/:producto',
         element: conSuspense(<ProductoPublicoPage />),
       },
+      // Donde termina el recorrido: la lista armada y el formulario.
+      { path: '/cotizar', element: conSuspense(<CotizarPage />) },
     ],
   },
 ]

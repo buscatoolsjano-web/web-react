@@ -6,6 +6,7 @@ import { TarjetaProducto } from '../components/TarjetaProducto'
 import { producto as pedirProducto, urlDeFoto } from '../services/catalogoPublico'
 import { rutaCanonica, rutaCatalogo, rutaCategoria, rutaProductoPublico } from '../lib/rutas'
 import { useMeta } from '../hooks/useMeta'
+import { useCarritoPublico } from '../hooks/useCarritoPublico'
 import {
   datosEstructurados,
   descripcionDeProducto,
@@ -41,6 +42,8 @@ export function ProductoPublicoPage() {
     categoria: string
     producto: string
   }>()
+
+  const carrito = useCarritoPublico()
 
   const q = useQuery({
     queryKey: ['catalogo-publico', 'producto', slug],
@@ -103,6 +106,16 @@ export function ProductoPublicoPage() {
   const correcta = rutaCanonica({ categoria, producto: slug }, p)
   if (correcta !== null) return <Navigate to={correcta} replace />
 
+  // Lo que se guarda en la lista: el SKU, el nombre y por dónde volver. Sin
+  // ningún id interno, que ni siquiera llega hasta acá.
+  const item = {
+    sku: p.sku,
+    slug: p.slug,
+    categoriaSlug: p.categoriaSlug,
+    nombre: p.nombre,
+  }
+  const enLista = carrito.cantidadDe(p.sku)
+
   const atributos = Object.entries(p.atributos ?? {})
     .map(([clave, valor]) => [nombreDeAtributo(clave), valorLegible(valor)] as const)
     .filter(([, valor]) => valor !== '')
@@ -159,9 +172,35 @@ export function ProductoPublicoPage() {
             <p className={styles.consultaTexto}>
               Los precios y la disponibilidad los informamos a pedido, según cantidad.
             </p>
-            <a className={styles.boton} href={`mailto:info@buscatools.com.ar?subject=${encodeURIComponent(`Consulta por ${p.sku}`)}`}>
-              Consultar por este producto
-            </a>
+
+            {/*
+              Agregar a la lista en vez de «comprar»: no hay precio publicado,
+              así que lo que se arma acá es una consulta, no un pedido. Y el
+              botón cambia de texto una vez agregado —con el enlace para ir a
+              pedirla— porque si no, quien agregó tres productos no tiene
+              ninguna señal de que algo pasó.
+            */}
+            {enLista > 0 ? (
+              <div className={styles.yaEsta}>
+                <span className={styles.yaEstaTexto}>
+                  <Icon name="check" size={16} aria-hidden="true" />
+                  {enLista === 1 ? 'Agregado a tu lista' : `${enLista} en tu lista`}
+                </span>
+                <div className={styles.yaEstaAcciones}>
+                  <button type="button" className={styles.botonSecundario} onClick={() => carrito.agregar(item)}>
+                    Agregar otro
+                  </button>
+                  <Link to="/cotizar" className={styles.boton}>
+                    Pedir cotización
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className={styles.boton} onClick={() => carrito.agregar(item)}>
+                <Icon name="cart" size={16} aria-hidden="true" />
+                Agregar a mi consulta
+              </button>
+            )}
           </div>
         </div>
       </div>

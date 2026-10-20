@@ -1,0 +1,288 @@
+/* El carrito y el pedido de cotización (Fase 87 · E3). */
+
+.pagina {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.bajada {
+  margin: 0 0 var(--space-4);
+  max-width: 60ch;
+  color: var(--color-text-soft);
+}
+
+/* La lista y el formulario, uno al lado del otro: hay que poder ver qué
+   pediste mientras escribís a dónde te contestamos. En el teléfono, la lista
+   primero, que es lo que uno viene a revisar. */
+.columnas {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+@media (max-width: 899px) {
+  .columnas {
+    grid-template-columns: 1fr;
+  }
+}
+
+.subtitulo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+}
+
+.vaciar {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.vaciar:hover {
+  color: var(--color-danger-text);
+}
+
+/* ── La lista ─────────────────────────────────────────────────────────────── */
+
+.lista,
+.formulario {
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.vacia {
+  margin: 0;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+}
+
+.renglones {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.renglon {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.renglon:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.renglonDatos {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.renglonDatos > :first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.renglonSku {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* El `− n +`, con el número escribible: para pedir cien, nadie aprieta el
+   «+» cien veces. */
+.cantidad {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 2px;
+}
+
+.cantidad button {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-soft);
+  cursor: pointer;
+}
+
+.cantidad button:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
+.cantidad input {
+  width: 3.25rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+  /* Sin las flechitas del navegador: ocupan lugar y ya están el − y el +. */
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.cantidad input::-webkit-outer-spin-button,
+.cantidad input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.quitar {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.quitar:hover {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
+}
+
+/* ── El formulario ────────────────────────────────────────────────────────── */
+
+.formulario {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.campo {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.campo > span {
+  color: var(--color-text-soft);
+}
+
+.campo abbr {
+  color: var(--color-danger-text);
+  text-decoration: none;
+}
+
+.campo input,
+.campo textarea {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.campo input:focus,
+.campo textarea:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+}
+
+/* La trampa: fuera de la pantalla y no `display: none`, porque algunos
+   programas saltean lo que está oculto con `display`. */
+.trampa {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
+  font-size: var(--text-sm);
+}
+
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 2.75rem;
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font: inherit;
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.boton:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.boton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.legal {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* ── Cuando salió ─────────────────────────────────────────────────────────── */
+
+.listo {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+}
+
+.listoIcono {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: var(--color-success-soft);
+  color: var(--color-success-text);
+}

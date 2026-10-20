@@ -225,3 +225,44 @@
   font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
+
+/* ── La lista de consulta (Fase 87 · E3) ──────────────────────────────────── */
+
+/* Sólo aparece cuando hay algo adentro. Un carrito vacío permanente en el
+   encabezado es una promesa de tienda que este sitio no cumple —no hay
+   precios ni se compra— y encima ocupa el lugar del botón que sí importa. */
+.carrito {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.carrito:hover {
+  border-color: var(--color-primary);
+}
+
+/* El número encima, como el globito de las notificaciones del ERP: se lee de
+   reojo sin tener que mirar el icono. */
+.carritoGlobo {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  line-height: 1.15rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}

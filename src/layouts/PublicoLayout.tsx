@@ -5,6 +5,7 @@ import { Icon } from '@/components/icons/Icon'
 import { useAuth } from '@/features/auth/useAuth'
 import { categorias } from '@/modules/publico/services/catalogoPublico'
 import { rutaCatalogo, rutaCategoria } from '@/modules/publico/lib/rutas'
+import { useCarritoPublico } from '@/modules/publico/hooks/useCarritoPublico'
 import styles from './PublicoLayout.module.css'
 
 /**
@@ -34,6 +35,7 @@ export function PublicoLayout() {
   const navegar = useNavigate()
   const [params] = useSearchParams()
   const [texto, setTexto] = useState(params.get('q') ?? '')
+  const carrito = useCarritoPublico()
 
   /*
    * Las categorías viven en el layout y no en cada página: se piden UNA vez
@@ -88,6 +90,23 @@ export function PublicoLayout() {
             derecha. Con sesión abierta deja de ser «iniciar sesión» y pasa a
             ser «ir al ERP», que es lo que esa persona quiere.
           */}
+          {/*
+            La lista de consulta. Sólo aparece cuando hay algo adentro: un
+            carrito vacío permanente en el encabezado es una promesa de tienda
+            que este sitio no cumple —no hay precios ni se compra—, y además
+            ocupa el lugar del botón que sí importa.
+          */}
+          {carrito.unidades > 0 ? (
+            <Link
+              to="/cotizar"
+              className={styles.carrito}
+              aria-label={`Tu consulta: ${carrito.unidades} ${carrito.unidades === 1 ? 'producto' : 'productos'}`}
+            >
+              <Icon name="cart" size={20} aria-hidden="true" />
+              <span className={styles.carritoGlobo}>{carrito.unidades}</span>
+            </Link>
+          ) : null}
+
           {session ? (
             <Link to="/inicio" className={styles.entrar}>
               <Icon name="home" size={16} aria-hidden="true" />

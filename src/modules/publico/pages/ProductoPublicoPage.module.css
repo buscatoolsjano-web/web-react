@@ -197,3 +197,55 @@
   text-align: center;
   color: var(--color-text-soft);
 }
+
+/* ── Cuando ya está en la lista (Fase 87 · E3) ────────────────────────────── */
+
+/* El botón cambia de forma una vez agregado: si no, quien agregó tres
+   productos no tiene ninguna señal de que algo pasó, y agrega el mismo
+   cuatro veces. */
+.yaEsta {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.yaEstaTexto {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-success-text);
+}
+
+.yaEstaAcciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.botonSecundario {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.75rem;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.botonSecundario:hover {
+  border-color: var(--color-primary);
+}
+
+/* El botón principal es un enlace en un caso y un botón en el otro: las dos
+   formas tienen que verse igual. */
+button.boton {
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  gap: var(--space-2);
+}
