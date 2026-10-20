@@ -162,6 +162,34 @@ describe('el prompt hablado', () => {
     expect(PROMPT_HABLADO).toMatch(/antes de decir «no hay»/i)
   })
 
+  it('pone un presupuesto de palabras, que es lo único que un modelo respeta', () => {
+    // «Una o dos frases» no alcanzó: contestaba cuatro renglones con cuatro
+    // SKU. Un número se puede obedecer; «corto» se interpreta.
+    expect(PROMPT_HABLADO).toMatch(/VEINTICINCO PALABRAS/)
+    expect(PROMPT_HABLADO).toMatch(/UNA frase/)
+    expect(PROMPT_HABLADO).toMatch(/UN producto/)
+  })
+
+  it('trae el ejemplo de lo que salió mal, junto al de lo que corresponde', () => {
+    // Un contraste enseña más que una regla: la respuesta larga es REAL, de
+    // una llamada, y todo lo que dice es cierto. El problema es el tamaño.
+    expect(PROMPT_HABLADO).toContain('ASÍ NO')
+    expect(PROMPT_HABLADO).toContain('ASÍ SÍ')
+    const bien = PROMPT_HABLADO.split('ASÍ SÍ:')[1] ?? ''
+    expect(bien.split('«')[1]?.split('»')[0]?.split(/\s+/).length ?? 99).toBeLessThanOrEqual(25)
+  })
+
+  it('el stock manda, y tiene su propia sección', () => {
+    expect(PROMPT_HABLADO).toContain('PRIMERO LO QUE SE PUEDE ENTREGAR')
+    expect(PROMPT_HABLADO).toMatch(/nombrá el que tiene stock/i)
+  })
+
+  it('no le pide que dicte los SKU sin que se lo pidan', () => {
+    // Dictar «S, P, punto, P, H, dos» en cada respuesta era un tercio de lo
+    // que tardaba en hablar, y casi nunca hacía falta.
+    expect(PROMPT_HABLADO).toMatch(/Dictarlo letra por letra sólo si/)
+  })
+
   it('el contexto lleva la fecha al final, después de las reglas', () => {
     const c = contextoDeLlamada('lunes, 19 de octubre de 2026')
 

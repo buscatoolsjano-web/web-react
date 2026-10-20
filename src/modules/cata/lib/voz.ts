@@ -83,7 +83,16 @@ export async function decir(texto: string): Promise<void> {
 
   const frase = new SpeechSynthesisUtterance(texto)
   frase.lang = 'es-AR'
-  frase.rate = 1.05
+  /*
+   * Un poco más rápido que el habla normal.
+   *
+   * «Cuando habla tarda bastante.» Lo que más pesa ahí es cuánto dice —eso se
+   * arregla en el prompt—, pero el ritmo también: la voz del sistema lee
+   * parejo y más lento que una persona contándote algo, y encima no hace las
+   * pausas que uno hace. A 1,15 suena a alguien apurado pero se entiende; más
+   * arriba se empastan los SKU, que es justo lo que hay que poder anotar.
+   */
+  frase.rate = 1.15
   const voz = voces.find((v) => v.name === elegida?.name)
   if (voz) frase.voice = voz
 
@@ -95,9 +104,9 @@ export async function decir(texto: string): Promise<void> {
       clearTimeout(reloj)
       listo()
     }
-    // ~14 caracteres por segundo es el ritmo de `rate: 1.05`, medido con el
+    // ~15 caracteres por segundo es el ritmo de `rate: 1.15`, medido con el
     // saludo. Más cinco segundos de colchón para el arranque.
-    const reloj = setTimeout(cerrar, 5_000 + (texto.length / 14) * 1_000)
+    const reloj = setTimeout(cerrar, 5_000 + (texto.length / 15) * 1_000)
     frase.onend = cerrar
     frase.onerror = cerrar
     sintesis.speak(frase)
