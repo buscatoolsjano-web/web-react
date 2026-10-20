@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
 import { useAuth } from '@/features/auth/useAuth'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
@@ -56,6 +56,27 @@ export function AppLayout() {
   const { user, session, salir } = useAuth()
   const empresa = useEmpresa()
   const { pathname } = useLocation()
+  const navegar = useNavigate()
+
+  /**
+   * Salir deja a la persona en la portada, no en el login (Fase 87 · E2).
+   *
+   * «Recién cerré sesión y me llevó al login. Quiero que me lleve al inicio,
+   * a lo que vería el usuario.» Tiene razón: el login es un trámite, no un
+   * destino. Quien cierra sesión terminó de trabajar, y lo que corresponde
+   * mostrarle es el sitio.
+   *
+   * EL ORDEN IMPORTA, y es lo único delicado de esto. Si primero se cerrara
+   * la sesión, `ProtectedRoute` vería que ya no hay sesión mientras todavía
+   * estamos parados en una ruta del ERP y mandaría al login; la navegación
+   * posterior llegaría después y se vería el login un instante antes de la
+   * portada. Yendo PRIMERO a `/` —que es pública y no tiene guardia— cuando
+   * la sesión cae no hay nada que redirija.
+   */
+  const salirYVolverAlSitio = async () => {
+    await navegar('/', { replace: true })
+    await salir()
+  }
   const [cajon, setCajon] = useState<{ abierto: boolean; modulo: string | null }>({ abierto: false, modulo: null })
   const [colapsada, setColapsada] = useState(leerColapsada)
   const idCajon = useId()
@@ -212,7 +233,7 @@ export function AppLayout() {
             <BotonesHeader />
             <BotonApariencia className={styles.botonHeader} />
             <EmpresaSelector />
-            <MenuUsuario email={email} nombre={nombreVisible(user)} empresa={empresa.activa?.companyName ?? null} rol={empresa.activa?.rol ?? null} onSalir={() => void salir()} />
+            <MenuUsuario email={email} nombre={nombreVisible(user)} empresa={empresa.activa?.companyName ?? null} rol={empresa.activa?.rol ?? null} onSalir={() => void salirYVolverAlSitio()} />
           </div>
         )}
       </header>
@@ -258,7 +279,7 @@ export function AppLayout() {
 
         <main className={styles.main} inert={abierto || undefined}>
           {session ? (
-            <EstadoEmpresa cargando={empresa.cargando} error={empresa.error} sinEmpresa={!empresa.activa} onReintentar={empresa.reintentar} onSalir={() => void salir()}>
+            <EstadoEmpresa cargando={empresa.cargando} error={empresa.error} sinEmpresa={!empresa.activa} onReintentar={empresa.reintentar} onSalir={() => void salirYVolverAlSitio()}>
               <Outlet />
             </EstadoEmpresa>
           ) : (

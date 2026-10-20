@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { iniciales, nombreVisible } from './sesion'
@@ -75,6 +75,11 @@ vi.mock('@/features/apariencia/useApariencia', () => ({
 
 const { AppLayout } = await import('./AppLayout')
 
+/** Un sello de que se llegó a la portada, para poder mirarlo desde un test. */
+function DondeEstoy() {
+  return <p data-testid="donde-estoy">/</p>
+}
+
 function montar(ruta = '/ventas/pedidos') {
   document.body.innerHTML = '<div id="root"></div>'
   return render(
@@ -87,6 +92,10 @@ function montar(ruta = '/ventas/pedidos') {
           <Route element={<AppLayout />}>
             <Route path="*" element={<h1>Pantalla</h1>} />
           </Route>
+          {/* La portada pública (Fase 87 · E2): está FUERA del layout del
+              ERP, igual que en producción, porque es a donde tiene que ir
+              quien cierra sesión. */}
+          <Route path="/" element={<DondeEstoy />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -121,7 +130,7 @@ describe('header', () => {
     expect(llamadas.cambiar).toHaveBeenCalledWith('c1')
   })
 
-  it('menú de usuario: abre, muestra identidad, Escape cierra y devuelve el foco; «Cerrar sesión» sale', () => {
+  it('menú de usuario: abre, muestra identidad, Escape cierra y devuelve el foco; «Cerrar sesión» sale', async () => {
     montar()
     const boton = screen.getByRole('button', { name: 'Cuenta de Jano Prueba' })
     expect(boton).toHaveTextContent('JP')
@@ -136,7 +145,37 @@ describe('header', () => {
     expect(boton).toHaveFocus()
     fireEvent.click(boton)
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
-    expect(llamadas.salir).toHaveBeenCalled()
+    // Con await: salir pasó a navegar PRIMERO a la portada y cerrar la
+    // sesión después, así que ya no ocurre en el mismo tick del clic.
+    await waitFor(() => expect(llamadas.salir).toHaveBeenCalled())
+  })
+
+  /*
+   * Salir deja a la persona en la portada, no en el login (Fase 87 · E2).
+   *
+   * «Recién cerré sesión y me llevó al login. Quiero que me lleve al inicio,
+   * a lo que vería el usuario.» El login es un trámite, no un destino.
+   *
+   * Y el ORDEN es lo único delicado: primero se navega a `/` —que es
+   * pública— y recién después se cierra la sesión. Al revés, `ProtectedRoute`
+   * vería la sesión caída estando todavía en una ruta del ERP y mandaría al
+   * login, que aparecería un instante antes de la portada.
+   */
+  it('cerrar sesión lleva a la portada, y llega ANTES de cerrarla', async () => {
+    // Dónde estaba parada la pantalla en el instante en que se cerró la
+    // sesión. Si todavía estaba en el ERP, el login va a aparecer.
+    let dondeAlCerrar: string | null = null
+    llamadas.salir.mockImplementation(() => {
+      dondeAlCerrar = document.querySelector('[data-testid="donde-estoy"]') ? '/' : 'el ERP'
+    })
+
+    montar('/ventas/pedidos')
+    fireEvent.click(screen.getByRole('button', { name: /jano/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
+
+    await waitFor(() => expect(screen.getByTestId('donde-estoy')).toBeInTheDocument())
+    await waitFor(() => expect(llamadas.salir).toHaveBeenCalled())
+    expect(dondeAlCerrar).toBe('/')
   })
 })
 
@@ -159,7 +198,7 @@ describe('sidebar desktop (≥ 1024)', () => {
 
   it('el rol filtra igual que antes: un vendedor no ve Compras, Mantenimiento, Emails, Informes ni Configuración', () => {
     estado.rol = 'salesperson'
-    montar('/')
+    montar('/inicio')
     const nav = screen.getByRole('navigation', { name: 'Principal' })
     expect(within(nav).getByRole('button', { name: 'Ventas' })).toBeInTheDocument()
     for (const n of ['Compras', 'Mantenimiento']) expect(within(nav).queryByRole('button', { name: n })).toBeNull()
@@ -183,7 +222,7 @@ describe('tablet 768–1023: barra compacta', () => {
 describe('mobile < 768: cajón', () => {
   it('hamburguesa abre; foco adentro; resto inert; Escape cierra y devuelve el foco', () => {
     estado.ancho = 390
-    montar('/')
+    montar('/inicio')
     expect(screen.queryByRole('navigation', { name: 'Principal' })).toBeNull()
     const ham = screen.getByRole('button', { name: 'Abrir menú' })
     ham.focus()
@@ -202,7 +241,7 @@ describe('mobile < 768: cajón', () => {
 
   it('elegir un destino cierra el cajón', () => {
     estado.ancho = 390
-    montar('/')
+    montar('/inicio')
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('link', { name: 'Catálogo' }))
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -223,14 +262,14 @@ describe('estado de la empresa activa', () => {
     expect(screen.queryByText('Pantalla')).toBeNull()
   })
 
-  it('sin empresa: estado explícito con reintentar y cerrar sesión (antes «Cargando…» infinito)', () => {
+  it('sin empresa: estado explícito con reintentar y cerrar sesión (antes «Cargando…» infinito)', async () => {
     estado.rol = null
     montar()
     expect(screen.getByRole('heading', { level: 1, name: 'Tu usuario no tiene una empresa activa' })).toBeInTheDocument()
     fireEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'Reintentar' }))
     expect(llamadas.reintentar).toHaveBeenCalled()
     fireEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'Cerrar sesión' }))
-    expect(llamadas.salir).toHaveBeenCalled()
+    await waitFor(() => expect(llamadas.salir).toHaveBeenCalled())
   })
 
   it('error al leer membresías: alerta humana sin detalle técnico', () => {
