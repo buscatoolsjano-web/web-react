@@ -104,35 +104,14 @@ describe('lo que el micrófono manda de más', () => {
     expect(l.parcial).toBe('')
   })
 
-  it('NO oye a Cata por el parlante mientras habla', () => {
-    // El caso que justifica la máquina entera: `SpeechRecognition` sigue
-    // abierto mientras `speechSynthesis` habla y transcribe la propia voz de
-    // Cata. Si eso contara como turno, la llamada se contestaría a sí misma
-    // en un bucle que además se paga.
-    const hablando = correr([
-      { tipo: 'atender' },
-      { tipo: 'escuche', texto: 'punta ph1' },
-      { tipo: 'conteste', texto: 'tenés el VPPH1/70 a doce dólares' },
-    ])
-    expect(hablando.estado).toBe('hablando')
-
-    const l = siguiente(hablando, { tipo: 'escuche', texto: 'tenés el VPPH1 a doce dólares' })
-
-    expect(l).toBe(hablando)
-    expect(l.turnos).toHaveLength(2)
-  })
-
-  it('tampoco mientras el modelo piensa', () => {
+  it('tampoco acepta nada mientras el modelo piensa', () => {
+    // La consulta ya salió: aceptar otro turno acá dejaría dos preguntas
+    // vivas y la respuesta de la primera contestando a la segunda.
     const pensando = correr([{ tipo: 'atender' }, { tipo: 'escuche', texto: 'punta ph1' }])
     const l = siguiente(pensando, { tipo: 'escuche', texto: 'y de la otra' })
 
-    expect(l).toBe(pensando)
+    expect(l.estado).toBe('pensando')
     expect(l.turnos).toHaveLength(1)
-  })
-
-  it('un parcial que llega tarde no se muestra', () => {
-    const pensando = correr([{ tipo: 'atender' }, { tipo: 'escuche', texto: 'punta ph1' }])
-    expect(siguiente(pensando, { tipo: 'oyendo', texto: 'ehh' }).parcial).toBe('')
   })
 
   it('nada de esto pasa con la llamada colgada', () => {
@@ -144,6 +123,91 @@ describe('lo que el micrófono manda de más', () => {
     ] as const satisfies readonly EventoLlamada[]) {
       expect(siguiente(LLAMADA_INICIAL, e)).toBe(LLAMADA_INICIAL)
     }
+  })
+})
+
+/*
+ * ── EL ECO Y LA INTERRUPCIÓN ────────────────────────────────────────────────
+ *
+ * Las dos caras de la misma decisión: el micrófono queda abierto TODA la
+ * llamada. Eso es lo que deja interrumpirla, y es también lo que hace que se
+ * oiga a sí misma. Lo que las separa es `diciendo`.
+ */
+describe('mientras Cata habla', () => {
+  /** Una llamada con Cata hablando, y lo que está diciendo. */
+  const hablando = (dice: string) =>
+    correr([
+      { tipo: 'atender' },
+      { tipo: 'escuche', texto: 'punta ph1' },
+      { tipo: 'conteste', texto: dice },
+    ])
+
+  it('el micrófono sigue abierto: es lo que permite cortarla', () => {
+    const l = hablando('tenés el VPPH1/70 a doce dólares')
+    expect(l.estado).toBe('hablando')
+    expect(escucha(l)).toBe(true)
+  })
+
+  it('sabe qué está diciendo, que es contra lo que compara', () => {
+    expect(hablando('tenés el VPPH1/70').diciendo).toBe('tenés el VPPH1/70')
+  })
+
+  it('oírse a sí misma NO es un turno', () => {
+    // El caso real: el parlante vuelve por el micrófono, el reconocedor lo
+    // transcribe y Cata se contesta a sí misma.
+    const antes = hablando('tenés el VPPH1 a doce dólares, quedan quinientos')
+    const l = siguiente(antes, { tipo: 'escuche', texto: 'tenés el VPPH1 a doce dólares' })
+
+    expect(l.estado).toBe('hablando')
+    expect(l.turnos).toHaveLength(2)
+  })
+
+  it('y tampoco se muestra como borrador', () => {
+    const antes = hablando('tenés el VPPH1 a doce dólares, quedan quinientos')
+    const l = siguiente(antes, { tipo: 'oyendo', texto: 'tenés el VPPH1 a doce' })
+
+    expect(l.parcial).toBe('')
+  })
+
+  it('pero si habla alguien, la CORTA y lo atiende', () => {
+    const antes = hablando('tenés el VPPH1/70 a doce dólares, quedan quinientos cuarenta')
+    const l = siguiente(antes, { tipo: 'escuche', texto: 'no, mejor la del tres' })
+
+    expect(l.estado).toBe('pensando')
+    expect(l.turnos[2]).toEqual({ rol: 'usuario', texto: 'no, mejor la del tres' })
+    // Vaciar `diciendo` es lo que le dice al parlante que se calle.
+    expect(l.diciendo).toBe('')
+  })
+
+  it('del eco pegado a una pregunta, se queda con la pregunta', () => {
+    // Pasó así: el saludo entero transcripto, con la pregunta de verdad al
+    // final. Tirar la frase sería tirar la pregunta.
+    const antes = hablando('Hola, soy Cata. Preguntame por cualquier producto del catálogo')
+    const l = siguiente(antes, {
+      tipo: 'escuche',
+      texto: 'Hola soy Cata Pregúntame por cualquier producto del catálogo a cuánto está la PH2',
+    })
+
+    expect(l.estado).toBe('pensando')
+    expect(l.turnos[2]?.texto).toBe('a cuánto está la PH2')
+  })
+
+  it('cuando la cortaron, el aviso de que la voz terminó no pisa nada', () => {
+    // La voz avisa igual que terminó —porque la cortaron—, y ese aviso llega
+    // DESPUÉS de que la pregunta ya salió. Si volviera a «escuchando», la
+    // respuesta que viene en camino se perdería.
+    const cortada = correr(
+      [{ tipo: 'escuche', texto: 'no, mejor la del tres' }, { tipo: 'termine_de_hablar' }],
+      hablando('tenés el VPPH1/70 a doce dólares, quedan quinientos cuarenta'),
+    )
+
+    expect(cortada.estado).toBe('pensando')
+  })
+
+  it('con Cata callada, todo lo que se oye es de quien llama', () => {
+    const l = atendida()
+    expect(l.diciendo).toBe('')
+    expect(siguiente(l, { tipo: 'escuche', texto: 'hola' }).turnos).toHaveLength(1)
   })
 })
 

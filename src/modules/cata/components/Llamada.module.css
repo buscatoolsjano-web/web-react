@@ -126,38 +126,79 @@
   padding-right: var(--space-2);
 }
 
-/* Más chico y más apretado que el chat escrito: esto no se lee de corrido, se
-   busca con la vista cuando hace falta anotar un SKU. */
+/*
+ * Un chat de verdad: cada uno de su lado y con su color (Fase 85).
+ *
+ * «Que se note la diferencia, que sea como un chat verdadero.» Los dos lados
+ * estaban pintados casi igual —uno con el violeta flojo y el otro con el gris
+ * hundido, que en oscuro se parecen—, y en una conversación HABLADA eso pesa
+ * más que en una escrita: no hay nada más que diga quién dijo qué.
+ *
+ * Tres cosas los separan, no una: el lado, el color de fondo y la esquina.
+ * La esquina pegada al borde va cuadrada, como la cola de un globo de
+ * historieta, que es lo que el ojo lee como «sale de acá».
+ */
 .mio,
-.suyo,
-.oyendo {
-  margin: 0;
-  max-width: 90%;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  line-height: var(--leading-normal);
+.suyo {
+  display: grid;
+  gap: 2px;
+  max-width: 85%;
 }
 
 .mio {
   justify-self: end;
-  background: var(--color-primary-soft);
-  color: var(--color-primary-text);
+  justify-items: end;
 }
 
 .suyo {
   justify-self: start;
+  justify-items: start;
+}
+
+/* Más chico y más apretado que el chat escrito: esto no se lee de corrido, se
+   busca con la vista cuando hace falta anotar un SKU. */
+.burbuja {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  white-space: pre-wrap;
+}
+
+.mio .burbuja {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.suyo .burbuja {
   background: var(--color-surface-sunken);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+/* Su nombre, arriba de la primera burbuja de cada tanda. Sin esto, con el
+   cartel de estado arriba diciendo «Hablando», no queda claro si la burbuja
+   gris es ella o un aviso del sistema. */
+.quien {
+  padding-left: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-soft);
 }
 
 /* Lo que se está oyendo todavía puede cambiar, y se ve que puede cambiar: en
    cursiva y apagado. Mostrarlo igual que un turno cerrado haría parecer que
    ya viajó, y entonces una palabra mal transcripta parecería culpa de Cata. */
-.oyendo {
-  justify-self: end;
+/* Con la misma fuerza que `.mio .burbuja`, que si no le gana y el borrador
+   saldría pintado como un turno ya cerrado. */
+.mio .oyendo {
+  background: transparent;
   color: var(--color-text-muted);
   font-style: italic;
-  border: 1px dashed var(--color-border);
+  border: 1px dashed var(--color-border-medium);
 }
 
 .pie {

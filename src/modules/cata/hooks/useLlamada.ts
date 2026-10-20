@@ -72,12 +72,28 @@ export function useLlamada(): LlamadaEnCurso {
     despachar(e)
   }, [])
 
-  /** El micrófono sigue al estado: abierto sólo mientras se escucha. */
+  /**
+   * El micrófono sigue al estado, y el estado lo deja abierto TODA la
+   * llamada: también mientras Cata habla, que es lo que permite
+   * interrumpirla. Lo que se oye de más lo filtra `lib/eco.ts`.
+   */
   useEffect(() => {
     if (!oido.current) return
     if (escucha(llamada)) oido.current.escuchar()
     else oido.current.pausar()
   }, [llamada])
+
+  /**
+   * Y si la interrumpieron, se calla EN EL ACTO.
+   *
+   * Va en su propio efecto y mira `diciendo`, que es lo que la máquina vacía
+   * cuando acepta una interrupción. Mezclarlo con el efecto de los turnos no
+   * se podía: el turno nuevo es de la persona, y ahí lo que hay que hacer es
+   * consultar; callar es otra cosa y pasa antes.
+   */
+  useEffect(() => {
+    if (llamada.diciendo === '') callar()
+  }, [llamada.diciendo])
 
   /**
    * Lo que se dice en voz alta, y la consulta.
@@ -135,10 +151,20 @@ export function useLlamada(): LlamadaEnCurso {
 
     yaDicho.current = 0
     paso({ tipo: 'atender' })
-    // El saludo se dice sin pasar por los turnos: no es una respuesta a nada y
-    // no tiene que viajar como contexto al modelo. Y se dice MIENTRAS el
-    // micrófono ya está abierto, porque lo normal es que alguien hable encima.
-    void decir(SALUDO)
+    /*
+     * El saludo entra como un turno de Cata, igual que cualquier respuesta.
+     *
+     * Antes se decía por afuera, para que no viajara como contexto al modelo.
+     * Salió caro: al no estar en el estado, `diciendo` quedaba vacío mientras
+     * sonaba, el filtro de eco no tenía contra qué comparar y el micrófono
+     * transcribió el saludo entero como si lo hubiera dicho la persona. Cata
+     * se contestó a sí misma.
+     *
+     * Como turno se arregla solo, se ve en la transcripción como lo que es
+     * —ella hablando, a la izquierda— y encima el modelo sabe que ya saludó.
+     * Lo que cuesta son veinte tokens por consulta.
+     */
+    paso({ tipo: 'conteste', texto: SALUDO })
   }, [sePuede, paso])
 
   const colgar = useCallback(() => {

@@ -2,7 +2,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { Oyentes } from '../lib/reconocedor'
-import type { RespuestaDeCata, TurnoParaCata } from '../services/cata'
+import type * as ServicioCata from '../services/cata'
+import type { TurnoParaCata } from '../services/cata'
 
 /**
  * La llamada, cableada (Fase 85).
@@ -20,7 +21,10 @@ import type { RespuestaDeCata, TurnoParaCata } from '../services/cata'
 const estado = vi.hoisted(() => ({
   /** Lo último que se le mandó a la función. */
   enviado: null as { companyId: string; turnos: readonly TurnoParaCata[] } | null,
-  respuesta: { texto: 'tenés el VPPH1/70', pasos: [] } as RespuestaDeCata,
+  /** Cuántas consultas salieron. Contar es mejor que mirar si quedó en null:
+      nulificar la propiedad le estrecha el tipo y lo de abajo no compila. */
+  veces: 0,
+  respuesta: { texto: 'tenés el VPPH1/70', pasos: [] as string[] },
   error: null as Error | null,
 }))
 
@@ -31,7 +35,21 @@ const oido = vi.hoisted(() => ({
   cuantasVeces: 0,
 }))
 
-const voz = vi.hoisted(() => ({ dicho: [] as string[], callada: 0 }))
+/*
+ * El parlante, doblado, y SIN resolver solo.
+ *
+ * Que `decir` resolviera en el acto parecía más simple y hacía pasar tests
+ * que en la realidad fallan: la llamada volvía a «escuchando» antes de que
+ * llegara nada por el micrófono, así que el filtro de eco nunca tenía contra
+ * qué comparar y el caso que importa —oírse a sí misma mientras habla— no se
+ * podía escribir. Acá la voz termina cuando el test lo dice, como la de
+ * verdad.
+ */
+const voz = vi.hoisted(() => ({
+  dicho: [] as string[],
+  callada: 0,
+  terminar: null as (() => void) | null,
+}))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
 vi.mock('@/features/empresa/useEmpresa', () => ({
@@ -63,10 +81,15 @@ vi.mock('../lib/voz', () => ({
   hayVoz: () => true,
   decir: (t: string) => {
     voz.dicho.push(t)
-    return Promise.resolve()
+    return new Promise<void>((listo) => {
+      voz.terminar = listo
+    })
   },
   callar: () => {
     voz.callada += 1
+    // Callar TERMINA la voz, igual que `speechSynthesis.cancel()`, que
+    // dispara `onend`. Es lo que pasa cuando la interrumpen.
+    voz.terminar?.()
   },
 }))
 
@@ -74,11 +97,12 @@ vi.mock('../lib/voz', () => ({
    con `instanceof`, así que una copia de mentira haría pasar el test sin que
    el camino del fallo funcione. */
 vi.mock('../services/cata', async (original) => {
-  const real = await original<typeof import('../services/cata')>()
+  const real = await original<typeof ServicioCata>()
   return {
     ...real,
     hablarConCata: (p: { companyId: string; turnos: readonly TurnoParaCata[] }) => {
       estado.enviado = p
+      estado.veces += 1
       if (estado.error) return Promise.reject(estado.error)
       return Promise.resolve(estado.respuesta)
     },
@@ -90,6 +114,7 @@ const { FalloCata } = await import('../services/cata')
 
 beforeEach(() => {
   estado.enviado = null
+  estado.veces = 0
   estado.respuesta = { texto: 'tenés el VPPH1/70', pasos: [] }
   estado.error = null
   oido.oyentes = null
@@ -98,7 +123,18 @@ beforeEach(() => {
   oido.cuantasVeces = 0
   voz.dicho = []
   voz.callada = 0
+  voz.terminar = null
 })
+
+/** La voz termina de decir lo suyo. */
+const termineDeHablar = async () => {
+  await act(async () => {
+    voz.terminar?.()
+    // El `await` es lo que hace que `act` espere a la cola de promesas: sin
+    // él la consulta queda a medio camino y el test ve el estado de antes.
+    await Promise.resolve()
+  })
+}
 
 /** Atender, que es el punto de partida de todo lo demás. */
 const atender = () => {
@@ -110,6 +146,9 @@ const atender = () => {
 const decirle = async (texto: string) => {
   await act(async () => {
     oido.oyentes?.frase(texto)
+    // El `await` es lo que hace que `act` espere a la cola de promesas: sin
+    // él la consulta queda a medio camino y el test ve el estado de antes.
+    await Promise.resolve()
   })
 }
 
@@ -132,18 +171,26 @@ describe('atender', () => {
   it('abre el micrófono y saluda', () => {
     atender()
 
-    expect(screen.getByText('Te escucho…')).toBeInTheDocument()
     expect(oido.escuchando).toBe(true)
     expect(voz.dicho[0]).toMatch(/soy Cata/)
   })
 
-  it('el saludo NO viaja como contexto al modelo', async () => {
-    // Es lo que paga de más: el saludo no es respuesta a nada y repetirlo en
-    // cada consulta sería contexto inútil en todas.
+  it('el saludo es un turno SUYO, no algo que pasa por afuera', async () => {
+    /*
+     * Antes se decía por fuera del estado, para que no viajara al modelo.
+     * Salió caro: sin estar en el estado, el filtro de eco no tenía contra
+     * qué comparar, el micrófono transcribió el saludo como si lo hubiera
+     * dicho la persona y Cata se contestó a sí misma.
+     *
+     * Como turno se ve del lado de ella, el eco se reconoce, y encima el
+     * modelo sabe que ya saludó. Cuesta veinte tokens por consulta.
+     */
     atender()
-    await decirle('punta ph1')
+    expect(screen.getByText(/soy Cata/)).toBeInTheDocument()
 
-    expect(estado.enviado?.turnos).toEqual([{ rol: 'usuario', texto: 'punta ph1' }])
+    await decirle('punta ph1')
+    expect(estado.enviado?.turnos[0]?.rol).toBe('agente')
+    expect(estado.enviado?.turnos[1]).toEqual({ rol: 'usuario', texto: 'punta ph1' })
   })
 })
 
@@ -154,7 +201,9 @@ describe('un turno', () => {
       oido.oyentes?.parcial('tenés punta ph')
     })
 
-    expect(screen.getByText('tenés punta ph')).toBeInTheDocument()
+    // Dos veces a propósito: en el cartel de arriba, que es donde se mira
+    // mientras se habla, y en el hilo, como burbuja en borrador.
+    expect(screen.getAllByText('tenés punta ph').length).toBeGreaterThan(0)
     expect(estado.enviado).toBeNull()
   })
 
@@ -166,22 +215,30 @@ describe('un turno', () => {
     await waitFor(() => expect(screen.getByText('tenés el VPPH1/70')).toBeInTheDocument())
   })
 
-  it('lo que se DICE va sin asteriscos; lo que se MUESTRA va tal cual', async () => {
+  it('lo que se DICE va sin asteriscos; lo que se MUESTRA va resaltado', async () => {
+    // El modelo resalta con asteriscos aunque se le pida que no. En la voz se
+    // los saca `textoParaDecir`; en pantalla se resalta, que es lo que quiso
+    // decir. Verlos crudos parece un error.
     estado.respuesta = { texto: 'tenés el **VPPH1/70** a doce dólares', pasos: [] }
     atender()
     await decirle('punta ph1')
 
-    await waitFor(() =>
-      expect(voz.dicho).toContain('tenés el VPPH1/70 a doce dólares'),
-    )
-    expect(screen.getByText('tenés el **VPPH1/70** a doce dólares')).toBeInTheDocument()
+    await waitFor(() => expect(voz.dicho).toContain('tenés el VPPH1/70 a doce dólares'))
+
+    const fuerte = await screen.findByText('VPPH1/70')
+    expect(fuerte.tagName).toBe('STRONG')
+    expect(screen.queryByText(/\*\*/)).toBeNull()
   })
 
   it('cuando termina de hablar vuelve a escuchar sola', async () => {
     atender()
     await decirle('punta ph1')
+    await waitFor(() => expect(screen.getByText('tenés el VPPH1/70')).toBeInTheDocument())
 
-    await waitFor(() => expect(screen.getByText('Te escucho…')).toBeInTheDocument())
+    await termineDeHablar()
+
+    // Lo que la hace una LLAMADA: nadie apretó nada.
+    expect(screen.getByText('Te escucho…')).toBeInTheDocument()
     expect(oido.escuchando).toBe(true)
   })
 })
@@ -197,11 +254,65 @@ describe('la conversación entera viaja', () => {
     estado.respuesta = { texto: 'quedan 544', pasos: [] }
     await decirle('y cuánto queda')
 
-    expect(estado.enviado?.turnos).toEqual([
+    // El primero es el saludo; de ahí en adelante, la conversación entera.
+    expect(estado.enviado?.turnos.slice(1)).toEqual([
       { rol: 'usuario', texto: 'punta ph1' },
       { rol: 'agente', texto: 'tenés el VPPH1/70' },
       { rol: 'usuario', texto: 'y cuánto queda' },
     ])
+  })
+})
+
+describe('el eco y la interrupción', () => {
+  it('el micrófono sigue abierto mientras ella habla', async () => {
+    atender()
+    await decirle('punta ph1')
+
+    // Es lo que permite cortarla. Cerrarlo era la forma obvia de no oírse a
+    // sí misma, y es la que impide interrumpirla.
+    expect(oido.escuchando).toBe(true)
+  })
+
+  it('oírse a sí misma no manda nada, y cortarla sí', async () => {
+    // Cata está diciendo esto; el micrófono lo devuelve transcripto.
+    estado.respuesta = { texto: 'tenés el VPPH1 a doce dólares, quedan quinientos', pasos: [] }
+    atender()
+    await decirle('punta ph1')
+    await waitFor(() => expect(estado.enviado?.turnos).toHaveLength(2))
+
+    const antes = estado.veces
+    await decirle('tenés el VPPH1 a doce dólares')
+    expect(estado.veces, 'el eco no tiene que viajar').toBe(antes)
+
+    // Y alguien hablando sí la corta.
+    await decirle('no, mejor la del tres')
+    expect(estado.veces).toBe(antes + 1)
+    expect(estado.enviado?.turnos.at(-1)).toEqual({
+      rol: 'usuario',
+      texto: 'no, mejor la del tres',
+    })
+  })
+
+  it('al cortarla, la voz se calla en el acto', async () => {
+    estado.respuesta = { texto: 'tenés el VPPH1 a doce dólares, quedan quinientos', pasos: [] }
+    atender()
+    await decirle('punta ph1')
+
+    const antes = voz.callada
+    await decirle('no, mejor la del tres')
+
+    expect(voz.callada).toBeGreaterThan(antes)
+  })
+
+  it('del saludo oído por el parlante, se queda sólo con la pregunta', async () => {
+    // El caso real, de punta a punta: el reconocedor manda el saludo entero
+    // con la pregunta pegada al final.
+    atender()
+    await decirle(
+      'Pregúntame por cualquier producto Del catálogo si lo tenemos A cuánto está ese ariestón',
+    )
+
+    expect(estado.enviado?.turnos.at(-1)).toEqual({ rol: 'usuario', texto: 'ese ariestón' })
   })
 })
 
@@ -236,7 +347,8 @@ describe('cuando falla', () => {
     await decirle('punta ph1')
 
     await waitFor(() => expect(voz.dicho).toContain('Se me cortó, ¿me lo repetís?'))
-    await waitFor(() => expect(screen.getByText('Te escucho…')).toBeInTheDocument())
+    await termineDeHablar()
+    expect(screen.getByText('Te escucho…')).toBeInTheDocument()
   })
 
   it('uno que corta termina la llamada y MUESTRA el motivo de verdad', async () => {
@@ -261,6 +373,9 @@ describe('cuando falla', () => {
     atender()
     await act(async () => {
       oido.oyentes?.fallo('No encuentro ningún micrófono conectado.', true)
+      // El `await` es lo que hace que `act` espere a la cola de promesas: sin
+      // él la consulta queda a medio camino y el test ve el estado de antes.
+      await Promise.resolve()
     })
 
     expect(screen.getByText('Se cortó la llamada')).toBeInTheDocument()

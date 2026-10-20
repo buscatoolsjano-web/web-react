@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
+import { pedazos } from '@/modules/asistente/lib/formatoRespuesta'
 import { useLlamada } from '../hooks/useLlamada'
 import styles from './Llamada.module.css'
 
@@ -12,11 +13,17 @@ import styles from './Llamada.module.css'
  * Porque es lo que es. En un chat la atención está en la caja de escribir; acá
  * no hay nada que escribir, así que el centro de la pantalla es el ESTADO: si
  * te está escuchando, si está pensando o si está hablando. Eso es lo único
- * que hay que saber mientras se habla, y es lo que hace la diferencia entre
- * hablarle a algo y hablarle al aire.
+ * que hay que saber mientras se habla.
  *
- * La transcripción está igual, abajo, y no porque haya que leerla: porque un
- * SKU dictado se anota de ahí. Es el motivo por el que al colgar no se borra.
+ * ── Y POR QUÉ LO DE ABAJO SÍ ES UN CHAT ─────────────────────────────────────
+ *
+ * «Que se note la diferencia, que sea como un chat verdadero.» La
+ * transcripción tenía los dos lados pintados casi igual, y en una conversación
+ * hablada eso importa más que en una escrita: no hay cursor ni nombre que
+ * diga quién dijo qué, así que el único indicio es de qué lado está y de qué
+ * color. Lo suyo va a la izquierda, con su nombre; lo de uno a la derecha.
+ *
+ * Es también donde se anota un SKU dictado: por eso al colgar no se borra.
  */
 export function Llamada() {
   const l = useLlamada()
@@ -40,11 +47,14 @@ export function Llamada() {
     <div className={styles.pagina}>
       {/* ── El estado, grande ─────────────────────────────────────────────── */}
       <div className={styles.cartel}>
-        <div
-          className={`${styles.ruedo} ${activa ? styles[l.estado] : ''}`}
-          aria-hidden="true"
-        >
-          <Icon name={l.estado === 'escuchando' ? 'mic' : 'phone'} size={32} />
+        <div className={`${styles.ruedo} ${activa ? styles[l.estado] : ''}`} aria-hidden="true">
+          {/* El micrófono mientras le toca a uno —escuchando o buscando—; el
+              teléfono el resto del tiempo. Es el mismo dato que el cartel,
+              dicho con una forma: se ve de reojo sin leer. */}
+          <Icon
+            name={l.estado === 'escuchando' || l.estado === 'pensando' ? 'mic' : 'phone'}
+            size={32}
+          />
         </div>
 
         {/* `aria-live`: quien no ve la pantalla necesita saber cuándo le toca
@@ -66,7 +76,11 @@ export function Llamada() {
                 : l.porQueNo
               : l.parcial !== ''
                 ? l.parcial
-                : 'Hablá tranquilo, el micrófono queda abierto.'}
+                : /* Que se puede interrumpir hay que decirlo: nadie le habla
+                     encima a una máquina si no sabe que se la puede cortar. */
+                  l.estado === 'hablando'
+                  ? 'Hablá para interrumpirla.'
+                  : 'Hablá tranquilo, el micrófono queda abierto.'}
         </p>
 
         {activa ? (
@@ -86,14 +100,31 @@ export function Llamada() {
       {l.turnos.length > 0 ? (
         <div className={styles.hilo}>
           {l.turnos.map((t, i) => (
-            <p
+            <div
               key={`${i}-${t.texto.slice(0, 12)}`}
               className={t.rol === 'usuario' ? styles.mio : styles.suyo}
             >
-              {t.texto}
-            </p>
+              {/* El nombre va sólo del lado de ella, y sólo cuando cambia de
+                  lado: repetirlo en cada burbuja de una tanda es ruido, y del
+                  lado propio no hace falta ninguno. */}
+              {t.rol === 'cata' && l.turnos[i - 1]?.rol !== 'cata' ? (
+                <span className={styles.quien}>Cata</span>
+              ) : null}
+              <p className={styles.burbuja}>
+                {/* El modelo resalta con asteriscos aunque se le pida que no.
+                    En la voz se los saca `textoParaDecir`; acá se RESALTA, que
+                    es lo que quiso decir. Verlos crudos parece un error. */}
+                {pedazos(t.texto).map((z, k) =>
+                  z.negrita ? <strong key={k}>{z.texto}</strong> : <span key={k}>{z.texto}</span>,
+                )}
+              </p>
+            </div>
           ))}
-          {l.parcial !== '' ? <p className={styles.oyendo}>{l.parcial}</p> : null}
+          {l.parcial !== '' ? (
+            <div className={styles.mio}>
+              <p className={`${styles.burbuja} ${styles.oyendo}`}>{l.parcial}</p>
+            </div>
+          ) : null}
           <div ref={finDelHilo} />
         </div>
       ) : null}
