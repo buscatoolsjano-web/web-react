@@ -148,3 +148,104 @@ export function olvidarAnchos(id: string): void {
     /* ídem */
   }
 }
+
+/**
+ * Los anchos, encogidos para que la tabla ENTRE (Fase 86).
+ *
+ * ── EL PEDIDO ───────────────────────────────────────────────────────────────
+ *
+ * «Cuando hay muchas columnas por el atributo —en este caso puntas y tubos—
+ * necesito poder ver todas las columnas de una, no tener que ir achicando. Que
+ * sí o sí, en cada categoría, siempre pueda ver hasta el carrito, que es la
+ * última.»
+ *
+ * ── POR QUÉ NO ENTRABAN ─────────────────────────────────────────────────────
+ *
+ * Desde la Fase 66 el ancho de cada columna sale de MEDIR su contenido, y eso
+ * está bien mirado columna por columna: «Serie» deja de ocupar lo mismo que
+ * «Modelo». Pero nadie miraba la SUMA. Con `table-layout: fixed`, cuando los
+ * anchos declarados suman más que la tabla, el navegador no los reparte: hace
+ * la tabla más ancha y aparece el scroll horizontal.
+ *
+ * En «Puntas y tubos» son cuatro columnas de atributos arriba de las cinco de
+ * siempre, cada una pidiendo lo que necesita su contenido. Nueve columnas
+ * midiendo bien dan una tabla que no entra.
+ *
+ * ── CÓMO SE REPARTE ─────────────────────────────────────────────────────────
+ *
+ * A prorrata, respetando el mínimo legible. Lo que se encoge se encoge en
+ * PROPORCIÓN a lo que pedía, así que las columnas que de verdad necesitan
+ * ancho siguen teniendo más que las que no: «Modelo» no termina igual de
+ * angosta que «Medida» sólo porque haya que recortar.
+ *
+ * Y es por rondas, no una multiplicación sola: una columna que al prorratear
+ * caería por debajo del mínimo se CLAVA en el mínimo y sale del reparto, y lo
+ * que le faltaba lo ponen las demás. Con una sola multiplicación, esa columna
+ * quedaría ilegible y además el total seguiría sin dar.
+ *
+ * Si ni todas en el mínimo entran, devuelve todas en el mínimo: más no se
+ * puede hacer desde acá, y es mejor que el scroll empiece lo más tarde
+ * posible.
+ */
+export function encogerParaQueEntre(
+  anchos: Readonly<Record<string, number>>,
+  disponible: number,
+): Record<string, number> {
+  const claves = Object.keys(anchos)
+  if (claves.length === 0) return {}
+
+  const pedido = (k: string) => Math.max(MIN_PX, anchos[k] ?? MIN_PX)
+  const total = claves.reduce((n, k) => n + pedido(k), 0)
+
+  // Sin medida todavía, o ya entra: no se toca nada. Que no toque nada cuando
+  // entra es lo que deja el ancho medido intacto en la mayoría de las
+  // categorías, que son las que tienen pocas columnas.
+  if (!Number.isFinite(disponible) || disponible <= 0 || total <= disponible) {
+    return Object.fromEntries(claves.map((k) => [k, pedido(k)]))
+  }
+
+  if (claves.length * MIN_PX >= disponible) {
+    return Object.fromEntries(claves.map((k) => [k, MIN_PX]))
+  }
+
+  /*
+   * Las rondas. En cada una se prorratea lo que queda entre las que todavía
+   * pueden encogerse; las que caerían por debajo del mínimo se clavan ahí y
+   * se repite. Termina sí o sí: cada ronda clava al menos una columna, o
+   * ninguna y entonces se corta.
+   */
+  const fijadas = new Set<string>()
+  let presupuesto = disponible
+
+  for (;;) {
+    const libres = claves.filter((k) => !fijadas.has(k))
+    const sumaLibres = libres.reduce((n, k) => n + pedido(k), 0)
+    const factor = sumaLibres === 0 ? 0 : presupuesto / sumaLibres
+    const cortas = libres.filter((k) => pedido(k) * factor < MIN_PX)
+    if (cortas.length === 0) break
+    for (const k of cortas) fijadas.add(k)
+    presupuesto -= cortas.length * MIN_PX
+  }
+
+  const libres = claves.filter((k) => !fijadas.has(k))
+  const sumaLibres = libres.reduce((n, k) => n + pedido(k), 0)
+  const factor = sumaLibres === 0 ? 1 : presupuesto / sumaLibres
+
+  const out: Record<string, number> = {}
+  for (const k of claves) {
+    out[k] = fijadas.has(k) ? MIN_PX : Math.max(MIN_PX, Math.floor(pedido(k) * factor))
+  }
+
+  /*
+   * El redondeo hacia abajo deja algunos píxeles sin repartir —hasta uno por
+   * columna—. Van a la más ancha, que es la que mejor los aprovecha y la
+   * única donde no se notan. Sin esto la tabla queda unos píxeles más
+   * angosta que su caja, que no rompe nada pero deja un hueco a la derecha.
+   */
+  const sobra = disponible - claves.reduce((n, k) => n + (out[k] ?? 0), 0)
+  if (sobra > 0 && libres.length > 0) {
+    const masAncha = libres.reduce((a, b) => (pedido(a) >= pedido(b) ? a : b))
+    out[masAncha] = (out[masAncha] ?? MIN_PX) + sobra
+  }
+  return out
+}

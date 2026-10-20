@@ -5,6 +5,7 @@ import {
   anchoInicial,
   anchosDe,
   aplicarArrastre,
+  encogerParaQueEntre,
   guardarAnchos,
   leerAnchos,
   MAX_PX,
@@ -196,5 +197,87 @@ describe('lo que queda guardado en el navegador', () => {
       throw new Error('SecurityError')
     })
     expect(() => olvidarAnchos('catalogo')).not.toThrow()
+  })
+})
+
+/*
+ * ── QUE LA TABLA ENTRE (Fase 86) ────────────────────────────────────────────
+ *
+ * «Necesito poder ver todas las columnas de una, no tener que ir achicando.
+ * Que sí o sí, en cada categoría, siempre pueda ver hasta el carrito.»
+ */
+describe('encogerParaQueEntre', () => {
+  const suma = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0)
+
+  it('si ya entra, no toca nada: el ancho medido vale', () => {
+    const anchos = { modelo: 120, marca: 100, serie: 80 }
+    expect(encogerParaQueEntre(anchos, 400)).toEqual(anchos)
+  })
+
+  it('y tampoco si todavía no se sabe cuánto hay', () => {
+    // Antes de la primera medición no hay caja: encoger contra un cero
+    // dejaría todas las columnas en el mínimo por un instante y la tabla
+    // pegaría un salto al pintarse.
+    const anchos = { modelo: 120, marca: 100 }
+    expect(encogerParaQueEntre(anchos, 0)).toEqual(anchos)
+    expect(encogerParaQueEntre(anchos, Number.NaN)).toEqual(anchos)
+  })
+
+  it('cuando no entra, encoge hasta el ancho justo', () => {
+    const r = encogerParaQueEntre({ a: 300, b: 300, c: 300 }, 600)
+    expect(suma(r)).toBe(600)
+  })
+
+  it('reparte a prorrata: la que pedía más sigue teniendo más', () => {
+    // Es lo que distingue esto de «todas iguales»: «Modelo» necesita ancho y
+    // «Medida» no, y recortar no puede borrar esa diferencia.
+    const r = encogerParaQueEntre({ modelo: 400, medida: 100 }, 250)
+    expect(r['modelo']).toBeGreaterThan(r['medida']!)
+    expect(suma(r)).toBe(250)
+  })
+
+  it('ninguna baja del mínimo legible', () => {
+    const r = encogerParaQueEntre({ a: 400, b: 100, c: 100 }, 300)
+    for (const v of Object.values(r)) expect(v).toBeGreaterThanOrEqual(MIN_PX)
+  })
+
+  it('la que caería por debajo se clava en el mínimo y el resto lo ponen las otras', () => {
+    // Con una sola multiplicación, `chica` quedaría en 30 px —ilegible— y el
+    // total seguiría sin dar. Por rondas, se clava en el mínimo y `ancha`
+    // absorbe lo que falta.
+    const r = encogerParaQueEntre({ ancha: 600, chica: 60 }, 400)
+    expect(r['chica']).toBe(MIN_PX)
+    expect(r['ancha']).toBe(400 - MIN_PX)
+    expect(suma(r)).toBe(400)
+  })
+
+  it('si ni todas en el mínimo entran, todas en el mínimo', () => {
+    // Más no se puede hacer desde acá. Mejor que el scroll empiece lo más
+    // tarde posible que dejar columnas de diez píxeles.
+    const r = encogerParaQueEntre({ a: 300, b: 300, c: 300 }, 100)
+    expect(Object.values(r)).toEqual([MIN_PX, MIN_PX, MIN_PX])
+  })
+
+  it('el caso real: nueve columnas de «Puntas y tubos» en una caja de 900', () => {
+    const anchos = {
+      modelo: 150, marca: 140, categoria: 130, serie: 120, tipo: 110,
+      'attr:encastre': 160, 'attr:medida': 90, 'attr:largo': 100, 'attr:sufijos': 95,
+    }
+    expect(suma(anchos)).toBeGreaterThan(900)
+
+    const r = encogerParaQueEntre(anchos, 900)
+
+    expect(suma(r)).toBe(900)
+    for (const v of Object.values(r)) expect(v).toBeGreaterThanOrEqual(MIN_PX)
+    // El orden relativo se conserva: la que más pedía sigue siendo la más ancha.
+    expect(r['attr:encastre']).toBeGreaterThan(r['attr:medida']!)
+  })
+
+  it('sin columnas no hace nada', () => {
+    expect(encogerParaQueEntre({}, 500)).toEqual({})
+  })
+
+  it('un ancho por debajo del mínimo se trata como el mínimo', () => {
+    expect(encogerParaQueEntre({ a: 10, b: 10 }, 500)).toEqual({ a: MIN_PX, b: MIN_PX })
   })
 })

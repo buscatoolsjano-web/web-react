@@ -8,7 +8,14 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
-import { anchosDe, aplicarArrastre, guardarAnchos, leerAnchos, MIN_PX } from './anchoDeColumnas'
+import {
+  anchosDe,
+  aplicarArrastre,
+  encogerParaQueEntre,
+  guardarAnchos,
+  leerAnchos,
+  MIN_PX,
+} from './anchoDeColumnas'
 import { anchoNecesario, anchosQueSoloCrecen, mismasColumnas } from './anchoPorContenido'
 import { medidorDe } from './medirTexto'
 import { TiradorDeAncho } from './TiradorDeAncho'
@@ -131,13 +138,91 @@ export function useAnchosAjustables(
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `huella` representa a `columnas` con sus valores.
   }, [id, huella, refTabla])
 
-  const valores = useMemo(
-    // Lo guardado por la persona gana sobre lo medido: si arrastró el borde,
-    // es porque quiso ese ancho.
+  /**
+   * CUÁNTO LUGAR HAY PARA LAS COLUMNAS AJUSTABLES (Fase 86).
+   *
+   * «Necesito poder ver todas las columnas de una, no tener que ir achicando.»
+   *
+   * El ancho de cada columna sale de medir su contenido, y eso está bien
+   * mirado columna por columna. Pero nadie miraba la SUMA: con
+   * `table-layout: fixed`, cuando los anchos declarados suman más que la
+   * tabla, el navegador no los reparte —hace la tabla más ancha y aparece el
+   * scroll—. En «Puntas y tubos» son cuatro columnas de atributos arriba de
+   * las cinco de siempre, y nueve columnas midiendo bien no entran.
+   *
+   * El presupuesto es lo que queda después de las columnas que NO son
+   * ajustables —casillero, miniatura, referencia, stock, precio, carrito—,
+   * que declaran su ancho en el CSS. No hace falta saber cuáles son: lo que
+   * la tabla ocupa menos lo que estamos pidiendo nosotros ES lo que ocupan
+   * ellas. Y se mide con `fixed` puesto, así que ese número es exacto aunque
+   * la tabla esté desbordando en ese momento.
+   */
+  /** Lo que cada columna PIDE: lo guardado si lo hay, y si no lo medido. */
+  const pedidos = useMemo(
     () => (id ? anchosDe(columnas, { ...medidos, ...guardados }) : {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `claves` representa a `columnas`: el array es nuevo en cada render.
     [id, guardados, medidos, claves],
   )
+  const [presupuesto, setPresupuesto] = useState(0)
+
+  useLayoutEffect(() => {
+    const tabla = refTabla?.current
+    const caja = tabla?.parentElement
+    if (!id || !tabla || !caja) return
+
+    const medir = () => {
+      /*
+       * Las fijas se miden UNA POR UNA, y no restando lo nuestro del total.
+       *
+       * Restar era lo primero que salía —«lo que ocupa la tabla menos lo que
+       * pedimos»— y se muerde la cola: en cuanto el encogido se aplica, la
+       * tabla ya no ocupa lo pedido sino lo encogido, así que la resta da de
+       * menos, el presupuesto sube, las columnas se estiran, vuelven a no
+       * entrar, y la tabla late.
+       *
+       * Acá el presupuesto no depende de nuestros anchos en absoluto: se
+       * suman las columnas que NO controlamos. Se reconocen porque las
+       * nuestras —y sólo las nuestras— llevan el ancho en el `style` de la
+       * etiqueta; las otras lo declaran en el CSS. Con `table-layout: fixed`
+       * esas se cobran su ancho exacto aunque la tabla esté desbordando, así
+       * que el número vale incluso mientras el problema está pasando.
+       */
+      const encabezados = tabla.querySelectorAll<HTMLTableCellElement>('thead tr:first-child th')
+      let fijas = 0
+      for (const th of encabezados) if (th.style.width === '') fijas += th.offsetWidth
+
+      setPresupuesto((prev) => {
+        // `clientWidth` y no `offsetWidth`: la caja es la que scrollea, y lo
+        // que importa es su interior visible, sin la barra si la hay.
+        const siguiente = Math.max(0, Math.round(caja.clientWidth - fijas))
+        // Un píxel de diferencia no justifica repintar la tabla entera, y sin
+        // este corte el observador y el layout se persiguen.
+        return Math.abs(siguiente - prev) <= 1 ? prev : siguiente
+      })
+    }
+
+    medir()
+    const observador = new ResizeObserver(medir)
+    observador.observe(caja)
+    return () => observador.disconnect()
+  // `claves` entra porque un juego de columnas distinto puede traer otras
+  // columnas fijas —el stock sólo se ve para roles internos— y entonces el
+  // presupuesto cambia sin que la caja haya cambiado de tamaño.
+  }, [id, claves, refTabla])
+
+  const valores = useMemo(() => {
+    if (!id) return {}
+    /*
+     * Y encima de todo eso, que entre. Se encoge lo PEDIDO y no lo ya
+     * encogido: si la ventana se agranda, las columnas vuelven solas a su
+     * ancho medido en vez de quedarse chicas para siempre.
+     *
+     * Encoger no deshace el arrastre: reparte a prorrata, así que una columna
+     * que alguien ensanchó sigue teniendo más que las demás. Lo que no puede
+     * es sacar la última columna de la pantalla, que es lo que se pidió.
+     */
+    return encogerParaQueEntre(pedidos, presupuesto)
+  }, [id, pedidos, presupuesto])
 
   const arrastrar = useCallback(
     (clave: string, anchoAlEmpezar: number, deltaPx: number, final: boolean) => {

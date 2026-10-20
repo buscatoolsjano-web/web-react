@@ -511,6 +511,48 @@
 }
 
 
+/* ── La franja donde los atributos ya se ven pero el lugar justo (Fase 86) ──
+
+   Entre 1280 y 1440 px pasan las dos cosas a la vez: los atributos ya NO
+   están ocultos —eso es `max-width: 1279px` más abajo— y la caja todavía es
+   chica. Con nueve columnas ajustables —Modelo, Marca, Serie, Tipo y hasta
+   cinco atributos— el piso legible son 9 × 56 = 504 px, y después de que las
+   fijas se cobran sus 598, en una caja de unos 1000 quedan 402. No alcanza:
+   la tabla desborda aunque el reparto haya hecho todo lo que podía.
+
+   Así que acá lo fijo cede un poco antes, por la misma razón de la Fase 39 y
+   con los mismos valores: la miniatura se reconoce igual, un saldo entra en
+   3,25 rem y el precio en 4,75. Son 100 px que vuelven al reparto y ponen el
+   presupuesto justo en el piso.
+
+   EL CARRITO NO, y es lo único que se deja como está: su control de cantidad
+   necesita 125 px y a 112 se corta —medido en la Fase 39—. Achicarlo sería
+   romper el botón que la columna existe para tener. */
+@media (min-width: 1280px) and (max-width: 1439px) {
+  .colImagen {
+    width: 48px;
+    min-width: 48px;
+  }
+
+  .colImagen > * {
+    width: 40px;
+    min-width: 40px;
+  }
+
+  .thStock,
+  .colNumero {
+    width: 3.25rem;
+  }
+
+  .colPrecio {
+    width: 4.75rem;
+  }
+
+  .colReferencia {
+    width: 6.75rem;
+  }
+}
+
 /* ── Pantallas medianas: lo fijo cede antes que lo que se lee (Fase 39) ────
 
    Con `table-layout: fixed` las columnas de ancho declarado se cobran su
