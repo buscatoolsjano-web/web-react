@@ -1,8 +1,10 @@
+import { useMemo } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Spinner } from '@/components/ui/Spinner'
-import { TarjetaProducto } from '../components/TarjetaProducto'
-import { BarraFiltros } from '../components/BarraFiltros'
+import { TablaProductos } from '../components/TablaProductos'
+import { columnasDeAtributo } from '../lib/columnas'
+import { useCarritoPublico } from '../hooks/useCarritoPublico'
 import { categorias, facetas, listar } from '../services/catalogoPublico'
 import { rutaCatalogo, rutaCategoria } from '../lib/rutas'
 import { useMeta } from '../hooks/useMeta'
@@ -10,48 +12,54 @@ import { descripcionDeCategoria, tituloDeCategoria } from '../lib/seo'
 import styles from './CatalogoPublicoPage.module.css'
 
 /**
- * El catálogo público: todo, o una categoría (Fase 87 · E2).
+ * El catálogo público, igual que el del ERP (Fase 87 · E2c).
  *
- * ── ES LA PORTADA (Fase 87 · E2b) ───────────────────────────────────────────
+ * ── ES LA PORTADA, Y ES UNA TABLA ───────────────────────────────────────────
  *
- * «Entrás a la web y ya tenés el catálogo ahí listo para filtrar.» Antes la
- * raíz era una portada con un título grande, un párrafo y botones, y el
- * catálogo estaba a un clic. Un clic de más entre alguien que llegó buscando
- * un producto y el producto.
+ * «Entrás a la web y ya tenés el catálogo ahí listo para filtrar», y después:
+ * «que lo repliques, una fila donde está cada columna con su título».
  *
- * Así que esta misma pantalla responde en `/` y en `/productos`. Lo que se
- * conserva de la portada es lo único que servía: el título con las palabras
- * por las que se busca, dicho en una línea arriba de la grilla en vez de en
- * una pantalla entera.
+ * Las dos cosas son la misma: lo que convierte una lista de nueve mil
+ * productos en algo usable no es la foto, es poder comparar el encastre, la
+ * medida y el largo en columnas y filtrar por ellos. Es lo que el ERP ya
+ * resolvió, y acá se replica salvo lo que no se publica.
  *
- * ── UNA PANTALLA Y NO TRES ──────────────────────────────────────────────────
+ * ── LOS FILTROS VAN EN LA URL ───────────────────────────────────────────────
  *
- * `/`, `/productos` y `/productos/balanceadores` son la misma lista con un
- * filtro puesto. Separarlas serían tres grillas, tres paginadores y tres
- * formas de quedarse sin resultados que se van separando con cada cambio.
+ * Un filtro que no está en la URL no se puede compartir ni volver a
+ * encontrar, y el botón «atrás» tiene que deshacer el último.
  *
- * ── POR QUÉ LOS FILTROS VAN EN LA URL ───────────────────────────────────────
- *
- * Porque un filtro que no está en la URL no se puede compartir ni volver a
- * encontrar. Alguien que filtró TECNA, serie BSDL, y quiere mandarle eso a un
- * compañero, manda la dirección. Y porque el botón «atrás» del navegador
- * tiene que deshacer el último filtro, que es lo que todo el mundo espera.
- *
- * La CATEGORÍA va en la ruta y los demás en la query, y eso no es un detalle:
+ * La CATEGORÍA va en la ruta y el resto en la query, y no es un detalle:
  * `/productos/balanceadores` es una página que queremos en el índice del
- * buscador —tiene su título, su texto y 376 productos que no cambian—;
- * `?marca=tecna&serie=BSDL` son combinaciones infinitas que se repiten entre
- * sí y no aportan nada. Por eso lo segundo va marcado para no indexar.
+ * buscador; `?marca=tecna&a.encastre=1/4` son combinaciones infinitas que se
+ * repiten entre sí. Por eso lo segundo va marcado para no indexar.
  */
+
+/** Los filtros de atributo viajan con prefijo, para no chocar con los demás. */
+const PREFIJO_ATRIBUTO = 'a.'
+
 export function CatalogoPublicoPage() {
   const { categoria } = useParams<{ categoria?: string }>()
   const [params, setParams] = useSearchParams()
+  const carrito = useCarritoPublico()
+
   const texto = params.get('q') ?? ''
   const marca = params.get('marca') ?? ''
   const serie = params.get('serie') ?? ''
   const tipo = params.get('tipo') ?? ''
   const pagina = Math.max(1, Number(params.get('p') ?? '1') || 1)
-  const hayFiltro = texto !== '' || marca !== '' || serie !== '' || tipo !== ''
+
+  /** Lo elegido en las columnas de atributo: `{encastre: '1/4 HEX BIT'}`. */
+  const atributos = useMemo(() => {
+    const out: Record<string, string> = {}
+    for (const [k, v] of params.entries()) {
+      if (k.startsWith(PREFIJO_ATRIBUTO) && v !== '') out[k.slice(PREFIJO_ATRIBUTO.length)] = v
+    }
+    return out
+  }, [params])
+
+  const hayFiltro =
+    texto !== '' || marca !== '' || serie !== '' || tipo !== '' || Object.keys(atributos).length > 0
 
   const qCategorias = useQuery({
     queryKey: ['catalogo-publico', 'categorias'],
@@ -60,9 +68,9 @@ export function CatalogoPublicoPage() {
   })
   const laCategoria = (qCategorias.data ?? []).find((c) => c.slug === categoria)
 
-  // Las opciones dependen de la categoría y NO de los demás filtros: si se
+  // Las opciones dependen de la CATEGORÍA y no de los demás filtros: si se
   // recalcularan con la marca puesta, elegir TECNA dejaría el desplegable de
-  // marcas con una sola opción y no habría forma de cambiarla.
+  // marcas con una sola opción y no habría forma de volver atrás.
   const qFacetas = useQuery({
     queryKey: ['catalogo-publico', 'facetas', categoria ?? null],
     queryFn: () => facetas(categoria ?? null),
@@ -70,7 +78,17 @@ export function CatalogoPublicoPage() {
   })
 
   const q = useQuery({
-    queryKey: ['catalogo-publico', 'listar', categoria ?? null, marca, serie, tipo, texto, pagina],
+    queryKey: [
+      'catalogo-publico',
+      'listar',
+      categoria ?? null,
+      marca,
+      serie,
+      tipo,
+      texto,
+      atributos,
+      pagina,
+    ],
     queryFn: () =>
       listar({
         categoria: categoria ?? null,
@@ -78,13 +96,23 @@ export function CatalogoPublicoPage() {
         serie: serie === '' ? null : serie,
         tipo: tipo === '' ? null : tipo,
         texto: texto === '' ? null : texto,
+        atributos,
         pagina,
+        porPagina: 50,
       }),
     staleTime: 5 * 60_000,
   })
 
   const nombre = laCategoria?.nombre ?? 'Herramientas industriales'
   const cuantos = q.data?.total ?? laCategoria?.productos ?? 0
+
+  // Las columnas de atributo salen de las facetas, con la misma regla que el
+  // ERP: sólo con categoría elegida, hasta cinco, y nada que esté vacío en
+  // casi todas las filas. Ver `lib/columnas.ts`.
+  const columnas = useMemo(
+    () => columnasDeAtributo(categoria, qFacetas.data?.atributos ?? [], qFacetas.data?.total ?? 0),
+    [categoria, qFacetas.data],
+  )
 
   useMeta({
     titulo: categoria
@@ -97,8 +125,8 @@ export function CatalogoPublicoPage() {
     sinIndexar: hayFiltro || pagina > 1,
   })
 
-  /** Cambiar un filtro vuelve SIEMPRE a la página uno. */
-  const ponerFiltro = (clave: string, valor: string) => {
+  /** Cambiar cualquier filtro vuelve SIEMPRE a la página uno. */
+  const filtrar = (clave: string, valor: string) => {
     const siguiente = new URLSearchParams(params)
     if (valor === '') siguiente.delete(clave)
     else siguiente.set(clave, valor)
@@ -109,8 +137,7 @@ export function CatalogoPublicoPage() {
   }
 
   const limpiar = () => {
-    const siguiente = new URLSearchParams(params)
-    for (const k of ['marca', 'serie', 'tipo', 'p']) siguiente.delete(k)
+    const siguiente = new URLSearchParams()
     setParams(siguiente)
   }
 
@@ -122,8 +149,19 @@ export function CatalogoPublicoPage() {
     window.scrollTo({ top: 0 })
   }
 
-  const porPagina = q.data?.porPagina ?? 24
+  const porPagina = q.data?.porPagina ?? 50
   const ultima = Math.max(1, Math.ceil(cuantos / porPagina))
+
+  /** Lo que la tabla necesita saber de lo filtrado, con sus claves de URL. */
+  const filtros: Record<string, string> = {
+    q: texto,
+    marca,
+    serie,
+    tipo,
+    ...Object.fromEntries(
+      Object.entries(atributos).map(([k, v]) => [`${PREFIJO_ATRIBUTO}${k}`, v]),
+    ),
+  }
 
   return (
     <div className={styles.pagina}>
@@ -136,13 +174,11 @@ export function CatalogoPublicoPage() {
           </nav>
         ) : null}
 
-        <h1 className={styles.titulo}>
-          {texto !== '' ? `Resultados para «${texto}»` : nombre}
-        </h1>
+        <h1 className={styles.titulo}>{nombre}</h1>
 
         {/* Lo único que sobrevive de la portada: las palabras por las que se
             busca, en una línea en vez de en una pantalla entera. */}
-        {!categoria && texto === '' ? (
+        {!categoria ? (
           <p className={styles.bajada}>
             Puntas, tubos y embocaduras, balanceadores, atornilladores, llaves de impacto y llaves
             dinamométricas. Importamos directo las marcas que ya usa tu línea de producción.
@@ -157,45 +193,48 @@ export function CatalogoPublicoPage() {
               <strong>{cuantos.toLocaleString('es-AR')}</strong>{' '}
               {cuantos === 1 ? 'producto' : 'productos'}. Consultá disponibilidad y precio sin
               compromiso.
+              {hayFiltro ? (
+                <button type="button" className={styles.limpiar} onClick={limpiar}>
+                  Limpiar filtros
+                </button>
+              ) : null}
             </>
           )}
         </p>
       </header>
 
-      <BarraFiltros
-        facetas={qFacetas.data}
-        marca={marca}
-        serie={serie}
-        tipo={tipo}
-        onCambiar={ponerFiltro}
-        onLimpiar={limpiar}
-      />
-
-      {q.isPending ? (
-        <div className={styles.centrado} role="status">
-          <Spinner size={24} />
-        </div>
-      ) : q.isError ? (
+      {q.isError ? (
         <p className={styles.vacio}>
           No pudimos cargar el catálogo en este momento. Probá de nuevo en un rato.
         </p>
-      ) : q.data.productos.length === 0 ? (
-        <div className={styles.vacio}>
-          <p>No encontramos nada con esa búsqueda.</p>
-          <p className={styles.vacioAyuda}>
-            Probá con menos palabras, con el modelo suelto o sólo con la marca.{' '}
-            <Link to={rutaCatalogo()}>Ver todo el catálogo</Link>.
-          </p>
-        </div>
       ) : (
         <>
-          <ul className={styles.grilla}>
-            {q.data.productos.map((p) => (
-              <li key={p.slug}>
-                <TarjetaProducto producto={p} />
-              </li>
-            ))}
-          </ul>
+          <TablaProductos
+            productos={q.data?.productos ?? []}
+            columnas={columnas}
+            facetas={qFacetas.data}
+            filtros={filtros}
+            onFiltrar={filtrar}
+            carrito={carrito}
+            // Con una categoría fija la columna diría siempre lo mismo.
+            mostrarCategoria={!categoria}
+          />
+
+          {q.isPending ? (
+            <div className={styles.centrado} role="status">
+              <Spinner size={24} />
+            </div>
+          ) : null}
+
+          {!q.isPending && q.data?.productos.length === 0 ? (
+            <div className={styles.vacio}>
+              <p>No encontramos nada con esos filtros.</p>
+              <p className={styles.vacioAyuda}>
+                Probá con menos palabras o sacando algún filtro.{' '}
+                <Link to={rutaCatalogo()}>Ver todo el catálogo</Link>.
+              </p>
+            </div>
+          ) : null}
 
           {ultima > 1 ? (
             <nav className={styles.paginas} aria-label="Páginas">

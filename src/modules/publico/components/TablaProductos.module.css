@@ -1,0 +1,226 @@
+/* El catálogo público, en tabla (Fase 87 · E2c).
+ *
+ * Replica la del ERP, con dos diferencias que no son de estilo: no están las
+ * columnas de precio ni de stock —no vienen en la respuesta—, y los filtros
+ * son los que el visitante puede usar sin saber nada del sistema. */
+
+/*
+ * `fixed` y no el `auto` del navegador.
+ *
+ * Es la lección de la Fase 39, y vale igual acá: con `auto`, el ancho de una
+ * columna es una SUGERENCIA que se ignora en cuanto el contenido es más
+ * ancho, y un nombre largo se come el espacio de las demás. Con `fixed` los
+ * anchos se cumplen y lo que no entra se corta con puntos suspensivos.
+ */
+.tabla.tabla {
+  table-layout: fixed;
+  font-size: var(--text-sm);
+}
+
+.tabla.tabla :global(th),
+.tabla.tabla :global(td) {
+  padding: var(--space-2) var(--space-3);
+}
+
+/* Los títulos envuelven en dos renglones si hace falta: en una sola línea,
+   «Llaves dinamométricas» fijaría el ancho de una columna que muestra «—». */
+.tabla.tabla :global(thead) :global(th) {
+  white-space: normal;
+  line-height: 1.2;
+  hyphens: auto;
+}
+
+/* Y las celdas de datos cortan, que es lo que evita que la tabla crezca. */
+.tabla.tabla :global(tbody) :global(td) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-soft);
+}
+
+/* ── Las columnas de ancho conocido ───────────────────────────────────────── */
+
+.colImagen {
+  width: 56px;
+}
+
+.colReferencia {
+  width: 9rem;
+}
+
+.colAtributo {
+  width: 6.5rem;
+}
+
+.colCarrito {
+  width: 8rem;
+  text-align: center;
+}
+
+.unidad {
+  font-weight: var(--weight-regular, 400);
+  color: var(--color-text-muted);
+}
+
+/* ── La miniatura ─────────────────────────────────────────────────────────── */
+
+.foto {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 2px;
+}
+
+.sinFoto {
+  color: #c4c4c4;
+}
+
+/* La referencia es el enlace de la fila y se lee como código: es lo que se
+   copia para pedir. */
+.sku {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary-text);
+}
+
+.sku:hover {
+  text-decoration: underline;
+}
+
+/* ── La fila de filtros ───────────────────────────────────────────────────── */
+
+/* Debajo de los títulos, como en el ERP: el filtro de una columna vive en su
+   columna, y así no hay que leer el rótulo para saber qué filtra. */
+.filaFiltros :global(td) {
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  background: var(--color-surface-alt);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.filtro {
+  width: 100%;
+  min-width: 0;
+  height: 2rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-xs);
+}
+
+.filtro:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+}
+
+/* ── El «− n +» ───────────────────────────────────────────────────────────── */
+
+.cantidad {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 1px;
+  background: var(--color-surface);
+}
+
+.cantidad button {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-soft);
+  cursor: pointer;
+}
+
+.cantidad button:hover:not(:disabled) {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
+.cantidad button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.cantidad input {
+  width: 2.5rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.cantidad input::-webkit-outer-spin-button,
+.cantidad input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+/* ── Cuando la pantalla no da (Fase 87 · E2c) ─────────────────────────────── */
+
+/*
+ * Con `table-layout: fixed`, las columnas de ancho declarado se cobran su
+ * ancho primero y las demás se reparten lo que sobra. Medido a 800 px: entre
+ * la miniatura, la referencia, cuatro atributos y el carrito se llevaban 808,
+ * así que Modelo, Marca, Serie y Tipo quedaban en CERO y sus títulos se
+ * dibujaban uno encima del otro.
+ *
+ * La regla es la misma que la Fase 39 resolvió para el ERP: cede lo fijo
+ * antes que el texto que distingue una fila de otra. Y lo que se esconde del
+ * todo es lo repetido —la serie y el tipo dicen casi siempre lo mismo dentro
+ * de una categoría—, nunca la referencia ni los atributos, que son lo que se
+ * vino a comparar.
+ */
+@media (max-width: 1279px) {
+  .colAtributo {
+    width: 5.5rem;
+  }
+
+  .colReferencia {
+    width: 8rem;
+  }
+
+  .colCarrito {
+    width: 7rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  .soloAncho {
+    display: none;
+  }
+
+  .colImagen {
+    width: 44px;
+  }
+
+  .foto {
+    width: 34px;
+    height: 34px;
+  }
+}

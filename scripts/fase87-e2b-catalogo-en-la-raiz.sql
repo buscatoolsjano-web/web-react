@@ -170,3 +170,45 @@ revoke all on function public.catalogo_publico_facetas(text) from public;
 revoke all on function public.catalogo_publico_listar(text, text, text, integer, integer, text, text) from public;
 grant execute on function public.catalogo_publico_facetas(text) to anon, authenticated;
 grant execute on function public.catalogo_publico_listar(text, text, text, integer, integer, text, text) to anon, authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Fase 87 · E2c · Las columnas por atributo, como en el ERP
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- «Que lo repliques: una fila donde está cada columna con su título. Imagen,
+-- referencia, modelo, así con todo. Como está cuando iniciás sesión.»
+--
+-- El catálogo interno agrega columnas según la categoría elegida —en «Puntas
+-- y tubos» aparecen Encastre, Medida, Largo y Sufijos— y las etiquetas, las
+-- unidades y el orden salen de `product_attribute_definitions`. Acá se usa la
+-- MISMA fuente: dos listas de etiquetas escritas por separado se separan, y
+-- el día que alguien corrija «Torque mín.» lo haría en un solo lado.
+--
+-- Y esa tabla ya marca con `is_filterable = false` lo que es del importador
+-- —`catalogo_id`, `catalogo_pagina`, `marca_disp`—, que es exactamente lo que
+-- la Fase 85 había listado a mano. Se reemplaza la lista por la marca, que es
+-- un dato que alguien puede cambiar sin tocar código.
+--
+-- El SQL exacto está en la migración `fase87_catalogo_publico_columnas_por_
+-- atributo`. Lo que cambió respecto de lo de arriba:
+--
+--  · `app.claves_de_atributo_publicas()` y `app.atributos_publicos()` leen
+--    `product_attribute_definitions` en vez de una lista escrita a mano.
+--  · la vista flaca gana `model_code` y `attributes`. Ojo: `create or replace
+--    view` NO deja cambiar el orden ni el nombre de las columnas, así que hay
+--    que tirarla y volver a crearla.
+--  · `catalogo_publico_facetas` devuelve además `categorias` y `atributos`,
+--    cada atributo con su etiqueta, su unidad, cuántos productos lo tienen
+--    cargado y sus valores con cuántos hay de cada uno. Con eso la pantalla
+--    arma la columna Y su filtro sin saber nada del catálogo.
+--  · `catalogo_publico_listar` devuelve `modelo` y `atributos` por fila, y
+--    acepta `p_atributos jsonb` para filtrar por ellos. Todos los elegidos
+--    tienen que coincidir: encastre 1/4 Y medida 2 es pedir las dos cosas.
+--
+-- Y otra vez el `drop function` explícito de la firma anterior: es la tercera
+-- vez en esta fase que agregar un parámetro deja dos funciones vivas y
+-- PostgREST no sabe cuál elegir.
+--
+-- Medido: las facetas del catálogo entero tardan ~850 ms —el `jsonb_each_text`
+-- sobre nueve mil filas— y se piden una vez por categoría, cacheadas media
+-- hora. El listado, que es el que cambia con cada filtro, ~470 ms.

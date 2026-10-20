@@ -104,3 +104,23 @@
   opacity: 0.45;
   cursor: default;
 }
+
+/* Un enlace al lado de la cuenta, no un botón suelto: es una acción chica
+   sobre lo que dice esa misma línea. */
+.limpiar {
+  margin-left: var(--space-3);
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--color-primary-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cuenta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}

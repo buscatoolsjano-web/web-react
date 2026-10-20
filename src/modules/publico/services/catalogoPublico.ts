@@ -29,8 +29,11 @@ export interface ProductoPublicoResumen {
   marca: string | null
   categoria: string | null
   categoriaSlug: string
+  modelo: string | null
   serie: string | null
   tipo: string | null
+  /** Los atributos publicables, ya limpios de lo que es del importador. */
+  atributos: Record<string, unknown> | null
   /** La foto. `imagenUrl` es la del proveedor; `imagen`, la del bucket. */
   imagen: string | null
   imagenUrl: string | null
@@ -38,9 +41,7 @@ export interface ProductoPublicoResumen {
 }
 
 export interface ProductoPublico extends ProductoPublicoResumen {
-  modelo: string | null
   descripcion: string | null
-  atributos: Record<string, unknown> | null
   origen: string | null
   pesoG: number | null
   esKit: boolean
@@ -63,6 +64,10 @@ export class FalloCatalogoPublico extends Error {
 const cadena = (v: unknown): string => (typeof v === 'string' ? v : '')
 const opcional = (v: unknown): string | null =>
   typeof v === 'string' && v.trim() !== '' ? v : null
+/** Un objeto de atributos, o nada. Una lista o un texto no son atributos. */
+const objeto = (v: unknown): Record<string, unknown> | null =>
+  typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null
+
 const numero = (v: unknown): number => {
   const n = Number(v)
   return Number.isFinite(n) ? n : 0
@@ -77,8 +82,10 @@ function resumenDe(crudo: unknown): ProductoPublicoResumen {
     marca: opcional(o['marca']),
     categoria: opcional(o['categoria']),
     categoriaSlug: cadena(o['categoriaSlug']),
+    modelo: opcional(o['modelo']),
     serie: opcional(o['serie']),
     tipo: opcional(o['tipo']),
+    atributos: objeto(o['atributos']),
     imagen: opcional(o['imagen']),
     imagenUrl: opcional(o['imagenUrl']),
     imagenAlt: opcional(o['imagenAlt']),
@@ -128,6 +135,8 @@ export interface Filtros {
   serie?: string | null
   tipo?: string | null
   texto?: string | null
+  /** Los atributos elegidos: la clave es la del atributo, no la de la URL. */
+  atributos?: Record<string, string> | null
   pagina?: number
   porPagina?: number
 }
@@ -139,6 +148,8 @@ export async function listar(params: Filtros): Promise<PaginaDeCatalogo> {
     p_serie: params.serie ?? null,
     p_tipo: params.tipo ?? null,
     p_texto: params.texto ?? null,
+    p_atributos:
+      params.atributos && Object.keys(params.atributos).length > 0 ? params.atributos : null,
     p_pagina: params.pagina ?? 1,
     p_por_pagina: params.porPagina ?? 24,
   })
@@ -168,18 +179,12 @@ export async function producto(slug: string): Promise<FichaPublica | null> {
   if (o['encontrado'] !== true) return null
 
   const p = (o['producto'] ?? {}) as Record<string, unknown>
-  const atributos = p['atributos']
   const relacionados = Array.isArray(o['relacionados']) ? o['relacionados'] : []
 
   return {
     producto: {
       ...resumenDe(p),
-      modelo: opcional(p['modelo']),
       descripcion: opcional(p['descripcion']),
-      atributos:
-        typeof atributos === 'object' && atributos !== null && !Array.isArray(atributos)
-          ? (atributos as Record<string, unknown>)
-          : null,
       origen: opcional(p['origen']),
       pesoG: p['pesoG'] === null || p['pesoG'] === undefined ? null : numero(p['pesoG']),
       esKit: p['esKit'] === true,
@@ -203,11 +208,28 @@ export interface OpcionFaceta {
   cuantos: number
 }
 
+/**
+ * Un atributo con sus valores, para armar la columna Y su filtro.
+ *
+ * `cubiertos` es cuántos productos lo tienen cargado: es lo que decide si la
+ * columna vale la pena. Una columna vacía en el 95 % de las filas ocupa lugar
+ * y no informa.
+ */
+export interface FacetaAtributoPublica {
+  key: string
+  label: string
+  unidad: string | null
+  cubiertos: number
+  opciones: { valor: string; cuantos: number }[]
+}
+
 export interface FacetasPublicas {
   total: number
   marcas: OpcionFaceta[]
+  categorias: OpcionFaceta[]
   series: OpcionFaceta[]
   tipos: OpcionFaceta[]
+  atributos: FacetaAtributoPublica[]
 }
 
 export async function facetas(categoria?: string | null): Promise<FacetasPublicas> {
@@ -228,10 +250,27 @@ export async function facetas(categoria?: string | null): Promise<FacetasPublica
       }
     })
 
+  const atributos = (Array.isArray(o['atributos']) ? o['atributos'] : []).map((x) => {
+    const a = (x ?? {}) as Record<string, unknown>
+    const opciones = Array.isArray(a['opciones']) ? a['opciones'] : []
+    return {
+      key: cadena(a['key']),
+      label: cadena(a['label']),
+      unidad: opcional(a['unidad']),
+      cubiertos: numero(a['cubiertos']),
+      opciones: opciones.map((y) => {
+        const op = (y ?? {}) as Record<string, unknown>
+        return { valor: cadena(op['valor']), cuantos: numero(op['cuantos']) }
+      }).filter((op) => op.valor !== ''),
+    }
+  })
+
   return {
     total: numero(o['total']),
     marcas: lista(o['marcas']),
+    categorias: lista(o['categorias']),
     series: lista(o['series']),
     tipos: lista(o['tipos']),
+    atributos,
   }
 }
