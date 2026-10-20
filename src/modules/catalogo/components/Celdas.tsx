@@ -91,3 +91,74 @@ export function DisponibilidadBadge({ disponible }: { disponible: boolean | unde
   }
   return disponible ? <Badge tone="success">Disponible</Badge> : <Badge tone="neutral">Consultar</Badge>
 }
+
+/**
+ * El stock, dicho con todas las letras (Fase 86).
+ *
+ * ── POR QUÉ NO ALCANZABA CON «37 / 37» ──────────────────────────────────────
+ *
+ * En el listado los números van debajo de dos encabezados que dicen «Stock
+ * real» y «Stock virtual», así que la barra no necesita repetirlo. En la ficha
+ * del producto y en el comparador no hay encabezado: ahí quedaba «Real 37 ·
+ * Virtual 37» en el cuerpo más chico y más apagado de la tarjeta, al lado de
+ * un precio enorme. Dicho por quien lo usa: «quiero que sea más claro donde
+ * marca el stock».
+ *
+ * ── QUÉ SE DICE ─────────────────────────────────────────────────────────────
+ *
+ * Lo primero es lo único que decide: SI SE PUEDE ENTREGAR HOY y cuánto. Eso es
+ * el virtual —lo que hay menos lo comprometido—, y va como estado con color y
+ * punto, no como número suelto.
+ *
+ * Lo reservado va atrás y sólo cuando existe. «37 disponibles» a secas y «37
+ * disponibles, 7 reservados» son dos situaciones distintas, pero la segunda
+ * sólo importa si alguien pregunta de dónde sale la diferencia; ponerla
+ * siempre —con un «0 reservados»— es ruido en el noventa por ciento de los
+ * productos.
+ *
+ * El punto del badge no es decorativo: es lo que hace que el estado se
+ * distinga sin depender del color, para quien no lo ve.
+ */
+export function StockDestacado({ stock }: { stock: StockProducto | null }) {
+  /* Sin fila en `stock_balances` no es cero: es que nunca se midió. Misma
+     regla que `StockCelda`, y por eso el texto es el mismo. */
+  if (!stock) {
+    return (
+      <Badge tone="neutral" outline>
+        Sin movimientos
+      </Badge>
+    )
+  }
+
+  const reservado = stock.real - stock.virtual
+
+  if (stock.virtual <= 0) {
+    return (
+      <span className={styles.stockDestacado}>
+        <Badge tone="danger" dot>
+          Sin stock
+        </Badge>
+        {/* Todo comprometido no es lo mismo que no tener nada, y es la
+            diferencia entre «no lo pidas» y «esperá a que se libere». */}
+        {reservado > 0 ? (
+          <span className={styles.stockDetalle}>
+            {formatearCantidad(stock.real)} en depósito, todo reservado
+          </span>
+        ) : null}
+      </span>
+    )
+  }
+
+  return (
+    <span className={styles.stockDestacado}>
+      <Badge tone="success" dot>
+        {formatearCantidad(stock.virtual)} disponibles
+      </Badge>
+      {reservado > 0 ? (
+        <span className={styles.stockDetalle}>
+          {formatearCantidad(reservado)} reservados de {formatearCantidad(stock.real)}
+        </span>
+      ) : null}
+    </span>
+  )
+}

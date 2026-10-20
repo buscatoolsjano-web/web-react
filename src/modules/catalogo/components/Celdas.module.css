@@ -28,3 +28,23 @@
   color: var(--color-danger-text);
   font-variant-numeric: tabular-nums;
 }
+
+/* ── El stock destacado (Fase 86) ─────────────────────────────────────────── */
+
+/* El estado arriba y el detalle abajo, no uno al lado del otro: en la columna
+   del comparador —que mide unos 140 px— «37 reservados de 44» al lado del
+   badge parte el badge en dos renglones y deja de leerse como una sola cosa. */
+.stockDestacado {
+  display: inline-grid;
+  justify-items: start;
+  gap: 2px;
+}
+
+/* Secundario de verdad: lo que decide es el badge de arriba. Esto está para
+   cuando alguien pregunta de dónde sale la diferencia. */
+.stockDetalle {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
+}

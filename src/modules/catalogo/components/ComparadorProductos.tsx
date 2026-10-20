@@ -1,7 +1,7 @@
 import { columnasDe, type ColumnaComparable } from '../lib/familias'
 import { compararValor, textoDe } from '../lib/similitud'
 import { ImagenProducto } from './ImagenProducto'
-import { StockCelda } from './Celdas'
+import { StockDestacado } from './Celdas'
 import { formatearPrecio } from '../lib/formato'
 import type { ProductoListado } from '../types'
 import styles from './ComparadorProductos.module.css'
@@ -208,13 +208,19 @@ function Cabecera({ producto, esPrincipal, fuente, moneda, onAbrir, variante, es
         dato con el que se decide, al lado del precio, igual que arriba.
 
         Sólo para roles internos: el saldo lo decide la RLS y para los demás
-        `stock` viene siempre en null. `StockCelda` es el mismo componente del
-        listado, así que «sin saldo registrado» se dibuja igual acá: un
-        producto sin movimientos muestra «—» y no un cero que nadie midió.
+        `stock` viene siempre en null.
+
+        Con todas las letras y no el «37 / 30» del listado (Fase 86): allá los
+        números cuelgan de dos encabezados que los nombran, y acá no hay
+        ninguno. En una columna de comparación, «37 / 30» obliga a recordar
+        cuál era cuál justo cuando lo que se está haciendo es elegir entre
+        cuatro cosas parecidas. «Sin movimientos» sigue dibujándose distinto de
+        un cero, que es la regla de siempre: un producto sin movimientos no
+        tiene cero, tiene nada medido.
       */}
       {esInterno ? (
         <span className={styles.stock}>
-          <StockCelda stock={producto.stock} />
+          <StockDestacado stock={producto.stock} />
         </span>
       ) : null}
     </div>

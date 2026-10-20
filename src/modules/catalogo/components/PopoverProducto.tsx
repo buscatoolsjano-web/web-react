@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { formatearPrecio, presentarAtributos, valorConUnidad } from '../lib/formato'
 import { columnasDe } from '../lib/familias'
 import { textoDe } from '../lib/similitud'
+import { StockDestacado } from './Celdas'
 import { ComparadorProductos } from './ComparadorProductos'
 import { useSimilares } from '../hooks/useProductos'
 import { ImagenProducto } from './ImagenProducto'
@@ -136,13 +137,16 @@ export function PopoverProducto({
 
           <div className={styles.comercial}>
             <span className={styles.precio}>{formatearPrecio(producto.precio, moneda)}</span>
-            {/* El stock sólo existe para roles internos: lo decide RLS. */}
-            {esInterno && producto.stock ? (
-              <span className={styles.stock}>
-                Real <strong>{producto.stock.real}</strong> · Virtual{' '}
-                <strong>{producto.stock.virtual}</strong>
-              </span>
-            ) : null}
+            {/*
+              El stock sólo existe para roles internos: lo decide RLS.
+
+              Decía «Real 37 · Virtual 37» en el cuerpo más chico y más apagado
+              de la tarjeta, al lado de un precio enorme: dos números sin
+              encabezado que los nombre —en el listado sí lo hay— y en el lugar
+              donde el ojo no va. Ahora es un estado con color: lo primero que
+              se quiere saber de un producto es si se puede entregar hoy.
+            */}
+            {esInterno ? <StockDestacado stock={producto.stock} /> : null}
           </div>
         </div>
       </div>

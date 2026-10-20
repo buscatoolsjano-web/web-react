@@ -217,29 +217,44 @@ describe('el stock en cada columna', () => {
     stock: { real, virtual },
   })
 
-  it('cada producto muestra el suyo, el principal incluido', () => {
+  it('cada producto dice si se puede entregar y cuánto', () => {
     montar({
       principal: con(PRINCIPAL, 37, 30),
       similares: [con(IGUAL, 5, 5), con(OTRA_CARCASA, 0, 0)],
     })
-    /* Real y virtual, como en el listado: «37 / 30». El texto se lee junto
-       porque los dos números viven en la misma celda. */
+    /*
+     * Con todas las letras y no el «37 / 30» del listado (Fase 86): allá los
+     * números cuelgan de encabezados que los nombran, y acá no hay ninguno.
+     * Lo que decide es el DISPONIBLE; lo reservado va atrás y sólo cuando lo
+     * hay, que es lo que explica la diferencia entre los dos números.
+     */
     const cabeceras = screen.getAllByRole('columnheader')
-    expect(cabeceras[0]!).toHaveTextContent('37 real/ 30 virtual')
-    expect(cabeceras[1]!).toHaveTextContent('5 real/ 5 virtual')
-    expect(cabeceras[2]!).toHaveTextContent('0 real/ 0 virtual')
+    expect(cabeceras[0]!).toHaveTextContent('30 disponibles')
+    expect(cabeceras[0]!).toHaveTextContent('7 reservados de 37')
+    expect(cabeceras[1]!).toHaveTextContent('5 disponibles')
+    expect(cabeceras[1]!).not.toHaveTextContent('reservados')
+    expect(cabeceras[2]!).toHaveTextContent('Sin stock')
+  })
+
+  it('todo reservado se distingue de no tener nada', () => {
+    // No es lo mismo «no lo pidas» que «esperá a que se libere».
+    montar({ principal: con(PRINCIPAL, 12, 0), similares: [con(IGUAL, 5, 5)] })
+    const cabeceras = screen.getAllByRole('columnheader')
+    expect(cabeceras[0]!).toHaveTextContent('Sin stock')
+    expect(cabeceras[0]!).toHaveTextContent('12 en depósito, todo reservado')
   })
 
   /*
    * Sin saldo registrado NO es cero: son los productos que nunca tuvieron
-   * movimientos. Lo resuelve `StockCelda`, el mismo componente del listado, y
-   * se prueba acá porque es la diferencia entre «no hay» y «no sabemos».
+   * movimientos. Es la diferencia entre «no hay» y «no sabemos», y se sigue
+   * dibujando distinta de un cero.
    */
   it('el que nunca tuvo movimientos no dice cero', () => {
     montar({ principal: con(PRINCIPAL, 37, 30), similares: [IGUAL] })
     const cabeceras = screen.getAllByRole('columnheader')
-    expect(within(cabeceras[1]!).getByText('Sin saldo registrado')).toBeInTheDocument()
+    expect(within(cabeceras[1]!).getByText('Sin movimientos')).toBeInTheDocument()
     expect(within(cabeceras[1]!).queryByText('0')).toBeNull()
+    expect(cabeceras[1]!).not.toHaveTextContent('Sin stock')
   })
 
   /* Para un rol externo el saldo ni siquiera llega: la RLS no lo devuelve, y
