@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/useAuth'
 import { categorias } from '@/modules/publico/services/catalogoPublico'
 import { rutaCatalogo, rutaCategoria } from '@/modules/publico/lib/rutas'
 import { useCarritoPublico } from '@/modules/publico/hooks/useCarritoPublico'
+import { BarraPedido } from '@/modules/publico/components/BarraPedido'
 import styles from './PublicoLayout.module.css'
 
 /**
@@ -175,6 +176,11 @@ export function PublicoLayout() {
           pedido.
         </p>
       </footer>
+
+      {/* La barra flotante del pedido. Se dibuja sola cuando hay algo adentro
+          y no está en la página del pedido. Comparte el mismo carrito que el
+          globito del encabezado. */}
+      <BarraPedido carrito={carrito} />
     </div>
   )
 }

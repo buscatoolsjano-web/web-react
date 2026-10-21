@@ -48,15 +48,28 @@
   padding: var(--space-3) var(--space-4);
 }
 
+/*
+ * El logo, SIEMPRE sobre blanco.
+ *
+ * El PNG del logo tiene las letras en naranja y negro sobre transparente, así
+ * que en modo oscuro el negro desaparecía contra el panel. En vez de mantener
+ * dos versiones del archivo, va en una plaquita blanca: el logo se ve igual
+ * de bien en claro y en oscuro, y la plaquita se lee como lo que es —la marca
+ * de la casa— y no como un error.
+ */
 .marca {
   flex: none;
   display: inline-flex;
   align-items: center;
+  padding: var(--space-1) var(--space-2);
+  background: #fff;
+  border-radius: var(--radius-md);
 }
 
 .marca img {
-  height: 28px;
+  height: 26px;
   width: auto;
+  display: block;
 }
 
 /* El buscador se lleva el lugar que sobra: en un catálogo de nueve mil

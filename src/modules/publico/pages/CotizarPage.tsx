@@ -108,6 +108,24 @@ export function CotizarPage() {
             <ul className={styles.renglones}>
               {carrito.items.map((i) => (
                 <li key={i.sku} className={styles.renglon}>
+                  {/* La foto, que es lo que hace que el carrito se vea
+                      profesional (Fase 87 · E3b). El enlace es la foto Y el
+                      nombre: los dos llevan a la ficha. */}
+                  <Link
+                    to={rutaProductoPublico(i.categoriaSlug, i.slug)}
+                    className={styles.renglonFoto}
+                    tabIndex={-1}
+                    aria-hidden="true"
+                  >
+                    {i.imagen ? (
+                      <img src={i.imagen} alt="" loading="lazy" width={56} height={56} />
+                    ) : (
+                      <span className={styles.sinFoto}>
+                        <Icon name="image" size={20} />
+                      </span>
+                    )}
+                  </Link>
+
                   <div className={styles.renglonDatos}>
                     {i.slug !== '' ? (
                       <Link to={rutaProductoPublico(i.categoriaSlug, i.slug)}>{i.nombre}</Link>

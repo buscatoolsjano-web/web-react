@@ -4963,6 +4963,51 @@ export type Database = {
           },
         ]
       }
+      // Fase 87: las consultas del sitio público. Agregada a mano —el
+      // generador reescribe tipos de todo el proyecto—. Sólo las columnas que
+      // el ERP lee y escribe; el resto (origen_hash, agente) existe pero no se
+      // toca desde el cliente.
+      public_quote_requests: {
+        Row: {
+          id: string
+          company_id: string
+          created_at: string
+          nombre: string
+          email: string
+          empresa: string | null
+          telefono: string | null
+          mensaje: string | null
+          items: Json
+          cantidad_items: number
+          estado: string
+          atendida_por: string | null
+          atendida_en: string | null
+          nota_interna: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          created_at?: string
+          nombre: string
+          email: string
+          empresa?: string | null
+          telefono?: string | null
+          mensaje?: string | null
+          items?: Json
+          cantidad_items?: number
+          estado?: string
+          atendida_por?: string | null
+          atendida_en?: string | null
+          nota_interna?: string | null
+        }
+        Update: {
+          estado?: string
+          atendida_por?: string | null
+          atendida_en?: string | null
+          nota_interna?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           inicio: Json | null

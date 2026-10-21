@@ -134,6 +134,7 @@ export interface Filtros {
   marca?: string | null
   serie?: string | null
   tipo?: string | null
+  modelo?: string | null
   texto?: string | null
   /** Los atributos elegidos: la clave es la del atributo, no la de la URL. */
   atributos?: Record<string, string> | null
@@ -148,6 +149,7 @@ export async function listar(params: Filtros): Promise<PaginaDeCatalogo> {
     p_serie: params.serie ?? null,
     p_tipo: params.tipo ?? null,
     p_texto: params.texto ?? null,
+    p_modelo: params.modelo ?? null,
     p_atributos:
       params.atributos && Object.keys(params.atributos).length > 0 ? params.atributos : null,
     p_pagina: params.pagina ?? 1,

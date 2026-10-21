@@ -29,6 +29,15 @@ export interface ItemPublico {
   categoriaSlug: string
   nombre: string
   cantidad: number
+  /**
+   * La foto, para que el carrito se vea profesional (Fase 87 · E3b).
+   *
+   * Se guarda al agregar y no se pide de nuevo en la página del pedido:
+   * ésta es la URL del proveedor, que es pública, y pedir la ficha de cada
+   * renglón sería una consulta por producto para una foto que ya teníamos.
+   * Opcional porque un producto puede no tener foto.
+   */
+  imagen?: string | null
 }
 
 export type CarritoPublico = readonly ItemPublico[]
@@ -126,6 +135,7 @@ export function leerCarrito(crudo: string | null): CarritoPublico {
           slug: texto(o['slug']),
           categoriaSlug: texto(o['categoriaSlug']),
           nombre: texto(o['nombre']) || sku,
+          imagen: texto(o['imagen']) || null,
           cantidad,
         }
       })

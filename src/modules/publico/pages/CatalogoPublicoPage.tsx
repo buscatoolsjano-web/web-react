@@ -47,6 +47,7 @@ export function CatalogoPublicoPage() {
   const marca = params.get('marca') ?? ''
   const serie = params.get('serie') ?? ''
   const tipo = params.get('tipo') ?? ''
+  const modelo = params.get('modelo') ?? ''
   const pagina = Math.max(1, Number(params.get('p') ?? '1') || 1)
 
   /** Lo elegido en las columnas de atributo: `{encastre: '1/4 HEX BIT'}`. */
@@ -59,7 +60,7 @@ export function CatalogoPublicoPage() {
   }, [params])
 
   const hayFiltro =
-    texto !== '' || marca !== '' || serie !== '' || tipo !== '' || Object.keys(atributos).length > 0
+    texto !== '' || modelo !== '' || marca !== '' || serie !== '' || tipo !== '' || Object.keys(atributos).length > 0
 
   const qCategorias = useQuery({
     queryKey: ['catalogo-publico', 'categorias'],
@@ -85,6 +86,7 @@ export function CatalogoPublicoPage() {
       marca,
       serie,
       tipo,
+      modelo,
       texto,
       atributos,
       pagina,
@@ -95,6 +97,7 @@ export function CatalogoPublicoPage() {
         marca: marca === '' ? null : marca,
         serie: serie === '' ? null : serie,
         tipo: tipo === '' ? null : tipo,
+        modelo: modelo === '' ? null : modelo,
         texto: texto === '' ? null : texto,
         atributos,
         pagina,
@@ -155,6 +158,7 @@ export function CatalogoPublicoPage() {
   /** Lo que la tabla necesita saber de lo filtrado, con sus claves de URL. */
   const filtros: Record<string, string> = {
     q: texto,
+    modelo,
     marca,
     serie,
     tipo,
@@ -165,6 +169,14 @@ export function CatalogoPublicoPage() {
 
   return (
     <div className={styles.pagina}>
+      {/*
+        El encabezado, COMPACTO (Fase 87 · E2d).
+        «El catálogo tiene que empezar un poco más arriba, es mucho texto.»
+        El título y la cuenta van en una sola fila; la descripción —que hace
+        falta para el buscador— queda en UNA línea fina y apagada al lado, no
+        en un párrafo de tres renglones que empujaba la tabla media pantalla
+        abajo.
+      */}
       <header className={styles.encabezado}>
         {categoria ? (
           <nav className={styles.migaja} aria-label="Dónde estás">
@@ -174,33 +186,31 @@ export function CatalogoPublicoPage() {
           </nav>
         ) : null}
 
-        <h1 className={styles.titulo}>{nombre}</h1>
+        <div className={styles.fila}>
+          <h1 className={styles.titulo}>{nombre}</h1>
+          <span className={styles.cuenta}>
+            {q.isPending ? (
+              'Buscando…'
+            ) : (
+              <>
+                <strong>{cuantos.toLocaleString('es-AR')}</strong>{' '}
+                {cuantos === 1 ? 'producto' : 'productos'}
+                {hayFiltro ? (
+                  <button type="button" className={styles.limpiar} onClick={limpiar}>
+                    Limpiar filtros
+                  </button>
+                ) : null}
+              </>
+            )}
+          </span>
+        </div>
 
-        {/* Lo único que sobrevive de la portada: las palabras por las que se
-            busca, en una línea en vez de en una pantalla entera. */}
         {!categoria ? (
           <p className={styles.bajada}>
             Puntas, tubos y embocaduras, balanceadores, atornilladores, llaves de impacto y llaves
-            dinamométricas. Importamos directo las marcas que ya usa tu línea de producción.
+            dinamométricas. Importación directa. Consultá disponibilidad y precio sin compromiso.
           </p>
         ) : null}
-
-        <p className={styles.cuenta}>
-          {q.isPending ? (
-            'Buscando…'
-          ) : (
-            <>
-              <strong>{cuantos.toLocaleString('es-AR')}</strong>{' '}
-              {cuantos === 1 ? 'producto' : 'productos'}. Consultá disponibilidad y precio sin
-              compromiso.
-              {hayFiltro ? (
-                <button type="button" className={styles.limpiar} onClick={limpiar}>
-                  Limpiar filtros
-                </button>
-              ) : null}
-            </>
-          )}
-        </p>
       </header>
 
       {q.isError ? (

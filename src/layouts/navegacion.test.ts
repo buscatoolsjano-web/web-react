@@ -34,6 +34,9 @@ const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
   // RLS con `app.current_internal_company_ids()`; esconder el enlace es una
   // cortesía.
   { to: '/precios', roles: AC },
+  // Fase 87: las consultas del sitio público son leads de desconocidos, sólo
+  // para roles internos.
+  { to: '/ventas/consultas', roles: AC },
   { to: '/ventas/cotizaciones' },
   { to: '/ventas/pedidos' },
   { to: '/ventas/entregas' },

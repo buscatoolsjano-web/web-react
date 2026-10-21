@@ -118,6 +118,10 @@ export const NAVEGACION: GrupoNav[] = [
         label: 'Ventas',
         icon: 'cart',
         hijos: [
+          // Sólo internos: son pedidos de desconocidos, lo que un cliente o
+          // un distribuidor con cuenta no tiene por qué ver. Lo que de verdad
+          // lo protege es la RLS por empresa; esconder el enlace es cortesía.
+          { to: '/ventas/consultas', label: 'Consultas del sitio', roles: SOLO_INTERNOS },
           { to: '/ventas/cotizaciones', label: 'Cotizaciones' },
           { to: '/ventas/pedidos', label: 'Pedidos' },
           { to: '/ventas/entregas', label: 'Notas de entrega' },

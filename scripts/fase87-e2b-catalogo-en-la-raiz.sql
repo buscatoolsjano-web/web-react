@@ -212,3 +212,24 @@ grant execute on function public.catalogo_publico_listar(text, text, text, integ
 -- Medido: las facetas del catálogo entero tardan ~850 ms —el `jsonb_each_text`
 -- sobre nueve mil filas— y se piden una vez por categoría, cacheadas media
 -- hora. El listado, que es el que cambia con cada filtro, ~470 ms.
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Fase 87 · E2d/E3b/E4 · Ajustes de la landing pedidos sobre la marcha
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- Aplicado en dos migraciones. Lo del lado de la base:
+--
+-- `fase87_catalogo_publico_buscar_por_modelo`: `catalogo_publico_listar` gana
+-- un parámetro `p_modelo` al final de la firma —búsqueda por subcadena,
+-- insensible a acentos— porque el modelo no estaba en el texto buscable
+-- general. Con el consabido `drop` de la firma anterior, que es la cuarta vez
+-- en esta fase. Verificado: «5422» devuelve 5 productos con ese modelo.
+--
+-- El resto fue en el front:
+--  · barra flotante del pedido abajo a la derecha (ítems · vaciar · ver);
+--  · fotos en la página del pedido (el carrito guarda la URL al agregar);
+--  · encabezado del catálogo compacto, para que la tabla arranque más arriba;
+--  · caja de búsqueda por modelo en su columna;
+--  · logo sobre una plaquita blanca, para que se lea en modo oscuro;
+--  · las consultas llegan al ERP como notificación y a una pantalla propia
+--    en Ventas → Consultas del sitio (`public_quote_requests`, sólo internos).

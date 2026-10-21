@@ -102,9 +102,17 @@ describe('los topes', () => {
 })
 
 describe('lo que se leyó del navegador', () => {
-  it('va y vuelve igual', () => {
-    const c = ponerCantidad(sumar([], PH2), PH2, 5)
+  it('va y vuelve igual, con la foto incluida', () => {
+    // La foto se guarda al agregar, para dibujar el carrito sin volver a
+    // pedir la ficha de cada renglón (Fase 87 · E3b).
+    const conFoto = { ...PH2, imagen: 'https://x/y.jpg' }
+    const c = ponerCantidad(sumar([], conFoto), conFoto, 5)
     expect(leerCarrito(escribirCarrito(c))).toEqual(c)
+  })
+
+  it('sin foto, el renglón vuelve con imagen null', () => {
+    const c = ponerCantidad(sumar([], PH2), PH2, 5)
+    expect(leerCarrito(escribirCarrito(c))[0]?.imagen).toBeNull()
   })
 
   it('sin nada guardado, carrito vacío', () => {

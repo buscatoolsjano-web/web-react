@@ -159,7 +159,19 @@ export function TablaProductos({
                 onChange={(e) => onFiltrar('q', e.target.value)}
               />
             </td>
-            <td />
+            {/* La caja de Modelo, pedida aparte de la de Referencia: busca
+                sólo por el código de modelo, que no está en la búsqueda
+                general. */}
+            <td>
+              <input
+                className={styles.filtro}
+                type="search"
+                value={filtros['modelo'] ?? ''}
+                placeholder="Modelo…"
+                aria-label="Buscar por modelo"
+                onChange={(e) => onFiltrar('modelo', e.target.value)}
+              />
+            </td>
             <td>
               {sel('marca', conCuenta(facetas?.marcas ?? []))}
             </td>
@@ -192,6 +204,7 @@ export function TablaProductos({
               slug: p.slug,
               categoriaSlug: p.categoriaSlug,
               nombre: p.nombre,
+              imagen: foto,
             }
             return (
               <tr key={p.slug}>

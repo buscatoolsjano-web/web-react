@@ -1,5 +1,6 @@
 import { asignadosAMi, avisosDeSincronizacion } from '@/modules/emails/services/bandeja'
 import { listarChats } from '@/modules/chat/services/chat'
+import { listarConsultas } from '@/modules/ventas/services/consultas'
 
 /**
  * Las notificaciones (Fase 33 · E1).
@@ -131,25 +132,56 @@ async function chatsParaMi(companyId: string): Promise<Notificacion[]> {
 }
 
 /**
+ * Las consultas del sitio público sin atender (Fase 87 · E4).
+ *
+ * «Cuando se envía la consulta, que nos llegue a nosotros en el ERP.» Son de
+ * la EMPRESA y no de una persona —nadie las tiene asignadas todavía—, así que
+ * se las ve toda la gente de la casa, como las alertas. Cada una sin atender
+ * es una notificación; apenas alguien la marca contactada, desaparece sola,
+ * que es la misma lógica de derivar en vez de copiar.
+ */
+async function consultasSinAtender(companyId: string): Promise<Notificacion[]> {
+  try {
+    const consultas = await listarConsultas(companyId, 'nueva')
+    return consultas.slice(0, 20).map((c) => ({
+      id: `consulta:${c.id}`,
+      tipo: 'alerta' as const,
+      de: c.empresa ? `${c.nombre} · ${c.empresa}` : c.nombre,
+      titulo:
+        c.cantidadItems > 0
+          ? `Pide cotización de ${c.cantidadItems} ${c.cantidadItems === 1 ? 'producto' : 'productos'}`
+          : 'Dejó una consulta',
+      detalle: c.mensaje ?? (c.items.map((i) => i.sku).slice(0, 3).join(', ') || null),
+      cuando: c.cuando,
+      destino: '/ventas/consultas',
+    }))
+  } catch {
+    return []
+  }
+}
+
+/**
  * Todas las notificaciones, más recientes primero.
  *
- * Las dos fuentes se piden EN PARALELO: son independientes, y en serie la
- * espera sería la suma de las dos contra un servidor que está a 150 ms.
+ * Las fuentes se piden EN PARALELO: son independientes, y en serie la espera
+ * sería la suma contra un servidor que está a 150 ms.
  */
 export async function misNotificaciones(
   companyId: string,
   userId: string,
 ): Promise<Notificacion[]> {
-  const [problemas, correos, chats] = await Promise.all([
+  const [problemas, consultas, correos, chats] = await Promise.all([
     problemasDeCorreo(companyId),
+    consultasSinAtender(companyId),
     correosParaMi(companyId, userId),
     chatsParaMi(companyId),
   ])
   // Los problemas van SIEMPRE primero, sin importar la fecha: que el correo
   // haya dejado de entrar importa más que cualquier mensaje suelto, y además
-  // explica por qué la lista de abajo puede estar vacía.
+  // explica por qué la lista de abajo puede estar vacía. Las consultas del
+  // público van después, que son un cliente nuevo esperando respuesta.
   const personales = [...correos, ...chats].sort((a, b) =>
     (b.cuando ?? '').localeCompare(a.cuando ?? ''),
   )
-  return [...problemas, ...personales]
+  return [...problemas, ...consultas, ...personales]
 }

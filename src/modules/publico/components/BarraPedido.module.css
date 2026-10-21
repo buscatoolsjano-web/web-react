@@ -1,0 +1,98 @@
+/* La barra flotante del pedido (Fase 87 · E3b). */
+
+.barra {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  /* Sombra marcada: flota sobre el contenido y tiene que leerse separada de
+     la tabla que tiene detrás. */
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  /* Entra deslizándose desde abajo la primera vez que aparece. */
+  animation: aparecer 0.22s var(--ease-standard);
+}
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barra {
+    animation: none;
+  }
+}
+
+.dato {
+  display: grid;
+  gap: 0;
+  line-height: 1.1;
+}
+
+.rotulo {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.valor {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.vaciar {
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.vaciar:hover {
+  color: var(--color-danger-text);
+}
+
+.ver {
+  display: inline-flex;
+  align-items: center;
+  height: 2.5rem;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.ver:hover {
+  background: var(--color-primary-hover);
+}
+
+/* En el teléfono, de lado a lado abajo, sin despegarse del borde. */
+@media (max-width: 560px) {
+  .barra {
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: var(--space-3);
+    justify-content: space-between;
+  }
+}

@@ -113,6 +113,7 @@ export function ProductoPublicoPage() {
     slug: p.slug,
     categoriaSlug: p.categoriaSlug,
     nombre: p.nombre,
+    imagen: foto,
   }
   const enLista = carrito.cantidadDe(p.sku)
 
