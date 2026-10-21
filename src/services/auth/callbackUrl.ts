@@ -8,10 +8,9 @@
  *   https://app.buscatools.com/#access_token=…&refresh_token=…&type=invite
  *   https://app.buscatools.com/#error=access_denied&error_code=otp_expired&…
  *
- * Eso choca con dos cosas de esta app:
- *   · HashRouter: el fragmento es la ruta. `#access_token=…` sería un 404.
- *   · flowType 'pkce': el SDK rechaza una sesión en el fragmento
- *     («Not a valid PKCE flow url») y no la guarda.
+ * Eso choca con flowType 'pkce': el SDK rechaza una sesión en el fragmento
+ * («Not a valid PKCE flow url») y no la guarda. (Antes, con router de hash,
+ * chocaba además con el router, que leía el fragmento como ruta.)
  *
  * Por eso el fragmento se lee ANTES de montar el router, se saca de la URL y
  * la sesión se establece a mano con `setSession`. Función pura: recibe el href.
@@ -33,7 +32,8 @@ export function leerCallbackAuth(href: string): CallbackAuth | null {
     return null
   }
   const hash = url.hash.startsWith('#') ? url.hash.slice(1) : ''
-  // Una ruta del HashRouter empieza con '/': no es un callback.
+  // Un fragmento que empieza con '/' es una ruta —marcador viejo del hash
+  // router—, no un callback: los tokens de Supabase vienen como `access_token=…`.
   if (!hash || hash.startsWith('/')) return null
 
   const p = new URLSearchParams(hash)
@@ -48,5 +48,5 @@ export function leerCallbackAuth(href: string): CallbackAuth | null {
   return { tipo: 'sesion', motivo, accessToken, refreshToken }
 }
 
-/** Ruta del HashRouter a la que se manda un callback, sin tokens. */
+/** Ruta a la que se manda un callback una vez sacados los tokens. */
 export const RUTA_DEFINIR_CONTRASENA = '/auth/definir-contrasena'

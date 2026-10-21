@@ -68,6 +68,15 @@ jobs:
           # la autorización la da el JWT de Supabase de cada persona.
           VITE_EMAILS_API_URL: https://buscatools-erp-email-api-545134968830.us-east1.run.app
 
+      # Prerender del sitio público (Fase 88 · SEO). Escribe en dist/ un
+      # index.html real por producto y por categoría —con 200, que es lo único
+      # que un buscador indexa— más sitemap.xml y robots.txt. Lee las RPC
+      # públicas con la clave anónima; por eso recibe las mismas variables.
+      - run: npm run prerender
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
       # De acá para abajo es publicar, y un PR no publica. Sin este `if`,
       # agregar el disparador `pull_request` mandaría CADA PR a producción.
       - uses: actions/upload-pages-artifact@v3

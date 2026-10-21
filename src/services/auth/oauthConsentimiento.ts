@@ -47,17 +47,16 @@ export type Decision = { ok: true; url: string } | { ok: false; mensaje: string 
  *
  * ── Por qué no alcanza `useSearchParams()` ──────────────────────────────────
  *
- * La aplicación usa un router de HASH, porque se sirve desde GitHub Pages y un
- * path suelto da 404. Entonces el id puede llegar de dos formas según cómo
- * arme Supabase la redirección:
+ * El id puede llegar de dos formas según cómo arme Supabase la redirección:
  *
- *   https://app…/#/oauth/consent?authorization_id=x   ← dentro del hash
  *   https://app…/oauth/consent?authorization_id=x     ← en el query de verdad
+ *   https://app…/#/oauth/consent?authorization_id=x   ← dentro del hash (legado)
  *
- * El primero lo lee el router; el segundo no, y encima el path suelto no
- * existe en el servidor. Se leen los dos y además se deja el fallback de
- * `404.html`, que traduce el segundo al primero. Es la clase de detalle que
- * no se puede probar hasta que falla en producción, así que se cubre entero.
+ * Con el router de browser (Fase 88) lo normal es el primero. Pero se leen
+ * los dos igual: un enlace viejo o un cliente que arme la URL con hash sigue
+ * funcionando, y el `404.html` ya rescata cualquier path suelto. Es la clase
+ * de detalle que no se puede probar hasta que falla en producción, así que se
+ * cubre entero.
  */
 export function idDeLaUrl(href: string): string | null {
   let url: URL

@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "prerender": "node scripts/fase88-prerender.mjs",
     "preview": "npm run build && vite preview",
     "lint": "eslint .",
     "scripts:check": "node scripts/revisar-sintaxis.mjs",

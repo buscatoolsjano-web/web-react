@@ -3,46 +3,54 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Buscatools ERP</title>
+    <title>Buscatools</title>
     <meta name="robots" content="noindex" />
     <script>
       /*
-       * Rescate de las rutas de OAuth servidas como path, no como hash.
+       * Rescate de rutas servidas como path en GitHub Pages (Fase 88).
        *
-       * La aplicación usa un router de HASH —se sirve desde GitHub Pages, donde
-       * un path que no es un archivo da 404—, así que sus URL son del tipo
-       * `/#/oauth/consent`. Pero Supabase Auth arma la redirección del
-       * consentimiento pegándole el query a la ruta configurada, y si esa ruta
-       * se configura lisa («/oauth/consent») el navegador pide un path que acá
-       * no existe y GitHub contesta esto.
+       * La app usa router de BROWSER: sus URL son `/ventas/pedidos/3`,
+       * `/oauth/consent?authorization_id=x`, `/productos/x/y` (las que no se
+       * prerenderizan). GitHub Pages sólo sirve archivos; a un path que no es
+       * un archivo contesta este 404.html. Entonces esto guarda la ruta
+       * pedida y manda a la raíz, donde `index.html` la reconstruye y recién
+       * ahí monta el router. Es el truco estándar de spa-github-pages.
        *
-       * Entonces esto traduce: `/oauth/consent?authorization_id=x` pasa a ser
-       * `/#/oauth/consent?authorization_id=x`, que el router sí entiende.
+       * La ruta viaja en el query, no en el path: `/ventas/pedidos/3?x=1`
+       * pasa a `/?/ventas/pedidos/3&x=1`. Así la raíz —que SÍ es un archivo—
+       * se sirve con 200, y `index.html` deshace la transformación antes de
+       * arrancar. Los `&` originales del query se escapan como `~and~` para no
+       * confundirse con el separador que mete esto.
        *
-       * ── Por qué SÓLO /oauth/ ──────────────────────────────────────────────
+       * ── Por qué ahora es general y antes era sólo /oauth/ ─────────────────
        *
-       * Podría ser un fallback general para toda la aplicación, y es lo que
-       * suele hacerse. No lo es a propósito: hoy una URL mal escrita muestra el
-       * 404 del hosting, y convertir eso en «entra a la app» es un cambio de
-       * comportamiento en todo el sitio que nadie pidió. Acá hace falta para
-       * una ruta concreta, así que arregla esa.
+       * Con router de hash, un path suelto era un error real y sólo /oauth/
+       * necesitaba el rescate. Con router de browser, TODA ruta dinámica llega
+       * como path: el fallback tiene que ser general o el ERP no abre con la
+       * página recargada. Las fichas y categorías NO pasan por acá: ésas son
+       * HTML prerenderizado que GitHub sirve con 200 directo.
        *
-       * El destino se arma sólo con la ruta y el query de la propia dirección,
-       * y siempre relativo: no hay forma de que esto mande a otro sitio.
+       * `noindex`: esto es la página de 404 del hosting. Que un buscador que
+       * caiga acá —un path inexistente— no la indexe como si fuera contenido.
+       *
+       * El destino se arma sólo con la URL de la propia dirección y siempre
+       * relativo al origen: no hay forma de que esto mande a otro sitio.
        */
       (function () {
-        var ruta = window.location.pathname
-        var corte = ruta.indexOf('/oauth/')
-        if (corte === -1) return
-
-        var interna = ruta.slice(corte) // «/oauth/consent»
-        window.location.replace(
-          window.location.origin + '/#' + interna + window.location.search,
+        var l = window.location
+        l.replace(
+          l.protocol +
+            '//' +
+            l.host +
+            '/?/' +
+            l.pathname.slice(1).replace(/&/g, '~and~') +
+            (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+            l.hash,
         )
       })()
     </script>
   </head>
   <body>
-    <p>Buscatools ERP</p>
+    <p>Buscatools</p>
   </body>
 </html>

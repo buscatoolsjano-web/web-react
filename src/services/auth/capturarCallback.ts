@@ -17,8 +17,11 @@ if (typeof window !== 'undefined') {
   const cb = leerCallbackAuth(window.location.href)
   if (cb) {
     pendiente = cb
-    const { pathname, search } = window.location
-    window.history.replaceState(null, '', `${pathname}${search}#${RUTA_DEFINIR_CONTRASENA}`)
+    // La ruta va en el PATH, no en el hash: desde la Fase 88 el router es de
+    // browser. El token venía en el fragmento (`#access_token=…`); al poner
+    // acá el path sin hash, el fragmento con el token desaparece de la barra
+    // y del historial, que es justo lo que se busca.
+    window.history.replaceState(null, '', RUTA_DEFINIR_CONTRASENA)
   }
 }
 

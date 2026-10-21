@@ -4,7 +4,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { Icon } from '@/components/icons/Icon'
 import { TarjetaProducto } from '../components/TarjetaProducto'
 import { producto as pedirProducto, urlDeFoto } from '../services/catalogoPublico'
-import { rutaCanonica, rutaCatalogo, rutaCategoria, rutaProductoPublico } from '../lib/rutas'
+import { conBarraFinal, rutaCanonica, rutaCatalogo, rutaCategoria, rutaProductoPublico } from '../lib/rutas'
 import { useMeta } from '../hooks/useMeta'
 import { useCarritoPublico } from '../hooks/useCarritoPublico'
 import {
@@ -54,7 +54,9 @@ export function ProductoPublicoPage() {
   })
 
   const p = q.data?.producto ?? null
-  const canonica = p ? rutaProductoPublico(p.categoriaSlug, p.slug) : rutaCatalogo()
+  // Con barra final: es la forma canónica, la que GitHub sirve con 200 desde
+  // el HTML prerenderizado. Ver `conBarraFinal`.
+  const canonica = p ? conBarraFinal(rutaProductoPublico(p.categoriaSlug, p.slug)) : rutaCatalogo()
   const foto = p ? urlDeFoto(p) : null
 
   useMeta(

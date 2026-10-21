@@ -48,6 +48,24 @@ export function rutaProductoPublico(categoriaSlug: string, slug: string): string
 }
 
 /**
+ * La misma ruta pero con barra final, que es la forma CANÓNICA (Fase 88).
+ *
+ * GitHub Pages sirve el HTML prerenderizado de una ficha desde
+ * `/productos/x/y/index.html`, y la dirección que lo trae con 200 directo
+ * —sin la redirección 301 que agrega la barra— es `/productos/x/y/`. Por eso
+ * la etiqueta canónica, el `og:url`, el sitemap y la carpeta del prerender
+ * usan TODOS esta forma: una sola, para que el buscador no vea la misma ficha
+ * en dos direcciones.
+ *
+ * Los enlaces de ADENTRO de la app no la usan: ésos navegan sin pedirle nada
+ * a GitHub, así que la barra final sólo sería ruido. La raíz se deja igual.
+ */
+export function conBarraFinal(path: string): string {
+  if (path === '/' || path.endsWith('/')) return path
+  return `${path}/`
+}
+
+/**
  * Si esta dirección es del sitio público.
  *
  * Decide QUÉ CÁSCARA se dibuja: la del ERP —con su barra lateral y sus

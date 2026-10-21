@@ -30,6 +30,50 @@
     -->
     <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
 
+    <!--
+      Dos rescates de URL, ANTES de que corra nada de la app (es un script
+      clásico en el <head>: se ejecuta mientras se parsea, antes que el módulo
+      de `main.tsx`, que es diferido). Los dos existen por el cambio a router
+      de browser de la Fase 88.
+
+      1. El `?/` que arma `public/404.html`. GitHub Pages contesta 404 a
+         cualquier path que no sea un archivo —las rutas dinámicas del ERP y
+         del carrito—; ese 404.html reescribe `/ventas/pedidos/3` como
+         `/?/ventas/pedidos/3` y manda acá. Esto lo vuelve a `/ventas/pedidos/3`
+         con `replaceState`, sin recargar, antes de que monte el router.
+
+      2. Los marcadores viejos `/#/inicio`. Durante años las URL del ERP
+         tuvieron hash; quien tenga uno guardado caería en la raíz pública.
+         Esto traduce `#/inicio` a `/inicio`.
+
+      Lo que NO se toca: un fragmento que no empieza con `/` —`#access_token=…`
+      o `#error=…` de Supabase Auth—. Ése lo procesa `capturarCallback`, y si
+      esto lo borrara se perdería la sesión del enlace de invitación.
+    -->
+    <script>
+      (function () {
+        var l = window.location
+
+        // 1. Decodificar el redirect de 404.html: `/?/ruta&a=b` → `/ruta?a=b`.
+        if (l.search && l.search.charAt(1) === '/') {
+          var decodificada = l.search
+            .slice(1)
+            .split('&')
+            .map(function (parte) {
+              return parte.replace(/~and~/g, '&')
+            })
+            .join('?')
+          window.history.replaceState(null, '', l.pathname.slice(0, -1) + decodificada + l.hash)
+        }
+
+        // 2. Rescatar un marcador viejo con hash de ruta: `#/inicio` → `/inicio`.
+        //    Sólo `#/…`: `#access_token=…` no empieza con barra y no entra acá.
+        if (window.location.hash.indexOf('#/') === 0) {
+          window.history.replaceState(null, '', window.location.hash.slice(1))
+        }
+      })()
+    </script>
+
     <title>Buscatools ERP</title>
   </head>
   <body>

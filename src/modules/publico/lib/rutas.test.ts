@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  conBarraFinal,
   esRutaPublica,
   rutaCanonica,
   rutaCatalogo,
@@ -50,6 +51,22 @@ describe('qué cáscara se dibuja', () => {
     // se tragaría cualquier ruta nueva que empiece con esas letras.
     expect(esRutaPublica('/productosx')).toBe(false)
     expect(esRutaPublica('/productos-internos')).toBe(false)
+  })
+})
+
+describe('la forma canónica con barra final', () => {
+  it('agrega la barra a una ficha o una categoría', () => {
+    // Es la dirección que GitHub sirve con 200 desde el index.html
+    // prerenderizado, sin la redirección 301 que agregaría la barra.
+    expect(conBarraFinal('/productos/puntas-y-tubos/speedrill-ph2-phillips')).toBe(
+      '/productos/puntas-y-tubos/speedrill-ph2-phillips/',
+    )
+    expect(conBarraFinal('/productos/balanceadores')).toBe('/productos/balanceadores/')
+  })
+
+  it('no toca la raíz ni duplica una barra ya puesta', () => {
+    expect(conBarraFinal('/')).toBe('/')
+    expect(conBarraFinal('/productos/balanceadores/')).toBe('/productos/balanceadores/')
   })
 })
 
