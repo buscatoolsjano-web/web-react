@@ -103,6 +103,17 @@
   background: var(--color-surface);
 }
 
+/* Tile sin foto ni forma (medida, largo): el valor manda, grande y centrado. */
+.tileTexto {
+  min-width: 74px;
+  width: auto;
+  justify-content: center;
+  padding: var(--space-3) var(--space-3);
+}
+.tileTexto .etiqueta {
+  font-size: var(--text-sm);
+}
+
 .foto {
   width: 48px;
   height: 48px;
