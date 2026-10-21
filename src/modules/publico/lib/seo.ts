@@ -1,3 +1,5 @@
+import { palabrasClaveDe } from './sinonimos'
+
 /**
  * Lo que leen los buscadores (Fase 87 · E2). PURO.
  *
@@ -77,6 +79,8 @@ export function descripcionDeProducto(p: {
   sku: string
   marca?: string | null
   categoria?: string | null
+  serie?: string | null
+  tipo?: string | null
   descripcion?: string | null
   atributos?: Record<string, unknown> | null
 }): string {
@@ -86,9 +90,38 @@ export function descripcionDeProducto(p: {
 
   const rasgos = rasgosLegibles(p.atributos ?? null)
   if (rasgos !== '') partes.push(rasgos + '.')
+
+  // Los otros nombres del producto, cuando entran: es lo que hace que la
+  // ficha aparezca al buscar «dado» o «boca de llave» (Fase 88 · SEO). Van
+  // antes de la llamada a la acción, que es lo primero que el recorte sacrifica.
+  const claves = palabrasClaveDe(p).slice(0, 4)
+  if (claves.length > 0) partes.push(`También: ${claves.join(', ')}.`)
+
   partes.push('Consultá disponibilidad y precio.')
 
   return recortar(partes.join(' '), LARGO_DESCRIPCION)
+}
+
+/**
+ * El texto alternativo de la imagen (Fase 88 · SEO).
+ *
+ * Lo lee Google —es señal de de qué es la foto— y lo lee quien no la puede
+ * ver. Se arma con el nombre y el primer sinónimo, que es lo que lo hace
+ * aparecer en la búsqueda de imágenes por «dado» o «boca de llave».
+ *
+ * NO es el nombre repetido diez veces: es «SPEEDRILL PH2 — punta Phillips»,
+ * una descripción corta y verdadera de lo que se ve.
+ */
+export function altDeImagen(p: {
+  nombre: string
+  marca?: string | null
+  categoria?: string | null
+  serie?: string | null
+  tipo?: string | null
+}): string {
+  const claves = palabrasClaveDe(p)
+  const extra = claves.length > 0 ? ` — ${claves.slice(0, 2).join(', ')}` : ''
+  return recortar(`${p.nombre}${extra}`, 120)
 }
 
 /**
@@ -176,6 +209,8 @@ export function datosEstructurados(
     sku: string
     marca?: string | null
     categoria?: string | null
+    serie?: string | null
+    tipo?: string | null
     descripcion?: string | null
     imagen?: string | null
     atributos?: Record<string, unknown> | null
@@ -190,6 +225,10 @@ export function datosEstructurados(
     }))
     .filter((x) => x.value !== '')
 
+  // `keywords` son los otros nombres del producto: schema.org los acepta y es
+  // una señal más de por qué términos mostrar la ficha (Fase 88 · SEO).
+  const claves = palabrasClaveDe(p)
+
   return {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -200,6 +239,7 @@ export function datosEstructurados(
     ...(p.marca ? { brand: { '@type': 'Brand', name: p.marca } } : {}),
     ...(p.categoria ? { category: p.categoria } : {}),
     ...(p.imagen ? { image: p.imagen } : {}),
+    ...(claves.length > 0 ? { keywords: claves.join(', ') } : {}),
     ...(propiedades.length > 0 ? { additionalProperty: propiedades } : {}),
   }
 }

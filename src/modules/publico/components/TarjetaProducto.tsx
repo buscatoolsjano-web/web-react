@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Icon } from '@/components/icons/Icon'
 import type { ProductoPublicoResumen } from '../services/catalogoPublico'
 import { urlDeFoto } from '../services/catalogoPublico'
+import { altDeImagen } from '../lib/seo'
 import { rutaProductoPublico } from '../lib/rutas'
 import styles from './TarjetaProducto.module.css'
 
@@ -32,7 +33,7 @@ export function TarjetaProducto({ producto: p }: { producto: ProductoPublicoResu
         {foto ? (
           <img
             src={foto}
-            alt={p.imagenAlt ?? p.nombre}
+            alt={p.imagenAlt ?? altDeImagen(p)}
             /* `lazy` y las medidas puestas: la grilla trae veinticuatro fotos
                de otro dominio, y sin alto declarado la página salta entera
                cada vez que entra una. */

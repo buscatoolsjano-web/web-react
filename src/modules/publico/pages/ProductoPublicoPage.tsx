@@ -8,12 +8,14 @@ import { rutaCanonica, rutaCatalogo, rutaCategoria, rutaProductoPublico } from '
 import { useMeta } from '../hooks/useMeta'
 import { useCarritoPublico } from '../hooks/useCarritoPublico'
 import {
+  altDeImagen,
   datosEstructurados,
   descripcionDeProducto,
   nombreDeAtributo,
   tituloDeProducto,
   valorLegible,
 } from '../lib/seo'
+import { tambienBuscadoComo } from '../lib/sinonimos'
 import styles from './ProductoPublicoPage.module.css'
 
 /**
@@ -116,6 +118,7 @@ export function ProductoPublicoPage() {
     imagen: foto,
   }
   const enLista = carrito.cantidadDe(p.sku)
+  const tambienBuscado = tambienBuscadoComo(p)
 
   const atributos = Object.entries(p.atributos ?? {})
     .map(([clave, valor]) => [nombreDeAtributo(clave), valorLegible(valor)] as const)
@@ -132,7 +135,7 @@ export function ProductoPublicoPage() {
       <div className={styles.ficha}>
         <div className={styles.foto}>
           {foto ? (
-            <img src={foto} alt={p.imagenAlt ?? p.nombre} width={520} height={520} />
+            <img src={foto} alt={p.imagenAlt ?? altDeImagen(p)} width={520} height={520} />
           ) : (
             <span className={styles.sinFoto} aria-hidden="true">
               <Icon name="image" size={32} />
@@ -146,6 +149,11 @@ export function ProductoPublicoPage() {
           <p className={styles.sku}>{p.sku}</p>
 
           {p.descripcion ? <p className={styles.descripcion}>{p.descripcion}</p> : null}
+
+          {/* Los otros nombres del producto, visibles y verdaderos: ayudan a
+              quien no sabe el termino tecnico y hacen que la ficha aparezca al
+              buscar «dado» o «boca de llave» (Fase 88 · SEO). */}
+          {tambienBuscado !== '' ? <p className={styles.tambien}>{tambienBuscado}</p> : null}
 
           {atributos.length > 0 ? (
             <dl className={styles.atributos}>
