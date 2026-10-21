@@ -1,0 +1,162 @@
+/*
+ * El filtro guiado (Fase 90). Compacto: una tira, no un panel.
+ */
+.guia {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.cabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+.fichas {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+/* Lo respondido: una ficha chica que se saca de un clic. */
+.ficha {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  cursor: pointer;
+}
+.ficha:hover {
+  background: var(--color-primary-hover);
+}
+
+.cuenta {
+  margin-left: auto;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.cuenta strong {
+  color: var(--color-text);
+}
+
+.pregunta {
+  margin-top: var(--space-3);
+}
+
+.textoPregunta {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+.pista {
+  font-weight: 400;
+  color: var(--color-text-soft);
+}
+
+.tiles {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* El tile: chico, para que la tira ocupe poco. */
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 92px;
+  padding: var(--space-2) 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+.tile:hover {
+  border-color: var(--color-primary);
+}
+.tileActivo {
+  border-color: var(--color-primary);
+  background: var(--color-surface);
+}
+
+.foto {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: var(--radius-sm);
+}
+
+/* La forma dibujada, cuando no hay foto. */
+.forma {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  color: var(--color-primary);
+}
+.forma svg {
+  width: 30px;
+  height: 30px;
+}
+
+.etiqueta {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+  line-height: var(--leading-tight);
+}
+.cantidad {
+  font-size: 11px;
+  color: var(--color-text-soft);
+}
+
+.masOpciones {
+  align-self: center;
+  min-height: 92px;
+  padding: 0 var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.masOpciones:hover {
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.listo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}

@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Spinner } from '@/components/ui/Spinner'
+import { GuiaFiltros } from '../components/GuiaFiltros'
 import { TablaProductos } from '../components/TablaProductos'
 import { columnasDeAtributo } from '../lib/columnas'
 import { useCarritoPublico } from '../hooks/useCarritoPublico'
@@ -41,6 +42,7 @@ const PREFIJO_ATRIBUTO = 'a.'
 export function CatalogoPublicoPage() {
   const { categoria } = useParams<{ categoria?: string }>()
   const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
   const carrito = useCarritoPublico()
 
   const texto = params.get('q') ?? ''
@@ -219,6 +221,24 @@ export function CatalogoPublicoPage() {
         </p>
       ) : (
         <>
+          {/*
+            El filtro guiado (Fase 90), ARRIBA de la tabla: entrada rápida y
+            visual que convive con los filtros de columna. Las dos escriben el
+            mismo estado en la URL. La categoría va en la ruta, así que entrar a
+            una navega (y arranca sin filtros viejos colgados).
+          */}
+          <GuiaFiltros
+            categoria={categoria}
+            categorias={qCategorias.data ?? []}
+            facetas={qFacetas.data}
+            tipo={tipo}
+            atributos={atributos}
+            total={cuantos}
+            cargando={q.isPending}
+            onFiltrar={filtrar}
+            onCategoria={(slug) => navigate(slug === '' ? rutaCatalogo() : rutaCategoria(slug))}
+          />
+
           <TablaProductos
             productos={q.data?.productos ?? []}
             columnas={columnas}
