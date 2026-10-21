@@ -68,3 +68,4 @@ supabase/.temp/
 .whatsapp-auth/
 **/.whatsapp-auth/
 .cache-legacy-productos.json
+scripts/.apex/
