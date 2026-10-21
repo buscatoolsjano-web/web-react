@@ -69,3 +69,4 @@ supabase/.temp/
 **/.whatsapp-auth/
 .cache-legacy-productos.json
 scripts/.apex/
+scripts/.stel-tt/
