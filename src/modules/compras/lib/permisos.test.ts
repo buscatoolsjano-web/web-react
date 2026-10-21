@@ -6,6 +6,7 @@ const membresia = (rol: string): Membresia => ({
   companyId: 'bbcb2cee-aeaa-43c9-a7a0-da0fb2b2f59c',
   companyName: 'Buscatools',
   companySlug: 'buscatools',
+  companyLogoPath: null,
   rol,
   esInterno: ['admin', 'employee', 'salesperson', 'technician'].includes(rol),
   customerId: null, listasDePrecios: []

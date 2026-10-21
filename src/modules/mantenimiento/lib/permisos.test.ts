@@ -6,6 +6,7 @@ const membresia = (rol: string): Membresia => ({
   companyId: 'c1',
   companyName: 'Empresa',
   companySlug: 'empresa',
+  companyLogoPath: null,
   rol,
   esInterno: rol !== 'customer' && rol !== 'distributor',
   customerId: null, listasDePrecios: []

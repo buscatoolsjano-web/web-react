@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
+import { urlLogo } from '@/modules/configuracion/services/empresa'
 import { useAuth } from '@/features/auth/useAuth'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { EmpresaSelector } from '@/features/empresa/EmpresaSelector'
@@ -57,6 +59,21 @@ export function AppLayout() {
   const empresa = useEmpresa()
   const { pathname } = useLocation()
   const navegar = useNavigate()
+
+  // El logo del header es el de la EMPRESA ACTIVA (Torquetools, Buscatools…).
+  // Vive en el bucket privado `empresa-logos`, así que se pide una URL firmada
+  // y se renueva antes de que expire (10 min). Sin logo propio, cae al de la
+  // casa. La placa clara de atrás vale para cualquier logo.
+  const logoPath = empresa.activa?.companyLogoPath ?? null
+  const qLogoEmpresa = useQuery({
+    queryKey: ['header-logo-empresa', logoPath],
+    queryFn: () => urlLogo(logoPath as string),
+    enabled: logoPath !== null,
+    staleTime: 8 * 60_000,
+    refetchInterval: 8 * 60_000,
+  })
+  const logoSrc = logoPath && qLogoEmpresa.data ? qLogoEmpresa.data : `${import.meta.env.BASE_URL}brand/buscatools-logo.png`
+  const logoEsEmpresa = logoPath !== null && qLogoEmpresa.data !== undefined
 
   /**
    * Salir deja a la persona en la portada, no en el login (Fase 87 · E2).
@@ -214,9 +231,15 @@ export function AppLayout() {
             onClick={() => abrirCajon(null)}
           />
         )}
-        <Link to="/inicio" className={styles.marca} aria-label="Buscatools ERP, ir al inicio">
+        <Link to="/inicio" className={styles.marca} aria-label={`${empresa.activa?.companyName ?? 'Buscatools'} ERP, ir al inicio`}>
           <span className={styles.logoFondo}>
-            <img src={`${import.meta.env.BASE_URL}brand/buscatools-logo.png`} alt="" className={styles.logo} width={1400} height={673} />
+            {/* Sin width/height fijos para el logo de empresa: cada uno tiene su
+                proporción y la toma del archivo; el alto lo fija el CSS. */}
+            {logoEsEmpresa ? (
+              <img src={logoSrc} alt="" className={styles.logo} />
+            ) : (
+              <img src={logoSrc} alt="" className={styles.logo} width={1400} height={673} />
+            )}
           </span>
           <span className={styles.marcaErp} aria-hidden="true">
             ERP

@@ -41,6 +41,8 @@ export interface Membresia {
   companyId: string
   companyName: string
   companySlug: string
+  /** El logo de la empresa, en el bucket privado `empresa-logos`. Para el header. */
+  companyLogoPath: string | null
   rol: string
   esInterno: boolean
   /** Sólo para roles externos: el cliente al que representa. */
@@ -74,7 +76,7 @@ export async function listarMembresias(userId: string): Promise<Membresia[]> {
   const { data, error } = await supabase
     .from('company_memberships')
     .select(
-      'company_id, role, customer_id, companies ( name, slug, price_lists ( id, name, currency_code, is_default ) )',
+      'company_id, role, customer_id, companies ( name, slug, logo_path, price_lists ( id, name, currency_code, is_default ) )',
     )
     .eq('user_id', userId)
     .eq('status', 'active')
@@ -85,6 +87,7 @@ export async function listarMembresias(userId: string): Promise<Membresia[]> {
     companyId: m.company_id,
     companyName: m.companies?.name ?? '(sin nombre)',
     companySlug: m.companies?.slug ?? '',
+    companyLogoPath: m.companies?.logo_path ?? null,
     rol: m.role,
     esInterno: esRolInterno(m.role),
     customerId: m.customer_id,
