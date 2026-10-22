@@ -234,9 +234,16 @@ export interface FacetasPublicas {
   atributos: FacetaAtributoPublica[]
 }
 
-export async function facetas(categoria?: string | null): Promise<FacetasPublicas> {
+export async function facetas(params: Filtros = {}): Promise<FacetasPublicas> {
   const { data, error } = await supabase.rpc('catalogo_publico_facetas', {
-    p_categoria: categoria ?? null,
+    p_categoria: params.categoria ?? null,
+    p_marca: params.marca ?? null,
+    p_serie: params.serie ?? null,
+    p_tipo: params.tipo ?? null,
+    p_atributos:
+      params.atributos && Object.keys(params.atributos).length > 0 ? params.atributos : null,
+    p_texto: params.texto ?? null,
+    p_modelo: params.modelo ?? null,
   })
   if (error) throw new FalloCatalogoPublico(`No se pudieron leer los filtros: ${error.message}`)
 

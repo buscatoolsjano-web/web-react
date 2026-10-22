@@ -35,7 +35,10 @@ import styles from './GuiaFiltros.module.css'
  * medida y largo reales de la categoría, con cantidades). Nada escrito a mano.
  */
 
-const TOPE_VISIBLE = 8
+// Cuántas opciones se muestran antes de «+N más». Los tiles llenan el ancho a
+// cualquier cantidad (grid 1fr), así que no hace falta inflarlo para no dejar
+// hueco: 12 alcanza para llenar las filas sin que «medida» sea un muro.
+const TOPE_VISIBLE = 12
 const ATRIBUTOS: readonly { key: string; pregunta: string; pista: string }[] = [
   { key: 'encastre', pregunta: '¿Qué encastre?', pista: 'la conexión a la máquina' },
   { key: 'medida', pregunta: '¿Qué medida?', pista: 'el diámetro o calibre' },
@@ -77,6 +80,8 @@ const fotoDeTipo = (categoria: string | undefined, valor: string): string | unde
 }
 const fotoDeCategoria = (slug: string): string | undefined =>
   (fotos as Record<string, { portada?: string }>)[slug]?.portada
+const fotoDeGrupo = (categoria: string | undefined, grupo: string): string | undefined =>
+  categoria ? (fotos as Record<string, { grupo?: Record<string, string> }>)[categoria]?.grupo?.[grupo] : undefined
 
 function Medio({ foto, forma, nombre }: { foto: string | undefined; forma: ReactNode; nombre: string }) {
   if (foto) return <img src={foto} alt="" loading="lazy" width={48} height={48} className={styles.foto} />
@@ -102,10 +107,15 @@ export function GuiaFiltros({
   // El grupo elegido vive en memoria (no va a la URL): es sólo el camino al
   // tipo. Si ya hay un tipo puesto, el grupo se deduce de él.
   const [grupoSel, setGrupoSel] = useState('')
-  const grupoActual = tipo !== '' ? grupoDe(tipo) : grupoSel
+  const tipos = facetas?.tipos ?? []
+  const gruposPresentes = GRUPOS.filter((g) => tipos.some((t) => grupoDe(t.nombre) === g.clave))
+  // Con un solo grupo no se pregunta «¿punta o tubo?», pero igual se listan sus
+  // tipos: así Atornilladores, Accesorios… también muestran el paso de tipo con
+  // su foto, en vez de saltar directo al encastre.
+  const grupoUnico = gruposPresentes.length === 1 ? (gruposPresentes[0]?.clave ?? '') : ''
+  const grupoActual = tipo !== '' ? grupoDe(tipo) : grupoSel !== '' ? grupoSel : grupoUnico
 
   const pasos: Paso[] = []
-  const tipos = facetas?.tipos ?? []
 
   if (!categoria) {
     pasos.push({
@@ -126,7 +136,6 @@ export function GuiaFiltros({
     })
   } else {
     // ── Grupo ────────────────────────────────────────────────────────────────
-    const gruposPresentes = GRUPOS.filter((g) => tipos.some((t) => grupoDe(t.nombre) === g.clave))
     if (gruposPresentes.length > 1) {
       pasos.push({
         clave: 'grupo',
@@ -152,7 +161,7 @@ export function GuiaFiltros({
             valor: g.clave,
             etiqueta: g.label,
             cantidad: n,
-            medio: <span className={styles.forma} aria-hidden="true">{iconoDeForma(delGrupo[0]?.nombre ?? g.label)}</span>,
+            medio: <Medio foto={fotoDeGrupo(categoria, g.clave)} forma={iconoDeForma(delGrupo[0]?.nombre ?? g.label)} nombre={g.label} />,
           }
         }),
       })

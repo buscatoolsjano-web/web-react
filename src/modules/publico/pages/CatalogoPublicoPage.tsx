@@ -71,13 +71,24 @@ export function CatalogoPublicoPage() {
   })
   const laCategoria = (qCategorias.data ?? []).find((c) => c.slug === categoria)
 
-  // Las opciones dependen de la CATEGORÍA y no de los demás filtros: si se
-  // recalcularan con la marca puesta, elegir TECNA dejaría el desplegable de
-  // marcas con una sola opción y no habría forma de volver atrás.
+  // Las opciones dependen de TODOS los filtros activos (Fase 95): así «medida
+  // 25mm» muestra cuántos hay DENTRO de lo ya filtrado y no en toda la
+  // categoría. Cada faceta se calcula con los demás filtros MENOS el suyo, para
+  // que cambiar una opción no deje el desplegable con un solo valor —el mismo
+  // truco que catalog_facets del ERP—.
   const qFacetas = useQuery({
-    queryKey: ['catalogo-publico', 'facetas', categoria ?? null],
-    queryFn: () => facetas(categoria ?? null),
-    staleTime: 30 * 60_000,
+    queryKey: ['catalogo-publico', 'facetas', categoria ?? null, marca, serie, tipo, modelo, texto, atributos],
+    queryFn: () =>
+      facetas({
+        categoria: categoria ?? null,
+        marca: marca === '' ? null : marca,
+        serie: serie === '' ? null : serie,
+        tipo: tipo === '' ? null : tipo,
+        modelo: modelo === '' ? null : modelo,
+        texto: texto === '' ? null : texto,
+        atributos,
+      }),
+    staleTime: 5 * 60_000,
   })
 
   const q = useQuery({
