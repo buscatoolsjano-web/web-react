@@ -70,3 +70,4 @@ supabase/.temp/
 .cache-legacy-productos.json
 scripts/.apex/
 scripts/.stel-tt/
+scripts/.otros/
