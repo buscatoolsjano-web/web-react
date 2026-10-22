@@ -45,7 +45,11 @@ async function todos(ruta, { limite = 200, maxPag = 400 } = {}) {
   return out
 }
 
-const recursos = ['clients', 'suppliers', 'ordinaryInvoices', 'refundInvoices', 'purchaseInvoices']
+const recursos = [
+  'clients', 'suppliers', 'ordinaryInvoices', 'refundInvoices', 'purchaseInvoices',
+  // Fase 94 · el resto del circuito comercial y de compra.
+  'salesEstimates', 'salesOrders', 'salesDeliveryNotes', 'purchaseOrders', 'purchaseDeliveryNotes',
+]
 for (const r of recursos) {
   const f = join(OUT, `${r}.json`)
   if (existsSync(f)) { console.log(`  ${r}: ya está (${JSON.parse(readFileSync(f, 'utf8')).length})`); continue }
