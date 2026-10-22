@@ -69,7 +69,7 @@ export interface VistaImpresionProps {
   edicion?: EdicionEnHoja | null
 }
 
-/** El logo real, servido desde `public/brand`. Es el mismo del ERP. */
+/** Logo por defecto, si la empresa no trae el suyo (`empresa.logoUrl`). */
 const LOGO = `${import.meta.env.BASE_URL}brand/buscatools-logo.png`
 
 /** El nombre del bloque de datos, por tipo de documento. */
@@ -101,7 +101,7 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
     return (
       <div className={`${styles.hoja} ${styles.ticket}`} data-impresion="ticket">
         <div className={styles.tHeader}>
-          <img src={LOGO} alt={empresa.nombre} className={styles.tLogoImg} />
+          <img src={empresa.logoUrl ?? LOGO} alt={empresa.nombre} className={styles.tLogoImg} />
           <div className={styles.tEmpresa}>
             {empresa.razonSocial ? <div>{empresa.razonSocial}</div> : null}
             {empresa.cuit ? <div>CUIT {empresa.cuit}</div> : null}
@@ -207,7 +207,7 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
       {/* ── A · la empresa ──────────────────────────────────────────── */}
       <header className={styles.encabezado}>
         <div className={styles.cajaLogo}>
-          <img src={LOGO} alt={empresa.nombre} className={styles.logo} width={1400} height={673} />
+          <img src={empresa.logoUrl ?? LOGO} alt={empresa.nombre} className={styles.logo} width={1400} height={673} />
         </div>
         <div className={styles.empresa}>
           {empresa.razonSocial ? <strong>{empresa.razonSocial}</strong> : null}

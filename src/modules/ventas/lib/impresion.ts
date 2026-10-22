@@ -91,6 +91,19 @@ export const TITULO_DE: Record<TipoDocumento, string> = {
   entrega: 'NOTA DE ENTREGA',
 }
 
+/**
+ * El título del documento, localizado por la moneda.
+ *
+ * En España (Torquetools, EUR) la «nota de entrega» se llama «ALBARÁN»; la
+ * cotización y el pedido no cambian de nombre. Se decide por la moneda del
+ * documento porque es el dato de país que hay —`companies` no tiene columna de
+ * país— y la única empresa en EUR es la de Granada.
+ */
+export function tituloDocumento(tipo: TipoDocumento, moneda: string | null): string {
+  if (tipo === 'entrega' && moneda === 'EUR') return 'ALBARÁN'
+  return TITULO_DE[tipo]
+}
+
 export interface EmpresaImpresion {
   nombre: string
   razonSocial: string | null
@@ -100,6 +113,13 @@ export interface EmpresaImpresion {
   email: string | null
   web: string | null
   color: string
+  /**
+   * El logo de la empresa, ya resuelto a una URL servible (Fase 109). Es un
+   * asset bundleado por empresa y no la URL firmada del bucket privado: el PDF
+   * se saca con html2canvas, y una imagen cross-origin del storage sale en
+   * blanco. Si no viene, el documento cae al logo de Buscatools.
+   */
+  logoUrl?: string | null
 }
 
 export interface LineaImpresa {
@@ -183,7 +203,7 @@ export function construirImprimible(
 
   return {
     tipo: doc.tipo,
-    titulo: ver.proForma ? 'PRO FORMA' : TITULO_DE[doc.tipo],
+    titulo: ver.proForma ? 'PRO FORMA' : tituloDocumento(doc.tipo, doc.moneda),
     subtitulo: doc.titulo,
     numero: doc.numero,
     fecha: doc.fecha,
@@ -328,7 +348,7 @@ export function imprimibleDelBorrador(
 
   return {
     tipo,
-    titulo: ver.proForma ? 'PRO FORMA' : TITULO_DE[tipo],
+    titulo: ver.proForma ? 'PRO FORMA' : tituloDocumento(tipo, datos.moneda),
     subtitulo: datos.titulo ?? null,
     numero: 'a asignar al crear',
     fecha: datos.fecha,

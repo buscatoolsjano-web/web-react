@@ -3,6 +3,7 @@ import {
   construirImprimible,
   nombreDeArchivo,
   queMostrar,
+  tituloDocumento,
   type OpcionesImpresion,
 } from './impresion'
 import type { DocumentoDetalle, LineaDocumento } from '../types'
@@ -82,6 +83,24 @@ const opts = (p: Partial<OpcionesImpresion> = {}): OpcionesImpresion => ({
   papel: 'A4',
   conFotos: false,
   ...p,
+})
+
+describe('tituloDocumento', () => {
+  it('en España (EUR) la nota de entrega es un ALBARÁN', () => {
+    expect(tituloDocumento('entrega', 'EUR')).toBe('ALBARÁN')
+  })
+  it('en Argentina (ARS/otra moneda) sigue siendo NOTA DE ENTREGA', () => {
+    expect(tituloDocumento('entrega', 'ARS')).toBe('NOTA DE ENTREGA')
+    expect(tituloDocumento('entrega', null)).toBe('NOTA DE ENTREGA')
+  })
+  it('cotización y pedido no cambian de nombre por la moneda', () => {
+    expect(tituloDocumento('cotizacion', 'EUR')).toBe('COTIZACIÓN DE VENTA')
+    expect(tituloDocumento('pedido', 'EUR')).toBe('PEDIDO DE VENTA')
+  })
+  it('el imprimible de una entrega en EUR sale como ALBARÁN', () => {
+    const imp = construirImprimible(doc({ tipo: 'entrega', moneda: 'EUR' }), opts())
+    expect(imp.titulo).toBe('ALBARÁN')
+  })
 })
 
 describe('queMostrar', () => {
