@@ -247,7 +247,11 @@ export function CatalogoPublicoPage() {
             total={cuantos}
             cargando={q.isPending}
             onFiltrar={filtrar}
-            onCategoria={(slug) => navigate(slug === '' ? rutaCatalogo() : rutaCategoria(slug))}
+            onCategoria={(slug) =>
+              // `void`: navigate devuelve una Promise; onCategoria espera void y
+              // no hay que esperarla (no-misused-promises + no-floating-promises).
+              void navigate(slug === '' ? rutaCatalogo() : rutaCategoria(slug))
+            }
           />
 
           <TablaProductos
