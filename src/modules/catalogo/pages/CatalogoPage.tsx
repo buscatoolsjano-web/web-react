@@ -18,6 +18,7 @@ import { ListadoProductos } from '../components/ListadoProductos'
 import { BarraCarrito } from '../components/BarraCarrito'
 import { ModalComparar } from '../components/ModalComparar'
 import { ModalExportar } from '../components/ModalExportar'
+import { ModalImportar } from '../components/ModalImportar'
 import { ModalNuevoProducto } from '../components/ModalNuevoProducto'
 import { ModalProducto } from '../components/ModalProducto'
 import {
@@ -144,6 +145,7 @@ export function CatalogoPage() {
   const puedeCrear = puedeCrearProductos(activa?.rol)
   const [creando, setCreando] = useState(false)
   const [exportando, setExportando] = useState(false)
+  const [importando, setImportando] = useState(false)
   const totalDelCatalogo = useTotalDelCatalogo(companyId, exportando)
   const exportacion = useExportarCatalogo(
     companyId,
@@ -331,6 +333,11 @@ export function CatalogoPage() {
                   <Icon name="download" size={16} /> Exportar
                 </Button>
                 {puedeCrear ? (
+                  <Button variant="secondary" size="sm" onClick={() => setImportando(true)}>
+                    <Icon name="upload" size={16} /> Importar
+                  </Button>
+                ) : null}
+                {puedeCrear ? (
                   <Button size="sm" icon={<Icon name="plus" size={16} />} onClick={() => setCreando(true)}>
                     Nuevo
                   </Button>
@@ -464,6 +471,15 @@ export function CatalogoPage() {
             })
           }}
           onCerrar={() => setExportando(false)}
+        />
+      ) : null}
+
+      {importando && companyId ? (
+        <ModalImportar
+          companyId={companyId}
+          definiciones={definiciones}
+          onImportado={() => void refetch()}
+          onCerrar={() => setImportando(false)}
         />
       ) : null}
 
