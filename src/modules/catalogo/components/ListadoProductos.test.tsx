@@ -358,7 +358,9 @@ describe('El ancho de las columnas del catálogo', () => {
 
   it('las columnas de texto traen un tirador y un ancho declarado', () => {
     montar()
-    for (const etiqueta of ['Modelo', 'Marca', 'Serie', 'Tipo']) {
+    // Referencia se hizo ajustable en la Fase 107 (pedido explícito): también
+    // se agarra del borde y se ensancha, como Modelo o Marca.
+    for (const etiqueta of ['Referencia', 'Modelo', 'Marca', 'Serie', 'Tipo']) {
       expect(tiradorDe(etiqueta)).toBeInTheDocument()
       expect(anchoTh(etiqueta)).toBeGreaterThanOrEqual(MIN_PX)
     }
@@ -369,7 +371,6 @@ describe('El ancho de las columnas del catálogo', () => {
   it('las columnas de ancho fijo no llevan tirador', () => {
     montar()
     expect(screen.queryByRole('separator', { name: 'Ancho de Precio' })).toBeNull()
-    expect(screen.queryByRole('separator', { name: 'Ancho de Referencia' })).toBeNull()
     expect(screen.queryByRole('separator', { name: 'Ancho de Stock real' })).toBeNull()
   })
 
