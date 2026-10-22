@@ -85,6 +85,21 @@ import { createServer } from 'vite'
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
+  // La base vive en São Paulo y la PRIMERA consulta desde el runner de CI puede
+  // pegar un cold start que supera el statement_timeout (medido: la función
+  // corre en ~240 ms en caliente, pero en frío a veces se cancela). Un reintento
+  // con pausa corta lo salva sin tirar el deploy entero por un timeout transitorio.
+  async function rpc(nombre, args) {
+    for (let intento = 1; ; intento++) {
+      const r = await supabase.rpc(nombre, args)
+      const transitorio =
+        r.error && /timeout|canceling statement|fetch failed|ECONN|network|socket/i.test(r.error.message || '')
+      if (!r.error || !transitorio || intento >= 4) return r
+      console.warn(`[prerender] ${nombre} intento ${intento} falló (${r.error.message}); reintento…`)
+      await new Promise((res) => setTimeout(res, 2000 * intento))
+    }
+  }
+
   // ── Escape: todo lo que entra al HTML sale de la base ───────────────────────
   const esc = (s) =>
     String(s ?? '')
@@ -186,7 +201,7 @@ import { createServer } from 'vite'
     const todos = []
     let pagina = 1
     for (;;) {
-      const { data, error } = await supabase.rpc('catalogo_publico_listar', {
+      const { data, error } = await rpc('catalogo_publico_listar', {
         p_categoria: null,
         p_marca: null,
         p_serie: null,
@@ -209,7 +224,7 @@ import { createServer } from 'vite'
 
   console.log('[prerender] leyendo catálogo…')
   const productos = await traerTodo()
-  const { data: catData, error: catErr } = await supabase.rpc('catalogo_publico_categorias')
+  const { data: catData, error: catErr } = await rpc('catalogo_publico_categorias')
   if (catErr) throw new Error(`catalogo_publico_categorias: ${catErr.message}`)
   const categorias = Array.isArray(catData) ? catData : []
   console.log(`[prerender] ${productos.length} productos, ${categorias.length} categorías`)
