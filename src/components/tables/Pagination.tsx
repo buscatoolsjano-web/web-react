@@ -32,6 +32,12 @@ export interface PaginationProps {
   acciones?: ReactNode | undefined
   /** Variante chica, para la barra que va ARRIBA de la tabla. */
   compacta?: boolean | undefined
+  /**
+   * Anterior/Siguiente como flechas solas, sin texto, para ganar espacio en una
+   * barra con muchos botones (el catálogo). El nombre accesible queda en
+   * `aria-label`, así que un lector de pantalla los sigue anunciando.
+   */
+  soloFlechas?: boolean | undefined
 }
 
 /**
@@ -52,6 +58,7 @@ export function Pagination({
   className,
   acciones,
   compacta = false,
+  soloFlechas = false,
 }: PaginationProps) {
   const idTamano = useId()
   const hayAnterior = offset > 0
@@ -83,16 +90,24 @@ export function Pagination({
       {acciones ? <div className={styles.acciones}>{acciones}</div> : null}
       {(hayAnterior || haySiguiente) && (
         <div className={styles.botones}>
-          <Button variant="secondary" size="sm" onClick={() => onChange(Math.max(0, offset - pageSize))} disabled={!hayAnterior || loading} icon={<Icon name="chevron-left" size={16} />}>
-            Anterior
-          </Button>
+          {soloFlechas ? (
+            <Button variant="secondary" size="sm" onClick={() => onChange(Math.max(0, offset - pageSize))} disabled={!hayAnterior || loading} icon={<Icon name="chevron-left" size={16} />} aria-label="Anterior" title="Anterior" />
+          ) : (
+            <Button variant="secondary" size="sm" onClick={() => onChange(Math.max(0, offset - pageSize))} disabled={!hayAnterior || loading} icon={<Icon name="chevron-left" size={16} />}>
+              Anterior
+            </Button>
+          )}
           <span className={styles.pagina}>
             Página {actual} de {paginas}
           </span>
-          <Button variant="secondary" size="sm" onClick={() => onChange(offset + pageSize)} disabled={!haySiguiente || loading} className={styles.siguiente}>
-            Siguiente
-            <Icon name="chevron-right" size={16} />
-          </Button>
+          {soloFlechas ? (
+            <Button variant="secondary" size="sm" onClick={() => onChange(offset + pageSize)} disabled={!haySiguiente || loading} icon={<Icon name="chevron-right" size={16} />} aria-label="Siguiente" title="Siguiente" />
+          ) : (
+            <Button variant="secondary" size="sm" onClick={() => onChange(offset + pageSize)} disabled={!haySiguiente || loading} className={styles.siguiente}>
+              Siguiente
+              <Icon name="chevron-right" size={16} />
+            </Button>
+          )}
         </div>
       )}
     </nav>

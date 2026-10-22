@@ -15,9 +15,11 @@
   min-width: 0;
 }
 
+/* Ancho generoso: es el control que más se usa del catálogo y el placeholder
+   «Buscar por SKU o nombre» tiene que entrar entero y leerse claro. */
 .buscador {
-  flex: 1 1 10rem;
-  min-width: 0;
+  flex: 3 1 24rem;
+  min-width: 14rem;
 }
 
 /* Lupa (o spinner mientras llegan resultados) dentro del campo, a la izquierda. */

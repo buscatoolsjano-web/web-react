@@ -143,6 +143,9 @@ export function CatalogoPage() {
    * evita ofrecer una acción que va a fallar.
    */
   const puedeCrear = puedeCrearProductos(activa?.rol)
+  // Importar actualiza en masa, así que es sólo para administradores (lo vuelve
+  // a validar la RLS de products en cada update).
+  const esAdmin = activa?.rol === 'admin'
   const [creando, setCreando] = useState(false)
   const [exportando, setExportando] = useState(false)
   const [importando, setImportando] = useState(false)
@@ -317,6 +320,7 @@ export function CatalogoPage() {
             acciones y los botones de página. Todo en una fila de 28 px.
           */}
           <Pagination
+            soloFlechas
             label="Paginación del catálogo (arriba)"
             compacta
             offset={(filtros.pagina - 1) * filtros.porPagina}
@@ -332,7 +336,7 @@ export function CatalogoPage() {
                 <Button variant="secondary" size="sm" onClick={() => setExportando(true)} disabled={total === 0}>
                   <Icon name="download" size={16} /> Exportar
                 </Button>
-                {puedeCrear ? (
+                {esAdmin ? (
                   <Button variant="secondary" size="sm" onClick={() => setImportando(true)}>
                     <Icon name="upload" size={16} /> Importar
                   </Button>
@@ -396,6 +400,7 @@ export function CatalogoPage() {
           />
           {total > 0 ? (
             <Pagination
+              soloFlechas
               label="Paginación del catálogo"
               offset={(filtros.pagina - 1) * filtros.porPagina}
               pageSize={filtros.porPagina}
