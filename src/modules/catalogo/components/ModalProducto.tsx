@@ -10,6 +10,9 @@ import { hojaDeCatalogo } from '../lib/hojaCatalogo'
 import { formatearPrecio } from '../lib/formato'
 import { DescripcionProducto } from './DescripcionProducto'
 import { HistorialStock } from './HistorialStock'
+import { HistorialDocumentos } from './HistorialDocumentos'
+import { useHistorialDocumentos } from '../hooks/useHistorialDocumentos'
+import type { DocumentoHistorial } from '../services/historialDocumentos'
 import { HojaCatalogo } from './HojaCatalogo'
 import { ImagenProducto } from './ImagenProducto'
 import { ListaAtributos } from './ListaAtributos'
@@ -86,12 +89,14 @@ export function ModalProducto({
    * render en cascada y el historial del producto viejo llega a pintarse.
    */
   const [verHistorial, setVerHistorial] = useState(false)
+  const [verDocs, setVerDocs] = useState(false)
   const [productoPrevio, setProductoPrevio] = useState(productoId)
   if (productoPrevio !== productoId) {
     setProductoPrevio(productoId)
     setVerHistorial(false)
   }
   const movimientos = useMovimientos(data?.id ?? null, verHistorial)
+  const historialDocs = useHistorialDocumentos(data?.id ?? null, verDocs)
 
   // El scroll sí va en un efecto: toca el DOM, no el estado.
   useEffect(() => {
@@ -147,6 +152,10 @@ export function ModalProducto({
               cargandoMovimientos={movimientos.isFetching}
               verHistorial={verHistorial}
               onVerHistorial={() => setVerHistorial(true)}
+              historialDocs={historialDocs.data}
+              cargandoDocs={historialDocs.isFetching}
+              verDocs={verDocs}
+              onVerDocs={() => setVerDocs(true)}
               onAbrirOtro={onAbrirOtro}
             />
           )}
@@ -182,6 +191,10 @@ interface ContenidoProps {
   cargandoMovimientos: boolean
   verHistorial: boolean
   onVerHistorial: () => void
+  historialDocs: readonly DocumentoHistorial[] | undefined
+  cargandoDocs: boolean
+  verDocs: boolean
+  onVerDocs: () => void
   onAbrirOtro: (id: string) => void
 }
 
@@ -197,6 +210,10 @@ function Contenido({
   cargandoMovimientos,
   verHistorial,
   onVerHistorial,
+  historialDocs,
+  cargandoDocs,
+  verDocs,
+  onVerDocs,
   onAbrirOtro,
 }: ContenidoProps) {
   const hoja = hojaDeCatalogo(producto.atributos, producto.imagenes)
@@ -340,6 +357,21 @@ function Contenido({
             abierto={verHistorial}
             cargando={cargandoMovimientos}
             onAbrir={onVerHistorial}
+          />
+        </section>
+      ) : null}
+
+      {/* ── 6b · historial comercial ────────────────────────────────────── */}
+      {esInterno ? (
+        <section className={styles.seccion} aria-labelledby="mp-historial-docs">
+          <h3 className={styles.tituloSeccion} id="mp-historial-docs">
+            Historial comercial
+          </h3>
+          <HistorialDocumentos
+            documentos={historialDocs ?? []}
+            abierto={verDocs}
+            cargando={cargandoDocs}
+            onAbrir={onVerDocs}
           />
         </section>
       ) : null}

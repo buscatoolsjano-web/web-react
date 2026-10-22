@@ -17,6 +17,8 @@ import { DisponibilidadBadge, PrecioCelda, StockCelda } from '../components/Celd
 import { ComparadorProductos } from '../components/ComparadorProductos'
 import { DescripcionProducto } from '../components/DescripcionProducto'
 import { HistorialStock } from '../components/HistorialStock'
+import { HistorialDocumentos } from '../components/HistorialDocumentos'
+import { useHistorialDocumentos } from '../hooks/useHistorialDocumentos'
 import { HojaCatalogo } from '../components/HojaCatalogo'
 import { ListaAtributos } from '../components/ListaAtributos'
 import { ProductGallery } from '../components/ProductGallery'
@@ -69,6 +71,8 @@ export function ProductoDetallePage() {
   // para que una cueste una consulta más que la otra.
   const [verHistorial, setVerHistorial] = useState(false)
   const movimientos = useMovimientos(producto?.id ?? null, verHistorial)
+  const [verDocs, setVerDocs] = useState(false)
+  const historialDocs = useHistorialDocumentos(producto?.id ?? null, verDocs)
 
   /* Desde cuándo rige el precio de la tarifa (Fase 51). */
   const fechaDelPrecio = formatearFechaDePrecio(producto?.precioDesde ?? null)
@@ -347,6 +351,17 @@ export function ProductoDetallePage() {
             abierto={verHistorial}
             cargando={movimientos.isFetching}
             onAbrir={() => setVerHistorial(true)}
+          />
+        </DocSection>
+      ) : null}
+
+      {esInterno ? (
+        <DocSection title="Historial comercial">
+          <HistorialDocumentos
+            documentos={historialDocs.data ?? []}
+            abierto={verDocs}
+            cargando={historialDocs.isFetching}
+            onAbrir={() => setVerDocs(true)}
           />
         </DocSection>
       ) : null}
