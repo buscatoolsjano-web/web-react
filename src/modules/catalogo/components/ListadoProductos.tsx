@@ -227,6 +227,7 @@ export function ListadoProductos({
       etiquetas(facetasDeFiltro?.atributos.find((a) => a.key === key)?.opciones)
 
     return [
+      { key: 'sku', header: 'Referencia', tipo: 'texto', valores: textos((p) => p.sku) },
       { key: 'modelo', header: 'Modelo', tipo: 'texto', valores: textos((p) => p.modelo) },
       { key: 'marca', header: 'Marca', tipo: 'texto', valores: textos((p) => p.marca?.nombre), opcionesDeFiltro: etiquetas(facetasDeFiltro?.marcas) },
       { key: 'categoria', header: 'Categoría', tipo: 'texto', valores: textos((p) => p.categoria?.nombre), opcionesDeFiltro: etiquetas(facetasDeFiltro?.categorias) },
@@ -413,7 +414,7 @@ export function ListadoProductos({
             <th scope="col" className={styles.colImagen}>
               <span className="sr-only">Imagen</span>
             </th>
-            <Encabezado campo="sku" orden={orden} className={styles.colReferencia}>Referencia</Encabezado>
+            <Encabezado campo="sku" orden={orden} className={styles.colReferencia} style={anchos?.estilo('sku')} extra={anchos?.tirador('sku', 'Referencia')}>Referencia</Encabezado>
             {/*
               El NOMBRE no es una columna (Fase 38).
 

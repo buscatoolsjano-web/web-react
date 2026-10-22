@@ -505,9 +505,13 @@
   font-size: var(--text-xs);
 }
 
+/* Padding vertical normal, horizontal apretado: en «Puntas y tubos» son hasta
+   trece columnas, y cada píxel de relleno lateral que se saca es ancho que
+   vuelve a Modelo, Marca y los atributos, que son los que se leen. Son ~8 px
+   por columna, ~100 px en total, sin tocar el alto de la fila. */
 .tabla.tabla :global(td),
 .tabla.tabla :global(th) {
-  padding: var(--space-2);
+  padding: var(--space-2) var(--space-1);
 }
 
 

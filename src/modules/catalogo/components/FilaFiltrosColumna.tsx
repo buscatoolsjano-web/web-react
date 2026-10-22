@@ -61,8 +61,7 @@ export function FilaFiltrosColumna({
       <td />
 
       {/* REFERENCIA · el mismo `q` que el buscador de arriba, que ya busca por
-          referencia, nombre y modelo. Dos cajas para el mismo filtro serían
-          dos sitios donde mirar para entender por qué falta una fila. */}
+          referencia, nombre y modelo. */}
       <td className={styles.celda}>
         <input
           type="search"
@@ -74,8 +73,20 @@ export function FilaFiltrosColumna({
         />
       </td>
 
-      {/* MODELO · lo cubre la caja de al lado. */}
-      <td />
+      {/* MODELO · misma búsqueda `q`, que ya prioriza las coincidencias de
+          modelo (Fase 107). Es la MISMA caja que Referencia —comparten `texto`—
+          puesta también acá porque se pide escribir y buscar desde la columna
+          Modelo. */}
+      <td className={styles.celda}>
+        <input
+          type="search"
+          className={styles.control}
+          aria-label="Buscar por modelo"
+          placeholder="Modelo…"
+          value={texto}
+          onChange={(e) => onTexto(e.target.value)}
+        />
+      </td>
 
       <td className={styles.celda}>
         <SelectorFaceta
