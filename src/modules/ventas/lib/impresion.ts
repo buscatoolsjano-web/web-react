@@ -100,7 +100,7 @@ export const TITULO_DE: Record<TipoDocumento, string> = {
  * país— y la única empresa en EUR es la de Granada.
  */
 export function tituloDocumento(tipo: TipoDocumento, moneda: string | null): string {
-  if (tipo === 'entrega' && moneda === 'EUR') return 'ALBARÁN'
+  if (tipo === 'entrega' && moneda === 'EUR') return 'ALBARÁN DE VENTA'
   return TITULO_DE[tipo]
 }
 

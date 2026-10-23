@@ -176,6 +176,36 @@ export const NAVEGACION: GrupoNav[] = [
   },
 ]
 
+/**
+ * Términos de venta propios de cada empresa (Fase 114).
+ *
+ * España (Torquetools) llama «Presupuestos» a las cotizaciones y «Albaranes de
+ * venta» a las notas de entrega. La RUTA no cambia —es la misma pantalla—, sólo
+ * la etiqueta del menú. Por slug y no por moneda porque el menú no tiene la
+ * moneda a mano y el slug es estable; el título del documento sí se decide por
+ * la moneda (ver `tituloDocumento`).
+ */
+const TERMINOS_POR_SLUG: Record<string, Record<string, string>> = {
+  torquetools: {
+    '/ventas/cotizaciones': 'Presupuestos',
+    '/ventas/entregas': 'Albaranes de venta',
+  },
+}
+
+/** Reemplaza las etiquetas del menú por las que usa la empresa activa. */
+export function aplicarTerminologia(grupos: GrupoNav[], companySlug: string | undefined): GrupoNav[] {
+  const overrides = TERMINOS_POR_SLUG[companySlug ?? '']
+  if (!overrides) return grupos
+  return grupos.map((g) => ({
+    ...g,
+    entradas: g.entradas.map((e) =>
+      e.hijos
+        ? { ...e, hijos: e.hijos.map((h) => (overrides[h.to] ? { ...h, label: overrides[h.to]! } : h)) }
+        : e,
+    ),
+  }))
+}
+
 const permitido = (d: Destino, rol: string) => !d.roles || d.roles.includes(rol)
 
 /**

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { destinosPara, entradaActiva, navegacionPara, NAVEGACION } from './navegacion'
+import { aplicarTerminologia, destinosPara, entradaActiva, navegacionPara, NAVEGACION } from './navegacion'
 import { ROLES_EMAILS } from '@/modules/emails/lib/permisos'
 import { ROLES_INFORMES } from '@/modules/informes/lib/permisos'
 import { ROLES_CONFIGURACION } from '@/modules/configuracion/lib/permisos'
@@ -89,6 +89,21 @@ describe('navegación agrupada', () => {
       const w = navegacionPara(rol).flatMap((g) => g.entradas).find((e) => e.id === 'whatsapp')
       expect(w).toBeUndefined()
     }
+  })
+
+  it('Torquetools (España) renombra el menú: Presupuestos y Albaranes de venta', () => {
+    const labelDe = (grupos: ReturnType<typeof navegacionPara>, to: string) =>
+      grupos.flatMap((g) => g.entradas).flatMap((e) => e.hijos ?? []).find((h) => h.to === to)?.label
+
+    const es = aplicarTerminologia(navegacionPara('admin'), 'torquetools')
+    expect(labelDe(es, '/ventas/cotizaciones')).toBe('Presupuestos')
+    expect(labelDe(es, '/ventas/entregas')).toBe('Albaranes de venta')
+    expect(labelDe(es, '/ventas/pedidos')).toBe('Pedidos')
+
+    // Buscatools (Argentina) no se toca.
+    const ar = aplicarTerminologia(navegacionPara('admin'), 'buscatools')
+    expect(labelDe(ar, '/ventas/cotizaciones')).toBe('Cotizaciones')
+    expect(labelDe(ar, '/ventas/entregas')).toBe('Notas de entrega')
   })
 
   it('entrada activa por prefijo de ruta (Inicio sólo exacto)', () => {

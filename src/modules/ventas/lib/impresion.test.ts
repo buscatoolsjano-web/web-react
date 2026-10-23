@@ -86,8 +86,8 @@ const opts = (p: Partial<OpcionesImpresion> = {}): OpcionesImpresion => ({
 })
 
 describe('tituloDocumento', () => {
-  it('en España (EUR) la nota de entrega es un ALBARÁN', () => {
-    expect(tituloDocumento('entrega', 'EUR')).toBe('ALBARÁN')
+  it('en España (EUR) la nota de entrega es un ALBARÁN DE VENTA', () => {
+    expect(tituloDocumento('entrega', 'EUR')).toBe('ALBARÁN DE VENTA')
   })
   it('en Argentina (ARS/otra moneda) sigue siendo NOTA DE ENTREGA', () => {
     expect(tituloDocumento('entrega', 'ARS')).toBe('NOTA DE ENTREGA')
@@ -97,9 +97,9 @@ describe('tituloDocumento', () => {
     expect(tituloDocumento('cotizacion', 'EUR')).toBe('COTIZACIÓN DE VENTA')
     expect(tituloDocumento('pedido', 'EUR')).toBe('PEDIDO DE VENTA')
   })
-  it('el imprimible de una entrega en EUR sale como ALBARÁN', () => {
+  it('el imprimible de una entrega en EUR sale como ALBARÁN DE VENTA', () => {
     const imp = construirImprimible(doc({ tipo: 'entrega', moneda: 'EUR' }), opts())
-    expect(imp.titulo).toBe('ALBARÁN')
+    expect(imp.titulo).toBe('ALBARÁN DE VENTA')
   })
 })
 
