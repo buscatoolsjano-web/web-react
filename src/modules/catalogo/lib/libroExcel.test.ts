@@ -40,7 +40,8 @@ async function leer(blob: Blob): Promise<ExcelJS.Workbook> {
   await wb.xlsx.load(await blob.arrayBuffer())
   return wb
 }
-const encabezadosDe = (ws: ExcelJS.Worksheet) => (ws.getRow(1).values as unknown[]).slice(1).map((v) => String(v ?? ''))
+const encabezadosDe = (ws: ExcelJS.Worksheet) =>
+  (ws.getRow(1).values as unknown[]).slice(1).map((v) => (typeof v === 'string' ? v : ''))
 
 describe('construirLibroExcel (Fase 126)', () => {
   it('hace una hoja por categoría, con el ID interno primero y los atributos propios de cada una', async () => {
