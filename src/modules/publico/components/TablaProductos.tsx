@@ -1,10 +1,11 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { Icon } from '@/components/icons/Icon'
 import tabla from '@/components/tables/Tabla.module.css'
 import type { ColumnaAtributo } from '../lib/columnas'
 import { valorDeAtributo } from '../lib/columnas'
 import type { FacetasPublicas, ProductoPublicoResumen } from '../services/catalogoPublico'
-import { urlDeFoto } from '../services/catalogoPublico'
+import { producto as pedirProducto, urlDeFoto } from '../services/catalogoPublico'
 import { rutaProductoPublico } from '../lib/rutas'
 import type { CarritoEnUso } from '../hooks/useCarritoPublico'
 import styles from './TablaProductos.module.css'
@@ -96,6 +97,9 @@ export function TablaProductos({
   carrito,
   mostrarCategoria,
 }: TablaProductosProps) {
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+
   const sel = (clave: string, opciones: readonly Opcion[]) => (
     <Selector
       clave={clave}
@@ -104,6 +108,16 @@ export function TablaProductos({
       onCambiar={onFiltrar}
     />
   )
+
+  // Al pasar el mouse por una fila se baja la ficha en segundo plano: cuando se
+  // hace clic, el producto ya está en caché y abre al instante. Misma clave que
+  // ProductoPublicoPage, o no ahorraría nada.
+  const precargar = (slug: string) =>
+    void qc.prefetchQuery({
+      queryKey: ['catalogo-publico', 'producto', slug],
+      queryFn: () => pedirProducto(slug),
+      staleTime: 30 * 60_000,
+    })
 
   // La cantidad va en la etiqueta y no es adorno: «TECNA (285)» al lado de
   // «GEDORE (2)» dice por dónde empezar, y garantiza que ninguna opción
@@ -206,10 +220,20 @@ export function TablaProductos({
               nombre: p.nombre,
               imagen: foto,
             }
+            const ruta = rutaProductoPublico(p.categoriaSlug, p.slug)
             return (
-              <tr key={p.slug}>
+              // Toda la fila entra al producto (Fase 127), no sólo la Referencia.
+              // La Referencia sigue siendo un <Link> real para que el buscador la
+              // siga y para abrir en pestaña nueva; la celda de «Consulta» frena
+              // la propagación para que el «− n +» no navegue.
+              <tr
+                key={p.slug}
+                className={styles.filaClickeable}
+                onClick={() => void navigate(ruta)}
+                onMouseEnter={() => precargar(p.slug)}
+              >
                 <td className={styles.colImagen}>
-                  <Link to={rutaProductoPublico(p.categoriaSlug, p.slug)} className={styles.foto}>
+                  <Link to={ruta} className={styles.foto} tabIndex={-1} aria-hidden="true">
                     {foto ? (
                       <img src={foto} alt="" loading="lazy" decoding="async" width={44} height={44} />
                     ) : (
@@ -220,10 +244,9 @@ export function TablaProductos({
                   </Link>
                 </td>
 
-                {/* La referencia es el enlace de la fila: es lo primero que se
-                    lee y lo que se copia para pedir. */}
+                {/* La referencia, el enlace real de la fila (crawlable). */}
                 <td className={styles.colReferencia}>
-                  <Link to={rutaProductoPublico(p.categoriaSlug, p.slug)} className={styles.sku}>
+                  <Link to={ruta} className={styles.sku}>
                     {p.sku}
                   </Link>
                 </td>
@@ -241,8 +264,13 @@ export function TablaProductos({
                 ))}
 
                 {/* El «− n +» de siempre, pero lo que arma es una consulta y
-                    no un pedido: no hay precio publicado. */}
-                <td className={styles.colCarrito}>
+                    no un pedido: no hay precio publicado. Frena la propagación
+                    para que tocar los botones no entre al producto. */}
+                <td
+                  className={styles.colCarrito}
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseEnter={(e) => e.stopPropagation()}
+                >
                   <div className={styles.cantidad}>
                     <button
                       type="button"

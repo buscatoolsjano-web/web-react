@@ -1,4 +1,4 @@
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Spinner } from '@/components/ui/Spinner'
 import { Icon } from '@/components/icons/Icon'
@@ -46,6 +46,7 @@ export function ProductoPublicoPage() {
   }>()
 
   const carrito = useCarritoPublico()
+  const navigate = useNavigate()
 
   const q = useQuery({
     queryKey: ['catalogo-publico', 'producto', slug],
@@ -128,6 +129,11 @@ export function ProductoPublicoPage() {
 
   return (
     <article className={styles.pagina}>
+      {/* Volver a la lista de donde se vino, con sus filtros intactos. */}
+      <button type="button" className={styles.volver} onClick={() => void navigate(-1)}>
+        <Icon name="chevron-left" size={16} aria-hidden="true" />
+        Volver
+      </button>
       <nav className={styles.migaja} aria-label="Dónde estás">
         <Link to={rutaCatalogo()}>Catálogo</Link>
         <span aria-hidden="true"> › </span>

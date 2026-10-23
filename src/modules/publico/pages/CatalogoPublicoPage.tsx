@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Spinner } from '@/components/ui/Spinner'
+import { Icon } from '@/components/icons/Icon'
 import { GuiaFiltros } from '../components/GuiaFiltros'
 import { TablaProductos } from '../components/TablaProductos'
 import { columnasDeAtributo } from '../lib/columnas'
@@ -91,33 +92,46 @@ export function CatalogoPublicoPage() {
     staleTime: 5 * 60_000,
   })
 
+  const qc = useQueryClient()
+
+  // 100 por página: la primera tanda es grande y se ve casi todo el catálogo de
+  // un saque, sin paginar tanto. Las siguientes se precargan en segundo plano
+  // (más abajo), así «Siguiente» abre al instante.
+  const POR_PAGINA = 100
+  const argsDe = (p: number) => ({
+    categoria: categoria ?? null,
+    marca: marca === '' ? null : marca,
+    serie: serie === '' ? null : serie,
+    tipo: tipo === '' ? null : tipo,
+    modelo: modelo === '' ? null : modelo,
+    texto: texto === '' ? null : texto,
+    atributos,
+    pagina: p,
+    porPagina: POR_PAGINA,
+  })
+  const claveDe = (p: number) =>
+    ['catalogo-publico', 'listar', categoria ?? null, marca, serie, tipo, modelo, texto, atributos, p] as const
+
   const q = useQuery({
-    queryKey: [
-      'catalogo-publico',
-      'listar',
-      categoria ?? null,
-      marca,
-      serie,
-      tipo,
-      modelo,
-      texto,
-      atributos,
-      pagina,
-    ],
-    queryFn: () =>
-      listar({
-        categoria: categoria ?? null,
-        marca: marca === '' ? null : marca,
-        serie: serie === '' ? null : serie,
-        tipo: tipo === '' ? null : tipo,
-        modelo: modelo === '' ? null : modelo,
-        texto: texto === '' ? null : texto,
-        atributos,
-        pagina,
-        porPagina: 50,
-      }),
+    queryKey: claveDe(pagina),
+    queryFn: () => listar(argsDe(pagina)),
     staleTime: 5 * 60_000,
   })
+
+  // «Que mientras en segundo plano se vayan cargando los otros»: apenas llega la
+  // página actual, se precargan las dos siguientes sin bloquear nada. Al tocar
+  // «Siguiente» ya están servidas.
+  useEffect(() => {
+    const total = q.data?.total
+    if (total === undefined) return
+    const ultimaPagina = Math.max(1, Math.ceil(total / POR_PAGINA))
+    for (const p of [pagina + 1, pagina + 2]) {
+      if (p > ultimaPagina) continue
+      void qc.prefetchQuery({ queryKey: claveDe(p), queryFn: () => listar(argsDe(p)), staleTime: 5 * 60_000 })
+    }
+    // claveDe/argsDe se recrean en cada render; las piezas reales son los filtros.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q.data?.total, pagina, categoria, marca, serie, tipo, modelo, texto, atributos])
 
   const nombre = laCategoria?.nombre ?? 'Herramientas industriales'
   const cuantos = q.data?.total ?? laCategoria?.productos ?? 0
@@ -192,11 +206,19 @@ export function CatalogoPublicoPage() {
       */}
       <header className={styles.encabezado}>
         {categoria ? (
-          <nav className={styles.migaja} aria-label="Dónde estás">
-            <Link to={rutaCatalogo()}>Catálogo</Link>
-            <span aria-hidden="true"> › </span>
-            <span>{nombre}</span>
-          </nav>
+          <div className={styles.navCategoria}>
+            {/* Volver para sacar el filtro de categoría: `navigate(-1)` deshace
+                el último paso y conserva lo que había antes. */}
+            <button type="button" className={styles.volver} onClick={() => void navigate(-1)}>
+              <Icon name="chevron-left" size={16} aria-hidden="true" />
+              Volver
+            </button>
+            <nav className={styles.migaja} aria-label="Dónde estás">
+              <Link to={rutaCatalogo()}>Catálogo</Link>
+              <span aria-hidden="true"> › </span>
+              <span>{nombre}</span>
+            </nav>
+          </div>
         ) : null}
 
         <div className={styles.fila}>

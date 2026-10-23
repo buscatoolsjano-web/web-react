@@ -17,6 +17,14 @@
   font-size: var(--text-sm);
 }
 
+/* Toda la fila entra al producto: cursor de mano y resaltado al pasar. */
+.filaClickeable {
+  cursor: pointer;
+}
+.filaClickeable:hover {
+  background: var(--color-surface-alt);
+}
+
 .tabla.tabla :global(th),
 .tabla.tabla :global(td) {
   padding: var(--space-2) var(--space-3);

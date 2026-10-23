@@ -223,7 +223,11 @@ export function GuiaFiltros({
   const respondidos = pasos.filter((p) => p.elegido !== '')
   if (pasos.length === 0) return null
 
-  const visibles = activo ? (expandido ? activo.opciones : activo.opciones.slice(0, TOPE_VISIBLE)) : []
+  // Las CATEGORÍAS se muestran TODAS, sin «+N más»: son pocas y son la entrada
+  // al catálogo. Los atributos (medida, largo…) sí se colapsan, que ahí la lista
+  // puede ser un muro.
+  const sinLimite = activo?.clave === 'categoria'
+  const visibles = activo ? (expandido || sinLimite ? activo.opciones : activo.opciones.slice(0, TOPE_VISIBLE)) : []
   const ocultas = activo ? activo.opciones.length - visibles.length : 0
 
   const etiquetaChip = (p: Paso): string => {
