@@ -206,12 +206,19 @@ function esElegible(destino: DestinoColumna): boolean {
   return destino.tipo !== 'match' && destino.tipo !== 'match-id' && destino.tipo !== 'ignorada'
 }
 
-/** Arma las filas con sus valores por clave, listas para aplicar. */
-export function parsearCatalogo(
-  texto: string,
+/**
+ * Arma el `CatalogoParseado` a partir de encabezados + filas ya separados.
+ *
+ * Separado de `parsearCatalogo` para que el import de Excel lo reuse: el CSV y
+ * el XLSX difieren sólo en cómo se llega a `{encabezados, filas}`; de ahí para
+ * adelante —detectar columnas, matchear por id o SKU, armar los valores— es lo
+ * mismo.
+ */
+export function parsearFilas(
+  encabezados: readonly string[],
+  filas: readonly (readonly string[])[],
   definiciones: readonly DefinicionAtributo[],
 ): CatalogoParseado {
-  const { encabezados, filas } = parsearCsv(texto)
   const { columnas, desconocidas, sinReferencia } = detectarColumnas(encabezados, definiciones)
   const idxId = encabezados.findIndex((h) => POR_ETIQUETA.get(norm(h)) === CLAVE_ID)
   const idxSku = encabezados.findIndex((h) => POR_ETIQUETA.get(norm(h)) === 'sku')
@@ -228,4 +235,13 @@ export function parsearCatalogo(
   })
 
   return { columnas, filas: out, desconocidas, sinReferencia }
+}
+
+/** Arma las filas de un CSV, listas para aplicar. */
+export function parsearCatalogo(
+  texto: string,
+  definiciones: readonly DefinicionAtributo[],
+): CatalogoParseado {
+  const { encabezados, filas } = parsearCsv(texto)
+  return parsearFilas(encabezados, filas, definiciones)
 }

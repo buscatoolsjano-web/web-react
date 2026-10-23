@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { construirPlanDeConsulta } from '../lib/planDeConsulta'
-import { catalogoACsv, nombreDeArchivo } from '../lib/exportar'
+import { construirLibroExcel, type MetadatosExcel } from '../lib/libroExcel'
 import { consultarTodosLosProductos, contarCatalogoCompleto, TOPE_EXPORTACION } from '../services/productos'
+import {
+  listarAtributosPorCategoria,
+  listarCategorias,
+  listarDefinicionesDeAtributos,
+  listarMarcas,
+} from '../services/facetas'
 import { FILTROS_INICIALES, type FiltrosCatalogo, type ProductoListado } from '../types'
 
 /** Qué conjunto de productos se exporta. */
@@ -50,30 +56,37 @@ export function useExportarCatalogo(
       const control = new AbortController()
       abortador.current = control
       try {
-        // Los seleccionados ya están en memoria: se arma el CSV sin ir a la red.
+        // Los metadatos para el Excel guiado (categorías y marcas para los
+        // desplegables, atributos por categoría para las columnas de cada hoja).
+        // Van en paralelo con lo demás: son cuatro consultas chicas.
+        const metaProm = cargarMetadatos(companyId)
+
+        // Los seleccionados ya están en memoria: no se va a buscar la página.
+        let productos: readonly ProductoListado[]
         if (alcance === 'seleccionados') {
-          const csv = catalogoACsv(seleccionados, elegidas, { esInterno, moneda })
-          descargar(csv, nombreDeArchivo())
-          return true
+          productos = seleccionados
+        } else {
+          const usados = alcance === 'todo' ? FILTROS_INICIALES : filtros
+          const plan = construirPlanDeConsulta(usados, companyId)
+          const r = await consultarTodosLosProductos(plan, listaPrecioId, esInterno, {
+            // Sin `onAvance` son decenas de viajes en silencio para el catálogo
+            // entero; `signal` deja cancelar entre lote y lote.
+            onAvance: (traidos, t) => setAvance({ traidos, total: t }),
+            signal: control.signal,
+          })
+          if (r.truncado) {
+            throw new Error(
+              `Son ${r.total} productos y la exportación entrega hasta ${TOPE_EXPORTACION}. ` +
+                'Filtrá un poco más y volvé a intentar.',
+            )
+          }
+          productos = r.productos
         }
-        const usados = alcance === 'todo' ? FILTROS_INICIALES : filtros
-        const plan = construirPlanDeConsulta(usados, companyId)
-        const { productos, truncado, total } = await consultarTodosLosProductos(
-          plan,
-          listaPrecioId,
-          esInterno,
-          // Sin `onAvance` son decenas de viajes en silencio para el catálogo
-          // entero; `signal` deja cancelar entre lote y lote.
-          { onAvance: (traidos, t) => setAvance({ traidos, total: t }), signal: control.signal },
-        )
-        if (truncado) {
-          throw new Error(
-            `Son ${total} productos y la exportación entrega hasta ${TOPE_EXPORTACION}. ` +
-              'Filtrá un poco más y volvé a intentar.',
-          )
-        }
-        const csv = catalogoACsv(productos, elegidas, { esInterno, moneda })
-        descargar(csv, nombreDeArchivo())
+
+        if (control.signal.aborted) return false
+        const blob = await construirLibroExcel(productos, elegidas, { esInterno, moneda }, await metaProm)
+        if (control.signal.aborted) return false
+        descargarBlob(blob, nombreDeArchivoXlsx())
         return true
       } catch (e) {
         // Cancelar no es un error: se cortó a pedido, no se muestra nada.
@@ -139,8 +152,28 @@ export function useTotalDelCatalogo(companyId: string | null, activo: boolean) {
  */
 export const BOM_EXCEL = String.fromCharCode(0xfeff)
 
-function descargar(csv: string, nombre: string) {
-  const blob = new Blob([`${BOM_EXCEL}${csv}`], { type: 'text/csv;charset=utf-8;' })
+/** `catalogo_buscatools_2026-10-23.xlsx`. */
+function nombreDeArchivoXlsx(hoy = new Date()): string {
+  return `catalogo_buscatools_${hoy.toISOString().slice(0, 10)}.xlsx`
+}
+
+/** Los datos de apoyo para el Excel guiado, las cuatro consultas en paralelo. */
+async function cargarMetadatos(companyId: string): Promise<MetadatosExcel> {
+  const [categorias, marcas, atributosPorCategoria, definiciones] = await Promise.all([
+    listarCategorias(companyId),
+    listarMarcas(companyId),
+    listarAtributosPorCategoria(companyId),
+    listarDefinicionesDeAtributos(companyId),
+  ])
+  return {
+    categorias: categorias.map((c) => ({ id: c.id, nombre: c.nombre })),
+    marcas: marcas.map((m) => m.nombre),
+    atributosPorCategoria,
+    definiciones,
+  }
+}
+
+function descargarBlob(blob: Blob, nombre: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

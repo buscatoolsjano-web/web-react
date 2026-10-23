@@ -5,6 +5,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { Spinner } from '@/components/ui/Spinner'
 import { useModalAccesible } from '@/components/modals/useModalAccesible'
 import { parsearCatalogo, type CatalogoParseado } from '../lib/importarCatalogo'
+import { esArchivoExcel, parsearExcel } from '../lib/importarExcel'
 import { aplicarImportacion, type ResultadoImport } from '../services/importarCatalogo'
 import type { DefinicionAtributo } from '../types'
 import styles from './ModalExportar.module.css'
@@ -44,8 +45,11 @@ export function ModalImportar({
   const alLeerArchivo = async (archivo: File) => {
     setError(null); setResultado(null)
     try {
-      const texto = await archivo.text()
-      const p = parsearCatalogo(texto, definiciones)
+      // Excel o CSV: el `.xlsx` recorre todas las hojas (una por categoría); el
+      // CSV es el de siempre. De ahí para adelante es el mismo camino.
+      const p = esArchivoExcel(archivo)
+        ? await parsearExcel(archivo, definiciones)
+        : parsearCatalogo(await archivo.text(), definiciones)
       setParseado(p)
       setNombreArchivo(archivo.name)
       // Por omisión se aplican TODAS las columnas elegibles; el usuario destilda.
@@ -124,14 +128,15 @@ export function ModalImportar({
           ) : (
             <>
               <p className={imp.intro}>
-                Subí un CSV exportado del catálogo (editado en Excel). Se matchea por <b>Referencia</b> y se
-                actualiza lo que elijas. <b>Nunca crea productos</b> (es para actualizar) ni toca precio o stock.
+                Subí el <b>Excel</b> (o CSV) exportado del catálogo y editado. Se matchea por el <b>ID interno</b>
+                {' '}(o la Referencia, si no está) y se actualiza lo que elijas. <b>Nunca crea productos</b> (es para
+                actualizar) ni toca precio o stock.
               </p>
 
               <input
                 type="file"
-                accept=".csv,text/csv"
-                aria-label="Archivo CSV"
+                accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                aria-label="Archivo Excel o CSV"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) void alLeerArchivo(f) }}
               />
 
