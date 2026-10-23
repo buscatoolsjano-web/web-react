@@ -148,14 +148,15 @@ describe('#49 · Exportar respeta el rol (app.js:16999)', () => {
       esInterno: false,
       moneda: 'USD',
     })
-    expect(csv.split('\r\n')[0]).toBe('Referencia')
+    // El «ID interno» va siempre primero (Fase 125); el cliente no trae stock.
+    expect(csv.split('\r\n')[0]).toBe('ID interno;Referencia')
   })
 })
 
 describe('#49 · El archivo', () => {
   it('separador ; y CRLF, como el resto del ERP', () => {
     const csv = catalogoACsv([P()], new Set(['sku', 'marca']), { esInterno: true, moneda: 'USD' })
-    expect(csv).toBe('Referencia;Marca\r\nSP.R2315HL;SPEEDRILL')
+    expect(csv).toBe('ID interno;Referencia;Marca\r\np1;SP.R2315HL;SPEEDRILL')
   })
 
   it('sin columnas no hay archivo, ni siquiera una cabecera vacía', () => {
@@ -163,7 +164,7 @@ describe('#49 · El archivo', () => {
   })
 
   it('sin filas queda la cabecera: un archivo vacío no miente', () => {
-    expect(catalogoACsv([], new Set(['sku']), { esInterno: true, moneda: 'USD' })).toBe('Referencia')
+    expect(catalogoACsv([], new Set(['sku']), { esInterno: true, moneda: 'USD' })).toBe('ID interno;Referencia')
   })
 
   it('«sin saldo registrado» sale vacío, NO cero (F21 · E3.1)', () => {
@@ -171,7 +172,7 @@ describe('#49 · El archivo', () => {
       esInterno: true,
       moneda: 'USD',
     })
-    expect(csv.split('\r\n')[1]).toBe('SP.R2315HL;')
+    expect(csv.split('\r\n')[1]).toBe('p1;SP.R2315HL;')
   })
 
   it('protege contra fórmulas: un nombre que empieza con «=» no se ejecuta', () => {
@@ -193,7 +194,7 @@ describe('#49 · El archivo', () => {
     const csv = catalogoACsv([P({ nombre: 'Punta; larga' })], new Set(['sku', 'nombre']), {
       esInterno: true, moneda: 'USD',
     })
-    expect(csv.split('\r\n')[1]).toBe('SP.R2315HL;"Punta; larga"')
+    expect(csv.split('\r\n')[1]).toBe('p1;SP.R2315HL;"Punta; larga"')
   })
 
   it('un atributo que quedó como objeto sale vacío, no «[object Object]»', () => {
@@ -201,7 +202,8 @@ describe('#49 · El archivo', () => {
     const csv = catalogoACsv([P({ atributos: { largo: { mal: 1 } } })], new Set(['largo']), {
       esInterno: true, moneda: 'USD',
     })
-    expect(csv.split('\r\n')[1]).toBe('')
+    // Sólo el ID interno; el atributo-objeto sale vacío, no «[object Object]».
+    expect(csv.split('\r\n')[1]).toBe('p1;')
   })
 
   it('por omisión vienen los básicos y el precio, como el legacy', () => {
