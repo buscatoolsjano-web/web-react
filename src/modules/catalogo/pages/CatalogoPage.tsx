@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { FilterBar } from '@/components/filters/FilterBar'
 import { Field } from '@/components/forms/Field'
 import { Input, Select } from '@/components/forms/controls'
 import { Button } from '@/components/ui/Button'
@@ -14,7 +13,6 @@ import { contar } from '@/components/tables/rango'
 import doc from '@/components/document/Document.module.css'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { PanelFacetas } from '../components/PanelFacetas'
 import { GuiaFiltros } from '@/modules/publico/components/GuiaFiltros'
 import { ListadoProductos } from '../components/ListadoProductos'
 import { BarraCarrito } from '../components/BarraCarrito'
@@ -38,7 +36,6 @@ import { MAXIMO_COMPARAR, MINIMO_COMPARAR, useSeleccionComparar } from '../hooks
 import { useProductoSeleccionado } from '../hooks/useProductoSeleccionado'
 import { contarFiltrosActivos } from '../lib/planDeConsulta'
 import { columnasDinamicas } from '../lib/columnasDinamicas'
-import { aparearFacetas } from '../lib/rangoApareado'
 import { debePropagarBusqueda } from '../lib/busquedaDiferida'
 import { puedeCrearProductos } from '../lib/nuevoProducto'
 import { OPCIONES_POR_PAGINA } from '../types'
@@ -117,21 +114,6 @@ export function CatalogoPage() {
   // Las etiquetas y unidades de los atributos: las usan el modal y la ficha
   // al vuelo para no mostrar nunca el jsonb crudo.
   const { data: definiciones = [] } = useDefinicionesDeAtributos(companyId)
-
-  /*
-   * Las facetas con los pares de rango ya fundidos (Fase 57).
-   *
-   * SÓLO PARA LOS FILTROS. En la tabla, «Torque mín.» y «Torque máx.» como dos
-   * columnas está bien: son dos datos del producto. Lo que no servía era
-   * pedirlos como cuatro controles de filtro, que es lo que se aparea acá.
-   */
-  const facetasFiltrables = useMemo(
-    () =>
-      facetas === undefined
-        ? undefined
-        : { ...facetas, atributos: aparearFacetas(facetas.atributos, definiciones) },
-    [facetas, definiciones],
-  )
 
   // Qué producto está abierto vive en la URL, al lado de la búsqueda y los
   // filtros: cerrar no toca nada de lo demás.
@@ -283,45 +265,11 @@ export function CatalogoPage() {
         actions={buscador}
       />
 
-      {/*
-        «Limpiar filtros» NO se le pasa a `FilterBar` (Fase 39).
-
-        La barra lo dibuja al final de todo, y ahí se llevaba una fila entera
-        del rectángulo de filtros para un solo botón alineado a la derecha.
-        Entra en la fila de categorías, que ya existe y tiene lugar de sobra a
-        la derecha de los chips.
-      */}
-      <FilterBar label="Buscar y filtrar productos" className={styles.barra} activeCount={activos}>
-        <PanelFacetas
-          filtros={filtros}
-          facetas={facetasFiltrables}
-          cargando={facetasCargando}
-          onCambiar={actualizar}
-          extra={
-            hayFiltros ? (
-              /*
-                Dice «Limpiar» y no «Limpiar filtros»: comparte fila con los
-                chips de categoría, y ahí cada píxel del rótulo es un píxel que
-                deja de estar disponible para los chips. Medido, el nombre
-                completo se llevaba 138 px de esa fila.
-
-                El `aria-label` sí dice de qué limpia: en un lector de pantalla
-                el botón se anuncia solo, sin los chips al lado que acá le dan
-                el contexto.
-              */
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={limpiarTodo}
-                aria-label="Limpiar filtros"
-                icon={<Icon name="x" size={16} />}
-              >
-                Limpiar
-              </Button>
-            ) : null
-          }
-        />
-      </FilterBar>
+      {/* El panel de filtros de arriba (FilterBar + PanelFacetas) se sacó
+          (Fase 144, pedido del usuario): «que quede sólo el de las fotos». La
+          guía con fotos de abajo es ahora la única entrada de filtro de la
+          cabecera; los filtros finos siguen en las columnas de la tabla, y
+          «Limpiar filtros» pasó a la barra de acciones del listado. */}
 
       {/* La guía con fotos, como en la web (Fase 133): entrada rápida y visual
           que convive con los filtros de columna de la tabla. Escribe el mismo
@@ -395,6 +343,19 @@ export function CatalogoPage() {
             onPageSizeChange={(porPagina) => actualizar({ porPagina, pagina: 1 })}
             acciones={
               <>
+                {/* «Limpiar filtros» vivía en el panel de arriba, que se sacó
+                    (Fase 144); ahora está acá, y sólo cuando hay algo que limpiar. */}
+                {hayFiltros ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={limpiarTodo}
+                    aria-label="Limpiar filtros"
+                    icon={<Icon name="x" size={16} />}
+                  >
+                    Limpiar filtros
+                  </Button>
+                ) : null}
                 <Button
                   variant="secondary"
                   size="sm"

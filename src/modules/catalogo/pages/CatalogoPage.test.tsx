@@ -166,14 +166,15 @@ describe('Catálogo (Fase 13 · E4)', () => {
     expect(llamadas.refetch).toHaveBeenCalled()
   })
 
-  it('mobile: tarjetas enlazadas, búsqueda visible y facetas plegadas detrás de «Filtros»', () => {
+  it('mobile: tarjetas enlazadas y búsqueda visible', () => {
     estado.movil = true
     estado.productos = [producto(1)]
     estado.total = 1
     montar()
     expect(screen.getByRole('link', { name: /ZZ-1/ })).toHaveAttribute('href', '/catalogo/ZZ-1')
     expect(screen.getByRole('searchbox', { name: 'Buscar productos' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Filtros/ })).toHaveAttribute('aria-expanded', 'false')
+    // El panel de filtros de arriba se sacó (Fase 144): ya no hay botón «Filtros».
+    expect(screen.queryByRole('button', { name: /Filtros/ })).toBeNull()
     expect(screen.queryByRole('table')).toBeNull()
   })
 })
