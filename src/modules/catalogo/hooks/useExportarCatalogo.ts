@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { construirPlanDeConsulta } from '../lib/planDeConsulta'
 import { construirLibroExcel, type MetadatosExcel } from '../lib/libroExcel'
-import { consultarTodosLosProductos, contarCatalogoCompleto, TOPE_EXPORTACION } from '../services/productos'
+import { consultarTodosLosProductos, TOPE_EXPORTACION } from '../services/productos'
 import {
   listarAtributosPorCategoria,
   listarCategorias,
@@ -103,41 +103,6 @@ export function useExportarCatalogo(
   )
 
   return { exportar, cancelar, exportando, avance, error }
-}
-
-/**
- * Cuántos productos tiene el catálogo entero, sin filtros.
- *
- * Hace falta para el radio «Todo el catálogo (n)» del modal. El legacy lo sabe
- * gratis —tiene los 21.775 productos en memoria—; acá hay que preguntarlo.
- *
- * Se pregunta **sólo cuando el modal está abierto**: es un número que sólo se
- * usa ahí, y pedirlo en cada carga del catálogo sería una consulta de más en
- * la pantalla más visitada del sistema.
- *
- * Mientras no llegó devuelve `null`, y el modal muestra el radio sin número:
- * un conteo provisorio que después cambia es peor que ninguno.
- */
-export function useTotalDelCatalogo(companyId: string | null, activo: boolean) {
-  const [total, setTotal] = useState<number | null>(null)
-
-  useEffect(() => {
-    if (!activo || !companyId) return
-    let vigente = true
-    void contarCatalogoCompleto(companyId)
-      .then((n) => {
-        if (vigente) setTotal(n)
-      })
-      // Si falla, el radio queda sin número y el resto del modal sirve igual.
-      .catch(() => {
-        if (vigente) setTotal(null)
-      })
-    return () => {
-      vigente = false
-    }
-  }, [companyId, activo])
-
-  return total
 }
 
 /**

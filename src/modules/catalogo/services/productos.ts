@@ -663,25 +663,6 @@ export async function consultarTodosLosProductos(
   return { productos, total, truncado: total > productos.length }
 }
 
-/**
- * Cuántos productos hay en el catálogo, sin ningún filtro.
- *
- * Lo necesita el modal de exportación para el radio «Todo el catálogo (n)».
- * Se pide el mínimo: una fila, sólo por el `total_count` que la RPC devuelve
- * repetido en cada una.
- */
-export async function contarCatalogoCompleto(companyId: string): Promise<number> {
-  const { data, error } = await supabase.rpc('search_products', {
-    p_company: companyId,
-    p_limit: 1,
-    p_offset: 0,
-    p_orden: 'nombre',
-    p_solo_catalogo: true,
-  })
-  if (error) throw new Error(`No se pudo contar el catálogo: ${error.message}`)
-  return Number(data?.[0]?.total_count ?? 0)
-}
-
 /** Un producto como candidato a componente de un kit. */
 export interface CandidatoComponente {
   id: string
