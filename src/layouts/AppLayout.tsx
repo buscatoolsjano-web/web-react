@@ -11,6 +11,7 @@ import { moduloDeRuta } from '@/features/apariencia/opciones'
 import { precargarAlDescansar, precargarRuta } from '@/app/precarga'
 import { usePrecalentarCatalogo } from '@/modules/catalogo/hooks/usePrecalentarCatalogo'
 import { useRealtimeChat } from '@/modules/chat/hooks/useChat'
+import { usePresencia } from '@/modules/chat/hooks/usePresencia'
 import { ROLES_CHAT } from '@/modules/chat/lib/permisos'
 import { Icon } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
@@ -215,6 +216,9 @@ export function AppLayout() {
   // conversación abierta recibe los mensajes sin esperar a mandar uno. Sólo para
   // quien usa el chat, para no abrirle un canal a un cliente externo.
   useRealtimeChat((ROLES_CHAT as readonly string[]).includes(empresa.activa?.rol ?? ''))
+
+  // El latido de presencia, para la «última conexión» del chat (Fase 145).
+  usePresencia(session !== null)
 
   // Identidad por módulo (Fase 14): Ventas verde, Compras azul, Mantenimiento
   // grafito. Va en el <html> para que los diálogos (portal en body) la hereden.

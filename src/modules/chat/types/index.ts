@@ -10,6 +10,8 @@ export interface UsuarioDeChat {
   id: string
   nombre: string
   rol: string
+  /** Cuándo estuvo con el ERP abierto por última vez (Fase 145). */
+  ultimaConexion: string | null
 }
 
 /**

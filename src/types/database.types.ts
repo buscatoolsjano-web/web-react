@@ -10386,6 +10386,10 @@ export type Database = {
           direccion: string
         }[]
       }
+      tocar_presencia: {
+        Args: Record<string, never>
+        Returns: undefined
+      }
       // Sólo service_role puede ejecutarlas: el frontend no las llama nunca.
       // Están acá porque PostgREST las publica y el archivo tiene que describir
       // el esquema real, no el que nos gustaría.
@@ -10521,6 +10525,7 @@ export type Database = {
           nombre: string
           rol: string
           user_id: string
+          ultima_conexion: string | null
         }[]
       }
       validar_token_worker_ia_whatsapp: {

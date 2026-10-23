@@ -63,6 +63,9 @@ vi.mock('./useNoLeidos', () => ({ useNoLeidos: () => ({ emails: 0, whatsapp: 0, 
 vi.mock('@/modules/chat/hooks/useChat', () => ({
   useRealtimeChat: () => ({ canal: 'conectado', reconectar: () => {} }),
 }))
+// El latido de presencia habla con supabase (acá mockeado como {}); no es lo
+// que se prueba en el shell.
+vi.mock('@/modules/chat/hooks/usePresencia', () => ({ usePresencia: () => {} }))
 // La campana y el asistente consultan con react-query y este test monta el
 // layout sin proveedor. Se mockean igual que los contadores del menú: lo que
 // se prueba acá es el shell, no lo que traen.

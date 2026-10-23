@@ -73,7 +73,7 @@ beforeEach(() => {
   estado.rol = 'employee'
   estado.conversaciones = [conversacion()]
   estado.mensajes = [mensaje()]
-  estado.usuarios = [{ id: 'u-norberto', nombre: 'Norberto', rol: 'employee' }]
+  estado.usuarios = [{ id: 'u-norberto', nombre: 'Norberto', rol: 'employee', ultimaConexion: null }]
   vi.clearAllMocks()
 })
 

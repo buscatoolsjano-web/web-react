@@ -117,6 +117,17 @@
   font-weight: var(--weight-semibold);
 }
 
+/* La última conexión, bajo el nombre (Fase 145). Apagada; «en línea» en verde. */
+.presencia {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.presencia[data-en-linea='true'] {
+  color: var(--color-success-text);
+  font-weight: var(--weight-medium);
+}
+
 /* Alto fijo y scroll propio: la página no crece con la conversación, y el
    campo de escribir queda siempre a la vista. */
 .mensajes {

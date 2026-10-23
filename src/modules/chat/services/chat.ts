@@ -17,7 +17,18 @@ function fallo(que: string, error: { message: string }): never {
 export async function usuariosParaChat(companyId: string): Promise<UsuarioDeChat[]> {
   const { data, error } = await supabase.rpc('usuarios_para_chat', { p_company: companyId })
   if (error) fallo('No se pudieron leer los usuarios', error)
-  return (data ?? []).map((u) => ({ id: u.user_id, nombre: u.nombre, rol: u.rol }))
+  return (data ?? []).map((u) => ({
+    id: u.user_id,
+    nombre: u.nombre,
+    rol: u.rol,
+    ultimaConexion: u.ultima_conexion,
+  }))
+}
+
+/** El heartbeat de presencia: marca que estoy, para la «última conexión». */
+export async function tocarPresencia(): Promise<void> {
+  // Silencioso a propósito: si falla, no pasa nada visible; es sólo presencia.
+  await supabase.rpc('tocar_presencia')
 }
 
 export async function listarChats(companyId: string): Promise<Conversacion[]> {

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { PageHeader } from '@/components/layout/PageHeader'
 import doc from '@/components/document/Document.module.css'
 import { Alert } from '@/components/feedback/Alert'
@@ -11,6 +12,8 @@ import { SkeletonRows } from '@/components/ui/Skeleton'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { fechaBandeja } from '@/modules/emails/lib/formato'
 import { puedeUsarChat } from '../lib/permisos'
+import { usuariosParaChat } from '../services/chat'
+import { ultimaConexionTexto, estaEnLinea } from '../lib/presencia'
 import {
   useConversaciones,
   useEnviarMensaje,
@@ -84,9 +87,25 @@ function Chat() {
     )
   const [texto, setTexto] = useState('')
 
+  const companyId = useEmpresa().activa?.companyId ?? null
   const conversaciones = useConversaciones()
   const enviar = useEnviarMensaje()
   const { canal, reconectar } = useRealtimeChat()
+
+  // La «última conexión» de cada persona (Fase 145). Se refresca sola cada par
+  // de minutos, al ritmo del latido de presencia, para que «en línea» se apague
+  // cuando el otro cierra.
+  const usuarios = useQuery({
+    queryKey: ['chat', companyId, 'usuarios'],
+    queryFn: () => usuariosParaChat(companyId!),
+    enabled: companyId !== null,
+    staleTime: 60_000,
+    refetchInterval: 2 * 60_000,
+  })
+  const ultimaConexionDe = useMemo(
+    () => new Map((usuarios.data ?? []).map((u) => [u.id, u.ultimaConexion])),
+    [usuarios.data],
+  )
 
   const lista = conversaciones.data ?? []
   const conversacion = lista.find((c) => (c.conQuienId ?? c.id) === conQuien) ?? null
@@ -187,6 +206,19 @@ function Chat() {
             ) : (
               <>
                 <h2 className={styles.titulo}>{conversacion.conQuien}</h2>
+                {/* La última conexión, como WhatsApp (Fase 145). Si no hay dato
+                    no se muestra el renglón. «En línea» va resaltado. */}
+                {conversacion.conQuienId
+                  ? (() => {
+                      const iso = ultimaConexionDe.get(conversacion.conQuienId) ?? null
+                      const texto = ultimaConexionTexto(iso)
+                      return texto ? (
+                        <p className={styles.presencia} data-en-linea={estaEnLinea(iso) ? 'true' : undefined}>
+                          {texto}
+                        </p>
+                      ) : null
+                    })()
+                  : null}
 
                 <div className={styles.mensajes} ref={fondo} role="log" aria-label="Mensajes">
                   {/* `isLoading` y no `isPending`: con alguien a quien nunca se
