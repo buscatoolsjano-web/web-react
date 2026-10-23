@@ -8,6 +8,7 @@ import { parsearCatalogo, type CatalogoParseado } from '../lib/importarCatalogo'
 import { aplicarImportacion, type ResultadoImport } from '../services/importarCatalogo'
 import type { DefinicionAtributo } from '../types'
 import styles from './ModalExportar.module.css'
+import imp from './ModalImportar.module.css'
 
 /**
  * Importar un CSV para ACTUALIZAR el catálogo (Fase 111).
@@ -65,6 +66,13 @@ export function ModalImportar({
   const elegibles = parseado?.columnas.filter((c) => c.elegible) ?? []
   const ignoradas = parseado?.columnas.filter((c) => c.destino.tipo === 'ignorada') ?? []
   const nElegidas = elegibles.filter((c) => elegidas.has(c.clave)).length
+  // La Referencia (la llave) va primera, después las columnas que se pueden
+  // aplicar. Las ignoradas no se muestran en la previsualización.
+  const columnasMostradas = parseado
+    ? parseado.columnas.filter((c) => c.destino.tipo === 'match' || c.elegible)
+    : []
+  // El valor de la PRIMERA fila del archivo, como ejemplo de qué es cada columna.
+  const ejemplo = parseado?.filas[0]?.valores ?? {}
 
   const aplicar = async () => {
     if (!parseado) return
@@ -114,9 +122,9 @@ export function ModalImportar({
             </div>
           ) : (
             <>
-              <p style={{ margin: '0 0 var(--space-3)', color: 'var(--color-text-soft)' }}>
+              <p className={imp.intro}>
                 Subí un CSV exportado del catálogo (editado en Excel). Se matchea por <b>Referencia</b> y se
-                actualiza lo que elijas. No crea productos ni toca precio o stock.
+                actualiza lo que elijas. <b>Nunca crea productos</b> (es para actualizar) ni toca precio o stock.
               </p>
 
               <input
@@ -129,38 +137,71 @@ export function ModalImportar({
               {error ? <div style={{ marginTop: 'var(--space-3)' }}><Alert tone="danger">{error}</Alert></div> : null}
 
               {parseado ? (
-                <div style={{ marginTop: 'var(--space-3)', display: 'grid', gap: 'var(--space-2)' }}>
-                  {parseado.sinReferencia ? (
+                parseado.sinReferencia ? (
+                  <div style={{ marginTop: 'var(--space-3)' }}>
                     <Alert tone="danger">El archivo no tiene columna «Referencia». Sin ella no se puede matchear.</Alert>
-                  ) : (
-                    <p style={{ margin: 0, color: 'var(--color-text-soft)' }}>
-                      <b>{nombreArchivo}</b> · {parseado.filas.length} fila(s). Destildá las columnas que no quieras aplicar:
+                  </div>
+                ) : (
+                  <div>
+                    <p className={imp.resumen}>
+                      <b>{nombreArchivo}</b> · {parseado.filas.length} fila(s). Mirá el ejemplo de la primera fila y
+                      destildá las columnas que no quieras aplicar:
                     </p>
-                  )}
 
-                  <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '4px' }}>
-                    {elegibles.map((c) => (
-                      <li key={c.clave}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input type="checkbox" checked={elegidas.has(c.clave)} onChange={() => alternar(c.clave)} />
-                          {c.etiqueta}
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
+                    {/* Previsualización: las columnas una al lado de otra, con el
+                        valor de la primera fila debajo, como una planilla. */}
+                    <div className={imp.scroll}>
+                      <table className={imp.tabla}>
+                        <thead>
+                          <tr>
+                            {columnasMostradas.map((c) => {
+                              const esLlave = c.destino.tipo === 'match'
+                              const aplicada = esLlave || elegidas.has(c.clave)
+                              return (
+                                <th key={c.clave} className={aplicada ? imp.th : `${imp.th} ${imp.thApagada}`}>
+                                  {esLlave ? (
+                                    <span className={imp.etiqueta}>
+                                      {c.etiqueta} <span className={imp.llave}>llave</span>
+                                    </span>
+                                  ) : (
+                                    <label className={imp.etiqueta}>
+                                      <input type="checkbox" checked={elegidas.has(c.clave)} onChange={() => alternar(c.clave)} />
+                                      {c.etiqueta}
+                                    </label>
+                                  )}
+                                </th>
+                              )
+                            })}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            {columnasMostradas.map((c) => {
+                              const aplicada = c.destino.tipo === 'match' || elegidas.has(c.clave)
+                              const valor = ejemplo[c.clave]?.trim()
+                              return (
+                                <td key={c.clave} className={aplicada ? imp.td : `${imp.td} ${imp.tdApagada}`} title={valor || ''}>
+                                  {valor || <span style={{ color: 'var(--color-text-muted)' }}>—</span>}
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <span className={imp.rotuloEjemplo}>Ejemplo: primera fila del archivo.</span>
 
-                  {ignoradas.length > 0 ? (
-                    <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-                      No se importan: {ignoradas.map((c) => c.etiqueta).join(', ')}
-                      {' '}(precio: lo administra STEL; stock: por movimientos).
-                    </p>
-                  ) : null}
-                  {parseado.desconocidas.length > 0 ? (
-                    <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-                      Columnas no reconocidas (se ignoran): {parseado.desconocidas.join(', ')}
-                    </p>
-                  ) : null}
-                </div>
+                    {ignoradas.length > 0 ? (
+                      <p className={imp.nota}>
+                        No se importan: {ignoradas.map((c) => c.etiqueta).join(', ')}
+                        {' '}(precio: lo administra STEL; stock: por movimientos).
+                      </p>
+                    ) : null}
+                    {parseado.desconocidas.length > 0 ? (
+                      <p className={imp.nota}>Columnas no reconocidas (se ignoran): {parseado.desconocidas.join(', ')}</p>
+                    ) : null}
+                  </div>
+                )
               ) : null}
             </>
           )}
