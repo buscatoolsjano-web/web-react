@@ -8,12 +8,13 @@
  *
  * ── LO QUE NO HAY ACÁ, Y ES EL PUNTO ────────────────────────────────────────
  *
- * No hay elección de agente: el que llama no manda ningún `agente`, porque la
- * única respuesta posible es la del catálogo. No hay bandeja: no hay tarjetas
- * de producto ni borrador de cotización que mostrar, esto se escucha. No hay
- * streaming: una voz no se puede empezar a decir a medias y corregirla
- * después. Y no hay escritura en la base: las cuatro herramientas son RPC de
- * lectura.
+ * No hay elección de agente: el que llama no manda ningún `agente`; el candado
+ * de `logica.ts` decide qué herramientas corren, no quien llama. No hay bandeja:
+ * no hay tarjetas ni borrador que mostrar, esto se escucha —por eso una
+ * cotización se confirma de oído y no con un clic—. No hay streaming: una voz no
+ * se empieza a decir a medias. Desde la Fase 146 Cata lee el sistema y puede
+ * crear una cotización; lo que escribe lo gatea la misma RLS que la pantalla,
+ * porque corre con el token de quien llama.
  *
  * ── LA VOZ NO PASA POR ACÁ ──────────────────────────────────────────────────
  *
@@ -31,9 +32,9 @@ import { crearEjecutor } from '../asistente/ejecutor.ts'
 import { FalloProveedor, proveedorConfigurado } from '../asistente/proveedor.ts'
 import {
   AGENTE_DE_CATA,
+  candadoDeCata,
   contextoDeLlamada,
   HERRAMIENTAS_DE_CATA,
-  soloCatalogo,
 } from './logica.ts'
 
 const CORS = {
@@ -161,7 +162,7 @@ Deno.serve(async (req: Request) => {
    * único que le falta para esta puerta: que el nombre de la herramienta
    * también esté permitido. Ver el por qué en `logica.ts`.
    */
-  const ejecutar = soloCatalogo(crearEjecutor({ token, companyId, userId }))
+  const ejecutar = candadoDeCata(crearEjecutor({ token, companyId, userId }))
 
   try {
     const r = await responder(

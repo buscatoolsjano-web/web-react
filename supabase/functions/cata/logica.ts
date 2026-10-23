@@ -1,36 +1,35 @@
 /**
- * Cata, la que atiende el teléfono del catálogo (Fase 85). PURO.
+ * Cata, la que atiende el teléfono (Fase 85 · ampliada en Fase 146). PURO.
  *
  * ── QUÉ ES ──────────────────────────────────────────────────────────────────
  *
  * El Asistente Digital de la web se escribe y se lee. Cata se habla y se
- * escucha: entra voz y sale voz. Y sabe UNA cosa, el catálogo, porque es lo
- * primero que se pregunta por teléfono —«¿tenés algo de esto y a cuánto?»— y
- * porque es lo único que no tiene nada de nadie adentro.
+ * escucha: entra voz y sale voz. Arrancó sabiendo UNA cosa, el catálogo, porque
+ * es lo primero que se pregunta por teléfono —«¿tenés algo de esto y a cuánto?»—.
+ * Ahora además lee el resto del sistema —clientes, sus precios y su historial,
+ * documentos, ranking— y puede ARMAR Y CREAR una cotización, porque se pidió que
+ * fuera más útil: «que pueda leer todo y generar cotizaciones».
  *
- * ── POR QUÉ ES UNA FUNCIÓN APARTE Y NO UN MODO DEL ASISTENTE ────────────────
+ * ── CON QUÉ PERMISOS CORRE, Y QUÉ CAMBIÓ ────────────────────────────────────
  *
- * Porque el límite tiene que estar en la PUERTA y no en un parámetro. Si
- * fuera un modo, la lista de herramientas la elegiría quien llama, y alcanzaría
- * un `agente: 'ventas'` desde la consola del navegador para que la misma
- * función que contesta por voz empiece a leer clientes. Acá no hay nada que
- * elegir: esta puerta ejecuta cuatro herramientas y ninguna más.
+ * Con los de QUIEN LLAMA. `index.ts` exige una sesión del ERP y corre el
+ * ejecutor con ese JWT, así que la misma RLS que protege la pantalla protege
+ * esto: Cata no ve ni escribe nada que la persona no pudiera ver o escribir a
+ * mano. Al ganar clientes y escritura, Cata deja de ser la puerta «sin nada de
+ * nadie adentro» que se pensó para abrir afuera algún día: hoy es tan privada
+ * como quien la usa, y exponerla sin sesión queda descartado hasta volver a
+ * acotarla.
  *
- * Y porque es la puerta que algún día puede quedar al alcance de alguien de
- * afuera. Una llamada telefónica no tiene sesión del ERP. Que ya nazca sin
- * poder ver un cliente es lo que hace que ese paso sea posible más adelante.
- *
- * ── DÓNDE ESTÁ EL CANDADO DE VERDAD ─────────────────────────────────────────
+ * ── DÓNDE ESTÁ EL CANDADO ───────────────────────────────────────────────────
  *
  * Arrancar el bucle en el agente `catalogo` NO alcanza. `bucle.ts` ejecuta la
- * herramienta que nombra el modelo sin comprobarla contra la lista del
- * agente: la lista del agente decide qué VE el modelo, no qué puede correr.
- * Un modelo que invente `buscar_clientes` —o un prompt metido en el nombre de
- * un producto que se lo pida— hoy la correría.
- *
- * Así que el candado es `soloCatalogo`, que envuelve al ejecutor y rebota por
- * NOMBRE lo que no esté en la lista blanca. Es la misma idea que `EXPUESTAS`
- * en `erp-api/logica.ts`: la superficie se lee de un archivo y se audita.
+ * herramienta que nombra el modelo sin comprobarla contra la lista del agente.
+ * Así que el candado es `candadoDeCata`, que envuelve al ejecutor y rebota por
+ * NOMBRE lo que no esté en la lista blanca —correos, WhatsApp, cualquier otra
+ * escritura—. Es la misma idea que `EXPUESTAS` en `erp-api/logica.ts`: la
+ * superficie se lee de un archivo y se audita. Crear una cotización SÍ está en
+ * la lista, pero el prompt obliga a leer el borrador en voz y esperar un «sí»
+ * antes de confirmarla: la voz se entiende mal y un documento no se deshace solo.
  */
 import { agente } from '../asistente/agentes.ts'
 
@@ -38,25 +37,38 @@ import { agente } from '../asistente/agentes.ts'
 export const AGENTE_DE_CATA = 'catalogo'
 
 /**
- * Lo único que Cata puede ejecutar.
+ * Lo que Cata puede ejecutar (Fase 146).
  *
- * Es una lista escrita A MANO, no una lectura de las herramientas del agente:
- * si mañana alguien le agrega una herramienta de clientes al agente
- * `catalogo` —que pasa, porque los precios de un cliente «son de catálogo»
- * hasta que uno lo piensa—, Cata no se la gana sola. El test avisa cuando las
- * dos listas se separan y ahí alguien decide, que es justo lo que se quiere.
+ * Lista escrita A MANO, no una lectura de las herramientas del agente: una
+ * herramienta nueva de la casa no entra sola. Lo que hay:
  *
- * `ultimo_costo` es del agente de Compras y está acá a pedido: «que sepa
- * cuánto hay de cada costo». No cuenta como salirse del catálogo —es un dato
- * del producto, no de un cliente— pero sí es información interna, y el prompt
- * se lo dice.
+ *  · el catálogo entero (buscar, ficha, resumen, stock, último costo);
+ *  · el resto del sistema, de LECTURA: clientes, su historial y sus precios,
+ *    documentos (cotizaciones y pedidos existentes) y el ranking comercial;
+ *  · la cotización, de ESCRITURA: `preparar_cotizacion` arma y valida sin
+ *    crear, y `crear_cotizacion` la crea. El prompt obliga a leer el borrador en
+ *    voz y confirmar antes de crear.
+ *
+ * Lo que NO está, a propósito: correos y WhatsApp (otra cosa, y sensible por
+ * voz) y crear compras (no existe la herramienta, y una compra es más delicada).
  */
 export const HERRAMIENTAS_DE_CATA: readonly string[] = [
+  // Catálogo
   'buscar_productos',
   'ficha_producto',
   'resumen_catalogo',
   'stock_actual',
   'ultimo_costo',
+  // Lectura del sistema
+  'buscar_cliente',
+  'historial_del_cliente',
+  'precios_del_cliente',
+  'buscar_documentos',
+  'ver_documento',
+  'ranking_comercial',
+  // Cotización (escritura, con confirmación hablada)
+  'preparar_cotizacion',
+  'crear_cotizacion',
 ]
 
 /** Si Cata puede correr esa herramienta. Por nombre exacto. */
@@ -73,7 +85,17 @@ export function esDeCata(nombre: string): boolean {
  * herramienta que aparezca acá sin que nadie la haya puesto es el error que
  * se quiere que salte.
  */
-export const DE_MAS: readonly string[] = ['ultimo_costo']
+export const DE_MAS: readonly string[] = [
+  'ultimo_costo',
+  'buscar_cliente',
+  'historial_del_cliente',
+  'precios_del_cliente',
+  'buscar_documentos',
+  'ver_documento',
+  'ranking_comercial',
+  'preparar_cotizacion',
+  'crear_cotizacion',
+]
 
 /**
  * Las herramientas del agente `catalogo`, para que el test las compare.
@@ -93,15 +115,16 @@ export function herramientasDelAgente(): readonly string[] {
  * lo dice. Lanzar le cortaría la llamada a quien está del otro lado del
  * teléfono por una decisión del modelo, que no es su culpa.
  */
-export function soloCatalogo(
+export function candadoDeCata(
   ejecutar: (nombre: string, argumentos: Record<string, unknown>) => Promise<string>,
 ): (nombre: string, argumentos: Record<string, unknown>) => Promise<string> {
-  return async function ejecutarSoloCatalogo(nombre, argumentos) {
+  return async function ejecutarConCandado(nombre, argumentos) {
     if (!esDeCata(nombre)) {
       return JSON.stringify({
         problema:
-          `Por teléfono sólo se puede consultar el catálogo: «${nombre}» no está disponible acá. ` +
-          'Decile que para eso tiene que usar el Asistente Digital de la web.',
+          `Por teléfono no se puede hacer «${nombre}»: Cata consulta el catálogo y el sistema ` +
+          'y arma cotizaciones, pero correos, WhatsApp y las compras van por el Asistente ' +
+          'Digital de la web. Decíselo así.',
       })
     }
     return await ejecutar(nombre, argumentos)
@@ -125,8 +148,16 @@ export function soloCatalogo(
 export const PROMPT_HABLADO = `ESTO ES UNA LLAMADA: TE ESCUCHAN, NO TE LEEN
 
 QUIÉN SOS
-Te llamás Cata y atendés el teléfono del catálogo de BuscaTools, una importadora argentina de herramientas industriales. Conocés el catálogo mejor que nadie porque lo consultás, no porque te lo acuerdes.
-Si te preguntan por un cliente, una cotización, un pedido, un correo o una cuenta, decí que de eso no sabés y que para eso está el Asistente Digital de la web. No te disculpes: es tu especialidad, no una limitación.
+Te llamás Cata y atendés el teléfono de BuscaTools, una importadora argentina de herramientas industriales. Conocés el catálogo mejor que nadie porque lo consultás, no porque te lo acuerdes.
+Además del catálogo podés consultar el sistema: buscar un cliente y ver su historial y sus precios, buscar una cotización o un pedido ya hecho, y mirar el ranking comercial. Y podés ARMAR UNA COTIZACIÓN (ver abajo cómo).
+De lo que NO sabés: correos, WhatsApp y las compras. Si te piden eso, decí que va por el Asistente Digital de la web, sin disculparte.
+
+COTIZAR POR TELÉFONO: CONFIRMÁ ANTES DE CREAR
+Crear una cotización deja un documento de verdad, y lo que escuchás puede venir mal. Así que es en dos pasos, siempre:
+- Primero ARMÁ el borrador (no lo crees todavía): resolvé el cliente, los productos y las cantidades.
+- Después LEELO corto y preguntá: «cotización para Mirgor, diez puntas PH2 a doce dólares, total ciento veinte, ¿la hago?». Creala SÓLO si te dicen que sí.
+- Si algo no cerró —el cliente no aparece, un producto está en cero, falta un precio— no la crees: decí qué falta.
+Nunca crees una cotización sin haberla leído y sin un sí. Ante la duda, no la hagas.
 
 QUÉ ES ESTE CATÁLOGO
 Son más de veinte mil productos de treinta y tres marcas. Lo que más hay, de lejos, son PUNTAS Y TUBOS —embocaduras, puntas, extensiones, adaptadores, rótulas—, y después balanceadores, atornilladores, llaves de impacto, remachadoras y llaves dinamométricas.
