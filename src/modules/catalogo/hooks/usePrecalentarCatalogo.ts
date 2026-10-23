@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { listaPorDefecto } from '../services/facetas'
+import { listaPorDefecto, obtenerFacetas } from '../services/facetas'
 import { construirPlanDeConsulta } from '../lib/planDeConsulta'
 import { consultarProductos } from '../services/productos'
 import { FILTROS_INICIALES } from '../types'
@@ -64,29 +64,50 @@ export function usePrecalentarCatalogo(habilitado: boolean): void {
     const esInterno = activa.esInterno
     const priceListId = lista?.id ?? null
 
-    const pedir = () => {
+    const CINCO_MINUTOS = 5 * 60_000
+
+    /* La primera página de productos y, con ella, los conteos por categoría
+       (las facetas) — así al abrir el catálogo los chips y las 50 filas ya
+       están. Las dos con la MISMA clave que sus hooks, o el precalentado no
+       ahorraría nada. */
+    const pedirPrimero = () => {
       void qc.prefetchQuery({
         queryKey: claveDeLaPrimeraPagina(companyId, priceListId, esInterno),
         queryFn: () =>
-          consultarProductos(
-            construirPlanDeConsulta(FILTROS_INICIALES, companyId),
-            priceListId,
-            esInterno,
-          ),
-        staleTime: 60_000,
+          consultarProductos(construirPlanDeConsulta(FILTROS_INICIALES, companyId), priceListId, esInterno),
+        staleTime: CINCO_MINUTOS,
+      })
+      void qc.prefetchQuery({
+        queryKey: ['catalogo', companyId, 'facetas', { ...FILTROS_INICIALES, pagina: 1, porPagina: 0 }],
+        queryFn: () => obtenerFacetas(construirPlanDeConsulta(FILTROS_INICIALES, companyId)),
+        staleTime: CINCO_MINUTOS,
+      })
+    }
+
+    /* La segunda página, un rato después: completa los «primeros 100» que se
+       pidieron, sin competir con la primera. El resto se baja solo al paginar,
+       ya con la caché caliente. */
+    const pedirSegunda = () => {
+      const pagina2 = { ...FILTROS_INICIALES, pagina: 2 }
+      void qc.prefetchQuery({
+        queryKey: ['catalogo', companyId, 'productos', { ...pagina2, q: '' }, priceListId, esInterno],
+        queryFn: () => consultarProductos(construirPlanDeConsulta(pagina2, companyId), priceListId, esInterno),
+        staleTime: CINCO_MINUTOS,
       })
     }
 
     /*
      * 1,2 s: después de que la pantalla en la que uno está haya pedido lo
      * suyo —el Dashboard tarda ~400 ms en traer sus ocho consultas— y antes
-     * de la precarga de chunks de `AppLayout`, que sale a 1,5 s. Ese orden
-     * es a propósito: esto es UNA consulta cuyo costo es del servidor, y
-     * aquello son 55 archivos que compiten por el hilo principal. Conviene
-     * que la lenta arranque primero.
+     * de la precarga de chunks de `AppLayout`, que sale a 1,5 s. La segunda
+     * página espera a 2,5 s para no pelear con la primera.
      */
-    const id = window.setTimeout(pedir, 1_200)
-    return () => window.clearTimeout(id)
+    const id1 = window.setTimeout(pedirPrimero, 1_200)
+    const id2 = window.setTimeout(pedirSegunda, 2_500)
+    return () => {
+      window.clearTimeout(id1)
+      window.clearTimeout(id2)
+    }
   }, [habilitado, cargando, activa, qc])
 }
 

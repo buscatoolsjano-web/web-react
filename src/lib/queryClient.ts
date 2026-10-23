@@ -20,7 +20,14 @@ export function crearQueryClient(): QueryClient {
     defaultOptions: {
       queries: {
         staleTime: 30_000,
-        gcTime: 5 * 60_000,
+        /*
+         * La caché vive 30 minutos aunque nadie la mire (antes 5). Así volver a
+         * una pantalla que ya se abrió —el catálogo es el caso— la muestra al
+         * instante en vez de volver a bajar todo: TanStack Query sirve lo que
+         * tiene guardado y, si está viejo, lo refresca en segundo plano sin
+         * pantalla en blanco. Cuesta algo de memoria; para un ERP es barato.
+         */
+        gcTime: 30 * 60_000,
         retry: 1,
         refetchOnWindowFocus: false,
       },

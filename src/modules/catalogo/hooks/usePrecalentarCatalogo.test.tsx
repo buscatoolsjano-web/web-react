@@ -86,25 +86,28 @@ describe('usePrecalentarCatalogo', () => {
 
   /*
    * LA PRUEBA DE QUE SIRVE: después de precalentar, montar el catálogo no
-   * dispara una consulta nueva. Si la clave estuviera mal, acá habría dos.
+   * dispara una consulta nueva. Si la clave estuviera mal, acá habría una de
+   * más. El precalentado trae la primera página Y la segunda (los «primeros
+   * 100»), así que se espera a la segunda —la más tardía— antes de contar, y se
+   * compara el antes y el después de abrir el catálogo: abrir no agrega nada.
    */
   it('después de precalentar, abrir el catálogo no vuelve a consultar', async () => {
     const qc = nuevoCliente()
     estado.consultas = 0
+    const clavePagina2 = ['catalogo', 'c1', 'productos', { ...FILTROS_INICIALES, pagina: 2, q: '' }, 'lista-base', true]
 
     renderHook(() => usePrecalentarCatalogo(true), { wrapper: envoltorio(qc) })
-    await waitFor(() =>
-      expect(qc.getQueryData(claveDeLaPrimeraPagina('c1', 'lista-base', true))).toBeDefined(),
-    )
-    expect(estado.consultas).toBe(1)
+    await waitFor(() => expect(qc.getQueryData(clavePagina2)).toBeDefined(), { timeout: 4000 })
+    const trasPrecalentar = estado.consultas
 
     renderHook(() => useProductos(FILTROS_INICIALES, 'lista-base', true), {
       wrapper: envoltorio(qc),
     })
-    await waitFor(() => expect(qc.getQueryCache().getAll().length).toBe(1))
+    await new Promise((r) => setTimeout(r, 50))
 
-    // La misma: el catálogo encontró la página servida.
-    expect(estado.consultas).toBe(1)
+    // El catálogo encontró la primera página servida: no consultó de nuevo.
+    expect(estado.consultas).toBe(trasPrecalentar)
+    expect(qc.getQueryData(claveDeLaPrimeraPagina('c1', 'lista-base', true))).toBeDefined()
   })
 
   it('apagado no consulta nada', async () => {

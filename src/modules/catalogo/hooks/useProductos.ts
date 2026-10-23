@@ -80,7 +80,11 @@ export function useProductos(
       const empresaPrevia = consultaPrevia?.queryKey[1]
       return empresaPrevia === companyId ? previa : undefined
     },
-    staleTime: 30_000,
+    // 5 minutos (antes 30 s): el catálogo cambia poco dentro de una sesión, así
+    // que volver a él sirve lo guardado al instante y recién después de 5 min
+    // refresca en segundo plano. Una edición invalida la clave igual, así que
+    // un cambio propio se ve sin esperar a que venza.
+    staleTime: 5 * 60_000,
   })
 }
 

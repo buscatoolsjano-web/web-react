@@ -119,6 +119,8 @@ export function useFacetas(companyId: string | null, filtros: FiltrosCatalogo) {
       const empresaPrevia = consultaPrevia?.queryKey[1]
       return empresaPrevia === companyId ? previa : undefined
     },
-    staleTime: 30_000,
+    // Los conteos por categoría cambian poco; 5 min (antes 30 s) para que los
+    // chips se vean al instante al volver y no se recalculen en cada visita.
+    staleTime: CINCO_MINUTOS,
   })
 }
