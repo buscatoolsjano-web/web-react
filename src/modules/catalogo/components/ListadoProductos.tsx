@@ -98,11 +98,13 @@ export interface ColumnaAccion {
   className?: string | undefined
 }
 
-/** Elegir 2 a 4 productos para compararlos, como el checkbox del legacy. */
+/** Marcar productos para comparar (2 a 4) o exportar (los que sean). */
 export interface SeleccionComparar {
   elegidos: ReadonlySet<string>
   alternar: (producto: ProductoListado) => void
-  /** Ya hay 4: los no elegidos se deshabilitan, como en el legacy. */
+  /** Marca/desmarca todos los de la página visible de un saque (tilde del encabezado). */
+  alternarTodos: (productos: readonly ProductoListado[]) => void
+  /** Se llegó al tope de selección: los no elegidos se deshabilitan. */
   lleno: boolean
 }
 
@@ -408,7 +410,23 @@ export function ListadoProductos({
           <tr>
             {seleccion ? (
               <th scope="col" className={styles.colElegir}>
-                <span className="sr-only">Comparar</span>
+                {/* Tilde para marcar TODOS los de esta página de un saque.
+                    `indeterminate` cuando hay algunos pero no todos. */}
+                <input
+                  type="checkbox"
+                  className={styles.elegir}
+                  checked={productos.length > 0 && productos.every((p) => seleccion.elegidos.has(p.id))}
+                  ref={(el) => {
+                    if (el) {
+                      const algunos = productos.some((p) => seleccion.elegidos.has(p.id))
+                      const todos = productos.length > 0 && productos.every((p) => seleccion.elegidos.has(p.id))
+                      el.indeterminate = algunos && !todos
+                    }
+                  }}
+                  onChange={() => seleccion.alternarTodos(productos)}
+                  aria-label="Seleccionar todos los de esta página"
+                  data-seleccionar-todos
+                />
               </th>
             ) : null}
             <th scope="col" className={styles.colImagen}>
@@ -543,7 +561,7 @@ export function ListadoProductos({
                     checked={seleccion.elegidos.has(p.id)}
                     disabled={seleccion.lleno && !seleccion.elegidos.has(p.id)}
                     onChange={() => seleccion.alternar(p)}
-                    aria-label={`Comparar ${p.sku}`}
+                    aria-label={`Seleccionar ${p.sku}`}
                     data-comparar={p.sku}
                   />
                 </td>

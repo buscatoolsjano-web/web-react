@@ -29,7 +29,7 @@ import {
 import { useDisponibilidad, useProductos } from '../hooks/useProductos'
 import { columnaYdireccion, proximoOrden, useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
 import { useExportarCatalogo, useTotalDelCatalogo } from '../hooks/useExportarCatalogo'
-import { MINIMO_COMPARAR, useSeleccionComparar } from '../hooks/useSeleccionComparar'
+import { MAXIMO_COMPARAR, MINIMO_COMPARAR, useSeleccionComparar } from '../hooks/useSeleccionComparar'
 import { useProductoSeleccionado } from '../hooks/useProductoSeleccionado'
 import { contarFiltrosActivos } from '../lib/planDeConsulta'
 import { columnasDinamicas } from '../lib/columnasDinamicas'
@@ -333,8 +333,14 @@ export function CatalogoPage() {
             onPageSizeChange={(porPagina) => actualizar({ porPagina, pagina: 1 })}
             acciones={
               <>
-                <Button variant="secondary" size="sm" onClick={() => setExportando(true)} disabled={total === 0}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setExportando(true)}
+                  disabled={total === 0 && seleccion.elegidos.length === 0}
+                >
                   <Icon name="download" size={16} /> Exportar
+                  {seleccion.elegidos.length > 0 ? ` (${seleccion.elegidos.length})` : ''}
                 </Button>
                 {esAdmin ? (
                   <Button variant="secondary" size="sm" onClick={() => setImportando(true)}>
@@ -354,7 +360,9 @@ export function CatalogoPage() {
                   title={
                     seleccion.puedeComparar
                       ? undefined
-                      : `Tildá al menos ${MINIMO_COMPARAR} productos para compararlos`
+                      : seleccion.demasiadosParaComparar
+                        ? `Comparás hasta ${MAXIMO_COMPARAR} a la vez: destildá algunos (o exportá los que marcaste)`
+                        : `Tildá al menos ${MINIMO_COMPARAR} productos para compararlos`
                   }
                 >
                   Comparar{seleccion.elegidos.length > 0 ? ` (${seleccion.elegidos.length})` : ''}
@@ -382,6 +390,7 @@ export function CatalogoPage() {
             seleccion={{
               elegidos: seleccion.ids,
               alternar: seleccion.alternar,
+              alternarTodos: seleccion.alternarTodos,
               lleno: seleccion.lleno,
             }}
             columnasDinamicas={dinamicas}
@@ -466,16 +475,22 @@ export function CatalogoPage() {
           esInterno={esInterno}
           totalFiltrado={total}
           totalCatalogo={totalDelCatalogo}
+          seleccionados={seleccion.elegidos}
           hayFiltros={hayFiltros}
           exportando={exportacion.exportando}
           avance={exportacion.avance}
           error={exportacion.error}
           onExportar={(elegidas, alcance) => {
-            void exportacion.exportar(filtros, elegidas, alcance).then((ok) => {
+            void exportacion.exportar(filtros, elegidas, alcance, seleccion.elegidos).then((ok) => {
               if (ok) setExportando(false)
             })
           }}
-          onCerrar={() => setExportando(false)}
+          // Cerrar cancela la exportación en curso: si se arrepiente a mitad de
+          // camino, el viaje se corta y no se baja nada.
+          onCerrar={() => {
+            exportacion.cancelar()
+            setExportando(false)
+          }}
         />
       ) : null}
 

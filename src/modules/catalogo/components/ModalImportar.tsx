@@ -68,8 +68,9 @@ export function ModalImportar({
   const nElegidas = elegibles.filter((c) => elegidas.has(c.clave)).length
   // La Referencia (la llave) va primera, después las columnas que se pueden
   // aplicar. Las ignoradas no se muestran en la previsualización.
+  const esLlaveDestino = (tipo: string) => tipo === 'match' || tipo === 'match-id'
   const columnasMostradas = parseado
-    ? parseado.columnas.filter((c) => c.destino.tipo === 'match' || c.elegible)
+    ? parseado.columnas.filter((c) => esLlaveDestino(c.destino.tipo) || c.elegible)
     : []
   // El valor de la PRIMERA fila del archivo, como ejemplo de qué es cada columna.
   const ejemplo = parseado?.filas[0]?.valores ?? {}
@@ -139,7 +140,7 @@ export function ModalImportar({
               {parseado ? (
                 parseado.sinReferencia ? (
                   <div style={{ marginTop: 'var(--space-3)' }}>
-                    <Alert tone="danger">El archivo no tiene columna «Referencia». Sin ella no se puede matchear.</Alert>
+                    <Alert tone="danger">El archivo no tiene ni «ID interno» ni «Referencia». Sin una de las dos no se puede matchear.</Alert>
                   </div>
                 ) : (
                   <div>
@@ -163,7 +164,7 @@ export function ModalImportar({
                             <tr>
                               <th className={imp.thStub} aria-hidden="true" />
                               {columnasMostradas.map((c) => {
-                                const esLlave = c.destino.tipo === 'match'
+                                const esLlave = esLlaveDestino(c.destino.tipo)
                                 const aplicada = esLlave || elegidas.has(c.clave)
                                 return (
                                   <th key={c.clave} className={aplicada ? imp.th : `${imp.th} ${imp.thApagada}`}>
@@ -186,7 +187,7 @@ export function ModalImportar({
                             <tr className={imp.filaEjemplo}>
                               <td className={imp.tdStub}>Ejemplo</td>
                               {columnasMostradas.map((c) => {
-                                const aplicada = c.destino.tipo === 'match' || elegidas.has(c.clave)
+                                const aplicada = esLlaveDestino(c.destino.tipo) || elegidas.has(c.clave)
                                 const valor = ejemplo[c.clave]?.trim()
                                 return (
                                   <td key={c.clave} className={aplicada ? imp.td : `${imp.td} ${imp.tdApagada}`} title={valor || ''}>

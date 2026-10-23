@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { construirPlanDeConsulta } from '../lib/planDeConsulta'
 import { catalogoACsv, nombreDeArchivo } from '../lib/exportar'
 import { consultarTodosLosProductos, contarCatalogoCompleto, TOPE_EXPORTACION } from '../services/productos'
-import { FILTROS_INICIALES, type FiltrosCatalogo } from '../types'
+import { FILTROS_INICIALES, type FiltrosCatalogo, type ProductoListado } from '../types'
+
+/** Qué conjunto de productos se exporta. */
+export type AlcanceExportacion = 'filtrado' | 'todo' | 'seleccionados'
 
 /**
  * Armar y bajar el CSV del catálogo (Fase 22 · paridad, #49).
@@ -25,23 +28,43 @@ export function useExportarCatalogo(
   const [exportando, setExportando] = useState(false)
   const [avance, setAvance] = useState<{ traidos: number; total: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // El controlador del viaje en curso, para poder cancelarlo (Fase 125).
+  const abortador = useRef<AbortController | null>(null)
+
+  /** Cancela la exportación en curso: el viaje se corta y no se baja nada. */
+  const cancelar = useCallback(() => {
+    abortador.current?.abort()
+  }, [])
 
   const exportar = useCallback(
-    async (filtros: FiltrosCatalogo, elegidas: ReadonlySet<string>, alcance: 'filtrado' | 'todo') => {
+    async (
+      filtros: FiltrosCatalogo,
+      elegidas: ReadonlySet<string>,
+      alcance: AlcanceExportacion,
+      seleccionados: readonly ProductoListado[] = [],
+    ) => {
       if (!companyId) return false
       setExportando(true)
       setAvance(null)
       setError(null)
+      const control = new AbortController()
+      abortador.current = control
       try {
+        // Los seleccionados ya están en memoria: se arma el CSV sin ir a la red.
+        if (alcance === 'seleccionados') {
+          const csv = catalogoACsv(seleccionados, elegidas, { esInterno, moneda })
+          descargar(csv, nombreDeArchivo())
+          return true
+        }
         const usados = alcance === 'todo' ? FILTROS_INICIALES : filtros
         const plan = construirPlanDeConsulta(usados, companyId)
         const { productos, truncado, total } = await consultarTodosLosProductos(
           plan,
           listaPrecioId,
           esInterno,
-          // Sin esto son 36 viajes en silencio para el catálogo entero: medio
-          // minuto sin ninguna señal de que algo está pasando.
-          { onAvance: (traidos, t) => setAvance({ traidos, total: t }) },
+          // Sin `onAvance` son decenas de viajes en silencio para el catálogo
+          // entero; `signal` deja cancelar entre lote y lote.
+          { onAvance: (traidos, t) => setAvance({ traidos, total: t }), signal: control.signal },
         )
         if (truncado) {
           throw new Error(
@@ -53,9 +76,12 @@ export function useExportarCatalogo(
         descargar(csv, nombreDeArchivo())
         return true
       } catch (e) {
+        // Cancelar no es un error: se cortó a pedido, no se muestra nada.
+        if (e instanceof DOMException && e.name === 'AbortError') return false
         setError(e instanceof Error ? e.message : String(e))
         return false
       } finally {
+        abortador.current = null
         setExportando(false)
         setAvance(null)
       }
@@ -63,7 +89,7 @@ export function useExportarCatalogo(
     [companyId, esInterno, listaPrecioId, moneda],
   )
 
-  return { exportar, exportando, avance, error }
+  return { exportar, cancelar, exportando, avance, error }
 }
 
 /**

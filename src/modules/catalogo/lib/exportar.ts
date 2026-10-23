@@ -121,6 +121,18 @@ export const SEPARADOR = ';'
 export const FIN_DE_LINEA = '\r\n'
 
 /**
+ * El ID interno del producto (Fase 125).
+ *
+ * El uuid de `products`. En la pantalla NO se muestra —es ruido para quien mira
+ * el catálogo—, pero en la exportación va SIEMPRE y primero, para que al editar
+ * el archivo se pueda cambiar la Referencia tranquilo y la importación igual
+ * matchee por este id. No es una columna elegible: sacarla rompería el
+ * round-trip, así que no se puede destildar.
+ */
+export const ETIQUETA_ID = 'ID interno'
+export const CLAVE_ID = 'id'
+
+/**
  * El archivo.
  *
  * Mismas convenciones que el resto del ERP: separador `;`, CRLF y UTF-8 con
@@ -135,8 +147,12 @@ export function catalogoACsv(
   const cols = columnasPara(opciones.esInterno).filter((c) => elegidas.has(c.clave))
   if (cols.length === 0) return ''
   const contexto = { moneda: opciones.moneda }
-  const cabecera = cols.map((c) => texto(c.etiqueta)).join(SEPARADOR)
-  const filas = productos.map((p) => cols.map((c) => c.valor(p, contexto)).join(SEPARADOR))
+  // El ID interno va SIEMPRE primero, aunque no esté entre las elegidas: es la
+  // llave para re-importar tras cambiar la Referencia. Ver ETIQUETA_ID.
+  const cabecera = [texto(ETIQUETA_ID), ...cols.map((c) => texto(c.etiqueta))].join(SEPARADOR)
+  const filas = productos.map((p) =>
+    [texto(p.id), ...cols.map((c) => c.valor(p, contexto))].join(SEPARADOR),
+  )
   return [cabecera, ...filas].join(FIN_DE_LINEA)
 }
 

@@ -68,6 +68,25 @@ describe('detectarColumnas', () => {
   })
 })
 
+describe('detectarColumnas · ID interno (Fase 125)', () => {
+  it('con «ID interno», ÉL es la llave y la Referencia pasa a ser un campo editable', () => {
+    const { columnas, sinReferencia } = detectarColumnas(['ID interno', 'Referencia', 'Descripción'], defs)
+    expect(sinReferencia).toBe(false)
+    const id = columnas.find((c) => c.clave === 'id')
+    const sku = columnas.find((c) => c.clave === 'sku')
+    expect(id?.destino).toEqual({ tipo: 'match-id' })
+    expect(id?.elegible).toBe(false)
+    // La Referencia dejó de ser la llave: ahora se puede actualizar el SKU.
+    expect(sku?.destino).toEqual({ tipo: 'campo', campo: 'sku' })
+    expect(sku?.elegible).toBe(true)
+  })
+
+  it('con ID interno y SIN Referencia, igual se puede matchear', () => {
+    const { sinReferencia } = detectarColumnas(['ID interno', 'Marca'], defs)
+    expect(sinReferencia).toBe(false)
+  })
+})
+
 describe('parsearCatalogo', () => {
   it('arma las filas con sus valores por clave y saltea las sin Referencia', () => {
     const csv = 'Referencia;Descripción;Medida\r\nAP.1;Punta corta;13mm\r\n;Sin ref;x\r\nAP.2;Punta larga;10mm'
@@ -77,5 +96,14 @@ describe('parsearCatalogo', () => {
     expect(r.filas[0]).toMatchObject({ numero: 2, sku: 'AP.1', valores: { sku: 'AP.1', nombre: 'Punta corta', medida: '13mm' } })
     // La fila sin referencia (línea 3) se descarta; AP.2 es la línea 4.
     expect(r.filas[1]).toMatchObject({ numero: 4, sku: 'AP.2' })
+  })
+
+  it('captura el ID interno por fila y conserva la que tiene ID aunque le cambien la Referencia', () => {
+    const csv = 'ID interno;Referencia;Descripción\r\nuuid-1;NUEVA-REF;Punta corta\r\nuuid-2;;Sin referencia'
+    const r = parsearCatalogo(csv, defs)
+    expect(r.filas).toHaveLength(2)
+    expect(r.filas[0]).toMatchObject({ id: 'uuid-1', sku: 'NUEVA-REF', valores: { sku: 'NUEVA-REF' } })
+    // Con ID interno, una fila sin Referencia NO se descarta: matchea por id.
+    expect(r.filas[1]).toMatchObject({ id: 'uuid-2', sku: '' })
   })
 })

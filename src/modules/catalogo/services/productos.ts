@@ -637,7 +637,7 @@ export async function consultarTodosLosProductos(
   plan: PlanDeConsulta,
   priceListId: string | null,
   esInterno: boolean,
-  opciones: { tope?: number; onAvance?: AvanceExportacion } = {},
+  opciones: { tope?: number; onAvance?: AvanceExportacion; signal?: AbortSignal } = {},
 ): Promise<{ productos: ProductoListado[]; total: number; truncado: boolean }> {
   const tope = opciones.tope ?? TOPE_EXPORTACION
   const LOTE = 500
@@ -645,6 +645,10 @@ export async function consultarTodosLosProductos(
   let total = 0
 
   for (let desde = 0; desde < tope; desde += LOTE) {
+    // Cancelación (Fase 125): entre lote y lote se mira si se abortó. Exportar
+    // el catálogo entero son decenas de viajes; si la persona cierra el modal,
+    // acá se corta y el archivo no se baja.
+    if (opciones.signal?.aborted) throw new DOMException('Exportación cancelada', 'AbortError')
     const pagina = await consultarProductos(
       { ...plan, desplazamiento: desde, limite: Math.min(LOTE, tope - desde) },
       priceListId,

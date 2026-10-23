@@ -39,18 +39,27 @@ export async function aplicarImportacion(
   const usaMarca = aplicar.some((c) => c.destino.tipo === 'marca')
   const usaCategoria = aplicar.some((c) => c.destino.tipo === 'categoria')
 
-  const skus = [...new Set(parseado.filas.map((f) => f.sku))]
-  // Productos existentes por SKU (paginado: `.in()` con miles de valores revienta la URL).
-  const porSku = new Map<string, { id: string; attributes: Record<string, unknown> }>()
-  for (let i = 0; i < skus.length; i += 300) {
+  // Si el archivo trae ID interno, se matchea por id (y la Referencia se puede
+  // cambiar, porque pasó a ser un campo); si no, por SKU como siempre (Fase 125).
+  const matchPorId = parseado.columnas.some((c) => c.destino.tipo === 'match-id')
+  const columnaLlave = matchPorId ? 'id' : 'sku'
+  const llaveDe = (f: { id: string; sku: string }) => (matchPorId ? f.id : f.sku)
+  const llaves = [...new Set(parseado.filas.map(llaveDe).filter((k) => k !== ''))]
+
+  // Productos existentes por su llave (paginado: `.in()` con miles de valores revienta la URL).
+  const porLlave = new Map<string, { id: string; attributes: Record<string, unknown> }>()
+  for (let i = 0; i < llaves.length; i += 300) {
     const { data, error } = await supabase
       .from('products')
       .select('id, sku, attributes')
       .eq('company_id', companyId)
       .is('deleted_at', null)
-      .in('sku', skus.slice(i, i + 300))
+      .in(columnaLlave, llaves.slice(i, i + 300))
     if (error) throw new Error(`No se pudieron leer los productos: ${error.message}`)
-    for (const p of data ?? []) porSku.set(p.sku, { id: p.id, attributes: (p.attributes as Record<string, unknown>) ?? {} })
+    for (const p of data ?? []) {
+      const llave = matchPorId ? p.id : p.sku
+      porLlave.set(llave, { id: p.id, attributes: (p.attributes as Record<string, unknown>) ?? {} })
+    }
   }
 
   // Mapas nombre → id, sólo si hacen falta.
@@ -72,8 +81,10 @@ export async function aplicarImportacion(
 
   let hechas = 0
   for (const fila of parseado.filas) {
-    const prod = porSku.get(fila.sku)
-    if (!prod) { res.noEncontrados.push(fila.sku); hechas++; onAvance?.(hechas, parseado.filas.length); continue }
+    // Para los mensajes: la Referencia si la hay, si no el ID interno.
+    const idFila = fila.sku || fila.id
+    const prod = porLlave.get(llaveDe(fila))
+    if (!prod) { res.noEncontrados.push(idFila); hechas++; onAvance?.(hechas, parseado.filas.length); continue }
 
     const patch: Record<string, unknown> = {}
     // Campos de texto (vacío = no tocar).
@@ -114,11 +125,11 @@ export async function aplicarImportacion(
       if (cambio) patch['attributes'] = attrs
     }
 
-    if (errorFila) { res.errores.push({ sku: fila.sku, motivo: errorFila }); hechas++; onAvance?.(hechas, parseado.filas.length); continue }
+    if (errorFila) { res.errores.push({ sku: idFila, motivo: errorFila }); hechas++; onAvance?.(hechas, parseado.filas.length); continue }
     if (Object.keys(patch).length === 0) { res.sinCambios++; hechas++; onAvance?.(hechas, parseado.filas.length); continue }
 
     const { error } = await supabase.from('products').update(patch as TablesUpdate<'products'>).eq('id', prod.id)
-    if (error) res.errores.push({ sku: fila.sku, motivo: error.message })
+    if (error) res.errores.push({ sku: idFila, motivo: error.message })
     else res.actualizados++
     hechas++
     onAvance?.(hechas, parseado.filas.length)

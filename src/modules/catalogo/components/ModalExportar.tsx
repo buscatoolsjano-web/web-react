@@ -10,6 +10,8 @@ import {
   ETIQUETA_GRUPO,
   type GrupoColumna,
 } from '../lib/exportar'
+import type { AlcanceExportacion } from '../hooks/useExportarCatalogo'
+import type { ProductoListado } from '../types'
 import styles from './ModalExportar.module.css'
 
 const GRUPOS: GrupoColumna[] = ['base', 'atributos', 'stock']
@@ -33,6 +35,7 @@ export function ModalExportar({
   esInterno,
   totalFiltrado,
   totalCatalogo,
+  seleccionados,
   hayFiltros,
   exportando,
   avance,
@@ -44,12 +47,14 @@ export function ModalExportar({
   totalFiltrado: number
   /** `null` mientras no llegó: se muestra el radio sin número. */
   totalCatalogo: number | null
+  /** Los productos marcados a mano: si hay, se puede exportar sólo esos. */
+  seleccionados: readonly ProductoListado[]
   hayFiltros: boolean
   exportando: boolean
   /** Cuántos lleva traídos, para no dejar medio minuto en blanco. */
   avance: { traidos: number; total: number } | null
   error: string | null
-  onExportar: (elegidas: ReadonlySet<string>, alcance: 'filtrado' | 'todo') => void
+  onExportar: (elegidas: ReadonlySet<string>, alcance: AlcanceExportacion) => void
   onCerrar: () => void
 }) {
   const idTitulo = useId()
@@ -58,7 +63,10 @@ export function ModalExportar({
 
   const disponibles = columnasPara(esInterno)
   const [elegidas, setElegidas] = useState<ReadonlySet<string>>(() => columnasPorDefecto(esInterno))
-  const [alcance, setAlcance] = useState<'filtrado' | 'todo'>('filtrado')
+  const haySeleccion = seleccionados.length > 0
+  // Con productos marcados, exportar los elegidos es lo que se quiere por
+  // defecto; si no, lo que se está viendo.
+  const [alcance, setAlcance] = useState<AlcanceExportacion>(haySeleccion ? 'seleccionados' : 'filtrado')
 
   const alternar = (clave: string) =>
     setElegidas((s) => {
@@ -68,7 +76,12 @@ export function ModalExportar({
       return n
     })
 
-  const cuantos = alcance === 'todo' ? (totalCatalogo ?? 0) : totalFiltrado
+  const cuantos =
+    alcance === 'todo'
+      ? (totalCatalogo ?? 0)
+      : alcance === 'seleccionados'
+        ? seleccionados.length
+        : totalFiltrado
 
   return (
     <div className={styles.fondo}>
@@ -88,9 +101,20 @@ export function ModalExportar({
         </header>
 
         <div className={styles.cuerpo}>
-          {esInterno && hayFiltros ? (
+          {haySeleccion || (esInterno && hayFiltros) ? (
             <fieldset className={styles.alcance}>
               <legend className={styles.leyenda}>Qué exportar</legend>
+              {haySeleccion ? (
+                <label className={styles.radio}>
+                  <input
+                    type="radio"
+                    name="alcance"
+                    checked={alcance === 'seleccionados'}
+                    onChange={() => setAlcance('seleccionados')}
+                  />
+                  Los seleccionados <span className={styles.conteo}>({seleccionados.length})</span>
+                </label>
+              ) : null}
               <label className={styles.radio}>
                 <input
                   type="radio"
@@ -100,17 +124,19 @@ export function ModalExportar({
                 />
                 Lo que estoy viendo <span className={styles.conteo}>({totalFiltrado})</span>
               </label>
-              <label className={styles.radio}>
-                <input
-                  type="radio"
-                  name="alcance"
-                  checked={alcance === 'todo'}
-                  onChange={() => setAlcance('todo')}
-                />
-                Todo el catálogo{
-                  totalCatalogo === null ? null : <span className={styles.conteo}> ({totalCatalogo})</span>
-                }
-              </label>
+              {esInterno ? (
+                <label className={styles.radio}>
+                  <input
+                    type="radio"
+                    name="alcance"
+                    checked={alcance === 'todo'}
+                    onChange={() => setAlcance('todo')}
+                  />
+                  Todo el catálogo{
+                    totalCatalogo === null ? null : <span className={styles.conteo}> ({totalCatalogo})</span>
+                  }
+                </label>
+              ) : null}
             </fieldset>
           ) : null}
 

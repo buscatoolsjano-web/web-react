@@ -1,4 +1,4 @@
-import { COLUMNAS_EXPORTABLES } from './exportar'
+import { COLUMNAS_EXPORTABLES, CLAVE_ID, ETIQUETA_ID } from './exportar'
 import type { DefinicionAtributo } from '../types'
 
 /**
@@ -15,8 +15,13 @@ import type { DefinicionAtributo } from '../types'
  * nombres de marca/categoría a ids y escribir en la base es trabajo del service.
  *
  * Reglas (decididas con el usuario):
- *   · el match es por **Referencia (SKU)**; un SKU que no existe se informa y
- *     NO se crea nada (importar = actualizar, no dar de alta);
+ *   · el match es por **ID interno** si el archivo lo trae (la columna que el
+ *     export pone siempre, Fase 125), y recién si no, por **Referencia (SKU)**.
+ *     Matchear por id deja cambiar la Referencia en la planilla sin perder a qué
+ *     producto corresponde: ahí la Referencia pasa a ser un campo que se
+ *     actualiza como cualquier otro;
+ *   · una llave que no existe se informa y NO se crea nada (importar =
+ *     actualizar, no dar de alta);
  *   · se detectan TODAS las columnas del archivo y el usuario puede destildar
  *     las que no quiera aplicar;
  *   · stock, moneda y «en catálogo» no se importan (son derivados o se manejan
@@ -25,8 +30,9 @@ import type { DefinicionAtributo } from '../types'
 
 /** A dónde va cada columna del archivo. */
 export type DestinoColumna =
-  | { tipo: 'match' } // Referencia: la llave, no se aplica como cambio
-  | { tipo: 'campo'; campo: 'name' | 'series' | 'product_type' }
+  | { tipo: 'match' } // Referencia: la llave (cuando NO hay ID interno)
+  | { tipo: 'match-id' } // ID interno: la llave preferida (Fase 125)
+  | { tipo: 'campo'; campo: 'name' | 'series' | 'product_type' | 'sku' }
   | { tipo: 'marca' } // se resuelve el nombre a brand_id
   | { tipo: 'categoria' } // se resuelve el nombre a category_id
   | { tipo: 'atributo'; key: string }
@@ -48,6 +54,8 @@ export interface ColumnaDetectada {
 export interface FilaImportada {
   /** 1-based, para los mensajes de error («fila 42»). */
   numero: number
+  /** El ID interno (uuid), si el archivo lo trae; `''` si no. Llave preferida. */
+  id: string
   sku: string
   /** Valor por clave de columna, ya sin comillas de CSV. */
   valores: Record<string, string>
@@ -101,8 +109,14 @@ export function parsearCsv(texto: string): { encabezados: string[]; filas: strin
   return { encabezados, filas: noVacias.slice(1) }
 }
 
-/** etiqueta del export (normalizada) → clave interna. */
-const POR_ETIQUETA = new Map(COLUMNAS_EXPORTABLES.map((c) => [norm(c.etiqueta), c.clave]))
+/** etiqueta del export (normalizada) → clave interna. Incluye el ID interno,
+    que no es una columna «exportable» (va aparte) pero sí se reconoce al leer. */
+const POR_ETIQUETA = new Map<string, string>([
+  ...COLUMNAS_EXPORTABLES.map((c) => [norm(c.etiqueta), c.clave] as const),
+  [norm(ETIQUETA_ID), CLAVE_ID],
+  ['id', CLAVE_ID],
+  ['id_interno', CLAVE_ID],
+])
 const CLAVE_EXPORT = new Map(COLUMNAS_EXPORTABLES.map((c) => [c.clave, c]))
 
 function norm(s: string): string {
@@ -112,6 +126,7 @@ function norm(s: string): string {
 /** El destino de una clave interna ya reconocida. */
 function destinoDeClave(clave: string, defsPorKey: Map<string, DefinicionAtributo>): DestinoColumna {
   switch (clave) {
+    case 'id': return { tipo: 'match-id' }
     case 'sku': return { tipo: 'match' }
     case 'nombre': return { tipo: 'campo', campo: 'name' }
     case 'serie': return { tipo: 'campo', campo: 'series' }
@@ -160,16 +175,35 @@ export function detectarColumnas(
     }
     vistas.add(clave)
     const destino = destinoDeClave(clave, defsPorKey)
-    const etiqueta = CLAVE_EXPORT.get(clave)?.etiqueta ?? defsPorKey.get(clave)?.label ?? h
+    const etiqueta =
+      clave === CLAVE_ID ? ETIQUETA_ID : (CLAVE_EXPORT.get(clave)?.etiqueta ?? defsPorKey.get(clave)?.label ?? h)
     columnas.push({
       encabezado: h,
       clave,
       etiqueta,
       destino,
-      elegible: destino.tipo !== 'match' && destino.tipo !== 'ignorada',
+      elegible: esElegible(destino),
     })
   }
-  return { columnas, desconocidas, sinReferencia: !vistas.has('sku') }
+
+  // Si el archivo trae el ID interno, ÉL es la llave: la Referencia deja de ser
+  // la llave y pasa a ser un campo que se puede actualizar (cambiar el SKU del
+  // producto). Así se puede editar la Referencia en la planilla y re-importar.
+  if (vistas.has(CLAVE_ID)) {
+    const colSku = columnas.find((c) => c.clave === 'sku')
+    if (colSku) {
+      colSku.destino = { tipo: 'campo', campo: 'sku' }
+      colSku.elegible = true
+    }
+  }
+
+  // Sin ninguna de las dos llaves no se puede matchear nada.
+  return { columnas, desconocidas, sinReferencia: !vistas.has(CLAVE_ID) && !vistas.has('sku') }
+}
+
+/** Una columna es elegible si se puede aplicar como cambio (no es llave ni se ignora). */
+function esElegible(destino: DestinoColumna): boolean {
+  return destino.tipo !== 'match' && destino.tipo !== 'match-id' && destino.tipo !== 'ignorada'
 }
 
 /** Arma las filas con sus valores por clave, listas para aplicar. */
@@ -179,16 +213,18 @@ export function parsearCatalogo(
 ): CatalogoParseado {
   const { encabezados, filas } = parsearCsv(texto)
   const { columnas, desconocidas, sinReferencia } = detectarColumnas(encabezados, definiciones)
+  const idxId = encabezados.findIndex((h) => POR_ETIQUETA.get(norm(h)) === CLAVE_ID)
   const idxSku = encabezados.findIndex((h) => POR_ETIQUETA.get(norm(h)) === 'sku')
   const idxPorClave = columnas.map((c) => ({ clave: c.clave, idx: encabezados.indexOf(c.encabezado) }))
 
   const out: FilaImportada[] = []
   filas.forEach((f, i) => {
+    const id = idxId >= 0 ? (f[idxId] ?? '').trim() : ''
     const sku = idxSku >= 0 ? (f[idxSku] ?? '').trim() : ''
-    if (sku === '') return // sin referencia no se puede matchear; se saltea
+    if (id === '' && sku === '') return // sin ninguna llave no se puede matchear
     const valores: Record<string, string> = {}
     for (const { clave, idx } of idxPorClave) valores[clave] = (f[idx] ?? '').trim()
-    out.push({ numero: i + 2, sku, valores }) // +2: fila 1 es el encabezado
+    out.push({ numero: i + 2, id, sku, valores }) // +2: fila 1 es el encabezado
   })
 
   return { columnas, filas: out, desconocidas, sinReferencia }
