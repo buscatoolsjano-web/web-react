@@ -11,15 +11,59 @@
 }
 .resumen b { color: var(--color-text); }
 
+/* Este modal muestra una planilla de columnas: necesita más ancho que el de
+   Exportar (que comparten la clase `.modal`). La clase repetida sube la
+   especificidad para ganarle a `.modal` sin depender del orden de carga ni de
+   `!important`. */
+.ancho.ancho {
+  width: min(1080px, 100%);
+}
+
 /* ── Previsualización horizontal de columnas ───────────────────────────────
    Cada columna detectada va una al lado de otra, con su casilla arriba y el
    valor de la PRIMERA fila del archivo debajo, para ver qué se va a importar
-   antes de aplicar. Scroll horizontal si hay muchas. */
-.scroll {
-  overflow-x: auto;
+   antes de aplicar. Scroll horizontal sólo si no entran. */
+.preview {
+  margin-top: var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
+  overflow: hidden;
+}
+
+/* Cabecera de la tarjeta: deja claro que lo de abajo es una muestra. */
+.previewBarra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.previewTitulo {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-soft);
+}
+
+.previewBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary-text);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+}
+
+.scroll {
+  overflow-x: auto;
 }
 
 .tabla {
@@ -33,10 +77,39 @@
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
   border-left: 1px solid var(--color-border);
-  min-width: 140px;
+  min-width: 128px;
   white-space: nowrap;
 }
 .th:first-child { border-left: none; }
+
+/* Columna-rótulo de la izquierda: la celda «Ejemplo» que encabeza la fila. */
+.thStub {
+  width: 1%;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.tdStub {
+  position: sticky;
+  left: 0;
+  width: 1%;
+  padding: var(--space-2) var(--space-3);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* La fila de ejemplo va sobre un fondo distinto para que se lea como muestra,
+   no como un dato editable. */
+.filaEjemplo {
+  background: var(--color-surface-sunken);
+}
 
 /* Una columna destildada se ve apagada: queda claro que no se va a aplicar. */
 .thApagada { opacity: 0.45; }
@@ -74,13 +147,6 @@
 }
 .td:first-child { border-left: none; }
 .tdApagada { opacity: 0.45; }
-
-.rotuloEjemplo {
-  display: block;
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  padding: var(--space-1) var(--space-3) 0;
-}
 
 .nota {
   margin: var(--space-2) 0 0;

@@ -90,7 +90,7 @@ export function ModalImportar({
 
   return (
     <div className={styles.fondo}>
-      <div ref={caja} className={styles.modal} role="dialog" aria-modal="true" aria-labelledby={idTitulo} tabIndex={-1}>
+      <div ref={caja} className={`${styles.modal} ${imp.ancho}`} role="dialog" aria-modal="true" aria-labelledby={idTitulo} tabIndex={-1}>
         <header className={styles.barra}>
           <h2 className={styles.titulo} id={idTitulo}>Importar para actualizar</h2>
           <IconButton icon="x" aria-label="Cerrar" onClick={onCerrar} />
@@ -149,47 +149,56 @@ export function ModalImportar({
                     </p>
 
                     {/* Previsualización: las columnas una al lado de otra, con el
-                        valor de la primera fila debajo, como una planilla. */}
-                    <div className={imp.scroll}>
-                      <table className={imp.tabla}>
-                        <thead>
-                          <tr>
-                            {columnasMostradas.map((c) => {
-                              const esLlave = c.destino.tipo === 'match'
-                              const aplicada = esLlave || elegidas.has(c.clave)
-                              return (
-                                <th key={c.clave} className={aplicada ? imp.th : `${imp.th} ${imp.thApagada}`}>
-                                  {esLlave ? (
-                                    <span className={imp.etiqueta}>
-                                      {c.etiqueta} <span className={imp.llave}>llave</span>
-                                    </span>
-                                  ) : (
-                                    <label className={imp.etiqueta}>
-                                      <input type="checkbox" checked={elegidas.has(c.clave)} onChange={() => alternar(c.clave)} />
-                                      {c.etiqueta}
-                                    </label>
-                                  )}
-                                </th>
-                              )
-                            })}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            {columnasMostradas.map((c) => {
-                              const aplicada = c.destino.tipo === 'match' || elegidas.has(c.clave)
-                              const valor = ejemplo[c.clave]?.trim()
-                              return (
-                                <td key={c.clave} className={aplicada ? imp.td : `${imp.td} ${imp.tdApagada}`} title={valor || ''}>
-                                  {valor || <span style={{ color: 'var(--color-text-muted)' }}>—</span>}
-                                </td>
-                              )
-                            })}
-                          </tr>
-                        </tbody>
-                      </table>
+                        valor de la primera fila debajo, como una planilla. La
+                        fila va rotulada «Ejemplo» y sobre un fondo distinto para
+                        que se lea como muestra, no como un dato editable. */}
+                    <div className={imp.preview}>
+                      <div className={imp.previewBarra}>
+                        <span className={imp.previewTitulo}>Vista previa de columnas</span>
+                        <span className={imp.previewBadge}>Primera fila, a modo de ejemplo</span>
+                      </div>
+                      <div className={imp.scroll}>
+                        <table className={imp.tabla}>
+                          <thead>
+                            <tr>
+                              <th className={imp.thStub} aria-hidden="true" />
+                              {columnasMostradas.map((c) => {
+                                const esLlave = c.destino.tipo === 'match'
+                                const aplicada = esLlave || elegidas.has(c.clave)
+                                return (
+                                  <th key={c.clave} className={aplicada ? imp.th : `${imp.th} ${imp.thApagada}`}>
+                                    {esLlave ? (
+                                      <span className={imp.etiqueta}>
+                                        {c.etiqueta} <span className={imp.llave}>llave</span>
+                                      </span>
+                                    ) : (
+                                      <label className={imp.etiqueta}>
+                                        <input type="checkbox" checked={elegidas.has(c.clave)} onChange={() => alternar(c.clave)} />
+                                        {c.etiqueta}
+                                      </label>
+                                    )}
+                                  </th>
+                                )
+                              })}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className={imp.filaEjemplo}>
+                              <td className={imp.tdStub}>Ejemplo</td>
+                              {columnasMostradas.map((c) => {
+                                const aplicada = c.destino.tipo === 'match' || elegidas.has(c.clave)
+                                const valor = ejemplo[c.clave]?.trim()
+                                return (
+                                  <td key={c.clave} className={aplicada ? imp.td : `${imp.td} ${imp.tdApagada}`} title={valor || ''}>
+                                    {valor || <span style={{ color: 'var(--color-text-muted)' }}>—</span>}
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                    <span className={imp.rotuloEjemplo}>Ejemplo: primera fila del archivo.</span>
 
                     {ignoradas.length > 0 ? (
                       <p className={imp.nota}>
