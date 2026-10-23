@@ -12,7 +12,6 @@ import { useParamsUrl } from '@/modules/emails/hooks/useParamsUrl'
 import { nuevaClave, type OpcionesComposer } from '@/modules/emails/hooks/useComposer'
 import type { AdjuntoRedaccion } from '@/modules/emails/types'
 import { asuntoDeDocumento, cuerpoDeDocumento, destinatariosDeDocumento } from '../lib/mailDocumento'
-import { base64DeBlob, nombreDePdf, pdfDeHoja } from '../lib/pdfDeHoja'
 import type { OpcionesImpresion } from '../lib/impresion'
 import { HojaParaPdf } from './HojaParaPdf'
 import type { DocumentoDetalle, LineaDocumento } from '../types'
@@ -68,6 +67,11 @@ export function ModalEnviarPorMail({ doc, lineas, opciones, onCerrar }: ModalEnv
     (nodo: HTMLElement) => {
       void (async () => {
         try {
+          // `html2canvas` + `jsPDF` pesan ~590 KB: se bajan ACÁ, dinámicamente,
+          // recién cuando hace falta armar el PDF —no al abrir el modal—. Para
+          // cuando corre esto la hoja oculta ya se rindió (HojaParaPdf → onLista),
+          // así que el chunk llega en paralelo con ese render y no se nota.
+          const { pdfDeHoja, nombreDePdf, base64DeBlob } = await import('../lib/pdfDeHoja')
           const blob = await pdfDeHoja(nodo)
           setPdf({
             adjunto: {
