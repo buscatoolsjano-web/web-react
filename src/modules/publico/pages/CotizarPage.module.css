@@ -309,3 +309,35 @@
   background: var(--color-success-soft);
   color: var(--color-success-text);
 }
+
+/* El bloque de contacto urgente: una tarjeta prolija con el teléfono grande y
+   clickeable (llama o abre WhatsApp desde el celular). */
+.contacto {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.contactoRotulo {
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.contactoTel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.contactoTel:hover {
+  color: var(--color-primary-text);
+}

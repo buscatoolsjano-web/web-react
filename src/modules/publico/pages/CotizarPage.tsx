@@ -71,8 +71,18 @@ export function CotizarPage() {
         </span>
         <h1 className={styles.titulo}>{resultado.mensaje}</h1>
         <p className={styles.bajada}>
-          Te escribimos al correo que nos dejaste. Si es urgente, llamanos.
+          Un asesor revisa tu pedido y te responde con precio y disponibilidad, normalmente
+          dentro de las 24&nbsp;horas hábiles, al correo que nos dejaste.
         </p>
+
+        <div className={styles.contacto}>
+          <span className={styles.contactoRotulo}>¿Es urgente? Llamanos o escribinos por WhatsApp</span>
+          <a href="tel:+5491121693304" className={styles.contactoTel}>
+            <Icon name="phone" size={20} aria-hidden="true" />
+            +54&nbsp;9&nbsp;11&nbsp;2169-3304
+          </a>
+        </div>
+
         <Link to={rutaCatalogo()} className={styles.boton}>
           Seguir viendo el catálogo
         </Link>

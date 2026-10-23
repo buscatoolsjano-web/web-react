@@ -57,7 +57,12 @@ vi.mock('@/features/empresa/useEmpresa', () => ({
 // Los contadores de sin leer del menú consultan la base (Fase 27 · E3). Acá
 // se prueba la NAVEGACIÓN, no los contadores: se mockean para no arrastrar el
 // cliente de Supabase ni exigir un QueryClient.
-vi.mock('./useNoLeidos', () => ({ useNoLeidos: () => ({ emails: 0, whatsapp: 0 }) }))
+vi.mock('./useNoLeidos', () => ({ useNoLeidos: () => ({ emails: 0, whatsapp: 0, chat: 0, consultas: 0 }) }))
+// El shell monta el chat en vivo (Fase 130). Acá se prueba la navegación, no el
+// realtime: se stubea para no arrastrar el canal de Supabase.
+vi.mock('@/modules/chat/hooks/useChat', () => ({
+  useRealtimeChat: () => ({ canal: 'conectado', reconectar: () => {} }),
+}))
 // La campana y el asistente consultan con react-query y este test monta el
 // layout sin proveedor. Se mockean igual que los contadores del menú: lo que
 // se prueba acá es el shell, no lo que traen.

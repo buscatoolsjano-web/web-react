@@ -6,6 +6,7 @@ import { Input, Select } from '@/components/forms/controls'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { Icon } from '@/components/icons/Icon'
+import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { Pagination } from '@/components/tables/Pagination'
@@ -17,7 +18,6 @@ import { PanelFacetas } from '../components/PanelFacetas'
 import { ListadoProductos } from '../components/ListadoProductos'
 import { BarraCarrito } from '../components/BarraCarrito'
 import { ModalComparar } from '../components/ModalComparar'
-import { ModalExportar } from '../components/ModalExportar'
 import { ModalImportar } from '../components/ModalImportar'
 import { ModalNuevoProducto } from '../components/ModalNuevoProducto'
 import { ModalProducto } from '../components/ModalProducto'
@@ -28,7 +28,8 @@ import {
 } from '../hooks/useCatalogoFacetas'
 import { useDisponibilidad, useProductos } from '../hooks/useProductos'
 import { columnaYdireccion, proximoOrden, useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
-import { useExportarCatalogo, useTotalDelCatalogo } from '../hooks/useExportarCatalogo'
+import { useExportarCatalogo } from '../hooks/useExportarCatalogo'
+import { columnasPara } from '../lib/exportar'
 import { MAXIMO_COMPARAR, MINIMO_COMPARAR, useSeleccionComparar } from '../hooks/useSeleccionComparar'
 import { useProductoSeleccionado } from '../hooks/useProductoSeleccionado'
 import { contarFiltrosActivos } from '../lib/planDeConsulta'
@@ -147,15 +148,26 @@ export function CatalogoPage() {
   // a validar la RLS de products en cada update).
   const esAdmin = activa?.rol === 'admin'
   const [creando, setCreando] = useState(false)
-  const [exportando, setExportando] = useState(false)
   const [importando, setImportando] = useState(false)
-  const totalDelCatalogo = useTotalDelCatalogo(companyId, exportando)
   const exportacion = useExportarCatalogo(
     companyId,
     esInterno,
     listaEfectiva?.id ?? null,
     listaEfectiva?.moneda ?? null,
   )
+
+  /**
+   * Exportar DIRECTO, sin preguntar (pedido del usuario): se baja el Excel de lo
+   * que se está viendo —o de los marcados, si hay— con TODAS las columnas. Los
+   * atributos los decide cada categoría en su hoja (ver `libroExcel.ts`), así que
+   * no hay nada que elegir: «exporta todo de una, según las categorías».
+   */
+  const exportarDirecto = () => {
+    if (exportacion.exportando) return
+    const todas = new Set(columnasPara(esInterno).map((c) => c.clave))
+    const alcance = seleccion.elegidos.length > 0 ? 'seleccionados' : 'filtrado'
+    void exportacion.exportar(filtros, todas, alcance, seleccion.elegidos)
+  }
 
   // El precio de la página, para el total de referencia de la barra del
   // carrito. Es una estimación: el precio definitivo lo pone la cotización
@@ -336,11 +348,15 @@ export function CatalogoPage() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => setExportando(true)}
-                  disabled={total === 0 && seleccion.elegidos.length === 0}
+                  onClick={exportarDirecto}
+                  disabled={(total === 0 && seleccion.elegidos.length === 0) || exportacion.exportando}
                 >
-                  <Icon name="download" size={16} /> Exportar
-                  {seleccion.elegidos.length > 0 ? ` (${seleccion.elegidos.length})` : ''}
+                  {exportacion.exportando ? <Spinner size={16} /> : <Icon name="download" size={16} />}
+                  {exportacion.exportando
+                    ? exportacion.avance
+                      ? ` Exportando… ${exportacion.avance.traidos}`
+                      : ' Exportando…'
+                    : ` Exportar${seleccion.elegidos.length > 0 ? ` (${seleccion.elegidos.length})` : ''}`}
                 </Button>
                 {esAdmin ? (
                   <Button variant="secondary" size="sm" onClick={() => setImportando(true)}>
@@ -375,6 +391,11 @@ export function CatalogoPage() {
               </>
             }
           />
+          {exportacion.error ? (
+            <div style={{ marginBottom: 'var(--space-3)' }}>
+              <Alert tone="danger" title="No se pudo exportar">{exportacion.error}</Alert>
+            </div>
+          ) : null}
           <ListadoProductos
             productos={productos}
             esInterno={esInterno}
@@ -470,30 +491,6 @@ export function CatalogoPage() {
         />
       ) : null}
 
-      {exportando ? (
-        <ModalExportar
-          esInterno={esInterno}
-          totalFiltrado={total}
-          totalCatalogo={totalDelCatalogo}
-          seleccionados={seleccion.elegidos}
-          hayFiltros={hayFiltros}
-          exportando={exportacion.exportando}
-          avance={exportacion.avance}
-          error={exportacion.error}
-          onExportar={(elegidas, alcance) => {
-            void exportacion.exportar(filtros, elegidas, alcance, seleccion.elegidos).then((ok) => {
-              if (ok) setExportando(false)
-            })
-          }}
-          // Cerrar cancela la exportación en curso: si se arrepiente a mitad de
-          // camino, el viaje se corta y no se baja nada.
-          onCerrar={() => {
-            exportacion.cancelar()
-            setExportando(false)
-          }}
-        />
-      ) : null}
-
       {importando && companyId ? (
         <ModalImportar
           companyId={companyId}
@@ -505,7 +502,7 @@ export function CatalogoPage() {
 
       {/* La barra del carrito va última: es fija y tiene que quedar encima
           del listado, no de los modales. */}
-      {esInterno && !seleccionado && !comparando && !exportando ? (
+      {esInterno && !seleccionado && !comparando ? (
         <BarraCarrito moneda={moneda} precios={preciosVisibles} />
       ) : null}
     </div>

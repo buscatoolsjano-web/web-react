@@ -135,15 +135,25 @@ export function useMarcarLeido(conversacionId: string | null, cuantosMensajes: n
   }, [conversacionId, cuantosMensajes, companyId, qc])
 }
 
-/** El canal en vivo, montado una sola vez por pantalla. */
-export function useRealtimeChat(): { canal: EstadoCanal; reconectar: () => void } {
+/**
+ * El canal en vivo del chat.
+ *
+ * Se monta en DOS lugares: en el shell (`AppLayout`), siempre, para que el
+ * globito de sin leer se actualice al instante desde cualquier pantalla y la
+ * conversación abierta reciba los mensajes sin esperar a mandar uno; y en la
+ * pantalla de Chat, para su indicador de conexión. Las dos suscripciones
+ * invalidan las mismas claves —TanStack Query deduplica el refetch—, así que la
+ * redundancia no cuesta. `habilitado` deja que el shell no abra el canal para
+ * quien no usa el chat (un cliente externo).
+ */
+export function useRealtimeChat(habilitado = true): { canal: EstadoCanal; reconectar: () => void } {
   const companyId = useCompany()
   const qc = useQueryClient()
   const [canal, setCanal] = useState<EstadoCanal>('conectando')
   const [intento, setIntento] = useState(0)
 
   useEffect(() => {
-    if (!companyId) return
+    if (!companyId || !habilitado) return
     return suscribirChat(companyId, {
       canal: setCanal,
       mensaje: (c) => {
@@ -157,7 +167,7 @@ export function useRealtimeChat(): { canal: EstadoCanal; reconectar: () => void 
         }
       },
     })
-  }, [companyId, qc, intento])
+  }, [companyId, qc, intento, habilitado])
 
   return {
     canal,
