@@ -20,6 +20,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     base,
+    // Id único por build: lo usa la caché persistida como `buster`, así un
+    // deploy nuevo descarta la caché guardada en vez de re-hidratarla con una
+    // forma de dato vieja. Ver src/lib/persistCache.ts.
+    define: { __BUILD_ID__: JSON.stringify(String(Date.now())) },
     plugins: [react()],
     resolve: {
       alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },

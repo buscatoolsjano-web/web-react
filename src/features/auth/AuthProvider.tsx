@@ -6,6 +6,7 @@ import { AuthContext, type AuthContextValue } from './authContext'
 import { olvidarEmpresaPreferida } from '@/features/empresa/preferencia'
 import { limpiarContrasenaPendiente } from '@/services/auth/contrasenaPendiente'
 import { olvidarAparienciaLocal } from '@/features/apariencia/opciones'
+import { limpiarCachePersistida } from '@/lib/persistCache'
 
 
 /**
@@ -43,6 +44,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // sólo el botón "Salir".
       if (evento === 'SIGNED_OUT') {
         queryClient.clear()
+        // Y el volcado en IndexedDB: si no, el próximo que entre en esta
+        // máquina re-hidrataría los datos del usuario que se fue.
+        void limpiarCachePersistida()
         olvidarEmpresaPreferida()
         olvidarAparienciaLocal()
         limpiarContrasenaPendiente()
@@ -63,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       salir: async () => {
         await cerrarSesion()
         queryClient.clear()
+        void limpiarCachePersistida()
         // La empresa elegida es del usuario que se va: no tiene por qué
         // sobrevivir al cambio de sesión en este navegador.
         olvidarEmpresaPreferida()
