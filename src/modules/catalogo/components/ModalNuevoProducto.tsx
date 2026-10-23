@@ -31,6 +31,7 @@ import {
   type FormularioNuevoProducto,
 } from '../lib/nuevoProducto'
 import { ComponentesDelKit } from './ComponentesDelKit'
+import { AltaGuiada, type ResultadoAltaGuiada } from './AltaGuiada'
 import { componentesUtiles, filaVacia, type ComponenteElegido } from '../lib/kit'
 import styles from './ModalNuevoProducto.module.css'
 
@@ -80,6 +81,9 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
   const crear = useCrearProducto()
 
   const [f, setF] = useState<FormularioNuevoProducto>(FORMULARIO_VACIO)
+  // El alta arranca GUIADA (Fase 131): categoría → tipo → atributos con fotos.
+  // Al terminar (o saltear) se pasa al formulario de siempre, ya pre-cargado.
+  const [fase, setFase] = useState<'guia' | 'form'>('guia')
   const [mostrarErrores, setMostrarErrores] = useState(false)
   const [kilos, setKilos] = useState('')
   /** La referencia es derivada salvo que alguien decida escribirla. */
@@ -257,6 +261,12 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
     onCerrar()
   }
 
+  /** Lo elegido en la guía se vuelca al formulario y se pasa a él. */
+  const aplicarGuia = (r: ResultadoAltaGuiada) => {
+    setF((x) => ({ ...x, categoriaId: r.categoriaId, tipo: r.tipo, atributos: { ...x.atributos, ...r.atributos } }))
+    setFase('form')
+  }
+
   return (
     <Dialog
       // El componente se monta sólo cuando se abre: así no paga las cuatro
@@ -269,16 +279,33 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
       // Es un formulario con datos escritos: un click al fondo no lo tira.
       closeOnOverlay={false}
       footer={
-        <>
-          <Button variant="secondary" onClick={cerrar} disabled={crear.isPending}>
+        fase === 'guia' ? (
+          <Button variant="secondary" onClick={cerrar}>
             Cancelar
           </Button>
-          <Button icon={<Icon name="check" size={16} />} onClick={guardar} loading={crear.isPending}>
-            {crear.isPending ? 'Creando…' : 'Crear producto'}
-          </Button>
-        </>
+        ) : (
+          <>
+            <Button variant="secondary" onClick={cerrar} disabled={crear.isPending}>
+              Cancelar
+            </Button>
+            <Button icon={<Icon name="check" size={16} />} onClick={guardar} loading={crear.isPending}>
+              {crear.isPending ? 'Creando…' : 'Crear producto'}
+            </Button>
+          </>
+        )
       }
     >
+      {fase === 'guia' ? (
+        <AltaGuiada
+          companyId={companyId}
+          categorias={categorias.data ?? []}
+          definiciones={definiciones.data ?? []}
+          porCategoria={porCategoria.data}
+          onListo={aplicarGuia}
+          onSaltar={() => setFase('form')}
+        />
+      ) : (
+        <>
       {crear.error ? (
         <Alert tone="danger" role="alert" title="No se pudo crear el producto">
           <p>{crear.error.message}</p>
@@ -598,6 +625,8 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
           </dl>
         </details>
       </div>
+        </>
+      )}
     </Dialog>
   )
 }

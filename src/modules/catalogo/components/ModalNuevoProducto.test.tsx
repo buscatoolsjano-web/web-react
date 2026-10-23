@@ -32,6 +32,9 @@ vi.mock('../hooks/useCatalogoFacetas', () => ({
     ],
   }),
   useAtributosPorCategoria: () => ({ data: new Map([['c-punta', new Set(['encastre', 'largo'])]]) }),
+  // El alta arranca en la guía (Fase 131), que pide las facetas de la categoría.
+  // Acá se prueba el formulario, así que alcanza con un stub.
+  useFacetas: () => ({ data: undefined }),
 }))
 vi.mock('../hooks/useCrearProducto', () => ({
   useCrearProducto: () => ({
@@ -59,8 +62,13 @@ beforeEach(() => {
   espias.creado.mockClear()
 })
 
-const montar = () =>
-  render(<ModalNuevoProducto onCerrar={espias.cerrar} onCreado={espias.creado} />)
+const montar = () => {
+  const r = render(<ModalNuevoProducto onCerrar={espias.cerrar} onCreado={espias.creado} />)
+  // El alta abre en la guía con fotos (Fase 131); estos tests prueban el
+  // formulario, así que se saltea la guía.
+  fireEvent.click(screen.getByRole('button', { name: 'Prefiero el formulario' }))
+  return r
+}
 
 const escribir = (etiqueta: RegExp | string, valor: string) =>
   fireEvent.change(screen.getByLabelText(etiqueta), { target: { value: valor } })
