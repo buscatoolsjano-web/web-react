@@ -35,7 +35,13 @@ export function Providers({ children }: { children: ReactNode }) {
         maxAge: VEINTICUATRO_HORAS,
         buster: __BUILD_ID__,
         dehydrateOptions: {
-          shouldDehydrateQuery: (query) => query.state.status === 'success',
+          // El catálogo PÚBLICO no se persiste (Fase 128): vive sólo en memoria
+          // durante la sesión —rápido al navegar— pero se rebaja fresco al
+          // recargar. Si se persistiera, ocultar una categoría desde Visibilidad
+          // no se vería al refrescar la web hasta que venza el staleTime (hasta
+          // 60 min). Lo que es del ERP (clave 'catalogo', 'inicio'…) sí persiste.
+          shouldDehydrateQuery: (query) =>
+            query.state.status === 'success' && query.queryKey[0] !== 'catalogo-publico',
         },
       }}
     >
