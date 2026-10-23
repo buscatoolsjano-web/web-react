@@ -125,7 +125,9 @@ export function GuiaFiltros({
         etiqueta: c.nombre,
         cantidad: c.productos,
         medio: (
-          <Medio foto={fotoDeCategoria(c.slug)} forma={iconoDeForma(c.nombre)} nombre={c.nombre} />
+          // La portada que un admin eligió gana (Fase 142); si no hay, la foto
+          // del JSON generado, y al final la forma dibujada.
+          <Medio foto={c.portadaUrl ?? fotoDeCategoria(c.slug)} forma={iconoDeForma(c.nombre)} nombre={c.nombre} />
         ),
       })),
     })

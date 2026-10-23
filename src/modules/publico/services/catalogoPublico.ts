@@ -20,6 +20,8 @@ export interface CategoriaPublica {
   slug: string
   nombre: string
   productos: number
+  /** La foto de portada: la del producto que un admin eligió (Fase 142). */
+  portadaUrl?: string | null
 }
 
 export interface ProductoPublicoResumen {
@@ -119,6 +121,7 @@ export async function categorias(): Promise<CategoriaPublica[]> {
       slug: cadena(o['slug']),
       nombre: cadena(o['nombre']),
       productos: numero(o['productos']),
+      portadaUrl: opcional(o['portadaUrl']),
     }
   })
 }
