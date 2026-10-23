@@ -45,6 +45,9 @@ export interface Membresia {
   companyLogoPath: string | null
   rol: string
   esInterno: boolean
+  /** `true` si esta empresa tiene catálogo público (hoy sólo Buscatools). Decide
+      si se ve la sección Web, que administra ese sitio. */
+  catalogoPublico: boolean
   /** Sólo para roles externos: el cliente al que representa. */
   customerId: string | null
   /** Las listas de precios visibles de ESTA empresa. Ver el tipo de arriba. */
@@ -76,7 +79,7 @@ export async function listarMembresias(userId: string): Promise<Membresia[]> {
   const { data, error } = await supabase
     .from('company_memberships')
     .select(
-      'company_id, role, customer_id, companies ( name, slug, logo_path, price_lists ( id, name, currency_code, is_default ) )',
+      'company_id, role, customer_id, companies ( name, slug, logo_path, catalogo_publico, price_lists ( id, name, currency_code, is_default ) )',
     )
     .eq('user_id', userId)
     .eq('status', 'active')
@@ -90,6 +93,7 @@ export async function listarMembresias(userId: string): Promise<Membresia[]> {
     companyLogoPath: m.companies?.logo_path ?? null,
     rol: m.role,
     esInterno: esRolInterno(m.role),
+    catalogoPublico: m.companies?.catalogo_publico ?? false,
     customerId: m.customer_id,
     // El orden lo pone el cliente: ordenar DENTRO de un embed anidado dos
     // niveles no es algo que PostgREST exprese bien, y son tres filas.

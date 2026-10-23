@@ -13,7 +13,7 @@ import { usePrecalentarCatalogo } from '@/modules/catalogo/hooks/usePrecalentarC
 import { Icon } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
 import { BarraProgreso } from '@/components/feedback/BarraProgreso'
-import { aplicarTerminologia, navegacionPara } from './navegacion'
+import { aplicarTerminologia, filtrarPorEmpresa, navegacionPara } from './navegacion'
 import { PanelNav } from './PanelNav'
 import { BarraCompacta } from './BarraCompacta'
 import { MenuUsuario } from './MenuUsuario'
@@ -101,7 +101,10 @@ export function AppLayout() {
   const disparador = useRef<HTMLElement | null>(null)
   const panelCajon = useRef<HTMLDivElement>(null)
 
-  const grupos = aplicarTerminologia(navegacionPara(empresa.activa?.rol ?? ''), empresa.activa?.companySlug)
+  const grupos = filtrarPorEmpresa(
+    aplicarTerminologia(navegacionPara(empresa.activa?.rol ?? ''), empresa.activa?.companySlug),
+    empresa.activa?.catalogoPublico ?? false,
+  )
   const conCajon = isMobile || isTablet
 
   // Cerrar el cajón al cruzar de breakpoint o al cambiar de ruta. Se ajusta

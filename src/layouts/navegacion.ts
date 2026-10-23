@@ -56,7 +56,7 @@ export interface EntradaNav {
    * pide. Así la navegación sigue siendo una lista de destinos y no algo que
    * consulta la base.
    */
-  contador?: 'emails' | 'whatsapp' | 'chat'
+  contador?: 'emails' | 'whatsapp' | 'chat' | 'consultas'
 }
 
 export interface GrupoNav {
@@ -181,7 +181,7 @@ export const NAVEGACION: GrupoNav[] = [
     label: 'Web',
     entradas: [
       { id: 'web-metricas', label: 'Métricas', icon: 'bar-chart', destino: { to: '/web', label: 'Métricas', roles: SOLO_INTERNOS, end: true } },
-      { id: 'web-consultas', label: 'Consultas del sitio', icon: 'inbox', destino: { to: '/web/consultas', label: 'Consultas del sitio', roles: SOLO_INTERNOS } },
+      { id: 'web-consultas', label: 'Consultas del sitio', icon: 'inbox', contador: 'consultas', destino: { to: '/web/consultas', label: 'Consultas del sitio', roles: SOLO_INTERNOS } },
       { id: 'web-visibilidad', label: 'Visibilidad', icon: 'package', destino: { to: '/web/visibilidad', label: 'Visibilidad', roles: SOLO_INTERNOS } },
     ],
   },
@@ -201,6 +201,16 @@ const TERMINOS_POR_SLUG: Record<string, Record<string, string>> = {
     '/ventas/cotizaciones': 'Presupuestos',
     '/ventas/entregas': 'Albaranes de venta',
   },
+}
+
+/**
+ * La sección Web administra el sitio PÚBLICO, así que sólo tiene sentido en una
+ * empresa que tiene catálogo público (hoy sólo Buscatools). En las demás se
+ * saca entera.
+ */
+export function filtrarPorEmpresa(grupos: GrupoNav[], catalogoPublico: boolean): GrupoNav[] {
+  if (catalogoPublico) return grupos
+  return grupos.filter((g) => g.id !== 'web')
 }
 
 /** Reemplaza las etiquetas del menú por las que usa la empresa activa. */

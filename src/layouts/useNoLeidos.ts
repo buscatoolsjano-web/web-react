@@ -7,12 +7,15 @@ import { ROLES_CHAT } from '@/modules/chat/lib/permisos'
 import { contarSinLeer } from '@/modules/emails/services/bandeja'
 import { contarNoLeidos } from '@/modules/whatsapp/services/conversaciones'
 import { contarChatsSinLeer } from '@/modules/chat/services/chat'
+import { contarConsultasNuevas } from '@/modules/ventas/services/consultas'
 
 /** Cuántos sin leer hay en cada bandeja. `0` también cuando no llegó todavía. */
 export interface NoLeidos {
   emails: number
   whatsapp: number
   chat: number
+  /** Consultas del sitio público sin atender (sólo empresas con catálogo público). */
+  consultas: number
 }
 
 /** Cada dos minutos. Es un contador, no una bandeja: no hace falta al segundo. */
@@ -67,5 +70,21 @@ export function useNoLeidos(): NoLeidos {
     retry: false,
   })
 
-  return { emails: emails.data ?? 0, whatsapp: whatsapp.data ?? 0, chat: chat.data ?? 0 }
+  // Las consultas del sitio: sólo para los de la casa (las ve el menú Web) y
+  // sólo en una empresa con catálogo público, que es la única que las recibe.
+  const consultas = useQuery({
+    queryKey: ['nav', companyId, 'sin-leer', 'consultas'],
+    queryFn: () => contarConsultasNuevas(companyId!),
+    enabled: companyId !== null && (activa?.esInterno ?? false) && (activa?.catalogoPublico ?? false),
+    refetchInterval: CADA,
+    staleTime: CADA,
+    retry: false,
+  })
+
+  return {
+    emails: emails.data ?? 0,
+    whatsapp: whatsapp.data ?? 0,
+    chat: chat.data ?? 0,
+    consultas: consultas.data ?? 0,
+  }
 }

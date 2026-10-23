@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { aplicarTerminologia, destinosPara, entradaActiva, navegacionPara, NAVEGACION } from './navegacion'
+import { aplicarTerminologia, destinosPara, entradaActiva, filtrarPorEmpresa, navegacionPara, NAVEGACION } from './navegacion'
 import { ROLES_EMAILS } from '@/modules/emails/lib/permisos'
 import { ROLES_INFORMES } from '@/modules/informes/lib/permisos'
 import { ROLES_CONFIGURACION } from '@/modules/configuracion/lib/permisos'
@@ -68,6 +68,18 @@ describe('navegación agrupada', () => {
     // Fase 27 · E3: Comunicación subió a segunda, pegada a Inicio: es lo que
     // se mira al empezar el día y lleva los contadores de sin leer.
     expect(NAVEGACION.map((g) => g.label)).toEqual([null, 'Comunicación', 'Datos', 'Operación', 'Análisis', 'Administración', 'Web'])
+  })
+
+  it('la sección Web sólo aparece con catálogo público (Fase 129)', () => {
+    const con = filtrarPorEmpresa(navegacionPara('admin'), true)
+    const sin = filtrarPorEmpresa(navegacionPara('admin'), false)
+    expect(con.some((g) => g.id === 'web')).toBe(true)
+    expect(sin.some((g) => g.id === 'web')).toBe(false)
+  })
+
+  it('«Consultas del sitio» lleva el contador de consultas', () => {
+    const web = NAVEGACION.find((g) => g.id === 'web')
+    expect(web?.entradas.find((e) => e.id === 'web-consultas')?.contador).toBe('consultas')
   })
 
   it('un vendedor no ve Compras ni Mantenimiento; los grupos sin enlaces desaparecen', () => {

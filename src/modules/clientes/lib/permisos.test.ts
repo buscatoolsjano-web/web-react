@@ -9,7 +9,7 @@ const membresia = (rol: string): Membresia => ({
   companyLogoPath: null,
   rol,
   esInterno: !['customer', 'distributor'].includes(rol),
-  customerId: null, listasDePrecios: []
+  catalogoPublico: false, customerId: null, listasDePrecios: []
 })
 
 describe('permisosDe', () => {

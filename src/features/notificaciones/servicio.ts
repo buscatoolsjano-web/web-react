@@ -153,7 +153,8 @@ async function consultasSinAtender(companyId: string): Promise<Notificacion[]> {
           : 'Dejó una consulta',
       detalle: c.mensaje ?? (c.items.map((i) => i.sku).slice(0, 3).join(', ') || null),
       cuando: c.cuando,
-      destino: '/ventas/consultas',
+      // Se mudó a Web (Fase 115); la ruta vieja igual redirige, pero mejor directo.
+      destino: '/web/consultas',
     }))
   } catch {
     return []

@@ -374,6 +374,7 @@ export type Database = {
         Row: {
           address: string | null
           brand_color: string | null
+          catalogo_publico: boolean
           created_at: string
           default_currency: string
           email: string | null
@@ -391,6 +392,7 @@ export type Database = {
         Insert: {
           address?: string | null
           brand_color?: string | null
+          catalogo_publico?: boolean
           created_at?: string
           default_currency?: string
           email?: string | null
@@ -408,6 +410,7 @@ export type Database = {
         Update: {
           address?: string | null
           brand_color?: string | null
+          catalogo_publico?: boolean
           created_at?: string
           default_currency?: string
           email?: string | null
