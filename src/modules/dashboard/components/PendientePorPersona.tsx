@@ -20,7 +20,9 @@ const TITULO = 'Pendiente del resto'
 /** Cómo se nombra a esta fila en la URL del listado: su id, o «nadie». */
 const quien = (f: PendienteDePersona) => f.userId ?? SIN_VENDEDOR
 
-/** Los tres renglones de una persona, con su enlace a la lista filtrada. */
+/** Los renglones pendientes de una persona, con su enlace a la lista filtrada.
+    Las cotizaciones enviadas NO van (pedido del usuario): quedarían colgadas si
+    el cliente no contesta. */
 function lineasDe(f: PendienteDePersona): Linea[] {
   const q = quien(f)
   return [
@@ -31,14 +33,6 @@ function lineasDe(f: PendienteDePersona): Linea[] {
       singular: 'correo sin responder',
       plural: 'correos sin responder',
       destino: `/emails?sinresponder=1&asignado=${f.userId ?? 'nadie'}`,
-    },
-    {
-      clave: 'cotizaciones',
-      icono: 'cart',
-      n: f.cotizaciones,
-      singular: 'cotización esperando',
-      plural: 'cotizaciones esperando',
-      destino: `/ventas/cotizaciones?estado=sent&vendedor=${q}`,
     },
     {
       clave: 'pedidos',
@@ -107,8 +101,7 @@ export function PendientePorPersona({ filas, cargando, error, onReintentar }: Pe
   if (conTrabajo.length === 0) {
     return marco(
       <p className={styles.vacio}>
-        Nadie más tiene trabajo pendiente: sin correo sin responder, sin cotizaciones esperando y sin
-        pedidos por entregar.
+        Nadie más tiene trabajo pendiente: sin correo sin responder y sin pedidos por entregar.
       </p>,
     )
   }

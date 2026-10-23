@@ -97,8 +97,10 @@ describe('documentosSinAutor', () => {
 })
 
 describe('totalDe y totalHecho', () => {
-  it('el pendiente suma las tres cuentas', () => {
-    expect(totalDe(NADIE)).toBe(888)
+  it('el pendiente suma correos y pedidos, NO las cotizaciones (Fase 117)', () => {
+    // NADIE = 717 correos + 143 cotizaciones + 28 pedidos; las cotizaciones no
+    // cuentan (una que el cliente nunca contesta quedaría colgada para siempre).
+    expect(totalDe(NADIE)).toBe(745)
   })
 
   it('lo hecho suma los tres documentos Y el correo', () => {

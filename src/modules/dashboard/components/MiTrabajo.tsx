@@ -61,17 +61,10 @@ export function MiTrabajo({ mio, sinAutor, mes, cargando }: MiTrabajoProps) {
           plural: 'correos sin responder',
           destino: `/emails?sinresponder=1&asignado=${mio.userId}`,
         },
-        /* Los tres llevan a su lista ya filtrada por mí. El de Ventas usa el
-           filtro `vendedor`, que entiende la misma regla que la columna: el
-           vendedor y, si no hay, quien lo creó (Fase 73). */
-        {
-          clave: 'cotizaciones',
-          icono: 'cart',
-          n: mio.cotizaciones,
-          singular: 'cotización esperando',
-          plural: 'cotizaciones esperando',
-          destino: `/ventas/cotizaciones?estado=sent&vendedor=${mio.userId}`,
-        },
+        /* Las cotizaciones enviadas NO van en lo pendiente (pedido del
+           usuario): una que el cliente nunca contesta quedaría colgada para
+           siempre. Cuántas se hicieron está en «Hiciste en …». El pedido lleva
+           a su lista filtrada por mí, con el filtro `vendedor` (Fase 73). */
         {
           clave: 'pedidos',
           icono: 'truck',

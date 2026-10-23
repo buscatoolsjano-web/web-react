@@ -77,9 +77,17 @@ export async function pendientePorPersona(companyId: string): Promise<PendienteD
   }))
 }
 
-/** El total de las tres columnas: lo que hace falta para ordenar y para el vacío. */
+/**
+ * El total de lo PENDIENTE: correos sin responder + pedidos por entregar.
+ *
+ * Las cotizaciones enviadas NO cuentan (pedido del usuario): una cotización que
+ * el cliente nunca acepta ni rechaza quedaría pendiente para siempre y ensucia
+ * el tablero. Cuántas se hicieron en el mes sigue en «Hiciste en …», que es
+ * donde el dato sí sirve. El campo `cotizaciones` se sigue trayendo por si
+ * alguna pantalla lo quiere, pero acá no pesa.
+ */
 export function totalDe(p: PendienteDePersona): number {
-  return p.correos + p.cotizaciones + p.pedidos
+  return p.correos + p.pedidos
 }
 
 /** Lo hecho en el mes, sumado: para saber si el bloque tiene algo que decir. */

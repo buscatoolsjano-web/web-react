@@ -643,7 +643,9 @@ describe('F · Lo tuyo, antes que lo del resto', () => {
      */
     const mio = miBloque()
     expect(mio).toHaveTextContent('2 correos sin responder')
-    expect(mio).toHaveTextContent('1 cotización esperando')
+    // Las cotizaciones enviadas NO van en lo pendiente (Fase 117): una que el
+    // cliente nunca contesta quedaría colgada para siempre.
+    expect(mio).not.toHaveTextContent('cotización esperando')
     // Cero pedidos NO se lista: un cero no es trabajo pendiente.
     expect(mio).not.toHaveTextContent('pedido por entregar')
   })
@@ -665,8 +667,8 @@ describe('F · Lo tuyo, antes que lo del resto', () => {
     montar()
     const mio = miBloque()
     expect(mio).toHaveTextContent('1 pedido por entregar')
-    // Y el total de la caja los suma: 2 correos + 1 cotización + 1 pedido.
-    expect(within(mio).getByRole('heading', { name: /Tenés pendiente/ })).toHaveTextContent('4')
+    // El total suma 2 correos + 1 pedido = 3; la cotización ya no cuenta (Fase 117).
+    expect(within(mio).getByRole('heading', { name: /Tenés pendiente/ })).toHaveTextContent('3')
   })
 
   /*
@@ -683,10 +685,9 @@ describe('F · Lo tuyo, antes que lo del resto', () => {
     }
     montar()
     const mio = miBloque()
-    expect(within(mio).getByRole('link', { name: /1\s*cotización esperando/ })).toHaveAttribute(
-      'href',
-      '/ventas/cotizaciones?estado=sent&vendedor=u-yo',
-    )
+    // Las cotizaciones ya no están en lo pendiente (Fase 117); el pedido sí, y
+    // lleva al listado filtrado por mí.
+    expect(within(mio).queryByRole('link', { name: /cotización esperando/ })).toBeNull()
     expect(within(mio).getByRole('link', { name: /1\s*pedido por entregar/ })).toHaveAttribute(
       'href',
       '/ventas/pedidos?pendiente=1&vendedor=u-yo',
@@ -757,10 +758,8 @@ describe('F · Lo tuyo, antes que lo del resto', () => {
   it('«Sin asignar» abre la lista de los que no son de nadie', () => {
     montar()
     const resto = screen.getByRole('heading', { name: 'Pendiente del resto' }).closest('section')!
-    expect(within(resto).getByRole('link', { name: /143\s*cotizaciones esperando/ })).toHaveAttribute(
-      'href',
-      '/ventas/cotizaciones?estado=sent&vendedor=nadie',
-    )
+    // Las cotizaciones ya no cuentan como pendiente (Fase 117); los pedidos sí.
+    expect(within(resto).queryByRole('link', { name: /cotizaciones esperando/ })).toBeNull()
     expect(within(resto).getByRole('link', { name: /28\s*pedidos por entregar/ })).toHaveAttribute(
       'href',
       '/ventas/pedidos?pendiente=1&vendedor=nadie',
@@ -769,8 +768,8 @@ describe('F · Lo tuyo, antes que lo del resto', () => {
   it('cada tarjeta lleva el total de esa persona', () => {
     montar()
     const resto = screen.getByRole('heading', { name: 'Pendiente del resto' }).closest('section')!
-    // 717 + 143 + 28 de la fila sin asignar.
-    expect(within(resto).getByText('888')).toBeInTheDocument()
+    // 717 correos + 28 pedidos de la fila sin asignar (las 143 cotizaciones ya no cuentan, Fase 117).
+    expect(within(resto).getByText('745')).toBeInTheDocument()
   })
 
   /*
