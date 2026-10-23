@@ -15,6 +15,7 @@ import doc from '@/components/document/Document.module.css'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { PanelFacetas } from '../components/PanelFacetas'
+import { GuiaFiltros } from '@/modules/publico/components/GuiaFiltros'
 import { ListadoProductos } from '../components/ListadoProductos'
 import { BarraCarrito } from '../components/BarraCarrito'
 import { ModalComparar } from '../components/ModalComparar'
@@ -22,10 +23,12 @@ import { ModalImportar } from '../components/ModalImportar'
 import { ModalNuevoProducto } from '../components/ModalNuevoProducto'
 import { ModalProducto } from '../components/ModalProducto'
 import {
+  useCategorias,
   useDefinicionesDeAtributos,
   useFacetas,
   useListasDePrecios,
 } from '../hooks/useCatalogoFacetas'
+import { atributosParaGuia, categoriasParaGuia, facetasParaGuia } from '../lib/adaptarGuia'
 import { useDisponibilidad, useProductos } from '../hooks/useProductos'
 import { columnaYdireccion, proximoOrden, useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
 import { useExportarCatalogo } from '../hooks/useExportarCatalogo'
@@ -191,6 +194,34 @@ export function CatalogoPage() {
     setTextoInput('')
   }
 
+  // ── La GUÍA con fotos, igual que la web (Fase 133) ──────────────────────────
+  // Se reusa `GuiaFiltros` del sitio público, dándole los datos del ERP con la
+  // forma que espera. La categoría del ERP se filtra por id, pero la guía habla
+  // en slug: se traduce en los dos sentidos.
+  const todasLasCategorias = useCategorias(companyId)
+  const facetasGuia = useMemo(() => facetasParaGuia(facetas), [facetas])
+  const categoriasGuia = useMemo(
+    () => categoriasParaGuia(todasLasCategorias.data ?? [], facetas),
+    [todasLasCategorias.data, facetas],
+  )
+  const slugCategoriaActual = (todasLasCategorias.data ?? []).find((c) => c.id === filtros.categoria)?.slug
+  const atributosGuia = useMemo(() => atributosParaGuia(filtros.atributos), [filtros.atributos])
+
+  /** Elegir una categoría desde la guía: el ERP filtra por id, y se limpian los subfiltros. */
+  const guiaElegirCategoria = (slug: string) => {
+    const cat = (todasLasCategorias.data ?? []).find((c) => c.slug === slug)
+    actualizar({ categoria: cat?.id ?? null, subtipos: [], atributos: {} })
+  }
+  /** Un filtro de la guía (tipo o atributo) → el estado multi-valor del ERP. */
+  const guiaFiltrar = (clave: string, valor: string) => {
+    if (clave === 'tipo') {
+      actualizar({ subtipos: valor === '' ? [] : [valor] })
+    } else if (clave.startsWith('a.')) {
+      const key = clave.slice(2)
+      actualizar({ atributos: { ...filtros.atributos, [key]: valor === '' ? [] : [valor] } })
+    }
+  }
+
   if (!activa) {
     return (
       <div className={styles.cargando}>
@@ -287,6 +318,21 @@ export function CatalogoPage() {
           }
         />
       </FilterBar>
+
+      {/* La guía con fotos, como en la web (Fase 133): entrada rápida y visual
+          que convive con los filtros de columna de la tabla. Escribe el mismo
+          estado de filtros que todo lo demás. */}
+      <GuiaFiltros
+        categoria={slugCategoriaActual}
+        categorias={categoriasGuia}
+        facetas={facetasGuia}
+        tipo={filtros.subtipos[0] ?? ''}
+        atributos={atributosGuia}
+        total={total}
+        cargando={facetasCargando}
+        onFiltrar={guiaFiltrar}
+        onCategoria={guiaElegirCategoria}
+      />
 
       {/*
         La fila de «filtros activos» se fue (Fase 38).
