@@ -19,6 +19,7 @@ import { GuiaFiltros } from '@/modules/publico/components/GuiaFiltros'
 import { ListadoProductos } from '../components/ListadoProductos'
 import { BarraCarrito } from '../components/BarraCarrito'
 import { ModalComparar } from '../components/ModalComparar'
+import { ModalEdicionMasiva } from '../components/ModalEdicionMasiva'
 import { ModalImportar } from '../components/ModalImportar'
 import { ModalNuevoProducto } from '../components/ModalNuevoProducto'
 import { ModalProducto } from '../components/ModalProducto'
@@ -152,6 +153,9 @@ export function CatalogoPage() {
   const esAdmin = activa?.rol === 'admin'
   const [creando, setCreando] = useState(false)
   const [importando, setImportando] = useState(false)
+  // Edición masiva de lo elegido (Fase 137): sólo admin, lo revalida la RLS.
+  const [editandoMasa, setEditandoMasa] = useState(false)
+  const [cambiadosMasa, setCambiadosMasa] = useState<number | null>(null)
   const exportacion = useExportarCatalogo(
     companyId,
     esInterno,
@@ -429,6 +433,21 @@ export function CatalogoPage() {
                 >
                   Comparar{seleccion.elegidos.length > 0 ? ` (${seleccion.elegidos.length})` : ''}
                 </Button>
+                {/* Editar en masa: un campo, un valor, para todos los elegidos.
+                    Sólo admin —lo vuelve a decidir la RLS `products_write`—. */}
+                {esAdmin && seleccion.elegidos.length > 0 ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<Icon name="edit" size={16} />}
+                    onClick={() => {
+                      setCambiadosMasa(null)
+                      setEditandoMasa(true)
+                    }}
+                  >
+                    Editar ({seleccion.elegidos.length})
+                  </Button>
+                ) : null}
                 {seleccion.elegidos.length > 0 ? (
                   <Button variant="ghost" size="sm" onClick={seleccion.limpiar}>
                     Limpiar selección
@@ -440,6 +459,11 @@ export function CatalogoPage() {
           {exportacion.error ? (
             <div style={{ marginBottom: 'var(--space-3)' }}>
               <Alert tone="danger" title="No se pudo exportar">{exportacion.error}</Alert>
+            </div>
+          ) : null}
+          {cambiadosMasa !== null ? (
+            <div style={{ marginBottom: 'var(--space-3)' }}>
+              <Alert tone="success" role="status" title={`Se cambiaron ${cambiadosMasa} ${cambiadosMasa === 1 ? 'producto' : 'productos'}.`} />
             </div>
           ) : null}
           <ListadoProductos
@@ -543,6 +567,22 @@ export function CatalogoPage() {
           definiciones={definiciones}
           onImportado={() => void refetch()}
           onCerrar={() => setImportando(false)}
+        />
+      ) : null}
+
+      {editandoMasa && seleccion.elegidos.length > 0 ? (
+        <ModalEdicionMasiva
+          ids={seleccion.elegidos.map((p) => p.id)}
+          definiciones={definiciones}
+          onCerrar={() => setEditandoMasa(false)}
+          onAplicado={(n) => {
+            setEditandoMasa(false)
+            setCambiadosMasa(n)
+            // La selección se limpia: ya se les aplicó el cambio, y dejarlos
+            // marcados invita a aplicarles otro sin querer. El catálogo ya se
+            // invalidó dentro del modal, así que al cerrar se ve lo nuevo.
+            seleccion.limpiar()
+          }}
         />
       ) : null}
 

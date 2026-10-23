@@ -9204,6 +9204,15 @@ export type Database = {
         }
         Returns: Json
       }
+      editar_productos_masivo: {
+        Args: {
+          p_campo: string
+          p_company: string
+          p_ids: string[]
+          p_valor: string
+        }
+        Returns: number
+      }
       eliminar_hilo_email: {
         Args: { p_account: string; p_eliminar?: boolean; p_thread: string }
         Returns: {

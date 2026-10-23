@@ -1,0 +1,44 @@
+/* Edición masiva de productos (Fase 137). Guía en dos pasos: qué cambiar
+   —opciones como chips— y a qué valor. */
+
+.paso {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.opciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.opcion,
+.opcionActiva {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.opcion:hover {
+  border-color: var(--color-primary);
+}
+
+.opcionActiva {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+  font-weight: var(--weight-semibold);
+}
+
+.aviso {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
