@@ -1,0 +1,16 @@
+-- Fase 140 · En la portada del catálogo público, primero las puntas de SPEEDRILL.
+-- (Aplicada a São Paulo con apply_migration `fase140_catalogo_publico_speedrill_primero`;
+--  se deja acá para que el repo tenga la fuente.)
+--
+-- «Cuando entra a ver el catálogo, priorizar puntas y tubos de Speedrill; después
+--  si busca de otra manera, orden normal.» La prioridad SÓLO aplica en la portada
+--  (sin ningún filtro): apenas elige categoría, marca, tipo o busca, vuelve al
+--  orden por nombre. Misma firma que antes, para no dejar una sobrecarga.
+--
+-- El cambio son dos cosas: una variable `v_sin_filtro` y un `case ... then 0 else 1`
+-- al frente del ORDER BY (en la página y en el jsonb_agg). El resto es idéntico.
+-- La definición completa vive en la migración; acá queda la nota de qué hace.
+--
+--   v_sin_filtro boolean := (p_categoria is null and p_marca is null and ...);
+--   order by case when v_sin_filtro and marca='SPEEDRILL'
+--                  and categoria_slug='puntas-y-tubos' then 0 else 1 end, name
