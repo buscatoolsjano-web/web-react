@@ -97,17 +97,23 @@ describe('Texto: mismo valor escrito distinto coincide, parecido NO', () => {
   })
 })
 
-describe('Sin dato no es rojo (B10)', () => {
+describe('Presente vs ausente SÍ es diferencia; ambos ausentes no (Fase 134)', () => {
   const principal = balanceador('A', { min_kg: 0.4, max_kg: 1, longitud: '1.6', carcasa: 'ALUMINIO' })
 
-  it('si al similar le falta el dato → neutro, no distinto', () => {
+  it('si al similar le falta el dato y el principal lo tiene → distinto (rojo)', () => {
     const sinCarcasa = balanceador('B', { min_kg: 0.4, max_kg: 1, longitud: '1.6' })
-    expect(compararValor(principal, sinCarcasa, col('balanceador', 'carcasa'))).toBe('sin-dato')
+    expect(compararValor(principal, sinCarcasa, col('balanceador', 'carcasa'))).toBe('distinto')
   })
 
-  it('si al PRINCIPAL le falta el dato, tampoco', () => {
+  it('si al PRINCIPAL le falta el dato y el similar lo tiene → distinto', () => {
     const vacio = balanceador('C', {})
-    expect(compararValor(vacio, principal, col('balanceador', 'carcasa'))).toBe('sin-dato')
+    expect(compararValor(vacio, principal, col('balanceador', 'carcasa'))).toBe('distinto')
+  })
+
+  it('si a LOS DOS les falta el dato → sin-dato, nunca rojo', () => {
+    const uno = balanceador('D', { min_kg: 0.4 })
+    const otro = balanceador('E', { min_kg: 0.4 })
+    expect(compararValor(uno, otro, col('balanceador', 'carcasa'))).toBe('sin-dato')
   })
 
   it('el 0 SÍ es un dato: un torque mínimo de 0 no es un dato faltante', () => {

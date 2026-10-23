@@ -46,6 +46,32 @@ const PanelCata = lazy(() =>
 /** Cada dos minutos, igual que los contadores del menú. */
 const CADA = 2 * 60_000
 
+/**
+ * Hasta cuándo ya se vieron las notificaciones (Fase 134).
+ *
+ * Las notificaciones se DERIVAN de lo que falta atender (una consulta nueva, un
+ * correo asignado), así que no hay un «leído» que escribir en la base: la
+ * consulta sigue nueva hasta que alguien la contacta. Pero abrir el panel SÍ es
+ * «ya las vi». Se guarda por navegador —como la última visita— cuándo fue la
+ * última vez que se abrió, y el globito cuenta sólo lo posterior a eso. Así,
+ * abrir el panel baja el globito, y una notificación nueva lo vuelve a subir.
+ */
+const LLAVE_VISTO = 'bt-notif-visto'
+const leerVisto = (companyId: string | null, userId: string | null): string => {
+  try {
+    return localStorage.getItem(`${LLAVE_VISTO}:${companyId}:${userId}`) ?? ''
+  } catch {
+    return ''
+  }
+}
+const guardarVisto = (companyId: string | null, userId: string | null, cuando: string): void => {
+  try {
+    localStorage.setItem(`${LLAVE_VISTO}:${companyId}:${userId}`, cuando)
+  } catch {
+    /* sin storage no se recuerda; el globito sigue andando igual */
+  }
+}
+
 /** El globito con cuántas hay. Más de nueve no dice más que «muchas». */
 function Globo({ cuantas }: { cuantas: number }) {
   if (cuantas <= 0) return null
@@ -64,6 +90,7 @@ export function BotonesHeader() {
   const rol = activa?.rol ?? ''
   const userId = useAuth().user?.id ?? null
   const [abierto, setAbierto] = useState<'nada' | 'notificaciones' | 'asistente' | 'cata'>('nada')
+  const [visto, setVisto] = useState(() => leerVisto(companyId, userId))
 
   /**
    * El contador de la campana.
@@ -80,7 +107,19 @@ export function BotonesHeader() {
     staleTime: CADA,
     retry: false,
   })
-  const cuantas = q.data?.length ?? 0
+  // Sólo las que llegaron DESPUÉS de la última vez que se abrió el panel: así
+  // abrir baja el globito y una nueva lo vuelve a subir. Las alertas sin fecha
+  // (ej. «el correo dejó de entrar») se ven en el panel pero no mueven el
+  // globito —no tienen un «cuándo» contra el cual decidir si son nuevas—.
+  const cuantas = (q.data ?? []).filter((n) => n.cuando !== null && n.cuando > visto).length
+
+  /** Abrir el panel es «ya las vi»: se marca hasta ahora y el globito baja. */
+  const abrirNotificaciones = () => {
+    const ahora = new Date().toISOString()
+    setVisto(ahora)
+    guardarVisto(companyId, userId, ahora)
+    setAbierto('notificaciones')
+  }
 
   // El del chat ya existía para el menú: se reusa en vez de contar de nuevo.
   const sinLeerChat = useNoLeidos().chat
@@ -93,7 +132,7 @@ export function BotonesHeader() {
         className={styles.boton}
         aria-label={cuantas === 0 ? 'Notificaciones' : `Notificaciones: ${cuantas} sin ver`}
         aria-haspopup="dialog"
-        onClick={() => setAbierto('notificaciones')}
+        onClick={abrirNotificaciones}
       >
         <Icon name="bell" size={20} />
         <Globo cuantas={cuantas} />

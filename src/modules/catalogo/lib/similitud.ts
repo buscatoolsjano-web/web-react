@@ -163,7 +163,13 @@ export function compararValor(
   if (col.identidad) return null
   const a = valorDe(principal, col)
   const b = valorDe(similar, col)
-  if (sinDato(a) || sinDato(b)) return 'sin-dato'
+  const faltaA = sinDato(a)
+  const faltaB = sinDato(b)
+  // Si NINGUNO tiene el dato, no se sabe si difieren: `sin-dato`, nunca rojo.
+  if (faltaA && faltaB) return 'sin-dato'
+  // Pero si UNO lo tiene y el otro no, SÍ difieren: uno tiene esa
+  // característica y el otro no. Eso es una diferencia real, va en rojo.
+  if (faltaA || faltaB) return 'distinto'
 
   const ca = aCanonico(a, col.magnitud, col.unidad)
   const cb = aCanonico(b, col.magnitud, col.unidad)
@@ -204,6 +210,12 @@ export function filaComparada(
  * Suma, por cada columna de la familia: 2 si coinciden, 0 si difieren, y 1 si
  * alguno no tiene el dato — «no sé» queda entre «sí» y «no», que es donde
  * está. Desempata el orden que ya trajo el servidor.
+ *
+ * OJO: esto NO usa `compararValor`. Para el ORDEN, un dato faltante es
+ * «intermedio» (1 punto) y no una diferencia, para no castigar a un similar al
+ * que sólo le falta cargar un atributo. En cambio, el VISUAL sí pinta rojo
+ * presente-vs-ausente (Fase 134): ahí la pregunta es «¿son el mismo?» y que a
+ * uno le falte el dato ya los distingue. Son dos preguntas distintas.
  */
 export function cercania(
   principal: ProductoListado,
@@ -211,7 +223,13 @@ export function cercania(
   slugFamilia: string | null | undefined,
 ): number {
   return columnasDe(slugFamilia).reduce((n, col) => {
-    const v = compararValor(principal, similar, col)
-    return n + (v === 'igual' ? 2 : v === 'sin-dato' ? 1 : 0)
+    if (col.identidad) return n
+    const a = valorDe(principal, col)
+    const b = valorDe(similar, col)
+    if (sinDato(a) || sinDato(b)) return n + 1
+    const ca = aCanonico(a, col.magnitud, col.unidad)
+    const cb = aCanonico(b, col.magnitud, col.unidad)
+    const igual = ca !== null && cb !== null ? ca === cb : aTextoComparable(a) === aTextoComparable(b)
+    return n + (igual ? 2 : 0)
   }, 0)
 }

@@ -121,8 +121,14 @@ describe('Verde, rojo y neutro por celda (§3)', () => {
     expect(celdas('Recorrido')[3]).toHaveAttribute('data-veredicto', 'distinto')
   })
 
-  it('si a alguno le falta el dato → sin-dato, nunca rojo', () => {
+  it('a uno le falta el dato y al otro no → distinto (rojo), Fase 134', () => {
     montar({ similares: [SIN_CARCASA] })
+    expect(celdas('Carcasa')[1]).toHaveAttribute('data-veredicto', 'distinto')
+  })
+
+  it('a LOS DOS les falta el dato → sin-dato, nunca rojo', () => {
+    const otroSin = balanceador('TE.8888', 'TECNA', { min_kg: 6, max_kg: 8, longitud: '2' })
+    montar({ principal: SIN_CARCASA, similares: [otroSin] })
     expect(celdas('Carcasa')[1]).toHaveAttribute('data-veredicto', 'sin-dato')
   })
 
@@ -147,8 +153,9 @@ describe('Verde, rojo y neutro por celda (§3)', () => {
     expect(celdas('Carcasa')[2]?.textContent).toContain('≠')
   })
 
-  it('«sin dato» también lleva su símbolo: no saber es información', () => {
-    montar({ similares: [SIN_CARCASA] })
+  it('«sin dato» (a los dos les falta) también lleva su símbolo: no saber es información', () => {
+    const otroSin = balanceador('TE.8888', 'TECNA', { min_kg: 6, max_kg: 8, longitud: '2' })
+    montar({ principal: SIN_CARCASA, similares: [otroSin] })
     expect(celdas('Carcasa')[1]?.textContent).toContain('?')
   })
 
