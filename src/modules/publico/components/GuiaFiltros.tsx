@@ -35,10 +35,6 @@ import styles from './GuiaFiltros.module.css'
  * medida y largo reales de la categoría, con cantidades). Nada escrito a mano.
  */
 
-// Cuántas opciones se muestran antes de «+N más». Los tiles llenan el ancho a
-// cualquier cantidad (grid 1fr), así que no hace falta inflarlo para no dejar
-// hueco: 12 alcanza para llenar las filas sin que «medida» sea un muro.
-const TOPE_VISIBLE = 12
 const ATRIBUTOS: readonly { key: string; pregunta: string; pista: string }[] = [
   { key: 'encastre', pregunta: '¿Qué encastre?', pista: 'la conexión a la máquina' },
   { key: 'medida', pregunta: '¿Qué medida?', pista: 'el diámetro o calibre' },
@@ -103,7 +99,6 @@ export function GuiaFiltros({
   onFiltrar,
   onCategoria,
 }: GuiaFiltrosProps) {
-  const [expandido, setExpandido] = useState(false)
   // El grupo elegido vive en memoria (no va a la URL): es sólo el camino al
   // tipo. Si ya hay un tipo puesto, el grupo se deduce de él.
   const [grupoSel, setGrupoSel] = useState('')
@@ -143,7 +138,6 @@ export function GuiaFiltros({
         pista: 'elegí el grupo y se desglosa',
         elegido: grupoActual,
         elegir: (v) => {
-          setExpandido(false)
           setGrupoSel(v)
           const delGrupo = tipos.filter((t) => grupoDe(t.nombre) === v)
           // Si el grupo tiene un solo tipo, se aplica derecho; si no, se limpia
@@ -177,7 +171,6 @@ export function GuiaFiltros({
           pista: 'la pieza puntual',
           elegido: tipo,
           elegir: (v) => {
-            setExpandido(false)
             setGrupoSel(grupoDe(v))
             onFiltrar('tipo', v)
           },
@@ -205,7 +198,6 @@ export function GuiaFiltros({
         pista: faceta.unidad ? `${a.pista} (${faceta.unidad})` : a.pista,
         elegido: puesto,
         elegir: (v) => {
-          setExpandido(false)
           onFiltrar(`a.${a.key}`, v)
         },
         quitar: () => onFiltrar(`a.${a.key}`, ''),
@@ -223,12 +215,19 @@ export function GuiaFiltros({
   const respondidos = pasos.filter((p) => p.elegido !== '')
   if (pasos.length === 0) return null
 
-  // Las CATEGORÍAS se muestran TODAS, sin «+N más»: son pocas y son la entrada
-  // al catálogo. Los atributos (medida, largo…) sí se colapsan, que ahí la lista
-  // puede ser un muro.
-  const sinLimite = activo?.clave === 'categoria'
-  const visibles = activo ? (expandido || sinLimite ? activo.opciones : activo.opciones.slice(0, TOPE_VISIBLE)) : []
-  const ocultas = activo ? activo.opciones.length - visibles.length : 0
+  // Se muestran TODAS las opciones, sin «+N más» (pedido del usuario: que nunca
+  // aparezca en ningún filtro). Los tiles llenan el ancho a cualquier cantidad.
+  //
+  // Y se ORDENAN: en los subfiltros (tipo, encastre, medida, largo) de la A a la
+  // Z y de menor a mayor —orden natural, para que «2» vaya antes que «10» y no
+  // detrás—. La categoría y el grupo se dejan como vienen (por cantidad): son
+  // pocos y esa es una buena portada.
+  const ordenable = activo !== undefined && activo.clave !== 'categoria' && activo.clave !== 'grupo'
+  const visibles = activo
+    ? ordenable
+      ? [...activo.opciones].sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, 'es', { numeric: true }))
+      : activo.opciones
+    : []
 
   const etiquetaChip = (p: Paso): string => {
     if (p.clave === 'grupo') return GRUPOS.find((g) => g.clave === p.elegido)?.label ?? p.elegido
@@ -274,11 +273,6 @@ export function GuiaFiltros({
                 <span className={styles.cantidad}>{o.cantidad.toLocaleString('es-AR')}</span>
               </button>
             ))}
-            {ocultas > 0 ? (
-              <button type="button" className={styles.masOpciones} onClick={() => setExpandido(true)}>
-                +{ocultas} más
-              </button>
-            ) : null}
           </div>
         </div>
       ) : (

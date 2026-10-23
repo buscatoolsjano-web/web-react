@@ -94,6 +94,34 @@
   color: #c4c4c4;
 }
 
+/* El zoom al pasar el mouse (Fase 139). Va por portal al body y posición fija,
+   así no lo recorta el scroll de la tabla. Foto grande y el modelo debajo. */
+.zoom {
+  position: fixed;
+  z-index: 50;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+}
+
+.zoomImagen {
+  width: 240px;
+  height: 240px;
+  object-fit: contain;
+}
+
+.zoomModelo {
+  text-align: center;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
 /* La referencia es el enlace de la fila y se lee como código: es lo que se
    copia para pedir. */
 .sku {

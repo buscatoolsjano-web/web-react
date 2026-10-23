@@ -183,15 +183,60 @@
 .pieColumnas {
   display: grid;
   gap: var(--space-5);
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
   max-width: 80rem;
   margin: 0 auto;
+}
+
+@media (max-width: 900px) {
+  .pieColumnas {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 767px) {
   .pieColumnas {
     grid-template-columns: 1fr;
   }
+}
+
+.pieContacto {
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.pieContacto a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-soft);
+}
+
+.pieContacto a:hover {
+  color: var(--color-text);
+}
+
+/* El CTA: botón primario, directo a WhatsApp. Es la acción que la página quiere
+   que una persona que llegó hasta acá tome. */
+.pieCta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.pieCta:hover {
+  background: var(--color-primary-hover);
 }
 
 .pieTitulo {

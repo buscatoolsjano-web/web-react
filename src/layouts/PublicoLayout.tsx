@@ -10,6 +10,14 @@ import { useRegistrarVisita } from '@/modules/publico/hooks/useRegistrarVisita'
 import { BarraPedido } from '@/modules/publico/components/BarraPedido'
 import styles from './PublicoLayout.module.css'
 
+/** Datos de contacto de la casa, para el pie del sitio. */
+const MAIL_CONTACTO = 'info@buscatools.com.ar'
+const WHATSAPP_TEXTO = '+54 9 11 2169-3304'
+/** wa.me quiere sólo dígitos; el texto se prellena para que llegue encaminado. */
+const WHATSAPP_URL =
+  'https://wa.me/5491121693304?text=' +
+  encodeURIComponent('Hola, quería hacer una consulta sobre sus productos.')
+
 /**
  * La cáscara del sitio público (Fase 87 · E2).
  *
@@ -171,6 +179,31 @@ export function PublicoLayout() {
                 </li>
               ))}
             </ul>
+          </div>
+
+          {/* Contacto: el mail y el WhatsApp de la casa, y un botón directo para
+              escribir. Es lo que una persona que llegó al final de la página vino
+              a buscar: cómo preguntar. */}
+          <div>
+            <p className={styles.pieTitulo}>Contacto</p>
+            <ul className={styles.pieContacto}>
+              <li>
+                <a href={`mailto:${MAIL_CONTACTO}`}>
+                  <Icon name="mail" size={16} aria-hidden="true" />
+                  {MAIL_CONTACTO}
+                </a>
+              </li>
+              <li>
+                <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                  <Icon name="message-circle" size={16} aria-hidden="true" />
+                  {WHATSAPP_TEXTO}
+                </a>
+              </li>
+            </ul>
+            <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className={styles.pieCta}>
+              <Icon name="message-circle" size={16} aria-hidden="true" />
+              Consultanos por WhatsApp
+            </a>
           </div>
         </div>
         <p className={styles.pieLegal}>

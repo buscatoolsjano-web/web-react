@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Icon } from '@/components/icons/Icon'
+import { CeldaFoto } from './CeldaFoto'
 import tabla from '@/components/tables/Tabla.module.css'
 import type { ColumnaAtributo } from '../lib/columnas'
 import { valorDeAtributo } from '../lib/columnas'
@@ -233,15 +234,7 @@ export function TablaProductos({
                 onMouseEnter={() => precargar(p.slug)}
               >
                 <td className={styles.colImagen}>
-                  <Link to={ruta} className={styles.foto} tabIndex={-1} aria-hidden="true">
-                    {foto ? (
-                      <img src={foto} alt="" loading="lazy" decoding="async" width={44} height={44} />
-                    ) : (
-                      <span className={styles.sinFoto} aria-hidden="true">
-                        <Icon name="image" size={16} />
-                      </span>
-                    )}
-                  </Link>
+                  <CeldaFoto foto={foto} modelo={p.modelo ?? null} ruta={ruta} />
                 </td>
 
                 {/* La referencia, el enlace real de la fila (crawlable). */}
