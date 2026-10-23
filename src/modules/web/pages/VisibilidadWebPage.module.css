@@ -1,0 +1,109 @@
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.titulo {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  margin: 0 0 var(--space-3);
+}
+.cargando {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-soft);
+  padding: var(--space-3) 0;
+}
+.vacio {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  margin: var(--space-2) 0 0;
+}
+
+/* ── Resultados de búsqueda ─────────────────────────────────────────────── */
+.listaProd {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.listaProd li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.listaProd li:last-child { border-bottom: none; }
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  cursor: pointer;
+}
+.sku {
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+  white-space: nowrap;
+}
+.nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+}
+.badgeOn, .badgeOff {
+  font-size: var(--text-xs);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+.badgeOn { background: #16a34a22; color: #16a34a; }
+.badgeOff { background: var(--color-neutral-soft); color: var(--color-text-muted); }
+
+/* ── Tabla por categoría ────────────────────────────────────────────────── */
+.tabla { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.tabla th {
+  text-align: left;
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+  font-weight: var(--weight-regular);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+.tabla td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+.num { text-align: left; }
+.conteo {
+  font-variant-numeric: tabular-nums;
+  display: block;
+  margin-bottom: 3px;
+}
+.barra {
+  display: block;
+  width: 120px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-neutral-soft);
+  overflow: hidden;
+}
+.barraLlena {
+  display: block;
+  height: 100%;
+  background: #16a34a;
+}
+.acciones {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}

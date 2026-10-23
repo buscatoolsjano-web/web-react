@@ -107,6 +107,9 @@ const ConsultasPage = lazyConRecarga(() =>
 const WebMetricasPage = lazyConRecarga(() =>
   import('@/modules/web/pages/WebMetricasPage').then((m) => ({ default: m.WebMetricasPage })),
 )
+const VisibilidadWebPage = lazyConRecarga(() =>
+  import('@/modules/web/pages/VisibilidadWebPage').then((m) => ({ default: m.VisibilidadWebPage })),
+)
 const CotizacionNuevaPage = lazyConRecarga(() =>
   import('@/modules/ventas/pages/CotizacionNuevaPage').then((m) => ({
     default: m.CotizacionNuevaPage,
@@ -446,6 +449,7 @@ export const routes: RouteObject[] = [
       // ── Web: el sitio público (Fase 115) ──
       { path: 'web', element: privada(<WebMetricasPage />) },
       { path: 'web/consultas', element: privada(<ConsultasPage />) },
+      { path: 'web/visibilidad', element: privada(<VisibilidadWebPage />) },
       { path: 'ventas/cotizaciones', element: privada(<CotizacionesPage />) },
       // `nueva` antes que `:id`: si no, React Router la tomaría como un id.
       { path: 'ventas/cotizaciones/nueva', element: privada(<CotizacionNuevaPage />) },

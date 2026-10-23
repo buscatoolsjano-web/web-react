@@ -54,6 +54,7 @@ const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
   // se mudó de Ventas a acá.
   { to: '/web', roles: AC },
   { to: '/web/consultas', roles: AC },
+  { to: '/web/visibilidad', roles: AC },
 ]
 const fase1 = (rol: string) => NAV_FASE_1.filter((i) => !i.roles || i.roles.includes(rol)).map((i) => i.to)
 

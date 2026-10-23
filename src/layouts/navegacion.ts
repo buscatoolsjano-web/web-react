@@ -182,6 +182,7 @@ export const NAVEGACION: GrupoNav[] = [
     entradas: [
       { id: 'web-metricas', label: 'Métricas', icon: 'bar-chart', destino: { to: '/web', label: 'Métricas', roles: SOLO_INTERNOS, end: true } },
       { id: 'web-consultas', label: 'Consultas del sitio', icon: 'inbox', destino: { to: '/web/consultas', label: 'Consultas del sitio', roles: SOLO_INTERNOS } },
+      { id: 'web-visibilidad', label: 'Visibilidad', icon: 'package', destino: { to: '/web/visibilidad', label: 'Visibilidad', roles: SOLO_INTERNOS } },
     ],
   },
 ]
