@@ -1,0 +1,32 @@
+/* La pista fija arriba de todo. Finita, sin tapar nada, por encima del
+   contenido y del header. */
+.pista {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: var(--z-toast);
+  background: transparent;
+  pointer-events: none;
+}
+
+.barra {
+  height: 100%;
+  background: var(--color-primary);
+  /* Un dejo de brillo en la punta, para que se lea como «avanzando». */
+  box-shadow: 0 0 8px var(--color-primary);
+  border-radius: 0 2px 2px 0;
+  transition: width 0.22s ease-out, opacity 0.28s ease-out;
+}
+
+/* Al 100 % se desvanece. */
+.barra[style*='width: 100%'] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barra {
+    transition: opacity 0.2s ease-out;
+  }
+}

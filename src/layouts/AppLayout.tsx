@@ -12,6 +12,7 @@ import { precargarAlDescansar, precargarRuta } from '@/app/precarga'
 import { usePrecalentarCatalogo } from '@/modules/catalogo/hooks/usePrecalentarCatalogo'
 import { Icon } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
+import { BarraProgreso } from '@/components/feedback/BarraProgreso'
 import { aplicarTerminologia, navegacionPara } from './navegacion'
 import { PanelNav } from './PanelNav'
 import { BarraCompacta } from './BarraCompacta'
@@ -220,6 +221,9 @@ export function AppLayout() {
 
   return (
     <div className={styles.shell}>
+      {/* Barra de progreso de arriba: da señal cuando una pantalla tarda en
+          cargar (su chunk todavía no está). Fase 124. */}
+      <BarraProgreso />
       <header className={styles.header} inert={abierto || undefined}>
         {isMobile && (
           <IconButton
