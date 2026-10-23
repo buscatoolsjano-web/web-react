@@ -1,11 +1,18 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Alert } from '@/components/feedback/Alert'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
 import { LinkButton } from '@/components/ui/LinkButton'
 import { useModalAccesible } from '@/components/modals/useModalAccesible'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { useMovimientos, useProductoPorId, useSimilares } from '../hooks/useProductos'
+import { useAtributosPorCategoria, useCategorias, useMarcas } from '../hooks/useCatalogoFacetas'
+import { EditorProducto } from './EditorProducto'
+import { edicionDesdeProducto, puedeEditarProductos } from '../lib/edicionProducto'
+import { guardarProducto, type EdicionProducto } from '../services/edicionProducto'
 import { hojaDeCatalogo } from '../lib/hojaCatalogo'
 import { formatearPrecio } from '../lib/formato'
 import { DescripcionProducto } from './DescripcionProducto'
@@ -72,6 +79,7 @@ export function ModalProducto({
   useModalAccesible(caja, { onClose: onCerrar })
 
   const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
   const esInterno = activa?.esInterno ?? false
   const { data, isPending, error } = useProductoPorId(productoId, priceListId, listaResuelta)
   // Fase 22 · Etapa B: la MISMA fuente que el hover del listado. Tener dos
@@ -90,13 +98,42 @@ export function ModalProducto({
    */
   const [verHistorial, setVerHistorial] = useState(false)
   const [verDocs, setVerDocs] = useState(false)
+  // La edición vive acá, no en la URL: es un ida y vuelta, no una vista que
+  // alguien quiera compartir por link (igual que en la ficha, Fase 40).
+  const [edicion, setEdicion] = useState<EdicionProducto | null>(null)
   const [productoPrevio, setProductoPrevio] = useState(productoId)
   if (productoPrevio !== productoId) {
     setProductoPrevio(productoId)
     setVerHistorial(false)
+    // Saltar a un relacionado mientras se editaba descarta la edición a medias:
+    // lo que se estaba corrigiendo era de OTRO producto.
+    setEdicion(null)
   }
   const movimientos = useMovimientos(data?.id ?? null, verHistorial)
   const historialDocs = useHistorialDocumentos(data?.id ?? null, verDocs)
+
+  /*
+   * Editar el producto SIN salir del modal (Fase 136).
+   *
+   * «Cuando entres a un producto que aparezca el botón de editar.» El editor
+   * es el MISMO de la ficha (`EditorProducto`), con la misma validación y el
+   * mismo guardado: dos editores serían dos formas de que el mismo producto se
+   * guarde distinto según por dónde se lo abra. Al guardar se invalida todo el
+   * catálogo —el nombre, los atributos y la categoría cambian facetas y
+   * listados, no sólo esta ficha—, lo que además refresca este mismo modal.
+   */
+  const queryClient = useQueryClient()
+  const puedeEditar = puedeEditarProductos(activa?.rol)
+  const marcas = useMarcas(companyId)
+  const categorias = useCategorias(companyId)
+  const porCategoria = useAtributosPorCategoria(companyId)
+  const guardar = useMutation({
+    mutationFn: () => guardarProducto(companyId!, data!.id, edicion!),
+    onSuccess: async () => {
+      setEdicion(null)
+      await queryClient.invalidateQueries({ queryKey: ['catalogo'] })
+    },
+  })
 
   // El scroll sí va en un efecto: toca el DOM, no el estado.
   useEffect(() => {
@@ -119,6 +156,16 @@ export function ModalProducto({
             {data?.sku ?? 'Producto'}
           </code>
           <div className={styles.accionesBarra}>
+            {data && puedeEditar && edicion === null ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Icon name="edit" size={16} />}
+                onClick={() => setEdicion(edicionDesdeProducto(data))}
+              >
+                Editar
+              </Button>
+            ) : null}
             {data ? (
               <LinkButton to={`/catalogo/${encodeURIComponent(data.sku)}`} variant="ghost" size="sm">
                 Abrir ficha
@@ -129,7 +176,23 @@ export function ModalProducto({
         </header>
 
         <div className={styles.cuerpo} ref={cuerpo}>
-          {error ? (
+          {edicion !== null && data ? (
+            <EditorProducto
+              valores={edicion}
+              marcas={marcas.data ?? []}
+              categorias={categorias.data ?? []}
+              definiciones={definiciones}
+              atributosPorCategoria={porCategoria.data}
+              guardando={guardar.isPending}
+              error={guardar.error instanceof Error ? guardar.error.message : null}
+              onCambiar={setEdicion}
+              onGuardar={() => guardar.mutate()}
+              onCancelar={() => {
+                guardar.reset()
+                setEdicion(null)
+              }}
+            />
+          ) : error ? (
             <Alert tone="danger" role="alert" title="No se pudo leer el producto">
               <p>{error.message}</p>
             </Alert>
