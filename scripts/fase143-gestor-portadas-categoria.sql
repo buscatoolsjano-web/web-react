@@ -1,0 +1,9 @@
+-- Fase 143 · Gestor de portadas de categoría para admins.
+-- (Aplicada a São Paulo con apply_migration `fase143_gestor_portadas_categoria`.)
+--
+-- Tres RPCs, con el molde de seguridad de web_visibilidad_aplicar: SECURITY
+-- DEFINER + chequeo explícito de que quien llama es admin/employee de la empresa.
+--   · web_portadas_categorias(p_company)            → categorías + portada + con_fotos
+--   · web_portada_productos(p_company, p_cat, p_txt) → productos de la cat con foto
+--   · web_portada_fijar(p_company, p_cat, p_prod)    → fija/limpia la portada
+-- La definición completa vive en la migración.

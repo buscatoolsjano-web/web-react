@@ -12,6 +12,7 @@ import {
   visibilidadCategorias,
 } from '../services/visibilidad'
 import { useDebounce } from '@/hooks/useDebounce'
+import { GestorPortadas } from '../components/GestorPortadas'
 import styles from './VisibilidadWebPage.module.css'
 
 /**
@@ -148,6 +149,16 @@ export function VisibilidadWebPage() {
             </tbody>
           </table>
         )}
+      </section>
+
+      {/* ── Portadas de categoría (Fase 143) ───────────────────────────── */}
+      <section className={styles.panel}>
+        <h2 className={styles.titulo}>Foto de portada de cada categoría</h2>
+        <p className={styles.ayuda}>
+          Es la foto que se ve en la guía del catálogo. Elegí un producto de la categoría y su
+          foto pasa a ser la portada.
+        </p>
+        {companyId ? <GestorPortadas companyId={companyId} /> : null}
       </section>
     </div>
   )

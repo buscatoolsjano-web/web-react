@@ -55,6 +55,71 @@ export async function aplicarVisibilidad(
   return Number(data ?? 0)
 }
 
+// ── Portadas de categoría (Fase 143) ───────────────────────────────────────
+
+export interface CategoriaPortada {
+  categoryId: string
+  nombre: string
+  portadaProductId: string | null
+  portadaUrl: string | null
+  /** Cuántos productos de la categoría tienen foto (0 = no se puede elegir). */
+  conFotos: number
+}
+
+export interface ProductoConFoto {
+  id: string
+  sku: string
+  nombre: string
+  fotoUrl: string | null
+}
+
+/** Las categorías con su portada actual y si hay fotos para elegir. */
+export async function portadasDeCategorias(companyId: string): Promise<CategoriaPortada[]> {
+  const { data, error } = await supabase.rpc('web_portadas_categorias' as never, { p_company: companyId } as never)
+  if (error) throw new Error(`No se pudieron leer las portadas: ${error.message}`)
+  const filas = (data ?? []) as unknown as {
+    category_id: string; nombre: string; portada_product_id: string | null
+    portada_url: string | null; con_fotos: number | string
+  }[]
+  return filas.map((f) => ({
+    categoryId: f.category_id,
+    nombre: f.nombre,
+    portadaProductId: f.portada_product_id,
+    portadaUrl: f.portada_url,
+    conFotos: Number(f.con_fotos),
+  }))
+}
+
+/** Los productos de una categoría que tienen foto, para elegir la portada. */
+export async function productosConFotoDeCategoria(
+  companyId: string,
+  categoriaId: string,
+  texto: string,
+): Promise<ProductoConFoto[]> {
+  const { data, error } = await supabase.rpc('web_portada_productos' as never, {
+    p_company: companyId,
+    p_categoria: categoriaId,
+    p_texto: texto.trim() === '' ? null : texto.trim(),
+  } as never)
+  if (error) throw new Error(`No se pudieron buscar los productos: ${error.message}`)
+  const filas = (data ?? []) as unknown as { id: string; sku: string; nombre: string; foto_url: string | null }[]
+  return filas.map((p) => ({ id: p.id, sku: p.sku, nombre: p.nombre, fotoUrl: p.foto_url }))
+}
+
+/** Fija (o limpia, con `productoId` null) la portada de una categoría. */
+export async function fijarPortadaCategoria(
+  companyId: string,
+  categoriaId: string,
+  productoId: string | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('web_portada_fijar' as never, {
+    p_company: companyId,
+    p_categoria: categoriaId,
+    p_producto: productoId,
+  } as never)
+  if (error) throw new Error(`No se pudo fijar la portada: ${error.message}`)
+}
+
 /** Busca productos por referencia o nombre para tildarlos de a uno. */
 export async function buscarProductosVisibilidad(companyId: string, texto: string): Promise<ProductoVisibilidad[]> {
   const q = texto.trim()

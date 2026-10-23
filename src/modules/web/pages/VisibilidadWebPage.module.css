@@ -11,6 +11,11 @@
   color: var(--color-text);
   margin: 0 0 var(--space-3);
 }
+.ayuda {
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  margin: calc(var(--space-2) * -1) 0 var(--space-3);
+}
 .cargando {
   display: flex;
   align-items: center;
