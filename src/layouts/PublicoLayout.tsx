@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/useAuth'
 import { categorias } from '@/modules/publico/services/catalogoPublico'
 import { rutaCatalogo, rutaCategoria } from '@/modules/publico/lib/rutas'
 import { useCarritoPublico } from '@/modules/publico/hooks/useCarritoPublico'
+import { useRegistrarVisita } from '@/modules/publico/hooks/useRegistrarVisita'
 import { BarraPedido } from '@/modules/publico/components/BarraPedido'
 import styles from './PublicoLayout.module.css'
 
@@ -37,6 +38,7 @@ export function PublicoLayout() {
   const [params] = useSearchParams()
   const [texto, setTexto] = useState(params.get('q') ?? '')
   const carrito = useCarritoPublico()
+  useRegistrarVisita()
 
   /*
    * Las categorías viven en el layout y no en cada página: se piden UNA vez
