@@ -123,18 +123,7 @@ export function FilaFiltrosColumna({
         </td>
       )}
 
-      <td className={styles.celda}>
-        <SelectorFaceta
-          className={styles.control}
-          conConteo={false}
-          conNombre={false}
-          etiqueta="serie"
-          valor={filtros.serie ?? ''}
-          opciones={facetas?.series ?? []}
-          onElegir={(v) => poner({ serie: v === '' ? null : v })}
-        />
-      </td>
-
+      {/* «Serie» se sacó (Fase 141): era redundante con «Tipo». */}
       <td className={styles.celda}>
         <SelectorFaceta
           className={styles.control}

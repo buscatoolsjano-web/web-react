@@ -233,7 +233,6 @@ export function ListadoProductos({
       { key: 'modelo', header: 'Modelo', tipo: 'texto', valores: textos((p) => p.modelo) },
       { key: 'marca', header: 'Marca', tipo: 'texto', valores: textos((p) => p.marca?.nombre), opcionesDeFiltro: etiquetas(facetasDeFiltro?.marcas) },
       { key: 'categoria', header: 'Categoría', tipo: 'texto', valores: textos((p) => p.categoria?.nombre), opcionesDeFiltro: etiquetas(facetasDeFiltro?.categorias) },
-      { key: 'serie', header: 'Serie', tipo: 'texto', valores: textos((p) => p.serie), opcionesDeFiltro: etiquetas(facetasDeFiltro?.series) },
       { key: 'tipo', header: 'Tipo', tipo: 'texto', valores: textos((p) => p.tipo), opcionesDeFiltro: etiquetas(facetasDeFiltro?.subtipos) },
       ...columnasDinamicas.map((c) => ({
         key: claveAncho(c.key),
@@ -457,15 +456,13 @@ export function ListadoProductos({
                 Categoría
               </Encabezado>
             )}
-            <Encabezado campo="serie" orden={orden} className={`${styles.soloAncho}`} style={anchos?.estilo('serie')} extra={anchos?.tirador('serie', 'Serie')}>
-              Serie
-            </Encabezado>
             {/*
-              TIPO y SERIE no son lo mismo y por eso van las dos, como en la
-              web vieja: la serie es la familia («Punta») y el tipo es el
-              concreto («Torx»). El tipo está cargado en el 67 % de los
-              productos —más que la serie, que llega al 42 %—, así que es de
-              las columnas que más dicen.
+              «Serie» se sacó (Fase 141). Serie y Tipo eran una jerarquía de dos
+              niveles mal cargada: donde diferían, Serie era la familia («Punta»)
+              y Tipo el detalle real («Torx», «Allen», «Phillips»); donde no,
+              decían lo mismo. El detalle vive en Tipo y la familia se deriva de
+              él, así que Serie era la columna redundante. El dato sigue en la
+              base y en la ficha; sólo se saca de la grilla y de los filtros.
             */}
             <Encabezado campo="tipo" orden={orden} className={`${styles.soloAncho}`} style={anchos?.estilo('tipo')} extra={anchos?.tirador('tipo', 'Tipo')}>
               Tipo
@@ -628,7 +625,6 @@ export function ListadoProductos({
                   {p.categoria?.nombre ?? <span className={tabla.secundario}>—</span>}
                 </td>
               )}
-              <td className={`${styles.soloAncho} ${tabla.nowrap}`}>{p.serie ?? <span className={tabla.secundario}>—</span>}</td>
               <td className={`${styles.soloAncho} ${tabla.nowrap}`}>
                 {p.tipo ?? <span className={tabla.secundario}>—</span>}
               </td>

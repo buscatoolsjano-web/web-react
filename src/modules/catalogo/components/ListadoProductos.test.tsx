@@ -360,7 +360,7 @@ describe('El ancho de las columnas del catálogo', () => {
     montar()
     // Referencia se hizo ajustable en la Fase 107 (pedido explícito): también
     // se agarra del borde y se ensancha, como Modelo o Marca.
-    for (const etiqueta of ['Referencia', 'Modelo', 'Marca', 'Serie', 'Tipo']) {
+    for (const etiqueta of ['Referencia', 'Modelo', 'Marca', 'Tipo']) {
       expect(tiradorDe(etiqueta)).toBeInTheDocument()
       expect(anchoTh(etiqueta)).toBeGreaterThanOrEqual(MIN_PX)
     }

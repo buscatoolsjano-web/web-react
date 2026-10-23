@@ -143,7 +143,8 @@ export function TablaProductos({
             <th scope="col">Modelo</th>
             <th scope="col">Marca</th>
             {mostrarCategoria ? <th scope="col">Categoría</th> : null}
-            <th scope="col" className={styles.soloAncho}>Serie</th>
+            {/* «Serie» se sacó (Fase 141): repetía a «Tipo» —el detalle real,
+                Allen/Torx/Phillips— o decía sólo la familia, que ya se deriva. */}
             <th scope="col" className={styles.soloAncho}>Tipo</th>
             {columnas.map((c) => (
               <th key={c.key} scope="col" className={styles.colAtributo}>
@@ -196,9 +197,6 @@ export function TablaProductos({
               </td>
             ) : null}
             <td className={styles.soloAncho}>
-              {sel('serie', conCuenta(facetas?.series ?? []))}
-            </td>
-            <td className={styles.soloAncho}>
               {sel('tipo', conCuenta(facetas?.tipos ?? []))}
             </td>
             {columnas.map((c) => (
@@ -247,7 +245,6 @@ export function TablaProductos({
                 <td>{p.modelo ?? '—'}</td>
                 <td>{p.marca ?? '—'}</td>
                 {mostrarCategoria ? <td>{p.categoria ?? '—'}</td> : null}
-                <td className={styles.soloAncho}>{p.serie ?? '—'}</td>
                 <td className={styles.soloAncho}>{p.tipo ?? '—'}</td>
 
                 {columnas.map((c) => (
