@@ -34,9 +34,6 @@ const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
   // RLS con `app.current_internal_company_ids()`; esconder el enlace es una
   // cortesía.
   { to: '/precios', roles: AC },
-  // Fase 87: las consultas del sitio público son leads de desconocidos, sólo
-  // para roles internos.
-  { to: '/ventas/consultas', roles: AC },
   { to: '/ventas/cotizaciones' },
   { to: '/ventas/pedidos' },
   { to: '/ventas/entregas' },
@@ -53,6 +50,10 @@ const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
   { to: '/chat', roles: ROLES_CHAT },
   { to: '/informes', roles: ROLES_INFORMES },
   { to: '/configuracion', roles: ROLES_CONFIGURACION },
+  // Fase 115: la sección Web (sitio público), al final. «Consultas del sitio»
+  // se mudó de Ventas a acá.
+  { to: '/web', roles: AC },
+  { to: '/web/consultas', roles: AC },
 ]
 const fase1 = (rol: string) => NAV_FASE_1.filter((i) => !i.roles || i.roles.includes(rol)).map((i) => i.to)
 
@@ -65,7 +66,7 @@ describe('navegación agrupada', () => {
   it('grupos en el orden aprobado', () => {
     // Fase 27 · E3: Comunicación subió a segunda, pegada a Inicio: es lo que
     // se mira al empezar el día y lleva los contadores de sin leer.
-    expect(NAVEGACION.map((g) => g.label)).toEqual([null, 'Comunicación', 'Datos', 'Operación', 'Análisis', 'Administración'])
+    expect(NAVEGACION.map((g) => g.label)).toEqual([null, 'Comunicación', 'Datos', 'Operación', 'Análisis', 'Administración', 'Web'])
   })
 
   it('un vendedor no ve Compras ni Mantenimiento; los grupos sin enlaces desaparecen', () => {

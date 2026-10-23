@@ -104,6 +104,9 @@ const CotizacionesPage = lazyConRecarga(importarCotizaciones)
 const ConsultasPage = lazyConRecarga(() =>
   import('@/modules/ventas/pages/ConsultasPage').then((m) => ({ default: m.ConsultasPage })),
 )
+const WebMetricasPage = lazyConRecarga(() =>
+  import('@/modules/web/pages/WebMetricasPage').then((m) => ({ default: m.WebMetricasPage })),
+)
 const CotizacionNuevaPage = lazyConRecarga(() =>
   import('@/modules/ventas/pages/CotizacionNuevaPage').then((m) => ({
     default: m.CotizacionNuevaPage,
@@ -436,8 +439,13 @@ export const routes: RouteObject[] = [
       // sería una idea nueva y esto es una migración, así que redirige a la
       // primera subsección, igual que el legacy al entrar a la sección.
       { path: 'ventas', element: <Navigate to="/ventas/cotizaciones" replace /> },
-      // Las consultas del catálogo público (Fase 87 · E4).
-      { path: 'ventas/consultas', element: privada(<ConsultasPage />) },
+      // Las consultas del catálogo público (Fase 87 · E4) se mudaron a Web
+      // (Fase 115). El viejo enlace redirige, para que nada que lo guardara
+      // quede roto.
+      { path: 'ventas/consultas', element: <Navigate to="/web/consultas" replace /> },
+      // ── Web: el sitio público (Fase 115) ──
+      { path: 'web', element: privada(<WebMetricasPage />) },
+      { path: 'web/consultas', element: privada(<ConsultasPage />) },
       { path: 'ventas/cotizaciones', element: privada(<CotizacionesPage />) },
       // `nueva` antes que `:id`: si no, React Router la tomaría como un id.
       { path: 'ventas/cotizaciones/nueva', element: privada(<CotizacionNuevaPage />) },

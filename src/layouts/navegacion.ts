@@ -118,10 +118,6 @@ export const NAVEGACION: GrupoNav[] = [
         label: 'Ventas',
         icon: 'cart',
         hijos: [
-          // Sólo internos: son pedidos de desconocidos, lo que un cliente o
-          // un distribuidor con cuenta no tiene por qué ver. Lo que de verdad
-          // lo protege es la RLS por empresa; esconder el enlace es cortesía.
-          { to: '/ventas/consultas', label: 'Consultas del sitio', roles: SOLO_INTERNOS },
           { to: '/ventas/cotizaciones', label: 'Cotizaciones' },
           { to: '/ventas/pedidos', label: 'Pedidos' },
           { to: '/ventas/entregas', label: 'Notas de entrega' },
@@ -172,6 +168,20 @@ export const NAVEGACION: GrupoNav[] = [
         icon: 'sliders',
         destino: { to: '/configuracion', label: 'Configuración', roles: ROLES_CONFIGURACION },
       },
+    ],
+  },
+  /**
+   * Web va al final, abajo de Configuración (Fase 115): es el sitio público
+   * —lo que ven los clientes— y lo administra quien es de la casa. «Consultas
+   * del sitio» se mudó acá desde Ventas: pertenece a la web, no a las ventas
+   * internas.
+   */
+  {
+    id: 'web',
+    label: 'Web',
+    entradas: [
+      { id: 'web-metricas', label: 'Métricas', icon: 'bar-chart', destino: { to: '/web', label: 'Métricas', roles: SOLO_INTERNOS, end: true } },
+      { id: 'web-consultas', label: 'Consultas del sitio', icon: 'inbox', destino: { to: '/web/consultas', label: 'Consultas del sitio', roles: SOLO_INTERNOS } },
     ],
   },
 ]
