@@ -141,6 +141,14 @@ function Bandeja() {
             <Button variant="ghost" icon={<Icon name="star" size={16} />} onClick={() => setEtiquetasAbiertas(true)}>
               Etiquetas
             </Button>
+            {/* Reglas y plantillas de correo viven acá, al lado de las etiquetas
+                (Fase 167): todo lo del correo en un solo lugar. */}
+            <LinkButton to="/emails/reglas" variant="ghost" icon={<Icon name="filter" size={16} />}>
+              Reglas
+            </LinkButton>
+            <LinkButton to="/emails/plantillas" variant="ghost" icon={<Icon name="mail" size={16} />}>
+              Plantillas
+            </LinkButton>
             <LinkButton to="/emails/borradores" icon={<Icon name="edit" size={16} />}>
               Borradores
             </LinkButton>

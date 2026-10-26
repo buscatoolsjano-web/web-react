@@ -10,11 +10,13 @@
  *   · Empresa:    admin edita; employee lee (Entrega 2).
  *   · Numeración: admin y employee leen; sólo admin edita (Fase 58 · E3).
  *   · Listas de precios: admin y employee leen; nadie edita (Entrega 3).
- *   · WhatsApp · IA: sólo admin (Fase 16 · E3).
- *   · Plantillas de correo: admin y employee (Fase 41 · E2) — los mismos que
- *     pueden usar Emails, porque una plantilla no le sirve a quien no manda
- *     mails. Adentro, el envoltorio de la empresa sólo lo edita un admin y la
- *     firma propia la edita su dueño; eso lo decide la RLS, no esta lista.
+ *
+ * TODO LO DE CORREO SE MUDÓ A EMAILS (Fase 167). «Plantillas de correo» y
+ * «Reglas de correo» salieron de acá y viven en la sección Emails, al lado de
+ * las etiquetas: una plantilla y una regla son del que trabaja con el correo,
+ * no de Configuración. «WhatsApp · IA» salió del menú por ahora —no va más por
+ * ahora— aunque su ruta sigue existiendo por URL. Las tres se reabren sumando
+ * su renglón de vuelta a la lista.
  *
  * FUERA DEL MENÚ (Fase 58 · E1). Marcas, Categorías, Atributos y Auditoría
  * salieron de la lista: once secciones hacían que no se entendiera cuáles son
@@ -40,14 +42,10 @@ export const SECCIONES_CONFIGURACION = [
   // cotización. Employee entra porque puede agregar; administrar es de admin,
   // y eso lo decide la pantalla.
   { to: '/configuracion/formas-de-pago', label: 'Formas de pago', roles: ['admin', 'employee'] },
-  { to: '/configuracion/whatsapp-ia', label: 'WhatsApp · IA', roles: ['admin'] },
-  { to: '/configuracion/plantillas', label: 'Plantillas de correo', roles: ['admin', 'employee'] },
+  // WhatsApp · IA, Plantillas de correo y Reglas de correo salieron de acá en la
+  // Fase 167 (ver el encabezado): las dos de correo viven ahora en Emails.
   // Fase 154: plantillas de impresión (Packing List y las que los admins armen).
   { to: '/configuracion/plantillas-impresion', label: 'Plantillas de impresión', roles: ['admin', 'employee'] },
-  // Fase 70 · E2. Los mismos roles que las plantillas y por lo mismo: una
-  // regla que etiqueta el correo no le sirve a quien no ve el correo. Adentro,
-  // la RPC vuelve a comprobar que quien escribe tenga acceso a esa bandeja.
-  { to: '/configuracion/reglas-correo', label: 'Reglas de correo', roles: ['admin', 'employee'] },
   // Fase 74: vuelve al menú. Una pantalla a la que sólo se llega sabiendo la
   // URL de memoria no existe el día que hace falta, y a ésta se la busca con
   // apuro. Ver el encabezado.

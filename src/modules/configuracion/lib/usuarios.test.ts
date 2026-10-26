@@ -56,19 +56,17 @@ describe('permisos de Configuración', () => {
    */
   it('Usuarios es sólo admin, y el menú lista sus secciones', () => {
     expect(['admin', 'employee', 'salesperson'].map(puedeAdministrarUsuarios)).toEqual([true, false, false])
-    expect(seccionesVisibles('admin').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Usuarios', 'Listas de precios', 'Formas de pago', 'WhatsApp · IA', 'Plantillas de correo', 'Plantillas de impresión', 'Reglas de correo', 'Borrados'])
-    // Plantillas y Reglas las ve también employee: el correo es de admin y
-    // employee, y una regla que etiqueta el correo no le sirve a quien no lo
-    // ve. Dentro de Plantillas, el envoltorio de la empresa sigue siendo de
-    // admin; eso lo decide la RLS, no esta lista (Fase 70).
-    expect(seccionesVisibles('employee').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Listas de precios', 'Formas de pago', 'Plantillas de correo', 'Plantillas de impresión', 'Reglas de correo', 'Borrados'])
+    // Fase 167: WhatsApp · IA, Plantillas de correo y Reglas de correo salieron
+    // del menú (las dos de correo viven ahora en Emails).
+    expect(seccionesVisibles('admin').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Usuarios', 'Listas de precios', 'Formas de pago', 'Plantillas de impresión', 'Borrados'])
+    expect(seccionesVisibles('employee').map((s) => s.label)).toEqual(['Empresa', 'Numeración', 'Listas de precios', 'Formas de pago', 'Plantillas de impresión', 'Borrados'])
     expect(seccionesVisibles('salesperson')).toEqual([])
     expect(seccionesVisibles('technician')).toEqual([])
   })
 
   it('las que se sacaron ya no están en el menú', () => {
     const etiquetas = seccionesVisibles('admin').map((s) => s.label)
-    for (const fuera of ['Marcas', 'Categorías', 'Atributos', 'Auditoría']) {
+    for (const fuera of ['Marcas', 'Categorías', 'Atributos', 'Auditoría', 'WhatsApp · IA', 'Plantillas de correo', 'Reglas de correo']) {
       expect(etiquetas).not.toContain(fuera)
     }
   })

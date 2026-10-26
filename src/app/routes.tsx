@@ -516,6 +516,11 @@ export const routes: RouteObject[] = [
       // Las rutas literales antes que `:threadId`, o React Router las toma por un id.
       { path: 'emails/redactar', element: privada(<EmailRedactarPage />) },
       { path: 'emails/borradores', element: privada(<EmailBorradoresPage />) },
+      // Fase 167: lo de correo vive en Emails, no en Configuración. Las páginas
+      // siguen en el módulo configuracion (comparten Dialogo y estilos), pero se
+      // llegan desde acá, al lado de las etiquetas. Las RPC vuelven a validar.
+      { path: 'emails/reglas', element: privada(<ReglasCorreoPage />) },
+      { path: 'emails/plantillas', element: privada(<PlantillasPage />) },
       { path: 'emails/:threadId', element: privada(<EmailHiloPage />) },
 
       // WhatsApp (Fase 16). Admin, employee y vendedor: el vendedor sólo ve
@@ -560,15 +565,12 @@ export const routes: RouteObject[] = [
           { path: 'auditoria', element: conSuspense(<AuditoriaPage />) },
           // Fase 40: qué se borró, quién y por qué. Admin y employee, sólo lectura.
           { path: 'borrados', element: conSuspense(<BorradosPage />) },
-          // Fase 41 · E2: plantillas de correo. Admin y employee, que son los
-          // mismos que pueden usar Emails: la plantilla no le sirve a quien no
-          // manda mails.
-          { path: 'plantillas', element: conSuspense(<PlantillasPage />) },
+          // Fase 167: plantillas y reglas de correo se mudaron a Emails. Las
+          // URLs viejas redirigen, por si quedaron guardadas.
+          { path: 'plantillas', element: <Navigate to="/emails/plantillas" replace /> },
           // Fase 154: plantillas de impresión de documentos (admin y employee).
           { path: 'plantillas-impresion', element: conSuspense(<PlantillasImpresionPage />) },
-          // Fase 70 · E2: las reglas de correo, al lado de las plantillas y
-          // para los mismos roles: las dos son del que trabaja con el correo.
-          { path: 'reglas-correo', element: conSuspense(<ReglasCorreoPage />) },
+          { path: 'reglas-correo', element: <Navigate to="/emails/reglas" replace /> },
           // Fase 16 · E3: IA de WhatsApp (modo, límites, informes, uso). Sólo admin; la RPC lo vuelve a validar.
           { path: 'whatsapp-ia', element: conSuspense(<ConfigIAWhatsappPage />) },
         ],
