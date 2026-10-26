@@ -17,9 +17,11 @@
   line-height: var(--leading-table);
 }
 
+/* Filas bajas: el relleno vertical es el mínimo (los inputs ya dan el alto).
+   Así entran muchas líneas juntas, como pidió el usuario. */
 .tabla th,
 .tabla td {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-2);
   text-align: left;
   border-bottom: 1px solid var(--color-border);
   vertical-align: top;
@@ -74,7 +76,18 @@
   display: none;
 }
 
-@media (max-width: 1279px) {
+/*
+ * El corte mira el PANEL, no la ventana (Fase 160).
+ *
+ * `@media` miraba el ancho de la ventana, pero cuando la hoja va al lado el
+ * panel mide ~600px aunque la ventana sea ancha: la tabla no se achicaba, se
+ * iba de 60rem y scrolleaba de costado. Con `@container` la tabla se mide
+ * contra `.columnaEditor` —que es un contenedor `inline-size`— y se adapta al
+ * panel de verdad. Con el panel angosto se esconde la columna «Descripción»
+ * (su texto baja adentro de «Producto»), los títulos se parten en vez de
+ * imponer un ancho mínimo y el relleno se achica: así las ~9 columnas entran
+ * sin scroll. Con la hoja cerrada el panel es ancho y vuelve la columna. */
+@container editor (max-width: 56rem) {
   .colDescripcion {
     display: none;
   }
@@ -83,6 +96,14 @@
     margin-top: 2px;
     font-size: var(--text-xs);
     color: var(--color-text-soft);
+  }
+  .tabla thead th {
+    white-space: normal;
+  }
+  .tabla th,
+  .tabla td {
+    padding-left: var(--space-1);
+    padding-right: var(--space-1);
   }
 }
 
@@ -190,7 +211,11 @@
   background: var(--color-surface);
 }
 
-@media (max-width: 899px) {
+/* Sólo cuando el panel queda MUY angosto (un teléfono, o la hoja al lado en una
+   ventana chica) cada línea se apila como tarjeta. En el panel con la hoja al
+   lado —unos 600px— no se llega acá: se queda como tabla, que es lo que se
+   pidió («ver todo en una fila»). Mira el panel, no la ventana (Fase 160). */
+@container editor (max-width: 34rem) {
   .scroll {
     overflow: visible;
     border: 0;

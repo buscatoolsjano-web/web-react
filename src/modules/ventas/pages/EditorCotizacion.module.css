@@ -48,18 +48,17 @@
    del documento. Desde 1280 px, que es donde las dos cosas entran. */
 .conPrevia {
   /* Lo que el panel de datos le gana a la hoja, en píxeles exactos. Un solo
-     número para las dos columnas: lo que una suma, la otra lo resta. Subido a
-     20 px a pedido (Fase 157): otros 10 px del preview van al panel de carga. */
+     número para las dos columnas: lo que una suma, la otra lo resta. */
   --ajuste-panel: 20px;
 
   display: grid;
-  /* El reparto es 32/68 del espacio libre —el ancho menos el gap—, y encima
-     va el ajuste. Se calcula el 32 % a mano en vez de usar `32fr` porque
-     `fr` no entra en `calc()`: no existe `calc(32fr + 10px)`. La segunda
-     columna toma el resto, así que queda angosta exactamente en esos 10 px
-     sin tener que repetir la cuenta. */
+  /* El reparto es 42/58 del espacio libre —el ancho menos el gap—, y encima
+     va el ajuste. Se calcula el 42 % a mano en vez de usar `42fr` porque
+     `fr` no entra en `calc()`. Subido de 32 % a 42 % (Fase 160): la tabla de
+     líneas necesita el ancho para mostrar todas las columnas sin scroll, y la
+     hoja —que es A4— sigue entrando holgada en el 58 % restante. */
   grid-template-columns:
-    minmax(19rem, calc((100% - var(--space-4)) * 0.32 + var(--ajuste-panel)))
+    minmax(19rem, calc((100% - var(--space-4)) * 0.42 + var(--ajuste-panel)))
     minmax(0, 1fr);
   gap: var(--space-4);
   align-items: start;
@@ -67,10 +66,11 @@
 
 @media (min-width: 1800px) {
   /* En pantallas muy anchas el panel no necesita seguir creciendo: lo que
-     sobra es para la hoja. El ajuste se mantiene. */
+     sobra es para la hoja. El tope sube a 36rem (Fase 160) para que la tabla
+     de líneas entre entera también acá. */
   .conPrevia {
     grid-template-columns:
-      minmax(19rem, calc(26rem + var(--ajuste-panel)))
+      minmax(19rem, calc(36rem + var(--ajuste-panel)))
       minmax(0, 1fr);
   }
 }
