@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode } from 'react'
 import { formatearCantidad, formatearFecha, formatearImporte } from '../lib/formato'
 import { FORMAS_DE_PAGO, queMostrar, type DocumentoImprimible, type EmpresaImpresion, type LineaImpresa, type OpcionesImpresion } from '../lib/impresion'
+import { verDePlantilla, type ConfigPlantilla } from '../lib/plantillas'
 import { CeldaEditable } from './CeldaEditable'
 import styles from './VistaImpresion.module.css'
 
@@ -65,6 +66,12 @@ export interface VistaImpresionProps {
   doc: DocumentoImprimible
   empresa: EmpresaImpresion
   opciones: OpcionesImpresion
+  /**
+   * Una plantilla del admin (Fase 152). Cuando viene, ella decide qué columnas y
+   * bloques se ven y qué textos lleva, en vez del `formato` de las opciones. Es
+   * la MISMA hoja: la plantilla sólo elige qué se muestra.
+   */
+  plantilla?: ConfigPlantilla | null
   /** Si viene, la hoja se puede editar. En impresión nunca viene. */
   edicion?: EdicionEnHoja | null
 }
@@ -93,9 +100,18 @@ const BLOQUE_DE: Record<DocumentoImprimible['tipo'], string> = {
  * mismos bloques en las mismas posiciones, con las etiquetas y las columnas
  * que le corresponden a cada uno. Lo que cambia son los datos.
  */
-export function VistaImpresion({ doc, empresa, opciones, edicion = null }: VistaImpresionProps) {
-  const ver = queMostrar(opciones.formato)
+export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edicion = null }: VistaImpresionProps) {
+  const ver = plantilla ? verDePlantilla(plantilla) : queMostrar(opciones.formato)
   const moneda = doc.moneda
+  // Con plantilla manda ella; si no, el formato y la opción de foto.
+  const conFotos = plantilla ? plantilla.columnas.foto : opciones.conFotos
+  const verFirmas = plantilla ? plantilla.bloques.firmas : ver.packing !== 'no'
+  const titulo = plantilla?.titulo ?? doc.titulo
+  // Los bloques que una plantilla puede apagar (sin plantilla, todos van).
+  const verEmpresa = plantilla ? plantilla.bloques.empresa : true
+  const verCliente = plantilla ? plantilla.bloques.cliente : true
+  const verDatos = plantilla ? plantilla.bloques.datos : true
+  const verNotas = plantilla ? plantilla.bloques.notas : true
 
   if (ver.ticket) {
     return (
@@ -186,18 +202,19 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
    * primer descuento —la columna aparecería recién después de cargarlo, que
    * es justo cuando ya no hace falta—.
    */
-  const hayDescuento = edicion !== null || doc.lineas.some((l) => l.descuentoPct > 0)
+  const permitirDescuento = plantilla ? plantilla.columnas.descuento : true
+  const hayDescuento = permitirDescuento && (edicion !== null || doc.lineas.some((l) => l.descuentoPct > 0))
   const verDescuento = ver.precios && hayDescuento
   const columnas = 3 + (ver.precios ? 2 : 0) + (verDescuento ? 1 : 0) + (ver.impuestos ? 1 : 0)
 
   /* Con fotos manda el marco de 20 mm. Sin fotos, el alto depende de si
      alguna línea tiene algo escrito debajo del nombre. En el packing «simple»
-     la descripción no se muestra, así que las filas van compactas. */
-  const mostrarDescripcion = ver.packing !== 'simple'
+     —o si la plantilla la apaga— la descripción no se muestra. */
+  const mostrarDescripcion = plantilla ? plantilla.columnas.descripcion : ver.packing !== 'simple'
   const hayDescripcion =
     mostrarDescripcion &&
     doc.lineas.some((l) => l.partes.length > 0 || (l.descripcion !== null && l.descripcion !== l.nombre))
-  const altoDeFila = opciones.conFotos ? 'filasFoto' : hayDescripcion ? 'filasDesc' : 'filasSimples'
+  const altoDeFila = conFotos ? 'filasFoto' : hayDescripcion ? 'filasDesc' : 'filasSimples'
   // La columna del botón de borrar sólo existe en pantalla y sólo editando.
   const columnasVisibles = columnas + (edicion ? 1 : 0)
 
@@ -207,25 +224,29 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
       data-impresion="hoja"
     >
       {/* ── A · la empresa ──────────────────────────────────────────── */}
-      <header className={styles.encabezado}>
-        <div className={styles.cajaLogo}>
-          <img src={empresa.logoUrl ?? LOGO} alt={empresa.nombre} className={styles.logo} width={1400} height={673} />
-        </div>
-        <div className={styles.empresa}>
-          {empresa.razonSocial ? <strong>{empresa.razonSocial}</strong> : null}
-          {empresa.direccion ? <div>{empresa.direccion}</div> : null}
-          {empresa.cuit ? <div>{empresa.cuit}</div> : null}
-        </div>
-        <div className={styles.empresaContacto}>
-          {empresa.email ? <div>{empresa.email}</div> : null}
-          {empresa.web ? <div>{empresa.web}</div> : null}
-          {empresa.telefono ? <div>Tel.: {empresa.telefono}</div> : null}
-        </div>
-      </header>
-      <div className={styles.reglaNaranja} />
+      {verEmpresa ? (
+        <>
+          <header className={styles.encabezado}>
+            <div className={styles.cajaLogo}>
+              <img src={empresa.logoUrl ?? LOGO} alt={empresa.nombre} className={styles.logo} width={1400} height={673} />
+            </div>
+            <div className={styles.empresa}>
+              {empresa.razonSocial ? <strong>{empresa.razonSocial}</strong> : null}
+              {empresa.direccion ? <div>{empresa.direccion}</div> : null}
+              {empresa.cuit ? <div>{empresa.cuit}</div> : null}
+            </div>
+            <div className={styles.empresaContacto}>
+              {empresa.email ? <div>{empresa.email}</div> : null}
+              {empresa.web ? <div>{empresa.web}</div> : null}
+              {empresa.telefono ? <div>Tel.: {empresa.telefono}</div> : null}
+            </div>
+          </header>
+          <div className={styles.reglaNaranja} />
+        </>
+      ) : null}
 
       {/* ── B · el documento ────────────────────────────────────────── */}
-      <h1 className={styles.titulo}>{doc.titulo}</h1>
+      <h1 className={styles.titulo}>{titulo}</h1>
       {edicion?.onTitulo ? (
         <input
           type="text"
@@ -239,8 +260,13 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
         <p className={styles.subtitulo}>{doc.subtitulo ?? ''}</p>
       )}
 
+      {/* El encabezado libre de la plantilla (Fase 152), si lo tiene. */}
+      {plantilla?.encabezado ? <p className={styles.textoPlantilla}>{plantilla.encabezado}</p> : null}
+
       {/* ── C · datos del documento y del cliente ───────────────────── */}
+      {verDatos || verCliente ? (
       <section className={styles.bloques}>
+        {verDatos ? (
         <div>
           <h2 className={styles.tituloBloque}>{BLOQUE_DE[doc.tipo]}</h2>
           <dl className={styles.campos}>
@@ -325,6 +351,8 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
             ) : null}
           </dl>
         </div>
+        ) : null}
+        {verCliente ? (
         <div>
           <h2 className={styles.tituloBloque}>Datos del cliente</h2>
           <dl className={styles.campos}>
@@ -347,7 +375,9 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
             ) : null}
           </dl>
         </div>
+        ) : null}
       </section>
+      ) : null}
 
       {/* ── D · productos ───────────────────────────────────────────── */}
       {/*
@@ -407,6 +437,8 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
         <tbody>
           {doc.lineas.map((l) =>
             l.esCapitulo ? (
+              // La plantilla puede apagar las notas entre líneas (Fase 152).
+              !verNotas ? null : (
               <tr key={l.id} className={styles.capitulo}>
                 {/* Una caja de texto y el botón de quitar. Nada de «Capítulo»
                     escrito de fábrica: el renglón arranca vacío y quien lo usa
@@ -439,6 +471,7 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
                   </td>
                 ) : null}
               </tr>
+              )
             ) : (
               <tr key={l.id}>
                 {/* Referencia arriba y foto abajo, en una sola celda. El hueco
@@ -447,7 +480,7 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
                     Vacío NO se dibuja: ocupa el lugar y no se ve. */}
                 <td className={styles.celdaRef}>
                   <div className={styles.sku}>{l.sku ?? '—'}</div>
-                  {opciones.conFotos ? (
+                  {conFotos ? (
                     <div className={l.foto ? styles.marcoFoto : `${styles.marcoFoto} ${styles.marcoVacio}`}>
                       {l.foto ? <img src={l.foto} alt="" className={styles.foto} loading="lazy" /> : null}
                     </div>
@@ -544,7 +577,7 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
         dos firmas, la de quien preparó y la de quien recibe. Es lo que convierte
         el listado en un comprobante de entrega.
       */}
-      {ver.packing !== 'no' ? (
+      {verFirmas ? (
         <section className={styles.packingCierre}>
           <div className={styles.packingBultos}>
             <span>Bultos: <span className={styles.lineaDato} /></span>
@@ -595,6 +628,9 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
           </div>
         </section>
       ) : null}
+
+      {/* El pie libre de la plantilla (Fase 152), si lo tiene. */}
+      {plantilla?.pie ? <p className={styles.textoPlantilla}>{plantilla.pie}</p> : null}
 
       {/* ── G · pie ─────────────────────────────────────────────────── */}
       {/*

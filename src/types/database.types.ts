@@ -4344,6 +4344,36 @@ export type Database = {
         }
         Relationships: []
       }
+      print_templates: {
+        Row: {
+          id: string
+          company_id: string
+          name: string
+          config: Json
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          name: string
+          config?: Json
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          name?: string
+          config?: Json
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_attribute_categories: {
         Row: {
           attribute_definition_id: string

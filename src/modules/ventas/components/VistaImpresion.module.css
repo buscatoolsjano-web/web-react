@@ -453,6 +453,16 @@
   font-weight: 800;
 }
 
+/* El texto libre de una plantilla (Fase 152): encabezado o pie. Respeta los
+   saltos de línea que escribió el admin. */
+.textoPlantilla {
+  margin: 3mm 0;
+  font-size: 9pt;
+  line-height: 1.4;
+  color: var(--tinta-suave);
+  white-space: pre-wrap;
+}
+
 /* ── Packing List (Fase 149) ───────────────────────────────────────────── */
 
 .packingCierre {
