@@ -108,10 +108,13 @@ describe('<EditorLineas>', () => {
     expect(screen.getByLabelText('Alícuota')).toHaveValue(5)
   })
 
-  it('en sólo lectura no hay botones de mover ni borrar', () => {
+  it('en sólo lectura es la vista: sin inputs ni botones de mover o borrar', () => {
+    // Fase 155: editar es la MISMA tabla que ver. En sólo lectura no hay inputs
+    // —las celdas son texto— ni botones de acción.
     montar([linea()], false)
     expect(screen.queryByLabelText('Eliminar línea')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Cantidad')).toHaveAttribute('readonly')
+    expect(screen.queryByLabelText('Cantidad')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Subir')).not.toBeInTheDocument()
   })
 
   it('mover usa el id de la línea, no su posición', () => {

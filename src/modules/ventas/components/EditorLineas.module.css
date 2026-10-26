@@ -2,7 +2,7 @@
    Densa como el STEL. En una pantalla angosta scrollea de costado en vez de
    romper el layout: con diez columnas, apretarlas es peor que el scroll. */
 
-.marco {
+.scroll {
   overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius);

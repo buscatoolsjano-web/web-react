@@ -101,6 +101,80 @@
   font-weight: var(--weight-bold);
 }
 
+/* ── Modo edición (Fase 155) ────────────────────────────────────────────────
+   Los inputs se funden con la celda: invisibles hasta que se los toca. Así la
+   tabla se ve IGUAL que en lectura, sólo que los rectángulos son editables. */
+.inputTexto,
+.inputNum,
+.inputSelect,
+.notaInput {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  font-size: var(--text-sm);
+  min-height: 32px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+}
+
+.inputNum {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.notaInput {
+  font-style: italic;
+}
+
+.inputTexto:hover,
+.inputNum:hover,
+.inputSelect:hover,
+.notaInput:hover {
+  border-color: var(--color-border);
+}
+
+.inputTexto:focus-visible,
+.inputNum:focus-visible,
+.inputSelect:focus-visible,
+.notaInput:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -1px;
+  background: var(--color-surface);
+}
+
+.inputTexto[readonly],
+.inputNum[readonly] {
+  color: var(--color-text-soft);
+}
+
+.colAccion {
+  width: 6.5rem;
+}
+
+.celdaAccion {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.avisoHistorico,
+.avisoIgual {
+  margin: 2px 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.avisoHistorico {
+  color: var(--color-warning-text);
+}
+
+.avisoIgual {
+  color: var(--color-text-soft);
+}
+
 .vacio,
 .nota {
   margin: var(--space-3) 0 0;
@@ -217,5 +291,27 @@
   }
   .capitulo td::before {
     content: none;
+  }
+  /* La celda de acciones (editando) va a lo ancho, con los botones a la derecha. */
+  .tabla td.celdaAccion {
+    order: 8;
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+  .tabla td.celdaAccion::before {
+    content: none;
+  }
+}
+
+/* 16px de fuente en el input evita el zoom de iOS al enfocar; 44px de alto es el
+   objetivo táctil mínimo. Sólo en pantallas chicas. */
+@media (max-width: 767px) {
+  .inputTexto,
+  .inputNum,
+  .inputSelect,
+  .notaInput {
+    font-size: 16px;
+    min-height: 44px;
   }
 }
