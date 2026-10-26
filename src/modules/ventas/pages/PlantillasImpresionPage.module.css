@@ -1,0 +1,40 @@
+/* Configuración → Plantillas de impresión (Fase 154). */
+
+.cargando {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-soft);
+  padding: var(--space-4) 0;
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.nombre {
+  font-weight: var(--weight-semibold);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.acciones {
+  display: flex;
+  gap: var(--space-2);
+  flex: none;
+}

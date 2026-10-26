@@ -307,6 +307,9 @@ const BorradosPage = lazyConRecarga(() =>
 const PlantillasPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/PlantillasPage').then((m) => ({ default: m.PlantillasPage })),
 )
+const PlantillasImpresionPage = lazyConRecarga(() =>
+  import('@/modules/ventas/pages/PlantillasImpresionPage').then((m) => ({ default: m.PlantillasImpresionPage })),
+)
 const ReglasCorreoPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/ReglasCorreoPage').then((m) => ({ default: m.ReglasCorreoPage })),
 )
@@ -561,6 +564,8 @@ export const routes: RouteObject[] = [
           // mismos que pueden usar Emails: la plantilla no le sirve a quien no
           // manda mails.
           { path: 'plantillas', element: conSuspense(<PlantillasPage />) },
+          // Fase 154: plantillas de impresión de documentos (admin y employee).
+          { path: 'plantillas-impresion', element: conSuspense(<PlantillasImpresionPage />) },
           // Fase 70 · E2: las reglas de correo, al lado de las plantillas y
           // para los mismos roles: las dos son del que trabaja con el correo.
           { path: 'reglas-correo', element: conSuspense(<ReglasCorreoPage />) },
