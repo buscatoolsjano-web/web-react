@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useId, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { LinkButton } from '@/components/ui/LinkButton'
@@ -416,7 +416,19 @@ function Detalle() {
 
   const acciones = useAccionesDocumento(editando ? null : doc, {})
 
+  /**
+   * Entrar a editar NO mueve el scroll (Fase 165).
+   *
+   * Al apretar «Editar» la pantalla se iba un poco para arriba: la cabecera y
+   * la barra cambian de alto al pasar a edición y el navegador reacomodaba la
+   * vista. Se guarda dónde estaba la página justo antes y, apenas se dibuja el
+   * modo edición, se vuelve a ESA posición —en un `useLayoutEffect`, antes de
+   * pintar, así no se ve el salto—.
+   */
+  const scrollAlEditar = useRef<number | null>(null)
+
   const abrirEdicion = useCallback((d: DocumentoDetalle) => {
+    scrollAlEditar.current = window.scrollY
     const b = crearBorrador(d, ordenarLineas(d.lineas))
     setOriginal(b)
     setBorrador(b)
@@ -426,6 +438,13 @@ function Detalle() {
     setAvisoTarifa(false)
     setGuardado(false)
   }, [])
+
+  useLayoutEffect(() => {
+    if (editando && scrollAlEditar.current !== null) {
+      window.scrollTo(0, scrollAlEditar.current)
+      scrollAlEditar.current = null
+    }
+  }, [editando])
 
   const descartar = useCallback(() => {
     // Ni un pedido de escritura: se suelta el borrador y vuelve lo del servidor.
@@ -1034,15 +1053,9 @@ function Detalle() {
                   <TablaLineas lineas={lineasVisibles} moneda={doc.moneda} tipo="cotizacion" />
                 )}
 
-                <TotalesDocumento
-                  doc={docVisible}
-                  lineas={lineasVisibles}
-                  nota={
-                    editando
-                      ? 'Previsualización. Los totales definitivos los calcula el servidor al guardar, a partir de las líneas, el descuento global y la percepción.'
-                      : undefined
-                  }
-                />
+                {/* Editando, sólo el Total y sin nota: el pie queda chico
+                    (Fase 165). En lectura, el desglose completo. */}
+                <TotalesDocumento doc={docVisible} lineas={lineasVisibles} soloTotal={editando} />
               </DocSection>
             </div>
 

@@ -8,6 +8,15 @@ export interface TotalesDocumentoProps {
   lineas: readonly LineaDocumento[]
   /** Nota al pie (p. ej. de dónde salen los números mientras se edita). */
   nota?: string | undefined
+  /**
+   * Sólo el total, en una línea (Fase 165).
+   *
+   * Mientras se edita se pidió achicar el pie: nada de la nota de
+   * «Previsualización» ni el desglose de unidades, subtotal e impuestos —el
+   * servidor recalcula todo al guardar—, sólo el Total para tenerlo a la vista,
+   * como la barra de abajo del sistema anterior.
+   */
+  soloTotal?: boolean | undefined
 }
 
 /**
@@ -25,8 +34,13 @@ export interface TotalesDocumentoProps {
  * subtotal y del impuesto. Despejar el importe sería reconstruir a mano una
  * cuenta que el servidor ya hizo.
  */
-export function TotalesDocumento({ doc, lineas, nota }: TotalesDocumentoProps) {
+export function TotalesDocumento({ doc, lineas, nota, soloTotal }: TotalesDocumentoProps) {
   const unidades = unidadesDe(lineas)
+
+  // Mientras se edita, sólo el Total y sin nota: el pie queda chico.
+  if (soloTotal) {
+    return <Totals rows={[{ label: 'Total', value: formatearImporte(doc.total, doc.moneda), strong: true }]} />
+  }
 
   const filas: TotalRow[] = [
     { label: 'Unidades', value: formatearCantidad(unidades) },

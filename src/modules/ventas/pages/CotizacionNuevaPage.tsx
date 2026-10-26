@@ -739,11 +739,8 @@ export function CotizacionNuevaPage() {
               }
             />
 
-            <TotalesDocumento
-              doc={previo}
-              lineas={lineasVisibles}
-              nota="Previsualización. Los totales definitivos los calcula el servidor al crear la cotización, a partir de las líneas, el descuento global y la percepción."
-            />
+            {/* Al armar, sólo el Total: el pie queda chico (Fase 165). */}
+            <TotalesDocumento doc={previo} lineas={lineasVisibles} soloTotal />
           </DocSection>
         </div>
 

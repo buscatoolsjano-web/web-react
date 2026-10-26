@@ -249,16 +249,27 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLinea
                     )}
                   </td>
                   <td className={styles.colDescripcion} data-label="Descripción">
+                    {/* Como el STEL (Fase 165): la descripción es una caja chica,
+                        colapsada a un renglón, con el tirador abajo a la derecha
+                        para deslizarla y abrirla. Igual al editar que al ver —al
+                        ver es de sólo lectura, pero se arrastra para leerla—. */}
                     {editando ? (
-                      <input
-                        className={styles.inputTexto}
+                      <textarea
+                        className={styles.descripcionArea}
+                        rows={1}
                         value={l.descripcion ?? ''}
                         placeholder="Texto comercial"
                         aria-label="Descripción de la línea"
                         onChange={(e) => edicion.onCambiar(l.id, 'description_snapshot', e.target.value || null)}
                       />
                     ) : l.descripcion && l.descripcion !== l.nombre ? (
-                      <span className={styles.descripcion}>{l.descripcion}</span>
+                      <textarea
+                        className={styles.descripcionArea}
+                        rows={1}
+                        value={l.descripcion}
+                        readOnly
+                        aria-label="Descripción de la línea"
+                      />
                     ) : (
                       '—'
                     )}

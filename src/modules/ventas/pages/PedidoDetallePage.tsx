@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useId, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/Button'
@@ -393,7 +393,12 @@ function Detalle() {
 
   const acciones = useAccionesDocumento(borrador !== null ? null : doc)
 
+  // Entrar a editar NO mueve el scroll (Fase 165): se guarda dónde estaba la
+  // página y se vuelve a esa posición apenas se dibuja el modo edición.
+  const scrollAlEditar = useRef<number | null>(null)
+
   const abrirEdicion = useCallback((d: DocumentoDetalle) => {
+    scrollAlEditar.current = window.scrollY
     const b = crearBorrador(d, ordenarLineas(d.lineas))
     setOriginal(b)
     setBorrador(b)
@@ -403,6 +408,13 @@ function Detalle() {
     setAvisoTarifa(false)
     setGuardado(false)
   }, [])
+
+  useLayoutEffect(() => {
+    if (editando && scrollAlEditar.current !== null) {
+      window.scrollTo(0, scrollAlEditar.current)
+      scrollAlEditar.current = null
+    }
+  }, [editando])
 
   const descartar = useCallback(() => {
     // Ni un pedido de escritura: se suelta el borrador y vuelve lo del servidor.
@@ -968,15 +980,9 @@ function Detalle() {
                   <TablaLineas lineas={lineasVisibles} moneda={doc.moneda} tipo="pedido" />
                 )}
 
-                <TotalesDocumento
-                  doc={docVisible}
-                  lineas={lineasVisibles}
-                  nota={
-                    editando
-                      ? 'Previsualización. Los totales definitivos los calcula el servidor al guardar, a partir de las líneas, el descuento global y la percepción.'
-                      : undefined
-                  }
-                />
+                {/* Editando, sólo el Total y sin nota: el pie queda chico
+                    (Fase 165). En lectura, el desglose completo. */}
+                <TotalesDocumento doc={docVisible} lineas={lineasVisibles} soloTotal={editando} />
               </DocSection>
             </div>
 

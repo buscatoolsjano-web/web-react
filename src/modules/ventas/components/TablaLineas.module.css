@@ -171,6 +171,43 @@
   color: var(--color-text-soft);
 }
 
+/* La descripción, como el STEL (Fase 165): colapsada a ~un renglón, con el
+   tirador de abajo a la derecha para deslizarla y leerla/editarla entera. Se
+   funde con la celda igual que los demás inputs. */
+.descripcionArea {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  min-height: 32px;
+  /* Arranca en un renglón; el resto se lee arrastrando o scrolleando adentro. */
+  height: 32px;
+  resize: vertical;
+  overflow: auto;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  white-space: pre-wrap;
+}
+
+.descripcionArea:hover {
+  border-color: var(--color-border);
+}
+
+.descripcionArea:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -1px;
+  background: var(--color-surface);
+}
+
+/* En sólo lectura no se escribe, pero SÍ se arrastra para leerla. */
+.descripcionArea[readonly] {
+  cursor: default;
+}
+
 .colAccion {
   width: 6.5rem;
 }
@@ -336,8 +373,12 @@
   .inputTexto,
   .inputNum,
   .inputSelect,
-  .notaInput {
+  .notaInput,
+  .descripcionArea {
     font-size: 16px;
     min-height: 44px;
+  }
+  .descripcionArea {
+    height: 44px;
   }
 }
