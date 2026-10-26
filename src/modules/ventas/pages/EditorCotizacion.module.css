@@ -48,8 +48,9 @@
    del documento. Desde 1280 px, que es donde las dos cosas entran. */
 .conPrevia {
   /* Lo que el panel de datos le gana a la hoja, en píxeles exactos. Un solo
-     número para las dos columnas: lo que una suma, la otra lo resta. */
-  --ajuste-panel: 10px;
+     número para las dos columnas: lo que una suma, la otra lo resta. Subido a
+     20 px a pedido (Fase 157): otros 10 px del preview van al panel de carga. */
+  --ajuste-panel: 20px;
 
   display: grid;
   /* El reparto es 32/68 del espacio libre —el ancho menos el gap—, y encima
