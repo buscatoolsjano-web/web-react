@@ -90,7 +90,23 @@ export function BotonesHeader() {
   const rol = activa?.rol ?? ''
   const userId = useAuth().user?.id ?? null
   const [abierto, setAbierto] = useState<'nada' | 'notificaciones' | 'asistente' | 'cata'>('nada')
-  const [visto, setVisto] = useState(() => leerVisto(companyId, userId))
+  /*
+   * `visto` se LEE en cada render, con la empresa y el usuario REALES (Fase 161).
+   *
+   * Antes vivía en estado con un inicializador —`useState(() => leerVisto(...))`—
+   * que corre UNA sola vez, en el primer render. Y en ese primer render la
+   * empresa y el usuario todavía son `null` (se cargan asíncronos), así que leía
+   * la clave equivocada (`:null:null` → vacío) y nunca la volvía a leer para los
+   * valores de verdad. Resultado: abrías el panel, el globito bajaba, pero al
+   * recargar volvía a aparecer, porque el `visto` guardado nunca se releía.
+   *
+   * Leerlo en el render lo arregla: cuando empresa y usuario llegan, el próximo
+   * render lee la clave correcta de localStorage y el globito queda bajo. Es una
+   * lectura barata y protegida con try/catch; `misNotificaciones` recién corre
+   * cuando los dos están, así que `cuantas` siempre compara contra el `visto`
+   * bueno.
+   */
+  const visto = leerVisto(companyId, userId)
 
   /**
    * El contador de la campana.
@@ -113,11 +129,11 @@ export function BotonesHeader() {
   // globito —no tienen un «cuándo» contra el cual decidir si son nuevas—.
   const cuantas = (q.data ?? []).filter((n) => n.cuando !== null && n.cuando > visto).length
 
-  /** Abrir el panel es «ya las vi»: se marca hasta ahora y el globito baja. */
+  /** Abrir el panel es «ya las vi»: se marca hasta ahora y el globito baja.
+      Se persiste en localStorage y el re-render de `setAbierto` vuelve a leer
+      ese `visto`, así que el globito baja ahora Y sigue bajo al recargar. */
   const abrirNotificaciones = () => {
-    const ahora = new Date().toISOString()
-    setVisto(ahora)
-    guardarVisto(companyId, userId, ahora)
+    guardarVisto(companyId, userId, new Date().toISOString())
     setAbierto('notificaciones')
   }
 
