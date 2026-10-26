@@ -73,6 +73,7 @@ export interface Herramienta {
 
 const texto = (description: string): EsquemaParametro => ({ type: 'string', description })
 const entero = (description: string): EsquemaParametro => ({ type: 'integer', description })
+const booleano = (description: string): EsquemaParametro => ({ type: 'boolean', description })
 
 /**
  * El catálogo, indexado por id.
@@ -92,6 +93,10 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
     parametros: {
       texto: texto('Qué buscar. Puede ser un SKU, un nombre, una marca o una descripción.'),
       limite: entero('Cuántos traer (1 a 40). Por defecto 15.'),
+      solo_con_stock: booleano(
+        'Poné true cuando la persona pide EXPLÍCITAMENTE con stock / disponible / que haya / que tengamos: ' +
+          'devuelve sólo los que tienen disponible mayor a cero y descarta los demás.',
+      ),
     },
     obligatorios: ['texto'],
     rpc: 'asistente_buscar_productos',

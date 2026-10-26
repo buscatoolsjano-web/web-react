@@ -136,6 +136,26 @@ function cosecharProductos(datos: unknown, acumulado: ProductoNombrado[]): void 
 }
 
 /**
+ * Deja sólo los productos con disponible mayor a cero (Fase 166).
+ *
+ * Es el filtro de «con stock»: cuando la persona lo pide explícitamente, los que
+ * están en cero no van ni al texto del modelo ni a las tarjetas. Se descartan
+ * también los que no traen `disponible` (desconocido no es «con stock»). Lo demás
+ * del resultado —el conteo, el aviso de recorte— se conserva.
+ */
+function soloConStock(datos: unknown): unknown {
+  if (typeof datos !== 'object' || datos === null) return datos
+  const d = datos as Record<string, unknown>
+  if (!Array.isArray(d['productos'])) return datos
+  const conStock = d['productos'].filter((f) => {
+    if (typeof f !== 'object' || f === null) return false
+    const disp = aNumero((f as Record<string, unknown>)['disponible'])
+    return disp !== null && disp > 0
+  })
+  return { ...d, productos: conStock }
+}
+
+/**
  * Saca los correos de lo que devolvió `buscar_emails`.
  *
  * Una fila sin `id` se descarta: sin él la tarjeta no puede abrir nada, y una
@@ -205,6 +225,9 @@ export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
      */
     const params: Record<string, unknown> = {}
     for (const clave of Object.keys(h.parametros)) {
+      // `solo_con_stock` es un filtro de pantalla, no una columna de la RPC: se
+      // aplica acá sobre el resultado, no se manda a la base (Fase 166).
+      if (clave === 'solo_con_stock') continue
       const v = argumentos[clave]
       if (v !== undefined && v !== null && v !== '') params[`p_${clave}`] = v
     }
@@ -243,6 +266,14 @@ export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
       datos = r.data
     } catch {
       return problema('No pude consultar la base en este momento.')
+    }
+
+    // «Con stock»: se descartan los que no tienen disponible, ANTES de cosechar
+    // las tarjetas y de recortar para el modelo. Así «¿hay puntas PH2 con
+    // stock?» no devuelve, ni en texto ni en tarjetas, las que están en cero
+    // (Fase 166). El modelo lo pide con `solo_con_stock: true`.
+    if (nombre === 'buscar_productos' && argumentos['solo_con_stock'] === true) {
+      datos = soloConStock(datos)
     }
 
     // El borrador se guarda entero para la pantalla, antes de recortarlo

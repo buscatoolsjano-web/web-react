@@ -136,6 +136,8 @@ export function ChatAsistente() {
     }
   }
   const finRef = useRef<HTMLDivElement>(null)
+  /** El principio de la última respuesta, para mostrarla desde arriba. */
+  const respuestaRef = useRef<HTMLElement>(null)
 
   const estado = useQuery({
     queryKey: ['asistente', 'estado'],
@@ -197,13 +199,26 @@ export function ChatAsistente() {
   })
 
   /**
-   * Que la respuesta nueva quede a la vista sin tener que bajar a mano.
+   * Dónde queda la vista cuando cambia el hilo (Fase 166).
    *
-   * Se comprueba que el método exista: bajar el hilo es una comodidad, y no
-   * puede ser la razón por la que la pantalla entera se caiga donde no esté
-   * implementado. Lo encontró un test, que corre en jsdom y no lo tiene.
+   * Mientras pregunta o apenas mandé mi mensaje, abajo: ahí está mi pregunta y
+   * la barra de «pensando». Pero cuando LLEGA la respuesta, al PRINCIPIO de
+   * ella, no al final: antes bajaba hasta el fondo —tarjetas incluidas— y había
+   * que volver a subir para leer desde la primera línea. «Que me muestre lo
+   * primero que me dice, no que me scrollee hasta abajo todo solo.»
+   *
+   * Se comprueba que el método exista: acomodar el hilo es una comodidad y no
+   * puede tirar abajo la pantalla donde no esté implementado (jsdom, en tests).
    */
   useEffect(() => {
+    const ultimo = turnos[turnos.length - 1]
+    if (!consultar.isPending && ultimo?.rol === 'agente') {
+      const resp = respuestaRef.current
+      if (typeof resp?.scrollIntoView === 'function') {
+        resp.scrollIntoView({ block: 'start' })
+        return
+      }
+    }
     const fin = finRef.current
     if (typeof fin?.scrollIntoView === 'function') fin.scrollIntoView({ block: 'end' })
   }, [turnos, consultar.isPending])
@@ -312,6 +327,7 @@ export function ChatAsistente() {
           return (
             <article
               key={i}
+              ref={t.rol === 'agente' && i === turnos.length - 1 ? respuestaRef : undefined}
               className={t.rol === 'usuario' ? styles.mio : styles.suyo}
               aria-label={t.rol === 'usuario' ? 'Lo que preguntaste' : 'Respuesta del asistente'}
             >
