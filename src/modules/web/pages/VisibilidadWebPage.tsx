@@ -1,16 +1,11 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/forms/controls'
 import { Spinner } from '@/components/ui/Spinner'
 import { Alert } from '@/components/feedback/Alert'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import {
-  aplicarVisibilidad,
-  buscarProductosVisibilidad,
-  visibilidadCategorias,
-} from '../services/visibilidad'
+import { aplicarVisibilidad, buscarProductosVisibilidad } from '../services/visibilidad'
 import { useDebounce } from '@/hooks/useDebounce'
 import { GestorPortadas } from '../components/GestorPortadas'
 import styles from './VisibilidadWebPage.module.css'
@@ -28,15 +23,9 @@ export function VisibilidadWebPage() {
   const companyId = activa?.companyId ?? null
   const qc = useQueryClient()
 
-  const cats = useQuery({
-    queryKey: ['web', companyId, 'visibilidad-cats'],
-    queryFn: () => visibilidadCategorias(companyId!),
-    enabled: companyId !== null,
-  })
-
   const aplicar = useMutation({
-    mutationFn: (v: { visible: boolean; categoryId?: string; productId?: string }) =>
-      aplicarVisibilidad(companyId!, v.visible, { categoryId: v.categoryId, productId: v.productId }),
+    mutationFn: (v: { visible: boolean; productId: string }) =>
+      aplicarVisibilidad(companyId!, v.visible, { productId: v.productId }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['web', companyId, 'visibilidad-cats'] })
       void qc.invalidateQueries({ queryKey: ['web', companyId, 'visibilidad-buscar'] })
@@ -99,64 +88,12 @@ export function VisibilidadWebPage() {
         ) : null}
       </section>
 
-      {/* ── Por categoría ──────────────────────────────────────────────── */}
+      {/* ── Por categoría: visibilidad + foto de portada juntas (Fase 158) ─ */}
       <section className={styles.panel}>
         <h2 className={styles.titulo}>Por categoría</h2>
-        {cats.isPending ? (
-          <div className={styles.cargando}><Spinner /> Cargando…</div>
-        ) : (cats.data ?? []).length === 0 ? (
-          <p className={styles.vacio}>No hay categorías con productos.</p>
-        ) : (
-          <table className={styles.tabla}>
-            <thead>
-              <tr>
-                <th>Categoría</th>
-                <th className={styles.num}>En la web</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {cats.data!.map((c) => {
-                const pct = c.total > 0 ? Math.round((c.visibles / c.total) * 100) : 0
-                return (
-                  <tr key={c.categoryId}>
-                    <td>{c.nombre}</td>
-                    <td className={styles.num}>
-                      <span className={styles.conteo}>{c.visibles.toLocaleString('es-AR')} / {c.total.toLocaleString('es-AR')}</span>
-                      <span className={styles.barra}><span className={styles.barraLlena} style={{ width: `${pct}%` }} /></span>
-                    </td>
-                    <td className={styles.acciones}>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={aplicar.isPending || c.visibles === c.total}
-                        onClick={() => aplicar.mutate({ visible: true, categoryId: c.categoryId })}
-                      >
-                        Mostrar todo
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={aplicar.isPending || c.visibles === 0}
-                        onClick={() => aplicar.mutate({ visible: false, categoryId: c.categoryId })}
-                      >
-                        Ocultar todo
-                      </Button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      {/* ── Portadas de categoría (Fase 143) ───────────────────────────── */}
-      <section className={styles.panel}>
-        <h2 className={styles.titulo}>Foto de portada de cada categoría</h2>
         <p className={styles.ayuda}>
-          Es la foto que se ve en la guía del catálogo. Elegí un producto de la categoría y su
-          foto pasa a ser la portada.
+          Mostrá u ocultá la categoría entera, y elegí su foto de portada —la que se ve en la
+          guía del catálogo— con «Modificar foto».
         </p>
         {companyId ? <GestorPortadas companyId={companyId} /> : null}
       </section>

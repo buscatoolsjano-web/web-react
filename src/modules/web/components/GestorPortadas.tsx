@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/forms/controls'
@@ -7,10 +7,12 @@ import { Alert } from '@/components/feedback/Alert'
 import { Icon } from '@/components/icons/Icon'
 import { useDebounce } from '@/hooks/useDebounce'
 import {
+  aplicarVisibilidad,
   fijarPortadaCategoria,
   portadasDeCategorias,
   productosConFotoDeCategoria,
   subirPortadaCategoria,
+  visibilidadCategorias,
 } from '../services/visibilidad'
 import styles from './GestorPortadas.module.css'
 
@@ -19,33 +21,47 @@ const TIPOS_IMAGEN = ['image/png', 'image/jpeg', 'image/webp', 'image/avif']
 const MAXIMO = 5 * 1024 * 1024
 
 /**
- * Elegir la foto de portada de cada categoría (Fase 143).
+ * Las categorías del sitio: visibilidad Y foto de portada, en UNA tabla (Fase 158).
  *
- * «Que cada categoría tenga una imagen real de un producto suyo, y que los admins
- * puedan elegir cuál.» La portada de la categoría es la foto de un PRODUCTO suyo;
- * acá el admin busca entre los productos que tienen foto y elige. Si una categoría
- * no tiene ningún producto con foto, no se puede elegir todavía: se dice.
+ * «Que donde dice "por categoría" estén las fotos y una opción de modificar.»
+ * Antes eran dos secciones separadas —la tabla de visibilidad arriba y el gestor
+ * de portadas abajo—. Ahora cada categoría es una fila con su miniatura, cuántos
+ * productos ve la web y un botón «Modificar foto» que abre, ahí mismo, elegir un
+ * producto de la categoría o subir una imagen propia (que sirve siempre, también
+ * cuando ningún producto tiene foto).
  */
 export function GestorPortadas({ companyId }: { companyId: string }) {
   const qc = useQueryClient()
-  const cats = useQuery({
+  const portadas = useQuery({
     queryKey: ['web', companyId, 'portadas'],
     queryFn: () => portadasDeCategorias(companyId),
+  })
+  const vis = useQuery({
+    queryKey: ['web', companyId, 'visibilidad-cats'],
+    queryFn: () => visibilidadCategorias(companyId),
   })
 
   const [abierta, setAbierta] = useState<string | null>(null)
 
-  const refrescar = () => {
+  const refrescarPortadas = () => {
     setAbierta(null)
     void qc.invalidateQueries({ queryKey: ['web', companyId, 'portadas'] })
-    // La portada cambió también para el sitio público.
     void qc.invalidateQueries({ queryKey: ['catalogo-publico', 'categorias'] })
+  }
+  const refrescarVis = () => {
+    void qc.invalidateQueries({ queryKey: ['web', companyId, 'visibilidad-cats'] })
+    void qc.invalidateQueries({ queryKey: ['web', companyId, 'visibilidad-buscar'] })
   }
 
   const fijar = useMutation({
     mutationFn: (v: { categoriaId: string; productoId: string | null }) =>
       fijarPortadaCategoria(companyId, v.categoriaId, v.productoId),
-    onSuccess: refrescar,
+    onSuccess: refrescarPortadas,
+  })
+  const aplicar = useMutation({
+    mutationFn: (v: { visible: boolean; categoryId: string }) =>
+      aplicarVisibilidad(companyId, v.visible, { categoryId: v.categoryId }),
+    onSuccess: refrescarVis,
   })
 
   const [subiendo, setSubiendo] = useState<string | null>(null)
@@ -57,7 +73,7 @@ export function GestorPortadas({ companyId }: { companyId: string }) {
       setErrorSubir(null)
       setSubiendo(v.categoriaId)
     },
-    onSuccess: refrescar,
+    onSuccess: refrescarPortadas,
     onError: (e) => setErrorSubir(e instanceof Error ? e.message : 'No se pudo subir la imagen.'),
     onSettled: () => setSubiendo(null),
   })
@@ -75,84 +91,143 @@ export function GestorPortadas({ companyId }: { companyId: string }) {
     subir.mutate({ categoriaId, archivo })
   }
 
-  if (cats.isPending) {
+  // Cada categoría con su visibilidad y su portada, juntas por id. Se toma la
+  // lista de portadas como base (trae la foto y cuántos productos tienen foto) y
+  // se le suman los conteos de visibilidad.
+  const filas = useMemo(() => {
+    const visPorId = new Map((vis.data ?? []).map((v) => [v.categoryId, v]))
+    return (portadas.data ?? []).map((p) => ({
+      ...p,
+      total: visPorId.get(p.categoryId)?.total ?? 0,
+      visibles: visPorId.get(p.categoryId)?.visibles ?? 0,
+    }))
+  }, [portadas.data, vis.data])
+
+  if (portadas.isPending) {
     return <div className={styles.cargando}><Spinner /> Cargando…</div>
   }
 
   return (
     <div>
-      {fijar.isError ? (
-        <Alert tone="danger">No se pudo cambiar la portada. Probá de nuevo.</Alert>
-      ) : null}
+      {fijar.isError ? <Alert tone="danger">No se pudo cambiar la portada. Probá de nuevo.</Alert> : null}
+      {aplicar.isError ? <Alert tone="danger">No se pudo aplicar el cambio de visibilidad.</Alert> : null}
       {errorSubir ? <Alert tone="danger">{errorSubir}</Alert> : null}
 
-      <ul className={styles.lista}>
-        {(cats.data ?? []).map((c) => (
-          <li key={c.categoryId} className={styles.fila}>
-            <div className={styles.cabecera}>
-              <span className={styles.miniatura}>
-                {c.portadaUrl ? (
-                  <img src={c.portadaUrl} alt="" width={48} height={48} />
-                ) : (
-                  <span className={styles.sinFoto} aria-hidden="true"><Icon name="image" size={20} /></span>
-                )}
-              </span>
-              <span className={styles.nombre}>
-                {c.nombre}
-                <span className={styles.estado}>
-                  {c.imagenSubida ? 'Imagen subida' : c.portadaUrl ? 'Con portada' : 'Sin portada'}
-                  {c.conFotos === 0 ? ' · ningún producto tiene foto' : ` · ${c.conFotos} con foto`}
-                </span>
-              </span>
-              <span className={styles.acciones}>
-                {c.portadaUrl ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={fijar.isPending || subiendo === c.categoryId}
-                    onClick={() => fijar.mutate({ categoriaId: c.categoryId, productoId: null })}
-                  >
-                    Quitar
-                  </Button>
-                ) : null}
-                {/* Elegir un PRODUCTO de la categoría (sólo si alguno tiene foto). */}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={c.conFotos === 0}
-                  onClick={() => setAbierta(abierta === c.categoryId ? null : c.categoryId)}
-                >
-                  {abierta === c.categoryId ? 'Cerrar' : 'Elegir de la categoría'}
-                </Button>
-                {/* Subir una imagen propia: sirve SIEMPRE, también cuando no hay
-                    ningún producto con foto. */}
-                <label className={styles.subir}>
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/avif"
-                    hidden
-                    disabled={subiendo === c.categoryId}
-                    onChange={(e) => {
-                      elegirArchivo(c.categoryId, e.target.files?.[0] ?? null)
-                      e.target.value = ''
-                    }}
-                  />
-                  {subiendo === c.categoryId ? 'Subiendo…' : 'Subir foto'}
-                </label>
-              </span>
-            </div>
+      <table className={styles.tabla}>
+        <thead>
+          <tr>
+            <th className={styles.colFoto}><span className="sr-only">Foto</span></th>
+            <th>Categoría</th>
+            <th className={styles.num}>En la web</th>
+            <th><span className="sr-only">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {filas.map((c) => {
+            const pct = c.total > 0 ? Math.round((c.visibles / c.total) * 100) : 0
+            const abiertoAca = abierta === c.categoryId
+            return (
+              <Fragment key={c.categoryId}>
+                <tr>
+                  <td className={styles.colFoto}>
+                    <span className={styles.miniatura}>
+                      {c.portadaUrl ? (
+                        <img src={c.portadaUrl} alt="" width={44} height={44} />
+                      ) : (
+                        <span className={styles.sinFoto} aria-hidden="true"><Icon name="image" size={20} /></span>
+                      )}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={styles.nombre}>{c.nombre}</span>
+                    <span className={styles.estado}>
+                      {c.imagenSubida ? 'Imagen subida' : c.portadaUrl ? 'Con portada' : 'Sin portada'}
+                      {c.conFotos === 0 ? ' · ningún producto tiene foto' : ` · ${c.conFotos} con foto`}
+                    </span>
+                  </td>
+                  <td className={styles.num}>
+                    <span className={styles.conteo}>
+                      {c.visibles.toLocaleString('es-AR')} / {c.total.toLocaleString('es-AR')}
+                    </span>
+                    <span className={styles.barra}><span className={styles.barraLlena} style={{ width: `${pct}%` }} /></span>
+                  </td>
+                  <td className={styles.acciones}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={aplicar.isPending || c.total === 0 || c.visibles === c.total}
+                      onClick={() => aplicar.mutate({ visible: true, categoryId: c.categoryId })}
+                    >
+                      Mostrar todo
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={aplicar.isPending || c.visibles === 0}
+                      onClick={() => aplicar.mutate({ visible: false, categoryId: c.categoryId })}
+                    >
+                      Ocultar todo
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<Icon name="image" size={16} />}
+                      onClick={() => setAbierta(abiertoAca ? null : c.categoryId)}
+                    >
+                      {abiertoAca ? 'Cerrar' : 'Modificar foto'}
+                    </Button>
+                  </td>
+                </tr>
 
-            {abierta === c.categoryId ? (
-              <Picker
-                companyId={companyId}
-                categoriaId={c.categoryId}
-                guardando={fijar.isPending}
-                onElegir={(productoId) => fijar.mutate({ categoriaId: c.categoryId, productoId })}
-              />
-            ) : null}
-          </li>
-        ))}
-      </ul>
+                {abiertoAca ? (
+                  <tr>
+                    <td colSpan={4} className={styles.editorFoto}>
+                      <div className={styles.editorAcciones}>
+                        <label className={styles.subir}>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/avif"
+                            hidden
+                            disabled={subiendo === c.categoryId}
+                            onChange={(e) => {
+                              elegirArchivo(c.categoryId, e.target.files?.[0] ?? null)
+                              e.target.value = ''
+                            }}
+                          />
+                          {subiendo === c.categoryId ? 'Subiendo…' : 'Subir una imagen propia'}
+                        </label>
+                        {c.portadaUrl ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={fijar.isPending || subiendo === c.categoryId}
+                            onClick={() => fijar.mutate({ categoriaId: c.categoryId, productoId: null })}
+                          >
+                            Quitar la foto
+                          </Button>
+                        ) : null}
+                      </div>
+                      {c.conFotos === 0 ? (
+                        <p className={styles.nota}>
+                          Ningún producto de esta categoría tiene foto. Subí una imagen propia con el
+                          botón de arriba.
+                        </p>
+                      ) : (
+                        <Picker
+                          companyId={companyId}
+                          categoriaId={c.categoryId}
+                          guardando={fijar.isPending}
+                          onElegir={(productoId) => fijar.mutate({ categoriaId: c.categoryId, productoId })}
+                        />
+                      )}
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -178,6 +253,7 @@ function Picker({
 
   return (
     <div className={styles.picker}>
+      <p className={styles.notaPicker}>Elegí un producto de la categoría: su foto pasa a ser la portada.</p>
       <Input
         type="search"
         value={texto}
