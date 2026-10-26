@@ -191,10 +191,12 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
   const columnas = 3 + (ver.precios ? 2 : 0) + (verDescuento ? 1 : 0) + (ver.impuestos ? 1 : 0)
 
   /* Con fotos manda el marco de 20 mm. Sin fotos, el alto depende de si
-     alguna línea tiene algo escrito debajo del nombre. */
-  const hayDescripcion = doc.lineas.some(
-    (l) => l.partes.length > 0 || (l.descripcion !== null && l.descripcion !== l.nombre),
-  )
+     alguna línea tiene algo escrito debajo del nombre. En el packing «simple»
+     la descripción no se muestra, así que las filas van compactas. */
+  const mostrarDescripcion = ver.packing !== 'simple'
+  const hayDescripcion =
+    mostrarDescripcion &&
+    doc.lineas.some((l) => l.partes.length > 0 || (l.descripcion !== null && l.descripcion !== l.nombre))
   const altoDeFila = opciones.conFotos ? 'filasFoto' : hayDescripcion ? 'filasDesc' : 'filasSimples'
   // La columna del botón de borrar sólo existe en pantalla y sólo editando.
   const columnasVisibles = columnas + (edicion ? 1 : 0)
@@ -453,7 +455,7 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
                 </td>
                 <td>
                   <div className={styles.nombre}>{l.nombre ?? '—'}</div>
-                  <DescripcionLinea linea={l} />
+                  {mostrarDescripcion ? <DescripcionLinea linea={l} /> : null}
                 </td>
                 <td className={styles.num}>
                   {edicion ? (
@@ -535,6 +537,31 @@ export function VistaImpresion({ doc, empresa, opciones, edicion = null }: Vista
 
       {/* ── E · el relleno que ancla el cierre abajo ────────────────── */}
       <div className={styles.relleno} />
+
+      {/* ── E2 · el cierre del Packing List (Fase 149) ──────────────── */}
+      {/*
+        La hoja de empaque no lleva totales: lleva cuántos bultos viajan y las
+        dos firmas, la de quien preparó y la de quien recibe. Es lo que convierte
+        el listado en un comprobante de entrega.
+      */}
+      {ver.packing !== 'no' ? (
+        <section className={styles.packingCierre}>
+          <div className={styles.packingBultos}>
+            <span>Bultos: <span className={styles.lineaDato} /></span>
+            <span>Peso total: <span className={styles.lineaDato} /></span>
+          </div>
+          <div className={styles.firmas}>
+            <div className={styles.firma}>
+              <span className={styles.lineaFirma} />
+              Preparó
+            </div>
+            <div className={styles.firma}>
+              <span className={styles.lineaFirma} />
+              Recibió conforme
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {/* ── F · los totales, contra el margen de abajo ──────────────── */}
       {/*

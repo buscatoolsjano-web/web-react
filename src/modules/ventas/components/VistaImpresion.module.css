@@ -453,6 +453,49 @@
   font-weight: 800;
 }
 
+/* ── Packing List (Fase 149) ───────────────────────────────────────────── */
+
+.packingCierre {
+  break-inside: avoid;
+  margin-top: 4mm;
+}
+
+.packingBultos {
+  display: flex;
+  gap: 12mm;
+  font-size: 9pt;
+  padding-bottom: 6mm;
+  border-bottom: 1px solid var(--linea);
+}
+
+/* Una rayita para completar a mano el número de bultos / el peso. */
+.lineaDato {
+  display: inline-block;
+  width: 28mm;
+  border-bottom: 1px solid var(--tinta);
+}
+
+.firmas {
+  display: flex;
+  justify-content: space-between;
+  gap: 16mm;
+  margin-top: 16mm;
+}
+
+.firma {
+  flex: 1 1 0;
+  text-align: center;
+  font-size: 8.5pt;
+  color: var(--tinta-suave);
+}
+
+/* La línea sobre la que se firma. */
+.lineaFirma {
+  display: block;
+  border-top: 1px solid var(--tinta);
+  margin-bottom: 1.5mm;
+}
+
 /* ── G · pie ───────────────────────────────────────────────────────────── */
 
 /* Sólo para los documentos migrados: la dirección web que llevaba antes ya

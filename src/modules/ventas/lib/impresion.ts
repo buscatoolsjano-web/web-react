@@ -13,7 +13,14 @@ import type { DocumentoDetalle, LineaDocumento, TipoDocumento } from '../types'
  * los "arreglaría" y perderíamos el dato.
  */
 
-/** Los seis formatos del legacy, con los mismos nombres. */
+/**
+ * Los seis formatos del legacy + los dos de Packing List (Fase 149).
+ *
+ * El Packing List es la hoja de empaque: lo que viaja, sin precios ni totales,
+ * para que el que recibe tilde lo que llegó. «Packing List» muestra sólo la
+ * referencia, el producto y la cantidad; «detalle» agrega la descripción del
+ * producto. Las dos llevan al pie los bultos y las firmas de preparado/recibido.
+ */
 export type FormatoImpresion =
   | 'valorado'
   | 'sin-valorar'
@@ -21,6 +28,8 @@ export type FormatoImpresion =
   | 'pro-forma'
   | 'sin-totales'
   | 'ticket'
+  | 'packing'
+  | 'packing-detalle'
 
 export const FORMATOS: { valor: FormatoImpresion; etiqueta: string }[] = [
   { valor: 'valorado', etiqueta: 'Valorado' },
@@ -29,6 +38,8 @@ export const FORMATOS: { valor: FormatoImpresion; etiqueta: string }[] = [
   { valor: 'pro-forma', etiqueta: 'Pro forma' },
   { valor: 'sin-totales', etiqueta: 'Sin totales' },
   { valor: 'ticket', etiqueta: 'Ticket' },
+  { valor: 'packing', etiqueta: 'Packing List' },
+  { valor: 'packing-detalle', etiqueta: 'Packing List detalle' },
 ]
 
 export interface OpcionesImpresion {
@@ -73,16 +84,31 @@ export interface QueMostrar {
   ticket: boolean
   /** El encabezado dice PRO FORMA en vez del nombre del documento. */
   proForma: boolean
+  /**
+   * Packing List (Fase 149): `'simple'` sólo cantidades, `'detalle'` con la
+   * descripción del producto, `'no'` cuando no es un packing.
+   */
+  packing: 'no' | 'simple' | 'detalle'
 }
 
 export function queMostrar(formato: FormatoImpresion): QueMostrar {
+  const esPacking = formato === 'packing' || formato === 'packing-detalle'
   return {
-    precios: formato !== 'sin-valorar',
-    impuestos: formato !== 'sin-valorar' && formato !== 'sin-impuestos',
-    totales: formato !== 'sin-valorar' && formato !== 'sin-totales',
+    // Un packing nunca lleva precios, impuestos ni totales: es lo que viaja.
+    precios: formato !== 'sin-valorar' && !esPacking,
+    impuestos: formato !== 'sin-valorar' && formato !== 'sin-impuestos' && !esPacking,
+    totales: formato !== 'sin-valorar' && formato !== 'sin-totales' && !esPacking,
     ticket: formato === 'ticket',
     proForma: formato === 'pro-forma',
+    packing: formato === 'packing' ? 'simple' : formato === 'packing-detalle' ? 'detalle' : 'no',
   }
+}
+
+/** El título de la hoja según el formato (PACKING LIST / PRO FORMA / el del tipo). */
+function tituloDeHoja(ver: QueMostrar, tipo: TipoDocumento, moneda: string | null): string {
+  if (ver.packing !== 'no') return 'PACKING LIST'
+  if (ver.proForma) return 'PRO FORMA'
+  return tituloDocumento(tipo, moneda)
 }
 
 export const TITULO_DE: Record<TipoDocumento, string> = {
@@ -203,7 +229,7 @@ export function construirImprimible(
 
   return {
     tipo: doc.tipo,
-    titulo: ver.proForma ? 'PRO FORMA' : tituloDocumento(doc.tipo, doc.moneda),
+    titulo: tituloDeHoja(ver, doc.tipo, doc.moneda),
     subtitulo: doc.titulo,
     numero: doc.numero,
     fecha: doc.fecha,
@@ -348,7 +374,7 @@ export function imprimibleDelBorrador(
 
   return {
     tipo,
-    titulo: ver.proForma ? 'PRO FORMA' : tituloDocumento(tipo, datos.moneda),
+    titulo: tituloDeHoja(ver, tipo, datos.moneda),
     subtitulo: datos.titulo ?? null,
     numero: 'a asignar al crear',
     fecha: datos.fecha,

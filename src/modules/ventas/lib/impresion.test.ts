@@ -116,6 +116,22 @@ describe('queMostrar', () => {
     expect(queMostrar('pro-forma').proForma).toBe(true)
     expect(queMostrar('ticket').ticket).toBe(true)
   })
+
+  it('el packing no lleva precios, impuestos ni totales (Fase 149)', () => {
+    expect(queMostrar('packing')).toMatchObject({
+      precios: false,
+      impuestos: false,
+      totales: false,
+      packing: 'simple',
+    })
+    expect(queMostrar('packing-detalle')).toMatchObject({
+      precios: false,
+      totales: false,
+      packing: 'detalle',
+    })
+    // Los demás formatos no son packing.
+    expect(queMostrar('valorado').packing).toBe('no')
+  })
 })
 
 describe('construirImprimible', () => {
@@ -169,6 +185,13 @@ describe('construirImprimible', () => {
   it('pro forma cambia el encabezado', () => {
     expect(construirImprimible(doc(), opts({ formato: 'pro-forma' })).titulo).toBe('PRO FORMA')
     expect(construirImprimible(doc(), opts()).titulo).toBe('COTIZACIÓN DE VENTA')
+  })
+
+  it('el packing titula PACKING LIST en cualquier tipo de documento (Fase 149)', () => {
+    expect(construirImprimible(doc(), opts({ formato: 'packing' })).titulo).toBe('PACKING LIST')
+    expect(construirImprimible(doc({ tipo: 'entrega' }), opts({ formato: 'packing-detalle' })).titulo).toBe(
+      'PACKING LIST',
+    )
   })
 
   it('el pedido y la entrega tienen su propio encabezado', () => {
