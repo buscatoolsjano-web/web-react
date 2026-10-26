@@ -52,13 +52,14 @@
   --ajuste-panel: 20px;
 
   display: grid;
-  /* El reparto es 42/58 del espacio libre —el ancho menos el gap—, y encima
-     va el ajuste. Se calcula el 42 % a mano en vez de usar `42fr` porque
-     `fr` no entra en `calc()`. Subido de 32 % a 42 % (Fase 160): la tabla de
-     líneas necesita el ancho para mostrar todas las columnas sin scroll, y la
-     hoja —que es A4— sigue entrando holgada en el 58 % restante. */
+  /* El reparto es 46/54 del espacio libre —el ancho menos el gap—, y encima
+     va el ajuste. Se calcula el 46 % a mano en vez de usar `46fr` porque
+     `fr` no entra en `calc()`. Subido de 32 % → 42 % → 46 % (Fase 160/162): el
+     panel de carga es donde se trabaja, y con la hoja al lado necesita el ancho
+     para que las líneas entren como tabla compacta y no como tarjetas altas. La
+     hoja —A4— sigue entrando en el 54 % restante. */
   grid-template-columns:
-    minmax(19rem, calc((100% - var(--space-4)) * 0.42 + var(--ajuste-panel)))
+    minmax(19rem, calc((100% - var(--space-4)) * 0.46 + var(--ajuste-panel)))
     minmax(0, 1fr);
   gap: var(--space-4);
   align-items: start;
@@ -66,11 +67,11 @@
 
 @media (min-width: 1800px) {
   /* En pantallas muy anchas el panel no necesita seguir creciendo: lo que
-     sobra es para la hoja. El tope sube a 36rem (Fase 160) para que la tabla
-     de líneas entre entera también acá. */
+     sobra es para la hoja. El tope sube a 40rem (Fase 162) para que la tabla
+     de líneas entre entera y holgada también acá. */
   .conPrevia {
     grid-template-columns:
-      minmax(19rem, calc(36rem + var(--ajuste-panel)))
+      minmax(19rem, calc(40rem + var(--ajuste-panel)))
       minmax(0, 1fr);
   }
 }

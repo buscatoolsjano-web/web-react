@@ -211,11 +211,12 @@
   background: var(--color-surface);
 }
 
-/* Sólo cuando el panel queda MUY angosto (un teléfono, o la hoja al lado en una
-   ventana chica) cada línea se apila como tarjeta. En el panel con la hoja al
-   lado —unos 600px— no se llega acá: se queda como tabla, que es lo que se
-   pidió («ver todo en una fila»). Mira el panel, no la ventana (Fase 160). */
-@container editor (max-width: 34rem) {
+/* Sólo cuando el panel queda MUY angosto —un teléfono, o la hoja al lado en una
+   ventana bien chica— cada línea se apila como tarjeta. El corte bajó a 26rem
+   (Fase 162): con la hoja al lado el panel ronda los 600px y antes caía en las
+   tarjetas altas igual; se queda como tabla compacta, que es lo que se pidió
+   («ver todo en una fila»). Mira el panel, no la ventana. */
+@container editor (max-width: 26rem) {
   .scroll {
     overflow: visible;
     border: 0;
