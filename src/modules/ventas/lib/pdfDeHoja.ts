@@ -80,6 +80,25 @@ export async function pdfDeHoja(nodo: HTMLElement): Promise<Blob> {
     useCORS: true,
     backgroundColor: '#ffffff',
     logging: false,
+    /*
+     * Capturar la hoja ENTERA, no lo que entra en la ventana (Fase 164).
+     *
+     * La hoja mide un A4 —unos 1.123 px de alto— y la ventana de un portátil
+     * suele ser más baja. Por defecto html2canvas arma el clon contra el alto
+     * de la VENTANA real, así que lo que caía por debajo —los totales, abajo de
+     * todo— salía recortado: el PDF llegaba cortado justo después de la tabla,
+     * sin el bloque de Subtotal/Impuestos/TOTAL, y en una sola página corta.
+     *
+     * Pasándole el alto y ancho del nodo como tamaño de ventana virtual, el
+     * clon se dibuja a la altura completa de la hoja y entra todo, pase lo que
+     * pase con el tamaño de la ventana de quien la manda.
+     */
+    width: nodo.offsetWidth,
+    height: nodo.offsetHeight,
+    windowWidth: nodo.scrollWidth,
+    windowHeight: nodo.scrollHeight,
+    scrollX: 0,
+    scrollY: 0,
   })
 
   // La escala REAL de la foto, no la pedida: html2canvas la recorta cuando el
