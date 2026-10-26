@@ -262,16 +262,20 @@
   white-space: nowrap;
 }
 
-/* Un importe nunca se corta a la mitad: 12.996.570,72 se lee entero o no se lee. */
+/* Un importe nunca se corta a la mitad: 12.996.570,72 se lee entero o no se lee.
+   El número manda (Fase 170): un poco más grande que su contexto y en negrita. */
 .importe,
 .importeSecundario {
   display: block;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1.1em;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .importeSecundario {
   font-weight: 400;
+  font-size: 1em;
   color: var(--text-soft);
 }
 
@@ -281,14 +285,23 @@
   color: var(--text-muted);
 }
 
+/* La variación, con su flecha y color, se lee de un vistazo (Fase 170). */
 .sube {
-  color: var(--success);
-  font-weight: 600;
+  color: var(--color-success-text);
+  font-weight: 700;
+}
+
+.sube::before {
+  content: '↑ ';
 }
 
 .baja {
-  color: var(--danger);
-  font-weight: 600;
+  color: var(--color-danger-text);
+  font-weight: 700;
+}
+
+.baja::before {
+  content: '↓ ';
 }
 
 .neutro {

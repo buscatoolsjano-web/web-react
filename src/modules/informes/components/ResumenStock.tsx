@@ -29,7 +29,7 @@ export function ResumenStockSeccion({ resumen }: { resumen: ResumenStock }) {
       <header className={styles.bloqueCabecera}>
         <h2 id={idTitulo} className={styles.bloqueTitulo}>Stock actual</h2>
         <p className={styles.nota}>
-          Sobre los <b>{n(t.balances)} saldos producto·depósito existentes</b>, no sobre el catálogo completo.
+          Sobre los <b>{n(t.balances)} saldos producto·depósito existentes</b>.
         </p>
       </header>
 
@@ -93,7 +93,7 @@ export function ResumenStockSeccion({ resumen }: { resumen: ResumenStock }) {
               <dd>{catalogo.data ? `${n(catalogo.data.sinMovimientos)} de ${n(catalogo.data.catalogo)} del catálogo` : catalogo.error ? 'no disponible' : 'contando…'}</dd>
             </div>
           </dl>
-          <p className={styles.nota}>Un producto sin movimientos no tiene saldo: no es «stock 0», es que nunca se registró stock.</p>
+          <p className={styles.nota}>Sin movimientos no hay saldo: no es «stock 0», es que nunca se registró.</p>
         </article>
 
         <article className={styles.tarjeta}>

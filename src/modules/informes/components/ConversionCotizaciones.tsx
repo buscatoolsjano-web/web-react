@@ -43,8 +43,7 @@ export function ConversionCotizaciones({ pipeline, etiquetas }: Props) {
       <header className={styles.bloqueCabecera}>
         <h2 id={idTitulo} className={styles.bloqueTitulo}>Conversión de cotización a pedido</h2>
         <p className={styles.nota}>
-          <b>Cotizaciones emitidas en el período que generaron un pedido confirmado</b> (por el vínculo del pedido, no por el
-          estado «aceptada»). Las abiertas todavía pueden convertirse.
+          <b>Cotizaciones del período que generaron un pedido confirmado.</b> Las abiertas todavía pueden convertirse.
         </p>
       </header>
 

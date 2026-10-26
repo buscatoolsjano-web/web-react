@@ -95,8 +95,7 @@ export function RankingComercial({ actividad, mes, mesEfectivo, etiquetaMes, eti
       <header className={styles.bloqueCabecera}>
         <h2 id={idTitulo} className={styles.bloqueTitulo}>Rankings</h2>
         <p className={styles.nota}>
-          Por <b>importe</b> en una moneda a la vez, o por <b>cantidad física</b> (productos, sin moneda). Nunca se suman
-          monedas ni unidades de productos distintos.
+          Por <b>importe</b> (una moneda a la vez) o por <b>cantidad física</b>. Nunca se suman monedas.
         </p>
       </header>
 

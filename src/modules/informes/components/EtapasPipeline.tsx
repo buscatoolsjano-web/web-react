@@ -29,7 +29,7 @@ export function EtapasPipeline({ pipeline, actividad, etiquetaActual }: Props) {
       <header className={styles.bloqueCabecera}>
         <h2 id={idTitulo} className={styles.bloqueTitulo}>Pipeline</h2>
         <p className={styles.nota}>
-          No es un embudo: cotizaciones abiertas y pedidos pendientes son el estado de <b>hoy</b>; lo entregado es de {etiquetaActual}.
+          Abiertas y pendientes son de <b>hoy</b>; lo entregado, de {etiquetaActual}. No es un embudo.
         </p>
       </header>
 
@@ -81,7 +81,7 @@ export function EtapasPipeline({ pipeline, actividad, etiquetaActual }: Props) {
         <article className={styles.tarjeta} aria-labelledby={`${idTitulo}-b`}>
           <h3 id={`${idTitulo}-b`} className={styles.tarjetaTitulo}>Pedidos pendientes de completar · hoy</h3>
           <p className={styles.tarjetaSub}>
-            Confirmados, con evidencia de lo que falta. Importe pendiente <b>neto de impuestos</b>, a precio del pedido.
+            Confirmados, con lo que falta. Pendiente <b>neto de impuestos</b>.
           </p>
           {pipeline.pendientes.length === 0 ? (
             <p className={styles.vacio}>No hay pedidos pendientes con evidencia.</p>
@@ -126,7 +126,7 @@ export function EtapasPipeline({ pipeline, actividad, etiquetaActual }: Props) {
 
         <article className={styles.tarjeta} aria-labelledby={`${idTitulo}-c`}>
           <h3 id={`${idTitulo}-c`} className={styles.tarjetaTitulo}>Entregado · {etiquetaActual}</h3>
-          <p className={styles.tarjetaSub}>Remitos confirmados, con impuestos. Igual que «Vendido (entregado)».</p>
+          <p className={styles.tarjetaSub}>Remitos confirmados, con impuestos.</p>
           {entregadoActual.length === 0 ? (
             <p className={styles.vacio}>Sin remitos en {etiquetaActual}.</p>
           ) : (

@@ -25,7 +25,7 @@ export function TicketPromedio({ actividad, etiquetas }: Props) {
     <section className={styles.bloque} aria-labelledby={idTitulo}>
       <header className={styles.bloqueCabecera}>
         <h2 id={idTitulo} className={styles.bloqueTitulo}>Ticket promedio</h2>
-        <p className={styles.nota}>Total del documento (con impuestos) dividido la cantidad de documentos, en cada moneda.</p>
+        <p className={styles.nota}>Total con impuestos ÷ cantidad de documentos, por moneda.</p>
       </header>
 
       <div className={styles.tarjetas}>

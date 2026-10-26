@@ -31,8 +31,7 @@ export function CumplimientoPedidos({ pipeline, etiquetas }: Props) {
       <header className={styles.bloqueCabecera}>
         <h2 id={idTitulo} className={styles.bloqueTitulo}>Cumplimiento de pedidos</h2>
         <p className={styles.nota}>
-          Pedidos <b>confirmados con fecha en el período</b>, según lo entregado <b>hoy</b> en remitos confirmados, línea
-          por línea.
+          Pedidos <b>confirmados del período</b> contra lo entregado <b>hoy</b>, línea por línea.
         </p>
       </header>
 
