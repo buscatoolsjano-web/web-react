@@ -3,7 +3,7 @@
    tabla de líneas. */
 .lista {
   position: fixed;
-  z-index: var(--z-popover, 1000);
+  z-index: var(--z-dropdown);
   margin: 2px 0 0;
   padding: var(--space-1);
   list-style: none;

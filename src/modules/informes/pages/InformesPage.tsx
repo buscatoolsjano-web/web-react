@@ -71,7 +71,7 @@ function VistasInformes() {
   // Un solo h1 para la sección; cada pestaña titula su vista con un h2.
   return (
     <div className={doc.listado}>
-      <PageHeader title="Informes" subtitle="Actividad comercial y stock, calculados en el servidor." />
+      <PageHeader title="Informes" subtitle="Actividad comercial y stock." />
       <div>
         <NavegacionInformes vista={vista} />
         <TabPanel tabsId={ID_PESTANAS_INFORMES} tabKey={vista}>
@@ -191,24 +191,6 @@ function ActividadComercialVista() {
         </div>
       </header>
 
-      <details className={styles.reglas}>
-        <summary>Cómo se calcula</summary>
-        <ul>
-          <li><b>Vendido</b> es lo <b>entregado</b>: remitos confirmados. Los pedidos confirmados van aparte.</li>
-          <li><b>Cotizado</b>: cotizaciones emitidas (no borradores), también las rechazadas o vencidas.</li>
-          <li>Cada moneda por separado y <b>sin conversión</b>. Los documentos sin moneda van en <b>SIN MONEDA</b>.</li>
-          <li>El mes sale de la <b>fecha del documento</b>. Importes con impuestos.</li>
-          <li>En el mes en curso se compara contra los <b>mismos días</b> del mes anterior.</li>
-          <li><b>Pipeline</b>: cotizaciones abiertas (enviadas o aceptadas, sin pedido confirmado) y pedidos pendientes son el estado de <b>hoy</b>; lo entregado es del período. No es un embudo.</li>
-          <li><b>Conversión</b>: cotizaciones con fecha en el período que tienen un <b>pedido confirmado enlazado</b>. El estado «aceptada» no alcanza. <b>Denominador</b>: todas las emitidas en el período (no borradores), incluidas rechazadas y vencidas.</li>
-          <li><b>Cumplimiento</b>: cada pedido confirmado contra sus remitos confirmados, línea por línea. Los pedidos <b>sin evidencia</b> (no consta entrega o detalle no reconstruido) se muestran aparte y <b>no entran al porcentaje</b>: no se los da por no entregados.</li>
-          <li><b>Pendiente</b>: lo que falta de cada línea × precio del pedido, neto de impuestos. Sólo pedidos con evidencia.</li>
-          <li><b>Ticket promedio</b>: total de los documentos ÷ cantidad, en cada moneda. Nunca se promedian monedas distintas.</li>
-          <li><b>Rankings</b>: clientes por el total de sus documentos (con impuestos), agrupados por el cliente vinculado, no por el nombre. Productos por sus líneas (precio de la línea, con descuentos e IVA; precio 0 = importe 0) o por cantidad, agrupados por producto del catálogo; las líneas históricas sin producto van aparte, por su SKU exacto. Los remitos no tienen precio: productos entregados sólo por cantidad. Líneas con cantidad ≥ 1000 e importe 0 se marcan como <b>dato atípico</b>, sin ocultarlas. Empates: más documentos primero, después por nombre.</li>
-          <li><b>CSV</b>: lo pide al servidor con el mes elegido y trae todo, no sólo lo visible. Moneda en su propia columna, importes con punto decimal, fechas AAAA-MM-DD.</li>
-        </ul>
-      </details>
-
       {actividad.isPending ? (
         <div className={styles.cargando}>
           <SkeletonRows rows={4} columns={4} label="Leyendo el informe…" />
@@ -290,7 +272,7 @@ function Contenido({
     <>
       {enRevision.length > 0 ? (
         <Alert tone="warning" role="status" title={'Hay documentos marcados para revisar en ' + etiquetaActual}>
-          <p>Se muestran tal cual: a los sin moneda no se les asigna una. El enlace abre todos los marcados, con o sin moneda.</p>
+          <p>Se muestran tal cual. El enlace los abre todos.</p>
           <span className={styles.enlaces}>
             {enRevision.map((k) => (
               <Link

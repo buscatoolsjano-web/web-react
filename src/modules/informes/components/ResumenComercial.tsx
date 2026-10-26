@@ -170,8 +170,14 @@ function Variacion({ variacion, anterior }: { variacion: number | null; anterior
   }
   const signo = variacion > 0 ? 'sube' : variacion < 0 ? 'baja' : 'igual'
   return (
-    <p className={styles.kpiVariacion} data-direccion={signo}>
-      {formatearVariacion(variacion)} vs. {anterior}
+    <p className={styles.kpiVariacionLinea}>
+      {/* La variación como pastilla de color con su flecha: se lee de un
+          vistazo si subió o bajó, sin tener que leer el signo (Fase 169). */}
+      <span className={styles.kpiPastilla} data-direccion={signo}>
+        {signo === 'sube' ? <Icon name="arrow-up" size={16} /> : signo === 'baja' ? <Icon name="arrow-down" size={16} /> : null}
+        {formatearVariacion(variacion)}
+      </span>
+      <span className={styles.kpiVsAnterior}>vs. {anterior}</span>
     </p>
   )
 }
