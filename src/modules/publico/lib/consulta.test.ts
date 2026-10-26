@@ -1,4 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+// `consulta` importa el service del catálogo, que importa el cliente de
+// Supabase (valida las env al cargar). En la suite aislada no hay env, así que
+// se moquea el cliente: acá sólo se prueban funciones puras que no lo usan.
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+
 import {
   claveFacetas,
   claveListar,

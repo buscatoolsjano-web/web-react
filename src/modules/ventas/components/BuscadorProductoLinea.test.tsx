@@ -29,6 +29,9 @@ vi.mock('@/features/empresa/useEmpresa', () => ({
 }))
 vi.mock('@/modules/catalogo/services/productos', () => ({ consultarProductos: consultar }))
 vi.mock('@/modules/catalogo/lib/planDeConsulta', () => ({ construirPlanDeConsulta: (f: unknown) => f }))
+// El árbol de imports llega al service de facetas, que importa el cliente de
+// Supabase (valida las env al cargar). En la suite aislada no hay env; se moquea.
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
 
 const { BuscadorProductoLinea } = await import('./BuscadorProductoLinea')
 

@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+
+// EditorLineas → BuscadorProductoLinea → services del catálogo → cliente de
+// Supabase (valida las env al cargar). En la suite aislada no hay env; se moquea.
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+
 import { EditorLineas } from './EditorLineas'
 import type { UltimoPrecio } from '@/modules/clientes/types'
 import type { LineaDocumento } from '../types'

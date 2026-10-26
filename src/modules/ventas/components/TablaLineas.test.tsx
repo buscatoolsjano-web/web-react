@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+
+// TablaLineas → BuscadorProductoLinea → services del catálogo → cliente de
+// Supabase (valida las env al cargar). En la suite aislada no hay env; se moquea.
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+
 import { TablaLineas } from './TablaLineas'
 import type { LineaDocumento } from '../types'
 
