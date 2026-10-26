@@ -1,9 +1,26 @@
-import { useState } from 'react'
-import { Link, NavLink, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import {
+  Link,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Icon } from '@/components/icons/Icon'
 import { useAuth } from '@/features/auth/useAuth'
 import { categorias } from '@/modules/publico/services/catalogoPublico'
+import {
+  claveCategorias,
+  claveFacetas,
+  claveListar,
+  leerFiltros,
+  leerPagina,
+  pedirFacetas,
+  pedirListar,
+} from '@/modules/publico/lib/consulta'
 import { rutaCatalogo, rutaCategoria } from '@/modules/publico/lib/rutas'
 import { useCarritoPublico } from '@/modules/publico/hooks/useCarritoPublico'
 import { useRegistrarVisita } from '@/modules/publico/hooks/useRegistrarVisita'
@@ -44,6 +61,9 @@ export function PublicoLayout() {
   const { session } = useAuth()
   const navegar = useNavigate()
   const [params] = useSearchParams()
+  const { categoria, producto } = useParams<{ categoria?: string; producto?: string }>()
+  const { pathname } = useLocation()
+  const qc = useQueryClient()
   const [texto, setTexto] = useState(params.get('q') ?? '')
   const carrito = useCarritoPublico()
   useRegistrarVisita()
@@ -54,11 +74,29 @@ export function PublicoLayout() {
    * ocho filas que cambian cuando alguien crea una categoría, o sea nunca.
    */
   const q = useQuery({
-    queryKey: ['catalogo-publico', 'categorias'],
+    queryKey: claveCategorias,
     queryFn: categorias,
     staleTime: 60 * 60_000,
     retry: 1,
   })
+
+  /*
+   * Adelanta las consultas del catálogo (Fase 172). El layout está en el bundle
+   * de entrada y monta antes que el chunk perezoso de `CatalogoPublicoPage`;
+   * disparar acá `listar` y `facetas` con las MISMAS claves hace que, cuando la
+   * página termina de bajar y monta, la respuesta ya esté servida o en vuelo, y
+   * su `useQuery` la reusa sin pedir nada. Son ~700 ms menos hasta los productos.
+   * Sólo en las rutas que muestran el catálogo: no en la ficha (lleva
+   * `:producto`) ni en `/cotizar`, que no las necesitan.
+   */
+  const enCatalogo = producto === undefined && pathname !== '/cotizar'
+  useEffect(() => {
+    if (!enCatalogo) return
+    const f = leerFiltros(params, categoria)
+    const pagina = leerPagina(params)
+    void qc.prefetchQuery({ queryKey: claveFacetas(f), queryFn: () => pedirFacetas(f), staleTime: 5 * 60_000 })
+    void qc.prefetchQuery({ queryKey: claveListar(f, pagina), queryFn: () => pedirListar(f, pagina), staleTime: 5 * 60_000 })
+  }, [enCatalogo, params, categoria, qc])
 
   const buscar = (e: React.FormEvent) => {
     e.preventDefault()

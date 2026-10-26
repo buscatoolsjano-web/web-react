@@ -7,7 +7,19 @@ import { GuiaFiltros } from '../components/GuiaFiltros'
 import { TablaProductos } from '../components/TablaProductos'
 import { columnasDeAtributo } from '../lib/columnas'
 import { useCarritoPublico } from '../hooks/useCarritoPublico'
-import { categorias, facetas, listar } from '../services/catalogoPublico'
+import { categorias } from '../services/catalogoPublico'
+import {
+  PREFIJO_ATRIBUTO,
+  POR_PAGINA,
+  claveCategorias,
+  claveFacetas,
+  claveListar,
+  hayFiltro as calcularHayFiltro,
+  leerFiltros,
+  leerPagina,
+  pedirFacetas,
+  pedirListar,
+} from '../lib/consulta'
 import { rutaCatalogo, rutaCategoria } from '../lib/rutas'
 import { useMeta } from '../hooks/useMeta'
 import { descripcionDeCategoria, tituloDeCategoria } from '../lib/seo'
@@ -37,36 +49,21 @@ import styles from './CatalogoPublicoPage.module.css'
  * repiten entre sí. Por eso lo segundo va marcado para no indexar.
  */
 
-/** Los filtros de atributo viajan con prefijo, para no chocar con los demás. */
-const PREFIJO_ATRIBUTO = 'a.'
-
 export function CatalogoPublicoPage() {
   const { categoria } = useParams<{ categoria?: string }>()
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
   const carrito = useCarritoPublico()
 
-  const texto = params.get('q') ?? ''
-  const marca = params.get('marca') ?? ''
-  const serie = params.get('serie') ?? ''
-  const tipo = params.get('tipo') ?? ''
-  const modelo = params.get('modelo') ?? ''
-  const pagina = Math.max(1, Number(params.get('p') ?? '1') || 1)
-
-  /** Lo elegido en las columnas de atributo: `{encastre: '1/4 HEX BIT'}`. */
-  const atributos = useMemo(() => {
-    const out: Record<string, string> = {}
-    for (const [k, v] of params.entries()) {
-      if (k.startsWith(PREFIJO_ATRIBUTO) && v !== '') out[k.slice(PREFIJO_ATRIBUTO.length)] = v
-    }
-    return out
-  }, [params])
-
-  const hayFiltro =
-    texto !== '' || modelo !== '' || marca !== '' || serie !== '' || tipo !== '' || Object.keys(atributos).length > 0
+  // Los filtros de la URL, con la MISMA forma que usa el layout para
+  // adelantar estas consultas (Fase 172). Ver `lib/consulta.ts`.
+  const f = useMemo(() => leerFiltros(params, categoria), [params, categoria])
+  const { marca, serie, tipo, modelo, texto, atributos } = f
+  const pagina = leerPagina(params)
+  const hayFiltro = calcularHayFiltro(f)
 
   const qCategorias = useQuery({
-    queryKey: ['catalogo-publico', 'categorias'],
+    queryKey: claveCategorias,
     queryFn: categorias,
     staleTime: 60 * 60_000,
   })
@@ -78,43 +75,19 @@ export function CatalogoPublicoPage() {
   // que cambiar una opción no deje el desplegable con un solo valor —el mismo
   // truco que catalog_facets del ERP—.
   const qFacetas = useQuery({
-    queryKey: ['catalogo-publico', 'facetas', categoria ?? null, marca, serie, tipo, modelo, texto, atributos],
-    queryFn: () =>
-      facetas({
-        categoria: categoria ?? null,
-        marca: marca === '' ? null : marca,
-        serie: serie === '' ? null : serie,
-        tipo: tipo === '' ? null : tipo,
-        modelo: modelo === '' ? null : modelo,
-        texto: texto === '' ? null : texto,
-        atributos,
-      }),
+    queryKey: claveFacetas(f),
+    queryFn: () => pedirFacetas(f),
     staleTime: 5 * 60_000,
   })
 
   const qc = useQueryClient()
 
-  // 100 por página: la primera tanda es grande y se ve casi todo el catálogo de
-  // un saque, sin paginar tanto. Las siguientes se precargan en segundo plano
-  // (más abajo), así «Siguiente» abre al instante.
-  const POR_PAGINA = 100
-  const argsDe = (p: number) => ({
-    categoria: categoria ?? null,
-    marca: marca === '' ? null : marca,
-    serie: serie === '' ? null : serie,
-    tipo: tipo === '' ? null : tipo,
-    modelo: modelo === '' ? null : modelo,
-    texto: texto === '' ? null : texto,
-    atributos,
-    pagina: p,
-    porPagina: POR_PAGINA,
-  })
-  const claveDe = (p: number) =>
-    ['catalogo-publico', 'listar', categoria ?? null, marca, serie, tipo, modelo, texto, atributos, p] as const
-
+  // La página actual. Las siguientes se precargan en segundo plano (más abajo),
+  // así «Siguiente» abre al instante. La clave y los argumentos salen del
+  // helper compartido para que el layout pueda adelantar esta misma consulta.
   const q = useQuery({
-    queryKey: claveDe(pagina),
-    queryFn: () => listar(argsDe(pagina)),
+    queryKey: claveListar(f, pagina),
+    queryFn: () => pedirListar(f, pagina),
     staleTime: 5 * 60_000,
   })
 
@@ -127,11 +100,11 @@ export function CatalogoPublicoPage() {
     const ultimaPagina = Math.max(1, Math.ceil(total / POR_PAGINA))
     for (const p of [pagina + 1, pagina + 2]) {
       if (p > ultimaPagina) continue
-      void qc.prefetchQuery({ queryKey: claveDe(p), queryFn: () => listar(argsDe(p)), staleTime: 5 * 60_000 })
+      void qc.prefetchQuery({ queryKey: claveListar(f, p), queryFn: () => pedirListar(f, p), staleTime: 5 * 60_000 })
     }
-    // claveDe/argsDe se recrean en cada render; las piezas reales son los filtros.
+    // `f` se recrea cuando cambian los filtros; es la pieza real.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q.data?.total, pagina, categoria, marca, serie, tipo, modelo, texto, atributos])
+  }, [q.data?.total, pagina, f])
 
   const nombre = laCategoria?.nombre ?? 'Herramientas industriales'
   const cuantos = q.data?.total ?? laCategoria?.productos ?? 0
