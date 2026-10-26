@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useModalAccesible } from '@/components/modals/useModalAccesible'
+import { Dialog } from '@/components/modals/Dialog'
+import { Alert } from '@/components/feedback/Alert'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { Icon } from '@/components/icons/Icon'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import {
   construirImprimible,
@@ -13,10 +15,14 @@ import {
   type FormatoImpresion,
   type OpcionesImpresion,
 } from '../lib/impresion'
+import { CONFIG_POR_DEFECTO, type ConfigPlantilla } from '../lib/plantillas'
+import { crearPlantilla, listarPlantillas } from '../services/plantillas'
 import { datosDeEmpresa } from '../services/empresa'
 import { useDatosDeProductos } from '../hooks/useDatosDeProductos'
 import type { DocumentoDetalle } from '../types'
 import { VistaImpresion } from './VistaImpresion'
+import { EditorPlantilla } from './EditorPlantilla'
+import { escribeVentas } from '../lib/permisos'
 import styles from './ModalImpresion.module.css'
 
 export interface ModalImpresionProps {
@@ -63,7 +69,34 @@ const ZOOMS = [0.5, 0.65, 0.8, 0.9, 1, 1.25, 1.5, 1.75, 2, 2.5] as const
  */
 export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
   const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const escribe = escribeVentas(activa?.rol)
   const [opciones, setOpciones] = useState<OpcionesImpresion>(OPCIONES_INICIALES)
+
+  // Las plantillas del admin (Fase 152). Elegir una gobierna la hoja en vez del
+  // formato; «Sin plantilla» vuelve a los formatos de fábrica.
+  const qc = useQueryClient()
+  const plantillas = useQuery({
+    queryKey: ['ventas', companyId, 'plantillas'],
+    queryFn: () => listarPlantillas(companyId!),
+    enabled: companyId !== null,
+    staleTime: 60_000,
+  })
+  const [plantillaId, setPlantillaId] = useState<string | null>(null)
+  const plantillaElegida = (plantillas.data ?? []).find((p) => p.id === plantillaId) ?? null
+  const config: ConfigPlantilla | null = plantillaElegida?.config ?? null
+
+  const [creando, setCreando] = useState(false)
+  const [nuevoNombre, setNuevoNombre] = useState('')
+  const [nuevaConfig, setNuevaConfig] = useState<ConfigPlantilla>(CONFIG_POR_DEFECTO)
+  const guardarPlantilla = useMutation({
+    mutationFn: () => crearPlantilla(companyId!, nuevoNombre, nuevaConfig),
+    onSuccess: (p) => {
+      setCreando(false)
+      setPlantillaId(p.id)
+      void qc.invalidateQueries({ queryKey: ['ventas', companyId, 'plantillas'] })
+    },
+  })
   const caja = useRef<HTMLDivElement>(null)
   const idTitulo = useId()
   // Fase 13: foco adentro, Escape y retorno del foco, sin cambiar la estructura
@@ -87,7 +120,10 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
     telefono: null, email: null, web: null, color: '#f37021',
   }
 
-  const imprimible = construirImprimible(doc, opciones, datos, definiciones)
+  // Con plantilla, la foto la decide ella: así `construirImprimible` trae (o no)
+  // la imagen de cada línea según lo que la plantilla va a mostrar.
+  const opcionesData = config ? { ...opciones, conFotos: config.columnas.foto } : opciones
+  const imprimible = construirImprimible(doc, opcionesData, datos, definiciones)
 
   // ── La escala de la previsualización ──────────────────────────────────
   //
@@ -203,6 +239,42 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
 
         <div className={styles.cuerpo}>
           <aside className={styles.opciones} data-no-imprimir>
+            {/* Las plantillas del admin (Fase 152). Elegir una gobierna la hoja;
+                «Sin plantilla» deja los formatos de fábrica. */}
+            <label className={styles.campo}>
+              <span>Plantilla</span>
+              <select
+                className={styles.control}
+                value={plantillaId ?? ''}
+                onChange={(e) => setPlantillaId(e.target.value === '' ? null : e.target.value)}
+              >
+                <option value="">Sin plantilla (usar formato)</option>
+                {(plantillas.data ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {escribe ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Icon name="plus" size={16} />}
+                onClick={() => {
+                  setNuevoNombre('')
+                  setNuevaConfig(CONFIG_POR_DEFECTO)
+                  guardarPlantilla.reset()
+                  setCreando(true)
+                }}
+              >
+                Nueva plantilla
+              </Button>
+            ) : null}
+
+            {/* Con una plantilla elegida, el formato no aplica: la plantilla
+                decide qué se ve. Se ocultan los controles del formato. */}
+            {config ? null : (
             <label className={styles.campo}>
               <span>Formato</span>
               <select
@@ -219,6 +291,7 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
                 ))}
               </select>
             </label>
+            )}
 
             <label className={styles.check}>
               <input
@@ -231,9 +304,9 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
               Precios con impuestos incluidos
             </label>
 
-            {/* La foto es del FORMATO, no de cada línea: cuando está activada,
-                el hueco existe en todas las filas aunque el producto no tenga
-                imagen, y las columnas no se mueven. */}
+            {/* La foto es del FORMATO, no de cada línea. Con plantilla, la decide
+                ella (columna «Foto»), así que acá no se ofrece. */}
+            {config ? null : (
             <label className={styles.check}>
               <input
                 type="checkbox"
@@ -243,13 +316,14 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
               />
               Con foto del producto
             </label>
+            )}
 
             <label className={styles.campo}>
               <span>Papel</span>
               <select
                 className={styles.control}
                 value={opciones.papel}
-                disabled={opciones.formato === 'ticket'}
+                disabled={config === null && opciones.formato === 'ticket'}
                 onChange={(e) =>
                   setOpciones((o) => ({ ...o, papel: e.target.value as 'A4' | 'carta' }))
                 }
@@ -287,12 +361,52 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
                 className={styles.enEscala}
                 style={{ transform: `scale(${escala})` }}
               >
-                <VistaImpresion doc={imprimible} empresa={empresa} opciones={opciones} />
+                <VistaImpresion doc={imprimible} empresa={empresa} opciones={opciones} plantilla={config} />
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* El constructor de la plantilla nueva (Fase 152). Se guarda y queda
+          elegida para ver el resultado al toque. */}
+      {creando ? (
+        <Dialog
+          open
+          onClose={() => setCreando(false)}
+          title="Nueva plantilla"
+          size="lg"
+          busy={guardarPlantilla.isPending}
+          closeOnOverlay={false}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setCreando(false)} disabled={guardarPlantilla.isPending}>
+                Cancelar
+              </Button>
+              <Button
+                icon={<Icon name="check" size={16} />}
+                loading={guardarPlantilla.isPending}
+                disabled={nuevoNombre.trim() === ''}
+                onClick={() => guardarPlantilla.mutate()}
+              >
+                Guardar plantilla
+              </Button>
+            </>
+          }
+        >
+          {guardarPlantilla.isError ? (
+            <Alert tone="danger" role="alert" title="No se pudo guardar">
+              <p>{guardarPlantilla.error instanceof Error ? guardarPlantilla.error.message : 'Probá de nuevo.'}</p>
+            </Alert>
+          ) : null}
+          <EditorPlantilla
+            nombre={nuevoNombre}
+            config={nuevaConfig}
+            onNombre={setNuevoNombre}
+            onConfig={setNuevaConfig}
+          />
+        </Dialog>
+      ) : null}
     </div>
   )
 }
