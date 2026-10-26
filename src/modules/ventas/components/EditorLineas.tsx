@@ -1,6 +1,8 @@
 import type { UltimoPrecio } from '@/modules/clientes/types'
+import type { ProductoListado } from '@/modules/catalogo/types'
 import type { LineaDocumento } from '../types'
 import { TablaLineas, type CampoLinea } from './TablaLineas'
+import type { PrecioPropuesto } from './ModalCatalogoProductos'
 
 /**
  * El editor de líneas (Fase 155): ahora es la MISMA tabla que la lectura.
@@ -28,6 +30,15 @@ export interface EditorLineasProps {
   onCambiar: (lineaId: string, campo: CampoLinea, valor: string | number | null) => void
   onEliminar: (lineaId: string) => void
   onMover: (lineaId: string, direccion: -1 | 1) => void
+  /**
+   * Buscar productos desde el nombre de una línea libre (Fase 163). Si viene,
+   * escribir el nombre muestra coincidencias y elegir una rellena la línea.
+   */
+  onElegirProducto?:
+    | ((lineaId: string, producto: ProductoListado, precio: PrecioPropuesto) => void)
+    | undefined
+  /** La tarifa del documento, de donde sale el precio propuesto al elegir. */
+  listaPrecioId?: string | null | undefined
 }
 
 export function EditorLineas({
@@ -39,13 +50,27 @@ export function EditorLineas({
   onCambiar,
   onEliminar,
   onMover,
+  onElegirProducto,
+  listaPrecioId,
 }: EditorLineasProps) {
   return (
     <TablaLineas
       lineas={lineas}
       moneda={moneda}
       tipo={documento === 'del pedido' ? 'pedido' : 'cotizacion'}
-      edicion={editable ? { onCambiar, onEliminar, onMover, historicos } : null}
+      edicion={
+        editable
+          ? {
+              onCambiar,
+              onEliminar,
+              onMover,
+              historicos,
+              catalogo: onElegirProducto
+                ? { listaPrecioId: listaPrecioId ?? null, onElegirProducto }
+                : undefined,
+            }
+          : null
+      }
     />
   )
 }

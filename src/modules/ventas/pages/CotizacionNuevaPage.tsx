@@ -41,6 +41,7 @@ import { DOC_TYPE_DE, mensajeErrorVentas, motivoBloqueo, motivoSerieStel } from 
 import {
   aPayloadCreacion,
   agregarLinea,
+  asignarProductoALinea,
   borradorNuevo,
   cambiarCampo,
   cambiarCliente,
@@ -725,6 +726,17 @@ export function CotizacionNuevaPage() {
               onCambiar={cambiarLinea}
               onEliminar={(clave) => setB((x) => quitarLinea(x, clave))}
               onMover={(clave, d) => setB((x) => moverLinea(x, clave, d))}
+              listaPrecioId={b.cabecera.listaPrecioId || null}
+              onElegirProducto={(clave, p, precio) =>
+                setB((x) =>
+                  asignarProductoALinea(x, clave, {
+                    productId: p.id,
+                    sku: p.sku,
+                    nombre: p.nombre,
+                    precioUnitario: precio.precio,
+                  }),
+                )
+              }
             />
 
             <TotalesDocumento

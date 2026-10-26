@@ -56,6 +56,7 @@ import { useOpcionesDeHoja } from '../hooks/useOpcionesDeHoja'
 import {
   agregarLinea,
   aPayload,
+  asignarProductoALinea,
   cambiarCampo,
   cambiarCliente,
   cambiarLinea as cambiarLineaBorrador,
@@ -1014,6 +1015,19 @@ function Detalle() {
                       onCambiar={cambiarLinea}
                       onEliminar={(clave) => setBorrador((b) => (b ? quitarLinea(b, clave) : b))}
                       onMover={(clave, d) => setBorrador((b) => (b ? moverLinea(b, clave, d) : b))}
+                      listaPrecioId={borrador.cabecera.listaPrecioId || null}
+                      onElegirProducto={(clave, p, precio) =>
+                        setBorrador((b) =>
+                          b
+                            ? asignarProductoALinea(b, clave, {
+                                productId: p.id,
+                                sku: p.sku,
+                                nombre: p.nombre,
+                                precioUnitario: precio.precio,
+                              })
+                            : b,
+                        )
+                      }
                     />
                   </>
                 ) : (

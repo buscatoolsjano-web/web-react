@@ -1,11 +1,14 @@
 import { Icon } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
 import type { UltimoPrecio } from '@/modules/clientes/types'
+import type { ProductoListado } from '@/modules/catalogo/types'
 import { formatearCantidad, formatearImporte } from '../lib/formato'
 import { TRATAMIENTOS } from '../lib/tratamientos'
 import { netoDeLinea } from '../lib/totales'
 import { avisoDePrecio } from '../lib/ultimoPrecio'
 import type { LineaDocumento, TipoDocumento } from '../types'
+import { BuscadorProductoLinea } from './BuscadorProductoLinea'
+import type { PrecioPropuesto } from './ModalCatalogoProductos'
 import styles from './TablaLineas.module.css'
 
 /** Los campos editables de una línea, con el nombre que espera el borrador. */
@@ -33,6 +36,19 @@ export interface EdicionLineas {
   onMover: (lineaId: string, direccion: -1 | 1) => void
   /** El último precio de este cliente por producto, para el aviso en naranja. */
   historicos?: Map<string, UltimoPrecio> | undefined
+  /**
+   * Autocompletar el nombre con productos del catálogo (Fase 163).
+   *
+   * Cuando viene, el nombre de una línea LIBRE (sin producto) busca mientras se
+   * escribe y, al elegir uno de la lista, rellena esa misma línea. Sin esto, el
+   * nombre es un campo de texto común, como siempre.
+   */
+  catalogo?:
+    | {
+        listaPrecioId: string | null
+        onElegirProducto: (lineaId: string, producto: ProductoListado, precio: PrecioPropuesto) => void
+      }
+    | undefined
 }
 
 export interface TablaLineasProps {
@@ -200,13 +216,27 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLinea
                   </td>
                   <td className={styles.celdaNombre} data-label="Producto">
                     {editando ? (
-                      <input
-                        className={styles.inputTexto}
-                        value={l.nombre ?? ''}
-                        placeholder="Nombre del producto"
-                        aria-label="Producto"
-                        onChange={(e) => edicion.onCambiar(l.id, 'name_snapshot', e.target.value || null)}
-                      />
+                      edicion.catalogo && l.productId === null ? (
+                        // Línea libre + catálogo disponible: el nombre busca
+                        // productos y, al elegir uno, rellena esta misma línea.
+                        <BuscadorProductoLinea
+                          valor={l.nombre}
+                          listaPrecioId={edicion.catalogo.listaPrecioId}
+                          moneda={moneda}
+                          historicos={historicos}
+                          claseInput={styles.inputTexto}
+                          onTexto={(t) => edicion.onCambiar(l.id, 'name_snapshot', t || null)}
+                          onElegir={(p, precio) => edicion.catalogo!.onElegirProducto(l.id, p, precio)}
+                        />
+                      ) : (
+                        <input
+                          className={styles.inputTexto}
+                          value={l.nombre ?? ''}
+                          placeholder="Nombre del producto"
+                          aria-label="Producto"
+                          onChange={(e) => edicion.onCambiar(l.id, 'name_snapshot', e.target.value || null)}
+                        />
+                      )
                     ) : (
                       <>
                         <span className={styles.nombre}>{l.nombre ?? '—'}</span>

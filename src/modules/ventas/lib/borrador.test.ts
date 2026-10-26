@@ -5,6 +5,7 @@ import {
   aPayloadCreacionPedido,
   aPayloadPedido,
   agregarLinea,
+  asignarProductoALinea,
   borradorNuevo,
   cambiarCampo,
   cambiarCliente,
@@ -464,5 +465,58 @@ describe('payload del pedido', () => {
     expect(lineas.map((l) => l['line_no'])).toEqual([1, 2])
     expect(lineas.every((l) => !('id' in l))).toBe(true)
     expect(lineas[0]).toMatchObject({ quantity: 3, unit_price: 10 })
+  })
+})
+
+/**
+ * Autocompletar el nombre con un producto del catálogo (Fase 163).
+ *
+ * Se escribe el nombre a mano y, al elegir un producto de la lista, la MISMA
+ * línea pasa a ser de catálogo: referencia, nombre y precio del producto, sin
+ * agregar otra fila, sin moverla y sin tocar la cantidad ni el descuento.
+ */
+describe('asignarProductoALinea', () => {
+  it('rellena la línea libre en su lugar, sin agregar ni mover', () => {
+    let b = borradorNuevo('2026-10-26')
+    b = agregarLinea(b, {
+      tipoLinea: 'item', productId: null, sku: null, nombre: 'vpph', descripcion: null,
+      cantidad: 4, precioUnitario: 0, descuentoPct: 10, tratamientoImpuesto: 'vat_21', tasaImpuesto: 21,
+    })
+    const clave = b.lineas[0]!.clave
+
+    b = asignarProductoALinea(b, clave, {
+      productId: 'prod-99', sku: 'VPPH2/50', nombre: 'Punta Phillips PH2 50mm', precioUnitario: 35.5,
+    })
+
+    expect(b.lineas).toHaveLength(1)
+    const l = b.lineas[0]!
+    expect(l.clave).toBe(clave) // es la misma línea
+    expect(l.productId).toBe('prod-99')
+    expect(l.sku).toBe('VPPH2/50')
+    expect(l.nombre).toBe('Punta Phillips PH2 50mm')
+    expect(l.precioUnitario).toBe(35.5)
+    // Lo que ya se había cargado no se toca.
+    expect(l.cantidad).toBe(4)
+    expect(l.descuentoPct).toBe(10)
+  })
+
+  it('no toca otras líneas', () => {
+    let b = borradorNuevo('2026-10-26')
+    b = agregarLinea(b, {
+      tipoLinea: 'item', productId: 'p1', sku: 'A', nombre: 'A', descripcion: null,
+      cantidad: 1, precioUnitario: 10, descuentoPct: 0, tratamientoImpuesto: 'vat_21', tasaImpuesto: 21,
+    })
+    b = agregarLinea(b, {
+      tipoLinea: 'item', productId: null, sku: null, nombre: 'libre', descripcion: null,
+      cantidad: 1, precioUnitario: 0, descuentoPct: 0, tratamientoImpuesto: 'vat_21', tasaImpuesto: 21,
+    })
+    const claveLibre = b.lineas[1]!.clave
+
+    b = asignarProductoALinea(b, claveLibre, {
+      productId: 'p2', sku: 'B', nombre: 'B', precioUnitario: 20,
+    })
+
+    expect(b.lineas[0]).toMatchObject({ productId: 'p1', sku: 'A' })
+    expect(b.lineas[1]).toMatchObject({ productId: 'p2', sku: 'B', precioUnitario: 20 })
   })
 })

@@ -298,6 +298,36 @@ export function cambiarLinea(b: Borrador, clave: string, campo: CampoLinea, valo
   }
 }
 
+/**
+ * Convierte una línea libre en una del catálogo, EN SU LUGAR (Fase 163).
+ *
+ * El autocompletado del nombre: se escribió a mano, se eligió un producto de la
+ * lista que fue apareciendo, y la MISMA línea pasa a ser de catálogo —con su
+ * referencia, su nombre y el precio propuesto—. No se agrega otra fila ni se
+ * mueve de lugar: queda donde estaba, con el foco donde estaba. El resto de la
+ * línea —cantidad, descuento, impuesto— no se toca.
+ */
+export function asignarProductoALinea(
+  b: Borrador,
+  clave: string,
+  producto: { productId: string; sku: string | null; nombre: string | null; precioUnitario: number },
+): Borrador {
+  return {
+    ...b,
+    lineas: b.lineas.map((l) =>
+      l.clave === clave
+        ? {
+            ...l,
+            productId: producto.productId,
+            sku: producto.sku,
+            nombre: producto.nombre,
+            precioUnitario: producto.precioUnitario,
+          }
+        : l,
+    ),
+  }
+}
+
 /** El próximo número de línea libre. Nunca reusa uno: el orden es un dato. */
 export function proximoNumero(b: Borrador): number {
   return b.lineas.reduce((max, l) => Math.max(max, l.numeroLinea), 0) + 1
