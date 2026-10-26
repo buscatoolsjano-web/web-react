@@ -387,15 +387,18 @@ describe('Remito · acciones y estados', () => {
 })
 
 describe('Remito · edición del borrador', () => {
-  it('Editar abre el modo edición con Guardar y Descartar, y nada más', () => {
+  it('Editar abre el modo edición con Guardar, Guardar y editar y Descartar, y nada más', () => {
     montar()
     editar()
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument()
+    // Fase 159: exactamente estos tres y ningún otro botón.
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar y editar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
     // El cartel «Editando» se fue con el encabezado (Fase 84). Que se está
-    // editando lo dice la barra entera: cambia a dos acciones y nada más.
+    // editando lo dice la barra entera: cambia a tres acciones y nada más —sin
+    // el formato de la hoja ni el interruptor de la vista previa—.
     expect(screen.queryByText('Editando')).toBeNull()
-    for (const nombre of ['Confirmar y despachar', 'Ver / Imprimir', 'Eliminar']) {
+    for (const nombre of ['Confirmar y despachar', 'Ver / Imprimir', 'Eliminar', 'Ocultar vista previa', 'Vista previa']) {
       expect(screen.queryByRole('button', { name: nombre })).toBeNull()
     }
   })
@@ -403,7 +406,7 @@ describe('Remito · edición del borrador', () => {
   it('sin cambios, Guardar está apagado y se dice que editar no mueve stock', () => {
     montar()
     editar()
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
     expect(screen.getByText(/Editar un remito en borrador no mueve stock/)).toBeInTheDocument()
   })
 
@@ -412,7 +415,7 @@ describe('Remito · edición del borrador', () => {
     editar()
     fireEvent.change(screen.getByLabelText(/Cantidad de PRO10022/), { target: { value: '6' } })
     expect(espias.guardar).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled()
     expect(screen.getByText(/Hay cambios sin guardar/)).toBeInTheDocument()
   })
 
@@ -424,7 +427,7 @@ describe('Remito · edición del borrador', () => {
     // guardado: es un solo borrador, no dos formularios.
     fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
     fireEvent.change(screen.getByLabelText(/Transporte/), { target: { value: 'Andreani' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => expect(espias.guardar).toHaveBeenCalledTimes(1))
     const [deliveryId, esperado, cabecera, lineas] = espias.guardar.mock.calls[0]!
@@ -441,7 +444,7 @@ describe('Remito · edición del borrador', () => {
     montar()
     editar()
     fireEvent.change(screen.getByLabelText(/Cantidad de PRO10022/), { target: { value: '0' } })
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
     expect(screen.getByText(/mayores que cero/)).toBeInTheDocument()
   })
 
@@ -449,7 +452,7 @@ describe('Remito · edición del borrador', () => {
     montar()
     editar()
     fireEvent.click(screen.getByRole('button', { name: /Quitar PRO10022/ }))
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
     expect(screen.getByText(/Un remito sin líneas no es un remito/)).toBeInTheDocument()
   })
 
@@ -479,7 +482,7 @@ describe('Remito · edición del borrador', () => {
     editar()
     fireEvent.change(await screen.findByLabelText('Línea del pedido para agregar'), { target: { value: 'ol2' } })
     fireEvent.click(screen.getByRole('button', { name: 'Agregar' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => expect(espias.guardar).toHaveBeenCalledTimes(1))
     const lineas = espias.guardar.mock.calls[0]![3]
@@ -508,7 +511,7 @@ describe('Remito · edición del borrador', () => {
     montar()
     editar()
     fireEvent.change(screen.getByLabelText(/Cantidad de PRO10022/), { target: { value: '7' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     expect(await screen.findByText('Este remito cambió mientras lo estabas editando')).toBeInTheDocument()
     expect(screen.getByLabelText(/Cantidad de PRO10022/)).toHaveValue(7)

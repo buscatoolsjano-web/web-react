@@ -106,6 +106,7 @@ import {
   convertirCotizacionEnPedido,
   convertirCotizacionEnPedidoEnSerie,
 } from '../services/pedidos'
+import { obtenerDocumento } from '../services/documentos'
 import type { DocumentoDetalle } from '../types'
 import editor from './EditorCotizacion.module.css'
 
@@ -338,9 +339,10 @@ function Detalle() {
 
   /** El ÚNICO camino de escritura del editor. */
   const guardar = useMutation({
-    mutationFn: async () => {
+    // `seguir`: al terminar, ¿se vuelve a la vista o se sigue editando?
+    mutationFn: async (seguir: boolean) => {
       const payload = aPayload(borrador!, original!)
-      const r = await guardarCotizacion(
+      await guardarCotizacion(
         doc!.id,
         borrador!.esperado,
         payload.cabecera,
@@ -369,18 +371,28 @@ function Detalle() {
         borrador!.cabecera.vendedorId === '' ? null : borrador!.cabecera.vendedorId,
         borrador!.cabecera.vendedoresExtra,
       )
-      return r
+      // Si se sigue editando, se relee el documento acá mismo: el borrador que
+      // queda tiene que ser el recién guardado, con los ids reales de las líneas
+      // nuevas y el testigo de concurrencia al día. Hacerlo en el handler y no
+      // en un efecto evita re-renders en cascada (y el lint que los prohíbe).
+      const docFresco = seguir && activa ? await obtenerDocumento('cotizacion', activa.companyId, doc!.id) : null
+      return { docFresco }
     },
-    onSuccess: () => {
+    onSuccess: ({ docFresco }, seguir) => {
       setUltimoError(null)
       setConflicto(false)
-      setBorrador(null)
-      setOriginal(null)
       setGuardado(true)
       void refrescar()
       void queryClient.invalidateQueries({
         queryKey: ['ventas', activa?.companyId, 'cotizacion', 'trazabilidad', id],
       })
+      if (seguir && docFresco) {
+        // Se sigue editando: se re-arma el borrador desde el documento fresco.
+        abrirEdicion(docFresco)
+      } else {
+        setBorrador(null)
+        setOriginal(null)
+      }
     },
     onError: (e: Error) => {
       // El borrador NO se toca: si el guardado falla, lo escrito sigue ahí.
@@ -779,45 +791,34 @@ function Detalle() {
       ) : null}
 
       {editando ? (
-        // En edición la barra tiene DOS acciones y nada más. Generar pedido,
-        // cambiar de estado, duplicar o cancelar no se ofrecen: hacerlas con un
-        // borrador a medias es perderlo.
+        // Editando, la barra tiene TRES botones y nada más (Fase 159): Guardar
+        // —graba y vuelve a la vista—, Guardar y editar —graba y sigue acá— y
+        // Descartar. Sin la flecha de volver, sin el formato de la hoja y sin el
+        // interruptor de la vista previa: «sólo esos tres». Generar pedido,
+        // duplicar o cancelar tampoco, que con un borrador a medias se pierde.
         <ActionBar
           pegajosa
-          volver={volver}
           titulo={doc.numero}
           pasos={circuito}
           primary={
             <Button
               icon={<Icon name="check" size={16} />}
-              loading={guardar.isPending}
+              loading={guardar.isPending && guardar.variables === false}
               disabled={!sucio || faltaGuardar.length > 0 || guardar.isPending}
-              onClick={() => guardar.mutate()}
+              onClick={() => guardar.mutate(false)}
             >
-              {guardar.isPending ? 'Guardando…' : 'Guardar cambios'}
+              {guardar.isPending && guardar.variables === false ? 'Guardando…' : 'Guardar'}
             </Button>
           }
           secondary={
             <>
-              {/* También mientras se edita: la hoja de al lado es la que se
-                  está editando, y poder cambiarle el formato es parte de
-                  mirarla (Fase 81). */}
-              <ControlesDeHoja {...controlesDeHoja} />
-              {/*
-                Mostrar u ocultar la hoja (Fase 26 · E2, mudado acá en la 84).
-                Vivía en la cabecera de «Líneas», que queda abajo del documento y
-                fuera de la vista: «no veo el botón para cerrar la vista previa».
-                Acá está donde se lo busca —al lado del formato de la hoja, que
-                es la otra cosa que se le hace— y en el mismo lugar que en el
-                alta. Cerrada, el panel de datos ocupa el ancho entero.
-              */}
               <Button
                 variant="secondary"
-                icon={<Icon name="eye" size={16} />}
-                onClick={() => setPreviaPedida(!verPrevia)}
-                aria-expanded={verPrevia}
+                loading={guardar.isPending && guardar.variables === true}
+                disabled={!sucio || faltaGuardar.length > 0 || guardar.isPending}
+                onClick={() => guardar.mutate(true)}
               >
-                {verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
+                {guardar.isPending && guardar.variables === true ? 'Guardando…' : 'Guardar y editar'}
               </Button>
               <Button
                 variant="secondary"

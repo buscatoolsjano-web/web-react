@@ -604,14 +604,17 @@ describe('Cotización · acciones', () => {
     expect(screen.getByRole('button', { name: 'Ver / Imprimir' })).toBeInTheDocument()
   })
 
-  it('Editar abre el modo edición con Guardar y Descartar, y nada más', () => {
+  it('Editar abre el modo edición con Guardar, Guardar y editar y Descartar, y nada más', () => {
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
 
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument()
+    // Fase 159: exactamente estos tres y ningún otro botón.
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar y editar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
-    // Las acciones incompatibles con un borrador a medias no se ofrecen.
-    for (const nombre of ['Generar pedido', 'Duplicar', 'Ver / Imprimir', 'Eliminar']) {
+    // Las acciones incompatibles con un borrador a medias no se ofrecen, y
+    // tampoco el formato de la hoja ni el interruptor de la vista previa.
+    for (const nombre of ['Generar pedido', 'Duplicar', 'Ver / Imprimir', 'Eliminar', 'Ocultar vista previa', 'Vista previa']) {
       expect(screen.queryByRole('button', { name: nombre })).toBeNull()
     }
   })
@@ -619,7 +622,8 @@ describe('Cotización · acciones', () => {
   it('sin cambios, Guardar está apagado', () => {
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Guardar y editar' })).toBeDisabled()
     expect(screen.getByText(/Sin cambios todavía/)).toBeInTheDocument()
   })
 
@@ -632,7 +636,7 @@ describe('Cotización · acciones', () => {
 
     // El corazón de E2: se editó, y la base no se tocó.
     expect(espias.guardar).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled()
     expect(screen.getByText(/Hay cambios sin guardar/)).toBeInTheDocument()
   })
 
@@ -640,7 +644,7 @@ describe('Cotización · acciones', () => {
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ nuevo título' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     // La mutación es asíncrona: la llamada llega después del clic.
     await waitFor(() => expect(espias.guardar).toHaveBeenCalledTimes(1))
@@ -685,7 +689,7 @@ describe('Cotización · acciones', () => {
 
     // El documento nuevo abre en lectura, sin el borrador del anterior.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument())
-    expect(screen.queryByRole('button', { name: 'Guardar cambios' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument()
     expect(espias.guardar).not.toHaveBeenCalled()
   })
 
@@ -712,7 +716,7 @@ describe('Cotización · acciones', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Líneas/ }))
 
     expect(screen.getByLabelText(/Título/)).toHaveValue('ZZ sobrevive')
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled()
   })
 })
 
@@ -910,15 +914,18 @@ describe('La hoja del documento', () => {
     expect(within(barra).getByRole('button', { name: 'Ocultar vista previa' })).toBeInTheDocument()
   })
 
-  /* También en la barra de edición, que es la otra: editando es justamente
-     cuando más falta hace el ancho entero para el formulario. */
-  it('y también mientras se edita', () => {
+  /* Editando ya NO está (Fase 159): la barra de edición queda con tres botones
+     y nada más —Guardar, Guardar y editar, Descartar—, así que el interruptor
+     de la vista previa se fue. La hoja se muestra, pero no se oculta desde acá. */
+  it('editando, el interruptor ya no está: la barra son tres botones', () => {
     estado.pantallaAncha = true
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
 
     const barra = screen.getByRole('group', { name: 'Acciones del documento' })
-    expect(within(barra).getByRole('button', { name: 'Ocultar vista previa' })).toBeInTheDocument()
+    expect(within(barra).queryByRole('button', { name: 'Ocultar vista previa' })).toBeNull()
+    expect(within(barra).queryByRole('button', { name: 'Vista previa' })).toBeNull()
+    expect(within(barra).getByRole('button', { name: 'Guardar y editar' })).toBeInTheDocument()
   })
 
   /**

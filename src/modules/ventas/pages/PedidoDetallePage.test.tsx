@@ -348,16 +348,19 @@ describe('Pedido · shell documental', () => {
 })
 
 describe('Pedido · edición por borrador', () => {
-  it('Editar abre el modo edición con Guardar y Descartar, y nada más', () => {
+  it('Editar abre el modo edición con Guardar, Guardar y editar y Descartar, y nada más', () => {
     montar()
     editar()
 
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument()
+    // Fase 159: exactamente estos tres y ningún otro botón.
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar y editar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
     // El cartel «Editando» se fue con el encabezado (Fase 84). Que se está
-    // editando lo dice la barra entera: cambia a dos acciones y nada más.
+    // editando lo dice la barra entera: cambia a tres acciones y nada más —sin
+    // el formato de la hoja ni el interruptor de la vista previa—.
     expect(screen.queryByText('Editando')).toBeNull()
-    for (const nombre of ['Confirmar pedido', 'Más', 'Ver / Imprimir']) {
+    for (const nombre of ['Confirmar pedido', 'Más', 'Ver / Imprimir', 'Ocultar vista previa', 'Vista previa']) {
       expect(screen.queryByRole('button', { name: nombre })).toBeNull()
     }
   })
@@ -375,7 +378,7 @@ describe('Pedido · edición por borrador', () => {
     // MISMO guardado: es un solo borrador, no dos formularios.
     fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
     fireEvent.change(screen.getByLabelText(/Entregar en/), { target: { value: 'd2' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => expect(espias.guardar).toHaveBeenCalledTimes(1))
     const [, , cabecera] = espias.guardar.mock.calls[0]!
@@ -391,7 +394,7 @@ describe('Pedido · edición por borrador', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
     expect(screen.getByLabelText(/Entregar en/)).toHaveValue('d1')
     fireEvent.change(screen.getByLabelText(/Entregar en/), { target: { value: '' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => expect(espias.guardar).toHaveBeenCalledTimes(1))
     expect(espias.guardar.mock.calls[0]![2]).toEqual({ shipping_address_id: null })
@@ -413,7 +416,7 @@ describe('Pedido · edición por borrador', () => {
   it('sin cambios, Guardar está apagado', () => {
     montar()
     editar()
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
     expect(screen.getByText(/Sin cambios todavía/)).toBeInTheDocument()
   })
 
@@ -423,7 +426,7 @@ describe('Pedido · edición por borrador', () => {
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ nuevo título' } })
 
     expect(espias.guardar).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled()
     expect(screen.getByText(/Hay cambios sin guardar/)).toBeInTheDocument()
   })
 
@@ -432,7 +435,7 @@ describe('Pedido · edición por borrador', () => {
     editar()
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ nuevo título' } })
     fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-09-20' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => expect(espias.guardar).toHaveBeenCalledTimes(1))
     const [orderId, esperado, cabecera, lineas] = espias.guardar.mock.calls[0]!
@@ -450,7 +453,7 @@ describe('Pedido · edición por borrador', () => {
     fireEvent.change(screen.getAllByLabelText(/Cantidad/)[0]!, { target: { value: '7' } })
     expect(espias.guardar).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
     await waitFor(() => expect(espias.guardar).toHaveBeenCalledTimes(1))
     const [, , cabecera, lineas] = espias.guardar.mock.calls[0]!
     expect(cabecera).toEqual({})
@@ -478,12 +481,12 @@ describe('Pedido · edición por borrador', () => {
     montar()
     editar()
     fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'ZZ lo que escribí' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     expect(await screen.findByText('Este pedido cambió mientras lo estabas editando')).toBeInTheDocument()
     // Lo escrito sigue en pantalla: es lo único que el usuario todavía tiene.
     expect(screen.getByLabelText(/Título/)).toHaveValue('ZZ lo que escribí')
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument()
   })
 
   it('cambiar de pestaña NO descarta el borrador ni pregunta', () => {
@@ -494,7 +497,7 @@ describe('Pedido · edición por borrador', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Líneas/ }))
 
     expect(screen.getByLabelText(/Título/)).toHaveValue('ZZ sobrevive')
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled()
   })
 
   it('irse a otro pedido con cambios PREGUNTA antes de perder el borrador', async () => {
@@ -516,7 +519,7 @@ describe('Pedido · edición por borrador', () => {
 
     // El pedido nuevo abre en lectura, sin el borrador del anterior.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument())
-    expect(screen.queryByRole('button', { name: 'Guardar cambios' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument()
     expect(espias.guardar).not.toHaveBeenCalled()
   })
 

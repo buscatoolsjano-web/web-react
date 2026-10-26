@@ -98,6 +98,7 @@ import { escribeVentas } from '../lib/permisos'
 import { tasaDe } from '../lib/tratamientos'
 import { FalloDeGuardado, ordenarLineas } from '../services/cotizaciones'
 import { crearEntregaDesdePedido, lineasParaEntregar } from '../services/entregas'
+import { obtenerDocumento } from '../services/documentos'
 import { cambiarEstadoPedido, editabilidadPedido, guardarPedido } from '../services/pedidos'
 import { guardarContactosDocumento } from '../services/contactosDocumento'
 import { guardarVendedoresDocumento } from '../services/vendedoresDocumento'
@@ -287,9 +288,10 @@ function Detalle() {
 
   /** El ÚNICO camino de escritura del editor. */
   const guardar = useMutation({
-    mutationFn: async () => {
+    // `seguir`: al terminar, ¿se vuelve a la vista o se sigue editando?
+    mutationFn: async (seguir: boolean) => {
       const payload = aPayloadPedido(borrador!, original!)
-      const r = await guardarPedido(doc!.id, borrador!.esperado, payload.cabecera, payload.lineas)
+      await guardarPedido(doc!.id, borrador!.esperado, payload.cabecera, payload.lineas)
       /*
        * Los contactos van DESPUÉS y por su propia RPC (Fase 40).
        *
@@ -313,18 +315,28 @@ function Detalle() {
         borrador!.cabecera.vendedorId === '' ? null : borrador!.cabecera.vendedorId,
         borrador!.cabecera.vendedoresExtra,
       )
-      return r
+      // Si se sigue editando, se relee el documento acá mismo: el borrador que
+      // queda tiene que ser el recién guardado, con los ids reales de las líneas
+      // nuevas y el testigo de concurrencia al día. En el handler y no en un
+      // efecto, para no disparar re-renders en cascada (y el lint que los veda).
+      const docFresco = seguir && activa ? await obtenerDocumento('pedido', activa.companyId, doc!.id) : null
+      return { docFresco }
     },
-    onSuccess: () => {
+    onSuccess: ({ docFresco }, seguir) => {
       setUltimoError(null)
       setConflicto(false)
-      setBorrador(null)
-      setOriginal(null)
       setGuardado(true)
       void refrescar()
       void queryClient.invalidateQueries({
         queryKey: ['ventas', activa?.companyId, 'pedido', 'trazabilidad', id],
       })
+      if (seguir && docFresco) {
+        // Se sigue editando: se re-arma el borrador desde el documento fresco.
+        abrirEdicion(docFresco)
+      } else {
+        setBorrador(null)
+        setOriginal(null)
+      }
     },
     onError: (e: Error) => {
       // El borrador NO se toca: si el guardado falla, lo escrito sigue ahí.
@@ -719,42 +731,33 @@ function Detalle() {
       ) : null}
 
       {editando ? (
+        // Editando, la barra tiene TRES botones y nada más (Fase 159): Guardar,
+        // Guardar y editar —graba y sigue acá— y Descartar. Sin la flecha de
+        // volver, sin el formato de la hoja y sin el interruptor de la vista
+        // previa: «sólo esos tres».
         <ActionBar
           pegajosa
-          volver={volver}
           titulo={doc.numero}
           pasos={circuito}
           primary={
             <Button
               icon={<Icon name="check" size={16} />}
-              loading={guardar.isPending}
+              loading={guardar.isPending && guardar.variables === false}
               disabled={!sucio || faltaGuardar.length > 0 || guardar.isPending}
-              onClick={() => guardar.mutate()}
+              onClick={() => guardar.mutate(false)}
             >
-              {guardar.isPending ? 'Guardando…' : 'Guardar cambios'}
+              {guardar.isPending && guardar.variables === false ? 'Guardando…' : 'Guardar'}
             </Button>
           }
           secondary={
             <>
-              {/* También mientras se edita: la hoja de al lado es la que se
-                  está editando, y poder cambiarle el formato es parte de
-                  mirarla (Fase 81). */}
-              <ControlesDeHoja {...controlesDeHoja} />
-              {/*
-                Mostrar u ocultar la hoja (Fase 26 · E2, mudado acá en la 84).
-                Vivía en la cabecera de «Líneas», que queda abajo del documento y
-                fuera de la vista: «no veo el botón para cerrar la vista previa».
-                Acá está donde se lo busca —al lado del formato de la hoja, que
-                es la otra cosa que se le hace— y en el mismo lugar que en el
-                alta. Cerrada, el panel de datos ocupa el ancho entero.
-              */}
               <Button
                 variant="secondary"
-                icon={<Icon name="eye" size={16} />}
-                onClick={() => setPreviaPedida(!verPrevia)}
-                aria-expanded={verPrevia}
+                loading={guardar.isPending && guardar.variables === true}
+                disabled={!sucio || faltaGuardar.length > 0 || guardar.isPending}
+                onClick={() => guardar.mutate(true)}
               >
-                {verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
+                {guardar.isPending && guardar.variables === true ? 'Guardando…' : 'Guardar y editar'}
               </Button>
               <Button
                 variant="secondary"
