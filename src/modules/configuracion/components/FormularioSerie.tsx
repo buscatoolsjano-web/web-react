@@ -107,7 +107,7 @@ export function FormularioSerie({ serie, secuencias, guardando, error, onGuardar
       }
     >
       <form id="form-serie" onSubmit={enviar} noValidate className={styles.formDialogo}>
-        <Field label="Tipo de documento" error={errores.docType} help={esAlta ? undefined : 'No se cambia: junto con el nombre identifica la serie.'}>
+        <Field label="Tipo de documento" error={errores.docType} help={esAlta ? undefined : 'No se cambia.'}>
           <Select value={datos.docType} onChange={(e) => set('docType', e.target.value)} disabled={guardando || !esAlta}>
             {TIPOS_CON_SECUENCIA.map((t) => (
               <option key={t} value={t}>
@@ -120,16 +120,16 @@ export function FormularioSerie({ serie, secuencias, guardando, error, onGuardar
         <Field
           label="Nombre de la serie"
           error={errores.serie}
-          help={esAlta ? 'Cómo se llama esta serie dentro del tipo. Por ejemplo COT-2026.' : 'No se cambia: los documentos emitidos la referencian por este nombre.'}
+          help={esAlta ? 'Por ejemplo COT-2026.' : 'No se cambia.'}
         >
           <Input type="text" autoComplete="off" maxLength={20} value={datos.serie} onChange={(e) => set('serie', e.target.value)} disabled={guardando || !esAlta} />
         </Field>
 
-        <Field label="Prefijo" error={errores.prefijo} help="Lo que se imprime antes del número. Letras, números y guiones.">
+        <Field label="Prefijo" error={errores.prefijo} help="Va antes del número. Letras, números y guiones.">
           <Input type="text" autoComplete="off" maxLength={20} value={datos.prefijo} onChange={(e) => set('prefijo', e.target.value)} disabled={guardando} />
         </Field>
 
-        <Field label="Ceros a la izquierda" error={errores.relleno} help="Cuántos dígitos ocupa el número. 5 da 00001; 0 no rellena.">
+        <Field label="Ceros a la izquierda" error={errores.relleno} help="5 da 00001; 0 no rellena.">
           <Input type="number" inputMode="numeric" min={0} max={20} value={datos.relleno} onChange={(e) => set('relleno', e.target.value)} disabled={guardando} />
         </Field>
 
@@ -138,24 +138,23 @@ export function FormularioSerie({ serie, secuencias, guardando, error, onGuardar
           error={errores.proximo}
           help={
             mayorEmitido === null
-              ? 'Todavía no hay documentos emitidos con este prefijo.'
-              : `El mayor ya emitido con ${prefijoEscrito} es ${mayorEmitido}: el próximo tiene que ser mayor.`
+              ? 'Sin documentos con este prefijo todavía.'
+              : `Mayor emitido con ${prefijoEscrito}: ${mayorEmitido}. El próximo tiene que ser mayor.`
           }
         >
           <Input type="number" inputMode="numeric" min={1} value={datos.proximo} onChange={(e) => set('proximo', e.target.value)} disabled={guardando} />
         </Field>
 
-        {/* La vista previa, que es lo que de verdad se quiere ver antes de
-            guardar: cómo va a salir el próximo documento. */}
+        {/* La vista previa: cómo va a salir el próximo documento. */}
         <p className={styles.nota}>
-          El próximo documento va a salir <code className={styles.codigo}>{vistaPreviaNumero(datos)}</code>.
+          El próximo documento sale <code className={styles.codigo}>{vistaPreviaNumero(datos)}</code>.
         </p>
 
         <Checkbox
           label="Serie predeterminada de este tipo"
           checked={datos.esDefault}
           disabled={guardando || esUnicaDefault}
-          {...(esUnicaDefault ? { help: 'Es la única serie de este tipo, así que tiene que quedar como predeterminada.' } : {})}
+          {...(esUnicaDefault ? { help: 'Es la única serie de este tipo.' } : {})}
           onChange={(e) => set('esDefault', e.target.checked)}
         />
 
@@ -163,7 +162,7 @@ export function FormularioSerie({ serie, secuencias, guardando, error, onGuardar
           label="Se puede elegir al crear un documento"
           checked={datos.seleccionable}
           disabled={guardando}
-          help="Desmarcá esto para las series viejas que sólo quedan para reconocer números ya emitidos."
+          help="Desmarcala para series viejas: sólo sirven para reconocer números ya emitidos."
           onChange={(e) => set('seleccionable', e.target.checked)}
         />
 

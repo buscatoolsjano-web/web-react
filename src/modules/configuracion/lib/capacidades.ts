@@ -111,22 +111,22 @@ export const PERMISOS_FIJOS = [
   {
     titulo: 'Configuración',
     quien: 'Administrador y empleado',
-    porque: 'Cada pantalla de Configuración lo vuelve a validar en el servidor. Usuarios y los permisos de abajo, sólo el administrador.',
+    porque: 'El servidor valida cada pantalla. Usuarios y estos permisos, sólo el administrador.',
   },
   {
     titulo: 'Chat interno',
     quien: 'Quien esté en la conversación',
-    porque: 'No depende del rol: se ve una conversación si uno es participante.',
+    porque: 'No es por rol: se ve si uno participa.',
   },
   {
     titulo: 'Informes',
     quien: 'Administrador y empleado',
-    porque: 'Resumen lo comercial de toda la empresa, así que siguen a «Ver lo comercial» del empleado.',
+    porque: 'Resumen de toda la empresa: siguen a «Ver lo comercial».',
   },
   {
     titulo: 'Clientes, proveedores y distribuidores',
     quien: 'Según su vínculo con la empresa',
-    porque: 'Un cliente ve lo suyo —sus pedidos, sus remitos— y nada más. Eso lo decide el vínculo, no un interruptor.',
+    porque: 'Cada uno ve lo suyo. Lo decide el vínculo, no un interruptor.',
   },
 ] as const
 

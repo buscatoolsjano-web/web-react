@@ -234,9 +234,8 @@ export function NumeracionPage() {
           />
 
           <p className={styles.nota}>
-            El «próximo» es el número que va a llevar el siguiente documento que se emita. No puede quedar en o por
-            debajo de uno ya emitido con el mismo prefijo: la base lo rechaza para no repetir. «Atípicos» son números
-            mal tipeados marcados en la importación, y no cuentan para el estado.
+            «Próximo»: el número del siguiente documento. «Atípicos»: números mal cargados en la importación, que no
+            cuentan.
           </p>
 
           <SincronizacionStel />
@@ -271,9 +270,8 @@ export function NumeracionPage() {
           }
         >
           <p className={styles.dialogoTexto}>
-            La serie {borrando.serie} de {etiquetaTipo(borrando.docType).toLowerCase()} deja de existir. Sólo se puede
-            si todavía no emitió ningún documento: si ya emitió, la base lo rechaza, porque su prefijo es lo que permite
-            reconocer esos números.
+            Se elimina la serie {borrando.serie} de {etiquetaTipo(borrando.docType).toLowerCase()}. Sólo se puede si
+            todavía no emitió ningún documento.
           </p>
           {errorDialogo && <StatusMessage tono="error" titulo={errorDialogo} />}
         </Dialogo>
@@ -295,7 +293,7 @@ function AccionesDeSerie({
 }) {
   // Lo que numera otro sistema no se edita desde acá: la RPC lo rechaza igual.
   const externa = s.autoridad === 'STEL'
-  const motivo = externa ? 'Este tipo lo numera STEL: su secuencia no se edita desde el ERP.' : undefined
+  const motivo = externa ? 'Lo numera STEL: no se edita acá.' : undefined
   return (
     <span className={styles.acciones}>
       <Button variant="secondary" onClick={onEditar} disabled={ocupado || externa} title={motivo}>
@@ -378,8 +376,8 @@ function SincronizacionStel() {
         ))}
       </ul>
       <p className={styles.nota}>
-        El sync trae de STEL el catálogo y los documentos nuevos. Corre en el servidor y guarda hasta dónde llegó, así un
-        reintento no repite trabajo. Si una corrida falla, el punto de control no avanza.
+        Trae de STEL el catálogo y los documentos nuevos. Lo corre el servidor y guarda hasta dónde llegó, para no
+        repetir.
       </p>
     </section>
   )

@@ -50,8 +50,7 @@ export function PermisosPorRol() {
         Permisos por rol
       </h2>
       <p className={styles.intro}>
-        Qué puede hacer cada rol en {activa?.companyName ?? 'esta empresa'}. Lo aplica la base de datos: al quitar un
-        permiso esos datos dejan de llegar, no se esconde el menú y nada más.
+        Qué puede hacer cada rol en {activa?.companyName ?? 'esta empresa'}. Lo aplica la base de datos, no sólo el menú.
       </p>
 
       {error ? (
@@ -64,7 +63,7 @@ export function PermisosPorRol() {
       ) : (
         <>
           <div className={styles.roles}>
-            <RolConTodo catalogo={catalogo.data ?? []} />
+            <RolConTodo />
             {ROLES_CONFIGURABLES.map((rol) => (
               <TarjetaDeRol
                 key={rol}
@@ -96,19 +95,18 @@ export function PermisosPorRol() {
   )
 }
 
-/** El administrador. Está para que se entienda el cuadro completo. */
-function RolConTodo({ catalogo }: { catalogo: readonly Capacidad[] }) {
+/** El administrador: tiene todo y no se edita. */
+function RolConTodo() {
   return (
     <fieldset className={cx(styles.rol, styles.rolFijo)}>
       <legend className={styles.rolNombre}>{etiquetaRol(ROL_CON_TODO)}</legend>
       <div className={styles.rolCabecera}>
-        {/* Enumerados y no «todos»: que se vea de qué se está hablando. */}
-        <span className={styles.rolResumen}>{catalogo.map((c) => c.etiqueta).join(' · ')}</span>
+        <span className={styles.rolResumen}>Todos los permisos</span>
         <Badge tone="neutral">No se configura</Badge>
       </div>
       <p className={styles.descripcion}>
-        Para que la empresa no pueda quedarse sin nadie que pueda devolver un permiso, el administrador no se edita. Si
-        alguien tiene que dejar de poder algo, cambiale el rol en la lista de arriba.
+        No se edita, así la empresa nunca queda sin nadie que pueda devolver un permiso. Para quitarle algo a alguien,
+        cambiale el rol arriba.
       </p>
     </fieldset>
   )

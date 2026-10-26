@@ -108,8 +108,8 @@ describe('qué muestra', () => {
     const admin = tarjeta('Administrador')
     expect(within(admin).queryAllByRole('checkbox')).toHaveLength(0)
     expect(within(admin).getByText('No se configura')).toBeInTheDocument()
-    // Y se enumera lo que tiene, que es todo.
-    expect(within(admin).getByText(/Ver lo comercial · Cargar y editar documentos/)).toBeInTheDocument()
+    // Tiene todo, dicho corto (Fase 167): «Todos los permisos», no la lista.
+    expect(within(admin).getByText('Todos los permisos')).toBeInTheDocument()
   })
 
   it('cada rol trae marcadas las que tiene y desmarcadas las que no', () => {
