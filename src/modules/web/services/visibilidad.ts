@@ -62,6 +62,8 @@ export interface CategoriaPortada {
   nombre: string
   portadaProductId: string | null
   portadaUrl: string | null
+  /** Si la portada es una imagen SUBIDA a mano (no la de un producto). */
+  imagenSubida: string | null
   /** Cuántos productos de la categoría tienen foto (0 = no se puede elegir). */
   conFotos: number
 }
@@ -79,15 +81,50 @@ export async function portadasDeCategorias(companyId: string): Promise<Categoria
   if (error) throw new Error(`No se pudieron leer las portadas: ${error.message}`)
   const filas = (data ?? []) as unknown as {
     category_id: string; nombre: string; portada_product_id: string | null
-    portada_url: string | null; con_fotos: number | string
+    portada_url: string | null; imagen_subida: string | null; con_fotos: number | string
   }[]
   return filas.map((f) => ({
     categoryId: f.category_id,
     nombre: f.nombre,
     portadaProductId: f.portada_product_id,
     portadaUrl: f.portada_url,
+    imagenSubida: f.imagen_subida,
     conFotos: Number(f.con_fotos),
   }))
+}
+
+/**
+ * Subir una imagen propia como portada de una categoría (Fase 148).
+ *
+ * Para las categorías sin ningún producto con foto. La imagen se normaliza a
+ * 500×500 (lo mismo que el alta) y se sube al bucket PÚBLICO `catalogo-publico`,
+ * en `portadas/<empresa>/…`, que es la carpeta que la policy deja escribir. Con
+ * la URL pública se fija la portada.
+ */
+export async function subirPortadaCategoria(
+  companyId: string,
+  categoriaId: string,
+  archivo: File,
+): Promise<void> {
+  const { normalizarFoto } = await import('@/modules/catalogo/lib/fotoProducto')
+  const procesada = await normalizarFoto(archivo, { quitarFondo: false })
+  const ruta = `portadas/${companyId}/${crypto.randomUUID()}.webp`
+  const subida = await supabase.storage.from('catalogo-publico').upload(ruta, procesada.archivo, {
+    contentType: procesada.archivo.type,
+    upsert: false,
+  })
+  if (subida.error) throw new Error(`No se pudo subir la imagen: ${subida.error.message}`)
+  const { data: pub } = supabase.storage.from('catalogo-publico').getPublicUrl(ruta)
+  const { error } = await supabase.rpc('web_portada_fijar_url' as never, {
+    p_company: companyId,
+    p_categoria: categoriaId,
+    p_url: pub.publicUrl,
+  } as never)
+  if (error) {
+    // La fila no se guardó: se borra el archivo para no dejar un huérfano.
+    await supabase.storage.from('catalogo-publico').remove([ruta])
+    throw new Error(`No se pudo fijar la portada: ${error.message}`)
+  }
 }
 
 /** Los productos de una categoría que tienen foto, para elegir la portada. */

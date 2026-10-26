@@ -1,0 +1,15 @@
+-- Fase 148 · Portada de categoría por imagen SUBIDA.
+-- (Aplicada a São Paulo con apply_migration `fase148_portada_url_subida`.)
+--
+-- Para las categorías sin ningún producto con foto (EPP, Repuestos, Herramientas
+-- manuales…), un admin sube una imagen propia que queda como portada.
+--
+--   · product_categories.portada_url  → URL directa que GANA sobre el producto.
+--   · 3 policies en storage.objects    → escritura en catalogo-publico/portadas/<empresa>/,
+--                                        acotada a los writer company ids (como `productos`).
+--   · catalogo_publico_categorias      → COALESCE(portada_url, foto del producto, …).
+--   · web_portadas_categorias          → devuelve también `imagen_subida`.
+--   · web_portada_fijar_url            → fija la URL (y limpia el producto-portada).
+--   · web_portada_fijar                → al elegir producto o "quitar", limpia la URL.
+--
+-- La definición completa vive en la migración.

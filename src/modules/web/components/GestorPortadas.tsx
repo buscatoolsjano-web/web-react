@@ -10,8 +10,13 @@ import {
   fijarPortadaCategoria,
   portadasDeCategorias,
   productosConFotoDeCategoria,
+  subirPortadaCategoria,
 } from '../services/visibilidad'
 import styles from './GestorPortadas.module.css'
+
+/** Lo que acepta el bucket público para una portada. */
+const TIPOS_IMAGEN = ['image/png', 'image/jpeg', 'image/webp', 'image/avif']
+const MAXIMO = 5 * 1024 * 1024
 
 /**
  * Elegir la foto de portada de cada categoría (Fase 143).
@@ -30,16 +35,45 @@ export function GestorPortadas({ companyId }: { companyId: string }) {
 
   const [abierta, setAbierta] = useState<string | null>(null)
 
+  const refrescar = () => {
+    setAbierta(null)
+    void qc.invalidateQueries({ queryKey: ['web', companyId, 'portadas'] })
+    // La portada cambió también para el sitio público.
+    void qc.invalidateQueries({ queryKey: ['catalogo-publico', 'categorias'] })
+  }
+
   const fijar = useMutation({
     mutationFn: (v: { categoriaId: string; productoId: string | null }) =>
       fijarPortadaCategoria(companyId, v.categoriaId, v.productoId),
-    onSuccess: () => {
-      setAbierta(null)
-      void qc.invalidateQueries({ queryKey: ['web', companyId, 'portadas'] })
-      // La portada cambió también para el sitio público.
-      void qc.invalidateQueries({ queryKey: ['catalogo-publico', 'categorias'] })
-    },
+    onSuccess: refrescar,
   })
+
+  const [subiendo, setSubiendo] = useState<string | null>(null)
+  const [errorSubir, setErrorSubir] = useState<string | null>(null)
+  const subir = useMutation({
+    mutationFn: (v: { categoriaId: string; archivo: File }) =>
+      subirPortadaCategoria(companyId, v.categoriaId, v.archivo),
+    onMutate: (v) => {
+      setErrorSubir(null)
+      setSubiendo(v.categoriaId)
+    },
+    onSuccess: refrescar,
+    onError: (e) => setErrorSubir(e instanceof Error ? e.message : 'No se pudo subir la imagen.'),
+    onSettled: () => setSubiendo(null),
+  })
+
+  const elegirArchivo = (categoriaId: string, archivo: File | null) => {
+    if (!archivo) return
+    if (!TIPOS_IMAGEN.includes(archivo.type)) {
+      setErrorSubir('Tiene que ser PNG, JPG, WEBP o AVIF.')
+      return
+    }
+    if (archivo.size > MAXIMO) {
+      setErrorSubir('El archivo pasa de 5 MB.')
+      return
+    }
+    subir.mutate({ categoriaId, archivo })
+  }
 
   if (cats.isPending) {
     return <div className={styles.cargando}><Spinner /> Cargando…</div>
@@ -50,6 +84,7 @@ export function GestorPortadas({ companyId }: { companyId: string }) {
       {fijar.isError ? (
         <Alert tone="danger">No se pudo cambiar la portada. Probá de nuevo.</Alert>
       ) : null}
+      {errorSubir ? <Alert tone="danger">{errorSubir}</Alert> : null}
 
       <ul className={styles.lista}>
         {(cats.data ?? []).map((c) => (
@@ -65,7 +100,7 @@ export function GestorPortadas({ companyId }: { companyId: string }) {
               <span className={styles.nombre}>
                 {c.nombre}
                 <span className={styles.estado}>
-                  {c.portadaUrl ? 'Con portada' : 'Sin portada'}
+                  {c.imagenSubida ? 'Imagen subida' : c.portadaUrl ? 'Con portada' : 'Sin portada'}
                   {c.conFotos === 0 ? ' · ningún producto tiene foto' : ` · ${c.conFotos} con foto`}
                 </span>
               </span>
@@ -74,20 +109,36 @@ export function GestorPortadas({ companyId }: { companyId: string }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={fijar.isPending}
+                    disabled={fijar.isPending || subiendo === c.categoryId}
                     onClick={() => fijar.mutate({ categoriaId: c.categoryId, productoId: null })}
                   >
                     Quitar
                   </Button>
                 ) : null}
+                {/* Elegir un PRODUCTO de la categoría (sólo si alguno tiene foto). */}
                 <Button
                   variant="secondary"
                   size="sm"
                   disabled={c.conFotos === 0}
                   onClick={() => setAbierta(abierta === c.categoryId ? null : c.categoryId)}
                 >
-                  {abierta === c.categoryId ? 'Cerrar' : c.portadaUrl ? 'Cambiar' : 'Elegir foto'}
+                  {abierta === c.categoryId ? 'Cerrar' : 'Elegir de la categoría'}
                 </Button>
+                {/* Subir una imagen propia: sirve SIEMPRE, también cuando no hay
+                    ningún producto con foto. */}
+                <label className={styles.subir}>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/avif"
+                    hidden
+                    disabled={subiendo === c.categoryId}
+                    onChange={(e) => {
+                      elegirArchivo(c.categoryId, e.target.files?.[0] ?? null)
+                      e.target.value = ''
+                    }}
+                  />
+                  {subiendo === c.categoryId ? 'Subiendo…' : 'Subir foto'}
+                </label>
               </span>
             </div>
 
