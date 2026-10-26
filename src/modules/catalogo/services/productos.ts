@@ -25,7 +25,7 @@ import type {
 const COLUMNAS_LISTADO = `
   id, sku, name, model_code, series, product_type, attributes, is_kit, needs_review,
   brands ( id, name, is_active ),
-  product_categories ( id, name, slug, is_active ),
+  product_categories!products_category_id_fkey ( id, name, slug, is_active ),
   product_prices ( amount, price_list_id, valid_from, valid_to ),
   product_images ( source_url, thumb_url, kind, position, is_primary )
 ` as const
@@ -40,7 +40,7 @@ const COLUMNAS_DETALLE = `
   model_code, description, description_long, origin_country, ncm_code,
   weight_g, volume_cm3,
   brands ( id, name, is_active ),
-  product_categories ( id, name, slug, is_active ),
+  product_categories!products_category_id_fkey ( id, name, slug, is_active ),
   product_prices ( amount, price_list_id, valid_from, valid_to ),
   product_images ( source_url, thumb_url, kind, position, is_primary )
 ` as const

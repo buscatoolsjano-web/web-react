@@ -665,7 +665,7 @@ export async function datosDeProductosImpresos(
     supabase
       .from('products')
       .select(
-        'id, model_code, series, origin_country, ncm_code, product_type, attributes, brands ( name ), product_categories ( slug )',
+        'id, model_code, series, origin_country, ncm_code, product_type, attributes, brands ( name ), product_categories!products_category_id_fkey ( slug )',
       )
       .eq('company_id', companyId)
       .in('id', ids),
