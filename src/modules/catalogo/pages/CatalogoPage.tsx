@@ -26,8 +26,9 @@ import {
   useDefinicionesDeAtributos,
   useFacetas,
   useListasDePrecios,
+  usePortadasPublicas,
 } from '../hooks/useCatalogoFacetas'
-import { atributosParaGuia, categoriasParaGuia, facetasParaGuia } from '../lib/adaptarGuia'
+import { atributosParaGuia, categoriasParaGuia, facetasParaGuia, slugGuia } from '../lib/adaptarGuia'
 import { useDisponibilidad, useProductos } from '../hooks/useProductos'
 import { columnaYdireccion, proximoOrden, useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
 import { useExportarCatalogo } from '../hooks/useExportarCatalogo'
@@ -185,17 +186,28 @@ export function CatalogoPage() {
   // forma que espera. La categoría del ERP se filtra por id, pero la guía habla
   // en slug: se traduce en los dos sentidos.
   const todasLasCategorias = useCategorias(companyId)
+  // Las portadas del catálogo público, para que la guía muestre las mismas
+  // fotos que la web (Fase 174). Se mapean por slug público.
+  const portadasPublicas = usePortadasPublicas()
+  const portadasPorSlug = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const c of portadasPublicas.data ?? []) if (c.portadaUrl) m.set(c.slug, c.portadaUrl)
+    return m
+  }, [portadasPublicas.data])
   const facetasGuia = useMemo(() => facetasParaGuia(facetas), [facetas])
   const categoriasGuia = useMemo(
-    () => categoriasParaGuia(todasLasCategorias.data ?? [], facetas),
-    [todasLasCategorias.data, facetas],
+    () => categoriasParaGuia(todasLasCategorias.data ?? [], facetas, portadasPorSlug),
+    [todasLasCategorias.data, facetas, portadasPorSlug],
   )
-  const slugCategoriaActual = (todasLasCategorias.data ?? []).find((c) => c.id === filtros.categoria)?.slug
+  // La guía habla en slug público (plural: «puntas-y-tubos»), que es con el que
+  // matchean las fotos; el ERP filtra por id. Se traduce en los dos sentidos.
+  const categoriaActual = (todasLasCategorias.data ?? []).find((c) => c.id === filtros.categoria)
+  const slugCategoriaActual = categoriaActual ? slugGuia(categoriaActual) : undefined
   const atributosGuia = useMemo(() => atributosParaGuia(filtros.atributos), [filtros.atributos])
 
   /** Elegir una categoría desde la guía: el ERP filtra por id, y se limpian los subfiltros. */
   const guiaElegirCategoria = (slug: string) => {
-    const cat = (todasLasCategorias.data ?? []).find((c) => c.slug === slug)
+    const cat = (todasLasCategorias.data ?? []).find((c) => slugGuia(c) === slug)
     actualizar({ categoria: cat?.id ?? null, subtipos: [], atributos: {} })
   }
   /** Un filtro de la guía (tipo o atributo) → el estado multi-valor del ERP. */

@@ -138,6 +138,9 @@ export interface CategoriaResumen {
   id: string
   nombre: string
   slug: string
+  /** El slug del catálogo público, si lo tiene: con él matchean las fotos y la
+   *  guía con el sitio web (los slugs del ERP son singulares: «punta»). */
+  slugPublico: string | null
   necesitaRevision: boolean
 }
 

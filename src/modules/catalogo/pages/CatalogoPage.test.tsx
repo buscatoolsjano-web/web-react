@@ -43,8 +43,10 @@ vi.mock('../hooks/useCatalogoFacetas', () => ({
   useDefinicionesDeAtributos: () => ({ data: [] }),
   // Fase 26 · E3: las usa el modal de alta de producto.
   useMarcas: () => ({ data: [{ id: 'm1', nombre: 'ZZ SPEEDRILL' }], isPending: false }),
-  useCategorias: () => ({ data: [{ id: 'c1', nombre: 'ZZ Puntas', slug: 'punta', necesitaRevision: false }], isPending: false }),
+  useCategorias: () => ({ data: [{ id: 'c1', nombre: 'ZZ Puntas', slug: 'punta', slugPublico: 'puntas-y-tubos', necesitaRevision: false }], isPending: false }),
   useAtributosPorCategoria: () => ({ data: new Map() }),
+  // Fase 174: las portadas del catálogo público para la guía con fotos.
+  usePortadasPublicas: () => ({ data: [] }),
 }))
 // Fase 22 · paridad #49: la exportación vive en un service, que importa el
 // cliente de Supabase. Sin este mock la página lo arrastra y estos tests

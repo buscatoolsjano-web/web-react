@@ -4540,6 +4540,7 @@ export type Database = {
           parent_id: string | null
           position: number
           slug: string
+          slug_publico: string | null
         }
         Insert: {
           company_id: string
@@ -4551,6 +4552,7 @@ export type Database = {
           parent_id?: string | null
           position?: number
           slug: string
+          slug_publico?: string | null
         }
         Update: {
           company_id?: string
@@ -4562,6 +4564,7 @@ export type Database = {
           parent_id?: string | null
           position?: number
           slug?: string
+          slug_publico?: string | null
         }
         Relationships: [
           {

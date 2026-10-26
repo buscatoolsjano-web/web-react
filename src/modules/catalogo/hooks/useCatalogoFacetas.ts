@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { categorias as categoriasPublicas } from '@/modules/publico/services/catalogoPublico'
 import { construirPlanDeConsulta } from '../lib/planDeConsulta'
 import {
   obtenerFacetas,
@@ -37,6 +38,21 @@ export function useCategorias(companyId: string | null) {
     queryFn: () => listarCategorias(companyId!),
     enabled: companyId !== null,
     staleTime: CINCO_MINUTOS,
+  })
+}
+
+/**
+ * Las portadas del catálogo público (la foto que un admin eligió por categoría),
+ * para que la guía con fotos del ERP muestre las MISMAS fotos que la web
+ * (Fase 174). Devuelve el catálogo público de Buscatools; el que lo consume lo
+ * matchea por slug público. Misma clave que la web: comparte caché si ya se
+ * visitó el sitio. `staleTime` de una hora porque cambian casi nunca.
+ */
+export function usePortadasPublicas() {
+  return useQuery({
+    queryKey: ['catalogo-publico', 'categorias'],
+    queryFn: categoriasPublicas,
+    staleTime: 60 * 60_000,
   })
 }
 

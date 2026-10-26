@@ -26,15 +26,19 @@ describe('adaptarGuia (Fase 133)', () => {
     expect(r.atributos[0]).toMatchObject({ key: 'encastre', opciones: [{ valor: '1/4', cuantos: 4 }] })
   })
 
-  it('las categorías llevan su conteo por id (0 si no está en las facetas)', () => {
+  it('las categorías llevan su conteo por id y hablan en slug público, con su portada', () => {
     const cats: CategoriaResumen[] = [
-      { id: 'c-punta', nombre: 'Puntas y tubos', slug: 'punta', necesitaRevision: false },
-      { id: 'c-bal', nombre: 'Balanceadores', slug: 'balanceador', necesitaRevision: false },
+      { id: 'c-punta', nombre: 'Puntas y tubos', slug: 'punta', slugPublico: 'puntas-y-tubos', necesitaRevision: false },
+      { id: 'c-bal', nombre: 'Balanceadores', slug: 'balanceador', slugPublico: null, necesitaRevision: false },
     ]
-    const r = categoriasParaGuia(cats, facetas)
+    // Las portadas van por slug público: la foto del ERP es la MISMA que la web.
+    const portadas = new Map([['puntas-y-tubos', 'https://foto/punta.jpg']])
+    const r = categoriasParaGuia(cats, facetas, portadas)
     expect(r).toEqual([
-      { slug: 'punta', nombre: 'Puntas y tubos', productos: 9 },
-      { slug: 'balanceador', nombre: 'Balanceadores', productos: 0 },
+      // «punta» → «puntas-y-tubos», y trae la portada; el conteo por id.
+      { slug: 'puntas-y-tubos', nombre: 'Puntas y tubos', productos: 9, portadaUrl: 'https://foto/punta.jpg' },
+      // Sin slug público cae al propio; sin portada queda en null (la guía usa el ícono).
+      { slug: 'balanceador', nombre: 'Balanceadores', productos: 0, portadaUrl: null },
     ])
   })
 

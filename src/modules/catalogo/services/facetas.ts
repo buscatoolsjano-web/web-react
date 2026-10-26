@@ -47,7 +47,7 @@ export async function listarMarcas(companyId: string): Promise<MarcaDelCatalogo[
 export async function listarCategorias(companyId: string): Promise<CategoriaResumen[]> {
   const { data, error } = await supabase
     .from('product_categories')
-    .select('id, name, slug, needs_review, position')
+    .select('id, name, slug, slug_publico, needs_review, position')
     .eq('company_id', companyId)
     .eq('is_active', true)
     .order('position')
@@ -57,6 +57,7 @@ export async function listarCategorias(companyId: string): Promise<CategoriaResu
     id: c.id,
     nombre: c.name,
     slug: c.slug,
+    slugPublico: c.slug_publico,
     necesitaRevision: c.needs_review,
   }))
 }
