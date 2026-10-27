@@ -25,6 +25,25 @@
   color: var(--color-text);
 }
 
+/* Volver un paso: deshace lo último elegido, y en el primer paso de una
+   categoría la deselecciona (Fase 180). Botón fantasma, discreto. */
+.volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-soft);
+  cursor: pointer;
+}
+.volver:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-soft);
+}
+
 .fichas {
   display: flex;
   gap: var(--space-1);

@@ -215,7 +215,21 @@ export function GuiaFiltros({
 
   const activo = pasos.find((p) => p.elegido === '')
   const respondidos = pasos.filter((p) => p.elegido !== '')
-  if (pasos.length === 0) return null
+
+  // Volver un paso (Fase 180): deshace lo último respondido; si no hay nada
+  // respondido pero hay una categoría puesta, la deselecciona (vuelve a los
+  // rubros). Así siempre hay una forma de retroceder DENTRO del recuadro.
+  const puedeVolver = respondidos.length > 0 || categoria !== undefined
+  const volver = () => {
+    const ultimo = respondidos[respondidos.length - 1]
+    if (ultimo) ultimo.quitar()
+    else if (categoria !== undefined) onCategoria('')
+  }
+
+  // Sin pasos y sin categoría no hay nada que mostrar. Pero si hay una
+  // categoría puesta aunque no tenga subfiltros, igual se muestra el recuadro
+  // con «Volver» y la cuenta, para poder retroceder desde cualquier rubro.
+  if (pasos.length === 0 && !puedeVolver) return null
 
   // Se muestran TODAS las opciones, sin «+N más» (pedido del usuario: que nunca
   // aparezca en ningún filtro). Los tiles llenan el ancho a cualquier cantidad.
@@ -244,6 +258,12 @@ export function GuiaFiltros({
           <Icon name="search" size={16} aria-hidden="true" />
           Encontrá tu producto
         </span>
+        {puedeVolver ? (
+          <button type="button" className={styles.volver} onClick={volver}>
+            <Icon name="chevron-left" size={16} aria-hidden="true" />
+            Volver
+          </button>
+        ) : null}
         <div className={styles.fichas}>
           {respondidos.map((p) => (
             <button key={p.clave} type="button" className={styles.ficha} onClick={p.quitar} aria-label={`Quitar: ${etiquetaChip(p)}`}>
