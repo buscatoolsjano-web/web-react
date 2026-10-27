@@ -74,6 +74,59 @@
       })()
     </script>
 
+    <!--
+      Adelanto de los datos de la portada (Fase 176).
+
+      El cuello de botella al ENTRAR ya no es la base —las RPC están en ~150 ms—:
+      es que el navegador tiene que bajar y ejecutar ~220 KB de JS ANTES de que
+      React monte y recién ahí pida los productos. Medido: la primera consulta
+      sale a los ~800 ms, cuando el HTML ya está desde los ~310 ms.
+
+      Este script CLÁSICO corre mientras se parsea el HTML —antes del módulo de
+      main.tsx, que es diferido— y dispara YA las tres consultas de la portada,
+      en paralelo con la bajada del JS. Cuando React monta, la respuesta ya está
+      (o está en vuelo) y `catalogoPublico.ts` la adopta en vez de volver a
+      pedir: los productos aparecen apenas hidrata, sin esperar la ida y vuelta.
+
+      Sólo la portada SIN filtros (`/` o `/productos` sin query): es la entrada
+      más común y la que se nota lenta. Cualquier otra ruta sigue el camino
+      normal. Si algo falla —o la clave no se reemplazó—, no pasa nada: el
+      servicio cae al pedido de siempre.
+    -->
+    <script>
+      (function () {
+        try {
+          var p = window.location.pathname.replace(/\/+$/, '')
+          if ((p === '' || p === '/productos') && !window.location.search) {
+            var base = '%VITE_SUPABASE_URL%/rest/v1/rpc/'
+            var key = '%VITE_SUPABASE_ANON_KEY%'
+            var h = {
+              apikey: key,
+              Authorization: 'Bearer ' + key,
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+            }
+            var pedir = function (fn, cuerpo) {
+              return fetch(base + fn, { method: 'POST', headers: h, body: JSON.stringify(cuerpo) })
+            }
+            window.__pf = {
+              categorias: pedir('catalogo_publico_categorias', {}),
+              facetas: pedir('catalogo_publico_facetas', {
+                p_categoria: null, p_marca: null, p_serie: null, p_tipo: null,
+                p_atributos: null, p_texto: null, p_modelo: null,
+              }),
+              listar: pedir('catalogo_publico_listar', {
+                p_categoria: null, p_marca: null, p_texto: null, p_modelo: null,
+                p_serie: null, p_tipo: null, p_atributos: null, p_pagina: 1, p_por_pagina: 100,
+              }),
+            }
+          }
+        } catch (e) {
+          /* si algo falla, el servicio hace el pedido normal */
+        }
+      })()
+    </script>
+
     <title>Buscatools ERP</title>
   </head>
   <body>

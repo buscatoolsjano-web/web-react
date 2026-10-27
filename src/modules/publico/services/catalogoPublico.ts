@@ -75,6 +75,34 @@ const numero = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0
 }
 
+/**
+ * Adopta la respuesta que el head-start de `index.html` ya disparó (Fase 176).
+ *
+ * El script clásico del `<head>` pide las tres RPC de la portada mientras baja
+ * el JS y deja las promesas en `window.__pf`. Acá se consumen UNA vez: si hay
+ * una, se devuelve su jsonb ya resuelto; si no la hay, o viene mal, se devuelve
+ * `null` y el servicio hace el pedido normal. Nunca rompe: ante cualquier duda,
+ * camino de siempre.
+ */
+async function adelanto(clave: 'categorias' | 'facetas' | 'listar'): Promise<unknown | null> {
+  const w = globalThis as unknown as { __pf?: Record<string, Promise<Response> | null | undefined> }
+  const prom = w.__pf?.[clave]
+  if (!prom) return null
+  w.__pf![clave] = null // una sola vez
+  try {
+    const r = await prom
+    if (!r.ok) return null
+    return (await r.json()) as unknown
+  } catch {
+    return null
+  }
+}
+
+/** ¿La consulta es la portada, sin ningún filtro puesto? Sólo ahí se adopta. */
+const esPortada = (f: Filtros): boolean =>
+  !f.categoria && !f.marca && !f.serie && !f.tipo && !f.modelo && !f.texto &&
+  !(f.atributos && Object.keys(f.atributos).length > 0)
+
 function resumenDe(crudo: unknown): ProductoPublicoResumen {
   const o = (crudo ?? {}) as Record<string, unknown>
   return {
@@ -112,8 +140,12 @@ export function urlDeFoto(p: {
 
 /** Las categorías publicadas, con cuántos productos tiene cada una. */
 export async function categorias(): Promise<CategoriaPublica[]> {
-  const { data, error } = await supabase.rpc('catalogo_publico_categorias')
-  if (error) throw new FalloCatalogoPublico(`No se pudo leer el catálogo: ${error.message}`)
+  let data = await adelanto('categorias')
+  if (data === null) {
+    const res = await supabase.rpc('catalogo_publico_categorias')
+    if (res.error) throw new FalloCatalogoPublico(`No se pudo leer el catálogo: ${res.error.message}`)
+    data = res.data
+  }
   if (!Array.isArray(data)) return []
   return data.map((c) => {
     const o = (c ?? {}) as Record<string, unknown>
@@ -146,19 +178,26 @@ export interface Filtros {
 }
 
 export async function listar(params: Filtros): Promise<PaginaDeCatalogo> {
-  const { data, error } = await supabase.rpc('catalogo_publico_listar', {
-    p_categoria: params.categoria ?? null,
-    p_marca: params.marca ?? null,
-    p_serie: params.serie ?? null,
-    p_tipo: params.tipo ?? null,
-    p_texto: params.texto ?? null,
-    p_modelo: params.modelo ?? null,
-    p_atributos:
-      params.atributos && Object.keys(params.atributos).length > 0 ? params.atributos : null,
-    p_pagina: params.pagina ?? 1,
-    p_por_pagina: params.porPagina ?? 24,
-  })
-  if (error) throw new FalloCatalogoPublico(`No se pudo leer el catálogo: ${error.message}`)
+  // La portada (sin filtros, página 1, de a 100) la puede haber adelantado el
+  // head-start de index.html. Cualquier otra combinación va al pedido normal.
+  const portada = esPortada(params) && (params.pagina ?? 1) === 1 && (params.porPagina ?? 24) === 100
+  let data = portada ? await adelanto('listar') : null
+  if (data === null) {
+    const res = await supabase.rpc('catalogo_publico_listar', {
+      p_categoria: params.categoria ?? null,
+      p_marca: params.marca ?? null,
+      p_serie: params.serie ?? null,
+      p_tipo: params.tipo ?? null,
+      p_texto: params.texto ?? null,
+      p_modelo: params.modelo ?? null,
+      p_atributos:
+        params.atributos && Object.keys(params.atributos).length > 0 ? params.atributos : null,
+      p_pagina: params.pagina ?? 1,
+      p_por_pagina: params.porPagina ?? 24,
+    })
+    if (res.error) throw new FalloCatalogoPublico(`No se pudo leer el catálogo: ${res.error.message}`)
+    data = res.data
+  }
 
   const o = (data ?? {}) as Record<string, unknown>
   const filas = Array.isArray(o['productos']) ? o['productos'] : []
@@ -238,17 +277,21 @@ export interface FacetasPublicas {
 }
 
 export async function facetas(params: Filtros = {}): Promise<FacetasPublicas> {
-  const { data, error } = await supabase.rpc('catalogo_publico_facetas', {
-    p_categoria: params.categoria ?? null,
-    p_marca: params.marca ?? null,
-    p_serie: params.serie ?? null,
-    p_tipo: params.tipo ?? null,
-    p_atributos:
-      params.atributos && Object.keys(params.atributos).length > 0 ? params.atributos : null,
-    p_texto: params.texto ?? null,
-    p_modelo: params.modelo ?? null,
-  })
-  if (error) throw new FalloCatalogoPublico(`No se pudieron leer los filtros: ${error.message}`)
+  let data = esPortada(params) ? await adelanto('facetas') : null
+  if (data === null) {
+    const res = await supabase.rpc('catalogo_publico_facetas', {
+      p_categoria: params.categoria ?? null,
+      p_marca: params.marca ?? null,
+      p_serie: params.serie ?? null,
+      p_tipo: params.tipo ?? null,
+      p_atributos:
+        params.atributos && Object.keys(params.atributos).length > 0 ? params.atributos : null,
+      p_texto: params.texto ?? null,
+      p_modelo: params.modelo ?? null,
+    })
+    if (res.error) throw new FalloCatalogoPublico(`No se pudieron leer los filtros: ${res.error.message}`)
+    data = res.data
+  }
 
   const o = (data ?? {}) as Record<string, unknown>
   const lista = (v: unknown): OpcionFaceta[] =>
