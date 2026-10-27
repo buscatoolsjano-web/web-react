@@ -8818,6 +8818,10 @@ export type Database = {
           rol: string
         }[]
       }
+      config_crear_empresa: {
+        Args: { p_moneda: string; p_nombre: string }
+        Returns: Json
+      }
       config_categoria_crear: {
         Args: { p_company: string; p_datos: Json }
         Returns: {

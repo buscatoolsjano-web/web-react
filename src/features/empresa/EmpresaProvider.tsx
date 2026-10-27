@@ -73,6 +73,9 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
       error: error instanceof Error ? error : null,
       cambiarEmpresa,
       reintentar: () => void refetch(),
+      recargar: async () => {
+        await refetch()
+      },
     }),
     [membresias, activa, userId, isPending, error, cambiarEmpresa, refetch],
   )

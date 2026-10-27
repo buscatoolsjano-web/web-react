@@ -22,12 +22,6 @@
   color: var(--color-topnav-text-soft);
 }
 
-.wrap .icono {
-  position: absolute;
-  left: var(--space-3);
-  pointer-events: none;
-}
-
 .nombre {
   min-width: 0;
   max-width: 220px;
@@ -43,11 +37,17 @@
   color: var(--color-topnav-text-soft);
 }
 
-.select {
-  appearance: none;
+/* ── El disparador del desplegable ─────────────────────────────────────────
+   Se ve igual que el viejo <select>: mismo fondo, borde y tipografía, sólo que
+   ahora es un botón que abre un panel propio (para que entre «Agregar
+   empresa»). */
+.disparador {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   min-height: var(--touch-target);
   max-width: 280px;
-  padding: 0 calc(var(--space-3) + 20px) 0 calc(var(--space-3) + 24px);
+  padding: 0 var(--space-3);
   border: 1px solid var(--color-topnav-border);
   border-radius: var(--radius-md);
   background: var(--color-topnav-hover);
@@ -55,26 +55,140 @@
   font: inherit;
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
-  text-overflow: ellipsis;
   cursor: pointer;
 }
 
-.select:focus-visible {
+.disparador:focus-visible {
   outline: 2px solid var(--color-topnav-focus);
   outline-offset: 2px;
 }
 
 .flecha {
-  position: absolute;
-  right: var(--space-3);
+  flex: none;
   color: var(--color-topnav-text-soft);
-  pointer-events: none;
 }
 
-/* iOS hace zoom al enfocar un control con texto de menos de 16px. La condición
-   es el tipo de puntero y no el ancho: un iPad en vertical mide 768px. */
+/* ── El panel (ya en la zona clara del contenido) ──────────────────────────
+   `display: grid` le gana al `display: none` que el navegador aplica por
+   `[hidden]`; la regla va explícita. */
+.panel[hidden] {
+  display: none;
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: var(--z-dropdown);
+  display: grid;
+  gap: var(--space-1);
+  min-width: 240px;
+  max-width: min(320px, 90vw);
+  padding: var(--space-1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text);
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.opcion {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target);
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.opcion:hover {
+  background: var(--color-surface-alt);
+}
+
+.opcion:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -1px;
+}
+
+.opcionActual {
+  font-weight: var(--weight-semibold);
+}
+
+/* El tilde ocupa lugar siempre, así los nombres quedan alineados; sólo se ve
+   en la empresa activa. */
+.tilde {
+  flex: none;
+  color: var(--color-primary-text);
+  visibility: hidden;
+}
+
+.opcionActual .tilde {
+  visibility: visible;
+}
+
+.opcionNombre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opcionRol {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+}
+
+.agregar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target);
+  margin-top: var(--space-1);
+  padding: var(--space-2);
+  padding-top: calc(var(--space-2) + var(--space-1));
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  background: none;
+  color: var(--color-primary-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+  cursor: pointer;
+}
+
+.agregar:hover {
+  background: var(--color-surface-alt);
+}
+
+.agregar:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -1px;
+}
+
+/* iOS hace zoom al enfocar un control con texto de menos de 16px. */
 @media (pointer: coarse) {
-  .select {
+  .disparador {
     font-size: 16px;
   }
 }
@@ -83,10 +197,11 @@
   .nombre {
     max-width: 120px;
   }
-  .select {
-    max-width: 170px;
+  .disparador {
+    max-width: 180px;
   }
-  .rol {
+  /* El rol no entra en el disparador angosto; adentro del panel sí se ve. */
+  .disparador .rol {
     display: none;
   }
 }

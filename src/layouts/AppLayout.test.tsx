@@ -50,7 +50,7 @@ vi.mock('@/features/empresa/useEmpresa', () => ({
       esInterno: true,
       customerId: null,
     }))
-    return { membresias: lista, activa: lista[0] ?? null, cargando: estado.cargando, error: estado.error, cambiarEmpresa: llamadas.cambiar, reintentar: llamadas.reintentar }
+    return { membresias: lista, activa: lista[0] ?? null, cargando: estado.cargando, error: estado.error, cambiarEmpresa: llamadas.cambiar, reintentar: llamadas.reintentar, recargar: () => Promise.resolve() }
   },
 }))
 
@@ -129,12 +129,13 @@ describe('header', () => {
     expect(screen.queryByRole('button', { name: 'Abrir menú' })).toBeNull()
   })
 
-  it('con dos empresas, selector etiquetado que cambia la empresa activa', () => {
+  it('con dos empresas, desplegable que cambia la empresa activa', () => {
     estado.membresias = 2
     montar()
-    const sel = screen.getByRole('combobox', { name: 'Empresa activa' })
-    expect(within(sel).getByRole('option', { name: 'Torquetools · Vendedor' })).toBeInTheDocument()
-    fireEvent.change(sel, { target: { value: 'c1' } })
+    const disparador = screen.getByRole('button', { name: /Empresa activa/ })
+    fireEvent.click(disparador)
+    // La empresa inactiva aparece como botón dentro del panel; tocarla cambia.
+    fireEvent.click(screen.getByRole('button', { name: /Torquetools/ }))
     expect(llamadas.cambiar).toHaveBeenCalledWith('c1')
   })
 

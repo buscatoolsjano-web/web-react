@@ -9,6 +9,9 @@ export interface EmpresaContextValue {
   cambiarEmpresa: (companyId: string) => void
   /** Vuelve a pedir las membresías (tras un error de red). */
   reintentar: () => void
+  /** Como `reintentar`, pero esperable: se usa tras crear una empresa, para
+      que la nueva membresía ya esté en la lista antes de saltar a ella. */
+  recargar: () => Promise<void>
 }
 
 /**
