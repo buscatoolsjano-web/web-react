@@ -98,7 +98,7 @@ export function LogoEmpresa({ logoPath, version, puedeEditar, ocupado, onCambio 
 
       <div className={styles.logoAcciones}>
         <p id={idAyuda} className={styles.nota}>
-          PNG, JPEG o WEBP, hasta 2 MB. Hoy la impresión de documentos todavía no usa el logo.
+          PNG, JPEG o WEBP, hasta 2 MB. Se usa en el encabezado y en los documentos de venta (cotizaciones, pedidos y remitos).
         </p>
         {puedeEditar && !elegido && (
           <div className={styles.barra}>
@@ -154,8 +154,7 @@ export function LogoEmpresa({ logoPath, version, puedeEditar, ocupado, onCambio 
           }
         >
           <p className={styles.dialogoTexto}>
-            Se borra la imagen guardada. Cuando la impresión de documentos use el logo, los documentos quedarán sin él hasta que
-            se suba otro.
+            Se borra la imagen guardada. El encabezado y los documentos de venta quedan sin logo hasta que se suba otro.
           </p>
         </Dialogo>
       )}

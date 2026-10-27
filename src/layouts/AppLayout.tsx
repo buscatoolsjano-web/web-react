@@ -66,8 +66,9 @@ export function AppLayout() {
 
   // El logo del header es el de la EMPRESA ACTIVA (Torquetools, Buscatools…).
   // Vive en el bucket privado `empresa-logos`, así que se pide una URL firmada
-  // y se renueva antes de que expire (10 min). Sin logo propio, cae al de la
-  // casa. La placa clara de atrás vale para cualquier logo.
+  // y se renueva antes de que expire (10 min). Si la empresa NO tiene logo, no
+  // se muestra ninguno —ya no cae al de la casa (Fase 188)—. La placa clara de
+  // atrás vale para cualquier logo.
   const logoPath = empresa.activa?.companyLogoPath ?? null
   const qLogoEmpresa = useQuery({
     queryKey: ['header-logo-empresa', logoPath],
@@ -76,8 +77,7 @@ export function AppLayout() {
     staleTime: 8 * 60_000,
     refetchInterval: 8 * 60_000,
   })
-  const logoSrc = logoPath && qLogoEmpresa.data ? qLogoEmpresa.data : `${import.meta.env.BASE_URL}brand/buscatools-logo.png`
-  const logoEsEmpresa = logoPath !== null && qLogoEmpresa.data !== undefined
+  const logoSrc = logoPath ? (qLogoEmpresa.data ?? null) : null
 
   /**
    * Salir deja a la persona en la portada, no en el login (Fase 87 · E2).
@@ -251,15 +251,14 @@ export function AppLayout() {
           />
         )}
         <Link to="/inicio" className={styles.marca} aria-label={`${empresa.activa?.companyName ?? 'Buscatools'} ERP, ir al inicio`}>
-          <span className={styles.logoFondo}>
-            {/* Sin width/height fijos para el logo de empresa: cada uno tiene su
-                proporción y la toma del archivo; el alto lo fija el CSS. */}
-            {logoEsEmpresa ? (
+          {/* El logo de la empresa activa, si tiene. Sin width/height fijos:
+              cada uno tiene su proporción y el alto lo fija el CSS. Sin logo no
+              se dibuja la placa: queda sólo «ERP» (Fase 188). */}
+          {logoSrc ? (
+            <span className={styles.logoFondo}>
               <img src={logoSrc} alt="" className={styles.logo} />
-            ) : (
-              <img src={logoSrc} alt="" className={styles.logo} width={1400} height={673} />
-            )}
-          </span>
+            </span>
+          ) : null}
           <span className={styles.marcaErp} aria-hidden="true">
             ERP
           </span>

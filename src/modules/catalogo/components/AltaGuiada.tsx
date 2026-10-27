@@ -87,12 +87,21 @@ export function AltaGuiada({
     return m
   }, [portadas.data])
 
-  // Los tipos (product_type) que ya existen en la categoría salen de las
-  // facetas, acotadas a esa categoría (su id, que es como filtra el ERP).
-  const { data: facetas } = useFacetas(categoriaId === '' ? null : companyId, {
-    ...FILTROS_INICIALES,
-    categoria: categoriaId === '' ? null : categoriaId,
-  })
+  // Las facetas, acotadas al filtro ACTUAL —categoría, tipo y lo ya elegido—,
+  // igual que el filtro guiado del catálogo. De acá salen los tipos del paso de
+  // «tipo» y, para cada atributo, SÓLO los valores que ya existen dentro de esa
+  // selección. El pedido que lo motivó: en «Puntas y tubos» + «Torx» tienen que
+  // aparecer los 11 encastres reales, no todo el catálogo de encastres.
+  const filtroFacetas = useMemo(
+    () => ({
+      ...FILTROS_INICIALES,
+      categoria: categoriaId === '' ? null : categoriaId,
+      subtipos: tipo === '' ? [] : [tipo],
+      atributos: Object.fromEntries(Object.entries(atributos).map(([k, v]) => [k, [v]])),
+    }),
+    [categoriaId, tipo, atributos],
+  )
+  const { data: facetas } = useFacetas(categoriaId === '' ? null : companyId, filtroFacetas)
 
   const tiposDeCategoria = facetas?.subtipos ?? []
   const gruposPresentes = GRUPOS.filter((g) => tiposDeCategoria.some((t) => grupoDe(t.valor) === g.clave))
@@ -143,11 +152,17 @@ export function AltaGuiada({
   } else if (idxAtributo < atributosCat.length) {
     const def = atributosCat[idxAtributo]!
     const u = def.unidad ? ` ${def.unidad}` : ''
+    // Sólo los valores que YA existen dentro del filtro actual (categoría +
+    // tipo + lo ya elegido), de la faceta —como el filtro guiado del catálogo—.
+    // Si el atributo no es filtrable no tiene faceta: ahí se ofrecen los
+    // definidos. Y siempre queda «Otro…» para escribir uno nuevo a mano.
+    const faceta = facetas?.atributos?.find((a) => a.key === def.key && a.clase === 'enum')
+    const valores = faceta ? faceta.opciones.map((o) => o.valor) : def.opciones
     paso = {
       clave: `a.${def.key}`,
       pregunta: `¿${def.label}?`,
       pista: def.unidad ? `en ${def.unidad}` : 'elegí o escribí el valor',
-      opciones: def.opciones.map((v) => ({ valor: v, etiqueta: `${v}${u}`, foto: undefined })),
+      opciones: valores.map((v) => ({ valor: v, etiqueta: `${v}${u}`, foto: undefined })),
       elegir: (v) => { setAtributos((a) => ({ ...a, [def.key]: v })); setIdxAtributo((i) => i + 1); reiniciarEntrada() },
     }
   } else {

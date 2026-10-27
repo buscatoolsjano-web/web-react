@@ -94,9 +94,13 @@ export function useAccionesEmpresa() {
     }),
     subirLogo: useMutation({
       mutationFn: (v: { version: string; archivo: File }) => subirLogo(companyId!, v.version, v.archivo),
+      // El logo se ve en el encabezado, que lo lee de la membresía: sin esto,
+      // seguía mostrando el viejo (o ninguno) hasta recargar la página.
+      onSuccess: refrescarSelector,
     }),
     quitarLogo: useMutation({
       mutationFn: (v: { version: string }) => quitarLogo(companyId!, v.version),
+      onSuccess: refrescarSelector,
     }),
     recargar: () => qc.invalidateQueries({ queryKey: clavesEmpresa.datos(companyId) }),
   }

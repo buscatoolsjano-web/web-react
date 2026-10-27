@@ -118,12 +118,13 @@ beforeEach(() => {
 })
 
 describe('header', () => {
-  it('logo oficial con nombre accesible, empresa activa visible y sin hamburguesa en desktop', () => {
+  it('marca con nombre accesible, empresa activa visible y sin hamburguesa en desktop', () => {
     montar()
     const marca = screen.getByRole('link', { name: 'Buscatools ERP, ir al inicio' })
     expect(marca).toHaveAttribute('href', '/inicio')
-    expect(marca.querySelector('img')).toHaveAttribute('src', expect.stringMatching(/brand\/buscatools-logo\.png$/))
-    expect(marca.querySelector('img')).toHaveAttribute('alt', '')
+    // Fase 188: sin logo propio de la empresa no se muestra ninguno —ya no cae
+    // al de Buscatools—. La identidad queda en el nombre accesible y en «ERP».
+    expect(marca.querySelector('img')).toBeNull()
     expect(screen.getByText('Buscatools')).toBeInTheDocument()
     expect(screen.getByText('Administrador')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Abrir menú' })).toBeNull()

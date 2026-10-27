@@ -21,6 +21,7 @@ const empresa: EmpresaImpresion = {
   email: 'info@buscatools.com.ar',
   web: 'www.buscatools.com',
   color: '#f37021',
+  logoUrl: 'https://cdn.test/brand/buscatools-logo.png',
 }
 
 const linea = (p: Partial<LineaImpresa> = {}): LineaImpresa => ({
@@ -77,6 +78,13 @@ describe('El documento impreso', () => {
     const logo = screen.getAllByRole('img').find((i) => i.getAttribute('src')?.includes('buscatools-logo'))
     expect(logo).toBeDefined()
     expect(logo).toHaveAttribute('alt', 'Buscatools')
+  })
+
+  // Fase 188: cada empresa su logo; sin logo, ninguno (ya no cae al de otra).
+  it('sin logo propio no muestra ninguno', () => {
+    render(<VistaImpresion doc={doc()} empresa={{ ...empresa, logoUrl: null }} opciones={OPCIONES_INICIALES} />)
+    const logo = screen.queryAllByRole('img').find((i) => i.getAttribute('alt') === 'Buscatools')
+    expect(logo).toBeUndefined()
   })
 
   it('el tipo de documento y el título comercial tienen jerarquías distintas', () => {

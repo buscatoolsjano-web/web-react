@@ -906,12 +906,12 @@ function Detalle() {
               {/* El mismo interruptor de la hoja que en la otra barra. */}
               <Button
                 variant="secondary"
-                icon={<Icon name="eye" size={16} />}
+                icon={<Icon name={verPrevia ? 'eye-off' : 'eye'} size={16} />}
                 onClick={() => setPreviaPedida(!verPrevia)}
                 aria-expanded={verPrevia}
-              >
-                {verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
-              </Button>
+                aria-label={verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
+                title={verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
+              />
               {acciones.secundarias}
             </>
           }

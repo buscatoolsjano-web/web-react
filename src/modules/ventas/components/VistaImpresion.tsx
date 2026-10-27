@@ -76,9 +76,6 @@ export interface VistaImpresionProps {
   edicion?: EdicionEnHoja | null
 }
 
-/** Logo por defecto, si la empresa no trae el suyo (`empresa.logoUrl`). */
-const LOGO = `${import.meta.env.BASE_URL}brand/buscatools-logo.png`
-
 /** El nombre del bloque de datos, por tipo de documento. */
 const BLOQUE_DE: Record<DocumentoImprimible['tipo'], string> = {
   cotizacion: 'Datos de la cotización',
@@ -117,7 +114,7 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
     return (
       <div className={`${styles.hoja} ${styles.ticket}`} data-impresion="ticket">
         <div className={styles.tHeader}>
-          <img src={empresa.logoUrl ?? LOGO} alt={empresa.nombre} className={styles.tLogoImg} />
+          {empresa.logoUrl ? <img src={empresa.logoUrl} alt={empresa.nombre} className={styles.tLogoImg} /> : null}
           <div className={styles.tEmpresa}>
             {empresa.razonSocial ? <div>{empresa.razonSocial}</div> : null}
             {empresa.cuit ? <div>CUIT {empresa.cuit}</div> : null}
@@ -227,9 +224,13 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
       {verEmpresa ? (
         <>
           <header className={styles.encabezado}>
-            <div className={styles.cajaLogo}>
-              <img src={empresa.logoUrl ?? LOGO} alt={empresa.nombre} className={styles.logo} width={1400} height={673} />
-            </div>
+            {/* Cada empresa su logo; sin logo, no se dibuja la caja (Fase 188).
+                Sin width/height fijos: cada logo tiene su proporción. */}
+            {empresa.logoUrl ? (
+              <div className={styles.cajaLogo}>
+                <img src={empresa.logoUrl} alt={empresa.nombre} className={styles.logo} />
+              </div>
+            ) : null}
             <div className={styles.empresa}>
               {empresa.razonSocial ? <strong>{empresa.razonSocial}</strong> : null}
               {empresa.direccion ? <div>{empresa.direccion}</div> : null}

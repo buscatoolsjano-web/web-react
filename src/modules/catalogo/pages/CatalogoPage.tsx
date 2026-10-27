@@ -332,7 +332,31 @@ export function CatalogoPage() {
             }
           />
         ) : (
-          <EmptyState icon="package" title="Todavía no hay productos" description="Esta empresa no tiene productos cargados en el catálogo." />
+          <EmptyState
+            icon="package"
+            title="Todavía no hay productos"
+            description="Esta empresa no tiene productos cargados en el catálogo."
+            /* Una empresa nueva arranca vacía: desde acá se carga el primero o
+               se importa en masa. Antes estos botones vivían sólo en la barra
+               del listado, que no se dibuja sin productos, y no había forma de
+               empezar. */
+            action={
+              puedeCrear || esAdmin ? (
+                <>
+                  {puedeCrear ? (
+                    <Button icon={<Icon name="plus" size={16} />} onClick={() => setCreando(true)}>
+                      Nuevo producto
+                    </Button>
+                  ) : null}
+                  {esAdmin ? (
+                    <Button variant="secondary" icon={<Icon name="upload" size={16} />} onClick={() => setImportando(true)}>
+                      Importar
+                    </Button>
+                  ) : null}
+                </>
+              ) : undefined
+            }
+          />
         )
       ) : (
         <>

@@ -140,10 +140,12 @@ export interface EmpresaImpresion {
   web: string | null
   color: string
   /**
-   * El logo de la empresa, ya resuelto a una URL servible (Fase 109). Es un
-   * asset bundleado por empresa y no la URL firmada del bucket privado: el PDF
-   * se saca con html2canvas, y una imagen cross-origin del storage sale en
-   * blanco. Si no viene, el documento cae al logo de Buscatools.
+   * El logo de la empresa, embebido como `data:` URL (Fase 188).
+   *
+   * Es el logo cargado por ESA empresa, bajado del bucket y embebido para que
+   * html2canvas lo dibuje (una imagen cross-origin del storage mancha el canvas
+   * y sale en blanco). `null` cuando la empresa no tiene logo: ahí el documento
+   * va SIN logo, nunca con el de otra empresa.
    */
   logoUrl?: string | null
 }
