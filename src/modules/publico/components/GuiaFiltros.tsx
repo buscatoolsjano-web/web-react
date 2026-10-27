@@ -41,6 +41,16 @@ const ATRIBUTOS: readonly { key: string; pregunta: string; pista: string }[] = [
   { key: 'largo', pregunta: '¿Qué largo?', pista: 'el largo total' },
 ]
 
+/**
+ * Debajo de este número de productos un rubro se considera «chico» y se junta
+ * detrás de «Más rubros» en el primer paso (Fase 181): así se ven pocos tiles
+ * de entrada y el resto se despliega al tocarlo. No cambia la taxonomía —cada
+ * producto sigue en su rubro—, sólo cuántos rubros se muestran de una.
+ */
+const UMBRAL_RUBRO = 150
+/** El valor sentinela del tile «Más rubros»: no es un rubro, despliega el resto. */
+const MAS_RUBROS = '__mas_rubros__'
+
 export interface GuiaFiltrosProps {
   categoria: string | undefined
   categorias: readonly CategoriaPublica[]
@@ -102,6 +112,8 @@ export function GuiaFiltros({
   // El grupo elegido vive en memoria (no va a la URL): es sólo el camino al
   // tipo. Si ya hay un tipo puesto, el grupo se deduce de él.
   const [grupoSel, setGrupoSel] = useState('')
+  // Si el usuario pidió ver todos los rubros (tocó «Más rubros»).
+  const [rubrosExpandidos, setRubrosExpandidos] = useState(false)
   const tipos = facetas?.tipos ?? []
   const gruposPresentes = GRUPOS.filter((g) => tipos.some((t) => grupoDe(t.nombre) === g.clave))
   // Con un solo grupo no se pregunta «¿punta o tubo?», pero igual se listan sus
@@ -113,23 +125,37 @@ export function GuiaFiltros({
   const pasos: Paso[] = []
 
   if (!categoria) {
+    // Los rubros chicos se juntan detrás de «Más rubros» (Fase 181), salvo que
+    // ya se haya pedido verlos todos. Con uno solo chico no vale la pena.
+    const chicos = categorias.filter((c) => c.productos < UMBRAL_RUBRO)
+    const colapsar = chicos.length > 1 && !rubrosExpandidos
+    const visibles = colapsar ? categorias.filter((c) => c.productos >= UMBRAL_RUBRO) : categorias
+    const tile = (c: CategoriaPublica): Opcion => ({
+      valor: c.slug,
+      etiqueta: c.nombre,
+      cantidad: c.productos,
+      // La portada que un admin eligió gana (Fase 142); si no hay, la foto del
+      // JSON generado, y al final la forma dibujada.
+      medio: <Medio foto={c.portadaUrl ?? fotoDeCategoria(c.slug)} forma={iconoDeForma(c.nombre)} nombre={c.nombre} />,
+    })
+    const opciones: Opcion[] = visibles.map(tile)
+    if (colapsar) {
+      opciones.push({
+        valor: MAS_RUBROS,
+        etiqueta: 'Más rubros',
+        cantidad: chicos.reduce((n, c) => n + c.productos, 0),
+        medio: <Medio foto={undefined} forma={iconoDeForma('más rubros')} nombre="Más rubros" />,
+      })
+    }
     pasos.push({
       clave: 'categoria',
       pregunta: '¿Qué estás buscando?',
       pista: 'elegí un rubro para empezar',
       elegido: '',
-      elegir: (v) => onCategoria(v),
+      // «Más rubros» no navega: despliega los chicos en este mismo paso.
+      elegir: (v) => (v === MAS_RUBROS ? setRubrosExpandidos(true) : onCategoria(v)),
       quitar: () => onCategoria(''),
-      opciones: categorias.map((c) => ({
-        valor: c.slug,
-        etiqueta: c.nombre,
-        cantidad: c.productos,
-        medio: (
-          // La portada que un admin eligió gana (Fase 142); si no hay, la foto
-          // del JSON generado, y al final la forma dibujada.
-          <Medio foto={c.portadaUrl ?? fotoDeCategoria(c.slug)} forma={iconoDeForma(c.nombre)} nombre={c.nombre} />
-        ),
-      })),
+      opciones,
     })
   } else {
     // ── Grupo ────────────────────────────────────────────────────────────────
