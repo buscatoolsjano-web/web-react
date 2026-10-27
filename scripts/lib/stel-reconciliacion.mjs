@@ -60,6 +60,8 @@ export function estadoReact(tipo, nombre) {
  *   vinculosProducto:  ids STEL cuyo producto React se vincula pese al nombre distinto
  *   estadosRegresivos: números de cotización que pueden volver de accepted a sent
  *   clientes:          [{ customer_id, stel_account_id, tax_id }] identidad fuerte
+ *   clientesPorNombre: [{ customer_id, stel_account_id }] match por nombre que
+ *                      una persona confirmó, para cuando STEL NO tiene CUIT
  */
 export function planificarE2(stel, react, o = {}) {
   const reco = reconciliar(stel, react)
@@ -69,6 +71,10 @@ export function planificarE2(stel, react, o = {}) {
   // Documentos que STEL emitió en una serie que ya pasó al ERP y que se decidió
   // absorber. Sin esta lista la base los rechaza (serie_emitida_por_el_erp).
   const absorcionAprobada = new Set(o.aprobados?.seriesDelErp ?? [])
+  // Clientes que una persona confirmó POR NOMBRE (cuando STEL no tiene CUIT para
+  // matchear fuerte): fuerza el match de esa cuenta de STEL a ese cliente del
+  // ERP. Sólo lo que se lista a mano; nunca automático.
+  const clientesPorNombreOk = new Map((o.aprobados?.clientesPorNombre ?? []).map((c) => [String(c.stel_account_id), c.customer_id]))
   const itemPorId = new Map(stel.productos.map((p) => [p.id, p]))
   const prodPorExterno = new Map(react.productos.filter((p) => p.external_source === 'stel').map((p) => [p.external_id, p]))
   const prodPorSku = new Map()
@@ -136,6 +142,10 @@ export function planificarE2(stel, react, o = {}) {
     }
   }
   const clienteSeguro = (f) => {
+    // Una persona confirmó esta cuenta de STEL → este cliente del ERP (por
+    // nombre, porque STEL no tiene CUIT). Gana sobre la heurística.
+    const confirmadoManual = clientesPorNombreOk.get(String(f.stel.accountId))
+    if (confirmadoManual) return { id: confirmadoManual }
     const c = f.cliente
     if (!c?.reactCustomerIdPropuesto) return { id: null, motivo: `CLIENTE_${c?.clase ?? 'SIN_MATCH'}` }
     if (c.clase === 'POR_CUIT_OK') return { id: c.reactCustomerIdPropuesto }
