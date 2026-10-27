@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Icon } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
+import { cx } from '@/utils/cx'
 import type { UltimoPrecio } from '@/modules/clientes/types'
 import type { ProductoListado } from '@/modules/catalogo/types'
 import { formatearCantidad, formatearImporte } from '../lib/formato'
@@ -91,6 +93,17 @@ function impuesto(l: LineaDocumento): string {
 export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLineasProps) {
   const editando = edicion !== null
   const historicos = edicion?.historicos ?? SIN_HISTORICO
+  // Qué descripciones inline están ampliadas: por defecto van cortadas a pocas
+  // líneas y se abren al tocarlas (Fase 186). Es sólo la vista en pantalla; la
+  // hoja/PDF usa su propio recorte.
+  const [descAmpliadas, setDescAmpliadas] = useState<ReadonlySet<string>>(() => new Set<string>())
+  const alternarDesc = (id: string) =>
+    setDescAmpliadas((previas) => {
+      const siguiente = new Set(previas)
+      if (siguiente.has(id)) siguiente.delete(id)
+      else siguiente.add(id)
+      return siguiente
+    })
 
   if (lineas.length === 0) {
     return (
@@ -241,9 +254,15 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLinea
                       <>
                         <span className={styles.nombre}>{l.nombre ?? '—'}</span>
                         {l.descripcion && l.descripcion !== l.nombre ? (
-                          <span className={styles.descripcionInline} aria-hidden="true">
+                          <button
+                            type="button"
+                            className={cx(styles.descripcionInline, descAmpliadas.has(l.id) && styles.descAmpliada)}
+                            onClick={() => alternarDesc(l.id)}
+                            aria-expanded={descAmpliadas.has(l.id)}
+                            title={descAmpliadas.has(l.id) ? 'Contraer descripción' : 'Ampliar descripción'}
+                          >
                             {l.descripcion}
-                          </span>
+                          </button>
                         ) : null}
                       </>
                     )}
