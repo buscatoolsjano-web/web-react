@@ -176,3 +176,38 @@ describe('La hoja como editor', () => {
     expect(screen.queryByRole('textbox', { name: 'Nota del documento' })).toBeNull()
   })
 })
+
+/**
+ * Fase 190: nombre, descripción y referencia editables desde la hoja. Son
+ * callbacks OPCIONALES: cuando vienen, los tres son campos; cuando no (remito),
+ * siguen siendo texto.
+ */
+const edicionTexto = (): EdicionEnHoja => ({
+  ...edicion(),
+  onNombre: vi.fn(),
+  onDescripcion: vi.fn(),
+  onReferencia: vi.fn(),
+})
+
+describe('La hoja editable: nombre, descripción y referencia', () => {
+  it('los tres son campos y avisan al borrador con el id y el valor', () => {
+    const e = edicionTexto()
+    render(<VistaImpresion doc={doc([linea('l1')])} empresa={EMPRESA} opciones={OPCIONES} edicion={e} />)
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Referencia' }), { target: { value: 'PRO99999' } })
+    expect(e.onReferencia).toHaveBeenCalledWith('l1', 'PRO99999')
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre del producto' }), { target: { value: 'Otro nombre' } })
+    expect(e.onNombre).toHaveBeenCalledWith('l1', 'Otro nombre')
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Descripción' }), { target: { value: 'Texto comercial' } })
+    expect(e.onDescripcion).toHaveBeenCalledWith('l1', 'Texto comercial')
+  })
+
+  it('sin esos callbacks (remito), nombre y referencia se ven como texto', () => {
+    render(<VistaImpresion doc={doc([linea('l1')])} empresa={EMPRESA} opciones={OPCIONES} edicion={edicion()} />)
+    expect(screen.queryByRole('textbox', { name: 'Nombre del producto' })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'Referencia' })).toBeNull()
+    expect(screen.getByText('Destornillador EI3')).toBeInTheDocument()
+  })
+})

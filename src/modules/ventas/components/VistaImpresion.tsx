@@ -22,6 +22,14 @@ export interface EdicionEnHoja {
   onCantidad: (id: string, valor: number) => void
   onPrecio: (id: string, valor: number) => void
   onDescuento: (id: string, valor: number) => void
+  /**
+   * El nombre, la descripción y la referencia de la línea, editables desde la
+   * hoja (Fase 190). Son opcionales: el remito no los trae —ahí esos datos
+   * vienen del pedido— y quedan de sólo lectura.
+   */
+  onNombre?: ((id: string, valor: string) => void) | undefined
+  onDescripcion?: ((id: string, valor: string) => void) | undefined
+  onReferencia?: ((id: string, valor: string) => void) | undefined
   onEliminar: (id: string) => void
   onAgregar: () => void
   /**
@@ -480,7 +488,16 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
                     imagen queda vacío, y así todas las filas miden lo mismo.
                     Vacío NO se dibuja: ocupa el lugar y no se ve. */}
                 <td className={styles.celdaRef}>
-                  <div className={styles.sku}>{l.sku ?? '—'}</div>
+                  {edicion?.onReferencia ? (
+                    <input
+                      className={styles.refEditable}
+                      aria-label="Referencia"
+                      value={l.sku ?? ''}
+                      onChange={(e) => edicion.onReferencia?.(l.id, e.target.value)}
+                    />
+                  ) : (
+                    <div className={styles.sku}>{l.sku ?? '—'}</div>
+                  )}
                   {conFotos ? (
                     <div className={l.foto ? styles.marcoFoto : `${styles.marcoFoto} ${styles.marcoVacio}`}>
                       {l.foto ? <img src={l.foto} alt="" className={styles.foto} loading="lazy" /> : null}
@@ -488,8 +505,33 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
                   ) : null}
                 </td>
                 <td>
-                  <div className={styles.nombre}>{l.nombre ?? '—'}</div>
-                  {mostrarDescripcion ? <DescripcionLinea linea={l} /> : null}
+                  {edicion?.onNombre ? (
+                    <input
+                      className={styles.nombreEditable}
+                      aria-label="Nombre del producto"
+                      value={l.nombre ?? ''}
+                      onChange={(e) => edicion.onNombre?.(l.id, e.target.value)}
+                    />
+                  ) : (
+                    <div className={styles.nombre}>{l.nombre ?? '—'}</div>
+                  )}
+                  {edicion?.onDescripcion ? (
+                    <textarea
+                      className={styles.descEditable}
+                      aria-label="Descripción"
+                      rows={1}
+                      placeholder="Descripción / texto comercial"
+                      value={l.descripcion ?? ''}
+                      onChange={(e) => edicion.onDescripcion?.(l.id, e.target.value)}
+                    />
+                  ) : mostrarDescripcion ? (
+                    <DescripcionLinea linea={l} />
+                  ) : null}
+                  {/* Marca, Modelo… del producto se siguen viendo al editar: son
+                      datos del producto, no se editan acá. */}
+                  {edicion?.onDescripcion && l.partes.length > 0 ? (
+                    <DescripcionLinea linea={{ ...l, descripcion: null }} />
+                  ) : null}
                 </td>
                 <td className={styles.num}>
                   {edicion ? (

@@ -857,3 +857,63 @@
     appearance: none;
   }
 }
+
+/* ── Edición de la línea desde la hoja (Fase 190) ──────────────────────────
+   Referencia, nombre y descripción, editables como los demás campos de la hoja:
+   borde punteado que se vuelve naranja al tocar, y en papel desaparece. */
+.refEditable,
+.nombreEditable,
+.descEditable {
+  font: inherit;
+  display: block;
+  width: 100%;
+  padding: 0 2px;
+  color: var(--tinta);
+  background: none;
+  border: 1px dashed #cbd5e1;
+  border-radius: 3px;
+}
+
+.refEditable {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.nombreEditable {
+  font-weight: 600;
+}
+
+.descEditable {
+  margin-top: 0.5mm;
+  font-size: 7.5pt;
+  line-height: 1.4;
+  color: var(--tinta-suave);
+  resize: vertical;
+}
+
+.refEditable::placeholder,
+.nombreEditable::placeholder,
+.descEditable::placeholder {
+  color: #94a3b8;
+}
+
+.refEditable:hover,
+.refEditable:focus,
+.nombreEditable:hover,
+.nombreEditable:focus,
+.descEditable:hover,
+.descEditable:focus {
+  border-color: #f97316;
+  border-style: solid;
+  outline: none;
+}
+
+@media print {
+  .refEditable,
+  .nombreEditable,
+  .descEditable {
+    border: 0;
+    padding: 0;
+    resize: none;
+  }
+}

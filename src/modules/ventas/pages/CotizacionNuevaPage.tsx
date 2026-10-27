@@ -786,6 +786,9 @@ export function CotizacionNuevaPage() {
                 onCantidad: (id, valor) => cambiarLinea(id, 'quantity', valor),
                 onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
                 onDescuento: (id, valor) => cambiarLinea(id, 'discount_pct', valor),
+                onNombre: (id, valor) => cambiarLinea(id, 'name_snapshot', valor),
+                onDescripcion: (id, valor) => cambiarLinea(id, 'description_snapshot', valor),
+                onReferencia: (id, valor) => cambiarLinea(id, 'sku_snapshot', valor),
                 onEliminar: (id) => setB((x) => quitarLinea(x, id)),
                 onAgregar: () => setCatalogoAbierto(true),
               }}
