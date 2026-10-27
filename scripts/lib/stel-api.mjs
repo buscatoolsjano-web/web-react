@@ -30,9 +30,12 @@ const TIMEOUT_MS = 45_000
 const REINTENTOS = 3
 
 let clave = null
-function leerClave() {
+// La key se elige por archivo: Buscatools en `.env.stel.local`, Torquetools en
+// `.env.torquetools.local`. Cada corrida es de UNA empresa, así que una key por
+// proceso; nunca se mezcla una cuenta de STEL con la otra (Fase 184).
+function leerClave(archivoClave = '.env.stel.local') {
   if (clave) return clave
-  const archivo = path.join(RAIZ, '.env.stel.local')
+  const archivo = path.join(RAIZ, archivoClave)
   if (fs.existsSync(archivo)) {
     for (const linea of fs.readFileSync(archivo, 'utf8').replace(/^﻿/, '').split(/\r?\n/)) {
       const m = linea.match(/^\s*STEL_API_KEY\s*=\s*(.*)\s*$/)
@@ -53,7 +56,7 @@ export function limpiar(texto) {
 
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms))
 
-export function crearCliente({ maxLlamadas = 150, usarCache = true, cacheDir = CACHE_DIR, log = console.log } = {}) {
+export function crearCliente({ maxLlamadas = 150, usarCache = true, cacheDir = CACHE_DIR, log = console.log, archivoClave = '.env.stel.local' } = {}) {
   let llamadas = 0
   let ultima = 0
   const registro = []
@@ -79,7 +82,7 @@ export function crearCliente({ maxLlamadas = 150, usarCache = true, cacheDir = C
       try {
         res = await fetch(`${BASE}/${ruta}${qs.size ? '?' + qs : ''}`, {
           method: 'GET',
-          headers: { APIKEY: leerClave(), Accept: 'application/json' },
+          headers: { APIKEY: leerClave(archivoClave), Accept: 'application/json' },
           signal: ctrl.signal,
         })
       } catch (e) {

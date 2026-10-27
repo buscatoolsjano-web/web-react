@@ -26,6 +26,10 @@ const arg = (n) => { const i = process.argv.indexOf(n); return i > 0 ? process.a
 const bandera = (n) => process.argv.includes(n)
 const SALIDA = path.resolve('scripts/output/e4')
 const EMPRESA = arg('--empresa') ?? 'buscatools'
+// Cada empresa, su propia cuenta de StelOrder: Buscatools en `.env.stel.local`,
+// Torquetools en `.env.torquetools.local`. Así no se mezcla la data de una con
+// la otra (Fase 184). Todo lo demás ya está acotado por company_id.
+const ARCHIVO_CLAVE = EMPRESA === 'torquetools' ? '.env.torquetools.local' : '.env.stel.local'
 
 const BASE = process.env.VITE_SUPABASE_URL
 const SECRET = process.env.SUPABASE_SECRET_KEY
@@ -59,7 +63,7 @@ async function productos() {
   const { company, categoriaRevisionId, lista } = await contexto()
   const aplicar = bandera('--aplicar')
   const conPrecios = !bandera('--sin-precios')
-  const c = crearCliente({ maxLlamadas: Number(arg('--max-llamadas') ?? 20), usarCache: false, log: () => {} })
+  const c = crearCliente({ maxLlamadas: Number(arg('--max-llamadas') ?? 20), usarCache: false, log: () => {}, archivoClave: ARCHIVO_CLAVE })
   console.log(`  empresa ${EMPRESA} · ${aplicar ? 'APLICA' : 'sólo lectura'} · precios → ${conPrecios ? `${lista.name} (${lista.currency_code})` : 'no'}`)
   const { run, resumen } = await sincronizarProductos(sb, c, {
     company, owner: dueño(), categoriaRevisionId,
@@ -79,7 +83,7 @@ async function productos() {
 async function documentos() {
   const { company, categoriaRevisionId, lista } = await contexto()
   const aplicar = bandera('--aplicar')
-  const c = crearCliente({ maxLlamadas: Number(arg('--max-llamadas') ?? 40), usarCache: false, log: () => {} })
+  const c = crearCliente({ maxLlamadas: Number(arg('--max-llamadas') ?? 40), usarCache: false, log: () => {}, archivoClave: ARCHIVO_CLAVE })
   console.log(`  empresa ${EMPRESA} · ${aplicar ? 'APLICA' : 'sólo lectura'}`)
   const { run, resumen, plan } = await sincronizarDocumentos(sb, c, {
     company, empresaSlug: EMPRESA, owner: dueño(), categoriaRevisionId, listaPreciosId: lista.id,
