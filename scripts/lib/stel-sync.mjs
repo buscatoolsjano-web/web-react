@@ -30,6 +30,14 @@ const RUTA_SERVICIOS = 'services'
 /** Cuántos bloqueados se detallan en el resumen. Ver `sincronizarDocumentos`. */
 const TOPE_DETALLE_BLOQUEADOS = 50
 
+/**
+ * Tope de productos NUEVOS que el sync diario crea solo (Fase 182). Un delta
+ * diario normal trae unos pocos; si de golpe hacen falta muchos más, algo raro
+ * pasó —un bulk en STEL, un error— y conviene mirarlo a mano antes de crear un
+ * montón. Vincular productos que YA existen no cuenta: eso siempre se hace.
+ */
+const TOPE_PRODUCTOS_NUEVOS_AUTO = 25
+
 /** Lo que STEL dice de un ítem, en los términos de React. */
 export function productoDeStel(item, { categoriaRevisionId, crear = false } = {}) {
   return {
@@ -242,15 +250,31 @@ export async function sincronizarDocumentos(sb, c, o) {
       await cerrar(sb, run, 'finished', null, null, c.llamadas(), resumen)
       return { run, resumen, plan }
     }
-    // El sync automático nunca crea productos ni resuelve clientes por heurística:
-    // si el delta necesita eso, se detiene y lo reporta para una corrida manual.
-    if (plan.productos.length || plan.clientes?.length) {
-      throw new Error(`el delta necesita ${plan.productos.length} producto(s) y ${plan.clientes?.length ?? 0} cliente(s): corre la reconciliación manual`)
+    // Los CLIENTES nunca se crean ni se resuelven por heurística en el sync
+    // automático: la identidad del cliente es sensible (match por nombre,
+    // ambigüedades) y queda para la reconciliación manual. Los documentos que
+    // necesiten un cliente nuevo quedan bloqueados y reportados, no se tocan.
+    if (plan.clientes?.length) {
+      throw new Error(`el delta necesita ${plan.clientes.length} cliente(s): corre la reconciliación manual`)
+    }
+    // Los PRODUCTOS faltantes SÍ se crean solos (Fase 182), en el rubro
+    // "Pendiente de clasificación STEL", para que la sync no se trabe cada vez
+    // que un documento referencia un producto nuevo. Es el MISMO camino que la
+    // reconciliación manual (`ejecutarPlan` → `stel_reconciliar_producto`):
+    // nacen marcados para revisar, se deduplican por id de STEL / SKU y es
+    // idempotente y reversible. Con un tope de seguridad para un delta anormal.
+    const aCrear = plan.productos.filter((p) => p.op === 'crear').length
+    if (aCrear > TOPE_PRODUCTOS_NUEVOS_AUTO) {
+      throw new Error(`el delta crearía ${aCrear} productos nuevos (tope ${TOPE_PRODUCTOS_NUEVOS_AUTO}): corre la reconciliación manual`)
     }
     // La corrida ya está abierta por `stel_sync_tomar`: se reusa (sólo puede
     // haber una por empresa) y la cierra `cerrar` más abajo.
     const hechos = await ejecutarPlan(sb, plan, { run, autorizacion: { planHash: hashPlan(plan), confirmado: true }, log })
     resumen.cambios = hechos.cambios
+    // Cuántos productos nuevos se crearon solos y cuántos se vincularon, para que
+    // quede registrado qué resolvió la sync sin intervención (Fase 182).
+    resumen.productosNuevos = aCrear
+    resumen.productosVinculados = plan.productos.length - aCrear
     resumen.errores = hechos.fallidos
     await cerrar(sb, run, hechos.fallidos.length ? 'failed' : 'finished', hechos.fallidos.length ? null : new Date().toISOString(), null, c.llamadas(), resumen)
     // El plan también acá: los bloqueados no desaparecen porque la corrida haya
