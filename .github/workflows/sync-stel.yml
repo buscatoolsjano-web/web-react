@@ -77,6 +77,10 @@ jobs:
     # El delta de tres semanas es más lento que el diario; 30 minutos es
     # holgado para los dos y corta si algo se cuelga esperando a STEL.
     timeout-minutes: 30
+    # La key de Torquetools es OTRA cuenta de StelOrder, en un secret aparte. Se
+    # mapea acá para poder saltear el paso de TT mientras el secret no esté.
+    env:
+      TT_KEY: ${{ secrets.STEL_API_KEY_TORQUETOOLS }}
     steps:
       - uses: actions/checkout@v4
 
@@ -118,6 +122,21 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           STEL_API_KEY: ${{ secrets.STEL_API_KEY }}
+
+      # Torquetools: su PROPIA cuenta de StelOrder (otro secret). SÓLO
+      # documentos —el catálogo de TT es un clon y no se sincroniza su maestro—.
+      # Se saltea si el secret de TT todavía no está cargado.
+      - name: Documentos Torquetools
+        if: ${{ env.TT_KEY != '' }}
+        run: |
+          node scripts/fase14-e4-sync-stel.mjs documentos --empresa torquetools \
+            ${{ inputs.desde && format('--desde {0}', inputs.desde) || '' }} \
+            ${{ (github.event_name == 'schedule' || inputs.aplicar) && '--aplicar' || '' }} \
+            ${{ inputs.max_llamadas && format('--max-llamadas {0}', inputs.max_llamadas) || '' }}
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          STEL_API_KEY: ${{ secrets.STEL_API_KEY_TORQUETOOLS }}
 
       # Y qué quedó. Sirve para ver el checkpoint nuevo sin entrar a la base.
       - name: Estado después
