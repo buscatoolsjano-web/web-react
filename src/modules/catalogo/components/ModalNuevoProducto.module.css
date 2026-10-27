@@ -3,6 +3,32 @@
    todos abiertos: en una pantalla de escritorio entran, y plegarlos escondía
    campos obligatorios detrás de un click. */
 
+/* La cabecera del formulario, espejo de la guía (Fase 179): un subtítulo y el
+   botón para volver al paso a paso. Mismas clases y estilo que `AltaGuiada`. */
+.cabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.titulo {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+.saltar {
+  border: none;
+  background: none;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.saltar:hover {
+  color: var(--color-text);
+}
+
 .cuerpo {
   display: grid;
   gap: var(--space-5);

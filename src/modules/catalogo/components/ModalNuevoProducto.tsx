@@ -306,6 +306,15 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
         />
       ) : (
         <>
+      {/* Espejo de la guía (Fase 179): desde el formulario se puede volver al
+          paso a paso, que es lo que arranca por defecto. */}
+      <div className={styles.cabecera}>
+        <p className={styles.titulo}>Cargá el producto con el formulario</p>
+        <button type="button" className={styles.saltar} onClick={() => setFase('guia')}>
+          Prefiero el paso a paso
+        </button>
+      </div>
+
       {crear.error ? (
         <Alert tone="danger" role="alert" title="No se pudo crear el producto">
           <p>{crear.error.message}</p>
