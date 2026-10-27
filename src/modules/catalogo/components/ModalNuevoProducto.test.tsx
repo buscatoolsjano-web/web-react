@@ -35,6 +35,8 @@ vi.mock('../hooks/useCatalogoFacetas', () => ({
   // El alta arranca en la guía (Fase 131), que pide las facetas de la categoría.
   // Acá se prueba el formulario, así que alcanza con un stub.
   useFacetas: () => ({ data: undefined }),
+  // Fase 178: la guía muestra las portadas del catálogo público en los rubros.
+  usePortadasPublicas: () => ({ data: [] }),
 }))
 vi.mock('../hooks/useCrearProducto', () => ({
   useCrearProducto: () => ({

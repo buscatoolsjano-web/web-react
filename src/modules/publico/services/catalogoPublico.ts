@@ -84,7 +84,7 @@ const numero = (v: unknown): number => {
  * `null` y el servicio hace el pedido normal. Nunca rompe: ante cualquier duda,
  * camino de siempre.
  */
-async function adelanto(clave: 'categorias' | 'facetas' | 'listar'): Promise<unknown | null> {
+async function adelanto(clave: 'categorias' | 'facetas' | 'listar'): Promise<unknown> {
   const w = globalThis as unknown as { __pf?: Record<string, Promise<Response> | null | undefined> }
   const prom = w.__pf?.[clave]
   if (!prom) return null

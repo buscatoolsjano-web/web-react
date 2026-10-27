@@ -3,7 +3,8 @@ import { Icon } from '@/components/icons/Icon'
 import { cx } from '@/utils/cx'
 import { GRUPOS, grupoDe } from '@/modules/publico/lib/grupos'
 import fotos from '@/modules/publico/lib/fotosDeOpcion.generated.json'
-import { useFacetas } from '../hooks/useCatalogoFacetas'
+import { useFacetas, usePortadasPublicas } from '../hooks/useCatalogoFacetas'
+import { slugGuia } from '../lib/adaptarGuia'
 import { atributosDeLaCategoria } from '../lib/nuevoProducto'
 import { FILTROS_INICIALES, type CategoriaResumen, type DefinicionAtributo } from '../types'
 import styles from './AltaGuiada.module.css'
@@ -73,7 +74,18 @@ export function AltaGuiada({
   const [textoOtro, setTextoOtro] = useState('')
 
   const cat = categorias.find((c) => c.id === categoriaId) ?? null
-  const slug = cat?.slug
+  // La guía habla en slug público (plural), que es con el que matchean las
+  // fotos —igual que el catálogo (Fase 174) y la web—. Ver `slugGuia`.
+  const slug = cat ? slugGuia(cat) : undefined
+
+  // Las portadas que un admin eligió para el catálogo público, para que los
+  // rubros se vean con la MISMA foto que en el catálogo y en la web (Fase 178).
+  const portadas = usePortadasPublicas()
+  const portadasPorSlug = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const c of portadas.data ?? []) if (c.portadaUrl) m.set(c.slug, c.portadaUrl)
+    return m
+  }, [portadas.data])
 
   // Los tipos (product_type) que ya existen en la categoría salen de las
   // facetas, acotadas a esa categoría (su id, que es como filtra el ERP).
@@ -104,7 +116,11 @@ export function AltaGuiada({
       clave: 'categoria',
       pregunta: '¿Qué estás cargando?',
       pista: 'elegí el rubro',
-      opciones: categorias.map((c) => ({ valor: c.id, etiqueta: c.nombre, foto: fotoCategoria(c.slug) })),
+      opciones: categorias.map((c) => ({
+        valor: c.id,
+        etiqueta: c.nombre,
+        foto: portadasPorSlug.get(slugGuia(c)) ?? fotoCategoria(slugGuia(c)),
+      })),
       elegir: (v) => { setCategoriaId(v); reiniciarEntrada() },
     }
   } else if (gruposPresentes.length > 1 && grupo === '' && tipo === '') {
