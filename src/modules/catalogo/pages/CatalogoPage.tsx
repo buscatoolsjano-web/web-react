@@ -570,6 +570,15 @@ export function CatalogoPage() {
       {editandoMasa && seleccion.elegidos.length > 0 ? (
         <ModalEdicionMasiva
           ids={seleccion.elegidos.map((p) => p.id)}
+          /* La categoría que comparten los elegidos, si es una sola: con eso el
+             modal ofrece el Tipo y los atributos de ESA categoría con opciones,
+             no texto libre. Si están repartidos en varias, no se puede, y cae a
+             texto. */
+          categoriaComun={
+            new Set(seleccion.elegidos.map((p) => p.categoria?.id ?? '')).size === 1
+              ? (seleccion.elegidos[0]?.categoria?.id ?? null)
+              : null
+          }
           definiciones={definiciones}
           onCerrar={() => setEditandoMasa(false)}
           onAplicado={(n) => {

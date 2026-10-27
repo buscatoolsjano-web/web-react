@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Dialog } from '@/components/modals/Dialog'
 import { Alert } from '@/components/feedback/Alert'
@@ -7,7 +7,7 @@ import { Field } from '@/components/forms/Field'
 import { Input, Select } from '@/components/forms/controls'
 import { Icon } from '@/components/icons/Icon'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { useCategorias, useMarcas } from '../hooks/useCatalogoFacetas'
+import { useCategorias, useFacetas, useMarcas } from '../hooks/useCatalogoFacetas'
 import {
   CAMPOS_FIJOS,
   campoDeAtributo,
@@ -16,12 +16,22 @@ import {
   type CampoMasivo,
 } from '../lib/edicionMasiva'
 import { editarProductosMasivo, type AvanceMasivo } from '../services/edicionMasiva'
-import type { DefinicionAtributo } from '../types'
+import { FILTROS_INICIALES, type DefinicionAtributo, type FiltrosCatalogo } from '../types'
 import styles from './ModalEdicionMasiva.module.css'
+
+/** Sentinela del Select: «quiero escribir un valor que no está en la lista». */
+const OTRO = '\u0000otro'
 
 export interface ModalEdicionMasivaProps {
   /** Los ids de los productos elegidos. La pantalla manda SÓLO estos. */
   ids: readonly string[]
+  /**
+   * La categoría que comparten TODOS los elegidos, si es una sola. Con eso el
+   * Tipo y las características se ofrecen con las opciones que ya existen en esa
+   * categoría —como el filtro guiado—, en vez de texto libre. `null` cuando los
+   * elegidos están en varias categorías (o ninguna): ahí se cae a texto.
+   */
+  categoriaComun: string | null
   definiciones: readonly DefinicionAtributo[]
   onCerrar: () => void
   /** Se llamó con cuántos se cambiaron, para refrescar el catálogo y avisar. */
@@ -40,16 +50,27 @@ export interface ModalEdicionMasivaProps {
  * La referencia (SKU) no está: es la clave única por empresa, y ponerle el
  * mismo valor a varios los haría chocar. Eso se corrige uno por uno.
  */
-export function ModalEdicionMasiva({ ids, definiciones, onCerrar, onAplicado }: ModalEdicionMasivaProps) {
+export function ModalEdicionMasiva({ ids, categoriaComun, definiciones, onCerrar, onAplicado }: ModalEdicionMasivaProps) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
   const marcas = useMarcas(companyId)
   const categorias = useCategorias(companyId)
   const queryClient = useQueryClient()
 
+  // Las facetas de la categoría común: de acá salen los tipos (product_type) y
+  // los valores de cada atributo que YA existen en esa categoría.
+  const filtroCategoria = useMemo<FiltrosCatalogo>(
+    () => ({ ...FILTROS_INICIALES, categoria: categoriaComun }),
+    [categoriaComun],
+  )
+  const { data: facetas } = useFacetas(categoriaComun ? companyId : null, filtroCategoria)
+  const tiposDeCategoria = useMemo(() => (facetas?.subtipos ?? []).map((s) => s.valor), [facetas])
+
   const [campo, setCampo] = useState<CampoMasivo | null>(null)
   const [esAtributo, setEsAtributo] = useState(false)
   const [valor, setValor] = useState('')
+  // true cuando, teniendo opciones, se eligió «Otro…» para escribir una nueva.
+  const [modoLibre, setModoLibre] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
   const [avance, setAvance] = useState<AvanceMasivo | null>(null)
 
@@ -57,6 +78,7 @@ export function ModalEdicionMasiva({ ids, definiciones, onCerrar, onAplicado }: 
     setCampo(c)
     setEsAtributo(atributo)
     setValor('')
+    setModoLibre(false)
     setConfirmando(false)
   }
 
@@ -72,6 +94,41 @@ export function ModalEdicionMasiva({ ids, definiciones, onCerrar, onAplicado }: 
   const cerrar = () => {
     if (aplicar.isPending) return
     onCerrar()
+  }
+
+  /**
+   * Un Select con las opciones que ya existen, más «Otro…» para escribir una
+   * nueva. Es lo que baja el margen de error: se elige de lo que hay y no se
+   * reescribe «1/4 Hex» cuando ya existe «1/4 HEX».
+   */
+  const selectConOpciones = (opciones: readonly string[], vacioLabel: string) => {
+    if (modoLibre) {
+      return (
+        <div className={styles.libre}>
+          <Input value={valor} autoFocus placeholder="Escribí el valor nuevo" onChange={(e) => setValor(e.target.value)} />
+          <Button variant="ghost" size="sm" onClick={() => { setModoLibre(false); setValor('') }}>
+            Elegir de la lista
+          </Button>
+        </div>
+      )
+    }
+    return (
+      <Select
+        value={valor}
+        onChange={(e) => {
+          if (e.target.value === OTRO) { setModoLibre(true); setValor('') }
+          else setValor(e.target.value)
+        }}
+      >
+        <option value="">{vacioLabel}</option>
+        {opciones.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+        <option value={OTRO}>Otro…</option>
+      </Select>
+    )
   }
 
   /** El control del valor según el campo elegido. */
@@ -100,6 +157,17 @@ export function ModalEdicionMasiva({ ids, definiciones, onCerrar, onAplicado }: 
           ))}
         </Select>
       )
+    }
+    // El Tipo (product_type), con los que ya existen en la categoría común.
+    if (campo.rpc === 'product_type' && categoriaComun && tiposDeCategoria.length > 0) {
+      return selectConOpciones(tiposDeCategoria, 'Sin tipo')
+    }
+    // Una característica de lista: los valores que ya existen en la categoría.
+    if (campo.tipo === 'atributo' && categoriaComun) {
+      const faceta = facetas?.atributos.find((a) => a.key === campo.atributoKey && a.clase === 'enum')
+      if (faceta && faceta.opciones.length > 0) {
+        return selectConOpciones(faceta.opciones.map((o) => o.valor), 'Borrar el dato')
+      }
     }
     return (
       <Input
@@ -186,6 +254,7 @@ export function ModalEdicionMasiva({ ids, definiciones, onCerrar, onAplicado }: 
               const d = definiciones.find((x) => x.key === e.target.value)
               setCampo(d ? campoDeAtributo(d) : null)
               setValor('')
+              setModoLibre(false)
               setConfirmando(false)
             }}
           >
