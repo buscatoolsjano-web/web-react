@@ -46,6 +46,35 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Anchos de columna (Fase 190). Los números y la referencia van ajustados;
+   Producto y Descripción (sin ancho propio) se reparten lo que queda. Así un
+   «% Dto.» de dos dígitos deja de llevarse el espacio de la columna que se
+   lee. */
+.colNum {
+  width: 3rem;
+}
+.colRef {
+  width: 7.5rem;
+}
+.colCant {
+  width: 4.5rem;
+}
+.colPrecio {
+  width: 7rem;
+}
+.colDto {
+  width: 4rem;
+}
+.colImp {
+  width: 7.5rem;
+}
+.colSub {
+  width: 7rem;
+}
+.colAcc {
+  width: 6.5rem;
+}
+
 .sku {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;

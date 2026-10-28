@@ -125,6 +125,26 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLinea
       <div className={styles.scroll}>
         <table className={styles.tabla}>
           <caption className="sr-only">Líneas del documento</caption>
+          {/* Anchos coherentes y compactos para las columnas de números (Fase
+              190): un descuento o una cantidad no necesitan el ancho que se
+              llevaban. Lo que sobra va a Producto y Descripción, que es donde
+              se lee. */}
+          <colgroup>
+            <col className={styles.colNum} />
+            <col className={styles.colRef} />
+            <col />
+            <col />
+            <col className={styles.colCant} />
+            {hayPrecios ? (
+              <>
+                <col className={styles.colPrecio} />
+                <col className={styles.colDto} />
+                <col className={styles.colImp} />
+                <col className={styles.colSub} />
+              </>
+            ) : null}
+            {editando ? <col className={styles.colAcc} /> : null}
+          </colgroup>
           <thead>
             <tr>
               <th scope="col" className={styles.num}>
@@ -242,8 +262,12 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLinea
                           onElegir={(p, precio) => edicion.catalogo!.onElegirProducto(l.id, p, precio)}
                         />
                       ) : (
-                        <input
-                          className={styles.inputTexto}
+                        // Como la descripción (Fase 190): arranca en un renglón y
+                        // se arrastra para abajo para ver el nombre entero cuando
+                        // es largo, en vez de que se corte en una línea.
+                        <textarea
+                          className={styles.descripcionArea}
+                          rows={1}
                           value={l.nombre ?? ''}
                           placeholder="Nombre del producto"
                           aria-label="Producto"
