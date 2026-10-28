@@ -153,6 +153,84 @@
   height: 20px;
 }
 
+/* ── Diagnóstico de partes al ingreso (Fase 209) ─────────────────────────────
+   La grilla de partes del alta, como en el app FEIN AccuTec: cada parte es una
+   tarjeta con su nombre y los tres estados OK / NOK / N/A. Mismos colores que
+   PanelChecks, para que marcar al crear y marcar en la ficha se vean igual. */
+.partes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.parte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  min-width: 0;
+}
+
+.parteNombre {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+
+.parteOpciones {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-1);
+}
+
+.parteOpcion {
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 4px 8px;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.parteOk {
+  composes: parteOpcion;
+  background: var(--success-light);
+  border-color: var(--success-light);
+  color: var(--success);
+}
+
+.parteNok {
+  composes: parteOpcion;
+  background: transparent;
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.parteNa {
+  composes: parteOpcion;
+  background: var(--surface-alt);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+@media (pointer: coarse) {
+  .parteOpcion {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+}
+
 /* El producto elegido, con su botón para cambiarlo o quitarlo. */
 .elegido {
   display: flex;

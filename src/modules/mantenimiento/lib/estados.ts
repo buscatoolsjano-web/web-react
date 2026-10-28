@@ -168,6 +168,13 @@ export const MOTIVOS_INGRESO = [
 ] as const
 
 /**
+ * La condición visual con la que llega la herramienta, como en el app FEIN
+ * AccuTec. Lista corta y cerrada en pantalla, pero la columna es texto libre:
+ * los datos viejos (notas sueltas) siguen mostrándose tal cual.
+ */
+export const CONDICIONES_VISUALES = ['BUENA', 'REGULAR', 'MALA', 'MUY MALA'] as const
+
+/**
  * La secuencia de etapas que corresponde a una orden, salteando las que están
  * marcadas como no requeridas.
  *

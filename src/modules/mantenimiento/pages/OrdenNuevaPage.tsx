@@ -11,7 +11,7 @@ import { permisosDe } from '../lib/permisos'
 import { FormularioOrden } from '../components/FormularioOrden'
 import { useCrearOrden } from '../hooks/useOrdenes'
 import { obtenerActivo } from '../services/activos'
-import type { DatosOrden } from '../services/ordenes'
+import { guardarChecksIniciales, type DatosOrden } from '../services/ordenes'
 
 const hoy = () => new Date().toISOString().slice(0, 10)
 
@@ -70,7 +70,7 @@ export function OrdenNuevaPage() {
   const valores: DatosOrden = {
     activoId: a?.id ?? '',
     clienteId: a?.duenoId ?? '',
-    tipoServicio: 'corrective',
+    tipoServicio: 'preventive',
     motivoIngreso: '',
     aprietesIngreso: null,
     condicionVisual: '',
@@ -108,10 +108,23 @@ export function OrdenNuevaPage() {
         }
         guardando={crear.isPending}
         errorAlGuardar={crear.error?.message ?? null}
-        onGuardar={(datos) => {
+        onGuardar={(datos, checks) => {
           crear.mutate(datos, {
             onSuccess: ({ id }) => {
-              void navegar(`/mantenimiento/ordenes/${id}`)
+              // El estado de las partes al ingreso se guarda recién con la orden
+              // ya creada (necesita su id). Si algo falla acá no se pierde la
+              // orden —existe y está en diagnóstico— y la grilla se puede
+              // recompletar desde la ficha, así que no se frena la navegación.
+              void (async () => {
+                if (checks.length > 0 && companyId) {
+                  try {
+                    await guardarChecksIniciales(companyId, id, checks)
+                  } catch {
+                    /* se completa desde la ficha */
+                  }
+                }
+                void navegar(`/mantenimiento/ordenes/${id}`)
+              })()
             },
           })
         }}

@@ -1,14 +1,24 @@
 import { useId, useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import { MOTIVOS_INGRESO, OPCIONES_SERVICIO } from '../lib/estados'
+import {
+  CONDICIONES_VISUALES,
+  MOTIVOS_INGRESO,
+  OPCIONES_SERVICIO,
+  etiquetaDeResultado,
+} from '../lib/estados'
 import { errorDe, validarOrden, type ErrorDeCampo } from '../lib/validacion'
 import { useTecnicos } from '../hooks/useOrdenes'
+import { usePuntos } from '../hooks/useCheckPoints'
 import { BuscadorActivo } from './BuscadorActivo'
 import { BuscadorCliente } from './BuscadorCliente'
 import type { DatosOrden } from '../services/ordenes'
 import type { ActivoBuscado } from '../services/activos'
 import type { ClienteBuscado } from '../services/catalogo'
+import type { ResultadoCheck } from '../types'
 import styles from './Formulario.module.css'
+
+/** Lo que el diagnóstico de partes marca al ingreso: un resultado por punto. */
+export type ChecksIniciales = { puntoId: string; resultado: ResultadoCheck }[]
 
 export interface FormularioOrdenProps {
   valores: DatosOrden
@@ -16,12 +26,19 @@ export interface FormularioOrdenProps {
   clienteInicial: ClienteBuscado | null
   guardando: boolean
   errorAlGuardar?: string | null
-  onGuardar: (datos: DatosOrden) => void
+  onGuardar: (datos: DatosOrden, checks: ChecksIniciales) => void
   onCancelar: () => void
 }
 
+const RESULTADOS: ResultadoCheck[] = ['ok', 'nok', 'na']
+
 /**
- * Alta de una orden de servicio.
+ * Alta de una orden de servicio — la «Nueva ficha» del app FEIN AccuTec.
+ *
+ * Es la pantalla de **Diagnóstico** entera, no un alta mínima: los datos de
+ * ingreso, el estado de cada parte AL INGRESO y las observaciones se cargan
+ * acá, igual que en el sistema que replica. Cuando se crea la orden, esos
+ * checks se guardan en la fase `diagnosis`.
  *
  * Lo que define esta pantalla:
  *
@@ -30,11 +47,11 @@ export interface FormularioOrdenProps {
  *     única oportunidad de elegirlo bien es ésta. Si el equipo no tiene dueño,
  *     hay que elegirlo a mano: el campo es obligatorio en la base.
  *   · **La orden nace en diagnóstico**, que es la primera etapa real del
- *     circuito del sistema anterior. No hay desplegable de etapa inicial: un
- *     salto arbitrario al crear sería inventar historia.
- *   · **El motivo de ingreso es un `datalist`, no un `select`.** Los ocho
- *     valores del legacy son los que se usaron, no una taxonomía cerrada, y el
- *     schema no tiene CHECK sobre ese campo.
+ *     circuito. No hay desplegable de etapa inicial: un salto arbitrario al
+ *     crear sería inventar historia.
+ *   · **Condición visual y motivo son listas cerradas** (las del FEIN), pero
+ *     la columna es texto libre: no inventan obligatoriedad que la base no
+ *     tiene, y los datos viejos siguen siendo válidos.
  */
 export function FormularioOrden({
   valores,
@@ -47,7 +64,9 @@ export function FormularioOrden({
 }: FormularioOrdenProps) {
   const id = useId()
   const tecnicos = useTecnicos()
+  const puntos = usePuntos(true)
   const [datos, setDatos] = useState<DatosOrden>(valores)
+  const [partes, setPartes] = useState<Record<string, ResultadoCheck>>({})
   const [activo, setActivo] = useState<ActivoBuscado | null>(activoInicial)
   const [cliente, setCliente] = useState<ClienteBuscado | null>(clienteInicial)
   const [errores, setErrores] = useState<ErrorDeCampo[]>([])
@@ -62,6 +81,17 @@ export function FormularioOrden({
     const siguiente = { ...datos, [campo]: valor }
     setDatos(siguiente)
     if (intentado) setErrores(validarOrden(siguiente))
+  }
+
+  // Volver a tocar la opción ya elegida la desmarca: «no revisado» tiene que
+  // poder volver a ser el estado, y no es lo mismo que «N/A».
+  const marcarParte = (puntoId: string, resultado: ResultadoCheck) => {
+    setPartes((p) => {
+      const siguiente = { ...p }
+      if (siguiente[puntoId] === resultado) delete siguiente[puntoId]
+      else siguiente[puntoId] = resultado
+      return siguiente
+    })
   }
 
   const elegirActivo = (a: ActivoBuscado) => {
@@ -85,8 +115,13 @@ export function FormularioOrden({
     setIntentado(true)
     const encontrados = validarOrden(datos)
     setErrores(encontrados)
-    if (encontrados.length === 0) onGuardar(datos)
+    if (encontrados.length === 0) {
+      const checks = Object.entries(partes).map(([puntoId, resultado]) => ({ puntoId, resultado }))
+      onGuardar(datos, checks)
+    }
   }
+
+  const listaPuntos = puntos.data ?? []
 
   return (
     <form className={styles.form} onSubmit={enviar} noValidate>
@@ -136,7 +171,7 @@ export function FormularioOrden({
       </section>
 
       <section className={styles.seccion}>
-        <h2 className={styles.tituloSeccion}>Ingreso</h2>
+        <h2 className={styles.tituloSeccion}>Datos de ingreso</h2>
 
         <div className={styles.grilla}>
           <div className={styles.campo}>
@@ -155,6 +190,26 @@ export function FormularioOrden({
             {errorDe(errores, 'fechaIngreso') ? (
               <span className={styles.error}>{errorDe(errores, 'fechaIngreso')}</span>
             ) : null}
+          </div>
+
+          <div className={styles.campo}>
+            <label className={styles.etiqueta} htmlFor={`${id}-tecnico`}>
+              Técnico / responsable
+            </label>
+            <select
+              id={`${id}-tecnico`}
+              className={styles.control}
+              value={datos.tecnicoId ?? ''}
+              disabled={guardando}
+              onChange={(e) => cambiar('tecnicoId', e.target.value || null)}
+            >
+              <option value="">Sin asignar</option>
+              {(tecnicos.data ?? []).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nombre}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className={styles.campo}>
@@ -181,26 +236,6 @@ export function FormularioOrden({
           </div>
 
           <div className={styles.campo}>
-            <label className={styles.etiqueta} htmlFor={`${id}-motivo`}>
-              Motivo de ingreso
-            </label>
-            <input
-              id={`${id}-motivo`}
-              type="text"
-              className={styles.control}
-              list={`${id}-motivos`}
-              value={datos.motivoIngreso}
-              disabled={guardando}
-              onChange={(e) => cambiar('motivoIngreso', e.target.value)}
-            />
-            <datalist id={`${id}-motivos`}>
-              {MOTIVOS_INGRESO.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
-          </div>
-
-          <div className={styles.campo}>
             <label className={styles.etiqueta} htmlFor={`${id}-aprietes`}>
               Aprietes al ingresar
             </label>
@@ -222,49 +257,102 @@ export function FormularioOrden({
           </div>
 
           <div className={styles.campo}>
-            <label className={styles.etiqueta} htmlFor={`${id}-tecnico`}>
-              Técnico asignado
+            <label className={styles.etiqueta} htmlFor={`${id}-visual`}>
+              Condición visual
             </label>
             <select
-              id={`${id}-tecnico`}
+              id={`${id}-visual`}
               className={styles.control}
-              value={datos.tecnicoId ?? ''}
+              value={datos.condicionVisual}
               disabled={guardando}
-              onChange={(e) => cambiar('tecnicoId', e.target.value || null)}
+              onChange={(e) => cambiar('condicionVisual', e.target.value)}
             >
-              <option value="">Sin asignar</option>
-              {(tecnicos.data ?? []).map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nombre}
+              <option value="">— seleccionar —</option>
+              {CONDICIONES_VISUALES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className={styles.campo}>
+            <label className={styles.etiqueta} htmlFor={`${id}-motivo`}>
+              Motivo de ingreso
+            </label>
+            <select
+              id={`${id}-motivo`}
+              className={styles.control}
+              value={datos.motivoIngreso}
+              disabled={guardando}
+              onChange={(e) => cambiar('motivoIngreso', e.target.value)}
+            >
+              <option value="">— seleccionar —</option>
+              {MOTIVOS_INGRESO.map((m) => (
+                <option key={m} value={m}>
+                  {m}
                 </option>
               ))}
             </select>
           </div>
         </div>
+      </section>
 
-        <div className={styles.campo}>
-          <label className={styles.etiqueta} htmlFor={`${id}-visual`}>
-            Condición visual al recibir
-          </label>
-          <textarea
-            id={`${id}-visual`}
-            className={styles.area}
-            value={datos.condicionVisual}
-            disabled={guardando}
-            onChange={(e) => cambiar('condicionVisual', e.target.value)}
-            placeholder="Golpes, faltantes, accesorios que vienen con el equipo…"
-          />
-        </div>
+      <section className={styles.seccion}>
+        <h2 className={styles.tituloSeccion}>Diagnóstico de partes — estado al ingreso</h2>
+        <p className={styles.aviso}>
+          Marcá el estado en que <strong>llegó</strong> la herramienta, antes de cualquier
+          intervención. Se puede dejar sin marcar y completarlo después desde la ficha.
+        </p>
+
+        {puntos.isPending ? (
+          <p className={styles.ayuda}>Cargando los puntos de revisión…</p>
+        ) : listaPuntos.length === 0 ? (
+          <p className={styles.ayuda}>Esta empresa no tiene puntos de revisión configurados.</p>
+        ) : (
+          <div className={styles.partes}>
+            {listaPuntos.map((p) => (
+              <div key={p.id} className={styles.parte}>
+                <span className={styles.parteNombre}>{p.etiqueta}</span>
+                <span className={styles.parteOpciones} role="group" aria-label={p.etiqueta}>
+                  {RESULTADOS.map((r) => {
+                    const elegida = partes[p.id] === r
+                    const clase = !elegida
+                      ? styles.parteOpcion
+                      : r === 'ok'
+                        ? styles.parteOk
+                        : r === 'nok'
+                          ? styles.parteNok
+                          : styles.parteNa
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        className={clase}
+                        aria-pressed={elegida}
+                        disabled={guardando}
+                        onClick={() => marcarParte(p.id, r)}
+                      >
+                        {etiquetaDeResultado(r)}
+                      </button>
+                    )
+                  })}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className={styles.campo}>
           <label className={styles.etiqueta} htmlFor={`${id}-diagnostico`}>
-            Notas de diagnóstico
+            Observaciones de diagnóstico
           </label>
           <textarea
             id={`${id}-diagnostico`}
             className={styles.area}
             value={datos.notasDiagnostico}
             disabled={guardando}
+            placeholder="Fallas detectadas, piezas dañadas, faltantes, accesorios que vienen con el equipo…"
             onChange={(e) => cambiar('notasDiagnostico', e.target.value)}
           />
         </div>
@@ -279,11 +367,7 @@ export function FormularioOrden({
         <Button type="submit" disabled={guardando}>
           {guardando ? 'Creando…' : 'Crear orden'}
         </Button>
-        <Button
-          variant="secondary"
-          disabled={guardando}
-          onClick={onCancelar}
-        >
+        <Button variant="secondary" disabled={guardando} onClick={onCancelar}>
           Cancelar
         </Button>
       </div>

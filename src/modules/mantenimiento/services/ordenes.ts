@@ -447,6 +447,33 @@ export async function marcarCheck(
   if (error) throw new Error(traducir(error.message, error.code))
 }
 
+/**
+ * Guarda de una los checks del diagnóstico al crear la ficha (Fase 209).
+ *
+ * El alta del app FEIN AccuTec captura el estado de las partes AL INGRESO en la
+ * misma pantalla, así que cuando se crea la orden se persisten en un solo
+ * upsert, fase `diagnosis`. El mismo `onConflict` que `marcarCheck`: si algo se
+ * marcó dos veces, corrige en vez de duplicar.
+ */
+export async function guardarChecksIniciales(
+  companyId: string,
+  ordenId: string,
+  checks: readonly { puntoId: string; resultado: ResultadoCheck }[],
+): Promise<void> {
+  if (checks.length === 0) return
+  const { error } = await supabase.from('maintenance_order_checks').upsert(
+    checks.map((c) => ({
+      company_id: companyId,
+      maintenance_order_id: ordenId,
+      check_point_id: c.puntoId,
+      phase: 'diagnosis',
+      result: c.resultado,
+    })),
+    { onConflict: 'maintenance_order_id,check_point_id,phase' },
+  )
+  if (error) throw new Error(traducir(error.message, error.code))
+}
+
 export async function borrarCheck(companyId: string, id: string): Promise<void> {
   const { error } = await supabase
     .from('maintenance_order_checks')
