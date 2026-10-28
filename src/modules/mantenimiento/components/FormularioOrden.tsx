@@ -134,34 +134,36 @@ export function FormularioOrden({
       <section className={styles.seccion}>
         <h2 className={styles.tituloSeccion}>Qué entra y de quién es</h2>
 
-        <BuscadorActivo
-          elegido={activo}
-          deshabilitado={guardando}
-          error={errorDe(errores, 'activoId')}
-          onElegir={elegirActivo}
-          onLimpiar={() => {
-            setActivo(null)
-            cambiar('activoId', '')
-          }}
-        />
+        <div className={styles.grilla}>
+          <BuscadorActivo
+            elegido={activo}
+            deshabilitado={guardando}
+            error={errorDe(errores, 'activoId')}
+            onElegir={elegirActivo}
+            onLimpiar={() => {
+              setActivo(null)
+              cambiar('activoId', '')
+            }}
+          />
 
-        <BuscadorCliente
-          elegido={cliente}
-          etiqueta="Cliente de la orden"
-          obligatorio
-          deshabilitado={guardando}
-          error={errorDe(errores, 'clienteId')}
-          onElegir={(c) => {
-            setCliente(c)
-            setHeredado(false)
-            cambiar('clienteId', c.id)
-          }}
-          onLimpiar={() => {
-            setCliente(null)
-            setHeredado(false)
-            cambiar('clienteId', '')
-          }}
-        />
+          <BuscadorCliente
+            elegido={cliente}
+            etiqueta="Cliente de la orden"
+            obligatorio
+            deshabilitado={guardando}
+            error={errorDe(errores, 'clienteId')}
+            onElegir={(c) => {
+              setCliente(c)
+              setHeredado(false)
+              cambiar('clienteId', c.id)
+            }}
+            onLimpiar={() => {
+              setCliente(null)
+              setHeredado(false)
+              cambiar('clienteId', '')
+            }}
+          />
+        </div>
 
         <p className={styles.ayuda}>
           {heredado
@@ -300,9 +302,9 @@ export function FormularioOrden({
 
       <section className={styles.seccion}>
         <h2 className={styles.tituloSeccion}>Diagnóstico de partes — estado al ingreso</h2>
-        <p className={styles.aviso}>
-          Marcá el estado en que <strong>llegó</strong> la herramienta, antes de cualquier
-          intervención. Se puede dejar sin marcar y completarlo después desde la ficha.
+        <p className={styles.bannerDiag}>
+          Marcá cómo <strong>llegó</strong> la herramienta, antes de intervenir. Opcional: se
+          completa después desde la ficha.
         </p>
 
         {puntos.isPending ? (
@@ -311,8 +313,18 @@ export function FormularioOrden({
           <p className={styles.ayuda}>Esta empresa no tiene puntos de revisión configurados.</p>
         ) : (
           <div className={styles.partes}>
-            {listaPuntos.map((p) => (
-              <div key={p.id} className={styles.parte}>
+            {listaPuntos.map((p) => {
+              const estado = partes[p.id]
+              const claseCard =
+                estado === 'ok'
+                  ? styles.parteCardOk
+                  : estado === 'nok'
+                    ? styles.parteCardNok
+                    : estado === 'na'
+                      ? styles.parteCardNa
+                      : ''
+              return (
+              <div key={p.id} className={`${styles.parte} ${claseCard}`}>
                 <span className={styles.parteNombre}>{p.etiqueta}</span>
                 <span className={styles.parteOpciones} role="group" aria-label={p.etiqueta}>
                   {RESULTADOS.map((r) => {
@@ -339,7 +351,8 @@ export function FormularioOrden({
                   })}
                 </span>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
