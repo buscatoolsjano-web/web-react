@@ -133,7 +133,16 @@ export function useFacetas(companyId: string | null, filtros: FiltrosCatalogo) {
     enabled: companyId !== null,
     placeholderData: (previa, consultaPrevia) => {
       const empresaPrevia = consultaPrevia?.queryKey[1]
-      return empresaPrevia === companyId ? previa : undefined
+      if (empresaPrevia !== companyId) return undefined
+      // Al cambiar de CATEGORÍA no se mantiene el placeholder (Fase 206): las
+      // facetas de la categoría anterior son de otro rubro, y mostrarlas
+      // mientras cargan las nuevas hacía que al tocar «Atornilladores» se
+      // vieran ~1,5 s los filtros de «Puntas y tubos». Sin placeholder, la guía
+      // muestra «cargando» por ese rato en vez de filtros equivocados. En los
+      // refinamientos DENTRO de la misma categoría sí se mantiene, para que los
+      // conteos no parpadeen.
+      const catPrevia = (consultaPrevia?.queryKey[3] as FiltrosCatalogo | undefined)?.categoria
+      return catPrevia === filtros.categoria ? previa : undefined
     },
     // Los conteos por categoría cambian poco; 5 min (antes 30 s) para que los
     // chips se vean al instante al volver y no se recalculen en cada visita.

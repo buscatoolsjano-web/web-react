@@ -88,7 +88,14 @@ export function useFacetasParaDocumento(filtros: FiltrosCatalogo) {
     queryKey: claveFacetas(companyId, filtros),
     queryFn: () => obtenerFacetas(construirPlanDeConsulta(filtros, companyId!)),
     enabled: companyId !== null,
-    placeholderData: keepPreviousData,
+    // Al cambiar de CATEGORÍA no se mantiene el placeholder (Fase 206): mostrar
+    // las facetas del rubro anterior mientras cargan las nuevas hacía ver los
+    // filtros equivocados por un rato. En refinamientos de la misma categoría
+    // sí, para que los conteos no parpadeen.
+    placeholderData: (previa, consultaPrevia) => {
+      const catPrevia = consultaPrevia?.queryKey[3]?.categoria
+      return catPrevia === filtros.categoria ? previa : undefined
+    },
     // Las facetas son lo más caro de todo el modal: ~85 ms de CPU, porque
     // recorren los productos de la empresa y los agrupan de cinco maneras. Y
     // son lo que menos cambia: sólo se mueven cuando cambia el catálogo.

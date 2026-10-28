@@ -340,6 +340,15 @@ export function GuiaFiltros({
             ))}
           </div>
         </div>
+      ) : cargando ? (
+        // Cargando los filtros de la categoría recién elegida (Fase 206): antes
+        // acá se veían los filtros de la categoría ANTERIOR hasta que llegaban
+        // los nuevos. Ahora se dice que está cargando, y la transición se siente
+        // intencional en vez de un cambio brusco de filtros equivocados.
+        <p className={styles.listo} aria-live="polite">
+          <Icon name="search" size={16} aria-hidden="true" />
+          Buscando los filtros…
+        </p>
       ) : (
         <p className={styles.listo}>
           <Icon name="check" size={16} aria-hidden="true" />
