@@ -12,6 +12,7 @@ import { FormularioOrden } from '../components/FormularioOrden'
 import { useCrearOrden } from '../hooks/useOrdenes'
 import { obtenerActivo } from '../services/activos'
 import { guardarChecksIniciales, type DatosOrden } from '../services/ordenes'
+import { subirAdjunto } from '../services/adjuntos'
 
 const hoy = () => new Date().toISOString().slice(0, 10)
 
@@ -108,19 +109,29 @@ export function OrdenNuevaPage() {
         }
         guardando={crear.isPending}
         errorAlGuardar={crear.error?.message ?? null}
-        onGuardar={(datos, checks) => {
+        onGuardar={(datos, checks, fotos) => {
           crear.mutate(datos, {
             onSuccess: ({ id }) => {
-              // El estado de las partes al ingreso se guarda recién con la orden
-              // ya creada (necesita su id). Si algo falla acá no se pierde la
-              // orden —existe y está en diagnóstico— y la grilla se puede
-              // recompletar desde la ficha, así que no se frena la navegación.
+              // Los checks de partes y las fotos del ingreso se guardan recién
+              // con la orden ya creada (necesitan su id). Si algo falla acá no
+              // se pierde la orden —existe y está en diagnóstico— y tanto la
+              // grilla como las fotos se pueden recompletar desde la ficha, así
+              // que no se frena la navegación.
               void (async () => {
-                if (checks.length > 0 && companyId) {
-                  try {
-                    await guardarChecksIniciales(companyId, id, checks)
-                  } catch {
-                    /* se completa desde la ficha */
+                if (companyId) {
+                  if (checks.length > 0) {
+                    try {
+                      await guardarChecksIniciales(companyId, id, checks)
+                    } catch {
+                      /* se completa desde la ficha */
+                    }
+                  }
+                  for (const foto of fotos) {
+                    try {
+                      await subirAdjunto(companyId, 'maintenance_order', id, foto, 'photo')
+                    } catch {
+                      /* se adjunta desde la ficha */
+                    }
                   }
                 }
                 void navegar(`/mantenimiento/ordenes/${id}`)

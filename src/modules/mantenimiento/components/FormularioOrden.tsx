@@ -11,6 +11,7 @@ import { useTecnicos } from '../hooks/useOrdenes'
 import { usePuntos } from '../hooks/useCheckPoints'
 import { BuscadorActivo } from './BuscadorActivo'
 import { BuscadorCliente } from './BuscadorCliente'
+import { CapturaFotosIngreso } from './CapturaFotosIngreso'
 import type { DatosOrden } from '../services/ordenes'
 import type { ActivoBuscado } from '../services/activos'
 import type { ClienteBuscado } from '../services/catalogo'
@@ -26,7 +27,7 @@ export interface FormularioOrdenProps {
   clienteInicial: ClienteBuscado | null
   guardando: boolean
   errorAlGuardar?: string | null
-  onGuardar: (datos: DatosOrden, checks: ChecksIniciales) => void
+  onGuardar: (datos: DatosOrden, checks: ChecksIniciales, fotos: File[]) => void
   onCancelar: () => void
 }
 
@@ -67,6 +68,7 @@ export function FormularioOrden({
   const puntos = usePuntos(true)
   const [datos, setDatos] = useState<DatosOrden>(valores)
   const [partes, setPartes] = useState<Record<string, ResultadoCheck>>({})
+  const [fotos, setFotos] = useState<File[]>([])
   const [activo, setActivo] = useState<ActivoBuscado | null>(activoInicial)
   const [cliente, setCliente] = useState<ClienteBuscado | null>(clienteInicial)
   const [errores, setErrores] = useState<ErrorDeCampo[]>([])
@@ -117,7 +119,7 @@ export function FormularioOrden({
     setErrores(encontrados)
     if (encontrados.length === 0) {
       const checks = Object.entries(partes).map(([puntoId, resultado]) => ({ puntoId, resultado }))
-      onGuardar(datos, checks)
+      onGuardar(datos, checks, fotos)
     }
   }
 
@@ -374,6 +376,11 @@ export function FormularioOrden({
           La orden nace abierta y en diagnóstico, que es la primera etapa del circuito. De ahí en
           adelante se avanza de a una etapa desde la ficha.
         </p>
+      </section>
+
+      <section className={styles.seccion}>
+        <h2 className={styles.tituloSeccion}>Fotos del ingreso</h2>
+        <CapturaFotosIngreso fotos={fotos} onCambio={setFotos} deshabilitado={guardando} />
       </section>
 
       <div className={styles.acciones}>

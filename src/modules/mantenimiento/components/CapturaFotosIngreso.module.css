@@ -1,0 +1,116 @@
+.caja {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* El input de archivo va oculto detrás de un label con pinta de botón: el
+   control nativo es feo y distinto en cada navegador. */
+.adjuntar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font: inherit;
+  font-size: var(--text-sm);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.adjuntar:hover {
+  border-color: var(--primary);
+}
+
+.inputOculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.error {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--danger);
+}
+
+/* La cámara en vivo: el video a ancho completo con sus botones debajo. */
+.camara {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+}
+
+.video {
+  width: 100%;
+  max-height: 340px;
+  background: #000;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+}
+
+/* Las miniaturas de lo ya sacado o adjuntado, con su botón para quitar. */
+.galeria {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--space-2);
+}
+
+.miniatura {
+  position: relative;
+  aspect-ratio: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-alt);
+}
+
+.miniatura img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.quitar {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.quitar:hover {
+  background: rgb(0 0 0 / 0.8);
+}
+
+.ayuda {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+}
