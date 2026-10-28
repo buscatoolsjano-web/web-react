@@ -604,17 +604,18 @@ describe('Cotización · acciones', () => {
     expect(screen.getByRole('button', { name: 'Ver / Imprimir' })).toBeInTheDocument()
   })
 
-  it('Editar abre el modo edición con Guardar, Guardar y editar y Descartar, y nada más', () => {
+  it('Editar abre el modo edición con Guardar, Guardar y editar, Descartar y el interruptor de la vista previa', () => {
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
 
-    // Fase 159: exactamente estos tres y ningún otro botón.
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Guardar y editar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
-    // Las acciones incompatibles con un borrador a medias no se ofrecen, y
-    // tampoco el formato de la hoja ni el interruptor de la vista previa.
-    for (const nombre of ['Generar pedido', 'Duplicar', 'Ver / Imprimir', 'Eliminar', 'Ocultar vista previa', 'Vista previa']) {
+    // Fase 200: el interruptor de la vista previa vuelve a la barra de edición
+    // (pedido del usuario: ocultarla/mostrarla mientras edita).
+    expect(screen.getByRole('button', { name: /vista previa/i })).toBeInTheDocument()
+    // Las acciones incompatibles con un borrador a medias siguen sin ofrecerse.
+    for (const nombre of ['Generar pedido', 'Duplicar', 'Ver / Imprimir', 'Eliminar']) {
       expect(screen.queryByRole('button', { name: nombre })).toBeNull()
     }
   })
@@ -917,17 +918,16 @@ describe('La hoja del documento', () => {
     expect(within(barra).getByRole('button', { name: 'Ocultar vista previa' })).toBeInTheDocument()
   })
 
-  /* Editando ya NO está (Fase 159): la barra de edición queda con tres botones
-     y nada más —Guardar, Guardar y editar, Descartar—, así que el interruptor
-     de la vista previa se fue. La hoja se muestra, pero no se oculta desde acá. */
-  it('editando, el interruptor ya no está: la barra son tres botones', () => {
+  /* Fase 200: el usuario pidió poder ocultar/mostrar la hoja mientras edita,
+     así que el interruptor volvió a la barra de edición. Con la pantalla ancha
+     la hoja arranca abierta, así que el botón dice «Ocultar vista previa». */
+  it('editando, el interruptor de la vista previa está en la barra', () => {
     estado.pantallaAncha = true
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
 
     const barra = screen.getByRole('group', { name: 'Acciones del documento' })
-    expect(within(barra).queryByRole('button', { name: 'Ocultar vista previa' })).toBeNull()
-    expect(within(barra).queryByRole('button', { name: 'Vista previa' })).toBeNull()
+    expect(within(barra).getByRole('button', { name: 'Ocultar vista previa' })).toBeInTheDocument()
     expect(within(barra).getByRole('button', { name: 'Guardar y editar' })).toBeInTheDocument()
   })
 

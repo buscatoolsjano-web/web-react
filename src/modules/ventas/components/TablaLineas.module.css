@@ -200,8 +200,7 @@
    tabla se ve IGUAL que en lectura, sólo que los rectángulos son editables. */
 .inputTexto,
 .inputNum,
-.inputSelect,
-.notaInput {
+.inputSelect {
   width: 100%;
   min-width: 0;
   font: inherit;
@@ -219,21 +218,15 @@
   font-variant-numeric: tabular-nums;
 }
 
-.notaInput {
-  font-style: italic;
-}
-
 .inputTexto:hover,
 .inputNum:hover,
-.inputSelect:hover,
-.notaInput:hover {
+.inputSelect:hover {
   border-color: var(--color-border);
 }
 
 .inputTexto:focus-visible,
 .inputNum:focus-visible,
-.inputSelect:focus-visible,
-.notaInput:focus-visible {
+.inputSelect:focus-visible {
   outline: var(--focus-outline);
   outline-offset: -1px;
   background: var(--color-surface);
@@ -247,7 +240,8 @@
 /* La descripción, como el STEL (Fase 165): colapsada a ~un renglón, con el
    tirador de abajo a la derecha para deslizarla y leerla/editarla entera. Se
    funde con la celda igual que los demás inputs. */
-.descripcionArea {
+.descripcionArea,
+.notaArea {
   width: 100%;
   min-width: 0;
   font: inherit;
@@ -266,11 +260,20 @@
   white-space: pre-wrap;
 }
 
-.descripcionArea:hover {
+/* El título/nota del capítulo, en bastardilla y en negrita como se ve la fila
+   del capítulo; se estira igual que la descripción (Fase 200). */
+.notaArea {
+  font-style: italic;
+  font-weight: var(--weight-bold);
+}
+
+.descripcionArea:hover,
+.notaArea:hover {
   border-color: var(--color-border);
 }
 
-.descripcionArea:focus-visible {
+.descripcionArea:focus-visible,
+.notaArea:focus-visible {
   outline: var(--focus-outline);
   outline-offset: -1px;
   background: var(--color-surface);
@@ -349,45 +352,51 @@
     display: grid;
     gap: var(--space-2);
   }
-  /* Cada línea en DOS renglones compactos (Fase 192): arriba referencia +
-     nombre; abajo, en una sola fila, cantidad, precio, descuento, impuesto,
-     subtotal y las acciones. El relleno es mínimo a propósito: una cotización
-     de diez ítems no tiene que quedar interminable. */
-  /* Grilla FIJA de dos renglones, no «envuelve cuando no entra»: así SIEMPRE
-     son dos, con la ventana angosta o ancha. Arriba: referencia · nombre
-     (ocupa el medio) · acciones. Abajo, alineados en columnas: cantidad,
-     precio, % dto., impuesto y subtotal. */
+  /*
+   * Cada línea, una TARJETA legible (Fase 200).
+   *
+   * El pedido fue directo: con la hoja al lado «no se lee nada». Antes se
+   * apretaban seis números en una sola fila de ~400 px y el aviso de precio se
+   * montaba encima del subtotal. Ahora cada dato es un mini-campo —rótulo chico
+   * arriba, control a lo ancho de su media columna— y el nombre ocupa su propio
+   * renglón entero. Se pierde densidad y se gana poder leer y editar; es lo que
+   * se pidió.
+   *
+   * El orden de las áreas manda sobre el del HTML: por eso las acciones, que en
+   * la tabla van al final, acá suben al renglón de la referencia.
+   */
   .tabla tr {
     display: grid;
-    grid-template-columns: auto auto auto auto auto auto 1fr;
-    /* Renglón 1: referencia + NOMBRE a lo ancho (se lee entero). Renglón 2:
-       cantidad, precio, descuento, subtotal, IVA y las acciones; la última
-       columna 1fr es un resorte que los empuja a la izquierda. */
+    grid-template-columns: 1fr 1fr;
     grid-template-areas:
-      'ref  nombre nombre nombre nombre nombre nombre'
-      'cant precio dto    sub    iva    acc    .';
+      'ref    acc'
+      'nombre nombre'
+      'cant   precio'
+      'dto    iva'
+      'sub    sub';
     column-gap: var(--space-3);
-    row-gap: var(--space-1);
-    align-items: center;
-    padding: var(--space-2);
+    row-gap: var(--space-2);
+    align-items: start;
+    padding: var(--space-3);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface);
   }
+  /* Cada celda: el rótulo arriba, chico, y el control debajo, a lo ancho de su
+     media columna. */
   .tabla td {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
     min-width: 0;
     padding: 0;
     border: 0;
     width: auto;
     text-align: left;
   }
-  /* Rótulo chico antes del valor (Cant., Precio…). */
   .tabla td::before {
     content: attr(data-label);
-    flex: none;
     color: var(--color-text-soft);
     font-size: var(--text-xs);
   }
@@ -396,36 +405,40 @@
     display: none;
   }
 
-  /* ── Renglón 1 ── */
+  /* ── Renglón 1: referencia (texto) + acciones ── */
   .tabla td.sku {
     grid-area: ref;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-1);
     color: var(--color-text-muted);
     font-variant-numeric: tabular-nums;
   }
   .tabla td.sku::before {
-    content: none;
-  }
-  .tabla td.sku .inputTexto {
-    width: 5.5rem;
-  }
-  .tabla td.celdaNombre {
-    grid-area: nombre;
-    display: block;
-    font-weight: var(--weight-semibold);
-  }
-  .tabla td.celdaNombre::before {
-    content: none;
+    content: 'Ref.';
+    flex: none;
   }
   .tabla td.celdaAccion {
     grid-area: acc;
+    flex-direction: row;
     justify-content: flex-end;
+    align-items: center;
     gap: var(--space-1);
   }
   .tabla td.celdaAccion::before {
     content: none;
   }
 
-  /* ── Renglón 2 ── */
+  /* ── Renglón 2: el nombre, entero, a lo ancho ── */
+  .tabla td.celdaNombre {
+    grid-area: nombre;
+    font-weight: var(--weight-semibold);
+  }
+  .tabla td.celdaNombre::before {
+    content: none;
+  }
+
+  /* ── Números: cantidad y precio arriba, % dto. e impuesto debajo ── */
   .tabla td.cantidad {
     grid-area: cant;
   }
@@ -438,27 +451,26 @@
   .tabla td.impuestoCelda {
     grid-area: iva;
   }
-  /* El select ya dice «IVA 21 %»: el rótulo «Impuesto» sólo gasta ancho. */
   .tabla td.impuestoCelda::before {
-    content: none;
+    content: 'Impuesto';
   }
+  /* El aviso de precio va DEBAJO del input, a lo ancho de su columna y
+     envolviendo, sin pisar el subtotal como antes. */
+  .tabla td.precio .avisoHistorico,
+  .tabla td.precio .avisoIgual {
+    white-space: normal;
+  }
+
+  /* ── Subtotal: su propia fila, rótulo a la izquierda e importe a la derecha ── */
   .tabla td.subtotal {
     grid-area: sub;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding-top: var(--space-1);
+    border-top: 1px solid var(--color-border);
     font-weight: var(--weight-semibold);
-  }
-  /* Inputs compactos para que la fila de números entre entera. */
-  .tabla td.cantidad .inputNum {
-    width: 3.25rem;
-  }
-  .tabla td.precio .inputNum {
-    width: 5.5rem;
-  }
-  .tabla td.dto .inputNum {
-    width: 3rem;
-  }
-  .tabla td.impuestoCelda .inputSelect {
-    width: auto;
-    min-width: 5.5rem;
   }
 
   /* Una nota (capítulo) ocupa su propia tarjeta, a lo ancho. */
@@ -481,12 +493,13 @@
   .inputTexto,
   .inputNum,
   .inputSelect,
-  .notaInput,
-  .descripcionArea {
+  .descripcionArea,
+  .notaArea {
     font-size: 16px;
     min-height: 44px;
   }
-  .descripcionArea {
+  .descripcionArea,
+  .notaArea {
     height: 44px;
   }
 }

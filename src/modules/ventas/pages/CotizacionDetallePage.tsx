@@ -801,11 +801,11 @@ function Detalle() {
       ) : null}
 
       {editando ? (
-        // Editando, la barra tiene TRES botones y nada más (Fase 159): Guardar
-        // —graba y vuelve a la vista—, Guardar y editar —graba y sigue acá— y
-        // Descartar. Sin la flecha de volver, sin el formato de la hoja y sin el
-        // interruptor de la vista previa: «sólo esos tres». Generar pedido,
-        // duplicar o cancelar tampoco, que con un borrador a medias se pierde.
+        // Editando: Guardar —graba y vuelve a la vista—, Guardar y editar
+        // —graba y sigue acá—, Descartar, y el interruptor de la vista previa
+        // (Fase 200, pedido del usuario: poder ocultarla/mostrarla mientras se
+        // edita, para ganar ancho en las líneas). Generar pedido, duplicar o
+        // cancelar no van: con un borrador a medias se pierde.
         <ActionBar
           pegajosa
           titulo={doc.numero}
@@ -837,6 +837,14 @@ function Detalle() {
               >
                 Descartar
               </Button>
+              <Button
+                variant="secondary"
+                icon={<Icon name={verPrevia ? 'eye-off' : 'eye'} size={16} />}
+                onClick={() => setPreviaPedida(!verPrevia)}
+                aria-expanded={verPrevia}
+                aria-label={verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
+                title={verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
+              />
             </>
           }
           note={

@@ -352,15 +352,15 @@ describe('Pedido · edición por borrador', () => {
     montar()
     editar()
 
-    // Fase 159: exactamente estos tres y ningún otro botón.
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Guardar y editar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
-    // El cartel «Editando» se fue con el encabezado (Fase 84). Que se está
-    // editando lo dice la barra entera: cambia a tres acciones y nada más —sin
-    // el formato de la hoja ni el interruptor de la vista previa—.
+    // Fase 200: el interruptor de la vista previa vuelve a la barra de edición
+    // (pedido del usuario: ocultarla/mostrarla mientras edita).
+    expect(screen.getByRole('button', { name: /vista previa/i })).toBeInTheDocument()
+    // El cartel «Editando» se fue con el encabezado (Fase 84).
     expect(screen.queryByText('Editando')).toBeNull()
-    for (const nombre of ['Confirmar pedido', 'Más', 'Ver / Imprimir', 'Ocultar vista previa', 'Vista previa']) {
+    for (const nombre of ['Confirmar pedido', 'Más', 'Ver / Imprimir']) {
       expect(screen.queryByRole('button', { name: nombre })).toBeNull()
     }
   })

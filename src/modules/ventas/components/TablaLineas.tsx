@@ -197,8 +197,12 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLinea
                   <tr key={l.id} className={styles.capitulo}>
                     <td colSpan={columnas}>
                       {editando ? (
-                        <input
-                          className={styles.notaInput}
+                        // Como el título del STEL: un área que se agarra del
+                        // tirador y se estira para leer el texto entero cuando
+                        // es largo, en vez de cortarse en un renglón (Fase 200).
+                        <textarea
+                          className={styles.notaArea}
+                          rows={1}
                           value={l.nombre ?? ''}
                           placeholder="Escribí una nota: dónde se entrega, una aclaración…"
                           aria-label="Nota del documento"
@@ -222,30 +226,20 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLinea
                     {l.numeroLinea ?? i + 1}
                   </td>
                   <td className={styles.sku} data-label="Referencia">
-                    {editando ? (
-                      <input
-                        className={styles.inputTexto}
-                        value={l.sku ?? ''}
-                        // Un SKU del catálogo no se reescribe: la línea ya apunta
-                        // al producto y el texto sería una mentira.
-                        readOnly={l.productId !== null}
-                        aria-label="Referencia"
-                        onChange={(e) => edicion.onCambiar(l.id, 'sku_snapshot', e.target.value || null)}
-                      />
-                    ) : (
-                      <>
-                        {l.sku ?? '—'}
-                        {l.sku && l.productId === null ? (
-                          <span
-                            className={styles.sinProducto}
-                            title="El SKU quedó guardado, pero el producto no está en el catálogo actual"
-                          >
-                            <Icon name="alert-triangle" size={16} />
-                            <span className="sr-only">Producto fuera del catálogo actual</span>
-                          </span>
-                        ) : null}
-                      </>
-                    )}
+                    {/* La REFERENCIA no se edita desde ventas (Fase 200): es
+                        nuestro identificador del producto y cambiarlo acá
+                        rompería el vínculo. Se muestra como texto, mirando o
+                        editando. La toma del catálogo al elegir el producto. */}
+                    {l.sku ?? '—'}
+                    {l.sku && l.productId === null ? (
+                      <span
+                        className={styles.sinProducto}
+                        title="El SKU quedó guardado, pero el producto no está en el catálogo actual"
+                      >
+                        <Icon name="alert-triangle" size={16} />
+                        <span className="sr-only">Producto fuera del catálogo actual</span>
+                      </span>
+                    ) : null}
                   </td>
                   <td className={styles.celdaNombre} data-label="Producto">
                     {editando ? (
