@@ -51,10 +51,13 @@ export function ConsultasPage() {
     mutationFn: ({ id, estado }: { id: string; estado: EstadoConsulta }) =>
       marcarConsulta(id, estado),
     onSuccess: () => {
-      // Se recarga la lista y el contador de la campana, que comparte estos
-      // datos: marcar una contactada tiene que bajar el globito también.
+      // Se recarga la lista, el contador de la campana y el BADGE del menú
+      // lateral («Consultas del sitio»), que cuenta las nuevas: marcar una
+      // contactada o cerrarla tiene que bajar el globito en el acto, no recién
+      // en el refetch de los 2 min (Fase 202).
       void qc.invalidateQueries({ queryKey: ['consultas', companyId] })
       void qc.invalidateQueries({ queryKey: ['notificaciones', companyId] })
+      void qc.invalidateQueries({ queryKey: ['nav', companyId, 'sin-leer', 'consultas'] })
     },
   })
 

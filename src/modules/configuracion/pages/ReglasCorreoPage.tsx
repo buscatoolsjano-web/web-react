@@ -105,6 +105,7 @@ export function ReglasCorreoPage() {
     <div className={config.page}>
       <PageHeader
         title="Reglas de correo"
+        back={{ to: '/emails', label: 'Emails' }}
         actions={
           <Button icon={<Icon name="plus" size={16} />} onClick={() => abrir({ que: 'editar', regla: null })}>
             Nueva regla

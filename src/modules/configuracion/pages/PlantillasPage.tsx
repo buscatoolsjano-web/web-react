@@ -72,7 +72,7 @@ export function PlantillasPage() {
 
   return (
     <div className={styles.page}>
-      <PageHeader title="Plantillas de correo" />
+      <PageHeader title="Plantillas de correo" back={{ to: '/emails', label: 'Emails' }} />
       {aviso && <StatusMessage tono={aviso.tono} titulo={aviso.titulo} />}
 
       <MisDatos

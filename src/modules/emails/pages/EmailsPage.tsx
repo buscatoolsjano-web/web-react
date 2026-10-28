@@ -117,6 +117,24 @@ function Bandeja() {
   const filas = bandeja.data?.filas ?? []
   const actualizando = bandeja.isFetching && !bandeja.isPending
 
+  // El paginador va ARRIBA y abajo de la lista (Fase 202, pedido del usuario):
+  // con 58 páginas, tener que bajar hasta el final para pasar de página era un
+  // viaje. Es el mismo control en los dos lugares.
+  const paginador =
+    total > 0 ? (
+      <Pagination
+        label="Paginación de la bandeja"
+        offset={(filtros.pagina - 1) * filtros.porPagina}
+        pageSize={filtros.porPagina}
+        total={total}
+        noun={HILO}
+        loading={bandeja.isFetching}
+        onChange={(offset) => aplicar({ pagina: Math.floor(offset / filtros.porPagina) + 1 })}
+        pageSizeOptions={TAMANOS_BANDEJA}
+        onPageSizeChange={(porPagina) => aplicar({ porPagina })}
+      />
+    ) : null
+
   return (
     <div className={doc.listado}>
       <PageHeader
@@ -211,6 +229,9 @@ function Bandeja() {
           onLimpiar={limpiar}
         />
 
+        {/* Paginador de arriba: sólo cuando hay lista para paginar. */}
+        {filas.length > 0 ? paginador : null}
+
         {errorDeFila ? (
           <Alert tone="danger" role="alert" title="No se pudo aplicar el cambio">
             <p>{errorDeFila.message}</p>
@@ -271,19 +292,7 @@ function Bandeja() {
           />
         )}
 
-        {total > 0 ? (
-          <Pagination
-            label="Paginación de la bandeja"
-            offset={(filtros.pagina - 1) * filtros.porPagina}
-            pageSize={filtros.porPagina}
-            total={total}
-            noun={HILO}
-            loading={bandeja.isFetching}
-            onChange={(offset) => aplicar({ pagina: Math.floor(offset / filtros.porPagina) + 1 })}
-            pageSizeOptions={TAMANOS_BANDEJA}
-            onPageSizeChange={(porPagina) => aplicar({ porPagina })}
-          />
-        ) : null}
+        {paginador}
       </TabPanel>
 
       {etiquetasAbiertas ? <ModalEtiquetas onCerrar={() => setEtiquetasAbiertas(false)} /> : null}

@@ -98,14 +98,18 @@ describe('<EditorLineas>', () => {
     expect(screen.queryByLabelText('Precio unitario')).not.toBeInTheDocument()
   })
 
-  it('el SKU de un producto del catálogo no se puede editar', () => {
+  // Fase 200: la REFERENCIA es nuestro identificador del producto y no se edita
+  // desde ventas —ni en una línea de catálogo ni en una libre—, para que no
+  // cambie el id. Se muestra como texto, no como campo.
+  it('la referencia de un producto del catálogo es texto, no un campo', () => {
     montar([linea({ productId: 'p1', sku: 'PRO05229' })])
-    expect(screen.getByLabelText('Referencia')).toHaveAttribute('readonly')
+    expect(screen.queryByLabelText('Referencia')).not.toBeInTheDocument()
+    expect(screen.getByText('PRO05229')).toBeInTheDocument()
   })
 
-  it('una línea libre sí deja editar el SKU', () => {
-    montar([linea({ productId: null })])
-    expect(screen.getByLabelText('Referencia')).not.toHaveAttribute('readonly')
+  it('la referencia de una línea libre tampoco se edita', () => {
+    montar([linea({ productId: null, sku: 'LIBRE1' })])
+    expect(screen.queryByLabelText('Referencia')).not.toBeInTheDocument()
   })
 
   it('«otra alícuota» muestra el campo para escribirla', () => {
