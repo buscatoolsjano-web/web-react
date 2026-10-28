@@ -15,6 +15,11 @@
   border-collapse: collapse;
   font-size: var(--text-sm);
   line-height: var(--leading-table);
+  /* `fixed` para que los anchos del colgroup MANDEN: con `auto` el navegador
+     repartía por contenido y Producto quedaba en 58px mientras «% Dto.» se
+     estiraba a 98px (Fase 192). Con fijo, los números van ajustados y Producto
+     se lleva lo que sobra. */
+  table-layout: fixed;
 }
 
 /* Filas bajas: el relleno vertical es el mínimo (los inputs ya dan el alto).
@@ -46,30 +51,40 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Anchos de columna (Fase 190). Los números y la referencia van ajustados;
-   Producto y Descripción (sin ancho propio) se reparten lo que queda. Así un
-   «% Dto.» de dos dígitos deja de llevarse el espacio de la columna que se
-   lee. */
+/* Anchos de columna (Fase 192). Con `table-layout: fixed` MANDAN. Los números
+   y la referencia van ajustados; «Producto» se lleva todo el sobrante, que es
+   la columna que se lee. Así «% Dto.» —un número de dos dígitos— deja de ocupar
+   un ancho que no necesita. */
 .colNum {
-  width: 3rem;
+  width: 2.5rem;
 }
 .colRef {
-  width: 7.5rem;
+  width: 7rem;
+}
+/* Producto: sin ancho fijo, se queda con lo que sobra. En el `textarea` el
+   nombre largo se envuelve en varias líneas (legible) en vez de cortarse. */
+.colProducto {
+  width: auto;
+}
+/* Descripción tiene columna sólo cuando hay lugar; en angosto se esconde y su
+   ancho se colapsa para que Producto lo herede (ver el @container de abajo). */
+.colDesc {
+  width: 13rem;
 }
 .colCant {
-  width: 4.5rem;
+  width: 3.5rem;
 }
 .colPrecio {
-  width: 7rem;
+  width: 5.5rem;
 }
 .colDto {
-  width: 4rem;
+  width: 3.5rem;
 }
 .colImp {
-  width: 7.5rem;
+  width: 5.5rem;
 }
 .colSub {
-  width: 7rem;
+  width: 6.5rem;
 }
 .colAcc {
   width: 6.5rem;
@@ -126,8 +141,17 @@
  * imponer un ancho mínimo y el relleno se achica: así las ~9 columnas entran
  * sin scroll. Con la hoja cerrada el panel es ancho y vuelve la columna. */
 @container editor (max-width: 56rem) {
+  /* La columna Descripción se esconde acá. NO con `display: none`: eso saca la
+     celda y, con `table-layout: fixed`, descoloca todas las columnas de la
+     derecha (Cant. quedaba en 0). Se colapsa a 0 —el `<col>` a 0 y la celda sin
+     relleno ni contenido visible— así el conteo de columnas no cambia (Fase 192). */
+  .colDesc {
+    width: 0;
+  }
   .colDescripcion {
-    display: none;
+    padding: 0;
+    overflow: hidden;
+    white-space: nowrap;
   }
   .descripcionInline {
     /* Cortada a 3 renglones por defecto (Fase 186); con muchísimo texto no se
@@ -297,12 +321,12 @@
   background: var(--color-surface);
 }
 
-/* Sólo cuando el panel queda MUY angosto —un teléfono, o la hoja al lado en una
-   ventana bien chica— cada línea se apila como tarjeta. El corte bajó a 26rem
-   (Fase 162): con la hoja al lado el panel ronda los 600px y antes caía en las
-   tarjetas altas igual; se queda como tabla compacta, que es lo que se pidió
-   («ver todo en una fila»). Mira el panel, no la ventana. */
-@container editor (max-width: 26rem) {
+/* Con el panel angosto —la hoja al lado, o una ventana chica— cada línea se
+   apila como tarjeta en vez de apretarse en una fila. El corte volvió a subir a
+   56rem (Fase 192): en la Fase 162 se había bajado a 26rem para «ver todo en una
+   fila» con la hoja al lado (~600px), pero ahí no se leía nada —Producto quedaba
+   en un hilo—, así que se prioriza la legibilidad. Mira el panel, no la ventana. */
+@container editor (max-width: 56rem) {
   .scroll {
     overflow: visible;
     border: 0;

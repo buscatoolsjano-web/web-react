@@ -273,7 +273,10 @@ export function ModalCatalogoProductos({
               {
                 clave: 'cantidad',
                 encabezado: 'Cant.',
-                className: styles.num,
+                // Ancho propio: sin esto, con `table-layout: fixed` la columna se
+                // llevaba todo el sobrante (~271px) y dejaba las de datos
+                // apretadas y el botón fuera de la vista (Fase 192).
+                className: `${styles.num} ${styles.colCant}`,
                 celda: (p) => (
                   <Input
                     className={styles.cantidad}
@@ -290,8 +293,9 @@ export function ModalCatalogoProductos({
               {
                 clave: 'agregar',
                 encabezado: <span className="sr-only">Agregar</span>,
+                className: styles.colAgregar,
                 celda: (p) => (
-                  <Button size="sm" onClick={() => agregar(p)}>
+                  <Button size="sm" block onClick={() => agregar(p)}>
                     {agregados.includes(p.id) ? 'Sumar más' : '+ Agregar'}
                   </Button>
                 ),

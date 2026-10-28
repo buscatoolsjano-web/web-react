@@ -58,6 +58,17 @@
   text-align: right;
 }
 
+/* Anchos propios de las columnas de acción. Sin esto se reparten el sobrante
+   de la tabla (`table-layout: fixed`) y se comen el espacio de las de datos,
+   dejando el botón «Agregar» fuera de la vista (Fase 192). */
+.colCant {
+  width: 6rem;
+}
+
+.colAgregar {
+  width: 8.5rem;
+}
+
 .pie {
   display: flex;
   align-items: center;

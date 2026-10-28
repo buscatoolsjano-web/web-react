@@ -132,8 +132,8 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLinea
           <colgroup>
             <col className={styles.colNum} />
             <col className={styles.colRef} />
-            <col />
-            <col />
+            <col className={styles.colProducto} />
+            <col className={styles.colDesc} />
             <col className={styles.colCant} />
             {hayPrecios ? (
               <>
