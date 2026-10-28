@@ -353,12 +353,19 @@
      nombre; abajo, en una sola fila, cantidad, precio, descuento, impuesto,
      subtotal y las acciones. El relleno es mínimo a propósito: una cotización
      de diez ítems no tiene que quedar interminable. */
+  /* Grilla FIJA de dos renglones, no «envuelve cuando no entra»: así SIEMPRE
+     son dos, con la ventana angosta o ancha. Arriba: referencia · nombre
+     (ocupa el medio) · acciones. Abajo, alineados en columnas: cantidad,
+     precio, % dto., impuesto y subtotal. */
   .tabla tr {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas:
+      'ref  nombre nombre nombre acc'
+      'cant precio dto    imp    sub';
     column-gap: var(--space-2);
-    row-gap: 2px;
+    row-gap: var(--space-1);
+    align-items: center;
     padding: var(--space-2);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -368,6 +375,7 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
+    min-width: 0;
     padding: 0;
     border: 0;
     width: auto;
@@ -385,11 +393,9 @@
     display: none;
   }
 
-  /* ── Renglón 1: referencia (chica) + nombre (se lleva el resto y empuja los
-     números al renglón de abajo) ── */
+  /* ── Renglón 1 ── */
   .tabla td.sku {
-    order: 1;
-    flex: none;
+    grid-area: ref;
     color: var(--color-text-muted);
     font-variant-numeric: tabular-nums;
   }
@@ -397,59 +403,52 @@
     content: none;
   }
   .tabla td.sku .inputTexto {
-    width: 7rem;
+    width: 5.5rem;
   }
   .tabla td.celdaNombre {
-    order: 2;
-    /* Se queda con el sobrante del renglón 1 (basis 0 + grow): así referencia,
-       cantidad y subtotal entran arriba y el precio/dto/impuesto/acciones caen
-       al renglón 2, sin huecos raros. */
-    flex: 1 1 0;
-    min-width: 6rem;
+    grid-area: nombre;
     display: block;
     font-weight: var(--weight-semibold);
   }
   .tabla td.celdaNombre::before {
     content: none;
   }
+  .tabla td.celdaAccion {
+    grid-area: acc;
+    justify-content: flex-end;
+    gap: var(--space-1);
+  }
+  .tabla td.celdaAccion::before {
+    content: none;
+  }
 
-  /* ── Renglón 1 (sigue): cantidad y subtotal cierran arriba, con la
-     referencia y el nombre ── así el renglón 2 queda holgado para el precio,
-     el descuento, el impuesto y las acciones en UNA sola fila. */
-  .tabla td.cantidad {
-    order: 3;
-  }
-  .tabla td.subtotal {
-    order: 4;
-    font-weight: var(--weight-semibold);
-  }
   /* ── Renglón 2 ── */
+  .tabla td.cantidad {
+    grid-area: cant;
+  }
   .tabla td.precio {
-    order: 5;
+    grid-area: precio;
   }
   .tabla td.dto {
-    order: 6;
+    grid-area: dto;
   }
   .tabla td.impuestoCelda {
-    order: 7;
+    grid-area: imp;
   }
   /* El select ya dice «IVA 21 %»: el rótulo «Impuesto» sólo gasta ancho. */
   .tabla td.impuestoCelda::before {
     content: none;
   }
-  .tabla td.celdaAccion {
-    order: 8;
-    gap: var(--space-1);
-  }
-  .tabla td.celdaAccion::before {
-    content: none;
+  .tabla td.subtotal {
+    grid-area: sub;
+    font-weight: var(--weight-semibold);
   }
   /* Inputs compactos para que la fila de números entre entera. */
   .tabla td.cantidad .inputNum {
     width: 3.25rem;
   }
   .tabla td.precio .inputNum {
-    width: 5.5rem;
+    width: 4.5rem;
   }
   .tabla td.dto .inputNum {
     width: 3rem;
