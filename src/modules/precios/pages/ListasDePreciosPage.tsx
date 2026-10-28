@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
@@ -8,7 +7,10 @@ import { Input } from '@/components/forms/controls'
 import { Button } from '@/components/ui/Button'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { ImagenProducto } from '@/modules/catalogo/components/ImagenProducto'
-import { rutaProducto } from '@/modules/catalogo/lib/rutas'
+import { ModalProducto } from '@/modules/catalogo/components/ModalProducto'
+import { useProductoSeleccionado } from '@/modules/catalogo/hooks/useProductoSeleccionado'
+import { useDefinicionesDeAtributos, useListasDePrecios } from '@/modules/catalogo/hooks/useCatalogoFacetas'
+import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { filaClickeable } from '@/components/tables/filaClickeable'
 import tabla from '@/components/tables/Tabla.module.css'
 import { useIsMobile } from '@/hooks/useMediaQuery'
@@ -39,8 +41,16 @@ const POR_PAGINA = 25
  * en él ya costó una vez (Fase 43).
  */
 export function ListasDePreciosPage() {
-  const navigate = useNavigate()
   const esMovil = useIsMobile()
+  // El producto se abre EN esta pantalla, en un modal, no navegando al catálogo
+  // (Fase 207): así al cerrarlo se vuelve a la lista de precios con la marca, la
+  // búsqueda y la página intactas. Vive en `?producto=` como en el catálogo, así
+  // «atrás» cierra y recargar lo deja abierto.
+  const { seleccionado, abrir, cerrar } = useProductoSeleccionado()
+  const companyIdActiva = useEmpresa().activa?.companyId ?? null
+  const definiciones = useDefinicionesDeAtributos(companyIdActiva)
+  const listasDePrecios = useListasDePrecios(companyIdActiva)
+  const monedaVenta = listasDePrecios.porDefecto?.moneda ?? null
   const fuentes = useFuentesDeListas()
   const [fuenteId, setFuenteId] = useState<string | null>(null)
   const [texto, setTexto] = useState('')
@@ -188,7 +198,7 @@ export function ListasDePreciosPage() {
             />
           ) : (
             <>
-              <div className={tabla.contenedor}>
+              <div className={`${tabla.contenedor} ${styles.scrollPlanilla}`}>
                 <table className={`${tabla.tabla} ${styles.planilla}`}>
                   <caption className="sr-only">Precios por referencia y por fecha de lista</caption>
                   <thead>
@@ -217,7 +227,15 @@ export function ListasDePreciosPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(planilla.data?.filas ?? []).map((fila) => (
+                    {(planilla.data?.filas ?? []).map((fila) => {
+                      // El mejor precio de la fila: el más barato entre las
+                      // listas que lo tienen. Sólo se resalta si hay con qué
+                      // comparar (más de un precio). (Fase 207)
+                      const valoresFila = fechas
+                        .map((f) => fila.precios[f])
+                        .filter((v): v is number => v !== null && v !== undefined)
+                      const mejorPrecio = valoresFila.length > 1 ? Math.min(...valoresFila) : null
+                      return (
                       <tr
                         key={fila.reference}
                         /*
@@ -229,10 +247,10 @@ export function ListasDePreciosPage() {
                           Sólo cuando la referencia cruzó con el catálogo: sin
                           producto no hay ficha que abrir, y la fila ya lo dice.
                         */
-                        className={fila.sku !== null ? styles.filaAbrible : undefined}
-                        title={fila.sku !== null ? 'Abrir la ficha del producto' : undefined}
-                        {...(fila.sku !== null
-                          ? filaClickeable(() => void navigate(rutaProducto(fila.sku!)))
+                        className={fila.productId !== null ? styles.filaAbrible : undefined}
+                        title={fila.productId !== null ? 'Abrir la ficha del producto' : undefined}
+                        {...(fila.productId !== null
+                          ? filaClickeable(() => abrir(fila.productId!))
                           : {})}
                       >
                         <td
@@ -261,8 +279,13 @@ export function ListasDePreciosPage() {
                           const previa = i + 1 < fechas.length ? fila.precios[fechas[i + 1]!] : undefined
                           const pct = variacionEntre(valor, previa)
                           const texto = valor === null || valor === undefined ? null : formatearImporte(valor)
+                          const esMejor = valor !== null && valor !== undefined && valor === mejorPrecio
                           return (
-                            <td key={f} className={`${tabla.num} ${i === 0 ? styles.colVigente : ''}`}>
+                            <td
+                              key={f}
+                              className={`${tabla.num} ${i === 0 ? styles.colVigente : ''} ${esMejor ? styles.mejor : ''}`}
+                              title={esMejor ? 'El precio más bajo de esta referencia' : undefined}
+                            >
                               {texto === null ? (
                                 /* Vacía a propósito: no estaba en esa lista.
                                    Un cero diría que valía cero. */
@@ -347,7 +370,8 @@ export function ListasDePreciosPage() {
                           )}
                         </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
                 {/*
@@ -357,6 +381,20 @@ export function ListasDePreciosPage() {
                 */}
               </div>
               <DesglosePrecio celda={celda} onCerrar={() => setCelda(null)} />
+              {/* El producto, EN esta pantalla (Fase 207): se abre encima de la
+                  lista de precios, no navegando al catálogo, así cerrarlo vuelve
+                  a la lista tal cual estaba. */}
+              {seleccionado ? (
+                <ModalProducto
+                  productoId={seleccionado}
+                  priceListId={listasDePrecios.porDefecto?.id ?? null}
+                  listaResuelta={!listasDePrecios.cargando}
+                  moneda={monedaVenta}
+                  definiciones={definiciones.data ?? []}
+                  onCerrar={cerrar}
+                  onAbrirOtro={abrir}
+                />
+              ) : null}
               {zoom ? (
                 <ZoomDeFoto
                   imagen={zoom.fila.imagen}

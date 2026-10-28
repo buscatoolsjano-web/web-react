@@ -187,6 +187,37 @@
   vertical-align: middle;
 }
 
+/* El encabezado queda FIJO al scrollear (Fase 207). Con cientos de referencias
+   y varias columnas de fecha, perder los rótulos a la quinta fila dejaba una
+   grilla de números sin saber qué es cada columna.
+
+   Para que `sticky` funcione hace falta que el scroll vertical lo haga ESTA
+   caja —el contenedor tiene `overflow-x:auto`, que vuelve el eje Y un scroll
+   propio—, así que se le pone un alto máximo y el thead se pega arriba de todo
+   con un fondo opaco para no dejar ver las filas por debajo. */
+.scrollPlanilla {
+  max-height: calc(100dvh - 20rem);
+}
+
+.planilla thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-surface-alt);
+}
+
+/* El MEJOR precio de cada fila —el más barato de todas las listas— marcado en
+   verde, para verlo de un vistazo (Fase 207). Sólo cuando hay con qué comparar
+   (más de un precio en la fila). */
+.mejor {
+  background: var(--color-success-soft);
+}
+
+.mejor .precio {
+  color: var(--color-success-text);
+  font-weight: var(--weight-semibold);
+}
+
 /* La fila abre la ficha, como en el catálogo (Fase 54). Mismo cursor y mismo
    foco visible que allá: son la misma acción y se tienen que sentir igual.
 
