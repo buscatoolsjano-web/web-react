@@ -87,6 +87,9 @@ async function documentos() {
   console.log(`  empresa ${EMPRESA} · ${aplicar ? 'APLICA' : 'sólo lectura'}`)
   const { run, resumen, plan } = await sincronizarDocumentos(sb, c, {
     company, empresaSlug: EMPRESA, owner: dueño(), categoriaRevisionId, listaPreciosId: lista.id,
+    // La moneda base de la empresa, para detectar el error de carga de STEL
+    // (moneda extranjera con el monto en la base) y guardar la correcta (Fase 201).
+    monedaBase: lista.currency_code,
     desde: arg('--desde'), soloLectura: !aplicar,
     leerStel, leerReact: leerReactEmpresa,
     log: (m) => console.log(m),

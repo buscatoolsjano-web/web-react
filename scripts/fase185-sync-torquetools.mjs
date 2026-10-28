@@ -44,7 +44,9 @@ const { data: listas } = await sb.from('price_lists').select('id, name, currency
 const base = (listas ?? []).filter((l) => l.is_default)
 if (base.length !== 1) { console.error('✗ TT no tiene exactamente una lista de precios por defecto'); process.exit(1) }
 console.log(`  empresa: ${react.BT} · lista base: ${base[0].name} (${base[0].currency_code})`)
-const ctx = { categoriaRevisionId: cat?.id ?? null, listaBaseId: base[0].id }
+// `monedaBase` (EUR para TT): detecta el error de carga de STEL —moneda
+// extranjera con el monto en la base— y guarda la moneda correcta (Fase 201).
+const ctx = { categoriaRevisionId: cat?.id ?? null, listaBaseId: base[0].id, monedaBase: base[0].currency_code }
 
 // Pass 1: sin confirmaciones, para encontrar los productos SKU-igual/nombre-distinto.
 const { plan: plan0 } = planificarE2(stel, react, { ...ctx, aprobados: { borrados: [] } })

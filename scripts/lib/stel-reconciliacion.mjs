@@ -29,6 +29,33 @@ const TIPOS = {
 const num = (v) => { const n = Number(v); return v === null || v === undefined || v === '' || !Number.isFinite(n) ? null : n }
 const igual = (a, b, tol = 0.01) => (a === null && b === null) || (a !== null && b !== null && Math.abs(a - b) <= tol + 1e-9)
 const dia = (s) => (s ?? '').toString().slice(0, 10) || null
+
+/**
+ * La moneda REAL del documento (Fase 201).
+ *
+ * STEL trae `currency-code` + `currency-rate`, pero hubo un error de carga en
+ * STEL: ofertas en la moneda base (USD) creadas con la moneda puesta en ARS,
+ * con los precios igual escritos en USD. Quedaban como «2623 ARS» cuando eran
+ * «2623 USD» —un error de ~1500×, porque 1 USD ≈ 1538 ARS—. STEL las devuelve
+ * con `currency-code: "ARS"` y `currency-rate` ≈ 0,00065; su valor convertido a
+ * la base (`total × rate`) da un absurdo (~1,70) para un documento cuyo total
+ * YA está en la base. Cuando eso pasa, la moneda real es la base.
+ *
+ * Sólo corrige ese caso patológico. Un documento genuino en ARS (total en
+ * millones) convierte a un valor sensato en la base y se respeta tal cual;
+ * igual uno genuino en USD o EUR, donde el total × rate nunca es absurdo.
+ */
+const PISO_VALOR_BASE = 20
+export function monedaReal(s, monedaBase) {
+  const code = s?.['currency-code'] ?? null
+  if (!code || !monedaBase || code === monedaBase) return code
+  const rate = num(s['currency-rate'])
+  const total = num(s['total-amount'])
+  if (rate !== null && rate !== 1 && total !== null && total > PISO_VALOR_BASE && total * rate < PISO_VALOR_BASE) {
+    return monedaBase
+  }
+  return code
+}
 const normTexto = (s) => (s ?? '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
 export function tratamiento(docStel, linea) {
@@ -65,6 +92,10 @@ export function estadoReact(tipo, nombre) {
  */
 export function planificarE2(stel, react, o = {}) {
   const reco = reconciliar(stel, react)
+  // La moneda base de la empresa (la de su lista de precios por defecto): USD
+  // para Buscatools, EUR para Torquetools. Con ella se detecta el error de
+  // carga de STEL en `monedaReal` (Fase 201).
+  const monedaBase = o.monedaBase ?? null
   const aprobados = new Set(o.aprobados?.borrados ?? [])
   const vinculosAprobados = new Set((o.aprobados?.vinculosProducto ?? []).map(String))
   const regresivosAprobados = new Set(o.aprobados?.estadosRegresivos ?? [])
@@ -215,7 +246,7 @@ export function planificarE2(stel, react, o = {}) {
         })
         const sinProducto = lineas.filter((l) => l.product_id === null).length
         const cabecera = {
-          customer_id: cli.id, [conf.fecha]: dia(s.date), currency_code: s['currency-code'] ?? null, title: s.title ?? null,
+          customer_id: cli.id, [conf.fecha]: dia(s.date), currency_code: monedaReal(s, monedaBase), title: s.title ?? null,
           subtotal: num(s['subtotal-amount']), tax_amount: num(s['tax-total-amount']), total: num(s['total-amount']),
           series_code: f.numero.replace(/[0-9]+$/, ''), needs_review: sinProducto > 0,
           review_reason: sinProducto > 0 ? `STEL_RECONCILIATION: ${sinProducto} línea(s) sin producto vinculado` : null,
@@ -255,8 +286,9 @@ export function planificarE2(stel, react, o = {}) {
         poner('external_source', r.external_source ?? null, 'stel')
         poner('external_id', r.external_id ?? null, String(s.id))
       }
-      if (!r.currency_code && s['currency-code']) poner('currency_code', null, s['currency-code'])
-      else if (r.currency_code && s['currency-code'] && r.currency_code !== s['currency-code']) bloqueados.push({ tipo, numero: f.numero, motivo: 'MONEDA_DISTINTA_REVISAR', react: r.currency_code, stel: s['currency-code'] })
+      const monedaStel = monedaReal(s, monedaBase)
+      if (!r.currency_code && monedaStel) poner('currency_code', null, monedaStel)
+      else if (r.currency_code && monedaStel && r.currency_code !== monedaStel) bloqueados.push({ tipo, numero: f.numero, motivo: 'MONEDA_DISTINTA_REVISAR', react: r.currency_code, stel: monedaStel })
       for (const [campo, clave] of [['subtotal', 'subtotal-amount'], ['tax_amount', 'tax-total-amount'], ['total', 'total-amount']]) {
         if (!igual(num(r[campo]), num(s[clave]))) poner(campo, num(r[campo]), num(s[clave]))
       }

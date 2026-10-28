@@ -217,7 +217,7 @@ export async function sincronizarDocumentos(sb, c, o) {
     if (!desde) throw new Error('sin checkpoint: pasar --desde <YYYY-MM-DD>')
     const stel = await o.leerStel(c, { desde, conMaestro: false, loteReferencias: 80 })
     const react = await o.leerReact(sb, o.empresaSlug)
-    const { plan } = planificarE2(stel, react, { categoriaRevisionId: o.categoriaRevisionId, listaBaseId: o.listaPreciosId, aprobados: { borrados: [] } })
+    const { plan } = planificarE2(stel, react, { categoriaRevisionId: o.categoriaRevisionId, listaBaseId: o.listaPreciosId, monedaBase: o.monedaBase, aprobados: { borrados: [] } })
     resumen.documentos = plan.documentos.length
     resumen.insertados = plan.documentos.filter((d) => d.operacion === 'insert').length
     resumen.actualizados = plan.documentos.filter((d) => d.operacion === 'update').length
