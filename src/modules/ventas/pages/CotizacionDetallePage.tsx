@@ -65,6 +65,7 @@ import {
   crearBorrador,
   hayCambios,
   moverLinea,
+  reordenarLinea,
   quitarLinea,
   type Borrador,
   type CampoCabecera,
@@ -1035,6 +1036,9 @@ function Detalle() {
                       onCambiar={cambiarLinea}
                       onEliminar={(clave) => setBorrador((b) => (b ? quitarLinea(b, clave) : b))}
                       onMover={(clave, d) => setBorrador((b) => (b ? moverLinea(b, clave, d) : b))}
+                      onReordenar={(clave, destino) =>
+                        setBorrador((b) => (b ? reordenarLinea(b, clave, destino) : b))
+                      }
                       listaPrecioId={borrador.cabecera.listaPrecioId || null}
                       onElegirProducto={(clave, p, precio) =>
                         setBorrador((b) =>

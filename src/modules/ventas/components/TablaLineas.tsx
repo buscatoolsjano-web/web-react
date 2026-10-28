@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type DragEvent } from 'react'
 import { Icon } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
 import { cx } from '@/utils/cx'
@@ -36,6 +36,12 @@ export interface EdicionLineas {
   onCambiar: (lineaId: string, campo: CampoLinea, valor: string | number | null) => void
   onEliminar: (lineaId: string) => void
   onMover: (lineaId: string, direccion: -1 | 1) => void
+  /**
+   * Reordenar arrastrando (Fase 214): soltar una línea en otra posición. Si
+   * viene, en vez de las flechitas de subir/bajar se muestra un tirador de seis
+   * puntos que se agarra y se mueve.
+   */
+  onReordenar?: ((lineaId: string, destino: number) => void) | undefined
   /** El último precio de este cliente por producto, para el aviso en naranja. */
   historicos?: Map<string, UltimoPrecio> | undefined
   /**
@@ -104,6 +110,18 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLinea
       else siguiente.add(id)
       return siguiente
     })
+
+  // Qué línea se está arrastrando (Fase 214). La fila donde se suelta es el
+  // destino. Se guarda la clave, no el índice, porque el índice cambia al mover.
+  const [arrastrando, setArrastrando] = useState<string | null>(null)
+  const permitirSoltar = (e: DragEvent) => {
+    if (arrastrando !== null) e.preventDefault()
+  }
+  const soltarEn = (destino: number) => (e: DragEvent) => {
+    e.preventDefault()
+    if (arrastrando !== null && edicion?.onReordenar) edicion.onReordenar(arrastrando, destino)
+    setArrastrando(null)
+  }
 
   if (lineas.length === 0) {
     return (
@@ -185,8 +203,38 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLinea
             {lineas.map((l, i) => {
               const acciones = editando ? (
                 <td className={styles.celdaAccion}>
-                  <IconButton icon="arrow-up" aria-label="Subir" size="sm" onClick={() => edicion.onMover(l.id, -1)} disabled={i === 0} />
-                  <IconButton icon="arrow-down" aria-label="Bajar" size="sm" onClick={() => edicion.onMover(l.id, 1)} disabled={i === lineas.length - 1} />
+                  {edicion.onReordenar ? (
+                    // Un solo botón que se agarra y se arrastra (Fase 214), en vez
+                    // de las dos flechitas: se gana lugar a la derecha.
+                    <button
+                      type="button"
+                      className={styles.tirador}
+                      draggable
+                      aria-label="Arrastrar para reordenar la línea"
+                      title="Arrastrá para mover la línea"
+                      onDragStart={(e) => {
+                        setArrastrando(l.id)
+                        if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+                      }}
+                      onDragEnd={() => setArrastrando(null)}
+                    >
+                      <span className={styles.grip} aria-hidden="true">
+                        <svg viewBox="0 0 10 16" width="10" height="16">
+                          <circle cx="3" cy="4" r="1.3" />
+                          <circle cx="7" cy="4" r="1.3" />
+                          <circle cx="3" cy="8" r="1.3" />
+                          <circle cx="7" cy="8" r="1.3" />
+                          <circle cx="3" cy="12" r="1.3" />
+                          <circle cx="7" cy="12" r="1.3" />
+                        </svg>
+                      </span>
+                    </button>
+                  ) : (
+                    <>
+                      <IconButton icon="arrow-up" aria-label="Subir" size="sm" onClick={() => edicion.onMover(l.id, -1)} disabled={i === 0} />
+                      <IconButton icon="arrow-down" aria-label="Bajar" size="sm" onClick={() => edicion.onMover(l.id, 1)} disabled={i === lineas.length - 1} />
+                    </>
+                  )}
                   <IconButton icon="trash" aria-label="Eliminar línea" size="sm" variant="danger" onClick={() => edicion.onEliminar(l.id)} />
                 </td>
               ) : null
@@ -194,7 +242,12 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLinea
               // Un capítulo es un título dentro del documento: ocupa toda la fila.
               if (l.tipoLinea === 'chapter') {
                 return (
-                  <tr key={l.id} className={styles.capitulo}>
+                  <tr
+                    key={l.id}
+                    className={cx(styles.capitulo, arrastrando === l.id && styles.arrastrando)}
+                    onDragOver={editando ? permitirSoltar : undefined}
+                    onDrop={editando ? soltarEn(i) : undefined}
+                  >
                     <td colSpan={columnas}>
                       {editando ? (
                         // Como el título del STEL: un área que se agarra del
@@ -221,7 +274,12 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLinea
                 editando && l.productId ? avisoDePrecio(historicos.get(l.productId), l.precioUnitario ?? 0) : null
 
               return (
-                <tr key={l.id}>
+                <tr
+                  key={l.id}
+                  className={cx(arrastrando === l.id && styles.arrastrando)}
+                  onDragOver={editando ? permitirSoltar : undefined}
+                  onDrop={editando ? soltarEn(i) : undefined}
+                >
                   <td className={styles.num} data-label="#">
                     {l.numeroLinea ?? i + 1}
                   </td>

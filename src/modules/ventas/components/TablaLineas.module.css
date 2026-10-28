@@ -69,7 +69,7 @@
 /* Descripción tiene columna sólo cuando hay lugar; en angosto se esconde y su
    ancho se colapsa para que Producto lo herede (ver el @container de abajo). */
 .colDesc {
-  width: 13rem;
+  width: 15rem;
 }
 .colCant {
   width: 3.5rem;
@@ -81,13 +81,16 @@
   width: 3.5rem;
 }
 .colImp {
-  width: 5.5rem;
+  width: 6rem;
 }
 .colSub {
   width: 6.5rem;
 }
+/* Una sola acción visible (el tirador) + la papelera: antes eran tres botones y
+   la columna medía 6,5rem. Al sacar las flechitas se achica y lo liberado va a
+   Descripción e Impuesto (Fase 214). */
 .colAcc {
-  width: 6.5rem;
+  width: 3.75rem;
 }
 
 .sku {
@@ -285,12 +288,53 @@
 }
 
 .colAccion {
-  width: 6.5rem;
+  width: 3.75rem;
 }
 
 .celdaAccion {
   white-space: nowrap;
   text-align: right;
+}
+
+/* El tirador de seis puntos: se agarra y se arrastra para reordenar (Fase 214).
+   Se ve como un botón fantasma —sin fondo— y el cursor dice que se mueve. */
+.tirador {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: grab;
+  vertical-align: middle;
+}
+
+.tirador:hover {
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.tirador:active {
+  cursor: grabbing;
+}
+
+.tirador:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -1px;
+}
+
+.grip svg {
+  fill: currentColor;
+  display: block;
+}
+
+/* La fila mientras se la arrastra: se atenúa para que se note qué se mueve. */
+.arrastrando {
+  opacity: 0.45;
 }
 
 .avisoHistorico,
@@ -365,16 +409,18 @@
    * El orden de las áreas manda sobre el del HTML: por eso las acciones, que en
    * la tabla van al final, acá suben al renglón de la referencia.
    */
+  /* Dos renglones por línea, como pidió el usuario (Fase 214): arriba la
+     referencia + el título; abajo, en una sola fila, cantidad · precio · % dto.
+     · impuesto · subtotal. Columnas: la 1.ª y la última se ajustan al contenido
+     (ref/cant y acciones/subtotal), las tres del medio se reparten lo que queda
+     —ahí va el título y los números anchos como «IVA 21 %»—. */
   .tabla tr {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: auto 1fr 1fr 1fr auto;
     grid-template-areas:
-      'ref    acc'
-      'nombre nombre'
-      'cant   precio'
-      'dto    iva'
-      'sub    sub';
-    column-gap: var(--space-3);
+      'ref  nombre nombre nombre acc'
+      'cant precio dto    iva    sub';
+    column-gap: var(--space-2);
     row-gap: var(--space-2);
     align-items: start;
     padding: var(--space-3);
@@ -461,15 +507,11 @@
     white-space: normal;
   }
 
-  /* ── Subtotal: su propia fila, rótulo a la izquierda e importe a la derecha ── */
+  /* ── Subtotal: ahora es una celda más del renglón de números (Fase 214) ──
+     Rótulo arriba e importe debajo, como cant./precio; ya no es una fila aparte. */
   .tabla td.subtotal {
     grid-area: sub;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: var(--space-2);
-    padding-top: var(--space-1);
-    border-top: 1px solid var(--color-border);
+    text-align: right;
     font-weight: var(--weight-semibold);
   }
 

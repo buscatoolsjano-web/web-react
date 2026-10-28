@@ -31,10 +31,12 @@ function montar(
   lineas: LineaDocumento[],
   editable = true,
   historicos?: Map<string, UltimoPrecio>,
+  conReordenar = false,
 ) {
   const onCambiar = vi.fn()
   const onEliminar = vi.fn()
   const onMover = vi.fn()
+  const onReordenar = vi.fn()
   render(
     <EditorLineas
       lineas={lineas}
@@ -44,9 +46,10 @@ function montar(
       onCambiar={onCambiar}
       onEliminar={onEliminar}
       onMover={onMover}
+      onReordenar={conReordenar ? onReordenar : undefined}
     />,
   )
-  return { onCambiar, onEliminar, onMover }
+  return { onCambiar, onEliminar, onMover, onReordenar }
 }
 
 /** El caso real: al mismo cliente, 49,40 y después 22,20 en USD. */
@@ -136,6 +139,24 @@ describe('<EditorLineas>', () => {
     montar([linea({ id: 'a' }), linea({ id: 'b', numeroLinea: 2 })])
     expect(screen.getAllByLabelText('Subir')[0]).toBeDisabled()
     expect(screen.getAllByLabelText('Bajar')[1]).toBeDisabled()
+  })
+
+  // Fase 214: con `onReordenar` las flechitas se reemplazan por un tirador que se
+  // arrastra. Soltar la primera línea sobre la segunda la manda a esa posición.
+  it('con tirador: arrastrar una línea sobre otra la reordena por id y destino', () => {
+    const { onReordenar } = montar(
+      [linea({ id: 'a' }), linea({ id: 'b', numeroLinea: 2 })],
+      true,
+      undefined,
+      true,
+    )
+    expect(screen.queryByLabelText('Subir')).not.toBeInTheDocument()
+    const tiradores = screen.getAllByLabelText('Arrastrar para reordenar la línea')
+    expect(tiradores).toHaveLength(2)
+    const filaDestino = tiradores[1]!.closest('tr')!
+    fireEvent.dragStart(tiradores[0]!)
+    fireEvent.drop(filaDestino)
+    expect(onReordenar).toHaveBeenCalledExactlyOnceWith('a', 1)
   })
 
   it('sin líneas lo dice en vez de mostrar una tabla vacía', () => {

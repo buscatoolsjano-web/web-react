@@ -30,6 +30,8 @@ export interface EditorLineasProps {
   onCambiar: (lineaId: string, campo: CampoLinea, valor: string | number | null) => void
   onEliminar: (lineaId: string) => void
   onMover: (lineaId: string, direccion: -1 | 1) => void
+  /** Reordenar arrastrando: soltar la línea en otra posición (Fase 214). */
+  onReordenar?: ((lineaId: string, destino: number) => void) | undefined
   /**
    * Buscar productos desde el nombre de una línea libre (Fase 163). Si viene,
    * escribir el nombre muestra coincidencias y elegir una rellena la línea.
@@ -50,6 +52,7 @@ export function EditorLineas({
   onCambiar,
   onEliminar,
   onMover,
+  onReordenar,
   onElegirProducto,
   listaPrecioId,
 }: EditorLineasProps) {
@@ -64,6 +67,7 @@ export function EditorLineas({
               onCambiar,
               onEliminar,
               onMover,
+              onReordenar,
               historicos,
               catalogo: onElegirProducto
                 ? { listaPrecioId: listaPrecioId ?? null, onElegirProducto }

@@ -52,6 +52,7 @@ import {
   faltaParaCrear,
   hayCambios,
   moverLinea,
+  reordenarLinea,
   quitarLinea,
   type Borrador,
   type CampoCabecera,
@@ -663,6 +664,7 @@ export function PedidoNuevoPage() {
               onCambiar={cambiarLinea}
               onEliminar={(clave) => setB((x) => quitarLinea(x, clave))}
               onMover={(clave, d) => setB((x) => moverLinea(x, clave, d))}
+              onReordenar={(clave, destino) => setB((x) => reordenarLinea(x, clave, destino))}
               listaPrecioId={b.cabecera.listaPrecioId || null}
               onElegirProducto={(clave, p, precio) =>
                 setB((x) =>

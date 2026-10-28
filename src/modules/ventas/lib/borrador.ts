@@ -398,6 +398,25 @@ export function moverLinea(b: Borrador, clave: string, direccion: -1 | 1): Borra
   return { ...b, lineas: lineas.sort((x, y) => x.numeroLinea - y.numeroLinea) }
 }
 
+/**
+ * Mueve una línea a una posición cualquiera (arrastrar y soltar, Fase 214).
+ *
+ * `moverLinea` sólo corre de a un lugar; con el tirador se puede soltar en
+ * cualquier fila, así que se saca la línea de su lugar y se la inserta en el
+ * destino, renumerando 1..N según el orden nuevo.
+ */
+export function reordenarLinea(b: Borrador, clave: string, destino: number): Borrador {
+  const desde = b.lineas.findIndex((l) => l.clave === clave)
+  if (desde < 0) return b
+  const limite = Math.max(0, Math.min(destino, b.lineas.length - 1))
+  if (desde === limite) return b
+  const lineas = [...b.lineas]
+  const [movida] = lineas.splice(desde, 1)
+  if (!movida) return b
+  lineas.splice(limite, 0, movida)
+  return { ...b, lineas: lineas.map((l, i) => ({ ...l, numeroLinea: i + 1 })) }
+}
+
 // ── Cambios pendientes ─────────────────────────────────────────────────────
 
 const mismaLinea = (a: LineaBorrador, b: LineaBorrador) =>
