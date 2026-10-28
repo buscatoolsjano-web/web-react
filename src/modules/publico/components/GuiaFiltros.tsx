@@ -281,12 +281,25 @@ export function GuiaFiltros({
   // Z y de menor a mayor —orden natural, para que «2» vaya antes que «10» y no
   // detrás—. La categoría y el grupo se dejan como vienen (por cantidad): son
   // pocos y esa es una buena portada.
+  // Si TODAS las opciones son números, se ordenan por su valor real. Se mira el
+  // `valor` crudo («1.6»), NO la etiqueta («1.6 m»), que lleva la unidad y nunca
+  // parsea. Y no alcanza el `localeCompare(numeric:true)`: con decimales parte
+  // en el punto y compara la parte decimal como entero, así que ponía «1.6»
+  // antes que «1.35» (6 < 35). Con valores mezclados (encastre «1/4», medidas)
+  // sí sirve el natural, que mantiene «2» antes que «10».
+  const esNumero = (s: string) => /^-?\d+(?:[.,]\d+)?$/.test(s.trim())
+  const aNumero = (s: string) => Number(s.trim().replace(',', '.'))
+  const ordenarOpciones = (ops: readonly Opcion[]): Opcion[] => {
+    const todosNumericos = ops.length > 0 && ops.every((o) => esNumero(o.valor))
+    return [...ops].sort((a, b) =>
+      todosNumericos
+        ? aNumero(a.valor) - aNumero(b.valor)
+        : a.etiqueta.localeCompare(b.etiqueta, 'es', { numeric: true }),
+    )
+  }
+
   const ordenable = activo !== undefined && activo.clave !== 'categoria' && activo.clave !== 'grupo'
-  const visibles = activo
-    ? ordenable
-      ? [...activo.opciones].sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, 'es', { numeric: true }))
-      : activo.opciones
-    : []
+  const visibles = activo ? (ordenable ? ordenarOpciones(activo.opciones) : activo.opciones) : []
 
   const etiquetaChip = (p: Paso): string => {
     if (p.clave === 'grupo') return GRUPOS.find((g) => g.clave === p.elegido)?.label ?? p.elegido
