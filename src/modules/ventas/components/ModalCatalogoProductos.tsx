@@ -282,6 +282,10 @@ export function ModalCatalogoProductos({
                navegar el catálogo, más visual (Fase 196). La tabla queda a un
                clic para ordenar o comparar. */
             forzarTarjetas={vista === 'tarjetas'}
+            /* Las fotos en `eager`: son 25 y viven en el scroll propio del
+               cuerpo, donde el `lazy` del navegador deja en blanco las de abajo
+               hasta scrollear —lo que se siente como que no carga— (Fase 197). */
+            imagenesEager
             esInterno={esInterno}
             moneda={moneda}
             disponibilidad={disponibilidad}

@@ -92,6 +92,17 @@ export interface ListadoProductosProps {
    * elegir con la foto a la vista, más parecido a navegar el catálogo (Fase 196).
    */
   forzarTarjetas?: boolean
+  /**
+   * Carga las imágenes `eager` en vez de `lazy` (Fase 197).
+   *
+   * Para listas cortas que se ven casi enteras y viven en un contenedor con
+   * scroll PROPIO —las 25 filas del modal de ventas—: ahí el `lazy` del
+   * navegador no dispara de forma confiable (lo mide `ImagenProducto`) y las
+   * fotos bajo el pliegue quedan en blanco hasta que alguien scrollea, que es
+   * justo lo que se siente como que «no carga». El Catálogo sigue en `lazy`:
+   * son cientos de filas sobre el scroll de la página.
+   */
+  imagenesEager?: boolean
 }
 
 /** Una columna propia al final de la fila (ver `accion`). */
@@ -181,6 +192,7 @@ export function ListadoProductos({
   navegable = true,
   claseDeFila,
   forzarTarjetas = false,
+  imagenesEager = false,
 }: ListadoProductosProps) {
   const isMobile = useIsMobile()
   const navigate = useNavigate()
@@ -355,7 +367,12 @@ export function ListadoProductos({
             <li key={p.id} className={styles.tarjetaConCarrito}>
               <Envoltura>
                 <span className={styles.tarjetaImagen}>
-                  <ImagenProducto imagen={p.imagen} alt="" tamano="thumb" />
+                  <ImagenProducto
+                    imagen={p.imagen}
+                    alt=""
+                    tamano="thumb"
+                    prioridad={imagenesEager ? 'eager' : 'lazy'}
+                  />
                 </span>
                 <span className={styles.tarjetaCuerpo}>
                   <span className={styles.tarjetaFila}>
@@ -593,7 +610,12 @@ export function ListadoProductos({
                     }
                   : {})}
               >
-                <ImagenProducto imagen={p.imagen} alt="" tamano="thumb" />
+                <ImagenProducto
+                  imagen={p.imagen}
+                  alt=""
+                  tamano="thumb"
+                  prioridad={imagenesEager ? 'eager' : 'lazy'}
+                />
               </td>
               <td className={styles.colReferencia}>
                 {/*
