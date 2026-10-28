@@ -349,93 +349,126 @@
     display: grid;
     gap: var(--space-2);
   }
-  /* Cada línea es una tarjeta de dos columnas: cantidad y precio en un
-     renglón, descuento e impuesto en el siguiente. Nada de scroll de costado. */
+  /* Cada línea en DOS renglones compactos (Fase 192): arriba referencia +
+     nombre; abajo, en una sola fila, cantidad, precio, descuento, impuesto,
+     subtotal y las acciones. El relleno es mínimo a propósito: una cotización
+     de diez ítems no tiene que quedar interminable. */
   .tabla tr {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-1) var(--space-3);
-    padding: var(--space-3);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: var(--space-2);
+    row-gap: 2px;
+    padding: var(--space-2);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface);
   }
-  /* Sin `.tabla tbody tr:last-child td` en este grupo: es más específico que
-     `td.num` / `td.celdaNombre` y la última tarjeta mostraba «#» y la descripción
-     a la derecha. El borde de la última fila ya lo quita la regla base. */
   .tabla td {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--space-3);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
     padding: 0;
     border: 0;
-    text-align: right;
     width: auto;
+    text-align: left;
   }
+  /* Rótulo chico antes del valor (Cant., Precio…). */
   .tabla td::before {
     content: attr(data-label);
     flex: none;
     color: var(--color-text-soft);
     font-size: var(--text-xs);
-    text-align: left;
   }
   .tabla td.num,
   .tabla td.colDescripcion {
     display: none;
   }
-  .tabla td.celdaNombre {
+
+  /* ── Renglón 1: referencia (chica) + nombre (se lleva el resto y empuja los
+     números al renglón de abajo) ── */
+  .tabla td.sku {
     order: 1;
-    grid-column: 1 / -1;
+    flex: none;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .tabla td.sku::before {
+    content: none;
+  }
+  .tabla td.sku .inputTexto {
+    width: 7rem;
+  }
+  .tabla td.celdaNombre {
+    order: 2;
+    /* Se queda con el sobrante del renglón 1 (basis 0 + grow): así referencia,
+       cantidad y subtotal entran arriba y el precio/dto/impuesto/acciones caen
+       al renglón 2, sin huecos raros. */
+    flex: 1 1 0;
+    min-width: 6rem;
     display: block;
-    text-align: left;
     font-weight: var(--weight-semibold);
   }
   .tabla td.celdaNombre::before {
     content: none;
   }
-  .tabla td.sku {
-    order: 2;
-    grid-column: 1 / -1;
-    padding-bottom: var(--space-1);
-  }
+
+  /* ── Renglón 1 (sigue): cantidad y subtotal cierran arriba, con la
+     referencia y el nombre ── así el renglón 2 queda holgado para el precio,
+     el descuento, el impuesto y las acciones en UNA sola fila. */
   .tabla td.cantidad {
     order: 3;
   }
-  .tabla td.precio {
+  .tabla td.subtotal {
     order: 4;
+    font-weight: var(--weight-semibold);
   }
-  .tabla td.dto {
+  /* ── Renglón 2 ── */
+  .tabla td.precio {
     order: 5;
   }
-  .tabla td.impuestoCelda {
+  .tabla td.dto {
     order: 6;
   }
-  .tabla td.subtotal {
+  .tabla td.impuestoCelda {
     order: 7;
-    grid-column: 1 / -1;
-    margin-top: var(--space-1);
-    padding-top: var(--space-2);
-    border-top: 1px solid var(--color-border);
   }
+  /* El select ya dice «IVA 21 %»: el rótulo «Impuesto» sólo gasta ancho. */
+  .tabla td.impuestoCelda::before {
+    content: none;
+  }
+  .tabla td.celdaAccion {
+    order: 8;
+    gap: var(--space-1);
+  }
+  .tabla td.celdaAccion::before {
+    content: none;
+  }
+  /* Inputs compactos para que la fila de números entre entera. */
+  .tabla td.cantidad .inputNum {
+    width: 3.25rem;
+  }
+  .tabla td.precio .inputNum {
+    width: 5.5rem;
+  }
+  .tabla td.dto .inputNum {
+    width: 3rem;
+  }
+  .tabla td.impuestoCelda .inputSelect {
+    width: auto;
+    min-width: 5.5rem;
+  }
+
+  /* Una nota (capítulo) ocupa su propia tarjeta, a lo ancho. */
   .tabla tr.capitulo {
-    grid-template-columns: minmax(0, 1fr);
+    display: block;
     background: var(--color-surface-alt);
   }
   .capitulo td {
-    background: transparent;
+    display: block;
     text-align: left;
   }
   .capitulo td::before {
-    content: none;
-  }
-  /* La celda de acciones (editando) va a lo ancho, con los botones a la derecha. */
-  .tabla td.celdaAccion {
-    order: 8;
-    grid-column: 1 / -1;
-    justify-content: flex-end;
-    gap: var(--space-2);
-  }
-  .tabla td.celdaAccion::before {
     content: none;
   }
 }
