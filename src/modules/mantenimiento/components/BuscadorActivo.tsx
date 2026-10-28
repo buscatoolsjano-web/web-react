@@ -98,8 +98,6 @@ export function BuscadorActivo({
         <div className={styles.panel}>
           {isFetching ? (
             <p className={styles.nota}>Buscando…</p>
-          ) : consulta.trim().length < 2 ? (
-            <p className={styles.nota}>Escribí al menos dos caracteres.</p>
           ) : (data ?? []).length === 0 ? (
             <p className={styles.nota}>Sin resultados.</p>
           ) : (

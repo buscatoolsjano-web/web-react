@@ -109,7 +109,33 @@ export async function buscarClientes(
   texto: string,
   tope = 20,
 ): Promise<ClienteBuscado[]> {
-  if (texto.trim().length < 2) return []
+  // Con menos de dos caracteres se muestran los primeros clientes activos como
+  // lista por defecto, para poder elegir sin escribir (Fase 211). La RPC de
+  // búsqueda no sirve acá: con texto vacío devuelve cero.
+  if (texto.trim().length < 2) {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('id, legacy_ref, legal_name, trade_name')
+      .eq('company_id', companyId)
+      .eq('status', 'active')
+      .is('deleted_at', null)
+      .order('legal_name')
+      .limit(tope)
+    if (error) throw new Error(`No se pudieron leer los clientes: ${error.message}`)
+    return (
+      (data ?? []) as unknown as {
+        id: string
+        legacy_ref: string | null
+        legal_name: string
+        trade_name: string | null
+      }[]
+    ).map((c) => ({
+      id: c.id,
+      referencia: c.legacy_ref,
+      razonSocial: c.legal_name,
+      nombreComercial: c.trade_name,
+    }))
+  }
 
   const { data, error } = await supabase.rpc('buscar_clientes', {
     p_company: companyId,

@@ -579,16 +579,19 @@ export async function buscarActivos(
   tope = 20,
 ): Promise<ActivoBuscado[]> {
   const t = texto.trim().replace(/[,()*]/g, '')
-  if (t.length < 2) return []
 
-  const { data, error } = await supabase
+  // Con menos de dos caracteres no se exige nada: se muestran los primeros
+  // equipos como lista por defecto, para poder elegir sin escribir (Fase 211).
+  // Al escribir dos o más, recién ahí se filtra por referencia, serie o etiqueta.
+  let q = supabase
     .from('maintenance_assets')
     .select('id, reference, serial_number, model_text, owner_customer_id, dueno:customers!owner_customer_id ( legal_name )')
     .eq('company_id', companyId)
     .is('deleted_at', null)
-    .or(`reference.ilike.%${t}%,serial_number.ilike.%${t}%,identifier.ilike.%${t}%`)
-    .order('reference')
-    .limit(tope)
+  if (t.length >= 2) {
+    q = q.or(`reference.ilike.%${t}%,serial_number.ilike.%${t}%,identifier.ilike.%${t}%`)
+  }
+  const { data, error } = await q.order('reference').limit(tope)
   if (error) throw new Error(`No se pudieron buscar equipos: ${error.message}`)
 
   return ((data ?? []) as unknown as {
