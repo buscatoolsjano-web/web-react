@@ -384,6 +384,11 @@ export function OrdenDetallePage() {
                 dato('Fecha de ingreso', formatearFecha(orden.fechaIngreso)),
                 dato('Tipo de servicio', etiquetaDeServicio(orden.tipoServicio)),
                 dato('Motivo de ingreso', orden.motivoIngreso),
+                dato(
+                  'Aprietes al ingresar',
+                  orden.aprietesIngreso === null ? null : orden.aprietesIngreso.toLocaleString('es-AR'),
+                  'sin dato',
+                ),
                 dato('Técnico asignado', orden.tecnico, 'sin asignar'),
                 dato('Recibida por', orden.recibidaPor),
                 dato('Serie del documento', orden.serie),

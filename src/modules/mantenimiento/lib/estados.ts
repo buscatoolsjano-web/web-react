@@ -52,6 +52,8 @@ const SERVICIOS: Record<TipoServicio, string> = {
   corrective: 'Correctivo',
   preventive: 'Preventivo',
   general_review: 'Revisión general',
+  calibration: 'Calibración',
+  warranty: 'Garantía',
 }
 
 const RESULTADOS: Record<ResultadoCheck, string> = {
@@ -153,18 +155,16 @@ export function editabilidadDeCotizacion(
 }
 
 /**
- * Los ocho motivos de ingreso del legacy. Lista abierta: el schema no tiene
- * CHECK sobre `entry_reason`, así que se puede escribir otro.
+ * Los motivos de ingreso del app FEIN AccuTec. Lista abierta: el schema no
+ * tiene CHECK sobre `entry_reason`, así que se puede escribir otro.
  */
 export const MOTIVOS_INGRESO = [
-  'FALLA DE CORTE',
-  'FALLA ELECTRICA',
-  'GOLPE/CAIDA',
-  'ACTUALIZACIÓN FIRMWARE',
   'MANTENIMIENTO PREVENTIVO',
-  'REVISIÓN GENERAL',
-  'CALIBRACIÓN TORQUE',
-  'OTRO',
+  'FALLA DE CORTE',
+  'FALLA MECÁNICA',
+  'FALLA ELECTRÓNICA',
+  'CALIBRACIÓN',
+  'GARANTÍA',
 ] as const
 
 /**

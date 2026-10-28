@@ -186,7 +186,12 @@ export interface DuplicadoDeSerial {
 export type EstadoOrden = 'open' | 'closed' | 'cancelled'
 export type EtapaOrden = 'diagnosis' | 'quotation' | 'repair' | 'torque' | 'closing'
 export type EstadoCotizacion = 'pending' | 'approved' | 'rejected'
-export type TipoServicio = 'corrective' | 'preventive' | 'general_review'
+export type TipoServicio =
+  | 'corrective'
+  | 'preventive'
+  | 'general_review'
+  | 'calibration'
+  | 'warranty'
 
 export interface OrdenListado {
   id: string
@@ -201,6 +206,8 @@ export interface OrdenListado {
   enEspera: boolean
   tipoServicio: TipoServicio
   motivoIngreso: string | null
+  /** Aprietes (ciclos de apriete FEIN) que traía la herramienta al ingresar. */
+  aprietesIngreso: number | null
   tecnicoId: string | null
   tecnico: string | null
   fechaIngreso: string

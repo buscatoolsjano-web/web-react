@@ -3355,6 +3355,7 @@ export type Database = {
           stage: string
           status: string
           technician_id: string | null
+          tightenings_at_entry: number | null
           torque_at: string | null
           torque_by: string | null
           torque_lsl: number | null
@@ -3405,6 +3406,7 @@ export type Database = {
           stage?: string
           status?: string
           technician_id?: string | null
+          tightenings_at_entry?: number | null
           torque_at?: string | null
           torque_by?: string | null
           torque_lsl?: number | null
@@ -3455,6 +3457,7 @@ export type Database = {
           stage?: string
           status?: string
           technician_id?: string | null
+          tightenings_at_entry?: number | null
           torque_at?: string | null
           torque_by?: string | null
           torque_lsl?: number | null

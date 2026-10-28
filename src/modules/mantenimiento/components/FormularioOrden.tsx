@@ -201,6 +201,27 @@ export function FormularioOrden({
           </div>
 
           <div className={styles.campo}>
+            <label className={styles.etiqueta} htmlFor={`${id}-aprietes`}>
+              Aprietes al ingresar
+            </label>
+            <input
+              id={`${id}-aprietes`}
+              type="number"
+              min={0}
+              step={1}
+              inputMode="numeric"
+              className={styles.control}
+              value={datos.aprietesIngreso ?? ''}
+              disabled={guardando}
+              placeholder="Ciclos de apriete que trae la herramienta"
+              onChange={(e) => {
+                const t = e.target.value.trim()
+                cambiar('aprietesIngreso', t === '' ? null : Math.max(0, Math.trunc(Number(t))))
+              }}
+            />
+          </div>
+
+          <div className={styles.campo}>
             <label className={styles.etiqueta} htmlFor={`${id}-tecnico`}>
               Técnico asignado
             </label>

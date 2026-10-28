@@ -146,10 +146,10 @@ describe('etiquetas', () => {
 })
 
 describe('MOTIVOS_INGRESO', () => {
-  it('son los ocho del sistema anterior y no se inventó ninguno', () => {
-    expect(MOTIVOS_INGRESO).toHaveLength(8)
+  it('son los del app FEIN AccuTec y no se inventó ninguno', () => {
+    expect(MOTIVOS_INGRESO).toHaveLength(6)
     expect(MOTIVOS_INGRESO).toContain('FALLA DE CORTE')
-    expect(MOTIVOS_INGRESO).toContain('CALIBRACIÓN TORQUE')
+    expect(MOTIVOS_INGRESO).toContain('GARANTÍA')
   })
 })
 

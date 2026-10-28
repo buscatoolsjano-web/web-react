@@ -72,6 +72,7 @@ export function OrdenNuevaPage() {
     clienteId: a?.duenoId ?? '',
     tipoServicio: 'corrective',
     motivoIngreso: '',
+    aprietesIngreso: null,
     condicionVisual: '',
     tecnicoId: null,
     fechaIngreso: hoy(),

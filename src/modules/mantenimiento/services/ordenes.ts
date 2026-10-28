@@ -39,7 +39,7 @@ const vacioANulo = (s: string): string | null => {
 
 const COLUMNAS = `
   id, number, asset_id, customer_id, status, stage, on_hold, service_type,
-  entry_reason, technician_id, received_at, delivered_at, quote_status,
+  entry_reason, tightenings_at_entry, technician_id, received_at, delivered_at, quote_status,
   quote_currency_code, quote_total,
   equipo:maintenance_assets!asset_id ( reference, serial_number, model_text ),
   cliente:customers!customer_id ( legal_name ),
@@ -56,6 +56,7 @@ interface Fila {
   on_hold: boolean
   service_type: string
   entry_reason: string | null
+  tightenings_at_entry: number | string | null
   technician_id: string | null
   received_at: string
   delivered_at: string | null
@@ -80,6 +81,7 @@ const aFila = (f: Fila): OrdenListado => ({
   enEspera: f.on_hold,
   tipoServicio: f.service_type as OrdenListado['tipoServicio'],
   motivoIngreso: f.entry_reason,
+  aprietesIngreso: f.tightenings_at_entry === null ? null : aNumero(f.tightenings_at_entry),
   tecnicoId: f.technician_id,
   tecnico: f.tecnico?.full_name ?? null,
   fechaIngreso: f.received_at,
@@ -236,6 +238,7 @@ export interface DatosOrden {
   clienteId: string
   tipoServicio: string
   motivoIngreso: string
+  aprietesIngreso: number | null
   condicionVisual: string
   tecnicoId: string | null
   fechaIngreso: string
@@ -273,6 +276,7 @@ export async function crearOrden(
       customer_id: d.clienteId,
       service_type: d.tipoServicio,
       entry_reason: vacioANulo(d.motivoIngreso),
+      tightenings_at_entry: d.aprietesIngreso,
       visual_condition: vacioANulo(d.condicionVisual),
       technician_id: d.tecnicoId,
       received_at: d.fechaIngreso,
@@ -287,6 +291,7 @@ export async function crearOrden(
 export interface CambiosOrden {
   tipoServicio?: string
   motivoIngreso?: string
+  aprietesIngreso?: number | null
   condicionVisual?: string
   tecnicoId?: string | null
   fechaIngreso?: string
@@ -304,6 +309,7 @@ export async function actualizarOrden(
   const fila: {
     service_type?: string
     entry_reason?: string | null
+    tightenings_at_entry?: number | null
     visual_condition?: string | null
     technician_id?: string | null
     received_at?: string
@@ -314,6 +320,7 @@ export async function actualizarOrden(
   } = {}
   if (c.tipoServicio !== undefined) fila.service_type = c.tipoServicio
   if (c.motivoIngreso !== undefined) fila.entry_reason = vacioANulo(c.motivoIngreso)
+  if (c.aprietesIngreso !== undefined) fila.tightenings_at_entry = c.aprietesIngreso
   if (c.condicionVisual !== undefined) fila.visual_condition = vacioANulo(c.condicionVisual)
   if (c.tecnicoId !== undefined) fila.technician_id = c.tecnicoId
   if (c.fechaIngreso !== undefined) fila.received_at = c.fechaIngreso

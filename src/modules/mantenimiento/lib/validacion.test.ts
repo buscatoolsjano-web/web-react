@@ -24,6 +24,7 @@ const ORDEN: DatosOrden = {
   clienteId: 'c1',
   tipoServicio: 'corrective',
   motivoIngreso: '',
+  aprietesIngreso: null,
   condicionVisual: '',
   tecnicoId: null,
   fechaIngreso: '2026-09-10',

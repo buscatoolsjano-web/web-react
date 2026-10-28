@@ -39,6 +39,7 @@ const ORDEN: OrdenListado = {
   enEspera: false,
   tipoServicio: 'corrective',
   motivoIngreso: null,
+  aprietesIngreso: null,
   tecnicoId: null,
   tecnico: null,
   fechaIngreso: '2026-09-11',
