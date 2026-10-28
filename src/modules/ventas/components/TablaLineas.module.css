@@ -359,11 +359,14 @@
      precio, % dto., impuesto y subtotal. */
   .tabla tr {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    grid-template-columns: auto auto auto auto auto auto 1fr;
+    /* Renglón 1: referencia + NOMBRE a lo ancho (se lee entero). Renglón 2:
+       cantidad, precio, descuento, subtotal, IVA y las acciones; la última
+       columna 1fr es un resorte que los empuja a la izquierda. */
     grid-template-areas:
-      'ref  nombre nombre nombre acc'
-      'cant precio dto    imp    sub';
-    column-gap: var(--space-2);
+      'ref  nombre nombre nombre nombre nombre nombre'
+      'cant precio dto    sub    iva    acc    .';
+    column-gap: var(--space-3);
     row-gap: var(--space-1);
     align-items: center;
     padding: var(--space-2);
@@ -433,7 +436,7 @@
     grid-area: dto;
   }
   .tabla td.impuestoCelda {
-    grid-area: imp;
+    grid-area: iva;
   }
   /* El select ya dice «IVA 21 %»: el rótulo «Impuesto» sólo gasta ancho. */
   .tabla td.impuestoCelda::before {
@@ -448,7 +451,7 @@
     width: 3.25rem;
   }
   .tabla td.precio .inputNum {
-    width: 4.5rem;
+    width: 5.5rem;
   }
   .tabla td.dto .inputNum {
     width: 3rem;
