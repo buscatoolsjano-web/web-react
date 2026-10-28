@@ -141,6 +141,9 @@
 .par,
 .parRef {
   display: grid;
+  /* Ocupan la fila entera en los dos modos; sin `.ancho`, para no chocar con
+     la regla densa que lo pone en `auto` (Fase 202). */
+  grid-column: 1 / -1;
   gap: var(--space-2) var(--space-3);
   align-items: start;
 }
@@ -222,12 +225,22 @@
     display: contents;
   }
 
-  /* Las filas pareadas también se disuelven (Fase 199): con la hoja cerrada no
-     hacen falta —cada campo cae solo en la grilla densa—, así que sus hijos
-     pasan a ser campos sueltos como todos los demás. */
-  .denso .grilla > .par,
+  /* Referencia + Fecha se disuelve (Fase 199): son campos simples y caen solos
+     en la grilla densa como el resto, con el rótulo a la izquierda. */
   .denso .grilla > .parRef {
     display: contents;
+  }
+
+  /* Agentes + Contactos NO se disuelve (Fase 202): son controles altos de
+     varios renglones —«Sin vendedor asignado» + botón, el selector + agenda—
+     que apretados en una celda de 1/3 con el rótulo al costado quedaban
+     descolocados. Se deja como una fila a todo lo ancho, en dos columnas con
+     el rótulo ARRIBA, idéntico a como se ve con la hoja abierta: así queda
+     igual y prolijo en los dos modos. */
+  .denso .grilla > .par {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
   }
 
   .denso > fieldset > legend {
@@ -236,7 +249,6 @@
 
   /* Cada campo: rótulo a la derecha de su columna, control al lado. */
   .denso .grilla > *,
-  .denso .grilla > .par > *,
   .denso .grilla > .parRef > * {
     grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr);
     align-items: center;
@@ -244,15 +256,23 @@
   }
 
   .denso .grilla > * > :first-child,
-  .denso .grilla > .par > * > :first-child,
   .denso .grilla > .parRef > * > :first-child {
     justify-self: end;
     text-align: right;
   }
 
+  /* El par de Agentes/Contactos NO es un campo denso: la regla de arriba, al
+     mirar «el primer hijo de cada celda», agarraba el campo Agentes (primer
+     hijo del par) y lo tiraba a la derecha, dejándolo desparejo con Contactos.
+     Acá sus dos columnas van estiradas y con el rótulo arriba e izquierda,
+     igual que con la hoja abierta (Fase 202). */
+  .denso .grilla > .par > * {
+    justify-self: stretch;
+    text-align: left;
+  }
+
   /* La ayuda y el error van DEBAJO del control, no debajo del rótulo. */
   .denso .grilla > * > :nth-child(n + 3),
-  .denso .grilla > .par > * > :nth-child(n + 3),
   .denso .grilla > .parRef > * > :nth-child(n + 3) {
     grid-column: 2;
   }

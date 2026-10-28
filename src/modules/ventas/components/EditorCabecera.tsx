@@ -139,7 +139,7 @@ export function EditorCabecera({
               lo que mide su texto, el número toma el resto, y la fecha entra
               al lado. Así se gana una fila. */}
           {hayReferencia ? (
-            <div className={`${styles.parRef} ${styles.ancho}`}>
+            <div className={styles.parRef}>
               <div className={styles.campo}>
                 <span className={styles.etiqueta}>Referencia</span>
                 <div className={styles.referencia}>
@@ -201,7 +201,7 @@ export function EditorCabecera({
 
           {/* Agentes y Contactos en un solo renglón (Fase 199): quién lleva la
               venta y con quién se habla, alineados, como pidió el usuario. */}
-          <div className={`${styles.par} ${styles.ancho}`}>
+          <div className={styles.par}>
             {/* Varios agentes, con uno principal (Fase 40): pasa seguido que
                 uno abra la cuenta y otro la siga, o que la parte técnica la
                 lleve uno y la comercial otro. */}
