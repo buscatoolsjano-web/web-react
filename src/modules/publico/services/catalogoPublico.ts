@@ -265,6 +265,15 @@ export interface FacetaAtributoPublica {
   unidad: string | null
   cubiertos: number
   opciones: { valor: string; cuantos: number }[]
+  /**
+   * Cómo se filtra (Fase 204). `range` son los numéricos con muchos valores
+   * —capacidad en kg, por ejemplo—: no se eligen con tiles sino por rango, así
+   * que el filtro guiado por tiles los saltea. Opcional: las facetas del sitio
+   * público no lo traen y ahí todo es lista.
+   */
+  clase?: 'enum' | 'range'
+  min?: number | null
+  max?: number | null
 }
 
 export interface FacetasPublicas {

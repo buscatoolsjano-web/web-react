@@ -35,11 +35,17 @@ import styles from './GuiaFiltros.module.css'
  * medida y largo reales de la categoría, con cantidades). Nada escrito a mano.
  */
 
-const ATRIBUTOS: readonly { key: string; pregunta: string; pista: string }[] = [
-  { key: 'encastre', pregunta: '¿Qué encastre?', pista: 'la conexión a la máquina' },
-  { key: 'medida', pregunta: '¿Qué medida?', pista: 'el diámetro o calibre' },
-  { key: 'largo', pregunta: '¿Qué largo?', pista: 'el largo total' },
-]
+/**
+ * Preguntas lindas para los atributos conocidos; para el resto se arma una del
+ * label (Fase 204). Antes la lista estaba cableada a encastre/medida/largo y
+ * cualquier otra categoría —balanceadores, por ejemplo— no ofrecía ni un filtro
+ * guiado. Ahora los pasos salen de las facetas reales de la categoría.
+ */
+const PREGUNTAS: Record<string, { pregunta: string; pista: string }> = {
+  encastre: { pregunta: '¿Qué encastre?', pista: 'la conexión a la máquina' },
+  medida: { pregunta: '¿Qué medida?', pista: 'el diámetro o calibre' },
+  largo: { pregunta: '¿Qué largo?', pista: 'el largo total' },
+}
 
 /**
  * Debajo de este número de productos un rubro se considera «chico» y se junta
@@ -213,27 +219,38 @@ export function GuiaFiltros({
       }
     }
 
-    // ── Atributos: encastre → medida → largo ───────────────────────────────────
-    for (const a of ATRIBUTOS) {
-      const faceta = (facetas?.atributos ?? []).find((x) => x.key === a.key)
-      if (!faceta) continue
-      const puesto = atributos[a.key] ?? ''
+    // ── Atributos de LISTA de la categoría, en su orden (data-driven, Fase 204) ──
+    // Se recorren los atributos que las facetas traen para ESTA categoría —así
+    // Puntas sigue dando encastre/medida/largo y Balanceadores da carcasa,
+    // eslinga, largo de cable…—. Los de RANGO (numéricos de muchos valores, como
+    // la capacidad en kg) no se eligen con tiles; se filtran aparte y acá se
+    // saltean.
+    for (const faceta of facetas?.atributos ?? []) {
+      // Rango explícito (lo marca el ERP) o demasiados valores para tiles: no
+      // va como lista. El tope cubre al sitio público, cuyas facetas no traen
+      // `clase`, para que un numérico de decenas de valores no explote en tiles.
+      if (faceta.clase === 'range' || faceta.opciones.length > 24) continue
+      const puesto = atributos[faceta.key] ?? ''
       if (faceta.opciones.length <= 1 && puesto === '') continue
       const u = faceta.unidad ? ` ${faceta.unidad}` : ''
+      const texto = PREGUNTAS[faceta.key] ?? {
+        pregunta: `¿${faceta.label}?`,
+        pista: '',
+      }
       pasos.push({
-        clave: `a.${a.key}`,
-        pregunta: a.pregunta,
-        pista: faceta.unidad ? `${a.pista} (${faceta.unidad})` : a.pista,
+        clave: `a.${faceta.key}`,
+        pregunta: texto.pregunta,
+        pista: PREGUNTAS[faceta.key] && faceta.unidad ? `${texto.pista} (${faceta.unidad})` : texto.pista,
         elegido: puesto,
         elegir: (v) => {
-          onFiltrar(`a.${a.key}`, v)
+          onFiltrar(`a.${faceta.key}`, v)
         },
-        quitar: () => onFiltrar(`a.${a.key}`, ''),
+        quitar: () => onFiltrar(`a.${faceta.key}`, ''),
         opciones: faceta.opciones.map((o) => ({
           valor: o.valor,
           etiqueta: `${o.valor}${u}`,
           cantidad: o.cuantos,
-          medio: a.key === 'encastre' ? <span className={styles.forma} aria-hidden="true">{iconoDeEncastre(o.valor)}</span> : null,
+          medio: faceta.key === 'encastre' ? <span className={styles.forma} aria-hidden="true">{iconoDeEncastre(o.valor)}</span> : null,
         })),
       })
     }

@@ -40,6 +40,11 @@ export function facetasParaGuia(f: Facetas | undefined): FacetasPublicas | undef
       unidad: a.unidad,
       cubiertos: a.opciones.reduce((n, o) => n + o.cantidad, 0),
       opciones: a.opciones.map((o) => ({ valor: o.valor, cuantos: o.cantidad })),
+      // La clase (lista o rango) viaja para que la guía sepa cuáles puede
+      // mostrar con tiles y cuáles son numéricos de rango (Fase 204).
+      clase: a.clase,
+      min: a.min,
+      max: a.max,
     })),
   }
 }
