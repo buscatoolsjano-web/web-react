@@ -608,3 +608,10 @@
 .tabla.tabla :global(thead) :global(th) {
   position: relative;
 }
+
+/* Tarjetas en grilla multi-columna cuando se fuerzan en escritorio (el modal de
+   ventas): en vez de una sola columna angosta, varias tarjetas con foto por
+   fila, como navegar el catálogo. Se adaptan solas al ancho disponible. */
+.tarjetasGrilla {
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+}

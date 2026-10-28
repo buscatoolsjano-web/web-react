@@ -118,6 +118,9 @@ export function ModalCatalogoProductos({
 }: ModalCatalogoProductosProps) {
   const [filtros, setFiltros] = useState<FiltrosCatalogo>(FILTROS_MODAL)
   const [texto, setTexto] = useState('')
+  // Vista del listado: tarjetas con foto (por defecto, más visual para elegir)
+  // o la tabla densa de siempre (ordenar por columna, comparar specs). Fase 196.
+  const [vista, setVista] = useState<'tarjetas' | 'tabla'>('tarjetas')
   const [cantidades, setCantidades] = useState<Record<string, string>>({})
   const [agregados, setAgregados] = useState<string[]>([])
   /** El alta de producto, encima de este modal (Fase 40). */
@@ -220,6 +223,25 @@ export function ModalCatalogoProductos({
           <Button variant="secondary" icon={<Icon name="plus" size={16} />} onClick={() => setCreando(true)}>
             Nuevo producto
           </Button>
+          {/* Tarjetas (visual, por defecto) o tabla (ordenar/comparar). Fase 196. */}
+          <div className={styles.vista} role="group" aria-label="Vista del listado">
+            <Button
+              size="sm"
+              variant={vista === 'tarjetas' ? 'primary' : 'secondary'}
+              aria-pressed={vista === 'tarjetas'}
+              onClick={() => setVista('tarjetas')}
+            >
+              Tarjetas
+            </Button>
+            <Button
+              size="sm"
+              variant={vista === 'tabla' ? 'primary' : 'secondary'}
+              aria-pressed={vista === 'tabla'}
+              onClick={() => setVista('tabla')}
+            >
+              Tabla
+            </Button>
+          </div>
         </div>
 
         {/* El cartel no dice sólo «listo»: dice qué hacer ahora. El producto
@@ -256,6 +278,10 @@ export function ModalCatalogoProductos({
         ) : (
           <ListadoProductos
             productos={productos}
+            /* Tarjetas con foto por defecto: elegir productos acá se parece a
+               navegar el catálogo, más visual (Fase 196). La tabla queda a un
+               clic para ordenar o comparar. */
+            forzarTarjetas={vista === 'tarjetas'}
             esInterno={esInterno}
             moneda={moneda}
             disponibilidad={disponibilidad}

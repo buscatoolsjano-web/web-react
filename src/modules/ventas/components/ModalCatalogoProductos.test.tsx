@@ -191,6 +191,7 @@ describe('elegir productos del catálogo desde el documento', () => {
    */
   it('con una categoría elegida aparecen sus atributos, y como columna', async () => {
     montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Tabla' }))
     await screen.findByText('CP.CP9911')
     expect(screen.queryByRole('columnheader', { name: /Encastre/ })).toBeNull()
 
@@ -208,6 +209,7 @@ describe('elegir productos del catálogo desde el documento', () => {
 
   it('tocar una columna ordena, y tocarla de nuevo la da vuelta', async () => {
     montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Tabla' }))
     await screen.findByText('CP.CP9911')
     const encabezado = () => screen.getByRole('columnheader', { name: /Referencia/ })
 
@@ -222,6 +224,7 @@ describe('elegir productos del catálogo desde el documento', () => {
 
   it('ordenar por un atributo se lo pide a la base como attr:<clave>', async () => {
     montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Tabla' }))
     await screen.findByText('CP.CP9911')
     fireEvent.click(await screen.findByRole('button', { name: /Puntas y tubos/ }))
     const columna = await screen.findByRole('columnheader', { name: /Encastre/ })
@@ -316,6 +319,7 @@ describe('elegir productos del catálogo desde el documento', () => {
 
   it('el stock es sólo para adentro', async () => {
     montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Tabla' }))
     await screen.findByText('CP.CP9911')
     expect(screen.getByRole('columnheader', { name: 'Stock real' })).toBeInTheDocument()
   })
@@ -368,6 +372,7 @@ describe('las columnas son las del catálogo', () => {
     unmount()
 
     montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Tabla' }))
     await screen.findByText('CP.CP9911')
     expect(encabezados()).toEqual([...delCatalogo, 'Cant.', 'Agregar'])
   })
@@ -391,6 +396,7 @@ describe('con un rol externo', () => {
 
   it('no muestra columnas de stock', async () => {
     montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Tabla' }))
     await screen.findByText('CP.CP9911')
     expect(screen.queryByRole('columnheader', { name: 'Stock real' })).not.toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'Stock virtual' })).not.toBeInTheDocument()
