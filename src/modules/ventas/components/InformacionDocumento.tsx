@@ -254,11 +254,10 @@ export function InformacionDocumento({ doc, onVerCliente, parte = 'principal' }:
             .join(', ')
         ),
     },
-    comercial && {
-      label: 'Tarifa',
-      parte: 'principal',
-      value: doc.listaPrecioNombre ?? <Missing>Sin tarifa registrada</Missing>,
-    },
+    // El contacto, al lado de los agentes (Fase 199): subió desde «Más
+    // información» para que ver y editar sigan iguales. La tarifa hizo el
+    // camino inverso y ahora vive abajo, con la moneda.
+    { parte: 'principal', label: 'Contacto', value: contacto(doc) },
     // Fase 15 · E6: el domicilio congelado al emitir el remito. Si no quedó
     // registrado se dice; NO se muestra el domicilio de hoy del cliente, que
     // es otra información.
@@ -286,30 +285,31 @@ export function InformacionDocumento({ doc, onVerCliente, parte = 'principal' }:
     esEntrega && doc.seguimiento === null ? { parte: 'mas', label: 'Seguimiento', value: <Missing /> } : null,
     /*
      * Y lo que se edita en «Más información», para que la pestaña diga lo
-     * mismo mirando que editando (Fase 84).
+     * mismo mirando que editando (Fase 84), y en el mismo orden que el editor:
+     * moneda, tipo de cambio, percepción y tarifa (Fase 199).
      *
      * Acá SÍ se muestran los opcionales vacíos, al revés que en la tarjeta de
      * arriba: lo que se mira en esta pestaña es justamente si están puestos.
-     * Un «% Dto. global» ausente es un descuento que nadie cargó, y eso es la
-     * información; esconderlo haría que la pestaña cambiara de forma al
-     * apretar «Editar», que es lo que se vino a arreglar.
+     * Una percepción ausente es una que nadie cargó, y eso es la información;
+     * esconderla haría que la pestaña cambiara de forma al apretar «Editar»,
+     * que es lo que se vino a arreglar.
      */
-    { parte: 'mas', label: 'Contacto', value: contacto(doc) },
+    comercial && { parte: 'mas', label: 'Moneda', value: doc.moneda ?? <Missing>Sin moneda</Missing> },
     comercial && {
       parte: 'mas',
-      label: '% Dto. global',
-      value: doc.descuentoPct ? `${formatearCantidad(doc.descuentoPct)} %` : <Missing>Sin descuento</Missing>,
+      label: 'Tipo de cambio',
+      value: doc.tipoCambio ?? <Missing>Sin tipo de cambio</Missing>,
     },
     comercial && {
       parte: 'mas',
       label: '% Percep. IIBB',
       value: doc.percepcionPct ? `${formatearCantidad(doc.percepcionPct)} %` : <Missing>Sin percepción</Missing>,
     },
-    comercial && { parte: 'mas', label: 'Moneda', value: doc.moneda ?? <Missing>Sin moneda</Missing> },
+    // La tarifa, ahora en «Más información» (Fase 199): se elige una vez.
     comercial && {
       parte: 'mas',
-      label: 'Tipo de cambio',
-      value: doc.tipoCambio ?? <Missing>Sin tipo de cambio</Missing>,
+      label: 'Tarifa',
+      value: doc.listaPrecioNombre ?? <Missing>Sin tarifa registrada</Missing>,
     },
     {
       parte: 'mas',

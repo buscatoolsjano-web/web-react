@@ -120,12 +120,42 @@
   min-width: 0;
 }
 
-/* La referencia es serie + número, en una sola fila: son un dato, no dos. */
+/* La referencia es serie + número, en una sola fila: son un dato, no dos.
+
+   La serie ocupa SÓLO lo que mide su texto («COT-BTS»), y el número toma el
+   resto: así la referencia entra en media fila y la fecha cabe al lado en la
+   misma línea (Fase 199, pedido del usuario). */
 .referencia {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  grid-template-columns: auto minmax(0, 1fr);
   gap: var(--space-2);
   align-items: end;
+}
+
+/* Dos campos en una sola fila, alineados arriba, aun en la columna angosta
+   —la de la hoja abierta— donde si no se apilarían (Fase 199). Se usa para
+   «Referencia + Fecha» (de ahí la variante `.parRef`, con la referencia
+   flexible y la fecha a su ancho) y para «Agentes + Contactos» (mitades).
+
+   En un teléfono se apilan: dos columnas de 110 px no sirven. */
+.par,
+.parRef {
+  display: grid;
+  gap: var(--space-2) var(--space-3);
+  align-items: start;
+}
+.par {
+  grid-template-columns: 1fr 1fr;
+}
+.parRef {
+  grid-template-columns: minmax(0, 1fr) max-content;
+}
+
+@media (max-width: 480px) {
+  .par,
+  .parRef {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* El número que todavía no existe: se dice, no se deja en blanco. */
@@ -192,24 +222,38 @@
     display: contents;
   }
 
+  /* Las filas pareadas también se disuelven (Fase 199): con la hoja cerrada no
+     hacen falta —cada campo cae solo en la grilla densa—, así que sus hijos
+     pasan a ser campos sueltos como todos los demás. */
+  .denso .grilla > .par,
+  .denso .grilla > .parRef {
+    display: contents;
+  }
+
   .denso > fieldset > legend {
     display: none;
   }
 
   /* Cada campo: rótulo a la derecha de su columna, control al lado. */
-  .denso .grilla > * {
+  .denso .grilla > *,
+  .denso .grilla > .par > *,
+  .denso .grilla > .parRef > * {
     grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr);
     align-items: center;
     gap: var(--space-3);
   }
 
-  .denso .grilla > * > :first-child {
+  .denso .grilla > * > :first-child,
+  .denso .grilla > .par > * > :first-child,
+  .denso .grilla > .parRef > * > :first-child {
     justify-self: end;
     text-align: right;
   }
 
   /* La ayuda y el error van DEBAJO del control, no debajo del rótulo. */
-  .denso .grilla > * > :nth-child(n + 3) {
+  .denso .grilla > * > :nth-child(n + 3),
+  .denso .grilla > .par > * > :nth-child(n + 3),
+  .denso .grilla > .parRef > * > :nth-child(n + 3) {
     grid-column: 2;
   }
 

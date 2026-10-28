@@ -1,11 +1,13 @@
 import { Field } from '@/components/forms/Field'
 import { Input, Select } from '@/components/forms/controls'
+import { Button } from '@/components/ui/Button'
 import type { CabeceraBorrador, CampoCabecera } from '../lib/borrador'
-import type { OpcionTarifa, OpcionVendedor } from '../services/opciones'
+import type { OpcionContacto, OpcionVendedor } from '../services/opciones'
 import type { FormaDePago } from '@/modules/configuracion/services/maestros'
 import { BuscadorCliente } from './BuscadorCliente'
 import { SelectorFormaDePago } from '@/features/formasDePago/SelectorFormaDePago'
 import { VendedoresDelDocumento } from './VendedoresDelDocumento'
+import { ContactosDelDocumento } from './ContactosDelDocumento'
 import styles from './CabeceraCotizacion.module.css'
 
 /** Una serie con su autoridad, para el desplegable de la referencia. */
@@ -16,7 +18,6 @@ export interface OpcionSerie {
 
 export interface EditorCabeceraProps {
   valores: CabeceraBorrador
-  tarifas: readonly OpcionTarifa[]
   vendedores: readonly OpcionVendedor[]
   /**
    * Las formas de pago de la empresa (Fase 68). El campo dejó de ser texto
@@ -31,8 +32,6 @@ export interface EditorCabeceraProps {
    * poder escribir en el catálogo.
    */
   onAgregarFormaDePago?: ((nombre: string) => Promise<string>) | undefined
-  /** El cambio de moneda dejó la tarifa incompatible. */
-  avisoTarifa: boolean
   /**
    * La referencia (Fase 27 · E1). Sólo en el alta: un documento que ya existe
    * tiene su número y su serie, y no se cambian.
@@ -45,9 +44,33 @@ export interface EditorCabeceraProps {
   onCambiarSerie?: ((codigo: string) => void) | undefined
   /** El número, cuando el documento ya lo tiene. En el alta lo pone el servidor. */
   numero?: string | undefined
+  /**
+   * El equipo de contactos del documento (Fase 40 · subido acá en la 199).
+   *
+   * Va al lado de los agentes porque son la misma clase de dato —quiénes
+   * llevan la venta por un lado, con quién se habla del otro— y el usuario los
+   * quiere en una fila. Antes vivían en «Más información».
+   */
+  contactos: readonly OpcionContacto[]
+  cargandoContactos: boolean
+  /** El cambio de cliente dejó al documento sin contacto. */
+  avisoContacto: boolean
+  /**
+   * Abrir la agenda de contactos del cliente (Fase 28 · E14).
+   *
+   * Sin esto no se dibuja el botón: hay pantallas donde el documento no se
+   * edita, y ahí no hay nada que agendar.
+   */
+  onAbrirContactos?: (() => void) | undefined
   onCambiar: (campo: CampoCabecera, valor: string) => void
   /** Lo mismo para los vendedores, y por el mismo motivo (Fase 40). */
   onCambiarVendedores: (principal: string, acompanan: string[]) => void
+  /**
+   * Los contactos cambian de a dos —el principal y los que acompañan— por el
+   * mismo motivo que los vendedores: mandarlos sueltos dejaría el documento,
+   * entre una llamada y la otra, con dos principales o ninguno.
+   */
+  onCambiarContactos: (principal: string, secundarios: string[]) => void
   onCambiarCliente: (customerId: string) => void
 }
 
@@ -59,34 +82,40 @@ export interface EditorCabeceraProps {
  *
  * **Es la mitad de arriba**: los mismos campos que muestra la ficha cuando
  * el documento no se edita, en el mismo orden, para que apretar «Editar» no
- * reacomode la pantalla (Fase 84). El resto —moneda, tipo de cambio,
- * domicilio, observaciones, contactos— vive en `EditorMasInformacion`, que
- * escribe en el MISMO borrador y se guarda con el mismo botón.
+ * reacomode la pantalla (Fase 84). El resto —moneda, tipo de cambio, tarifa,
+ * domicilio, observaciones— vive en `EditorMasInformacion`, que escribe en el
+ * MISMO borrador y se guarda con el mismo botón.
  *
  * La densidad también es del pedido: cada fila que se ahorra acá es una fila
- * menos de scroll antes de llegar a las líneas.
+ * menos de scroll antes de llegar a las líneas. Por eso la referencia y la
+ * fecha comparten renglón, y los agentes y los contactos también (Fase 199).
  */
 export function EditorCabecera({
   valores,
-  tarifas,
   vendedores,
   formasDePago = [],
   cargandoFormasDePago = false,
   onAgregarFormaDePago,
-  avisoTarifa,
   series,
   serie,
   onCambiarSerie,
   numero,
+  contactos,
+  cargandoContactos,
+  avisoContacto,
+  onAbrirContactos,
   onCambiar,
   onCambiarCliente,
   onCambiarVendedores,
+  onCambiarContactos,
 }: EditorCabeceraProps) {
-  // Sólo se ofrecen las tarifas de la moneda del documento: una de otra moneda
-  // exigiría un tipo de cambio que nadie definió, y la base la rechaza.
-  const compatibles = tarifas.filter((t) => t.moneda === valores.moneda)
-  const ocultas = tarifas.length - compatibles.length
   const hayReferencia = series !== undefined || numero !== undefined
+
+  const campoFecha = (
+    <Field label="Fecha">
+      <Input type="date" value={valores.fecha} onChange={(e) => onCambiar('fecha', e.target.value)} />
+    </Field>
+  )
 
   return (
     <div className={`${styles.bloques} ${styles.denso}`}>
@@ -98,8 +127,6 @@ export function EditorCabecera({
         vieran iguales (Fase 27 · E5). Lo siguen haciendo, pero ahora la que
         manda es la del sistema anterior: una tarjeta arriba con lo que
         identifica al documento, y una pestaña «Más información» con el resto.
-        Son dos grupos, uno por pestaña, y cada uno ya tiene su título en la
-        sección que lo contiene.
 
         El rotulo del grupo va oculto a la vista por eso mismo —repetirlo
         seria decirlo dos veces— pero existe: un fieldset sin legend deja al
@@ -108,35 +135,39 @@ export function EditorCabecera({
       <fieldset className={styles.grupo}>
         <legend className="sr-only">Datos del documento</legend>
         <div className={styles.grilla}>
+          {/* Referencia y Fecha en un solo renglón (Fase 199): la serie ocupa
+              lo que mide su texto, el número toma el resto, y la fecha entra
+              al lado. Así se gana una fila. */}
           {hayReferencia ? (
-            <div className={`${styles.campo} ${styles.ancho}`}>
-              <span className={styles.etiqueta}>Referencia</span>
-              <div className={styles.referencia}>
-                {series && series.length > 1 && onCambiarSerie ? (
-                  <Select
-                    aria-label="Serie del documento"
-                    value={serie ?? ''}
-                    onChange={(e) => onCambiarSerie(e.target.value)}
-                  >
-                    {series.map((s) => (
-                      <option key={s.codigo} value={s.codigo}>
-                        {s.codigo} — {s.autoridad === 'ERP' ? 'se emite desde el ERP' : 'la numera STEL'}
-                      </option>
-                    ))}
-                  </Select>
-                ) : (
-                  <span className={styles.numeroPendiente}>{serie ?? '—'}</span>
-                )}
-                {/* El número lo asigna el servidor al crear: decirlo es mejor
-                    que un campo vacío que parece que falta completar. */}
-                <span className={styles.numeroPendiente}>{numero ?? 'lo asigna el servidor'}</span>
+            <div className={`${styles.parRef} ${styles.ancho}`}>
+              <div className={styles.campo}>
+                <span className={styles.etiqueta}>Referencia</span>
+                <div className={styles.referencia}>
+                  {series && series.length > 1 && onCambiarSerie ? (
+                    <Select
+                      aria-label="Serie del documento"
+                      value={serie ?? ''}
+                      onChange={(e) => onCambiarSerie(e.target.value)}
+                    >
+                      {series.map((s) => (
+                        <option key={s.codigo} value={s.codigo}>
+                          {s.codigo} — {s.autoridad === 'ERP' ? 'se emite desde el ERP' : 'la numera STEL'}
+                        </option>
+                      ))}
+                    </Select>
+                  ) : (
+                    <span className={styles.numeroPendiente}>{serie ?? '—'}</span>
+                  )}
+                  {/* El número lo asigna el servidor al crear: decirlo es mejor
+                      que un campo vacío que parece que falta completar. */}
+                  <span className={styles.numeroPendiente}>{numero ?? 'lo asigna el servidor'}</span>
+                </div>
               </div>
+              {campoFecha}
             </div>
-          ) : null}
-
-          <Field label="Fecha">
-            <Input type="date" value={valores.fecha} onChange={(e) => onCambiar('fecha', e.target.value)} />
-          </Field>
+          ) : (
+            campoFecha
+          )}
 
           {/* «Válida hasta» se fue en la Fase 28 · E11: no aplica al negocio,
               y de las 307 cotizaciones de la base ninguna la tenía cargada. */}
@@ -158,7 +189,6 @@ export function EditorCabecera({
             />
           </div>
 
-
           <Field label="Forma de pago" optional className={styles.ancho}>
             <SelectorFormaDePago
               valor={valores.formaPago}
@@ -169,46 +199,62 @@ export function EditorCabecera({
             />
           </Field>
 
+          {/* Agentes y Contactos en un solo renglón (Fase 199): quién lleva la
+              venta y con quién se habla, alineados, como pidió el usuario. */}
+          <div className={`${styles.par} ${styles.ancho}`}>
+            {/* Varios agentes, con uno principal (Fase 40): pasa seguido que
+                uno abra la cuenta y otro la siga, o que la parte técnica la
+                lleve uno y la comercial otro. */}
+            <Field label="Agentes" optional>
+              <VendedoresDelDocumento
+                vendedores={vendedores}
+                principal={valores.vendedorId}
+                acompanan={valores.vendedoresExtra}
+                onCambiar={onCambiarVendedores}
+              />
+            </Field>
 
-          {/* Varios agentes, con uno principal (Fase 40): pasa seguido que
-              uno abra la cuenta y otro la siga, o que la parte técnica la
-              lleve uno y la comercial otro. Antes el segundo no figuraba en
-              ningún lado: ni en los rankings, ni para filtrar, ni para
-              repartir. */}
-          <Field label="Agentes" optional>
-            <VendedoresDelDocumento
-              vendedores={vendedores}
-              principal={valores.vendedorId}
-              acompanan={valores.vendedoresExtra}
-              onCambiar={onCambiarVendedores}
-            />
-          </Field>
-
-          <Field
-            label="Tarifa"
-            optional
-            help={
-              avisoTarifa
-                ? 'Cambió la moneda y la tarifa anterior estaba en otra: se quitó.'
-                : valores.moneda === ''
-                  ? 'Elegí primero la moneda.'
-                  : ocultas > 0
-                    ? `Sólo las tarifas en ${valores.moneda}.`
+            <Field
+              label="Contactos"
+              optional
+              help={
+                avisoContacto
+                  ? 'Cambió el cliente: se quitó el contacto anterior.'
+                  : valores.customerId !== '' && contactos.length === 0 && !cargandoContactos
+                    ? 'El cliente no tiene contactos cargados.'
                     : undefined
-            }
-          >
-            <Select value={valores.listaPrecioId} onChange={(e) => onCambiar('listaPrecioId', e.target.value)}>
-              <option value="">Sin tarifa</option>
-              {compatibles.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nombre}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-
-
+              }
+            >
+              <div className={styles.linea}>
+                {/* Varios contactos, con uno principal (Fase 40): una venta la
+                    siguen el de compras, el que especifica y el que paga. */}
+                <ContactosDelDocumento
+                  contactos={contactos}
+                  principal={valores.contactoId}
+                  secundarios={valores.contactosExtra}
+                  disabled={valores.customerId === ''}
+                  cargando={cargandoContactos}
+                  onCambiar={onCambiarContactos}
+                />
+                {/* Crear un contacto sin abandonar el documento (Fase 28 · E14).
+                    El texto es corto a propósito: el nombre largo queda en el
+                    `aria-label`, que nombra la ACCIÓN y no la cosa. */}
+                {onAbrirContactos ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className={styles.botonAgenda}
+                    aria-label="Abrir la agenda de contactos del cliente"
+                    disabled={valores.customerId === ''}
+                    onClick={onAbrirContactos}
+                  >
+                    Contactos…
+                  </Button>
+                ) : null}
+              </div>
+            </Field>
+          </div>
         </div>
       </fieldset>
     </div>

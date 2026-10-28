@@ -726,31 +726,34 @@ describe('Cotización · pestañas', () => {
 
     // Vendedor y forma de pago: decisiones de negocio tomadas, hoy vacías.
     expect(screen.getAllByText('Sin registrar').length).toBeGreaterThanOrEqual(2)
-    // Fase 15 · E2: el documento sí guarda su tarifa. Sin ella, se dice que
-    // no quedó registrada, que no es lo mismo que inferir la del cliente.
-    expect(screen.getByText('Tarifa')).toBeInTheDocument()
-    expect(screen.getByText('Sin tarifa registrada')).toBeInTheDocument()
     // De dónde salió el documento no está en la tarjeta de arriba: es una
     // fila de «Más información» (Fase 84).
     expect(screen.queryByText(/Migrado desde STEL/)).toBeNull()
+    // Fase 15 · E2: el documento sí guarda su tarifa. Sin ella, se dice que
+    // no quedó registrada, que no es lo mismo que inferir la del cliente. La
+    // tarifa bajó a «Más información» en la Fase 199.
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
+    expect(screen.getByText('Tarifa')).toBeInTheDocument()
+    expect(screen.getByText('Sin tarifa registrada')).toBeInTheDocument()
   })
 
   it('con tarifa registrada, Información muestra su nombre (Fase 15 E2)', () => {
     estado.doc = cotizacion({ listaPrecioId: 'pl1', listaPrecioNombre: 'Mayorista' })
     montar()
 
+    // La tarifa vive en «Más información» desde la Fase 199.
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
     expect(screen.getByText('Mayorista')).toBeInTheDocument()
     expect(screen.queryByText('Sin tarifa registrada')).toBeNull()
   })
 
   /*
-   * El contacto salió de Información en la Fase 84 —no está en la ficha del
-   * sistema anterior, que es lo que se pidió replicar— y sigue estando en la
-   * hoja impresa, que es la que va al cliente, y en la ficha rápida que abre
-   * el nombre del cliente. Este test pasa a custodiar eso: que no vuelva a
-   * ocupar una fila, y que el camino para verlo siga ahí.
+   * El contacto volvió a la tarjeta de arriba en la Fase 199, al lado del
+   * agente (pedido del usuario). Este test custodia que se vea en la ficha —
+   * con su rol y su mail— y que el nombre del cliente siga abriendo su ficha
+   * rápida.
    */
-  it('el contacto no ocupa una fila: se abre desde el cliente', () => {
+  it('el contacto va en la tarjeta de arriba, al lado del agente (Fase 199)', () => {
     estado.doc = cotizacion({
       contactoNombre: 'Ana Pérez',
       contactoRol: 'Compras',
@@ -758,7 +761,7 @@ describe('Cotización · pestañas', () => {
       contactoTelefono: null,
     })
     montar()
-    expect(screen.queryByText(/Compras · ana@ejemplo.com/)).toBeNull()
+    expect(screen.getByText(/Compras · ana@ejemplo.com/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Consulta MercadoLibre' })).toBeInTheDocument()
   })
 

@@ -552,6 +552,8 @@ describe('Pedido · tarifa', () => {
     ]
     montar()
     editar()
+    // La tarifa bajó a «Más información» (Fase 199): se edita desde esa pestaña.
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
     fireEvent.change(screen.getByLabelText(/Tarifa/), { target: { value: 'mayorista' } })
 
     fireEvent.click(screen.getByRole('tab', { name: /Líneas/ }))
@@ -560,8 +562,11 @@ describe('Pedido · tarifa', () => {
 
   it('en lectura, Información muestra la tarifa registrada y no la inventa', () => {
     montar()
-    expect(screen.getByText('Tarifa')).toBeInTheDocument()
+    // Los faltantes (agente, forma de pago) están en la tarjeta de arriba.
     expect(screen.getAllByText('Sin registrar').length).toBeGreaterThan(0)
+    // La tarifa vive en «Más información» desde la Fase 199.
+    fireEvent.click(screen.getByRole('tab', { name: 'Más información' }))
+    expect(screen.getByText('Tarifa')).toBeInTheDocument()
   })
 
   it('el pedido no tiene fecha de validez ni en edición', () => {

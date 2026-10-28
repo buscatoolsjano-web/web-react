@@ -652,12 +652,9 @@ function Detalle() {
       {editando ? (
         <EditorMasInformacion
           valores={borrador.cabecera}
+          tarifas={tarifas.data ?? []}
+          avisoTarifa={avisoTarifa}
           onCambiar={cambiarCampoCabecera}
-          onAbrirContactos={() => setContactosAbiertos(true)}
-          contactos={contactos.data ?? []}
-          cargandoContactos={contactos.isPending && borrador.cabecera.customerId !== ''}
-          avisoContacto={avisoContacto}
-          onCambiarContactos={cambiarContactos}
           onCambiarMoneda={elegirMoneda}
           direcciones={direcciones.data ?? []}
           cargandoDirecciones={direcciones.isPending}
@@ -898,14 +895,17 @@ function Detalle() {
                 {editando ? (
                   <EditorCabecera
                     valores={borrador.cabecera}
-                    tarifas={tarifas.data ?? []}
                     formasDePago={formasDePago.data ?? []}
                     cargandoFormasDePago={formasDePago.isPending}
                     onAgregarFormaDePago={agregarFormaDePago}
                     vendedores={vendedores.data ?? []}
-                    avisoTarifa={avisoTarifa}
+                    contactos={contactos.data ?? []}
+                    cargandoContactos={contactos.isPending && borrador.cabecera.customerId !== ''}
+                    avisoContacto={avisoContacto}
+                    onAbrirContactos={() => setContactosAbiertos(true)}
                     onCambiar={cambiarCampoCabecera}
                     onCambiarVendedores={cambiarVendedores}
+                    onCambiarContactos={cambiarContactos}
                     onCambiarCliente={elegirCliente}
                   />
                 ) : (

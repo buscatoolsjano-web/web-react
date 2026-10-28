@@ -594,14 +594,17 @@ export function PedidoNuevoPage() {
               serie={serieVisible}
               onCambiarSerie={(codigo) => setB((x) => cambiarCampo(x, 'serie', codigo))}
               valores={b.cabecera}
-              tarifas={tarifas.data ?? []}
               formasDePago={formasDePago.data ?? []}
               cargandoFormasDePago={formasDePago.isPending}
               onAgregarFormaDePago={agregarFormaDePago}
               vendedores={vendedores.data ?? []}
-              avisoTarifa={avisoTarifa}
+              contactos={contactos.data ?? []}
+              cargandoContactos={contactos.isPending && b.cabecera.customerId !== ''}
+              avisoContacto={avisoContacto}
+              onAbrirContactos={() => setContactosAbiertos(true)}
               onCambiar={cambiarCampoCabecera}
               onCambiarVendedores={cambiarVendedores}
+              onCambiarContactos={cambiarContactos}
               onCambiarCliente={elegirCliente}
             />
           </DocSection>
@@ -612,14 +615,11 @@ export function PedidoNuevoPage() {
           <DocSection title="Más información">
             <EditorMasInformacion
               valores={b.cabecera}
-              onCambiar={cambiarCampoCabecera}
-              onAbrirContactos={() => setContactosAbiertos(true)}
-              contactos={contactos.data ?? []}
+              tarifas={tarifas.data ?? []}
+              avisoTarifa={avisoTarifa}
               direcciones={direcciones.data ?? []}
               cargandoDirecciones={direcciones.isPending && b.cabecera.customerId !== ''}
-              cargandoContactos={contactos.isPending && b.cabecera.customerId !== ''}
-              avisoContacto={avisoContacto}
-              onCambiarContactos={cambiarContactos}
+              onCambiar={cambiarCampoCabecera}
               onCambiarMoneda={elegirMoneda}
             />
           </DocSection>

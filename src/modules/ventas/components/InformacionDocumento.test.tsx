@@ -86,15 +86,20 @@ describe('Información · cotización', () => {
     // cuando el documento trae el dato cargado.
     expect(etiquetas()).not.toContain('Válida hasta')
     expect(screen.queryByText('17/10/2026')).toBeNull()
-    expect(screen.getByText('Mayorista')).toBeInTheDocument()
+    // La forma de pago vive en la tarjeta de arriba…
     expect(screen.getByText('30 días')).toBeInTheDocument()
+    // …y la tarifa bajó a «Más información» (Fase 199).
+    montarMas(doc({ listaPrecioNombre: 'Mayorista' }))
+    expect(screen.getByText('Mayorista')).toBeInTheDocument()
   })
 
   it('lo que falta y debería estar, se dice', () => {
     montar(doc())
-    expect(screen.getByText('Sin tarifa registrada')).toBeInTheDocument()
     expect(screen.getByText('Sin título')).toBeInTheDocument()
     expect(screen.getAllByText('Sin registrar').length).toBeGreaterThanOrEqual(1)
+    // La tarifa vacía se dice, ahora en «Más información» (Fase 199).
+    montarMas(doc())
+    expect(screen.getByText('Sin tarifa registrada')).toBeInTheDocument()
   })
 
   /**
@@ -106,8 +111,10 @@ describe('Información · cotización', () => {
    * Lo que se prueba es la LISTA y su ORDEN, que es lo que se pidió, y que
    * nada de lo que se sacó era información que sólo estaba acá: «Origen» es
    * el chip del encabezado, «Moneda» está en cada precio, «Creado» y
-   * «Última modificación» están en Trazabilidad y el contacto se abre
-   * tocando el cliente.
+   * «Última modificación» están en Trazabilidad.
+   *
+   * Desde la Fase 199 el contacto va en la tarjeta de arriba, al lado del
+   * agente, y la tarifa bajó a «Más información».
    */
   it('muestra los nueve datos del sistema anterior, en su orden', () => {
     montar(doc({ titulo: 'VENTAS MERCADO LIBRE', creadoPor: 'Juan' }))
@@ -120,13 +127,16 @@ describe('Información · cotización', () => {
       'Forma de pago',
       'Creado por',
       'Agente',
-      'Tarifa',
+      'Contacto',
     ])
   })
 
   it('no repite lo que ya está en otro lado de la pantalla', () => {
     montar(doc({ notas: 'Generada al importar la orden de compra 4800027323.', tipoCambio: 1100 }))
-    for (const ausente of ['Origen', 'Moneda', 'Contacto', 'Observaciones', 'Creado', 'Última modificación', 'Tipo de cambio']) {
+    // La tarifa bajó a «Más información» (Fase 199): no está en la tarjeta de
+    // arriba. El contacto, en cambio, SÍ subió acá, así que ya no se lista
+    // como ausente.
+    for (const ausente of ['Origen', 'Moneda', 'Observaciones', 'Creado', 'Última modificación', 'Tipo de cambio', 'Tarifa']) {
       expect(etiquetas()).not.toContain(ausente)
     }
   })
@@ -134,10 +144,14 @@ describe('Información · cotización', () => {
 
 describe('Información · pedido', () => {
   it('muestra tarifa y forma de pago, pero no la validez', () => {
-    montar(doc({ tipo: 'pedido', numero: 'PDV00001', serie: 'PDV', listaPrecioNombre: 'Lista base' }))
-    expect(etiquetas()).toContain('Tarifa')
+    const d = doc({ tipo: 'pedido', numero: 'PDV00001', serie: 'PDV', listaPrecioNombre: 'Lista base' })
+    montar(d)
+    // La forma de pago sigue en la tarjeta de arriba…
     expect(etiquetas()).toContain('Forma de pago')
     expect(etiquetas()).not.toContain('Válida hasta')
+    // …y la tarifa, en «Más información» desde la Fase 199.
+    montarMas(d)
+    expect(etiquetas()).toContain('Tarifa')
   })
 
   it('enlaza la cotización de origen, y dice cuándo es manual', () => {
