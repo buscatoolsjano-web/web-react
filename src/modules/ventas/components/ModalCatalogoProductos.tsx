@@ -9,9 +9,12 @@ import { Icon } from '@/components/icons/Icon'
 import { ModalNuevoProducto } from '@/modules/catalogo/components/ModalNuevoProducto'
 import type { ProductoCreado } from '@/modules/catalogo/services/altaProducto'
 import { ListadoProductos } from '@/modules/catalogo/components/ListadoProductos'
-import { PanelFacetas } from '@/modules/catalogo/components/PanelFacetas'
+import { GuiaFiltros } from '@/modules/publico/components/GuiaFiltros'
+import { useCategorias, usePortadasPublicas } from '@/modules/catalogo/hooks/useCatalogoFacetas'
+import { atributosParaGuia, categoriasParaGuia, facetasParaGuia, slugGuia } from '@/modules/catalogo/lib/adaptarGuia'
 import { useDisponibilidad } from '@/modules/catalogo/hooks/useProductos'
 import { columnasDinamicas } from '@/modules/catalogo/lib/columnasDinamicas'
+import { useEmpresa } from '@/features/empresa/useEmpresa'
 import {
   type FiltrosCatalogo,
   type OrdenCatalogo,
@@ -118,9 +121,6 @@ export function ModalCatalogoProductos({
 }: ModalCatalogoProductosProps) {
   const [filtros, setFiltros] = useState<FiltrosCatalogo>(FILTROS_MODAL)
   const [texto, setTexto] = useState('')
-  // Vista del listado: tarjetas con foto (por defecto, más visual para elegir)
-  // o la tabla densa de siempre (ordenar por columna, comparar specs). Fase 196.
-  const [vista, setVista] = useState<'tarjetas' | 'tabla'>('tarjetas')
   const [cantidades, setCantidades] = useState<Record<string, string>>({})
   const [agregados, setAgregados] = useState<string[]>([])
   /** El alta de producto, encima de este modal (Fase 40). */
@@ -154,6 +154,52 @@ export function ModalCatalogoProductos({
     () => new Map((facetas.data?.atributos ?? []).map((a) => [a.key, a.unidad] as const)),
     [facetas.data],
   )
+
+  /*
+   * El filtro con fotos del catálogo, acá adentro (Fase 198).
+   *
+   * El usuario lo pidió explícito: los productos en filas como antes, pero los
+   * filtros de arriba iguales a los del Catálogo —`GuiaFiltros`, con fotos—. Es
+   * el MISMO componente del sitio público que ya reusa la pantalla de Catálogo
+   * (Fase 133): se le dan los datos del documento con la forma que espera, y
+   * escribe el mismo estado de `filtros` que todo lo demás acá.
+   *
+   * La guía habla en slug público (plural: «puntas-y-tubos»), con el que
+   * matchean las fotos; el documento filtra por id de categoría. Se traduce en
+   * los dos sentidos, igual que en `CatalogoPage`.
+   */
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const todasLasCategorias = useCategorias(companyId)
+  const portadasPublicas = usePortadasPublicas()
+  const portadasPorSlug = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const c of portadasPublicas.data ?? []) if (c.portadaUrl) m.set(c.slug, c.portadaUrl)
+    return m
+  }, [portadasPublicas.data])
+  const facetasGuia = useMemo(() => facetasParaGuia(facetas.data), [facetas.data])
+  const categoriasGuia = useMemo(
+    () => categoriasParaGuia(todasLasCategorias.data ?? [], facetas.data, portadasPorSlug),
+    [todasLasCategorias.data, facetas.data, portadasPorSlug],
+  )
+  const categoriaActual = (todasLasCategorias.data ?? []).find((c) => c.id === filtros.categoria)
+  const slugCategoriaActual = categoriaActual ? slugGuia(categoriaActual) : undefined
+  const atributosGuia = useMemo(() => atributosParaGuia(filtros.atributos), [filtros.atributos])
+
+  /** Elegir una categoría desde la guía: se filtra por id y se limpian los subfiltros. */
+  const guiaElegirCategoria = (slug: string) => {
+    const cat = (todasLasCategorias.data ?? []).find((c) => slugGuia(c) === slug)
+    cambiarFiltros({ categoria: cat?.id ?? null, subtipos: [], atributos: {} })
+  }
+  /** Un filtro de la guía (tipo o atributo) → el estado multi-valor del documento. */
+  const guiaFiltrar = (clave: string, valor: string) => {
+    if (clave === 'tipo') {
+      cambiarFiltros({ subtipos: valor === '' ? [] : [valor] })
+    } else if (clave.startsWith('a.')) {
+      const key = clave.slice(2)
+      cambiarFiltros({ atributos: { ...filtros.atributos, [key]: valor === '' ? [] : [valor] } })
+    }
+  }
 
   // Un rol externo no ve saldos sino «Disponibilidad», igual que en el
   // Catálogo. El hook ya se desactiva solo para los internos, así que esto no
@@ -223,25 +269,6 @@ export function ModalCatalogoProductos({
           <Button variant="secondary" icon={<Icon name="plus" size={16} />} onClick={() => setCreando(true)}>
             Nuevo producto
           </Button>
-          {/* Tarjetas (visual, por defecto) o tabla (ordenar/comparar). Fase 196. */}
-          <div className={styles.vista} role="group" aria-label="Vista del listado">
-            <Button
-              size="sm"
-              variant={vista === 'tarjetas' ? 'primary' : 'secondary'}
-              aria-pressed={vista === 'tarjetas'}
-              onClick={() => setVista('tarjetas')}
-            >
-              Tarjetas
-            </Button>
-            <Button
-              size="sm"
-              variant={vista === 'tabla' ? 'primary' : 'secondary'}
-              aria-pressed={vista === 'tabla'}
-              onClick={() => setVista('tabla')}
-            >
-              Tabla
-            </Button>
-          </div>
         </div>
 
         {/* El cartel no dice sólo «listo»: dice qué hacer ahora. El producto
@@ -256,13 +283,19 @@ export function ModalCatalogoProductos({
           </Alert>
         ) : null}
 
-        {/* Los filtros del catálogo, tal cual: categorías, subcategorías,
-            marca y los atributos de la categoría elegida. */}
-        <PanelFacetas
-          filtros={filtros}
-          facetas={facetas.data}
+        {/* El filtro con fotos del Catálogo, tal cual (Fase 198): rubro → tipo →
+            encastre/medida/largo, con foto real cuando la hay. Es el mismo
+            `GuiaFiltros` del sitio público que usa la pantalla de Catálogo. */}
+        <GuiaFiltros
+          categoria={slugCategoriaActual}
+          categorias={categoriasGuia}
+          facetas={facetasGuia}
+          tipo={filtros.subtipos[0] ?? ''}
+          atributos={atributosGuia}
+          total={total}
           cargando={facetas.isPending}
-          onCambiar={cambiarFiltros}
+          onFiltrar={guiaFiltrar}
+          onCategoria={guiaElegirCategoria}
         />
       </div>
 
@@ -278,10 +311,6 @@ export function ModalCatalogoProductos({
         ) : (
           <ListadoProductos
             productos={productos}
-            /* Tarjetas con foto por defecto: elegir productos acá se parece a
-               navegar el catálogo, más visual (Fase 196). La tabla queda a un
-               clic para ordenar o comparar. */
-            forzarTarjetas={vista === 'tarjetas'}
             /* Las fotos en `eager`: son 25 y viven en el scroll propio del
                cuerpo, donde el `lazy` del navegador deja en blanco las de abajo
                hasta scrollear —lo que se siente como que no carga— (Fase 197). */

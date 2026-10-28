@@ -4,7 +4,6 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { Badge } from '@/components/ui/Badge'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import tabla from '@/components/tables/Tabla.module.css'
-import { cx } from '@/utils/cx'
 import { CeldaCarrito } from './CeldaCarrito'
 import { DisponibilidadBadge, PrecioCelda, SaldoCelda, StockCelda } from './Celdas'
 import { rutaProducto } from '../lib/rutas'
@@ -86,12 +85,6 @@ export interface ListadoProductosProps {
   navegable?: boolean
   /** Una clase extra por fila. La usa el modal para marcar lo ya agregado. */
   claseDeFila?: (producto: ProductoListado) => string | undefined
-  /**
-   * Fuerza la vista de TARJETAS (con foto) aunque la pantalla sea ancha. El
-   * Catálogo usa la tabla en escritorio; el modal de ventas pide tarjetas para
-   * elegir con la foto a la vista, más parecido a navegar el catálogo (Fase 196).
-   */
-  forzarTarjetas?: boolean
   /**
    * Carga las imágenes `eager` en vez de `lazy` (Fase 197).
    *
@@ -191,14 +184,10 @@ export function ListadoProductos({
   precioCelda,
   navegable = true,
   claseDeFila,
-  forzarTarjetas = false,
   imagenesEager = false,
 }: ListadoProductosProps) {
   const isMobile = useIsMobile()
   const navigate = useNavigate()
-  // Tarjetas con foto: siempre en mobile; en escritorio sólo si lo piden (modal
-  // de ventas). El resto del render sigue decidiendo por `isMobile`.
-  const enTarjetas = isMobile || forzarTarjetas
 
   /*
    * ANCHOS AJUSTABLES (Fase 58 · E6). «También quiero yo poder ir modificando
@@ -344,9 +333,9 @@ export function ListadoProductos({
   }
   if (productos.length === 0) return null
 
-  if (enTarjetas) {
+  if (isMobile) {
     return (
-      <ul className={cx(tabla.tarjetas, forzarTarjetas && styles.tarjetasGrilla)} aria-busy={cargando}>
+      <ul className={tabla.tarjetas} aria-busy={cargando}>
         {productos.map((p) => {
           // Uno o dos atributos, no quince: salen de los datos del propio producto.
           const destacados = atributosDestacados(p.atributos, 2, unidades)

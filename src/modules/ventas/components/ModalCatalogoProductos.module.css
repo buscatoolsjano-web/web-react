@@ -136,10 +136,3 @@
     flex-wrap: wrap;
   }
 }
-
-/* El interruptor Tarjetas / Tabla, al lado del buscador (Fase 196). */
-.vista {
-  display: inline-flex;
-  gap: var(--space-1);
-  flex: none;
-}

@@ -51,9 +51,12 @@ vi.mock('@/modules/catalogo/services/facetas', () => ({
     Promise.resolve({
       total: 2, totalCatalogo: 2,
       marcas: [{ valor: 'm1', etiqueta: 'CHICAGO PNEUMATIC', cantidad: 2 }],
+      // Conteos altos a propósito: la guía junta los rubros de menos de 150
+      // productos detrás de «Más rubros» (Fase 181), y con conteos de 1 los dos
+      // quedarían escondidos ahí y el test no los encontraría.
       categorias: [
-        { valor: 'cat-bal', etiqueta: 'Balanceadores', cantidad: 1 },
-        { valor: 'cat-pun', etiqueta: 'Puntas y tubos', cantidad: 1 },
+        { valor: 'cat-bal', etiqueta: 'Balanceadores', cantidad: 398 },
+        { valor: 'cat-pun', etiqueta: 'Puntas y tubos', cantidad: 9469 },
       ],
       subtipos: [],
       series: [],
@@ -77,6 +80,22 @@ vi.mock('@/modules/catalogo/services/facetas', () => ({
               },
             ],
     }),
+}))
+
+/*
+ * El filtro con fotos (`GuiaFiltros`) necesita el listado de categorías del ERP
+ * y las portadas del catálogo público (Fase 198). Se devuelven las dos
+ * categorías que las facetas cuentan, con su slug, para poder traducir
+ * slug↔id. Sin portadas: la guía cae a la foto del JSON o al ícono.
+ */
+vi.mock('@/modules/catalogo/hooks/useCatalogoFacetas', () => ({
+  useCategorias: () => ({
+    data: [
+      { id: 'cat-bal', nombre: 'Balanceadores', slug: 'balanceadores', slugPublico: null },
+      { id: 'cat-pun', nombre: 'Puntas y tubos', slug: 'puntas', slugPublico: 'puntas-y-tubos' },
+    ],
+  }),
+  usePortadasPublicas: () => ({ data: [] }),
 }))
 
 vi.mock('@/modules/catalogo/services/productos', () => ({
@@ -191,7 +210,6 @@ describe('elegir productos del catálogo desde el documento', () => {
    */
   it('con una categoría elegida aparecen sus atributos, y como columna', async () => {
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'Tabla' }))
     await screen.findByText('CP.CP9911')
     expect(screen.queryByRole('columnheader', { name: /Encastre/ })).toBeNull()
 
@@ -200,16 +218,14 @@ describe('elegir productos del catálogo desde el documento', () => {
     // La columna, que además ordena…
     const columna = await screen.findByRole('columnheader', { name: /Encastre/ })
     expect(columna).toHaveAttribute('aria-sort', 'none')
-    // …y el filtro, que es un desplegable aparte. Fase 38: es un `select`
-    // común, no un botón con panel flotante — el panel se rompía dentro de la
-    // fila de filtros, que scrollea en horizontal.
-    const filtro = screen.getByLabelText('Filtrar por Encastre')
-    expect(filtro.tagName).toBe('SELECT')
+    // …y el filtro de encastre, que desde la Fase 198 es un paso de la guía con
+    // fotos —igual que en el Catálogo—, no un desplegable: la guía pregunta
+    // «¿Qué encastre?» con los valores reales de la categoría como tiles.
+    expect(await screen.findByText('¿Qué encastre?')).toBeInTheDocument()
   })
 
   it('tocar una columna ordena, y tocarla de nuevo la da vuelta', async () => {
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'Tabla' }))
     await screen.findByText('CP.CP9911')
     const encabezado = () => screen.getByRole('columnheader', { name: /Referencia/ })
 
@@ -224,7 +240,6 @@ describe('elegir productos del catálogo desde el documento', () => {
 
   it('ordenar por un atributo se lo pide a la base como attr:<clave>', async () => {
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'Tabla' }))
     await screen.findByText('CP.CP9911')
     fireEvent.click(await screen.findByRole('button', { name: /Puntas y tubos/ }))
     const columna = await screen.findByRole('columnheader', { name: /Encastre/ })
@@ -319,7 +334,6 @@ describe('elegir productos del catálogo desde el documento', () => {
 
   it('el stock es sólo para adentro', async () => {
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'Tabla' }))
     await screen.findByText('CP.CP9911')
     expect(screen.getByRole('columnheader', { name: 'Stock real' })).toBeInTheDocument()
   })
@@ -372,7 +386,6 @@ describe('las columnas son las del catálogo', () => {
     unmount()
 
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'Tabla' }))
     await screen.findByText('CP.CP9911')
     expect(encabezados()).toEqual([...delCatalogo, 'Cant.', 'Agregar'])
   })
@@ -396,7 +409,6 @@ describe('con un rol externo', () => {
 
   it('no muestra columnas de stock', async () => {
     montar()
-    fireEvent.click(screen.getByRole('button', { name: 'Tabla' }))
     await screen.findByText('CP.CP9911')
     expect(screen.queryByRole('columnheader', { name: 'Stock real' })).not.toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'Stock virtual' })).not.toBeInTheDocument()
