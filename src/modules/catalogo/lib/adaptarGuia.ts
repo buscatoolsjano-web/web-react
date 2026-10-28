@@ -64,23 +64,34 @@ export const slugGuia = (c: Pick<CategoriaResumen, 'slug' | 'slugPublico'>): str
 /**
  * Todas las categorías con su conteo, para el primer paso de la guía. El conteo
  * sale de las facetas (por id de categoría, que es como filtra el ERP); si una
- * categoría no está en las facetas, va con 0. La portada —la foto que eligió un
- * admin para el catálogo público— se pasa por el slug público; si no hay, la
- * guía cae sola a la foto del JSON y después al ícono dibujado.
+ * categoría no está en las facetas, va con 0.
+ *
+ * Las fotos (la portada que eligió un admin y la del JSON) van por el slug
+ * público PLURAL. Buscatools lo tiene; Torquetools no (su `slug_publico` es
+ * null y cae al slug singular del ERP), y el slug público es único global, así
+ * que no se puede copiar. Por eso se matchea contra el catálogo público de
+ * Buscatools por NOMBRE (Fase 205): así TT encuentra la misma portada y el slug
+ * con el que buscar la foto del JSON. El `slug` que se devuelve sigue siendo el
+ * del round-trip (el que la guía manda de vuelta para elegir la categoría).
  */
 export function categoriasParaGuia(
   categorias: readonly CategoriaResumen[],
   facetas: Facetas | undefined,
-  portadasPorSlug?: ReadonlyMap<string, string>,
+  publicas?: readonly CategoriaPublica[],
 ): CategoriaPublica[] {
   const cuentaPorId = new Map((facetas?.categorias ?? []).map((o) => [o.valor, o.cantidad]))
+  const porNombre = new Map((publicas ?? []).map((p) => [p.nombre.trim().toLowerCase(), p]))
   return categorias.map((c) => {
     const slug = slugGuia(c)
+    const pub = porNombre.get(c.nombre.trim().toLowerCase())
     return {
       slug,
       nombre: c.nombre,
       productos: cuentaPorId.get(c.id) ?? 0,
-      portadaUrl: portadasPorSlug?.get(slug) ?? null,
+      portadaUrl: pub?.portadaUrl ?? null,
+      // Con qué slug buscar la foto del JSON: el público (plural) si se encontró
+      // por nombre; si no, el propio slug.
+      fotoSlug: pub?.slug ?? slug,
     }
   })
 }

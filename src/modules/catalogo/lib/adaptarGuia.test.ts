@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { atributosParaGuia, categoriasParaGuia, facetasParaGuia } from './adaptarGuia'
 import type { CategoriaResumen, Facetas } from '../types'
+import type { CategoriaPublica } from '@/modules/publico/services/catalogoPublico'
 
 const facetas: Facetas = {
   total: 9,
@@ -26,19 +27,25 @@ describe('adaptarGuia (Fase 133)', () => {
     expect(r.atributos[0]).toMatchObject({ key: 'encastre', opciones: [{ valor: '1/4', cuantos: 4 }] })
   })
 
-  it('las categorías llevan su conteo por id y hablan en slug público, con su portada', () => {
+  it('matchea las fotos por NOMBRE: sin slug público propio igual encuentra portada y slug de foto', () => {
     const cats: CategoriaResumen[] = [
+      // Con slug público propio (como Buscatools).
       { id: 'c-punta', nombre: 'Puntas y tubos', slug: 'punta', slugPublico: 'puntas-y-tubos', necesitaRevision: false },
+      // SIN slug público (como Torquetools): el round-trip cae al slug singular,
+      // pero la foto se resuelve por nombre contra el catálogo público.
       { id: 'c-bal', nombre: 'Balanceadores', slug: 'balanceador', slugPublico: null, necesitaRevision: false },
     ]
-    // Las portadas van por slug público: la foto del ERP es la MISMA que la web.
-    const portadas = new Map([['puntas-y-tubos', 'https://foto/punta.jpg']])
-    const r = categoriasParaGuia(cats, facetas, portadas)
-    expect(r).toEqual([
-      // «punta» → «puntas-y-tubos», y trae la portada; el conteo por id.
+    const publicas: CategoriaPublica[] = [
       { slug: 'puntas-y-tubos', nombre: 'Puntas y tubos', productos: 9, portadaUrl: 'https://foto/punta.jpg' },
-      // Sin slug público cae al propio; sin portada queda en null (la guía usa el ícono).
-      { slug: 'balanceador', nombre: 'Balanceadores', productos: 0, portadaUrl: null },
+      { slug: 'balanceadores', nombre: 'Balanceadores', productos: 5, portadaUrl: 'https://foto/bal.jpg' },
+    ]
+    const r = categoriasParaGuia(cats, facetas, publicas)
+    expect(r).toEqual([
+      // El slug del round-trip es el público; la foto y el fotoSlug, por nombre.
+      { slug: 'puntas-y-tubos', nombre: 'Puntas y tubos', productos: 9, portadaUrl: 'https://foto/punta.jpg', fotoSlug: 'puntas-y-tubos' },
+      // Round-trip por el slug singular, PERO la portada y el slug de foto
+      // (plural) salen del match por nombre: así Torquetools ve la misma foto.
+      { slug: 'balanceador', nombre: 'Balanceadores', productos: 0, portadaUrl: 'https://foto/bal.jpg', fotoSlug: 'balanceadores' },
     ])
   })
 

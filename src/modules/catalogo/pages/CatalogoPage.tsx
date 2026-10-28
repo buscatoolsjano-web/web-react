@@ -189,15 +189,12 @@ export function CatalogoPage() {
   // Las portadas del catálogo público, para que la guía muestre las mismas
   // fotos que la web (Fase 174). Se mapean por slug público.
   const portadasPublicas = usePortadasPublicas()
-  const portadasPorSlug = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const c of portadasPublicas.data ?? []) if (c.portadaUrl) m.set(c.slug, c.portadaUrl)
-    return m
-  }, [portadasPublicas.data])
   const facetasGuia = useMemo(() => facetasParaGuia(facetas), [facetas])
+  // Se pasan las categorías públicas de Buscatools crudas: la guía las matchea
+  // por nombre para que Torquetools muestre las mismas fotos (Fase 205).
   const categoriasGuia = useMemo(
-    () => categoriasParaGuia(todasLasCategorias.data ?? [], facetas, portadasPorSlug),
-    [todasLasCategorias.data, facetas, portadasPorSlug],
+    () => categoriasParaGuia(todasLasCategorias.data ?? [], facetas, portadasPublicas.data ?? []),
+    [todasLasCategorias.data, facetas, portadasPublicas.data],
   )
   // La guía habla en slug público (plural: «puntas-y-tubos»), que es con el que
   // matchean las fotos; el ERP filtra por id. Se traduce en los dos sentidos.

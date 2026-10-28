@@ -172,15 +172,12 @@ export function ModalCatalogoProductos({
   const companyId = activa?.companyId ?? null
   const todasLasCategorias = useCategorias(companyId)
   const portadasPublicas = usePortadasPublicas()
-  const portadasPorSlug = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const c of portadasPublicas.data ?? []) if (c.portadaUrl) m.set(c.slug, c.portadaUrl)
-    return m
-  }, [portadasPublicas.data])
   const facetasGuia = useMemo(() => facetasParaGuia(facetas.data), [facetas.data])
+  // Categorías públicas crudas: la guía matchea por nombre, así Torquetools
+  // muestra las mismas fotos que Buscatools (Fase 205).
   const categoriasGuia = useMemo(
-    () => categoriasParaGuia(todasLasCategorias.data ?? [], facetas.data, portadasPorSlug),
-    [todasLasCategorias.data, facetas.data, portadasPorSlug],
+    () => categoriasParaGuia(todasLasCategorias.data ?? [], facetas.data, portadasPublicas.data ?? []),
+    [todasLasCategorias.data, facetas.data, portadasPublicas.data],
   )
   const categoriaActual = (todasLasCategorias.data ?? []).find((c) => c.id === filtros.categoria)
   const slugCategoriaActual = categoriaActual ? slugGuia(categoriaActual) : undefined

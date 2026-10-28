@@ -22,6 +22,16 @@ export interface CategoriaPublica {
   productos: number
   /** La foto de portada: la del producto que un admin eligió (Fase 142). */
   portadaUrl?: string | null
+  /**
+   * El slug con el que buscar la foto del JSON de fotos (Fase 205).
+   *
+   * Normalmente es el mismo `slug`, pero Torquetools no tiene slug público
+   * propio (es `null` y cae al slug singular del ERP, `punta`), y el JSON y las
+   * portadas van por el slug público plural (`puntas-y-tubos`). Acá viaja ese
+   * slug —resuelto por nombre contra el catálogo público de Buscatools— para
+   * que TT muestre las mismas fotos. Si no se setea, se usa `slug`.
+   */
+  fotoSlug?: string | null
 }
 
 export interface ProductoPublicoResumen {

@@ -142,7 +142,7 @@ export function GuiaFiltros({
       cantidad: c.productos,
       // La portada que un admin eligió gana (Fase 142); si no hay, la foto del
       // JSON generado, y al final la forma dibujada.
-      medio: <Medio foto={c.portadaUrl ?? fotoDeCategoria(c.slug)} forma={iconoDeForma(c.nombre)} nombre={c.nombre} />,
+      medio: <Medio foto={c.portadaUrl ?? fotoDeCategoria(c.fotoSlug ?? c.slug)} forma={iconoDeForma(c.nombre)} nombre={c.nombre} />,
     })
     const opciones: Opcion[] = visibles.map(tile)
     if (colapsar) {
