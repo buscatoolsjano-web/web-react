@@ -515,7 +515,13 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
                   ) : (
                     <div className={styles.nombre}>{l.nombre ?? '—'}</div>
                   )}
-                  {edicion?.onDescripcion ? (
+                  {/* La caja de «texto comercial» sólo aparece cuando hace falta
+                      (Fase 217): en una línea escrita a mano (sin atributos) o si
+                      ya tiene un texto propio para modificar. Un producto del
+                      catálogo YA trae su descripción —el concatenado de Marca,
+                      Modelo, Tipo, Medida…— así que no se repite una caja vacía
+                      al lado; esa descripción se ve abajo. */}
+                  {edicion?.onDescripcion && (l.partes.length === 0 || (l.descripcion ?? '') !== '') ? (
                     <textarea
                       className={styles.descEditable}
                       aria-label="Descripción"
@@ -524,7 +530,7 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
                       value={l.descripcion ?? ''}
                       onChange={(e) => edicion.onDescripcion?.(l.id, e.target.value)}
                     />
-                  ) : mostrarDescripcion ? (
+                  ) : !edicion?.onDescripcion && mostrarDescripcion ? (
                     <DescripcionLinea linea={l} />
                   ) : null}
                   {/* Marca, Modelo… del producto se siguen viendo al editar: son
