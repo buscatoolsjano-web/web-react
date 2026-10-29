@@ -177,7 +177,7 @@ export function FormularioOrden({
       <section className={styles.seccion}>
         <h2 className={styles.tituloSeccion}>Datos de ingreso</h2>
 
-        <div className={styles.grilla}>
+        <div className={`${styles.grilla} ${styles.grillaCompacta}`}>
           <div className={styles.campo}>
             <label className={styles.etiqueta} htmlFor={`${id}-fecha`}>
               Fecha de ingreso *

@@ -65,26 +65,44 @@
   object-fit: contain;
 }
 
-/* Las miniaturas de lo ya sacado o adjuntado, con su botón para quitar. */
+/* Las miniaturas de lo ya sacado o adjuntado, con su botón para quitar. Grandes
+   y con la foto ENTERA a la vista (contain, no cover): en 96 px recortados no se
+   veía nada. Se tocan para abrirlas a tamaño completo (Fase 221). */
 .galeria {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: var(--space-2);
 }
 
 .miniatura {
   position: relative;
-  aspect-ratio: 1;
+  aspect-ratio: 4 / 3;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--surface-alt);
 }
 
+/* El botón que envuelve la foto: ocupa toda la miniatura y abre la imagen. */
+.verFoto {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.verFoto:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -2px;
+}
+
 .miniatura img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 
@@ -113,4 +131,51 @@
   margin: 0;
   font-size: var(--text-xs);
   color: var(--text-soft);
+}
+
+/* ── Visor a tamaño completo (Fase 221) ──────────────────────────────────── */
+.visor {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 1000);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgb(0 0 0 / 0.85);
+}
+
+/* El fondo que cubre todo: cierra al tocarlo y maneja Escape. Invisible, va
+   detrás de la foto y la ✕. */
+.visorFondo {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-out;
+}
+
+.visorImg {
+  position: relative;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  /* Los clics sobre la foto caen al fondo y cierran, como en cualquier visor. */
+  pointer-events: none;
+}
+
+.cerrarVisor {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  pointer-events: none;
 }

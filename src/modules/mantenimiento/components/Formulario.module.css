@@ -12,6 +12,14 @@
   min-width: 0;
 }
 
+/* Datos de ingreso: seis campos cortos. Con el minmax de arriba entraban cinco
+   y el sexto («Motivo») caía solo en un renglón con cuatro columnas vacías al
+   lado —el aire muerto que había que sacar. Más angosto entran los seis en una
+   fila y llenan el ancho (Fase 221). */
+.grillaCompacta {
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+}
+
 .campo {
   display: flex;
   flex-direction: column;

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { LIMITE_BYTES } from '../services/adjuntos'
@@ -35,6 +36,8 @@ export function CapturaFotosIngreso({ fotos, onCambio, deshabilitado = false }: 
   const streamRef = useRef<MediaStream | null>(null)
   const [camaraAbierta, setCamaraAbierta] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // La foto abierta a tamaño completo en el visor (índice), o null si cerrado.
+  const [ampliada, setAmpliada] = useState<number | null>(null)
 
   // Las miniaturas: una URL por archivo. Se revocan al cambiar o desmontar para
   // no filtrar memoria. Crear la URL en el render (useMemo) es barato; lo que
@@ -167,7 +170,16 @@ export function CapturaFotosIngreso({ fotos, onCambio, deshabilitado = false }: 
         <div className={styles.galeria}>
           {fotos.map((f, i) => (
             <div key={`${f.name}-${i}`} className={styles.miniatura}>
-              <img src={urls[i]} alt={`Foto del ingreso ${i + 1}`} />
+              {/* Tocar la foto la abre a tamaño completo en el visor: en la
+                  miniatura no se lee un número de serie. */}
+              <button
+                type="button"
+                className={styles.verFoto}
+                aria-label={`Ver la foto del ingreso ${i + 1} a tamaño completo`}
+                onClick={() => setAmpliada(i)}
+              >
+                <img src={urls[i]} alt={`Foto del ingreso ${i + 1}`} />
+              </button>
               {!deshabilitado ? (
                 <button
                   type="button"
@@ -187,6 +199,43 @@ export function CapturaFotosIngreso({ fotos, onCambio, deshabilitado = false }: 
           al crearla.
         </p>
       )}
+
+      {/* El visor a tamaño completo (Fase 221): un overlay con la foto entera.
+          Se cierra tocando cualquier lado, la ✕ o Escape. Es in-page —no una
+          pestaña nueva— para que funcione siempre sin depender del bloqueador de
+          popups, y porque muestra la imagen con <img>, nunca como documento
+          propio. El fondo es un botón que cubre todo (cierra al tocar y maneja
+          Escape); la foto y la ✕ van encima sin capturar el clic. */}
+      {ampliada !== null && ampliada < fotos.length
+        ? createPortal(
+            <div
+              className={styles.visor}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Foto del ingreso ${ampliada + 1}`}
+            >
+              <button
+                type="button"
+                className={styles.visorFondo}
+                aria-label="Cerrar la foto"
+                autoFocus
+                onClick={() => setAmpliada(null)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setAmpliada(null)
+                }}
+              />
+              <img
+                className={styles.visorImg}
+                src={urls[ampliada]}
+                alt={`Foto del ingreso ${ampliada + 1}`}
+              />
+              <span className={styles.cerrarVisor} aria-hidden="true">
+                ×
+              </span>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }
