@@ -8531,6 +8531,10 @@ export type Database = {
         Args: { p_slug: string }
         Returns: Json
       }
+      maintenance_historico: {
+        Args: { p_company: string; p_solo_cerradas?: boolean }
+        Returns: Json
+      }
       asistente_ficha_producto: {
         Args: { p_company: string; p_sku: string }
         Returns: Json

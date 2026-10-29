@@ -230,6 +230,9 @@ const ActivoDetallePage = lazyConRecarga(() =>
 const OrdenesMantenimientoPage = lazyConRecarga(() =>
   import('@/modules/mantenimiento/pages/OrdenesPage').then((m) => ({ default: m.OrdenesPage })),
 )
+const HistoricoMantenimientoPage = lazyConRecarga(() =>
+  import('@/modules/mantenimiento/pages/HistoricoPage').then((m) => ({ default: m.HistoricoPage })),
+)
 const OrdenNuevaPage = lazyConRecarga(() =>
   import('@/modules/mantenimiento/pages/OrdenNuevaPage').then((m) => ({
     default: m.OrdenNuevaPage,
@@ -507,6 +510,7 @@ export const routes: RouteObject[] = [
       // `nueva` antes que `:id`: si no, React Router la tomaría como un id.
       { path: 'mantenimiento/ordenes/nueva', element: privada(<OrdenNuevaPage />) },
       { path: 'mantenimiento/ordenes/:id', element: privada(<OrdenDetallePage />) },
+      { path: 'mantenimiento/historico', element: privada(<HistoricoMantenimientoPage />) },
       { path: 'mantenimiento/puntos', element: privada(<PuntosPage />) },
 
       // Emails. El id de la ruta es el uuid de `email_threads`, no el id de

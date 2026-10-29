@@ -1,0 +1,103 @@
+/* El histórico global (Fase 219): tabla densa, con scroll propio en pantallas
+   angostas porque tiene muchas columnas. */
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.tabla thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface-alt);
+  color: var(--color-text-soft);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
+}
+
+.tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tabla tbody tr:hover {
+  background: var(--color-surface-alt);
+}
+
+.der {
+  text-align: right;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* El modelo del equipo, debajo de la referencia, en chico. */
+.sub {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+}
+
+.vacio {
+  color: var(--color-text-muted);
+}
+
+/* El estado de una parte, con su color (mismo criterio que la ficha). */
+.parte {
+  display: inline-block;
+  min-width: 2.6rem;
+  text-align: center;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  border: 1px solid transparent;
+}
+
+.ok {
+  background: var(--color-success-soft);
+  color: var(--color-success-text);
+}
+
+.nok {
+  border-color: var(--color-danger);
+  color: var(--color-danger-text);
+}
+
+.na {
+  background: var(--color-surface-sunken, var(--color-surface-alt));
+  border-color: var(--color-border-medium);
+  color: var(--color-text-soft);
+}
+
+/* El toggle «sólo cerradas», al lado del botón de exportar. */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  white-space: nowrap;
+}
+
+.toggle input {
+  width: 18px;
+  height: 18px;
+}
