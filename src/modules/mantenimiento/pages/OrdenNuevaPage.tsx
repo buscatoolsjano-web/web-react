@@ -9,6 +9,7 @@ import { Icon } from '@/components/icons/Icon'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { permisosDe } from '../lib/permisos'
 import { FormularioOrden } from '../components/FormularioOrden'
+import { StepperCircuito } from '../components/StepperCircuito'
 import { useCrearOrden } from '../hooks/useOrdenes'
 import { obtenerActivo } from '../services/activos'
 import { guardarChecksIniciales, type DatosOrden } from '../services/ordenes'
@@ -87,6 +88,10 @@ export function OrdenNuevaPage() {
         subtitle={a ? `Equipo ${a.referencia}${a.dueno ? ` · ${a.dueno}` : ''}` : undefined}
         back={{ to: '/mantenimiento/ordenes', label: 'Órdenes' }}
       />
+
+      {/* La trazabilidad del circuito, como en el FEIN: la orden nace en
+          diagnóstico y recorre cotización, reparación, torque y cierre. */}
+      <StepperCircuito actual="diagnosis" />
 
       <FormularioOrden
         valores={valores}
