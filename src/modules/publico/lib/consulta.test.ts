@@ -58,10 +58,10 @@ describe('las claves no cambian de forma', () => {
   it('facetas y listar tienen el orden y las piezas esperadas', () => {
     const f = leerFiltros(p('marca=tecna&a.encastre=1%2F4'), 'puntas')
     expect(claveFacetas(f)).toEqual([
-      'catalogo-publico', 'facetas', 'puntas', 'tecna', '', '', '', '', { encastre: '1/4' },
+      'catalogo-publico', 'facetas', 'puntas', 'tecna', '', '', '', '', { encastre: '1/4' }, {},
     ])
     expect(claveListar(f, 2)).toEqual([
-      'catalogo-publico', 'listar', 'puntas', 'tecna', '', '', '', '', { encastre: '1/4' }, 2,
+      'catalogo-publico', 'listar', 'puntas', 'tecna', '', '', '', '', { encastre: '1/4' }, {}, 2,
     ])
   })
 })

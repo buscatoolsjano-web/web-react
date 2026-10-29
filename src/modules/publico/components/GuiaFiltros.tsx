@@ -297,6 +297,10 @@ export function GuiaFiltros({
     // la capacidad en kg) no se eligen con tiles; se filtran aparte y acá se
     // saltean.
     for (const faceta of facetas?.atributos ?? []) {
+      // `min_kg`/`max_kg` son la capacidad: ya se preguntan en su propio paso
+      // por tramos, así que no se repiten como tiles. Sin esto, al acotar por
+      // capacidad el conjunto se achica y volvían a aparecer como «¿Cap. mín.?».
+      if (faceta.key === 'min_kg' || faceta.key === 'max_kg') continue
       // Rango explícito (lo marca el ERP) o demasiados valores para tiles: no
       // va como lista. El tope cubre al sitio público, cuyas facetas no traen
       // `clase`, para que un numérico de decenas de valores no explote en tiles.

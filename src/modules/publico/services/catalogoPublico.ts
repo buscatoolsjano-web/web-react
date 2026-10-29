@@ -111,7 +111,8 @@ async function adelanto(clave: 'categorias' | 'facetas' | 'listar'): Promise<unk
 /** ¿La consulta es la portada, sin ningún filtro puesto? Sólo ahí se adopta. */
 const esPortada = (f: Filtros): boolean =>
   !f.categoria && !f.marca && !f.serie && !f.tipo && !f.modelo && !f.texto &&
-  !(f.atributos && Object.keys(f.atributos).length > 0)
+  !(f.atributos && Object.keys(f.atributos).length > 0) &&
+  !(f.rangos && Object.keys(f.rangos).length > 0)
 
 function resumenDe(crudo: unknown): ProductoPublicoResumen {
   const o = (crudo ?? {}) as Record<string, unknown>
@@ -183,8 +184,28 @@ export interface Filtros {
   texto?: string | null
   /** Los atributos elegidos: la clave es la del atributo, no la de la URL. */
   atributos?: Record<string, string> | null
+  /** Rangos numéricos (capacidad en kg de balanceadores, Fase 216). */
+  rangos?: Record<string, { min: number | null; max: number | null }> | null
   pagina?: number
   porPagina?: number
+}
+
+/**
+ * Los rangos, como los espera la RPC: sin los extremos nulos (`{min:null,max:10}`
+ * → `{max:10}`) y sin claves vacías. Null cuando no hay ninguno (Fase 216).
+ */
+function rangosParaRpc(
+  rangos: Filtros['rangos'],
+): Record<string, { min?: number; max?: number }> | null {
+  if (!rangos) return null
+  const salida: Record<string, { min?: number; max?: number }> = {}
+  for (const [k, r] of Object.entries(rangos)) {
+    const e: { min?: number; max?: number } = {}
+    if (r.min !== null) e.min = r.min
+    if (r.max !== null) e.max = r.max
+    if (e.min !== undefined || e.max !== undefined) salida[k] = e
+  }
+  return Object.keys(salida).length > 0 ? salida : null
 }
 
 export async function listar(params: Filtros): Promise<PaginaDeCatalogo> {
@@ -202,6 +223,7 @@ export async function listar(params: Filtros): Promise<PaginaDeCatalogo> {
       p_modelo: params.modelo ?? null,
       p_atributos:
         params.atributos && Object.keys(params.atributos).length > 0 ? params.atributos : null,
+      p_rangos: rangosParaRpc(params.rangos),
       p_pagina: params.pagina ?? 1,
       p_por_pagina: params.porPagina ?? 24,
     })
@@ -307,6 +329,7 @@ export async function facetas(params: Filtros = {}): Promise<FacetasPublicas> {
         params.atributos && Object.keys(params.atributos).length > 0 ? params.atributos : null,
       p_texto: params.texto ?? null,
       p_modelo: params.modelo ?? null,
+      p_rangos: rangosParaRpc(params.rangos),
     })
     if (res.error) throw new FalloCatalogoPublico(`No se pudieron leer los filtros: ${res.error.message}`)
     data = res.data

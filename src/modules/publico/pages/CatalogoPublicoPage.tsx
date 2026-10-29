@@ -10,6 +10,7 @@ import { useCarritoPublico } from '../hooks/useCarritoPublico'
 import { categorias } from '../services/catalogoPublico'
 import {
   PREFIJO_ATRIBUTO,
+  PREFIJO_RANGO,
   POR_PAGINA,
   claveCategorias,
   claveFacetas,
@@ -247,6 +248,20 @@ export function CatalogoPublicoPage() {
               // no hay que esperarla (no-misused-promises + no-floating-promises).
               void navigate(slug === '' ? rutaCatalogo() : rutaCategoria(slug))
             }
+            rangos={f.rangos}
+            onRangos={(cambios) => {
+              const siguiente = new URLSearchParams(params)
+              for (const [key, v] of Object.entries(cambios)) {
+                siguiente.delete(`${PREFIJO_RANGO}${key}.min`)
+                siguiente.delete(`${PREFIJO_RANGO}${key}.max`)
+                if (v !== null) {
+                  if (v.min !== null) siguiente.set(`${PREFIJO_RANGO}${key}.min`, String(v.min))
+                  if (v.max !== null) siguiente.set(`${PREFIJO_RANGO}${key}.max`, String(v.max))
+                }
+              }
+              siguiente.delete('p')
+              setParams(siguiente)
+            }}
           />
 
           <TablaProductos

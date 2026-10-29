@@ -23,6 +23,12 @@ import { facetas, listar, type Filtros } from '../services/catalogoPublico'
 export const PREFIJO_ATRIBUTO = 'a.'
 
 /**
+ * Prefijo de los rangos numéricos: `rango.min_kg.max=10` (Fase 216). Igual que
+ * el catálogo del ERP, para que un link pegado de un lado sirva del otro.
+ */
+export const PREFIJO_RANGO = 'rango.'
+
+/**
  * 100 por página: la primera tanda es grande y se ve casi todo el catálogo de
  * un saque. El tope real lo pone el servidor; esto es lo que pide la portada.
  */
@@ -37,13 +43,30 @@ export interface FiltrosURL {
   texto: string
   /** Lo elegido en las columnas de atributo: `{encastre: '1/4 HEX BIT'}`. */
   atributos: Record<string, string>
+  /** Rangos numéricos: `{min_kg: {min: null, max: 10}}` (capacidad, Fase 216). */
+  rangos: Record<string, { min: number | null; max: number | null }>
 }
 
 /** Lee de la URL los filtros que comparten la página y el layout. */
 export function leerFiltros(params: URLSearchParams, categoria: string | undefined): FiltrosURL {
   const atributos: Record<string, string> = {}
+  const rangos: Record<string, { min: number | null; max: number | null }> = {}
   for (const [k, v] of params.entries()) {
-    if (k.startsWith(PREFIJO_ATRIBUTO) && v !== '') atributos[k.slice(PREFIJO_ATRIBUTO.length)] = v
+    if (k.startsWith(PREFIJO_ATRIBUTO) && v !== '') {
+      atributos[k.slice(PREFIJO_ATRIBUTO.length)] = v
+    } else if (k.startsWith(PREFIJO_RANGO)) {
+      // rango.<key>.<min|max>
+      const resto = k.slice(PREFIJO_RANGO.length)
+      const corte = resto.lastIndexOf('.')
+      if (corte <= 0) continue
+      const key = resto.slice(0, corte)
+      const extremo = resto.slice(corte + 1)
+      if (extremo !== 'min' && extremo !== 'max') continue
+      const n = Number(v)
+      if (v.trim() === '' || !Number.isFinite(n)) continue
+      const actual = rangos[key] ?? { min: null, max: null }
+      rangos[key] = { ...actual, [extremo]: n }
+    }
   }
   return {
     categoria: categoria ?? null,
@@ -53,6 +76,7 @@ export function leerFiltros(params: URLSearchParams, categoria: string | undefin
     modelo: params.get('modelo') ?? '',
     texto: params.get('q') ?? '',
     atributos,
+    rangos,
   }
 }
 
@@ -69,7 +93,8 @@ export function hayFiltro(f: FiltrosURL): boolean {
     f.marca !== '' ||
     f.serie !== '' ||
     f.tipo !== '' ||
-    Object.keys(f.atributos).length > 0
+    Object.keys(f.atributos).length > 0 ||
+    Object.keys(f.rangos).length > 0
   )
 }
 
@@ -82,6 +107,7 @@ const aFiltros = (f: FiltrosURL): Filtros => ({
   modelo: f.modelo === '' ? null : f.modelo,
   texto: f.texto === '' ? null : f.texto,
   atributos: f.atributos,
+  rangos: Object.keys(f.rangos).length > 0 ? f.rangos : null,
 })
 
 export const claveCategorias = ['catalogo-publico', 'categorias'] as const
@@ -97,6 +123,7 @@ export const claveFacetas = (f: FiltrosURL) =>
     f.modelo,
     f.texto,
     f.atributos,
+    f.rangos,
   ] as const
 
 export const claveListar = (f: FiltrosURL, pagina: number) =>
@@ -110,6 +137,7 @@ export const claveListar = (f: FiltrosURL, pagina: number) =>
     f.modelo,
     f.texto,
     f.atributos,
+    f.rangos,
     pagina,
   ] as const
 
