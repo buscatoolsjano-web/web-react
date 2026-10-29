@@ -14,6 +14,7 @@ import doc from '@/components/document/Document.module.css'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { GuiaFiltros } from '@/modules/publico/components/GuiaFiltros'
+import { aplicarCambiosDeRango } from '@/modules/publico/lib/rangosGuia'
 import { ListadoProductos } from '../components/ListadoProductos'
 import { BarraCarrito } from '../components/BarraCarrito'
 import { ModalComparar } from '../components/ModalComparar'
@@ -205,7 +206,9 @@ export function CatalogoPage() {
   /** Elegir una categoría desde la guía: el ERP filtra por id, y se limpian los subfiltros. */
   const guiaElegirCategoria = (slug: string) => {
     const cat = (todasLasCategorias.data ?? []).find((c) => slugGuia(c) === slug)
-    actualizar({ categoria: cat?.id ?? null, subtipos: [], atributos: {} })
+    // Se limpian también los rangos (capacidad): si quedara puesto, en un rubro
+    // sin min_kg/max_kg dejaría la lista en cero (ranges_match exige la clave).
+    actualizar({ categoria: cat?.id ?? null, subtipos: [], atributos: {}, rangos: {} })
   }
   /** Un filtro de la guía (tipo o atributo) → el estado multi-valor del ERP. */
   const guiaFiltrar = (clave: string, valor: string) => {
@@ -293,6 +296,8 @@ export function CatalogoPage() {
         cargando={facetasCargando}
         onFiltrar={guiaFiltrar}
         onCategoria={guiaElegirCategoria}
+        rangos={filtros.rangos}
+        onRangos={(cambios) => actualizar({ rangos: aplicarCambiosDeRango(filtros.rangos, cambios) })}
       />
 
       {/*

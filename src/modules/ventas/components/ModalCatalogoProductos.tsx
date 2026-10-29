@@ -10,6 +10,7 @@ import { ModalNuevoProducto } from '@/modules/catalogo/components/ModalNuevoProd
 import type { ProductoCreado } from '@/modules/catalogo/services/altaProducto'
 import { ListadoProductos } from '@/modules/catalogo/components/ListadoProductos'
 import { GuiaFiltros } from '@/modules/publico/components/GuiaFiltros'
+import { aplicarCambiosDeRango } from '@/modules/publico/lib/rangosGuia'
 import { useCategorias, usePortadasPublicas } from '@/modules/catalogo/hooks/useCatalogoFacetas'
 import { atributosParaGuia, categoriasParaGuia, facetasParaGuia, slugGuia } from '@/modules/catalogo/lib/adaptarGuia'
 import { useDisponibilidad } from '@/modules/catalogo/hooks/useProductos'
@@ -186,7 +187,9 @@ export function ModalCatalogoProductos({
   /** Elegir una categoría desde la guía: se filtra por id y se limpian los subfiltros. */
   const guiaElegirCategoria = (slug: string) => {
     const cat = (todasLasCategorias.data ?? []).find((c) => slugGuia(c) === slug)
-    cambiarFiltros({ categoria: cat?.id ?? null, subtipos: [], atributos: {} })
+    // Se limpian también los rangos (capacidad): si no, en otro rubro sin
+    // min_kg/max_kg la lista quedaría en cero (ranges_match exige la clave).
+    cambiarFiltros({ categoria: cat?.id ?? null, subtipos: [], atributos: {}, rangos: {} })
   }
   /** Un filtro de la guía (tipo o atributo) → el estado multi-valor del documento. */
   const guiaFiltrar = (clave: string, valor: string) => {
@@ -293,6 +296,8 @@ export function ModalCatalogoProductos({
           cargando={facetas.isPending}
           onFiltrar={guiaFiltrar}
           onCategoria={guiaElegirCategoria}
+          rangos={filtros.rangos}
+          onRangos={(cambios) => cambiarFiltros({ rangos: aplicarCambiosDeRango(filtros.rangos, cambios) })}
         />
       </div>
 

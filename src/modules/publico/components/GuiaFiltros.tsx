@@ -4,6 +4,7 @@ import { cx } from '@/utils/cx'
 import type { CategoriaPublica, FacetasPublicas } from '../services/catalogoPublico'
 import { iconoDeEncastre, iconoDeForma } from '../lib/iconosDeForma'
 import { GRUPOS, grupoDe } from '../lib/grupos'
+import { type CambioRango } from '../lib/rangosGuia'
 import fotos from '../lib/fotosDeOpcion.generated.json'
 import styles from './GuiaFiltros.module.css'
 
@@ -57,6 +58,30 @@ const UMBRAL_RUBRO = 150
 /** El valor sentinela del tile «Más rubros»: no es un rubro, despliega el resto. */
 const MAS_RUBROS = '__mas_rubros__'
 
+/**
+ * Los tramos de capacidad del balanceador (Fase 215). Un balanceador sostiene
+ * un peso entre `min_kg` y `max_kg`; el usuario elige el peso de su herramienta
+ * y se traen los que lo cubren: `min_kg <= b` y `max_kg >= a` (solapamiento con
+ * el tramo). «a» es el piso del tramo y «b» el techo; `b` nulo es «sin techo».
+ */
+const CAPACIDAD_BALANCEADOR = [
+  { id: '0-2', etiqueta: 'Hasta 2 kg', a: 0, b: 2 },
+  { id: '2-5', etiqueta: '2 – 5 kg', a: 2, b: 5 },
+  { id: '5-10', etiqueta: '5 – 10 kg', a: 5, b: 10 },
+  { id: '10-20', etiqueta: '10 – 20 kg', a: 10, b: 20 },
+  { id: '20-40', etiqueta: '20 – 40 kg', a: 20, b: 40 },
+  { id: '40-80', etiqueta: '40 – 80 kg', a: 40, b: 80 },
+  { id: '80+', etiqueta: 'Más de 80 kg', a: 80, b: null as number | null },
+] as const
+
+/** Qué rangos setea cada tramo: `min_kg <= b` y `max_kg >= a`. */
+function rangosDeCapacidad(br: (typeof CAPACIDAD_BALANCEADOR)[number]): Record<string, CambioRango> {
+  return {
+    min_kg: br.b !== null ? { min: null, max: br.b } : null,
+    max_kg: br.a > 0 ? { min: br.a, max: null } : null,
+  }
+}
+
 export interface GuiaFiltrosProps {
   categoria: string | undefined
   categorias: readonly CategoriaPublica[]
@@ -67,6 +92,10 @@ export interface GuiaFiltrosProps {
   cargando: boolean
   onFiltrar: (clave: string, valor: string) => void
   onCategoria: (slug: string) => void
+  /** Rangos numéricos activos, para el paso de capacidad (Fase 215). */
+  rangos?: Record<string, { min: number | null; max: number | null }> | undefined
+  /** Setea/limpia rangos; si viene, aparece el paso de capacidad en balanceadores. */
+  onRangos?: ((cambios: Record<string, CambioRango>) => void) | undefined
 }
 
 interface Opcion {
@@ -83,6 +112,8 @@ interface Paso {
   opciones: Opcion[]
   elegir: (valor: string) => void
   quitar: () => void
+  /** Los tiles de este paso no muestran conteo (ej. capacidad por tramos). */
+  sinConteo?: boolean
 }
 
 const fotoDeTipo = (categoria: string | undefined, valor: string): string | undefined => {
@@ -114,6 +145,8 @@ export function GuiaFiltros({
   cargando,
   onFiltrar,
   onCategoria,
+  rangos,
+  onRangos,
 }: GuiaFiltrosProps) {
   // El grupo elegido vive en memoria (no va a la URL): es sólo el camino al
   // tipo. Si ya hay un tipo puesto, el grupo se deduce de él.
@@ -219,6 +252,44 @@ export function GuiaFiltros({
       }
     }
 
+    // ── Capacidad del balanceador, PRIMERO (Fase 215) ──────────────────────────
+    // Antes de la carcasa o la eslinga, lo que define un balanceador es cuántos
+    // kilos sostiene. Es un rango (min_kg/max_kg), así que no sale de los tiles
+    // de atributo: se ofrece en tramos y elegir uno setea los dos rangos. Sólo
+    // aparece donde se pueden setear rangos (`onRangos`) y donde el rubro tiene
+    // esos atributos (balanceadores).
+    const atrs = facetas?.atributos ?? []
+    const hayCapacidad = atrs.some((a) => a.key === 'min_kg') && atrs.some((a) => a.key === 'max_kg')
+    if (onRangos && hayCapacidad) {
+      const rMin = rangos?.min_kg ?? null
+      const rMax = rangos?.max_kg ?? null
+      const activoBr = CAPACIDAD_BALANCEADOR.find((br) => {
+        const c = rangosDeCapacidad(br)
+        return (
+          (c.min_kg?.max ?? null) === (rMin?.max ?? null) &&
+          (c.max_kg?.min ?? null) === (rMax?.min ?? null)
+        )
+      })
+      pasos.push({
+        clave: 'capacidad',
+        pregunta: '¿Cuántos kilos?',
+        pista: 'cuánto tiene que sostener el balanceador',
+        elegido: activoBr?.id ?? '',
+        sinConteo: true,
+        elegir: (v) => {
+          const br = CAPACIDAD_BALANCEADOR.find((x) => x.id === v)
+          if (br) onRangos(rangosDeCapacidad(br))
+        },
+        quitar: () => onRangos({ min_kg: null, max_kg: null }),
+        opciones: CAPACIDAD_BALANCEADOR.map((br) => ({
+          valor: br.id,
+          etiqueta: br.etiqueta,
+          cantidad: 0,
+          medio: null,
+        })),
+      })
+    }
+
     // ── Atributos de LISTA de la categoría, en su orden (data-driven, Fase 204) ──
     // Se recorren los atributos que las facetas traen para ESTA categoría —así
     // Puntas sigue dando encastre/medida/largo y Balanceadores da carcasa,
@@ -298,12 +369,18 @@ export function GuiaFiltros({
     )
   }
 
-  const ordenable = activo !== undefined && activo.clave !== 'categoria' && activo.clave !== 'grupo'
+  const ordenable =
+    activo !== undefined &&
+    activo.clave !== 'categoria' &&
+    activo.clave !== 'grupo' &&
+    activo.clave !== 'capacidad'
   const visibles = activo ? (ordenable ? ordenarOpciones(activo.opciones) : activo.opciones) : []
 
   const etiquetaChip = (p: Paso): string => {
     if (p.clave === 'grupo') return GRUPOS.find((g) => g.clave === p.elegido)?.label ?? p.elegido
     if (p.clave === 'categoria') return categorias.find((c) => c.slug === p.elegido)?.nombre ?? p.elegido
+    if (p.clave === 'capacidad')
+      return CAPACIDAD_BALANCEADOR.find((b) => b.id === p.elegido)?.etiqueta ?? p.elegido
     return p.elegido
   }
 
@@ -348,7 +425,9 @@ export function GuiaFiltros({
               >
                 {o.medio}
                 <span className={styles.etiqueta}>{o.etiqueta}</span>
-                <span className={styles.cantidad}>{o.cantidad.toLocaleString('es-AR')}</span>
+                {activo.sinConteo ? null : (
+                  <span className={styles.cantidad}>{o.cantidad.toLocaleString('es-AR')}</span>
+                )}
               </button>
             ))}
           </div>
