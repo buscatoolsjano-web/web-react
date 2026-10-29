@@ -300,6 +300,11 @@ export function FormularioOrden({
             </select>
           </div>
         </div>
+
+        <div className={styles.campo}>
+          <span className={styles.etiqueta}>Fotos del ingreso</span>
+          <CapturaFotosIngreso fotos={fotos} onCambio={setFotos} deshabilitado={guardando} />
+        </div>
       </section>
 
       <section className={styles.seccion}>
@@ -378,10 +383,6 @@ export function FormularioOrden({
         </p>
       </section>
 
-      <section className={styles.seccion}>
-        <h2 className={styles.tituloSeccion}>Fotos del ingreso</h2>
-        <CapturaFotosIngreso fotos={fotos} onCambio={setFotos} deshabilitado={guardando} />
-      </section>
 
       <div className={styles.acciones}>
         <Button type="submit" disabled={guardando}>
