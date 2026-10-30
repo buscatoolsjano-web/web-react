@@ -75,10 +75,45 @@ const sinSesion = (mensaje: string, recurso: string) =>
     headers: { ...JSON_CAB, 'WWW-Authenticate': desafio(`${recurso}${SUFIJO_META}`) },
   })
 
+/**
+ * Enmarca una respuesta JSON-RPC según lo que el cliente ACEPTA (Fase 221).
+ *
+ * El transporte Streamable HTTP deja contestar un pedido con un JSON suelto
+ * (`application/json`) o con un stream SSE de un solo evento
+ * (`text/event-stream`). Las dos son válidas por el spec. Pero el cliente de
+ * ChatGPT manda `Accept: application/json, text/event-stream` y, con el JSON
+ * suelto, recibía las herramientas y no las tomaba («cero acciones») —se vio
+ * en los logs: `tools/list` contestado con 15 y el builder mostrando ninguna—.
+ * Enmarcado en SSE sí las lee.
+ *
+ * A un cliente que NO pide `text/event-stream` (curl, el e2e, un Accept comodín)
+ * se le sigue dando JSON suelto, que es más simple de consumir.
+ */
+function responder(textoJson: string, accept: string): Response {
+  if (accept.includes('text/event-stream')) {
+    // SSE de un solo evento: la línea `event:`, la línea `data:` con el JSON, y
+    // una línea en blanco que cierra el evento. Se arma con saltos de línea
+    // REALES (no el escape `\n`): el bundler de Deno rechazaba el escape dentro
+    // del template literal («Expected unicode escape»), aunque tsc lo acepte.
+    const LF = String.fromCharCode(10)
+    const evento = 'event: message' + LF + 'data: ' + textoJson + LF + LF
+    return new Response(evento, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-store',
+        Connection: 'keep-alive',
+      },
+    })
+  }
+  return new Response(textoJson, { status: 200, headers: JSON_CAB })
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   const url = new URL(req.url)
   const ruta = url.pathname
   const recurso = recursoDe(BASE, url.pathname)
+  const accept = req.headers.get('Accept') ?? ''
 
   // Paso 1: sin sesión, a propósito.
   if (ruta.endsWith(SUFIJO_META)) {
@@ -135,10 +170,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (typeof crudo !== 'object' || crudo === null) throw new Error('no es objeto')
     peticion = crudo as Record<string, unknown>
   } catch {
-    return new Response(JSON.stringify(sobreError(null, -32700, 'El cuerpo no es JSON.')), {
-      status: 200,
-      headers: JSON_CAB,
-    })
+    return responder(JSON.stringify(sobreError(null, -32700, 'El cuerpo no es JSON.')), accept)
   }
 
   /**
@@ -158,6 +190,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
   ) as Record<string, unknown>
   anotar({
     rpc: metodo,
+    // Para diagnosticar qué cliente llama y cómo: el Accept decide si la
+    // respuesta va en SSE o en JSON (Fase 221).
+    accept,
+    ua: (req.headers.get('user-agent') ?? '').slice(0, 60),
     ...(metodo === 'initialize'
       ? {
           pidioVersion: String(params['protocolVersion'] ?? ''),
@@ -190,7 +226,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         ? { doyVersion: String(resuelto.resultado['protocolVersion'] ?? '') }
         : {}),
     })
-    return new Response(cuerpo, { status: 200, headers: JSON_CAB })
+    return responder(cuerpo, accept)
   }
   if (resuelto.clase === 'error') {
     // Un método que no conocemos sale con 200 y un error JSON-RPC adentro, así
@@ -198,10 +234,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Acá sí se ve: si el cliente prueba `resources/list` o `prompts/list` y se
     // va, este renglón es la explicación.
     anotar({ rpc: metodo, contesto: 'error', codigo: resuelto.codigo })
-    return new Response(
-      JSON.stringify(sobreError(resuelto.id, resuelto.codigo, resuelto.mensaje)),
-      { status: 200, headers: JSON_CAB },
-    )
+    return responder(JSON.stringify(sobreError(resuelto.id, resuelto.codigo, resuelto.mensaje)), accept)
   }
 
   /*
@@ -216,10 +249,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const apertura = await abrirSesion(token)
   if (!apertura.ok) {
     if (apertura.status === 401) return sinSesion(apertura.mensaje, recurso)
-    return new Response(JSON.stringify(sobreError(resuelto.id, -32603, apertura.mensaje)), {
-      status: 200,
-      headers: JSON_CAB,
-    })
+    return responder(JSON.stringify(sobreError(resuelto.id, -32603, apertura.mensaje)), accept)
   }
 
   /*
@@ -232,10 +262,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const { quien, correo, membresias } = apertura.sesion
     const datos = perfil({ quien, correo, membresias })
     anotar({ herramienta: 'quien_soy', usuario: apertura.sesion.userId })
-    return new Response(
-      JSON.stringify(respuestaDeHerramienta(resuelto.id, JSON.stringify(datos))),
-      { status: 200, headers: JSON_CAB },
-    )
+    return responder(JSON.stringify(respuestaDeHerramienta(resuelto.id, JSON.stringify(datos))), accept)
   }
 
   // Desde acá es `tools/call`.
@@ -245,10 +272,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     typeof pedida === 'string' ? pedida : undefined,
   )
   if (!elegida.ok) {
-    return new Response(JSON.stringify(sobreError(resuelto.id, PARAMS_MAL, elegida.mensaje)), {
-      status: 200,
-      headers: JSON_CAB,
-    })
+    return responder(JSON.stringify(sobreError(resuelto.id, PARAMS_MAL, elegida.mensaje)), accept)
   }
 
   const ejecutar = crearEjecutor({
@@ -267,8 +291,5 @@ Deno.serve(async (req: Request): Promise<Response> => {
     bytes: texto.length,
   })
 
-  return new Response(JSON.stringify(respuestaDeHerramienta(resuelto.id, texto)), {
-    status: 200,
-    headers: JSON_CAB,
-  })
+  return responder(JSON.stringify(respuestaDeHerramienta(resuelto.id, texto)), accept)
 })
