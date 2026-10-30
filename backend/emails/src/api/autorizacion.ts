@@ -65,6 +65,8 @@ export interface HiloAutorizado {
   gmailThreadId: string
   /** `sub` del JWT, sólo para acotar el ritmo por persona. Nunca se loguea. */
   usuario: string
+  /** DWD u OAuth: decide si aplica el allowlist (opcional: los dobles lo omiten). */
+  authMode?: 'dwd' | 'oauth_user'
 }
 
 export interface CuentaAutorizada {
@@ -74,6 +76,7 @@ export interface CuentaAutorizada {
   /** display_name de la cuenta: el nombre del From. Nunca lo elige el cliente. */
   nombre: string | null
   usuario: string
+  authMode?: 'dwd' | 'oauth_user'
 }
 
 export interface Autorizador {
@@ -125,7 +128,7 @@ export class AutorizadorSupabase implements Autorizador {
 
   async autorizarHilo(jwt: string, accountId: string, gmailThreadId: string): Promise<HiloAutorizado> {
     const q = new URLSearchParams({
-      select: 'account_id,company_id,gmail_thread_id,email_accounts(email_address,active)',
+      select: 'account_id,company_id,gmail_thread_id,email_accounts(email_address,active,auth_mode)',
       account_id: `eq.${accountId}`,
       gmail_thread_id: `eq.${gmailThreadId}`,
       limit: '1',
@@ -145,7 +148,7 @@ export class AutorizadorSupabase implements Autorizador {
       account_id: string
       company_id: string
       gmail_thread_id: string
-      email_accounts: { email_address: string; active: boolean } | null
+      email_accounts: { email_address: string; active: boolean; auth_mode: 'dwd' | 'oauth_user' } | null
     }>
     const f = filas[0]
     if (!f || !f.email_accounts || !f.email_accounts.active) {
@@ -157,12 +160,13 @@ export class AutorizadorSupabase implements Autorizador {
       buzon: f.email_accounts.email_address,
       gmailThreadId: f.gmail_thread_id,
       usuario: subDelJwt(jwt),
+      authMode: f.email_accounts.auth_mode,
     }
   }
 
   async autorizarCuenta(jwt: string, accountId: string): Promise<CuentaAutorizada> {
     const q = new URLSearchParams({
-      select: 'id,company_id,email_address,display_name,active',
+      select: 'id,company_id,email_address,display_name,active,auth_mode',
       id: `eq.${accountId}`,
       limit: '1',
     })
@@ -182,10 +186,18 @@ export class AutorizadorSupabase implements Autorizador {
       email_address: string
       display_name: string | null
       active: boolean
+      auth_mode: 'dwd' | 'oauth_user'
     }>
     const f = filas[0]
     if (!f || !f.active) throw new NoEncontrado('cuenta no visible para este usuario')
-    return { accountId: f.id, companyId: f.company_id, buzon: f.email_address, nombre: f.display_name, usuario: subDelJwt(jwt) }
+    return {
+      accountId: f.id,
+      companyId: f.company_id,
+      buzon: f.email_address,
+      nombre: f.display_name,
+      usuario: subDelJwt(jwt),
+      authMode: f.auth_mode,
+    }
   }
 
   async uidSiAdmin(jwt: string, companyId: string): Promise<string | null> {

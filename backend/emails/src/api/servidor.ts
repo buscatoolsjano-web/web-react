@@ -224,9 +224,13 @@ async function autorizar(
   if (!validar.uuid(accountId) || !validar.idGmail(threadId)) throw new NoEncontrado('ids inválidos')
 
   const hilo = await ctx.autorizador.autorizarHilo(jwt, accountId, threadId)
-  // La segunda barrera de siempre: aunque la base diga que la cuenta existe,
-  // el buzón tiene que estar en el allowlist del servicio.
-  if (!buzonPermitido(ctx.buzones, hilo.buzon)) throw new NoEncontrado('buzón fuera del allowlist')
+  // La segunda barrera, SÓLO en DWD: aunque la base diga que la cuenta existe,
+  // el buzón tiene que estar en el allowlist. En OAuth el acceso viene del
+  // refresh token que el dueño autorizó, no de impersonar un dominio, así que
+  // el allowlist (una lista fija) no aplica.
+  if (hilo.authMode !== 'oauth_user' && !buzonPermitido(ctx.buzones, hilo.buzon)) {
+    throw new NoEncontrado('buzón fuera del allowlist')
+  }
   if (!ritmo.permitir(hilo.usuario)) throw new DemasiadosPedidos()
   return hilo
 }

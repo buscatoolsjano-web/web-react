@@ -212,7 +212,8 @@ async function autorizar(ctx: ContextoRedactar, jwt: string, e: EntradaRedaccion
     await ctx.autorizador.autorizarHilo(jwt, e.account_id, e.thread_id!)
   }
   const buzon = cuenta.buzon.trim().toLowerCase()
-  if (!ctx.buzones.has(buzon)) throw new NoEncontrado('buzón fuera del allowlist')
+  if (cuenta.authMode !== 'oauth_user' && !ctx.buzones.has(buzon))
+    throw new NoEncontrado('buzón fuera del allowlist')
   return { buzon: cuenta.buzon, nombre: cuenta.nombre, usuario: cuenta.usuario, accountId: cuenta.accountId, companyId: cuenta.companyId }
 }
 
@@ -460,7 +461,8 @@ export async function obtenerBorradorEditable(
 ) {
   if (!ID_BORRADOR.test(draftId)) throw new NoEncontrado('draft_id')
   const cuenta = await ctx.autorizador.autorizarCuenta(jwt, accountId)
-  if (!ctx.buzones.has(cuenta.buzon.trim().toLowerCase())) throw new NoEncontrado('allowlist')
+  if (cuenta.authMode !== 'oauth_user' && !ctx.buzones.has(cuenta.buzon.trim().toLowerCase()))
+    throw new NoEncontrado('allowlist')
   const b = await ctx.gmail.obtenerBorrador(cuenta.buzon, draftId)
   const m = b.message
   const payload = analizarMensaje(m as Parameters<typeof analizarMensaje>[0]).payload
@@ -540,7 +542,8 @@ export async function obtenerBorradorEditable(
 
 export async function listarBorradores(ctx: ContextoRedactar, jwt: string, accountId: string, threadId: string | null) {
   const cuenta = await ctx.autorizador.autorizarCuenta(jwt, accountId)
-  if (!ctx.buzones.has(cuenta.buzon.trim().toLowerCase())) throw new NoEncontrado('allowlist')
+  if (cuenta.authMode !== 'oauth_user' && !ctx.buzones.has(cuenta.buzon.trim().toLowerCase()))
+    throw new NoEncontrado('allowlist')
   if (threadId) await ctx.autorizador.autorizarHilo(jwt, accountId, threadId)
   const todos = await ctx.gmail.listarBorradores(cuenta.buzon)
   const elegidos = (threadId ? todos.filter((d) => d.threadId === threadId) : todos).slice(0, 25)
@@ -565,7 +568,8 @@ export async function listarBorradores(ctx: ContextoRedactar, jwt: string, accou
 export async function descartarBorrador(ctx: ContextoRedactar, jwt: string, accountId: string, draftId: string) {
   if (!ID_BORRADOR.test(draftId)) throw new NoEncontrado('draft_id')
   const cuenta = await ctx.autorizador.autorizarCuenta(jwt, accountId)
-  if (!ctx.buzones.has(cuenta.buzon.trim().toLowerCase())) throw new NoEncontrado('allowlist')
+  if (cuenta.authMode !== 'oauth_user' && !ctx.buzones.has(cuenta.buzon.trim().toLowerCase()))
+    throw new NoEncontrado('allowlist')
   let threadId: string | null = null
   try {
     const b = await ctx.gmail.obtenerBorrador(cuenta.buzon, draftId)
@@ -731,7 +735,8 @@ export async function previsualizarEnvio(
 
   const cuenta = await ctx.autorizador.autorizarCuenta(jwt, accountId)
   const buzon = cuenta.buzon.trim().toLowerCase()
-  if (!ctx.buzones.has(buzon)) throw new NoEncontrado('buzón fuera del allowlist')
+  if (cuenta.authMode !== 'oauth_user' && !ctx.buzones.has(buzon))
+    throw new NoEncontrado('buzón fuera del allowlist')
 
   const plantilla = await ctx.registro
     .paraEnviar(jwt, cuenta.companyId)

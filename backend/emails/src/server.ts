@@ -57,13 +57,20 @@ function bearer(req: IncomingMessage): string | null {
  * Resuelve el buzón a impersonar. **Las dos barreras, siempre.**
  *
  * 1. La dirección sale de `email_accounts`, nunca del request.
- * 2. Y además tiene que estar en el allowlist del servicio.
+ * 2. Y además, en DWD, tiene que estar en el allowlist del servicio.
  *
- * La segunda existe porque la primera no alcanza: si alguien lograra insertar
- * una fila con otra dirección del dominio, sin el allowlist ya tendría lectura
- * de ese buzón.
+ * La segunda existe porque la primera no alcanza EN DWD: si alguien lograra
+ * insertar una fila con otra dirección del dominio, sin el allowlist ya tendría
+ * lectura de ese buzón impersonándolo.
+ *
+ * Para una casilla OAuth (`auth_mode='oauth_user'`) NO hay impersonación: el
+ * acceso viene del refresh token que su dueño autorizó, no del dominio. El
+ * allowlist (una lista de env fija) no puede ni debe enumerar cada casilla que
+ * cada empresa conecte, así que ahí la barrera es tener una credencial OAuth
+ * vigente, no estar en el env.
  */
 function verificarBuzon(cfg: Config, cuenta: CuentaEmail): void {
+  if (cuenta.auth_mode === 'oauth_user') return
   if (!buzonPermitido(cfg.buzones, cuenta.email_address)) {
     throw new Error(`el buzón de la cuenta ${cuenta.id} no está en el allowlist`)
   }
