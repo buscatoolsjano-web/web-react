@@ -62,6 +62,9 @@ export interface Config {
   readonly ventanaResync: string
   /** Tope de hilos por corrida de resync. Lo que sobra va a la siguiente. */
   readonly maxHilosResync: number
+  /** OAuth per-cuenta (modo `oauth_user`). Opcional: sin esto sólo anda DWD. */
+  readonly oauthClientId: string | undefined
+  readonly oauthClientSecret: string | undefined
 }
 
 export function leerConfig(): Config {
@@ -80,6 +83,8 @@ export function leerConfig(): Config {
     buzones: buzonesPermitidos(),
     ventanaResync: process.env['SYNC_VENTANA'] ?? 'newer_than:7d',
     maxHilosResync: Number(process.env['SYNC_MAX_HILOS'] ?? '200'),
+    oauthClientId: process.env['GOOGLE_OAUTH_CLIENT_ID'],
+    oauthClientSecret: process.env['GOOGLE_OAUTH_CLIENT_SECRET'],
   }
 }
 
@@ -115,6 +120,16 @@ export interface ConfigApi {
    * RPC de envío: sin ella, el navegador podría marcar un envío como hecho.
    */
   readonly claveHmac: Buffer
+  /**
+   * OAuth per-cuenta (modo `oauth_user`). Todo opcional: sin esto, el flujo de
+   * "Conectar casilla" responde 503 y el resto (DWD) sigue igual.
+   */
+  readonly oauthClientId: string | undefined
+  readonly oauthClientSecret: string | undefined
+  /** El redirect registrado en Google (este servicio público + /oauth/google/callback). */
+  readonly oauthRedirectUri: string | undefined
+  /** Base de la app (p. ej. https://app.buscatools.com): a dónde vuelve el callback. */
+  readonly oauthAppUrl: string | undefined
 }
 
 export function leerConfigApi(): ConfigApi {
@@ -131,7 +146,16 @@ export function leerConfigApi(): ConfigApi {
     buzones: buzonesPermitidos(),
     origenes: new Set(origenes),
     claveHmac: claveHmac(),
+    oauthClientId: process.env['GOOGLE_OAUTH_CLIENT_ID'],
+    oauthClientSecret: process.env['GOOGLE_OAUTH_CLIENT_SECRET'],
+    oauthRedirectUri: process.env['GOOGLE_OAUTH_REDIRECT_URI'],
+    oauthAppUrl: process.env['APP_URL'],
   }
+}
+
+/** ¿Está configurado el flujo OAuth en el servicio público? */
+export function oauthConfigurado(cfg: ConfigApi): boolean {
+  return !!(cfg.oauthClientId && cfg.oauthClientSecret && cfg.oauthRedirectUri && cfg.oauthAppUrl)
 }
 
 function claveHmac(): Buffer {

@@ -43,6 +43,7 @@ import {
   listarBorradores,
   obtenerBorradorEditable,
 } from './redactar.js'
+import { resolverStart, resolverCallback, type DepsOauth } from './rutasOauth.js'
 
 export interface ContextoApi {
   /** Registro firmado de envíos. Sin él, las rutas de redactar responden 503. */
@@ -51,6 +52,8 @@ export interface ContextoApi {
   origenes: ReadonlySet<string>
   autorizador: Autorizador
   gmail: ClienteGmail
+  /** Flujo "Conectar casilla" (OAuth). Sin esto, /oauth/google/* responde 503. */
+  oauth?: DepsOauth
   /** Pedidos por persona por minuto, por instancia. */
   limitePorMinuto?: number
   ahora?: () => number
@@ -415,6 +418,48 @@ async function manejarRedactar(
   }
 }
 
+/**
+ * `GET /oauth/google/start`: el frontend lo llama con el JWT y recibe `{ url }`
+ * para redirigir a Google. Responde JSON (con CORS), como el resto de la API.
+ */
+async function manejarOauthStart(
+  ctx: ContextoApi,
+  req: IncomingMessage,
+  res: ServerResponse,
+  params: URLSearchParams,
+): Promise<void> {
+  if (!ctx.oauth) return json(ctx, req, res, 503, { error: 'oauth_no_configurado' })
+  const jwt = bearer(req)
+  if (!jwt) return json(ctx, req, res, 401, { error: 'sin_token' })
+  try {
+    const r = await resolverStart(ctx.oauth, jwt, params.get('company'))
+    return json(ctx, req, res, r.status, r.body)
+  } catch (e) {
+    log('error', 'api.oauth_start.fallo', { motivo: (e as Error).message?.slice(0, 200) })
+    return json(ctx, req, res, 502, { error: 'oauth_start_fallo' })
+  }
+}
+
+/**
+ * `GET /oauth/google/callback`: lo abre el NAVEGADOR al volver de Google (no hay
+ * JWT; la identidad viene firmada en el `state`). Siempre redirige de vuelta a
+ * la app, con `?correo_conectado=` o `?correo_error=`. No lleva CORS: es una
+ * navegación de nivel superior, no un fetch.
+ */
+async function manejarOauthCallback(
+  ctx: ContextoApi,
+  res: ServerResponse,
+  params: URLSearchParams,
+): Promise<void> {
+  if (!ctx.oauth) {
+    res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8', ...SIN_CACHE })
+    return void res.end('El flujo de conexión de correo no está configurado.')
+  }
+  const { location } = await resolverCallback(ctx.oauth, params)
+  res.writeHead(302, { Location: location, ...SIN_CACHE })
+  res.end()
+}
+
 export function construirServidorApi(ctx: ContextoApi) {
   const ritmo = new Ritmo(ctx.limitePorMinuto ?? 120, ctx.ahora ?? Date.now)
   const estadoDeLaFirma = miradorDeLaFirma(ctx)
@@ -438,6 +483,12 @@ export function construirServidorApi(ctx: ContextoApi) {
       }
       if (ruta === '/gmail/drafts' || ruta === '/gmail/draft' || ruta === '/gmail/send' || ruta === '/gmail/previa') {
         return manejarRedactar(ctx, ritmo, req, res, ruta, url.searchParams)
+      }
+      if (req.method === 'GET' && ruta === '/oauth/google/start') {
+        return manejarOauthStart(ctx, req, res, url.searchParams)
+      }
+      if (req.method === 'GET' && ruta === '/oauth/google/callback') {
+        return manejarOauthCallback(ctx, res, url.searchParams)
       }
       // Nada de push, watch, sync ni perfil acá: viven en el servicio privado.
       json(ctx, req, res, 404, { error: 'ruta_desconocida' })

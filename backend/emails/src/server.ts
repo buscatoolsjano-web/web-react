@@ -13,12 +13,15 @@
  * marcar leído en Gmail. La entrega 3 no muta el buzón salvo `users.watch`.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { leerConfig, leerConfigApi, buzonPermitido, type Config } from './config.js'
+import { leerConfig, leerConfigApi, buzonPermitido, oauthConfigurado, type Config } from './config.js'
 import { construirServidorApi } from './api/servidor.js'
 import { AutorizadorSupabase } from './api/autorizacion.js'
 import { RegistroSupabase } from './api/registro.js'
+import { AlmacenOauthFirmado } from './api/oauthStore.js'
+import type { DepsOauth } from './api/rutasOauth.js'
 import { AlmacenSupabase, type Almacen, type CuentaEmail } from './almacen.js'
-import { ProveedorDeTokens } from './google/auth.js'
+import { ProveedorDeTokens, ProveedorOAuth } from './google/auth.js'
+import { resolvedorDeToken, cacheRef } from './google/resolvedor.js'
 import { ClienteGmailReal, ErrorGmail, type ClienteGmail } from './google/gmail.js'
 import { validarOidc, leerMensajePubsub, TokenInvalido } from './oidc.js'
 import { renovarWatch, sincronizar } from './sync.js'
@@ -285,12 +288,34 @@ if (process.env['NODE_ENV'] !== 'test' && process.env['MODO'] === 'api') {
   const tokens = new ProveedorDeTokens(cfg.serviceAccount, cfg.scopeGmail)
   const puerto = Number(process.env['PORT'] ?? 8080)
   const registro = new RegistroSupabase(cfg.supabaseUrl, cfg.supabaseClavePublica, cfg.claveHmac)
+  const autorizador = new AutorizadorSupabase(cfg.supabaseUrl, cfg.supabaseClavePublica)
+
+  // Token: DWD por omisión; si OAuth está configurado, se bifurca por auth_mode.
+  // El refresh y el auth_mode se leen con RPC firmadas (sin service key acá).
+  let resolverToken: (buzon: string) => Promise<string> = (buzon) => tokens.para(buzon)
+  let oauth: DepsOauth | undefined
+  if (oauthConfigurado(cfg)) {
+    const store = new AlmacenOauthFirmado(cfg.supabaseUrl, cfg.supabaseClavePublica, cfg.claveHmac)
+    const prov = new ProveedorOAuth(cfg.oauthClientId!, cfg.oauthClientSecret!, (id) => store.leerRefresh(id))
+    resolverToken = resolvedorDeToken(cacheRef((b) => store.refPorBuzon(b)), tokens, prov)
+    oauth = {
+      clientId: cfg.oauthClientId!,
+      clientSecret: cfg.oauthClientSecret!,
+      redirectUri: cfg.oauthRedirectUri!,
+      appUrl: cfg.oauthAppUrl!,
+      claveHmac: cfg.claveHmac,
+      autorizador,
+      store,
+    }
+  }
+
   construirServidorApi({
     buzones: cfg.buzones,
     origenes: cfg.origenes,
-    autorizador: new AutorizadorSupabase(cfg.supabaseUrl, cfg.supabaseClavePublica),
+    autorizador,
     registro,
-    gmail: new ClienteGmailReal((buzon) => tokens.para(buzon)),
+    gmail: new ClienteGmailReal(resolverToken),
+    ...(oauth ? { oauth } : {}),
   }).listen(puerto, () => {
     log('info', 'arranque', { modo: 'api', puerto, buzones: cfg.buzones.size })
     /*
@@ -321,10 +346,23 @@ if (process.env['NODE_ENV'] !== 'test' && process.env['MODO'] === 'api') {
 } else if (process.env['NODE_ENV'] !== 'test') {
   const cfg = leerConfig()
   const tokens = new ProveedorDeTokens(cfg.serviceAccount, cfg.scopeGmail)
+  const almacen = new AlmacenSupabase(cfg.supabaseUrl, cfg.supabaseServiceKey)
+
+  // El sync lee el refresh (y el auth_mode) directo de la base con la service key.
+  let resolverToken: (buzon: string) => Promise<string> = (buzon) => tokens.para(buzon)
+  if (cfg.oauthClientId && cfg.oauthClientSecret) {
+    const prov = new ProveedorOAuth(cfg.oauthClientId, cfg.oauthClientSecret, (id) => almacen.leerRefresh(id))
+    const refPorBuzon = cacheRef(async (buzon) => {
+      const c = await almacen.cuentaPorDireccion(buzon)
+      return c ? { authMode: c.auth_mode, accountId: c.id } : null
+    })
+    resolverToken = resolvedorDeToken(refPorBuzon, tokens, prov)
+  }
+
   const ctx: Contexto = {
     cfg,
-    almacen: new AlmacenSupabase(cfg.supabaseUrl, cfg.supabaseServiceKey),
-    gmail: new ClienteGmailReal((buzon) => tokens.para(buzon)),
+    almacen,
+    gmail: new ClienteGmailReal(resolverToken),
     tokens,
   }
   const puerto = Number(process.env['PORT'] ?? 8080)

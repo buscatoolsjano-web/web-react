@@ -15,6 +15,7 @@
  * la RPC (`concat_ws('|', ...)`), así que acá se arma a mano con el mismo orden.
  */
 import { firmar } from './registro.js'
+import type { RefCuenta } from '../google/resolvedor.js'
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>
 
@@ -78,6 +79,21 @@ export class AlmacenOauthFirmado {
       p_firma: firmar(this.clave, mensaje),
     })
     return r as string
+  }
+
+  /** `auth_mode` y accountId de una casilla por dirección (para el resolver). `null` si no está. */
+  async refPorBuzon(buzon: string): Promise<RefCuenta | null> {
+    const ts = this.ahora()
+    const b = buzon.trim().toLowerCase()
+    const mensaje = ['email_ref_por_buzon', ts, b].join('|')
+    const r = (await this.rpc('email_ref_por_buzon', {
+      p_buzon: b,
+      p_ts: ts,
+      p_firma: firmar(this.clave, mensaje),
+    })) as Array<{ auth_mode: string; account_id: string }>
+    const f = r?.[0]
+    if (!f) return null
+    return { authMode: f.auth_mode === 'oauth_user' ? 'oauth_user' : 'dwd', accountId: f.account_id }
   }
 
   /** El refresh token descifrado, para acuñar un access token. `null` si no hay. */

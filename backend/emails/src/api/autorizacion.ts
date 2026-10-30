@@ -80,6 +80,16 @@ export interface Autorizador {
   autorizarHilo(jwt: string, accountId: string, gmailThreadId: string): Promise<HiloAutorizado>
   /** Para redactar sin hilo: la cuenta tiene que ser visible por RLS y estar activa. */
   autorizarCuenta(jwt: string, accountId: string): Promise<CuentaAutorizada>
+  /**
+   * El uid VERIFICADO de quien llama SI es admin de la empresa, o `null`.
+   * Para `/oauth/google/start`: valida admin y da el uid que va firmado en el
+   * `state` (el callback de Google no trae JWT, así que esa identidad hay que
+   * fijarla acá, donde el JWT sí está).
+   *
+   * Opcional en la interfaz para no obligar a los dobles de test que no lo usan;
+   * `AutorizadorSupabase` sí lo implementa y la ruta de start lo exige.
+   */
+  uidSiAdmin?(jwt: string, companyId: string): Promise<string | null>
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -176,5 +186,23 @@ export class AutorizadorSupabase implements Autorizador {
     const f = filas[0]
     if (!f || !f.active) throw new NoEncontrado('cuenta no visible para este usuario')
     return { accountId: f.id, companyId: f.company_id, buzon: f.email_address, nombre: f.display_name, usuario: subDelJwt(jwt) }
+  }
+
+  async uidSiAdmin(jwt: string, companyId: string): Promise<string | null> {
+    let r: Response
+    try {
+      r = await this.pedir(`${this.url}/rest/v1/rpc/email_uid_si_admin`, {
+        method: 'POST',
+        headers: { apikey: this.clavePublica, Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_company: companyId }),
+      })
+    } catch (e) {
+      throw new IndiceNoDisponible((e as Error).message)
+    }
+    if (r.status === 401 || r.status === 403) throw new NoAutenticado(`PostgREST ${r.status}`)
+    if (!r.ok) throw new IndiceNoDisponible(`PostgREST ${r.status}`)
+    const txt = await r.text()
+    const v = txt ? (JSON.parse(txt) as unknown) : null
+    return typeof v === 'string' && v.length > 0 ? v : null
   }
 }
