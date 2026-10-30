@@ -83,8 +83,15 @@ async function main() {
   // requisito del cliente, no del recurso.
   cmp('no pide offline_access', false, JSON.stringify(m).includes('offline_access'))
 
-  const sinToken = await rpc('initialize', { protocolVersion: '2026-07-28' }, { token: null })
-  cmp('sin token: 401', 401, sinToken.status)
+  // El desafío que arranca el OAuth sale de una EJECUCIÓN sin sesión: la lista
+  // va abierta (ChatGPT la escanea antes de loguear), pero `tools/call` sin
+  // token contesta 401 con WWW-Authenticate (Fase 221).
+  const sinToken = await rpc(
+    'tools/call',
+    { name: 'buscar_productos', arguments: { texto: 'x' } },
+    { token: null },
+  )
+  cmp('ejecutar sin token: 401', 401, sinToken.status)
   const desafio = sinToken.headers.get('www-authenticate') ?? ''
   cmp('el 401 trae WWW-Authenticate', true, desafio.startsWith('Bearer '))
   cmp('y dice dónde están los metadatos', true, desafio.includes(`resource_metadata="${URL_FN}/`))
@@ -98,15 +105,29 @@ async function main() {
   cmp('y no pide un alcance que Supabase rechace', false, desafio.includes('scope='))
 
   /*
-   * LA QUE MÁS IMPORTA. Esta función no tiene el gateway delante, así que si
-   * la clave anónima —que es pública, está en el bundle de la web— alcanzara
-   * para listar las herramientas o leer una fila, la puerta quedaría abierta
-   * para cualquiera que mire el código fuente.
+   * La lista es PÚBLICA; la ejecución NO (Fase 221).
+   *
+   * ChatGPT escanea `tools/list` ANTES de loguear, así que el descubrimiento y
+   * la lista tienen que andar sin sesión, o el conector no se puede agregar. No
+   * sale ningún dato de nadie: nombres, descripciones y esquemas, nada más.
+   * Pero EJECUTAR sigue necesitando una sesión de verdad —ni sin token, ni con
+   * la anon, que es pública y está en el bundle de la web—, que es donde una
+   * puerta abierta de más leería filas.
    */
-  console.log('\n  La clave anónima no es una sesión')
+  console.log('\n  La lista es pública; la ejecución no')
   for (const metodo of ['initialize', 'tools/list', 'ping']) {
-    cmp(`${metodo} con la anon: 401`, 401, (await rpc(metodo)).status)
+    const params = metodo === 'initialize' ? { protocolVersion: '2026-07-28' } : undefined
+    cmp(`${metodo} sin token: 200`, 200, (await rpc(metodo, params, { token: null })).status)
   }
+  const listaPublica = await (await rpc('tools/list', undefined, { token: null })).json()
+  cmp('tools/list sin token trae el perfil más las catorce', 15, (listaPublica.result?.tools ?? []).length)
+  cmp(
+    'tools/call sin token: 401',
+    401,
+    (
+      await rpc('tools/call', { name: 'buscar_productos', arguments: { texto: 'x' } }, { token: null })
+    ).status,
+  )
   cmp(
     'tools/call con la anon: 401',
     401,

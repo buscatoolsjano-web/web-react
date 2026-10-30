@@ -113,31 +113,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   /**
-   * Sesión para TODO, incluido `initialize`.
+   * La sesión NO se pide acá arriba (Fase 221).
    *
-   * El 401 con `WWW-Authenticate` ante cualquier petición es el primer paso
-   * del flujo del protocolo, no un caso de error: el cliente lo recibe, lee la
-   * URL de los metadatos, descubre el servidor de autorización y vuelve con un
-   * token.
+   * El plan original dejaba `initialize` y `tools/list` detrás del 401, porque
+   * la documentación decía que ChatGPT completa la autorización y DESPUÉS
+   * escanea. Medido contra el builder de agentes de ChatGPT, no es así: escanea
+   * `tools/list` ANTES de loguear, recibe el 401 y reporta «cero herramientas»
+   * —se vio en los logs: GET de los metadatos y POST 401, nunca un POST con
+   * token—, y eso trababa la conexión.
    *
-   * La alternativa era dejar `initialize` y `tools/list` abiertos para que
-   * ChatGPT pudiera escanear las herramientas al configurar la app. No hace
-   * falta: la documentación dice que primero completa la autorización y
-   * después escanea. Y la lista de herramientas, con sus descripciones, cuenta
-   * bastante de cómo opera la empresa: no hay razón para regalarla.
+   * Entonces el descubrimiento y la LISTA van abiertos, y sólo la EJECUCIÓN
+   * (`tools/call` y el perfil) exige sesión, más abajo. Lo que se abre no es
+   * dato de nadie: nombres, descripciones y esquemas de las herramientas, y el
+   * SKILL.md —que además OpenAI tiene que poder leer al importar, antes de que
+   * exista un token—. Los datos de clientes viven detrás de `tools/call`, con
+   * sesión y RLS, igual que siempre.
    */
-  const token = tokenDe(req.headers.get('Authorization'))
-  if (token === '') return sinSesion('Conectá tu cuenta del ERP.', recurso)
-
-  const apertura = await abrirSesion(token)
-  if (!apertura.ok) {
-    if (apertura.status === 401) return sinSesion(apertura.mensaje, recurso)
-    return new Response(JSON.stringify(sobreError(null, -32603, apertura.mensaje)), {
-      status: 200,
-      headers: JSON_CAB,
-    })
-  }
-
   let peticion: Record<string, unknown>
   try {
     const crudo: unknown = await req.json()
@@ -211,6 +202,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
       JSON.stringify(sobreError(resuelto.id, resuelto.codigo, resuelto.mensaje)),
       { status: 200, headers: JSON_CAB },
     )
+  }
+
+  /*
+   * Desde acá —`perfil` y `tools/call`— es EJECUCIÓN: exige sesión. Sin token,
+   * el 401 con `WWW-Authenticate` es lo que arranca el OAuth la primera vez que
+   * el cliente de verdad usa una herramienta (el escaneo de la lista, más
+   * arriba, ya pasó sin sesión).
+   */
+  const token = tokenDe(req.headers.get('Authorization'))
+  if (token === '') return sinSesion('Conectá tu cuenta del ERP.', recurso)
+
+  const apertura = await abrirSesion(token)
+  if (!apertura.ok) {
+    if (apertura.status === 401) return sinSesion(apertura.mensaje, recurso)
+    return new Response(JSON.stringify(sobreError(resuelto.id, -32603, apertura.mensaje)), {
+      status: 200,
+      headers: JSON_CAB,
+    })
   }
 
   /*
