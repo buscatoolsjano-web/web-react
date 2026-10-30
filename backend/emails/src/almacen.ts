@@ -51,10 +51,25 @@ export interface EntradaSync {
   duracion_ms?: number
 }
 
+/** Datos para vincular una casilla por OAuth (RPC email_vincular_oauth). */
+export interface VinculoOAuth {
+  company: string
+  email: string
+  display: string | null
+  refreshToken: string
+  scope: string
+  /** El usuario que autorizó, sacado del `state` firmado del OAuth. */
+  connectedBy: string
+}
+
 export interface Almacen {
   cuentaPorDireccion(direccion: string): Promise<CuentaEmail | null>
   cuentaPorId(id: string): Promise<CuentaEmail | null>
   cuentasActivas(): Promise<CuentaEmail[]>
+  /** El refresh token OAuth descifrado (RPC email_leer_refresh). Sólo con service key. */
+  leerRefresh(accountId: string): Promise<string | null>
+  /** Vincula o rota una casilla OAuth (RPC email_vincular_oauth). Devuelve el accountId. */
+  vincularOauth(datos: VinculoOAuth): Promise<string>
   /** Una sola sentencia. Sin fila = otro lo tiene. */
   tomarLease(cuenta: string, dueno: string): Promise<CuentaEmail | null>
   soltarLease(cuenta: string, dueno: string): Promise<void>
@@ -123,6 +138,22 @@ export class AlmacenSupabase implements Almacen {
   async cuentasActivas(): Promise<CuentaEmail[]> {
     const q = new URLSearchParams({ select: '*', active: 'is.true' })
     return (await this.rest(`/email_accounts?${q}`)) as CuentaEmail[]
+  }
+
+  async leerRefresh(accountId: string): Promise<string | null> {
+    const r = (await this.rpc('email_leer_refresh', { p_account: accountId })) as string | null
+    return r && r.length > 0 ? r : null
+  }
+
+  async vincularOauth(d: VinculoOAuth): Promise<string> {
+    return (await this.rpc('email_vincular_oauth', {
+      p_company: d.company,
+      p_email: d.email,
+      p_display: d.display,
+      p_refresh_token: d.refreshToken,
+      p_scope: d.scope,
+      p_connected_by: d.connectedBy,
+    })) as string
   }
 
   async tomarLease(cuenta: string, dueno: string): Promise<CuentaEmail | null> {

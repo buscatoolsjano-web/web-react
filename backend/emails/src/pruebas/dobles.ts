@@ -24,7 +24,7 @@ import type { EstadoEnvio, Operacion, Reserva, RegistroEnvios } from '../api/reg
 import { LimiteEnvios } from '../api/registro.js'
 import { ClaveDesalineada, NoEncontrado } from '../api/autorizacion.js'
 import { ErrorGmail, HistorialVencido } from '../google/gmail.js'
-import type { Almacen, CuentaEmail, EntradaSync, FilaHilo } from '../almacen.js'
+import type { Almacen, CuentaEmail, EntradaSync, FilaHilo, VinculoOAuth } from '../almacen.js'
 
 export interface HiloFalso {
   id: string
@@ -415,6 +415,8 @@ export class AlmacenMemoria implements Almacen {
   readonly estados = new Map<string, { workflow_status: string; assigned_to: string | null }>()
   readonly logs: EntradaSync[] = []
   readonly errores: string[] = []
+  /** Refresh tokens OAuth por accountId (en vez de Vault). */
+  readonly refresh = new Map<string, string>()
 
   constructor(cuenta: CuentaEmail) {
     this.cuentas.set(cuenta.id, { ...cuenta })
@@ -482,6 +484,31 @@ export class AlmacenMemoria implements Almacen {
 
   async registrarError(_id: string, error: string): Promise<void> {
     this.errores.push(error)
+  }
+
+  async leerRefresh(accountId: string): Promise<string | null> {
+    return this.refresh.get(accountId) ?? null
+  }
+
+  async vincularOauth(d: VinculoOAuth): Promise<string> {
+    const email = d.email.toLowerCase()
+    let cuenta = [...this.cuentas.values()].find((c) => c.email_address === email)
+    if (!cuenta) {
+      cuenta = cuentaDePrueba({
+        id: `acc-${this.cuentas.size + 1}`,
+        email_address: email,
+        company_id: d.company,
+        auth_mode: 'oauth_user',
+        active: true,
+      })
+      this.cuentas.set(cuenta.id, cuenta)
+    } else {
+      cuenta.auth_mode = 'oauth_user'
+      cuenta.active = true
+      cuenta.company_id = d.company
+    }
+    this.refresh.set(cuenta.id, d.refreshToken)
+    return cuenta.id
   }
 }
 
