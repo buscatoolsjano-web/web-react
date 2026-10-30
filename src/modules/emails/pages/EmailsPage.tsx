@@ -1,4 +1,5 @@
 import { useId, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import doc from '@/components/document/Document.module.css'
 import { Alert } from '@/components/feedback/Alert'
@@ -26,6 +27,7 @@ import {
   useFiltrosEmails,
 } from '../hooks/useEmails'
 import { useRealtimeEmails } from '../hooks/useRealtimeEmails'
+import { iniciarConexionGmail } from '../services/conexion'
 import { TAMANOS_BANDEJA } from '../lib/filtros'
 import { puedeUsarEmails } from '../lib/permisos'
 import type { CarpetaBandeja, EtiquetaEmail, FilaBandeja } from '../types'
@@ -59,6 +61,17 @@ const VACIA: Record<CarpetaBandeja, string> = {
   eliminados: 'No eliminaste ningún hilo',
 }
 
+/** Traduce el código que trae el callback de conexión a algo legible. */
+function textoErrorConexion(codigo: string): string {
+  if (codigo === 'access_denied') return 'Cancelaste el permiso en Google. Si querés conectarla, volvé a intentarlo.'
+  if (codigo === 'no_admin') return 'Sólo un administrador de la empresa puede conectar una casilla.'
+  if (codigo === 'sin_refresh_token')
+    return 'Google no otorgó el acceso continuo. Volvé a intentarlo y aceptá todos los permisos.'
+  if (codigo === 'sin_email') return 'No se pudo leer la dirección de la casilla. Probá de nuevo.'
+  if (codigo.startsWith('state_')) return 'El pedido venció o no es válido. Volvé a iniciar la conexión.'
+  return 'No se pudo completar la conexión. Volvé a intentarlo.'
+}
+
 /**
  * La bandeja.
  *
@@ -76,6 +89,33 @@ export function EmailsPage() {
 }
 
 function Bandeja() {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const esAdmin = activa?.rol === 'admin'
+  const [searchParams, setSearchParams] = useSearchParams()
+  const conectado = searchParams.get('correo_conectado')
+  const errorConexion = searchParams.get('correo_error')
+  const [conectando, setConectando] = useState(false)
+  const [errorConectar, setErrorConectar] = useState<string | null>(null)
+
+  const conectar = () => {
+    if (!companyId) return
+    setConectando(true)
+    setErrorConectar(null)
+    // Redirige a Google si sale bien; si falla antes, se muestra el error.
+    iniciarConexionGmail(companyId).catch((e) => {
+      setErrorConectar((e as Error).message)
+      setConectando(false)
+    })
+  }
+
+  const cerrarBanner = () => {
+    const p = new URLSearchParams(searchParams)
+    p.delete('correo_conectado')
+    p.delete('correo_error')
+    setSearchParams(p, { replace: true })
+  }
+
   const { filtros, aplicar, limpiar, hayFiltros } = useFiltrosEmails()
   const cuentas = useCuentas()
   const asignables = useAsignables()
@@ -210,6 +250,39 @@ function Bandeja() {
         </Alert>
       ))}
 
+      {conectado ? (
+        <Alert
+          tone="success"
+          role="status"
+          title="Casilla conectada"
+          action={
+            <Button variant="secondary" size="sm" onClick={cerrarBanner}>
+              Entendido
+            </Button>
+          }
+        >
+          <p>
+            Se conectó <strong>{conectado}</strong>. El correo va a empezar a sincronizarse en unos
+            minutos.
+          </p>
+        </Alert>
+      ) : null}
+
+      {errorConexion ? (
+        <Alert
+          tone="danger"
+          role="alert"
+          title="No se pudo conectar la casilla"
+          action={
+            <Button variant="secondary" size="sm" onClick={cerrarBanner}>
+              Cerrar
+            </Button>
+          }
+        >
+          <p>{textoErrorConexion(errorConexion)}</p>
+        </Alert>
+      ) : null}
+
       <Tabs
         id={pestanas}
         items={CARPETAS}
@@ -246,11 +319,34 @@ function Bandeja() {
             retrying={bandeja.isFetching}
           />
         ) : cuentas.data && cuentas.data.length === 0 ? (
-          <EmptyState
-            icon="mail"
-            title="Sin cuenta de correo"
-            description="Esta empresa no tiene ninguna cuenta de correo conectada."
-          />
+          <>
+            {errorConectar ? (
+              <Alert tone="danger" role="alert" title="No se pudo iniciar la conexión">
+                <p>{errorConectar}</p>
+              </Alert>
+            ) : null}
+            <EmptyState
+              icon="mail"
+              title="Sin cuenta de correo"
+              description={
+                esAdmin
+                  ? 'Conectá una casilla de Gmail para ver y responder el correo de esta empresa desde acá.'
+                  : 'Esta empresa no tiene ninguna casilla conectada. Pedile a un administrador que conecte una.'
+              }
+              action={
+                esAdmin ? (
+                  <Button
+                    variant="primary"
+                    icon={<Icon name="mail" size={16} />}
+                    onClick={conectar}
+                    loading={conectando}
+                  >
+                    {conectando ? 'Abriendo Google…' : 'Conectar casilla de Gmail'}
+                  </Button>
+                ) : undefined
+              }
+            />
+          </>
         ) : bandeja.isPending ? (
           <div className={styles.lista}>
             <SkeletonRows rows={6} columns={3} label="Cargando la bandeja…" />

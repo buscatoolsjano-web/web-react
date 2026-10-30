@@ -8535,6 +8535,10 @@ export type Database = {
         Args: { p_company: string; p_solo_cerradas?: boolean }
         Returns: Json
       }
+      email_desvincular_oauth: {
+        Args: { p_account: string }
+        Returns: undefined
+      }
       asistente_ficha_producto: {
         Args: { p_company: string; p_sku: string }
         Returns: Json
