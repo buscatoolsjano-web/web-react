@@ -81,8 +81,13 @@ const TITULOS: Readonly<Record<string, string>> = {
  * Se le CONTESTA la que pidió el cliente cuando la conocemos, porque es lo que
  * hace que un cliente más viejo siga funcionando cuando salga la próxima. Si
  * pide una que no conocemos, se le ofrece la nuestra y él decide.
+ *
+ * `2025-11-25` es la que habla el cliente de ChatGPT (`openai-mcp/1.0.0`),
+ * visto en los logs (Fase 221). Si no está en la lista, le devolvemos una más
+ * nueva que no conoce y aborta el handshake sin llegar nunca a `tools/list`.
+ * Cuando ChatGPT suba de versión, hay que sumar la nueva acá.
  */
-export const VERSIONES = ['2026-07-28', '2025-06-18', '2025-03-26'] as const
+export const VERSIONES = ['2026-07-28', '2025-11-25', '2025-06-18', '2025-03-26'] as const
 
 export function versionAUsar(pedida: unknown): string {
   return typeof pedida === 'string' && (VERSIONES as readonly string[]).includes(pedida)
