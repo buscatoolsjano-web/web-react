@@ -33,6 +33,10 @@ export interface DepsOauth {
   claveHmac: Buffer
   autorizador: Autorizador
   store: { vincular(d: VinculoArgs): Promise<string> }
+  /** Para ponerle el watch a la casilla AL conectarla (cero espera). */
+  gmail?: { iniciarWatch(buzon: string, topic: string): Promise<unknown> }
+  /** El topic de Pub/Sub del watch. Si falta, no se pone watch en el acto. */
+  pubsubTopic?: string
   pedir?: Fetch
   ahora?: () => number
   nonce?: () => string
@@ -139,6 +143,19 @@ export async function resolverCallback(deps: DepsOauth, query: URLSearchParams):
       scope: SCOPES_OAUTH.join(' '),
       connectedBy: ver.estado.usuario,
     })
+
+    // Cero espera: ponerle el watch a la casilla en el acto, así Gmail empieza a
+    // empujar al instante y el correo nuevo llega solo. Best-effort: si falla
+    // (p. ej. un hipo de red), el scheduler lo reintenta en su pasada; no tiene
+    // sentido frustrar una conexión que SÍ quedó guardada por esto.
+    if (deps.gmail && deps.pubsubTopic) {
+      try {
+        await deps.gmail.iniciarWatch(email, deps.pubsubTopic)
+      } catch {
+        /* el scheduler lo reintenta */
+      }
+    }
+
     // Vuelve a la app (retorno viene firmado, lo fijó el servidor en /start).
     return { location: `${ver.estado.retorno}?correo_conectado=${encodeURIComponent(email)}` }
   } catch (e) {

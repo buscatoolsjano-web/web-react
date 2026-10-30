@@ -316,12 +316,20 @@ if (process.env['NODE_ENV'] !== 'test' && process.env['MODO'] === 'api') {
     }
   }
 
+  // Un solo cliente Gmail con el resolver ya bifurcado; se lo damos también al
+  // flujo OAuth para ponerle el watch a la casilla al conectarla (cero espera).
+  const gmail = new ClienteGmailReal(resolverToken)
+  if (oauth) {
+    oauth.gmail = gmail
+    if (cfg.oauthPubsubTopic) oauth.pubsubTopic = cfg.oauthPubsubTopic
+  }
+
   construirServidorApi({
     buzones: cfg.buzones,
     origenes: cfg.origenes,
     autorizador,
     registro,
-    gmail: new ClienteGmailReal(resolverToken),
+    gmail,
     ...(oauth ? { oauth } : {}),
   }).listen(puerto, () => {
     log('info', 'arranque', { modo: 'api', puerto, buzones: cfg.buzones.size })

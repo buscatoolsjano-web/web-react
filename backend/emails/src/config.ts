@@ -130,6 +130,12 @@ export interface ConfigApi {
   readonly oauthRedirectUri: string | undefined
   /** Base de la app (p. ej. https://app.buscatools.com): a dónde vuelve el callback. */
   readonly oauthAppUrl: string | undefined
+  /**
+   * El topic de Pub/Sub, para ponerle el `watch` a la casilla AL CONECTARLA
+   * (cero espera: Gmail empieza a empujar al instante). Opcional: sin esto, el
+   * watch lo pone la pasada del scheduler, con la demora de esa pasada.
+   */
+  readonly oauthPubsubTopic: string | undefined
 }
 
 export function leerConfigApi(): ConfigApi {
@@ -150,6 +156,7 @@ export function leerConfigApi(): ConfigApi {
     oauthClientSecret: process.env['GOOGLE_OAUTH_CLIENT_SECRET'],
     oauthRedirectUri: process.env['GOOGLE_OAUTH_REDIRECT_URI'],
     oauthAppUrl: process.env['APP_URL'],
+    oauthPubsubTopic: process.env['GMAIL_PUBSUB_TOPIC'],
   }
 }
 

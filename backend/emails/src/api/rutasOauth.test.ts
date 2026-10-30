@@ -96,6 +96,28 @@ describe('resolverCallback', () => {
     expect(vinculado).toMatchObject({ company: COMPANY, email: 'nuevo@casilla.com', connectedBy: UID })
   })
 
+  it('cero espera: al conectar le pone el watch a la casilla', async () => {
+    const watches: Array<{ buzon: string; topic: string }> = []
+    const deps = depsBase({
+      pedir: (async () => new Response(JSON.stringify({ refresh_token: 'r', id_token: idTokenCon('n@c.com') }), { status: 200 })) as unknown as typeof fetch,
+      gmail: { async iniciarWatch(buzon: string, topic: string) { watches.push({ buzon, topic }); return {} } },
+      pubsubTopic: 'projects/p/topics/gmail',
+    })
+    const r = await resolverCallback(deps, new URLSearchParams({ code: 'c', state: stateValido() }))
+    expect(r.location).toContain('correo_conectado=')
+    expect(watches).toEqual([{ buzon: 'n@c.com', topic: 'projects/p/topics/gmail' }])
+  })
+
+  it('si el watch falla, la conexión igual queda hecha (best-effort)', async () => {
+    const deps = depsBase({
+      pedir: (async () => new Response(JSON.stringify({ refresh_token: 'r', id_token: idTokenCon('n@c.com') }), { status: 200 })) as unknown as typeof fetch,
+      gmail: { async iniciarWatch() { throw new Error('gmail caido') } },
+      pubsubTopic: 'projects/p/topics/gmail',
+    })
+    const r = await resolverCallback(deps, new URLSearchParams({ code: 'c', state: stateValido() }))
+    expect(r.location).toContain('correo_conectado=')
+  })
+
   it('error de Google: vuelve con correo_error', async () => {
     const r = await resolverCallback(depsBase(), new URLSearchParams({ error: 'access_denied' }))
     expect(r.location).toContain('correo_error=access_denied')
