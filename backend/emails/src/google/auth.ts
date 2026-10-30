@@ -177,3 +177,84 @@ export class ProveedorDeTokens {
     this.cache.delete(buzon)
   }
 }
+
+/**
+ * Access tokens para casillas conectadas por OAuth (`auth_mode='oauth_user'`).
+ *
+ * A diferencia de DWD, acá NO se impersona: se cambia el *refresh token* que el
+ * dueño de la casilla autorizó por un access token. El refresh token nunca
+ * llega acá en crudo desde afuera — lo trae `leerRefresh(accountId)`, que del
+ * lado privado lo lee de Vault con la service key (RPC `email_leer_refresh`) y
+ * del lado público se lo pide al servicio privado. El access token se cachea en
+ * memoria por cuenta, con el mismo margen que DWD.
+ *
+ * Se cachea por `accountId` y no por dirección: dos casillas de dos empresas no
+ * comparten token aunque —no debería pasar— tuvieran la misma dirección.
+ */
+export class ProveedorOAuth {
+  private readonly cache = new Map<string, Entrada>()
+
+  constructor(
+    private readonly clientId: string,
+    private readonly clientSecret: string,
+    private readonly leerRefresh: (accountId: string) => Promise<string | null>,
+    private readonly ahora: () => number = () => Date.now(),
+    private readonly canjear: (refresh: string) => Promise<{ token: string; expiraEn: number }> = (
+      refresh,
+    ) => canjearRefreshToken(this.clientId, this.clientSecret, refresh),
+  ) {}
+
+  async para(accountId: string): Promise<string> {
+    const guardado = this.cache.get(accountId)
+    if (guardado && guardado.venceEn > this.ahora()) {
+      return guardado.token
+    }
+    const refresh = await this.leerRefresh(accountId)
+    if (!refresh) {
+      throw new Error(`La casilla ${accountId} no tiene una credencial OAuth vigente`)
+    }
+    const { token, expiraEn } = await this.canjear(refresh)
+    this.cache.set(accountId, {
+      token,
+      venceEn: this.ahora() + (expiraEn - MARGEN_SEGUNDOS) * 1000,
+    })
+    return token
+  }
+
+  /** Tras un 401 de Gmail, o al desconectar la casilla. */
+  invalidar(accountId: string): void {
+    this.cache.delete(accountId)
+  }
+}
+
+/**
+ * Cambia un refresh token por un access token en el token endpoint de Google.
+ *
+ * Es el `grant_type=refresh_token` clásico de OAuth 2.0: nada de aserciones ni
+ * `signJwt` (eso es DWD). Si el refresh venció —en modo testing Google los
+ * caduca a los ~7 días— Google responde `invalid_grant` y hay que reconectar.
+ */
+async function canjearRefreshToken(
+  clientId: string,
+  clientSecret: string,
+  refresh: string,
+): Promise<{ token: string; expiraEn: number }> {
+  const r = await fetch(TOKEN_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refresh,
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  })
+  if (!r.ok) {
+    const detalle = await r.text().catch(() => '')
+    // `invalid_grant` acá = refresh vencido o revocado: hay que reconectar la casilla.
+    throw new Error(`token endpoint (refresh): HTTP ${r.status} ${detalle.slice(0, 200)}`)
+  }
+  const j = (await r.json()) as { access_token?: string; expires_in?: number }
+  if (!j.access_token) throw new Error('el token endpoint no devolvió access_token')
+  return { token: j.access_token, expiraEn: j.expires_in ?? 3600 }
+}

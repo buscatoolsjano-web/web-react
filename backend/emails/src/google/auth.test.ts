@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { construirClaims, ProveedorDeTokens } from './auth.js'
+import { construirClaims, ProveedorDeTokens, ProveedorOAuth } from './auth.js'
 
 const SA = 'buscatools-erp-email@buscatools-erp-email.iam.gserviceaccount.com'
 const SCOPE = 'https://www.googleapis.com/auth/gmail.modify'
@@ -91,5 +91,60 @@ describe('caché de tokens', () => {
     await p.para('a@x.invalid')
     p.invalidar('a@x.invalid')
     expect(await p.para('a@x.invalid')).toBe('tok-2')
+  })
+})
+
+describe('ProveedorOAuth (casillas conectadas con "Iniciar sesión con Google")', () => {
+  function proveedor(
+    reloj: { t: number },
+    refrescos: Record<string, string | null>,
+    canjes: string[],
+  ) {
+    return new ProveedorOAuth(
+      'client-id',
+      'client-secret',
+      async (accountId) => refrescos[accountId] ?? null,
+      () => reloj.t,
+      async (refresh) => {
+        canjes.push(refresh)
+        return { token: `acc-${canjes.length}`, expiraEn: 3600 }
+      },
+    )
+  }
+
+  it('cambia el refresh por un access token y lo cachea por cuenta', async () => {
+    const reloj = { t: 0 }
+    const canjes: string[] = []
+    const p = proveedor(reloj, { 'acc-1': 'refresh-1' }, canjes)
+
+    expect(await p.para('acc-1')).toBe('acc-1')
+    expect(await p.para('acc-1')).toBe('acc-1')
+    // Un solo canje: la segunda vez sale de la caché.
+    expect(canjes).toEqual(['refresh-1'])
+  })
+
+  it('renueva dentro del margen, no al filo', async () => {
+    const reloj = { t: 0 }
+    const canjes: string[] = []
+    const p = proveedor(reloj, { 'acc-1': 'refresh-1' }, canjes)
+
+    await p.para('acc-1')
+    reloj.t = 3_540_000 // dentro del margen de 120 s
+    expect(await p.para('acc-1')).toBe('acc-2')
+  })
+
+  it('cachea por cuenta, no globalmente', async () => {
+    const reloj = { t: 0 }
+    const canjes: string[] = []
+    const p = proveedor(reloj, { 'acc-1': 'refresh-1', 'acc-2': 'refresh-2' }, canjes)
+
+    await p.para('acc-1')
+    await p.para('acc-2')
+    expect(canjes).toEqual(['refresh-1', 'refresh-2'])
+  })
+
+  it('sin credencial vigente, falla claro (hay que reconectar la casilla)', async () => {
+    const p = proveedor({ t: 0 }, { 'acc-1': null }, [])
+    await expect(p.para('acc-1')).rejects.toThrow(/no tiene una credencial OAuth vigente/)
   })
 })
