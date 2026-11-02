@@ -31,23 +31,22 @@ export type EstadoProducto = (typeof ESTADOS_PRODUCTO)[number]['valor']
  * de estar resueltos; alguien pudo no haber subido una foto por leer que no se
  * podía. Antes de agregar algo acá, y cada vez que se toca el alta, conviene
  * verificar los que quedan contra la base.
+ *
+ * Fase 224: salieron de acá el precio de costo, el precio de venta y el stock
+ * inicial. Ahora SÍ se cargan —pero sólo para un producto nacido en el ERP, que
+ * no tiene maestro en STEL que lo pise (`erp_cargar_datos_comerciales`)—. Queda
+ * sólo el stock mínimo/máximo, que no tiene dónde guardarse todavía.
  */
 export const CAMPOS_QUE_NO_ESTAN = [
   {
-    campo: 'Precio de venta y tarifa',
-    motivo:
-      'el maestro de precios es STEL: `product_prices` se llena desde el sync y es de sólo lectura para el ERP. Cargarlo acá crearía dos precios para el mismo producto.',
-  },
-  {
-    campo: 'Precio de costo',
-    motivo: 'no hay tabla de costos en la base.',
-  },
-  {
-    campo: 'Stock inicial, mínimo y máximo',
-    motivo:
-      '`stock_balances` es de sólo lectura y es a propósito: el saldo lo mueve un movimiento —una recepción, una entrega—, nunca una carga a mano. No existe todavía la operación de ajuste de inventario, que es la que haría falta. Mínimo y máximo no tienen dónde guardarse.',
+    campo: 'Stock mínimo y máximo',
+    motivo: 'no tienen dónde guardarse todavía: no hay columnas para el punto de reposición.',
   },
 ] as const
+
+/** Monedas en las que se puede expresar el costo de un producto. */
+export const MONEDAS_COSTO = ['USD', 'EUR', 'ARS'] as const
+export type MonedaCosto = (typeof MONEDAS_COSTO)[number]
 
 export interface FormularioNuevoProducto {
   sku: string
@@ -63,6 +62,11 @@ export interface FormularioNuevoProducto {
   esKit: boolean
   /** Atributos de la categoría elegida, por clave. Texto tal como se escribió. */
   atributos: Record<string, string>
+  /** Datos comerciales iniciales (Fase 224), sólo para productos del ERP. Texto. */
+  costo: string
+  monedaCosto: string
+  precioVenta: string
+  stockInicial: string
   codigoBarras: string
   origen: string
   ncm: string
@@ -86,6 +90,10 @@ export const FORMULARIO_VACIO: FormularioNuevoProducto = {
   serie: '',
   esKit: false,
   atributos: {},
+  costo: '',
+  monedaCosto: '',
+  precioVenta: '',
+  stockInicial: '',
   codigoBarras: '',
   origen: '',
   ncm: '',
@@ -196,6 +204,17 @@ export interface ErroresNuevoProducto {
   imagenUrl?: string
   pesoG?: string
   volumenCm3?: string
+  costo?: string
+  precioVenta?: string
+  stockInicial?: string
+}
+
+/** Un número positivo, o vacío. Acepta coma o punto como decimal. */
+function numeroPositivoOVacio(v: string): boolean {
+  const t = v.trim()
+  if (t === '') return true
+  const n = Number(t.replace(',', '.'))
+  return Number.isFinite(n) && n > 0
 }
 
 /**
@@ -222,6 +241,10 @@ export function validarNuevoProducto(f: FormularioNuevoProducto): ErroresNuevoPr
   const entero = (v: string) => v.trim() === '' || /^\d+$/.test(v.trim())
   if (!entero(f.pesoG)) e.pesoG = 'Un número entero de gramos, sin decimales.'
   if (!entero(f.volumenCm3)) e.volumenCm3 = 'Un número entero de cm³, sin decimales.'
+  // Los tres datos comerciales son opcionales; si se cargan, un número > 0.
+  if (!numeroPositivoOVacio(f.costo)) e.costo = 'Un número mayor que cero.'
+  if (!numeroPositivoOVacio(f.precioVenta)) e.precioVenta = 'Un número mayor que cero.'
+  if (!numeroPositivoOVacio(f.stockInicial)) e.stockInicial = 'Una cantidad mayor que cero.'
   return e
 }
 
@@ -309,6 +332,48 @@ export function filaDesdeFormulario(f: FormularioNuevoProducto): FilaNuevoProduc
     weight_g: entero(f.pesoG),
     volume_cm3: entero(f.volumenCm3),
   }
+}
+
+/**
+ * Datos comerciales iniciales de un producto del ERP (Fase 224).
+ *
+ * Van por una RPC aparte del insert del producto (`erp_cargar_datos_comerciales`)
+ * porque escriben en tres tablas que el insert no toca —`products.cost_*`,
+ * `product_prices` y un movimiento de stock—. Cada uno es opcional: lo vacío no
+ * se manda. La moneda del costo sólo tiene sentido si hay costo; sin que el
+ * usuario elija una, se usa la de la lista por defecto (el costo puede estar en
+ * EUR aunque la venta sea en USD, como ya pasa con el ×3).
+ */
+export interface DatosComerciales {
+  costAmount: number | null
+  costCurrency: string | null
+  priceAmount: number | null
+  stockInicial: number | null
+}
+
+const aNumero = (v: string): number | null => {
+  const t = v.trim()
+  if (t === '') return null
+  const n = Number(t.replace(',', '.'))
+  return Number.isFinite(n) ? n : null
+}
+
+export function datosComercialesDesdeFormulario(
+  f: FormularioNuevoProducto,
+  monedaPorDefecto: string,
+): DatosComerciales {
+  const costAmount = aNumero(f.costo)
+  return {
+    costAmount,
+    costCurrency: costAmount === null ? null : (f.monedaCosto.trim() || monedaPorDefecto),
+    priceAmount: aNumero(f.precioVenta),
+    stockInicial: aNumero(f.stockInicial),
+  }
+}
+
+/** Si hay algo que mandar: evita una RPC de más cuando el alta no cargó precio ni stock. */
+export function hayDatosComerciales(d: DatosComerciales): boolean {
+  return d.costAmount !== null || d.priceAmount !== null || (d.stockInicial !== null && d.stockInicial !== 0)
 }
 
 /**

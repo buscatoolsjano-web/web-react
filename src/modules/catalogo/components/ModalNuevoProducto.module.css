@@ -92,6 +92,18 @@
   min-width: 0;
 }
 
+/* El alta de una marca nueva, en línea donde estaba el desplegable: un campo
+   para el nombre y los botones de crear/cancelar. */
+.marcaNueva {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.marcaNueva input {
+  min-width: 0;
+}
+
 /* La miniatura confirma que la dirección apunta a una imagen de verdad antes
    de guardarla: una URL que da 404 se ve acá y no después en el listado. */
 .miniatura {

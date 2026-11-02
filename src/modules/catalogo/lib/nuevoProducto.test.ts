@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   atributosDeLaCategoria,
   atributosParaGuardar,
+  datosComercialesDesdeFormulario,
   filaDesdeFormulario,
   FORMULARIO_VACIO,
   gramosDesdeKg,
+  hayDatosComerciales,
   hayErrores,
   marcaQueYaUsaElPrefijo,
   prefijoDeMarca,
@@ -24,6 +26,40 @@ const F = (over: Partial<FormularioNuevoProducto> = {}): FormularioNuevoProducto
   nombre: 'Adaptador de prueba',
   categoriaId: 'cat-punta',
   ...over,
+})
+
+describe('Datos comerciales (Fase 224)', () => {
+  it('toma los tres como número y pone la moneda del costo', () => {
+    const d = datosComercialesDesdeFormulario(
+      F({ costo: '12,5', monedaCosto: 'EUR', precioVenta: '40', stockInicial: '3' }),
+      'USD',
+    )
+    expect(d).toEqual({ costAmount: 12.5, costCurrency: 'EUR', priceAmount: 40, stockInicial: 3 })
+  })
+
+  it('la moneda del costo cae a la de la lista si no se eligió, y sólo si hay costo', () => {
+    expect(datosComercialesDesdeFormulario(F({ costo: '10' }), 'USD').costCurrency).toBe('USD')
+    expect(datosComercialesDesdeFormulario(F({ precioVenta: '10' }), 'USD').costCurrency).toBeNull()
+  })
+
+  it('lo vacío queda en null y no hay nada que mandar', () => {
+    const d = datosComercialesDesdeFormulario(F(), 'USD')
+    expect(d).toEqual({ costAmount: null, costCurrency: null, priceAmount: null, stockInicial: null })
+    expect(hayDatosComerciales(d)).toBe(false)
+  })
+
+  it('con cualquiera de los tres, sí hay algo que mandar', () => {
+    expect(hayDatosComerciales(datosComercialesDesdeFormulario(F({ precioVenta: '1' }), 'USD'))).toBe(true)
+    expect(hayDatosComerciales(datosComercialesDesdeFormulario(F({ stockInicial: '2' }), 'USD'))).toBe(true)
+  })
+
+  it('un número <= 0 o no numérico no deja mandar', () => {
+    expect(validarNuevoProducto(F({ costo: '0' })).costo).toBeTruthy()
+    expect(validarNuevoProducto(F({ precioVenta: '-5' })).precioVenta).toBeTruthy()
+    expect(validarNuevoProducto(F({ stockInicial: 'dos' })).stockInicial).toBeTruthy()
+    // vacíos: sin error
+    expect(validarNuevoProducto(F()).costo).toBeUndefined()
+  })
 })
 
 /**

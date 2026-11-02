@@ -4886,6 +4886,8 @@ export type Database = {
           brand_id: string | null
           category_id: string
           company_id: string
+          cost_amount: number | null
+          cost_currency: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -4916,6 +4918,8 @@ export type Database = {
           brand_id?: string | null
           category_id: string
           company_id: string
+          cost_amount?: number | null
+          cost_currency?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -4946,6 +4950,8 @@ export type Database = {
           brand_id?: string | null
           category_id?: string
           company_id?: string
+          cost_amount?: number | null
+          cost_currency?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -9029,6 +9035,17 @@ export type Database = {
           id: string
           name: string
         }[]
+      }
+      erp_cargar_datos_comerciales: {
+        Args: {
+          p_company: string
+          p_product: string
+          p_cost_amount?: number
+          p_cost_currency?: string
+          p_price_amount?: number
+          p_stock_inicial?: number
+        }
+        Returns: Json
       }
       config_marca_eliminar: {
         Args: { p_company: string; p_marca: string }

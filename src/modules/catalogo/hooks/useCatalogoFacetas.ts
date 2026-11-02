@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { categorias as categoriasPublicas } from '@/modules/publico/services/catalogoPublico'
 import { construirPlanDeConsulta } from '../lib/planDeConsulta'
@@ -9,8 +9,9 @@ import {
   listarDefinicionesDeAtributos,
   listarMarcas,
   listarAtributosPorCategoria,
+  crearMarca,
 } from '../services/facetas'
-import type { Facetas, FiltrosCatalogo, ListaDePrecios } from '../types'
+import type { Facetas, FiltrosCatalogo, ListaDePrecios, MarcaDelCatalogo } from '../types'
 
 /**
  * Datos de apoyo del catálogo: marcas, categorías, atributos y listas.
@@ -29,6 +30,25 @@ export function useMarcas(companyId: string | null) {
     queryFn: () => listarMarcas(companyId!),
     enabled: companyId !== null,
     staleTime: CINCO_MINUTOS,
+  })
+}
+
+/**
+ * Crear una marca desde el alta de producto (Fase 223).
+ *
+ * Al terminar invalida la lista de marcas de la empresa activa, para que la
+ * marca recién creada aparezca en el desplegable. Quien la crea la selecciona
+ * en el acto con lo que devuelve la mutación, sin esperar esa relectura.
+ */
+export function useCrearMarca() {
+  const qc = useQueryClient()
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  return useMutation<MarcaDelCatalogo, Error, string>({
+    mutationFn: (nombre) => crearMarca(companyId!, nombre),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['catalogo', companyId, 'marcas'] })
+    },
   })
 }
 

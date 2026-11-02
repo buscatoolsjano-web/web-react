@@ -37,6 +37,33 @@ export async function listarMarcas(companyId: string): Promise<MarcaDelCatalogo[
 }
 
 /**
+ * Crea una marca para la empresa activa y la devuelve (Fase 223).
+ *
+ * «Necesito poder poner una marca nueva si no es alguna que está en la lista.»
+ * Reusa el MISMO RPC que Configuración (`config_marca_crear`): es
+ * `security definer` pero valida adentro que quien llama sea admin/employee de
+ * la empresa, así que no abre un atajo que la pantalla no tenga ya.
+ *
+ * La marca nueva no trae prefijo propio, así que la referencia se arma con las
+ * dos primeras letras —que es justo la regla de siempre para una marca sin
+ * `sku_prefix`—. El error de nombre repetido se traduce a algo que se entienda.
+ */
+export async function crearMarca(companyId: string, nombre: string): Promise<MarcaDelCatalogo> {
+  const { data, error } = await supabase.rpc('config_marca_crear', {
+    p_company: companyId,
+    p_datos: { name: nombre },
+  })
+  if (error) {
+    if (/nombre_duplicado/.test(error.message)) throw new Error('Ya existe una marca con ese nombre.')
+    if (/permission denied|row-level security/i.test(error.message)) throw new Error('Tu rol no puede crear marcas.')
+    throw new Error(`No se pudo crear la marca: ${error.message}`)
+  }
+  const f = (data as { id: string; name: string }[] | null)?.[0]
+  if (!f) throw new Error('La base no devolvió la marca creada.')
+  return { id: f.id, nombre: f.name, prefijo: null }
+}
+
+/**
  * Categorías de la empresa activa, **sólo las que están en el catálogo**.
  *
  * Fase 25 · E1: el mismo `.eq('is_active', true)` que las marcas. Sin esto, una

@@ -9,7 +9,9 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import {
   useAtributosPorCategoria,
   useCategorias,
+  useCrearMarca,
   useDefinicionesDeAtributos,
+  useListasDePrecios,
   useMarcas,
 } from '../hooks/useCatalogoFacetas'
 import { useCrearProducto } from '../hooks/useCrearProducto'
@@ -18,12 +20,14 @@ import type { ProductoCreado } from '../services/altaProducto'
 import {
   atributosDeLaCategoria,
   CAMPOS_QUE_NO_ESTAN,
+  datosComercialesDesdeFormulario,
   ESTADOS_PRODUCTO,
   filaDesdeFormulario,
   FORMULARIO_VACIO,
   gramosDesdeKg,
   hayErrores,
   marcaQueYaUsaElPrefijo,
+  MONEDAS_COSTO,
   prefijoDeMarca,
   referenciaDerivada,
   validarNuevoProducto,
@@ -78,7 +82,12 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
   const categorias = useCategorias(companyId)
   const definiciones = useDefinicionesDeAtributos(companyId)
   const porCategoria = useAtributosPorCategoria(companyId)
+  const listas = useListasDePrecios(companyId)
   const crear = useCrearProducto()
+  const marcaNueva = useCrearMarca()
+  // La moneda de la lista base: rotula el precio de venta y es la del costo si
+  // no se elige otra (Buscatools vende en USD, Torquetools en EUR).
+  const monedaLista = listas.porDefecto?.moneda ?? 'USD'
 
   const [f, setF] = useState<FormularioNuevoProducto>(FORMULARIO_VACIO)
   // El alta arranca GUIADA (Fase 131): categoría → tipo → atributos con fotos.
@@ -88,6 +97,9 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
   const [kilos, setKilos] = useState('')
   /** La referencia es derivada salvo que alguien decida escribirla. */
   const [refManual, setRefManual] = useState(false)
+  // Alta de una marca que no está en la lista (Fase 223).
+  const [creandoMarca, setCreandoMarca] = useState(false)
+  const [nombreMarcaNueva, setNombreMarcaNueva] = useState('')
   const [imagen, setImagen] = useState<File | null>(null)
   const [vistaPrevia, setVistaPrevia] = useState<string | null>(null)
   const [errorImagen, setErrorImagen] = useState<string | null>(null)
@@ -229,6 +241,37 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
   const escribirModelo = (v: string) =>
     setF((x) => ({ ...x, modelo: v, sku: refManual ? x.sku : referenciaDerivada(prefijo(x.marcaId), v) }))
 
+  // El valor centinela del desplegable que abre el alta de una marca nueva. No
+  // puede chocar con un id de marca (son uuid), así que se reconoce sin ambigüedad.
+  const MARCA_NUEVA = '__nueva__'
+
+  const alElegirMarca = (v: string) => {
+    if (v === MARCA_NUEVA) { setCreandoMarca(true); marcaNueva.reset(); return }
+    elegirMarca(v)
+  }
+
+  const cancelarMarcaNueva = () => { setCreandoMarca(false); setNombreMarcaNueva(''); marcaNueva.reset() }
+
+  const confirmarMarcaNueva = () => {
+    const nombre = nombreMarcaNueva.trim()
+    if (nombre === '') return
+    marcaNueva.mutate(nombre, {
+      onSuccess: (m) => {
+        setCreandoMarca(false)
+        setNombreMarcaNueva('')
+        // Se selecciona en el acto y se rearma la referencia con su prefijo. Una
+        // marca recién creada no tiene `sku_prefix`, así que sale de las dos
+        // primeras letras —que es la regla de siempre para ese caso—, sin tener
+        // que esperar a que se recargue la lista.
+        setF((x) => ({
+          ...x,
+          marcaId: m.id,
+          sku: refManual ? x.sku : referenciaDerivada(prefijoDeMarca(m.nombre, null), x.modelo),
+        }))
+      },
+    })
+  }
+
   // Un kit sin receta no se puede despachar (lo rechaza `confirmar_entrega`),
   // así que tampoco se deja crear: mejor el error acá que al querer entregarlo.
   const kitSinReceta = f.esKit && componentesUtiles(componentes).length === 0
@@ -241,6 +284,7 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
         fila: filaDesdeFormulario(f),
         imagen,
         componentes: componentesUtiles(componentes),
+        comercial: datosComercialesDesdeFormulario(f, monedaLista),
       },
       {
         onSuccess: (r) => {
@@ -339,15 +383,56 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
               los otros dos. Tenerla acá arriba y la marca tres secciones más
               abajo obligaba a bajar, elegir y volver para poder armarla. */}
           <div className={styles.fila}>
-            <Field label="Marca" required error={ver('marcaId')} help={marcas.isPending ? 'Cargando…' : undefined}>
-              <Select value={f.marcaId} onChange={(e) => elegirMarca(e.target.value)}>
-                <option value="">Elegí una marca…</option>
-                {(marcas.data ?? []).map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.nombre}
-                  </option>
-                ))}
-              </Select>
+            <Field
+              label="Marca"
+              required
+              error={ver('marcaId')}
+              help={
+                marcas.isPending
+                  ? 'Cargando…'
+                  : creandoMarca
+                    ? 'Escribí el nombre y tocá «Crear».'
+                    : undefined
+              }
+            >
+              {creandoMarca ? (
+                <div className={styles.marcaNueva}>
+                  <Input
+                    value={nombreMarcaNueva}
+                    autoFocus
+                    placeholder="Nombre de la marca"
+                    autoComplete="off"
+                    aria-label="Nombre de la marca nueva"
+                    onChange={(e) => setNombreMarcaNueva(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); confirmarMarcaNueva() }
+                      if (e.key === 'Escape') { e.preventDefault(); cancelarMarcaNueva() }
+                    }}
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={confirmarMarcaNueva}
+                    loading={marcaNueva.isPending}
+                    disabled={nombreMarcaNueva.trim() === ''}
+                  >
+                    Crear
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={cancelarMarcaNueva} disabled={marcaNueva.isPending}>
+                    Volver
+                  </Button>
+                </div>
+              ) : (
+                <Select value={f.marcaId} onChange={(e) => alElegirMarca(e.target.value)}>
+                  <option value="">Elegí una marca…</option>
+                  {(marcas.data ?? []).map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.nombre}
+                    </option>
+                  ))}
+                  <option value={MARCA_NUEVA}>＋ Agregar una marca nueva…</option>
+                </Select>
+              )}
             </Field>
 
             <Field label="Modelo" required error={ver('modelo')}>
@@ -358,6 +443,12 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
               <Input value={f.sku} readOnly={!refManual} onChange={(e) => cambiar('sku', e.target.value)} autoComplete="off" />
             </Field>
           </div>
+
+          {marcaNueva.error ? (
+            <Alert tone="danger" role="alert" title="No se pudo crear la marca">
+              <p>{marcaNueva.error.message}</p>
+            </Alert>
+          ) : null}
 
           {chocaCon ? (
             <Alert tone="warning" title={`«${prefijo(f.marcaId)}» ya lo usa ${chocaCon}`}>
@@ -513,7 +604,50 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
           )}
         </fieldset>
 
-        {/* ── 3 · imagen ──────────────────────────────────────────────────── */}
+        {/* ── 3 · precio y stock inicial (Fase 224) ───────────────────────── */}
+        {/* Sólo tiene sentido para un producto del ERP: no viene de StelOrder,
+            así que no hay un maestro que lo pise. Los tres son opcionales. */}
+        <fieldset className={styles.grupo}>
+          <legend className={styles.leyenda}>Precio y stock inicial</legend>
+          <p className={styles.nota}>
+            Opcional. Como este producto se crea en el ERP y no se trae de StelOrder, podés
+            cargarle el costo, el precio de venta y el stock con el que arranca.
+          </p>
+
+          <div className={styles.fila}>
+            <Field label="Precio de costo" optional error={ver('costo')} help="Lo que te cuesta a vos.">
+              <Input value={f.costo} inputMode="decimal" onChange={(e) => cambiar('costo', e.target.value)} />
+            </Field>
+            <Field label="Moneda del costo" optional help="Puede diferir de la de venta.">
+              <Select value={f.monedaCosto || monedaLista} onChange={(e) => cambiar('monedaCosto', e.target.value)}>
+                {MONEDAS_COSTO.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field
+              label={`Precio de venta (${monedaLista})`}
+              optional
+              error={ver('precioVenta')}
+              help="Va a tu lista base."
+            >
+              <Input value={f.precioVenta} inputMode="decimal" onChange={(e) => cambiar('precioVenta', e.target.value)} />
+            </Field>
+          </div>
+
+          <Field
+            label="Stock inicial"
+            optional
+            error={ver('stockInicial')}
+            help="Entra como saldo de apertura en el depósito principal; el saldo lo seguirán moviendo las recepciones y entregas."
+          >
+            <Input value={f.stockInicial} inputMode="decimal" onChange={(e) => cambiar('stockInicial', e.target.value)} />
+          </Field>
+        </fieldset>
+
+        {/* ── 4 · imagen ──────────────────────────────────────────────────── */}
         <fieldset className={styles.grupo}>
           <legend className={styles.leyenda}>Imagen</legend>
           {/* `Field` conecta la etiqueta con su control por contexto, y eso lo

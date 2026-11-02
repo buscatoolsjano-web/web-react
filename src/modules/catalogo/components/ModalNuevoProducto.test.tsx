@@ -8,6 +8,7 @@ const estado = vi.hoisted(() => ({
 }))
 const espias = vi.hoisted(() => ({
   crear: vi.fn((_v: unknown, _o: unknown) => undefined),
+  crearMarca: vi.fn((_n: unknown, _o: unknown) => undefined),
   cerrar: vi.fn(),
   creado: vi.fn(),
 }))
@@ -32,6 +33,10 @@ vi.mock('../hooks/useCatalogoFacetas', () => ({
     ],
   }),
   useAtributosPorCategoria: () => ({ data: new Map([['c-punta', new Set(['encastre', 'largo'])]]) }),
+  // Fase 223: alta de una marca nueva desde el formulario.
+  useCrearMarca: () => ({ mutate: espias.crearMarca, isPending: false, error: null, reset: vi.fn() }),
+  // Fase 224: la lista base rotula el precio de venta y da la moneda del costo.
+  useListasDePrecios: () => ({ porDefecto: { moneda: 'USD' } }),
   // El alta arranca en la guía (Fase 131), que pide las facetas de la categoría.
   // Acá se prueba el formulario, así que alcanza con un stub.
   useFacetas: () => ({ data: undefined }),
@@ -60,6 +65,7 @@ beforeEach(() => {
   estado.creando = false
   estado.error = null
   espias.crear.mockClear()
+  espias.crearMarca.mockClear()
   espias.cerrar.mockClear()
   espias.creado.mockClear()
 })
@@ -229,6 +235,39 @@ describe('La referencia', () => {
   })
 })
 
+describe('Una marca que no está en la lista', () => {
+  it('se puede abrir el alta de una marca nueva desde el desplegable', () => {
+    montar()
+    expect(screen.queryByLabelText('Nombre de la marca nueva')).toBeNull()
+    fireEvent.change(screen.getByLabelText(/Marca/), { target: { value: '__nueva__' } })
+    expect(screen.getByLabelText('Nombre de la marca nueva')).toBeInTheDocument()
+  })
+
+  it('al crear, manda el nombre escrito', () => {
+    montar()
+    fireEvent.change(screen.getByLabelText(/Marca/), { target: { value: '__nueva__' } })
+    fireEvent.change(screen.getByLabelText('Nombre de la marca nueva'), { target: { value: 'Marca Nueva' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear' }))
+    expect(espias.crearMarca).toHaveBeenCalledTimes(1)
+    expect(espias.crearMarca.mock.calls[0]![0]).toBe('Marca Nueva')
+  })
+
+  it('con el nombre vacío no manda nada', () => {
+    montar()
+    fireEvent.change(screen.getByLabelText(/Marca/), { target: { value: '__nueva__' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear' }))
+    expect(espias.crearMarca).not.toHaveBeenCalled()
+  })
+
+  it('volver atrás restaura el desplegable', () => {
+    montar()
+    fireEvent.change(screen.getByLabelText(/Marca/), { target: { value: '__nueva__' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Volver' }))
+    expect(screen.queryByLabelText('Nombre de la marca nueva')).toBeNull()
+    expect(screen.getByLabelText(/Marca/)).toBeInTheDocument()
+  })
+})
+
 describe('El peso', () => {
   it('se pide en gramos, y hay un conversor desde kilos', () => {
     montar()
@@ -238,22 +277,50 @@ describe('El peso', () => {
   })
 })
 
-describe('Lo que todavía no se puede guardar', () => {
-  /**
-   * Está a la vista a propósito: si el formulario pidiera un precio que
-   * `product_prices` no acepta escribir, el dato se perdería en silencio.
-   */
-  it('se listan los campos que faltan, con su motivo', () => {
+describe('Precio, costo y stock inicial (Fase 224)', () => {
+  // Una categoría sin atributos, para que no aparezcan campos de atributos.
+  const completar = () => {
+    fireEvent.change(screen.getByLabelText(/Marca/), { target: { value: 'm1' } })
+    escribir(/Modelo/, 'x9')
+    escribir(/^Nombre/, 'Producto')
+    fireEvent.change(screen.getByLabelText(/Categoría/), { target: { value: 'c-bal' } })
+  }
+
+  it('se pueden escribir el costo, el precio de venta y el stock inicial', () => {
     montar()
-    expect(screen.getByText(/Lo que el sistema anterior pide/)).toBeInTheDocument()
-    expect(screen.getByText('Precio de venta y tarifa')).toBeInTheDocument()
-    expect(screen.getByText('Stock inicial, mínimo y máximo')).toBeInTheDocument()
+    expect(screen.getByLabelText(/Precio de costo/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Precio de venta/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Stock inicial/)).toBeInTheDocument()
   })
 
-  it('no hay ningún campo de precio ni de stock que se pueda escribir', () => {
+  it('viajan en la carga, con la moneda de la lista por defecto', () => {
     montar()
-    expect(screen.queryByLabelText(/Precio de venta/)).toBeNull()
-    expect(screen.queryByLabelText(/Stock/)).toBeNull()
+    completar()
+    escribir(/Precio de costo/, '10')
+    escribir(/Precio de venta/, '30')
+    escribir(/Stock inicial/, '5')
+    crear()
+    const [payload] = espias.crear.mock.calls[0]! as unknown as [{ comercial: Record<string, unknown> }]
+    expect(payload.comercial).toEqual({ costAmount: 10, costCurrency: 'USD', priceAmount: 30, stockInicial: 5 })
+  })
+
+  it('si no se cargan, no manda ningún dato comercial', () => {
+    montar()
+    completar()
+    crear()
+    const [payload] = espias.crear.mock.calls[0]! as unknown as [{ comercial: Record<string, unknown> }]
+    expect(payload.comercial).toEqual({ costAmount: null, costCurrency: null, priceAmount: null, stockInicial: null })
+  })
+
+  /**
+   * De la lista «lo que no se puede guardar» sólo queda el mínimo/máximo: el
+   * costo, el precio de venta y el stock inicial ahora SÍ se cargan.
+   */
+  it('sólo queda sin poder guardarse el stock mínimo y máximo', () => {
+    montar()
+    expect(screen.getByText(/Lo que el sistema anterior pide/)).toBeInTheDocument()
+    expect(screen.getByText('Stock mínimo y máximo')).toBeInTheDocument()
+    expect(screen.queryByText('Precio de venta y tarifa')).toBeNull()
   })
 })
 

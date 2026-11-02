@@ -1,5 +1,5 @@
 import { supabase } from '@/services/supabase/client'
-import type { FilaNuevoProducto } from '../lib/nuevoProducto'
+import { hayDatosComerciales, type DatosComerciales, type FilaNuevoProducto } from '../lib/nuevoProducto'
 
 /**
  * Crear un producto (Fase 26 · E3).
@@ -49,6 +49,8 @@ export interface ProductoCreado {
   imagenGuardada: boolean
   /** `false` cuando el producto se creó pero su receta de kit no se pudo guardar. */
   componentesGuardados: boolean
+  /** `false` cuando el producto se creó pero su costo/precio/stock inicial no se pudo guardar. */
+  datosComercialesGuardados: boolean
 }
 
 /** Una línea de la receta de un kit. */
@@ -63,6 +65,8 @@ export interface AltaDeProducto {
   imagen: File | null
   /** La receta, si es un kit. Vacía si no lo es. */
   componentes: ComponenteKit[]
+  /** Costo, precio de venta y stock inicial (Fase 224). Lo vacío no se manda. */
+  comercial: DatosComerciales
 }
 
 const BUCKET = 'productos'
@@ -100,6 +104,26 @@ export async function crearProducto(
 
   if (error) throw traducir(error)
   if (!data) throw new ErrorAltaProducto('desconocido', 'La base no devolvió el producto creado.')
+
+  // Costo, precio de venta y stock inicial (Fase 224). Van por una RPC
+  // `security definer` porque escriben donde el insert no llega —product_prices
+  // (sólo lo escribe STEL con service role), las columnas de costo y un
+  // movimiento de stock—, y la función valida que el producto sea del ERP (no de
+  // STEL) para no pisar su maestro. Igual que la imagen y el kit: si falla, el
+  // producto queda creado y la pantalla lo dice, en vez de perder la carga.
+  let datosComercialesGuardados = true
+  if (hayDatosComerciales(alta.comercial)) {
+    const d = alta.comercial
+    const { error: errorComercial } = await supabase.rpc('erp_cargar_datos_comerciales', {
+      p_company: companyId,
+      p_product: data.id,
+      ...(d.costAmount !== null && { p_cost_amount: d.costAmount }),
+      ...(d.costCurrency !== null && { p_cost_currency: d.costCurrency }),
+      ...(d.priceAmount !== null && { p_price_amount: d.priceAmount }),
+      ...(d.stockInicial !== null && d.stockInicial !== 0 && { p_stock_inicial: d.stockInicial }),
+    })
+    if (errorComercial) datosComercialesGuardados = false
+  }
 
   let imagenGuardada = true
   if (alta.imagen !== null) {
@@ -151,5 +175,6 @@ export async function crearProducto(
     nombre: data.name,
     imagenGuardada,
     componentesGuardados,
+    datosComercialesGuardados,
   }
 }
