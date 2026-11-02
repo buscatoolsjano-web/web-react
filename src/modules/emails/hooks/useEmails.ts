@@ -24,6 +24,7 @@ import {
   vincularCliente,
 } from '../services/bandeja'
 import { traerHilo } from '../services/contenido'
+import { desconectarCasilla } from '../services/conexion'
 import { FILTROS_INICIALES } from '../types'
 import type {
   ClaseSugerencia,
@@ -94,6 +95,26 @@ export function useCuentas() {
     queryFn: () => listarCuentas(companyId!),
     enabled: companyId !== null,
     staleTime: 60_000,
+  })
+}
+
+/**
+ * Desconectar la casilla (cerrar la sesión del correo).
+ *
+ * Revoca la credencial y marca la cuenta inactiva (`email_desvincular_oauth`,
+ * sólo admin). Al terminar, la empresa queda sin cuentas: la bandeja vuelve al
+ * estado vacío con «Conectar casilla», así se puede enganchar otra.
+ */
+export function useDesconectarCasilla() {
+  const companyId = useCompany()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (accountId: string) => desconectarCasilla(accountId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: claves.cuentas(companyId) })
+      void qc.invalidateQueries({ queryKey: claves.bandeja(companyId) })
+      qc.removeQueries({ queryKey: claves.bandeja(companyId), type: 'inactive' })
+    },
   })
 }
 

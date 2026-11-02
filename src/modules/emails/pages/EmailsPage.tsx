@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import doc from '@/components/document/Document.module.css'
 import { Alert } from '@/components/feedback/Alert'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { Pagination } from '@/components/tables/Pagination'
@@ -21,6 +22,7 @@ import {
   useAsignarDesdeBandeja,
   useBandeja,
   useCuentas,
+  useDesconectarCasilla,
   useEliminarHilo,
   useEtiquetarHilo,
   useEtiquetas,
@@ -97,6 +99,8 @@ function Bandeja() {
   const errorConexion = searchParams.get('correo_error')
   const [conectando, setConectando] = useState(false)
   const [errorConectar, setErrorConectar] = useState<string | null>(null)
+  const [confirmarDesconexion, setConfirmarDesconexion] = useState(false)
+  const desconectar = useDesconectarCasilla()
 
   const conectar = () => {
     if (!companyId) return
@@ -159,11 +163,13 @@ function Bandeja() {
 
   // El paginador va ARRIBA y abajo de la lista (Fase 202, pedido del usuario):
   // con 58 páginas, tener que bajar hasta el final para pasar de página era un
-  // viaje. Es el mismo control en los dos lugares.
-  const paginador =
+  // viaje. El de arriba va en su variante COMPACTA (Fase 225): ahí el aire le
+  // sacaba lugar a los mails; el de abajo queda como está.
+  const paginador = (compacta: boolean) =>
     total > 0 ? (
       <Pagination
         label="Paginación de la bandeja"
+        compacta={compacta}
         offset={(filtros.pagina - 1) * filtros.porPagina}
         pageSize={filtros.porPagina}
         total={total}
@@ -210,6 +216,18 @@ function Bandeja() {
             <LinkButton to="/emails/borradores" icon={<Icon name="edit" size={16} />}>
               Borradores
             </LinkButton>
+            {/* Cerrar la sesión de la casilla (Fase 225): la desconecta para
+                poder enganchar otra. Sólo admin, y sólo si hay una conectada. */}
+            {esAdmin && unaCuenta ? (
+              <Button
+                variant="ghost"
+                icon={<Icon name="log-out" size={16} />}
+                onClick={() => setConfirmarDesconexion(true)}
+                loading={desconectar.isPending}
+              >
+                Cerrar sesión
+              </Button>
+            ) : null}
             <LinkButton
               to="/emails/redactar"
               variant="primary"
@@ -283,6 +301,12 @@ function Bandeja() {
         </Alert>
       ) : null}
 
+      {desconectar.error ? (
+        <Alert tone="danger" role="alert" title="No se pudo cerrar la sesión">
+          <p>{desconectar.error.message}</p>
+        </Alert>
+      ) : null}
+
       <Tabs
         id={pestanas}
         items={CARPETAS}
@@ -302,8 +326,8 @@ function Bandeja() {
           onLimpiar={limpiar}
         />
 
-        {/* Paginador de arriba: sólo cuando hay lista para paginar. */}
-        {filas.length > 0 ? paginador : null}
+        {/* Paginador de arriba: compacto, y sólo cuando hay lista para paginar. */}
+        {filas.length > 0 ? paginador(true) : null}
 
         {errorDeFila ? (
           <Alert tone="danger" role="alert" title="No se pudo aplicar el cambio">
@@ -388,10 +412,25 @@ function Bandeja() {
           />
         )}
 
-        {paginador}
+        {paginador(false)}
       </TabPanel>
 
       {etiquetasAbiertas ? <ModalEtiquetas onCerrar={() => setEtiquetasAbiertas(false)} /> : null}
+
+      <ConfirmDialog
+        open={confirmarDesconexion}
+        tone="danger"
+        title={unaCuenta ? `¿Cerrar la sesión de ${unaCuenta.direccion}?` : '¿Cerrar la sesión del correo?'}
+        description="Se desconecta la casilla y deja de sincronizarse acá. El correo no se borra de Gmail; para volver a verlo tenés que conectarla de nuevo. Después podés conectar otra."
+        confirmLabel="Cerrar sesión"
+        cancelLabel="Volver"
+        busy={desconectar.isPending}
+        onCancel={() => setConfirmarDesconexion(false)}
+        onConfirm={() =>
+          unaCuenta &&
+          desconectar.mutate(unaCuenta.id, { onSuccess: () => setConfirmarDesconexion(false) })
+        }
+      />
     </div>
   )
 }
