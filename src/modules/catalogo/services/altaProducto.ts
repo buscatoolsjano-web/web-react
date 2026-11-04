@@ -114,11 +114,14 @@ export async function crearProducto(
       .eq('id', auditId)
   }
 
-  const { data, error } = await supabase
-    .from('products')
-    .insert({ ...alta.fila, company_id: companyId })
-    .select('id, sku, name')
-    .single()
+  const { data: filas, error } = await supabase.rpc('create_product_with_components', {
+    p_company: companyId,
+    p_product: alta.fila,
+    p_components: alta.componentes,
+  })
+  const data = (Array.isArray(filas) ? filas[0] : filas) as
+    | { id: string; sku: string; name: string }
+    | null
 
   if (error) {
     const traducido = traducir(error)
@@ -162,25 +165,11 @@ export async function crearProducto(
     }
   }
 
-  let componentesGuardados = true
-  if (alta.componentes.length > 0) {
-    const { error: errorKit } = await supabase.from('product_kit_components').insert(
-      alta.componentes.map((c, i) => ({
-        company_id: companyId,
-        kit_product_id: data.id,
-        component_product_id: c.productoId,
-        quantity: c.cantidad,
-        position: i,
-      })),
-    )
-    if (errorKit) componentesGuardados = false
-  }
-
   return {
     id: data.id,
     sku: data.sku,
     nombre: data.name,
     imagenGuardada,
-    componentesGuardados,
+    componentesGuardados: true,
   }
 }
