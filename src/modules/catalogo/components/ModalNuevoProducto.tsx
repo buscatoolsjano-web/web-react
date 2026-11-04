@@ -238,6 +238,7 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
     setErrorMarcaNueva(false)
     try {
       const nueva = await crearMarca(companyId!, nombre)
+      await marcas.refetch()
       setF((x) => ({ ...x, marcaId: nueva.id, sku: refManual ? x.sku : referenciaDerivada(nueva.nombre.slice(0, 2).toUpperCase(), x.modelo) }))
       setNombreMarcaNueva('')
       setCreandoMarca(false)
