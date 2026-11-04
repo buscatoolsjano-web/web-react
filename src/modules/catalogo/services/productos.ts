@@ -348,7 +348,7 @@ export async function consultarProductos(
     //
     // Ventas NO manda esta bandera: se puede sacar un producto del catálogo
     // comercial sin perder la capacidad de cotizarlo.
-    p_solo_catalogo: true,
+    p_solo_catalogo: !esInterno,
   })
 
   if (errorRpc) throw new Error(`No se pudo leer el catálogo: ${errorRpc.message}`)
