@@ -92,14 +92,45 @@ export async function crearProducto(
   companyId: string,
   alta: AltaDeProducto,
 ): Promise<ProductoCreado> {
+  const clientRequestId = crypto.randomUUID()
+  const audit = await supabase
+    .from('product_creation_attempts')
+    .insert({
+      company_id: companyId,
+      client_request_id: clientRequestId,
+      sku: alta.fila.sku,
+      name: alta.fila.name,
+      status: 'started',
+    })
+    .select('id')
+    .maybeSingle()
+  const auditId = audit.data?.id ?? null
+
+  const marcarAuditoria = async (cambios: Record<string, unknown>) => {
+    if (!auditId) return
+    await supabase
+      .from('product_creation_attempts')
+      .update({ ...cambios, completed_at: new Date().toISOString() })
+      .eq('id', auditId)
+  }
+
   const { data, error } = await supabase
     .from('products')
     .insert({ ...alta.fila, company_id: companyId })
     .select('id, sku, name')
     .single()
 
-  if (error) throw traducir(error)
-  if (!data) throw new ErrorAltaProducto('desconocido', 'La base no devolvió el producto creado.')
+  if (error) {
+    const traducido = traducir(error)
+    await marcarAuditoria({ status: 'failed', error_code: traducido.codigo, error_message: traducido.message })
+    throw traducido
+  }
+  if (!data) {
+    const fallo = new ErrorAltaProducto('desconocido', 'La base no devolvió el producto creado.')
+    await marcarAuditoria({ status: 'failed', error_code: fallo.codigo, error_message: fallo.message })
+    throw fallo
+  }
+  await marcarAuditoria({ status: 'succeeded', product_id: data.id })
 
   let imagenGuardada = true
   if (alta.imagen !== null) {
