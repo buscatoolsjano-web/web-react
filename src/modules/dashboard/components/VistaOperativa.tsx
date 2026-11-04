@@ -21,6 +21,7 @@ import { PendientePorPersona } from './PendientePorPersona'
 import { EvolucionComercial } from './EvolucionComercial'
 import { KpiComercial } from './KpiComercial'
 import { UltimosDocumentos } from './UltimosDocumentos'
+import { SaludAltaProductos } from './SaludAltaProductos'
 import { RejillaInicio } from './RejillaInicio'
 import type { ClaveWidget, Widget } from '../lib/widgets'
 import styles from './Panel.module.css'
@@ -183,6 +184,7 @@ export function VistaOperativa({ accesos, inicio }: VistaOperativaProps) {
 
   return (
     <>
+      {rol === 'admin' || rol === 'employee' ? <SaludAltaProductos /> : null}
       {tiposStel.length > 0 ? (
         <Alert
           tone="warning"

@@ -8163,6 +8163,17 @@ export type Database = {
       }
     }
     Views: {
+      product_creation_health: {
+        Row: {
+          company_id: string | null
+          attempts_24h: number | null
+          succeeded_24h: number | null
+          failed_24h: number | null
+          pending: number | null
+          last_attempt_at: string | null
+        }
+        Relationships: []
+      }
       /**
        * Fase 51: el PVP calculado sobre el costo de la última lista.
        *
@@ -8309,6 +8320,18 @@ export type Database = {
       }
     }
     Functions: {
+      create_product_with_components: {
+        Args: {
+          p_company: string
+          p_product: Json
+          p_components?: Json
+        }
+        Returns: {
+          id: string
+          sku: string
+          name: string
+        }[]
+      }
       _preflight: {
         Args: never
         Returns: {

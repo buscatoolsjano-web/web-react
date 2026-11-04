@@ -76,11 +76,8 @@ function extensionDe(tipo: string): string {
 }
 
 /**
- * Inserta el producto, sube su imagen y guarda la receta si es un kit.
- *
- * Son hasta cuatro escrituras y **no hay transacción**: PostgREST no la ofrece.
- * El orden importa y está elegido: primero el producto —que es lo que se vino a
- * crear—, después lo accesorio. Si falla la imagen o la receta, el producto
+ * Inserta el producto y, si corresponde, su receta en una única RPC transaccional;
+ * luego sube la imagen como dato accesorio. Si falla la imagen, el producto
  * queda creado y la pantalla lo dice, en vez de perder la carga entera.
  *
  * La ruta del archivo la arma el servidor de esta función y no el usuario:
