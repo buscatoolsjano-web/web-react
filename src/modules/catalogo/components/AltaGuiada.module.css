@@ -101,6 +101,17 @@
   border-style: dashed;
 }
 
+.omitir {
+  grid-column: 1 / -1;
+  justify-self: start;
+  border: none;
+  background: none;
+  color: var(--color-text-soft);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: var(--space-2) 0;
+}
+
 .tileFoto {
   object-fit: contain;
   border-radius: var(--radius-sm);

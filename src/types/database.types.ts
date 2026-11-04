@@ -4880,6 +4880,51 @@ export type Database = {
         }
         Relationships: []
       }
+      product_creation_attempts: {
+        Row: {
+          id: string
+          company_id: string
+          product_id: string | null
+          actor_id: string | null
+          client_request_id: string
+          sku: string
+          name: string
+          status: string
+          error_code: string | null
+          error_message: string | null
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          product_id?: string | null
+          actor_id?: string | null
+          client_request_id: string
+          sku: string
+          name: string
+          status: string
+          error_code?: string | null
+          error_message?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          product_id?: string | null
+          actor_id?: string | null
+          client_request_id?: string
+          sku?: string
+          name?: string
+          status?: string
+          error_code?: string | null
+          error_message?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           attributes: Json

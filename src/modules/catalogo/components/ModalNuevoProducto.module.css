@@ -29,6 +29,20 @@
   color: var(--color-text);
 }
 
+.altaRapida {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.errorMarca {
+  margin: var(--space-1) 0 0;
+  color: var(--color-danger-text);
+  font-size: var(--text-sm);
+}
+
 .cuerpo {
   display: grid;
   gap: var(--space-5);

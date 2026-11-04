@@ -13,6 +13,7 @@ import {
   useMarcas,
 } from '../hooks/useCatalogoFacetas'
 import { useCrearProducto } from '../hooks/useCrearProducto'
+import { crearMarca } from '@/modules/configuracion/services/maestros'
 import { normalizarFoto } from '../lib/fotoProducto'
 import type { ProductoCreado } from '../services/altaProducto'
 import {
@@ -103,6 +104,10 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
   const [procesando, setProcesando] = useState(false)
   const [avisoFoto, setAvisoFoto] = useState<string | null>(null)
   const [componentes, setComponentes] = useState<ComponenteElegido[]>([])
+  const [creandoMarca, setCreandoMarca] = useState(false)
+  const [nombreMarcaNueva, setNombreMarcaNueva] = useState('')
+  const [guardandoMarca, setGuardandoMarca] = useState(false)
+  const [errorMarcaNueva, setErrorMarcaNueva] = useState(false)
   const idImagen = useId()
 
   /**
@@ -226,6 +231,23 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
   const elegirMarca = (id: string) =>
     setF((x) => ({ ...x, marcaId: id, sku: refManual ? x.sku : referenciaDerivada(prefijo(id), x.modelo) }))
 
+  const crearMarcaDesdeAlta = async () => {
+    const nombre = nombreMarcaNueva.trim()
+    if (!nombre) return
+    setGuardandoMarca(true)
+    setErrorMarcaNueva(false)
+    try {
+      const nueva = await crearMarca(companyId!, nombre)
+      setF((x) => ({ ...x, marcaId: nueva.id, sku: refManual ? x.sku : referenciaDerivada(nueva.nombre.slice(0, 2).toUpperCase(), x.modelo) }))
+      setNombreMarcaNueva('')
+      setCreandoMarca(false)
+    } catch {
+      setErrorMarcaNueva(true)
+    } finally {
+      setGuardandoMarca(false)
+    }
+  }
+
   const escribirModelo = (v: string) =>
     setF((x) => ({ ...x, modelo: v, sku: refManual ? x.sku : referenciaDerivada(prefijo(x.marcaId), v) }))
 
@@ -348,6 +370,18 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
                   </option>
                 ))}
               </Select>
+              {creandoMarca ? (
+                <div className={styles.altaRapida}>
+                  <Input value={nombreMarcaNueva} onChange={(e) => setNombreMarcaNueva(e.target.value)} placeholder="Nombre de la marca" autoFocus />
+                  <Button size="sm" onClick={() => void crearMarcaDesdeAlta()} loading={guardandoMarca} disabled={!nombreMarcaNueva.trim()}>
+                    Guardar marca
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setCreandoMarca(false)}>Cancelar</Button>
+                </div>
+              ) : (
+                <Button size="sm" variant="ghost" onClick={() => setCreandoMarca(true)}>+ Crear marca nueva</Button>
+              )}
+              {errorMarcaNueva ? <p className={styles.errorMarca}>No se pudo crear la marca.</p> : null}
             </Field>
 
             <Field label="Modelo" required error={ver('modelo')}>

@@ -113,8 +113,8 @@ export async function crearProducto(
 
   const { data: filas, error } = await supabase.rpc('create_product_with_components', {
     p_company: companyId,
-    p_product: alta.fila,
-    p_components: alta.componentes,
+    p_product: alta.fila as unknown as import('@/types/database.types').Json,
+    p_components: alta.componentes as unknown as import('@/types/database.types').Json,
   })
   const data = (Array.isArray(filas) ? filas[0] : filas) as
     | { id: string; sku: string; name: string }
