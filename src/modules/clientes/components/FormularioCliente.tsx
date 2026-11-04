@@ -3,6 +3,7 @@ import { Field } from '@/components/forms/Field'
 import { Input, Select, Textarea } from '@/components/forms/controls'
 import { Alert } from '@/components/feedback/Alert'
 import { Button } from '@/components/ui/Button'
+import { extraerDatosClienteDesdeImagen } from '../services/extraerImagen'
 import { ListaDeTextos } from './ListaDeTextos'
 import { opcionesDeRubro } from '../lib/rubros'
 import {
@@ -88,6 +89,8 @@ export function FormularioCliente({
   const [datos, setDatos] = useState<DatosCliente>(valores)
   const [errores, setErrores] = useState<ErrorDeCampo[]>([])
   const [intentado, setIntentado] = useState(false)
+  const [importandoImagen, setImportandoImagen] = useState(false)
+  const [errorImportacion, setErrorImportacion] = useState<string | null>(null)
 
   // Qué cambió respecto de lo que se abrió. Sirve para dos cosas: no ofrecer
   // «Guardar» cuando no hay nada que guardar —así el servidor no recibe un
@@ -124,6 +127,29 @@ export function FormularioCliente({
 
   const errorDe = (campo: keyof DatosCliente) =>
     errores.find((e) => e.campo === campo)?.mensaje ?? null
+
+  const importarImagen = async (archivo: File | null) => {
+    if (!archivo) return
+    setImportandoImagen(true)
+    setErrorImportacion(null)
+    try {
+      const extraidos = await extraerDatosClienteDesdeImagen(archivo)
+      setDatos((actual) => ({
+        ...actual,
+        razonSocial: extraidos.razonSocial?.trim() || actual.razonSocial,
+        nombreComercial: extraidos.nombreComercial?.trim() || actual.nombreComercial,
+        cuit: extraidos.cuit?.trim() || actual.cuit,
+        telefono: extraidos.telefono?.trim() || actual.telefono,
+        emails: extraidos.email?.trim() ? [extraidos.email.trim()] : actual.emails,
+        rubro: extraidos.rubro?.trim() || actual.rubro,
+        notas: extraidos.notas?.trim() || actual.notas,
+      }))
+    } catch (e) {
+      setErrorImportacion(e instanceof Error ? e.message : 'No se pudo leer la imagen.')
+    } finally {
+      setImportandoImagen(false)
+    }
+  }
 
   const texto = (
     campo: keyof DatosCliente,
@@ -172,6 +198,14 @@ export function FormularioCliente({
           </div>
         </div>
       </fieldset>
+
+      <div className={styles.importarImagen}>
+        <Field label="Completar desde una imagen" help="La IA sugiere datos visibles; revisalos antes de guardar.">
+          <Input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => void importarImagen(e.target.files?.[0] ?? null)} disabled={importandoImagen} />
+        </Field>
+        {importandoImagen ? <span>Analizando imagen…</span> : null}
+        {errorImportacion ? <p className={styles.errorImportacion} role="alert">{errorImportacion}</p> : null}
+      </div>
 
       <fieldset className={styles.grupo}>
         <legend className={styles.leyenda}>Contacto</legend>

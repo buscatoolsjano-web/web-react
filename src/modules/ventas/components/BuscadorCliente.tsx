@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { buscarClientes, nombreDeCliente } from '../services/clientes'
+import { CLIENTE_VACIO } from '@/modules/clientes/lib/validacion'
 import styles from './BuscadorCliente.module.css'
 
 export interface BuscadorClienteProps {
@@ -45,6 +46,11 @@ export function BuscadorCliente({ valor, editable, onElegir, apariencia = 'erp' 
   const [texto, setTexto] = useState('')
   const [consulta, setConsulta] = useState('')
   const [abierto, setAbierto] = useState(false)
+  const [altaRapida, setAltaRapida] = useState(false)
+  const [nombreNuevo, setNombreNuevo] = useState('')
+  const [cuitNuevo, setCuitNuevo] = useState('')
+  const [guardandoNuevo, setGuardandoNuevo] = useState(false)
+  const [errorNuevo, setErrorNuevo] = useState<string | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setConsulta(texto), 300)
@@ -96,6 +102,27 @@ export function BuscadorCliente({ valor, editable, onElegir, apariencia = 'erp' 
    * de dos píxeles colgando del campo.
    */
   const hayLista = opciones.length > 0 || resultados.isFetching || sinCoincidencias
+
+  const guardarClienteRapido = async () => {
+    const nombre = nombreNuevo.trim()
+    if (!nombre || !companyId) return
+    setGuardandoNuevo(true)
+    setErrorNuevo(null)
+    try {
+      const { crearCliente } = await import('@/modules/clientes/services/edicion')
+      const creado = await crearCliente(companyId, { datos: { ...CLIENTE_VACIO, razonSocial: nombre, cuit: cuitNuevo.trim() } })
+      onElegir(creado.id)
+      setAltaRapida(false)
+      setTexto('')
+      setConsulta('')
+      setNombreNuevo('')
+      setCuitNuevo('')
+    } catch (e) {
+      setErrorNuevo(e instanceof Error ? e.message : 'No se pudo crear el cliente.')
+    } finally {
+      setGuardandoNuevo(false)
+    }
+  }
 
   // La misma condición que habilita la consulta, negada: antes acá había una
   // copia escrita a mano y por eso `apariencia` no cambiaba nada —el early
@@ -170,6 +197,23 @@ export function BuscadorCliente({ valor, editable, onElegir, apariencia = 'erp' 
           {resultados.isFetching ? <li className={styles.nota}>Buscando…</li> : null}
           {sinCoincidencias ? <li className={styles.nota}>Ningún cliente activo coincide.</li> : null}
         </ul>
+      ) : null}
+      {editable && !enHoja ? (
+        altaRapida ? (
+          <div className={styles.altaRapida}>
+            <input className={styles.input} value={nombreNuevo} onChange={(e) => setNombreNuevo(e.target.value)} placeholder="Razón social" autoFocus />
+            <input className={styles.input} value={cuitNuevo} onChange={(e) => setCuitNuevo(e.target.value)} placeholder="CUIT (opcional)" />
+            <div className={styles.accionesAlta}>
+              <button type="button" className={styles.cambiar} onClick={() => void guardarClienteRapido()} disabled={!nombreNuevo.trim() || guardandoNuevo}>{guardandoNuevo ? 'Creando…' : 'Crear y elegir'}</button>
+              <button type="button" className={styles.cambiar} onClick={() => setAltaRapida(false)}>Cancelar</button>
+            </div>
+            {errorNuevo ? <p className={styles.error} role="alert">{errorNuevo}</p> : null}
+          </div>
+        ) : (
+          <button type="button" className={styles.nuevoCliente} onClick={() => { setAltaRapida(true); setErrorNuevo(null) }}>
+            + Nuevo cliente
+          </button>
+        )
       ) : null}
       {valor !== null ? (
         <button type="button" className={styles.cambiar} onClick={() => setAbierto(false)}>

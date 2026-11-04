@@ -124,6 +124,30 @@
   color: var(--danger);
 }
 
+.nuevoCliente {
+  align-self: flex-start;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--primary);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+.altaRapida {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+}
+
+.accionesAlta {
+  display: flex;
+  gap: var(--space-2);
+}
+
 /* ── Dentro de la hoja del documento (Fase 27 · E7) ───────────────────────
    La hoja es papel blanco: el buscador del ERP —caja oscura, borde grueso y
    dos renglones de ayuda— se veía como un agujero en el medio. Acá hereda la
