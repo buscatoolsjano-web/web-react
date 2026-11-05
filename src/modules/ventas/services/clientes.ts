@@ -85,6 +85,18 @@ export async function buscarClientes(
   return pedirBusqueda(companyId, texto, false)
 }
 
+/** Primeras sugerencias al enfocar el selector vacío. */
+export async function sugerenciasClientes(companyId: string): Promise<ClienteOpcion[]> {
+  const { data, error } = await supabase.rpc('buscar_clientes', {
+    p_company: companyId,
+    p_texto: '',
+    p_incluir_inactivos: false,
+    p_limite: 15,
+  })
+  if (error) throw new Error(`No se pudieron cargar clientes: ${error.message}`)
+  return ((data ?? []) as unknown as FilaBuscada[]).map(aOpcion)
+}
+
 /**
  * La llamada, una sola vez para los dos.
  *
