@@ -99,6 +99,12 @@
   color: var(--primary);
 }
 
+.opcionNuevo {
+  color: var(--primary);
+  font-weight: 600;
+  border-top: 1px solid var(--border);
+}
+
 /* La razón social, debajo del nombre que se muestra. Más chica y apagada:
    es la explicación de por qué coincidió, no el nombre. */
 .razon {
@@ -122,6 +128,30 @@
   margin: 0;
   font-size: var(--text-sm);
   color: var(--danger);
+}
+
+.nuevoCliente {
+  align-self: flex-start;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--primary);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+.altaRapida {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+}
+
+.accionesAlta {
+  display: flex;
+  gap: var(--space-2);
 }
 
 /* ── Dentro de la hoja del documento (Fase 27 · E7) ───────────────────────

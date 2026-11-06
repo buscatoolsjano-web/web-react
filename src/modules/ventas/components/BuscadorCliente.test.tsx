@@ -13,6 +13,7 @@ vi.mock('../services/clientes', () => ({
     estado.llamadas.push(texto)
     return Promise.resolve(estado.resultados)
   },
+  sugerenciasClientes: () => Promise.resolve(estado.resultados),
   nombreDeCliente: () => Promise.resolve({ id: 'k1', nombre: 'Cliente elegido', dadoDeBaja: false }),
 }))
 
@@ -43,7 +44,6 @@ describe('BuscadorCliente en un documento nuevo', () => {
     expect(await screen.findByRole('button', { name: 'El Gitano' })).toBeInTheDocument()
     // Antes del arreglo la consulta ni se disparaba: la lista quedaba vacía
     // para siempre. Después del debounce llega el texto tipeado.
-    expect(estado.llamadas.length).toBeGreaterThan(0)
     await waitFor(() => expect(estado.llamadas).toContain('gitano'))
   })
 
@@ -67,10 +67,10 @@ describe('BuscadorCliente en un documento nuevo', () => {
    * eso se leía como un segundo campo vacío debajo del buscador, y era
    * redundante: el placeholder ya dice qué se escribe.
    */
-  it('con el campo vacío no dibuja ninguna lista debajo', () => {
+  it('con el campo vacío muestra sugerencias y la opción de crear cliente', async () => {
     montar({ valor: null })
-    expect(screen.queryByRole('list')).not.toBeInTheDocument()
-    expect(screen.queryByText(/al menos dos letras/i)).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'El Gitano' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /crear nuevo cliente/i })).toBeInTheDocument()
   })
 
   it('con una sola letra tampoco: todavía no hay nada que mostrar', async () => {

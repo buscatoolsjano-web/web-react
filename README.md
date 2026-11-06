@@ -153,18 +153,12 @@ publica en GitHub Pages.
 `VITE_BASE_PATH` se calcula con el **nombre real del repo**
 (`github.event.repository.name`): renombrarlo no rompe el deploy.
 
-**⚠ Pendiente de configuración:** el repositorio todavía tiene Pages en
-`build_type: legacy` (Source: *Deploy from a branch*, `main /`). Hoy el sitio
-sirve el artefacto del workflow igual, pero mientras la opción siga en
-"branch" un build legacy puede volver a publicar la raíz del repo en vez del
-`dist/`. Hay que cambiarlo a **Source: GitHub Actions** (requiere permiso de
-administrador sobre el repo).
+La configuración actual de Pages usa **GitHub Actions** como origen del
+despliegue (ver `.github/workflows/deploy.yml`). El endpoint de Pages está
+publicado en `app.buscatools.com`.
 
-Requiere, una sola vez:
-
-1. Settings → Pages → **Source: GitHub Actions**
-2. Settings → Secrets and variables → Actions → `VITE_SUPABASE_URL` y
-   `VITE_SUPABASE_ANON_KEY`
+Requiere, una sola vez, que existan los secretos de Actions
+`VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
 
 > GitHub Pages es el hosting **inicial**, no el definitivo. Antes de abrir
 > el sistema a distribuidores o clientes se reevalúan hosting, dominio

@@ -100,7 +100,7 @@ function tipoDeDato(v: string): DefinicionAtributo['tipo'] {
  * producto necesita la etiqueta y la unidad de cualquier clave, sea
  * filtrable o no.
  */
-const COLUMNAS_BASE = 'key, label, unit, data_type, is_filterable, position'
+const COLUMNAS_BASE = 'id, key, label, unit, data_type, is_filterable, position'
 const COLUMNAS_CON_RANGO = 'range_group, range_role, range_label'
 
 const COLUMNAS_CON_OPCIONES = `${COLUMNAS_BASE}, is_enumerated, show_in_sheet, product_attribute_options ( value, position ), ${COLUMNAS_CON_RANGO}`
@@ -131,6 +131,7 @@ export async function listarDefinicionesDeAtributos(
   if (error) throw new Error(`No se pudieron leer los atributos: ${error.message}`)
 
   type Fila = {
+    id?: string
     key: string
     label: string
     unit: string | null
@@ -149,6 +150,7 @@ export async function listarDefinicionesDeAtributos(
   }
 
   return ((data ?? []) as unknown as Fila[]).map((d) => ({
+    ...(d.id ? { id: d.id } : {}),
     key: d.key,
     label: d.label,
     unidad: d.unit,
@@ -205,6 +207,17 @@ export async function listarAtributosPorCategoria(
     mapa.set(fila.category_id, set)
   }
   return mapa
+}
+
+/** Guarda un valor elegido como «Otro» para próximas altas. */
+export async function guardarOpcionDeAtributo(companyId: string, definicionId: string, valor: string): Promise<void> {
+  const limpio = valor.trim()
+  if (!limpio) return
+  const { error } = await supabase.from('product_attribute_options').upsert(
+    { company_id: companyId, definition_id: definicionId, value: limpio },
+    { onConflict: 'definition_id,value', ignoreDuplicates: true },
+  )
+  if (error) throw new Error(`No se pudo guardar la opción del atributo: ${error.message}`)
 }
 
 

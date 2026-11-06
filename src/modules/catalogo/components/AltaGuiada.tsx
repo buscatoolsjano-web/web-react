@@ -4,6 +4,7 @@ import { cx } from '@/utils/cx'
 import { GRUPOS, grupoDe } from '@/modules/publico/lib/grupos'
 import fotos from '@/modules/publico/lib/fotosDeOpcion.generated.json'
 import { useFacetas, usePortadasPublicas } from '../hooks/useCatalogoFacetas'
+import { guardarOpcionDeAtributo } from '../services/facetas'
 import { slugGuia } from '../lib/adaptarGuia'
 import { atributosDeLaCategoria } from '../lib/nuevoProducto'
 import { FILTROS_INICIALES, type CategoriaResumen, type DefinicionAtributo } from '../types'
@@ -157,13 +158,18 @@ export function AltaGuiada({
     // Si el atributo no es filtrable no tiene faceta: ahí se ofrecen los
     // definidos. Y siempre queda «Otro…» para escribir uno nuevo a mano.
     const faceta = facetas?.atributos?.find((a) => a.key === def.key && a.clase === 'enum')
-    const valores = faceta ? faceta.opciones.map((o) => o.valor) : def.opciones
+    const valores = faceta?.opciones.length ? faceta.opciones.map((o) => o.valor) : def.opciones
     paso = {
       clave: `a.${def.key}`,
       pregunta: `¿${def.label}?`,
       pista: def.unidad ? `en ${def.unidad}` : 'elegí o escribí el valor',
       opciones: valores.map((v) => ({ valor: v, etiqueta: `${v}${u}`, foto: undefined })),
-      elegir: (v) => { setAtributos((a) => ({ ...a, [def.key]: v })); setIdxAtributo((i) => i + 1); reiniciarEntrada() },
+      elegir: (v) => {
+        setAtributos((a) => ({ ...a, [def.key]: v }))
+        setIdxAtributo((i) => i + 1)
+        reiniciarEntrada()
+        if (companyId && def.id && !def.opciones.includes(v)) void guardarOpcionDeAtributo(companyId, def.id, v)
+      },
     }
   } else {
     // Todo respondido: se entrega. (Se hace en un efecto-less: botón «Listo».)
@@ -269,6 +275,11 @@ export function AltaGuiada({
                 <button type="button" className={cx(styles.tile, styles.tileOtro)} onClick={() => setEscribiendo(true)}>
                   <Icon name="plus" size={20} aria-hidden="true" />
                   <span className={styles.tileEtiqueta}>Otro…</span>
+                </button>
+              ) : null}
+              {paso.clave.startsWith('a.') ? (
+                <button type="button" className={styles.omitir} onClick={() => { setIdxAtributo((i) => i + 1); reiniciarEntrada() }}>
+                  Omitir este dato
                 </button>
               ) : null}
             </div>

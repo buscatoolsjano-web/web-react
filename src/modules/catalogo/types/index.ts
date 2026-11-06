@@ -145,6 +145,7 @@ export interface CategoriaResumen {
 }
 
 export interface DefinicionAtributo {
+  id?: string
   key: string
   label: string
   unidad: string | null

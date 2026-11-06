@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import type { Json } from '@/types/database.types'
 import { hayDatosComerciales, type DatosComerciales, type FilaNuevoProducto } from '../lib/nuevoProducto'
 
 /**
@@ -80,11 +81,8 @@ function extensionDe(tipo: string): string {
 }
 
 /**
- * Inserta el producto, sube su imagen y guarda la receta si es un kit.
- *
- * Son hasta cuatro escrituras y **no hay transacción**: PostgREST no la ofrece.
- * El orden importa y está elegido: primero el producto —que es lo que se vino a
- * crear—, después lo accesorio. Si falla la imagen o la receta, el producto
+ * Inserta el producto y, si corresponde, su receta en una única RPC transaccional;
+ * luego sube la imagen como dato accesorio. Si falla la imagen, el producto
  * queda creado y la pantalla lo dice, en vez de perder la carga entera.
  *
  * La ruta del archivo la arma el servidor de esta función y no el usuario:
@@ -96,14 +94,48 @@ export async function crearProducto(
   companyId: string,
   alta: AltaDeProducto,
 ): Promise<ProductoCreado> {
-  const { data, error } = await supabase
-    .from('products')
-    .insert({ ...alta.fila, company_id: companyId })
-    .select('id, sku, name')
-    .single()
+  const clientRequestId = crypto.randomUUID()
+  const audit = await supabase
+    .from('product_creation_attempts')
+    .insert({
+      company_id: companyId,
+      client_request_id: clientRequestId,
+      sku: alta.fila.sku,
+      name: alta.fila.name,
+      status: 'started',
+    })
+    .select('id')
+    .maybeSingle()
+  const auditId = audit.data?.id ?? null
 
-  if (error) throw traducir(error)
-  if (!data) throw new ErrorAltaProducto('desconocido', 'La base no devolvió el producto creado.')
+  const marcarAuditoria = async (cambios: Record<string, unknown>) => {
+    if (!auditId) return
+    await supabase
+      .from('product_creation_attempts')
+      .update({ ...cambios, completed_at: new Date().toISOString() })
+      .eq('id', auditId)
+  }
+
+  const { data: filas, error } = await supabase.rpc('create_product_with_components', {
+    p_company: companyId,
+    p_product: alta.fila as unknown as Json,
+    p_components: alta.componentes as unknown as Json,
+  })
+  const data = (Array.isArray(filas) ? filas[0] : filas) as
+    | { id: string; sku: string; name: string }
+    | null
+
+  if (error) {
+    const traducido = traducir(error)
+    await marcarAuditoria({ status: 'failed', error_code: traducido.codigo, error_message: traducido.message })
+    throw traducido
+  }
+  if (!data) {
+    const fallo = new ErrorAltaProducto('desconocido', 'La base no devolvió el producto creado.')
+    await marcarAuditoria({ status: 'failed', error_code: fallo.codigo, error_message: fallo.message })
+    throw fallo
+  }
+  await marcarAuditoria({ status: 'succeeded', product_id: data.id })
 
   // Costo, precio de venta y stock inicial (Fase 224). Van por una RPC
   // `security definer` porque escriben donde el insert no llega —product_prices
@@ -155,26 +187,14 @@ export async function crearProducto(
     }
   }
 
-  let componentesGuardados = true
-  if (alta.componentes.length > 0) {
-    const { error: errorKit } = await supabase.from('product_kit_components').insert(
-      alta.componentes.map((c, i) => ({
-        company_id: companyId,
-        kit_product_id: data.id,
-        component_product_id: c.productoId,
-        quantity: c.cantidad,
-        position: i,
-      })),
-    )
-    if (errorKit) componentesGuardados = false
-  }
-
   return {
     id: data.id,
     sku: data.sku,
     nombre: data.name,
     imagenGuardada,
-    componentesGuardados,
+    // Los componentes entran en la misma transacción que el producto
+    // (`create_product_with_components`): si llegamos acá, se guardaron.
+    componentesGuardados: true,
     datosComercialesGuardados,
   }
 }

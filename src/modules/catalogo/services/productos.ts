@@ -348,10 +348,21 @@ export async function consultarProductos(
     //
     // Ventas NO manda esta bandera: se puede sacar un producto del catálogo
     // comercial sin perder la capacidad de cotizarlo.
-    p_solo_catalogo: true,
+    p_solo_catalogo: !esInterno,
   })
 
-  if (errorRpc) throw new Error(`No se pudo leer el catálogo: ${errorRpc.message}`)
+  if (errorRpc) {
+    // La RPC calcula relevancia y facetas sobre todo el catálogo y puede
+    // agotar el timeout cuando Supabase está bajo carga. Para una búsqueda
+    // explícita hay un camino de rescate simple y determinista: buscar por
+    // SKU/nombre directamente. Así un producto recién creado sigue siendo
+    // encontrable aunque todavía tenga una categoría, marca o atributos mal
+    // cargados.
+    if (plan.texto !== null && plan.texto.trim() !== '') {
+      return consultarProductosPorTextoDirecto(plan, priceListId, esInterno)
+    }
+    throw new Error(`No se pudo leer el catálogo: ${errorRpc.message}`)
+  }
 
   const filasRanking = (ranking ?? []) as PosicionDeRelevancia[] &
     { total_count: number }[]
@@ -404,6 +415,37 @@ export async function consultarProductos(
   const ordenadas = ordenarPorRelevancia(filas, filasRanking)
 
   return { productos: conPvpAplicado(ordenadas.map(mapearListado), pvp), total }
+}
+
+async function consultarProductosPorTextoDirecto(
+  plan: PlanDeConsulta,
+  priceListId: string | null,
+  esInterno: boolean,
+): Promise<PaginaDeProductos> {
+  const texto = plan.texto!.trim().replace(/[,()%\\]/g, ' ')
+  if (!texto) return { productos: [], total: 0 }
+
+  let q = supabase
+    .from('products')
+    .select(esInterno ? COLUMNAS_LISTADO_INTERNO : COLUMNAS_LISTADO, { count: 'exact' })
+    .eq('company_id', plan.companyId)
+    .is('deleted_at', null)
+    .or(`sku.ilike.%${texto}%,name.ilike.%${texto}%`)
+    .order('name', { ascending: true })
+    .range(plan.desplazamiento, plan.desplazamiento + plan.limite - 1)
+
+  if (priceListId) q = q.eq('product_prices.price_list_id', priceListId)
+
+  const { data, error, count } = await q
+  if (error) throw new Error(`No se pudo leer el catálogo: ${error.message}`)
+
+  const filas = (data ?? []) as unknown as FilaProducto[]
+  const ids = filas.map((f) => f.id)
+  const pvp = ids.length > 0 ? await pedirPvp(plan.companyId, ids) : new Map()
+  return {
+    productos: conPvpAplicado(filas.map(mapearListado), pvp),
+    total: count ?? 0,
+  }
 }
 
 /**
