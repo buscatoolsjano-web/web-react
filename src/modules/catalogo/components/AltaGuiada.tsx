@@ -7,8 +7,43 @@ import { useFacetas, usePortadasPublicas } from '../hooks/useCatalogoFacetas'
 import { guardarOpcionDeAtributo } from '../services/facetas'
 import { slugGuia } from '../lib/adaptarGuia'
 import { atributosDeLaCategoria } from '../lib/nuevoProducto'
-import { FILTROS_INICIALES, type CategoriaResumen, type DefinicionAtributo } from '../types'
+import { FILTROS_INICIALES, type CategoriaResumen, type DefinicionAtributo, type MarcaResumen } from '../types'
 import styles from './AltaGuiada.module.css'
+
+/**
+ * Atributos que la guía NO pregunta como atributo.
+ *
+ * `marca_disp` y `modelo` son la marca y el modelo, que tienen su propio paso
+ * —al principio, porque son lo que identifica al producto— y su campo en el
+ * formulario: preguntarlos también como atributo (al final, con 99 modelos de
+ * otros productos como botones) los hacía cargar dos veces. Y `*_raw` es la
+ * copia del dato tal cual vino del import («Longitud (original)»), que repite
+ * al atributo bueno («Long. cable»).
+ */
+const NO_SE_PREGUNTAN = new Set(['marca_disp', 'modelo'])
+
+/**
+ * Los valores de un paso, de menor a mayor. La faceta los trae por cuántos
+ * productos los usan, y así salían «0.2, 1.2, 10, 100, 115, 12»: para elegir
+ * una medida hay que verlas en orden. Los que empiezan con un número (`2.5
+ * MTS`, `1/4"`, `0,75`) van por ese número; el resto, alfabético.
+ */
+const numeroInicial = (v: string): number | null => {
+  const m = /^\s*(\d+)\s*\/\s*(\d+)|^\s*(\d+(?:[.,]\d+)?)/.exec(v)
+  if (!m) return null
+  if (m[1] !== undefined && m[2] !== undefined) return Number(m[1]) / Number(m[2])
+  return Number((m[3] ?? '').replace(',', '.'))
+}
+const enOrden = (valores: readonly string[]): string[] =>
+  [...valores].sort((a, b) => {
+    const na = numeroInicial(a)
+    const nb = numeroInicial(b)
+    if (na !== null && nb !== null && na !== nb) return na - nb
+    if (na !== null && nb === null) return -1
+    if (na === null && nb !== null) return 1
+    return a.localeCompare(b, 'es', { numeric: true })
+  })
+const seAPreguntaEnLaGuia = (key: string): boolean => !NO_SE_PREGUNTAN.has(key) && !key.endsWith('_raw')
 
 /**
  * Alta de producto GUIADA (Fase 131).
@@ -33,6 +68,10 @@ import styles from './AltaGuiada.module.css'
 export interface ResultadoAltaGuiada {
   categoriaId: string
   tipo: string
+  /** `''` si se omitió: se elige en el formulario. */
+  marcaId: string
+  /** `''` si se omitió. */
+  modelo: string
   atributos: Record<string, string>
 }
 
@@ -52,6 +91,7 @@ const fotoGrupo = (slug: string | undefined, grupo: string): string | undefined 
 export function AltaGuiada({
   companyId,
   categorias,
+  marcas,
   definiciones,
   porCategoria,
   onListo,
@@ -59,6 +99,8 @@ export function AltaGuiada({
 }: {
   companyId: string | null
   categorias: readonly CategoriaResumen[]
+  /** Todas las marcas de la empresa, para «Otra…» en el paso de marca. */
+  marcas: readonly MarcaResumen[]
   definiciones: readonly DefinicionAtributo[]
   porCategoria: ReadonlyMap<string, ReadonlySet<string>> | undefined
   onListo: (r: ResultadoAltaGuiada) => void
@@ -67,6 +109,11 @@ export function AltaGuiada({
   const [categoriaId, setCategoriaId] = useState('')
   const [grupo, setGrupo] = useState('')
   const [tipo, setTipo] = useState('')
+  const [marcaId, setMarcaId] = useState('')
+  const [modelo, setModelo] = useState('')
+  // «Decidido» = elegido u omitido: con eso el paso queda atrás.
+  const [marcaDecidida, setMarcaDecidida] = useState(false)
+  const [modeloDecidido, setModeloDecidido] = useState(false)
   const [atributos, setAtributos] = useState<Record<string, string>>({})
   // El paso de atributos que se está respondiendo (0 = el primero).
   const [idxAtributo, setIdxAtributo] = useState(0)
@@ -111,15 +158,24 @@ export function AltaGuiada({
 
   // Los atributos a preguntar, en orden, para la categoría elegida.
   const atributosCat = useMemo(
-    () => atributosDeLaCategoria(definiciones, categoriaId, porCategoria),
+    () => atributosDeLaCategoria(definiciones, categoriaId, porCategoria).filter((d) => seAPreguntaEnLaGuia(d.key)),
     [definiciones, categoriaId, porCategoria],
   )
 
   const reiniciarEntrada = () => { setEscribiendo(false); setTextoOtro('') }
+  const nombreDeMarca = (id: string) => marcas.find((m) => m.id === id)?.nombre ?? ''
 
   // ── Qué paso toca ─────────────────────────────────────────────────────────
-  // 1) categoría, 2) grupo (si hay más de uno), 3) tipo, 4..) cada atributo.
-  let paso: { clave: string; pregunta: string; pista: string; opciones: OpcionTile[]; elegir: (v: string) => void }
+  // 1) categoría, 2) grupo (si hay más de uno), 3) tipo, 4) marca, 5) modelo,
+  // 6..) cada atributo.
+  let paso: {
+    clave: string
+    pregunta: string
+    pista: string
+    opciones: OpcionTile[]
+    elegir: (v: string) => void
+    omitir?: () => void
+  }
 
   if (categoriaId === '') {
     paso = {
@@ -150,6 +206,32 @@ export function AltaGuiada({
       opciones: delGrupo.map((t) => ({ valor: t.valor, etiqueta: t.valor, foto: fotoTipo(slug, t.valor) })),
       elegir: (v) => { setTipo(v); reiniciarEntrada() },
     }
+  } else if (!marcaDecidida) {
+    // Las marcas que ya hay en el rubro (y tipo) elegido, como los demás pasos;
+    // si el rubro no tiene ninguna, todas. «Otra…» abre la lista completa.
+    const enElRubro = facetas?.marcas ?? []
+    const elegirMarca = (v: string) => { setMarcaId(v); setMarcaDecidida(true); reiniciarEntrada() }
+    paso = {
+      clave: 'marca',
+      pregunta: '¿Qué marca?',
+      pista: enElRubro.length > 0 ? 'las que ya hay en este rubro' : 'elegí la marca',
+      opciones:
+        enElRubro.length > 0
+          ? enElRubro.map((m) => ({ valor: m.valor, etiqueta: m.etiqueta, foto: undefined }))
+          : marcas.map((m) => ({ valor: m.id, etiqueta: m.nombre, foto: undefined })),
+      elegir: elegirMarca,
+      omitir: () => { setMarcaDecidida(true); reiniciarEntrada() },
+    }
+  } else if (!modeloDecidido) {
+    // El modelo es de ESTE producto: no se elige de los de otros, se escribe.
+    paso = {
+      clave: 'modelo',
+      pregunta: '¿Qué modelo?',
+      pista: 'escribilo: la referencia sale de él',
+      opciones: [],
+      elegir: (v) => { setModelo(v); setModeloDecidido(true); reiniciarEntrada() },
+      omitir: () => { setModeloDecidido(true); reiniciarEntrada() },
+    }
   } else if (idxAtributo < atributosCat.length) {
     const def = atributosCat[idxAtributo]!
     const u = def.unidad ? ` ${def.unidad}` : ''
@@ -158,7 +240,7 @@ export function AltaGuiada({
     // Si el atributo no es filtrable no tiene faceta: ahí se ofrecen los
     // definidos. Y siempre queda «Otro…» para escribir uno nuevo a mano.
     const faceta = facetas?.atributos?.find((a) => a.key === def.key && a.clase === 'enum')
-    const valores = faceta?.opciones.length ? faceta.opciones.map((o) => o.valor) : def.opciones
+    const valores = enOrden(faceta?.opciones.length ? faceta.opciones.map((o) => o.valor) : def.opciones)
     paso = {
       clave: `a.${def.key}`,
       pregunta: `¿${def.label}?`,
@@ -170,6 +252,7 @@ export function AltaGuiada({
         reiniciarEntrada()
         if (companyId && def.id && !def.opciones.includes(v)) void guardarOpcionDeAtributo(companyId, def.id, v)
       },
+      omitir: () => { setIdxAtributo((i) => i + 1); reiniciarEntrada() },
     }
   } else {
     // Todo respondido: se entrega. (Se hace en un efecto-less: botón «Listo».)
@@ -180,9 +263,11 @@ export function AltaGuiada({
 
   // Las elecciones ya hechas, como fichas que se pueden deshacer.
   const fichas: { clave: string; texto: string; quitar: () => void }[] = []
-  if (categoriaId !== '') fichas.push({ clave: 'cat', texto: cat?.nombre ?? '', quitar: () => { setCategoriaId(''); setGrupo(''); setTipo(''); setAtributos({}); setIdxAtributo(0); reiniciarEntrada() } })
+  if (categoriaId !== '') fichas.push({ clave: 'cat', texto: cat?.nombre ?? '', quitar: () => { setCategoriaId(''); setGrupo(''); setTipo(''); setMarcaId(''); setMarcaDecidida(false); setModelo(''); setModeloDecidido(false); setAtributos({}); setIdxAtributo(0); reiniciarEntrada() } })
   if (grupo !== '' && tipo === '') fichas.push({ clave: 'grp', texto: GRUPOS.find((g) => g.clave === grupo)?.label ?? grupo, quitar: () => { setGrupo(''); reiniciarEntrada() } })
   if (tipo !== '') fichas.push({ clave: 'tipo', texto: tipo, quitar: () => { setTipo(''); setGrupo(''); reiniciarEntrada() } })
+  if (marcaId !== '') fichas.push({ clave: 'marca', texto: `Marca: ${nombreDeMarca(marcaId)}`, quitar: () => { setMarcaId(''); setMarcaDecidida(false); reiniciarEntrada() } })
+  if (modelo !== '') fichas.push({ clave: 'modelo', texto: `Modelo: ${modelo}`, quitar: () => { setModelo(''); setModeloDecidido(false); reiniciarEntrada() } })
   atributosCat.slice(0, idxAtributo).forEach((def) => {
     if (atributos[def.key] !== undefined) {
       fichas.push({
@@ -226,11 +311,19 @@ export function AltaGuiada({
       {terminado ? (
         <div className={styles.fin}>
           <span className={styles.finIcono} aria-hidden="true"><Icon name="check" size={24} /></span>
-          <p className={styles.finTexto}>Listo. Ahora poné la marca y el modelo.</p>
+          <p className={styles.finTexto}>
+            {marcaId !== '' && modelo !== ''
+              ? 'Listo. Revisá el resto y creá el producto.'
+              : marcaId !== ''
+                ? 'Listo. En el formulario falta el modelo.'
+                : modelo !== ''
+                  ? 'Listo. En el formulario falta la marca.'
+                  : 'Listo. En el formulario faltan la marca y el modelo.'}
+          </p>
           <button
             type="button"
             className={styles.continuar}
-            onClick={() => onListo({ categoriaId, tipo, atributos })}
+            onClick={() => onListo({ categoriaId, tipo, marcaId, modelo, atributos })}
           >
             Continuar
             <Icon name="arrow-right" size={16} aria-hidden="true" />
@@ -242,22 +335,49 @@ export function AltaGuiada({
             {paso.pregunta} <span className={styles.pista}>{paso.pista}</span>
           </p>
 
-          {escribiendo ? (
+          {paso.clave === 'marca' && escribiendo ? (
+            // «Otra…» en la marca: la lista completa, no un texto libre (una
+            // marca nueva se crea desde el formulario, con su prefijo).
+            <div className={styles.otro}>
+              <select
+                className={styles.otroInput}
+                autoFocus
+                value=""
+                aria-label="Elegí la marca"
+                onChange={(e) => { if (e.target.value !== '') paso.elegir(e.target.value) }}
+              >
+                <option value="">Elegí de todas las marcas…</option>
+                {marcas.map((m) => (
+                  <option key={m.id} value={m.id}>{m.nombre}</option>
+                ))}
+              </select>
+              <button type="button" className={styles.otroCancelar} onClick={reiniciarEntrada}>
+                Volver
+              </button>
+            </div>
+          ) : escribiendo || paso.clave === 'modelo' ? (
             <div className={styles.otro}>
               <input
                 className={styles.otroInput}
                 value={textoOtro}
                 autoFocus
-                placeholder="Escribí el valor nuevo…"
+                placeholder={paso.clave === 'modelo' ? 'Por ejemplo: 30501352010' : 'Escribí el valor nuevo…'}
+                aria-label={paso.clave === 'modelo' ? 'Modelo' : 'Valor nuevo'}
                 onChange={(e) => setTextoOtro(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmarOtro() } }}
               />
               <button type="button" className={styles.otroOk} onClick={confirmarOtro} disabled={textoOtro.trim() === ''}>
                 Usar
               </button>
-              <button type="button" className={styles.otroCancelar} onClick={reiniciarEntrada}>
-                Volver
-              </button>
+              {paso.clave === 'modelo' ? (
+                <button type="button" className={styles.otroCancelar} onClick={paso.omitir}>
+                  Omitir
+                </button>
+              ) : (
+                <button type="button" className={styles.otroCancelar} onClick={reiniciarEntrada}>
+                  Volver
+                </button>
+              )}
             </div>
           ) : (
             <div className={styles.tiles} role="group" aria-label={paso.pregunta}>
@@ -274,12 +394,12 @@ export function AltaGuiada({
               {paso.clave !== 'categoria' ? (
                 <button type="button" className={cx(styles.tile, styles.tileOtro)} onClick={() => setEscribiendo(true)}>
                   <Icon name="plus" size={20} aria-hidden="true" />
-                  <span className={styles.tileEtiqueta}>Otro…</span>
+                  <span className={styles.tileEtiqueta}>{paso.clave === 'marca' ? 'Otra…' : 'Otro…'}</span>
                 </button>
               ) : null}
-              {paso.clave.startsWith('a.') ? (
-                <button type="button" className={styles.omitir} onClick={() => { setIdxAtributo((i) => i + 1); reiniciarEntrada() }}>
-                  Omitir este dato
+              {paso.omitir ? (
+                <button type="button" className={styles.omitir} onClick={paso.omitir}>
+                  {paso.clave === 'marca' ? 'La elijo después' : 'Omitir este dato'}
                 </button>
               ) : null}
             </div>

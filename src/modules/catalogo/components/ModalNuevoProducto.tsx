@@ -307,7 +307,28 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
 
   /** Lo elegido en la guía se vuelca al formulario y se pasa a él. */
   const aplicarGuia = (r: ResultadoAltaGuiada) => {
-    setF((x) => ({ ...x, categoriaId: r.categoriaId, tipo: r.tipo, atributos: { ...x.atributos, ...r.atributos } }))
+    // La marca y el modelo de la guía van a sus campos (y arman la referencia).
+    // En los rubros que además los guardan como atributo —`marca_disp` y
+    // `modelo`, como los productos que ya existen— se completan también, para
+    // no tener que escribirlos de nuevo en la sección de características.
+    const claves = porCategoria.data?.get(r.categoriaId)
+    const nombreMarca = marcaDe(r.marcaId)?.nombre
+    const espejo: Record<string, string> = {}
+    if (nombreMarca && claves?.has('marca_disp')) espejo.marca_disp = nombreMarca
+    if (r.modelo !== '' && claves?.has('modelo')) espejo.modelo = r.modelo
+    setF((x) => {
+      const marcaId = r.marcaId !== '' ? r.marcaId : x.marcaId
+      const modelo = r.modelo !== '' ? r.modelo : x.modelo
+      return {
+        ...x,
+        categoriaId: r.categoriaId,
+        tipo: r.tipo,
+        marcaId,
+        modelo,
+        sku: refManual ? x.sku : referenciaDerivada(prefijo(marcaId), modelo),
+        atributos: { ...x.atributos, ...espejo, ...r.atributos },
+      }
+    })
     setFase('form')
   }
 
@@ -343,6 +364,7 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
         <AltaGuiada
           companyId={companyId}
           categorias={categorias.data ?? []}
+          marcas={marcas.data ?? []}
           definiciones={definiciones.data ?? []}
           porCategoria={porCategoria.data}
           onListo={aplicarGuia}

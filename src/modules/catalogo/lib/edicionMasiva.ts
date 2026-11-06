@@ -75,6 +75,11 @@ export function describirCambio(
   campo: CampoMasivo,
   valorTexto: string,
   cuantos: number,
+  /**
+   * Cómo se le muestra el valor a la persona. Para la marca y la categoría el
+   * valor es un id: sin esto el aviso decía «Marca = edb1df8e-…».
+   */
+  etiquetaValor?: string,
 ): string {
   const n = `${cuantos} ${cuantos === 1 ? 'producto' : 'productos'}`
   const limpio = valorTexto.trim()
@@ -84,5 +89,5 @@ export function describirCambio(
       ? `Vas a BORRAR «${campo.etiqueta}» en ${n}.`
       : `Vas a dejar «${campo.etiqueta}» sin dato en ${n}.`
   }
-  return `Vas a poner «${campo.etiqueta}» = «${limpio}» en ${n}.`
+  return `Vas a poner «${campo.etiqueta}» = «${etiquetaValor?.trim() || limpio}» en ${n}.`
 }

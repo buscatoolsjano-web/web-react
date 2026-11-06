@@ -85,4 +85,8 @@ describe('edicionMasiva · describirCambio', () => {
     expect(describirCambio(tipo, '  ', 2)).toBe('Vas a dejar «Tipo» sin dato en 2 productos.')
     expect(describirCambio(atributo, '', 2)).toBe('Vas a BORRAR «Medida» en 2 productos.')
   })
+
+  it('muestra el nombre y no el id cuando se lo pasan (marca, categoría)', () => {
+    expect(describirCambio(tipo, 'edb1df8e-3384', 50, 'Depascale')).toBe('Vas a poner «Tipo» = «Depascale» en 50 productos.')
+  })
 })

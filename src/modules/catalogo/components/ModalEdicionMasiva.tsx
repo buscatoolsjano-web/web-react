@@ -280,7 +280,18 @@ export function ModalEdicionMasiva({ ids, categoriaComun, definiciones, onCerrar
       {/* ── Confirmación ──────────────────────────────────────────────────── */}
       {confirmando && campo !== null ? (
         <Alert tone="warning" role="status" title="Revisá antes de aplicar">
-          <p>{describirCambio(campo, valor, ids.length)}</p>
+          <p>
+            {describirCambio(
+              campo,
+              valor,
+              ids.length,
+              campo.tipo === 'marca'
+                ? marcas.data?.find((m) => m.id === valor)?.nombre
+                : campo.tipo === 'categoria'
+                  ? categorias.data?.find((c) => c.id === valor)?.nombre
+                  : undefined,
+            )}
+          </p>
           <p className={styles.aviso}>Este cambio no se deshace con un botón. Mirá que esté bien.</p>
         </Alert>
       ) : null}
