@@ -147,6 +147,17 @@ export function EditorLineas({
                       {l.productId === null ? (
                         <span className={styles.libre}>línea libre</span>
                       ) : null}
+                      {/* Para qué venta es y cuánto va a stock (Fase 237). */}
+                      {l.venta ? (
+                        <span className={styles.vinculo}>
+                          <span className={styles.chipVenta}>
+                            {Math.min(l.venta.cantidad, l.cantidad)} para {l.venta.documento ?? 'la venta'}
+                          </span>
+                          {l.cantidad > l.venta.cantidad ? (
+                            <span className={styles.chipStock}>{l.cantidad - l.venta.cantidad} para stock</span>
+                          ) : null}
+                        </span>
+                      ) : null}
                     </td>
                     <td className={styles.derecha}>
                       <input

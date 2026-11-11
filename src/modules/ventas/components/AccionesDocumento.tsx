@@ -21,6 +21,7 @@ import { anularEntrega } from '../services/entregas'
 import { ETIQUETA_DE, RUTA_DE, type DocumentoDetalle } from '../types'
 import { ModalImpresion } from './ModalImpresion'
 import { DialogoDuplicarComo } from '@/features/copiarDocumento/DialogoDuplicarComo'
+import { ModalGenerarCompraDeVenta } from './ModalGenerarCompra'
 
 /**
  * Fase 19 · E5: ya no hay opciones.
@@ -77,6 +78,7 @@ export function useAccionesDocumento(
   const queryClient = useQueryClient()
   const [imprimiendo, setImprimiendo] = useState(false)
   const [duplicandoComo, setDuplicandoComo] = useState(false)
+  const [generandoCompra, setGenerandoCompra] = useState(false)
   const [confirmar, setConfirmar] = useState<'cancelar' | 'eliminar' | 'anular' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -211,6 +213,13 @@ export function useAccionesDocumento(
             Duplicar como…
           </Button>
         ) : null}
+        {/* La compra vinculada a esta venta (Fase 237): lo pendiente, con su
+            reparto entre la venta y stock, y en la trazabilidad. */}
+        {sePuedeDuplicar ? (
+          <Button variant="secondary" icon={<Icon name="truck" size={16} />} onClick={() => setGenerandoCompra(true)}>
+            Generar pedido a proveedor
+          </Button>
+        ) : null}
         {sePuedeCancelar ? (
           <Button variant="secondary" disabled={cancelar.isPending} onClick={() => setConfirmar('cancelar')}>
             Cancelar {nombre}
@@ -255,6 +264,15 @@ export function useAccionesDocumento(
     capas: (
       <>
         {imprimiendo ? <ModalImpresion doc={doc} onCerrar={() => setImprimiendo(false)} /> : null}
+        {generandoCompra && (doc.tipo === 'cotizacion' || doc.tipo === 'pedido') ? (
+          <ModalGenerarCompraDeVenta
+            tipo={doc.tipo}
+            id={doc.id}
+            numero={doc.numero}
+            moneda={doc.moneda}
+            onCerrar={() => setGenerandoCompra(false)}
+          />
+        ) : null}
         {duplicandoComo && (doc.tipo === 'cotizacion' || doc.tipo === 'pedido') ? (
           <DialogoDuplicarComo
             origen={doc.tipo}

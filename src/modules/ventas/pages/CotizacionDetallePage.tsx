@@ -33,6 +33,7 @@ import { InformacionDocumento } from '../components/InformacionDocumento'
 import { PanelLateralCliente } from '@/modules/clientes/components/PanelLateralCliente'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { PanelRelacionados } from '../components/PanelRelacionados'
+import { PanelAbastecimiento } from '../components/PanelAbastecimiento'
 import { PanelTrazabilidad } from '../components/PanelTrazabilidad'
 import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
 import { usePrecargarCatalogoDeDocumento } from '../hooks/useCatalogoParaDocumento'
@@ -1148,6 +1149,20 @@ function Detalle() {
         {pestanaVisible === 'adjuntos' ? (
           <DocSection title="Adjuntos">
             <PanelAdjuntos tipo="cotizacion" documentoId={doc.id} />
+          </DocSection>
+        ) : null}
+
+        {pestanaVisible === 'relacionados' ? (
+          <DocSection title="Compras">
+            {/* Compras en la trazabilidad del circuito (Fase 237): qué se le
+                pidió a proveedores para esta venta y cuándo llega. */}
+            <PanelAbastecimiento
+              tipo="cotizacion"
+              documentoId={doc.id}
+              numero={doc.numero}
+              moneda={doc.moneda}
+              puedeComprar={escribe}
+            />
           </DocSection>
         ) : null}
 

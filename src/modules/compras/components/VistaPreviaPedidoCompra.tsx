@@ -6,7 +6,8 @@ import { etiquetaDeTratamiento } from '../lib/tratamientos'
 import type { DatosPedidoCompra } from '../lib/validacion'
 import type { ProveedorBuscado } from '../services/catalogo'
 import type { LineaPedidoCompra } from '../types'
-import { VistaImpresionCompras } from './VistaImpresionCompras'
+import { VistaImpresion } from '@/modules/ventas/components/VistaImpresion'
+import { aHojaDeVentas, opcionesDeHoja } from '../lib/hojaVentas'
 
 /**
  * La vista previa del pedido de compra al costado del formulario (Fase 236).
@@ -43,9 +44,9 @@ export function VistaPreviaPedidoCompra({
       ajustarAlAncho
       opciones={OPCIONES_HOJA}
     >
-      {(opciones, empresa) => (
-        <VistaImpresionCompras
-          doc={imprimiblePedidoBorrador(
+      {(opciones, empresa) => {
+        // La hoja de VENTAS, con el logo, y los rótulos de Compras (Fase 237).
+        const doc = imprimiblePedidoBorrador(
             {
               numero,
               fecha: datos.fecha,
@@ -61,11 +62,9 @@ export function VistaPreviaPedidoCompra({
             etiquetaDeTratamiento,
             { subtotal: t.subtotal, impuesto: t.impuesto, total: t.total },
             netoDeLinea,
-          )}
-          empresa={empresa}
-          opciones={{ papel: opciones.papel }}
-        />
-      )}
+          )
+        return <VistaImpresion doc={aHojaDeVentas(doc)} empresa={empresa} opciones={opcionesDeHoja(doc, opciones.papel === 'carta' ? 'carta' : 'A4')} />
+      }}
     </PanelHoja>
   )
 }

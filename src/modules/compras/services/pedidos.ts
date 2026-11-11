@@ -266,14 +266,35 @@ export async function lineasDePedido(
     .select(
       `id, line_no, line_type, product_id, sku_snapshot, name_snapshot,
        description_snapshot, quantity, unit_price, discount_pct, tax_treatment,
-       tax_rate_snapshot, line_total`,
+       tax_rate_snapshot, line_total, sales_quote_line_id, sales_order_line_id,
+       quantity_for_sale,
+       cot:sales_quote_lines!purchase_order_lines_sales_quote_line_id_fkey ( sales_quotes ( number ) ),
+       ped:sales_order_lines!purchase_order_lines_sales_order_line_id_fkey ( sales_orders ( number ) )`,
     )
     .eq('company_id', companyId)
     .eq('purchase_order_id', pedidoId)
     .order('line_no', { ascending: true })
   if (error) throw new Error(`No se pudieron leer las líneas: ${error.message}`)
 
+  // El número de la venta vinculada (Fase 237), venga de la cotización o del
+  // pedido de venta.
+  const numeroDe = (x: unknown, clave: 'sales_quotes' | 'sales_orders'): string | null => {
+    const fila = (Array.isArray(x) ? x[0] : x) as Record<string, unknown> | null | undefined
+    const doc = fila?.[clave] as { number?: string } | { number?: string }[] | null | undefined
+    const d = Array.isArray(doc) ? doc[0] : doc
+    return d?.number ?? null
+  }
+
   return (data ?? []).map((l) => ({
+    venta:
+      l.sales_quote_line_id || l.sales_order_line_id
+        ? {
+            cotizacionLineaId: l.sales_quote_line_id,
+            pedidoLineaId: l.sales_order_line_id,
+            cantidad: aNumero(l.quantity_for_sale ?? 0),
+            documento: numeroDe(l.ped, 'sales_orders') ?? numeroDe(l.cot, 'sales_quotes'),
+          }
+        : null,
     id: l.id,
     numeroLinea: l.line_no,
     tipoLinea: l.line_type === 'chapter' ? 'chapter' : 'product',
@@ -361,6 +382,13 @@ function filaLinea(
     // `app.tasa_de_tratamiento()` del lado del servidor y el 1 % del legacy
     // no se puede reproducir ni a mano.
     tax_rate_snapshot: l.tratamientoImpuesto === 'other' ? l.tasaImpuesto : null,
+    // El vínculo con la venta viaja con la línea (Fase 237): al editar, las
+    // líneas se reemplazan y sin esto se perdería. Lo que es para la venta
+    // nunca puede pasar de la cantidad de la línea; el resto es para stock.
+    sales_quote_line_id: capitulo ? null : (l.venta?.cotizacionLineaId ?? null),
+    sales_order_line_id: capitulo ? null : (l.venta?.pedidoLineaId ?? null),
+    quantity_for_sale:
+      capitulo || !l.venta ? null : Math.max(0, Math.min(l.venta.cantidad, l.cantidad)),
   }
 }
 

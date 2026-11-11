@@ -5244,6 +5244,9 @@ export type Database = {
           product_id: string | null
           purchase_order_id: string
           quantity: number
+          quantity_for_sale: number | null
+          sales_order_line_id: string | null
+          sales_quote_line_id: string | null
           sku_snapshot: string | null
           tax_rate_snapshot: number | null
           tax_treatment: string
@@ -5263,6 +5266,9 @@ export type Database = {
           product_id?: string | null
           purchase_order_id: string
           quantity?: number
+          quantity_for_sale?: number | null
+          sales_order_line_id?: string | null
+          sales_quote_line_id?: string | null
           sku_snapshot?: string | null
           tax_rate_snapshot?: number | null
           tax_treatment?: string
@@ -5282,6 +5288,9 @@ export type Database = {
           product_id?: string | null
           purchase_order_id?: string
           quantity?: number
+          quantity_for_sale?: number | null
+          sales_order_line_id?: string | null
+          sales_quote_line_id?: string | null
           sku_snapshot?: string | null
           tax_rate_snapshot?: number | null
           tax_treatment?: string
@@ -5308,6 +5317,20 @@ export type Database = {
             columns: ["purchase_order_id"]
             isOneToOne: false
             referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_lines_sales_order_line_id_fkey"
+            columns: ["sales_order_line_id"]
+            isOneToOne: false
+            referencedRelation: "sales_order_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_lines_sales_quote_line_id_fkey"
+            columns: ["sales_quote_line_id"]
+            isOneToOne: false
+            referencedRelation: "sales_quote_lines"
             referencedColumns: ["id"]
           },
         ]
@@ -8371,6 +8394,10 @@ export type Database = {
       }
     }
     Functions: {
+      abastecimiento_de_venta: {
+        Args: { p_tipo: string; p_id: string }
+        Returns: Json
+      }
       create_product_with_components: {
         Args: {
           p_company: string

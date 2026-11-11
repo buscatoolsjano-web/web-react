@@ -202,6 +202,21 @@ export interface LineaPedidoCompra {
   tasaImpuesto: number | null
   /** Lo que calculó el servidor para esta línea. */
   netoServidor: number
+  /**
+   * La venta que cubre esta línea, si la hay (Fase 237). `cantidad` es la
+   * parte PARA ESA VENTA; el resto de la línea es para stock.
+   */
+  venta?: VinculoVenta | null | undefined
+}
+
+/** El vínculo de una línea de compra con una línea de venta (Fase 237). */
+export interface VinculoVenta {
+  cotizacionLineaId: string | null
+  pedidoLineaId: string | null
+  /** Cuánto de la línea de compra es para esa venta. */
+  cantidad: number
+  /** El número del documento de venta («COT-BTS00010»), para mostrarlo. */
+  documento: string | null
 }
 
 export interface PedidoCompraDetalle {

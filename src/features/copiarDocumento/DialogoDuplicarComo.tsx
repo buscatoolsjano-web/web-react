@@ -24,7 +24,10 @@ export function DialogoDuplicarComo({
   onCerrar: () => void
 }) {
   const navegar = useNavigate()
-  const destinos = DESTINOS.filter((d) => d.tipo !== origen)
+  // Sólo dentro del mismo lado (Fase 237): venta → venta. Una compra que sale
+  // de una venta no se «duplica»: se GENERA vinculada, desde la venta, para que
+  // quede en la trazabilidad («Generar pedido a proveedor»).
+  const destinos = DESTINOS.filter((d) => d.tipo !== origen && !cruzaDeLado(origen, d.tipo))
 
   return (
     <Dialog

@@ -18,7 +18,6 @@ import { FormularioPedido } from '../components/FormularioPedido'
 import { ModalImpresionCompras } from '../components/ModalImpresionCompras'
 import { PanelAdjuntosCompras } from '../components/PanelAdjuntosCompras'
 import { PanelRelacionadosPedido } from '../components/PanelRelacionadosPedido'
-import { DialogoDuplicarComo } from '@/features/copiarDocumento/DialogoDuplicarComo'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import editor from '@/modules/ventas/pages/EditorCotizacion.module.css'
 import { VistaPreviaPedidoCompra } from '../components/VistaPreviaPedidoCompra'
@@ -106,7 +105,6 @@ export function PedidoDetallePage() {
   const [errores, setErrores] = useState<ErrorDePedido[]>([])
   const [confirmando, setConfirmando] = useState(false)
   const [cancelando, setCancelando] = useState(false)
-  const [duplicandoComo, setDuplicandoComo] = useState(false)
   // La hoja al costado (Fase 236): sola con 1280 px o más, salvo que la
   // persona la abra o la cierre.
   const pantallaAncha = useMediaQuery('(min-width: 1280px)')
@@ -329,13 +327,6 @@ export function PedidoDetallePage() {
                   {estado.duplicar.isPending ? 'Duplicando…' : 'Duplicar'}
                 </Button>
               ) : null}
-              {/* En otro tipo de documento (Fase 233): una cotización o un
-                  pedido de venta con las mismas líneas. */}
-              {escribe ? (
-                <Button variant="secondary" icon={<Icon name="refresh" size={16} />} onClick={() => setDuplicandoComo(true)}>
-                  Duplicar como…
-                </Button>
-              ) : null}
             </>
           }
           danger={
@@ -503,15 +494,6 @@ export function PedidoDetallePage() {
         </div>
       ) : null}
       </div>
-
-      {duplicandoComo ? (
-        <DialogoDuplicarComo
-          origen="pedido_compra"
-          id={pedido.id}
-          numero={pedido.numero}
-          onCerrar={() => setDuplicandoComo(false)}
-        />
-      ) : null}
 
       <ConfirmDialog
         open={confirmando}

@@ -5,14 +5,13 @@ import { IconButton } from '@/components/ui/IconButton'
 import { Icon } from '@/components/icons/Icon'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import {
-  OPCIONES_INICIALES,
-  type DocumentoImprimible,
-  type EmpresaImpresion,
-  type OpcionesImpresion,
-} from '../lib/impresion'
-import { datosDeEmpresa } from '../services/empresa'
-import { VistaImpresionCompras } from './VistaImpresionCompras'
+import { OPCIONES_INICIALES, type DocumentoImprimible, type OpcionesImpresion } from '../lib/impresion'
+// La hoja y los datos de empresa de VENTAS (Fase 237): mismo formato y el
+// logo de la empresa, que la hoja propia de Compras no ponía.
+import { datosDeEmpresa } from '@/modules/ventas/services/empresa'
+import type { EmpresaImpresion } from '@/modules/ventas/lib/impresion'
+import { VistaImpresion } from '@/modules/ventas/components/VistaImpresion'
+import { aHojaDeVentas, opcionesDeHoja } from '../lib/hojaVentas'
 import styles from './ModalImpresionCompras.module.css'
 
 export interface ModalImpresionComprasProps {
@@ -37,7 +36,7 @@ export function ModalImpresionCompras({ doc, onCerrar }: ModalImpresionComprasPr
   const [opciones, setOpciones] = useState<OpcionesImpresion>(OPCIONES_INICIALES)
 
   const { data: empresaDb } = useQuery({
-    queryKey: ['compras', activa?.companyId, 'empresa-impresion'],
+    queryKey: ['ventas', activa?.companyId, 'empresa-impresion'],
     queryFn: () => datosDeEmpresa(activa!.companyId),
     enabled: !!activa,
     staleTime: 10 * 60_000,
@@ -102,7 +101,7 @@ export function ModalImpresionCompras({ doc, onCerrar }: ModalImpresionComprasPr
           </aside>
 
           <div className={styles.previa} data-previa-impresion>
-            <VistaImpresionCompras doc={doc} empresa={empresa} opciones={opciones} />
+            <VistaImpresion doc={aHojaDeVentas(doc)} empresa={empresa} opciones={opcionesDeHoja(doc, opciones.papel)} />
           </div>
         </div>
       </div>

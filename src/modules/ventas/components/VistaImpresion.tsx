@@ -151,7 +151,7 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
             <b>{formatearFecha(doc.fecha)}</b>
           </div>
           <div>
-            <span>Cliente:</span>
+            <span>{doc.rotulos?.contraparte ?? 'Cliente'}:</span>
             <b>{doc.cliente}</b>
           </div>
           {doc.formaPago ? (
@@ -289,7 +289,7 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
       <section className={styles.bloques}>
         {verDatos ? (
         <div>
-          <h2 className={styles.tituloBloque}>{BLOQUE_DE[doc.tipo]}</h2>
+          <h2 className={styles.tituloBloque}>{doc.rotulos?.bloqueDatos ?? BLOQUE_DE[doc.tipo]}</h2>
           <dl className={styles.campos}>
             <dt>Número:</dt>
             <dd>{doc.numero}</dd>
@@ -370,17 +370,28 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
                 <dd>{doc.seguimiento}</dd>
               </>
             ) : null}
+            {/* Los datos propios de un documento de Compras (Fase 237). */}
+            {(doc.datosExtra ?? []).map((d) => (
+              <Fragment key={d.etiqueta}>
+                <dt>{d.etiqueta}:</dt>
+                <dd>{d.valor}</dd>
+              </Fragment>
+            ))}
           </dl>
         </div>
         ) : null}
         {verCliente ? (
         <div>
-          <h2 className={styles.tituloBloque}>Datos del cliente</h2>
+          <h2 className={styles.tituloBloque}>{doc.rotulos?.bloqueContraparte ?? 'Datos del cliente'}</h2>
           <dl className={styles.campos}>
-            <dt>Cliente:</dt>
+            <dt>{doc.rotulos?.contraparte ?? 'Cliente'}:</dt>
             <dd>{edicion?.selectorCliente ?? doc.cliente}</dd>
-            <dt>CUIT:</dt>
-            <dd>{doc.clienteCuit ?? '—'}</dd>
+            {doc.rotulos?.identificador === null ? null : (
+              <>
+                <dt>{doc.rotulos?.identificador ?? 'CUIT'}:</dt>
+                <dd>{doc.clienteCuit ?? '—'}</dd>
+              </>
+            )}
             {doc.contacto ? (
               <>
                 <dt>Contacto:</dt>

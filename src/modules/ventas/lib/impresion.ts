@@ -203,6 +203,22 @@ export interface DocumentoImprimible {
   /** El documento del que salió, si lo hay. */
   origen: string | null
   esHistorico: boolean
+  /**
+   * Para imprimir un documento de COMPRAS con esta misma hoja (Fase 237):
+   * cómo se llaman los bloques y la contraparte, y los datos propios que la
+   * venta no tiene (llegada estimada, referencia del proveedor…). Sin esto,
+   * todo queda como en Ventas.
+   */
+  rotulos?:
+    | {
+        bloqueDatos: string
+        bloqueContraparte: string
+        contraparte: string
+        /** El rótulo del identificador fiscal; `null` lo saca. */
+        identificador: string | null
+      }
+    | undefined
+  datosExtra?: readonly { etiqueta: string; valor: string }[] | undefined
 }
 
 function subtotalDeLinea(l: LineaDocumento, factorImpuesto: number): number | null {
