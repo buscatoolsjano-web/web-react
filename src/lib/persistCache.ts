@@ -80,11 +80,48 @@ const almacen = {
   },
 }
 
+/*
+ * `Map` y `Set` sobreviven al volcado (Fase 234).
+ *
+ * El serializador por defecto es `JSON.stringify`, y un `Map` en JSON es `{}`:
+ * se guardaba vacío y, al recargar, la consulta volvía como un objeto común.
+ * Como seguía «fresca» no se volvía a pedir, y la pantalla que hacía
+ * `historicos.get(id)` se caía con «n?.get is not a function». Pasó al abrir
+ * una cotización después de recargar: el último precio por producto del
+ * cliente es un `Map`. Varias consultas del ERP devuelven `Map`/`Set` (precios,
+ * fotos de impresión, atributos por categoría), así que se arregla acá, una
+ * vez, y no en cada consulta.
+ */
+const MARCA = '__bt_tipo'
+
+export function serializar(valor: unknown): string {
+  return JSON.stringify(valor, (_clave, v: unknown) => {
+    if (v instanceof Map) return { [MARCA]: 'Map', v: [...v.entries()] }
+    if (v instanceof Set) return { [MARCA]: 'Set', v: [...v.values()] }
+    return v
+  })
+}
+
+export function deserializar<T>(texto: string): T {
+  return JSON.parse(texto, (_clave, v: unknown) => {
+    if (v !== null && typeof v === 'object' && MARCA in v) {
+      const marcado = v as { [MARCA]: string; v: unknown }
+      if (Array.isArray(marcado.v)) {
+        if (marcado[MARCA] === 'Map') return new Map(marcado.v as [unknown, unknown][])
+        if (marcado[MARCA] === 'Set') return new Set(marcado.v)
+      }
+    }
+    return v
+  }) as T
+}
+
 export const persister = createAsyncStoragePersister({
   storage: almacen,
   key: CLAVE_CACHE,
   // No escribir en cada tecla: a lo sumo una vez por segundo.
   throttleTime: 1_000,
+  serialize: serializar,
+  deserialize: deserializar,
 })
 
 /** Borra el volcado persistido. Se llama al cerrar sesión. */
