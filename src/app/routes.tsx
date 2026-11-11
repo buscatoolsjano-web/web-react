@@ -131,6 +131,13 @@ const PedidoDetallePage = lazyConRecarga(() =>
     default: m.PedidoDetallePage,
   })),
 )
+// Fase 238: lo pendiente, por producto.
+const PendienteEntregarPage = lazyConRecarga(() =>
+  import('@/modules/ventas/pages/PendienteEntregarPage').then((m) => ({ default: m.PendienteEntregarPage })),
+)
+const PendienteRecibirPage = lazyConRecarga(() =>
+  import('@/modules/compras/pages/PendienteRecibirPage').then((m) => ({ default: m.PendienteRecibirPage })),
+)
 const EntregasPage = lazyConRecarga(() =>
   import('@/modules/ventas/pages/EntregasPage').then((m) => ({ default: m.EntregasPage })),
 )
@@ -464,6 +471,7 @@ export const routes: RouteObject[] = [
       { path: 'ventas/pedidos/nuevo', element: privada(<PedidoNuevoPage />) },
       { path: 'ventas/pedidos/:id', element: privada(<PedidoDetallePage />) },
       { path: 'ventas/entregas', element: privada(<EntregasPage />) },
+      { path: 'ventas/pendiente-entregar', element: privada(<PendienteEntregarPage />) },
       { path: 'ventas/entregas/:id', element: privada(<EntregaDetallePage />) },
       { path: 'ventas/facturas', element: privada(<FacturasVentaPage />) },
       { path: 'ventas/facturas/:id', element: privada(<FacturaVentaDetallePage />) },
@@ -490,6 +498,7 @@ export const routes: RouteObject[] = [
       { path: 'compras/pedidos/nuevo', element: privada(<PedidoCompraNuevoPage />) },
       { path: 'compras/pedidos/:id', element: privada(<PedidoCompraDetallePage />) },
       { path: 'compras/recepciones', element: privada(<RecepcionesPage />) },
+      { path: 'compras/pendiente-recibir', element: privada(<PendienteRecibirPage />) },
       // `nueva` antes que `:id`: si no, React Router la tomaría como un id.
       { path: 'compras/recepciones/nueva', element: privada(<RecepcionNuevaPage />) },
       { path: 'compras/recepciones/:id', element: privada(<RecepcionDetallePage />) },

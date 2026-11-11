@@ -8398,6 +8398,14 @@ export type Database = {
         Args: { p_tipo: string; p_id: string }
         Returns: Json
       }
+      pendiente_de_entregar: {
+        Args: { p_company: string; p_desde?: string | null }
+        Returns: Json
+      }
+      pendiente_de_recibir: {
+        Args: { p_company: string; p_desde?: string | null }
+        Returns: Json
+      }
       create_product_with_components: {
         Args: {
           p_company: string

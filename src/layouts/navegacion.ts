@@ -121,6 +121,8 @@ export const NAVEGACION: GrupoNav[] = [
           { to: '/ventas/cotizaciones', label: 'Cotizaciones' },
           { to: '/ventas/pedidos', label: 'Pedidos' },
           { to: '/ventas/entregas', label: 'Notas de entrega' },
+          // Fase 238: lo vendido que falta entregar, acumulado por producto.
+          { to: '/ventas/pendiente-entregar', label: 'Pendiente de entregar' },
           { to: '/ventas/facturas', label: 'Facturas' },
         ],
       },
@@ -135,6 +137,8 @@ export const NAVEGACION: GrupoNav[] = [
           // proveedor, que es la que ya numera `goods_receipts.series_code`.
           { to: '/compras/pedidos', label: 'Pedidos a proveedor', roles: ESCRIBEN_COMPRAS },
           { to: '/compras/recepciones', label: 'Notas de entrega de proveedor', roles: ESCRIBEN_COMPRAS },
+          // Fase 238: lo pedido a proveedores que falta recibir, por producto.
+          { to: '/compras/pendiente-recibir', label: 'Pendiente de recibir', roles: ESCRIBEN_COMPRAS },
           // «de proveedor» como sus hermanas: desde la Fase 29 · E7 hay
           // Facturas en Ventas, y dos entradas con el mismo nombre en el
           // mismo menú no se distinguen —ni a simple vista ni con un lector

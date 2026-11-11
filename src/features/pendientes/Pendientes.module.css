@@ -1,0 +1,332 @@
+/*
+ * «Pendiente de entregar» y «Pendiente de recibir» (Fase 238).
+ *
+ * «Jugá bien con los colores para que visualmente se lea rápido.» Un código
+ * de colores fijo en las dos pantallas:
+ *   · verde   → ya entregado / recibido (resuelto)
+ *   · turquesa→ lo cubre el stock
+ *   · azul    → en camino (pedido a proveedor, sin llegar)
+ *   · ámbar   → falta pedir / parcial
+ *   · rojo    → atrasado (la llegada estimada ya pasó)
+ * La barra de cada producto muestra de un vistazo cómo se reparte.
+ */
+
+.pagina {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* ── Filtros ─────────────────────────────────────────────────────────────── */
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.grupoChips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+}
+
+.chip {
+  padding: 4px var(--space-3);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--module-accent);
+  color: var(--color-surface);
+  font-weight: var(--weight-semibold);
+}
+
+.chip:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 1px;
+}
+
+.buscar {
+  flex: 1 1 14rem;
+  min-width: 0;
+  max-width: 24rem;
+  min-height: var(--control-h-md);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+/* ── Tarjetas de totales ─────────────────────────────────────────────────── */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-3);
+}
+
+.kpi {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--tono, var(--color-border));
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+button.kpi {
+  cursor: pointer;
+}
+
+button.kpi[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--tono) 12%, var(--color-surface));
+  border-color: var(--tono);
+}
+
+.kpiValor {
+  font-size: var(--text-xl, 1.5rem);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--tono, var(--color-text));
+}
+
+.kpiTexto {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* ── Leyenda ─────────────────────────────────────────────────────────────── */
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.leyenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.punto {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--tono);
+}
+
+/* ── Filas por producto ──────────────────────────────────────────────────── */
+.lista {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fila {
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--tono, var(--color-border));
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.resumenFila {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(10rem, 1.6fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.resumenFila:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -2px;
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 760px) {
+  .resumenFila {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .resumenFila > .barraCelda {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+.producto {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sku {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.nombre {
+  overflow: hidden;
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barraCelda {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* La barra apilada: cada tramo, del ancho de su parte. */
+.barra {
+  display: flex;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-surface-alt);
+}
+
+.tramo {
+  height: 100%;
+  background: var(--tono);
+}
+
+.cifras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--space-2);
+  color: var(--color-text-soft);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.cifras b {
+  color: var(--tono, var(--color-text));
+  font-weight: var(--weight-semibold);
+}
+
+.grande {
+  display: grid;
+  justify-items: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.grandeValor {
+  font-size: var(--text-lg, 1.25rem);
+  font-weight: var(--weight-semibold);
+}
+
+.grandeTexto {
+  color: var(--color-text-soft);
+  font-size: var(--text-xs);
+}
+
+.estado {
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tono) 16%, transparent);
+  color: var(--tono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+/* ── Detalle por documento ───────────────────────────────────────────────── */
+.detalle {
+  padding: 0 var(--space-3) var(--space-3);
+  overflow-x: auto;
+}
+
+.tabla {
+  width: 100%;
+  min-width: 40rem;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.tabla th,
+.tabla td {
+  padding: 6px var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.tabla th {
+  color: var(--color-text-soft);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.enlace {
+  color: var(--color-info-text);
+  font-weight: var(--weight-semibold);
+}
+
+.vacio,
+.nota {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* Los tonos, como variables: así cada elemento elige el suyo con una clase. */
+.tEntregado {
+  --tono: var(--color-success);
+}
+.tStock {
+  --tono: #0d9488;
+}
+.tCamino {
+  --tono: var(--color-info);
+}
+.tFalta {
+  --tono: var(--color-warning);
+}
+.tAtrasado {
+  --tono: var(--color-danger, #dc2626);
+}
+.tNeutro {
+  --tono: var(--color-text-soft);
+}
+
+/* Un número destacado dentro de la tabla toma el color de su celda. */
+.tabla b {
+  color: var(--tono, inherit);
+  font-weight: var(--weight-semibold);
+}
