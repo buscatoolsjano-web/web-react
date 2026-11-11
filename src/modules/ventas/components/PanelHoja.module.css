@@ -62,7 +62,11 @@
 /* Toma el tamaño ya escalado, para que no quede hueco debajo de la hoja. */
 .escalador {
   position: relative;
+  /* `clip` y no `hidden` (Fase 241): una caja `hidden` se puede scrollear por
+     código, y al enfocar un campo de la hoja el navegador la corría de costado
+     y la hoja quedaba cortada a la izquierda. */
   overflow: hidden;
+  overflow: clip;
 }
 
 /* La hoja se escala en bloque, desde arriba a la izquierda: es LA MISMA hoja

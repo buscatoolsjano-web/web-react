@@ -1,14 +1,12 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { Alert } from '@/components/feedback/Alert'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { estadoDeLinea, fechaCorta, formatear, pendienteDeCompra } from '../lib/abastecimiento'
+import { estadoDeLinea, fechaCorta, formatear, pendienteDeCompra, rutaCompraDeVenta } from '../lib/abastecimiento'
 import { abastecimientoDeVenta } from '../services/abastecimiento'
-import { ModalGenerarCompra } from './ModalGenerarCompra'
 import styles from './Abastecimiento.module.css'
 
 const ESTADO_COMPRA: Record<string, string> = {
@@ -34,17 +32,15 @@ export function PanelAbastecimiento({
   tipo,
   documentoId,
   numero,
-  moneda,
   puedeComprar,
 }: {
   tipo: 'cotizacion' | 'pedido'
   documentoId: string
   numero: string | null
-  moneda: string | null
   puedeComprar: boolean
 }) {
   const { activa } = useEmpresa()
-  const [generando, setGenerando] = useState(false)
+  const navegar = useNavigate()
   const datos = useQuery({
     queryKey: ['ventas', activa?.companyId, 'abastecimiento', tipo, documentoId],
     queryFn: () => abastecimientoDeVenta(tipo, documentoId),
@@ -75,7 +71,7 @@ export function PanelAbastecimiento({
               : `${conPendiente} ${conPendiente === 1 ? 'línea tiene' : 'líneas tienen'} cantidad pendiente de comprar.`}
         </p>
         {puedeComprar && lineas.length > 0 ? (
-          <Button icon={<Icon name="truck" size={16} />} onClick={() => setGenerando(true)}>
+          <Button icon={<Icon name="truck" size={16} />} onClick={() => void navegar(rutaCompraDeVenta(tipo, documentoId, numero))}>
             Generar pedido a proveedor
           </Button>
         ) : null}
@@ -123,15 +119,6 @@ export function PanelAbastecimiento({
         </ul>
       ) : null}
 
-      {generando ? (
-        <ModalGenerarCompra
-          tipo={tipo}
-          numero={numero}
-          moneda={moneda}
-          lineas={lineas}
-          onCerrar={() => setGenerando(false)}
-        />
-      ) : null}
     </div>
   )
 }

@@ -1,0 +1,170 @@
+/* El camino de compras debajo del circuito de la venta (Fase 240).
+   Mismo lenguaje que la cadena —círculos con emoji unidos por una línea—,
+   más chico y en el color de Compras, colgando de una rama: se lee como un
+   camino APARTE que sale de la venta. No se imprime. */
+
+.dosCaminos {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.camino {
+  --acento: var(--color-info);
+  --suave: var(--color-info-soft);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+/* La rama: un codo que baja de la cadena y dobla hacia los pasos. */
+.rama {
+  width: 14px;
+  height: 14px;
+  margin-top: 0;
+  border-left: 2px solid var(--acento);
+  border-bottom: 2px solid var(--acento);
+  border-bottom-left-radius: 6px;
+  opacity: 0.7;
+}
+
+.pasos {
+  --circulo: 28px;
+  --separacion: var(--space-3);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--separacion);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.paso {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.paso + .paso::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--circulo) / 2 - 1px);
+  right: 100%;
+  width: var(--separacion);
+  height: 2px;
+  background: var(--color-border);
+}
+
+.paso + .pasoHecho::before {
+  background: var(--acento);
+}
+
+.paso + .pasoParcial::before {
+  background: linear-gradient(90deg, var(--acento) 50%, var(--color-border) 50%);
+}
+
+.rotulo {
+  color: var(--color-text-soft);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pasoHecho .rotulo {
+  color: var(--color-info-text);
+  font-weight: var(--weight-semibold);
+}
+
+.circulo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--circulo);
+  height: var(--circulo);
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  font: inherit;
+  text-decoration: none;
+}
+
+.emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.hecho {
+  border-color: var(--acento);
+  background: var(--suave);
+}
+
+/* A medias: la mitad pintada. */
+.parcial {
+  border-color: var(--color-warning);
+  background: linear-gradient(90deg, var(--color-warning-soft) 50%, var(--color-surface) 50%);
+}
+
+/* Comprado, todavía no llegó: borde punteado del color de compras. */
+.enCamino {
+  border-style: dashed;
+  border-color: var(--acento);
+}
+
+.pendiente {
+  opacity: 0.5;
+}
+
+.generable {
+  border-style: dashed;
+  cursor: pointer;
+}
+
+.generable:hover {
+  border-color: var(--acento);
+  background: var(--suave);
+}
+
+.mas {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--acento);
+  color: var(--color-surface);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.cuenta {
+  position: absolute;
+  right: -5px;
+  top: -5px;
+  display: grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--acento);
+  color: var(--color-surface);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+@media print {
+  .camino {
+    display: none;
+  }
+}

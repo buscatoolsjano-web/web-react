@@ -102,6 +102,8 @@ export function PedidoDetallePage() {
   const [editando, setEditando] = useState(false)
   const [datos, setDatos] = useState<DatosPedidoCompra | null>(null)
   const [lineas, setLineas] = useState<LineaPedidoCompra[] | null>(null)
+  // El proveedor elegido mientras se edita: el de la consulta es el guardado.
+  const [proveedorEditado, setProveedorEditado] = useState<ProveedorBuscado | null>(null)
   const [errores, setErrores] = useState<ErrorDePedido[]>([])
   const [confirmando, setConfirmando] = useState(false)
   const [cancelando, setCancelando] = useState(false)
@@ -153,6 +155,16 @@ export function PedidoDetallePage() {
   const datosActuales = datos ?? aFormulario(pedido)
   const lineasActuales = lineas ?? lineasServidor.data ?? []
   const sinGuardar = editando && (datos !== null || lineas !== null)
+  const proveedorActual = (editando ? proveedorEditado : null) ?? proveedor.data ?? null
+  const cambiarCabecera = (cambios: Partial<DatosPedidoCompra>) => {
+    const siguiente = { ...datosActuales, ...cambios }
+    setDatos(siguiente)
+    if (errores.length > 0) setErrores(validarPedido(siguiente))
+  }
+  const elegirProveedor = (p: ProveedorBuscado | null) => {
+    setProveedorEditado(p)
+    setDatos({ ...datosActuales, proveedorId: p?.id ?? '' })
+  }
 
   const empezarEdicion = () => {
     setDatos(aFormulario(pedido))
@@ -164,6 +176,7 @@ export function PedidoDetallePage() {
   const salirDeEdicion = () => {
     setDatos(null)
     setLineas(null)
+    setProveedorEditado(null)
     setErrores([])
     setEditando(false)
   }
@@ -220,7 +233,9 @@ export function PedidoDetallePage() {
         }
         actions={
           <div className={docUi.importe}>
-            <span className={docUi.importeValor}>{formatearImporte(pedido.total, pedido.moneda)}</span>
+            <span className={docUi.importeValor}>
+              {formatearImporte(pedido.total, pedido.moneda)}
+            </span>
             <span className={docUi.importeLabel}>Total</span>
           </div>
         }
@@ -274,7 +289,11 @@ export function PedidoDetallePage() {
               // Recibir mercadería. Sólo desde un pedido confirmado y mientras
               // quede algo por recibir: un pedido ya recibido del todo no
               // necesita otra nota de entrada.
-              <LinkButton to={`/compras/recepciones/nueva?pedido=${pedido.id}`} variant="primary" icon={<Icon name="package" size={16} />}>
+              <LinkButton
+                to={`/compras/recepciones/nueva?pedido=${pedido.id}`}
+                variant="primary"
+                icon={<Icon name="package" size={16} />}
+              >
                 Recibir mercadería
               </LinkButton>
             ) : escribe && puede.confirmar ? (
@@ -286,13 +305,21 @@ export function PedidoDetallePage() {
           secondary={
             <>
               {escribe && puede.cabecera ? (
-                <Button variant="secondary" icon={<Icon name="edit" size={16} />} onClick={empezarEdicion}>
+                <Button
+                  variant="secondary"
+                  icon={<Icon name="edit" size={16} />}
+                  onClick={empezarEdicion}
+                >
                   Editar
                 </Button>
               ) : null}
               {/* Imprimir: el pedido es lo que se le manda al proveedor. Se
                   arma con los snapshots guardados, nunca con el catálogo de hoy. */}
-              <Button variant="secondary" icon={<Icon name="printer" size={16} />} onClick={() => setImprimiendo(true)}>
+              <Button
+                variant="secondary"
+                icon={<Icon name="printer" size={16} />}
+                onClick={() => setImprimiendo(true)}
+              >
                 Imprimir
               </Button>
               {/* La hoja al costado, como en Ventas (Fase 236). */}
@@ -310,7 +337,10 @@ export function PedidoDetallePage() {
                   venir de este pedido y de otros—. Por eso no se filtra por
                   pedido: una factura no es de un pedido. */}
               {escribe && pedido.estado === 'confirmed' && pedido.estadoRecepcion !== 'pending' ? (
-                <LinkButton to={`/compras/facturas/nueva?proveedor=${pedido.proveedorId}`} variant="secondary">
+                <LinkButton
+                  to={`/compras/facturas/nueva?proveedor=${pedido.proveedorId}`}
+                  variant="secondary"
+                >
                   Facturar
                 </LinkButton>
               ) : null}
@@ -353,146 +383,161 @@ export function PedidoDetallePage() {
         ))}
       </nav>
 
-      <div className={pestana === 'pedido' && verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
-      <section className={`${styles.bloque} ${editor.columnaEditor}`}>
-        {pestana === 'pedido' && editando ? (
-          <>
-            {sinGuardar ? (
-              <Alert tone="warning">
-                <p>
-                  Hay cambios sin guardar. Los totales que se ven son una cuenta provisoria; el que
-                  vale lo calcula el servidor al guardar.
-                </p>
-              </Alert>
-            ) : null}
+      <div
+        className={
+          pestana === 'pedido' && verPrevia && pantallaAncha ? editor.conPrevia : undefined
+        }
+      >
+        <section className={`${styles.bloque} ${editor.columnaEditor}`}>
+          {pestana === 'pedido' && editando ? (
+            <>
+              {sinGuardar ? (
+                <Alert tone="warning">
+                  <p>
+                    Hay cambios sin guardar. Los totales que se ven son una cuenta provisoria; el
+                    que vale lo calcula el servidor al guardar.
+                  </p>
+                </Alert>
+              ) : null}
 
-            <FormularioPedido
-              datos={datosActuales}
-              errores={errores}
-              lineas={lineasActuales}
-              proveedor={proveedor.data ?? null}
-              moneda={datosActuales.moneda}
-              editaIdentidad={puede.identidad}
-              editaLogistica={puede.logistica}
-              editaLineas={puede.lineas}
-              totalesServidor={{
-                subtotal: pedido.subtotal,
-                impuesto: pedido.impuesto,
-                total: pedido.total,
-              }}
-              sinGuardar={sinGuardar}
-              onCambiarCabecera={(cambios) => {
-                const siguiente = { ...datosActuales, ...cambios }
-                setDatos(siguiente)
-                if (errores.length > 0) setErrores(validarPedido(siguiente))
-              }}
-              onProveedor={(p) => setDatos({ ...datosActuales, proveedorId: p?.id ?? '' })}
-              onCambiarLineas={setLineas}
+              <FormularioPedido
+                datos={datosActuales}
+                errores={errores}
+                lineas={lineasActuales}
+                proveedor={proveedorActual}
+                moneda={datosActuales.moneda}
+                editaIdentidad={puede.identidad}
+                editaLogistica={puede.logistica}
+                editaLineas={puede.lineas}
+                totalesServidor={{
+                  subtotal: pedido.subtotal,
+                  impuesto: pedido.impuesto,
+                  total: pedido.total,
+                }}
+                sinGuardar={sinGuardar}
+                onCambiarCabecera={cambiarCabecera}
+                onProveedor={elegirProveedor}
+                onCambiarLineas={setLineas}
+              />
+
+              {errorAlGuardar ? (
+                <Alert tone="danger" role="alert" title="No se pudo guardar">
+                  <p>{errorAlGuardar}</p>
+                </Alert>
+              ) : null}
+
+              <div className={styles.acciones}>
+                <Button
+                  icon={<Icon name="check" size={16} />}
+                  loading={guardar.cabecera.isPending || guardar.lineas.isPending}
+                  onClick={() => void guardarTodo()}
+                >
+                  {guardar.cabecera.isPending || guardar.lineas.isPending
+                    ? 'Guardando…'
+                    : 'Guardar cambios'}
+                </Button>
+                <Button variant="ghost" onClick={salirDeEdicion}>
+                  Cancelar
+                </Button>
+              </div>
+            </>
+          ) : null}
+
+          {pestana === 'pedido' && !editando ? (
+            <>
+              <dl className={styles.datos}>
+                <Dato etiqueta="Proveedor">
+                  <Link className={styles.enlace} to={`/compras/proveedores/${pedido.proveedorId}`}>
+                    {pedido.proveedor}
+                  </Link>
+                </Dato>
+                <Dato etiqueta="Fecha del pedido">{formatearFecha(pedido.fecha)}</Dato>
+                <Dato etiqueta="Llegada estimada">
+                  {pedido.fechaEstimada ? (
+                    formatearFecha(pedido.fechaEstimada)
+                  ) : (
+                    <Falta>todavía no se sabe</Falta>
+                  )}
+                </Dato>
+                <Dato etiqueta="Moneda">{pedido.moneda}</Dato>
+                <Dato etiqueta="Tipo de cambio">
+                  {pedido.tipoCambio ?? <Falta>sin tipo de cambio</Falta>}
+                </Dato>
+                <Dato etiqueta="Condición de pago">
+                  {pedido.formaPago ?? <Falta>no definida</Falta>}
+                </Dato>
+                <Dato etiqueta="Creado por">{pedido.autor ?? <Falta>—</Falta>}</Dato>
+                <Dato etiqueta="Última modificación">
+                  {formatearFechaHora(pedido.actualizadoEn)}
+                </Dato>
+              </dl>
+
+              {pedido.notas ? <p className={styles.notas}>{pedido.notas}</p> : null}
+
+              <FormularioPedido
+                datos={datosActuales}
+                errores={[]}
+                lineas={lineasActuales}
+                proveedor={proveedor.data ?? null}
+                moneda={pedido.moneda}
+                editaIdentidad={false}
+                editaLogistica={false}
+                editaLineas={false}
+                mostrarCabecera={false}
+                totalesServidor={{
+                  subtotal: pedido.subtotal,
+                  impuesto: pedido.impuesto,
+                  total: pedido.total,
+                }}
+                sinGuardar={false}
+                onCambiarCabecera={() => {}}
+                onProveedor={() => {}}
+                onCambiarLineas={() => {}}
+              />
+            </>
+          ) : null}
+
+          {pestana === 'adjuntos' ? (
+            <PanelAdjuntosCompras
+              entidad="purchase_order"
+              entidadId={pedido.id}
+              clases={CLASES_PEDIDO}
+              puedeEditar={escribe && pedido.estado !== 'cancelled'}
             />
+          ) : null}
 
-            {errorAlGuardar ? (
-              <Alert tone="danger" role="alert" title="No se pudo guardar">
-                <p>{errorAlGuardar}</p>
-              </Alert>
-            ) : null}
-
-            <div className={styles.acciones}>
-              <Button
-                icon={<Icon name="check" size={16} />}
-                loading={guardar.cabecera.isPending || guardar.lineas.isPending}
-                onClick={() => void guardarTodo()}
-              >
-                {guardar.cabecera.isPending || guardar.lineas.isPending ? 'Guardando…' : 'Guardar cambios'}
-              </Button>
-              <Button variant="ghost" onClick={salirDeEdicion}>
-                Cancelar
-              </Button>
-            </div>
-          </>
-        ) : null}
-
-        {pestana === 'pedido' && !editando ? (
-          <>
-            <dl className={styles.datos}>
-              <Dato etiqueta="Proveedor">
-                <Link className={styles.enlace} to={`/compras/proveedores/${pedido.proveedorId}`}>
-                  {pedido.proveedor}
-                </Link>
-              </Dato>
-              <Dato etiqueta="Fecha del pedido">{formatearFecha(pedido.fecha)}</Dato>
-              <Dato etiqueta="Llegada estimada">
-                {pedido.fechaEstimada ? (
-                  formatearFecha(pedido.fechaEstimada)
-                ) : (
-                  <Falta>todavía no se sabe</Falta>
-                )}
-              </Dato>
-              <Dato etiqueta="Moneda">{pedido.moneda}</Dato>
-              <Dato etiqueta="Tipo de cambio">
-                {pedido.tipoCambio ?? <Falta>sin tipo de cambio</Falta>}
-              </Dato>
-              <Dato etiqueta="Condición de pago">
-                {pedido.formaPago ?? <Falta>no definida</Falta>}
-              </Dato>
-              <Dato etiqueta="Creado por">{pedido.autor ?? <Falta>—</Falta>}</Dato>
-              <Dato etiqueta="Última modificación">
-                {formatearFechaHora(pedido.actualizadoEn)}
-              </Dato>
-            </dl>
-
-            {pedido.notas ? <p className={styles.notas}>{pedido.notas}</p> : null}
-
-            <FormularioPedido
-              datos={datosActuales}
-              errores={[]}
-              lineas={lineasActuales}
-              proveedor={proveedor.data ?? null}
-              moneda={pedido.moneda}
-              editaIdentidad={false}
-              editaLogistica={false}
-              editaLineas={false}
-              mostrarCabecera={false}
-              totalesServidor={{
-                subtotal: pedido.subtotal,
-                impuesto: pedido.impuesto,
-                total: pedido.total,
-              }}
-              sinGuardar={false}
-              onCambiarCabecera={() => {}}
-              onProveedor={() => {}}
-              onCambiarLineas={() => {}}
+          {pestana === 'relacionados' ? (
+            <PanelRelacionadosPedido
+              pedido={pedido}
+              datos={relacionados.data}
+              cargando={relacionados.isPending}
             />
-          </>
-        ) : null}
+          ) : null}
+        </section>
 
-        {pestana === 'adjuntos' ? (
-          <PanelAdjuntosCompras
-            entidad="purchase_order"
-            entidadId={pedido.id}
-            clases={CLASES_PEDIDO}
-            puedeEditar={escribe && pedido.estado !== 'cancelled'}
-          />
+        {pestana === 'pedido' && verPrevia ? (
+          <div className={editor.columnaPrevia}>
+            <VistaPreviaPedidoCompra
+              numero={pedido.numero}
+              datos={datosActuales}
+              proveedor={proveedorActual}
+              lineas={lineasActuales}
+              /* Editando, la hoja completa el mismo pedido (Fase 241). */
+              edicion={
+                editando
+                  ? {
+                      identidad: puede.identidad,
+                      logistica: puede.logistica,
+                      lineas: puede.lineas,
+                      onCabecera: cambiarCabecera,
+                      onProveedor: elegirProveedor,
+                      onLineas: setLineas,
+                    }
+                  : null
+              }
+            />
+          </div>
         ) : null}
-
-        {pestana === 'relacionados' ? (
-          <PanelRelacionadosPedido
-            pedido={pedido}
-            datos={relacionados.data}
-            cargando={relacionados.isPending}
-          />
-        ) : null}
-      </section>
-
-      {pestana === 'pedido' && verPrevia ? (
-        <div className={editor.columnaPrevia}>
-          <VistaPreviaPedidoCompra
-            numero={pedido.numero}
-            datos={datosActuales}
-            proveedor={proveedor.data ?? null}
-            lineas={lineasActuales}
-          />
-        </div>
-      ) : null}
       </div>
 
       <ConfirmDialog

@@ -187,3 +187,58 @@
   font-size: var(--text-xs);
   color: var(--danger);
 }
+
+/* En la hoja de la vista previa (Fase 241): sin rótulo (la hoja ya dice
+   «Proveedor:») y del tamaño del texto impreso. */
+.enHoja {
+  gap: 0;
+}
+
+.enHoja .etiqueta {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.enHoja .control {
+  font-size: inherit;
+  min-height: 0;
+  padding: 2px 6px;
+  border: 1px dashed #c9c9c9;
+  border-radius: 3px;
+  background: #fffdf5;
+  color: #111;
+}
+
+.enHoja .elegido {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  gap: 6px;
+}
+
+.enHoja .nombre {
+  font-size: inherit;
+  color: #111;
+}
+
+.enHoja .ref {
+  font-size: 0.85em;
+  color: #666;
+}
+
+.enHoja .panel {
+  min-width: 320px;
+  color: var(--text);
+}
+
+.enHoja .cambiar {
+  min-height: 0;
+  margin-left: 4px;
+  padding: 0 6px;
+  font-size: 0.8em;
+}

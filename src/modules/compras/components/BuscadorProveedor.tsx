@@ -13,6 +13,11 @@ export interface BuscadorProveedorProps {
   onLimpiar: () => void
   /** Para ubicarlo en la grilla de la cabecera (Fase 235). */
   className?: string | undefined
+  /**
+   * `hoja`: dentro de la vista previa (Fase 241), sin rótulo y del tamaño
+   * del texto de la hoja, como el buscador de clientes en Ventas.
+   */
+  apariencia?: 'erp' | 'hoja' | undefined
 }
 
 /**
@@ -33,6 +38,7 @@ export function BuscadorProveedor({
   onElegir,
   onLimpiar,
   className,
+  apariencia = 'erp',
 }: BuscadorProveedorProps) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
@@ -56,13 +62,15 @@ export function BuscadorProveedor({
 
   if (elegido && !abierto) {
     return (
-      <div className={className ? `${styles.campo} ${className}` : styles.campo}>
+      <div
+        className={[styles.campo, apariencia === 'hoja' ? styles.enHoja : null, className]
+          .filter(Boolean)
+          .join(' ')}
+      >
         <span className={styles.etiqueta}>Proveedor</span>
         <div className={styles.elegido}>
           <span className={styles.nombre}>{elegido.razonSocial}</span>
-          {elegido.referencia ? (
-            <span className={styles.ref}>{elegido.referencia}</span>
-          ) : null}
+          {elegido.referencia ? <span className={styles.ref}>{elegido.referencia}</span> : null}
           {!deshabilitado ? (
             <button
               type="button"
@@ -82,7 +90,11 @@ export function BuscadorProveedor({
   }
 
   return (
-    <div className={className ? `${styles.campo} ${className}` : styles.campo}>
+    <div
+      className={[styles.campo, apariencia === 'hoja' ? styles.enHoja : null, className]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <label className={styles.etiqueta} htmlFor={id}>
         Proveedor
       </label>

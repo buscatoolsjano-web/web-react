@@ -80,6 +80,16 @@ export interface EdicionEnHoja {
    * plantilla de impresión.
    */
   selectorCliente?: ReactNode | undefined
+  /**
+   * Las formas de pago del desplegable de la hoja (Fase 241). Compras tiene
+   * su propia lista; sin esto, la de Ventas.
+   */
+  formasDePago?: readonly string[] | undefined
+  /**
+   * Campos propios del documento, editables en el bloque de datos (Fase 241):
+   * pares `<dt>`/`<dd>` ya armados —la entrega estimada de una compra—.
+   */
+  camposExtra?: ReactNode | undefined
 }
 
 export interface VistaImpresionProps {
@@ -321,11 +331,11 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
                   >
                     {/* Lo que ya tenía el documento, aunque no esté en la
                         lista: cambiar la lista no puede borrar un dato. */}
-                    {doc.formaPago && !(FORMAS_DE_PAGO as readonly string[]).includes(doc.formaPago) ? (
+                    {doc.formaPago && !(edicion.formasDePago ?? FORMAS_DE_PAGO).includes(doc.formaPago) ? (
                       <option value={doc.formaPago}>{doc.formaPago}</option>
                     ) : null}
                     {doc.formaPago ? null : <option value="">Sin forma de pago</option>}
-                    {FORMAS_DE_PAGO.map((f) => (
+                    {(edicion.formasDePago ?? FORMAS_DE_PAGO).map((f) => (
                       <option key={f} value={f}>
                         {f}
                       </option>
@@ -370,6 +380,7 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
                 <dd>{doc.seguimiento}</dd>
               </>
             ) : null}
+            {edicion?.camposExtra ?? null}
             {/* Los datos propios de un documento de Compras (Fase 237). */}
             {(doc.datosExtra ?? []).map((d) => (
               <Fragment key={d.etiqueta}>

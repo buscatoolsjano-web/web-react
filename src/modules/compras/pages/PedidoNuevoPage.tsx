@@ -13,8 +13,15 @@ import editor from '@/modules/ventas/pages/EditorCotizacion.module.css'
 import { FormularioPedido } from '../components/FormularioPedido'
 import { VistaPreviaPedidoCompra } from '../components/VistaPreviaPedidoCompra'
 import { permisosDe } from '../lib/permisos'
-import { lineasDesdeCopia, problemasDeLinea } from '../lib/lineas'
-import { pedidoVacio, validarPedido, type DatosPedidoCompra, type ErrorDePedido } from '../lib/validacion'
+import { lineaDeProducto, lineasDesdeCopia, problemasDeLinea } from '../lib/lineas'
+import { abastecimientoDeVenta } from '@/modules/ventas/services/abastecimiento'
+import { pendienteDeCompra, sugeridoComprar } from '@/modules/ventas/lib/abastecimiento'
+import {
+  pedidoVacio,
+  validarPedido,
+  type DatosPedidoCompra,
+  type ErrorDePedido,
+} from '../lib/validacion'
 import { useCrearPedido } from '../hooks/usePedidos'
 import type { ProveedorBuscado } from '../services/catalogo'
 import type { LineaPedidoCompra } from '../types'
@@ -58,7 +65,9 @@ export function PedidoNuevoPage() {
   const copia = leerParametroCopia(parametros.get('copiar'))
   const companyId = activa?.companyId ?? null
   const copiaCargada = useRef(false)
-  const [avisoCopia, setAvisoCopia] = useState<{ tono: 'info' | 'danger'; texto: string } | null>(null)
+  const [avisoCopia, setAvisoCopia] = useState<{ tono: 'info' | 'danger'; texto: string } | null>(
+    null,
+  )
   useEffect(() => {
     if (!copia || !companyId || copiaCargada.current) return
     copiaCargada.current = true
@@ -66,7 +75,11 @@ export function PedidoNuevoPage() {
       .then((d) => {
         const conPrecio = !cruzaDeLado(d.origen, 'pedido_compra')
         setLineas(lineasDesdeCopia(d.lineas, conPrecio))
-        setDatos((x) => ({ ...x, moneda: x.moneda || (d.moneda ?? ''), notas: x.notas || (d.notas ?? '') }))
+        setDatos((x) => ({
+          ...x,
+          moneda: x.moneda || (d.moneda ?? ''),
+          notas: x.notas || (d.notas ?? ''),
+        }))
         setAvisoCopia({
           tono: 'info',
           texto: conPrecio
@@ -79,6 +92,70 @@ export function PedidoNuevoPage() {
         setAvisoCopia({ tono: 'danger', texto: e instanceof Error ? e.message : String(e) })
       })
   }, [copia, companyId])
+
+  /**
+   * «Generar pedido a proveedor» desde una venta (Fase 240):
+   * `?venta=<cotizacion|pedido>:<id>&numero=<COT…>` abre ESTA pantalla con lo
+   * pendiente de esa venta ya cargado y vinculado; el proveedor se elige acá.
+   * La cantidad propuesta es lo que el stock no cubre; cada línea queda
+   * vinculada por lo pendiente, y lo que se compre de más se marca para stock.
+   */
+  const ventaOrigen = ((): { tipo: 'cotizacion' | 'pedido'; id: string } | null => {
+    const v = parametros.get('venta')
+    const i = v?.indexOf(':') ?? -1
+    if (!v || i <= 0) return null
+    const tipo = v.slice(0, i)
+    const id = v.slice(i + 1)
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null
+    return tipo === 'cotizacion' || tipo === 'pedido' ? { tipo, id } : null
+  })()
+  const numeroVenta = parametros.get('numero')
+  const ventaCargada = useRef(false)
+  useEffect(() => {
+    if (!ventaOrigen || !companyId || ventaCargada.current) return
+    ventaCargada.current = true
+    void abastecimientoDeVenta(ventaOrigen.tipo, ventaOrigen.id)
+      .then((lineasVenta) => {
+        const conProducto = lineasVenta.filter(
+          (l) => l.productoId !== null && pendienteDeCompra(l) > 0,
+        )
+        const faltan = conProducto.filter((l) => sugeridoComprar(l) > 0)
+        // Si el stock cubre todo, igual se cargan las pendientes: la persona
+        // pidió generar la compra; el aviso dice que hay stock.
+        const elegidas = faltan.length > 0 ? faltan : conProducto
+        setLineas(
+          elegidas.map((l, i) => ({
+            ...lineaDeProducto(
+              { id: l.productoId!, sku: l.sku ?? '', nombre: l.nombre ?? '' },
+              i + 1,
+            ),
+            cantidad: faltan.length > 0 ? sugeridoComprar(l) : pendienteDeCompra(l),
+            venta: {
+              cotizacionLineaId: ventaOrigen.tipo === 'cotizacion' ? l.lineaId : null,
+              pedidoLineaId: ventaOrigen.tipo === 'pedido' ? l.lineaId : null,
+              cantidad: pendienteDeCompra(l),
+              documento: numeroVenta,
+            },
+          })),
+        )
+        if (numeroVenta) setDatos((x) => ({ ...x, notas: x.notas || `Para ${numeroVenta}` }))
+        setAvisoCopia({
+          tono: 'info',
+          texto:
+            elegidas.length === 0
+              ? `${numeroVenta ?? 'La venta'} no tiene nada pendiente de comprar.`
+              : faltan.length > 0
+                ? `Pedido para ${numeroVenta ?? 'la venta'}: elegí el proveedor y poné los precios. Cada línea queda vinculada a la venta; si comprás de más, lo extra queda para stock.`
+                : `Pedido para ${numeroVenta ?? 'la venta'}: el stock alcanza para lo pendiente, igual se cargaron las líneas. Revisá si hace falta comprar.`,
+        })
+      })
+      .catch((e: unknown) => {
+        ventaCargada.current = false
+        setAvisoCopia({ tono: 'danger', texto: e instanceof Error ? e.message : String(e) })
+      })
+    // Una sola vez por pantalla abierta.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ventaOrigen?.tipo, ventaOrigen?.id, companyId])
 
   const cambiar = (cambios: Partial<DatosPedidoCompra>) => {
     const siguiente = { ...datos, ...cambios }
@@ -122,7 +199,10 @@ export function PedidoNuevoPage() {
   if (!permisos.crearProveedor) {
     return (
       <div className={docUi.pagina}>
-        <PageHeader back={{ to: '/compras/pedidos', label: 'Pedidos de compra' }} title="Nuevo pedido de compra" />
+        <PageHeader
+          back={{ to: '/compras/pedidos', label: 'Pedidos de compra' }}
+          title="Nuevo pedido de compra"
+        />
         <Alert tone="neutral">
           <p>Tu rol no puede dar de alta pedidos de compra.</p>
         </Alert>
@@ -144,7 +224,11 @@ export function PedidoNuevoPage() {
         titulo="Nuevo pedido de compra"
         label="Crear pedido de compra"
         primary={
-          <Button icon={<Icon name="check" size={16} />} loading={crear.isPending} onClick={guardar}>
+          <Button
+            icon={<Icon name="check" size={16} />}
+            loading={crear.isPending}
+            onClick={guardar}
+          >
             {crear.isPending ? 'Creando…' : 'Crear pedido'}
           </Button>
         }
@@ -159,7 +243,11 @@ export function PedidoNuevoPage() {
               aria-label={verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
               title={verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
             />
-            <Button variant="ghost" disabled={crear.isPending} onClick={() => void navegar('/compras/pedidos')}>
+            <Button
+              variant="ghost"
+              disabled={crear.isPending}
+              onClick={() => void navegar('/compras/pedidos')}
+            >
               Cancelar
             </Button>
           </>
@@ -168,39 +256,52 @@ export function PedidoNuevoPage() {
       />
 
       <div className={verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
-      <section className={`${styles.bloque} ${editor.columnaEditor}`}>
-        {avisoCopia ? (
-          <Alert tone={avisoCopia.tono} role={avisoCopia.tono === 'danger' ? 'alert' : 'status'}>
-            <p>{avisoCopia.texto}</p>
-          </Alert>
-        ) : null}
-        {crear.error ? (
-          <Alert tone="danger" role="alert">
-            <p>{crear.error.message}</p>
-          </Alert>
-        ) : null}
-        <FormularioPedido
-          datos={datos}
-          errores={errores}
-          lineas={lineas}
-          proveedor={proveedor}
-          moneda={datos.moneda}
-          editaIdentidad
-          editaLogistica
-          editaLineas
-          totalesServidor={null}
-          sinGuardar
-          onCambiarCabecera={cambiar}
-          onProveedor={elegirProveedor}
-          onCambiarLineas={setLineas}
-        />
-      </section>
+        <section className={`${styles.bloque} ${editor.columnaEditor}`}>
+          {avisoCopia ? (
+            <Alert tone={avisoCopia.tono} role={avisoCopia.tono === 'danger' ? 'alert' : 'status'}>
+              <p>{avisoCopia.texto}</p>
+            </Alert>
+          ) : null}
+          {crear.error ? (
+            <Alert tone="danger" role="alert">
+              <p>{crear.error.message}</p>
+            </Alert>
+          ) : null}
+          <FormularioPedido
+            datos={datos}
+            errores={errores}
+            lineas={lineas}
+            proveedor={proveedor}
+            moneda={datos.moneda}
+            editaIdentidad
+            editaLogistica
+            editaLineas
+            totalesServidor={null}
+            sinGuardar
+            onCambiarCabecera={cambiar}
+            onProveedor={elegirProveedor}
+            onCambiarLineas={setLineas}
+          />
+        </section>
 
-      {verPrevia ? (
-        <div className={editor.columnaPrevia}>
-          <VistaPreviaPedidoCompra datos={datos} proveedor={proveedor} lineas={lineas} />
-        </div>
-      ) : null}
+        {verPrevia ? (
+          <div className={editor.columnaPrevia}>
+            <VistaPreviaPedidoCompra
+              datos={datos}
+              proveedor={proveedor}
+              lineas={lineas}
+              /* La hoja completa EL MISMO pedido que el formulario (Fase 241). */
+              edicion={{
+                identidad: true,
+                logistica: true,
+                lineas: true,
+                onCabecera: cambiar,
+                onProveedor: elegirProveedor,
+                onLineas: setLineas,
+              }}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   )

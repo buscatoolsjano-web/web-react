@@ -1,4 +1,13 @@
-import { Suspense, lazy, useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/Button'
@@ -21,6 +30,7 @@ import { useAccionesDocumento } from '../components/AccionesDocumento'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { CadenaDocumento } from '../components/CadenaDocumento'
+import { CaminoCompras, ConCaminoDeCompras } from '../components/CaminoCompras'
 import { InformacionDocumento } from '../components/InformacionDocumento'
 import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorMasInformacion } from '../components/EditorMasInformacion'
@@ -323,7 +333,8 @@ function Detalle() {
       // queda tiene que ser el recién guardado, con los ids reales de las líneas
       // nuevas y el testigo de concurrencia al día. En el handler y no en un
       // efecto, para no disparar re-renders en cascada (y el lint que los veda).
-      const docFresco = seguir && activa ? await obtenerDocumento('pedido', activa.companyId, doc!.id) : null
+      const docFresco =
+        seguir && activa ? await obtenerDocumento('pedido', activa.companyId, doc!.id) : null
       return { docFresco }
     },
     onSuccess: ({ docFresco }, seguir) => {
@@ -603,39 +614,50 @@ function Detalle() {
    * línea.
    */
   const circuito = cadena.data ? (
-    <CadenaDocumento
-      cadena={cadena.data}
-      actual="pedido"
-      generar={{
-        entrega: {
-          onGenerar: () => {
-            setErrorRemito(null)
-            setGenerando(true)
+    <ConCaminoDeCompras
+      camino={
+        <CaminoCompras
+          tipo="pedido"
+          documentoId={doc.id}
+          numero={doc.numero}
+          puedeComprar={escribe}
+        />
+      }
+    >
+      <CadenaDocumento
+        cadena={cadena.data}
+        actual="pedido"
+        generar={{
+          entrega: {
+            onGenerar: () => {
+              setErrorRemito(null)
+              setGenerando(true)
+            },
+            ...(!escribe
+              ? { motivo: 'Tu rol no genera remitos' }
+              : doc.estado !== 'confirmed'
+                ? { motivo: 'El pedido tiene que estar confirmado' }
+                : stelEntrega
+                  ? { motivo: 'La numeración de remitos la lleva el sistema anterior' }
+                  : {}),
           },
-          ...(!escribe
-            ? { motivo: 'Tu rol no genera remitos' }
-            : doc.estado !== 'confirmed'
-              ? { motivo: 'El pedido tiene que estar confirmado' }
-              : stelEntrega
-                ? { motivo: 'La numeración de remitos la lleva el sistema anterior' }
-                : {}),
-        },
-        /* La factura nace del pedido (Fase 29 · E7). Sale en `draft` y con
+          /* La factura nace del pedido (Fase 29 · E7). Sale en `draft` y con
            número interno: el fiscal lo da AFIP por Tango. Que el pedido
            esté confirmado es la misma condición que para el remito — un
            borrador todavía se edita, y facturar un borrador es facturar
            algo que puede cambiar. */
-        factura: {
-          onGenerar: () => facturar.mutate({ orderId: id! }),
-          cargando: facturar.isPending,
-          ...(!escribe
-            ? { motivo: 'Tu rol no factura' }
-            : doc.estado !== 'confirmed'
-              ? { motivo: 'El pedido tiene que estar confirmado' }
-              : {}),
-        },
-      }}
-    />
+          factura: {
+            onGenerar: () => facturar.mutate({ orderId: id! }),
+            cargando: facturar.isPending,
+            ...(!escribe
+              ? { motivo: 'Tu rol no factura' }
+              : doc.estado !== 'confirmed'
+                ? { motivo: 'El pedido tiene que estar confirmado' }
+                : {}),
+          },
+        }}
+      />
+    </ConCaminoDeCompras>
   ) : null
 
   /**
@@ -769,7 +791,9 @@ function Detalle() {
                 disabled={!sucio || faltaGuardar.length > 0 || guardar.isPending}
                 onClick={() => guardar.mutate(true)}
               >
-                {guardar.isPending && guardar.variables === true ? 'Guardando…' : 'Guardar y editar'}
+                {guardar.isPending && guardar.variables === true
+                  ? 'Guardando…'
+                  : 'Guardar y editar'}
               </Button>
               <Button
                 variant="secondary"
@@ -1049,7 +1073,8 @@ function Detalle() {
                                 }
                               />
                             ) : null,
-                          onDescripcion: (id, valor) => cambiarLinea(id, 'description_snapshot', valor),
+                          onDescripcion: (id, valor) =>
+                            cambiarLinea(id, 'description_snapshot', valor),
                           onReferencia: (id, valor) => cambiarLinea(id, 'sku_snapshot', valor),
                           onEliminar: (id) => setBorrador((b) => (b ? quitarLinea(b, id) : b)),
                           onAgregar: () => setCatalogoAbierto(true),
@@ -1116,7 +1141,6 @@ function Detalle() {
               tipo="pedido"
               documentoId={doc.id}
               numero={doc.numero}
-              moneda={doc.moneda}
               puedeComprar={escribe}
             />
           </DocSection>

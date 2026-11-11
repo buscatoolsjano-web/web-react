@@ -46,6 +46,10 @@ function aNumero(v: string): number {
  * cuando existe, aparece qué se pagó la última vez por ese producto en esta
  * misma moneda. Es un dato de un pedido confirmado, no una sugerencia
  * automática: nadie autocompleta nada.
+ *
+ * Los campos son no controlados y llevan de `key` su valor (Fase 241): si
+ * el valor cambia desde la hoja de la vista previa, el campo se vuelve a
+ * montar con el nuevo. Mientras se escribe no cambia (se guarda al salir).
  */
 export function EditorLineas({
   lineas,
@@ -117,6 +121,7 @@ export function EditorLineas({
                   <td colSpan={6}>
                     <input
                       className={styles.texto}
+                      key={String(l.nombre ?? '')}
                       defaultValue={l.nombre ?? ''}
                       readOnly={!editable}
                       aria-label="Título del capítulo"
@@ -128,6 +133,7 @@ export function EditorLineas({
                     <td>
                       <input
                         className={styles.sku}
+                        key={String(l.sku ?? '')}
                         defaultValue={l.sku ?? ''}
                         // El SKU de un producto del catálogo es su snapshot:
                         // no se edita, o dejaría de coincidir con el producto.
@@ -139,6 +145,7 @@ export function EditorLineas({
                     <td>
                       <input
                         className={styles.texto}
+                        key={String(l.nombre ?? '')}
                         defaultValue={l.nombre ?? ''}
                         readOnly={!editable}
                         aria-label="Descripción"
@@ -151,10 +158,13 @@ export function EditorLineas({
                       {l.venta ? (
                         <span className={styles.vinculo}>
                           <span className={styles.chipVenta}>
-                            {Math.min(l.venta.cantidad, l.cantidad)} para {l.venta.documento ?? 'la venta'}
+                            {Math.min(l.venta.cantidad, l.cantidad)} para{' '}
+                            {l.venta.documento ?? 'la venta'}
                           </span>
                           {l.cantidad > l.venta.cantidad ? (
-                            <span className={styles.chipStock}>{l.cantidad - l.venta.cantidad} para stock</span>
+                            <span className={styles.chipStock}>
+                              {l.cantidad - l.venta.cantidad} para stock
+                            </span>
                           ) : null}
                         </span>
                       ) : null}
@@ -165,6 +175,7 @@ export function EditorLineas({
                         step="any"
                         min="0"
                         className={styles.numero}
+                        key={String(l.cantidad)}
                         defaultValue={l.cantidad}
                         readOnly={!editable}
                         aria-label="Cantidad"
@@ -177,6 +188,7 @@ export function EditorLineas({
                         step="any"
                         min="0"
                         className={styles.numero}
+                        key={String(l.precioUnitario ?? 0)}
                         defaultValue={l.precioUnitario ?? 0}
                         readOnly={!editable}
                         aria-label="Precio de compra"
@@ -200,6 +212,7 @@ export function EditorLineas({
                         min="0"
                         max="100"
                         className={styles.numero}
+                        key={String(l.descuentoPct)}
                         defaultValue={l.descuentoPct}
                         readOnly={!editable}
                         aria-label="Descuento"
@@ -229,6 +242,7 @@ export function EditorLineas({
                           min="0"
                           max="100"
                           className={styles.numero}
+                          key={String(l.tasaImpuesto ?? '')}
                           defaultValue={l.tasaImpuesto ?? ''}
                           readOnly={!editable}
                           placeholder="alícuota"
@@ -253,9 +267,27 @@ export function EditorLineas({
 
                 {editable ? (
                   <td className={styles.acciones}>
-                    <IconButton icon="arrow-up" aria-label="Subir" size="sm" onClick={() => onMover(l.id, -1)} disabled={i === 0} />
-                    <IconButton icon="arrow-down" aria-label="Bajar" size="sm" onClick={() => onMover(l.id, 1)} disabled={i === lineas.length - 1} />
-                    <IconButton icon="trash" aria-label="Eliminar línea" size="sm" variant="danger" onClick={() => onEliminar(l.id)} />
+                    <IconButton
+                      icon="arrow-up"
+                      aria-label="Subir"
+                      size="sm"
+                      onClick={() => onMover(l.id, -1)}
+                      disabled={i === 0}
+                    />
+                    <IconButton
+                      icon="arrow-down"
+                      aria-label="Bajar"
+                      size="sm"
+                      onClick={() => onMover(l.id, 1)}
+                      disabled={i === lineas.length - 1}
+                    />
+                    <IconButton
+                      icon="trash"
+                      aria-label="Eliminar línea"
+                      size="sm"
+                      variant="danger"
+                      onClick={() => onEliminar(l.id)}
+                    />
                   </td>
                 ) : null}
               </tr>

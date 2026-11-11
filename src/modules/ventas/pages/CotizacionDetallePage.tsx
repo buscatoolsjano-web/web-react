@@ -1,4 +1,13 @@
-import { Suspense, lazy, useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { LinkButton } from '@/components/ui/LinkButton'
@@ -24,6 +33,7 @@ import { useAccionesDocumento } from '../components/AccionesDocumento'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { CadenaDocumento } from '../components/CadenaDocumento'
+import { CaminoCompras, ConCaminoDeCompras } from '../components/CaminoCompras'
 import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorMasInformacion } from '../components/EditorMasInformacion'
 import { useUltimoPrecio } from '../hooks/useUltimoPrecio'
@@ -346,12 +356,7 @@ function Detalle() {
     // `seguir`: al terminar, ¿se vuelve a la vista o se sigue editando?
     mutationFn: async (seguir: boolean) => {
       const payload = aPayload(borrador!, original!)
-      await guardarCotizacion(
-        doc!.id,
-        borrador!.esperado,
-        payload.cabecera,
-        payload.lineas,
-      )
+      await guardarCotizacion(doc!.id, borrador!.esperado, payload.cabecera, payload.lineas)
       /*
        * Los contactos van DESPUÉS y por su propia RPC (Fase 40).
        *
@@ -379,7 +384,8 @@ function Detalle() {
       // queda tiene que ser el recién guardado, con los ids reales de las líneas
       // nuevas y el testigo de concurrencia al día. Hacerlo en el handler y no
       // en un efecto evita re-renders en cascada (y el lint que los prohíbe).
-      const docFresco = seguir && activa ? await obtenerDocumento('cotizacion', activa.companyId, doc!.id) : null
+      const docFresco =
+        seguir && activa ? await obtenerDocumento('cotizacion', activa.companyId, doc!.id) : null
       return { docFresco }
     },
     onSuccess: ({ docFresco }, seguir) => {
@@ -656,21 +662,32 @@ function Detalle() {
    * sería peor que uno solo.
    */
   const circuito = cadena.data ? (
-    <CadenaDocumento
-      cadena={cadena.data}
-      actual="cotizacion"
-      generar={{
-        pedido: {
-          onGenerar: () => (hayQueElegirSerie ? setEligiendoSerie(true) : convertir.mutate(null)),
-          cargando: convertir.isPending,
-          ...(!escribe
-            ? { motivo: 'Tu rol no genera pedidos' }
-            : stelPedido
-              ? { motivo: 'La numeración de pedidos la lleva el sistema anterior' }
-              : {}),
-        },
-      }}
-    />
+    <ConCaminoDeCompras
+      camino={
+        <CaminoCompras
+          tipo="cotizacion"
+          documentoId={doc.id}
+          numero={doc.numero}
+          puedeComprar={escribe}
+        />
+      }
+    >
+      <CadenaDocumento
+        cadena={cadena.data}
+        actual="cotizacion"
+        generar={{
+          pedido: {
+            onGenerar: () => (hayQueElegirSerie ? setEligiendoSerie(true) : convertir.mutate(null)),
+            cargando: convertir.isPending,
+            ...(!escribe
+              ? { motivo: 'Tu rol no genera pedidos' }
+              : stelPedido
+                ? { motivo: 'La numeración de pedidos la lleva el sistema anterior' }
+                : {}),
+          },
+        }}
+      />
+    </ConCaminoDeCompras>
   ) : null
 
   const nueva = (over: Partial<Parameters<typeof agregarLinea>[1]> = {}) =>
@@ -831,7 +848,9 @@ function Detalle() {
                 disabled={!sucio || faltaGuardar.length > 0 || guardar.isPending}
                 onClick={() => guardar.mutate(true)}
               >
-                {guardar.isPending && guardar.variables === true ? 'Guardando…' : 'Guardar y editar'}
+                {guardar.isPending && guardar.variables === true
+                  ? 'Guardando…'
+                  : 'Guardar y editar'}
               </Button>
               <Button
                 variant="secondary"
@@ -1116,7 +1135,8 @@ function Detalle() {
                                 }
                               />
                             ) : null,
-                          onDescripcion: (id, valor) => cambiarLinea(id, 'description_snapshot', valor),
+                          onDescripcion: (id, valor) =>
+                            cambiarLinea(id, 'description_snapshot', valor),
                           onReferencia: (id, valor) => cambiarLinea(id, 'sku_snapshot', valor),
                           onEliminar: (id) => setBorrador((b) => (b ? quitarLinea(b, id) : b)),
                           onAgregar: () => setCatalogoAbierto(true),
@@ -1160,7 +1180,6 @@ function Detalle() {
               tipo="cotizacion"
               documentoId={doc.id}
               numero={doc.numero}
-              moneda={doc.moneda}
               puedeComprar={escribe}
             />
           </DocSection>
