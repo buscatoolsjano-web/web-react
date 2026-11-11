@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { InformacionDocumento } from './InformacionDocumento'
 import type { DocumentoDetalle } from '../types'
@@ -116,6 +116,8 @@ describe('Información · cotización', () => {
    * Desde la Fase 199 el contacto va en la tarjeta de arriba, al lado del
    * agente, y la tarifa bajó a «Más información».
    */
+  // Desde la Fase 231 van en dos paneles, como el editor: primero el del
+  // documento y después el del cliente (cliente, agente, contacto).
   it('muestra los nueve datos del sistema anterior, en su orden', () => {
     montar(doc({ titulo: 'VENTAS MERCADO LIBRE', creadoPor: 'Juan' }))
     expect(etiquetas()).toEqual([
@@ -123,12 +125,19 @@ describe('Información · cotización', () => {
       'Fecha',
       'Estado',
       'Título',
-      'Cliente',
       'Forma de pago',
       'Creado por',
+      'Cliente',
       'Agente',
       'Contacto',
     ])
+  })
+
+  it('separa los datos en el panel del documento y el del cliente', () => {
+    montar(doc({ titulo: 'VENTAS MERCADO LIBRE', creadoPor: 'Juan' }))
+    const cliente = screen.getByRole('group', { name: 'Cliente' })
+    expect(within(cliente).getByText('Contacto')).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Documento' })).getByText('Título')).toBeInTheDocument()
   })
 
   it('no repite lo que ya está en otro lado de la pantalla', () => {

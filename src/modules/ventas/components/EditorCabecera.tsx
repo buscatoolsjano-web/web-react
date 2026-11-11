@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { Field } from '@/components/forms/Field'
 import { Input, Select } from '@/components/forms/controls'
 import { Button } from '@/components/ui/Button'
@@ -110,6 +111,8 @@ export function EditorCabecera({
   onCambiarContactos,
 }: EditorCabeceraProps) {
   const hayReferencia = series !== undefined || numero !== undefined
+  const idDoc = useId()
+  const idCli = useId()
 
   const campoFecha = (
     <Field label="Fecha">
@@ -118,103 +121,98 @@ export function EditorCabecera({
   )
 
   return (
-    <div className={`${styles.bloques} ${styles.denso}`}>
+    <div className={styles.bloques}>
       {/*
-        Un solo grupo, no cuatro (Fase 84).
+        Dos paneles, cada uno con su color (Fase 231).
 
-        Las cuatro secciones numeradas —«1. Datos generales», «2. Cliente»…—
-        existían para que el editor y la ficha del documento guardado se
-        vieran iguales (Fase 27 · E5). Lo siguen haciendo, pero ahora la que
-        manda es la del sistema anterior: una tarjeta arriba con lo que
-        identifica al documento, y una pestaña «Más información» con el resto.
+        «Optimizá para que se vea bien, jugá con lo visual y con los colores
+        así es más fácil de ver.» Antes era una sola grilla de rótulos a la
+        izquierda donde todo pesaba igual: la referencia quedaba corrida a la
+        derecha, el rótulo «Cliente» flotaba a media altura de su buscador y
+        agentes/contactos iban con otra alineación. Ahora:
+          · «Documento» (color del módulo): referencia, fecha, título y forma
+            de pago —lo que identifica y condiciona al papel—.
+          · «Cliente» (azul): a quién va, con quién se habla y quién lo lleva.
+        Cada dato es un renglón con el rótulo en la misma columna, alineado con
+        el PRIMER renglón de su control aunque el control sea alto.
 
-        El rotulo del grupo va oculto a la vista por eso mismo —repetirlo
-        seria decirlo dos veces— pero existe: un fieldset sin legend deja al
-        grupo sin nombre para quien lo escucha.
+        El fieldset sigue teniendo su legend (oculto) para quien lo escucha.
       */}
       <fieldset className={styles.grupo}>
         <legend className="sr-only">Datos del documento</legend>
-        <div className={styles.grilla}>
-          {/* Referencia y Fecha en un solo renglón (Fase 199): la serie ocupa
-              lo que mide su texto, el número toma el resto, y la fecha entra
-              al lado. Así se gana una fila. */}
-          {hayReferencia ? (
-            <div className={styles.parRef}>
-              <div className={styles.campo}>
-                <span className={styles.etiqueta}>Referencia</span>
-                <div className={styles.referencia}>
+        <div className={styles.paneles}>
+          <div role="group" className={`${styles.panel} ${styles.panelDocumento}`} aria-labelledby={idDoc}>
+            <p className={styles.panelTitulo} id={idDoc}>
+              Documento
+            </p>
+            <div className={styles.campos}>
+              {hayReferencia ? (
+                <div className={styles.campo}>
+                  <span className={styles.etiqueta}>Referencia</span>
                   {series && series.length > 1 && onCambiarSerie ? (
-                    <Select
-                      aria-label="Serie del documento"
-                      value={serie ?? ''}
-                      onChange={(e) => onCambiarSerie(e.target.value)}
-                    >
-                      {series.map((s) => (
-                        <option key={s.codigo} value={s.codigo}>
-                          {s.codigo} — {s.autoridad === 'ERP' ? 'se emite desde el ERP' : 'la numera STEL'}
-                        </option>
-                      ))}
-                    </Select>
+                    <div className={styles.referencia}>
+                      <Select
+                        aria-label="Serie del documento"
+                        value={serie ?? ''}
+                        onChange={(e) => onCambiarSerie(e.target.value)}
+                      >
+                        {series.map((s) => (
+                          <option key={s.codigo} value={s.codigo}>
+                            {s.codigo} — {s.autoridad === 'ERP' ? 'se emite desde el ERP' : 'la numera STEL'}
+                          </option>
+                        ))}
+                      </Select>
+                      <span className={styles.refNumero}>{numero ?? 'número al guardar'}</span>
+                    </div>
                   ) : (
-                    <span className={styles.numeroPendiente}>{serie ?? '—'}</span>
+                    // Serie + número son UN dato («COT-BTS 00008»): una sola
+                    // etiqueta destacada, no dos cajas punteadas sueltas. El
+                    // número lo pone el servidor al crear, y se dice.
+                    <span className={styles.refEtiqueta}>
+                      <span className={styles.refSerie}>{serie ?? '—'}</span>
+                      <span className={styles.refNumero}>{numero ?? 'número al guardar'}</span>
+                    </span>
                   )}
-                  {/* El número lo asigna el servidor al crear: decirlo es mejor
-                      que un campo vacío que parece que falta completar. */}
-                  <span className={styles.numeroPendiente}>{numero ?? 'lo asigna el servidor'}</span>
                 </div>
-              </div>
+              ) : null}
               {campoFecha}
+
+              {/* Obligatorio desde la Fase 27 · E1: es el renglón que sale
+                  impreso debajo de «COTIZACIÓN DE VENTA». */}
+              <Field label="Título" required className={styles.ancho}>
+                <Input value={valores.titulo} onChange={(e) => onCambiar('titulo', e.target.value)} />
+              </Field>
+
+              <Field label="Forma de pago" optional className={styles.ancho}>
+                <SelectorFormaDePago
+                  valor={valores.formaPago}
+                  opciones={formasDePago}
+                  cargando={cargandoFormasDePago}
+                  onCambiar={(v) => onCambiar('formaPago', v)}
+                  onAgregar={onAgregarFormaDePago}
+                />
+              </Field>
             </div>
-          ) : (
-            campoFecha
-          )}
-
-          {/* «Válida hasta» se fue en la Fase 28 · E11: no aplica al negocio,
-              y de las 307 cotizaciones de la base ninguna la tenía cargada. */}
-
-          {/* Obligatorio desde la Fase 27 · E1: es el renglón que sale impreso
-              debajo de «COTIZACIÓN DE VENTA», y un documento sin él llega al
-              cliente sin decir de qué es. */}
-          <Field label="Título" required className={styles.ancho}>
-            <Input value={valores.titulo} onChange={(e) => onCambiar('titulo', e.target.value)} />
-          </Field>
-          <div className={`${styles.campo} ${styles.ancho}`}>
-            {/* El buscador tiene su propio input con su `aria-label`, así que
-                acá va un rótulo y no un `<label for>` que apuntaría a nada. */}
-            <span className={styles.etiqueta}>Cliente</span>
-            <BuscadorCliente
-              valor={valores.customerId || null}
-              editable
-              onElegir={(elegido) => onCambiarCliente(elegido ?? '')}
-            />
           </div>
 
-          <Field label="Forma de pago" optional className={styles.ancho}>
-            <SelectorFormaDePago
-              valor={valores.formaPago}
-              opciones={formasDePago}
-              cargando={cargandoFormasDePago}
-              onCambiar={(v) => onCambiar('formaPago', v)}
-              onAgregar={onAgregarFormaDePago}
-            />
-          </Field>
-
-          {/* Agentes y Contactos en un solo renglón (Fase 199): quién lleva la
-              venta y con quién se habla, alineados, como pidió el usuario. */}
-          <div className={styles.par}>
-            {/* Varios agentes, con uno principal (Fase 40): pasa seguido que
-                uno abra la cuenta y otro la siga, o que la parte técnica la
-                lleve uno y la comercial otro. */}
-            <Field label="Agentes" optional>
-              <VendedoresDelDocumento
-                vendedores={vendedores}
-                principal={valores.vendedorId}
-                acompanan={valores.vendedoresExtra}
-                onCambiar={onCambiarVendedores}
-              />
-            </Field>
+          <div role="group" className={`${styles.panel} ${styles.panelCliente}`} aria-labelledby={idCli}>
+            <p className={styles.panelTitulo} id={idCli}>
+              Cliente
+            </p>
+            <div className={styles.campos}>
+              <div className={`${styles.campo} ${styles.ancho}`}>
+                {/* El buscador tiene su propio input con su `aria-label`, así
+                    que acá va un rótulo y no un `<label for>`. */}
+                <span className={styles.etiqueta}>Cliente</span>
+                <BuscadorCliente
+                  valor={valores.customerId || null}
+                  editable
+                  onElegir={(elegido) => onCambiarCliente(elegido ?? '')}
+                />
+              </div>
 
             <Field
+              className={styles.ancho}
               label="Contactos"
               optional
               help={
@@ -254,6 +252,19 @@ export function EditorCabecera({
                 ) : null}
               </div>
             </Field>
+
+              {/* Varios agentes, con uno principal (Fase 40): pasa seguido que
+                  uno abra la cuenta y otro la siga. Va con el cliente: es
+                  quién lleva la relación. */}
+              <Field label="Agentes" optional className={styles.ancho}>
+                <VendedoresDelDocumento
+                  vendedores={vendedores}
+                  principal={valores.vendedorId}
+                  acompanan={valores.vendedoresExtra}
+                  onCambiar={onCambiarVendedores}
+                />
+              </Field>
+            </div>
           </div>
         </div>
       </fieldset>

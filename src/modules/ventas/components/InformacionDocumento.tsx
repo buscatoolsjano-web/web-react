@@ -1,7 +1,9 @@
+import { useId } from 'react'
 import { Link } from 'react-router-dom'
 import { MetaList, Missing, type MetaItem } from '@/components/document/DocSection'
 import docUi from '@/components/document/Document.module.css'
 import styles from './InformacionDocumento.module.css'
+import cab from './CabeceraCotizacion.module.css'
 import { formatearCantidad, formatearDomicilio, formatearFecha } from '../lib/formato'
 import { presentarCumplimiento, presentarEstado } from '../lib/estados'
 import { presentarOrigen } from '../lib/origen'
@@ -113,6 +115,8 @@ const ETIQUETA_ORIGEN: Record<string, string> = {
  * no necesariamente con la que se vendió.
  */
 export function InformacionDocumento({ doc, onVerCliente, parte = 'principal' }: InformacionDocumentoProps) {
+  const idDoc = useId()
+  const idCli = useId()
   const esEntrega = doc.tipo === 'entrega'
   const esPedido = doc.tipo === 'pedido'
   const comercial = !esEntrega
@@ -226,6 +230,7 @@ export function InformacionDocumento({ doc, onVerCliente, parte = 'principal' }:
     {
       label: 'Cliente',
       parte: 'principal',
+      panel: 'cliente',
       // Fase 19 · E3: con un modo de abrir la ficha rápida, el nombre deja de
       // ser texto. Sin él sigue siendo texto: el componente lo usan tres
       // documentos y no todos tienen a dónde llevar.
@@ -242,6 +247,7 @@ export function InformacionDocumento({ doc, onVerCliente, parte = 'principal' }:
     doc.creadoPor ? { parte: 'principal', label: 'Creado por', value: doc.creadoPor } : null,
     comercial && {
       parte: 'principal',
+      panel: 'cliente',
       // Fase 40: los agentes que acompañan, nombrados. Antes el segundo no
       // figuraba en ningún lado.
       label: doc.vendedoresExtra.length > 0 ? 'Agentes' : 'Agente',
@@ -257,7 +263,7 @@ export function InformacionDocumento({ doc, onVerCliente, parte = 'principal' }:
     // El contacto, al lado de los agentes (Fase 199): subió desde «Más
     // información» para que ver y editar sigan iguales. La tarifa hizo el
     // camino inverso y ahora vive abajo, con la moneda.
-    { parte: 'principal', label: 'Contacto', value: contacto(doc) },
+    { parte: 'principal', panel: 'cliente', label: 'Contacto', value: contacto(doc) },
     // Fase 15 · E6: el domicilio congelado al emitir el remito. Si no quedó
     // registrado se dice; NO se muestra el domicilio de hoy del cliente, que
     // es otra información.
@@ -329,12 +335,40 @@ export function InformacionDocumento({ doc, onVerCliente, parte = 'principal' }:
    * la sección de la pantalla. Un segundo título adentro era decirlo dos
    * veces.
    */
+  if (parte === 'mas') {
+    return (
+      <div className={styles.ficha}>
+        <MetaList items={items.filter((i) => !i || i.parte === 'mas')} />
+      </div>
+    )
+  }
+
+  /*
+   * La mitad de arriba, en los MISMOS dos paneles que el editor (Fase 231):
+   * «Documento» y «Cliente», cada uno con su color. Así apretar «Editar»
+   * cambia los datos por controles, sin reacomodar la pantalla.
+   */
+  const principales = items.filter((i): i is Dato => !!i && i.parte === 'principal')
   return (
-    <div className={styles.ficha}>
-      <MetaList items={items.filter((i) => !i || i.parte === parte)} />
+    <div className={`${styles.ficha} ${styles.fichaPaneles}`}>
+      <div role="group" className={`${cab.panel} ${styles.panelFicha}`} aria-labelledby={idDoc}>
+        <p className={cab.panelTitulo} id={idDoc}>
+          Documento
+        </p>
+        <MetaList items={principales.filter((i) => i.panel !== 'cliente')} />
+      </div>
+      <div role="group" className={`${cab.panel} ${cab.panelCliente} ${styles.panelFicha}`} aria-labelledby={idCli}>
+        <p className={cab.panelTitulo} id={idCli}>
+          Cliente
+        </p>
+        <MetaList items={principales.filter((i) => i.panel === 'cliente')} />
+      </div>
     </div>
   )
 }
 
-/** Un dato de la ficha, con la mitad a la que pertenece. */
-type Dato = MetaItem & { parte: 'principal' | 'mas' }
+/**
+ * Un dato de la ficha, con la mitad a la que pertenece y, en la de arriba, el
+ * panel donde va (el del documento si no se dice).
+ */
+type Dato = MetaItem & { parte: 'principal' | 'mas'; panel?: 'cliente' }

@@ -77,13 +77,29 @@
      cuatro secciones numeradas —su editor es uno solo— así que su ficha es
      una lista pelada, sin `section` en el medio. Con el selector flojo las
      dos formas entran por la misma puerta (Fase 84). */
-  .ficha section,
+  .ficha section:not(.panelFicha),
   .ficha dl {
     display: contents;
   }
 
-  .ficha section > p {
+  .ficha section:not(.panelFicha) > p {
     display: none;
+  }
+
+  /* Los dos paneles (Fase 231): cada uno es una columna, y sus datos van
+     uno por renglón con el rótulo en una columna fija, igual que el editor. */
+  .fichaPaneles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-3);
+    align-items: stretch;
+  }
+
+  .panelFicha {
+    row-gap: var(--space-1);
+  }
+
+  .panelFicha dl > div {
+    grid-template-columns: 7.5rem minmax(0, 1fr);
   }
 
   /* Cada dato, un renglón: rótulo a la derecha de su columna, dato al lado. */
@@ -132,6 +148,16 @@
   .ficha {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+  /* Los paneles son dos aunque haya lugar para tres columnas. */
+  .fichaPaneles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Con la hoja al lado, los paneles se apilan. */
+.fichaPaneles {
+  display: grid;
+  gap: var(--space-3);
 }
 
 /* La serie y el número, pegados como las dos cajas del sistema anterior: lo

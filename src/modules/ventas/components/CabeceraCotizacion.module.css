@@ -300,3 +300,150 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* ── La cabecera en dos paneles con color (Fase 231) ───────────────────────
+ *
+ * «Optimizá para que se vea bien, jugá con lo visual y con los colores así es
+ * más fácil de ver.» Dos paneles: «Documento» con el color del módulo y
+ * «Cliente» en azul. Cada uno con una franja arriba y un título chico del
+ * mismo color, para que el ojo sepa en qué bloque está sin leer los rótulos.
+ *
+ * Con la hoja al lado los paneles se apilan y los campos van con el rótulo
+ * arriba. Con la hoja cerrada van lado a lado y cada dato es un renglón con el
+ * rótulo a la izquierda, todos en la MISMA columna, alineados con el primer
+ * renglón de su control (el buscador de cliente y los contactos son altos: el
+ * rótulo no flota a media altura).
+ */
+.paneles {
+  display: grid;
+  gap: var(--space-3);
+  align-items: stretch;
+}
+
+.panel {
+  --panel-acento: var(--module-accent);
+  --panel-suave: var(--module-accent-soft);
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--panel-acento);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel-suave) 55%, transparent), transparent 5rem),
+    var(--color-surface);
+}
+
+.panelCliente {
+  --panel-acento: var(--color-info);
+  --panel-suave: var(--color-info-soft);
+}
+
+.panelTitulo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--panel-acento);
+}
+
+.panelTitulo::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--panel-acento);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--panel-acento) 22%, transparent);
+}
+
+.campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: var(--space-3);
+}
+
+/* Dentro de un panel, lo ancho ocupa el renglón entero (no «dos columnas»,
+   que en un panel de una sola crearía una columna fantasma). */
+.campos > .ancho {
+  grid-column: 1 / -1;
+}
+
+/* Los rótulos, con un poco más de presencia que el gris apagado de antes. */
+.campos .etiqueta,
+.campos > * > label:first-child {
+  color: var(--color-text-muted);
+}
+
+/* La referencia: serie + número en una sola etiqueta del color del panel. */
+.refEtiqueta {
+  display: inline-flex;
+  align-items: stretch;
+  justify-self: start;
+  max-width: 100%;
+  min-height: var(--control-h-md);
+  border: 1px solid color-mix(in srgb, var(--panel-acento) 45%, transparent);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  font-size: var(--text-sm);
+}
+
+.refSerie {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  background: var(--panel-acento);
+  color: var(--color-surface);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.refNumero {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  background: var(--panel-suave);
+  color: var(--color-text-muted);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@container editor (min-width: 950px) {
+  .paneles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .campos {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--space-2);
+  }
+
+  /* Cada dato un renglón: rótulo a la izquierda, en una columna fija para
+     que todos los controles arranquen en la misma vertical. */
+  .campos > * {
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    align-items: start;
+    column-gap: var(--space-3);
+  }
+
+  /* El rótulo, centrado con el PRIMER renglón del control (alto de un
+     control mediano), no con el control entero. */
+  .campos > * > :first-child {
+    justify-self: end;
+    text-align: right;
+    padding-top: calc((var(--control-h-md) - 1.25em) / 2);
+    line-height: 1.25;
+  }
+
+  /* Ayuda y error, debajo del control. */
+  .campos > * > :nth-child(n + 3) {
+    grid-column: 2;
+  }
+}
