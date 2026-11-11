@@ -157,7 +157,7 @@ export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: Panel
           <Button variant="secondary" icon={<Icon name="upload" size={16} />} loading={subir.isPending} onClick={() => entrada.current?.click()}>
             {subir.isPending ? 'Subiendo…' : 'Adjuntar archivo'}
           </Button>
-          <span className={styles.ayuda}>Foto, PDF o planilla. Hasta 20 MB.</span>
+          <span className={styles.ayuda}>Foto, video, PDF o planilla. Hasta 20 MB (videos, 50 MB).</span>
         </div>
       ) : null}
 

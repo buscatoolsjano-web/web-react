@@ -69,8 +69,17 @@ export interface Adjunto {
   subidoEn: string
 }
 
-/** 20 MB: el mismo límite que tiene configurado el bucket. */
+/** 20 MB para imágenes y documentos. */
 export const LIMITE_BYTES = 20 * 1024 * 1024
+/**
+ * 50 MB para videos (Fase 228): es el tope del bucket. Un video grabado desde
+ * el ingreso (2 min a ~2 Mbps) queda bastante por debajo.
+ */
+export const LIMITE_BYTES_VIDEO = 50 * 1024 * 1024
+
+export const esVideo = (archivo: Pick<File, 'type'>): boolean => archivo.type.startsWith('video/')
+export const limiteDe = (archivo: Pick<File, 'type'>): number =>
+  esVideo(archivo) ? LIMITE_BYTES_VIDEO : LIMITE_BYTES
 
 export function formatearBytes(bytes: number | null): string {
   if (bytes === null) return '—'
@@ -129,9 +138,10 @@ export async function subirAdjunto(
   archivo: File,
   clase = 'photo',
 ): Promise<void> {
-  if (archivo.size > LIMITE_BYTES) {
+  const limite = limiteDe(archivo)
+  if (archivo.size > limite) {
     throw new Error(
-      `El archivo pesa ${(archivo.size / 1024 / 1024).toFixed(1)} MB y el máximo es 20 MB.`,
+      `El archivo pesa ${(archivo.size / 1024 / 1024).toFixed(1)} MB y el máximo es ${limite / 1024 / 1024} MB.`,
     )
   }
 
