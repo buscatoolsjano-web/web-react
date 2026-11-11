@@ -69,6 +69,10 @@ export function ModalImpresionCompras({ doc, onCerrar }: ModalImpresionComprasPr
 
   return (
     <div className={styles.fondo}>
+      {/* Igual que Ventas (Fase 239): papel elegido y margen CERO, para que el
+          navegador no imprima su encabezado y pie con la URL; el margen lo
+          pone la hoja. */}
+      <style>{`@page { size: ${opciones.papel === 'carta' ? 'Letter' : 'A4'}; margin: 0; }`}</style>
       <div ref={caja} className={styles.caja} role="dialog" aria-modal="true" aria-labelledby={idTitulo} tabIndex={-1}>
         <header className={styles.cabecera} data-no-imprimir>
           <h2 id={idTitulo} className={styles.titulo}>
