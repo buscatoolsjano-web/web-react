@@ -11,7 +11,7 @@ export default tseslint.config(
   // `src/` — y ahí es donde falla.
   // `supabase/functions/` es código Deno: se despliega como Edge Function y sus
   // pruebas corren desde scripts/ (fase12-configuracion-entrega1-tests.mjs).
-  { ignores: ['dist', 'node_modules', 'coverage', 'backend', 'supabase'] },
+  { ignores: ['dist', 'node_modules', 'coverage', 'backend', 'supabase', 'mcp-proxy'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
     files: ['**/*.{ts,tsx}'],

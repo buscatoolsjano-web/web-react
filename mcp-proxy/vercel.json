@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/.well-known/oauth-protected-resource", "destination": "/api/prm" },
+    { "source": "/.well-known/oauth-protected-resource/:path*", "destination": "/api/prm" },
+    { "source": "/mcp", "destination": "/api/mcp" },
+    { "source": "/", "destination": "/api/mcp" }
+  ]
+}
