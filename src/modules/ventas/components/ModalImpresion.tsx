@@ -220,7 +220,11 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
       {/* El tamaño del papel es una opción, y `@page` no se puede cambiar con
           una clase: se inyecta. Los márgenes los pone la página, no la hoja,
           así que en papel el documento no arrastra su propio padding. */}
-      <style>{`@page { size: ${opciones.formato === 'ticket' ? '80mm auto' : opciones.papel === 'carta' ? 'Letter' : 'A4'}; margin: ${opciones.formato === 'ticket' ? '4mm' : '12mm'}; }`}</style>
+      {/* Margen de página CERO (Fase 239): con margen, el navegador usa ese
+          espacio para su encabezado y pie —fecha, título, la URL, «1/2»— y no
+          hay CSS que los saque. Sin margen no tienen dónde ir. Los márgenes
+          los pone la propia hoja con su padding de 12 mm. */}
+      <style>{`@page { size: ${opciones.formato === 'ticket' ? '80mm auto' : opciones.papel === 'carta' ? 'Letter' : 'A4'}; margin: 0; }`}</style>
       <div ref={caja} className={styles.caja} role="dialog" aria-modal="true" aria-labelledby={idTitulo} tabIndex={-1}>
         <header className={styles.cabecera} data-no-imprimir>
           <h2 id={idTitulo} className={styles.titulo}>
