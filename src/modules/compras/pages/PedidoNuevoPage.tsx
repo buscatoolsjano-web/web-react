@@ -8,7 +8,10 @@ import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { Alert } from '@/components/feedback/Alert'
 import docUi from '@/components/document/Document.module.css'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+import editor from '@/modules/ventas/pages/EditorCotizacion.module.css'
 import { FormularioPedido } from '../components/FormularioPedido'
+import { VistaPreviaPedidoCompra } from '../components/VistaPreviaPedidoCompra'
 import { permisosDe } from '../lib/permisos'
 import { lineasDesdeCopia, problemasDeLinea } from '../lib/lineas'
 import { pedidoVacio, validarPedido, type DatosPedidoCompra, type ErrorDePedido } from '../lib/validacion'
@@ -38,6 +41,11 @@ export function PedidoNuevoPage() {
   const [datos, setDatos] = useState<DatosPedidoCompra>(pedidoVacio(hoy()))
   const [proveedor, setProveedor] = useState<ProveedorBuscado | null>(null)
   const [lineas, setLineas] = useState<LineaPedidoCompra[]>([])
+  // La hoja al costado (Fase 236), con la misma regla que Ventas: con 1280 px
+  // o más se muestra sola; si la persona la cierra o la abre, gana lo suyo.
+  const pantallaAncha = useMediaQuery('(min-width: 1280px)')
+  const [previaPedida, setPreviaPedida] = useState<boolean | null>(null)
+  const verPrevia = previaPedida ?? pantallaAncha
   const [errores, setErrores] = useState<ErrorDePedido[]>([])
   const [intentado, setIntentado] = useState(false)
 
@@ -141,14 +149,26 @@ export function PedidoNuevoPage() {
           </Button>
         }
         secondary={
-          <Button variant="ghost" disabled={crear.isPending} onClick={() => void navegar('/compras/pedidos')}>
-            Cancelar
-          </Button>
+          <>
+            {/* Mostrar u ocultar la hoja, como en Ventas (Fase 236). */}
+            <Button
+              variant="secondary"
+              icon={<Icon name={verPrevia ? 'eye-off' : 'eye'} size={16} />}
+              onClick={() => setPreviaPedida(!verPrevia)}
+              aria-expanded={verPrevia}
+              aria-label={verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
+              title={verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
+            />
+            <Button variant="ghost" disabled={crear.isPending} onClick={() => void navegar('/compras/pedidos')}>
+              Cancelar
+            </Button>
+          </>
         }
         note={<p>Nace en borrador; el número lo asigna el servidor al guardar.</p>}
       />
 
-      <section className={styles.bloque}>
+      <div className={verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
+      <section className={`${styles.bloque} ${editor.columnaEditor}`}>
         {avisoCopia ? (
           <Alert tone={avisoCopia.tono} role={avisoCopia.tono === 'danger' ? 'alert' : 'status'}>
             <p>{avisoCopia.texto}</p>
@@ -175,6 +195,13 @@ export function PedidoNuevoPage() {
           onCambiarLineas={setLineas}
         />
       </section>
+
+      {verPrevia ? (
+        <div className={editor.columnaPrevia}>
+          <VistaPreviaPedidoCompra datos={datos} proveedor={proveedor} lineas={lineas} />
+        </div>
+      ) : null}
+      </div>
     </div>
   )
 }

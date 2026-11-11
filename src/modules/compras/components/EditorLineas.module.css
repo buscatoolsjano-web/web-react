@@ -9,8 +9,11 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-sm);
-  /* Sin esto las columnas bailan mientras se escribe. */
-  min-width: 46rem;
+  /* Sin esto las columnas bailan mientras se escribe. Los anchos fijos de
+     los números suman ~44rem: el mínimo deja ~16rem para el producto, que
+     con la hoja al costado se aplastaba en una letra (Fase 236). Si la columna
+     es más angosta, la tabla se desplaza de costado. */
+  min-width: 60rem;
   /* Con `fixed` mandan los anchos del colgroup (Fase 235). */
   table-layout: fixed;
 }

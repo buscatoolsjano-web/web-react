@@ -169,6 +169,66 @@ export function imprimiblePedido(
   }
 }
 
+/**
+ * El pedido MIENTRAS se arma (Fase 236), para la vista previa al costado.
+ *
+ * Es la misma hoja que se imprime, con lo que hay en el formulario: sin
+ * número —lo pone el servidor al guardar— y con los totales calculados acá,
+ * que son provisorios (los definitivos los calcula el servidor).
+ */
+export function imprimiblePedidoBorrador(
+  d: {
+    /** El número, si el pedido ya existe; si no, «a asignar». */
+    numero?: string | null | undefined
+    fecha: string
+    proveedor: string | null
+    proveedorReferencia: string | null
+    moneda: string
+    tipoCambio: string
+    fechaEstimada: string
+    formaPago: string
+    notas: string
+  },
+  lineas: readonly LineaPedidoCompra[],
+  etiquetaImpuesto: (t: string) => string,
+  totales: { subtotal: number; impuesto: number; total: number },
+  neto: (l: LineaPedidoCompra) => number,
+): DocumentoImprimible {
+  return {
+    tipo: 'pedido',
+    titulo: TITULO_DE.pedido,
+    numero: d.numero ?? 'a asignar',
+    fecha: d.fecha,
+    proveedor: d.proveedor ?? '',
+    moneda: d.moneda || null,
+    datos: [
+      ...dato('Proveedor', d.proveedor),
+      ...dato('Referencia del proveedor', d.proveedorReferencia),
+      ...dato('Moneda', d.moneda),
+      ...dato('Tipo de cambio', d.tipoCambio),
+      ...dato('Entrega estimada', fechaCorta(d.fechaEstimada || null)),
+      ...dato('Condición de pago', d.formaPago),
+    ],
+    lineas: lineas.map((l) => ({
+      id: l.id,
+      esCapitulo: l.tipoLinea === 'chapter',
+      numero: l.tipoLinea === 'chapter' ? null : l.numeroLinea,
+      sku: l.sku,
+      nombre: l.nombre,
+      descripcion: l.descripcion,
+      cantidad: l.cantidad,
+      precio: l.precioUnitario,
+      descuentoPct: l.descuentoPct,
+      impuesto: etiquetaImpuesto(l.tratamientoImpuesto),
+      neto: neto(l),
+      origen: null,
+    })),
+    totales,
+    notas: d.notas.trim() === '' ? null : d.notas,
+    relacionados: [],
+  }
+}
+
 // ── Recepción ──────────────────────────────────────────────────────────────
 
 /**

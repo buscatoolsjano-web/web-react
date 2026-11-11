@@ -19,6 +19,9 @@ import { ModalImpresionCompras } from '../components/ModalImpresionCompras'
 import { PanelAdjuntosCompras } from '../components/PanelAdjuntosCompras'
 import { PanelRelacionadosPedido } from '../components/PanelRelacionadosPedido'
 import { DialogoDuplicarComo } from '@/features/copiarDocumento/DialogoDuplicarComo'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+import editor from '@/modules/ventas/pages/EditorCotizacion.module.css'
+import { VistaPreviaPedidoCompra } from '../components/VistaPreviaPedidoCompra'
 import { editabilidadDe } from '../lib/estados'
 import { problemasDeLinea } from '../lib/lineas'
 import { formatearFecha, formatearFechaHora, formatearImporte } from '../lib/formato'
@@ -104,6 +107,11 @@ export function PedidoDetallePage() {
   const [confirmando, setConfirmando] = useState(false)
   const [cancelando, setCancelando] = useState(false)
   const [duplicandoComo, setDuplicandoComo] = useState(false)
+  // La hoja al costado (Fase 236): sola con 1280 px o más, salvo que la
+  // persona la abra o la cierre.
+  const pantallaAncha = useMediaQuery('(min-width: 1280px)')
+  const [previaPedida, setPreviaPedida] = useState<boolean | null>(null)
+  const verPrevia = previaPedida ?? pantallaAncha
   const [aviso, setAviso] = useState<string | null>(null)
   const [imprimiendo, setImprimiendo] = useState(false)
 
@@ -289,6 +297,15 @@ export function PedidoDetallePage() {
               <Button variant="secondary" icon={<Icon name="printer" size={16} />} onClick={() => setImprimiendo(true)}>
                 Imprimir
               </Button>
+              {/* La hoja al costado, como en Ventas (Fase 236). */}
+              <Button
+                variant="secondary"
+                icon={<Icon name={verPrevia ? 'eye-off' : 'eye'} size={16} />}
+                onClick={() => setPreviaPedida(!verPrevia)}
+                aria-expanded={verPrevia}
+                aria-label={verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
+                title={verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
+              />
               {/* Facturar. Se factura lo RECIBIDO, no lo pedido: el enlace lleva
                   a la pantalla con el proveedor puesto y ahí aparece lo pendiente
                   de facturar de todas sus recepciones confirmadas —que puede
@@ -345,7 +362,8 @@ export function PedidoDetallePage() {
         ))}
       </nav>
 
-      <section className={styles.bloque}>
+      <div className={pestana === 'pedido' && verPrevia && pantallaAncha ? editor.conPrevia : undefined}>
+      <section className={`${styles.bloque} ${editor.columnaEditor}`}>
         {pestana === 'pedido' && editando ? (
           <>
             {sinGuardar ? (
@@ -473,6 +491,18 @@ export function PedidoDetallePage() {
           />
         ) : null}
       </section>
+
+      {pestana === 'pedido' && verPrevia ? (
+        <div className={editor.columnaPrevia}>
+          <VistaPreviaPedidoCompra
+            numero={pedido.numero}
+            datos={datosActuales}
+            proveedor={proveedor.data ?? null}
+            lineas={lineasActuales}
+          />
+        </div>
+      ) : null}
+      </div>
 
       {duplicandoComo ? (
         <DialogoDuplicarComo
