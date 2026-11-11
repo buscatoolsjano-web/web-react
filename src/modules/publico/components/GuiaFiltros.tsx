@@ -419,12 +419,18 @@ export function GuiaFiltros({
           <p className={styles.textoPregunta}>
             {activo.pregunta} <span className={styles.pista}>{activo.pista}</span>
           </p>
-          <div className={styles.tiles} role="group" aria-label={activo.pregunta}>
+          {/* Mientras llegan los filtros de lo recién elegido, lo que se ve son
+              los de ANTES (el placeholder, para que no parpadee). Tocarlos
+              rápido elegía una opción que ya no existe con lo nuevo —«Allen»
+              en un tipo que no lo tiene— y quedaban 0 productos. Así que se
+              ven, pero no se tocan hasta que llegan los de verdad. */}
+          <div className={cx(styles.tiles, cargando && styles.tilesCargando)} role="group" aria-label={activo.pregunta} aria-busy={cargando}>
             {visibles.map((o) => (
               <button
                 key={o.valor}
                 type="button"
                 className={cx(styles.tile, o.medio === null && styles.tileTexto)}
+                disabled={cargando}
                 onClick={() => activo.elegir(o.valor)}
               >
                 {o.medio}

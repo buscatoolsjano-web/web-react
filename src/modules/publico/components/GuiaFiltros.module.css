@@ -120,8 +120,14 @@
   transition: border-color var(--duration-fast) var(--ease-standard),
     background var(--duration-fast) var(--ease-standard);
 }
-.tile:hover {
+.tile:hover:not(:disabled) {
   border-color: var(--color-primary);
+}
+/* Opciones de la elección anterior mientras llegan las nuevas: se ven, no se
+   tocan (ver GuiaFiltros). */
+.tilesCargando .tile {
+  opacity: 0.5;
+  cursor: progress;
 }
 .tileActivo {
   border-color: var(--color-primary);

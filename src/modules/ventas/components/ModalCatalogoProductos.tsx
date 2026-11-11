@@ -293,7 +293,10 @@ export function ModalCatalogoProductos({
           tipo={filtros.subtipos[0] ?? ''}
           atributos={atributosGuia}
           total={total}
-          cargando={facetas.isPending}
+          // `isFetching`, no `isPending`: con el placeholder (las facetas de
+          // antes) `isPending` es false aunque lleguen otras, y la guía dejaba
+          // tocar opciones viejas.
+          cargando={facetas.isFetching}
           onFiltrar={guiaFiltrar}
           onCategoria={guiaElegirCategoria}
           rangos={filtros.rangos}
