@@ -51,7 +51,7 @@ export function TarjetaCotizacion({ propuesta }: TarjetaCotizacionProps) {
           name_snapshot: l.nombre,
           quantity: l.cantidad,
           unit_price: l.precio ?? 0,
-          discount_pct: 0,
+          discount_pct: l.descuento ?? 0,
           tax_treatment: 'vat_21',
           tax_rate_snapshot: 21,
         }))

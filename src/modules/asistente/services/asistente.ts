@@ -36,6 +36,8 @@ export interface LineaPropuesta {
   precio?: number
   /** «último a este cliente» o «lista». No es lo mismo para quien revisa. */
   origenPrecio?: string
+  /** El descuento del renglón, en por ciento (Fase 243). */
+  descuento?: number
   disponible?: number
   /** Por qué no se pudo resolver. */
   nota?: string
@@ -308,6 +310,7 @@ function leerPropuesta(v: unknown): PropuestaCotizacion | null {
             nombre: cadena(x['nombre']),
             precio: numero(x['precio']),
             origenPrecio: cadena(x['origen_precio']),
+            descuento: numero(x['descuento']),
             disponible: numero(x['disponible']),
           }
         : { ...base, nota: cadena(x['nota']) }

@@ -111,6 +111,9 @@ export function planificarE2(stel, react, o = {}) {
   const prodPorSku = new Map()
   for (const p of react.productos) prodPorSku.set(p.sku.trim(), [...(prodPorSku.get(p.sku.trim()) ?? []), p])
   const reactDoc = Object.fromEntries(Object.keys(TIPOS).map((t) => [t, new Map(react.docs[t].map((d) => [d.id, d]))]))
+  // Las cotizaciones que el ERP cargó con la referencia de una de STEL (Fase 243,
+  // `crear_cotizacion` del MCP con `referencia_externa`): ésa ya está, no se importa otra vez.
+  const refsErp = new Map((react.docs.quote ?? []).filter((d) => d.external_ref).map((d) => [String(d.external_ref).toUpperCase(), d]))
   const stelDoc = Object.fromEntries(Object.keys(TIPOS).map((t) => [t, new Map([...(stel.docs[t] ?? []), ...(stel.padresExternos?.[t] ?? [])].map((d) => [d.id, d]))]))
   const bloqueados = []
   const excepciones = []
@@ -223,13 +226,20 @@ export function planificarE2(stel, react, o = {}) {
         if (ps) {
           const campo = tipo === 'order' ? (tipoPadre === 'quote' ? 'quote_id' : null) : tipoPadre === 'order' ? 'order_id' : 'source_quote_id'
           const fp = porNumero[tipoPadre].get(ps['full-reference'])
-          if (campo && fp) padre = { campo, tipo: tipoPadre, numero: ps['full-reference'], stel_id: String(ps.id), react_id: fp.react?.id ?? null, se_inserta: fp.clase === 'STEL_ONLY' }
+          // Una cotización padre cargada en el ERP con su referencia (Fase 243) ES el padre: no se inserta otra.
+          const padreErp = tipoPadre === 'quote' ? refsErp.get(String(ps['full-reference']).toUpperCase()) : undefined
+          if (campo && fp) padre = { campo, tipo: tipoPadre, numero: ps['full-reference'], stel_id: String(ps.id), react_id: fp.react?.id ?? padreErp?.id ?? null, se_inserta: fp.clase === 'STEL_ONLY' && !padreErp }
         }
       }
 
       const lineaProducto = (ls) => (destinoProducto.has(ls.itemId) ? destinoProducto.get(ls.itemId) : null)
 
       if (f.clase === 'STEL_ONLY') {
+        const yaCargada = tipo === 'quote' ? refsErp.get(String(f.numero).toUpperCase()) : undefined
+        if (yaCargada) {
+          excepciones.push({ tipo, numero: f.numero, motivo: 'YA_CARGADA_EN_ERP_CON_REFERENCIA', erp: yaCargada.number })
+          continue
+        }
         const cli = clienteSeguro(f)
         if (!cli.id) { bloqueados.push({ tipo, numero: f.numero, motivo: cli.motivo }); continue }
         const estado = estadoReact(tipo, f.stel.estado)

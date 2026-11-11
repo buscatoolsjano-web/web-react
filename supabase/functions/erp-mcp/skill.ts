@@ -173,7 +173,7 @@ Un pedido puede entregarse en partes.
 
 ## Armar y crear una cotización
 
-\`preparar_cotizacion\`, \`crear_cotizacion\`
+\`preparar_cotizacion\`, \`crear_cotizacion\`, \`crear_producto\`
 
 **Son dos pasos y el orden no se saltea.**
 
@@ -202,6 +202,23 @@ antes de que exista.
   segunda**: decile el número de la que ya está.
 - Si tu rol en el ERP no crea cotizaciones, la herramienta te lo va a decir.
   Mostrá el borrador igual y decile a quién pedirle que la confirme.
+
+### Cotizar desde un Excel o una oferta
+
+- Si te pasan los precios (un Excel, una oferta), mandá cada renglón con
+  \`precio_unitario\` (neto, sin IVA) y, si hay, \`descuento\` en por ciento:
+  **pisan** el de lista y el último del cliente. Sin precio, se resuelve como
+  siempre.
+- Mandá el **SKU** en \`producto\` siempre que lo tengas: el SKU exacto se
+  resuelve al instante, y así una cotización de cien renglones no se demora.
+- Si un SKU no existe y la persona confirma darlo de alta, \`crear_producto\`
+  (SKU, nombre, marca, precio de lista). **La empresa es obligatoria.** Si el SKU
+  ya existe, no crea otro y te lo dice.
+- Si ese mismo documento existe en STEL (p. ej. «COV00748»), pasalo en
+  \`referencia_externa\` de \`crear_cotizacion\`: no se crea dos veces y la
+  sincronización con STEL no la vuelve a importar.
+- La cotización nace en **borrador**. Para revisarla después, \`ver_documento\`
+  con su número o con la referencia externa.
 
 ## Costos de compra
 

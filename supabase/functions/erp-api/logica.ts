@@ -43,9 +43,11 @@ export const EXPUESTAS: readonly string[] = [
   'buscar_documentos',
   'ver_documento',
   'preparar_cotizacion',
-  // La única que escribe. Ver `ESCRITURAS` en `erp-mcp/logica.ts`: es lo que
-  // hace que ChatGPT pida confirmación antes de llamarla.
+  // Las que escriben. Ver `ESCRITURAS`: es lo que hace que ChatGPT pida
+  // confirmación antes de llamarlas.
   'crear_cotizacion',
+  // catálogo, alta (Fase 243)
+  'crear_producto',
   // compras
   'ultimo_costo',
   // informes
@@ -63,7 +65,17 @@ export const EXPUESTAS: readonly string[] = [
  * coincidir: una herramienta que escribe y que en una de las dos pasa por
  * lectura es una escritura sin confirmar.
  */
-export const ESCRITURAS: ReadonlySet<string> = new Set<string>(['crear_cotizacion'])
+export const ESCRITURAS: ReadonlySet<string> = new Set<string>(['crear_cotizacion', 'crear_producto'])
+
+/**
+ * Las que exigen decir la empresa, aunque la persona tenga una sola (Fase 243).
+ *
+ * Buscatools y Torquetools son dos empresas que nunca se pisan. Leer de la
+ * equivocada se nota y se corrige; DAR DE ALTA un producto en la equivocada
+ * no se nota hasta que aparece en el catálogo de la otra. Para esas, nada de
+ * «la de siempre»: la empresa va escrita y entra en el esquema como obligatoria.
+ */
+export const EMPRESA_OBLIGATORIA: ReadonlySet<string> = new Set<string>(['crear_producto'])
 
 /**
  * El parámetro que NO viene del catálogo.
@@ -163,8 +175,13 @@ function consecuente(id: string): boolean {
 export function esquemaDeEntrada(h: Herramienta): Record<string, unknown> {
   return {
     type: 'object',
-    properties: { ...h.parametros, empresa: EMPRESA },
-    required: [...h.obligatorios],
+    properties: {
+      ...h.parametros,
+      empresa: EMPRESA_OBLIGATORIA.has(h.id)
+        ? { type: 'string', description: 'OBLIGATORIA: en qué empresa (su nombre, como lo devuelve quien_soy).' }
+        : EMPRESA,
+    },
+    required: [...h.obligatorios, ...(EMPRESA_OBLIGATORIA.has(h.id) ? ['empresa'] : [])],
     additionalProperties: false,
   }
 }
@@ -329,7 +346,7 @@ const plano = (s: string): string =>
  * seguidas podrían caer en empresas distintas y nadie entendería por qué los
  * números no coinciden.
  */
-export function elegirEmpresa(ms: readonly Membresia[], pedida?: string): Eleccion {
+export function elegirEmpresa(ms: readonly Membresia[], pedida?: string, obligatoria = false): Eleccion {
   const ordenadas = [...ms].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
   const primera = ordenadas[0]
 
@@ -338,6 +355,10 @@ export function elegirEmpresa(ms: readonly Membresia[], pedida?: string): Elecci
   }
 
   const buscada = pedida !== undefined ? plano(pedida) : ''
+  if (buscada === '' && obligatoria) {
+    const nombres = ordenadas.map((m) => `«${m.nombre}»`).join(' o ')
+    return { ok: false, mensaje: `Para esto hay que decir en qué empresa: ${nombres}. Pasala en «empresa».` }
+  }
   if (buscada === '') return { ok: true, empresa: primera, porDefecto: true }
 
   // Primero el nombre completo; después, que empiece igual, porque un modelo

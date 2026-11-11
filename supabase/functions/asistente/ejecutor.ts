@@ -33,6 +33,8 @@ const problema = (texto: string): string => JSON.stringify({ error: texto })
 
 /** Cuántos caracteres de resultado se le pasan al modelo, como mucho. */
 const MAX_TEXTO = 12_000
+/** El tope de las de cotizar: unos 200 renglones (Fase 243). */
+const MAX_TEXTO_COTIZACION = 60_000
 
 /**
  * Lo que una herramienta dejó para la pantalla, además del texto.
@@ -300,9 +302,16 @@ export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
       bandeja.correos.length = Math.min(bandeja.correos.length, MAX_CORREOS)
     }
 
+    /*
+     * Una cotización de 82 renglones no entra en 12.000 caracteres (Fase 243),
+     * y recortarla a la mitad deja al modelo creyendo que tiene 40. Las de
+     * cotizar llevan su propio tope, más alto.
+     */
+    const tope =
+      nombre === 'preparar_cotizacion' || nombre === 'crear_cotizacion' ? MAX_TEXTO_COTIZACION : MAX_TEXTO
     const texto = JSON.stringify(datos ?? null)
-    return texto.length <= MAX_TEXTO
+    return texto.length <= tope
       ? texto
-      : `${texto.slice(0, MAX_TEXTO)}\n[…cortado: pedí menos filas con «limite»]`
+      : `${texto.slice(0, tope)}\n[…cortado: pedí menos filas con «limite»]`
   }
 }

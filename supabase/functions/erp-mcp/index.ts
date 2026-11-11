@@ -28,7 +28,7 @@
  * que también se autentican solas.
  */
 import { crearEjecutor } from '../asistente/ejecutor.ts'
-import { elegirEmpresa, perfil } from '../erp-api/logica.ts'
+import { elegirEmpresa, EMPRESA_OBLIGATORIA, perfil } from '../erp-api/logica.ts'
 import { abrirSesion, tokenDe } from '../erp-api/sesion.ts'
 import {
   desafio,
@@ -270,6 +270,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const elegida = elegirEmpresa(
     apertura.sesion.membresias,
     typeof pedida === 'string' ? pedida : undefined,
+    // Dar de alta en la empresa equivocada no se nota: ésas la piden siempre.
+    EMPRESA_OBLIGATORIA.has(resuelto.nombre),
   )
   if (!elegida.ok) {
     return responder(JSON.stringify(sobreError(resuelto.id, PARAMS_MAL, elegida.mensaje)), accept)

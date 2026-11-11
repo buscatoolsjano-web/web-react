@@ -316,7 +316,7 @@ export async function leerReactEmpresa(sb, slug) {
   const BT = emp.id
   const deBT = (q) => q.eq('company_id', BT)
   const docs = {
-    quote: await traerTodo(sb, 'sales_quotes', 'id, number, original_number, suspected_normalized_number, number_outlier, customer_id, quote_date, currency_code, exchange_rate, status, title, subtotal, tax_amount, total, discount_pct, perception_pct, external_source, external_id, imported_at, legacy_source, series_code, created_by, needs_review, review_reason', deBT),
+    quote: await traerTodo(sb, 'sales_quotes', 'id, number, original_number, suspected_normalized_number, number_outlier, customer_id, quote_date, currency_code, exchange_rate, status, title, subtotal, tax_amount, total, discount_pct, perception_pct, external_source, external_id, external_ref, imported_at, legacy_source, series_code, created_by, needs_review, review_reason', deBT),
     order: await traerTodo(sb, 'sales_orders', 'id, number, original_number, suspected_normalized_number, number_outlier, customer_id, order_date, quote_id, origin, currency_code, exchange_rate, commercial_status, fulfillment_status, title, subtotal, tax_amount, total, discount_pct, perception_pct, external_source, external_id, imported_at, legacy_source, series_code, created_by, needs_review, review_reason', deBT),
     delivery: await traerTodo(sb, 'deliveries', 'id, number, original_number, suspected_normalized_number, number_outlier, customer_id, delivery_date, order_id, source_quote_id, status, currency_code, exchange_rate, title, subtotal, tax_amount, total, external_source, external_id, imported_at, legacy_source, series_code, created_by, needs_review, review_reason', deBT),
   }

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   documentoOpenAPI,
   elegirEmpresa,
+  EMPRESA_OBLIGATORIA,
   ESCRITURAS,
+  esquemaDeEntrada,
   EXPUESTAS,
   gptsAArmar,
   herramientasDelGpt,
@@ -68,13 +70,15 @@ describe('el registro de lo expuesto', () => {
       }
       expect(cuerpo.content['application/json'].schema.required).toEqual([
         ...(h?.obligatorios ?? []),
+        // Fase 243: las que dan de alta piden la empresa explícita.
+        ...(EMPRESA_OBLIGATORIA.has(id) ? ['empresa'] : []),
       ])
     }
   })
 
-  /* La empresa es opcional en todas: las seis personas de una sola empresa no
-     tienen que saber que existen. */
-  it('«empresa» está en todas y no es obligatoria en ninguna', () => {
+  /* La empresa es opcional en todas —las seis personas de una sola empresa no
+     tienen que saber que existen— salvo en las que dan de alta (Fase 243). */
+  it('«empresa» está en todas y sólo es obligatoria donde se da de alta', () => {
     for (const id of EXPUESTAS) {
       const esquema = (
         paths[`/h/${id}`]?.['post']?.['requestBody'] as {
@@ -86,7 +90,8 @@ describe('el registro de lo expuesto', () => {
         }
       ).content['application/json'].schema
       expect(Object.keys(esquema.properties)).toContain('empresa')
-      expect(esquema.required).not.toContain('empresa')
+      if (EMPRESA_OBLIGATORIA.has(id)) expect(esquema.required).toContain('empresa')
+      else expect(esquema.required).not.toContain('empresa')
     }
   })
 })
@@ -260,6 +265,42 @@ describe('con qué empresa se trabaja', () => {
   it('un nombre vacío es lo mismo que no pedir nada', () => {
     const r = elegirEmpresa([buscatools, otra], '   ')
     expect(r.ok && r.porDefecto).toBe(true)
+  })
+
+  /*
+   * Fase 243: dar de alta un producto en la empresa equivocada no se nota.
+   * Para ésas no hay «la de siempre», ni siquiera con una sola empresa.
+   */
+  it('si la herramienta la exige, sin empresa no elige ninguna', () => {
+    const r = elegirEmpresa([buscatools], undefined, true)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.mensaje).toContain('empresa')
+    expect(elegirEmpresa([buscatools], '  ', true).ok).toBe(false)
+    expect(elegirEmpresa([buscatools, otra], 'buscatools', true).ok).toBe(true)
+  })
+
+  it('crear_producto escribe, está expuesta y pide la empresa en el esquema', () => {
+    expect(EXPUESTAS).toContain('crear_producto')
+    expect(ESCRITURAS.has('crear_producto')).toBe(true)
+    expect(EMPRESA_OBLIGATORIA.has('crear_producto')).toBe(true)
+    const h = herramienta('crear_producto')
+    expect(h).not.toBeNull()
+    const esquema = esquemaDeEntrada(h!)
+    expect(esquema['required']).toEqual(expect.arrayContaining(['sku', 'nombre', 'empresa']))
+    // Las demás la siguen teniendo opcional.
+    expect(esquemaDeEntrada(herramienta('buscar_productos')!)['required']).not.toContain('empresa')
+  })
+
+  it('las de cotizar aceptan precio y descuento por renglón, y crear la referencia', () => {
+    for (const id of ['preparar_cotizacion', 'crear_cotizacion']) {
+      const productos = herramienta(id)!.parametros['productos'] as { items: { properties: Record<string, unknown> } }
+      expect(Object.keys(productos.items.properties)).toEqual(
+        expect.arrayContaining(['producto', 'cantidad', 'precio_unitario', 'descuento']),
+      )
+    }
+    expect(Object.keys(herramienta('crear_cotizacion')!.parametros)).toEqual(
+      expect.arrayContaining(['referencia_externa', 'titulo']),
+    )
   })
 })
 

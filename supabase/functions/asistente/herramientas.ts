@@ -74,6 +74,7 @@ export interface Herramienta {
 const texto = (description: string): EsquemaParametro => ({ type: 'string', description })
 const entero = (description: string): EsquemaParametro => ({ type: 'integer', description })
 const booleano = (description: string): EsquemaParametro => ({ type: 'boolean', description })
+const numero = (description: string): EsquemaParametro => ({ type: 'number', description })
 
 /**
  * El catálogo, indexado por id.
@@ -309,11 +310,18 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
           properties: {
             producto: texto('El SKU si lo sabés, o el nombre tal como lo dijeron.'),
             cantidad: entero('Cuántas unidades. Si no lo dijeron, 1.'),
+            // Fase 243: el precio de una oferta o un Excel pisa el de lista y
+            // el último del cliente. Sin precio, se resuelve como siempre.
+            precio_unitario: numero(
+              'Opcional. El precio unitario NETO (sin IVA) en la moneda de la cotización, si te lo ' +
+                'dieron (de un Excel, de una oferta). Pisa el de lista y el último cobrado al cliente.',
+            ),
+            descuento: numero('Opcional. Descuento del renglón en por ciento (0 a 100).'),
           },
           required: ['producto', 'cantidad'],
         },
       },
-      moneda: texto('USD, ARS o EUR. Por defecto USD.'),
+      moneda: texto('USD, ARS o EUR. Por defecto, la de la lista de precios de la empresa.'),
     },
     obligatorios: ['cliente', 'productos'],
     rpc: 'asistente_preparar_cotizacion',
@@ -339,7 +347,9 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
       'Usala sólo cuando la persona ya vio el borrador de preparar_cotizacion y pidió crearla. ' +
       'Resuelve el borrador de nuevo en el servidor, así que mandale los MISMOS argumentos ' +
       'que le pasaste a preparar_cotizacion. Si algún renglón no se puede resolver no crea ' +
-      'nada y te dice cuál. Si la acabás de crear, no crea una segunda: devuelve la que ya existe.',
+      'nada y te dice cuál. Si la acabás de crear, no crea una segunda: devuelve la que ya existe. ' +
+      'Nace en BORRADOR (no se envía a nadie). Con referencia_externa no se duplica: si ya hay una ' +
+      'cotización con esa referencia, devuelve ésa.',
     parametros: {
       cliente: texto('El nombre del cliente, el mismo que usaste en preparar_cotizacion.'),
       productos: {
@@ -350,14 +360,57 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
           properties: {
             producto: texto('El SKU si lo sabés, o el nombre tal como lo dijeron.'),
             cantidad: entero('Cuántas unidades. Si no lo dijeron, 1.'),
+            // Fase 243: el precio de una oferta o un Excel pisa el de lista y
+            // el último del cliente. Sin precio, se resuelve como siempre.
+            precio_unitario: numero(
+              'Opcional. El precio unitario NETO (sin IVA) en la moneda de la cotización, si te lo ' +
+                'dieron (de un Excel, de una oferta). Pisa el de lista y el último cobrado al cliente.',
+            ),
+            descuento: numero('Opcional. Descuento del renglón en por ciento (0 a 100).'),
           },
           required: ['producto', 'cantidad'],
         },
       },
-      moneda: texto('USD, ARS o EUR. Por defecto USD.'),
+      moneda: texto('USD, ARS o EUR. Por defecto, la de la lista de precios de la empresa.'),
+      referencia_externa: texto(
+        'Opcional. El número del mismo documento en otro sistema, p. ej. «STEL COV00748». ' +
+          'Evita crearla dos veces y que la sincronización con STEL la vuelva a importar.',
+      ),
+      titulo: texto('Opcional. El título de la cotización. Por defecto «Cotización para <cliente>».'),
     },
     obligatorios: ['cliente', 'productos'],
     rpc: 'asistente_crear_cotizacion',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+
+  {
+    /*
+     * ── ALTA DE PRODUCTO (Fase 243) ─────────────────────────────────────────
+     *
+     * Para cotizar algo que todavía no está en el catálogo (un renglón de un
+     * Excel de cliente). Busca el SKU antes —sin distinguir mayúsculas, aun
+     * dados de baja— y si existe NO crea otro. Nace en el rubro «Pendiente de
+     * clasificación» y marcado para revisar, igual que lo que crea la sync.
+     * La empresa es OBLIGATORIA en las puertas de afuera (ver
+     * `EMPRESA_OBLIGATORIA`): un producto creado en la empresa equivocada es
+     * difícil de ver y de deshacer.
+     */
+    id: 'crear_producto',
+    descripcion:
+      'CREA un producto en el catálogo: SKU, nombre, marca y precio de lista. Usala sólo cuando un ' +
+      'renglón de una cotización no existe (preparar_cotizacion no lo encontró) y la persona ' +
+      'confirmó que hay que darlo de alta. Antes busca el SKU: si ya existe, no crea otro y te lo ' +
+      'dice. Hay que indicar SIEMPRE la empresa.',
+    parametros: {
+      sku: texto('El SKU / código del producto, tal cual.'),
+      nombre: texto('El nombre o descripción del producto.'),
+      marca: texto('Opcional. La marca (p. ej. NORBAR).'),
+      precio_lista: numero('Opcional. El precio de lista de VENTA, sin IVA, en la moneda de la lista de la empresa.'),
+      moneda: texto('Opcional. La moneda del precio (EUR, USD, ARS); tiene que ser la de la lista de la empresa.'),
+    },
+    obligatorios: ['sku', 'nombre'],
+    rpc: 'asistente_crear_producto',
     fijos: ['company'],
     maxFilas: 1,
   },

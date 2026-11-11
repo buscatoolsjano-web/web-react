@@ -70,6 +70,7 @@ const TITULOS: Readonly<Record<string, string>> = {
   ver_documento: 'Ver un documento',
   preparar_cotizacion: 'Preparar una cotización',
   crear_cotizacion: 'Crear la cotización',
+  crear_producto: 'Crear un producto',
   ultimo_costo: 'Último costo de compra',
   ranking_comercial: 'Ranking comercial',
   buscar_emails: 'Buscar correos',
@@ -226,7 +227,7 @@ export function herramientasMCP(soloEstas?: readonly string[]): Record<string, u
            */
           readOnlyHint: !ESCRITURAS.has(id),
           /*
-           * Crear una cotización NO es destructivo: agrega un documento, no
+           * Crear una cotización o un producto NO es destructivo: agrega, no
            * pisa ni borra nada. Marcarla destructiva haría que el cliente la
            * trate como un borrado, que es otra cosa y asusta de más.
            */

@@ -28,7 +28,7 @@
  * 3. **Nada escribe todavía.** Las trece herramientas expuestas leen.
  */
 import { crearEjecutor } from '../asistente/ejecutor.ts'
-import { documentoOpenAPI, elegirEmpresa, perfil, rutaDe } from './logica.ts'
+import { documentoOpenAPI, elegirEmpresa, EMPRESA_OBLIGATORIA, perfil, rutaDe } from './logica.ts'
 import { abrirSesion, tokenDe } from './sesion.ts'
 
 const CABECERAS = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
@@ -89,7 +89,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   const pedida = typeof cuerpo['empresa'] === 'string' ? cuerpo['empresa'] : undefined
-  const elegida = elegirEmpresa(membresias, pedida)
+  const elegida = elegirEmpresa(membresias, pedida, EMPRESA_OBLIGATORIA.has(ruta.id))
   if (!elegida.ok) return falla('sin_empresa', elegida.mensaje, 403)
 
   /*
