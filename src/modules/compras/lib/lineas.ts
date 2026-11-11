@@ -199,3 +199,17 @@ export function problemasDeLinea(l: LineaPedidoCompra): string[] {
   }
   return p
 }
+
+/**
+ * Las ventas para las que es este pedido (Fase 242): «COT-BTS00010»,
+ * «PDV00221», sin repetir y en el orden de las líneas. Es el dato «Para venta»
+ * de la cabecera y de la hoja.
+ */
+export function ventasDeLineas(lineas: readonly LineaPedidoCompra[]): string[] {
+  const vistas = new Set<string>()
+  for (const l of lineas) {
+    const d = l.venta?.documento
+    if (d) vistas.add(d)
+  }
+  return [...vistas]
+}

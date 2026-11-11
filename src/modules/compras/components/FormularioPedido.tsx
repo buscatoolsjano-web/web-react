@@ -15,6 +15,7 @@ import {
   mover,
   problemasDeLinea,
   renumerar,
+  ventasDeLineas,
   totalesPrevios,
 } from '../lib/lineas'
 import { tasaDe } from '../lib/tratamientos'
@@ -124,6 +125,7 @@ export function FormularioPedido({
             editaLogistica={editaLogistica}
             onCambiar={onCambiarCabecera}
             onProveedor={onProveedor}
+            ventas={ventasDeLineas(lineas)}
           />
         </DocSection>
       ) : null}
@@ -149,7 +151,11 @@ export function FormularioPedido({
               >
                 Nueva línea
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => agregar(lineaCapitulo(lineas.length + 1))}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => agregar(lineaCapitulo(lineas.length + 1))}
+              >
                 Nuevo capítulo
               </Button>
             </>
@@ -157,37 +163,37 @@ export function FormularioPedido({
         }
       >
         <div className={styles.bloqueLineas}>
-        {buscando && editaLineas ? (
-          <SelectorProducto
-            onElegir={(p) => agregar(lineaDeProducto(p, lineas.length + 1))}
-            onCerrar={() => setBuscando(false)}
+          {buscando && editaLineas ? (
+            <SelectorProducto
+              onElegir={(p) => agregar(lineaDeProducto(p, lineas.length + 1))}
+              onCerrar={() => setBuscando(false)}
+            />
+          ) : null}
+
+          <EditorLineas
+            lineas={lineas}
+            moneda={moneda}
+            editable={editaLineas}
+            ultimosPrecios={ultimos.data ?? new Map()}
+            onCambiar={cambiarLinea}
+            onEliminar={(id) => onCambiarLineas(renumerar(lineas.filter((l) => l.id !== id)))}
+            onMover={(id, d) => onCambiarLineas(mover(lineas, id, d))}
           />
-        ) : null}
 
-        <EditorLineas
-          lineas={lineas}
-          moneda={moneda}
-          editable={editaLineas}
-          ultimosPrecios={ultimos.data ?? new Map()}
-          onCambiar={cambiarLinea}
-          onEliminar={(id) => onCambiarLineas(renumerar(lineas.filter((l) => l.id !== id)))}
-          onMover={(id, d) => onCambiarLineas(mover(lineas, id, d))}
-        />
+          {problemas.length > 0 ? (
+            <ul className={styles.problemas} role="alert">
+              {problemas.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+          ) : null}
 
-        {problemas.length > 0 ? (
-          <ul className={styles.problemas} role="alert">
-            {problemas.map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-          </ul>
-        ) : null}
-
-        <PanelTotales
-          moneda={moneda}
-          servidor={totalesServidor}
-          previo={previo}
-          sinGuardar={sinGuardar}
-        />
+          <PanelTotales
+            moneda={moneda}
+            servidor={totalesServidor}
+            previo={previo}
+            sinGuardar={sinGuardar}
+          />
         </div>
       </DocSection>
     </div>

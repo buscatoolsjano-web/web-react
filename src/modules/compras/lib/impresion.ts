@@ -1,3 +1,4 @@
+import { ventasDeLineas } from './lineas'
 import type {
   FacturaDetalle,
   LineaFactura,
@@ -143,6 +144,7 @@ export function imprimiblePedido(
     moneda: doc.moneda,
     datos: [
       ...dato('Proveedor', doc.proveedor),
+      ...dato('Para venta', ventasDeLineas(lineas).join(', ')),
       ...dato('Referencia del proveedor', doc.proveedorReferencia),
       ...dato('Moneda', doc.moneda),
       ...dato('Tipo de cambio', doc.tipoCambio === null ? null : String(doc.tipoCambio)),
@@ -203,6 +205,7 @@ export function imprimiblePedidoBorrador(
     moneda: d.moneda || null,
     datos: [
       ...dato('Proveedor', d.proveedor),
+      ...dato('Para venta', ventasDeLineas(lineas).join(', ')),
       ...dato('Referencia del proveedor', d.proveedorReferencia),
       ...dato('Moneda', d.moneda),
       ...dato('Tipo de cambio', d.tipoCambio),

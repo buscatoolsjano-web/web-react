@@ -138,16 +138,15 @@ export function PedidoNuevoPage() {
             },
           })),
         )
-        if (numeroVenta) setDatos((x) => ({ ...x, notas: x.notas || `Para ${numeroVenta}` }))
-        setAvisoCopia({
-          tono: 'info',
-          texto:
-            elegidas.length === 0
-              ? `${numeroVenta ?? 'La venta'} no tiene nada pendiente de comprar.`
-              : faltan.length > 0
-                ? `Pedido para ${numeroVenta ?? 'la venta'}: elegí el proveedor y poné los precios. Cada línea queda vinculada a la venta; si comprás de más, lo extra queda para stock.`
-                : `Pedido para ${numeroVenta ?? 'la venta'}: el stock alcanza para lo pendiente, igual se cargaron las líneas. Revisá si hace falta comprar.`,
-        })
+        // Para qué venta es lo dice el dato «Para venta» de la cabecera
+        // (Fase 242); el cartel queda sólo para lo que hay que advertir.
+        if (elegidas.length === 0)
+          setAvisoCopia({
+            tono: 'info',
+            texto: `${numeroVenta ?? 'La venta'} no tiene nada pendiente de comprar.`,
+          })
+        else if (faltan.length === 0)
+          setAvisoCopia({ tono: 'info', texto: 'El stock ya cubre lo pendiente.' })
       })
       .catch((e: unknown) => {
         ventaCargada.current = false

@@ -7,6 +7,7 @@ import { SelectorFormaDePago } from '@/features/formasDePago/SelectorFormaDePago
 import { MONEDAS, type DatosPedidoCompra, type ErrorDePedido } from '../lib/validacion'
 import type { ProveedorBuscado } from '../services/catalogo'
 import cab from '@/modules/ventas/components/CabeceraCotizacion.module.css'
+import propio from './CabeceraPedido.module.css'
 
 export interface CabeceraPedidoProps {
   datos: DatosPedidoCompra
@@ -18,6 +19,8 @@ export interface CabeceraPedidoProps {
   editaLogistica: boolean
   onCambiar: (cambios: Partial<DatosPedidoCompra>) => void
   onProveedor: (p: ProveedorBuscado | null) => void
+  /** Las ventas para las que es el pedido (Fase 242): «COT…», «PDV…». */
+  ventas?: readonly string[] | undefined
 }
 
 /**
@@ -47,6 +50,7 @@ export function CabeceraPedido({
   editaLogistica,
   onCambiar,
   onProveedor,
+  ventas = [],
 }: CabeceraPedidoProps) {
   const idPedido = useId()
   const idProveedor = useId()
@@ -63,6 +67,19 @@ export function CabeceraPedido({
           Pedido
         </p>
         <div className={cab.campos}>
+          {/* Para qué venta es (Fase 242): un dato, no un cartel. */}
+          {ventas.length > 0 ? (
+            <div className={propio.paraVenta}>
+              <span className={propio.etiqueta}>Para venta</span>
+              <span className={propio.chips}>
+                {ventas.map((v) => (
+                  <span key={v} className={propio.chipVenta}>
+                    {v}
+                  </span>
+                ))}
+              </span>
+            </div>
+          ) : null}
           <Field label="Fecha" required error={errorDe('fecha')}>
             <Input
               type="date"
@@ -118,7 +135,11 @@ export function CabeceraPedido({
         </div>
       </div>
 
-      <div role="group" className={`${cab.panel} ${cab.panelProveedor}`} aria-labelledby={idProveedor}>
+      <div
+        role="group"
+        className={`${cab.panel} ${cab.panelProveedor}`}
+        aria-labelledby={idProveedor}
+      >
         <p className={cab.panelTitulo} id={idProveedor}>
           Proveedor
         </p>
