@@ -52,6 +52,45 @@ export function lineaDeProducto(p: ProductoElegido, numeroLinea: number): LineaP
   }
 }
 
+/**
+ * Las líneas de otro documento, como líneas de este pedido (Fase 233,
+ * «Duplicar como…»). Viajan producto, referencia, nombre, descripción,
+ * cantidad, descuento, impuesto y las notas. El precio sólo si `conPrecio`
+ * (la copia viene de otra compra); de una venta entra en cero, como cualquier
+ * línea nueva: un precio de venta no es lo que se le paga al proveedor.
+ */
+export function lineasDesdeCopia(
+  lineas: readonly {
+    esNota: boolean
+    productId: string | null
+    sku: string | null
+    nombre: string | null
+    descripcion: string | null
+    cantidad: number
+    precioUnitario: number | null
+    descuentoPct: number
+    tratamientoImpuesto: string
+    tasaImpuesto: number | null
+  }[],
+  conPrecio: boolean,
+): LineaPedidoCompra[] {
+  return lineas.map((l, i) => ({
+    ...BASE,
+    id: nuevoId(),
+    numeroLinea: i + 1,
+    tipoLinea: l.esNota ? 'chapter' : 'product',
+    productId: l.productId,
+    sku: l.sku,
+    nombre: l.nombre,
+    descripcion: l.descripcion,
+    cantidad: l.esNota ? 0 : l.cantidad,
+    precioUnitario: conPrecio ? (l.precioUnitario ?? 0) : 0,
+    descuentoPct: conPrecio ? l.descuentoPct : 0,
+    tratamientoImpuesto: l.tratamientoImpuesto,
+    tasaImpuesto: l.tasaImpuesto,
+  }))
+}
+
 /** Una línea libre: se compra algo que no está en el catálogo. */
 export function lineaLibre(numeroLinea: number): LineaPedidoCompra {
   return { ...BASE, id: nuevoId(), numeroLinea }

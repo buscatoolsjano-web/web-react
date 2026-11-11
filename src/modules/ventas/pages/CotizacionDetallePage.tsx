@@ -27,6 +27,7 @@ import { CadenaDocumento } from '../components/CadenaDocumento'
 import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorMasInformacion } from '../components/EditorMasInformacion'
 import { useUltimoPrecio } from '../hooks/useUltimoPrecio'
+import { BuscadorNombreHoja } from '../components/BuscadorNombreHoja'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { InformacionDocumento } from '../components/InformacionDocumento'
 import { PanelLateralCliente } from '@/modules/clientes/components/PanelLateralCliente'
@@ -1091,6 +1092,29 @@ function Detalle() {
                           onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
                           onDescuento: (id, valor) => cambiarLinea(id, 'discount_pct', valor),
                           onNombre: (id, valor) => cambiarLinea(id, 'name_snapshot', valor),
+                          // En una línea libre, el nombre busca en el catálogo (Fase 232).
+                          buscadorNombre: (id, nombre) =>
+                            borrador.lineas.find((x) => x.clave === id)?.productId === null ? (
+                              <BuscadorNombreHoja
+                                valor={nombre}
+                                listaPrecioId={borrador.cabecera.listaPrecioId || null}
+                                moneda={borrador.cabecera.moneda || null}
+                                historicos={historicos}
+                                onTexto={(t) => cambiarLinea(id, 'name_snapshot', t)}
+                                onElegir={(p, precio) =>
+                                  setBorrador((x) =>
+                                    x
+                                      ? asignarProductoALinea(x, id, {
+                                          productId: p.id,
+                                          sku: p.sku,
+                                          nombre: p.nombre,
+                                          precioUnitario: precio.precio,
+                                        })
+                                      : x,
+                                  )
+                                }
+                              />
+                            ) : null,
                           onDescripcion: (id, valor) => cambiarLinea(id, 'description_snapshot', valor),
                           onReferencia: (id, valor) => cambiarLinea(id, 'sku_snapshot', valor),
                           onEliminar: (id) => setBorrador((b) => (b ? quitarLinea(b, id) : b)),

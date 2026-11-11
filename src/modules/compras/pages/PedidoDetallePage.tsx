@@ -18,6 +18,7 @@ import { FormularioPedido } from '../components/FormularioPedido'
 import { ModalImpresionCompras } from '../components/ModalImpresionCompras'
 import { PanelAdjuntosCompras } from '../components/PanelAdjuntosCompras'
 import { PanelRelacionadosPedido } from '../components/PanelRelacionadosPedido'
+import { DialogoDuplicarComo } from '@/features/copiarDocumento/DialogoDuplicarComo'
 import { editabilidadDe } from '../lib/estados'
 import { problemasDeLinea } from '../lib/lineas'
 import { formatearFecha, formatearFechaHora, formatearImporte } from '../lib/formato'
@@ -102,6 +103,7 @@ export function PedidoDetallePage() {
   const [errores, setErrores] = useState<ErrorDePedido[]>([])
   const [confirmando, setConfirmando] = useState(false)
   const [cancelando, setCancelando] = useState(false)
+  const [duplicandoComo, setDuplicandoComo] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
   const [imprimiendo, setImprimiendo] = useState(false)
 
@@ -310,6 +312,13 @@ export function PedidoDetallePage() {
                   {estado.duplicar.isPending ? 'Duplicando…' : 'Duplicar'}
                 </Button>
               ) : null}
+              {/* En otro tipo de documento (Fase 233): una cotización o un
+                  pedido de venta con las mismas líneas. */}
+              {escribe ? (
+                <Button variant="secondary" icon={<Icon name="refresh" size={16} />} onClick={() => setDuplicandoComo(true)}>
+                  Duplicar como…
+                </Button>
+              ) : null}
             </>
           }
           danger={
@@ -464,6 +473,15 @@ export function PedidoDetallePage() {
           />
         ) : null}
       </section>
+
+      {duplicandoComo ? (
+        <DialogoDuplicarComo
+          origen="pedido_compra"
+          id={pedido.id}
+          numero={pedido.numero}
+          onCerrar={() => setDuplicandoComo(false)}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={confirmando}

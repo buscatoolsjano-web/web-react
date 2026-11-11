@@ -3,6 +3,7 @@ import {
   lineaCapitulo,
   lineaDeProducto,
   lineaLibre,
+  lineasDesdeCopia,
   mover,
   netoDeLinea,
   problemasDeLinea,
@@ -181,5 +182,28 @@ describe('problemasDeLinea', () => {
   it('un capítulo sólo necesita título', () => {
     expect(problemasDeLinea(lineaCapitulo(1))).toEqual([])
     expect(problemasDeLinea({ ...lineaCapitulo(1), nombre: '  ' })[0]).toContain('título')
+  })
+})
+
+describe('lineasDesdeCopia («Duplicar como…», Fase 233)', () => {
+  const origen = [
+    {
+      esNota: false, productId: 'p1', sku: 'TE.9370', nombre: 'Balanceador', descripcion: 'Marca: TECNA',
+      cantidad: 2, precioUnitario: 2347, descuentoPct: 10, tratamientoImpuesto: 'vat_21', tasaImpuesto: 21,
+    },
+    {
+      esNota: true, productId: null, sku: null, nombre: 'Entrega en planta', descripcion: null,
+      cantidad: 0, precioUnitario: null, descuentoPct: 0, tratamientoImpuesto: 'exempt', tasaImpuesto: 0,
+    },
+  ]
+
+  it('desde una venta: copia producto y cantidad, pero el precio y el descuento entran en cero', () => {
+    const [l, nota] = lineasDesdeCopia(origen, false)
+    expect(l).toMatchObject({ tipoLinea: 'product', productId: 'p1', sku: 'TE.9370', cantidad: 2, precioUnitario: 0, descuentoPct: 0 })
+    expect(nota).toMatchObject({ tipoLinea: 'chapter', nombre: 'Entrega en planta', numeroLinea: 2 })
+  })
+
+  it('desde otra compra: el precio y el descuento viajan', () => {
+    expect(lineasDesdeCopia(origen, true)[0]).toMatchObject({ precioUnitario: 2347, descuentoPct: 10 })
   })
 })

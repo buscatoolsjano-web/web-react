@@ -20,6 +20,7 @@ import { borrarDocumento, cancelarDocumento, duplicarDocumento } from '../servic
 import { anularEntrega } from '../services/entregas'
 import { ETIQUETA_DE, RUTA_DE, type DocumentoDetalle } from '../types'
 import { ModalImpresion } from './ModalImpresion'
+import { DialogoDuplicarComo } from '@/features/copiarDocumento/DialogoDuplicarComo'
 
 /**
  * Fase 19 · E5: ya no hay opciones.
@@ -75,6 +76,7 @@ export function useAccionesDocumento(
   const navegar = useNavigate()
   const queryClient = useQueryClient()
   const [imprimiendo, setImprimiendo] = useState(false)
+  const [duplicandoComo, setDuplicandoComo] = useState(false)
   const [confirmar, setConfirmar] = useState<'cancelar' | 'eliminar' | 'anular' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -201,6 +203,14 @@ export function useAccionesDocumento(
             {duplicar.isPending ? 'Duplicando…' : `Duplicar ${nombre}`}
           </Button>
         ) : null}
+        {/* Duplicar en OTRO tipo de documento (Fase 233): abre el alta del
+            destino con las líneas cargadas. No consume numeración hasta que
+            se guarda, así que no lo frena la autoridad de STEL. */}
+        {sePuedeDuplicar ? (
+          <Button variant="secondary" icon={<Icon name="refresh" size={16} />} onClick={() => setDuplicandoComo(true)}>
+            Duplicar como…
+          </Button>
+        ) : null}
         {sePuedeCancelar ? (
           <Button variant="secondary" disabled={cancelar.isPending} onClick={() => setConfirmar('cancelar')}>
             Cancelar {nombre}
@@ -245,6 +255,14 @@ export function useAccionesDocumento(
     capas: (
       <>
         {imprimiendo ? <ModalImpresion doc={doc} onCerrar={() => setImprimiendo(false)} /> : null}
+        {duplicandoComo && (doc.tipo === 'cotizacion' || doc.tipo === 'pedido') ? (
+          <DialogoDuplicarComo
+            origen={doc.tipo}
+            id={doc.id}
+            numero={doc.numero}
+            onCerrar={() => setDuplicandoComo(false)}
+          />
+        ) : null}
         <ConfirmDialog
           open={confirmar === 'cancelar'}
           tone="danger"

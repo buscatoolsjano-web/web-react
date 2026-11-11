@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { cruzaDeLado, leerParaCopiar, leerParametroCopia } from '@/services/copiarDocumento'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -8,7 +9,7 @@ import { Alert } from '@/components/feedback/Alert'
 import docUi from '@/components/document/Document.module.css'
 import { FormularioPedido } from '../components/FormularioPedido'
 import { permisosDe } from '../lib/permisos'
-import { problemasDeLinea } from '../lib/lineas'
+import { lineasDesdeCopia, problemasDeLinea } from '../lib/lineas'
 import { pedidoVacio, validarPedido, type DatosPedidoCompra, type ErrorDePedido } from '../lib/validacion'
 import { useCrearPedido } from '../hooks/usePedidos'
 import type { ProveedorBuscado } from '../services/catalogo'
@@ -38,6 +39,37 @@ export function PedidoNuevoPage() {
   const [lineas, setLineas] = useState<LineaPedidoCompra[]>([])
   const [errores, setErrores] = useState<ErrorDePedido[]>([])
   const [intentado, setIntentado] = useState(false)
+
+  /**
+   * «Duplicar como…» (Fase 233): `?copiar=<tipo>:<id>` trae las líneas de
+   * otro documento —una cotización, un pedido de venta u otra compra—. Se
+   * carga una sola vez; el proveedor lo elige la persona.
+   */
+  const [parametros] = useSearchParams()
+  const copia = leerParametroCopia(parametros.get('copiar'))
+  const companyId = activa?.companyId ?? null
+  const copiaCargada = useRef(false)
+  const [avisoCopia, setAvisoCopia] = useState<{ tono: 'info' | 'danger'; texto: string } | null>(null)
+  useEffect(() => {
+    if (!copia || !companyId || copiaCargada.current) return
+    copiaCargada.current = true
+    void leerParaCopiar(companyId, copia.tipo, copia.id)
+      .then((d) => {
+        const conPrecio = !cruzaDeLado(d.origen, 'pedido_compra')
+        setLineas(lineasDesdeCopia(d.lineas, conPrecio))
+        setDatos((x) => ({ ...x, moneda: x.moneda || (d.moneda ?? ''), notas: x.notas || (d.notas ?? '') }))
+        setAvisoCopia({
+          tono: 'info',
+          texto: conPrecio
+            ? `Copia de ${d.numero ?? 'otro pedido'}: elegí el proveedor y revisá antes de crear.`
+            : `Copia de ${d.numero ?? 'una venta'}: elegí el proveedor y escribí los precios de compra (los de venta no se copian; al lado de cada línea ves el último precio pagado).`,
+        })
+      })
+      .catch((e: unknown) => {
+        copiaCargada.current = false
+        setAvisoCopia({ tono: 'danger', texto: e instanceof Error ? e.message : String(e) })
+      })
+  }, [copia, companyId])
 
   const cambiar = (cambios: Partial<DatosPedidoCompra>) => {
     const siguiente = { ...datos, ...cambios }
@@ -98,6 +130,11 @@ export function PedidoNuevoPage() {
       />
 
       <section className={styles.bloque}>
+        {avisoCopia ? (
+          <Alert tone={avisoCopia.tono} role={avisoCopia.tono === 'danger' ? 'alert' : 'status'}>
+            <p>{avisoCopia.texto}</p>
+          </Alert>
+        ) : null}
         <FormularioPedido
           datos={datos}
           errores={errores}

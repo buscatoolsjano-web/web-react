@@ -211,3 +211,18 @@ describe('La hoja editable: nombre, descripción y referencia', () => {
     expect(screen.getByText('Destornillador EI3')).toBeInTheDocument()
   })
 })
+
+describe('El nombre de una línea libre busca en el catálogo (Fase 232)', () => {
+  it('si la página da un buscador, la línea lo usa en vez del texto plano', () => {
+    const e = { ...edicion(), onNombre: vi.fn(), buscadorNombre: (id: string) => <div data-testid={`buscador-${id}`} /> }
+    render(<VistaImpresion doc={doc([linea('l1', { nombre: 'vpph' })])} empresa={EMPRESA} opciones={OPCIONES} edicion={e} />)
+    expect(screen.getByTestId('buscador-l1')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Nombre del producto' })).toBeNull()
+  })
+
+  it('una línea que ya es de un producto (el buscador devuelve null) se edita como texto', () => {
+    const e = { ...edicion(), onNombre: vi.fn(), buscadorNombre: () => null }
+    render(<VistaImpresion doc={doc([linea('l1')])} empresa={EMPRESA} opciones={OPCIONES} edicion={e} />)
+    expect(screen.getByRole('textbox', { name: 'Nombre del producto' })).toHaveValue('Destornillador EI3')
+  })
+})

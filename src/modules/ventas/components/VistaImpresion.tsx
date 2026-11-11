@@ -30,6 +30,18 @@ export interface EdicionEnHoja {
   onNombre?: ((id: string, valor: string) => void) | undefined
   onDescripcion?: ((id: string, valor: string) => void) | undefined
   onReferencia?: ((id: string, valor: string) => void) | undefined
+  /**
+   * El buscador de productos para el nombre de una línea, ya armado (Fase 232).
+   *
+   * «Cuando busco un producto desde la vista previa también me tienen que
+   * aparecer los productos que contengan eso, no quiero que sólo se ponga
+   * texto plano.» Igual que en la tabla: en una línea libre, escribir busca en
+   * el catálogo y elegir rellena la línea. Viene armado desde la página por el
+   * mismo motivo que `selectorCliente`: la hoja es la que se imprime y no tiene
+   * por qué saber cómo se buscan productos. Devuelve `null` cuando la línea ya
+   * es de un producto: ahí el nombre se edita como texto.
+   */
+  buscadorNombre?: ((id: string, nombre: string | null) => ReactNode) | undefined
   onEliminar: (id: string) => void
   onAgregar: () => void
   /**
@@ -505,7 +517,7 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
                   ) : null}
                 </td>
                 <td>
-                  {edicion?.onNombre ? (
+                  {edicion?.buscadorNombre?.(l.id, l.nombre) ?? (edicion?.onNombre ? (
                     <input
                       className={styles.nombreEditable}
                       aria-label="Nombre del producto"
@@ -514,7 +526,7 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
                     />
                   ) : (
                     <div className={styles.nombre}>{l.nombre ?? '—'}</div>
-                  )}
+                  ))}
                   {/* La caja de «texto comercial» sólo aparece cuando hace falta
                       (Fase 217): en una línea escrita a mano (sin atributos) o si
                       ya tiene un texto propio para modificar. Un producto del

@@ -17,6 +17,8 @@ import { BuscadorCliente } from '../components/BuscadorCliente'
 import { EditorCabecera } from '../components/EditorCabecera'
 import { EditorMasInformacion } from '../components/EditorMasInformacion'
 import { useUltimoPrecio } from '../hooks/useUltimoPrecio'
+import { useCopiaEnBorrador } from '../hooks/useCopiaEnBorrador'
+import { BuscadorNombreHoja } from '../components/BuscadorNombreHoja'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalCatalogoProductos } from '../components/ModalCatalogoProductos'
 import { usePrecargarCatalogoDeDocumento } from '../hooks/useCatalogoParaDocumento'
@@ -129,6 +131,8 @@ export function CotizacionNuevaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [b, setB] = useState<Borrador>(inicial)
+  // «Duplicar como…» (Fase 233): las líneas de otro documento, si la URL las pide.
+  const avisoCopia = useCopiaEnBorrador(activa?.companyId ?? null, 'cotizacion', b.cabecera.listaPrecioId, setB)
   // Fase 28 · E1: el catálogo completo, para elegir desde la hoja.
   const [catalogoAbierto, setCatalogoAbierto] = useState(false)
   // Fase 28 · E14: la agenda del cliente, sin abandonar el documento.
@@ -638,6 +642,12 @@ export function CotizacionNuevaPage() {
         </Alert>
       ) : null}
 
+      {avisoCopia ? (
+        <Alert tone={avisoCopia.tono} role={avisoCopia.tono === 'danger' ? 'alert' : 'status'} title="Duplicado de otro documento">
+          <p>{avisoCopia.texto}</p>
+        </Alert>
+      ) : null}
+
       {/* Fase 17 · E2: cuando un default del cliente no se puede aplicar, se
           dice por qué. Nunca se aplica un reemplazo en silencio. */}
       {avisosCliente.length > 0 ? (
@@ -789,6 +799,27 @@ export function CotizacionNuevaPage() {
                 onPrecio: (id, valor) => cambiarLinea(id, 'unit_price', valor),
                 onDescuento: (id, valor) => cambiarLinea(id, 'discount_pct', valor),
                 onNombre: (id, valor) => cambiarLinea(id, 'name_snapshot', valor),
+                // En una línea libre, el nombre busca en el catálogo (Fase 232).
+                buscadorNombre: (id, nombre) =>
+                  b.lineas.find((x) => x.clave === id)?.productId === null ? (
+                    <BuscadorNombreHoja
+                      valor={nombre}
+                      listaPrecioId={b.cabecera.listaPrecioId || null}
+                      moneda={b.cabecera.moneda || null}
+                      historicos={historicos}
+                      onTexto={(t) => cambiarLinea(id, 'name_snapshot', t)}
+                      onElegir={(p, precio) =>
+                        setB((x) =>
+                          asignarProductoALinea(x, id, {
+                            productId: p.id,
+                            sku: p.sku,
+                            nombre: p.nombre,
+                            precioUnitario: precio.precio,
+                          }),
+                        )
+                      }
+                    />
+                  ) : null,
                 onDescripcion: (id, valor) => cambiarLinea(id, 'description_snapshot', valor),
                 onReferencia: (id, valor) => cambiarLinea(id, 'sku_snapshot', valor),
                 onEliminar: (id) => setB((x) => quitarLinea(x, id)),
