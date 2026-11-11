@@ -48,6 +48,20 @@ export const EXPUESTAS: readonly string[] = [
   'crear_cotizacion',
   // catálogo, alta (Fase 243)
   'crear_producto',
+  // Fase 244: todo lo que se hace desde las pantallas.
+  'editar_cotizacion',
+  'cambiar_estado',
+  'convertir_a_pedido',
+  'crear_entrega',
+  'crear_factura',
+  'crear_cliente',
+  'editar_cliente',
+  'crear_pedido_compra',
+  'registrar_recepcion',
+  'registrar_factura_proveedor',
+  'actualizar_producto',
+  'ajustar_stock',
+  'enviar_documento',
   // compras
   'ultimo_costo',
   // informes
@@ -65,7 +79,43 @@ export const EXPUESTAS: readonly string[] = [
  * coincidir: una herramienta que escribe y que en una de las dos pasa por
  * lectura es una escritura sin confirmar.
  */
-export const ESCRITURAS: ReadonlySet<string> = new Set<string>(['crear_cotizacion', 'crear_producto'])
+export const ESCRITURAS: ReadonlySet<string> = new Set<string>([
+  'crear_cotizacion',
+  'crear_producto',
+  'editar_cotizacion',
+  'cambiar_estado',
+  'convertir_a_pedido',
+  'crear_entrega',
+  'crear_factura',
+  'crear_cliente',
+  'editar_cliente',
+  'crear_pedido_compra',
+  'registrar_recepcion',
+  'registrar_factura_proveedor',
+  'actualizar_producto',
+  'ajustar_stock',
+  'enviar_documento',
+])
+
+/**
+ * Las que no se deshacen con otra llamada (Fase 244): un correo mandado, un
+ * ajuste de stock, una cancelación. MCP las marca `destructiveHint` para que el
+ * cliente pida confirmación con más cuidado.
+ */
+export const DESTRUCTIVAS: ReadonlySet<string> = new Set<string>(['cambiar_estado', 'ajustar_stock', 'enviar_documento'])
+
+/**
+ * Las que, repetidas, hacen dos veces lo mismo (dos entregas, dos recepciones,
+ * dos pedidos). Las demás detectan el reintento solas.
+ */
+export const NO_IDEMPOTENTES: ReadonlySet<string> = new Set<string>([
+  'crear_entrega',
+  'crear_pedido_compra',
+  'registrar_recepcion',
+  'registrar_factura_proveedor',
+  'ajustar_stock',
+  'crear_cliente',
+])
 
 /**
  * Las que exigen decir la empresa, aunque la persona tenga una sola (Fase 243).
@@ -75,7 +125,15 @@ export const ESCRITURAS: ReadonlySet<string> = new Set<string>(['crear_cotizacio
  * no se nota hasta que aparece en el catálogo de la otra. Para esas, nada de
  * «la de siempre»: la empresa va escrita y entra en el esquema como obligatoria.
  */
-export const EMPRESA_OBLIGATORIA: ReadonlySet<string> = new Set<string>(['crear_producto'])
+export const EMPRESA_OBLIGATORIA: ReadonlySet<string> = new Set<string>([
+  'crear_producto',
+  // Fase 244: lo que no se ata a un número de documento. El catálogo de
+  // Torquetools es un clon del de Buscatools: el mismo SKU existe en las dos.
+  'crear_cliente',
+  'crear_pedido_compra',
+  'actualizar_producto',
+  'ajustar_stock',
+])
 
 /**
  * El parámetro que NO viene del catálogo.

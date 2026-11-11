@@ -29,7 +29,7 @@
  * tenga la postura que su protocolo necesita en vez de bajar las dos a la más
  * débil.
  */
-import { ESCRITURAS, esquemaDeEntrada, EXPUESTAS } from '../erp-api/logica.ts'
+import { DESTRUCTIVAS, ESCRITURAS, esquemaDeEntrada, EXPUESTAS, NO_IDEMPOTENTES } from '../erp-api/logica.ts'
 import { herramienta } from '../asistente/herramientas.ts'
 import { entradaDeSkill, INSTRUCCIONES, RECURSOS, SKILL_URI } from './skill.ts'
 
@@ -71,6 +71,19 @@ const TITULOS: Readonly<Record<string, string>> = {
   preparar_cotizacion: 'Preparar una cotización',
   crear_cotizacion: 'Crear la cotización',
   crear_producto: 'Crear un producto',
+  editar_cotizacion: 'Editar una cotización',
+  cambiar_estado: 'Cambiar el estado de un documento',
+  convertir_a_pedido: 'Convertir en pedido',
+  crear_entrega: 'Crear una nota de entrega',
+  crear_factura: 'Facturar un pedido',
+  crear_cliente: 'Crear un cliente',
+  editar_cliente: 'Editar un cliente',
+  crear_pedido_compra: 'Crear un pedido a proveedor',
+  registrar_recepcion: 'Registrar una recepción',
+  registrar_factura_proveedor: 'Cargar una factura de proveedor',
+  actualizar_producto: 'Actualizar un producto',
+  ajustar_stock: 'Ajustar el stock',
+  enviar_documento: 'Enviar un documento por correo',
   ultimo_costo: 'Último costo de compra',
   ranking_comercial: 'Ranking comercial',
   buscar_emails: 'Buscar correos',
@@ -231,9 +244,9 @@ export function herramientasMCP(soloEstas?: readonly string[]): Record<string, u
            * pisa ni borra nada. Marcarla destructiva haría que el cliente la
            * trate como un borrado, que es otra cosa y asusta de más.
            */
-          destructiveHint: false,
+          destructiveHint: DESTRUCTIVAS.has(id),
           // Un reintento no crea una segunda: la RPC lo detecta por huella.
-          idempotentHint: true,
+          idempotentHint: !NO_IDEMPOTENTES.has(id),
           // No sale a internet: habla con nuestra base y nada más.
           openWorldHint: false,
         },

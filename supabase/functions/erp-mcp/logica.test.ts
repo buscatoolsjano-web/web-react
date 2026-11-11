@@ -15,7 +15,7 @@ import {
   versionAUsar,
   VERSIONES,
 } from './logica'
-import { ESCRITURAS, EXPUESTAS } from '../erp-api/logica'
+import { DESTRUCTIVAS, ESCRITURAS, EXPUESTAS, NO_IDEMPOTENTES } from '../erp-api/logica'
 import {
   entradaDeSkill,
   INSTRUCCIONES,
@@ -373,7 +373,10 @@ describe('las herramientas que se publican', () => {
       const a = t?.['annotations'] as Record<string, boolean>
       expect(a['readOnlyHint'], nombre).toBe(false)
       // Crear no es destructivo: agrega un documento, no pisa ni borra nada.
-      expect(a['destructiveHint'], nombre).toBe(false)
+      // Lo que no se deshace (un correo, un ajuste, una cancelación) sí lo es
+      // (Fase 244), y sale de `DESTRUCTIVAS`, no de otra lista a mano.
+      expect(a['destructiveHint'], nombre).toBe(DESTRUCTIVAS.has(nombre))
+      expect(a['idempotentHint'], nombre).toBe(!NO_IDEMPOTENTES.has(nombre))
     }
   })
 

@@ -217,8 +217,30 @@ antes de que exista.
 - Si ese mismo documento existe en STEL (p. ej. «COV00748»), pasalo en
   \`referencia_externa\` de \`crear_cotizacion\`: no se crea dos veces y la
   sincronización con STEL no la vuelve a importar.
-- La cotización nace en **borrador**. Para revisarla después, \`ver_documento\`
-  con su número o con la referencia externa.
+- La cotización queda **Pendiente**: abierta y editable, no se le manda a nadie.
+  Para revisarla después, \`ver_documento\` con su número o con la referencia externa.
+
+## Hacer cosas en el ERP
+
+\`editar_cotizacion\`, \`cambiar_estado\`, \`convertir_a_pedido\`, \`crear_entrega\`,
+\`crear_factura\`, \`crear_cliente\`, \`editar_cliente\`, \`crear_pedido_compra\`,
+\`registrar_recepcion\`, \`registrar_factura_proveedor\`, \`actualizar_producto\`,
+\`ajustar_stock\`, \`enviar_documento\`
+
+Todo se nombra por **número** (COT…, PDV…, PC…), **SKU** o **nombre**. Cada una
+hace lo mismo que el botón de la pantalla, con las mismas reglas.
+
+- **Antes de escribir, decí qué vas a hacer y pedí confirmación.** Más todavía con
+  \`enviar_documento\` (un correo no se deshace), \`ajustar_stock\` y cancelar.
+- El circuito de venta: cotización → \`convertir_a_pedido\` (queda confirmado) →
+  \`crear_entrega\` (con \`confirmar=true\` descuenta stock) → \`crear_factura\`.
+- El de compra: \`crear_pedido_compra\` (con \`para_venta\` queda vinculado a la
+  venta) → \`cambiar_estado\` a confirmado → \`registrar_recepcion\` (entra el
+  stock) → \`registrar_factura_proveedor\`.
+- Si algo vuelve con \`error\`, NO se hizo nada: decíselo a la persona con ese texto.
+- En Torquetools la numeración de pedidos y remitos la lleva STEL: convertir y
+  entregar desde acá no se puede, y la herramienta lo dice.
+- \`enviar_documento\` manda el detalle en el cuerpo del correo (sin PDF adjunto).
 
 ## Costos de compra
 

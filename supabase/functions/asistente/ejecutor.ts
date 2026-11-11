@@ -202,6 +202,49 @@ const MAX_PRODUCTOS = 12
  */
 const MAX_CORREOS = 25
 
+/** La API de correo del ERP (Cloud Run). La misma que usa la pantalla de Emails. */
+const API_CORREO = (Deno.env.get('EMAILS_API_URL') ?? 'https://buscatools-erp-email-api-545134968830.us-east1.run.app').replace(/\/+$/, '')
+
+/**
+ * Manda el correo que armó `asistente_preparar_envio`. Si la base devolvió un
+ * error, pasa tal cual. `client_request_id` hace que un reintento el mismo día
+ * no mande dos correos: la API lo reconoce y contesta `repetido`.
+ */
+async function enviarCorreo(datos: unknown, token: string): Promise<unknown> {
+  if (typeof datos !== 'object' || datos === null || !('envio' in datos)) return datos
+  const d = datos as { envio: Record<string, unknown>; documento?: unknown; desde?: unknown }
+  const e = d.envio
+  try {
+    const r = await fetch(`${API_CORREO}/gmail/send`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        account_id: e['account_id'],
+        modo: 'nuevo',
+        thread_id: null,
+        ref_message_id: null,
+        draft_id: null,
+        para: e['para'],
+        cc: [],
+        cco: [],
+        asunto: e['asunto'],
+        texto: e['texto'],
+        adjuntos: [],
+        client_request_id: e['client_request_id'],
+      }),
+    })
+    const j = (await r.json().catch(() => ({}))) as Record<string, unknown>
+    const estado = typeof j['estado'] === 'string' ? j['estado'] : null
+    if (estado === 'enviado' || estado === 'en_curso') {
+      return { enviado: true, estado, repetido: j['repetido'] === true, documento: d.documento, desde: d.desde, para: e['para'], asunto: e['asunto'] }
+    }
+    console.error(`asistente: enviar_documento → API de correo ${r.status} ${JSON.stringify(j).slice(0, 200)}`)
+    return { error: `No se pudo mandar el correo${estado === 'incierto' ? ': no se sabe si salió, revisá Enviados en Gmail antes de reintentar' : ''}.` }
+  } catch {
+    return { error: 'No pude hablar con el servicio de correo. Probá de nuevo en un rato.' }
+  }
+}
+
 export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -277,6 +320,11 @@ export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
     if (nombre === 'buscar_productos' && argumentos['solo_con_stock'] === true) {
       datos = soloConStock(datos)
     }
+
+    // Enviar por correo (Fase 244): la base arma el correo —cuenta, para,
+    // asunto, texto— y acá se manda por la API de correo del ERP, con la
+    // sesión de quien pregunta. Es la misma puerta que usa la pantalla.
+    if (nombre === 'enviar_documento') datos = await enviarCorreo(datos, ctx.token)
 
     // El borrador se guarda entero para la pantalla, antes de recortarlo
     // para el modelo.

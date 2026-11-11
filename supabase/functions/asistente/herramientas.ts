@@ -348,7 +348,7 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
       'Resuelve el borrador de nuevo en el servidor, así que mandale los MISMOS argumentos ' +
       'que le pasaste a preparar_cotizacion. Si algún renglón no se puede resolver no crea ' +
       'nada y te dice cuál. Si la acabás de crear, no crea una segunda: devuelve la que ya existe. ' +
-      'Nace en BORRADOR (no se envía a nadie). Con referencia_externa no se duplica: si ya hay una ' +
+      'Queda Pendiente: abierta y editable, NO se le envía a nadie. Con referencia_externa no se duplica: si ya hay una ' +
       'cotización con esa referencia, devuelve ésa.',
     parametros: {
       cliente: texto('El nombre del cliente, el mismo que usaste en preparar_cotizacion.'),
@@ -411,6 +411,290 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
     },
     obligatorios: ['sku', 'nombre'],
     rpc: 'asistente_crear_producto',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+
+  // ── Fase 244: todo lo que se hace desde las pantallas ───────────────────────
+  /*
+   * Cada una es una función `asistente_*` de la base que recibe NÚMEROS, SKU y
+   * nombres —nunca un uuid— y llama a la MISMA función que usa la pantalla. Los
+   * errores vuelven como {"error": "..."} en castellano y nada queda a medias.
+   */
+  {
+    id: 'editar_cotizacion',
+    descripcion:
+      'MODIFICA una cotización Pendiente: cambia cantidades, precios o descuentos, agrega o quita ' +
+      'renglones, y el título, las notas, la condición de pago, la validez o el descuento general. ' +
+      'Con modo «actualizar» (por omisión) cambia los renglones que nombrás por SKU y agrega los que no ' +
+      'estén; «agregar» suma renglones; «quitar» saca los SKU que nombrás; «reemplazar» deja SÓLO los ' +
+      'que mandás. Una cotización aceptada o rechazada no se modifica.',
+    parametros: {
+      numero: texto('El número de la cotización (COT…), o su referencia externa.'),
+      productos: {
+        type: 'array',
+        description: 'Los renglones a cambiar, agregar o quitar.',
+        items: {
+          type: 'object',
+          properties: {
+            producto: texto('El SKU.'),
+            cantidad: numero('Opcional. La cantidad.'),
+            precio_unitario: numero('Opcional. El precio unitario neto (sin IVA).'),
+            descuento: numero('Opcional. Descuento del renglón en por ciento.'),
+          },
+          required: ['producto'],
+        },
+      },
+      modo: { type: 'string', description: 'actualizar (por omisión), agregar, quitar o reemplazar.', enum: ['actualizar', 'agregar', 'quitar', 'reemplazar'] },
+      titulo: texto('Opcional. El título nuevo.'),
+      notas: texto('Opcional. Las notas nuevas.'),
+      condicion_pago: texto('Opcional. La condición de pago.'),
+      validez: texto('Opcional. Válida hasta, AAAA-MM-DD.'),
+      descuento_general: numero('Opcional. Descuento general del documento, en por ciento.'),
+    },
+    obligatorios: ['numero'],
+    rpc: 'asistente_editar_cotizacion',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'cambiar_estado',
+    descripcion:
+      'CAMBIA el estado de un documento por su número. Cotización: pendiente, aceptada o rechazada. ' +
+      'Pedido de venta: confirmado o cancelado. Pedido a proveedor: confirmado (= enviado al ' +
+      'proveedor) o cancelado. Un pedido con entregas o recepciones no se cancela.',
+    parametros: {
+      numero: texto('El número del documento (COT…, PDV…, PC…).'),
+      estado: texto('El estado nuevo, en castellano: pendiente, aceptada, rechazada, confirmado, cancelado.'),
+    },
+    obligatorios: ['numero', 'estado'],
+    rpc: 'asistente_cambiar_estado',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'convertir_a_pedido',
+    descripcion:
+      'CONVIERTE una cotización en pedido de venta (la cotización queda aceptada). Por omisión el ' +
+      'pedido queda confirmado, listo para entregar. Si la numeración de pedidos la lleva STEL, no se puede.',
+    parametros: {
+      numero: texto('El número de la cotización.'),
+      confirmar: booleano('Opcional. false deja el pedido en borrador. Por omisión, true.'),
+    },
+    obligatorios: ['numero'],
+    rpc: 'asistente_convertir_a_pedido',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'crear_entrega',
+    descripcion:
+      'CREA una nota de entrega (remito) desde un pedido de venta confirmado. Sin productos, entrega ' +
+      'TODO lo pendiente; con productos, sólo esos y esas cantidades (nunca más de lo pendiente). ' +
+      'Con confirmar=true descuenta el stock en el acto; si no, queda en borrador.',
+    parametros: {
+      numero_pedido: texto('El número del pedido de venta (PDV…).'),
+      productos: {
+        type: 'array',
+        description: 'Opcional. Qué entregar; sin esto, todo lo pendiente.',
+        items: {
+          type: 'object',
+          properties: { producto: texto('El SKU.'), cantidad: numero('Cuántas.') },
+          required: ['producto', 'cantidad'],
+        },
+      },
+      confirmar: booleano('Opcional. true confirma la entrega y descuenta el stock. Por omisión, false.'),
+    },
+    obligatorios: ['numero_pedido'],
+    rpc: 'asistente_crear_entrega',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'crear_factura',
+    descripcion:
+      'CREA la factura de un pedido de venta (una por pedido), en borrador y con número interno: el ' +
+      'número fiscal lo da AFIP al emitirla.',
+    parametros: {
+      numero_pedido: texto('El número del pedido de venta.'),
+      fecha: texto('Opcional. AAAA-MM-DD; por omisión, hoy.'),
+    },
+    obligatorios: ['numero_pedido'],
+    rpc: 'asistente_crear_factura',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'crear_cliente',
+    descripcion:
+      'CREA un cliente, con un contacto y una dirección opcionales. Si ya existe (mismo CUIT o razón ' +
+      'social) no crea otro y te lo dice. Hay que indicar SIEMPRE la empresa.',
+    parametros: {
+      razon_social: texto('La razón social.'),
+      nombre_comercial: texto('Opcional.'),
+      cuit: texto('Opcional. CUIT / NIF.'),
+      email: texto('Opcional. El correo del cliente.'),
+      telefono: texto('Opcional.'),
+      condicion_pago: texto('Opcional.'),
+      moneda: texto('Opcional. Moneda habitual: ARS, USD, EUR.'),
+      contacto_nombre: texto('Opcional. Nombre de la persona de contacto.'),
+      contacto_email: texto('Opcional.'),
+      contacto_telefono: texto('Opcional.'),
+      contacto_cargo: texto('Opcional.'),
+      calle: texto('Opcional. Calle y número.'),
+      ciudad: texto('Opcional.'),
+      provincia: texto('Opcional.'),
+      codigo_postal: texto('Opcional.'),
+      pais: texto('Opcional. Dos letras (AR, ES…); por omisión, el de la empresa.'),
+    },
+    obligatorios: ['razon_social'],
+    rpc: 'asistente_crear_cliente',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'editar_cliente',
+    descripcion:
+      'MODIFICA un cliente: razón social, nombre comercial, CUIT, teléfono, condición de pago, moneda o ' +
+      'notas. Un email se AGREGA a los que ya tiene.',
+    parametros: {
+      cliente: texto('El cliente, como lo devolvió buscar_cliente.'),
+      razon_social: texto('Opcional.'),
+      nombre_comercial: texto('Opcional.'),
+      cuit: texto('Opcional.'),
+      email: texto('Opcional. Se agrega a los que tiene.'),
+      telefono: texto('Opcional.'),
+      condicion_pago: texto('Opcional.'),
+      moneda: texto('Opcional.'),
+      notas: texto('Opcional.'),
+    },
+    obligatorios: ['cliente'],
+    rpc: 'asistente_editar_cliente',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'crear_pedido_compra',
+    descripcion:
+      'CREA un pedido a proveedor en borrador. Con para_venta (una COT… o PDV…) cada renglón queda ' +
+      'vinculado a esa venta, y lo que se compre de más queda para stock. Para mandarlo, después ' +
+      'cambiar_estado a confirmado. Hay que indicar SIEMPRE la empresa.',
+    parametros: {
+      proveedor: texto('El proveedor, por su nombre.'),
+      productos: {
+        type: 'array',
+        description: 'Los renglones.',
+        items: {
+          type: 'object',
+          properties: {
+            producto: texto('El SKU.'),
+            cantidad: numero('Cuántas.'),
+            precio_unitario: numero('Opcional. El precio de COMPRA neto.'),
+            descuento: numero('Opcional. Descuento en por ciento.'),
+          },
+          required: ['producto', 'cantidad'],
+        },
+      },
+      moneda: texto('Opcional. Por omisión, la del proveedor.'),
+      fecha_estimada: texto('Opcional. Llegada estimada, AAAA-MM-DD.'),
+      condicion_pago: texto('Opcional.'),
+      notas: texto('Opcional.'),
+      para_venta: texto('Opcional. La cotización o el pedido de venta para el que se compra.'),
+    },
+    obligatorios: ['proveedor', 'productos'],
+    rpc: 'asistente_crear_pedido_compra',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'registrar_recepcion',
+    descripcion:
+      'REGISTRA la llegada de mercadería de un pedido a proveedor confirmado. Sin productos, recibe ' +
+      'todo lo pendiente. Por omisión la confirma y el stock entra en el acto.',
+    parametros: {
+      numero_pedido: texto('El número del pedido a proveedor (PC…).'),
+      productos: {
+        type: 'array',
+        description: 'Opcional. Qué llegó; sin esto, todo lo pendiente.',
+        items: {
+          type: 'object',
+          properties: { producto: texto('El SKU.'), cantidad: numero('Cuántas llegaron.') },
+          required: ['producto', 'cantidad'],
+        },
+      },
+      remito_proveedor: texto('Opcional. El número del remito del proveedor.'),
+      confirmar: booleano('Opcional. false la deja en borrador (sin mover stock). Por omisión, true.'),
+    },
+    obligatorios: ['numero_pedido'],
+    rpc: 'asistente_registrar_recepcion',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'registrar_factura_proveedor',
+    descripcion:
+      'CARGA la factura de un proveedor por lo RECIBIDO y no facturado de un pedido a proveedor, con ' +
+      'los precios del pedido. Por omisión queda en borrador para revisarla; registrar=true la registra.',
+    parametros: {
+      numero_pedido: texto('El número del pedido a proveedor (PC…).'),
+      numero_proveedor: texto('El número de la factura del proveedor (p. ej. A-0001-00001234).'),
+      fecha: texto('Opcional. AAAA-MM-DD; por omisión, hoy.'),
+      vencimiento: texto('Opcional. AAAA-MM-DD.'),
+      registrar: booleano('Opcional. true la registra. Por omisión, false (borrador).'),
+    },
+    obligatorios: ['numero_pedido', 'numero_proveedor'],
+    rpc: 'asistente_registrar_factura_proveedor',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'actualizar_producto',
+    descripcion:
+      'CAMBIA el precio de lista, el costo o el nombre de un producto por su SKU. Un producto que ' +
+      'maneja STEL no cambia precio ni costo acá (la sincronización lo pisaría). Hay que indicar SIEMPRE la empresa.',
+    parametros: {
+      sku: texto('El SKU exacto.'),
+      precio_lista: numero('Opcional. Precio de lista de VENTA, sin IVA, en la moneda de la lista.'),
+      costo: numero('Opcional. El costo.'),
+      moneda_costo: texto('Opcional. La moneda del costo.'),
+      nombre: texto('Opcional. El nombre nuevo.'),
+    },
+    obligatorios: ['sku'],
+    rpc: 'asistente_actualizar_producto',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'ajustar_stock',
+    descripcion:
+      'AJUSTA el stock de un producto (por un conteo, una rotura, un error). Decí stock_final —cuántos ' +
+      'tiene que haber— o diferencia (+/-), y SIEMPRE el motivo, que queda en el historial. Hay que indicar SIEMPRE la empresa.',
+    parametros: {
+      sku: texto('El SKU exacto.'),
+      motivo: texto('Por qué se ajusta.'),
+      stock_final: numero('Opcional. Cuántos tiene que haber después del ajuste.'),
+      diferencia: numero('Opcional. Cuánto sumar (+) o restar (-).'),
+    },
+    obligatorios: ['sku', 'motivo'],
+    rpc: 'asistente_ajustar_stock',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'enviar_documento',
+    descripcion:
+      'MANDA por correo una cotización, un pedido, una factura o un pedido a proveedor, desde la cuenta ' +
+      'de Gmail de la empresa, con el detalle del documento (renglones y totales) en el cuerpo. Sin ' +
+      '«para», va al correo del cliente o del proveedor. Mostrale a la persona a quién va y pedí ' +
+      'confirmación antes: un correo mandado no se puede deshacer.',
+    parametros: {
+      numero: texto('El número del documento.'),
+      para: texto('Opcional. Destinatarios separados por coma; por omisión, el correo del cliente/proveedor.'),
+      asunto: texto('Opcional. Por omisión, «Cotización COT…».'),
+      mensaje: texto('Opcional. El texto que va antes del detalle.'),
+    },
+    obligatorios: ['numero'],
+    rpc: 'asistente_preparar_envio',
     fijos: ['company'],
     maxFilas: 1,
   },
