@@ -414,12 +414,30 @@
      · impuesto · subtotal. Columnas: la 1.ª y la última se ajustan al contenido
      (ref/cant y acciones/subtotal), las tres del medio se reparten lo que queda
      —ahí va el título y los números anchos como «IVA 21 %»—. */
+  /*
+   * Cada caja, del ancho de lo que lleva EN PROMEDIO (Fase 230). Medido sobre
+   * 8.571 líneas de presupuesto: cantidad 1 dígito (9 de cada 10, hasta 2),
+   * % dto. 1 (máx. 3), precio 6 (hasta 8), subtotal 6 (hasta 8), referencia 9.
+   * Antes la 1.ª columna era `auto` y la compartían la referencia y la
+   * cantidad: la referencia la ensanchaba y «1» quedaba en una caja enorme,
+   * mientras el impuesto se cortaba («IVA 21 9»).
+   *   · La referencia sube a su propio renglón (texto chico), así no manda.
+   *   · Cantidad: hasta 4 dígitos + las flechitas. % Dto.: hasta 3 («100»).
+   *   · Impuesto: «IVA 21 %» entero con su flecha.
+   *   · Precio y subtotal: ~9 caracteres, y se reparten lo que sobre.
+   */
   .tabla tr {
     display: grid;
-    grid-template-columns: auto 1fr 1fr 1fr auto;
+    grid-template-columns:
+      calc(4ch + 2.25rem)
+      minmax(calc(9ch + 1rem), 1.2fr)
+      calc(3ch + 2.25rem)
+      minmax(calc(8ch + 2.75rem), 1fr)
+      minmax(calc(9ch + 0.5rem), 1fr);
     grid-template-areas:
-      'ref  nombre nombre nombre acc'
-      'cant precio dto    iva    sub';
+      'ref    ref    ref    ref    ref'
+      'nombre nombre nombre nombre acc'
+      'cant   precio dto    iva    sub';
     column-gap: var(--space-2);
     row-gap: var(--space-2);
     align-items: start;
@@ -515,6 +533,12 @@
     font-weight: var(--weight-semibold);
   }
 
+  /* La referencia es una línea de texto chica: no necesita la altura de un
+     control. */
+  .tabla td.sku {
+    font-size: var(--text-xs);
+  }
+
   /* Una nota (capítulo) ocupa su propia tarjeta, a lo ancho. */
   .tabla tr.capitulo {
     display: block;
@@ -526,6 +550,20 @@
   }
   .capitulo td::before {
     content: none;
+  }
+}
+
+/* Muy angosto (teléfono): los cinco números en una fila no entran sin cortarse.
+   Van en dos: cantidad · precio · % dto. arriba, impuesto y subtotal abajo. La
+   última columna se ajusta a lo que lleve (el subtotal), no a un ancho fijo. */
+@container editor (max-width: 30rem) {
+  .tabla tr {
+    grid-template-columns: calc(4ch + 2.25rem) minmax(0, 1fr) minmax(calc(3ch + 2.25rem), auto);
+    grid-template-areas:
+      'ref    ref    ref'
+      'nombre nombre acc'
+      'cant   precio dto'
+      'iva    iva    sub';
   }
 }
 
