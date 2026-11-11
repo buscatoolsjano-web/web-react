@@ -69,13 +69,27 @@ export function EditorLineas({
   return (
     <div className={styles.scroll}>
       <table className={styles.tabla}>
+        {/* Anchos fijos como en Ventas (Fase 235): los números y la referencia
+            ajustados a lo que llevan, y el producto con todo el sobrante —antes
+            se cortaba en «TECNA 9370 - BAL»—. */}
+        <colgroup>
+          <col className={styles.colNum} />
+          <col className={styles.colRef} />
+          <col />
+          <col className={styles.colCant} />
+          <col className={styles.colPrecio} />
+          <col className={styles.colDto} />
+          <col className={styles.colImp} />
+          <col className={styles.colNeto} />
+          {editable ? <col className={styles.colAcc} /> : null}
+        </colgroup>
         <thead>
           <tr>
             <th scope="col" className={styles.num}>
               #
             </th>
             <th scope="col">Referencia</th>
-            <th scope="col">Descripción</th>
+            <th scope="col">Producto</th>
             <th scope="col" className={styles.derecha}>
               Cant.
             </th>

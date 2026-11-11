@@ -11,6 +11,33 @@
   font-size: var(--text-sm);
   /* Sin esto las columnas bailan mientras se escribe. */
   min-width: 46rem;
+  /* Con `fixed` mandan los anchos del colgroup (Fase 235). */
+  table-layout: fixed;
+}
+
+.colNum {
+  width: 2.5rem;
+}
+.colRef {
+  width: 8rem;
+}
+.colCant {
+  width: 5rem;
+}
+.colPrecio {
+  width: 8rem;
+}
+.colDto {
+  width: 4.5rem;
+}
+.colImp {
+  width: 8.5rem;
+}
+.colNeto {
+  width: 7rem;
+}
+.colAcc {
+  width: 6.5rem;
 }
 
 .tabla th,
@@ -26,8 +53,6 @@
   color: var(--text-soft);
   font-weight: 600;
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
   white-space: nowrap;
   padding: var(--space-2);
 }
@@ -111,11 +136,10 @@
 
 .numero {
   text-align: right;
-  min-width: 5rem;
 }
 
 .select {
-  min-width: 8rem;
+  min-width: 0;
 }
 
 .derecha {

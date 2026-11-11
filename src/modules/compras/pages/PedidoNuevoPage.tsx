@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { cruzaDeLado, leerParaCopiar, leerParametroCopia } from '@/services/copiarDocumento'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { ActionBar } from '@/components/document/ActionBar'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { Alert } from '@/components/feedback/Alert'
@@ -121,18 +122,41 @@ export function PedidoNuevoPage() {
     )
   }
 
+  /*
+   * El armado de Ventas (Fase 235): la barra de acciones arriba y pegada —con
+   * «Crear pedido» siempre a la vista, no al pie de un formulario largo— y
+   * debajo las tarjetas. El número lo asigna el servidor y el pedido nace en
+   * borrador; eso lo dice la barra en una línea, no un subtítulo de tres.
+   */
   return (
     <div className={docUi.pagina}>
-      <PageHeader
-        back={{ to: '/compras/pedidos', label: 'Pedidos de compra' }}
-        title="Nuevo pedido de compra"
-        subtitle="El número lo asigna el servidor al guardar. El pedido nace en borrador: confirmarlo es otra acción."
+      <ActionBar
+        pegajosa
+        volver={{ to: '/compras/pedidos', label: 'Pedidos de compra' }}
+        titulo="Nuevo pedido de compra"
+        label="Crear pedido de compra"
+        primary={
+          <Button icon={<Icon name="check" size={16} />} loading={crear.isPending} onClick={guardar}>
+            {crear.isPending ? 'Creando…' : 'Crear pedido'}
+          </Button>
+        }
+        secondary={
+          <Button variant="ghost" disabled={crear.isPending} onClick={() => void navegar('/compras/pedidos')}>
+            Cancelar
+          </Button>
+        }
+        note={<p>Nace en borrador; el número lo asigna el servidor al guardar.</p>}
       />
 
       <section className={styles.bloque}>
         {avisoCopia ? (
           <Alert tone={avisoCopia.tono} role={avisoCopia.tono === 'danger' ? 'alert' : 'status'}>
             <p>{avisoCopia.texto}</p>
+          </Alert>
+        ) : null}
+        {crear.error ? (
+          <Alert tone="danger" role="alert">
+            <p>{crear.error.message}</p>
           </Alert>
         ) : null}
         <FormularioPedido
@@ -150,21 +174,6 @@ export function PedidoNuevoPage() {
           onProveedor={elegirProveedor}
           onCambiarLineas={setLineas}
         />
-
-        {crear.error ? (
-          <Alert tone="danger" role="alert">
-            <p>{crear.error.message}</p>
-          </Alert>
-        ) : null}
-
-        <div className={styles.acciones}>
-          <Button icon={<Icon name="check" size={16} />} loading={crear.isPending} disabled={false} onClick={guardar}>
-            {crear.isPending ? 'Guardando…' : 'Crear pedido'}
-          </Button>
-          <Button variant="ghost" disabled={crear.isPending} onClick={() => void navegar('/compras/pedidos')}>
-            Cancelar
-          </Button>
-        </div>
       </section>
     </div>
   )

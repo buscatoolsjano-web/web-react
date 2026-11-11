@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { DocSection } from '@/components/document/DocSection'
+import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/icons/Icon'
 import { CabeceraPedido } from './CabeceraPedido'
 import { EditorLineas, type CampoLinea } from './EditorLineas'
 import { PanelTotales } from './PanelTotales'
@@ -108,48 +111,52 @@ export function FormularioPedido({
 
   return (
     <div className={styles.form}>
+      {/* El mismo armado que el alta de Ventas (Fase 235): la cabecera en su
+          tarjeta, con los dos paneles de color, y las líneas en otra, con sus
+          botones en el encabezado. */}
       {mostrarCabecera ? (
-        <CabeceraPedido
-          datos={datos}
-          errores={errores}
-          proveedor={proveedor}
-          editaIdentidad={editaIdentidad}
-          editaLogistica={editaLogistica}
-          onCambiar={onCambiarCabecera}
-          onProveedor={onProveedor}
-        />
+        <DocSection title="Datos del pedido">
+          <CabeceraPedido
+            datos={datos}
+            errores={errores}
+            proveedor={proveedor}
+            editaIdentidad={editaIdentidad}
+            editaLogistica={editaLogistica}
+            onCambiar={onCambiarCabecera}
+            onProveedor={onProveedor}
+          />
+        </DocSection>
       ) : null}
 
-      <section className={styles.bloqueLineas}>
-        <header className={styles.encabezadoLineas}>
-          <h2 className={styles.tituloLineas}>Líneas</h2>
-          {editaLineas ? (
-            <div className={styles.acciones}>
-              <button
-                type="button"
-                className={styles.secundario}
+      <DocSection
+        title="Líneas"
+        actions={
+          editaLineas ? (
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Icon name={buscando ? 'x' : 'search'} size={16} />}
                 onClick={() => setBuscando((v) => !v)}
               >
-                {buscando ? 'Cerrar buscador' : '+ Producto del catálogo'}
-              </button>
-              <button
-                type="button"
-                className={styles.secundario}
+                {buscando ? 'Cerrar buscador' : 'Añadir producto'}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Icon name="plus" size={16} />}
                 onClick={() => agregar(lineaLibre(lineas.length + 1))}
               >
-                + Línea libre
-              </button>
-              <button
-                type="button"
-                className={styles.secundario}
-                onClick={() => agregar(lineaCapitulo(lineas.length + 1))}
-              >
-                + Capítulo
-              </button>
-            </div>
-          ) : null}
-        </header>
-
+                Nueva línea
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => agregar(lineaCapitulo(lineas.length + 1))}>
+                Nuevo capítulo
+              </Button>
+            </>
+          ) : undefined
+        }
+      >
+        <div className={styles.bloqueLineas}>
         {buscando && editaLineas ? (
           <SelectorProducto
             onElegir={(p) => agregar(lineaDeProducto(p, lineas.length + 1))}
@@ -181,7 +188,8 @@ export function FormularioPedido({
           previo={previo}
           sinGuardar={sinGuardar}
         />
-      </section>
+        </div>
+      </DocSection>
     </div>
   )
 }

@@ -340,6 +340,13 @@
   --panel-suave: var(--color-info-soft);
 }
 
+/* El proveedor de una compra (Fase 235), en ámbar: en Compras el color del
+   módulo ya es azul y «Pedido» y «Proveedor» quedaban iguales. */
+.panelProveedor {
+  --panel-acento: var(--color-warning);
+  --panel-suave: var(--color-warning-soft);
+}
+
 .panelTitulo {
   display: flex;
   align-items: center;

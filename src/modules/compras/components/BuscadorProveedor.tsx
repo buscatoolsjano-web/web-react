@@ -11,6 +11,8 @@ export interface BuscadorProveedorProps {
   error?: string | null
   onElegir: (p: ProveedorBuscado) => void
   onLimpiar: () => void
+  /** Para ubicarlo en la grilla de la cabecera (Fase 235). */
+  className?: string | undefined
 }
 
 /**
@@ -30,6 +32,7 @@ export function BuscadorProveedor({
   error = null,
   onElegir,
   onLimpiar,
+  className,
 }: BuscadorProveedorProps) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
@@ -53,8 +56,8 @@ export function BuscadorProveedor({
 
   if (elegido && !abierto) {
     return (
-      <div className={styles.campo}>
-        <span className={styles.etiqueta}>Proveedor *</span>
+      <div className={className ? `${styles.campo} ${className}` : styles.campo}>
+        <span className={styles.etiqueta}>Proveedor</span>
         <div className={styles.elegido}>
           <span className={styles.nombre}>{elegido.razonSocial}</span>
           {elegido.referencia ? (
@@ -79,9 +82,9 @@ export function BuscadorProveedor({
   }
 
   return (
-    <div className={styles.campo}>
+    <div className={className ? `${styles.campo} ${className}` : styles.campo}>
       <label className={styles.etiqueta} htmlFor={id}>
-        Proveedor *
+        Proveedor
       </label>
       <input
         id={id}

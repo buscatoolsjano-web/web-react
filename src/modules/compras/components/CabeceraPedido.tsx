@@ -1,10 +1,12 @@
 import { useId } from 'react'
+import { Field } from '@/components/forms/Field'
+import { Input, Select, Textarea } from '@/components/forms/controls'
 import { BuscadorProveedor } from './BuscadorProveedor'
 import { useAgregarFormaDePago, useFormasDePago } from '../hooks/useProveedores'
 import { SelectorFormaDePago } from '@/features/formasDePago/SelectorFormaDePago'
 import { MONEDAS, type DatosPedidoCompra, type ErrorDePedido } from '../lib/validacion'
 import type { ProveedorBuscado } from '../services/catalogo'
-import styles from './CabeceraPedido.module.css'
+import cab from '@/modules/ventas/components/CabeceraCotizacion.module.css'
 
 export interface CabeceraPedidoProps {
   datos: DatosPedidoCompra
@@ -19,17 +21,22 @@ export interface CabeceraPedidoProps {
 }
 
 /**
- * La cabecera del pedido de compra.
+ * La cabecera del pedido de compra, con el formato de Ventas (Fase 235).
  *
- * Dos grupos de campos con reglas distintas, porque el servidor las tiene
- * distintas:
+ * «Mirá el formato de compra, MUY MALO, necesito que repliques el formato de
+ * venta.» Antes eran controles propios con rótulos en mayúsculas, un párrafo
+ * de ayuda debajo de cada campo y una grilla suelta. Ahora son los MISMOS dos
+ * paneles de color que la cotización y el pedido de venta, con los campos de
+ * la casa (`Field`, `Input`, `Select`):
+ *   · «Pedido» (color del módulo): fecha, llegada estimada, moneda, tipo de
+ *     cambio.
+ *   · «Proveedor» (azul): a quién, en qué condición de pago, y las notas.
  *
- *   · **Identidad** —proveedor, moneda, tipo de cambio, fecha— sólo se toca
- *     en borrador. Un pedido confirmado ya se le mandó al proveedor.
- *   · **Logística** —llegada estimada, condición de pago, notas— se ajusta
- *     también después de confirmar, y cada cambio queda auditado.
- *
- * Deshabilitar los controles es una cortesía. Lo que lo impide de verdad es
+ * Las reglas de edición no cambian, porque son del servidor:
+ *   · **Identidad** —proveedor, moneda, tipo de cambio, fecha— sólo en borrador.
+ *   · **Logística** —llegada estimada, condición de pago, notas— también
+ *     después de confirmar, auditado.
+ * Deshabilitar es una cortesía; lo que lo impide de verdad es
  * `app.proteger_estado_pedido_compra()`.
  */
 export function CabeceraPedido({
@@ -41,166 +48,114 @@ export function CabeceraPedido({
   onCambiar,
   onProveedor,
 }: CabeceraPedidoProps) {
-  const id = useId()
+  const idPedido = useId()
+  const idProveedor = useId()
   const formasDePago = useFormasDePago()
   const agregarFormaDePago = useAgregarFormaDePago()
 
   const errorDe = (campo: ErrorDePedido['campo']) =>
-    errores.find((e) => e.campo === campo)?.mensaje ?? null
+    errores.find((e) => e.campo === campo)?.mensaje ?? undefined
 
   return (
-    <div className={styles.grilla}>
-      <BuscadorProveedor
-        elegido={proveedor}
-        deshabilitado={!editaIdentidad}
-        error={errorDe('proveedorId')}
-        onElegir={(p) => onProveedor(p)}
-        onLimpiar={() => onProveedor(null)}
-      />
+    <div className={cab.paneles}>
+      <div role="group" className={`${cab.panel} ${cab.panelDocumento}`} aria-labelledby={idPedido}>
+        <p className={cab.panelTitulo} id={idPedido}>
+          Pedido
+        </p>
+        <div className={cab.campos}>
+          <Field label="Fecha" required error={errorDe('fecha')}>
+            <Input
+              type="date"
+              value={datos.fecha}
+              disabled={!editaIdentidad}
+              onChange={(e) => onCambiar({ fecha: e.target.value })}
+            />
+          </Field>
 
-      <div className={styles.campo}>
-        <label className={styles.etiqueta} htmlFor={`${id}-moneda`}>
-          Moneda *
-        </label>
-        <select
-          id={`${id}-moneda`}
-          className={styles.control}
-          value={datos.moneda}
-          disabled={!editaIdentidad}
-          aria-invalid={errorDe('moneda') ? true : undefined}
-          onChange={(e) => onCambiar({ moneda: e.target.value })}
-        >
-          <option value="">Elegí una moneda</option>
-          {MONEDAS.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-        {errorDe('moneda') ? (
-          <span className={styles.error} role="alert">
-            {errorDe('moneda')}
-          </span>
-        ) : (
-          <span className={styles.ayuda}>
-            Un pedido tiene una sola moneda: todas sus líneas van en ésta.
-          </span>
-        )}
+          {/* Vacía es un dato: «todavía no se sabe» es mejor que una fecha
+              inventada. */}
+          <Field label="Llegada estimada" optional error={errorDe('fechaEstimada')}>
+            <Input
+              type="date"
+              value={datos.fechaEstimada}
+              disabled={!editaLogistica}
+              onChange={(e) => onCambiar({ fechaEstimada: e.target.value })}
+            />
+          </Field>
+
+          {/* Un pedido tiene una sola moneda: todas sus líneas van en ésta. */}
+          <Field label="Moneda" required error={errorDe('moneda')}>
+            <Select
+              value={datos.moneda}
+              disabled={!editaIdentidad}
+              onChange={(e) => onCambiar({ moneda: e.target.value })}
+            >
+              <option value="">Elegí una moneda</option>
+              {MONEDAS.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field
+            label="Tipo de cambio"
+            optional
+            error={errorDe('tipoCambio')}
+            help={errorDe('tipoCambio') ? undefined : 'Referencia del día: no convierte nada.'}
+          >
+            <Input
+              type="number"
+              step="any"
+              min="0"
+              inputMode="decimal"
+              value={datos.tipoCambio}
+              disabled={!editaIdentidad}
+              onChange={(e) => onCambiar({ tipoCambio: e.target.value })}
+            />
+          </Field>
+        </div>
       </div>
 
-      <div className={styles.campo}>
-        <label className={styles.etiqueta} htmlFor={`${id}-tc`}>
-          Tipo de cambio
-        </label>
-        <input
-          id={`${id}-tc`}
-          type="number"
-          step="any"
-          min="0"
-          className={styles.control}
-          value={datos.tipoCambio}
-          disabled={!editaIdentidad}
-          placeholder="opcional"
-          aria-invalid={errorDe('tipoCambio') ? true : undefined}
-          onChange={(e) => onCambiar({ tipoCambio: e.target.value })}
-        />
-        {errorDe('tipoCambio') ? (
-          <span className={styles.error} role="alert">
-            {errorDe('tipoCambio')}
-          </span>
-        ) : (
-          <span className={styles.ayuda}>
-            Se guarda como referencia del día. No convierte nada.
-          </span>
-        )}
-      </div>
+      <div role="group" className={`${cab.panel} ${cab.panelProveedor}`} aria-labelledby={idProveedor}>
+        <p className={cab.panelTitulo} id={idProveedor}>
+          Proveedor
+        </p>
+        <div className={cab.campos}>
+          <BuscadorProveedor
+            className={cab.ancho}
+            elegido={proveedor}
+            deshabilitado={!editaIdentidad}
+            error={errorDe('proveedorId') ?? null}
+            onElegir={(p) => onProveedor(p)}
+            onLimpiar={() => onProveedor(null)}
+          />
 
-      <div className={styles.campo}>
-        <label className={styles.etiqueta} htmlFor={`${id}-fecha`}>
-          Fecha del pedido *
-        </label>
-        <input
-          id={`${id}-fecha`}
-          type="date"
-          className={styles.control}
-          value={datos.fecha}
-          disabled={!editaIdentidad}
-          aria-invalid={errorDe('fecha') ? true : undefined}
-          onChange={(e) => onCambiar({ fecha: e.target.value })}
-        />
-        {errorDe('fecha') ? (
-          <span className={styles.error} role="alert">
-            {errorDe('fecha')}
-          </span>
-        ) : null}
-      </div>
+          {/*
+            Fase 68: lista cerrada que se amplía a propósito («TRANSFERENCIA
+            BANCARIA» y «Transferencia bancaria» eran dos condiciones). Se
+            copia del proveedor al elegirlo y queda guardada en el pedido.
+          */}
+          <Field label="Condición de pago" optional className={cab.ancho}>
+            <SelectorFormaDePago
+              valor={datos.formaPago}
+              opciones={formasDePago.data ?? []}
+              cargando={formasDePago.isPending || !editaLogistica}
+              onCambiar={(v) => onCambiar({ formaPago: v })}
+              {...(editaLogistica ? { onAgregar: agregarFormaDePago } : {})}
+            />
+          </Field>
 
-      <div className={styles.campo}>
-        <label className={styles.etiqueta} htmlFor={`${id}-eta`}>
-          Llegada estimada
-        </label>
-        <input
-          id={`${id}-eta`}
-          type="date"
-          className={styles.control}
-          value={datos.fechaEstimada}
-          disabled={!editaLogistica}
-          aria-invalid={errorDe('fechaEstimada') ? true : undefined}
-          onChange={(e) => onCambiar({ fechaEstimada: e.target.value })}
-        />
-        {errorDe('fechaEstimada') ? (
-          <span className={styles.error} role="alert">
-            {errorDe('fechaEstimada')}
-          </span>
-        ) : (
-          <span className={styles.ayuda}>
-            Se puede dejar vacía: «todavía no se sabe» es un dato, y es mejor que una fecha
-            inventada.
-          </span>
-        )}
-      </div>
-
-      <div className={styles.campo}>
-        <label className={styles.etiqueta} htmlFor={`${id}-pago`}>
-          Condición de pago
-        </label>
-        {/*
-          Fase 68: era un `input` con `datalist`, con este argumento: «las 13
-          condiciones del legacy mezclan incoterms, medios de pago y plazos;
-          son una sugerencia, no una lista cerrada».
-
-          La mezcla era cierta y sigue siéndolo —ahí están FOB 180 DIAS y
-          MERCADOPAGO al lado de 30 DIAS F/F—, pero abrir la lista por eso
-          resultó peor que ordenarla: en 139 proveedores quedaron
-          «TRANSFERENCIA BANCARIA» y «Transferencia bancaria» como dos
-          condiciones distintas, y un «ExWorks 30 dais FF». Ahora la lista es
-          cerrada y se amplía a propósito, que es lo que se pidió.
-        */}
-        <SelectorFormaDePago
-          valor={datos.formaPago}
-          opciones={formasDePago.data ?? []}
-          cargando={formasDePago.isPending || !editaLogistica}
-          onCambiar={(v) => onCambiar({ formaPago: v })}
-          {...(editaLogistica ? { onAgregar: agregarFormaDePago } : {})}
-        />
-        <span className={styles.ayuda}>
-          Se copia del proveedor al elegirlo, pero queda guardada acá: si mañana cambia la
-          condición del proveedor, este pedido no cambia.
-        </span>
-      </div>
-
-      <div className={styles.campoAncho}>
-        <label className={styles.etiqueta} htmlFor={`${id}-notas`}>
-          Notas
-        </label>
-        <textarea
-          id={`${id}-notas`}
-          className={styles.area}
-          rows={3}
-          value={datos.notas}
-          disabled={!editaLogistica}
-          onChange={(e) => onCambiar({ notas: e.target.value })}
-        />
+          <Field label="Notas" optional className={cab.ancho}>
+            <Textarea
+              rows={2}
+              value={datos.notas}
+              disabled={!editaLogistica}
+              onChange={(e) => onCambiar({ notas: e.target.value })}
+            />
+          </Field>
+        </div>
       </div>
     </div>
   )
