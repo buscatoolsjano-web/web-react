@@ -699,6 +699,23 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
     maxFilas: 1,
   },
 
+  {
+    id: 'enviar_whatsapp',
+    descripcion:
+      'MANDA un WhatsApp desde el número de la empresa a un cliente o contacto que ya tiene una ' +
+      'conversación en el ERP (por su teléfono, su nombre de cliente o el nombre con el que aparece). ' +
+      'WhatsApp sólo deja mandar texto libre si esa persona escribió en las últimas 24 h; si no, la ' +
+      'herramienta lo dice. Mostrale a la persona a quién va y qué dice, y pedí confirmación antes.',
+    parametros: {
+      destino: texto('A quién: el cliente, el teléfono o el nombre del contacto.'),
+      texto: texto('El mensaje, tal cual va a salir.'),
+    },
+    obligatorios: ['destino', 'texto'],
+    rpc: 'asistente_preparar_whatsapp',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+
   // ── compras ───────────────────────────────────────────────────────────────
   {
     id: 'ultimo_costo',

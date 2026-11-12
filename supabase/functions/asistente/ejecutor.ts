@@ -245,6 +245,32 @@ async function enviarCorreo(datos: unknown, token: string): Promise<unknown> {
   }
 }
 
+/** Manda el WhatsApp que armó `asistente_preparar_whatsapp`. */
+async function enviarWhatsapp(datos: unknown, token: string): Promise<unknown> {
+  if (typeof datos !== 'object' || datos === null || !('whatsapp' in datos)) return datos
+  const d = datos as { whatsapp: Record<string, unknown>; destino?: unknown; telefono?: unknown }
+  const base = (Deno.env.get('SUPABASE_URL') ?? '').replace(/\/+$/, '')
+  try {
+    const r = await fetch(`${base}/functions/v1/whatsapp-send-message`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(d.whatsapp),
+    })
+    const j = (await r.json().catch(() => ({}))) as Record<string, unknown>
+    if (r.ok) {
+      return { enviado: true, estado: j['estado'] ?? 'pendiente', destino: d.destino, telefono: d.telefono }
+    }
+    console.error(`asistente: enviar_whatsapp → ${r.status} ${String(j['error'] ?? '')}`)
+    return { error: typeof j['detalle'] === 'string' ? j['detalle'] : 'No se pudo mandar el WhatsApp.' }
+  } catch {
+    return { error: 'No pude hablar con el servicio de WhatsApp. Probá de nuevo en un rato.' }
+  }
+}
+
 export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -325,6 +351,9 @@ export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
     // asunto, texto— y acá se manda por la API de correo del ERP, con la
     // sesión de quien pregunta. Es la misma puerta que usa la pantalla.
     if (nombre === 'enviar_documento') datos = await enviarCorreo(datos, ctx.token)
+    // WhatsApp (Fase 245): por `whatsapp-send-message`, la única puerta por la
+    // que sale uno, que vuelve a validar rol, cuenta y ventana de 24 h.
+    if (nombre === 'enviar_whatsapp') datos = await enviarWhatsapp(datos, ctx.token)
 
     // El borrador se guarda entero para la pantalla, antes de recortarlo
     // para el modelo.

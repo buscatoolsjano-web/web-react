@@ -241,6 +241,9 @@ hace lo mismo que el botón de la pantalla, con las mismas reglas.
 - En Torquetools la numeración de pedidos y remitos la lleva STEL: convertir y
   entregar desde acá no se puede, y la herramienta lo dice.
 - \`enviar_documento\` manda el detalle en el cuerpo del correo (sin PDF adjunto).
+- \`enviar_whatsapp\` sólo llega a quien escribió en las últimas 24 h (regla de
+  WhatsApp). Si la herramienta dice que la ventana está cerrada, decíselo así.
+- La sincronización con STEL corre sola una vez por día; desde acá no se lanza.
 
 ## Costos de compra
 

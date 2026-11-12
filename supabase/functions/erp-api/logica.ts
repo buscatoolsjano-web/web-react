@@ -62,6 +62,7 @@ export const EXPUESTAS: readonly string[] = [
   'actualizar_producto',
   'ajustar_stock',
   'enviar_documento',
+  'enviar_whatsapp',
   // compras
   'ultimo_costo',
   // informes
@@ -95,6 +96,7 @@ export const ESCRITURAS: ReadonlySet<string> = new Set<string>([
   'actualizar_producto',
   'ajustar_stock',
   'enviar_documento',
+  'enviar_whatsapp',
 ])
 
 /**
@@ -102,7 +104,12 @@ export const ESCRITURAS: ReadonlySet<string> = new Set<string>([
  * ajuste de stock, una cancelación. MCP las marca `destructiveHint` para que el
  * cliente pida confirmación con más cuidado.
  */
-export const DESTRUCTIVAS: ReadonlySet<string> = new Set<string>(['cambiar_estado', 'ajustar_stock', 'enviar_documento'])
+export const DESTRUCTIVAS: ReadonlySet<string> = new Set<string>([
+  'cambiar_estado',
+  'ajustar_stock',
+  'enviar_documento',
+  'enviar_whatsapp',
+])
 
 /**
  * Las que, repetidas, hacen dos veces lo mismo (dos entregas, dos recepciones,

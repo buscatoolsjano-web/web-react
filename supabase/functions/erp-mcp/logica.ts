@@ -84,6 +84,7 @@ const TITULOS: Readonly<Record<string, string>> = {
   actualizar_producto: 'Actualizar un producto',
   ajustar_stock: 'Ajustar el stock',
   enviar_documento: 'Enviar un documento por correo',
+  enviar_whatsapp: 'Mandar un WhatsApp',
   ultimo_costo: 'Último costo de compra',
   ranking_comercial: 'Ranking comercial',
   buscar_emails: 'Buscar correos',
@@ -109,8 +110,31 @@ export function versionAUsar(pedida: unknown): string {
     : VERSIONES[0]
 }
 
-/** Lo que el servidor dice que es. */
-export const SERVIDOR = { name: 'erp-buscatools', version: '1.0.0' } as const
+/**
+ * Lo que el servidor dice que es.
+ *
+ * ── POR QUÉ LA VERSIÓN SALE DEL CATÁLOGO (Fase 245) ─────────────────────
+ *
+ * Era «1.0.0» fijo, y el cliente de Grok guardó la lista de herramientas de
+ * la primera conexión: después de sumar 14 herramientas siguió reconectándose
+ * —se ve en los logs: `initialize` sin `tools/list`— con las 16 viejas, y le
+ * decía a la persona que «el conector todavía no deja». Un cliente que cachea
+ * por versión vuelve a pedir la lista cuando la versión cambia, así que la
+ * versión es una huella de la lista: cambia sola cada vez que se agrega,
+ * saca o modifica una herramienta, sin depender de acordarse de subirla.
+ */
+export const SERVIDOR = { name: 'erp-buscatools', version: `2.0.${huellaDelCatalogo()}` } as const
+
+/** Una huella corta (FNV-1a de 32 bits) de las herramientas publicadas. */
+function huellaDelCatalogo(): number {
+  const texto = JSON.stringify(herramientasMCP())
+  let h = 0x811c9dc5
+  for (let i = 0; i < texto.length; i++) {
+    h ^= texto.charCodeAt(i)
+    h = Math.imul(h, 0x01000193) >>> 0
+  }
+  return h
+}
 
 /**
  * El documento de RFC 9728 que dice quién autoriza el acceso a este servidor.
