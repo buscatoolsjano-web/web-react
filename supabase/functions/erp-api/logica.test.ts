@@ -10,6 +10,7 @@ import {
   herramientasDelGpt,
   revisarExpuestas,
   rutaDe,
+  SOLO_MCP,
 } from './logica'
 import { herramienta } from '../asistente/herramientas'
 
@@ -191,6 +192,7 @@ describe('el reparto de herramientas por GPT', () => {
     const cubiertas = new Set(gptsAArmar().flatMap((g) => g.herramientas))
     for (const id of EXPUESTAS) {
       if (ESCRITURAS.has(id)) continue // a propósito: ver el test de arriba
+      if (SOLO_MCP.has(id)) continue // acompaña a una escritura (Fase 248)
       expect(cubiertas.has(id), `${id} está expuesta y ningún GPT la lleva`).toBe(true)
     }
   })

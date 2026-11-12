@@ -245,6 +245,19 @@ hace lo mismo que el botón de la pantalla, con las mismas reglas.
   WhatsApp). Si la herramienta dice que la ventana está cerrada, decíselo así.
 - La sincronización con STEL corre sola una vez por día; desde acá no se lanza.
 
+## Fotos de productos
+
+\`ver_fotos_producto\`, \`agregar_fotos\`, \`foto_principal\`, \`quitar_foto_producto\`
+
+- \`agregar_fotos\` carga hasta 40 por llamada, cada una con su SKU y la URL
+  DIRECTA de la imagen (JPG, PNG o WebP, hasta 5 MB). Para más, en tandas de 40.
+- \`principal=true\` la deja primera; si no, va al final. La foto 1 es la principal:
+  la del catálogo, los documentos y la web.
+- No se repite: si el producto ya tiene esa foto, se saltea. La misma URL para
+  muchos productos se sube una sola vez.
+- Para ordenar o quitar, primero \`ver_fotos_producto\` y usá su número.
+- La empresa es obligatoria: el mismo SKU existe en Buscatools y en Torquetools.
+
 ## Costos de compra
 
 \`ultimo_costo\`, \`ver_documento\`

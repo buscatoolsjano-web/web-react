@@ -716,6 +716,76 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
     maxFilas: 1,
   },
 
+  // ── Fase 248: fotos de producto, en masa ────────────────────────────────────
+  {
+    id: 'ver_fotos_producto',
+    descripcion:
+      'Las fotos de un producto, en orden y numeradas: la 1 es la principal (la del catálogo, los ' +
+      'documentos y la web). Usala antes de elegir la principal o de quitar una.',
+    parametros: { sku: texto('El SKU del producto.') },
+    obligatorios: ['sku'],
+    rpc: 'asistente_ver_fotos',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'agregar_fotos',
+    descripcion:
+      'AGREGA fotos a productos desde una URL de imagen pública (JPG, PNG o WebP, hasta 5 MB). ' +
+      'Sirve para cargar en masa: hasta 40 por llamada, cada una con su SKU. Con principal=true la ' +
+      'foto queda primera y como principal; si no, se agrega al final. La misma URL para varios ' +
+      'productos se sube una sola vez, y si un producto ya tiene esa foto no se repite. Hay que ' +
+      'indicar SIEMPRE la empresa. La URL tiene que ser la de la IMAGEN (termina en .jpg/.png/.webp ' +
+      'o devuelve una imagen), no la de una página.',
+    parametros: {
+      fotos: {
+        type: 'array',
+        description: 'Las fotos a cargar (hasta 40).',
+        items: {
+          type: 'object',
+          properties: {
+            producto: texto('El SKU exacto.'),
+            url: texto('La URL directa de la imagen.'),
+            principal: booleano('Opcional. true la deja como foto principal. Por omisión, false.'),
+          },
+          required: ['producto', 'url'],
+        },
+      },
+    },
+    obligatorios: ['fotos'],
+    rpc: 'asistente_preparar_fotos',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'foto_principal',
+    descripcion:
+      'Hace PRINCIPAL la foto número N de un producto (la numeración es la de ver_fotos_producto). ' +
+      'Hay que indicar SIEMPRE la empresa.',
+    parametros: {
+      sku: texto('El SKU del producto.'),
+      numero: entero('El número de la foto, según ver_fotos_producto.'),
+    },
+    obligatorios: ['sku', 'numero'],
+    rpc: 'asistente_foto_principal',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+  {
+    id: 'quitar_foto_producto',
+    descripcion:
+      'QUITA la foto número N de un producto (la numeración es la de ver_fotos_producto). Si era la ' +
+      'principal, pasa a serlo la siguiente. Hay que indicar SIEMPRE la empresa.',
+    parametros: {
+      sku: texto('El SKU del producto.'),
+      numero: entero('El número de la foto, según ver_fotos_producto.'),
+    },
+    obligatorios: ['sku', 'numero'],
+    rpc: 'asistente_quitar_foto',
+    fijos: ['company'],
+    maxFilas: 1,
+  },
+
   // ── compras ───────────────────────────────────────────────────────────────
   {
     id: 'ultimo_costo',

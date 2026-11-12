@@ -271,6 +271,98 @@ async function enviarWhatsapp(datos: unknown, token: string): Promise<unknown> {
   }
 }
 
+/** Lo que el bucket acepta (`catalogo-publico`: 5 MB, JPG/PNG/WebP). */
+const MAX_FOTO = 5 * 1024 * 1024
+const TIPOS_FOTO: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+
+/** El tipo por los primeros bytes: un servidor que manda «octet-stream» no nos engaña. */
+function tipoDeImagen(b: Uint8Array, declarado: string): string | null {
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg'
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png'
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return 'image/webp'
+  return TIPOS_FOTO[declarado] ? declarado : null
+}
+
+/**
+ * Baja, sube y registra las fotos que preparó `asistente_preparar_fotos` (Fase 248).
+ *
+ * · La MISMA URL se baja una vez aunque vaya a veinte productos.
+ * · El archivo se nombra por su SHA-256: la misma imagen es UN archivo en el bucket
+ *   (`productos/<empresa>/mcp/<sha>.<ext>`), y volver a subirla no duplica nada.
+ * · El orden y la principal los decide la base (`asistente_registrar_foto`).
+ * · Lo que falla en una foto no frena a las demás: se informa cuál y por qué.
+ */
+async function cargarFotos(datos: unknown, supabase: ReturnType<typeof createClient>, companyId: string): Promise<unknown> {
+  if (typeof datos !== 'object' || datos === null || !('fotos' in datos)) return datos
+  const d = datos as { fotos: { items: { n: number; producto: string; product_id: string; url: string; principal: boolean }[] }; rechazadas?: unknown[] }
+  const bajadas = new Map<string, Promise<{ url: string; bytes: number } | { error: string }>>()
+
+  const subir = (url: string) => {
+    let p = bajadas.get(url)
+    if (!p) {
+      p = (async () => {
+        try {
+          const r = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ERP-Buscatools/1.0)', Accept: 'image/*' },
+            signal: AbortSignal.timeout(20_000),
+          })
+          if (!r.ok) return { error: `la URL respondió ${r.status}` }
+          const buf = new Uint8Array(await r.arrayBuffer())
+          if (buf.length > MAX_FOTO) return { error: `pesa ${(buf.length / 1048576).toFixed(1)} MB; el máximo es 5 MB` }
+          const tipo = tipoDeImagen(buf, (r.headers.get('content-type') ?? '').split(';')[0]!.trim())
+          if (!tipo) return { error: 'no es una imagen JPG, PNG o WebP (¿es la URL de una página y no de la imagen?)' }
+          const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf)))
+            .map((x) => x.toString(16).padStart(2, '0'))
+            .join('')
+          const ruta = `productos/${companyId}/mcp/${hash}.${TIPOS_FOTO[tipo]}`
+          const { error } = await supabase.storage
+            .from('catalogo-publico')
+            .upload(ruta, buf, { contentType: tipo, upsert: false, cacheControl: '31536000' })
+          // Ya estaba en el bucket (otra tanda la subió): se reusa.
+          if (error && !/exist|duplicate/i.test(error.message)) return { error: `no se pudo subir: ${error.message}` }
+          return { url: supabase.storage.from('catalogo-publico').getPublicUrl(ruta).data.publicUrl, bytes: buf.length }
+        } catch (e) {
+          return { error: e instanceof Error && e.name === 'TimeoutError' ? 'la URL tardó demasiado' : 'no se pudo bajar la imagen' }
+        }
+      })()
+      bajadas.set(url, p)
+    }
+    return p
+  }
+
+  const resultados: Record<string, unknown>[] = []
+  // De a una por producto, en orden: así la principal y el orden quedan como se pidió.
+  for (const it of d.fotos.items) {
+    const s = await subir(it.url)
+    if ('error' in s) {
+      resultados.push({ n: it.n, producto: it.producto, error: s.error })
+      continue
+    }
+    const { data, error } = await supabase.rpc('asistente_registrar_foto', {
+      p_company: companyId,
+      p_producto: it.product_id,
+      p_url: s.url,
+      p_principal: it.principal,
+      p_bytes: s.bytes,
+    })
+    const r = (data ?? {}) as Record<string, unknown>
+    if (error || r['error']) resultados.push({ n: it.n, producto: it.producto, error: String(r['error'] ?? error?.message) })
+    else resultados.push({ n: it.n, producto: it.producto, ...(r['agregada'] ? { agregada: true } : { ya_estaba: true }), principal: r['principal'] === true })
+  }
+
+  const ok = resultados.filter((r) => r['agregada']).length
+  const ya = resultados.filter((r) => r['ya_estaba']).length
+  const mal = resultados.filter((r) => r['error']).length + (d.rechazadas?.length ?? 0)
+  return {
+    agregadas: ok,
+    ya_estaban: ya,
+    con_error: mal,
+    resultados,
+    ...(d.rechazadas && d.rechazadas.length > 0 ? { rechazadas: d.rechazadas } : {}),
+    nota: `Cargadas ${ok}, ya estaban ${ya}, con problema ${mal}. Si hubo errores, decí cuáles y por qué.`,
+  }
+}
+
 export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -354,6 +446,8 @@ export function crearEjecutor(ctx: Contexto, bandeja?: Bandeja) {
     // WhatsApp (Fase 245): por `whatsapp-send-message`, la única puerta por la
     // que sale uno, que vuelve a validar rol, cuenta y ventana de 24 h.
     if (nombre === 'enviar_whatsapp') datos = await enviarWhatsapp(datos, ctx.token)
+    // Fotos (Fase 248): la base resolvió los SKU; acá se bajan, se suben y se registran.
+    if (nombre === 'agregar_fotos') datos = await cargarFotos(datos, supabase, ctx.companyId)
 
     // El borrador se guarda entero para la pantalla, antes de recortarlo
     // para el modelo.

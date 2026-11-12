@@ -63,6 +63,11 @@ export const EXPUESTAS: readonly string[] = [
   'ajustar_stock',
   'enviar_documento',
   'enviar_whatsapp',
+  // fotos de producto (Fase 248)
+  'ver_fotos_producto',
+  'agregar_fotos',
+  'foto_principal',
+  'quitar_foto_producto',
   // compras
   'ultimo_costo',
   // informes
@@ -97,6 +102,9 @@ export const ESCRITURAS: ReadonlySet<string> = new Set<string>([
   'ajustar_stock',
   'enviar_documento',
   'enviar_whatsapp',
+  'agregar_fotos',
+  'foto_principal',
+  'quitar_foto_producto',
 ])
 
 /**
@@ -109,6 +117,7 @@ export const DESTRUCTIVAS: ReadonlySet<string> = new Set<string>([
   'ajustar_stock',
   'enviar_documento',
   'enviar_whatsapp',
+  'quitar_foto_producto',
 ])
 
 /**
@@ -123,6 +132,13 @@ export const NO_IDEMPOTENTES: ReadonlySet<string> = new Set<string>([
   'ajustar_stock',
   'crear_cliente',
 ])
+
+/**
+ * Lecturas que sólo existen para acompañar una escritura del MCP (Fase 248):
+ * ver las fotos numeradas para después elegir la principal o quitar una. Los
+ * GPT de la Fase 67 no escriben, así que no las llevan.
+ */
+export const SOLO_MCP: ReadonlySet<string> = new Set<string>(['ver_fotos_producto'])
 
 /**
  * Las que exigen decir la empresa, aunque la persona tenga una sola (Fase 243).
@@ -140,6 +156,10 @@ export const EMPRESA_OBLIGATORIA: ReadonlySet<string> = new Set<string>([
   'crear_pedido_compra',
   'actualizar_producto',
   'ajustar_stock',
+  // Fase 248: el mismo SKU existe en las dos empresas.
+  'agregar_fotos',
+  'foto_principal',
+  'quitar_foto_producto',
 ])
 
 /**
