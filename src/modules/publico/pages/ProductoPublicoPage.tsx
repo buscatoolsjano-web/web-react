@@ -143,7 +143,15 @@ export function ProductoPublicoPage() {
       <div className={styles.ficha}>
         <div className={styles.foto}>
           {foto ? (
-            <img src={foto} alt={p.imagenAlt ?? altDeImagen(p)} width={520} height={520} />
+            // La foto es lo primero que se mira de la ficha: se pide antes que el resto.
+            <img
+              src={foto}
+              alt={p.imagenAlt ?? altDeImagen(p)}
+              width={520}
+              height={520}
+              fetchPriority="high"
+              decoding="async"
+            />
           ) : (
             <span className={styles.sinFoto} aria-hidden="true">
               <Icon name="image" size={32} />

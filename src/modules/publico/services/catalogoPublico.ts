@@ -49,6 +49,8 @@ export interface ProductoPublicoResumen {
   /** La foto. `imagenUrl` es la del proveedor; `imagen`, la del bucket. */
   imagen: string | null
   imagenUrl: string | null
+  /** La miniatura WebP (~5 KB contra ~40 KB), para listados y tarjetas. */
+  imagenMini?: string | null | undefined
   imagenAlt: string | null
 }
 
@@ -129,6 +131,7 @@ function resumenDe(crudo: unknown): ProductoPublicoResumen {
     atributos: objeto(o['atributos']),
     imagen: opcional(o['imagen']),
     imagenUrl: opcional(o['imagenUrl']),
+    imagenMini: opcional(o['imagenMini']),
     imagenAlt: opcional(o['imagenAlt']),
   }
 }
@@ -147,6 +150,18 @@ export function urlDeFoto(p: {
   imagenUrl: string | null
 }): string | null {
   return p.imagenUrl ?? null
+}
+
+/**
+ * La foto CHICA, para los listados y las tarjetas: la miniatura WebP si la
+ * hay; si no, la original. La ficha del producto sigue usando `urlDeFoto`.
+ */
+export function miniDeFoto(p: {
+  imagen: string | null
+  imagenUrl: string | null
+  imagenMini?: string | null | undefined
+}): string | null {
+  return p.imagenMini ?? urlDeFoto(p)
 }
 
 /** Las categorías publicadas, con cuántos productos tiene cada una. */

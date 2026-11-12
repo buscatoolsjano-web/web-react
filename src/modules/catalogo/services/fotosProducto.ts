@@ -109,7 +109,8 @@ export async function borrarFoto(
   if (error) throw new Error(`No se pudo borrar la foto: ${error.message}`)
   if (foto.propia && foto.storagePath) {
     // Si falla, queda un archivo sin fila: no se ve en ningún lado y no rompe nada.
-    await supabase.storage.from(BUCKET).remove([foto.storagePath.slice(BUCKET.length + 1)])
+    const ruta = foto.storagePath.slice(BUCKET.length + 1)
+    await supabase.storage.from(BUCKET).remove([ruta, rutaDeMiniatura(ruta)])
   }
   await ordenarFotos(companyId, restantes)
 }
@@ -140,6 +141,32 @@ export async function prepararImagen(archivo: File): Promise<Blob> {
   return blob
 }
 
+/**
+ * La miniatura de una foto: 400 px como máximo y WebP, ~5 KB contra ~40 KB del
+ * original. Es la que muestran los listados y la web (`thumb_url`). Si el
+ * navegador no la puede armar, la foto se sube igual sin miniatura: los
+ * listados usan el original, como antes.
+ */
+async function miniaturaDe(blob: Blob): Promise<Blob | null> {
+  try {
+    const bitmap = await createImageBitmap(blob)
+    const escala = Math.min(1, LADO_MINIATURA / Math.max(bitmap.width, bitmap.height))
+    const lienzo = document.createElement('canvas')
+    lienzo.width = Math.max(1, Math.round(bitmap.width * escala))
+    lienzo.height = Math.max(1, Math.round(bitmap.height * escala))
+    lienzo.getContext('2d')!.drawImage(bitmap, 0, 0, lienzo.width, lienzo.height)
+    bitmap.close()
+    return await new Promise<Blob | null>((ok) => lienzo.toBlob(ok, 'image/webp', 0.72))
+  } catch {
+    return null
+  }
+}
+
+const LADO_MINIATURA = 400
+
+/** Dónde va la miniatura de un archivo propio: al lado, con `.mini.webp`. */
+const rutaDeMiniatura = (ruta: string) => ruta.replace(/\.[a-z0-9]+$/i, '') + '.mini.webp'
+
 function extensionDe(tipo: string): string {
   if (tipo === 'image/png') return 'png'
   if (tipo === 'image/webp') return 'webp'
@@ -168,10 +195,21 @@ export async function subirFotos(
     })
     if (eSubida) throw new Error(`No se pudo subir «${archivo.name}»: ${eSubida.message}`)
     const url = supabase.storage.from(BUCKET).getPublicUrl(ruta).data.publicUrl
+    // La miniatura no es imprescindible: si no se arma o no sube, va sin ella.
+    let thumbUrl: string | null = null
+    const mini = await miniaturaDe(blob)
+    if (mini) {
+      const rutaMini = rutaDeMiniatura(ruta)
+      const { error: eMini } = await supabase.storage
+        .from(BUCKET)
+        .upload(rutaMini, mini, { contentType: 'image/webp', upsert: false, cacheControl: '31536000' })
+      if (!eMini) thumbUrl = supabase.storage.from(BUCKET).getPublicUrl(rutaMini).data.publicUrl
+    }
     const { error } = await supabase.from('product_images').insert({
       company_id: companyId,
       product_id: productId,
       source_url: url,
+      thumb_url: thumbUrl,
       storage_path: `${BUCKET}/${ruta}`,
       kind: 'product_image',
       position: posicion,
@@ -180,7 +218,7 @@ export async function subirFotos(
       alt_text: null,
     })
     if (error) {
-      await supabase.storage.from(BUCKET).remove([ruta])
+      await supabase.storage.from(BUCKET).remove([ruta, rutaDeMiniatura(ruta)])
       throw new Error(`Se subió «${archivo.name}» pero no se pudo registrar: ${error.message}`)
     }
     posicion += 1

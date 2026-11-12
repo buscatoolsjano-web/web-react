@@ -6,7 +6,7 @@ import tabla from '@/components/tables/Tabla.module.css'
 import type { ColumnaAtributo } from '../lib/columnas'
 import { valorDeAtributo } from '../lib/columnas'
 import type { FacetasPublicas, ProductoPublicoResumen } from '../services/catalogoPublico'
-import { producto as pedirProducto, urlDeFoto } from '../services/catalogoPublico'
+import { miniDeFoto, producto as pedirProducto } from '../services/catalogoPublico'
 import { rutaProductoPublico } from '../lib/rutas'
 import type { CarritoEnUso } from '../hooks/useCarritoPublico'
 import styles from './TablaProductos.module.css'
@@ -210,7 +210,7 @@ export function TablaProductos({
 
         <tbody>
           {productos.map((p) => {
-            const foto = urlDeFoto(p)
+            const foto = miniDeFoto(p)
             const enLista = carrito.cantidadDe(p.sku)
             const item = {
               sku: p.sku,

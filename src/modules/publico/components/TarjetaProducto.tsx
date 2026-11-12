@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Icon } from '@/components/icons/Icon'
 import type { ProductoPublicoResumen } from '../services/catalogoPublico'
-import { urlDeFoto } from '../services/catalogoPublico'
+import { miniDeFoto } from '../services/catalogoPublico'
 import { altDeImagen } from '../lib/seo'
 import { rutaProductoPublico } from '../lib/rutas'
 import styles from './TarjetaProducto.module.css'
@@ -24,7 +24,7 @@ import styles from './TarjetaProducto.module.css'
  * camino que sólo existe si alguien hace clic con el mouse no es un camino.
  */
 export function TarjetaProducto({ producto: p }: { producto: ProductoPublicoResumen }) {
-  const foto = urlDeFoto(p)
+  const foto = miniDeFoto(p)
   const detalle = [p.serie, p.tipo].filter((x) => x !== null && x !== '').join(' · ')
 
   return (
