@@ -12,9 +12,21 @@
   justify-content: center;
 }
 
+/* Con foto, el cuadro es BLANCO en cualquier tema. Las fotos de producto
+   vienen sobre fondo blanco: las cuadradas lo llenaban y una apaisada (la de
+   la funda, 4:3) dejaba franjas del fondo oscuro arriba y abajo, y se veía
+   más chica y despegada del resto. Así todas quedan en el mismo cuadro. */
+.caja:not(.vacia) {
+  background: #fff;
+}
+
 .img {
   width: 100%;
   height: 100%;
+  /* El mismo margen para todas: ninguna toca el borde y todas ocupan lo
+     mismo, sea cuadrada, apaisada o vertical. */
+  padding: 6%;
+  box-sizing: border-box;
   /* `contain` y no `cover`: son fotos de producto sobre fondo claro y
      recortarlas esconde justamente la punta o el encastre. */
   object-fit: contain;
