@@ -71,6 +71,14 @@ vi.mock('../hooks/useCatalogoFacetas', () => ({
 }))
 const guardarProducto = vi.fn(() => Promise.resolve())
 vi.mock('../services/edicionProducto', () => ({ guardarProducto }))
+// Fase 247: el editor del modal trae la sección de fotos, que habla con Supabase.
+// Sin esto el test levanta el cliente real, y en CI no hay variables de entorno.
+vi.mock('../services/fotosProducto', () => ({
+  listarFotos: vi.fn(() => Promise.resolve([])),
+  ordenarFotos: vi.fn(),
+  borrarFoto: vi.fn(),
+  subirFotos: vi.fn(),
+}))
 
 const { ModalProducto } = await import('./ModalProducto')
 
