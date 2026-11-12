@@ -21,6 +21,22 @@ const BLOQUE: Record<DocumentoImprimible['tipo'], string> = {
   factura: 'Datos de la factura',
 }
 
+/**
+ * Los datos que son DEL PROVEEDOR van en su bloque, con un rótulo corto.
+ *
+ * «Fijate que no queda proporcional los datos de las compras»: todo iba al
+ * bloque del documento —nueve renglones— y el del proveedor quedaba con uno.
+ * Y «Referencia del proveedor:» no entraba en la columna de rótulos (26 mm) y
+ * partía el renglón en dos. En el bloque del proveedor, «Código» ya se
+ * entiende de quién es.
+ */
+const DEL_PROVEEDOR: Record<string, string> = {
+  'Referencia del proveedor': 'Código',
+  'Entrega estimada': 'Entrega estimada',
+  'Remito del proveedor': 'Su remito',
+  'Número del proveedor': 'Su factura',
+}
+
 /** «IVA 21 %» → 21; «Exento» → 0. La hoja de Ventas muestra la alícuota. */
 export function alicuotaDe(etiqueta: string | null): number | null {
   if (etiqueta === null) return null
@@ -85,6 +101,11 @@ export function aHojaDeVentas(doc: DocumentoImprimible): HojaVentas {
       contraparte: 'Proveedor',
       identificador: dato('CUIT') ? 'CUIT' : null,
     },
-    datosExtra: doc.datos.filter((d) => !yaMostrados.has(d.etiqueta)),
+    datosExtra: doc.datos
+      .filter((d) => !yaMostrados.has(d.etiqueta))
+      .map((d) => {
+        const delProveedor = DEL_PROVEEDOR[d.etiqueta]
+        return delProveedor ? { etiqueta: delProveedor, valor: d.valor, lado: 'contraparte' as const } : d
+      }),
   }
 }

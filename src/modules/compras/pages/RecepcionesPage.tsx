@@ -56,6 +56,7 @@ export function RecepcionesPage() {
   })
 
   const [texto, setTexto] = useState(filtros.q)
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
 
   // Si el filtro cambia desde afuera hay que reflejarlo en el input. Se ajusta
   // DURANTE el render, no en un useEffect.
@@ -81,7 +82,11 @@ export function RecepcionesPage() {
    * retorno temprano cambia el orden de los hooks entre renders.
    */
   const exportar = useMutation({
-    mutationFn: () => exportarRecepciones(activa!.companyId, filtros),
+    // Con notas marcadas se llevan ésas, igual que en ventas.
+    mutationFn: async () =>
+      seleccionados.size > 0
+        ? { filas: (data?.filas ?? []).filter((r) => seleccionados.has(r.id)) }
+        : exportarRecepciones(activa!.companyId, filtros),
     onSuccess: ({ filas }) =>
       descargarCsv(
         `recepciones-${new Date().toISOString().slice(0, 10)}.csv`,
@@ -111,21 +116,49 @@ export function RecepcionesPage() {
   const total = data?.total ?? 0
   const filas = data?.filas ?? []
 
+  const marcar = (id: string, marcado: boolean) =>
+    setSeleccionados((s) => {
+      const n = new Set(s)
+      if (marcado) n.add(id)
+      else n.delete(id)
+      return n
+    })
+  const marcarTodos = (marcado: boolean) =>
+    setSeleccionados((s) => {
+      const n = new Set(s)
+      for (const r of filas) {
+        if (marcado) n.add(r.id)
+        else n.delete(r.id)
+      }
+      return n
+    })
+
   return (
     <div className={doc.listado}>
       <PageHeader
         title="Notas de entrada"
         subtitle={isPending ? 'Cargando…' : contar(total, RECEPCIONES)}
         actions={
-          <Button
-            variant="secondary"
-            icon={<Icon name="download" size={16} />}
-            loading={exportar.isPending}
-            disabled={total === 0}
-            onClick={() => exportar.mutate()}
-          >
-            {exportar.isPending ? 'Exportando…' : 'Exportar a CSV'}
-          </Button>
+          <>
+            <Button
+              variant="secondary"
+              icon={<Icon name="download" size={16} />}
+              loading={exportar.isPending}
+              disabled={total === 0}
+              onClick={() => exportar.mutate()}
+            >
+              {exportar.isPending
+                ? 'Exportando…'
+                : seleccionados.size > 0
+                  ? `Exportar ${seleccionados.size} a CSV`
+                  : 'Exportar a CSV'}
+            </Button>
+            {seleccionados.size > 0 ? (
+              <Button variant="ghost" onClick={() => setSeleccionados(new Set())}>
+                Limpiar selección
+              </Button>
+            ) : null}
+          </>
         }
       />
 
@@ -212,7 +245,16 @@ export function RecepcionesPage() {
         )
       ) : (
         <>
-          <ListadoRecepciones filas={filas} orden={filtros.orden} direccion={filtros.direccion} onOrdenar={ordenar} cargando={isPending} />
+          <ListadoRecepciones
+            filas={filas}
+            orden={filtros.orden}
+            direccion={filtros.direccion}
+            onOrdenar={ordenar}
+            cargando={isPending}
+            seleccionados={seleccionados}
+            onSeleccionar={marcar}
+            onSeleccionarTodos={marcarTodos}
+          />
           <Paginador
             pagina={filtros.pagina}
             porPagina={filtros.porPagina}

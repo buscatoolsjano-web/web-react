@@ -90,6 +90,8 @@ export interface EdicionEnHoja {
    * pares `<dt>`/`<dd>` ya armados —la entrega estimada de una compra—.
    */
   camposExtra?: ReactNode | undefined
+  /** Lo mismo, en el bloque de la contraparte (la entrega estimada de una compra). */
+  camposContraparte?: ReactNode | undefined
 }
 
 export interface VistaImpresionProps {
@@ -382,7 +384,7 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
             ) : null}
             {edicion?.camposExtra ?? null}
             {/* Los datos propios de un documento de Compras (Fase 237). */}
-            {(doc.datosExtra ?? []).map((d) => (
+            {(doc.datosExtra ?? []).filter((d) => d.lado !== 'contraparte').map((d) => (
               <Fragment key={d.etiqueta}>
                 <dt>{d.etiqueta}:</dt>
                 <dd>{d.valor}</dd>
@@ -416,6 +418,13 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
                 <dd>{doc.domicilioEntrega}</dd>
               </>
             ) : null}
+            {(doc.datosExtra ?? []).filter((d) => d.lado === 'contraparte').map((d) => (
+              <Fragment key={d.etiqueta}>
+                <dt>{d.etiqueta}:</dt>
+                <dd>{d.valor}</dd>
+              </Fragment>
+            ))}
+            {edicion?.camposContraparte ?? null}
           </dl>
         </div>
         ) : null}

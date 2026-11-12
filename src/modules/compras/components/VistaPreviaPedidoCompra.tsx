@@ -112,7 +112,7 @@ export function VistaPreviaPedidoCompra({
           const base = aHojaDeVentas(doc)
           // La entrega estimada editable reemplaza a la de sólo lectura.
           const deHoja =
-            enHoja?.camposExtra && base.datosExtra
+            enHoja?.camposContraparte && base.datosExtra
               ? {
                   ...base,
                   datosExtra: base.datosExtra.filter((d) => d.etiqueta !== 'Entrega estimada'),
@@ -166,7 +166,9 @@ function edicionEnHoja(
       ? {
           onFormaPago: (v: string) => edicion.onCabecera({ formaPago: v }),
           formasDePago: (formas ?? []).filter((f) => f.activa).map((f) => f.nombre),
-          camposExtra: (
+          // En el bloque del proveedor: es cuándo entrega ÉL (como «Entregar
+          // en» va en el del cliente en una venta).
+          camposContraparte: (
             <>
               <dt>Entrega estimada:</dt>
               <dd>

@@ -201,6 +201,9 @@
   margin: 0;
   font-weight: 700;
   overflow-wrap: anywhere;
+  /* Sin esto un desplegable con una opción larga ensancha la celda y se sale
+     de la hoja (la forma de pago de una compra se cortaba en «contra»). */
+  min-width: 0;
 }
 
 /* ── D · productos ─────────────────────────────────────────────────────── */
@@ -853,6 +856,8 @@
   border-radius: 3px;
   background: none;
   max-width: 100%;
+  width: 100%;
+  text-overflow: ellipsis;
 }
 
 .selectEditable:hover,

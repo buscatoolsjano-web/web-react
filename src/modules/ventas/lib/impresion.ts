@@ -218,7 +218,12 @@ export interface DocumentoImprimible {
         identificador: string | null
       }
     | undefined
-  datosExtra?: readonly { etiqueta: string; valor: string }[] | undefined
+  /**
+   * Datos propios de un documento de Compras. Con `lado: 'contraparte'` van
+   * en el bloque del proveedor y no en el del documento: así las dos columnas
+   * quedan parejas en vez de una de nueve renglones al lado de una de uno.
+   */
+  datosExtra?: readonly { etiqueta: string; valor: string; lado?: 'contraparte' | undefined }[] | undefined
 }
 
 function subtotalDeLinea(l: LineaDocumento, factorImpuesto: number): number | null {
