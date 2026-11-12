@@ -22,6 +22,8 @@ export interface EditorProductoProps {
   onCambiar: (valores: EdicionProducto) => void
   onGuardar: () => void
   onCancelar: () => void
+  /** Las fotos (Fase 246): se guardan solas, por eso vienen armadas desde la página. */
+  fotos?: React.ReactNode
 }
 
 /**
@@ -51,6 +53,7 @@ export function EditorProducto({
   onCambiar,
   onGuardar,
   onCancelar,
+  fotos,
 }: EditorProductoProps) {
   const id = useId()
   const [mostrarErrores, setMostrarErrores] = useState(false)
@@ -175,6 +178,8 @@ export function EditorProducto({
       </fieldset>
 
       {/* ── lo que el cliente no ve ─────────────────────────────────────── */}
+      {fotos ?? null}
+
       <fieldset className={styles.grupo}>
         <legend className={styles.leyenda}>
           Interno <span className={styles.marcaInterna}>no sale en documentos</span>

@@ -24,6 +24,7 @@ import { ListaAtributos } from '../components/ListaAtributos'
 import { ProductGallery } from '../components/ProductGallery'
 import { RelacionadosProducto } from '../components/RelacionadosProducto'
 import { EditorProducto } from '../components/EditorProducto'
+import { FotosProducto } from '../components/FotosProducto'
 import { LinksDeCompra } from '../components/LinksDeCompra'
 import { edicionDesdeProducto, puedeEditarProductos } from '../lib/edicionProducto'
 import { explicarPvp, margenSobreCosto } from '../lib/pvp'
@@ -212,6 +213,7 @@ export function ProductoDetallePage() {
             guardando={guardar.isPending}
             error={guardar.error instanceof Error ? guardar.error.message : null}
             onCambiar={setEdicion}
+            fotos={companyId ? <FotosProducto companyId={companyId} productId={producto.id} /> : null}
             onGuardar={() => guardar.mutate()}
             onCancelar={() => {
               guardar.reset()
