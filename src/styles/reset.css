@@ -61,6 +61,22 @@ select {
   color: inherit;
 }
 
+/* Las opciones de un desplegable, SIEMPRE con fondo y texto del tema.
+   `select` hereda el color del texto (arriba); si además tiene fondo
+   transparente —los campos en línea del editor del modal, la hoja editable—,
+   Chrome en Windows pinta la lista con fondo blanco y el texto heredado: en
+   oscuro quedaba texto claro sobre blanco, ilegible. Con esto la lista se lee
+   igual en cualquier tema y en cualquier desplegable de la app. */
+option,
+optgroup {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+option:disabled {
+  color: var(--color-text-muted, var(--color-text));
+}
+
 button {
   cursor: pointer;
 }
