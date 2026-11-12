@@ -173,13 +173,17 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
   {
     id: 'buscar_documentos',
     descripcion:
-      'Busca documentos de venta o de compra por tipo, fecha, estado o cliente. ' +
-      'Usala para «¿qué cotizaciones hay pendientes?» o «¿qué se facturó en agosto?».',
+      'Busca documentos de venta o de compra por tipo, fecha, estado y cliente o proveedor. ' +
+      'Usala para «¿qué cotizaciones hay pendientes?», «¿qué se facturó en agosto?» o ' +
+      '«¿qué pedidos a TECNA hay abiertos?».',
     parametros: {
       tipo: {
         type: 'string',
-        description: 'Qué tipo de documento. Sólo documentos de VENTA.',
-        enum: ['cotizacion', 'pedido', 'remito'],
+        description:
+          'Qué tipo de documento. Venta: cotizacion, pedido, remito (nota de entrega), factura. ' +
+          'Compra: pedido_compra (pedido a proveedor), recepcion (nota de entrega de proveedor), ' +
+          'factura_proveedor.',
+        enum: ['cotizacion', 'pedido', 'remito', 'factura', 'pedido_compra', 'recepcion', 'factura_proveedor'],
       },
       desde: texto('Fecha inicial en formato AAAA-MM-DD. Por defecto, hace 30 días.'),
       hasta: texto('Fecha final en formato AAAA-MM-DD. Por defecto, hoy.'),
@@ -205,10 +209,13 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
           'Una cotización «pendiente» o «sin respuesta» es `sent`: ya salió y el cliente todavía no la aceptó. ' +
           '`accepted` es la que el cliente aceptó. ' +
           'Los pedidos en curso son `confirmed` y las entregas hechas, `delivered`. ' +
-          'Los borradores no se listan nunca.',
-        enum: ['sent', 'accepted', 'confirmed', 'delivered'],
+          'En cotización, pedido y remito los borradores no se listan. ' +
+          'Factura: `draft`, `issued` (emitida) o `paid` (cobrada). ' +
+          'Pedido a proveedor: `draft` (borrador), `confirmed` (enviado), `pending` (sin recibir), `received` (recibido). ' +
+          'Factura de proveedor: `draft` o `registered`.',
+        enum: ['sent', 'accepted', 'confirmed', 'delivered', 'draft', 'issued', 'paid', 'pending', 'received', 'registered'],
       },
-      cliente: texto('Nombre del cliente. Vacío: todos.'),
+      cliente: texto('Nombre del cliente (o del PROVEEDOR en los documentos de compra). Vacío: todos.'),
       /*
        * Ordenar por importe no es un lujo: sin esto el ranking era falso.
        *
@@ -787,6 +794,40 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
   },
 
   // ── compras ───────────────────────────────────────────────────────────────
+  {
+    id: 'buscar_proveedor',
+    descripcion:
+      'Busca un proveedor por nombre, CUIT o referencia. Devuelve sus datos, la moneda y la ' +
+      'condición de pago, y cuántos pedidos tiene abiertos. Usala antes de crear_pedido_compra ' +
+      'si no sabés cómo se llama exactamente.',
+    parametros: { texto: texto('Nombre, CUIT o referencia del proveedor.') },
+    obligatorios: ['texto'],
+    rpc: 'asistente_buscar_proveedor',
+    fijos: ['company'],
+    maxFilas: 15,
+  },
+  {
+    id: 'pendientes',
+    descripcion:
+      'Lo PENDIENTE, por producto, como las pantallas «Pendiente de entregar» y «Pendiente de ' +
+      'recibir». «entregar»: lo vendido en pedidos que falta entregar, con el stock, lo que viene ' +
+      'en camino y lo que falta pedir. «recibir»: lo pedido a proveedores que no llegó, cuánto es ' +
+      'para ventas y cuánto para stock, y cuándo llega. Cuenta desde que el pedido se genera, ' +
+      'aunque esté en borrador.',
+    parametros: {
+      cual: {
+        type: 'string',
+        description: '«entregar» (ventas) o «recibir» (compras).',
+        enum: ['entregar', 'recibir'],
+      },
+      texto: texto('Opcional. Filtra por SKU o nombre del producto.'),
+      limite: entero('Cuántos productos traer (1 a 50). Por defecto 20.'),
+    },
+    obligatorios: ['cual'],
+    rpc: 'asistente_pendientes',
+    fijos: ['company'],
+    maxFilas: 50,
+  },
   {
     id: 'ultimo_costo',
     descripcion:

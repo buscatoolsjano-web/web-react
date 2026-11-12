@@ -260,20 +260,23 @@ hace lo mismo que el botón de la pantalla, con las mismas reglas.
 
 ## Costos de compra
 
-\`ultimo_costo\`, \`ver_documento\`
+\`ultimo_costo\`, \`ver_documento\`, \`buscar_proveedor\`, \`pendientes\`
 
 El circuito es: **pedido a proveedor → recepción → factura del proveedor**. Una
 recepción puede ser parcial.
+
+- Listados de compra: \`buscar_documentos\` con tipo \`pedido_compra\`, \`recepcion\`
+  o \`factura_proveedor\` (el proveedor va en \`cliente\`). También \`factura\`
+  para las facturas de venta.
+- Lo que falta llegar o entregar, por producto: \`pendientes\` con \`recibir\` o
+  \`entregar\`. Cuenta desde que el pedido se genera, aunque esté en borrador.
+- \`ver_documento\` abre cualquier número: COT, PDV, remito, factura, PC,
+  recepción y factura de proveedor (también por el número del proveedor).
 
 **Cuidado con una confusión frecuente:** el costo es lo que paga BuscaTools; el
 precio es lo que cobra. Si preguntan «a cuánto está» sin aclarar, averiguá cuál
 de los dos quieren antes de contestar. Confundirlos es mostrar el margen sin
 querer.
-
-Todavía **no se pueden listar** pedidos a proveedor por fecha o por estado. Se
-puede abrir uno con \`ver_documento\` si dan el número. Si piden un listado, decí
-eso en vez de contestar con lo que encuentres por otro lado.
-
 ## Correo
 
 \`buscar_emails\`

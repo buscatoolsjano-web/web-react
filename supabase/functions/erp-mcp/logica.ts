@@ -90,6 +90,8 @@ const TITULOS: Readonly<Record<string, string>> = {
   foto_principal: 'Elegir la foto principal',
   quitar_foto_producto: 'Quitar una foto',
   ultimo_costo: 'Último costo de compra',
+  buscar_proveedor: 'Buscar un proveedor',
+  pendientes: 'Pendiente de entregar o de recibir',
   ranking_comercial: 'Ranking comercial',
   buscar_emails: 'Buscar correos',
 }

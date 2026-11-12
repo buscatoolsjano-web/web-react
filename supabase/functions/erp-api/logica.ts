@@ -70,6 +70,9 @@ export const EXPUESTAS: readonly string[] = [
   'quitar_foto_producto',
   // compras
   'ultimo_costo',
+  'buscar_proveedor',
+  // pendiente de entregar / de recibir
+  'pendientes',
   // informes
   'ranking_comercial',
   // correo
