@@ -119,7 +119,10 @@ function mapearImagenes(filas: FilaImagen[] | null): ImagenProducto[] {
   return (filas ?? [])
     .map(mapearImagen)
     .filter((i): i is ImagenProducto => i !== null)
-    .sort((a, b) => a.posicion - b.posicion)
+    // A igual posición, la principal primero: 7.066 productos importados tienen
+    // la principal empatada en la posición 0 con otra foto, y sin este desempate
+    // el listado y la galería podían mostrar la otra.
+    .sort((a, b) => a.posicion - b.posicion || Number(b.esPrincipal) - Number(a.esPrincipal))
 }
 
 function atributosDe(v: unknown): Record<string, unknown> {
