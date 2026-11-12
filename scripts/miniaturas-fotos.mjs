@@ -8,13 +8,14 @@
  * vuelo, se cobra por foto y por mes).
  *
  * Dónde queda cada una: `catalogo-publico/miniaturas/<md5(source_url)>.webp`.
- * El nombre sale del md5 de la URL de origen para que la base lo pueda
- * calcular sola (`md5(source_url)`) al completar `thumb_url`: este script NO
- * toca la base.
+ * El nombre sale del md5 de la URL de origen, así la base lo puede calcular
+ * sola (`md5(source_url)`): un trigger apunta a la miniatura cuando entra una
+ * foto que ya la tiene.
  *
- * IDEMPOTENTE: lista lo que ya está en `miniaturas/` y sólo hace lo que falta.
- * Sirve tanto para la primera pasada como para ponerse al día con fotos
- * nuevas que entraron sin miniatura (las del MCP, un import).
+ * IDEMPOTENTE: sólo mira las fotos cuyo `thumb_url` todavía no es una
+ * miniatura, arma la que falta y completa `thumb_url`. Lo corre
+ * `.github/workflows/miniaturas.yml` cada 15 minutos, así las fotos que sube
+ * Grok por el MCP tienen su miniatura enseguida.
  *
  *   set -a; source .env.migration; set +a
  *   node scripts/miniaturas-fotos.mjs            # todo lo que falta
@@ -42,7 +43,14 @@ const sb = createClient(process.env.SUPABASE_URL ?? 'https://jiudqbusyknubonpedd
 
 export const nombreDeMiniatura = (url) => `${CARPETA}/${crypto.createHash('md5').update(url).digest('hex')}.webp`
 
-/** Las URLs de origen distintas, con orden total (sin ORDER BY .range() repite y omite). */
+const BASE_PUBLICA = `${process.env.SUPABASE_URL ?? 'https://jiudqbusyknubonpedde.supabase.co'}/storage/v1/object/public/${BUCKET}/`
+
+/**
+ * Las URLs de origen distintas de las fotos que TODAVÍA NO apuntan a su
+ * miniatura, con orden total (sin ORDER BY .range() repite y omite). Así cada
+ * corrida programada sólo mira lo nuevo —lo que subió Grok por el MCP, un
+ * import—, no las 24.000 filas.
+ */
 async function urlsDeFotos() {
   const vistas = new Set()
   for (let desde = 0; ; desde += 1000) {
@@ -50,6 +58,8 @@ async function urlsDeFotos() {
       .from('product_images')
       .select('id, source_url')
       .not('source_url', 'is', null)
+      // Las que suben desde el editor ya traen la suya (`.mini.webp`).
+      .or('thumb_url.is.null,and(thumb_url.not.like.*/miniaturas/*,thumb_url.not.like.*.mini.webp)')
       .order('id')
       .range(desde, desde + 999)
     if (error) throw new Error(error.message)
@@ -82,11 +92,27 @@ async function bajar(url) {
   }
 }
 
+/** Todas las filas con esa foto pasan a mostrar la miniatura. */
+async function apuntar(url) {
+  const { error } = await sb
+    .from('product_images')
+    .update({ thumb_url: BASE_PUBLICA + nombreDeMiniatura(url) })
+    .eq('source_url', url)
+  if (error) throw new Error(`no se pudo guardar thumb_url: ${error.message}`)
+}
+
 const urls = await urlsDeFotos()
+if (urls.length === 0) {
+  console.log('Todas las fotos tienen su miniatura.')
+  process.exit(0)
+}
 const hechas = await yaHechas()
+// La miniatura ya existe (otra fila con la misma foto): sólo falta apuntarla.
+const yaEstaban = urls.filter((u) => hechas.has(nombreDeMiniatura(u)))
+for (const u of yaEstaban) await apuntar(u)
 let pendientes = urls.filter((u) => !hechas.has(nombreDeMiniatura(u)))
 if (prueba) pendientes = pendientes.slice(0, prueba)
-console.log(`${urls.length} fotos distintas · ${hechas.size} miniaturas ya hechas · ${pendientes.length} por hacer`)
+console.log(`${urls.length} fotos sin miniatura en la base · ${yaEstaban.length} ya estaban hechas (apuntadas) · ${pendientes.length} por hacer`)
 
 let ok = 0
 let fallas = 0
@@ -110,6 +136,7 @@ async function una(url) {
       upsert: true,
     })
     if (error) throw new Error(error.message)
+    await apuntar(url)
     ok += 1
     antes += original.length
     despues += mini.length

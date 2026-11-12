@@ -1,0 +1,44 @@
+# Arma la miniatura WebP de las fotos de producto que todavía no la tienen.
+#
+# «Y las fotos que sube Grok, que también tengan la miniatura.» Las fotos que
+# entran por el MCP las sube una Edge Function, que no puede achicar imágenes
+# (sin sharp, y con 2 s de CPU por pedido). Las que suben desde el editor del
+# ERP ya traen la suya, armada en el navegador.
+#
+# Cada 15 minutos `scripts/miniaturas-fotos.mjs` mira SÓLO las fotos cuyo
+# `thumb_url` no es una miniatura: si no hay ninguna, termina en segundos sin
+# bajar nada. Si hay, arma la de 400 px en WebP, la sube al bucket público y
+# completa `thumb_url`. Mientras tanto la foto se ve igual, con el original.
+#
+# El repo es público: los minutos de Actions no se cobran.
+
+name: Miniaturas de fotos
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  # Para correrla en el momento, después de una carga grande.
+  workflow_dispatch:
+
+concurrency:
+  group: miniaturas
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  miniaturas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node scripts/miniaturas-fotos.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
