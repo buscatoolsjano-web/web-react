@@ -14,6 +14,14 @@ aplicarAparienciaInicial()
 const contenedor = document.getElementById('root')
 if (!contenedor) throw new Error('No se encontró #root en index.html')
 
+// Guarda el código de la app en el navegador (ver public/sw.js). Sólo en
+// producción: en desarrollo los archivos no llevan hash y quedarían viejos.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {})
+  })
+}
+
 createRoot(contenedor).render(
   <StrictMode>
     <App />

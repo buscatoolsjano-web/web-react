@@ -33,17 +33,41 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: mode !== 'production',
       target: 'es2022',
-      rollupOptions: {
+      rolldownOptions: {
         output: {
-          // Vite 8 (Rolldown) sólo acepta la forma de función.
-          // Separar los vendors permite que el navegador los cachee entre
-          // deploys: cambiar código de la app no invalida React ni Supabase.
-          manualChunks(id: string) {
-            if (!id.includes('node_modules')) return undefined
-            if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom)[\\/]/.test(id))
-              return 'vendor-react'
-            if (/[\\/]node_modules[\\/](@tanstack|@supabase)[\\/]/.test(id)) return 'vendor-data'
-            return undefined
+          codeSplitting: {
+            groups: [
+              // Separar los vendors permite que el navegador los cachee entre
+              // deploys: cambiar código de la app no invalida React ni Supabase.
+              {
+                name: 'vendor-react',
+                test: /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/,
+                priority: 3,
+              },
+              { name: 'vendor-data', test: /[\\/]node_modules[\\/](@tanstack|@supabase)[\\/]/, priority: 2 },
+              // El código propio que comparten dos o más pantallas, en UN
+              // archivo. Sin esto Rolldown hacía un chunk por cada combinación
+              // de pantallas que comparte un módulo: abrir Cotizaciones bajaba
+              // 34 archivos de 0–8 kB, y GitHub Pages los sirve de a pocos —
+              // ~250 ms cada uno, en cola—, así que la pantalla tardaba ~4,5 s
+              // en tener su código antes de pedir un solo dato.
+              //
+              // Sólo módulos chicos (≤ 40 kB): uno grande y usado en pocas
+              // pantallas (el PDF, el Excel) sigue yendo aparte y a pedido.
+              // Lo que necesita el arranque queda con el arranque: sin este
+              // grupo, el de abajo mezclaba código de pantallas en los
+              // archivos que baja el login.
+              { name: 'app-inicio', test: /[\\/]src[\\/]/, tags: ['$initial'], priority: 1.5 },
+              {
+                name: 'app-comun',
+                test: /[\\/]src[\\/]/,
+                minShareCount: 2,
+                maxModuleSize: 40 * 1024,
+                entriesAware: true,
+                entriesAwareMergeThreshold: 12 * 1024,
+                priority: 1,
+              },
+            ],
           },
         },
       },
