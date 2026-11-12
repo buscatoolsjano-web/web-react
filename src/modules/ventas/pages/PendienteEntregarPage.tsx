@@ -183,6 +183,7 @@ export function PendienteEntregarPage() {
                             <Link className={styles.enlace} to={`/ventas/pedidos/${d.pedidoId}`}>
                               {d.numero}
                             </Link>
+                            {d.borrador ? <> <Estado tono="tNeutro">borrador</Estado></> : null}
                           </td>
                           <td>{fechaCorta(d.fecha)}</td>
                           <td>{d.cliente ?? '—'}</td>

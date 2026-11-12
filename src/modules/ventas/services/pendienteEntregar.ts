@@ -1,8 +1,8 @@
 import { supabase } from '@/services/supabase/client'
 
 /**
- * «Pendiente de entregar» (Fase 238): lo vendido en pedidos confirmados que
- * falta entregar, acumulado por producto, con el stock, lo que viene en camino
+ * «Pendiente de entregar» (Fase 238): lo vendido en pedidos de venta —desde
+ * que se generan, aunque sigan en borrador— que falta entregar, acumulado por producto, con el stock, lo que viene en camino
  * de proveedores para esas ventas y lo que todavía falta pedir.
  */
 export interface DocumentoPendienteEntrega {
@@ -10,6 +10,8 @@ export interface DocumentoPendienteEntrega {
   numero: string
   fecha: string
   cliente: string | null
+  /** Generado pero sin confirmar: igual cuenta como pendiente. */
+  borrador: boolean
   pedido: number
   entregado: number
   pendiente: number
@@ -52,6 +54,7 @@ export async function pendienteDeEntregar(companyId: string, desde: string | nul
       numero: String(d.numero),
       fecha: String(d.fecha),
       cliente: (d.cliente as string | null) ?? null,
+      borrador: d.borrador === true,
       pedido: n(d.pedido),
       entregado: n(d.entregado),
       pendiente: n(d.pendiente),

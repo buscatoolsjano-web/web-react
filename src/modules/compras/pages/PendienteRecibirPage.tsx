@@ -178,6 +178,7 @@ export function PendienteRecibirPage() {
                               <Link className={styles.enlace} to={`/compras/pedidos/${d.pedidoId}`}>
                                 {d.numero}
                               </Link>
+                              {d.borrador ? <> <Estado tono="tNeutro">borrador</Estado></> : null}
                             </td>
                             <td>{d.proveedor ?? '—'}</td>
                             <td className={atrasado ? styles.tAtrasado : undefined}>
