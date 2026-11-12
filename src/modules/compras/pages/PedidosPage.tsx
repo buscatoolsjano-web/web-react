@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -36,6 +37,7 @@ export function PedidosPage() {
   const { data, isPending, isFetching, error, refetch } = usePedidos(filtros)
   const { activa } = useEmpresa()
   const permisos = permisosDe(activa)
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
 
   /**
    * Exportar.
@@ -44,7 +46,12 @@ export function PedidosPage() {
    * tabla entera: las páginas las pide el servidor.
    */
   const exportar = useMutation({
-    mutationFn: () => exportarPedidos(activa!.companyId, filtros),
+    // Con pedidos marcados se llevan ésos —los que están en pantalla—, igual
+    // que en el listado de ventas. Sin selección, lo que muestran los filtros.
+    mutationFn: async () =>
+      seleccionados.size > 0
+        ? { filas: (data?.filas ?? []).filter((p) => seleccionados.has(p.id)) }
+        : exportarPedidos(activa!.companyId, filtros),
     onSuccess: ({ filas }) =>
       descargarCsv(
         `pedidos-compra-${new Date().toISOString().slice(0, 10)}.csv`,
@@ -75,6 +82,24 @@ export function PedidosPage() {
 
   const total = data?.total ?? 0
   const filas = data?.filas ?? []
+
+  const marcar = (id: string, marcado: boolean) =>
+    setSeleccionados((s) => {
+      const n = new Set(s)
+      if (marcado) n.add(id)
+      else n.delete(id)
+      return n
+    })
+  const marcarTodos = (marcado: boolean) =>
+    setSeleccionados((s) => {
+      const n = new Set(s)
+      for (const p of filas) {
+        if (marcado) n.add(p.id)
+        else n.delete(p.id)
+      }
+      return n
+    })
+
   const nuevo = permisos.crearProveedor ? (
     <LinkButton to="/compras/pedidos/nuevo" variant="primary" icon={<Icon name="plus" size={16} />}>
       Nuevo pedido
@@ -95,8 +120,17 @@ export function PedidosPage() {
               disabled={total === 0}
               onClick={() => exportar.mutate()}
             >
-              {exportar.isPending ? 'Exportando…' : 'Exportar a CSV'}
+              {exportar.isPending
+                ? 'Exportando…'
+                : seleccionados.size > 0
+                  ? `Exportar ${seleccionados.size} a CSV`
+                  : 'Exportar a CSV'}
             </Button>
+            {seleccionados.size > 0 ? (
+              <Button variant="ghost" onClick={() => setSeleccionados(new Set())}>
+                Limpiar selección
+              </Button>
+            ) : null}
             {nuevo}
           </>
         }
@@ -129,7 +163,16 @@ export function PedidosPage() {
         )
       ) : (
         <>
-          <ListadoPedidos filas={filas} orden={filtros.orden} direccion={filtros.direccion} onOrdenar={ordenar} cargando={isPending} />
+          <ListadoPedidos
+            filas={filas}
+            orden={filtros.orden}
+            direccion={filtros.direccion}
+            onOrdenar={ordenar}
+            cargando={isPending}
+            seleccionados={seleccionados}
+            onSeleccionar={marcar}
+            onSeleccionarTodos={marcarTodos}
+          />
           <Paginador
             pagina={filtros.pagina}
             porPagina={filtros.porPagina}
