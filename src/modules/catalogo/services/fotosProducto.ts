@@ -75,12 +75,17 @@ export async function listarFotos(companyId: string, productId: string): Promise
  *
  * Se escribe sólo lo que cambió. Arregla de paso los productos importados que
  * tienen dos fotos en la posición 0 (una de WordPress y otra del bucket).
+ *
+ * La nueva principal se marca AL FINAL: hay un índice único
+ * (`uq_product_images_primary`, una principal por producto), así que primero
+ * se desmarca la anterior. Al revés, choca —se vio al probarlo—.
  */
 export async function ordenarFotos(
   companyId: string,
   fotos: readonly FotoProducto[],
 ): Promise<void> {
-  for (const [i, f] of fotos.entries()) {
+  const enOrden = [...fotos.entries()].slice(1).concat([...fotos.entries()].slice(0, 1))
+  for (const [i, f] of enOrden) {
     if (f.posicion === i && f.principal === (i === 0)) continue
     const { error } = await supabase
       .from('product_images')
