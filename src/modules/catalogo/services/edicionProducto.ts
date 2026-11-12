@@ -69,6 +69,29 @@ export async function guardarProducto(
   productoId: string,
   e: EdicionProducto,
 ): Promise<void> {
+  /*
+   * Sólo las claves que la empresa todavía declara (Fase 247).
+   *
+   * El trigger `validate_product_attributes` rechaza cualquier clave sin
+   * definición. En la Fase 223 se sacó `sufijos` del sistema de atributos
+   * («eso no va más») pero el valor quedó en el jsonb de ~6.600 productos, y
+   * desde entonces NINGUNO se podía guardar: «Atributos no declarados: sufijos».
+   * Al guardar, lo que ya no existe se suelta; lo demás viaja entero.
+   */
+  const { data: defs, error: eDefs } = await supabase
+    .from('product_attribute_definitions')
+    .select('key')
+    .eq('company_id', companyId)
+  if (eDefs) throw new Error(`No se pudo guardar el producto: ${eDefs.message}`)
+  const declaradas = new Set((defs ?? []).map((d) => d.key))
+  // El código de barras lo escribe la persona: no se descarta en silencio.
+  if (e.codigoBarras.trim() !== '' && !declaradas.has('barcode')) {
+    throw new Error('No se pudo guardar el producto: el código de barras no está habilitado como atributo en esta empresa.')
+  }
+  const atributos = Object.fromEntries(
+    Object.entries(atributosParaGuardar(e.atributos, e.codigoBarras)).filter(([k]) => declaradas.has(k)),
+  )
+
   const { error } = await supabase
     .from('products')
     .update({
@@ -92,7 +115,7 @@ export async function guardarProducto(
          lo que parece un número se guarda como número. No es cosmético: los
          filtros por rango del catálogo comparan números, y «8» guardado como
          texto no entra en «de 5 a 10». */
-      attributes: atributosParaGuardar(e.atributos, e.codigoBarras),
+      attributes: atributos,
     })
     .eq('company_id', companyId)
     .eq('id', productoId)

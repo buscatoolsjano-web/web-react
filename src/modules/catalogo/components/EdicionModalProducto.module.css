@@ -1,0 +1,84 @@
+/* Editar en el mismo formato del modal (Fase 247). Los campos se ven como el
+   dato que reemplazan —misma letra, mismo peso— con un subrayado punteado que
+   dice «esto se puede cambiar»; al enfocarlos se marcan con el color de acento. */
+
+.editando {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.campo {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 2px 4px;
+  border: 0;
+  border-bottom: 1px dashed var(--color-border-strong, var(--color-border));
+  border-radius: 4px 4px 0 0;
+  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+.campo:hover {
+  border-bottom-color: var(--color-primary);
+}
+
+.campo:focus {
+  outline: none;
+  border-bottom: 2px solid var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+select.campo {
+  cursor: pointer;
+}
+
+.nombre {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.descripcion {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+/* En las características el valor va a la derecha, como en la vista. */
+.valorAtributo {
+  width: 9rem;
+  text-align: right;
+  font-weight: var(--weight-semibold);
+}
+
+.area {
+  resize: vertical;
+  border: 1px dashed var(--color-border-strong, var(--color-border));
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+}
+
+.columnaFoto {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: stretch;
+}
+
+.soloLectura {
+  opacity: 0.6;
+}
+
+.nota {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+}
+
+.errores {
+  margin: 0;
+  padding-left: var(--space-4);
+}

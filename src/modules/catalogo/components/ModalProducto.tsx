@@ -10,8 +10,8 @@ import { useModalAccesible } from '@/components/modals/useModalAccesible'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { useMovimientos, useProductoPorId, useSimilares } from '../hooks/useProductos'
 import { useAtributosPorCategoria, useCategorias, useMarcas } from '../hooks/useCatalogoFacetas'
-import { EditorProducto } from './EditorProducto'
-import { edicionDesdeProducto, puedeEditarProductos } from '../lib/edicionProducto'
+import { EdicionModalProducto } from './EdicionModalProducto'
+import { edicionDesdeProducto, puedeEditarProductos, validarEdicion } from '../lib/edicionProducto'
 import { guardarProducto, type EdicionProducto } from '../services/edicionProducto'
 import { hojaDeCatalogo } from '../lib/hojaCatalogo'
 import { formatearPrecio } from '../lib/formato'
@@ -101,6 +101,7 @@ export function ModalProducto({
   // La edición vive acá, no en la URL: es un ida y vuelta, no una vista que
   // alguien quiera compartir por link (igual que en la ficha, Fase 40).
   const [edicion, setEdicion] = useState<EdicionProducto | null>(null)
+  const [mostrarErrores, setMostrarErrores] = useState(false)
   const [productoPrevio, setProductoPrevio] = useState(productoId)
   if (productoPrevio !== productoId) {
     setProductoPrevio(productoId)
@@ -131,6 +132,7 @@ export function ModalProducto({
     mutationFn: () => guardarProducto(companyId!, data!.id, edicion!),
     onSuccess: async () => {
       setEdicion(null)
+      setMostrarErrores(false)
       await queryClient.invalidateQueries({ queryKey: ['catalogo'] })
     },
   })
@@ -166,6 +168,34 @@ export function ModalProducto({
                 Editar
               </Button>
             ) : null}
+            {/* Editando (Fase 247): Guardar y Cancelar donde estaba Editar. */}
+            {data && edicion !== null ? (
+              <>
+                <Button
+                  size="sm"
+                  icon={<Icon name="check" size={16} />}
+                  loading={guardar.isPending}
+                  onClick={() => {
+                    setMostrarErrores(true)
+                    if (validarEdicion(edicion).length === 0) guardar.mutate()
+                  }}
+                >
+                  Guardar
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={guardar.isPending}
+                  onClick={() => {
+                    guardar.reset()
+                    setMostrarErrores(false)
+                    setEdicion(null)
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </>
+            ) : null}
             {data ? (
               <LinkButton to={`/catalogo/${encodeURIComponent(data.sku)}`} variant="ghost" size="sm">
                 Abrir ficha
@@ -177,20 +207,19 @@ export function ModalProducto({
 
         <div className={styles.cuerpo} ref={cuerpo}>
           {edicion !== null && data ? (
-            <EditorProducto
+            <EdicionModalProducto
+              producto={data}
               valores={edicion}
+              companyId={companyId!}
+              moneda={moneda}
+              esInterno={esInterno}
               marcas={marcas.data ?? []}
               categorias={categorias.data ?? []}
               definiciones={definiciones}
               atributosPorCategoria={porCategoria.data}
-              guardando={guardar.isPending}
+              mostrarErrores={mostrarErrores}
               error={guardar.error instanceof Error ? guardar.error.message : null}
               onCambiar={setEdicion}
-              onGuardar={() => guardar.mutate()}
-              onCancelar={() => {
-                guardar.reset()
-                setEdicion(null)
-              }}
             />
           ) : error ? (
             <Alert tone="danger" role="alert" title="No se pudo leer el producto">

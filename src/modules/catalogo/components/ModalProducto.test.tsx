@@ -118,9 +118,14 @@ describe('ModalProducto · botón Editar (Fase 136)', () => {
   it('al tocar Editar aparece el editor con los datos del producto', () => {
     montar()
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
-    // El editor es el mismo de la ficha: su botón de guardar y el nombre cargado.
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeTruthy()
-    expect(screen.getByDisplayValue('SPEEDRILL 2520/8B ADAPTADOR')).toBeTruthy()
+    // Fase 247: se edita en el MISMO formato del modal. Guardar y Cancelar van
+    // donde estaba Editar, y el nombre queda como título, editable.
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: 'Nombre' })).toHaveProperty('value', 'SPEEDRILL 2520/8B ADAPTADOR')
+    // Las secciones de la vista siguen en su lugar.
+    expect(screen.getByText('Características')).toBeTruthy()
+    expect(screen.getByText('Datos físicos y aduana')).toBeTruthy()
     // Y el botón Editar ya no está: se está editando.
     expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
   })
