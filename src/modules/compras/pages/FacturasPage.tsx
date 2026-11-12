@@ -1,12 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { useIsMobile } from '@/hooks/useMediaQuery'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { LinkButton } from '@/components/ui/LinkButton'
-import { SkeletonRows } from '@/components/ui/Skeleton'
 import { Icon } from '@/components/icons/Icon'
 import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
@@ -15,11 +12,9 @@ import { FilterBar } from '@/components/filters/FilterBar'
 import { Field } from '@/components/forms/Field'
 import { Input, Select } from '@/components/forms/controls'
 import { contar } from '@/components/tables/rango'
-import tabla from '@/components/tables/Tabla.module.css'
 import doc from '@/components/document/Document.module.css'
-import { ChipFactura } from '../components/ChipEstado'
+import { ListadoFacturas } from '../components/ListadoFacturas'
 import { Paginador } from '../components/Paginador'
-import { formatearFecha, formatearImporte } from '../lib/formato'
 import { OPCIONES_ESTADO_FACTURA, etiquetaDeEstadoFactura } from '../lib/estados'
 import { permisosDe } from '../lib/permisos'
 import { descargarCsv, facturasACsv } from '../lib/csv'
@@ -39,14 +34,6 @@ function contarActivos(f: FiltrosFacturas): number {
   ].filter(Boolean).length
 }
 
-const COLUMNAS: { clave: OrdenFacturas; etiqueta: string; num?: boolean }[] = [
-  { clave: 'numeroProveedor', etiqueta: 'Nº del proveedor' },
-  { clave: 'numero', etiqueta: 'Referencia' },
-  { clave: 'fecha', etiqueta: 'Fecha' },
-  { clave: 'proveedor', etiqueta: 'Proveedor' },
-  { clave: 'total', etiqueta: 'Total', num: true },
-]
-
 const FACTURAS = { singular: 'factura', plural: 'facturas' }
 
 /**
@@ -63,7 +50,6 @@ export function FacturasPage() {
   const { data, isPending, isFetching, error, refetch } = useFacturas(filtros)
   const { activa } = useEmpresa()
   const permisos = permisosDe(activa)
-  const isMobile = useIsMobile()
   const monedas = useMonedasDeFacturas()
   const proveedores = useProveedores({
     ...FILTROS_INICIALES,
@@ -73,6 +59,7 @@ export function FacturasPage() {
   })
 
   const [texto, setTexto] = useState(filtros.q)
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
 
   // Si el filtro cambia desde afuera hay que reflejarlo en el input. Se ajusta
   // DURANTE el render, no en un useEffect.
@@ -95,7 +82,11 @@ export function FacturasPage() {
    * columna: el archivo no suma nada, y quien lo abra agrupa por ahí.
    */
   const exportar = useMutation({
-    mutationFn: () => exportarFacturas(activa!.companyId, filtros),
+    // Con facturas marcadas se llevan ésas, igual que en ventas.
+    mutationFn: async () =>
+      seleccionados.size > 0
+        ? { filas: (data?.filas ?? []).filter((f) => seleccionados.has(f.id)) }
+        : exportarFacturas(activa!.companyId, filtros),
     onSuccess: ({ filas }) =>
       descargarCsv(
         `facturas-proveedor-${new Date().toISOString().slice(0, 10)}.csv`,
@@ -123,6 +114,24 @@ export function FacturasPage() {
 
   const total = data?.total ?? 0
   const filas = data?.filas ?? []
+
+  const marcar = (id: string, marcado: boolean) =>
+    setSeleccionados((s) => {
+      const n = new Set(s)
+      if (marcado) n.add(id)
+      else n.delete(id)
+      return n
+    })
+  const marcarTodos = (marcado: boolean) =>
+    setSeleccionados((s) => {
+      const n = new Set(s)
+      for (const f of filas) {
+        if (marcado) n.add(f.id)
+        else n.delete(f.id)
+      }
+      return n
+    })
+
   const nueva = permisos.crearProveedor ? (
     <LinkButton to="/compras/facturas/nueva" variant="primary" icon={<Icon name="plus" size={16} />}>
       Nueva factura
@@ -143,8 +152,17 @@ export function FacturasPage() {
               disabled={total === 0}
               onClick={() => exportar.mutate()}
             >
-              {exportar.isPending ? 'Exportando…' : 'Exportar a CSV'}
+              {exportar.isPending
+                ? 'Exportando…'
+                : seleccionados.size > 0
+                  ? `Exportar ${seleccionados.size} a CSV`
+                  : 'Exportar a CSV'}
             </Button>
+            {seleccionados.size > 0 ? (
+              <Button variant="ghost" onClick={() => setSeleccionados(new Set())}>
+                Limpiar selección
+              </Button>
+            ) : null}
             {nueva}
           </>
         }
@@ -211,11 +229,7 @@ export function FacturasPage() {
 
       {error ? (
         <ErrorState title="No se pudo leer el listado." description="Revisá la conexión y volvé a intentar." onRetry={() => void refetch()} retrying={isFetching} />
-      ) : isPending && filas.length === 0 ? (
-        <div className={tabla.contenedor}>
-          <SkeletonRows rows={5} columns={isMobile ? 2 : 6} label="Cargando facturas…" />
-        </div>
-      ) : filas.length === 0 ? (
+      ) : filas.length === 0 && !isPending ? (
         hayFiltros ? (
           <EmptyState
             icon="search"
@@ -235,89 +249,17 @@ export function FacturasPage() {
             action={nueva}
           />
         )
-      ) : isMobile ? (
-        <ul className={tabla.tarjetas}>
-          {filas.map((f) => (
-            <li key={f.id}>
-              <Link to={`/compras/facturas/${f.id}`} className={tabla.tarjeta}>
-                <span className={tabla.tarjetaTitulo}>{f.numeroProveedor ?? f.numero}</span>
-                <span className={`${tabla.tarjetaDerecha} ${tabla.tarjetaMeta}`}>{formatearFecha(f.fecha)}</span>
-                <span className={tabla.tarjetaTexto}>{f.proveedor}</span>
-                <span className={tabla.tarjetaMeta}>
-                  {f.numeroProveedor ? `Ref. ${f.numero} · ` : 'sin número del proveedor · '}
-                  {f.lineas} {f.lineas === 1 ? 'línea' : 'líneas'}
-                  {f.recepciones > 0 ? ` · ${f.recepciones} ${f.recepciones === 1 ? 'recepción' : 'recepciones'}` : ''}
-                </span>
-                <span className={`${tabla.tarjetaDerecha} ${tabla.tarjetaImporte}`}>{formatearImporte(f.total, f.moneda)}</span>
-                <span className={tabla.tarjetaTexto}>
-                  <ChipFactura estado={f.estado} />
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
       ) : (
-        <div className={tabla.contenedor}>
-          <table className={tabla.tabla}>
-            <thead>
-              <tr>
-                {COLUMNAS.map((c) => {
-                  const activaCol = filtros.orden === c.clave
-                  return (
-                    <th
-                      key={c.clave}
-                      scope="col"
-                      className={c.num ? tabla.num : undefined}
-                      aria-sort={activaCol ? (filtros.direccion === 'asc' ? 'ascending' : 'descending') : 'none'}
-                    >
-                      <button type="button" className={tabla.orden} onClick={() => ordenar(c.clave)}>
-                        {c.etiqueta}
-                        {activaCol ? <Icon name={filtros.direccion === 'asc' ? 'arrow-up' : 'arrow-down'} size={16} className={tabla.ordenIcono} /> : null}
-                      </button>
-                    </th>
-                  )
-                })}
-                <th scope="col">Moneda</th>
-                <th scope="col">Estado</th>
-                <th scope="col" className={tabla.num}>
-                  Líneas
-                </th>
-                <th scope="col" className={tabla.num}>
-                  Recepciones
-                </th>
-                <th scope="col">Creada por</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filas.map((f) => (
-                <tr key={f.id}>
-                  <td className={tabla.nowrap}>
-                    <Link to={`/compras/facturas/${f.id}`} className={tabla.enlace}>
-                      {f.numeroProveedor ?? <span className={tabla.secundario}>sin número</span>}
-                    </Link>
-                  </td>
-                  <td className={tabla.nowrap}>{f.numero}</td>
-                  <td className={tabla.nowrap}>{formatearFecha(f.fecha)}</td>
-                  <td className={tabla.texto} title={f.proveedor}>
-                    <Link to={`/compras/proveedores/${f.proveedorId}`} className={tabla.enlaceSuave}>
-                      {f.proveedor}
-                    </Link>
-                  </td>
-                  <td className={tabla.num}>{formatearImporte(f.total, f.moneda)}</td>
-                  <td className={tabla.nowrap}>{f.moneda}</td>
-                  <td>
-                    <ChipFactura estado={f.estado} />
-                  </td>
-                  <td className={tabla.num}>{f.lineas}</td>
-                  <td className={tabla.num}>{f.recepciones}</td>
-                  <td className={tabla.secundario} title={f.autor ?? undefined}>
-                    {f.autor ?? '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ListadoFacturas
+          filas={filas}
+          orden={filtros.orden}
+          direccion={filtros.direccion}
+          onOrdenar={ordenar}
+          cargando={isPending}
+          seleccionados={seleccionados}
+          onSeleccionar={marcar}
+          onSeleccionarTodos={marcarTodos}
+        />
       )}
 
       {error || filas.length === 0 ? null : (
