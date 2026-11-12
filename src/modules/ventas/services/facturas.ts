@@ -92,17 +92,29 @@ function aListada(f: FilaFactura): FacturaListada {
   }
 }
 
+/**
+ * Todas las facturas de la empresa, de a páginas de 1.000 (el tope de
+ * PostgREST). Antes era `.limit(200)` y Torquetools tiene 308: las más viejas
+ * no aparecían en ninguna parte. El filtro y el orden del listado se hacen en
+ * el navegador, sobre todas.
+ */
 export async function listarFacturas(companyId: string): Promise<FacturaListada[]> {
-  const { data, error } = await supabase
-    .from('sales_invoices')
-    .select(COLUMNAS)
-    .eq('company_id', companyId)
-    .order('invoice_date', { ascending: false })
-    .order('number', { ascending: false })
-    .limit(200)
+  const TAMANO = 1000
+  const todas: FacturaListada[] = []
+  for (let desde = 0; ; desde += TAMANO) {
+    const { data, error } = await supabase
+      .from('sales_invoices')
+      .select(COLUMNAS)
+      .eq('company_id', companyId)
+      .order('invoice_date', { ascending: false })
+      .order('number', { ascending: false })
+      .range(desde, desde + TAMANO - 1)
 
-  if (error) throw new Error(`No se pudieron leer las facturas: ${error.message}`)
-  return (data ?? []).map((f) => aListada(f as unknown as FilaFactura))
+    if (error) throw new Error(`No se pudieron leer las facturas: ${error.message}`)
+    const filas = data ?? []
+    todas.push(...filas.map((f) => aListada(f as unknown as FilaFactura)))
+    if (filas.length < TAMANO) return todas
+  }
 }
 
 export async function obtenerFactura(companyId: string, id: string): Promise<FacturaDetalle | null> {
