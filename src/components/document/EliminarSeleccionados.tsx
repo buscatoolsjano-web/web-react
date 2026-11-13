@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { ConfirmBorrado } from '@/components/modals/ConfirmBorrado'
-import { mensajeDeBorrado } from '@/services/borrado'
+import { mensajeDeBorrado } from '@/services/borradoTextos'
 import type { ElegidoParaBorrar, ResultadoBorradoMasivo } from './borradoMasivo'
 
 export interface EliminarSeleccionadosProps {

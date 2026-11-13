@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Textarea } from '@/components/forms/controls'
-import { MINIMO_MOTIVO, MOTIVOS_FRECUENTES } from '@/services/borrado'
+import { MINIMO_MOTIVO, MOTIVOS_FRECUENTES } from '@/services/borradoTextos'
 import { ConfirmDialog } from './ConfirmDialog'
 import styles from './ConfirmBorrado.module.css'
 
