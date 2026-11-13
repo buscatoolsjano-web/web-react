@@ -936,7 +936,9 @@ function Detalle() {
             </>
           }
           more={
-            escribe && doc.estado === 'sent' ? (
+            // Una cotización que ya tiene pedido no se rechaza: si el cliente
+            // se echó atrás, lo que se cancela es el pedido.
+            escribe && doc.estado === 'sent' && !yaTienePedido ? (
               <MoreMenu>
                 <Button
                   variant="secondary"
