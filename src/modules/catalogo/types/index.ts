@@ -271,6 +271,8 @@ export interface ProductoListado {
 export interface ImagenProducto {
   url: string
   thumbUrl: string | null
+  /** La versión mediana WebP (1200 px) para verla grande; si falta, `url`. */
+  mediumUrl?: string | null | undefined
   kind: 'product_image' | 'shared_diagram' | 'technical_diagram' | 'unknown'
   posicion: number
   esPrincipal: boolean

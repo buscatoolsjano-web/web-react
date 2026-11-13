@@ -44,8 +44,11 @@ export function ImagenProducto({ imagen, alt, tamano = 'thumb', prioridad = 'laz
   const [falloOriginal, setFalloOriginal] = useState(false)
   const [falloMiniatura, setFalloMiniatura] = useState(false)
 
-  const usarMiniatura = tamano === 'thumb' && imagen?.thumbUrl !== null && !falloMiniatura
-  const src = imagen === null ? null : usarMiniatura ? imagen.thumbUrl : imagen.url
+  // En grande, la mediana WebP (1200 px, ~10 veces más liviana); si no hay o
+  // falla, el original. Comparte el mismo paso de respaldo que la miniatura.
+  const optimizada = tamano === 'thumb' ? imagen?.thumbUrl : imagen?.mediumUrl
+  const usarMiniatura = optimizada != null && !falloMiniatura
+  const src = imagen === null ? null : usarMiniatura ? optimizada : imagen.url
 
   if (src === null || falloOriginal) {
     return (

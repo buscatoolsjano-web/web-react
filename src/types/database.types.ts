@@ -4649,6 +4649,7 @@ export type Database = {
           id: string
           is_primary: boolean
           kind: string
+          medium_url: string | null
           position: number
           product_id: string
           source_url: string | null
@@ -4665,6 +4666,7 @@ export type Database = {
           id?: string
           is_primary?: boolean
           kind?: string
+          medium_url?: string | null
           position?: number
           product_id: string
           source_url?: string | null
@@ -4681,6 +4683,7 @@ export type Database = {
           id?: string
           is_primary?: boolean
           kind?: string
+          medium_url?: string | null
           position?: number
           product_id?: string
           source_url?: string | null

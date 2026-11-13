@@ -175,7 +175,15 @@ function Lightbox({
           <IconButton icon="chevron-left" aria-label="Imagen anterior" variant="secondary" className={styles.anterior} onClick={anterior} />
         )}
 
-        <img className={styles.lightboxImg} src={img.url} alt={nombre} />
+        {/* La mediana WebP (1200 px) alcanza para la pantalla entera y pesa ~10 veces menos. */}
+        <img
+          className={styles.lightboxImg}
+          src={img.mediumUrl ?? img.url}
+          alt={nombre}
+          onError={(e) => {
+            if (e.currentTarget.src !== img.url) e.currentTarget.src = img.url
+          }}
+        />
 
         {hayVarias && (
           <IconButton icon="chevron-right" aria-label="Imagen siguiente" variant="secondary" className={styles.siguiente} onClick={siguiente} />

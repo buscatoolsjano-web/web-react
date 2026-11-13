@@ -27,7 +27,7 @@ const COLUMNAS_LISTADO = `
   brands ( id, name, is_active ),
   product_categories!products_category_id_fkey ( id, name, slug, is_active ),
   product_prices ( amount, price_list_id, valid_from, valid_to ),
-  product_images ( source_url, thumb_url, kind, position, is_primary )
+  product_images ( source_url, thumb_url, medium_url, kind, position, is_primary )
 ` as const
 
 const COLUMNAS_LISTADO_INTERNO = `
@@ -42,7 +42,7 @@ const COLUMNAS_DETALLE = `
   brands ( id, name, is_active ),
   product_categories!products_category_id_fkey ( id, name, slug, is_active ),
   product_prices ( amount, price_list_id, valid_from, valid_to ),
-  product_images ( source_url, thumb_url, kind, position, is_primary )
+  product_images ( source_url, thumb_url, medium_url, kind, position, is_primary )
 ` as const
 
 /*
@@ -80,6 +80,7 @@ interface FilaProducto {
 interface FilaImagen {
   source_url: string | null
   thumb_url: string | null
+  medium_url?: string | null
   kind: string
   position: number
   is_primary: boolean
@@ -109,6 +110,7 @@ function mapearImagen(f: FilaImagen): ImagenProducto | null {
     // medido, el 51 % de las de WordPress no tiene miniatura y el 100 % de
     // las de apexbits tampoco.
     thumbUrl: f.thumb_url,
+    mediumUrl: f.medium_url ?? null,
     kind: (CLASES_IMAGEN.has(f.kind) ? f.kind : 'unknown') as ImagenProducto['kind'],
     posicion: f.position,
     esPrincipal: f.is_primary,

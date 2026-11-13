@@ -110,7 +110,7 @@ export async function borrarFoto(
   if (foto.propia && foto.storagePath) {
     // Si falla, queda un archivo sin fila: no se ve en ningún lado y no rompe nada.
     const ruta = foto.storagePath.slice(BUCKET.length + 1)
-    await supabase.storage.from(BUCKET).remove([ruta, rutaDeMiniatura(ruta)])
+    await supabase.storage.from(BUCKET).remove([ruta, rutaDeMiniatura(ruta), rutaDeMediana(ruta)])
   }
   await ordenarFotos(companyId, restantes)
 }
@@ -147,16 +147,16 @@ export async function prepararImagen(archivo: File): Promise<Blob> {
  * navegador no la puede armar, la foto se sube igual sin miniatura: los
  * listados usan el original, como antes.
  */
-async function miniaturaDe(blob: Blob): Promise<Blob | null> {
+async function miniaturaDe(blob: Blob, lado = LADO_MINIATURA, calidad = 0.72): Promise<Blob | null> {
   try {
     const bitmap = await createImageBitmap(blob)
-    const escala = Math.min(1, LADO_MINIATURA / Math.max(bitmap.width, bitmap.height))
+    const escala = Math.min(1, lado / Math.max(bitmap.width, bitmap.height))
     const lienzo = document.createElement('canvas')
     lienzo.width = Math.max(1, Math.round(bitmap.width * escala))
     lienzo.height = Math.max(1, Math.round(bitmap.height * escala))
     lienzo.getContext('2d')!.drawImage(bitmap, 0, 0, lienzo.width, lienzo.height)
     bitmap.close()
-    return await new Promise<Blob | null>((ok) => lienzo.toBlob(ok, 'image/webp', 0.72))
+    return await new Promise<Blob | null>((ok) => lienzo.toBlob(ok, 'image/webp', calidad))
   } catch {
     return null
   }
@@ -166,6 +166,17 @@ const LADO_MINIATURA = 400
 
 /** Dónde va la miniatura de un archivo propio: al lado, con `.mini.webp`. */
 const rutaDeMiniatura = (ruta: string) => ruta.replace(/\.[a-z0-9]+$/i, '') + '.mini.webp'
+/** Y la mediana (1200 px), para verla grande: `.media.webp`. */
+const rutaDeMediana = (ruta: string) => ruta.replace(/\.[a-z0-9]+$/i, '') + '.media.webp'
+
+/** Sube una versión optimizada; si no se puede, la foto sigue sin ella. */
+async function subirVersion(ruta: string, blob: Blob | null): Promise<string | null> {
+  if (!blob) return null
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(ruta, blob, { contentType: 'image/webp', upsert: false, cacheControl: '31536000' })
+  return error ? null : supabase.storage.from(BUCKET).getPublicUrl(ruta).data.publicUrl
+}
 
 function extensionDe(tipo: string): string {
   if (tipo === 'image/png') return 'png'
@@ -195,21 +206,16 @@ export async function subirFotos(
     })
     if (eSubida) throw new Error(`No se pudo subir «${archivo.name}»: ${eSubida.message}`)
     const url = supabase.storage.from(BUCKET).getPublicUrl(ruta).data.publicUrl
-    // La miniatura no es imprescindible: si no se arma o no sube, va sin ella.
-    let thumbUrl: string | null = null
-    const mini = await miniaturaDe(blob)
-    if (mini) {
-      const rutaMini = rutaDeMiniatura(ruta)
-      const { error: eMini } = await supabase.storage
-        .from(BUCKET)
-        .upload(rutaMini, mini, { contentType: 'image/webp', upsert: false, cacheControl: '31536000' })
-      if (!eMini) thumbUrl = supabase.storage.from(BUCKET).getPublicUrl(rutaMini).data.publicUrl
-    }
+    // Las versiones optimizadas no son imprescindibles: si no se arman o no
+    // suben, la foto va sin ellas y se ve el original.
+    const thumbUrl = await subirVersion(rutaDeMiniatura(ruta), await miniaturaDe(blob))
+    const mediumUrl = await subirVersion(rutaDeMediana(ruta), await miniaturaDe(blob, 1200, 0.8))
     const { error } = await supabase.from('product_images').insert({
       company_id: companyId,
       product_id: productId,
       source_url: url,
       thumb_url: thumbUrl,
+      medium_url: mediumUrl,
       storage_path: `${BUCKET}/${ruta}`,
       kind: 'product_image',
       position: posicion,
@@ -218,7 +224,7 @@ export async function subirFotos(
       alt_text: null,
     })
     if (error) {
-      await supabase.storage.from(BUCKET).remove([ruta, rutaDeMiniatura(ruta)])
+      await supabase.storage.from(BUCKET).remove([ruta, rutaDeMiniatura(ruta), rutaDeMediana(ruta)])
       throw new Error(`Se subió «${archivo.name}» pero no se pudo registrar: ${error.message}`)
     }
     posicion += 1
