@@ -276,19 +276,20 @@ import { createServer } from 'vite'
     urls.push(`${SITIO}${canonica}`)
   }
 
-  // ── La portada: es el catálogo, así que lista las categorías como caminos ───
   const enlacesCat = categorias
     .map(
       (c) =>
         `<li><a href="/productos/${esc(c.slug)}/">${esc(c.nombre)}</a> (${Number(c.productos ?? 0)})</li>`,
     )
     .join('')
+
+  // ── El catálogo entero: /productos/ ─────────────────────────────────────────
   escribir(
-    '/',
+    '/productos/',
     pagina({
-      titulo: `Herramientas industriales y de montaje${seo.SUFIJO}`,
+      titulo: `Catálogo de herramientas industriales${seo.SUFIJO}`,
       descripcion: seo.descripcionDeCategoria('productos', productos.length),
-      canonica: '/',
+      canonica: '/productos/',
       imagen: null,
       datos: null,
       cuerpo:
@@ -296,6 +297,64 @@ import { createServer } from 'vite'
         `<p>Puntas, tubos, embocaduras, balanceadores, atornilladores, llaves de impacto ` +
         `y dinamométricas. Importación directa, entrega en todo el país.</p>` +
         `<ul>${enlacesCat}</ul></main>`,
+    }),
+  )
+  urls.push(`${SITIO}/productos/`)
+
+  // ── La portada: hero, categorías, cómo trabajamos y preguntas ───────────────
+  // Los mismos textos que dibuja la app (`lib/inicio.ts`), para que el
+  // buscador lea en el HTML lo mismo que ve una persona.
+  /** @type {typeof import('../src/modules/publico/lib/inicio')} */
+  const inicio = await vite.ssrLoadModule('/src/modules/publico/lib/inicio.ts')
+  const preguntasHtml = inicio.PREGUNTAS.map(
+    (p) => `<h3>${esc(p.pregunta)}</h3><p>${esc(p.respuesta)}</p>`,
+  ).join('')
+  const pasosHtml = inicio.PASOS.map((p) => `<li><h3>${esc(p.titulo)}</h3><p>${esc(p.texto)}</p></li>`).join('')
+  const industriasHtml = inicio.INDUSTRIAS.map(
+    (i) => `<li><h3>${esc(i.titulo)}</h3><p>${esc(i.texto)}</p></li>`,
+  ).join('')
+  escribir(
+    '/',
+    pagina({
+      titulo: `Herramientas industriales de montaje y torque${seo.SUFIJO}`,
+      descripcion:
+        'Atornilladores, balanceadores, puntas, tubos, llaves de impacto y dinamométricas para la industria. Asesoramiento técnico, factura A o B y envíos a todo el país.',
+      canonica: '/',
+      imagen: null,
+      datos: {
+        '@context': 'https://schema.org',
+        '@graph': [
+          {
+            '@type': 'Organization',
+            name: seo.NOMBRE_SITIO,
+            url: `${SITIO}/`,
+            email: 'info@buscatools.com.ar',
+            telephone: '+54 9 11 2169-3304',
+            areaServed: 'AR',
+          },
+          {
+            '@type': 'FAQPage',
+            mainEntity: inicio.PREGUNTAS.map((p) => ({
+              '@type': 'Question',
+              name: p.pregunta,
+              acceptedAnswer: { '@type': 'Answer', text: p.respuesta },
+            })),
+          },
+        ],
+      },
+      cuerpo:
+        `<main>` +
+        `<p>Importación y distribución de herramientas industriales</p>` +
+        `<h1>Herramientas de montaje y torque para tu línea de producción</h1>` +
+        `<p>Atornilladores, balanceadores, puntas, tubos, llaves de impacto y dinamométricas de las ` +
+        `marcas que usa la industria. ${productos.length} productos en catálogo, asesoramiento técnico ` +
+        `y envíos a todo el país.</p>` +
+        `<p><a href="/productos/">Ver el catálogo</a></p>` +
+        `<h2>Qué podés encontrar</h2><ul>${enlacesCat}</ul>` +
+        `<h2>Cómo trabajamos</h2><ol>${pasosHtml}</ol>` +
+        `<h2>Para quién trabajamos</h2><ul>${industriasHtml}</ul>` +
+        `<h2>Preguntas frecuentes</h2>${preguntasHtml}` +
+        `</main>`,
     }),
   )
 

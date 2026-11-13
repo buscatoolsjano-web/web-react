@@ -8623,6 +8623,10 @@ export type Database = {
         Args: Record<string, never>
         Returns: Json
       }
+      catalogo_publico_destacados: {
+        Args: Record<string, never>
+        Returns: Json
+      }
       catalogo_publico_facetas: {
         Args: { p_categoria?: string | null }
         Returns: Json

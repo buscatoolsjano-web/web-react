@@ -91,7 +91,9 @@ export function PublicoLayout() {
    * Sólo en las rutas que muestran el catálogo: no en la ficha (lleva
    * `:producto`) ni en `/cotizar`, que no las necesitan.
    */
-  const enCatalogo = producto === undefined && pathname !== '/cotizar'
+  // La portada (`/`) tampoco: muestra categorías y algunos productos, no la
+  // primera página del catálogo.
+  const enCatalogo = producto === undefined && pathname !== '/cotizar' && pathname !== '/'
   useEffect(() => {
     if (!enCatalogo) return
     const f = leerFiltros(params, categoria)

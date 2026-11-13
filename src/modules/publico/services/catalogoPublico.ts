@@ -164,6 +164,17 @@ export function miniDeFoto(p: {
   return p.imagenMini ?? urlDeFoto(p)
 }
 
+/**
+ * Los productos de la vidriera de la portada: de cada categoría, dos CON foto,
+ * rotando una vez por día. Los elige la base y los guarda (se refrescan cada
+ * 10 minutos), así la portada no tiene que pedir una página por categoría.
+ */
+export async function destacados(): Promise<ProductoPublicoResumen[]> {
+  const res = await supabase.rpc('catalogo_publico_destacados')
+  if (res.error) throw new FalloCatalogoPublico(`No se pudieron leer los destacados: ${res.error.message}`)
+  return Array.isArray(res.data) ? res.data.map(resumenDe) : []
+}
+
 /** Las categorías publicadas, con cuántos productos tiene cada una. */
 export async function categorias(): Promise<CategoriaPublica[]> {
   let data = await adelanto('categorias')

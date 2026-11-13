@@ -115,10 +115,14 @@
                 p_categoria: null, p_marca: null, p_serie: null, p_tipo: null,
                 p_atributos: null, p_texto: null, p_modelo: null,
               }),
-              listar: pedir('catalogo_publico_listar', {
+            }
+            // Los 100 primeros productos sólo en el catálogo: la portada (`/`)
+            // no los muestra, y bajarlos ahí era peso de más.
+            if (p === '/productos') {
+              window.__pf.listar = pedir('catalogo_publico_listar', {
                 p_categoria: null, p_marca: null, p_texto: null, p_modelo: null,
                 p_serie: null, p_tipo: null, p_atributos: null, p_pagina: 1, p_por_pagina: 100,
-              }),
+              })
             }
           }
         } catch (e) {

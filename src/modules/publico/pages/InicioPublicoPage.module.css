@@ -1,0 +1,493 @@
+/* La portada del sitio público. Más aire que el resto del sitio: es la
+   primera impresión, y se lee de corrido, no se opera. */
+
+.inicio {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Hero ──────────────────────────────────────────────────────────────── */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-8);
+  max-width: 80rem;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-4) var(--space-8);
+}
+
+.kicker {
+  margin: 0 0 var(--space-3);
+  color: var(--color-primary-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.heroTitulo {
+  margin: 0;
+  font-size: clamp(1.9rem, 1.2rem + 2.6vw, 3.1rem);
+  line-height: 1.1;
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.heroBajada {
+  margin: var(--space-4) 0 0;
+  max-width: 38rem;
+  color: var(--color-text-soft);
+  font-size: var(--text-lg);
+  line-height: 1.55;
+}
+
+.heroAcciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+.botonPrimario,
+.botonSecundario {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 3rem;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-full);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.botonPrimario {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.botonPrimario:hover {
+  background: var(--color-primary-hover);
+}
+
+.botonSecundario {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.botonSecundario:hover {
+  border-color: var(--color-primary);
+}
+
+.botonPrimario:focus-visible,
+.botonSecundario:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.confianza {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+}
+
+.confianza li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.confianza svg {
+  color: var(--color-success);
+}
+
+/* Cuatro categorías en mosaico: dice de qué se trata el sitio sin leer. */
+.collage {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.collageCelda {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  /* Las fotos vienen con fondo blanco: el marco también, en claro y en oscuro. */
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+}
+
+.collageCelda img {
+  width: 100%;
+  height: 100%;
+  padding: 10%;
+  object-fit: contain;
+}
+
+.collageCelda span {
+  position: absolute;
+  left: var(--space-2);
+  bottom: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  background: rgb(0 0 0 / 0.65);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+/* ── Números ───────────────────────────────────────────────────────────── */
+
+.numeros {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+  max-width: 80rem;
+  width: calc(100% - 2 * var(--space-4));
+  margin: 0 auto var(--space-8);
+  padding: var(--space-5) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.numeros div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  text-align: center;
+}
+
+.numeros strong {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  color: var(--color-primary-text);
+  font-size: clamp(1.4rem, 1rem + 1.2vw, 1.9rem);
+  font-weight: var(--weight-bold);
+}
+
+.numeros span {
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+}
+
+/* ── Secciones ─────────────────────────────────────────────────────────── */
+
+.seccion {
+  width: 100%;
+  padding: var(--space-10) max(var(--space-4), calc((100% - 80rem) / 2 + var(--space-4)));
+}
+
+.seccion h2,
+.cierre h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 1.1rem + 0.9vw, 1.85rem);
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.fondoSuave {
+  background: var(--color-surface-alt);
+}
+
+.encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.verTodo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-primary-text);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.verTodo:hover {
+  text-decoration: underline;
+}
+
+.bajada {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-soft);
+}
+
+/* Categorías */
+.categorias {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.categoria {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+
+.categoria:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+}
+
+.categoria:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.categoriaFoto {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  background: #fff;
+  color: #9ca3af;
+}
+
+.categoriaFoto img {
+  width: 100%;
+  height: 100%;
+  padding: 12%;
+  object-fit: contain;
+}
+
+.categoriaNombre {
+  padding: var(--space-3) var(--space-3) 0;
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+
+.categoriaCuantos {
+  padding: var(--space-1) var(--space-3) var(--space-3);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+}
+
+/* Cómo trabajamos */
+.pasos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.paso {
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.pasoNumero {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: var(--weight-bold);
+}
+
+.paso h3,
+.industria h3 {
+  margin: var(--space-3) 0 var(--space-2);
+  font-size: var(--text-lg);
+}
+
+.paso p,
+.industria p {
+  margin: 0;
+  color: var(--color-text-soft);
+  line-height: 1.55;
+}
+
+/* Destacados */
+.vidriera {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vidriera li {
+  display: flex;
+}
+
+.vidriera li > * {
+  flex: 1;
+}
+
+/* Marcas */
+.marcas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-5) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.marca {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.marca span {
+  color: var(--color-text-soft);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+}
+
+.marca:hover {
+  border-color: var(--color-primary);
+}
+
+.marca:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Industrias */
+.industrias {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-5);
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.industria svg {
+  color: var(--color-primary-text);
+}
+
+/* Preguntas */
+.preguntas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 52rem;
+  margin-top: var(--space-5);
+}
+
+.pregunta {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.pregunta summary {
+  padding: var(--space-4);
+  cursor: pointer;
+  font-weight: var(--weight-semibold);
+}
+
+.pregunta summary:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.pregunta p {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-4);
+  color: var(--color-text-soft);
+  line-height: 1.6;
+}
+
+/* Cierre */
+.cierre {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-10) var(--space-4);
+  text-align: center;
+}
+
+.cierre p {
+  margin: 0;
+  max-width: 36rem;
+  color: var(--color-text-soft);
+}
+
+.cierre .heroAcciones {
+  justify-content: center;
+  margin-top: var(--space-3);
+}
+
+/* ── Angosto ───────────────────────────────────────────────────────────── */
+
+@media (max-width: 64rem) {
+  .industrias {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 48rem) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+    padding-top: var(--space-6);
+  }
+
+  .numeros {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pasos,
+  .industrias {
+    grid-template-columns: 1fr;
+  }
+
+  .seccion {
+    padding-top: var(--space-8);
+    padding-bottom: var(--space-8);
+  }
+}

@@ -349,6 +349,11 @@ const CatalogoPublicoPage = lazyConRecarga(() =>
     default: m.CatalogoPublicoPage,
   })),
 )
+const InicioPublicoPage = lazyConRecarga(() =>
+  import('@/modules/publico/pages/InicioPublicoPage').then((m) => ({
+    default: m.InicioPublicoPage,
+  })),
+)
 const ProductoPublicoPage = lazyConRecarga(() =>
   import('@/modules/publico/pages/ProductoPublicoPage').then((m) => ({
     default: m.ProductoPublicoPage,
@@ -415,11 +420,12 @@ const rutasPublicas: RouteObject[] = [
     element: <PublicoLayout />,
     errorElement: <ErrorPage />,
     children: [
-      // La raiz ES el catalogo (Fase 87 · E2b): «entras a la web y ya
-      // tenes el catalogo ahi listo para filtrar». La portada con hero que
-      // habia antes dejaba el catalogo a un clic, y ese clic estaba entre
-      // alguien que llego buscando un producto y el producto.
-      { path: '/', element: conSuspense(<CatalogoPublicoPage />) },
+      // La raíz es la PORTADA (hero, categorías, cómo trabajamos, marcas,
+      // preguntas) y el catálogo vive en /productos, a un clic. En la Fase
+      // 87 · E2b la raíz había pasado a ser el catálogo («entrás y ya tenés
+      // el catálogo»); se volvió a una portada para posicionar la web y que
+      // se vea más profesional, con el catálogo en el primer botón.
+      { path: '/', element: conSuspense(<InicioPublicoPage />) },
       { path: '/productos', element: conSuspense(<CatalogoPublicoPage />) },
       { path: '/productos/:categoria', element: conSuspense(<CatalogoPublicoPage />) },
       {

@@ -125,7 +125,8 @@ export function CatalogoPublicoPage() {
     descripcion: categoria
       ? descripcionDeCategoria(nombre, cuantos)
       : 'Puntas, tubos y embocaduras, balanceadores, atornilladores y llaves de impacto. Importación directa de las marcas que usa la industria.',
-    canonica: categoria ? rutaCategoria(categoria) : '/',
+    // La raíz es la portada: el catálogo entero tiene su propia dirección.
+    canonica: categoria ? rutaCategoria(categoria) : rutaCatalogo(),
     sinIndexar: hayFiltro || pagina > 1,
   })
 
