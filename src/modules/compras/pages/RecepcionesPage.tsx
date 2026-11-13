@@ -14,7 +14,9 @@ import { contar } from '@/components/tables/rango'
 import doc from '@/components/document/Document.module.css'
 import { permisosDe } from '../lib/permisos'
 import { descargarCsv, recepcionesACsv } from '../lib/csv'
-import { exportarRecepciones } from '../services/recepciones'
+import { borrarRecepcion, exportarRecepciones } from '../services/recepciones'
+import { EliminarSeleccionados } from '@/components/document/EliminarSeleccionados'
+import { avisoDeBorradoMasivo } from '@/components/document/borradoMasivo'
 import { ListadoRecepciones } from '../components/ListadoRecepciones'
 import { Paginador } from '../components/Paginador'
 import { useDepositos, useRecepciones } from '../hooks/useRecepciones'
@@ -57,6 +59,7 @@ export function RecepcionesPage() {
 
   const [texto, setTexto] = useState(filtros.q)
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
+  const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
 
   // Si el filtro cambia desde afuera hay que reflejarlo en el input. Se ajusta
   // DURANTE el render, no en un useEffect.
@@ -115,6 +118,9 @@ export function RecepcionesPage() {
 
   const total = data?.total ?? 0
   const filas = data?.filas ?? []
+  // Sólo un borrador se borra: una confirmada ya movió stock.
+  const marcados = filas.filter((r) => seleccionados.has(r.id))
+  const borrables = marcados.filter((r) => r.estado === 'draft')
 
   const marcar = (id: string, marcado: boolean) =>
     setSeleccionados((s) => {
@@ -153,6 +159,20 @@ export function RecepcionesPage() {
                   ? `Exportar ${seleccionados.size} a CSV`
                   : 'Exportar a CSV'}
             </Button>
+            {permisos.editarProveedor && marcados.length > 0 ? (
+              <EliminarSeleccionados
+                elegidos={borrables}
+                noSePueden={marcados.length - borrables.length}
+                plural={RECEPCIONES.plural}
+                motivoNoSePueden="sólo se borran las que están en borrador (una confirmada ya movió stock)."
+                borrar={borrarRecepcion}
+                onListo={(r) => {
+                  setSeleccionados(new Set())
+                  setAviso({ ok: r.fallas.length === 0, texto: avisoDeBorradoMasivo(r, RECEPCIONES.plural) })
+                  void refetch()
+                }}
+              />
+            ) : null}
             {seleccionados.size > 0 ? (
               <Button variant="ghost" onClick={() => setSeleccionados(new Set())}>
                 Limpiar selección
@@ -161,6 +181,12 @@ export function RecepcionesPage() {
           </>
         }
       />
+
+      {aviso ? (
+        <Alert tone={aviso.ok ? 'success' : 'warning'} role="status">
+          <p>{aviso.texto}</p>
+        </Alert>
+      ) : null}
 
       <Alert tone="info">
         <p>Una recepción se crea desde un pedido de compra confirmado, con el botón «Recibir mercadería».</p>

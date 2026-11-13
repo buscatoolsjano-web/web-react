@@ -72,6 +72,11 @@ export interface Editabilidad {
   confirmar: boolean
   cancelar: boolean
   duplicar: boolean
+  /**
+   * Borrar del todo, con motivo. Sólo un borrador o un cancelado sin
+   * mercadería recibida: el resto es un documento con historia.
+   */
+  borrar: boolean
 }
 
 export function editabilidadDe(
@@ -91,6 +96,10 @@ export function editabilidadDe(
     // operativo. Lo rechaza el servidor con `restrict_violation`.
     cancelar: (borrador || confirmado) && !conRecepcion,
     duplicar: true,
+    // Lo que no llegó a pasar se puede sacar del medio. El motivo y una
+    // copia quedan en Configuración → Borrados. Si tiene una nota de entrada
+    // (aunque sea en borrador), la base lo rechaza por la FK.
+    borrar: (borrador || cancelado) && !conRecepcion,
   }
 }
 

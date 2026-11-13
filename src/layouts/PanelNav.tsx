@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { cx } from '@/utils/cx'
 import { Icon } from '@/components/icons/Icon'
 import { precargarRuta } from '@/app/precarga'
-import { entradaActiva, type EntradaNav, type GrupoNav } from './navegacion'
+import { entradaActiva, seccionDe, type EntradaNav, type GrupoNav } from './navegacion'
 import { useNoLeidos } from './useNoLeidos'
 import styles from './Shell.module.css'
 
@@ -57,7 +57,7 @@ export function PanelNav({ grupos, abrir, onNavegar }: PanelNavProps) {
           {g.label && <p className={styles.grupoTitulo}>{g.label}</p>}
           <ul className={styles.lista}>
             {g.entradas.map((e) => (
-              <li key={e.id}>
+              <li key={e.id} data-seccion={seccionDe(e.id)}>
                 <Entrada
                   entrada={e}
                   abierta={abiertos.has(e.id)}

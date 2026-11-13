@@ -593,3 +593,62 @@
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
+
+/* Color propio de cada módulo en el menú, esté uno adentro o no: Ventas
+   verde, Compras azul, Mantenimiento grafito (los mismos de tokens.css 3e).
+   Se redefinen los tokens de marca sólo dentro de la entrada, así el ítem
+   activo de adentro también toma el color de su módulo. */
+[data-seccion='ventas'] {
+  --seccion: #15803d;
+  --color-primary-soft: #f0fdf4;
+  --color-primary-text: #15803d;
+  --module-accent-border: #16a34a;
+}
+
+[data-seccion='compras'] {
+  --seccion: #1d4ed8;
+  --color-primary-soft: #eff6ff;
+  --color-primary-text: #1d4ed8;
+  --module-accent-border: #2563eb;
+}
+
+[data-seccion='mantenimiento'] {
+  --seccion: #374151;
+  --color-primary-soft: #f3f4f6;
+  --color-primary-text: #374151;
+  --module-accent-border: #4b5563;
+}
+
+:global([data-theme='dark']) [data-seccion='ventas'] {
+  --seccion: #86efac;
+  --color-primary-soft: #10331c;
+  --color-primary-text: #86efac;
+  --module-accent-border: #4ade80;
+}
+
+:global([data-theme='dark']) [data-seccion='compras'] {
+  --seccion: #93c5fd;
+  --color-primary-soft: #12264a;
+  --color-primary-text: #93c5fd;
+  --module-accent-border: #60a5fa;
+}
+
+:global([data-theme='dark']) [data-seccion='mantenimiento'] {
+  --seccion: #cbd5e1;
+  --color-primary-soft: #222c3b;
+  --color-primary-text: #cbd5e1;
+  --module-accent-border: #94a3b8;
+}
+
+/* El encabezado del módulo (ícono y nombre) va con su color siempre. */
+[data-seccion] > .item,
+[data-seccion] > .compactaItem {
+  color: var(--seccion);
+  font-weight: var(--weight-semibold);
+}
+
+[data-seccion] > .item:hover,
+[data-seccion] > .compactaItem:hover {
+  background: var(--color-primary-soft);
+  color: var(--seccion);
+}

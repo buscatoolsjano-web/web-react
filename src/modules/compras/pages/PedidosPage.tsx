@@ -13,7 +13,9 @@ import doc from '@/components/document/Document.module.css'
 import { permisosDe } from '../lib/permisos'
 import { descargarCsv, pedidosACsv } from '../lib/csv'
 import { etiquetaDeEstadoPedido, etiquetaDeRecepcion } from '../lib/estados'
-import { exportarPedidos } from '../services/pedidos'
+import { borrarPedido, exportarPedidos } from '../services/pedidos'
+import { EliminarSeleccionados } from '@/components/document/EliminarSeleccionados'
+import { avisoDeBorradoMasivo } from '@/components/document/borradoMasivo'
 import { FiltrosPedidos } from '../components/FiltrosPedidos'
 import { ListadoPedidos } from '../components/ListadoPedidos'
 import { Paginador } from '../components/Paginador'
@@ -38,6 +40,7 @@ export function PedidosPage() {
   const { activa } = useEmpresa()
   const permisos = permisosDe(activa)
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
+  const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
 
   /**
    * Exportar.
@@ -82,6 +85,12 @@ export function PedidosPage() {
 
   const total = data?.total ?? 0
   const filas = data?.filas ?? []
+  // Los marcados en pantalla, y de ésos los que se pueden borrar: la misma
+  // regla que la ficha (borrador o cancelado, sin mercadería recibida).
+  const marcados = filas.filter((p) => seleccionados.has(p.id))
+  const borrables = marcados.filter(
+    (p) => (p.estado === 'draft' || p.estado === 'cancelled') && p.estadoRecepcion === 'pending',
+  )
 
   const marcar = (id: string, marcado: boolean) =>
     setSeleccionados((s) => {
@@ -126,6 +135,20 @@ export function PedidosPage() {
                   ? `Exportar ${seleccionados.size} a CSV`
                   : 'Exportar a CSV'}
             </Button>
+            {permisos.editarProveedor && marcados.length > 0 ? (
+              <EliminarSeleccionados
+                elegidos={borrables}
+                noSePueden={marcados.length - borrables.length}
+                plural={PEDIDOS.plural}
+                motivoNoSePueden="sólo se borran borradores y cancelados sin mercadería recibida."
+                borrar={borrarPedido}
+                onListo={(r) => {
+                  setSeleccionados(new Set())
+                  setAviso({ ok: r.fallas.length === 0, texto: avisoDeBorradoMasivo(r, PEDIDOS.plural) })
+                  void refetch()
+                }}
+              />
+            ) : null}
             {seleccionados.size > 0 ? (
               <Button variant="ghost" onClick={() => setSeleccionados(new Set())}>
                 Limpiar selección
@@ -139,6 +162,11 @@ export function PedidosPage() {
       {exportar.error ? (
         <Alert tone="danger" role="alert" title="No se pudo exportar">
           <p>{exportar.error.message}</p>
+        </Alert>
+      ) : null}
+      {aviso ? (
+        <Alert tone={aviso.ok ? 'success' : 'warning'} role="status">
+          <p>{aviso.texto}</p>
         </Alert>
       ) : null}
 

@@ -36,6 +36,7 @@ describe('editabilidadDe', () => {
       confirmar: true,
       cancelar: true,
       duplicar: true,
+      borrar: true,
     })
   })
 
@@ -64,6 +65,13 @@ describe('editabilidadDe', () => {
     expect(e.lineas).toBe(false)
     expect(e.confirmar).toBe(false)
     expect(e.cancelar).toBe(false)
+  })
+
+  it('se borra un borrador o un cancelado, nunca algo con mercadería recibida', () => {
+    expect(editabilidadDe('draft', false).borrar).toBe(true)
+    expect(editabilidadDe('cancelled', false).borrar).toBe(true)
+    expect(editabilidadDe('confirmed', false).borrar).toBe(false)
+    expect(editabilidadDe('cancelled', true).borrar).toBe(false)
   })
 
   it('duplicar se puede siempre: el duplicado es un pedido nuevo', () => {

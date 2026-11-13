@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import { borrarConMotivo, mensajeDeBorrado } from '@/services/borrado'
 import type { DatosPedidoCompra } from '../lib/validacion'
 import type {
   EstadoPedido,
@@ -571,6 +572,26 @@ export async function duplicarPedido(id: string): Promise<string> {
  * Los `restrict_violation` de los triggers ya vienen con un mensaje escrito
  * para leer; lo que se traduce es lo que no.
  */
+/**
+ * Borrar un pedido en borrador o cancelado, dejando el motivo y una copia en
+ * `deletion_log` (Configuración → Borrados). Las líneas se van en cascada.
+ * Un pedido con notas de entrada no se borra: lo frena la FK de
+ * `goods_receipts`.
+ */
+export async function borrarPedido(id: string, motivo: string): Promise<void> {
+  try {
+    await borrarConMotivo('purchase_order', id, motivo)
+  } catch (e) {
+    const texto = e instanceof Error ? e.message : ''
+    if (texto.includes('goods_receipts')) {
+      throw new Error('Este pedido tiene notas de entrada: borralas primero o dejalo cancelado.', {
+        cause: e,
+      })
+    }
+    throw new Error(mensajeDeBorrado(e), { cause: e })
+  }
+}
+
 function traducir(mensaje: string, codigo?: string): string {
   if (codigo === '23001') return mensaje
   if (codigo === '23505' && mensaje.includes('number')) {

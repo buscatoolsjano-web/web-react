@@ -11,6 +11,7 @@ import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { ConfirmBorrado } from '@/components/modals/ConfirmBorrado'
 import { ActionBar } from '@/components/document/ActionBar'
 import docUi from '@/components/document/Document.module.css'
 import { ChipEstado, ChipRecepcion } from '../components/ChipEstado'
@@ -107,6 +108,7 @@ export function PedidoDetallePage() {
   const [errores, setErrores] = useState<ErrorDePedido[]>([])
   const [confirmando, setConfirmando] = useState(false)
   const [cancelando, setCancelando] = useState(false)
+  const [borrando, setBorrando] = useState(false)
   // La hoja al costado (Fase 236): sola con 1280 px o más, salvo que la
   // persona la abra o la cierre.
   const pantallaAncha = useMediaQuery('(min-width: 1280px)')
@@ -245,7 +247,8 @@ export function PedidoDetallePage() {
         <Alert tone="neutral">
           <p>
             Este pedido está <strong>cancelado</strong>: no se modifica ni se reabre. Si hace falta
-            uno parecido, duplicalo.
+            uno parecido, duplicalo. Si no tiene que quedar, eliminalo: el motivo queda en
+            Configuración → Borrados.
           </p>
         </Alert>
       ) : null}
@@ -272,11 +275,12 @@ export function PedidoDetallePage() {
           <p>{aviso}</p>
         </Alert>
       ) : null}
-      {estado.confirmar.error || estado.cancelar.error || estado.duplicar.error ? (
+      {estado.confirmar.error || estado.cancelar.error || estado.duplicar.error || estado.borrar.error ? (
         <Alert tone="danger" role="alert" title="No se pudo completar la acción">
           <p>
             {estado.confirmar.error?.message ??
               estado.cancelar.error?.message ??
+              estado.borrar.error?.message ??
               estado.duplicar.error?.message}
           </p>
         </Alert>
@@ -360,10 +364,23 @@ export function PedidoDetallePage() {
             </>
           }
           danger={
-            escribe && puede.cancelar ? (
-              <Button variant="secondary" onClick={() => setCancelando(true)}>
-                Cancelar pedido
-              </Button>
+            escribe && (puede.cancelar || puede.borrar) ? (
+              <>
+                {puede.cancelar ? (
+                  <Button variant="secondary" onClick={() => setCancelando(true)}>
+                    Cancelar pedido
+                  </Button>
+                ) : null}
+                {puede.borrar ? (
+                  <Button
+                    variant="secondary"
+                    icon={<Icon name="trash" size={16} />}
+                    onClick={() => setBorrando(true)}
+                  >
+                    Eliminar
+                  </Button>
+                ) : null}
+              </>
             ) : null
           }
         />
@@ -574,6 +591,19 @@ export function PedidoDetallePage() {
               if (!ok) setAviso('Alguien más ya cambió el estado de este pedido.')
             },
             onError: () => setCancelando(false),
+          })
+        }
+      />
+      <ConfirmBorrado
+        open={borrando}
+        que={`el pedido ${pedido.numero}`}
+        description="Se borra el pedido y sus líneas. No se puede deshacer, pero el motivo y una copia de lo borrado quedan en Configuración → Borrados."
+        busy={estado.borrar.isPending}
+        onCancel={() => setBorrando(false)}
+        onConfirm={(motivo) =>
+          estado.borrar.mutate(motivo, {
+            onSuccess: () => void navegar('/compras/pedidos'),
+            onError: () => setBorrando(false),
           })
         }
       />

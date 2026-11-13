@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { cx } from '@/utils/cx'
 import { Icon } from '@/components/icons/Icon'
-import { entradaActiva, type GrupoNav } from './navegacion'
+import { entradaActiva, seccionDe, type GrupoNav } from './navegacion'
 import styles from './Shell.module.css'
 
 export interface BarraCompactaProps {
@@ -28,7 +28,7 @@ export function BarraCompacta({ grupos, onExpandir, expandida }: BarraCompactaPr
         {grupos.flatMap((g, i) => [
           ...(i > 0 ? [<li key={`sep-${g.id}`} className={styles.compactaSeparador} aria-hidden="true" />] : []),
           ...g.entradas.map((e) => (
-            <li key={e.id}>
+            <li key={e.id} data-seccion={seccionDe(e.id)}>
               {e.proximamente ? (
                 <span className={cx(styles.compactaItem, styles.itemProximamente)} aria-disabled="true" title={`${e.label} (próximamente)`}>
                   <Icon name={e.icon} />

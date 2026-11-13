@@ -18,7 +18,9 @@ import { Paginador } from '../components/Paginador'
 import { OPCIONES_ESTADO_FACTURA, etiquetaDeEstadoFactura } from '../lib/estados'
 import { permisosDe } from '../lib/permisos'
 import { descargarCsv, facturasACsv } from '../lib/csv'
-import { exportarFacturas } from '../services/facturas'
+import { borrarFactura, exportarFacturas } from '../services/facturas'
+import { EliminarSeleccionados } from '@/components/document/EliminarSeleccionados'
+import { avisoDeBorradoMasivo } from '@/components/document/borradoMasivo'
 import { useFacturas, useFiltrosFacturas, useMonedasDeFacturas } from '../hooks/useFacturas'
 import { useProveedores } from '../hooks/useProveedores'
 import { FILTROS_INICIALES, type FiltrosFacturas, type OrdenFacturas } from '../types'
@@ -60,6 +62,7 @@ export function FacturasPage() {
 
   const [texto, setTexto] = useState(filtros.q)
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
+  const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
 
   // Si el filtro cambia desde afuera hay que reflejarlo en el input. Se ajusta
   // DURANTE el render, no en un useEffect.
@@ -114,6 +117,9 @@ export function FacturasPage() {
 
   const total = data?.total ?? 0
   const filas = data?.filas ?? []
+  // Sólo un borrador se borra: una registrada o anulada tiene historia.
+  const marcados = filas.filter((f) => seleccionados.has(f.id))
+  const borrables = marcados.filter((f) => f.estado === 'draft')
 
   const marcar = (id: string, marcado: boolean) =>
     setSeleccionados((s) => {
@@ -158,6 +164,20 @@ export function FacturasPage() {
                   ? `Exportar ${seleccionados.size} a CSV`
                   : 'Exportar a CSV'}
             </Button>
+            {permisos.editarProveedor && marcados.length > 0 ? (
+              <EliminarSeleccionados
+                elegidos={borrables}
+                noSePueden={marcados.length - borrables.length}
+                plural={FACTURAS.plural}
+                motivoNoSePueden="sólo se borran las que están en borrador; una registrada se anula."
+                borrar={borrarFactura}
+                onListo={(r) => {
+                  setSeleccionados(new Set())
+                  setAviso({ ok: r.fallas.length === 0, texto: avisoDeBorradoMasivo(r, FACTURAS.plural) })
+                  void refetch()
+                }}
+              />
+            ) : null}
             {seleccionados.size > 0 ? (
               <Button variant="ghost" onClick={() => setSeleccionados(new Set())}>
                 Limpiar selección
@@ -167,6 +187,12 @@ export function FacturasPage() {
           </>
         }
       />
+
+      {aviso ? (
+        <Alert tone={aviso.ok ? 'success' : 'warning'} role="status">
+          <p>{aviso.texto}</p>
+        </Alert>
+      ) : null}
 
       {exportar.error ? (
         <Alert tone="danger" role="alert" title="No se pudo exportar">

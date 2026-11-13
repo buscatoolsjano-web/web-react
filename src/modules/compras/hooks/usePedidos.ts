@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import {
   actualizarPedido,
+  borrarPedido,
   cancelarPedido,
   confirmarPedido,
   crearPedido,
@@ -175,6 +176,13 @@ export function useEstadoPedido(id: string) {
     cancelar: useMutation({
       mutationFn: () => cancelarPedido(companyId!, id),
       onSuccess: invalidar,
+    }),
+    borrar: useMutation({
+      mutationFn: (motivo: string) => borrarPedido(id, motivo),
+      onSuccess: () => {
+        void qc.invalidateQueries({ queryKey: claves(companyId).listado })
+        void qc.invalidateQueries({ queryKey: ['compras', companyId, 'documentos-proveedor'] })
+      },
     }),
     duplicar: useMutation({
       mutationFn: () => duplicarPedido(id),

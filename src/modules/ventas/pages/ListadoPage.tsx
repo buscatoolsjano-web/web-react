@@ -21,7 +21,9 @@ import { TAMANOS_DE_PAGINA, useFiltrosVentas } from '../hooks/useFiltrosVentas'
 import { DOC_TYPE_DE, motivoBloqueo, TITULO_BANNER_STEL_SERIE_DEFECTO } from '../lib/autoridad'
 import { aCsv, descargarCsv } from '../lib/csv'
 import { escribeVentas } from '../lib/permisos'
-import { exportarCsv } from '../services/acciones'
+import { borrarDocumento, exportarCsv } from '../services/acciones'
+import { EliminarSeleccionados } from '@/components/document/EliminarSeleccionados'
+import { avisoDeBorradoMasivo } from '@/components/document/borradoMasivo'
 
 /**
  * El modal de importar OC, en carga diferida (Fase 30 · E6).
@@ -58,6 +60,7 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaN
   const { data, isPending, isFetching, error, refetch } = useDocumentos(tipo, filtros)
   const { activa } = useEmpresa()
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
+  const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
   // El botón se muestra a quien puede escribir (admin y employee, el mismo
   // conjunto que `quotes_write`/`orders_write`). Lo que IMPIDE crear no es
   // esconder el botón: es RLS.
@@ -137,6 +140,12 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaN
   })
 
   const total = data?.total ?? 0
+  // La misma regla que «Eliminar» en la ficha: no un histórico de STEL ni un
+  // remito despachado. Lo demás lo decide la base, documento por documento.
+  const marcados = (data?.filas ?? []).filter((d) => seleccionados.has(d.id))
+  const borrables = marcados.filter(
+    (d) => !d.esHistorico && !(tipo === 'entrega' && (d.estado === 'shipped' || d.estado === 'delivered')),
+  )
   const filas = data?.filas ?? []
   const vacio = !isPending && !error && filas.length === 0
 
@@ -164,6 +173,20 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaN
             ? `Exportar ${seleccionados.size} a CSV`
             : 'Exportar a CSV'}
       </Button>
+      {escribeVentas(activa?.rol) && marcados.length > 0 ? (
+        <EliminarSeleccionados
+          elegidos={borrables}
+          noSePueden={marcados.length - borrables.length}
+          plural={etiquetas.plural}
+          motivoNoSePueden="los históricos (de STEL) y los remitos ya despachados no se borran."
+          borrar={(id, motivo) => borrarDocumento(tipo, id, motivo)}
+          onListo={(r) => {
+            setSeleccionados(new Set())
+            setAviso({ ok: r.fallas.length === 0, texto: avisoDeBorradoMasivo(r, etiquetas.plural) })
+            void refetch()
+          }}
+        />
+      ) : null}
       {seleccionados.size > 0 ? (
         <Button variant="ghost" onClick={() => setSeleccionados(new Set())}>
           Limpiar selección
@@ -220,6 +243,11 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaN
       {exportar.error ? (
         <Alert tone="danger" role="alert" title="No se pudo exportar">
           <p>{exportar.error.message}</p>
+        </Alert>
+      ) : null}
+      {aviso ? (
+        <Alert tone={aviso.ok ? 'success' : 'warning'} role="status">
+          <p>{aviso.texto}</p>
         </Alert>
       ) : null}
 
