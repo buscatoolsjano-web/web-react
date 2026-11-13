@@ -82,9 +82,9 @@ jobs:
     env:
       TT_KEY: ${{ secrets.STEL_API_KEY_TORQUETOOLS }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -151,7 +151,7 @@ jobs:
       # qué se tocó. `always()` porque cuando falla es cuando más se necesita.
       - name: Guardar el detalle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sync-stel-${{ github.run_id }}
           path: scripts/output/e4/
