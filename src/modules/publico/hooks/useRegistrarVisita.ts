@@ -9,9 +9,9 @@ import { registrarVisita } from '../services/registrarVisita'
  * (que renderiza a string) los efectos no se ejecutan, y las visitas del build
  * no se cuentan.
  */
-export function useRegistrarVisita(): void {
+export function useRegistrarVisita(habilitado = true): void {
   const { pathname, search } = useLocation()
   useEffect(() => {
-    registrarVisita(pathname + search)
-  }, [pathname, search])
+    if (habilitado) registrarVisita(pathname + search)
+  }, [pathname, search, habilitado])
 }

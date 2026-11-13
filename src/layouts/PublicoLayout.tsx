@@ -58,7 +58,7 @@ const WHATSAPP_URL =
  * esqueleto es la mitad del posicionamiento.
  */
 export function PublicoLayout() {
-  const { session } = useAuth()
+  const { session, cargando } = useAuth()
   const navegar = useNavigate()
   const [params] = useSearchParams()
   const { categoria, producto } = useParams<{ categoria?: string; producto?: string }>()
@@ -66,7 +66,9 @@ export function PublicoLayout() {
   const qc = useQueryClient()
   const [texto, setTexto] = useState(params.get('q') ?? '')
   const carrito = useCarritoPublico()
-  useRegistrarVisita()
+  // Quien mira la web con la sesión del ERP abierta —el botón «Ver web»— es
+  // de la casa: no se cuenta como visita. Se espera a saber si hay sesión.
+  useRegistrarVisita(!cargando && !session)
 
   /*
    * Las categorías viven en el layout y no en cada página: se piden UNA vez

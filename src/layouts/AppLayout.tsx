@@ -272,6 +272,14 @@ export function AppLayout() {
                 muchas más veces—, después la apariencia, y al final lo que
                 cambia de contexto: la empresa y la sesión. */}
             <BotonesHeader />
+            {/* La web pública tal como la ven los clientes, en otra pestaña:
+                sin cerrar la sesión del ERP. */}
+            <IconButton
+              icon="eye"
+              aria-label="Ver la web como la ven los clientes"
+              className={styles.botonHeader}
+              onClick={() => window.open('/', '_blank', 'noopener')}
+            />
             <BotonApariencia className={styles.botonHeader} />
             <EmpresaSelector />
             <MenuUsuario email={email} nombre={nombreVisible(user)} empresa={empresa.activa?.companyName ?? null} rol={empresa.activa?.rol ?? null} onSalir={() => void salirYVolverAlSitio()} />
