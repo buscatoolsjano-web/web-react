@@ -9,13 +9,13 @@ import { useMeta } from '../hooks/useMeta'
 import { useCarritoPublico } from '../hooks/useCarritoPublico'
 import {
   altDeImagen,
-  datosEstructurados,
   descripcionDeProducto,
   nombreDeAtributo,
   tituloDeProducto,
   valorLegible,
 } from '../lib/seo'
 import { tambienBuscadoComo } from '../lib/sinonimos'
+import { datosDeFicha } from '../lib/datosIa'
 import styles from './ProductoPublicoPage.module.css'
 
 /**
@@ -67,9 +67,10 @@ export function ProductoPublicoPage() {
           descripcion: descripcionDeProducto(p),
           canonica,
           imagen: foto,
-          datos: datosEstructurados(
+          // El mismo grafo que escribe el build: producto + miga de pan.
+          datos: datosDeFicha(
             { ...p, imagen: foto },
-            `${typeof window === 'undefined' ? '' : window.location.origin}${canonica}`,
+            typeof window === 'undefined' ? '' : window.location.origin,
           ),
         }
       : null,

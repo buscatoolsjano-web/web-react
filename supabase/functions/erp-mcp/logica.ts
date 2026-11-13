@@ -31,7 +31,19 @@
  */
 import { DESTRUCTIVAS, ESCRITURAS, esquemaDeEntrada, EXPUESTAS, NO_IDEMPOTENTES } from '../erp-api/logica.ts'
 import { herramienta } from '../asistente/herramientas.ts'
-import { entradaDeSkill, INSTRUCCIONES, RECURSOS, SKILL_URI } from './skill.ts'
+import { entradaDeSkill, INSTRUCCIONES, RECURSOS as RECURSOS_SKILL, SKILL_URI } from './skill.ts'
+import {
+  DICCIONARIO_DESCRIPCION,
+  DICCIONARIO_MD,
+  DICCIONARIO_NOMBRE,
+  DICCIONARIO_URI,
+} from './diccionario.ts'
+
+/** Todo lo que `resources/read` sabe servir: la skill y el diccionario. */
+const RECURSOS: Readonly<Record<string, string>> = {
+  ...RECURSOS_SKILL,
+  [DICCIONARIO_URI]: DICCIONARIO_MD,
+}
 
 /**
  * La herramienta de perfil: quién está conectado.
@@ -360,6 +372,9 @@ export function resolver(p: Peticion, opciones: OpcionesDeResolver = {}): Resuel
         protocolVersion: versionAUsar(params.protocolVersion),
         capabilities: {
           tools: { listChanged: false },
+          // El diccionario de datos (`diccionario.ts`): qué significa cada
+          // documento, campo y código de estado.
+          resources: { listChanged: false },
           /*
            * La extensión de skills, declarada donde OpenAI la lee.
            *
@@ -422,11 +437,25 @@ export function resolver(p: Peticion, opciones: OpcionesDeResolver = {}): Resuel
    * el cliente abandone la conexión entera, y el síntoma —«no se encontraron
    * herramientas»— no se parece en nada a la causa.
    *
-   * Listas vacías, que además es la verdad: los recursos de la skill se
-   * enumeran en su propio manifiesto, no acá, y prompts no tenemos.
+   * Los recursos de la skill se enumeran en su propio manifiesto, no acá; lo
+   * que sí se lista es el diccionario de datos. Prompts no tenemos.
    */
   if (metodo === 'resources/list') {
-    return { clase: 'resultado', id, resultado: { resources: [] } }
+    return {
+      clase: 'resultado',
+      id,
+      resultado: {
+        resources: [
+          {
+            uri: DICCIONARIO_URI,
+            name: 'diccionario',
+            title: DICCIONARIO_NOMBRE,
+            description: DICCIONARIO_DESCRIPCION,
+            mimeType: 'text/markdown',
+          },
+        ],
+      },
+    }
   }
   if (metodo === 'resources/templates/list') {
     return { clase: 'resultado', id, resultado: { resourceTemplates: [] } }
@@ -494,17 +523,33 @@ export function respuestaDeHerramienta(id: unknown, texto: string): Record<strin
    * instrucción adentro, así que acá sólo hay que no perderla.
    */
   let esError = false
+  let estructura: Record<string, unknown> | null = null
   try {
     const d: unknown = JSON.parse(texto)
     esError = typeof d === 'object' && d !== null && 'error' in d
+    /*
+     * `structuredContent` (MCP 2025-06-18): los mismos datos como objeto, para
+     * que el cliente no tenga que volver a interpretar el texto. MCP pide un
+     * objeto: una lista se envuelve en `{ resultados }`. El texto se sigue
+     * mandando igual, para los clientes que sólo leen `content`.
+     */
+    if (!esError) {
+      if (Array.isArray(d)) estructura = { resultados: d }
+      else if (typeof d === 'object' && d !== null) estructura = d as Record<string, unknown>
+    }
   } catch {
+    // Texto recortado o no-JSON: va sólo como texto.
     esError = false
   }
 
   return {
     jsonrpc: '2.0',
     id,
-    result: { content: [{ type: 'text', text: texto }], isError: esError },
+    result: {
+      content: [{ type: 'text', text: texto }],
+      ...(estructura ? { structuredContent: estructura } : {}),
+      isError: esError,
+    },
   }
 }
 

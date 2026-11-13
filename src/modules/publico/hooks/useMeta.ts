@@ -95,6 +95,19 @@ export function useMeta(meta: MetaDePagina | null): void {
     if (imagen) deshacer.push(etiqueta('og:image', imagen))
     if (sinIndexar) deshacer.push(etiqueta('robots', 'noindex, follow'))
 
+    // Los datos estructurados que vinieron en el HTML del build son de la
+    // página en la que se entró. Al navegar adentro de la app quedarían
+    // puestos describiendo otra cosa, y en la misma página se duplicarían con
+    // los de la app: se sacan mientras esta página está, y se devuelven al
+    // salir.
+    const delBuild = [
+      ...document.head.querySelectorAll<HTMLScriptElement>('script[type="application/ld+json"][data-prerender]'),
+    ].filter((s) => datos || s.dataset.prerender !== canonica)
+    for (const s of delBuild) s.remove()
+    deshacer.push(() => {
+      for (const s of delBuild) document.head.appendChild(s)
+    })
+
     let script: HTMLScriptElement | null = null
     if (datos) {
       script = document.createElement('script')

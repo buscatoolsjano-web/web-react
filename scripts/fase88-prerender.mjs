@@ -97,6 +97,9 @@ import { createServer } from 'vite'
   const sin = await vite.ssrLoadModule('/src/modules/publico/lib/sinonimos.ts')
   /** @type {typeof import('../src/modules/publico/lib/rutas')} */
   const rutas = await vite.ssrLoadModule('/src/modules/publico/lib/rutas.ts')
+  /** Lo que leen buscadores y asistentes de IA: schema.org, llms.txt, JSON. */
+  /** @type {typeof import('../src/modules/publico/lib/datosIa')} */
+  const ia = await vite.ssrLoadModule('/src/modules/publico/lib/datosIa.ts')
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -156,7 +159,7 @@ import { createServer } from 'vite'
     if (datos) {
       // `</script>` dentro del JSON cerraría la etiqueta: se escapa el `<`.
       const json = JSON.stringify(datos).replace(/</g, '\\u003c')
-      cabeza.push(`<script type="application/ld+json">${json}</script>`)
+      cabeza.push(`<script type="application/ld+json" data-prerender="${esc(canonica)}">${json}</script>`)
     }
 
     return plantilla
@@ -287,7 +290,7 @@ import { createServer } from 'vite'
         descripcion: seo.descripcionDeProducto(p),
         canonica,
         imagen: fotoParaCompartir(p) ?? foto,
-        datos: seo.datosEstructurados({ ...p, imagen: foto }, `${SITIO}${canonica}`),
+        datos: ia.datosDeFicha({ ...p, imagen: foto }, SITIO),
         cuerpo: cuerpoProducto(p, foto, alt),
       }),
     )
@@ -313,7 +316,11 @@ import { createServer } from 'vite'
         descripcion: seo.descripcionDeCategoria(c.nombre, Number(c.productos ?? lista.length)),
         canonica,
         imagen: fotoParaCompartir(lista.find((p) => p.imagen)) ?? grande(c.portadaUrl) ?? OG_PORTADA,
-        datos: null,
+        datos: ia.datosDeCategoria(
+          SITIO,
+          { nombre: c.nombre, slug: c.slug, descripcion: seo.descripcionDeCategoria(c.nombre, Number(c.productos ?? lista.length)) },
+          lista,
+        ),
         cuerpo: cuerpoCategoria(c.nombre, c.slug, lista),
       }),
     )
@@ -335,7 +342,13 @@ import { createServer } from 'vite'
       descripcion: seo.descripcionDeCategoria('productos', productos.length),
       canonica: '/productos/',
       imagen: OG_PORTADA,
-      datos: null,
+      datos: ia.datosDeIndice(
+        SITIO,
+        '/productos/',
+        'Catálogo',
+        seo.descripcionDeCategoria('productos', productos.length),
+        categorias.filter((c) => c.slug).map((c) => ({ nombre: c.nombre, ruta: `/productos/${c.slug}/` })),
+      ),
       cuerpo:
         `<main><h1>Catálogo Buscatools</h1>` +
         `<p>Puntas, tubos, embocaduras, balanceadores, atornilladores, llaves de impacto ` +
@@ -369,7 +382,13 @@ import { createServer } from 'vite'
         'Las marcas de herramientas industriales con las que trabajamos: TECNA, Ingersoll Rand, FEIN, TOHNICHI, APEX, FIAM, SPEEDRILL y más. Productos originales y asesoramiento técnico.',
       canonica: '/marcas/',
       imagen: OG_PORTADA,
-      datos: null,
+      datos: ia.datosDeIndice(
+        SITIO,
+        '/marcas/',
+        'Marcas',
+        'Las marcas de herramientas industriales con las que trabaja Buscatools.',
+        marcas.map((m) => ({ nombre: m.nombre, ruta: `/marcas/${m.slug}/` })),
+      ),
       cuerpo:
         `<main><nav aria-label="Dónde estás"><a href="/">Inicio</a> › Marcas</nav>` +
         `<h1>Marcas con las que trabajamos</h1><ul>` +
@@ -390,7 +409,7 @@ import { createServer } from 'vite'
         descripcion: seo.recortar(`${m.nombre}. ${texto.bajada} Consultá precio y disponibilidad.`, seo.LARGO_DESCRIPCION),
         canonica,
         imagen: fotoParaCompartir(lista.find((p) => p.imagen) ?? lista.find((p) => p.imagenUrl)) ?? OG_PORTADA,
-        datos: null,
+        datos: ia.datosDeMarca(SITIO, { nombre: m.nombre, slug: m.slug, descripcion: texto.bajada }, lista),
         cuerpo:
           `<main><nav aria-label="Dónde estás"><a href="/">Inicio</a> › <a href="/marcas/">Marcas</a> › ${esc(m.nombre)}</nav>` +
           `<h1>${esc(m.nombre)}</h1><p>${esc(texto.bajada)}</p>` +
@@ -407,7 +426,7 @@ import { createServer } from 'vite'
   }
 
   // ── Institucionales ─────────────────────────────────────────────────────────
-  const institucional = (ruta, titulo, descripcion, h1, bloques) => {
+  const institucional = (ruta, titulo, descripcion, h1, bloques, tipo = 'WebPage') => {
     escribir(
       ruta,
       pagina({
@@ -415,7 +434,7 @@ import { createServer } from 'vite'
         descripcion,
         canonica: ruta,
         imagen: OG_PORTADA,
-        datos: null,
+        datos: ia.datosInstitucionales(SITIO, ruta, tipo, h1, descripcion),
         cuerpo:
           `<main><nav aria-label="Dónde estás"><a href="/">Inicio</a> › ${esc(h1)}</nav><h1>${esc(h1)}</h1>` +
           bloques.map((b) => `<h2>${esc(b.titulo)}</h2><p>${esc(b.texto)}</p>`).join('') +
@@ -424,7 +443,7 @@ import { createServer } from 'vite'
     )
     urls.push(`${SITIO}${ruta}`)
   }
-  institucional('/nosotros/', 'Quiénes somos', contenidos.NOSOTROS.bajada, contenidos.NOSOTROS.titulo, contenidos.NOSOTROS.secciones)
+  institucional('/nosotros/', 'Quiénes somos', contenidos.NOSOTROS.bajada, contenidos.NOSOTROS.titulo, contenidos.NOSOTROS.secciones, 'AboutPage')
   institucional(
     '/servicios/',
     'Servicios: asesoramiento técnico y repuestos',
@@ -442,6 +461,7 @@ import { createServer } from 'vite'
       { titulo: 'Email', texto: 'info@buscatools.com.ar' },
       { titulo: 'Envíos', texto: 'A todo el país. Factura A o B.' },
     ],
+    'ContactPage',
   )
 
   // ── La portada: hero, categorías, cómo trabajamos y preguntas ───────────────
@@ -467,14 +487,8 @@ import { createServer } from 'vite'
       datos: {
         '@context': 'https://schema.org',
         '@graph': [
-          {
-            '@type': 'Organization',
-            name: seo.NOMBRE_SITIO,
-            url: `${SITIO}/`,
-            email: 'info@buscatools.com.ar',
-            telephone: '+54 9 11 2169-3304',
-            areaServed: 'AR',
-          },
+          ia.organizacion(SITIO),
+          ia.sitioWeb(SITIO),
           {
             '@type': 'FAQPage',
             mainEntity: inicio.PREGUNTAS.map((p) => ({
@@ -512,6 +526,70 @@ import { createServer } from 'vite'
     `\n</urlset>\n`
   writeFileSync(join(DIST, 'sitemap.xml'), sitemap, 'utf8')
 
+  // ── Datos para máquinas: /datos/*.json y /llms.txt ─────────────────────────
+  // El catálogo en JSON, un archivo por categoría (el entero pesaría varios
+  // MB), y un índice que dice dónde está cada uno.
+  mkdirSync(join(DIST, 'datos', 'categorias'), { recursive: true })
+  const generado = new Date().toISOString()
+  const indiceCategorias = []
+  for (const c of categorias) {
+    if (!c.slug) continue
+    const lista = porCategoria.get(c.slug) ?? []
+    const archivo = `/datos/categorias/${c.slug}.json`
+    writeFileSync(
+      join(DIST, archivo),
+      JSON.stringify({
+        aviso: ia.AVISO_DATOS,
+        generado,
+        categoria: c.nombre,
+        url: `${SITIO}/productos/${c.slug}/`,
+        cantidad: lista.length,
+        productos: lista.map((p) => ia.productoJson({ ...p, imagen: p.imagenUrl ?? null }, SITIO)),
+      }),
+      'utf8',
+    )
+    indiceCategorias.push({
+      nombre: c.nombre,
+      cantidad: lista.length,
+      url: `${SITIO}/productos/${c.slug}/`,
+      productos: `${SITIO}${archivo}`,
+    })
+  }
+  writeFileSync(
+    join(DIST, 'datos', 'catalogo.json'),
+    JSON.stringify(
+      {
+        aviso: ia.AVISO_DATOS,
+        generado,
+        sitio: `${SITIO}/`,
+        empresa: { nombre: seo.NOMBRE_SITIO, ...ia.CONTACTO, pais: 'Argentina' },
+        totalProductos: productos.length,
+        busqueda: `${SITIO}/productos?q={texto}`,
+        categorias: indiceCategorias,
+        marcas: marcas.map((m) => ({
+          nombre: m.nombre,
+          cantidad: Number(m.cuantos ?? 0),
+          url: `${SITIO}/marcas/${m.slug}/`,
+        })),
+      },
+      null,
+      2,
+    ),
+    'utf8',
+  )
+  writeFileSync(
+    join(DIST, 'llms.txt'),
+    ia.llmsTxt(SITIO, {
+      totalProductos: productos.length,
+      categorias: categorias
+        .filter((c) => c.slug)
+        .map((c) => ({ nombre: c.nombre, ruta: `/productos/${c.slug}/`, detalle: `${Number(c.productos ?? 0)} productos` })),
+      marcas: marcas.map((m) => ({ nombre: m.nombre, ruta: `/marcas/${m.slug}/`, detalle: `${Number(m.cuantos ?? 0)} productos` })),
+      preguntas: inicio.PREGUNTAS,
+    }),
+    'utf8',
+  )
+
   // ── robots.txt ──────────────────────────────────────────────────────────────
   const robots =
     `User-agent: *\n` +
@@ -532,11 +610,15 @@ import { createServer } from 'vite'
     `Disallow: /auth\n` +
     `Disallow: /oauth\n` +
     `Disallow: /cotizar\n` +
+    // Los asistentes de IA (GPTBot, ClaudeBot, PerplexityBot, Google-Extended)
+    // entran por el `*`: el catálogo público es para que lo lean.
+    `\n# Resumen para asistentes de IA: ${SITIO}/llms.txt\n` +
+    `# Catálogo en JSON: ${SITIO}/datos/catalogo.json\n` +
     `\nSitemap: ${SITIO}/sitemap.xml\n`
   writeFileSync(join(DIST, 'robots.txt'), robots, 'utf8')
 
   await vite.close()
-  console.log(`[prerender] listo: ${urls.length} URLs, sitemap.xml y robots.txt`)
+  console.log(`[prerender] listo: ${urls.length} URLs, sitemap.xml, robots.txt, llms.txt y /datos/`)
 })().catch((e) => {
   console.error('[prerender]', e)
   process.exit(1)

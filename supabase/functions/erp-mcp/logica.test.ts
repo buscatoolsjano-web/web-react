@@ -16,6 +16,7 @@ import {
   VERSIONES,
 } from './logica'
 import { DESTRUCTIVAS, ESCRITURAS, EXPUESTAS, NO_IDEMPOTENTES } from '../erp-api/logica'
+import { DICCIONARIO_MD, DICCIONARIO_URI } from './diccionario'
 import {
   entradaDeSkill,
   INSTRUCCIONES,
@@ -64,6 +65,7 @@ describe('el despachador JSON-RPC', () => {
     const r = resolver({ id: 1, method: 'initialize' })
     expect(r.clase === 'resultado' && r.resultado['capabilities']).toEqual({
       tools: { listChanged: false },
+      resources: { listChanged: false },
       extensions: { 'io.modelcontextprotocol/skills': {} },
     })
   })
@@ -86,9 +88,26 @@ describe('el despachador JSON-RPC', () => {
    * entera, y el síntoma que se ve —«no se encontraron herramientas»— no se
    * parece en nada a la causa. Listas vacías, que además es la verdad.
    */
-  it('los sondeos de recursos y prompts se contestan vacíos, no con un error', () => {
+  it('resources/list ofrece el diccionario de datos, y se puede leer', () => {
+    const r = resolver({ id: 1, method: 'resources/list' })
+    expect(r.clase).toBe('resultado')
+    if (r.clase !== 'resultado') return
+    const lista = r.resultado['resources'] as { uri: string }[]
+    expect(lista.map((x) => x.uri)).toEqual([DICCIONARIO_URI])
+    const leido = resolver({ id: 2, method: 'resources/read', params: { uri: DICCIONARIO_URI } })
+    expect(leido.clase === 'resultado' && (leido.resultado['contents'] as { text: string }[])[0]?.text).toBe(
+      DICCIONARIO_MD,
+    )
+  })
+
+  it('el diccionario traduce los estados de cada documento', () => {
+    for (const codigo of ['partially_delivered', 'registered', 'issued', 'partially_received', 'expired']) {
+      expect(DICCIONARIO_MD, codigo).toContain(`| ${codigo} |`)
+    }
+  })
+
+  it('los sondeos de plantillas y prompts se contestan vacíos, no con un error', () => {
     for (const [metodo, clave] of [
-      ['resources/list', 'resources'],
       ['resources/templates/list', 'resourceTemplates'],
       ['prompts/list', 'prompts'],
     ]) {
@@ -497,6 +516,19 @@ describe('la respuesta de una herramienta', () => {
     const res = r['result'] as { content: { text: string }[]; isError: boolean }
     expect(res.isError).toBe(false)
     expect(res.content[0]?.text).toBe('{"productos":[{"sku":"SP.PH2"}]}')
+  })
+
+  it('los datos van también como objeto (structuredContent)', () => {
+    const obj = respuestaDeHerramienta(1, '{"productos":[{"sku":"SP.PH2"}]}')['result'] as {
+      structuredContent?: unknown
+    }
+    expect(obj.structuredContent).toEqual({ productos: [{ sku: 'SP.PH2' }] })
+    const lista = respuestaDeHerramienta(1, '[{"sku":"A"}]')['result'] as { structuredContent?: unknown }
+    expect(lista.structuredContent).toEqual({ resultados: [{ sku: 'A' }] })
+    const error = respuestaDeHerramienta(1, '{"error":"x"}')['result'] as { structuredContent?: unknown }
+    expect(error.structuredContent).toBeUndefined()
+    const recortado = respuestaDeHerramienta(1, '{"productos":[')['result'] as { structuredContent?: unknown }
+    expect(recortado.structuredContent).toBeUndefined()
   })
 
   /*

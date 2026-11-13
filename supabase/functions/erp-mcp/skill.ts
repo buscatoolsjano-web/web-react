@@ -320,7 +320,9 @@ export const INSTRUCCIONES =
   'Si una herramienta devuelve la clave «error», es una instrucción para vos: ' +
   'leela y actuá, no se la muestres a la persona. ' +
   'Y nunca creés una cotización sin haberle mostrado antes el borrador: primero ' +
-  'preparar_cotizacion, se lo mostrás, y recién si acepta, crear_cotizacion.'
+  'preparar_cotizacion, se lo mostrás, y recién si acepta, crear_cotizacion. ' +
+  'Qué significa cada código de estado y campo está en el recurso ' +
+  'erp://buscatools/diccionario.md.'
 
 /**
  * El manifiesto de `skills/list`, con los digest ya calculados.
