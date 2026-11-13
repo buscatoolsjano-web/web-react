@@ -324,3 +324,13 @@
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
+
+/* Entre las categorías y las páginas de la casa, en el menú. */
+.separador {
+  flex: none;
+  align-self: center;
+  width: 1px;
+  height: 1.25rem;
+  margin: 0 var(--space-2);
+  background: var(--color-border);
+}

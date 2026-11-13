@@ -8,6 +8,7 @@ import { useMeta } from '../hooks/useMeta'
 import { categorias, destacados, miniDeFoto, type CategoriaPublica } from '../services/catalogoPublico'
 import { TarjetaProducto } from '../components/TarjetaProducto'
 import { PREGUNTAS, PASOS, INDUSTRIAS, WHATSAPP_INICIO } from '../lib/inicio'
+import { esGenerica } from '../lib/contenidos'
 import fotosGuia from '../lib/fotosDeOpcion.generated.json'
 import styles from './InicioPublicoPage.module.css'
 
@@ -18,9 +19,6 @@ const SIN_FILTROS = leerFiltros(new URLSearchParams(), undefined)
 const VIDRIERA = 8
 
 const fmt = (n: number) => n.toLocaleString('es-AR')
-
-/** Una marca que no es marca: no se ofrece ni se cuenta. */
-const esGenerica = (nombre: string) => /^gen[eé]ric[oa]s?$/i.test(nombre.trim())
 
 /**
  * La foto de una categoría: la portada que eligió un admin o, si no hay, la de

@@ -188,11 +188,30 @@ import { createServer } from 'vite'
       .join('')
     return (
       `<main>` +
-      `<nav aria-label="Dónde estás"><a href="/">Catálogo</a> › ${esc(nombre)}</nav>` +
+      `<nav aria-label="Dónde estás"><a href="/">Inicio</a> › <a href="/productos/">Catálogo</a> › ${esc(nombre)}</nav>` +
       `<h1>${esc(nombre)}</h1>` +
       `<p>${esc(seo.descripcionDeCategoria(nombre, productos.length))}</p>` +
       `<ul>${enlaces}</ul>` +
+      guiaHtml(slug) +
       `</main>`
+    )
+  }
+
+  // ── La guía «cómo elegir» de una categoría (los mismos textos que la app) ──
+  /** @type {typeof import('../src/modules/publico/lib/contenidos')} */
+  const contenidos = await vite.ssrLoadModule('/src/modules/publico/lib/contenidos.ts')
+  function guiaHtml(slug) {
+    const g = contenidos.GUIAS[slug]
+    if (!g) return ''
+    return (
+      `<section><h2>${esc(g.titulo)}</h2><p>${esc(g.intro)}</p><ul>` +
+      g.criterios.map((c) => `<li><h3>${esc(c.titulo)}</h3><p>${esc(c.texto)}</p></li>`).join('') +
+      `</ul>` +
+      (g.preguntas.length
+        ? `<h3>Preguntas frecuentes</h3>` +
+          g.preguntas.map((p) => `<h4>${esc(p.pregunta)}</h4><p>${esc(p.respuesta)}</p>`).join('')
+        : '') +
+      `</section>`
     )
   }
 
@@ -300,6 +319,105 @@ import { createServer } from 'vite'
     }),
   )
   urls.push(`${SITIO}/productos/`)
+
+  // ── Marcas: el índice y una página por marca ────────────────────────────────
+  const { data: facData, error: facErr } = await rpc('catalogo_publico_facetas', {
+    p_categoria: null, p_marca: null, p_serie: null, p_tipo: null,
+    p_atributos: null, p_texto: null, p_modelo: null, p_rangos: null,
+  })
+  if (facErr) throw new Error(`catalogo_publico_facetas: ${facErr.message}`)
+  const marcas = (Array.isArray(facData?.marcas) ? facData.marcas : []).filter(
+    (m) => m.slug && !contenidos.esGenerica(m.nombre ?? ''),
+  )
+  const porMarca = new Map()
+  for (const p of productos) {
+    if (!p.marca) continue
+    const lista = porMarca.get(p.marca) ?? []
+    lista.push(p)
+    porMarca.set(p.marca, lista)
+  }
+  escribir(
+    '/marcas/',
+    pagina({
+      titulo: `Marcas de herramientas industriales${seo.SUFIJO}`,
+      descripcion:
+        'Las marcas de herramientas industriales con las que trabajamos: TECNA, Ingersoll Rand, FEIN, TOHNICHI, APEX, FIAM, SPEEDRILL y más. Productos originales y asesoramiento técnico.',
+      canonica: '/marcas/',
+      imagen: null,
+      datos: null,
+      cuerpo:
+        `<main><nav aria-label="Dónde estás"><a href="/">Inicio</a> › Marcas</nav>` +
+        `<h1>Marcas con las que trabajamos</h1><ul>` +
+        marcas.map((m) => `<li><a href="/marcas/${esc(m.slug)}/">${esc(m.nombre)}</a> (${Number(m.cuantos ?? 0)})</li>`).join('') +
+        `</ul></main>`,
+    }),
+  )
+  urls.push(`${SITIO}/marcas/`)
+  for (const m of marcas) {
+    const lista = porMarca.get(m.nombre) ?? []
+    const cats = [...new Set(lista.map((p) => p.categoria).filter(Boolean))]
+    const texto = contenidos.textoDeMarca(m.slug, m.nombre, Number(m.cuantos ?? lista.length), cats)
+    const canonica = `/marcas/${m.slug}/`
+    escribir(
+      canonica,
+      pagina({
+        titulo: `${m.nombre}: herramientas en Argentina${seo.SUFIJO}`,
+        descripcion: seo.recortar(`${m.nombre}. ${texto.bajada} Consultá precio y disponibilidad.`, seo.LARGO_DESCRIPCION),
+        canonica,
+        imagen: null,
+        datos: null,
+        cuerpo:
+          `<main><nav aria-label="Dónde estás"><a href="/">Inicio</a> › <a href="/marcas/">Marcas</a> › ${esc(m.nombre)}</nav>` +
+          `<h1>${esc(m.nombre)}</h1><p>${esc(texto.bajada)}</p>` +
+          texto.parrafos.map((p) => `<p>${esc(p)}</p>`).join('') +
+          `<ul>` +
+          lista
+            .slice(0, 100)
+            .map((p) => `<li><a href="/productos/${esc(p.categoriaSlug)}/${esc(p.slug)}/">${esc(p.nombre)}</a></li>`)
+            .join('') +
+          `</ul></main>`,
+      }),
+    )
+    urls.push(`${SITIO}${canonica}`)
+  }
+
+  // ── Institucionales ─────────────────────────────────────────────────────────
+  const institucional = (ruta, titulo, descripcion, h1, bloques) => {
+    escribir(
+      ruta,
+      pagina({
+        titulo: `${titulo}${seo.SUFIJO}`,
+        descripcion,
+        canonica: ruta,
+        imagen: null,
+        datos: null,
+        cuerpo:
+          `<main><nav aria-label="Dónde estás"><a href="/">Inicio</a> › ${esc(h1)}</nav><h1>${esc(h1)}</h1>` +
+          bloques.map((b) => `<h2>${esc(b.titulo)}</h2><p>${esc(b.texto)}</p>`).join('') +
+          `</main>`,
+      }),
+    )
+    urls.push(`${SITIO}${ruta}`)
+  }
+  institucional('/nosotros/', 'Quiénes somos', contenidos.NOSOTROS.bajada, contenidos.NOSOTROS.titulo, contenidos.NOSOTROS.secciones)
+  institucional(
+    '/servicios/',
+    'Servicios: asesoramiento técnico y repuestos',
+    'Asesoramiento técnico para elegir la herramienta, compatibilidad de encastres y accesorios, repuestos, compras programadas y envíos a todo el país.',
+    'Servicios para plantas industriales',
+    contenidos.SERVICIOS,
+  )
+  institucional(
+    '/contacto/',
+    'Contacto',
+    'Consultanos por herramientas industriales: WhatsApp +54 9 11 2169-3304, info@buscatools.com.ar o el formulario. Respondemos en el día hábil.',
+    'Contacto',
+    [
+      { titulo: 'WhatsApp', texto: '+54 9 11 2169-3304' },
+      { titulo: 'Email', texto: 'info@buscatools.com.ar' },
+      { titulo: 'Envíos', texto: 'A todo el país. Factura A o B.' },
+    ],
+  )
 
   // ── La portada: hero, categorías, cómo trabajamos y preguntas ───────────────
   // Los mismos textos que dibuja la app (`lib/inicio.ts`), para que el

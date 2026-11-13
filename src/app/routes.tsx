@@ -349,6 +349,21 @@ const CatalogoPublicoPage = lazyConRecarga(() =>
     default: m.CatalogoPublicoPage,
   })),
 )
+const MarcasPublicasPage = lazyConRecarga(() =>
+  import('@/modules/publico/pages/MarcasPage').then((m) => ({ default: m.MarcasPage })),
+)
+const MarcaPage = lazyConRecarga(() =>
+  import('@/modules/publico/pages/MarcasPage').then((m) => ({ default: m.MarcaPage })),
+)
+const NosotrosPage = lazyConRecarga(() =>
+  import('@/modules/publico/pages/InstitucionalesPage').then((m) => ({ default: m.NosotrosPage })),
+)
+const ServiciosPage = lazyConRecarga(() =>
+  import('@/modules/publico/pages/InstitucionalesPage').then((m) => ({ default: m.ServiciosPage })),
+)
+const ContactoPage = lazyConRecarga(() =>
+  import('@/modules/publico/pages/InstitucionalesPage').then((m) => ({ default: m.ContactoPage })),
+)
 const InicioPublicoPage = lazyConRecarga(() =>
   import('@/modules/publico/pages/InicioPublicoPage').then((m) => ({
     default: m.InicioPublicoPage,
@@ -434,6 +449,13 @@ const rutasPublicas: RouteObject[] = [
       },
       // Donde termina el recorrido: la lista armada y el formulario.
       { path: '/cotizar', element: conSuspense(<CotizarPage />) },
+      // Marcas e institucionales: páginas propias, con su URL, para el
+      // buscador y para quien quiere saber con quién está hablando.
+      { path: '/marcas', element: conSuspense(<MarcasPublicasPage />) },
+      { path: '/marcas/:marca', element: conSuspense(<MarcaPage />) },
+      { path: '/nosotros', element: conSuspense(<NosotrosPage />) },
+      { path: '/servicios', element: conSuspense(<ServiciosPage />) },
+      { path: '/contacto', element: conSuspense(<ContactoPage />) },
     ],
   },
 ]

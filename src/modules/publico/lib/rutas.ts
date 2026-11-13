@@ -79,8 +79,20 @@ export function conBarraFinal(path: string): string {
  */
 export function esRutaPublica(pathname: string): boolean {
   if (pathname === '/') return true
+  if (PAGINAS_INSTITUCIONALES.some((p) => pathname === p || pathname === `${p}/`)) return true
+  if (pathname === RUTA_MARCAS || pathname.startsWith(`${RUTA_MARCAS}/`)) return true
   return pathname === RAIZ_PUBLICA || pathname.startsWith(`${RAIZ_PUBLICA}/`)
 }
+
+/** Las marcas: el índice y la página de cada una. */
+export const RUTA_MARCAS = '/marcas'
+export const rutaMarca = (slug: string): string => `${RUTA_MARCAS}/${slug}`
+
+/** Las páginas institucionales. */
+export const RUTA_NOSOTROS = '/nosotros'
+export const RUTA_SERVICIOS = '/servicios'
+export const RUTA_CONTACTO = '/contacto'
+const PAGINAS_INSTITUCIONALES = [RUTA_NOSOTROS, RUTA_SERVICIOS, RUTA_CONTACTO]
 
 /**
  * La dirección canónica de una ficha.

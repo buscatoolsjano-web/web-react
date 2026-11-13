@@ -21,7 +21,22 @@ import {
   pedirFacetas,
   pedirListar,
 } from '@/modules/publico/lib/consulta'
-import { rutaCatalogo, rutaCategoria } from '@/modules/publico/lib/rutas'
+import {
+  RUTA_CONTACTO,
+  RUTA_MARCAS,
+  RUTA_NOSOTROS,
+  RUTA_SERVICIOS,
+  rutaCatalogo,
+  rutaCategoria,
+} from '@/modules/publico/lib/rutas'
+
+/** Las páginas de la casa: en el menú, después de las categorías, y en el pie. */
+const PAGINAS_SITIO = [
+  { ruta: RUTA_MARCAS, nombre: 'Marcas' },
+  { ruta: RUTA_SERVICIOS, nombre: 'Servicios' },
+  { ruta: RUTA_NOSOTROS, nombre: 'Nosotros' },
+  { ruta: RUTA_CONTACTO, nombre: 'Contacto' },
+] as const
 import { useCarritoPublico } from '@/modules/publico/hooks/useCarritoPublico'
 import { useRegistrarVisita } from '@/modules/publico/hooks/useRegistrarVisita'
 import { BarraPedido } from '@/modules/publico/components/BarraPedido'
@@ -190,6 +205,13 @@ export function PublicoLayout() {
               {c.nombre}
             </NavLink>
           ))}
+          {/* Las páginas de la casa, después de las categorías. */}
+          <span className={styles.separador} aria-hidden="true" />
+          {PAGINAS_SITIO.map((p) => (
+            <NavLink key={p.ruta} to={p.ruta} className={({ isActive }) => (isActive ? styles.catActiva : styles.cat)}>
+              {p.nombre}
+            </NavLink>
+          ))}
         </nav>
       </header>
 
@@ -206,6 +228,13 @@ export function PublicoLayout() {
               Puntas, tubos, embocaduras, balanceadores, atornilladores y llaves de impacto de las
               marcas que usa la industria.
             </p>
+            <ul className={styles.pieLista}>
+              {PAGINAS_SITIO.map((p) => (
+                <li key={p.ruta}>
+                  <Link to={p.ruta}>{p.nombre}</Link>
+                </li>
+              ))}
+            </ul>
           </div>
           <div>
             <p className={styles.pieTitulo}>Catálogo</p>

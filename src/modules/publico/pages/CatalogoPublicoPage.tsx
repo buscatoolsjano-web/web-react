@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Spinner } from '@/components/ui/Spinner'
 import { Icon } from '@/components/icons/Icon'
 import { GuiaFiltros } from '../components/GuiaFiltros'
+import { GuiaCategoria } from '../components/GuiaCategoria'
 import { TablaProductos } from '../components/TablaProductos'
 import { columnasDeAtributo } from '../lib/columnas'
 import { useCarritoPublico } from '../hooks/useCarritoPublico'
@@ -305,6 +306,10 @@ export function CatalogoPublicoPage() {
               </button>
             </nav>
           ) : null}
+
+          {/* La guía «cómo elegir», sólo en la página propia de la categoría:
+              con filtros o en la página 2 sería texto repetido. */}
+          {categoria && !hayFiltro && pagina === 1 ? <GuiaCategoria slug={categoria} /> : null}
         </>
       )}
     </div>
