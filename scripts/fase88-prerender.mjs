@@ -45,6 +45,14 @@ import { createServer } from 'vite'
   const DIST = join(RAIZ, 'dist')
   const SITIO = (process.env.VITE_SITE_URL ?? 'https://app.buscatools.com').replace(/\/+$/, '')
 
+  // ── La imagen al compartir un enlace (WhatsApp, LinkedIn, correo) ──────────
+  // La portada, el índice de marcas y las institucionales usan la imagen de la
+  // casa (1200×630, `scripts/og-portada.mjs`); una categoría, su foto de
+  // portada; una marca, la foto de uno de sus productos; una ficha, la suya.
+  const OG_PORTADA = `${SITIO}/og/portada.jpg`
+  /** La miniatura (400 px) se ve chica al compartir: va la mediana (1200 px). */
+  const grande = (u) => (u ? String(u).replace('/miniaturas/', '/medianas/') : null)
+
   // ── Credenciales: del entorno (CI) o del .env (local) ──────────────────────
   function leerEnv(nombre) {
     if (process.env[nombre]) return process.env[nombre]
@@ -59,6 +67,15 @@ import { createServer } from 'vite'
 
   const SUPABASE_URL = leerEnv('VITE_SUPABASE_URL')
   const SUPABASE_ANON = leerEnv('VITE_SUPABASE_ANON_KEY')
+
+  /**
+   * La foto de un producto para compartir: el ORIGINAL (JPG) si está en el
+   * bucket propio, porque LinkedIn y algunos clientes de correo no muestran
+   * WebP en la vista previa; si no, la mediana. `imagen` es el storage_path
+   * (`catalogo-publico/…/x.jpg`).
+   */
+  const fotoParaCompartir = (p) =>
+    !p ? null : p.imagen ? `${SUPABASE_URL}/storage/v1/object/public/${p.imagen}` : (p.imagenUrl ?? null)
   if (!SUPABASE_URL || !SUPABASE_ANON) {
     console.error('[prerender] faltan VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY')
     process.exit(1)
@@ -127,7 +144,15 @@ import { createServer } from 'vite'
       `<meta property="og:site_name" content="${esc(seo.NOMBRE_SITIO)}" />`,
       `<meta name="twitter:card" content="${imagen ? 'summary_large_image' : 'summary'}" />`,
     ]
-    if (imagen) cabeza.push(`<meta property="og:image" content="${esc(imagen)}" />`)
+    if (imagen) {
+      cabeza.push(`<meta property="og:image" content="${esc(imagen)}" />`)
+      cabeza.push(`<meta name="twitter:image" content="${esc(imagen)}" />`)
+      if (imagen === OG_PORTADA) {
+        cabeza.push(`<meta property="og:image:width" content="1200" />`)
+        cabeza.push(`<meta property="og:image:height" content="630" />`)
+      }
+    }
+    cabeza.push(`<meta property="og:locale" content="es_AR" />`)
     if (datos) {
       // `</script>` dentro del JSON cerraría la etiqueta: se escapa el `<`.
       const json = JSON.stringify(datos).replace(/</g, '\\u003c')
@@ -261,7 +286,7 @@ import { createServer } from 'vite'
         titulo: seo.tituloDeProducto(p),
         descripcion: seo.descripcionDeProducto(p),
         canonica,
-        imagen: foto,
+        imagen: fotoParaCompartir(p) ?? foto,
         datos: seo.datosEstructurados({ ...p, imagen: foto }, `${SITIO}${canonica}`),
         cuerpo: cuerpoProducto(p, foto, alt),
       }),
@@ -287,7 +312,7 @@ import { createServer } from 'vite'
         titulo: seo.tituloDeCategoria(c.nombre),
         descripcion: seo.descripcionDeCategoria(c.nombre, Number(c.productos ?? lista.length)),
         canonica,
-        imagen: null,
+        imagen: fotoParaCompartir(lista.find((p) => p.imagen)) ?? grande(c.portadaUrl) ?? OG_PORTADA,
         datos: null,
         cuerpo: cuerpoCategoria(c.nombre, c.slug, lista),
       }),
@@ -309,7 +334,7 @@ import { createServer } from 'vite'
       titulo: `Catálogo de herramientas industriales${seo.SUFIJO}`,
       descripcion: seo.descripcionDeCategoria('productos', productos.length),
       canonica: '/productos/',
-      imagen: null,
+      imagen: OG_PORTADA,
       datos: null,
       cuerpo:
         `<main><h1>Catálogo Buscatools</h1>` +
@@ -343,7 +368,7 @@ import { createServer } from 'vite'
       descripcion:
         'Las marcas de herramientas industriales con las que trabajamos: TECNA, Ingersoll Rand, FEIN, TOHNICHI, APEX, FIAM, SPEEDRILL y más. Productos originales y asesoramiento técnico.',
       canonica: '/marcas/',
-      imagen: null,
+      imagen: OG_PORTADA,
       datos: null,
       cuerpo:
         `<main><nav aria-label="Dónde estás"><a href="/">Inicio</a> › Marcas</nav>` +
@@ -364,7 +389,7 @@ import { createServer } from 'vite'
         titulo: `${m.nombre}: herramientas en Argentina${seo.SUFIJO}`,
         descripcion: seo.recortar(`${m.nombre}. ${texto.bajada} Consultá precio y disponibilidad.`, seo.LARGO_DESCRIPCION),
         canonica,
-        imagen: null,
+        imagen: fotoParaCompartir(lista.find((p) => p.imagen) ?? lista.find((p) => p.imagenUrl)) ?? OG_PORTADA,
         datos: null,
         cuerpo:
           `<main><nav aria-label="Dónde estás"><a href="/">Inicio</a> › <a href="/marcas/">Marcas</a> › ${esc(m.nombre)}</nav>` +
@@ -389,7 +414,7 @@ import { createServer } from 'vite'
         titulo: `${titulo}${seo.SUFIJO}`,
         descripcion,
         canonica: ruta,
-        imagen: null,
+        imagen: OG_PORTADA,
         datos: null,
         cuerpo:
           `<main><nav aria-label="Dónde estás"><a href="/">Inicio</a> › ${esc(h1)}</nav><h1>${esc(h1)}</h1>` +
@@ -438,7 +463,7 @@ import { createServer } from 'vite'
       descripcion:
         'Atornilladores, balanceadores, puntas, tubos, llaves de impacto y dinamométricas para la industria. Asesoramiento técnico, factura A o B y envíos a todo el país.',
       canonica: '/',
-      imagen: null,
+      imagen: OG_PORTADA,
       datos: {
         '@context': 'https://schema.org',
         '@graph': [
