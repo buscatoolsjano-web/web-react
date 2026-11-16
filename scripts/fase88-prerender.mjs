@@ -182,7 +182,7 @@ import { createServer } from 'vite'
   // ── El contenido visible de una ficha ──────────────────────────────────────
   function cuerpoProducto(p, foto, alt) {
     const atributos = Object.entries(p.atributos ?? {})
-      .map(([k, v]) => [seo.nombreDeAtributo(k), seo.valorLegible(v)])
+      .map(([k, v]) => [seo.nombreDeAtributo(k), seo.valorConUnidad(k, v)])
       .filter(([, v]) => v !== '')
     const tambien = sin.tambienBuscadoComo(p)
 

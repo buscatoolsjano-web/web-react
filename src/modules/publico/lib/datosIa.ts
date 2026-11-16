@@ -26,7 +26,7 @@
  * precio cero, es un dato falso para el buscador. Se dice en texto —«precio a
  * pedido»— y en ningún lado se inventa un número.
  */
-import { NOMBRE_SITIO, datosEstructurados, nombreDeAtributo, valorLegible } from './seo'
+import { NOMBRE_SITIO, datosEstructurados, nombreDeAtributo, valorConUnidad } from './seo'
 
 export const CONTACTO = {
   email: 'info@buscatools.com.ar',
@@ -308,7 +308,7 @@ export interface ProductoJson {
 export function productoJson(p: ProductoParaIa, sitio: string): ProductoJson {
   const atributos: Record<string, string> = {}
   for (const [clave, valor] of Object.entries(p.atributos ?? {})) {
-    const legible = valorLegible(valor)
+    const legible = valorConUnidad(clave, valor)
     if (legible !== '') atributos[nombreDeAtributo(clave)] = legible
   }
   return {

@@ -12,7 +12,7 @@ import {
   descripcionDeProducto,
   nombreDeAtributo,
   tituloDeProducto,
-  valorLegible,
+  valorConUnidad,
 } from '../lib/seo'
 import { tambienBuscadoComo } from '../lib/sinonimos'
 import { datosDeFicha } from '../lib/datosIa'
@@ -125,7 +125,7 @@ export function ProductoPublicoPage() {
   const tambienBuscado = tambienBuscadoComo(p)
 
   const atributos = Object.entries(p.atributos ?? {})
-    .map(([clave, valor]) => [nombreDeAtributo(clave), valorLegible(valor)] as const)
+    .map(([clave, valor]) => [nombreDeAtributo(clave), valorConUnidad(clave, valor)] as const)
     .filter(([, valor]) => valor !== '')
 
   return (

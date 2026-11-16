@@ -159,7 +159,7 @@ export function rasgosLegibles(atributos: Record<string, unknown> | null): strin
   if (!atributos) return ''
   const partes: string[] = []
   for (const [clave, valor] of Object.entries(atributos)) {
-    const texto = valorLegible(valor)
+    const texto = valorConUnidad(clave, valor)
     if (texto === '') continue
     partes.push(`${nombreDeAtributo(clave).toLowerCase()} ${texto}`)
   }
@@ -167,6 +167,47 @@ export function rasgosLegibles(atributos: Record<string, unknown> | null): strin
   // Mayúscula en la primera, que es donde arranca la frase.
   const frase = partes.join(', ')
   return frase.charAt(0).toUpperCase() + frase.slice(1)
+}
+
+/**
+ * La unidad de cada atributo numérico (Fase de unidades, 2026-11-16).
+ *
+ * Es la `unit` de `product_attribute_definitions` —la misma en Buscatools y
+ * en Torquetools—. Va acá porque la web pública lee los productos por las RPC
+ * `catalogo_publico_*`, que no traen las definiciones. Los valores se guardan
+ * como número para que anden los filtros por rango: la unidad se agrega al
+ * mostrarlos. Si se cambia una unidad en la base, cambiarla acá también.
+ *
+ * «Medida» no está: lleva la unidad adentro del valor («13 mm», «T25»).
+ */
+const UNIDADES: Record<string, string> = {
+  largo: 'mm',
+  torq_min: 'Nm',
+  torq_max: 'Nm',
+  min_kg: 'kg',
+  max_kg: 'kg',
+  longitud: 'm',
+  rpm: 'rpm',
+  voltaje: 'V',
+  peso_kg: 'kg',
+  peso_embalado_kg: 'kg',
+}
+
+/** La unidad de un atributo, si tiene. */
+export function unidadDeAtributo(clave: string): string | null {
+  return UNIDADES[clave] ?? null
+}
+
+/**
+ * El valor con su unidad: «50» de `largo` → «50 mm». Si el valor ya la trae
+ * («20V»), no se repite.
+ */
+export function valorConUnidad(clave: string, valor: unknown): string {
+  const texto = valorLegible(valor)
+  const unidad = UNIDADES[clave]
+  if (texto === '' || !unidad) return texto
+  const yaLaTiene = new RegExp(`(^|[0-9 ])${unidad}$`, 'i').test(texto)
+  return yaLaTiene ? texto : `${texto} ${unidad}`
 }
 
 /** Un valor de atributo como texto. Las listas se unen; lo raro se descarta. */
@@ -218,11 +259,17 @@ export function datosEstructurados(
   url: string,
 ): Record<string, unknown> {
   const propiedades = Object.entries(p.atributos ?? {})
-    .map(([clave, valor]) => ({
-      '@type': 'PropertyValue',
-      name: nombreDeAtributo(clave),
-      value: valorLegible(valor),
-    }))
+    // El valor va con su unidad («50 mm»), y la unidad también aparte en
+    // `unitText`, que es donde schema.org la espera.
+    .map(([clave, valor]) => {
+      const unidad = unidadDeAtributo(clave)
+      return {
+        '@type': 'PropertyValue',
+        name: nombreDeAtributo(clave),
+        value: valorConUnidad(clave, valor),
+        ...(unidad ? { unitText: unidad } : {}),
+      }
+    })
     .filter((x) => x.value !== '')
 
   // `keywords` son los otros nombres del producto: schema.org los acepta y es

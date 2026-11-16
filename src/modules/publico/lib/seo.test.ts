@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  valorConUnidad as valorConUnidadDeSeo,
   datosEstructurados,
   descripcionDeCategoria,
   descripcionDeProducto,
@@ -173,5 +174,20 @@ describe('los datos estructurados', () => {
     expect('brand' in pelado).toBe(false)
     expect('image' in pelado).toBe(false)
     expect('additionalProperty' in pelado).toBe(false)
+  })
+})
+
+describe('valorConUnidad', () => {
+  it('agrega la unidad de la definición a los números', () => {
+    expect(valorConUnidadDeSeo('largo', '50')).toBe('50 mm')
+    expect(valorConUnidadDeSeo('torq_max', 1350)).toBe('1350 Nm')
+    expect(valorConUnidadDeSeo('max_kg', 25)).toBe('25 kg')
+  })
+
+  it('no la repite si el valor ya la trae, y no inventa una donde no hay', () => {
+    expect(valorConUnidadDeSeo('voltaje', '20V')).toBe('20V')
+    expect(valorConUnidadDeSeo('medida', '13 mm')).toBe('13 mm')
+    expect(valorConUnidadDeSeo('encastre', '1/4 HEX')).toBe('1/4 HEX')
+    expect(valorConUnidadDeSeo('largo', '')).toBe('')
   })
 })
