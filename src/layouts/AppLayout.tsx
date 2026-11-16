@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
+import { useNoIndexar } from '@/hooks/useNoIndexar'
 import { urlLogo } from '@/modules/configuracion/services/empresa'
 import { useAuth } from '@/features/auth/useAuth'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
@@ -57,6 +58,8 @@ function leerColapsada(): boolean {
  * de acceso: eso lo hace RLS.
  */
 export function AppLayout() {
+  // El ERP entero queda fuera de los buscadores (además del robots.txt).
+  useNoIndexar()
   const isMobile = useIsMobile()
   const isTablet = useMediaQuery(TABLET)
   const { user, session, salir } = useAuth()

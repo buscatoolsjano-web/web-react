@@ -591,25 +591,40 @@ import { createServer } from 'vite'
   )
 
   // ── robots.txt ──────────────────────────────────────────────────────────────
+  /*
+   * Lista BLANCA, no negra. Antes se bloqueaban secciones del ERP una por una
+   * y quedaban ~20 afuera (/precios, /usuarios, /web, /login…): cada sección
+   * nueva del ERP nacía rastreable. Ahora se bloquea todo y se abre sólo lo
+   * público. Una página pública nueva hay que agregarla acá Y en
+   * `esRutaPublica` (src/modules/publico/lib/rutas.ts).
+   *
+   * `Allow: /$` es la portada sola (el `$` marca el fin de la URL; lo
+   * entienden Google y Bing). `/assets/` va abierto porque Google necesita el
+   * JS y el CSS para ver la página como una persona.
+   */
+  const PUBLICO = [
+    '/$',
+    '/productos',
+    '/marcas',
+    '/nosotros',
+    '/servicios',
+    '/contacto',
+    '/assets/',
+    '/og/',
+    '/brand/',
+    '/catalogos/',
+    '/datos/',
+    '/llms.txt',
+    '/sitemap.xml',
+    '/favicon.svg',
+    '/icon-',
+    '/manifest.webmanifest',
+  ]
   const robots =
     `User-agent: *\n` +
-    `Allow: /\n` +
-    // El ERP y el carrito no son contenido: son herramientas. Que no compitan
-    // en el buscador ni gasten presupuesto de rastreo.
-    `Disallow: /inicio\n` +
-    `Disallow: /catalogo\n` +
-    `Disallow: /ventas\n` +
-    `Disallow: /compras\n` +
-    `Disallow: /clientes\n` +
-    `Disallow: /mantenimiento\n` +
-    `Disallow: /emails\n` +
-    `Disallow: /whatsapp\n` +
-    `Disallow: /chat\n` +
-    `Disallow: /informes\n` +
-    `Disallow: /configuracion\n` +
-    `Disallow: /auth\n` +
-    `Disallow: /oauth\n` +
-    `Disallow: /cotizar\n` +
+    PUBLICO.map((r) => `Allow: ${r}\n`).join('') +
+    // Todo lo demás es el ERP o el backend: herramientas, no contenido.
+    `Disallow: /\n` +
     // Los asistentes de IA (GPTBot, ClaudeBot, PerplexityBot, Google-Extended)
     // entran por el `*`: el catálogo público es para que lo lean.
     `\n# Resumen para asistentes de IA: ${SITIO}/llms.txt\n` +

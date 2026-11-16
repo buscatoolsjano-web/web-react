@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom'
+import { useNoIndexar } from '@/hooks/useNoIndexar'
 import styles from './AuthLayout.module.css'
 
 /**
@@ -14,6 +15,8 @@ import styles from './AuthLayout.module.css'
  * logo oficial se lee sobre fondo claro.
  */
 export function AuthLayout() {
+  // Login, recuperar contraseña, consentimiento: nada de esto va al buscador.
+  useNoIndexar()
   return (
     <div className={styles.wrap} data-theme="light">
       <main className={styles.card}>
