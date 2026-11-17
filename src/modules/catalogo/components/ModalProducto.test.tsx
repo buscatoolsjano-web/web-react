@@ -69,6 +69,9 @@ vi.mock('../hooks/useCatalogoFacetas', () => ({
   useCategorias: () => ({ data: [{ id: 'c1', nombre: 'Puntas y tubos' }] }),
   useAtributosPorCategoria: () => ({ data: new Map() }),
 }))
+vi.mock('../hooks/useValoresDeAtributos', () => ({
+  useValoresDeAtributos: () => ({ data: new Map() }),
+}))
 const guardarProducto = vi.fn(() => Promise.resolve())
 vi.mock('../services/edicionProducto', () => ({ guardarProducto }))
 // Fase 247: el editor del modal trae la sección de fotos, que habla con Supabase.
