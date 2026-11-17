@@ -78,13 +78,17 @@
   },
   "llaves-dinamometricas": {
     "portada": "https://jiudqbusyknubonpedde.supabase.co/storage/v1/object/public/catalogo-publico/miniaturas/d886d398006e6e94cbbd112d632edfac.webp",
-    "tipo": {}
+    "tipo": {
+      "Llave dinamométrica": "/opciones/llaves-dinamometricas--llave-dinamometrica.webp"
+    }
   },
   "repuestos": {
     "tipo": {}
   },
   "epp": {
-    "tipo": {}
+    "tipo": {
+      "Protección respiratoria": "/opciones/epp--proteccion-respiratoria.webp"
+    }
   },
   "herramientas-manuales": {
     "tipo": {}
