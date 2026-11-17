@@ -9,7 +9,10 @@ import { SkeletonRows } from '@/components/ui/Skeleton'
 import { ImagenProducto } from '@/modules/catalogo/components/ImagenProducto'
 import { ModalProducto } from '@/modules/catalogo/components/ModalProducto'
 import { useProductoSeleccionado } from '@/modules/catalogo/hooks/useProductoSeleccionado'
-import { useDefinicionesDeAtributos, useListasDePrecios } from '@/modules/catalogo/hooks/useCatalogoFacetas'
+import { useDefinicionesDeAtributos, useListasDePrecios, useMarcas } from '@/modules/catalogo/hooks/useCatalogoFacetas'
+import { useQueryClient } from '@tanstack/react-query'
+import { Icon } from '@/components/icons/Icon'
+import { ImportarListaDialog } from '../components/ImportarListaDialog'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { filaClickeable } from '@/components/tables/filaClickeable'
 import tabla from '@/components/tables/Tabla.module.css'
@@ -56,6 +59,21 @@ export function ListasDePreciosPage() {
   const [texto, setTexto] = useState('')
   const [buscado, setBuscado] = useState('')
   const [pagina, setPagina] = useState(1)
+
+  // Importar (sólo admin: es lo que deja escribir la RLS de price_list_*).
+  const esAdmin = useEmpresa().activa?.rol === 'admin'
+  const marcas = useMarcas(companyIdActiva)
+  const qc = useQueryClient()
+  const [importando, setImportando] = useState(false)
+  const [marcaImportada, setMarcaImportada] = useState<string | null>(null)
+  // Después de importar se muestra la lista de esa marca. Se ajusta durante el
+  // render (no en un efecto) en cuanto la fuente aparece en la consulta.
+  const fuenteImportada = marcaImportada ? (fuentes.data ?? []).find((f) => f.marcaId === marcaImportada) : undefined
+  if (fuenteImportada) {
+    setMarcaImportada(null)
+    setFuenteId(fuenteImportada.id)
+    setPagina(1)
+  }
 
   const elegida = fuenteId ?? fuentes.data?.[0]?.id ?? null
   const versiones = useVersionesDeLista(elegida)
@@ -131,7 +149,29 @@ export function ListasDePreciosPage() {
       <PageHeader
         title="Listas de precios"
         subtitle="Lo que manda cada marca, con el precio de cada lista al lado del anterior."
+        actions={
+          esAdmin && companyIdActiva ? (
+            <Button icon={<Icon name="upload" size={16} />} onClick={() => setImportando(true)}>
+              Importar lista
+            </Button>
+          ) : undefined
+        }
       />
+
+      {esAdmin && companyIdActiva ? (
+        <ImportarListaDialog
+          open={importando}
+          onClose={() => setImportando(false)}
+          companyId={companyIdActiva}
+          marcas={(marcas.data ?? []).map((m) => ({ id: m.id, nombre: m.nombre }))}
+          onImportada={(brandId) => {
+            // La lista nueva tiene que verse ya: se descartan las consultas de
+            // la pantalla y, cuando vuelvan las fuentes, se elige la de la marca.
+            void qc.invalidateQueries({ queryKey: ['precios', companyIdActiva] })
+            setMarcaImportada(brandId)
+          }}
+        />
+      ) : null}
 
       <Alert tone="info" title="Esto no cambia los precios del catálogo">
         <p>
@@ -146,7 +186,7 @@ export function ListasDePreciosPage() {
       ) : (fuentes.data ?? []).length === 0 ? (
         <EmptyState
           title="Todavía no hay listas cargadas"
-          description="Las listas se cargan desde los archivos del Drive. Cuando haya una, aparece acá con su historial."
+          description="Cargá la primera con «Importar lista»: un Excel o CSV tal como lo manda el fabricante. Cuando haya una, aparece acá con su historial."
         />
       ) : (
         <>

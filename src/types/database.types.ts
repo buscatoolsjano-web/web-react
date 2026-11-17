@@ -9098,6 +9098,31 @@ export type Database = {
           user_id: string
         }[]
       }
+      listas_detectar_marca: {
+        Args: { p_company_id: string; p_referencias: string[] }
+        Returns: {
+          brand_id: string
+          marca: string
+          prefijo: string | null
+          coincidencias: number
+        }[]
+      }
+      listas_preparar_version: {
+        Args: {
+          p_company_id: string
+          p_brand_id: string
+          p_fecha: string
+          p_moneda: string
+          p_ancla: string
+          p_archivo: string
+          p_nota?: string | null
+        }
+        Returns: string
+      }
+      listas_cerrar_version: {
+        Args: { p_version_id: string }
+        Returns: Json
+      }
       config_listas_precios_listar: {
         Args: { p_company: string }
         Returns: {
