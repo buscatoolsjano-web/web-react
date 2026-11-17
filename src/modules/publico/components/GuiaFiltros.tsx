@@ -5,6 +5,7 @@ import type { CategoriaPublica, FacetasPublicas } from '../services/catalogoPubl
 import { iconoDeEncastre, iconoDeForma } from '../lib/iconosDeForma'
 import { GRUPOS, grupoDe } from '../lib/grupos'
 import { type CambioRango } from '../lib/rangosGuia'
+import { esNumerico, etiquetaDeEncastre, etiquetaDeRango, tramoActivo, tramosDe } from '../lib/tramos'
 import fotos from '../lib/fotosDeOpcion.generated.json'
 import styles from './GuiaFiltros.module.css'
 
@@ -114,6 +115,10 @@ interface Paso {
   quitar: () => void
   /** Los tiles de este paso no muestran conteo (ej. capacidad por tramos). */
   sinConteo?: boolean
+  /** Las opciones ya vienen en su orden (tramos): no se reordenan. */
+  sinOrdenar?: boolean
+  /** Cómo se dice lo elegido en la ficha de arriba, si no es el valor tal cual. */
+  etiquetaElegida?: string | undefined
 }
 
 const fotoDeTipo = (categoria: string | undefined, valor: string): string | undefined => {
@@ -296,36 +301,111 @@ export function GuiaFiltros({
     // eslinga, largo de cable…—. Los de RANGO (numéricos de muchos valores, como
     // la capacidad en kg) no se eligen con tiles; se filtran aparte y acá se
     // saltean.
+    // ── Torque, en tramos (atornilladores, llaves dinamométricas…) ─────────────
+    // Igual que la capacidad del balanceador: una herramienta trabaja entre un
+    // torque mínimo y uno máximo, y el que busca sabe cuánto torque necesita.
+    // Elegir «20 a 50 Nm» trae las que cubren ese tramo: mín <= 50 y máx >= 20.
+    const fTorqMax = atrs.find((a) => a.key === 'torq_max')
+    const hayTorque = onRangos !== undefined && fTorqMax !== undefined && atrs.some((a) => a.key === 'torq_min')
+    if (onRangos && hayTorque && fTorqMax) {
+      const tramos = tramosDe(fTorqMax.opciones, fTorqMax.unidad ?? 'Nm')
+      const torquePuesto = rangos?.torq_min || rangos?.torq_max
+      if (tramos.length > 0 || torquePuesto) {
+        const activoT = tramos.find(
+          (t) => (rangos?.torq_min?.max ?? null) === t.max && (rangos?.torq_max?.min ?? null) === t.min,
+        )
+        pasos.push({
+          clave: 'torque',
+          pregunta: '¿Cuánto torque?',
+          pista: 'el que tiene que dar la herramienta',
+          elegido: torquePuesto ? (activoT?.id ?? 'rango') : '',
+          etiquetaElegida: torquePuesto
+            ? (activoT?.etiqueta ??
+              etiquetaDeRango(
+                { min: rangos?.torq_max?.min ?? null, max: rangos?.torq_min?.max ?? null },
+                fTorqMax.unidad ?? 'Nm',
+              ))
+            : undefined,
+          sinOrdenar: true,
+          elegir: (id) => {
+            const t = tramos.find((x) => x.id === id)
+            if (!t) return
+            onRangos({
+              torq_min: t.max !== null ? { min: null, max: t.max } : null,
+              torq_max: t.min !== null ? { min: t.min, max: null } : null,
+            })
+          },
+          quitar: () => onRangos({ torq_min: null, torq_max: null }),
+          opciones: tramos.map((t) => ({ valor: t.id, etiqueta: t.etiqueta, cantidad: t.cantidad, medio: null })),
+        })
+      }
+    }
+
     for (const faceta of facetas?.atributos ?? []) {
       // `min_kg`/`max_kg` son la capacidad: ya se preguntan en su propio paso
       // por tramos, así que no se repiten como tiles. Sin esto, al acotar por
       // capacidad el conjunto se achica y volvían a aparecer como «¿Cap. mín.?».
       if (faceta.key === 'min_kg' || faceta.key === 'max_kg') continue
-      // Rango explícito (lo marca el ERP) o demasiados valores para tiles: no
-      // va como lista. El tope cubre al sitio público, cuyas facetas no traen
-      // `clase`, para que un numérico de decenas de valores no explote en tiles.
-      if (faceta.clase === 'range' || faceta.opciones.length > 24) continue
-      const puesto = atributos[faceta.key] ?? ''
-      if (faceta.opciones.length <= 1 && puesto === '') continue
+      // El torque tiene su paso propio (arriba).
+      if (faceta.key === 'torq_min' || faceta.key === 'torq_max') continue
       const u = faceta.unidad ? ` ${faceta.unidad}` : ''
       const texto = PREGUNTAS[faceta.key] ?? {
         pregunta: `¿${faceta.label}?`,
         pista: '',
       }
+      const pista = PREGUNTAS[faceta.key] && faceta.unidad ? `${texto.pista} (${faceta.unidad})` : texto.pista
+
+      // Numérico con muchos valores (largo, rpm, peso…): en tramos legibles
+      // —«Hasta 25 mm», «26 a 50 mm»…— en vez de doscientos botones.
+      const tramos = onRangos && esNumerico(faceta.opciones) ? tramosDe(faceta.opciones, faceta.unidad) : []
+      const rangoPuesto = rangos?.[faceta.key]
+      if (onRangos && (tramos.length > 0 || rangoPuesto)) {
+        const activoT = tramoActivo(tramos, rangoPuesto)
+        pasos.push({
+          clave: `r.${faceta.key}`,
+          pregunta: texto.pregunta,
+          pista,
+          // Un rango puesto ya responde la pregunta, aunque al recalcular los
+          // tramos sobre lo que quedó ninguno coincida con el elegido.
+          elegido: rangoPuesto ? (activoT?.id ?? 'rango') : '',
+          etiquetaElegida: rangoPuesto ? (activoT?.etiqueta ?? etiquetaDeRango(rangoPuesto, faceta.unidad)) : undefined,
+          sinOrdenar: true,
+          elegir: (id) => {
+            const t = tramos.find((x) => x.id === id)
+            if (t) onRangos({ [faceta.key]: { min: t.min, max: t.max } })
+          },
+          quitar: () => onRangos({ [faceta.key]: null }),
+          opciones: tramos.map((t) => ({ valor: t.id, etiqueta: t.etiqueta, cantidad: t.cantidad, medio: null })),
+        })
+        continue
+      }
+
+      // Rango explícito sin tramos posibles, o una lista tan larga que ni como
+      // botones de texto se lee (más de 60): no va como paso.
+      if (faceta.clase === 'range' || faceta.opciones.length > 60) continue
+      const puesto = atributos[faceta.key] ?? ''
+      if (faceta.opciones.length <= 1 && puesto === '') continue
+      const esEncastre = faceta.key === 'encastre'
+      const decir = (v: string) => (esEncastre ? etiquetaDeEncastre(v) : `${v}${u}`)
       pasos.push({
         clave: `a.${faceta.key}`,
         pregunta: texto.pregunta,
-        pista: PREGUNTAS[faceta.key] && faceta.unidad ? `${texto.pista} (${faceta.unidad})` : texto.pista,
+        pista,
         elegido: puesto,
+        etiquetaElegida: puesto === '' ? undefined : decir(puesto),
         elegir: (v) => {
           onFiltrar(`a.${faceta.key}`, v)
         },
         quitar: () => onFiltrar(`a.${faceta.key}`, ''),
         opciones: faceta.opciones.map((o) => ({
           valor: o.valor,
-          etiqueta: `${o.valor}${u}`,
+          etiqueta: decir(o.valor),
           cantidad: o.cuantos,
-          medio: faceta.key === 'encastre' ? <span className={styles.forma} aria-hidden="true">{iconoDeEncastre(o.valor)}</span> : null,
+          // Con muchas opciones, botones de texto (sin dibujo), más compactos.
+          medio:
+            esEncastre && faceta.opciones.length <= 24 ? (
+              <span className={styles.forma} aria-hidden="true">{iconoDeEncastre(o.valor)}</span>
+            ) : null,
         })),
       })
     }
@@ -375,12 +455,14 @@ export function GuiaFiltros({
 
   const ordenable =
     activo !== undefined &&
+    !activo.sinOrdenar &&
     activo.clave !== 'categoria' &&
     activo.clave !== 'grupo' &&
     activo.clave !== 'capacidad'
   const visibles = activo ? (ordenable ? ordenarOpciones(activo.opciones) : activo.opciones) : []
 
   const etiquetaChip = (p: Paso): string => {
+    if (p.etiquetaElegida) return p.etiquetaElegida
     if (p.clave === 'grupo') return GRUPOS.find((g) => g.clave === p.elegido)?.label ?? p.elegido
     if (p.clave === 'categoria') return categorias.find((c) => c.slug === p.elegido)?.nombre ?? p.elegido
     if (p.clave === 'capacidad')
