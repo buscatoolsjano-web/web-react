@@ -54,8 +54,16 @@
   transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
+/* Filas alternadas: una sí, una no, un tono apenas distinto. Con muchas
+   columnas el ojo se pierde de renglón al ir de la referencia al precio; la
+   banda lo lleva derecho. Se mezcla con el color del texto para que funcione
+   igual en claro y en oscuro sin un token por tema. */
+.tabla tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
 .tabla tbody tr:hover {
-  background: var(--color-surface-alt);
+  background: color-mix(in srgb, var(--color-text) 9%, transparent);
 }
 
 .tabla tbody tr.seleccionada {

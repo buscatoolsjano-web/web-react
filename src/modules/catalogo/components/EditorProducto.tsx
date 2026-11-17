@@ -6,6 +6,11 @@ import { Input, Select, Textarea } from '@/components/forms/controls'
 import { Icon } from '@/components/icons/Icon'
 import { dominioDeUrl, validarEdicion } from '../lib/edicionProducto'
 import { atributosDeLaCategoria } from '../lib/nuevoProducto'
+import { opcionesDeAtributo } from '../lib/valorDeAtributo'
+import { useValoresDeAtributos } from '../hooks/useValoresDeAtributos'
+import { useEmpresa } from '@/features/empresa/useEmpresa'
+import controles from '@/components/forms/Forms.module.css'
+import { CampoAtributo } from './CampoAtributo'
 import type { EdicionProducto } from '../services/edicionProducto'
 import type { DefinicionAtributo } from '../types'
 import styles from './EditorProducto.module.css'
@@ -63,6 +68,9 @@ export function EditorProducto({
     onCambiar({ ...valores, [campo]: valor })
 
   const delCategoria = atributosDeLaCategoria(definiciones, valores.categoriaId, atributosPorCategoria)
+  // Lo que ya existe de cada característica en el rubro, para elegir de ahí.
+  const companyId = useEmpresa().activa?.companyId ?? null
+  const valoresDelRubro = useValoresDeAtributos(companyId, valores.categoriaId || null)
 
   const enviar = (e: React.FormEvent) => {
     e.preventDefault()
@@ -167,9 +175,13 @@ export function EditorProducto({
                 label={d.unidad ? `${d.label} (${d.unidad})` : d.label}
                 id={`${id}-at-${d.key}`}
               >
-                <Input
-                  value={valores.atributos[d.key] ?? ''}
-                  onChange={(e) => set('atributos', { ...valores.atributos, [d.key]: e.target.value })}
+                <CampoAtributo
+                  className={controles.control}
+                  etiqueta={d.label}
+                  valor={valores.atributos[d.key] ?? ''}
+                  opciones={opcionesDeAtributo(d, valoresDelRubro.data)}
+                  numerica={d.tipo === 'number' ? true : undefined}
+                  onCambiar={(v) => set('atributos', { ...valores.atributos, [d.key]: v })}
                 />
               </Field>
             ))}

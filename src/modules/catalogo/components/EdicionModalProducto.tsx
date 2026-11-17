@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { validarEdicion } from '../lib/edicionProducto'
 import { atributosDeLaCategoria } from '../lib/nuevoProducto'
+import { opcionesDeAtributo } from '../lib/valorDeAtributo'
+import { useValoresDeAtributos } from '../hooks/useValoresDeAtributos'
+import { CampoAtributo } from './CampoAtributo'
 import { formatearPrecio } from '../lib/formato'
 import type { EdicionProducto } from '../services/edicionProducto'
 import type { DefinicionAtributo, ProductoDetalle } from '../types'
@@ -75,6 +78,9 @@ export function EdicionModalProducto({
   const delCategoria = [...new Map([...declaradas, ...conValor].map((d) => [d.key, d])).values()].sort(
     (a, b) => a.posicion - b.posicion,
   )
+  // Lo que ya existe de cada característica en el rubro, para elegir de ahí.
+  const valoresDelRubro = useValoresDeAtributos(companyId, valores.categoriaId || null)
+  const opcionesDe = (d: DefinicionAtributo) => opcionesDeAtributo(d, valoresDelRubro.data)
 
   const texto = (
     etiqueta: string,
@@ -230,13 +236,13 @@ export function EdicionModalProducto({
                   {d.unidad ? `${d.label} (${d.unidad})` : d.label}
                 </dt>
                 <dd className={lista.valor}>
-                  <input
+                  <CampoAtributo
                     className={`${styles.campo} ${styles.valorAtributo}`}
-                    aria-label={d.label}
-                    value={valores.atributos[d.key] ?? ''}
-                    onChange={(e) =>
-                      set('atributos', { ...valores.atributos, [d.key]: e.target.value })
-                    }
+                    etiqueta={d.label}
+                    valor={valores.atributos[d.key] ?? ''}
+                    opciones={opcionesDe(d)}
+                    numerica={d.tipo === 'number' ? true : undefined}
+                    onCambiar={(v) => set('atributos', { ...valores.atributos, [d.key]: v })}
                   />
                 </dd>
               </div>
