@@ -176,6 +176,11 @@ export interface FilaDePlanilla {
   precios: Record<string, number | null>
   /** Lo máximo que se vendió, para tenerlo al lado del precio teórico. */
   ventaMaxima: VentaMaxima | null
+  /** El costo de compra y el precio de venta de la última lista, cada uno con su moneda. */
+  costo: { monto: number; moneda: string | null } | null
+  venta: { monto: number; moneda: string | null } | null
+  /** Unidades pedidas por clientes: ordena la planilla, los más vendidos arriba. */
+  vendidos: number
 }
 
 /**
@@ -235,26 +240,31 @@ export async function planillaDePrecios(
   { texto = '', pagina = 1, porPagina = 25 }: { texto?: string; pagina?: number; porPagina?: number } = {},
 ): Promise<Planilla> {
   const desde = (pagina - 1) * porPagina
-  let q = supabase
-    .from('price_list_matrix')
-    .select('reference, description, product_id, precios', { count: 'exact' })
-    .eq('company_id', companyId)
-    .eq('source_id', sourceId)
+  // Por referencia o por descripción, que es como se busca un producto.
+  //
+  // `%` y `_` son comodines de `ilike`: sin escaparlos, buscar «2520/8_» o
+  // pegarle a un `%` devuelve cualquier cosa y parece que el buscador anda
+  // mal. Se escapan con barra invertida.
+  const buscado = texto.trim().replace(/[%_]/g, (comodin) => '\\' + comodin)
 
-  const buscado = texto.trim()
-  if (buscado !== '') {
-    // Por referencia o por descripción, que es como se busca un producto.
-    //
-    // `%` y `_` son comodines de `ilike`: sin escaparlos, buscar «2520/8_» o
-    // pegarle a un `%` devuelve cualquier cosa y parece que el buscador anda
-    // mal. Se escapan con barra invertida.
-    const escapado = buscado.replace(/[%_]/g, (comodin) => '\\' + comodin)
-    q = q.or(`reference.ilike.%${escapado}%,description.ilike.%${escapado}%`)
-  }
-
-  const { data, error, count } = await q.order('reference').range(desde, desde + porPagina - 1)
+  /*
+   * El orden lo decide la base (`listas_planilla`): primero los que están en
+   * el catálogo, entre ellos los más vendidos, después los que tienen foto, y
+   * al final las referencias que no están en el catálogo. «Priorizar los que
+   * más vendemos y los que tienen foto, y los que NO están en el catálogo,
+   * últimos.»
+   */
+  const { data, error } = await supabase.rpc('listas_planilla', {
+    p_company_id: companyId,
+    p_source_id: sourceId,
+    p_texto: buscado,
+    p_desde: desde,
+    p_cuantos: porPagina,
+  })
   if (error) throw new Error(`No se pudo leer la lista: ${error.message}`)
+  const count = data?.[0]?.total ?? (desde === 0 ? 0 : null)
 
+  const montoDe = (m: number | null, moneda: string | null) => (m === null ? null : { monto: Number(m), moneda })
   const filas = (data ?? []).map((f) => ({
     reference: f.reference ?? '',
     description: sinComillas(f.description),
@@ -263,6 +273,9 @@ export async function planillaDePrecios(
     sku: null as string | null,
     precios: (f.precios ?? {}) as Record<string, number | null>,
     ventaMaxima: null as VentaMaxima | null,
+    costo: montoDe(f.costo, f.moneda_costo),
+    venta: montoDe(f.venta, f.moneda_venta),
+    vendidos: Number(f.vendidos ?? 0),
   }))
 
   const ids = filas.map((f) => f.productId).filter((x): x is string => x !== null)

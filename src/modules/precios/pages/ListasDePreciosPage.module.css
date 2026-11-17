@@ -333,3 +333,10 @@
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
 }
+
+/* Cuánto se vendió: por eso la fila está arriba. */
+.vendidos {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-success-text, var(--color-text-soft));
+}

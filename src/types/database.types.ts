@@ -4216,6 +4216,9 @@ export type Database = {
           issued_on: string
           currency: string
           anchor_column: string
+          columns: Json | null
+          cost_column: string | null
+          sale_column: string | null
           factors: Json
           origin: string
           file_name: string | null
@@ -4232,6 +4235,9 @@ export type Database = {
           issued_on: string
           currency: string
           anchor_column: string
+          columns?: Json | null
+          cost_column?: string | null
+          sale_column?: string | null
           factors?: Json
           origin: string
           file_name?: string | null
@@ -4248,6 +4254,9 @@ export type Database = {
           issued_on?: string
           currency?: string
           anchor_column?: string
+          columns?: Json | null
+          cost_column?: string | null
+          sale_column?: string | null
           factors?: Json
           origin?: string
           file_name?: string | null
@@ -9096,6 +9105,28 @@ export type Database = {
           rol: string
           ultimo_ingreso: string | null
           user_id: string
+        }[]
+      }
+      listas_planilla: {
+        Args: {
+          p_company_id: string
+          p_source_id: string
+          p_texto?: string
+          p_desde?: number
+          p_cuantos?: number
+        }
+        Returns: {
+          reference: string
+          description: string | null
+          product_id: string | null
+          precios: Json
+          costo: number | null
+          moneda_costo: string | null
+          venta: number | null
+          moneda_venta: string | null
+          vendidos: number
+          tiene_foto: boolean
+          total: number
         }[]
       }
       listas_detectar_marca: {

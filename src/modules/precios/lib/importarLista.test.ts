@@ -6,6 +6,8 @@ import {
   detectarColumnas,
   detectarEncabezado,
   elegirAncla,
+  elegirRoles,
+  rolDe,
   elegirMarca,
   fechaDelNombre,
   leerCsv,
@@ -159,5 +161,41 @@ describe('claveDePrecio', () => {
   it('arma una clave estable', () => {
     expect(claveDePrecio('PVP España €')).toBe('pvp_espana_eur')
     expect(claveDePrecio('Precio U$S')).toBe('precio_usd')
+  })
+})
+
+describe('lista de TECNA (varios precios y datos técnicos)', () => {
+  const enc = [
+    'Marca', 'Referencia', 'Modelo', 'Peso mínimo (kg)', 'Peso máximo (kg)', 'Tipo de carcasa', 'Peso del producto (kg)',
+    'Link web', 'PVP España (EUR)', 'Precio TTS→Buscatools (EUR)', 'Costo Argentina (EUR)', 'PVP Buscatools (EUR)',
+    'Costo Tecsolda (EUR) — ref.', 'Observaciones',
+  ]
+  const fila = (ref: string, peso: number): Celda[] => [
+    'TECNA', ref, ref.replace('TN-', ''), 0.2, 0.5, 'Aleación de aluminio (construcción liviana)', peso,
+    'https://tecnanogravity.com.ar/x', 29.46, 19.06, 32.41, 81.02, 26.22, 'Carcasa: catálogo oficial TECNA con notas largas',
+  ]
+  const datos = [fila('TN-X-LIGHT.0,5', 0.43), fila('TN-X-LIGHT.1', 0.46), fila('TN-X-LIGHT.2', 0.49)]
+  const cols = detectarColumnas(enc, datos, 'EUR')
+
+  it('no toma «Peso del producto» (un número) como descripción', () => {
+    expect(cols.descripcion).not.toBe(6)
+    expect(cols.descripcion === null || enc[cols.descripcion] === 'Tipo de carcasa').toBe(true)
+  })
+
+  it('elige el costo y la venta de Argentina / de la empresa', () => {
+    const r = elegirRoles(cols.precios, ['Buscatools'])
+    expect(r.costo?.encabezado).toBe('Costo Argentina (EUR)')
+    expect(r.venta?.encabezado).toBe('PVP Buscatools (EUR)')
+    expect(cols.precios.every((p) => p.moneda === 'EUR')).toBe(true)
+  })
+})
+
+describe('rolDe', () => {
+  it('distingue costo de venta', () => {
+    expect(rolDe('Net price EUR')).toBe('costo')
+    expect(rolDe('Costo USD')).toBe('costo')
+    expect(rolDe('List Price 2024 USD')).toBe('venta')
+    expect(rolDe('PVP España')).toBe('venta')
+    expect(rolDe('Importación')).toBe(null)
   })
 })

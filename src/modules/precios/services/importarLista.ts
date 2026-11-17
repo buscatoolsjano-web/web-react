@@ -128,6 +128,11 @@ export interface DatosImportacion {
   archivo: string
   nota: string | null
   renglones: readonly Renglon[]
+  /** Cada columna de precio con su moneda: una lista puede traer EUR y USD. */
+  columnas?: readonly { clave: string; encabezado: string; moneda: string }[]
+  /** Qué columna es el costo de compra y cuál el precio de venta (su clave). */
+  costo?: string | null
+  venta?: string | null
 }
 
 const TANDA = 1000
@@ -149,6 +154,15 @@ export async function importarLista(d: DatosImportacion, alAvanzar?: (hechos: nu
   })
   if (prep.error) throw new Error(traducir(prep.error.message))
   const versionId = prep.data
+
+  // Qué es cada columna y en qué moneda está: lo lee la planilla (costo y venta).
+  if (d.columnas) {
+    const { error } = await supabase
+      .from('price_list_versions')
+      .update({ columns: d.columnas.map((c) => ({ ...c })), cost_column: d.costo ?? null, sale_column: d.venta ?? null })
+      .eq('id', versionId)
+    if (error) throw new Error(traducir(error.message))
+  }
 
   for (let i = 0; i < d.renglones.length; i += TANDA) {
     const tanda = d.renglones.slice(i, i + TANDA).map((r) => ({

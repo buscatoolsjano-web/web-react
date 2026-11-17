@@ -101,6 +101,9 @@ export function ListasDePreciosPage() {
     [versiones.data],
   )
   const moneda = versiones.data?.[0]?.moneda ?? ''
+  // Las columnas de costo y venta, sólo si la lista los trae.
+  const conCosto = (planilla.data?.filas ?? []).some((f) => f.costo !== null)
+  const conVenta = (planilla.data?.filas ?? []).some((f) => f.venta !== null)
 
   const paginas = Math.max(1, Math.ceil((planilla.data?.total ?? 0) / POR_PAGINA))
 
@@ -248,6 +251,9 @@ export function ListasDePreciosPage() {
                       </th>
                       <th scope="col">Referencia</th>
                       <th scope="col">Descripción</th>
+                      {/* Costo de compra y precio de venta de la última lista, cada uno con su moneda. */}
+                      {conCosto ? <th scope="col" className={tabla.num}>Costo</th> : null}
+                      {conVenta ? <th scope="col" className={tabla.num}>Venta</th> : null}
                       {fechas.map((f, i) => (
                         <th key={f} scope="col" className={`${tabla.num} ${i === 0 ? styles.colVigente : ''}`}>
                           {fechaCorta(f)}
@@ -313,7 +319,14 @@ export function ListasDePreciosPage() {
                         </td>
                         <td className={styles.colDesc}>
                           {fila.description ?? <span className={tabla.secundario}>—</span>}
+                          {fila.vendidos > 0 ? (
+                            <span className={styles.vendidos}>
+                              {fila.vendidos.toLocaleString('es-AR')} vendidos
+                            </span>
+                          ) : null}
                         </td>
+                        {conCosto ? <CeldaMonto monto={fila.costo} /> : null}
+                        {conVenta ? <CeldaMonto monto={fila.venta} /> : null}
                         {fechas.map((f, i) => {
                           const valor = fila.precios[f]
                           const previa = i + 1 < fechas.length ? fila.precios[fechas[i + 1]!] : undefined
@@ -474,5 +487,21 @@ export function ListasDePreciosPage() {
         </>
       )}
     </div>
+  )
+}
+
+/** Un importe con su moneda al lado: en una lista con EUR y USD, la moneda no se adivina. */
+function CeldaMonto({ monto }: { monto: { monto: number; moneda: string | null } | null }) {
+  return (
+    <td className={tabla.num}>
+      {monto === null ? (
+        <span className={styles.ausente}>—</span>
+      ) : (
+        <>
+          <span className={styles.precio}>{formatearImporte(monto.monto)}</span>
+          {monto.moneda ? <span className={styles.monedaVenta}>{monto.moneda}</span> : null}
+        </>
+      )}
+    </td>
   )
 }

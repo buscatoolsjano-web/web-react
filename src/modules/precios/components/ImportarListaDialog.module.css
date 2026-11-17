@@ -145,3 +145,11 @@
   color: var(--color-text);
   font-size: var(--text-lg);
 }
+
+.leyenda {
+  caption-side: top;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  font-weight: 600;
+  font-size: var(--text-sm);
+}

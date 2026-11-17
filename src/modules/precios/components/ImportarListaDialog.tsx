@@ -12,6 +12,7 @@ import {
   detectarEncabezado,
   elegirAncla,
   elegirMarca,
+  elegirRoles,
   fechaDelNombre,
   marcasEnTexto,
   monedaDe,
@@ -25,6 +26,7 @@ import {
   type ResumenImportacion,
 } from '../services/importarLista'
 import { formatearImporte } from '../lib/formato'
+import { useEmpresa } from '@/features/empresa/useEmpresa'
 import styles from './ImportarListaDialog.module.css'
 
 interface Marca {
@@ -81,6 +83,11 @@ export function ImportarListaDialog({
   const [moneda, setMoneda] = useState('USD')
   const [refCol, setRefCol] = useState<number | null>(null)
   const [anclaCol, setAnclaCol] = useState<number | null>(null)
+  // Cada columna de precio con su moneda, y cuál es el costo y cuál la venta.
+  const [monedas, setMonedas] = useState<Record<number, string>>({})
+  const [costoCol, setCostoCol] = useState<number | null>(null)
+  const [ventaCol, setVentaCol] = useState<number | null>(null)
+  const empresa = useEmpresa().activa?.companyName ?? ''
   const input = useRef<HTMLInputElement>(null)
 
   const reiniciar = () => {
@@ -130,6 +137,12 @@ export function ImportarListaDialog({
       )
 
       const ancla = elegirAncla(columnas.precios)
+      // La empresa por su primera palabra («BUSCATOOLS SA» → «BUSCATOOLS»):
+      // una lista que trae «PVP España» y «PVP Buscatools» usa la nuestra.
+      const roles = elegirRoles(columnas.precios, [empresa.split(/s+/)[0] ?? ''])
+      setMonedas(Object.fromEntries(columnas.precios.map((p) => [p.indice, p.moneda ?? monedaArchivo ?? 'USD'])))
+      setCostoCol(roles.costo?.indice ?? null)
+      setVentaCol(roles.venta?.indice ?? null)
       setMarcaId(elegida?.id ?? '')
       setFecha(fechaDelNombre(`${archivo.name} ${titulo}`, new Date()))
       setMoneda(ancla?.moneda ?? monedaArchivo ?? 'USD')
@@ -151,11 +164,17 @@ export function ImportarListaDialog({
     const cols: Columnas = {
       ...lectura.columnas,
       referencia: refCol,
-      precios: lectura.columnas.precios.filter((p) => p.indice !== refCol),
+      precios: lectura.columnas.precios
+        .filter((p) => p.indice !== refCol)
+        .map((p) => ({ ...p, moneda: monedas[p.indice] ?? p.moneda })),
     }
     const ancla = cols.precios.find((p) => p.indice === anclaCol) ?? elegirAncla(cols.precios)
     return { ...armarRenglones(lectura.datos, cols, ancla), ancla, cols }
-  }, [lectura, refCol, anclaCol])
+  }, [lectura, refCol, anclaCol, monedas])
+  const claveDe = (indice: number | null) =>
+    indice === null ? null : (armado?.cols.precios.find((p) => p.indice === indice)?.clave ?? null)
+  const columnaCosto = armado?.cols.precios.find((p) => p.indice === costoCol) ?? null
+  const columnaVenta = armado?.cols.precios.find((p) => p.indice === ventaCol) ?? null
 
   const cargar = async () => {
     if (!lectura || !armado || !armado.ancla || marcaId === '' || fecha === '') return
@@ -168,8 +187,12 @@ export function ImportarListaDialog({
           companyId,
           brandId: marcaId,
           fecha,
-          moneda,
+          // La moneda de la versión es la del precio principal.
+          moneda: armado.ancla.moneda ?? moneda,
           ancla: armado.ancla.encabezado,
+          columnas: armado.cols.precios.map((p) => ({ clave: p.clave, encabezado: p.encabezado, moneda: p.moneda ?? moneda })),
+          costo: claveDe(costoCol),
+          venta: claveDe(ventaCol),
           archivo: lectura.archivo,
           nota: lectura.hoja ? `Hoja «${lectura.hoja}»` : null,
           renglones: armado.renglones,
@@ -309,13 +332,55 @@ export function ImportarListaDialog({
                 ))}
               </Select>
             </Field>
-            <Field label="Moneda">
-              <Select value={moneda} onChange={(e) => setMoneda(e.target.value)}>
-                {MONEDAS.map((m) => (
-                  <option key={m}>{m}</option>
+          </div>
+
+          <div className={styles.tablaCaja}>
+            <table className={styles.tabla}>
+              <caption className={styles.leyenda}>Columnas de precio: qué es cada una y en qué moneda está</caption>
+              <thead>
+                <tr>
+                  <th>Columna del archivo</th>
+                  <th>Moneda</th>
+                  <th>Es el…</th>
+                </tr>
+              </thead>
+              <tbody>
+                {armado.cols.precios.map((p) => (
+                  <tr key={p.indice}>
+                    <td>{p.encabezado}</td>
+                    <td>
+                      <Select
+                        aria-label={`Moneda de «${p.encabezado}»`}
+                        value={p.moneda ?? moneda}
+                        onChange={(e) => setMonedas({ ...monedas, [p.indice]: e.target.value })}
+                      >
+                        {MONEDAS.map((m) => (
+                          <option key={m}>{m}</option>
+                        ))}
+                      </Select>
+                    </td>
+                    <td>
+                      <Select
+                        aria-label={`Qué es «${p.encabezado}»`}
+                        value={p.indice === costoCol ? 'costo' : p.indice === ventaCol ? 'venta' : ''}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          // Una sola de cada: elegir otra la saca de la anterior.
+                          if (v === 'costo') setCostoCol(p.indice)
+                          else if (costoCol === p.indice) setCostoCol(null)
+                          if (v === 'venta') setVentaCol(p.indice)
+                          else if (ventaCol === p.indice) setVentaCol(null)
+                        }}
+                      >
+                        <option value="">Otro precio</option>
+                        <option value="costo">Costo de compra</option>
+                        <option value="venta">Precio de venta</option>
+                      </Select>
+                    </td>
+                  </tr>
                 ))}
-              </Select>
-            </Field>
+              </tbody>
+            </table>
           </div>
 
           <p className={styles.resumen}>
@@ -333,6 +398,8 @@ export function ImportarListaDialog({
                   <th>Referencia</th>
                   <th>Descripción</th>
                   <th className={styles.num}>{armado.ancla?.encabezado ?? 'Precio'}</th>
+                  {columnaCosto ? <th className={styles.num}>Costo</th> : null}
+                  {columnaVenta ? <th className={styles.num}>Venta</th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -340,7 +407,9 @@ export function ImportarListaDialog({
                   <tr key={r.reference}>
                     <td className={styles.ref}>{r.reference}</td>
                     <td>{r.description ?? '—'}</td>
-                    <td className={styles.num}>{r.anchor === null ? '—' : formatearImporte(r.anchor, moneda)}</td>
+                    <td className={styles.num}>{r.anchor === null ? '—' : formatearImporte(r.anchor, armado.ancla?.moneda ?? moneda)}</td>
+                    {columnaCosto ? <td className={styles.num}>{importe(r.prices[columnaCosto.clave], columnaCosto.moneda ?? moneda)}</td> : null}
+                    {columnaVenta ? <td className={styles.num}>{importe(r.prices[columnaVenta.clave], columnaVenta.moneda ?? moneda)}</td> : null}
                   </tr>
                 ))}
               </tbody>
@@ -362,6 +431,10 @@ export function ImportarListaDialog({
       {paso.tipo === 'listo' ? <Listo resumen={paso.resumen} marca={paso.marca} /> : null}
     </Dialog>
   )
+}
+
+function importe(v: number | string | undefined, moneda: string): string {
+  return typeof v === 'number' ? formatearImporte(v, moneda) : (v ?? '—')
 }
 
 function Listo({ resumen: r, marca }: { resumen: ResumenImportacion; marca: string }) {

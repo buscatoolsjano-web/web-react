@@ -228,11 +228,20 @@ export function detectarColumnas(encabezados: readonly Celda[], datos: readonly 
   const referencia =
     primera((i) => contienePalabra(nombres[i] ?? '', PALABRAS_REFERENCIA) && !contienePalabra(nombres[i] ?? '', PALABRAS_PRECIO)) ??
     primera((i) => proporcionNumerica(i) < 1 && largoPromedio(i) > 0 && largoPromedio(i) < 25)
+  // Una descripción es TEXTO. «Peso del producto (kg)» dice «producto» y es
+  // un número: tomarla mostraba 0,43 como descripción (lista de TECNA).
+  const esTexto = (i: number) => proporcionNumerica(i) < 0.5
+  // Links, observaciones y notas son texto largo pero no describen el producto.
+  const noDescribe = (i: number) =>
+    /(link|url|web|observ|nota|coment|manual|origen|fuente|pack|dimension|peso|weight|marca|brand)/.test(normalizar(nombres[i] ?? '')) ||
+    muestra.some((f) => /^https?:\/\//i.test(texto(f[i] ?? null))) ||
+    // El mismo valor en todos los renglones («TECNA») no describe a ninguno.
+    (muestra.length > 1 && new Set(muestra.map((f) => texto(f[i] ?? null))).size === 1)
   const descripcion =
-    primera((i) => contienePalabra(nombres[i] ?? '', PALABRAS_DESCRIPCION), [referencia]) ??
+    primera((i) => contienePalabra(nombres[i] ?? '', PALABRAS_DESCRIPCION) && esTexto(i) && !noDescribe(i), [referencia]) ??
     // Si no hay encabezado que la nombre, la columna de texto más larga.
     indices
-      .filter((i) => i !== referencia && proporcionNumerica(i) < 0.5)
+      .filter((i) => i !== referencia && esTexto(i) && !noDescribe(i) && !contienePalabra(nombres[i] ?? '', PALABRAS_MODELO))
       .sort((a, b) => largoPromedio(b) - largoPromedio(a))[0] ??
     null
   const modelo = primera((i) => contienePalabra(nombres[i] ?? '', PALABRAS_MODELO), [referencia, descripcion])
@@ -254,6 +263,38 @@ export function detectarColumnas(encabezados: readonly Celda[], datos: readonly 
     precios.push({ indice: i, encabezado: nombre || `Columna ${i + 1}`, clave, moneda: monedaDe(nombre) ?? monedaDelArchivo })
   }
   return { referencia, descripcion, modelo, precios }
+}
+
+export type RolDePrecio = 'costo' | 'venta'
+
+/** ¿Qué dice ser la columna? «Costo Argentina» → costo; «PVP Buscatools» → venta. */
+export function rolDe(encabezado: string): RolDePrecio | null {
+  const n = normalizar(encabezado)
+  if (/(cost|neto|net\b|net |compra|purchase|dealer|distribuidor|importe de factura)/.test(n)) return 'costo'
+  if (/(pvp|venta|retail|msrp|lista|list|publico|sale|tarifa)/.test(n)) return 'venta'
+  return null
+}
+
+/**
+ * La columna de costo y la de venta. Entre varias candidatas gana la que
+ * nombra a Argentina o a la empresa (una lista de TECNA trae el PVP de España
+ * y el nuestro), y si no, la primera. Una referencia («— ref.») no gana.
+ */
+export function elegirRoles(
+  precios: readonly ColumnaDePrecio[],
+  preferidas: readonly string[] = [],
+): { costo: ColumnaDePrecio | null; venta: ColumnaDePrecio | null } {
+  const claves = ['argentina', 'arg', ...preferidas.map(normalizar)].filter((p) => p !== '')
+  const puntaje = (c: ColumnaDePrecio) => {
+    const n = normalizar(c.encabezado)
+    let p = 0
+    if (claves.some((k) => new RegExp(`(^|[^a-z])${k}([^a-z]|$)`).test(n))) p += 2
+    if (/\bref\b|referencia|\d{4}/.test(n)) p -= 1
+    return p
+  }
+  const mejor = (rol: RolDePrecio) =>
+    [...precios].filter((c) => rolDe(c.encabezado) === rol).sort((a, b) => puntaje(b) - puntaje(a) || a.indice - b.indice)[0] ?? null
+  return { costo: mejor('costo'), venta: mejor('venta') }
 }
 
 /**
