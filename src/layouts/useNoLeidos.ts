@@ -4,6 +4,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { ROLES_EMAILS } from '@/modules/emails/lib/permisos'
 import { ROLES_WHATSAPP } from '@/modules/whatsapp/lib/permisos'
 import { ROLES_CHAT } from '@/modules/chat/lib/permisos'
+import { enSegundoPlano, META_SEGUNDO_PLANO } from '@/lib/segundoPlano'
 import { contarSinLeer } from '@/modules/emails/services/bandeja'
 import { contarNoLeidos } from '@/modules/whatsapp/services/conversaciones'
 import { contarChatsSinLeer } from '@/modules/chat/services/chat'
@@ -44,7 +45,10 @@ export function useNoLeidos(): NoLeidos {
 
   const emails = useQuery({
     queryKey: ['nav', companyId, 'sin-leer', 'emails'],
-    queryFn: () => contarSinLeer(companyId!),
+    // Los cuatro contadores van en segundo plano: son badges del menú y
+    // salían al arrancar compitiendo con la consulta de la pantalla.
+    queryFn: () => enSegundoPlano(() => contarSinLeer(companyId!)),
+    meta: META_SEGUNDO_PLANO,
     enabled: companyId !== null && (ROLES_EMAILS as readonly string[]).includes(rol),
     refetchInterval: CADA,
     staleTime: CADA,
@@ -53,7 +57,8 @@ export function useNoLeidos(): NoLeidos {
 
   const whatsapp = useQuery({
     queryKey: ['nav', companyId, 'sin-leer', 'whatsapp', usuarioId],
-    queryFn: () => contarNoLeidos(companyId!, usuarioId),
+    queryFn: () => enSegundoPlano(() => contarNoLeidos(companyId!, usuarioId)),
+    meta: META_SEGUNDO_PLANO,
     enabled: companyId !== null && (ROLES_WHATSAPP as readonly string[]).includes(rol),
     refetchInterval: CADA,
     staleTime: CADA,
@@ -63,7 +68,8 @@ export function useNoLeidos(): NoLeidos {
   // El chat sí es por usuario y por empresa: su clave lleva las dos cosas.
   const chat = useQuery({
     queryKey: ['nav', companyId, 'sin-leer', 'chat'],
-    queryFn: () => contarChatsSinLeer(companyId!),
+    queryFn: () => enSegundoPlano(() => contarChatsSinLeer(companyId!)),
+    meta: META_SEGUNDO_PLANO,
     enabled: companyId !== null && (ROLES_CHAT as readonly string[]).includes(rol),
     refetchInterval: CADA,
     staleTime: CADA,
@@ -74,7 +80,8 @@ export function useNoLeidos(): NoLeidos {
   // sólo en una empresa con catálogo público, que es la única que las recibe.
   const consultas = useQuery({
     queryKey: ['nav', companyId, 'sin-leer', 'consultas'],
-    queryFn: () => contarConsultasNuevas(companyId!),
+    queryFn: () => enSegundoPlano(() => contarConsultasNuevas(companyId!)),
+    meta: META_SEGUNDO_PLANO,
     enabled: companyId !== null && (activa?.esInterno ?? false) && (activa?.catalogoPublico ?? false),
     refetchInterval: CADA,
     staleTime: CADA,

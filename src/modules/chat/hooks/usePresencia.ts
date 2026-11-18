@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { enSegundoPlano } from '@/lib/segundoPlano'
 import { tocarPresencia } from '../services/chat'
 
 /**
@@ -15,7 +16,10 @@ export function usePresencia(activo: boolean): void {
   useEffect(() => {
     if (!activo) return
     const latir = () => {
-      if (document.visibilityState === 'visible') void tocarPresencia()
+      // En segundo plano: el latido no dibuja nada y salía al arrancar,
+      // compitiendo con la consulta de la pantalla.
+      if (document.visibilityState === 'visible')
+        void enSegundoPlano(tocarPresencia).catch(() => {})
     }
     latir()
     const id = window.setInterval(latir, CADA)

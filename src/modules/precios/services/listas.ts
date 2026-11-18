@@ -92,17 +92,28 @@ export async function listarVersiones(
 
   if (error) throw new Error(`No se pudieron leer las versiones: ${error.message}`)
 
+  /*
+   * Los conteos, TODOS A LA VEZ (auditoría 2026-11). Antes iban de a uno: dos
+   * viajes por versión, en fila — con diez versiones, veinte viajes uno detrás
+   * del otro antes de poder mostrar el desplegable. Ahora el que manda es el
+   * más lento, no la suma.
+   */
+  const conteos = await Promise.all(
+    (data ?? []).map((v) =>
+      Promise.all([
+        supabase.from('price_list_items').select('id', { count: 'exact', head: true }).eq('version_id', v.id),
+        supabase
+          .from('price_list_items')
+          .select('id', { count: 'exact', head: true })
+          .eq('version_id', v.id)
+          .not('product_id', 'is', null),
+      ]),
+    ),
+  )
+
   const salida: VersionDeLista[] = []
-  for (const v of data ?? []) {
-    const total = await supabase
-      .from('price_list_items')
-      .select('id', { count: 'exact', head: true })
-      .eq('version_id', v.id)
-    const conProducto = await supabase
-      .from('price_list_items')
-      .select('id', { count: 'exact', head: true })
-      .eq('version_id', v.id)
-      .not('product_id', 'is', null)
+  for (const [i, v] of (data ?? []).entries()) {
+    const [total, conProducto] = conteos[i]!
 
     salida.push({
       id: v.id,
@@ -278,27 +289,68 @@ export async function planillaDePrecios(
     vendidos: Number(f.vendidos ?? 0),
   }))
 
-  const ids = filas.map((f) => f.productId).filter((x): x is string => x !== null)
-  if (ids.length > 0) {
-    const { data: prods } = await supabase
+  return { filas, total: count ?? 0 }
+}
+
+/** Lo que se le agrega a una fila de la planilla después de pintarla. */
+export interface ExtrasDePlanilla {
+  /** Por id de producto: su SKU y su foto principal. */
+  productos: Map<string, { sku: string; imagen: FilaDePlanilla['imagen'] }>
+  /** Por id de producto: lo máximo que se le vendió. */
+  ventaMaxima: Map<string, VentaMaxima>
+}
+
+/**
+ * La foto, el SKU y la venta máxima de los productos de una página.
+ *
+ * SEPARADO DE LA PLANILLA a propósito (auditoría 2026-11). Antes la página era
+ * una cadena de tres viajes —`listas_planilla`, después `products`, después
+ * `product_venta_maxima`— y no se pintaba ni una fila hasta que llegaba el
+ * último: medido en producción, la primera fila salía a los 8,6 s. Las
+ * referencias, descripciones y precios ya están en el primer viaje; la foto y
+ * el máximo pueden llegar un momento después sin que nadie espere por ellos.
+ *
+ * Y los dos que quedan van a la vez: los dos sólo necesitan los ids.
+ */
+export async function extrasDePlanilla(companyId: string, ids: readonly string[]): Promise<ExtrasDePlanilla> {
+  const productos: ExtrasDePlanilla['productos'] = new Map()
+  const mejorPorProducto = new Map<string, VentaMaxima>()
+  if (ids.length === 0) return { productos, ventaMaxima: mejorPorProducto }
+
+  const [{ data: prods }, { data: maximos }] = await Promise.all([
+    supabase
       .from('products')
       .select('id, sku, product_images ( source_url, thumb_url, is_primary )')
-      .in('id', ids)
-      .eq('product_images.is_primary', true)
+      .in('id', [...ids])
+      .eq('product_images.is_primary', true),
+    /*
+     * Lo máximo vendido.
+     *
+     * La vista devuelve UNA FILA POR MONEDA. Acá se elige la de mayor importe
+     * sin convertir nada: comparar 520.000 ARS con 826 USD no tiene sentido,
+     * pero mostrar «lo más alto que se cobró, y en qué moneda» sí. La moneda
+     * viaja con el número para que la pantalla no pueda perderla.
+     */
+    supabase
+      .from('product_venta_maxima')
+      .select(
+        'product_id, moneda, maximo, tipo, documento_id, numero, fecha, customer_id, cliente, cantidad, precio_lista, descuento_pct, veces, veces_vendido',
+      )
+      .eq('company_id', companyId)
+      .in('product_id', [...ids]),
+  ])
 
-    type Fila = {
-      id: string
-      sku: string
-      product_images?: { source_url: string | null; thumb_url: string | null }[] | null
-    }
+  type Fila = {
+    id: string
+    sku: string
+    product_images?: { source_url: string | null; thumb_url: string | null }[] | null
+  }
 
-    const porId = new Map(((prods ?? []) as unknown as Fila[]).map((p) => [p.id, p]))
-    for (const f of filas) {
-      const p = f.productId === null ? undefined : porId.get(f.productId)
-      if (!p) continue
-      f.sku = p.sku
-      const img = (p.product_images ?? []).find((i) => i.source_url !== null)
-      f.imagen = img
+  for (const p of (prods ?? []) as unknown as Fila[]) {
+    const img = (p.product_images ?? []).find((i) => i.source_url !== null)
+    productos.set(p.id, {
+      sku: p.sku,
+      imagen: img
         ? {
             url: img.source_url!,
             thumbUrl: img.thumb_url,
@@ -306,27 +358,11 @@ export async function planillaDePrecios(
             posicion: 0,
             esPrincipal: true,
           }
-        : null
-    }
+        : null,
+    })
+  }
 
-    /*
-     * Lo máximo vendido, en la misma consulta por página que la foto.
-     *
-     * La vista devuelve UNA FILA POR MONEDA. Acá se elige la de mayor importe
-     * sin convertir nada: comparar 520.000 ARS con 826 USD no tiene sentido,
-     * pero mostrar «lo más alto que se cobró, y en qué moneda» sí. La moneda
-     * viaja con el número para que la pantalla no pueda perderla.
-     */
-    const { data: maximos } = await supabase
-      .from('product_venta_maxima')
-      .select(
-        'product_id, moneda, maximo, tipo, documento_id, numero, fecha, customer_id, cliente, cantidad, precio_lista, descuento_pct, veces, veces_vendido',
-      )
-      .eq('company_id', companyId)
-      .in('product_id', ids)
-
-    const mejorPorProducto = new Map<string, VentaMaxima>()
-    for (const m of maximos ?? []) {
+  for (const m of maximos ?? []) {
       if (m.product_id === null || m.maximo === null) continue
       const cand: VentaMaxima = {
         productId: m.product_id,
@@ -347,15 +383,27 @@ export async function planillaDePrecios(
       const previo = mejorPorProducto.get(m.product_id)
       // Ante dos monedas se muestra la del importe más alto y se dice cuál es.
       if (!previo || cand.monto > previo.monto) mejorPorProducto.set(m.product_id, cand)
-    }
-
-    for (const f of filas) {
-      if (f.productId === null) continue
-      f.ventaMaxima = mejorPorProducto.get(f.productId) ?? null
-    }
   }
 
-  return { filas, total: count ?? 0 }
+  return { productos, ventaMaxima: mejorPorProducto }
+}
+
+/** Las filas de la planilla con sus extras puestos, cuando ya llegaron. */
+export function conExtras(planilla: Planilla, extras: ExtrasDePlanilla | undefined): Planilla {
+  if (extras === undefined) return planilla
+  return {
+    ...planilla,
+    filas: planilla.filas.map((f) => {
+      if (f.productId === null) return f
+      const p = extras.productos.get(f.productId)
+      return {
+        ...f,
+        sku: p?.sku ?? f.sku,
+        imagen: p?.imagen ?? f.imagen,
+        ventaMaxima: extras.ventaMaxima.get(f.productId) ?? f.ventaMaxima,
+      }
+    }),
+  }
 }
 
 // ── La trazabilidad de una celda (Fase 56) ─────────────────────────────────

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { enSegundoPlano, META_SEGUNDO_PLANO } from '@/lib/segundoPlano'
 import { listaPorDefecto, obtenerFacetas } from '../services/facetas'
 import { construirPlanDeConsulta } from '../lib/planDeConsulta'
 import { consultarProductos } from '../services/productos'
@@ -70,16 +71,35 @@ export function usePrecalentarCatalogo(habilitado: boolean): void {
        (las facetas) — así al abrir el catálogo los chips y las 50 filas ya
        están. Las dos con la MISMA clave que sus hooks, o el precalentado no
        ahorraría nada. */
+    /*
+     * Todo esto va por la cola de SEGUNDO PLANO (auditoría 2026-11): medido,
+     * el precalentado salía mientras uno estaba en Listas de precios y su
+     * `search_products` + `catalog_facets` tardaban 6,7 s peleando con la
+     * pantalla de verdad. Ahora espera a que la pantalla actual termine.
+     *
+     * En el propio catálogo no se precalienta la primera página: la pide la
+     * pantalla, con prioridad. Si la pidiera esto, la pantalla se colgaría de
+     * una consulta encolada como secundaria.
+     */
+    const enElCatalogo = () => window.location.pathname.startsWith('/catalogo')
+
     const pedirPrimero = () => {
+      if (enElCatalogo()) return
       void qc.prefetchQuery({
         queryKey: claveDeLaPrimeraPagina(companyId, priceListId, esInterno),
-        queryFn: () =>
-          consultarProductos(construirPlanDeConsulta(FILTROS_INICIALES, companyId), priceListId, esInterno),
+        queryFn: ({ queryKey }) =>
+          enSegundoPlano(
+            () => consultarProductos(construirPlanDeConsulta(FILTROS_INICIALES, companyId), priceListId, esInterno),
+            queryKey,
+          ),
+        meta: META_SEGUNDO_PLANO,
         staleTime: CINCO_MINUTOS,
       })
       void qc.prefetchQuery({
         queryKey: ['catalogo', companyId, 'facetas', { ...FILTROS_INICIALES, pagina: 1, porPagina: 0 }],
-        queryFn: () => obtenerFacetas(construirPlanDeConsulta(FILTROS_INICIALES, companyId)),
+        queryFn: ({ queryKey }) =>
+          enSegundoPlano(() => obtenerFacetas(construirPlanDeConsulta(FILTROS_INICIALES, companyId)), queryKey),
+        meta: META_SEGUNDO_PLANO,
         staleTime: CINCO_MINUTOS,
       })
     }
@@ -91,7 +111,12 @@ export function usePrecalentarCatalogo(habilitado: boolean): void {
       const pagina2 = { ...FILTROS_INICIALES, pagina: 2 }
       void qc.prefetchQuery({
         queryKey: ['catalogo', companyId, 'productos', { ...pagina2, q: '' }, priceListId, esInterno],
-        queryFn: () => consultarProductos(construirPlanDeConsulta(pagina2, companyId), priceListId, esInterno),
+        queryFn: ({ queryKey }) =>
+          enSegundoPlano(
+            () => consultarProductos(construirPlanDeConsulta(pagina2, companyId), priceListId, esInterno),
+            queryKey,
+          ),
+        meta: META_SEGUNDO_PLANO,
         staleTime: CINCO_MINUTOS,
       })
     }

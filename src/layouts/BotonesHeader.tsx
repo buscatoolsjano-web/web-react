@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/useAuth'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { Icon } from '@/components/icons/Icon'
 import { misNotificaciones } from '@/features/notificaciones/servicio'
+import { enSegundoPlano, META_SEGUNDO_PLANO } from '@/lib/segundoPlano'
 import { ROLES_CHAT } from '@/modules/chat/lib/permisos'
 import { useNoLeidos } from './useNoLeidos'
 import styles from './BotonesHeader.module.css'
@@ -117,7 +118,10 @@ export function BotonesHeader() {
    */
   const q = useQuery({
     queryKey: ['notificaciones', companyId, userId],
-    queryFn: () => misNotificaciones(companyId!, userId!),
+    // Segundo plano: la campana son cinco consultas y no dibujan la pantalla;
+    // esperan a que la pantalla pedida termine de traer lo suyo.
+    queryFn: () => enSegundoPlano(() => misNotificaciones(companyId!, userId!)),
+    meta: META_SEGUNDO_PLANO,
     enabled: companyId !== null && userId !== null,
     refetchInterval: CADA,
     staleTime: CADA,

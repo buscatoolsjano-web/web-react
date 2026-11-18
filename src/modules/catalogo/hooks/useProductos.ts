@@ -1,5 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { enSegundoPlano, META_SEGUNDO_PLANO } from '@/lib/segundoPlano'
 import { construirPlanDeConsulta, hayBusqueda } from '../lib/planDeConsulta'
 import {
   consultarProductos,
@@ -44,20 +46,12 @@ export function useProductos(
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
   const esInterno = activa?.esInterno ?? false
-  const texto = filtros.q.trim()
-  const buscando = hayBusqueda(filtros)
+  const qc = useQueryClient()
 
-  return useQuery<PaginaDeProductos>({
+  const consulta = useQuery<PaginaDeProductos>({
     // companyId primero, y priceListId adentro: dos empresas o dos listas
     // nunca comparten entrada de caché.
-    queryKey: [
-      'catalogo',
-      companyId,
-      'productos',
-      { ...filtros, q: buscando ? texto : '' },
-      priceListId,
-      esInterno,
-    ],
+    queryKey: claveDeProductos(companyId, filtros, priceListId, esInterno),
     queryFn: () =>
       consultarProductos(
         construirPlanDeConsulta(filtros, companyId!),
@@ -86,6 +80,55 @@ export function useProductos(
     // un cambio propio se ve sin esperar a que venza.
     staleTime: 5 * 60_000,
   })
+
+  /*
+   * LA PÁGINA SIGUIENTE, YA (auditoría 2026-11).
+   *
+   * Apenas se pinta una página se pide la que sigue, por la cola de segundo
+   * plano —o sea, después de que la pantalla terminó con lo suyo y sin
+   * pelearle la base—. «Siguiente» queda instantáneo, y al entrar al catálogo
+   * los primeros 100 están listos aunque se vean de a 50.
+   *
+   * Sólo la siguiente, no todas: son ~440 páginas y cada una cuesta lo mismo
+   * en la base (el ranking recorre el catálogo entero para dar el total).
+   */
+  const total = consulta.data?.total
+  const pagina = filtros.pagina
+  const porPagina = filtros.porPagina
+  const claveSiguiente = JSON.stringify(claveDeProductos(companyId, { ...filtros, pagina: pagina + 1 }, priceListId, esInterno))
+  useEffect(() => {
+    if (companyId === null || !listaResuelta || total === undefined) return
+    if (pagina * porPagina >= total) return
+    const siguiente = JSON.parse(claveSiguiente) as unknown[]
+    const filtrosSiguiente = siguiente[3] as FiltrosCatalogo
+    void qc.prefetchQuery({
+      queryKey: siguiente,
+      queryFn: ({ queryKey }) =>
+        enSegundoPlano(
+          () => consultarProductos(construirPlanDeConsulta(filtrosSiguiente, companyId), priceListId, esInterno),
+          queryKey,
+        ),
+      meta: META_SEGUNDO_PLANO,
+      staleTime: 5 * 60_000,
+    })
+  }, [qc, companyId, listaResuelta, total, pagina, porPagina, claveSiguiente, priceListId, esInterno])
+
+  return consulta
+}
+
+/**
+ * La clave de una página del catálogo. Una sola definición para la pantalla,
+ * la precarga de la página siguiente y el precalentado: si difirieran, la
+ * precarga bajaría datos que nadie encuentra.
+ */
+export function claveDeProductos(
+  companyId: string | null,
+  filtros: FiltrosCatalogo,
+  priceListId: string | null,
+  esInterno: boolean,
+): unknown[] {
+  const buscando = hayBusqueda(filtros)
+  return ['catalogo', companyId, 'productos', { ...filtros, q: buscando ? filtros.q.trim() : '' }, priceListId, esInterno]
 }
 
 /**

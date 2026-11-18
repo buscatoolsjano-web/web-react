@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { crearQueryClient } from '@/lib/queryClient'
 import { persister } from '@/lib/persistCache'
+import { vigilarPrimerPlano } from '@/lib/segundoPlano'
 import { AuthProvider } from '@/features/auth/AuthProvider'
 import { EmpresaProvider } from '@/features/empresa/EmpresaProvider'
 import { AparienciaProvider } from '@/features/apariencia/AparienciaProvider'
@@ -25,7 +26,14 @@ const VEINTICUATRO_HORAS = 24 * 60 * 60 * 1_000
 export function Providers({ children }: { children: ReactNode }) {
   // useState y no una constante de módulo: un cliente por árbol de React,
   // así los tests no comparten caché entre casos.
-  const [queryClient] = useState(crearQueryClient)
+  //
+  // La cola de segundo plano se engancha acá (y no en `crearQueryClient`) para
+  // que los tests que arman su propio cliente no hereden la espera.
+  const [queryClient] = useState(() => {
+    const qc = crearQueryClient()
+    vigilarPrimerPlano(qc)
+    return qc
+  })
 
   return (
     <PersistQueryClientProvider

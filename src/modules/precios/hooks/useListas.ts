@@ -1,8 +1,11 @@
+import { useMemo } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import {
   cambiosDeVersion,
+  conExtras,
   desgloseDeCelda,
+  extrasDePlanilla,
   listarFuentes,
   listarVersiones,
   planillaDePrecios,
@@ -66,13 +69,37 @@ export function usePlanillaDePrecios(
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
   const { texto = '', pagina = 1, porPagina = 25 } = opciones
-  return useQuery({
+  const base = useQuery({
     queryKey: ['precios', companyId, 'planilla', sourceId, texto, pagina, porPagina],
     queryFn: () => planillaDePrecios(companyId!, sourceId!, { texto, pagina, porPagina }),
     enabled: companyId !== null && sourceId !== null,
     placeholderData: keepPreviousData,
     staleTime: MEDIA_HORA,
   })
+
+  /*
+   * La foto, el SKU y la venta máxima, DESPUÉS de pintar (auditoría 2026-11).
+   * Las filas se muestran apenas llega la planilla; esto las completa cuando
+   * llega. Sin `keepPreviousData`: con la página nueva ya pintada, los extras
+   * de la anterior no corresponden a nadie.
+   */
+  const ids = useMemo(
+    () => (base.data?.filas ?? []).map((f) => f.productId).filter((x): x is string => x !== null),
+    [base.data],
+  )
+  const extras = useQuery({
+    queryKey: ['precios', companyId, 'planilla-extras', ids],
+    queryFn: () => extrasDePlanilla(companyId!, ids),
+    enabled: companyId !== null && ids.length > 0 && !base.isPlaceholderData,
+    staleTime: MEDIA_HORA,
+  })
+
+  const data = useMemo(
+    () => (base.data === undefined ? undefined : conExtras(base.data, extras.data)),
+    [base.data, extras.data],
+  )
+
+  return { data, isPending: base.isPending, error: base.error }
 }
 
 /**
