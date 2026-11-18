@@ -45,5 +45,5 @@ for (const empresa of ['Buscatools', 'Torquetools']) {
     if (e2) throw new Error(`${empresa} ${p.sku}: ${e2.message}`)
   }
 }
-if (APLICAR) writeFileSync(`revision/medidas-respaldo-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(respaldo, null, 1))
+if (APLICAR) writeFileSync(`revision/medidas-respaldo-${new Date().toISOString().replace(/[:.]/g, "-")}.json`, JSON.stringify(respaldo, null, 1))
 console.log(APLICAR ? 'Corregidos:' : 'Se corregirían:', cambios)
