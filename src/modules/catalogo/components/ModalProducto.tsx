@@ -23,6 +23,7 @@ import type { DocumentoHistorial } from '../services/historialDocumentos'
 import { HojaCatalogo } from './HojaCatalogo'
 import { ImagenProducto } from './ImagenProducto'
 import { ListaAtributos } from './ListaAtributos'
+import { ListasDelProducto } from './ListasDelProducto'
 import { ComparadorProductos } from './ComparadorProductos'
 import { RelacionadosProducto } from './RelacionadosProducto'
 import { EsqueletoProducto } from './EsqueletoProducto'
@@ -381,6 +382,8 @@ function Contenido({
               </>
             ) : null}
           </div>
+          {/* Costo y venta de las listas, con los avisos: sólo gente de la empresa. */}
+          {esInterno ? <ListasDelProducto productId={producto.id} precio={producto.precio} moneda={moneda} /> : null}
         </div>
       </section>
 

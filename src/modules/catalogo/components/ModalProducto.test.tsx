@@ -69,6 +69,7 @@ vi.mock('../hooks/useCatalogoFacetas', () => ({
   useCategorias: () => ({ data: [{ id: 'c1', nombre: 'Puntas y tubos' }] }),
   useAtributosPorCategoria: () => ({ data: new Map() }),
 }))
+vi.mock('./ListasDelProducto', () => ({ ListasDelProducto: () => null }))
 vi.mock('../hooks/useValoresDeAtributos', () => ({
   useValoresDeAtributos: () => ({ data: new Map() }),
 }))

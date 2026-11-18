@@ -9107,6 +9107,23 @@ export type Database = {
           user_id: string
         }[]
       }
+      listas_del_producto: {
+        Args: { p_company_id: string; p_product_id: string }
+        Returns: {
+          source_id: string
+          fuente: string
+          fecha: string
+          costo: number | null
+          moneda_costo: string | null
+          venta: number | null
+          moneda_venta: string | null
+          ancla: number | null
+          moneda: string | null
+          fecha_anterior: string | null
+          venta_anterior: number | null
+          ancla_anterior: number | null
+        }[]
+      }
       listas_planilla: {
         Args: {
           p_company_id: string
