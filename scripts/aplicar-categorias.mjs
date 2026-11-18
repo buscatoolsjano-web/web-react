@@ -21,7 +21,9 @@ const { data: cats, error: e1 } = await sb.from('product_categories').select('id
 if (e1) throw e1
 const idDe = new Map(cats.map((c) => [c.slug, c.id]))
 
-const propuesta = JSON.parse(readFileSync(`revision/categorias/propuesta-${empresa}.json`, 'utf8')).filter((x) => x.origen !== 'cajon')
+// --archivo=propuesta-cajon.json: la clasificación hecha a mano de «Otros».
+const archivo = process.argv.find((a) => a.startsWith('--archivo='))?.slice(10) ?? `propuesta-${empresa}.json`
+const propuesta = JSON.parse(readFileSync(`revision/categorias/${archivo}`, 'utf8')).filter((x) => x.origen !== 'cajon')
 
 // Agrupado por (categoría, tipo): un update por grupo, en tandas de 200 ids.
 const grupos = new Map()
