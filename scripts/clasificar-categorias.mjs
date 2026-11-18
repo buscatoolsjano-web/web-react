@@ -176,6 +176,29 @@ const CAJON = [
 
 const CAJON_REGLAS = CAJON.map(([re, cat, tipo, razon]) => R((p, n) => re.test(n), cat, tipo, razon))
 
+/**
+ * La categoría «Herramientas» de Torquetools: un cajón de 6.000 productos de
+ * todas las marcas. Lo que no resuelven las reglas de marca se resuelve por
+ * qué pieza es. El orden importa: un repuesto que dice «socket» es repuesto.
+ */
+const HERRAMIENTAS = [
+  [/\.REP\b|\bREP\.|REPUESTO|\bPOS?\.? ?\d|SHINANO|ETICHETTA|ING\.TERM|GRASSO|ACEITE SELLADOR|BOLAS DE RODAMIENTO|WIPER|O-RING\b|\bORING\b/, 'repuestos', 'Repuesto', 'repuesto'],
+  [/^ ?MERCEDES BENZ\.?MODELO \d|MERCEDES BENZ URYU \d{3}-\d{3}-\d(-\d)?\s*$/, 'repuestos', 'Repuesto', 'repuesto Mercedes/URYU'],
+  [/CABEZA DE LLAVE|BOCA ABIERTA|ESPIGA 16/, 'llave-dinamometrica', 'Cabezal', 'cabezal de torquímetro'],
+  [/TORQUE TESTER|TRANSDUCER|TRANSDUCTOR|SIMULADOR DE JUNTA|CHECKSTAR|\bOPTA\b|SPOTRON/, 'medicion', 'Medidor de torque', 'medición de torque'],
+  [/TORCOTRONIC|TORCOFIX|TORQUE WRENCH|\bTSN\d|MULTIPLICADOR/, 'llave-dinamometrica', null, 'torquímetro'],
+  [/IMPACT SOCKET|\bSOCKET\b|\bBITS?\b|ADAPTADOR|ADAPTER|EXTENSION|EMBOCADURA|HOLDER BIT|PHILLIPS 1\/4|TRIPLE SQUARE/, 'punta', null, 'tubo / punta'],
+  [/POLIPASTO|HOIST|TROLLEY|^ ?KITO ED/, 'elevacion', null, 'elevación'],
+  [/BALANCEADOR|BALANCER/, 'balanceador', 'Balanceador', 'balanceador'],
+  [/BATTERY|BATERIA|CHARGER|CARGADOR|\bCABLE\b|CONTROLLER|CONTROLADOR|I\/O BOX|BRAZO|TRACER ARM|\bARM\b|CONNECTOR|\bFRL\b|HANGER|BOOT|SOFTWARE|JIG KIT|FIXTURE|SETTER|SYRINGE|DIS-ASSEMBLY|COLLAR DE FIJ/, 'accesorio', null, 'accesorio'],
+  [/COLOCADORA DE TUERCA|REMACH|RIVDOM|GENESIS/, 'remachadora', null, 'remachadora'],
+  [/ATORNILLADOR|NUTRUNNER|APRIETATUERCAS|PISTOLA|ANGULAR|\bRECTA?\b|\bRECTO\b|STRAIGHT TOOL|PULSE TOOL|SCREWDRIVER|PISTOL|\bANGLE\b|EQUIPO COMPLETO|US-LT|\bUAT|\bULT|UX-T|IR\.SET|\.MAQ\b|CLUTCH TOOL|\bOB[NT]-/, 'atornillador', null, 'atornillador'],
+  [/ACOPLE|NIPLE/, 'neumatica', 'Racor y conector', 'acople de aire'],
+  [/MARTILLO|MORZA|MORSA|DESTORNILLADOR|LLAVE COMBINADA|LIMA\b/, 'herramientas-manuales', null, 'herramienta de mano'],
+  [/QIMAROX|INTERROLL|MOTORREDUCTOR/, 'automatizacion', null, 'automatización'],
+]
+const HERRAMIENTAS_REGLAS = HERRAMIENTAS.map(([re, cat, tipo, razon]) => R((p, n) => re.test(n), cat, tipo, razon))
+
 const propuestas = []
 for (const p of P) {
   const n = NOM(p)
@@ -189,6 +212,10 @@ for (const p of P) {
   if (!regla && reglas !== GENERICAS) {
     regla = GENERICAS.find((r) => r.test(p, n))
     origen = 'generica'
+  }
+  if (!regla && p.cat === 'herramientas') {
+    regla = HERRAMIENTAS_REGLAS.find((r) => r.test(p, n))
+    origen = 'herramientas'
   }
   if (!regla && enCajon) {
     regla = CAJON_REGLAS.find((r) => r.test(p, n))
@@ -221,8 +248,8 @@ for (const p of P) {
   // desde «otros»/«pendiente», o hacia una categoría nueva de máquinas.
   if (!MARCA[p.marca]) {
     const nueva = ['amoladora', 'taladro', 'sierra', 'elevacion'].includes(cat)
-    const desdeCajon = ['otros', 'pendiente-clasificacion-stel', 'accesorio', 'herramientas-manuales', 'balanceador', 'punta', 'pintureria', 'abrasivos', 'mobiliario'].includes(p.cat)
-    if (cat === 'repuestos' && !['otros', 'pendiente-clasificacion-stel'].includes(p.cat)) continue
+    const desdeCajon = ['otros', 'herramientas', 'pendiente-clasificacion-stel', 'accesorio', 'herramientas-manuales', 'balanceador', 'punta', 'pintureria', 'abrasivos', 'mobiliario'].includes(p.cat)
+    if (cat === 'repuestos' && !['otros', 'herramientas', 'pendiente-clasificacion-stel'].includes(p.cat)) continue
     if (nueva && !desdeCajon) continue
     if (cat === 'otros' && p.cat !== 'otros' && p.cat !== 'pendiente-clasificacion-stel') continue
   }
