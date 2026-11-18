@@ -1,0 +1,629 @@
+{
+  "_fuente": "Catálogos de distribuidores APEX (Zoro, MRO Tools, Omega Technologies, Mars Supply, TestEquity) y el código del propio producto. medida null = la característica no aplica (juegos, máquinas, pinzas: lo que había era el largo).",
+  "AP.0212-10-6": {
+    "medida": "TS10"
+  },
+  "AP.0212-8-6": {
+    "medida": "TS8"
+  },
+  "AP.11816": {
+    "medida": "PZ1",
+    "tipo": "Pozidrive",
+    "largo": 50
+  },
+  "AP.1612-D": {
+    "medida": "3/8\"",
+    "tipo": "Embocadura"
+  },
+  "AP.170-1/2-ACR": {
+    "medida": "TS1/2",
+    "largo": 32
+  },
+  "AP.170-1/2": {
+    "medida": "TS1/2"
+  },
+  "AP.170-1/4-ACR": {
+    "medida": "TS1/4"
+  },
+  "AP.170-1/4": {
+    "medida": "TS1/4"
+  },
+  "AP.170-1/4A": {
+    "medida": "TS1/4"
+  },
+  "AP.170-1/4B": {
+    "medida": "TS1/4"
+  },
+  "AP.170-10-ACR": {
+    "medida": "TS10",
+    "largo": 32
+  },
+  "AP.170-2X": {
+    "medida": "TS2",
+    "largo": 32
+  },
+  "AP.170-3/8": {
+    "medida": "TS3/8"
+  },
+  "AP.170-3/8A": {
+    "medida": "TS3/8"
+  },
+  "AP.170-3/8B": {
+    "medida": "TS3/8"
+  },
+  "AP.170-3/8C": {
+    "medida": "TS3/8"
+  },
+  "AP.170-5/16-ACR": {
+    "medida": "TS5/16"
+  },
+  "AP.170-5/16": {
+    "medida": "TS5/16"
+  },
+  "AP.170-5/16A": {
+    "medida": "TS5/16"
+  },
+  "AP.170-5/16B": {
+    "medida": "TS5/16",
+    "largo": 32
+  },
+  "AP.170-5/8": {
+    "medida": "TS5/8"
+  },
+  "AP.170-6-ACR": {
+    "medida": "TS6",
+    "largo": 32
+  },
+  "AP.170-7/16": {
+    "medida": "TS7/16"
+  },
+  "AP.170-7/16C": {
+    "medida": "TS7/16"
+  },
+  "AP.170-8-ACR": {
+    "medida": "TS8",
+    "largo": 32
+  },
+  "AP.170-9/16": {
+    "medida": "TS9/16"
+  },
+  "AP.1950-1X": {
+    "medida": "SQ1"
+  },
+  "AP.1953-2X-4.5": {
+    "medida": "SQ2"
+  },
+  "AP.1954-2X": {
+    "medida": "SQ2"
+  },
+  "AP.1956-1X": {
+    "medida": "SQ1",
+    "largo": 152
+  },
+  "AP.1956-3X": {
+    "medida": "SQ3",
+    "largo": 152
+  },
+  "AP.212-1/4-ACR": {
+    "medida": "TS1/4"
+  },
+  "AP.212-1/4": {
+    "medida": "TS1/4"
+  },
+  "AP.212-1/4A-ACR": {
+    "medida": "TS1/4"
+  },
+  "AP.212-1/4A": {
+    "medida": "TS1/4"
+  },
+  "AP.212-12": {
+    "medida": "TS12",
+    "largo": 25
+  },
+  "AP.212-3/8A": {
+    "medida": "TS3/8"
+  },
+  "AP.212-4-ACR": {
+    "medida": "TS4",
+    "largo": 25
+  },
+  "AP.212-5/16A-ACR": {
+    "medida": "TS5/16"
+  },
+  "AP.212-5/16A": {
+    "medida": "TS5/16"
+  },
+  "AP.212-8-V05": {
+    "medida": "TS8",
+    "largo": 25
+  },
+  "AP.2122X": {
+    "medida": "TS2",
+    "largo": 25
+  },
+  "AP.265-1/4": {
+    "medida": "TS1/4"
+  },
+  "AP.265-5/16": {
+    "medida": "TS5/16"
+  },
+  "AP.265A-1/4": {
+    "medida": "TS1/4"
+  },
+  "AP.265A-3/8": {
+    "medida": "TS3/8"
+  },
+  "AP.265A-5/16": {
+    "medida": "TS5/16"
+  },
+  "AP.265A-7/16": {
+    "medida": "TS7/16"
+  },
+  "AP.273-6": {
+    "medida": "TS6",
+    "largo": 49
+  },
+  "AP.2P-100MR": {
+    "medida": "PH2",
+    "largo": 100
+  },
+  "AP.440-FX": {
+    "medida": "Todas",
+    "tipo": "Frearson"
+  },
+  "AP.440-TSQ-10M": {
+    "medida": "M10",
+    "tipo": "Triple Square"
+  },
+  "AP.440-TSQ-4M": {
+    "medida": "M4",
+    "tipo": "Triple Square"
+  },
+  "AP.440-TSQ-5M": {
+    "medida": "M5",
+    "tipo": "Triple Square"
+  },
+  "AP.440-TSQ-6M": {
+    "medida": "M6",
+    "tipo": "Triple Square"
+  },
+  "AP.440-TSQ-8M": {
+    "medida": "M8",
+    "tipo": "Triple Square"
+  },
+  "AP.446-225X": {
+    "medida": "PH2",
+    "largo": 25
+  },
+  "AP.446-FX": {
+    "medida": "Todas",
+    "tipo": "Frearson"
+  },
+  "AP.48-TSQ-10M": {
+    "medida": "M10",
+    "tipo": "Triple Square"
+  },
+  "AP.48-TSQ-12M": {
+    "medida": "M12",
+    "tipo": "Triple Square"
+  },
+  "AP.48-TSQ-14M": {
+    "medida": "M14",
+    "tipo": "Triple Square"
+  },
+  "AP.48-TSQ-5M": {
+    "medida": "M5",
+    "tipo": "Triple Square"
+  },
+  "AP.48-TSQ-6M": {
+    "medida": "M6",
+    "tipo": "Triple Square"
+  },
+  "AP.48-TSQ-8M": {
+    "medida": "M8",
+    "tipo": "Triple Square"
+  },
+  "AP.480-FX": {
+    "medida": "Todas",
+    "tipo": "Frearson"
+  },
+  "AP.480-TSQ-10M": {
+    "medida": "M10",
+    "tipo": "Triple Square"
+  },
+  "AP.480-TSQ-12M": {
+    "medida": "M12",
+    "tipo": "Triple Square"
+  },
+  "AP.480-TSQ-14M": {
+    "medida": "M14",
+    "tipo": "Triple Square"
+  },
+  "AP.480-TSQ-6M": {
+    "medida": "M6",
+    "tipo": "Triple Square"
+  },
+  "AP.480-TSQ-8M": {
+    "medida": "M8",
+    "tipo": "Triple Square"
+  },
+  "AP.49-TSQ-10M": {
+    "medida": "M10",
+    "tipo": "Triple Square"
+  },
+  "AP.49-TSQ-12M": {
+    "medida": "M12",
+    "tipo": "Triple Square"
+  },
+  "AP.49-TSQ-4M": {
+    "medida": "M4",
+    "tipo": "Triple Square"
+  },
+  "AP.49-TSQ-5M": {
+    "medida": "M5",
+    "tipo": "Triple Square"
+  },
+  "AP.49-TSQ-6M": {
+    "medida": "M6",
+    "tipo": "Triple Square"
+  },
+  "AP.49-TSQ-8M": {
+    "medida": "M8",
+    "tipo": "Triple Square"
+  },
+  "AP.491-AFX": {
+    "medida": "Todas",
+    "tipo": "Frearson"
+  },
+  "AP.491-BFX": {
+    "medida": "Todas",
+    "tipo": "Frearson"
+  },
+  "AP.491-CFX": {
+    "medida": "Todas",
+    "tipo": "Frearson"
+  },
+  "AP.491-FX": {
+    "medida": "Todas",
+    "tipo": "Frearson"
+  },
+  "AP.492-2052-8": {
+    "medida": "PH2"
+  },
+  "AP.492-AFX": {
+    "medida": "Todas",
+    "tipo": "Frearson"
+  },
+  "AP.492-BFX": {
+    "medida": "Todas",
+    "tipo": "Frearson"
+  },
+  "AP.492-C-ACR2X": {
+    "medida": "PH2",
+    "largo": 152
+  },
+  "AP.492-CFX": {
+    "medida": "Todas",
+    "tipo": "Frearson"
+  },
+  "AP.492-FX": {
+    "medida": "Todas",
+    "tipo": "Frearson"
+  },
+  "AP.493-3X": {
+    "medida": "PH3"
+  },
+  "AP.493-BFX": {
+    "medida": "Todas",
+    "tipo": "Frearson"
+  },
+  "AP.493-FX": {
+    "medida": "Todas",
+    "tipo": "Frearson"
+  },
+  "AP.552-FX": {
+    "medida": "Todas",
+    "tipo": "Frearson"
+  },
+  "AP.5622": {
+    "medida": "11/16\"",
+    "tipo": "Embocadura"
+  },
+  "AP.5636-D": {
+    "medida": "1 1/8\"",
+    "tipo": "Embocadura"
+  },
+  "AP.5728": {
+    "medida": "7/8\"",
+    "tipo": "Embocadura"
+  },
+  "AP.822-F": {
+    "medida": "FR2",
+    "tipo": "Frearson"
+  },
+  "AP.832-F": {
+    "medida": "FR2",
+    "tipo": "Frearson"
+  },
+  "AP.833-F": {
+    "medida": "FR3",
+    "tipo": "Frearson"
+  },
+  "AP.834-F": {
+    "medida": "FR4",
+    "tipo": "Frearson"
+  },
+  "AP.BNAE-3MM": {
+    "medida": "3 mm",
+    "tipo": "BNAE"
+  },
+  "AP.BNAE-4MM-ACR": {
+    "medida": "4 mm",
+    "tipo": "BNAE"
+  },
+  "AP.BNAE-4MM": {
+    "medida": "4 mm",
+    "tipo": "BNAE"
+  },
+  "AP.BNAE-5MM-ACR": {
+    "medida": "5 mm",
+    "tipo": "BNAE"
+  },
+  "AP.BNAE-5MM": {
+    "medida": "5 mm",
+    "tipo": "BNAE"
+  },
+  "AP.BNAE-6MM-ACR": {
+    "medida": "6 mm",
+    "tipo": "BNAE"
+  },
+  "AP.BNAE-6MM": {
+    "medida": "6 mm",
+    "tipo": "BNAE"
+  },
+  "AP.BNAE-8MM": {
+    "medida": "8 mm",
+    "tipo": "BNAE"
+  },
+  "AP.M6N0810MM3": {
+    "medida": "10 mm"
+  },
+  "BM.11571": {
+    "medida": "19 mm"
+  },
+  "BM.4189": {
+    "medida": null,
+    "largo": 250
+  },
+  "BM.6657": {
+    "medida": null
+  },
+  "BM.8010": {
+    "medida": null
+  },
+  "FE.ABH 18": {
+    "medida": null
+  },
+  "MI.4832-2101": {
+    "medida": "PH2"
+  },
+  "PRO05386": {
+    "medida": null,
+    "largo": 180
+  },
+  "PRO05832": {
+    "medida": "17 mm"
+  },
+  "PRO06152": {
+    "medida": null,
+    "largo": 230
+  },
+  "PRO06959": {
+    "medida": null
+  },
+  "PRO06982": {
+    "medida": null
+  },
+  "PRO07096": {
+    "medida": null,
+    "largo": null
+  },
+  "PRO07332": {
+    "medida": null,
+    "largo": 250
+  },
+  "PRO07421": {
+    "medida": null,
+    "largo": 160
+  },
+  "PRO07431": {
+    "medida": null
+  },
+  "PRO07436": {
+    "medida": null,
+    "largo": 180
+  },
+  "PRO07440": {
+    "medida": null,
+    "largo": 160
+  },
+  "PRO09600": {
+    "medida": null,
+    "largo": 200
+  },
+  "PRO09606": {
+    "medida": null
+  },
+  "PRO09839": {
+    "medida": null
+  },
+  "PRO10044": {
+    "medida": "4 mm",
+    "tipo": "Allen",
+    "largo": 50
+  },
+  "PRO10045": {
+    "medida": "5 mm",
+    "tipo": "Allen",
+    "largo": 50
+  },
+  "PRO10046": {
+    "medida": "6 mm",
+    "tipo": "Allen",
+    "largo": 50
+  },
+  "PRO10480": {
+    "medida": null
+  },
+  "PRO10481": {
+    "medida": null,
+    "largo": 145
+  },
+  "PRO10562": {
+    "medida": null,
+    "largo": 375
+  },
+  "PRO10563": {
+    "medida": null,
+    "largo": 200
+  },
+  "PRO10683": {
+    "medida": null,
+    "largo": 1050
+  },
+  "PRO10684": {
+    "medida": null,
+    "largo": 900
+  },
+  "PRO10795": {
+    "medida": null,
+    "largo": 125
+  },
+  "PRO10820": {
+    "medida": null,
+    "largo": 180
+  },
+  "PRO10821": {
+    "medida": null,
+    "largo": 180
+  },
+  "PRO10872": {
+    "medida": null
+  },
+  "PRO11158": {
+    "medida": null,
+    "largo": 250
+  },
+  "PRO11571": {
+    "medida": "19 mm"
+  },
+  "PRO12120": {
+    "medida": null,
+    "largo": 250
+  },
+  "SP.2010/100 VP": {
+    "medida": "10 mm",
+    "largo": 100
+  },
+  "SP.2013VPROT/100": {
+    "medida": "13 mm",
+    "largo": 100
+  },
+  "SP.J2306HXL": {
+    "medida": "6 mm",
+    "largo": 90
+  },
+  "SP.J2324HL/70": {
+    "medida": "24 mm",
+    "largo": 70
+  },
+  "SP.J2324HXL/80": {
+    "medida": "24 mm",
+    "largo": 80
+  },
+  "SP.K23-EM23/100": {
+    "medida": "23 mm",
+    "tipo": "Allen",
+    "largo": 100
+  },
+  "SP.R2306.5HLM": {
+    "medida": "6.5 mm",
+    "largo": 50
+  },
+  "SP.S23-TX50": {
+    "medida": "T50",
+    "tipo": "Torx",
+    "largo": 75
+  },
+  "SP.S2332H": {
+    "medida": "32 mm",
+    "largo": 45
+  },
+  "SP.VMTS1/4/TEF": {
+    "medida": "TS1/4"
+  },
+  "SP.VMTS1/4/TEFM": {
+    "medida": "TS1/4"
+  },
+  "SP.VMTS3/8/TEF": {
+    "medida": "TS3/8"
+  },
+  "SP.VMTS3/8/TEFM": {
+    "medida": "TS3/8"
+  },
+  "SP.VMTS5/16/TEF": {
+    "medida": "TS5/16"
+  },
+  "SP.VMTS5/16/TEFM": {
+    "medida": "TS5/16"
+  },
+  "SP.VPPH1/180": {
+    "medida": "PH1",
+    "tipo": "Phillips",
+    "largo": 180
+  },
+  "SP.VPPZD1/25": {
+    "medida": "PZ1",
+    "tipo": "Pozidrive",
+    "largo": 25
+  },
+  "SP.VPTS1/4": {
+    "medida": "TS1/4"
+  },
+  "SP.VPTS1/4/TEF": {
+    "medida": "TS1/4"
+  },
+  "SP.VPTS1/4/TEFM": {
+    "medida": "TS1/4"
+  },
+  "SP.VPTS1/4ACR/TEF": {
+    "medida": "TS1/4"
+  },
+  "SP.VPTS1/4ACR/TEFM": {
+    "medida": "TS1/4"
+  },
+  "SP.VPTS5/16/TEF": {
+    "medida": "TS5/16"
+  },
+  "SP.VPTS5/16/TEFM": {
+    "medida": "TS5/16"
+  },
+  "SP.VPTS8ACR/33": {
+    "medida": "TS8"
+  },
+  "SU.HOW17-10": {
+    "medida": "10 mm"
+  },
+  "SU.HOW24-22": {
+    "medida": "22 mm"
+  },
+  "SU.HOWR24-22": {
+    "medida": "22 mm"
+  },
+  "VPTP10/170": {
+    "medida": "TP10"
+  },
+  "TC.700": {
+    "medida": null
+  }
+}
