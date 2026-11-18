@@ -18,7 +18,8 @@ const sb = createClient(
 // Excepciones revisadas a mano: la serie L es de tubos grandes; 1 5/16" es lo correcto.
 const EXCEPCIONES = { 'SP.L23-15/16HL': '1 5/16"', 'SP.L23-15/16H': '1 5/16"' }
 
-const propuesta = JSON.parse(readFileSync('revision/medidas-puntas.json', 'utf8'))
+// Lo marcado «revisar» (había una medida plausible distinta) no se toca si no está en EXCEPCIONES.
+const propuesta = JSON.parse(readFileSync('revision/medidas-puntas.json', 'utf8')).filter((x) => !x.revisar || x.sku in EXCEPCIONES)
 const nueva = new Map(propuesta.map((x) => [x.sku, x.sku in EXCEPCIONES ? EXCEPCIONES[x.sku] : x.a]))
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

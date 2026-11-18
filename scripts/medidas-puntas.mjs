@@ -74,6 +74,32 @@ const REGLAS = [
     const m = d.match(/\bMEDID[AO]?:\s*((?:PH|PZ|TX|T|E|SQ)\s?\d+|\d+(?:[.,]\d+)?\s?mm)(?![\d/.,])/i)?.[1]
     return m?.toUpperCase().replace(/\s/g, '').replace(/^TX/, 'T').replace(',', '.').replace(/MM$/, ' mm')
   }],
+  // Tercera pasada: lo que el nombre dice con todas las letras, sólo si no hay medida.
+  ['CP tubo (nombre)', (p) => !p.attrs?.medida && p.marca === 'CHICAGO PNEUMATIC' && p.nombre.match(/\bS[4-8](\d{2})M/)?.[1]],
+  ['SP nutsetter 28/51', (p, c) => !p.attrs?.medida && p.marca === 'SPEEDRILL' && c.match(/^[JRS](?:28|51)-(\d+\/\d+)V?(?:\/|$)/)?.[1]],
+  // L23-2H = 2", L23-1-1/4H = 1 1/4" (como L23-15/16H = 1 5/16"); L23-105H = 105 mm.
+  ['SP tubo grande', (p, c) => {
+    if (p.attrs?.medida || p.marca !== 'SPEEDRILL') return undefined
+    const m = c.match(/^[LS]23-(\d{3})HL?$/)
+    if (m) return `${Number(m[1])} mm`
+    const q = c.match(/^[LS]23-(\d)(?:-(\d\/\d))?H(?:L|M)?(?:\/TEF)?$/)
+    return q ? `${q[1]}${q[2] ? ` ${q[2]}` : ''}"` : undefined
+  }],
+  ['tubo mm (nombre)', (p) => {
+    if (p.attrs?.medida || !['Embocadura', 'Nutsetter', null, undefined].includes(p.tipo)) return undefined
+    if (!/TUBO|BOCALLAVE|SOCKET|EMBOCADURA/i.test(p.nombre) || /JUEGO|SET|PIEZAS|PZS/i.test(p.nombre)) return undefined
+    const m = p.nombre.match(/(?<!LARGO\s?(?:MM\s?)?)(?:\b|\()(\d{1,2}(?:[.,]5)?)\s?MM\b/i) ?? p.nombre.match(/SOCKET\s?(\d{1,2})MM/i)
+    return m ? `${m[1].replace(',', '.')} mm` : undefined
+  }],
+  ['punta (nombre)', (p) => {
+    if (p.attrs?.medida || /JUEGO|SET|PIEZAS|PZS/i.test(p.nombre)) return undefined
+    const m = p.nombre.match(/\b(PH|PZ|TX|T|SQ)\s?(\d{1,2})(?=\b|\/|X|x)/i)
+    if (!m) return undefined
+    const t = m[1].toUpperCase()
+    if (t === 'T' && !/TORX|^T\d/i.test(`${p.tipo} ${p.nombre.replace(/^\S+\s+/, '')}`)) return undefined
+    return `${t === 'TX' ? 'T' : t}${Number(m[2])}`
+  }],
+  ['Allen mm (nombre)', (p) => !p.attrs?.medida && p.tipo === 'Allen' && p.nombre.match(/ALLEN\s?(\d+(?:[.,]5)?)\s?MM/i)?.[1]],
 ]
 
 const FORMATO = {
@@ -89,6 +115,8 @@ const FORMATO = {
   'AP tubo pulgadas': (x) => treintaidosavos(Number(x)), 'AP Allen pulgadas': (x) => treintaidosavos(Number(x)),
   'AP Allen 315': (x) => treintaidosavos(Number(x)), 'AP cuadrado tapón': (x) => treintaidosavos(Number(x)),
   descripción: (x) => x,
+  'CP tubo (nombre)': mm, 'SP nutsetter 28/51': (x) => `${x}"`, 'SP tubo grande': (x) => x,
+  'tubo mm (nombre)': (x) => x, 'punta (nombre)': (x) => x, 'Allen mm (nombre)': (x) => mm(x.replace(',', '.')),
 }
 
 // Tipos sin medida de punta: tienen encastre y largo, nada más.
