@@ -99,7 +99,29 @@ const REGLAS = [
     if (t === 'T' && !/TORX|^T\d/i.test(`${p.tipo} ${p.nombre.replace(/^\S+\s+/, '')}`)) return undefined
     return `${t === 'TX' ? 'T' : t}${Number(m[2])}`
   }],
-  ['Allen mm (nombre)', (p) => !p.attrs?.medida && p.tipo === 'Allen' && p.nombre.match(/ALLEN\s?(\d+(?:[.,]5)?)\s?MM/i)?.[1]],
+  // APEX Fastening Tools catalog (testequity, 11/24), slotted bits pp. 13-16 and the drives/Allen tables:
+  // the size of a slotted bit is the screw it fits («6F-8R»), and it depends on the series.
+  ['APEX catálogo', (p, c) => {
+    if (p.attrs?.medida || p.marca !== 'APEX') return undefined
+    const R32 = { '000': '1F-2R', '00': '2F-3R', 0: '3F-4R', 1: '4F-5R', 20: '5F-6R', 2: '5F-6R', 3: '6F-8R', 4: '8F-10R', 5: '10F-12R', 6: '12F-14R' }
+    const R445 = { '000': '1F-2R', '00': '2F-3R', 0: '3F-4R', 1: '4F-5R', 10: '4F-5R', 2: '6F-8R', 20: '5F-6R', 3: '8F-10R', 30: '6F-7R', 4: '10F-12R', 5: '12F-14R', 6: '14F-16R' }
+    const R485 = { 1: '4F-5R', 2: '6F-8R', 3: '8F-10R', 4: '10F-12R', 5: '12F-14R', 6: '14F-16R', 7: '16F-18R' }
+    // Finder sleeve: the letter is the size (L = 5F-6R … T = 14F-16R).
+    const MANGA = { OOOL: '2F-3R', OOL: '3F-4R', OL: '4F-5R', L: '5F-6R', M: '6F-8R', P: '8F-10R', R: '10F-12R', S: '12F-14R', T: '14F-16R' }
+    let m
+    if ((m = c.match(/^32[03-8]-(000|00|0|20|[1-6])X$/))) return R32[m[1]]
+    if ((m = c.match(/^445-(000|00|0|10|20|30|[0-6])(?:-15)?X$/))) return R445[m[1]]
+    if ((m = c.match(/^485-([1-7])X$/))) return R485[m[1]]
+    if ((m = c.match(/^(OOOL|OOL|OL|L|M|P|R|S|T)-32[028]X$/))) return MANGA[m[1]]
+    if ((m = c.match(/^(\d{1,2}F-\d{1,2}R)$/))) return m[1]
+    if ((m = c.match(/^(?:M?D[ABC]|DB)-(08|10|12|14)$/))) return treintaidosavos(Number(m[1]))
+    if ((m = c.match(/^AS-(\d{2})$/))) return treintaidosavos(Number(m[1]))
+    const AM = { 'AM-01-A': '0.050"', 'AM-02-A': '5/64"', 'AM-03-A': '7/64"', 'AM-04-A': '9/64"', 'AM-04-A-4': '9/64"', 'AM-03-A-4': '7/64"', 4910: 'PH0', 'SD-4048': 'T15' }
+    if (AM[c]) return AM[c]
+    if ((m = c.match(/^(?:440|480|AM|AN)-MT-(00|\d)$/))) return `MT${m[1]}`
+    return undefined
+  }],
+  ['Allen mm (nombre)',(p) => !p.attrs?.medida && p.tipo === 'Allen' && p.nombre.match(/ALLEN\s?(\d+(?:[.,]5)?)\s?MM/i)?.[1]],
 ]
 
 const FORMATO = {
@@ -116,7 +138,7 @@ const FORMATO = {
   'AP Allen 315': (x) => treintaidosavos(Number(x)), 'AP cuadrado tapón': (x) => treintaidosavos(Number(x)),
   descripción: (x) => x,
   'CP tubo (nombre)': mm, 'SP nutsetter 28/51': (x) => `${x}"`, 'SP tubo grande': (x) => x,
-  'tubo mm (nombre)': (x) => x, 'punta (nombre)': (x) => x, 'Allen mm (nombre)': (x) => mm(x.replace(',', '.')),
+  'tubo mm (nombre)': (x) => x, 'APEX catálogo': (x) => x, 'punta (nombre)': (x) => x, 'Allen mm (nombre)': (x) => mm(x.replace(',', '.')),
 }
 
 // Tipos sin medida de punta: tienen encastre y largo, nada más.
