@@ -60,8 +60,12 @@ function ahora(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now()
 }
 
+/** Trabajos de primer plano que no son consultas (el código de la pantalla). */
+let otrosDePrimerPlano = 0
+
 function hayPrimerPlanoEnVuelo(): boolean {
   if (cliente === null) return false
+  if (otrosDePrimerPlano > 0) return true
   // Una consulta de segundo plano que ya adoptó la pantalla (ver
   // `fuePromovida`) cuenta como primer plano: es lo que la pantalla espera.
   return cliente
@@ -155,6 +159,7 @@ export function vigilarPrimerPlano(qc: QueryClient): void {
   // generación nueva no hereda lugares ocupados por tareas viejas.
   generacion++
   corriendo = 0
+  otrosDePrimerPlano = 0
   cola.length = 0
   desuscribir = qc.getQueryCache().subscribe(() => {
     // El sello de «hubo primer plano» se lleva SIEMPRE, haya cola o no: una
@@ -165,6 +170,30 @@ export function vigilarPrimerPlano(qc: QueryClient): void {
     largarPromovidas()
     if (cola.length > 0) programar(SILENCIO_MS)
   })
+}
+
+/**
+ * Marca un trabajo que NO es una consulta pero que la pantalla necesita para
+ * pintarse: el chunk de código de la ruta.
+ *
+ * Medido después del primer deploy de la cola: en Listas de precios el chunk
+ * de la pantalla bajó entre los 4,9 y los 8,0 s. Durante ese rato no había
+ * ninguna consulta en vuelo —la pantalla todavía no existía para pedirlas—, la
+ * cola vio «silencio» y largó la campana entera justo antes de que la
+ * pantalla pidiera lo suyo. Con esto, mientras baja el código de la pantalla,
+ * lo secundario sigue esperando.
+ */
+export function enPrimerPlano<T>(trabajo: Promise<T>): Promise<T> {
+  if (cliente === null) return trabajo
+  otrosDePrimerPlano++
+  ultimoPrimerPlano = ahora()
+  const terminar = () => {
+    otrosDePrimerPlano--
+    ultimoPrimerPlano = ahora()
+    if (cola.length > 0) programar(SILENCIO_MS)
+  }
+  trabajo.then(terminar, terminar)
+  return trabajo
 }
 
 /**

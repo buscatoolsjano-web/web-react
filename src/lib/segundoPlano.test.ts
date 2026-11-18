@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
-import { enSegundoPlano, META_SEGUNDO_PLANO, vigilarPrimerPlano } from './segundoPlano'
+import {
+  enPrimerPlano,
+  enSegundoPlano,
+  META_SEGUNDO_PLANO,
+  vigilarPrimerPlano,
+} from './segundoPlano'
 
 /** Una promesa que se resuelve a mano. */
 function diferida<T = void>() {
@@ -40,6 +45,20 @@ describe('la cola de segundo plano', () => {
     await vi.advanceTimersByTimeAsync(10)
     expect(tarea).toHaveBeenCalledTimes(1)
     await expect(resultado).resolves.toBe('campana')
+  })
+
+  it('también espera mientras baja el código de la pantalla', async () => {
+    await vi.advanceTimersByTimeAsync(400)
+    const chunk = diferida()
+    void enPrimerPlano(chunk.promesa)
+    const tarea = vi.fn(() => Promise.resolve())
+    void enSegundoPlano(tarea)
+
+    await vi.advanceTimersByTimeAsync(2_000)
+    expect(tarea).not.toHaveBeenCalled()
+    chunk.resolver()
+    await vi.advanceTimersByTimeAsync(310)
+    expect(tarea).toHaveBeenCalledTimes(1)
   })
 
   it('no corre más de dos a la vez', async () => {

@@ -18,6 +18,7 @@ import {
   CLAVE_RECARGA,
   type ImportadorDePantalla,
 } from '@/app/precarga'
+import { enPrimerPlano } from '@/lib/segundoPlano'
 
 
 /**
@@ -46,7 +47,12 @@ function lazyConRecarga(crudo: ImportadorDePantalla | (() => Promise<{ default: 
     try {
       // La marca la limpia `recordando`, que es por donde pasan los dos
       // caminos —la precarga y esto—.
-      return await importar()
+      //
+      // `enPrimerPlano`: mientras baja el código de la pantalla que se está
+      // mostrando, la cola de segundo plano no larga nada (ver segundoPlano.ts).
+      // Sólo este camino —el de la pantalla montada—; la precarga de las otras
+      // pantallas no frena a nadie.
+      return await enPrimerPlano(importar())
     } catch (error) {
       let yaSeIntento = true
       try {
