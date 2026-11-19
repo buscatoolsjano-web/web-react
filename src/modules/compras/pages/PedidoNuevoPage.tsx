@@ -23,7 +23,7 @@ import {
   type ErrorDePedido,
 } from '../lib/validacion'
 import { useCrearPedido } from '../hooks/usePedidos'
-import type { ProveedorBuscado } from '../services/catalogo'
+import { costosDeProductos, ultimosPreciosDeCompra, type ProveedorBuscado } from '../services/catalogo'
 import type { LineaPedidoCompra } from '../types'
 import styles from './ProveedorDetallePage.module.css'
 
@@ -156,11 +156,54 @@ export function PedidoNuevoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ventaOrigen?.tipo, ventaOrigen?.id, companyId])
 
+  /**
+   * Las líneas en 0 se completan con lo que se sabe del costo: el último
+   * precio de compra en esa moneda (a ese proveedor si lo hay) y, si no hay,
+   * el costo cargado en el producto en la misma moneda. Sólo pisa ceros: lo
+   * que alguien escribió se respeta. Antes toda línea nacía en 0 aunque el
+   * producto tuviera costo, y se podía confirmar así.
+   */
+  const completarPrecios = (moneda: string, proveedorId: string | null, base: readonly LineaPedidoCompra[] = lineas) => {
+    if (!companyId || moneda === '') return
+    const enCero = base.filter((l) => l.productId && (l.precioUnitario ?? 0) === 0)
+    if (enCero.length === 0) return
+    const ids = enCero.map((l) => l.productId!)
+    void Promise.all([
+      ultimosPreciosDeCompra(companyId, ids, moneda, proveedorId).catch(() => new Map<string, { precio: number }>()),
+      costosDeProductos(companyId, ids).catch(() => new Map<string, { monto: number; moneda: string | null }>()),
+    ]).then(([ultimos, costos]) => {
+      setLineas((actuales) =>
+        actuales.map((l) => {
+          if (!l.productId || (l.precioUnitario ?? 0) !== 0) return l
+          const u = ultimos.get(l.productId)
+          if (u && u.precio > 0) return { ...l, precioUnitario: u.precio }
+          const c = costos.get(l.productId)
+          if (c && (c.moneda === null || c.moneda === moneda)) return { ...l, precioUnitario: c.monto }
+          return l
+        }),
+      )
+    })
+  }
+
   const cambiar = (cambios: Partial<DatosPedidoCompra>) => {
     const siguiente = { ...datos, ...cambios }
     setDatos(siguiente)
     if (intentado) setErrores(validarPedido(siguiente))
+    if (cambios.moneda !== undefined && cambios.moneda !== datos.moneda) {
+      completarPrecios(cambios.moneda, siguiente.proveedorId || null)
+    }
   }
+
+  // Una línea de producto que entra en 0 se completa con el costo conocido.
+  const cambiarLineas = (ls: LineaPedidoCompra[]) => {
+    setLineas(ls)
+    const nuevas = ls.filter((l) => !lineas.some((x) => x.id === l.id))
+    if (nuevas.length > 0) completarPrecios(datos.moneda, datos.proveedorId || null, nuevas)
+  }
+
+  // Aviso antes de crear con líneas en 0: se puede seguir, pero que se vea.
+  const [confirmaCeros, setConfirmaCeros] = useState(false)
+  const lineasEnCero = lineas.filter((l) => l.tipoLinea === 'product' && (l.precioUnitario ?? 0) === 0)
 
   /**
    * Al elegir el proveedor se precompletan la condición de pago y la moneda.
@@ -189,6 +232,10 @@ export function PedidoNuevoPage() {
     setErrores(encontrados)
     setIntentado(true)
     if (encontrados.length > 0 || problemasDeLineas.length > 0) return
+    if (lineasEnCero.length > 0 && !confirmaCeros) {
+      setConfirmaCeros(true)
+      return
+    }
     crear.mutate(
       { datos, lineas },
       { onSuccess: ({ id }) => void navegar(`/compras/pedidos/${id}`) },
@@ -266,6 +313,14 @@ export function PedidoNuevoPage() {
               <p>{crear.error.message}</p>
             </Alert>
           ) : null}
+          {confirmaCeros && lineasEnCero.length > 0 ? (
+            <Alert tone="warning" role="alert" title="Hay líneas con precio de compra 0">
+              <p>
+                {lineasEnCero.map((l) => l.sku || l.nombre || `línea ${l.numeroLinea}`).join(', ')}. Si es a propósito,
+                tocá «Crear pedido» otra vez; si no, cargales el precio.
+              </p>
+            </Alert>
+          ) : null}
           <FormularioPedido
             datos={datos}
             errores={errores}
@@ -279,7 +334,7 @@ export function PedidoNuevoPage() {
             sinGuardar
             onCambiarCabecera={cambiar}
             onProveedor={elegirProveedor}
-            onCambiarLineas={setLineas}
+            onCambiarLineas={cambiarLineas}
           />
         </section>
 
@@ -296,7 +351,7 @@ export function PedidoNuevoPage() {
                 lineas: true,
                 onCabecera: cambiar,
                 onProveedor: elegirProveedor,
-                onLineas: setLineas,
+                onLineas: cambiarLineas,
               }}
             />
           </div>

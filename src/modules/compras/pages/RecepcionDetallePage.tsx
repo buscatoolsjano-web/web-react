@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -26,7 +27,7 @@ import {
   usePendienteDePedido,
   useRecepcion,
 } from '../hooks/useRecepciones'
-import type { CantidadARecibir } from '../services/recepciones'
+import { ventasDeLaCompra, type CantidadARecibir } from '../services/recepciones'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './ProveedorDetallePage.module.css'
 
@@ -82,6 +83,15 @@ export function RecepcionDetallePage() {
     (depositoId ?? recepcion?.depositoId) ?? null,
     id ?? null,
   )
+
+  // Las ventas para las que se compró lo que trae esta recepción.
+  const ventas = useQuery({
+    queryKey: ['compras', activa?.companyId, 'ventas-de-la-compra', recepcion?.pedidoId],
+    queryFn: () => ventasDeLaCompra(activa!.companyId, recepcion!.pedidoId!),
+    enabled: !!activa && !!recepcion?.pedidoId,
+    staleTime: 30_000,
+  })
+  const porEntregar = (ventas.data ?? []).filter((v) => v.estadoEntrega !== 'delivered')
 
   if (isPending) {
     return (
@@ -219,6 +229,22 @@ export function RecepcionDetallePage() {
           </p>
         </Alert>
       )}
+
+      {!esBorrador && porEntregar.length > 0 ? (
+        // Llegó mercadería comprada PARA una venta: ya se puede entregar.
+        <Alert tone="success" role="status" title="Ya se puede entregar">
+          <ul>
+            {porEntregar.map((v) => (
+              <li key={v.pedidoVentaId}>
+                <Link className={styles.enlace} to={`/ventas/pedidos/${v.pedidoVentaId}`}>
+                  {v.numero}
+                </Link>{' '}
+                · {v.cliente} — abrí el pedido y generá la nota de entrega.
+              </li>
+            ))}
+          </ul>
+        </Alert>
+      ) : null}
 
       {aviso ? (
         <Alert tone="success" role="status">

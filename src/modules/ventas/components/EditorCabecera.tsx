@@ -73,6 +73,8 @@ export interface EditorCabeceraProps {
    */
   onCambiarContactos: (principal: string, secundarios: string[]) => void
   onCambiarCliente: (customerId: string) => void
+  /** Sólo la cotización: hasta cuándo vale el precio (`valid_until`). */
+  conValidez?: boolean | undefined
 }
 
 /**
@@ -109,15 +111,25 @@ export function EditorCabecera({
   onCambiarCliente,
   onCambiarVendedores,
   onCambiarContactos,
+  conValidez = false,
 }: EditorCabeceraProps) {
   const hayReferencia = series !== undefined || numero !== undefined
   const idDoc = useId()
   const idCli = useId()
 
   const campoFecha = (
-    <Field label="Fecha">
-      <Input type="date" value={valores.fecha} onChange={(e) => onCambiar('fecha', e.target.value)} />
-    </Field>
+    <>
+      <Field label="Fecha">
+        <Input type="date" value={valores.fecha} onChange={(e) => onCambiar('fecha', e.target.value)} />
+      </Field>
+      {conValidez ? (
+        // Hasta cuándo vale el precio: sin esto no hay forma de saber qué
+        // cotizaciones vencieron y hay que reclamar o recotizar.
+        <Field label="Válida hasta" optional>
+          <Input type="date" value={valores.validaHasta} min={valores.fecha || undefined} onChange={(e) => onCambiar('validaHasta', e.target.value)} />
+        </Field>
+      ) : null}
+    </>
   )
 
   return (

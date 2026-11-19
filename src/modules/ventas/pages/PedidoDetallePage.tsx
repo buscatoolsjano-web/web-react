@@ -833,7 +833,15 @@ function Detalle() {
           titulo={doc.numero}
           pasos={circuito}
           primary={
-            escribe && doc.estado === 'confirmed' ? (
+            // Entregado del todo: lo que sigue es facturar (o nada, si ya tiene
+            // factura). Antes seguía ofreciendo «Generar nota de entrega».
+            escribe && doc.estado === 'confirmed' && doc.estadoSecundario === 'delivered' ? (
+              cadena.data?.factura ? null : (
+                <Button icon={<Icon name="check" size={16} />} onClick={() => setFacturando(true)}>
+                  Generar factura
+                </Button>
+              )
+            ) : escribe && doc.estado === 'confirmed' ? (
               <Button
                 icon={<Icon name="truck" size={16} />}
                 disabled={stelEntrega || autoridad.cargando}

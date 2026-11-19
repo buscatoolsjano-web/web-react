@@ -10,6 +10,9 @@ import { Composer } from '@/modules/emails/components/Composer'
 import { useCuentas } from '@/modules/emails/hooks/useEmails'
 import { useParamsUrl } from '@/modules/emails/hooks/useParamsUrl'
 import { perdioElAcceso } from '@/modules/emails/lib/estadoCuenta'
+import { useQuery } from '@tanstack/react-query'
+import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { obtenerCliente } from '@/modules/clientes/services/clientes'
 import { nuevaClave, type OpcionesComposer } from '@/modules/emails/hooks/useComposer'
 import type { AdjuntoRedaccion } from '@/modules/emails/types'
 import { asuntoDeDocumento, cuerpoDeDocumento, destinatariosDeDocumento } from '../lib/mailDocumento'
@@ -55,6 +58,15 @@ const TITULO: Record<DocumentoDetalle['tipo'], string> = {
 export function ModalEnviarPorMail({ doc, lineas, opciones, onCerrar }: ModalEnviarPorMailProps) {
   const [params, cambiarUrl] = useParamsUrl()
   const cuentas = useCuentas()
+  const { activa } = useEmpresa()
+  // Los mails del cliente: si el documento no tiene un contacto con correo,
+  // «Para» se propone con ellos en vez de abrirse vacío.
+  const cliente = useQuery({
+    queryKey: ['clientes', activa?.companyId, 'detalle', doc.clienteId],
+    queryFn: () => obtenerCliente(activa!.companyId, doc.clienteId!),
+    enabled: !!activa && !!doc.clienteId,
+    staleTime: 60_000,
+  })
   const cuenta = cuentas.data?.[0] ?? null
   const [enviado, setEnviado] = useState(false)
 
@@ -100,7 +112,11 @@ export function ModalEnviarPorMail({ doc, lineas, opciones, onCerrar }: ModalEnv
 
   const opcionesComposer = useMemo<OpcionesComposer | null>(() => {
     if (!cuenta || !pdf) return null
-    const destinos = destinatariosDeDocumento(doc)
+    // Se espera al cliente: después el composer es dueño de su estado.
+    if (doc.clienteId && cliente.isPending) return null
+    const propios = destinatariosDeDocumento(doc)
+    const delCliente = (cliente.data?.emails ?? []).filter((e) => e.includes('@'))
+    const destinos = propios.para.length > 0 ? propios : { para: delCliente.slice(0, 1), cc: delCliente.slice(1) }
     return {
       accountId: cuenta.id,
       propia: cuenta.direccion,
@@ -118,7 +134,7 @@ export function ModalEnviarPorMail({ doc, lineas, opciones, onCerrar }: ModalEnv
         adjuntos: pdf.adjunto ? [pdf.adjunto] : [],
       },
     }
-  }, [cuenta, doc, inicial, cambiarUrl, pdf])
+  }, [cuenta, doc, inicial, cambiarUrl, pdf, cliente.isPending, cliente.data])
 
   const cerrar = () => {
     // La URL vuelve como estaba: el borrador ya está guardado en Gmail y se

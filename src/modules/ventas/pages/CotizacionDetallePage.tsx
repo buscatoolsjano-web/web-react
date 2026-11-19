@@ -993,6 +993,7 @@ function Detalle() {
               <DocSection title="Información de la cotización">
                 {editando ? (
                   <EditorCabecera
+                    conValidez
                     valores={borrador.cabecera}
                     formasDePago={formasDePago.data ?? []}
                     cargandoFormasDePago={formasDePago.isPending}

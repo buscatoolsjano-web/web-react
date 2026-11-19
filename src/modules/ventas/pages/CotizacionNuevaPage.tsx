@@ -706,6 +706,7 @@ export function CotizacionNuevaPage() {
           tres renglones de alto para un desplegable que casi nunca se toca. */}
           <DocSection title="Datos del documento">
             <EditorCabecera
+              conValidez
               series={series.data ?? []}
               serie={serieVisible}
               onCambiarSerie={(codigo) => setB((x) => cambiarCampo(x, 'serie', codigo))}

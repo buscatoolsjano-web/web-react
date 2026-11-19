@@ -86,8 +86,8 @@ export function SelectorProducto({ onElegir, onCerrar }: SelectorProductoProps) 
       )}
 
       <p className={styles.pie}>
-        El precio de compra se escribe en la línea: las listas de precios del catálogo son de
-        venta y no sirven acá.
+        El precio de compra se completa con el último que se le pagó (o el costo del producto) en
+        la moneda del pedido; se puede corregir en la línea.
       </p>
     </div>
   )

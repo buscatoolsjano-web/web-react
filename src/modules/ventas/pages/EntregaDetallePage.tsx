@@ -81,6 +81,7 @@ import {
   lineasParaEntregar,
 } from '../services/entregas'
 import { obtenerDocumento } from '../services/documentos'
+import { ModalFacturar } from '../components/ModalFacturar'
 import { guardarContactosDocumento } from '../services/contactosDocumento'
 import lineasUi from '../components/EditorLineas.module.css'
 import editor from './EditorCotizacion.module.css'
@@ -121,6 +122,7 @@ function Detalle() {
   const { data: doc, isPending, error } = useDocumento('entrega', id)
   const relacionados = useRelacionados('entrega', id)
   const cadena = useCadenaDocumento('entrega', id)
+  const [facturando, setFacturando] = useState(false)
   // Los motivos de revisión, clasificados por el servidor (Fase 19 · E4).
   const revision = useRevision('entrega', id)
   // El avance del pedido visto desde este remito (Fase 19 · E5).
@@ -644,7 +646,12 @@ function Detalle() {
           titulo={doc.numero}
           pasos={circuito}
           primary={
-            permiso.confirmable ? (
+            // Despachado: lo que sigue es facturar el pedido, desde acá mismo.
+            !permiso.confirmable && escribe && (doc.estado === 'shipped' || doc.estado === 'delivered') && doc.origen?.tipo === 'pedido' && !cadena.data?.factura ? (
+              <Button icon={<Icon name="check" size={16} />} onClick={() => setFacturando(true)}>
+                Facturar el pedido
+              </Button>
+            ) : permiso.confirmable ? (
               <Button
                 icon={<Icon name="truck" size={16} />}
                 loading={confirmar.isPending}
@@ -1040,6 +1047,19 @@ function Detalle() {
       />
 
       {acciones.capas}
+
+      {facturando && doc.origen?.tipo === 'pedido' ? (
+        <ModalFacturar
+          pedidoId={doc.origen.id}
+          pedidoNumero={doc.origen.numero}
+          clienteId={doc.clienteId}
+          clienteNombre={doc.clienteNombre}
+          total={null}
+          moneda={doc.moneda}
+          formaPago={doc.formaPago}
+          onCerrar={() => setFacturando(false)}
+        />
+      ) : null}
 
       {/* Fase 19 · E4: la MISMA ficha rápida que abre el listado de Clientes
           y la cotización. Mirar con quién se está tratando no puede costar

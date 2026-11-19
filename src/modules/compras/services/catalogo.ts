@@ -202,3 +202,29 @@ export async function obtenerProveedorBreve(
     moneda: data.default_currency,
   }
 }
+
+/**
+ * El costo cargado en cada producto (`products.cost_amount` y su moneda).
+ *
+ * Lo cargan las altas del ERP y la importación de facturas de compra. Sirve
+ * para que una línea de compra no nazca en 0 cuando se sabe cuánto cuesta.
+ */
+export async function costosDeProductos(
+  companyId: string,
+  productIds: readonly string[],
+): Promise<Map<string, { monto: number; moneda: string | null }>> {
+  const ids = [...new Set(productIds)].filter((x) => x !== '')
+  const salida = new Map<string, { monto: number; moneda: string | null }>()
+  if (ids.length === 0) return salida
+  const { data, error } = await supabase
+    .from('products')
+    .select('id, cost_amount, cost_currency')
+    .eq('company_id', companyId)
+    .in('id', ids)
+  if (error) throw new Error(`No se pudo leer el costo de los productos: ${error.message}`)
+  for (const f of (data ?? []) as { id: string; cost_amount: number | string | null; cost_currency: string | null }[]) {
+    const monto = Number(f.cost_amount)
+    if (f.cost_amount !== null && Number.isFinite(monto) && monto > 0) salida.set(f.id, { monto, moneda: f.cost_currency })
+  }
+  return salida
+}

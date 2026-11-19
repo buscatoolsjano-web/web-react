@@ -541,3 +541,71 @@ export async function exportarRecepciones(
   }
   return { filas, total }
 }
+
+/** Una venta para la que se compró lo de un pedido de compra. */
+export interface VentaDeLaCompra {
+  pedidoVentaId: string
+  numero: string
+  cliente: string
+  /** `fulfillment_status` del pedido de venta: pending | … | delivered. */
+  estadoEntrega: string
+}
+
+/**
+ * Las ventas que esperan lo que trae este pedido de compra.
+ *
+ * Una línea de compra queda vinculada a la línea del pedido de venta o a la de
+ * la cotización (la compra se genera muchas veces desde la cotización, antes
+ * de que exista el pedido); en ese caso se llega al pedido por `quote_id`.
+ * Sirve para avisar, al confirmar la recepción, «esto ya se puede entregar».
+ */
+export async function ventasDeLaCompra(companyId: string, pedidoCompraId: string): Promise<VentaDeLaCompra[]> {
+  const { data: lineas, error } = await supabase
+    .from('purchase_order_lines')
+    .select('sales_order_line_id, sales_quote_line_id')
+    .eq('company_id', companyId)
+    .eq('purchase_order_id', pedidoCompraId)
+  if (error) throw new Error(`No se pudo leer para qué ventas era la compra: ${error.message}`)
+
+  const lineasPedido = [...new Set((lineas ?? []).map((l) => l.sales_order_line_id).filter((x): x is string => !!x))]
+  const lineasCotizacion = [...new Set((lineas ?? []).map((l) => l.sales_quote_line_id).filter((x): x is string => !!x))]
+  const pedidos = new Set<string>()
+
+  if (lineasPedido.length > 0) {
+    const { data, error: e } = await supabase.from('sales_order_lines').select('order_id').in('id', lineasPedido)
+    if (e) throw new Error(e.message)
+    for (const f of data ?? []) pedidos.add(f.order_id)
+  }
+  if (lineasCotizacion.length > 0) {
+    const { data: cot, error: e } = await supabase.from('sales_quote_lines').select('quote_id').in('id', lineasCotizacion)
+    if (e) throw new Error(e.message)
+    const cotizaciones = [...new Set((cot ?? []).map((f) => f.quote_id))]
+    if (cotizaciones.length > 0) {
+      const { data: ped, error: e2 } = await supabase
+        .from('sales_orders')
+        .select('id')
+        .eq('company_id', companyId)
+        .in('quote_id', cotizaciones)
+        .neq('commercial_status', 'cancelled')
+      if (e2) throw new Error(e2.message)
+      for (const f of ped ?? []) pedidos.add(f.id)
+    }
+  }
+  if (pedidos.size === 0) return []
+
+  const { data: filas, error: e3 } = await supabase
+    .from('sales_orders')
+    .select('id, number, fulfillment_status, cliente:customers ( legal_name, trade_name )')
+    .eq('company_id', companyId)
+    .in('id', [...pedidos])
+  if (e3) throw new Error(e3.message)
+  return (filas ?? []).map((f) => {
+    const c = f.cliente as unknown as { legal_name: string | null; trade_name: string | null } | null
+    return {
+      pedidoVentaId: f.id,
+      numero: f.number ?? '',
+      cliente: c?.trade_name ?? c?.legal_name ?? '',
+      estadoEntrega: f.fulfillment_status ?? 'pending',
+    }
+  })
+}

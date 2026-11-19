@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { buscarClientes, nombreDeCliente, sugerenciasClientes } from '../services/clientes'
 import { CLIENTE_VACIO } from '@/modules/clientes/lib/validacion'
+import { CONDICIONES_IVA } from '@/modules/clientes/lib/condicionIva'
 import styles from './BuscadorCliente.module.css'
 
 export interface BuscadorClienteProps {
@@ -49,6 +50,10 @@ export function BuscadorCliente({ valor, editable, onElegir, apariencia = 'erp' 
   const [altaRapida, setAltaRapida] = useState(false)
   const [nombreNuevo, setNombreNuevo] = useState('')
   const [cuitNuevo, setCuitNuevo] = useState('')
+  // Email y condición de IVA en el alta rápida: sin email no se le puede
+  // mandar la cotización, y sin condición de IVA no se le puede facturar.
+  const [emailNuevo, setEmailNuevo] = useState('')
+  const [condicionNueva, setCondicionNueva] = useState('')
   const [guardandoNuevo, setGuardandoNuevo] = useState(false)
   const [errorNuevo, setErrorNuevo] = useState<string | null>(null)
 
@@ -119,14 +124,20 @@ export function BuscadorCliente({ valor, editable, onElegir, apariencia = 'erp' 
     setGuardandoNuevo(true)
     setErrorNuevo(null)
     try {
-      const { crearCliente } = await import('@/modules/clientes/services/edicion')
-      const creado = await crearCliente(companyId, { datos: { ...CLIENTE_VACIO, razonSocial: nombre, cuit: cuitNuevo.trim() } })
+      const { crearCliente, guardarDatosFiscales } = await import('@/modules/clientes/services/edicion')
+      const email = emailNuevo.trim()
+      const creado = await crearCliente(companyId, {
+        datos: { ...CLIENTE_VACIO, razonSocial: nombre, cuit: cuitNuevo.trim(), emails: email.includes('@') ? [email] : [] },
+      })
+      if (condicionNueva !== '') await guardarDatosFiscales(creado.id, condicionNueva, null)
       onElegir(creado.id)
       setAltaRapida(false)
       setTexto('')
       setConsulta('')
       setNombreNuevo('')
       setCuitNuevo('')
+      setEmailNuevo('')
+      setCondicionNueva('')
     } catch (e) {
       setErrorNuevo(e instanceof Error ? e.message : 'No se pudo crear el cliente.')
     } finally {
@@ -218,6 +229,11 @@ export function BuscadorCliente({ valor, editable, onElegir, apariencia = 'erp' 
           <div className={styles.altaRapida}>
             <input className={styles.input} value={nombreNuevo} onChange={(e) => setNombreNuevo(e.target.value)} placeholder="Razón social" autoFocus />
             <input className={styles.input} value={cuitNuevo} onChange={(e) => setCuitNuevo(e.target.value)} placeholder="CUIT (opcional)" />
+            <input className={styles.input} type="email" value={emailNuevo} onChange={(e) => setEmailNuevo(e.target.value)} placeholder="Email para mandarle la cotización (opcional)" />
+            <select className={styles.input} value={condicionNueva} onChange={(e) => setCondicionNueva(e.target.value)} aria-label="Condición frente al IVA">
+              <option value="">Condición frente al IVA (opcional)</option>
+              {CONDICIONES_IVA.map((c) => (<option key={c.valor} value={c.valor}>{c.etiqueta}</option>))}
+            </select>
             <div className={styles.accionesAlta}>
               <button type="button" className={styles.cambiar} onClick={() => void guardarClienteRapido()} disabled={!nombreNuevo.trim() || guardandoNuevo}>{guardandoNuevo ? 'Creando…' : 'Crear y elegir'}</button>
               <button type="button" className={styles.cambiar} onClick={() => setAltaRapida(false)}>Cancelar</button>
