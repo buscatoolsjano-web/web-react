@@ -2,6 +2,9 @@ import { useEffect, useId, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { buscarProveedores, type ProveedorBuscado } from '../services/catalogo'
+import { useCrearProveedor } from '../hooks/useEdicionProveedores'
+import { permisosDe } from '../lib/permisos'
+import { PROVEEDOR_VACIO } from '../lib/validacion'
 import styles from './BuscadorProveedor.module.css'
 
 export interface BuscadorProveedorProps {
@@ -46,6 +49,43 @@ export function BuscadorProveedor({
   const [abierto, setAbierto] = useState(false)
   const [texto, setTexto] = useState('')
   const [consulta, setConsulta] = useState('')
+  // Alta rápida sin salir del pedido: antes había que ir a Proveedores en otra
+  // pestaña, crear el proveedor y volver a buscarlo.
+  const puedeCrear = permisosDe(activa).crearProveedor
+  const crear = useCrearProveedor()
+  const [altaRapida, setAltaRapida] = useState(false)
+  const [nuevo, setNuevo] = useState({ razonSocial: '', cuit: '', email: '', moneda: '' })
+  const abrirAlta = () => {
+    setNuevo({ razonSocial: texto.trim(), cuit: '', email: '', moneda: '' })
+    crear.reset()
+    setAltaRapida(true)
+  }
+  const confirmarAlta = () => {
+    if (nuevo.razonSocial.trim() === '') return
+    crear.mutate(
+      {
+        ...PROVEEDOR_VACIO,
+        razonSocial: nuevo.razonSocial,
+        cuit: nuevo.cuit,
+        email: nuevo.email,
+        monedaPorDefecto: nuevo.moneda,
+      },
+      {
+        onSuccess: (r) => {
+          onElegir({
+            id: r.id,
+            referencia: r.referencia,
+            razonSocial: nuevo.razonSocial.trim(),
+            nombreComercial: null,
+            formaPago: null,
+            moneda: nuevo.moneda || null,
+          })
+          setAltaRapida(false)
+          setAbierto(false)
+        },
+      },
+    )
+  }
 
   // Se espera a que la persona pare de tipear.
   useEffect(() => {
@@ -142,18 +182,81 @@ export function BuscadorProveedor({
               ))}
             </ul>
           )}
-          <div className={styles.acciones}>
-            <button
-              type="button"
-              className={styles.cerrar}
-              onClick={() => {
-                setAbierto(false)
-                if (!elegido) onLimpiar()
-              }}
-            >
-              Cerrar
-            </button>
-          </div>
+          {altaRapida ? (
+            <div className={styles.altaRapida}>
+              <input
+                className={styles.control}
+                autoFocus
+                placeholder="Razón social"
+                aria-label="Razón social del proveedor nuevo"
+                value={nuevo.razonSocial}
+                onChange={(e) => setNuevo((x) => ({ ...x, razonSocial: e.target.value }))}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmarAlta() } }}
+              />
+              <input
+                className={styles.control}
+                placeholder="CUIT (opcional)"
+                aria-label="CUIT del proveedor nuevo"
+                value={nuevo.cuit}
+                onChange={(e) => setNuevo((x) => ({ ...x, cuit: e.target.value }))}
+              />
+              <input
+                className={styles.control}
+                type="email"
+                placeholder="Email para mandarle los pedidos (opcional)"
+                aria-label="Email del proveedor nuevo"
+                value={nuevo.email}
+                onChange={(e) => setNuevo((x) => ({ ...x, email: e.target.value }))}
+              />
+              <select
+                className={styles.control}
+                aria-label="Moneda en que cotiza"
+                value={nuevo.moneda}
+                onChange={(e) => setNuevo((x) => ({ ...x, moneda: e.target.value }))}
+              >
+                <option value="">Moneda (opcional)</option>
+                <option value="ARS">ARS</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
+              {crear.error ? (
+                <span className={styles.error} role="alert">
+                  {crear.error.message}
+                </span>
+              ) : null}
+              <div className={styles.acciones}>
+                <button
+                  type="button"
+                  className={styles.cerrar}
+                  onClick={confirmarAlta}
+                  disabled={nuevo.razonSocial.trim() === '' || crear.isPending}
+                >
+                  {crear.isPending ? 'Creando…' : 'Crear y elegir'}
+                </button>
+                <button type="button" className={styles.cerrar} onClick={() => setAltaRapida(false)} disabled={crear.isPending}>
+                  Volver
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className={styles.acciones}>
+              {puedeCrear ? (
+                <button type="button" className={styles.cerrar} onClick={abrirAlta}>
+                  + Nuevo proveedor
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={styles.cerrar}
+                onClick={() => {
+                  setAbierto(false)
+                  if (!elegido) onLimpiar()
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+          )}
         </div>
       ) : null}
     </div>

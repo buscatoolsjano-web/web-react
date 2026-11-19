@@ -1,4 +1,12 @@
-import { Link, useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/icons/Icon'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { Field } from '@/components/forms/Field'
+import { Input } from '@/components/forms/controls'
+import { etiquetaCondicionIva } from '@/modules/clientes/lib/condicionIva'
+import { ModalImpresionFactura } from '../components/ModalImpresionFactura'
 import { PageHeader } from '@/components/layout/PageHeader'
 import doc from '@/components/document/Document.module.css'
 import { ActionBar } from '@/components/document/ActionBar'
@@ -10,7 +18,7 @@ import { ResponsiveTable } from '@/components/tables/ResponsiveTable'
 import type { Column } from '@/components/tables/types'
 import { Badge } from '@/components/ui/Badge'
 import { SkeletonRows } from '@/components/ui/Skeleton'
-import { useFacturaVenta } from '../hooks/useFacturasVenta'
+import { useAccionesFactura, useFacturaVenta } from '../hooks/useFacturasVenta'
 import { useCadenaDocumento } from '../hooks/useDocumentos'
 import { cadenaVacia } from '../lib/cadena'
 import { CadenaDocumento } from '../components/CadenaDocumento'
@@ -71,6 +79,12 @@ function columnas(moneda: string): Column<LineaFactura>[] {
 export function FacturaVentaDetallePage() {
   const { id } = useParams<{ id: string }>()
   const factura = useFacturaVenta(id)
+  const acciones = useAccionesFactura(id ?? '')
+  const navegar = useNavigate()
+  // Qué diálogo está abierto: imprimir, cargar el número fiscal, anular o cobrar.
+  const [abierto, setAbierto] = useState<null | 'imprimir' | 'emitir' | 'anular' | 'cobrar'>(null)
+  const [numeroFiscal, setNumeroFiscal] = useState('')
+  const [fechaFiscal, setFechaFiscal] = useState('')
 
   /**
    * El circuito se pide por el PEDIDO, no por la factura (Fase 29 · E17).
@@ -135,6 +149,29 @@ export function FacturaVentaDetallePage() {
       <ActionBar
         volver={{ to: '/ventas/facturas', label: 'Facturas' }}
         titulo={f.numero}
+        primary={
+          f.estado === 'draft' ? (
+            <Button icon={<Icon name="check" size={16} />} onClick={() => { setNumeroFiscal(''); setFechaFiscal(f.fecha); acciones.emitir.reset(); setAbierto('emitir') }}>
+              Cargar número fiscal
+            </Button>
+          ) : f.estado === 'issued' ? (
+            <Button icon={<Icon name="check" size={16} />} onClick={() => { acciones.cobrar.reset(); setAbierto('cobrar') }}>
+              Marcar cobrada
+            </Button>
+          ) : null
+        }
+        secondary={
+          <>
+            <Button variant="secondary" icon={<Icon name="printer" size={16} />} onClick={() => setAbierto('imprimir')}>
+              Ver / Imprimir
+            </Button>
+            {f.estado === 'draft' ? (
+              <Button variant="ghost" onClick={() => { acciones.anular.reset(); setAbierto('anular') }}>
+                Anular borrador
+              </Button>
+            ) : null}
+          </>
+        }
         /* Si la factura no tuviera pedido —hoy no pasa, pero la columna
            admite null— la cadena no llega. Se arma una con esta factura
            adentro: decir «Factura: todavía no existe» parado ENCIMA de la
@@ -189,8 +226,93 @@ export function FacturaVentaDetallePage() {
             <dt>Nº en Tango</dt>
             <dd>{f.numeroExterno ?? 'Sin replicar'}</dd>
           </div>
+          {f.numeroInterno ? (
+            <div>
+              <dt>Nº interno</dt>
+              <dd>{f.numeroInterno}</dd>
+            </div>
+          ) : null}
+          <div>
+            <dt>Vencimiento</dt>
+            <dd>{f.vencimiento ? formatearFecha(f.vencimiento) : 'Sin vencimiento (la forma de pago no dice días)'}</dd>
+          </div>
+          <div>
+            <dt>Condición IVA del cliente</dt>
+            <dd>{etiquetaCondicionIva(f.clienteCondicionIva) ?? 'Sin cargar'}</dd>
+          </div>
+          <div>
+            <dt>CUIT</dt>
+            <dd>{f.clienteCuit ?? 'Sin cargar'}</dd>
+          </div>
         </dl>
       </DocSection>
+
+      {abierto === 'imprimir' ? <ModalImpresionFactura factura={f} onCerrar={() => setAbierto(null)} /> : null}
+
+      <ConfirmDialog
+        open={abierto === 'emitir'}
+        title="Cargar el número fiscal"
+        description="Emití la factura en Tango y cargá acá el número que te dio AFIP. Queda como emitida y deja de ser un borrador."
+        confirmLabel="Marcar emitida"
+        busy={acciones.emitir.isPending}
+        confirmDisabled={numeroFiscal.trim() === ''}
+        onCancel={() => setAbierto(null)}
+        onConfirm={() =>
+          acciones.emitir.mutate(
+            { numero: numeroFiscal.trim(), fecha: fechaFiscal || null },
+            { onSuccess: () => setAbierto(null) },
+          )
+        }
+      >
+        <Field label="Número fiscal" required help="Como figura en el comprobante, por ejemplo A-0001-00001234.">
+          <Input value={numeroFiscal} onChange={(e) => setNumeroFiscal(e.target.value)} autoFocus />
+        </Field>
+        <Field label="Fecha de emisión">
+          <Input type="date" value={fechaFiscal} onChange={(e) => setFechaFiscal(e.target.value)} />
+        </Field>
+        {acciones.emitir.error ? (
+          <Alert tone="danger" role="alert">
+            <p>{acciones.emitir.error.message}</p>
+          </Alert>
+        ) : null}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={abierto === 'anular'}
+        tone="danger"
+        title={`¿Anular el borrador ${f.numero}?`}
+        description="Se borra el borrador y el pedido vuelve a quedar para facturar. Una factura ya emitida no se anula acá: lleva nota de crédito."
+        confirmLabel="Anular borrador"
+        busy={acciones.anular.isPending}
+        onCancel={() => setAbierto(null)}
+        onConfirm={() =>
+          acciones.anular.mutate(undefined, {
+            onSuccess: (r) => void navegar(r.pedidoId ? `/ventas/pedidos/${r.pedidoId}` : '/ventas/facturas', { replace: true }),
+          })
+        }
+      >
+        {acciones.anular.error ? (
+          <Alert tone="danger" role="alert">
+            <p>{acciones.anular.error.message}</p>
+          </Alert>
+        ) : null}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={abierto === 'cobrar'}
+        title={`¿Marcar cobrada ${f.numero}?`}
+        description={`Por ${formatearImporte(f.total, f.moneda)}. El pedido queda como pagado.`}
+        confirmLabel="Marcar cobrada"
+        busy={acciones.cobrar.isPending}
+        onCancel={() => setAbierto(null)}
+        onConfirm={() => acciones.cobrar.mutate(undefined, { onSuccess: () => setAbierto(null) })}
+      >
+        {acciones.cobrar.error ? (
+          <Alert tone="danger" role="alert">
+            <p>{acciones.cobrar.error.message}</p>
+          </Alert>
+        ) : null}
+      </ConfirmDialog>
 
       <DocSection title="Líneas">
         <ResponsiveTable

@@ -96,7 +96,13 @@ export function AltaGuiada({
   porCategoria,
   onListo,
   onSaltar,
+  onCrearCategoria,
+  onCrearMarca,
 }: {
+  /** Crea una categoría y devuelve su id (en una empresa nueva no hay ninguna). */
+  onCrearCategoria?: (nombre: string) => Promise<string>
+  /** Crea una marca y devuelve su id. */
+  onCrearMarca?: (nombre: string) => Promise<string>
   companyId: string | null
   categorias: readonly CategoriaResumen[]
   /** Todas las marcas de la empresa, para «Otra…» en el paso de marca. */
@@ -120,6 +126,11 @@ export function AltaGuiada({
   // Cuando se toca «Otro…», se muestra el campo de texto de ESE paso.
   const [escribiendo, setEscribiendo] = useState(false)
   const [textoOtro, setTextoOtro] = useState('')
+  // Alta al vuelo de una categoría o una marca que no está en la lista.
+  const [creandoNueva, setCreandoNueva] = useState(false)
+  const [textoNueva, setTextoNueva] = useState('')
+  const [guardandoNueva, setGuardandoNueva] = useState(false)
+  const [errorNueva, setErrorNueva] = useState<string | null>(null)
 
   const cat = categorias.find((c) => c.id === categoriaId) ?? null
   // La guía habla en slug público (plural), que es con el que matchean las
@@ -162,7 +173,10 @@ export function AltaGuiada({
     [definiciones, categoriaId, porCategoria],
   )
 
-  const reiniciarEntrada = () => { setEscribiendo(false); setTextoOtro('') }
+  const reiniciarEntrada = () => {
+    setEscribiendo(false); setTextoOtro('')
+    setCreandoNueva(false); setTextoNueva(''); setErrorNueva(null)
+  }
   const nombreDeMarca = (id: string) => marcas.find((m) => m.id === id)?.nombre ?? ''
 
   // ── Qué paso toca ─────────────────────────────────────────────────────────
@@ -288,6 +302,25 @@ export function AltaGuiada({
     paso.elegir(v)
   }
 
+  /** Crea la categoría o la marca escrita y la elige en el acto. */
+  const crearNueva = async () => {
+    const nombre = textoNueva.trim()
+    const crear = paso.clave === 'categoria' ? onCrearCategoria : onCrearMarca
+    if (nombre === '' || !crear) return
+    const elegir = paso.elegir
+    setGuardandoNueva(true)
+    setErrorNueva(null)
+    try {
+      const id = await crear(nombre)
+      reiniciarEntrada()
+      elegir(id)
+    } catch (e) {
+      setErrorNueva(e instanceof Error ? e.message : 'No se pudo crear.')
+    } finally {
+      setGuardandoNueva(false)
+    }
+  }
+
   return (
     <div className={styles.guia}>
       <div className={styles.cabecera}>
@@ -335,7 +368,26 @@ export function AltaGuiada({
             {paso.pregunta} <span className={styles.pista}>{paso.pista}</span>
           </p>
 
-          {paso.clave === 'marca' && escribiendo ? (
+          {creandoNueva && (paso.clave === 'categoria' || paso.clave === 'marca') ? (
+            <div className={styles.otro}>
+              <input
+                className={styles.otroInput}
+                value={textoNueva}
+                autoFocus
+                placeholder={paso.clave === 'categoria' ? 'Nombre de la categoría nueva' : 'Nombre de la marca nueva'}
+                aria-label={paso.clave === 'categoria' ? 'Nombre de la categoría nueva' : 'Nombre de la marca nueva'}
+                onChange={(e) => setTextoNueva(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void crearNueva() } }}
+              />
+              <button type="button" className={styles.otroOk} onClick={() => void crearNueva()} disabled={textoNueva.trim() === '' || guardandoNueva}>
+                {guardandoNueva ? 'Creando…' : 'Crear'}
+              </button>
+              <button type="button" className={styles.otroCancelar} onClick={reiniciarEntrada} disabled={guardandoNueva}>
+                Volver
+              </button>
+              {errorNueva ? <p role="alert" className={styles.pista}>{errorNueva}</p> : null}
+            </div>
+          ) : paso.clave === 'marca' && escribiendo ? (
             // «Otra…» en la marca: la lista completa, no un texto libre (una
             // marca nueva se crea desde el formulario, con su prefijo).
             <div className={styles.otro}>
@@ -344,12 +396,16 @@ export function AltaGuiada({
                 autoFocus
                 value=""
                 aria-label="Elegí la marca"
-                onChange={(e) => { if (e.target.value !== '') paso.elegir(e.target.value) }}
+                onChange={(e) => {
+                  if (e.target.value === '__nueva__') { setCreandoNueva(true); setErrorNueva(null); return }
+                  if (e.target.value !== '') paso.elegir(e.target.value)
+                }}
               >
                 <option value="">Elegí de todas las marcas…</option>
                 {marcas.map((m) => (
                   <option key={m.id} value={m.id}>{m.nombre}</option>
                 ))}
+                {onCrearMarca ? <option value="__nueva__">＋ Agregar una marca nueva…</option> : null}
               </select>
               <button type="button" className={styles.otroCancelar} onClick={reiniciarEntrada}>
                 Volver
@@ -395,6 +451,11 @@ export function AltaGuiada({
                 <button type="button" className={cx(styles.tile, styles.tileOtro)} onClick={() => setEscribiendo(true)}>
                   <Icon name="plus" size={20} aria-hidden="true" />
                   <span className={styles.tileEtiqueta}>{paso.clave === 'marca' ? 'Otra…' : 'Otro…'}</span>
+                </button>
+              ) : onCrearCategoria ? (
+                <button type="button" className={cx(styles.tile, styles.tileOtro)} onClick={() => { setCreandoNueva(true); setErrorNueva(null) }}>
+                  <Icon name="plus" size={20} aria-hidden="true" />
+                  <span className={styles.tileEtiqueta}>Nueva…</span>
                 </button>
               ) : null}
               {paso.omitir ? (

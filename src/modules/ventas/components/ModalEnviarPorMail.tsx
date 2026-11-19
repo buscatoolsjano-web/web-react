@@ -9,6 +9,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { Composer } from '@/modules/emails/components/Composer'
 import { useCuentas } from '@/modules/emails/hooks/useEmails'
 import { useParamsUrl } from '@/modules/emails/hooks/useParamsUrl'
+import { perdioElAcceso } from '@/modules/emails/lib/estadoCuenta'
 import { nuevaClave, type OpcionesComposer } from '@/modules/emails/hooks/useComposer'
 import type { AdjuntoRedaccion } from '@/modules/emails/types'
 import { asuntoDeDocumento, cuerpoDeDocumento, destinatariosDeDocumento } from '../lib/mailDocumento'
@@ -152,7 +153,17 @@ export function ModalEnviarPorMail({ doc, lineas, opciones, onCerrar }: ModalEnv
           icon="mail"
           title="Sin cuenta de correo"
           description="Esta empresa no tiene ninguna cuenta conectada, así que no hay desde dónde mandarlo."
+          action={<Link to="/emails">Conectar una cuenta en Emails</Link>}
         />
+      ) : perdioElAcceso(cuenta.errorSync) ? (
+        // Mandar desde una cuenta sin permiso de Google falla siempre: se avisa
+        // antes de escribir el mail, no después de apretar «Enviar».
+        <Alert tone="danger" role="alert" title={`${cuenta.direccion} perdió el acceso a Gmail`}>
+          <p>
+            Hasta que un administrador la reconecte, no sale ningún mail desde esta empresa.{' '}
+            <Link to="/emails">Reconectarla en Emails</Link>
+          </p>
+        </Alert>
       ) : pdf === null ? (
         <p role="status">
           <Spinner size={16} /> Armando el PDF de {nombreCorto}…

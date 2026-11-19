@@ -40,6 +40,13 @@ export interface FacturaDetalle extends FacturaListada {
   subtotal: number
   impuestos: number
   lineas: LineaFactura[]
+  /** Vencimiento, según la forma de pago del pedido. */
+  vencimiento: string | null
+  /** El número interno (FAC…) cuando ya se cargó el fiscal. */
+  numeroInterno: string | null
+  clienteCuit: string | null
+  clienteCondicionIva: string | null
+  formaPago: string | null
 }
 
 const COLUMNAS =
@@ -70,6 +77,8 @@ interface FilaFactura {
   pedido: { number: string } | null
   subtotal?: number | string | null
   tax_amount?: number | string | null
+  due_date?: string | null
+  original_number?: string | null
 }
 
 function nombreCliente(c: FilaCliente): string {
@@ -120,7 +129,7 @@ export async function listarFacturas(companyId: string): Promise<FacturaListada[
 export async function obtenerFactura(companyId: string, id: string): Promise<FacturaDetalle | null> {
   const { data, error } = await supabase
     .from('sales_invoices')
-    .select(`${COLUMNAS}, subtotal, tax_amount`)
+    .select(`${COLUMNAS.replace('cliente:customers ( legal_name, trade_name )', 'cliente:customers ( legal_name, trade_name, tax_id, tax_condition )').replace('pedido:sales_orders ( number )', 'pedido:sales_orders ( number, payment_terms )')}, subtotal, tax_amount, due_date, original_number`)
     .eq('company_id', companyId)
     .eq('id', id)
     .maybeSingle()
@@ -141,6 +150,11 @@ export async function obtenerFactura(companyId: string, id: string): Promise<Fac
     ...aListada(f),
     subtotal: Number(f.subtotal ?? 0),
     impuestos: Number(f.tax_amount ?? 0),
+    vencimiento: f.due_date ?? null,
+    numeroInterno: f.original_number ?? null,
+    clienteCuit: (f.cliente as { tax_id?: string | null } | null)?.tax_id ?? null,
+    clienteCondicionIva: (f.cliente as { tax_condition?: string | null } | null)?.tax_condition ?? null,
+    formaPago: (f.pedido as { payment_terms?: string | null } | null)?.payment_terms ?? null,
     lineas: (filas ?? []).map((l) => ({
       id: String(l.id),
       sku: l.sku_snapshot ?? '',
@@ -172,4 +186,34 @@ export async function crearFacturaDesdePedido(
   if (error) throw new Error(error.message)
   const r = (data ?? {}) as { id?: string; numero?: string }
   return { id: String(r.id ?? ''), numero: String(r.numero ?? '') }
+}
+
+// ── Acciones sobre la factura ────────────────────────────────────────────────
+
+function errorDeFactura(mensaje: string): Error {
+  // El mensaje ya es el de la RPC («Sólo se anula un borrador…»), en castellano.
+  return new Error(mensaje)
+}
+
+/** Anular un BORRADOR: se borra y el pedido vuelve a quedar para facturar. */
+export async function anularBorradorFactura(id: string): Promise<{ pedidoId: string | null }> {
+  const { data, error } = await supabase.rpc('factura_venta_anular_borrador', { p_invoice: id })
+  if (error) throw errorDeFactura(error.message)
+  return { pedidoId: ((data ?? {}) as { pedido_id?: string | null }).pedido_id ?? null }
+}
+
+/** Marcarla emitida con el número fiscal que dio Tango/AFIP. */
+export async function marcarFacturaEmitida(id: string, numeroFiscal: string, fecha: string | null): Promise<void> {
+  const { error } = await supabase.rpc('factura_venta_marcar_emitida', {
+    p_invoice: id,
+    p_numero_fiscal: numeroFiscal,
+    ...(fecha ? { p_fecha: fecha } : {}),
+  })
+  if (error) throw errorDeFactura(error.message)
+}
+
+/** Marcarla cobrada (y el pedido como pagado). */
+export async function marcarFacturaCobrada(id: string): Promise<void> {
+  const { error } = await supabase.rpc('factura_venta_marcar_cobrada', { p_invoice: id })
+  if (error) throw errorDeFactura(error.message)
 }

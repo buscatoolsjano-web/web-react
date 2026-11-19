@@ -410,3 +410,22 @@ export async function borrarDireccion(direccionId: string, motivo: string): Prom
   if (error) throw falloDeAgenda(error.message, 'No se pudo borrar la dirección.')
 }
 
+
+/**
+ * Los datos fiscales del cliente: condición frente al IVA y, si viene, el CUIT.
+ *
+ * Una RPC propia (no `guardar_cliente`): la usa también el modal que aparece
+ * al facturar a un cliente que no los tiene, sin mandar el formulario entero.
+ */
+export async function guardarDatosFiscales(clienteId: string, condicion: string, cuit: string | null): Promise<void> {
+  const { error } = await supabase.rpc('cliente_guardar_datos_fiscales', {
+    p_customer: clienteId,
+    p_condicion: condicion,
+    ...(cuit && cuit.trim() !== '' ? { p_cuit: cuit.trim() } : {}),
+  })
+  if (!error) return
+  if (/CUIT_INVALIDO/.test(error.message)) throw new Error('El CUIT tiene que tener 11 dígitos.')
+  if (/CLIENTE_DUPLICADO/.test(error.message)) throw new Error('Ese CUIT ya lo tiene otro cliente de la empresa.')
+  if (/SIN_PERMISO/.test(error.message)) throw new Error('Tu rol no puede editar este cliente.')
+  throw new Error(`No se pudieron guardar los datos fiscales: ${error.message}`)
+}

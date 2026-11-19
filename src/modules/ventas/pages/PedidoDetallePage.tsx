@@ -39,6 +39,7 @@ import { BuscadorNombreHoja } from '../components/BuscadorNombreHoja'
 import { EditorLineas, type CampoLinea } from '../components/EditorLineas'
 import { ModalEntregaParcial } from '../components/ModalEntregaParcial'
 import { useCrearFacturaDesdePedido } from '../hooks/useFacturasVenta'
+import { ModalFacturar } from '../components/ModalFacturar'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { PanelPendientes } from '../components/PanelPendientes'
 import { PanelLateralCliente } from '@/modules/clientes/components/PanelLateralCliente'
@@ -206,6 +207,8 @@ function Detalle() {
   const [viendoCliente, setViendoCliente] = useState(false)
   const [guardado, setGuardado] = useState(false)
   const [generando, setGenerando] = useState(false)
+  // «Generar factura» abre una confirmación con los datos fiscales del cliente.
+  const [facturando, setFacturando] = useState(false)
   const [errorRemito, setErrorRemito] = useState<string | null>(null)
   const [pestana, setPestana] = useTabDeUrl<Pestana>(PESTANAS, 'lineas')
   /*
@@ -647,7 +650,7 @@ function Detalle() {
            borrador todavía se edita, y facturar un borrador es facturar
            algo que puede cambiar. */
           factura: {
-            onGenerar: () => facturar.mutate({ orderId: id! }),
+            onGenerar: () => setFacturando(true),
             cargando: facturar.isPending,
             ...(!escribe
               ? { motivo: 'Tu rol no factura' }
@@ -1163,6 +1166,19 @@ function Detalle() {
           </DocSection>
         ) : null}
       </DocumentTabs>
+
+      {facturando ? (
+        <ModalFacturar
+          pedidoId={doc.id}
+          pedidoNumero={doc.numero}
+          clienteId={doc.clienteId}
+          clienteNombre={doc.clienteNombre}
+          total={doc.total}
+          moneda={doc.moneda}
+          formaPago={doc.formaPago}
+          onCerrar={() => setFacturando(false)}
+        />
+      ) : null}
 
       {generando ? (
         <ModalEntregaParcial

@@ -64,6 +64,26 @@ export async function crearMarca(companyId: string, nombre: string): Promise<Mar
 }
 
 /**
+ * Alta de una categoría desde el alta de producto: sin categoría no se puede
+ * crear un producto (`category_id` es NOT NULL) y en una empresa nueva no hay
+ * ninguna. Mismo RPC que Configuración › Categorías.
+ */
+export async function crearCategoriaDelCatalogo(companyId: string, nombre: string): Promise<CategoriaResumen> {
+  const { data, error } = await supabase.rpc('config_categoria_crear', {
+    p_company: companyId,
+    p_datos: { name: nombre },
+  })
+  if (error) {
+    if (/nombre_duplicado|slug_duplicado|duplicate/i.test(error.message)) throw new Error('Ya existe una categoría con ese nombre.')
+    if (/permission denied|row-level security|sin_permiso/i.test(error.message)) throw new Error('Tu rol no puede crear categorías.')
+    throw new Error(`No se pudo crear la categoría: ${error.message}`)
+  }
+  const f = (data as { id: string; name: string; slug: string }[] | null)?.[0]
+  if (!f) throw new Error('La base no devolvió la categoría creada.')
+  return { id: f.id, nombre: f.name, slug: f.slug, slugPublico: null, necesitaRevision: false }
+}
+
+/**
  * Categorías de la empresa activa, **sólo las que están en el catálogo**.
  *
  * Fase 25 · E1: el mismo `.eq('is_active', true)` que las marcas. Sin esto, una

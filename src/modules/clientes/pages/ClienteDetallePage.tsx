@@ -51,6 +51,8 @@ import {
   useResolverRevision,
 } from '../hooks/useEdicionClientes'
 import { FalloDeCliente } from '../services/edicion'
+import { DatosFiscalesCliente } from '../components/DatosFiscalesCliente'
+import { etiquetaCondicionIva } from '../lib/condicionIva'
 import type { ClienteDetalle } from '../types'
 import styles from './ClienteDetallePage.module.css'
 
@@ -551,6 +553,10 @@ export function ClienteDetallePage() {
                   { label: 'Rubro', value: cliente.rubro ?? <Missing>Sin rubro</Missing> },
                   { label: 'Tipo', value: cliente.tipo === 'business' ? 'Empresa' : 'Persona' },
                   { label: 'Estado', value: cliente.estado === 'active' ? 'Activo' : 'Inactivo' },
+                  {
+                    label: 'Condición frente al IVA',
+                    value: etiquetaCondicionIva(cliente.condicionIva) ?? <Missing>Sin cargar: no se le puede facturar</Missing>,
+                  },
                   { label: 'Condición de pago', value: cliente.condicionDePago ?? <Missing>No definida</Missing> },
                   { label: 'Moneda por defecto', value: cliente.monedaPorDefecto ?? <Missing>No definida</Missing> },
                   { label: 'Vendedor asignado', value: cliente.vendedor ?? <Missing>No asignado</Missing> },
@@ -581,6 +587,19 @@ export function ClienteDetallePage() {
                   },
                   { label: 'Notas', wide: true, value: cliente.notas ?? <Missing>Sin notas</Missing> },
                 ]}
+              />
+            </DocSection>
+          ) : null}
+
+          {pestana === 'informacion' && !editando && permisos.editarCliente && !cliente.dadoDeBaja ? (
+            <DocSection title="Datos fiscales">
+              {/* Sin condición de IVA (y CUIT) no se factura: se cargan acá. */}
+              <DatosFiscalesCliente
+                key={cliente.condicionIva ?? 'sin'}
+                clienteId={cliente.id}
+                condicion={cliente.condicionIva}
+                cuit={cliente.cuit}
+                onGuardado={() => void refetch()}
               />
             </DocSection>
           ) : null}

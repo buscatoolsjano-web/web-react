@@ -242,3 +242,15 @@
   padding: 0 6px;
   font-size: 0.8em;
 }
+
+/* Alta rápida de proveedor dentro del panel. */
+.altaRapida {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.acciones {
+  gap: var(--space-2);
+}

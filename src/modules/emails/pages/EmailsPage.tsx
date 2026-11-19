@@ -34,6 +34,7 @@ import { TAMANOS_BANDEJA } from '../lib/filtros'
 import { puedeUsarEmails } from '../lib/permisos'
 import type { CarpetaBandeja, EtiquetaEmail, FilaBandeja } from '../types'
 import styles from '../components/Emails.module.css'
+import { perdioElAcceso } from '../lib/estadoCuenta'
 
 const HILO = { singular: 'hilo', plural: 'hilos' }
 
@@ -254,19 +255,40 @@ function Bandeja() {
         </Alert>
       ) : null}
 
-      {conError.map((c) => (
-        <Alert
-          key={c.id}
-          tone="warning"
-          role="status"
-          title={`La sincronización de ${c.direccion} tuvo un problema`}
-        >
-          <p>
-            {c.errorSyncEn ? `Desde el ${new Date(c.errorSyncEn).toLocaleString('es-AR')}. ` : ''}
-            Puede faltar correo reciente hasta que se recupere.
-          </p>
-        </Alert>
-      ))}
+      {conError.map((c) =>
+        perdioElAcceso(c.errorSync) ? (
+          // Sin permiso de Google no se recupera sola: no entra ni sale correo.
+          <Alert
+            key={c.id}
+            tone="danger"
+            role="alert"
+            title={`${c.direccion} perdió el acceso a Gmail`}
+            action={
+              <Button size="sm" onClick={conectar} loading={conectando}>
+                Reconectar
+              </Button>
+            }
+          >
+            <p>
+              {c.errorSyncEn ? `Desde el ${new Date(c.errorSyncEn).toLocaleString('es-AR')}. ` : ''}
+              No se reciben mails nuevos y lo que se mande desde el ERP no sale. Hay que volver a dar
+              el permiso en Google (lo hace un administrador).
+            </p>
+          </Alert>
+        ) : (
+          <Alert
+            key={c.id}
+            tone="warning"
+            role="status"
+            title={`La sincronización de ${c.direccion} tuvo un problema`}
+          >
+            <p>
+              {c.errorSyncEn ? `Desde el ${new Date(c.errorSyncEn).toLocaleString('es-AR')}. ` : ''}
+              Puede faltar correo reciente hasta que se recupere.
+            </p>
+          </Alert>
+        ),
+      )}
 
       {conectado ? (
         <Alert

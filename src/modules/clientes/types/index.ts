@@ -335,6 +335,8 @@ export interface ClienteDetalle {
   tipo: string
   estado: string
   condicionDePago: string | null
+  /** Condición frente al IVA (`tax_condition`). Sin ella no se factura. */
+  condicionIva: string | null
   monedaPorDefecto: string | null
   descuentoPct: number
   limiteDeCredito: number | null

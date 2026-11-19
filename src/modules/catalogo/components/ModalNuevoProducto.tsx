@@ -9,6 +9,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import {
   useAtributosPorCategoria,
   useCategorias,
+  useCrearCategoria,
   useCrearMarca,
   useDefinicionesDeAtributos,
   useListasDePrecios,
@@ -78,8 +79,11 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
 
-  const marcas = useMarcas(companyId)
-  const categorias = useCategorias(companyId)
+  // `alAbrir`: lo creado recién en Configuración (otra pestaña) tiene que
+  // aparecer acá sin recargar la página ni esperar la caché.
+  const marcas = useMarcas(companyId, { alAbrir: true })
+  const categorias = useCategorias(companyId, { alAbrir: true })
+  const categoriaNueva = useCrearCategoria()
   const definiciones = useDefinicionesDeAtributos(companyId)
   const porCategoria = useAtributosPorCategoria(companyId)
   const listas = useListasDePrecios(companyId)
@@ -100,6 +104,9 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
   // Alta de una marca que no está en la lista (Fase 223).
   const [creandoMarca, setCreandoMarca] = useState(false)
   const [nombreMarcaNueva, setNombreMarcaNueva] = useState('')
+  // Alta de una categoría que no está: sin ella no se puede crear el producto.
+  const [creandoCategoria, setCreandoCategoria] = useState(false)
+  const [nombreCategoriaNueva, setNombreCategoriaNueva] = useState('')
   const [imagen, setImagen] = useState<File | null>(null)
   const [vistaPrevia, setVistaPrevia] = useState<string | null>(null)
   const [errorImagen, setErrorImagen] = useState<string | null>(null)
@@ -272,6 +279,24 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
     })
   }
 
+  const CATEGORIA_NUEVA = '__nueva__'
+  const cancelarCategoriaNueva = () => { setCreandoCategoria(false); setNombreCategoriaNueva(''); categoriaNueva.reset() }
+  const confirmarCategoriaNueva = () => {
+    const nombre = nombreCategoriaNueva.trim()
+    if (nombre === '') return
+    categoriaNueva.mutate(nombre, {
+      onSuccess: (c) => {
+        setCreandoCategoria(false)
+        setNombreCategoriaNueva('')
+        cambiar('categoriaId', c.id)
+      },
+    })
+  }
+
+  // Lo que la guía crea al vuelo (categoría o marca) y elige en el acto.
+  const crearCategoriaDesdeGuia = async (nombre: string) => (await categoriaNueva.mutateAsync(nombre)).id
+  const crearMarcaDesdeGuia = async (nombre: string) => (await marcaNueva.mutateAsync(nombre)).id
+
   // Un kit sin receta no se puede despachar (lo rechaza `confirmar_entrega`),
   // así que tampoco se deja crear: mejor el error acá que al querer entregarlo.
   const kitSinReceta = f.esKit && componentesUtiles(componentes).length === 0
@@ -369,6 +394,8 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
           porCategoria={porCategoria.data}
           onListo={aplicarGuia}
           onSaltar={() => setFase('form')}
+          onCrearCategoria={crearCategoriaDesdeGuia}
+          onCrearMarca={crearMarcaDesdeGuia}
         />
       ) : (
         <>
@@ -543,18 +570,60 @@ export function ModalNuevoProducto({ onCerrar, onCreado }: ModalNuevoProductoPro
               label="Categoría"
               required
               error={ver('categoriaId')}
-              help="Sólo se ofrecen las que están en el catálogo."
+              help={creandoCategoria ? 'Escribí el nombre y tocá «Crear».' : 'Las del catálogo, o creá una nueva.'}
             >
-              <Select value={f.categoriaId} onChange={(e) => cambiar('categoriaId', e.target.value)}>
-                <option value="">Elegí una categoría…</option>
-                {(categorias.data ?? []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nombre}
-                  </option>
-                ))}
-              </Select>
+              {creandoCategoria ? (
+                <div className={styles.marcaNueva}>
+                  <Input
+                    value={nombreCategoriaNueva}
+                    autoFocus
+                    placeholder="Nombre de la categoría"
+                    autoComplete="off"
+                    aria-label="Nombre de la categoría nueva"
+                    onChange={(e) => setNombreCategoriaNueva(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); confirmarCategoriaNueva() }
+                      if (e.key === 'Escape') { e.preventDefault(); cancelarCategoriaNueva() }
+                    }}
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={confirmarCategoriaNueva}
+                    loading={categoriaNueva.isPending}
+                    disabled={nombreCategoriaNueva.trim() === ''}
+                  >
+                    Crear
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={cancelarCategoriaNueva} disabled={categoriaNueva.isPending}>
+                    Volver
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  value={f.categoriaId}
+                  onChange={(e) => {
+                    if (e.target.value === CATEGORIA_NUEVA) { setCreandoCategoria(true); categoriaNueva.reset(); return }
+                    cambiar('categoriaId', e.target.value)
+                  }}
+                >
+                  <option value="">Elegí una categoría…</option>
+                  {(categorias.data ?? []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nombre}
+                    </option>
+                  ))}
+                  <option value={CATEGORIA_NUEVA}>＋ Agregar una categoría nueva…</option>
+                </Select>
+              )}
             </Field>
           </div>
+
+          {categoriaNueva.error ? (
+            <Alert tone="danger" role="alert" title="No se pudo crear la categoría">
+              <p>{categoriaNueva.error.message}</p>
+            </Alert>
+          ) : null}
 
           <div className={styles.fila}>
             <Field label="Subtipo" optional help="El «tipo» del producto: adaptador, punta, balanceador…">

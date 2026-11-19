@@ -35,6 +35,7 @@ vi.mock('../hooks/useCatalogoFacetas', () => ({
   useAtributosPorCategoria: () => ({ data: new Map([['c-punta', new Set(['encastre', 'largo'])]]) }),
   // Fase 223: alta de una marca nueva desde el formulario.
   useCrearMarca: () => ({ mutate: espias.crearMarca, isPending: false, error: null, reset: vi.fn() }),
+  useCrearCategoria: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false, error: null, reset: vi.fn() }),
   // Fase 224: la lista base rotula el precio de venta y da la moneda del costo.
   useListasDePrecios: () => ({ porDefecto: { moneda: 'USD' } }),
   // El alta arranca en la guía (Fase 131), que pide las facetas de la categoría.

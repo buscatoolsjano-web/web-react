@@ -60,6 +60,7 @@ import {
 } from '../lib/borrador'
 import { aplicarDefaults, type DefaultsComerciales } from '../lib/defaults'
 import { cadenaVacia } from '../lib/cadena'
+import { borrarBorradorGuardado, guardarBorrador, leerBorradorGuardado } from '../lib/borradorGuardado'
 import { CadenaDocumento } from '../components/CadenaDocumento'
 import { escribeVentas } from '../lib/permisos'
 import { tasaDe } from '../lib/tratamientos'
@@ -130,7 +131,18 @@ export function CotizacionNuevaPage() {
     // Sólo al montar: cambiar de cliente después no vuelve a mirar la URL.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const [b, setB] = useState<Borrador>(inicial)
+  /*
+   * La cotización que se estaba armando y se cortó (recarga, otra pestaña, se
+   * cerró el navegador): se retoma donde quedó. No si se llegó con algo puesto
+   * en la URL —un cliente, el carrito o una copia—, que es un pedido explícito
+   * de empezar otra cosa.
+   */
+  const [recuperada, setRecuperada] = useState(() =>
+    clienteDeLaUrl || parametros.get('desde') || parametros.get('copiar')
+      ? null
+      : leerBorradorGuardado(activa?.companyId ?? null, 'cotizacion'),
+  )
+  const [b, setB] = useState<Borrador>(() => recuperada?.borrador ?? inicial)
   // «Duplicar como…» (Fase 233): las líneas de otro documento, si la URL las pide.
   const avisoCopia = useCopiaEnBorrador(activa?.companyId ?? null, 'cotizacion', b.cabecera.listaPrecioId, setB)
   // Fase 28 · E1: el catálogo completo, para elegir desde la hoja.
@@ -336,6 +348,7 @@ export function CotizacionNuevaPage() {
       return r
     },
     onSuccess: (r) => {
+      borrarBorradorGuardado(activa?.companyId ?? null, 'cotizacion')
       void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
       // `replace`: volver atrás no tiene que traer de nuevo el formulario vacío.
       void navegar(`/ventas/cotizaciones/${r.id}`, { replace: true })
@@ -350,6 +363,21 @@ export function CotizacionNuevaPage() {
 
   const sucio = hayCambios(b, inicial) && !crear.isSuccess && !crear.isPending
   const salida = useSalidaConCambios(sucio)
+
+  // Lo escrito se guarda en el navegador a cada cambio (es una escritura a un
+  // sistema externo, no un estado de React: va en un efecto).
+  const companyIdAlta = activa?.companyId ?? null
+  useEffect(() => {
+    if (crear.isSuccess || crear.isPending) return
+    if (hayCambios(b, inicial)) guardarBorrador(companyIdAlta, 'cotizacion', b)
+    else borrarBorradorGuardado(companyIdAlta, 'cotizacion')
+  }, [b, inicial, companyIdAlta, crear.isSuccess, crear.isPending])
+
+  const empezarDeCero = () => {
+    borrarBorradorGuardado(companyIdAlta, 'cotizacion')
+    setRecuperada(null)
+    setB(inicial)
+  }
 
   const lineasVisibles = comoLineasDocumento(b)
 
@@ -636,6 +664,17 @@ export function CotizacionNuevaPage() {
       {/* Fase 22 · paridad #50: si un producto del carrito no tiene precio en
           esta tarifa, la línea queda en 0 y se avisa. Dejarla en 0 sin decir
           nada sería cotizar gratis sin que nadie se entere. */}
+      {recuperada ? (
+        <Alert tone="info" role="status" title="Retomamos la cotización que estabas armando">
+          <p>
+            Quedó guardada en este navegador ({new Date(recuperada.guardadoEn).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}).
+          </p>
+          <Button variant="ghost" size="sm" onClick={empezarDeCero}>
+            Empezar de cero
+          </Button>
+        </Alert>
+      ) : null}
+
       {avisoCarrito ? (
         <Alert tone="warning" role="status" title="Productos que vinieron del catálogo">
           <p>{avisoCarrito}</p>

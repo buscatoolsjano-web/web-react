@@ -75,6 +75,9 @@ notifyManager.setNotifyFunction((aviso) => {
  */
 afterEach(() => {
   cleanup()
+  // Lo que una pantalla deja en el navegador (p. ej. la cotización a medio
+  // armar) no tiene que filtrarse al test siguiente.
+  if (typeof window !== 'undefined') window.localStorage?.clear()
 })
 
 /**

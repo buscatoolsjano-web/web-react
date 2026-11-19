@@ -112,6 +112,7 @@ const base: ClienteDetalle = {
   tipo: 'business',
   estado: 'active',
   condicionDePago: '30 días',
+  condicionIva: null,
   monedaPorDefecto: 'USD',
   descuentoPct: 0,
   limiteDeCredito: null,

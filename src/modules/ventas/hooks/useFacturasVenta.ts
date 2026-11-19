@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
-import { crearFacturaDesdePedido, listarFacturas, obtenerFactura } from '../services/facturas'
+import {
+  anularBorradorFactura,
+  crearFacturaDesdePedido,
+  listarFacturas,
+  marcarFacturaCobrada,
+  marcarFacturaEmitida,
+  obtenerFactura,
+} from '../services/facturas'
 
 /**
  * Facturas de venta (Fase 29 · E7).
@@ -54,4 +61,24 @@ export function useCrearFacturaDesdePedido() {
       void qc.invalidateQueries({ queryKey: ['ventas', companyId] })
     },
   })
+}
+
+/**
+ * Las acciones de la factura: anular el borrador, marcarla emitida con el
+ * número fiscal y marcarla cobrada. Todas refrescan el árbol de Ventas: el
+ * pedido cambia su estado de facturación y de cobro.
+ */
+export function useAccionesFactura(id: string) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const qc = useQueryClient()
+  const refrescar = () => void qc.invalidateQueries({ queryKey: ['ventas', companyId] })
+
+  const anular = useMutation({ mutationFn: () => anularBorradorFactura(id), onSuccess: refrescar })
+  const emitir = useMutation({
+    mutationFn: ({ numero, fecha }: { numero: string; fecha: string | null }) => marcarFacturaEmitida(id, numero, fecha),
+    onSuccess: refrescar,
+  })
+  const cobrar = useMutation({ mutationFn: () => marcarFacturaCobrada(id), onSuccess: refrescar })
+  return { anular, emitir, cobrar }
 }

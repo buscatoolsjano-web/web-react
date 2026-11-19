@@ -10,8 +10,9 @@ import {
   listarMarcas,
   listarAtributosPorCategoria,
   crearMarca,
+  crearCategoriaDelCatalogo,
 } from '../services/facetas'
-import type { Facetas, FiltrosCatalogo, ListaDePrecios, MarcaDelCatalogo } from '../types'
+import type { CategoriaResumen, Facetas, FiltrosCatalogo, ListaDePrecios, MarcaDelCatalogo } from '../types'
 
 /**
  * Datos de apoyo del catálogo: marcas, categorías, atributos y listas.
@@ -24,12 +25,13 @@ import type { Facetas, FiltrosCatalogo, ListaDePrecios, MarcaDelCatalogo } from 
  */
 const CINCO_MINUTOS = 5 * 60_000
 
-export function useMarcas(companyId: string | null) {
+export function useMarcas(companyId: string | null, { alAbrir = false }: { alAbrir?: boolean } = {}) {
   return useQuery({
     queryKey: ['catalogo', companyId, 'marcas'],
     queryFn: () => listarMarcas(companyId!),
     enabled: companyId !== null,
     staleTime: CINCO_MINUTOS,
+    ...(alAbrir ? { refetchOnMount: 'always' as const, refetchOnWindowFocus: 'always' as const } : {}),
   })
 }
 
@@ -52,12 +54,32 @@ export function useCrearMarca() {
   })
 }
 
-export function useCategorias(companyId: string | null) {
+/**
+ * `alAbrir`: relee al montar aunque la caché sea reciente. Lo usa el alta de
+ * producto: una categoría creada recién en Configuración (otra pestaña) tiene
+ * que aparecer sin esperar los 5 minutos ni recargar la página.
+ */
+export function useCategorias(companyId: string | null, { alAbrir = false }: { alAbrir?: boolean } = {}) {
   return useQuery({
     queryKey: ['catalogo', companyId, 'categorias'],
     queryFn: () => listarCategorias(companyId!),
     enabled: companyId !== null,
     staleTime: CINCO_MINUTOS,
+    ...(alAbrir ? { refetchOnMount: 'always' as const, refetchOnWindowFocus: 'always' as const } : {}),
+  })
+}
+
+/** Crear una categoría desde el alta de producto; la deja en la lista al instante. */
+export function useCrearCategoria() {
+  const qc = useQueryClient()
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  return useMutation<CategoriaResumen, Error, string>({
+    mutationFn: (nombre) => crearCategoriaDelCatalogo(companyId!, nombre),
+    onSuccess: async (c) => {
+      qc.setQueryData<CategoriaResumen[]>(['catalogo', companyId, 'categorias'], (xs) => [...(xs ?? []), c])
+      await qc.invalidateQueries({ queryKey: ['catalogo', companyId, 'categorias'] })
+    },
   })
 }
 

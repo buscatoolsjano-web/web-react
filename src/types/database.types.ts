@@ -1259,6 +1259,7 @@ export type Database = {
           salesperson_id: string | null
           search_text: string | null
           status: string
+          tax_condition: string | null
           tax_id: string | null
           trade_name: string | null
           updated_at: string
@@ -1290,6 +1291,7 @@ export type Database = {
           salesperson_id?: string | null
           search_text?: string | null
           status?: string
+          tax_condition?: string | null
           tax_id?: string | null
           trade_name?: string | null
           updated_at?: string
@@ -1321,6 +1323,7 @@ export type Database = {
           salesperson_id?: string | null
           search_text?: string | null
           status?: string
+          tax_condition?: string | null
           tax_id?: string | null
           trade_name?: string | null
           updated_at?: string
@@ -9377,6 +9380,22 @@ export type Database = {
       }
       crear_cotizacion: {
         Args: { p_cabecera: Json; p_company: string; p_lineas: Json }
+        Returns: Json
+      }
+      cliente_guardar_datos_fiscales: {
+        Args: { p_condicion: string; p_cuit?: string; p_customer: string }
+        Returns: Json
+      }
+      factura_venta_anular_borrador: {
+        Args: { p_invoice: string }
+        Returns: Json
+      }
+      factura_venta_marcar_cobrada: {
+        Args: { p_invoice: string }
+        Returns: Json
+      }
+      factura_venta_marcar_emitida: {
+        Args: { p_fecha?: string; p_invoice: string; p_numero_fiscal: string }
         Returns: Json
       }
       crear_factura_desde_pedido: {

@@ -226,12 +226,13 @@ const COLUMNAS_DETALLE = `
   email_domains, industry, phone, customer_type, status, payment_terms,
   default_currency, discount_pct, credit_limit, notes, imported_at,
   legacy_source, needs_review, review_reason, deleted_at, created_at,
-  updated_at, salesperson_id, default_price_list_id,
+  updated_at, salesperson_id, default_price_list_id, tax_condition,
   vendedor:profiles!salesperson_id ( full_name ),
   tarifa:price_lists!default_price_list_id ( name )
 `
 
 interface FilaDetalle extends FilaListado {
+  tax_condition: string | null
   legacy_name: string | null
   customer_type: string
   status: string
@@ -283,6 +284,7 @@ export async function obtenerCliente(
     tipo: f.customer_type,
     estado: f.status,
     condicionDePago: f.payment_terms,
+    condicionIva: f.tax_condition,
     monedaPorDefecto: f.default_currency,
     descuentoPct: aNumero(f.discount_pct) ?? 0,
     limiteDeCredito: aNumero(f.credit_limit),
