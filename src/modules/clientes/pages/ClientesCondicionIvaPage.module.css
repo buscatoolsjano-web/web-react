@@ -1,0 +1,45 @@
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.tabla th {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.ref {
+  color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  .tabla thead {
+    display: none;
+  }
+  .tabla tr {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tabla td {
+    border-bottom: 0;
+    padding: 0 var(--space-2);
+  }
+}

@@ -356,3 +356,16 @@ export function editabilidadEntrega(
   }
   return { confirmable: true, editable: true, motivo: null }
 }
+
+/**
+ * El remito llegó al cliente: fecha y quién lo recibió (el remito firmado).
+ * No mueve stock —ya salió al despachar—; sólo cierra el paso.
+ */
+export async function marcarEntregaRecibida(deliveryId: string, fecha: string | null, recibio: string | null): Promise<void> {
+  const { error } = await supabase.rpc('marcar_entrega_recibida', {
+    p_delivery: deliveryId,
+    ...(fecha ? { p_fecha: fecha } : {}),
+    ...(recibio && recibio.trim() !== '' ? { p_recibio: recibio.trim() } : {}),
+  })
+  if (error) throw new Error(error.message)
+}

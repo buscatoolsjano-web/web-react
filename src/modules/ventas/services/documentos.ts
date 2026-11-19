@@ -11,7 +11,7 @@ import type {
   TipoDocumento,
   FiltrosVentas,
 } from '../types'
-import { SIN_VENDEDOR } from '../types'
+import { DIAS_PARA_RECLAMAR, SIN_VENDEDOR } from '../types'
 
 /**
  * Los tres documentos difieren en el nombre de la tabla, el de la fecha y el
@@ -267,6 +267,14 @@ export async function listarDocumentos(
   if (filtros.soloAbiertas && tipo === 'cotizacion') {
     const campo: string = 'abierta'
     q = q.is(campo, true)
+  }
+
+  // «Para reclamar»: abiertas y, o vencidas, o sin validez y viejas.
+  if (filtros.paraReclamar && tipo === 'cotizacion') {
+    const campo: string = 'abierta'
+    const hoy = new Date().toLocaleDateString('sv-SE')
+    const limite = new Date(Date.now() - DIAS_PARA_RECLAMAR * 86_400_000).toLocaleDateString('sv-SE')
+    q = q.is(campo, true).or(`valid_until.lt.${hoy},and(valid_until.is.null,quote_date.lte.${limite})`)
   }
 
   /*
@@ -722,4 +730,23 @@ export async function datosDeProductosImpresos(
     }
   }
   return datos
+}
+
+/**
+ * Cuántas cotizaciones hay para reclamar: abiertas y, o vencidas, o sin fecha
+ * de validez y con más de `DIAS_PARA_RECLAMAR` días. Es el número del aviso
+ * arriba del listado; la lista misma sale del filtro «Para reclamar».
+ */
+export async function contarCotizacionesParaReclamar(companyId: string): Promise<number> {
+  const hoy = new Date().toLocaleDateString('sv-SE')
+  const limite = new Date(Date.now() - DIAS_PARA_RECLAMAR * 86_400_000).toLocaleDateString('sv-SE')
+  const campo: string = 'abierta'
+  const { count, error } = await supabase
+    .from('sales_quotes')
+    .select('id', { count: 'exact', head: true })
+    .eq('company_id', companyId)
+    .is(campo, true)
+    .or(`valid_until.lt.${hoy},and(valid_until.is.null,quote_date.lte.${limite})`)
+  if (error) throw new Error(`No se pudo contar las cotizaciones para reclamar: ${error.message}`)
+  return count ?? 0
 }

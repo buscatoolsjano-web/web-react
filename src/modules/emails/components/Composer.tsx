@@ -21,7 +21,8 @@ export interface ComposerProps {
   /** Sin título visible cuando la página ya lo dice en su encabezado. */
   mostrarTitulo?: boolean
   onCerrar: () => void
-  onEnviado: (gmailThreadId: string) => void
+  /** El hilo enviado y, para registrarlo en el documento, a quién fue y con qué asunto. */
+  onEnviado: (gmailThreadId: string, envio: { para: string[]; cc: string[]; asunto: string }) => void
 }
 
 /** El envío sin confirmar, según lo que encontró la verificación en Enviados de Gmail. */
@@ -82,7 +83,9 @@ export function Composer({ opciones, titulo, mostrarTitulo = true, onCerrar, onE
   useEffect(() => {
     if (!hiloEnviado || avisado.current) return
     avisado.current = true
-    onEnviado(hiloEnviado)
+    onEnviado(hiloEnviado, { para: [...para], cc: [...cc], asunto })
+    // Sólo al enviar: los campos ya no cambian una vez enviado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hiloEnviado, onEnviado])
 
   const agregarArchivos = async (lista: FileList | null) => {

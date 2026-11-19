@@ -49,6 +49,10 @@ const TITULO: Record<string, string> = {
   stock_consumed: 'Stock descontado',
   stock_returned: 'Stock devuelto',
   reservation_released: 'Reservas liberadas',
+  // El documento salió por mail desde el ERP (a quién y con qué asunto).
+  emailed: 'Enviado por mail',
+  // El remito llegó: fecha y quién lo recibió (el remito firmado).
+  delivered: 'Entregado al cliente',
 }
 
 /** Los campos auditados, con el nombre que usa la gente. */
@@ -212,7 +216,22 @@ export function presentarEvento(e: EventoAuditoria, tipo: TipoDocumento): Evento
     else if (hasta) detalle.push(`Estado: ${hasta}`)
   }
 
+  // Envío por mail y entrega: el diff no es un «antes → después», es el dato.
+  if (e.accion === 'emailed' && e.diff) {
+    const d = e.diff as { para?: string[]; cc?: string[]; asunto?: string }
+    if (d.para?.length) detalle.push(`Para: ${d.para.join(', ')}`)
+    if (d.cc?.length) detalle.push(`Con copia: ${d.cc.join(', ')}`)
+    if (d.asunto) detalle.push(`Asunto: ${d.asunto}`)
+    return { id: e.id, titulo: titulo(e), detalle, cuando: formatearMomento(e.fecha), quien: e.actor ?? 'Proceso del sistema' }
+  }
+  if (e.accion === 'delivered' && e.diff) {
+    const d = e.diff as { fecha?: string; recibio?: string }
+    if (d.fecha) detalle.push(`Fecha: ${d.fecha.split('-').reverse().join('/')}`)
+    if (d.recibio) detalle.push(`Recibió: ${d.recibio}`)
+  }
+
   for (const [clave, crudo] of Object.entries(e.diff ?? {})) {
+    if (e.accion === 'delivered') break
     // Los cambios de líneas vienen aparte, como lista (Fase 15 · E2).
     if (clave === 'lineas' && Array.isArray(crudo)) {
       for (const l of crudo as CambioDeLinea[]) detalle.push(textoDeLinea(l))

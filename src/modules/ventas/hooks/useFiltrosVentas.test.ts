@@ -13,7 +13,7 @@ describe('leerFiltros', () => {
     const f = leerFiltros(
       url(
         'q=COTI02251&cliente=abc&estado=sent&moneda=USD&desde=2026-01-01&hasta=2026-06-30&revision=1' +
-          '&serie=COT-ERP&origen=sin&pendiente=1&abierta=1&vendedor=u-jano&page=3&per=50&orden=total&dir=asc',
+          '&serie=COT-ERP&origen=sin&pendiente=1&abierta=1&reclamar=1&vendedor=u-jano&page=3&per=50&orden=total&dir=asc',
       ),
     )
     expect(f).toEqual({
@@ -28,6 +28,7 @@ describe('leerFiltros', () => {
       origen: 'sin',
       pendienteDeEntrega: true,
       soloAbiertas: true,
+      paraReclamar: true,
       vendedorId: 'u-jano',
       pagina: 3,
       porPagina: 50,
@@ -65,6 +66,7 @@ describe('escribirFiltros', () => {
       origen: 'sin',
       pendienteDeEntrega: true,
       soloAbiertas: true,
+      paraReclamar: true,
       vendedorId: 'u-jano',
       pagina: 4,
       porPagina: 100,

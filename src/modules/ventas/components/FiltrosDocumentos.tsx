@@ -5,7 +5,7 @@ import { Checkbox, Input, Select } from '@/components/forms/controls'
 import { FiltroCliente } from './FiltroCliente'
 import { estadosDisponibles } from '../lib/estados'
 import { useFacetas, useVendedores } from '../hooks/useDocumentos'
-import { SIN_VENDEDOR } from '../types'
+import { DIAS_PARA_RECLAMAR, SIN_VENDEDOR } from '../types'
 import type { FiltrosVentas, TipoDocumento } from '../types'
 
 export interface FiltrosDocumentosProps {
@@ -18,7 +18,7 @@ export interface FiltrosDocumentosProps {
 
 /** Filtros aplicados además de la búsqueda (para el contador en mobile). */
 function contarActivos(f: FiltrosVentas): number {
-  return [f.clienteId, f.estado, f.moneda, f.desde, f.hasta, f.soloRevision, f.serie, f.origen, f.pendienteDeEntrega, f.soloAbiertas, f.vendedorId].filter(Boolean).length
+  return [f.clienteId, f.estado, f.moneda, f.desde, f.hasta, f.soloRevision, f.serie, f.origen, f.pendienteDeEntrega, f.soloAbiertas, f.paraReclamar, f.vendedorId].filter(Boolean).length
 }
 
 /**
@@ -161,6 +161,15 @@ export function FiltrosDocumentos({
           label="Sólo abiertas"
           checked={filtros.soloAbiertas}
           onChange={(e) => onAplicar({ soloAbiertas: e.target.checked })}
+        />
+      ) : null}
+
+      {tipo === 'cotizacion' ? (
+        <Checkbox
+          label="Para reclamar"
+          help={`Abiertas y vencidas, o sin fecha de validez y con más de ${DIAS_PARA_RECLAMAR} días`}
+          checked={filtros.paraReclamar}
+          onChange={(e) => onAplicar({ paraReclamar: e.target.checked })}
         />
       ) : null}
 

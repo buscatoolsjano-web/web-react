@@ -19,6 +19,11 @@ export interface ModalFacturarProps {
   total: number | null
   moneda: string | null
   formaPago: string | null
+  /**
+   * Si lo vendido ya salió (despachado o entregado). Se factura después de
+   * entregar: facturar antes es un anticipo, y se pide confirmarlo.
+   */
+  entregado?: boolean | undefined
   onCerrar: () => void
 }
 
@@ -29,7 +34,8 @@ export interface ModalFacturarProps {
  * o condición de IVA. Ahora: se muestra a quién y por cuánto, y si al cliente
  * le falta lo fiscal se carga ACÁ, sin ir a su ficha, y se factura.
  */
-export function ModalFacturar({ pedidoId, pedidoNumero, clienteId, clienteNombre, total, moneda, formaPago, onCerrar }: ModalFacturarProps) {
+export function ModalFacturar({ pedidoId, pedidoNumero, clienteId, clienteNombre, total, moneda, formaPago, entregado = true, onCerrar }: ModalFacturarProps) {
+  const [anticipo, setAnticipo] = useState(false)
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
   const qc = useQueryClient()
@@ -69,7 +75,7 @@ export function ModalFacturar({ pedidoId, pedidoNumero, clienteId, clienteNombre
           <Button variant="secondary" onClick={onCerrar} disabled={facturar.isPending}>
             Cancelar
           </Button>
-          <Button onClick={generar} loading={facturar.isPending} disabled={cliente.isPending || faltanDatos}>
+          <Button onClick={generar} loading={facturar.isPending} disabled={cliente.isPending || faltanDatos || (!entregado && !anticipo)}>
             Generar factura
           </Button>
         </>
@@ -85,6 +91,16 @@ export function ModalFacturar({ pedidoId, pedidoNumero, clienteId, clienteNombre
         Fecha de la factura{' '}
         <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
       </label>
+
+      {!entregado ? (
+        <Alert tone="warning" role="status" title="El pedido todavía no se entregó">
+          <p>Lo habitual es facturar después de entregar. Si es un anticipo o una venta que se factura antes, confirmalo.</p>
+          <label>
+            <input type="checkbox" checked={anticipo} onChange={(e) => setAnticipo(e.target.checked)} /> Facturar igual
+            (anticipo)
+          </label>
+        </Alert>
+      ) : null}
 
       {c && !faltanDatos ? (
         <p>

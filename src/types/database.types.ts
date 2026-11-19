@@ -9382,6 +9382,18 @@ export type Database = {
         Args: { p_cabecera: Json; p_company: string; p_lineas: Json }
         Returns: Json
       }
+      anular_recepcion: {
+        Args: { p_motivo: string; p_receipt: string }
+        Returns: Json
+      }
+      marcar_entrega_recibida: {
+        Args: { p_delivery: string; p_fecha?: string; p_recibio?: string }
+        Returns: Json
+      }
+      registrar_envio_documento: {
+        Args: { p_asunto?: string; p_cc?: string[]; p_id: string; p_para: string[]; p_tipo: string }
+        Returns: undefined
+      }
       cliente_guardar_datos_fiscales: {
         Args: { p_condicion: string; p_cuit?: string; p_customer: string }
         Returns: Json

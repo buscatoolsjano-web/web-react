@@ -1184,6 +1184,7 @@ function Detalle() {
           total={doc.total}
           moneda={doc.moneda}
           formaPago={doc.formaPago}
+          entregado={doc.estadoSecundario === 'delivered' || doc.estadoSecundario === 'partially_delivered'}
           onCerrar={() => setFacturando(false)}
         />
       ) : null}

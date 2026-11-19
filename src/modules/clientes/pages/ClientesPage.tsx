@@ -128,6 +128,11 @@ export function ClientesPage() {
       <LinkButton to="/clientes/revisar" variant="secondary">
         Revisar
       </LinkButton>
+      {permisos.editarCliente ? (
+        <LinkButton to="/clientes/condicion-iva" variant="secondary">
+          Condición de IVA
+        </LinkButton>
+      ) : null}
       {permisos.crearCliente ? (
         <LinkButton to="/clientes/nuevo" variant="primary" icon={<Icon name="plus" size={16} />}>
           Nuevo cliente

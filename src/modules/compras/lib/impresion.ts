@@ -46,7 +46,7 @@ export type TipoImpresion = 'pedido' | 'recepcion' | 'factura'
 
 export const TITULO_DE: Record<TipoImpresion, string> = {
   pedido: 'PEDIDO A PROVEEDOR',
-  recepcion: 'NOTA DE ENTRADA DE PROVEEDOR',
+  recepcion: 'NOTA DE ENTREGA DE PROVEEDOR',
   factura: 'FACTURA DE PROVEEDOR',
 }
 

@@ -514,7 +514,7 @@ export async function guardarLineas(
 /**
  * Confirmar.
  *
- * **No mueve stock.** El stock entra recién con la nota de entrada de
+ * **No mueve stock.** El stock entra recién con la nota de entrega de proveedor de
  * proveedor, y lo mueve `public.confirmar_recepcion()`. Confirmar un pedido
  * es una transición comercial: el pedido se le mandó al proveedor.
  *
@@ -575,7 +575,7 @@ export async function duplicarPedido(id: string): Promise<string> {
 /**
  * Borrar un pedido en borrador o cancelado, dejando el motivo y una copia en
  * `deletion_log` (Configuración → Borrados). Las líneas se van en cascada.
- * Un pedido con notas de entrada no se borra: lo frena la FK de
+ * Un pedido con notas de entrega de proveedor no se borra: lo frena la FK de
  * `goods_receipts`.
  */
 export async function borrarPedido(id: string, motivo: string): Promise<void> {
@@ -584,7 +584,7 @@ export async function borrarPedido(id: string, motivo: string): Promise<void> {
   } catch (e) {
     const texto = e instanceof Error ? e.message : ''
     if (texto.includes('goods_receipts')) {
-      throw new Error('Este pedido tiene notas de entrada: borralas primero o dejalo cancelado.', {
+      throw new Error('Este pedido tiene notas de entrega de proveedor: borralas primero o dejalo cancelado.', {
         cause: e,
       })
     }

@@ -99,6 +99,12 @@ export interface FiltrosVentas {
    */
   soloAbiertas: boolean
   /**
+   * Sólo cotizaciones: las que hay que reclamar o recotizar. Abiertas y, o
+   * vencidas (`valid_until` pasada), o sin fecha de validez y con más de
+   * `DIAS_PARA_RECLAMAR` días desde la fecha de la cotización.
+   */
+  paraReclamar: boolean
+  /**
    * De quién es el documento (Fase 73).
    *
    * El id de la persona, o `SIN_VENDEDOR` para los que no son de nadie. Y
@@ -114,6 +120,9 @@ export interface FiltrosVentas {
   direccion: DireccionOrden
 }
 
+/** Una cotización abierta sin fecha de validez se reclama pasados estos días. */
+export const DIAS_PARA_RECLAMAR = 7
+
 export const FILTROS_INICIALES: FiltrosVentas = {
   q: '',
   clienteId: null,
@@ -126,6 +135,7 @@ export const FILTROS_INICIALES: FiltrosVentas = {
   origen: null,
   pendienteDeEntrega: false,
   soloAbiertas: false,
+  paraReclamar: false,
   vendedorId: null,
   pagina: 1,
   porPagina: 25,

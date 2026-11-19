@@ -108,7 +108,7 @@ export function RecepcionesPage() {
   if (!permisos.verProveedores) {
     return (
       <div className={doc.listado}>
-        <PageHeader title="Notas de entrada" />
+        <PageHeader title="Notas de entrega de proveedor" />
         <Alert tone="neutral">
           <p>Tu rol no tiene acceso a Compras. La sección es de administradores y empleados.</p>
         </Alert>
@@ -142,7 +142,7 @@ export function RecepcionesPage() {
   return (
     <div className={doc.listado}>
       <PageHeader
-        title="Notas de entrada"
+        title="Notas de entrega de proveedor"
         subtitle={isPending ? 'Cargando…' : contar(total, RECEPCIONES)}
         actions={
           <>
@@ -255,7 +255,7 @@ export function RecepcionesPage() {
           <EmptyState
             icon="search"
             title="Sin resultados para estos filtros"
-            description="No hay notas de entrada que coincidan. Probá con otro proveedor, estado o fecha."
+            description="No hay notas de entrega de proveedor que coincidan. Probá con otro proveedor, estado o fecha."
             action={
               <Button variant="secondary" onClick={limpiar}>
                 Limpiar filtros
@@ -265,7 +265,7 @@ export function RecepcionesPage() {
         ) : (
           <EmptyState
             icon="package"
-            title="Todavía no hay notas de entrada"
+            title="Todavía no hay notas de entrega de proveedor"
             description="Se generan desde un pedido de compra confirmado, al recibir la mercadería."
           />
         )

@@ -220,7 +220,7 @@ export async function listarRecepciones(
 
 const COLUMNAS_DETALLE = `
   id, number, series_code, status, receipt_date, supplier_id, purchase_order_id,
-  warehouse_id, supplier_document, notes, confirmed_at, created_at,
+  warehouse_id, supplier_document, notes, confirmed_at, created_at, cancelled_at, cancel_reason,
   proveedor:suppliers!supplier_id ( legal_name ),
   pedido:purchase_orders!purchase_order_id ( number ),
   deposito:warehouses!warehouse_id ( name ),
@@ -254,6 +254,8 @@ export async function obtenerRecepcion(
     notes: string | null
     confirmed_at: string | null
     created_at: string
+    cancelled_at: string | null
+    cancel_reason: string | null
     proveedor: { legal_name: string } | null
     pedido: { number: string } | null
     deposito: { name: string } | null
@@ -279,6 +281,8 @@ export async function obtenerRecepcion(
     confirmadaEn: f.confirmed_at,
     confirmadaPor: f.confirmador?.full_name ?? null,
     creadoEn: f.created_at,
+    anuladaEn: f.cancelled_at,
+    motivoAnulacion: f.cancel_reason,
   }
 }
 
@@ -608,4 +612,15 @@ export async function ventasDeLaCompra(companyId: string, pedidoCompraId: string
       estadoEntrega: f.fulfillment_status ?? 'pending',
     }
   })
+}
+
+/**
+ * Anular una recepción confirmada: descuenta lo que sumó y queda «anulada».
+ * La base se niega si la mercadería ya salió o si está en una factura de
+ * proveedor; el mensaje es el de la base, que dice cuál de las dos.
+ */
+export async function anularRecepcion(id: string, motivo: string): Promise<{ movimientos: number }> {
+  const { data, error } = await supabase.rpc('anular_recepcion', { p_receipt: id, p_motivo: motivo })
+  if (error) throw new Error(error.message)
+  return { movimientos: Number((data as { movimientos?: number } | null)?.movimientos ?? 0) }
 }

@@ -60,6 +60,7 @@ export function leerFiltros(params: URLSearchParams): FiltrosVentas {
     origen: aOrigen(params.get('origen')),
     pendienteDeEntrega: params.get('pendiente') === '1',
     soloAbiertas: params.get('abierta') === '1',
+    paraReclamar: params.get('reclamar') === '1',
     vendedorId: params.get('vendedor'),
     pagina: aEntero(params.get('page'), 1),
     porPagina: (TAMANOS as readonly number[]).includes(porPagina)
@@ -85,6 +86,7 @@ export function escribirFiltros(f: FiltrosVentas): URLSearchParams {
   if (f.origen) p.set('origen', f.origen)
   if (f.pendienteDeEntrega) p.set('pendiente', '1')
   if (f.soloAbiertas) p.set('abierta', '1')
+  if (f.paraReclamar) p.set('reclamar', '1')
   if (f.vendedorId) p.set('vendedor', f.vendedorId)
   if (f.pagina > 1) p.set('page', String(f.pagina))
   if (f.porPagina !== FILTROS_INICIALES.porPagina) p.set('per', String(f.porPagina))
@@ -125,6 +127,7 @@ export function useFiltrosVentas() {
     filtros.origen !== null ||
     filtros.pendienteDeEntrega ||
     filtros.soloAbiertas ||
+    filtros.paraReclamar ||
     filtros.vendedorId !== null ||
     filtros.soloRevision
 

@@ -43,6 +43,7 @@ export function ChipRecepcion({ estado }: ChipEstadoProps) {
  * contramovimiento explícito, y eso no está en v1.
  */
 export function ChipRecepcionDoc({ estado }: ChipEstadoProps) {
+  if (estado === 'cancelled') return <Badge tone="danger" outline>Anulada</Badge>
   return estado === 'confirmed' ? <Badge tone="success">Confirmada</Badge> : <Badge tone="neutral">Borrador</Badge>
 }
 

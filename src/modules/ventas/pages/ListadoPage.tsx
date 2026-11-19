@@ -1,5 +1,5 @@
 import { Suspense, lazy, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -22,6 +22,7 @@ import { DOC_TYPE_DE, motivoBloqueo, TITULO_BANNER_STEL_SERIE_DEFECTO } from '..
 import { aCsv, descargarCsv } from '../lib/csv'
 import { escribeVentas } from '../lib/permisos'
 import { borrarDocumento, exportarCsv } from '../services/acciones'
+import { contarCotizacionesParaReclamar } from '../services/documentos'
 import { EliminarSeleccionados } from '@/components/document/EliminarSeleccionados'
 import { avisoDeBorradoMasivo } from '@/components/document/borradoMasivo'
 
@@ -36,7 +37,7 @@ import { avisoDeBorradoMasivo } from '@/components/document/borradoMasivo'
 const ModalImportarOc = lazy(() =>
   import('../components/ModalImportarOc').then((m) => ({ default: m.ModalImportarOc })),
 )
-import { ETIQUETA_DE, type OrdenVentas, type TipoDocumento } from '../types'
+import { DIAS_PARA_RECLAMAR, ETIQUETA_DE, type OrdenVentas, type TipoDocumento } from '../types'
 
 export interface ListadoPageProps {
   tipo: TipoDocumento
@@ -57,6 +58,13 @@ export interface ListadoPageProps {
  */
 export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaNuevo = 'Nuevo' }: ListadoPageProps) {
   const { filtros, aplicar, limpiar, hayFiltros } = useFiltrosVentas()
+  const empresaListado = useEmpresa().activa?.companyId ?? null
+  const paraReclamar = useQuery({
+    queryKey: ['ventas', empresaListado, 'cotizaciones-para-reclamar'],
+    queryFn: () => contarCotizacionesParaReclamar(empresaListado!),
+    enabled: tipo === 'cotizacion' && empresaListado !== null,
+    staleTime: 60_000,
+  })
   const { data, isPending, isFetching, error, refetch } = useDocumentos(tipo, filtros)
   const { activa } = useEmpresa()
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
@@ -248,6 +256,22 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaN
       {aviso ? (
         <Alert tone={aviso.ok ? 'success' : 'warning'} role="status">
           <p>{aviso.texto}</p>
+        </Alert>
+      ) : null}
+
+      {tipo === 'cotizacion' && !filtros.paraReclamar && (paraReclamar.data ?? 0) > 0 ? (
+        // Seguimiento: cotizaciones abiertas que nadie reclamó.
+        <Alert
+          tone="warning"
+          role="status"
+          title={`${paraReclamar.data} ${paraReclamar.data === 1 ? 'cotización espera' : 'cotizaciones esperan'} respuesta`}
+          action={
+            <Button size="sm" variant="secondary" onClick={() => aplicar({ paraReclamar: true })}>
+              Ver para reclamar
+            </Button>
+          }
+        >
+          <p>Abiertas y vencidas, o sin fecha de validez y con más de {DIAS_PARA_RECLAMAR} días.</p>
         </Alert>
       ) : null}
 

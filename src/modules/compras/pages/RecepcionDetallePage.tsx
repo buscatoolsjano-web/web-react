@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -27,7 +27,7 @@ import {
   usePendienteDePedido,
   useRecepcion,
 } from '../hooks/useRecepciones'
-import { ventasDeLaCompra, type CantidadARecibir } from '../services/recepciones'
+import { anularRecepcion, ventasDeLaCompra, type CantidadARecibir } from '../services/recepciones'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './ProveedorDetallePage.module.css'
 
@@ -84,6 +84,15 @@ export function RecepcionDetallePage() {
     id ?? null,
   )
 
+  // Anular una recepción confirmada (con motivo).
+  const qc = useQueryClient()
+  const [anulando, setAnulando] = useState(false)
+  const [motivo, setMotivo] = useState('')
+  const anular = useMutation({
+    mutationFn: (m: string) => anularRecepcion(id!, m),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['compras', activa?.companyId] }),
+  })
+
   // Las ventas para las que se compró lo que trae esta recepción.
   const ventas = useQuery({
     queryKey: ['compras', activa?.companyId, 'ventas-de-la-compra', recepcion?.pedidoId],
@@ -96,13 +105,13 @@ export function RecepcionDetallePage() {
   if (isPending) {
     return (
       <p className={styles.nota} role="status">
-        <Spinner size={20} /> Cargando nota de entrada…
+        <Spinner size={20} /> Cargando nota de entrega de proveedor…
       </p>
     )
   }
 
   if (error) {
-    return <ErrorState title="No se pudo leer la nota de entrada." description={error.message} />
+    return <ErrorState title="No se pudo leer la nota de entrega de proveedor." description={error.message} />
   }
 
   if (!recepcion) {
@@ -110,11 +119,11 @@ export function RecepcionDetallePage() {
       <EmptyState
         headingLevel={1}
         icon="search"
-        title="No se encontró la nota de entrada"
+        title="No se encontró la nota de entrega de proveedor"
         description="Puede que no exista o que no tengas acceso: Compras es de administradores y empleados."
         action={
           <LinkButton to="/compras/recepciones" icon={<Icon name="arrow-left" size={16} />}>
-            Volver a Notas de entrada
+            Volver a Notas de entrega de proveedor
           </LinkButton>
         }
       />
@@ -196,7 +205,7 @@ export function RecepcionDetallePage() {
       ) : null}
 
       <PageHeader
-        back={{ to: '/compras/recepciones', label: 'Notas de entrada' }}
+        back={{ to: '/compras/recepciones', label: 'Notas de entrega de proveedor' }}
         title={recepcion.numero}
         status={<ChipRecepcionDoc estado={recepcion.estado} />}
         subtitle={
@@ -220,17 +229,54 @@ export function RecepcionDetallePage() {
             mismas líneas se confirma primero, ésta va a fallar por sobre-recepción.
           </p>
         </Alert>
+      ) : recepcion.estado === 'cancelled' ? (
+        <Alert tone="danger" title="Recepción anulada">
+          <p>
+            {recepcion.anuladaEn ? `El ${formatearFechaHora(recepcion.anuladaEn)}. ` : ''}
+            Se descontó del stock lo que había sumado.
+            {recepcion.motivoAnulacion ? ` Motivo: ${recepcion.motivoAnulacion}.` : ''}
+          </p>
+        </Alert>
       ) : (
         <Alert tone="info">
           <p>
             Esta recepción está <strong>confirmada</strong>: movió stock y quedó congelada. No se
-            edita, no vuelve a borrador y no se borra. Para deshacerla haría falta un movimiento de
-            stock en contra, y eso todavía no existe.
+            edita ni se borra; si se cargó mal, se anula con «Anular recepción», que descuenta lo que
+            sumó.
           </p>
         </Alert>
       )}
 
-      {!esBorrador && porEntregar.length > 0 ? (
+      <ConfirmDialog
+        open={anulando}
+        tone="danger"
+        title={`¿Anular la recepción ${recepcion.numero}?`}
+        description="Se descuenta del stock lo que sumó y queda anulada; el pedido de compra vuelve a quedar pendiente de recibir. No se puede si la mercadería ya salió o si está en una factura de proveedor."
+        confirmLabel="Anular recepción"
+        busy={anular.isPending}
+        confirmDisabled={motivo.trim() === ''}
+        onCancel={() => setAnulando(false)}
+        onConfirm={() =>
+          anular.mutate(motivo.trim(), {
+            onSuccess: (r) => {
+              setAnulando(false)
+              setAviso(`Anulada. ${r.movimientos} ${r.movimientos === 1 ? 'movimiento' : 'movimientos'} de stock en contra.`)
+            },
+          })
+        }
+      >
+        <label className={styles.nota}>
+          Motivo (queda registrado)
+          <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3} style={{ width: '100%' }} />
+        </label>
+        {anular.error ? (
+          <Alert tone="danger" role="alert">
+            <p>{anular.error.message}</p>
+          </Alert>
+        ) : null}
+      </ConfirmDialog>
+
+      {recepcion.estado === 'confirmed' && porEntregar.length > 0 ? (
         // Llegó mercadería comprada PARA una venta: ya se puede entregar.
         <Alert tone="success" role="status" title="Ya se puede entregar">
           <ul>
@@ -264,7 +310,7 @@ export function RecepcionDetallePage() {
               <Button icon={<Icon name="check" size={16} />} onClick={() => setConfirmando(true)}>
                 Confirmar recepción
               </Button>
-            ) : escribe && !esBorrador ? (
+            ) : escribe && recepcion.estado === 'confirmed' ? (
               // Facturar lo que llegó. Sólo desde una recepción confirmada:
               // facturar lo que todavía no entró no es facturar, es adelantar.
               // La grilla de la factura vuelve a preguntarle al servidor qué
@@ -293,6 +339,11 @@ export function RecepcionDetallePage() {
             escribe && esBorrador ? (
               <Button variant="danger" icon={<Icon name="trash" size={16} />} onClick={() => setBorrando(true)}>
                 Borrar borrador
+              </Button>
+            ) : escribe && recepcion.estado === 'confirmed' ? (
+              // Si se cargó mal: descuenta lo que sumó y queda anulada.
+              <Button variant="danger" icon={<Icon name="x" size={16} />} onClick={() => { anular.reset(); setMotivo(''); setAnulando(true) }}>
+                Anular recepción
               </Button>
             ) : null
           }
@@ -501,7 +552,7 @@ export function RecepcionDetallePage() {
       <ConfirmBorrado
         open={borrando}
         que={`el borrador ${recepcion.numero}`}
-        description="Se borra la nota de entrada en borrador y sus líneas. No se puede deshacer, pero el motivo y una copia de lo borrado quedan en Configuración → Borrados."
+        description="Se borra la nota de entrega de proveedor en borrador y sus líneas. No se puede deshacer, pero el motivo y una copia de lo borrado quedan en Configuración → Borrados."
         confirmLabel="Borrar borrador"
         busy={acciones.borrar.isPending}
         onCancel={() => setBorrando(false)}

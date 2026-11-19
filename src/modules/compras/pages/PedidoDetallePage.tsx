@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { Suspense, lazy, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
@@ -27,6 +27,7 @@ import { problemasDeLinea } from '../lib/lineas'
 import { formatearFecha, formatearFechaHora, formatearImporte } from '../lib/formato'
 import { permisosDe } from '../lib/permisos'
 import { imprimiblePedido } from '../lib/impresion'
+import { historialDeEntidad } from '../services/auditoria'
 import { etiquetaDeTratamiento } from '../lib/tratamientos'
 import { CLASES_PEDIDO } from '../services/adjuntosCompras'
 import { validarPedido, type DatosPedidoCompra, type ErrorDePedido } from '../lib/validacion'
@@ -40,6 +41,11 @@ import {
 import { obtenerProveedorBreve, type ProveedorBuscado } from '../services/catalogo'
 import type { LineaPedidoCompra, PedidoCompraDetalle } from '../types'
 import styles from './ProveedorDetallePage.module.css'
+
+// El composer de Emails pesa: se baja recién al tocar «Enviar al proveedor».
+const ModalEnviarPedidoCompra = lazy(() =>
+  import('../components/ModalEnviarPedidoCompra').then((m) => ({ default: m.ModalEnviarPedidoCompra })),
+)
 
 type Pestana = 'pedido' | 'adjuntos' | 'relacionados'
 
@@ -84,7 +90,7 @@ function aFormulario(p: PedidoCompraDetalle): DatosPedidoCompra {
  * para no ofrecer una acción que va a fallar.
  *
  * **Confirmar no mueve stock.** Es una transición comercial: el pedido se le
- * mandó al proveedor. El stock entra recién con la nota de entrada.
+ * mandó al proveedor. El stock entra recién con la nota de entrega de proveedor.
  */
 export function PedidoDetallePage() {
   const { id } = useParams<{ id: string }>()
@@ -116,6 +122,7 @@ export function PedidoDetallePage() {
   const verPrevia = previaPedida ?? pantallaAncha
   const [aviso, setAviso] = useState<string | null>(null)
   const [imprimiendo, setImprimiendo] = useState(false)
+  const [enviando, setEnviando] = useState(false)
 
   const proveedor = useQuery<ProveedorBuscado | null>({
     queryKey: ['compras', companyId, 'proveedor-breve', pedido?.proveedorId],
@@ -123,6 +130,17 @@ export function PedidoDetallePage() {
     enabled: companyId !== null && !!pedido,
     staleTime: 5 * 60_000,
   })
+
+  // El último envío al proveedor (queda en la auditoría del pedido).
+  const envios = useQuery({
+    queryKey: ['compras', companyId, 'envios-pedido', id],
+    queryFn: async () =>
+      (await historialDeEntidad(companyId!, 'purchase_order', id!, 50)).filter((e) => e.accion === 'emailed'),
+    enabled: companyId !== null && !!id,
+    staleTime: 30_000,
+  })
+  const ultimoEnvio = envios.data?.[0] ?? null
+  const paraUltimoEnvio = (ultimoEnvio?.diff as { para?: string[] } | null)?.para ?? []
 
   if (isPending) {
     return (
@@ -208,6 +226,17 @@ export function PedidoDetallePage() {
 
   return (
     <div className={docUi.pagina}>
+      {enviando ? (
+        <Suspense fallback={null}>
+        <ModalEnviarPedidoCompra
+          pedidoId={pedido.id}
+          proveedorId={pedido.proveedorId}
+          doc={imprimiblePedido(pedido, lineasServidor.data ?? [], etiquetaDeTratamiento)}
+          onCerrar={() => setEnviando(false)}
+        />
+        </Suspense>
+      ) : null}
+
       {imprimiendo ? (
         <ModalImpresionCompras
           doc={imprimiblePedido(pedido, lineasServidor.data ?? [], etiquetaDeTratamiento)}
@@ -231,6 +260,13 @@ export function PedidoDetallePage() {
             </Link>
             {' · '}
             {formatearFecha(pedido.fecha)}
+            {ultimoEnvio ? (
+              <>
+                {' · '}
+                Enviado al proveedor el {formatearFechaHora(ultimoEnvio.fecha)}
+                {paraUltimoEnvio.length > 0 ? ` a ${paraUltimoEnvio.join(', ')}` : ''}
+              </>
+            ) : null}
           </>
         }
         actions={
@@ -292,7 +328,7 @@ export function PedidoDetallePage() {
             recibir ? (
               // Recibir mercadería. Sólo desde un pedido confirmado y mientras
               // quede algo por recibir: un pedido ya recibido del todo no
-              // necesita otra nota de entrada.
+              // necesita otra nota de entrega de proveedor.
               <LinkButton
                 to={`/compras/recepciones/nueva?pedido=${pedido.id}`}
                 variant="primary"
@@ -340,6 +376,11 @@ export function PedidoDetallePage() {
                   de facturar de todas sus recepciones confirmadas —que puede
                   venir de este pedido y de otros—. Por eso no se filtra por
                   pedido: una factura no es de un pedido. */}
+              {escribe && pedido.estado !== 'cancelled' ? (
+                <Button variant="secondary" icon={<Icon name="mail" size={16} />} onClick={() => setEnviando(true)}>
+                  Enviar al proveedor
+                </Button>
+              ) : null}
               {escribe && pedido.estado === 'confirmed' && pedido.estadoRecepcion !== 'pending' ? (
                 <LinkButton
                   to={`/compras/facturas/nueva?proveedor=${pedido.proveedorId}`}

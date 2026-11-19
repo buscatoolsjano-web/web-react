@@ -129,6 +129,7 @@ const ACCIONES: Record<string, string> = {
   receive: 'Recepción',
   stock_applied: 'Stock aplicado',
   delete: 'Baja',
+  emailed: 'Enviado por mail',
 }
 
 export function etiquetaDeAccion(accion: string): string {

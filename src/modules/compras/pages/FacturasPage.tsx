@@ -271,7 +271,7 @@ export function FacturasPage() {
           <EmptyState
             icon="inbox"
             title="Todavía no hay facturas de proveedor"
-            description="Las facturas se registran a partir de lo recibido en las notas de entrada."
+            description="Las facturas se registran a partir de lo recibido en las notas de entrega de proveedor."
             action={nueva}
           />
         )

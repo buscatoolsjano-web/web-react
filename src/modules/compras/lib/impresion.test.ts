@@ -76,6 +76,8 @@ const recepcion = (cambios: Partial<RecepcionDetalle> = {}): RecepcionDetalle =>
   confirmadaEn: null,
   confirmadaPor: null,
   creadoEn: '2026-09-10T10:00:00Z',
+  anuladaEn: null,
+  motivoAnulacion: null,
   ...cambios,
 })
 

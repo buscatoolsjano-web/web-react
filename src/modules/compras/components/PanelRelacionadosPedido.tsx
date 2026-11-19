@@ -82,7 +82,7 @@ export function PanelRelacionadosPedido({
           </dd>
         </div>
         <div className={styles.numero}>
-          <dt className={styles.etiqueta}>Notas de entrada</dt>
+          <dt className={styles.etiqueta}>Notas de entrega de proveedor</dt>
           <dd className={styles.valor}>{datos?.recepciones ?? 0}</dd>
         </div>
         <div className={styles.numero}>

@@ -64,7 +64,7 @@ export function RecepcionNuevaPage() {
   if (!permisos.crearProveedor) {
     return (
       <div className={docUi.pagina}>
-        <PageHeader back={{ to: '/compras/recepciones', label: 'Notas de entrada' }} title="Recibir mercadería" />
+        <PageHeader back={{ to: '/compras/recepciones', label: 'Notas de entrega de proveedor' }} title="Recibir mercadería" />
         <Alert tone="neutral">
           <p>Tu rol no puede registrar recepciones.</p>
         </Alert>

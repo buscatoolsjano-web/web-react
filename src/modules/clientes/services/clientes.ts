@@ -554,3 +554,35 @@ export async function gruposCuitLegacy(clienteIds: readonly string[]): Promise<G
     })),
   }))
 }
+
+/** Un cliente al que le falta la condición frente al IVA. */
+export interface ClienteSinCondicionIva {
+  id: string
+  referencia: string | null
+  razonSocial: string
+  cuit: string | null
+}
+
+/**
+ * Los clientes activos sin condición frente al IVA, todos (de a 1.000, el tope
+ * de PostgREST). Es la lista de la carga masiva: sin la condición no se factura.
+ */
+export async function clientesSinCondicionIva(companyId: string): Promise<ClienteSinCondicionIva[]> {
+  const salida: ClienteSinCondicionIva[] = []
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('id, legacy_ref, legal_name, tax_id')
+      .eq('company_id', companyId)
+      .is('tax_condition', null)
+      .is('deleted_at', null)
+      .eq('status', 'active')
+      .order('legal_name')
+      .range(desde, desde + 999)
+    if (error) throw new Error(`No se pudieron leer los clientes: ${error.message}`)
+    for (const f of data ?? []) {
+      salida.push({ id: f.id, referencia: f.legacy_ref, razonSocial: f.legal_name, cuit: f.tax_id })
+    }
+    if ((data ?? []).length < 1000) return salida
+  }
+}

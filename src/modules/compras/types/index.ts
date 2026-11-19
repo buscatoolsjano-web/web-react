@@ -263,7 +263,7 @@ export interface UltimoPrecioCompra {
 // ── Recepciones (notas de entrada de proveedor) ────────────────────────────
 
 /** Los dos del CHECK de `goods_receipts.status`. No hay más. */
-export type EstadoRecepcionDoc = 'draft' | 'confirmed'
+export type EstadoRecepcionDoc = 'draft' | 'confirmed' | 'cancelled'
 
 export interface RecepcionListado {
   id: string
@@ -371,6 +371,9 @@ export interface RecepcionDetalle {
   confirmadaEn: string | null
   confirmadaPor: string | null
   creadoEn: string
+  /** Cuándo y por qué se anuló (sólo `cancelled`). */
+  anuladaEn: string | null
+  motivoAnulacion: string | null
 }
 
 export interface Deposito {

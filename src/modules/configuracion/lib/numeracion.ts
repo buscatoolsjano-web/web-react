@@ -35,7 +35,7 @@ const TIPOS: Record<string, string> = {
   customer: 'Clientes',
   supplier: 'Proveedores',
   purchase_order: 'Pedidos de compra',
-  goods_receipt: 'Notas de entrada',
+  goods_receipt: 'Notas de entrega de proveedor',
   supplier_invoice: 'Facturas de proveedor (ref. interna)',
   maintenance_asset: 'Equipos de mantenimiento',
   maintenance_order: 'Órdenes de servicio',

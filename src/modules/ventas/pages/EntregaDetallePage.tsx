@@ -76,6 +76,7 @@ import { escribeVentas } from '../lib/permisos'
 import { FalloDeGuardado } from '../services/cotizaciones'
 import {
   confirmarEntrega,
+  marcarEntregaRecibida,
   editabilidadEntrega,
   guardarRemito,
   lineasParaEntregar,
@@ -312,6 +313,20 @@ function Detalle() {
       if (e instanceof FalloDeGuardado && e.esConflicto) setConflicto(true)
       setResultado(null)
       setUltimoError(mensajeErrorVentas(e))
+    },
+  })
+
+  // El remito firmado: el cliente lo recibió.
+  const [marcandoEntregado, setMarcandoEntregado] = useState(false)
+  const [fechaEntrega, setFechaEntrega] = useState('')
+  const [recibio, setRecibio] = useState('')
+  const entregado = useMutation({
+    mutationFn: () => marcarEntregaRecibida(id!, fechaEntrega || null, recibio),
+    onSuccess: () => {
+      setMarcandoEntregado(false)
+      setUltimoError(null)
+      setResultado('Marcado como entregado al cliente.')
+      void refrescar()
     },
   })
 
@@ -646,8 +661,21 @@ function Detalle() {
           titulo={doc.numero}
           pasos={circuito}
           primary={
-            // Despachado: lo que sigue es facturar el pedido, desde acá mismo.
-            !permiso.confirmable && escribe && (doc.estado === 'shipped' || doc.estado === 'delivered') && doc.origen?.tipo === 'pedido' && !cadena.data?.factura ? (
+            // Despachado: lo que sigue es que el cliente lo reciba (remito firmado).
+            !permiso.confirmable && escribe && doc.estado === 'shipped' ? (
+              <Button
+                icon={<Icon name="check" size={16} />}
+                onClick={() => {
+                  entregado.reset()
+                  setFechaEntrega(new Date().toLocaleDateString('sv-SE'))
+                  setRecibio('')
+                  setMarcandoEntregado(true)
+                }}
+              >
+                Marcar entregado
+              </Button>
+            ) : // Entregado: lo que sigue es facturar el pedido, desde acá mismo.
+            !permiso.confirmable && escribe && doc.estado === 'delivered' && doc.origen?.tipo === 'pedido' && !cadena.data?.factura ? (
               <Button icon={<Icon name="check" size={16} />} onClick={() => setFacturando(true)}>
                 Facturar el pedido
               </Button>
@@ -688,6 +716,12 @@ function Detalle() {
                 aria-label={verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
                 title={verPrevia ? 'Ocultar vista previa' : 'Vista previa'}
               />
+              {/* Despachado y sin firmar todavía: se puede facturar igual. */}
+              {!permiso.confirmable && escribe && doc.estado === 'shipped' && doc.origen?.tipo === 'pedido' && !cadena.data?.factura ? (
+                <Button variant="secondary" onClick={() => setFacturando(true)}>
+                  Facturar el pedido
+                </Button>
+              ) : null}
               {acciones.secundarias}
             </>
           }
@@ -1047,6 +1081,30 @@ function Detalle() {
       />
 
       {acciones.capas}
+
+      <ConfirmDialog
+        open={marcandoEntregado}
+        title={`¿Marcar entregado el remito ${doc.numero}?`}
+        description="El cliente recibió la mercadería (remito firmado). No mueve stock: ya salió al despachar."
+        confirmLabel="Marcar entregado"
+        busy={entregado.isPending}
+        onCancel={() => setMarcandoEntregado(false)}
+        onConfirm={() => entregado.mutate()}
+      >
+        <label>
+          Fecha de entrega{' '}
+          <input type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} />
+        </label>
+        <label>
+          Quién recibió (opcional){' '}
+          <input value={recibio} onChange={(e) => setRecibio(e.target.value)} placeholder="Nombre y aclaración de la firma" />
+        </label>
+        {entregado.error ? (
+          <Alert tone="danger" role="alert">
+            <p>{entregado.error.message}</p>
+          </Alert>
+        ) : null}
+      </ConfirmDialog>
 
       {facturando && doc.origen?.tipo === 'pedido' ? (
         <ModalFacturar

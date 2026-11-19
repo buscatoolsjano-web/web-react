@@ -207,7 +207,11 @@ export function ModalEnviarPorMail({ doc, lineas, opciones, onCerrar }: ModalEnv
               titulo={TITULO[doc.tipo]}
               mostrarTitulo={false}
               onCerrar={cerrar}
-              onEnviado={() => setEnviado(true)}
+              onEnviado={(_hilo, envio) => {
+                setEnviado(true)
+                // Constancia en el documento: cuándo y a quién se mandó.
+                void import('@/services/envioDocumento').then((m) => m.registrarEnvioDocumento(doc.tipo, doc.id, envio))
+              }}
             />
           ) : null}
         </>
