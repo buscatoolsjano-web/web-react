@@ -22,7 +22,6 @@ import { DOC_TYPE_DE, motivoBloqueo, TITULO_BANNER_STEL_SERIE_DEFECTO } from '..
 import { aCsv, descargarCsv } from '../lib/csv'
 import { escribeVentas } from '../lib/permisos'
 import { borrarDocumento, exportarCsv } from '../services/acciones'
-import { contarCotizacionesParaReclamar } from '../services/documentos'
 import { EliminarSeleccionados } from '@/components/document/EliminarSeleccionados'
 import { avisoDeBorradoMasivo } from '@/components/document/borradoMasivo'
 
@@ -61,7 +60,9 @@ export function ListadoPage({ tipo, titulo, etiquetaOrigen, rutaNuevo, etiquetaN
   const empresaListado = useEmpresa().activa?.companyId ?? null
   const paraReclamar = useQuery({
     queryKey: ['ventas', empresaListado, 'cotizaciones-para-reclamar'],
-    queryFn: () => contarCotizacionesParaReclamar(empresaListado!),
+    // El servicio se carga al usarse: así el cliente de la base no entra en
+    // los tests de la pantalla (en CI no hay variables de entorno).
+    queryFn: async () => (await import('../services/documentos')).contarCotizacionesParaReclamar(empresaListado!),
     enabled: tipo === 'cotizacion' && empresaListado !== null,
     staleTime: 60_000,
   })
