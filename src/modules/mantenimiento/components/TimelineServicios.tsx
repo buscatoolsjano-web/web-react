@@ -133,7 +133,10 @@ function Evento({ servicio: s }: { servicio: ServicioHistorico }) {
 
       {/* El estado crudo de STEL, discreto: sirve para auditar la traducción
           sin competir con lo que se lee arriba. */}
-      <p className={styles.origen}>En STEL: {s.estadoStel}</p>
+      {/* Las fichas técnicas del sitio viejo del taller no pasaron por STEL. */}
+      <p className={styles.origen}>
+        {s.origen === 'mant_web' ? 'Importado del sitio de mantenimiento' : `En STEL: ${s.estadoStel}`}
+      </p>
     </li>
   )
 }

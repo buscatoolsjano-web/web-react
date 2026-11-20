@@ -19,7 +19,7 @@ import type { DocumentoFuente, LineaFuente, ServicioHistorico } from '../types'
 const COLUMNAS = `
   id, chain_id, asset_id, external_id, received_at, delivered_at, status, quotation_status,
   invoiced, title, diagnosis_notes, repair_notes, closing_notes, technician_name_raw,
-  currency_code, amount, amount_attribution, stel_status_raw,
+  currency_code, amount, amount_attribution, stel_status_raw, external_source,
   cadena:maintenance_service_chains!chain_id (
     id, label, asset_count, amount, currency_code,
     documentos:maintenance_service_source_documents (
@@ -74,6 +74,7 @@ interface Fila {
   amount: number | null
   amount_attribution: ServicioHistorico['importeAtribuible']
   stel_status_raw: string
+  external_source: string
   cadena: {
     id: string
     label: string
@@ -150,6 +151,7 @@ function aServicio(f: Fila): ServicioHistorico {
     importe: f.amount,
     importeAtribuible: f.amount_attribution,
     estadoStel: f.stel_status_raw,
+    origen: f.external_source,
     equiposEnElServicio: f.cadena?.asset_count ?? 1,
     importeDeLaCadena: f.cadena?.amount ?? null,
     documentos,

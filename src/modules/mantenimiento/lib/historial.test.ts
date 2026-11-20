@@ -35,6 +35,7 @@ const servicio = (p: Partial<ServicioHistorico> = {}): ServicioHistorico => ({
   importe: null,
   importeAtribuible: 'shared',
   estadoStel: 'Presupuesto Cerrada + Orden Cerrada + Remito Facturada',
+  origen: 'stel',
   equiposEnElServicio: 7,
   importeDeLaCadena: 121000,
   documentos: [],

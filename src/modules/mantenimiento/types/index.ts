@@ -555,6 +555,8 @@ export interface ServicioHistorico {
   importe: number | null
   importeAtribuible: 'asset' | 'shared' | 'unknown'
   estadoStel: string
+  /** De dónde vino: `stel`, o `mant_web` (el sitio viejo del taller, mantenimiento.buscatool.com). */
+  origen: string
   /** Cuántos equipos compartieron este mismo servicio. 1 = sólo éste. */
   equiposEnElServicio: number
   /** El importe del documento de la cadena, como contexto cuando es compartido. */
