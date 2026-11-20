@@ -22,6 +22,7 @@ const orden = (p: Partial<OrdenListado> = {}): OrdenListado => ({
   estado: 'open',
   etapa: 'diagnosis',
   enEspera: true,
+  motivoPausa: null,
   tipoServicio: 'preventive',
   motivoIngreso: null,
   aprietesIngreso: null,

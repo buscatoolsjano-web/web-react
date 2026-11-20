@@ -186,6 +186,8 @@ export interface DuplicadoDeSerial {
 export type EstadoOrden = 'open' | 'closed' | 'cancelled'
 export type EtapaOrden = 'diagnosis' | 'quotation' | 'repair' | 'torque' | 'closing'
 export type EstadoCotizacion = 'pending' | 'approved' | 'rejected'
+export type MotivoPausa = 'sin_repuesto' | 'repuesto_con_falla' | 'urgencia' | 'espera_cliente' | 'otro'
+export type ResultadoFinal = 'aprobada' | 'reprobada' | 'espera_repuesto' | 'calibrada'
 export type TipoServicio =
   | 'corrective'
   | 'preventive'
@@ -204,6 +206,8 @@ export interface OrdenListado {
   estado: EstadoOrden
   etapa: EtapaOrden
   enEspera: boolean
+  /** Por qué está en espera; sólo con `enEspera`. */
+  motivoPausa: MotivoPausa | null
   tipoServicio: TipoServicio
   motivoIngreso: string | null
   /** Aprietes (ciclos de apriete FEIN) que traía la herramienta al ingresar. */
@@ -243,6 +247,10 @@ export interface OrdenDetalle extends OrdenListado {
   torqueNominal: number | null
   torqueUsl: number | null
   enEsperaDesde: string | null
+  notaPausa: string | null
+  resultadoFinal: ResultadoFinal | null
+  eficienciaPct: number | null
+  proximoPreventivo: string | null
   notasCierre: string | null
   cerradaEn: string | null
   autor: string | null

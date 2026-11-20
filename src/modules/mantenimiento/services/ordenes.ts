@@ -4,6 +4,7 @@ import type {
   EtapaOrden,
   EventoDeMantenimiento,
   FiltrosOrdenes,
+  MotivoPausa,
   OrdenDetalle,
   OrdenListado,
   PaginaDeOrdenes,
@@ -38,7 +39,7 @@ const vacioANulo = (s: string): string | null => {
 }
 
 const COLUMNAS = `
-  id, number, asset_id, customer_id, status, stage, on_hold, service_type,
+  id, number, asset_id, customer_id, status, stage, on_hold, on_hold_reason, service_type,
   entry_reason, tightenings_at_entry, technician_id, received_at, delivered_at, quote_status,
   quote_currency_code, quote_total,
   equipo:maintenance_assets!asset_id ( reference, serial_number, model_text ),
@@ -54,6 +55,7 @@ interface Fila {
   status: string
   stage: string
   on_hold: boolean
+  on_hold_reason: string | null
   service_type: string
   entry_reason: string | null
   tightenings_at_entry: number | string | null
@@ -79,6 +81,7 @@ const aFila = (f: Fila): OrdenListado => ({
   estado: f.status as OrdenListado['estado'],
   etapa: f.stage as EtapaOrden,
   enEspera: f.on_hold,
+  motivoPausa: f.on_hold ? (f.on_hold_reason as OrdenListado['motivoPausa']) : null,
   tipoServicio: f.service_type as OrdenListado['tipoServicio'],
   motivoIngreso: f.entry_reason,
   aprietesIngreso: f.tightenings_at_entry === null ? null : aNumero(f.tightenings_at_entry),
@@ -140,7 +143,8 @@ export async function obtenerOrden(
     .select(
       `${COLUMNAS}, series_code, visual_condition, diagnosis_notes, diagnosed_at,
        diagnosed_by, repair_required, torque_required, repaired_at, torque_at,
-       on_hold_since, closing_notes, closed_at, received_by, created_at, updated_at,
+       on_hold_since, on_hold_note, final_result, efficiency_pct, next_preventive_date,
+       closing_notes, closed_at, received_by, created_at, updated_at,
        quote_subtotal, quote_approved_at, quote_approved_by_name, quote_notes,
        repair_notes, labour_hours, torque_lsl, torque_nominal, torque_usl,
        autor:profiles!created_by ( full_name ),
@@ -163,6 +167,10 @@ export async function obtenerOrden(
     repaired_at: string | null
     torque_at: string | null
     on_hold_since: string | null
+    on_hold_note: string | null
+    final_result: string | null
+    efficiency_pct: number | string | null
+    next_preventive_date: string | null
     closing_notes: string | null
     closed_at: string | null
     received_by: string | null
@@ -205,6 +213,10 @@ export async function obtenerOrden(
     reparadaEn: f.repaired_at,
     torqueEn: f.torque_at,
     enEsperaDesde: f.on_hold_since,
+    notaPausa: f.on_hold_note,
+    resultadoFinal: f.final_result as OrdenDetalle['resultadoFinal'],
+    eficienciaPct: f.efficiency_pct === null ? null : aNumero(f.efficiency_pct),
+    proximoPreventivo: f.next_preventive_date,
     notasCierre: f.closing_notes,
     cerradaEn: f.closed_at,
     autor: f.autor?.full_name ?? null,
@@ -357,18 +369,33 @@ export async function moverEtapa(
   if (error) throw new Error(traducir(error.message, error.code))
 }
 
-/** Pausar y reanudar. No cambia la etapa: es un flag ortogonal. */
+export type CambioEspera =
+  | { enEspera: true; motivo: MotivoPausa; nota: string }
+  | { enEspera: false }
+
+/**
+ * Pausar y reanudar. No cambia la etapa: es un flag ortogonal.
+ *
+ * Pausar pide el porqué —como el sitio viejo del taller—, y reanudar lo
+ * borra: el motivo de la pausa anterior queda en la auditoría.
+ */
 export async function ponerEnEspera(
   companyId: string,
   id: string,
-  enEspera: boolean,
+  cambio: CambioEspera,
 ): Promise<void> {
   const { error } = await supabase
     .from('maintenance_orders')
-    .update({
-      on_hold: enEspera,
-      on_hold_since: enEspera ? new Date().toISOString() : null,
-    })
+    .update(
+      cambio.enEspera
+        ? {
+            on_hold: true,
+            on_hold_since: new Date().toISOString(),
+            on_hold_reason: cambio.motivo,
+            on_hold_note: vacioANulo(cambio.nota),
+          }
+        : { on_hold: false, on_hold_since: null, on_hold_reason: null, on_hold_note: null },
+    )
     .eq('company_id', companyId)
     .eq('id', id)
   if (error) throw new Error(traducir(error.message, error.code))

@@ -1,5 +1,5 @@
 import { supabase } from '@/services/supabase/client'
-import type { EstadoCotizacion, EstadoOrden, EtapaOrden, PrecheckCierre } from '../types'
+import type { EstadoCotizacion, EstadoOrden, EtapaOrden, PrecheckCierre, ResultadoFinal } from '../types'
 
 /**
  * El cierre de la orden.
@@ -131,6 +131,33 @@ export async function guardarEntrega(
   if (error) throw new Error(traducir(error.message, error.code))
 }
 
+export interface DatosCierre {
+  resultado: ResultadoFinal | null
+  eficienciaPct: number | null
+  proximoPreventivo: string | null
+  notas: string
+}
+
+/**
+ * Cómo termina el servicio: resultado final (que el cierre exige), % de
+ * eficiencia general, cuándo le toca el próximo preventivo y las
+ * observaciones finales. Es lo que el sitio viejo del taller pedía al cerrar.
+ */
+export async function guardarDatosCierre(companyId: string, ordenId: string, d: DatosCierre): Promise<void> {
+  const notas = d.notas.trim()
+  const { error } = await supabase
+    .from('maintenance_orders')
+    .update({
+      final_result: d.resultado,
+      efficiency_pct: d.eficienciaPct,
+      next_preventive_date: d.proximoPreventivo,
+      closing_notes: notas === '' ? null : notas,
+    })
+    .eq('company_id', companyId)
+    .eq('id', ordenId)
+  if (error) throw new Error(traducir(error.message, error.code))
+}
+
 /**
  * Los CHECK de tabla que puede tocar esta pantalla, en castellano.
  *
@@ -145,6 +172,9 @@ const CONSTRAINTS: Record<string, string> = {
   chk_mo_repair_coherente:
     'Esta orden tiene la reparación marcada como no requerida: no se le carga fecha de reparación.',
   maintenance_orders_labour_hours_check: 'Las horas de mano de obra no pueden ser negativas.',
+  chk_mo_eficiencia: 'La eficiencia va de 0 a 100 %.',
+  chk_mo_resultado_final: 'Ese resultado final no existe.',
+  chk_mo_motivo_pausa: 'Ese motivo de pausa no existe.',
 }
 
 function traducir(mensaje: string, codigo?: string): string {

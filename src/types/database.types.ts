@@ -3338,6 +3338,10 @@ export type Database = {
           number: string
           on_hold: boolean
           on_hold_since: string | null
+          on_hold_reason: string | null
+          on_hold_note: string | null
+          final_result: string | null
+          efficiency_pct: number | null
           pending_parts: string | null
           quote_approved_at: string | null
           quote_approved_by_name: string | null
@@ -3389,6 +3393,10 @@ export type Database = {
           number: string
           on_hold?: boolean
           on_hold_since?: string | null
+          on_hold_reason?: string | null
+          on_hold_note?: string | null
+          final_result?: string | null
+          efficiency_pct?: number | null
           pending_parts?: string | null
           quote_approved_at?: string | null
           quote_approved_by_name?: string | null
@@ -3440,6 +3448,10 @@ export type Database = {
           number?: string
           on_hold?: boolean
           on_hold_since?: string | null
+          on_hold_reason?: string | null
+          on_hold_note?: string | null
+          final_result?: string | null
+          efficiency_pct?: number | null
           pending_parts?: string | null
           quote_approved_at?: string | null
           quote_approved_by_name?: string | null

@@ -1,5 +1,5 @@
 import { etiquetaDeAccion, formatearFechaHora, formatearImporte } from '../lib/formato'
-import { etiquetaDeEstado, etiquetaDeEtapa } from '../lib/estados'
+import { etiquetaDeEstado, etiquetaDeEtapa, etiquetaDeMotivoPausa, etiquetaDeResultadoFinal } from '../lib/estados'
 import { Icon } from '@/components/icons/Icon'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { SkeletonRows } from '@/components/ui/Skeleton'
@@ -43,7 +43,29 @@ function traducirEstado(accion: string, valor: string | null): string {
  */
 function detalle(e: EventoDeMantenimiento): string | null {
   if (e.accion === 'order_put_on_hold' || e.accion === 'order_resumed') {
-    return e.estadoNuevo ? `en ${etiquetaDeEtapa(e.estadoNuevo)}` : null
+    const partes: string[] = []
+    if (e.estadoNuevo) partes.push(`en ${etiquetaDeEtapa(e.estadoNuevo)}`)
+    const motivo = e.diff?.['motivo']
+    if (typeof motivo === 'string') partes.push(etiquetaDeMotivoPausa(motivo) ?? motivo)
+    const nota = e.diff?.['nota']
+    if (typeof nota === 'string' && nota !== '') partes.push(nota)
+    return partes.length > 0 ? partes.join(' · ') : null
+  }
+
+  // El presupuesto mandado por mail: a quién.
+  if (e.accion === 'quote_emailed') {
+    const para = e.diff?.['para']
+    return Array.isArray(para) && para.length > 0 ? `a ${para.join(', ')}` : null
+  }
+
+  // El cierre: con qué resultado.
+  if (e.accion === 'order_closed' && e.diff) {
+    const partes: string[] = []
+    const resultado = e.diff['resultado']
+    if (typeof resultado === 'string') partes.push(etiquetaDeResultadoFinal(resultado) ?? resultado)
+    const eficiencia = e.diff['eficiencia']
+    if (typeof eficiencia === 'number' || typeof eficiencia === 'string') partes.push(`eficiencia ${eficiencia} %`)
+    if (partes.length > 0) return partes.join(' · ')
   }
 
   // «Cotización aprobada · pending → approved» dice dos veces lo mismo. Lo que

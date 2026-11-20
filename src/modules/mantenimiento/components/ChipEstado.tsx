@@ -4,6 +4,7 @@ import {
   etiquetaDeCotizacion,
   etiquetaDeEstado,
   etiquetaDeEtapa,
+  etiquetaDeMotivoPausa,
   etiquetaDeResultado,
   etiquetaDeSituacion,
   etiquetaDeVeredicto,
@@ -54,11 +55,12 @@ export function ChipCotizacion({ estado }: ChipProps) {
 }
 
 /** La espera es ortogonal a todo lo demás: sólo aparece cuando está activa. */
-export function ChipEspera({ enEspera }: { enEspera: boolean }) {
+export function ChipEspera({ enEspera, motivo = null }: { enEspera: boolean; motivo?: string | null }) {
   if (!enEspera) return null
+  const porque = etiquetaDeMotivoPausa(motivo)
   return (
     <Badge tone="warning" dot>
-      En espera
+      {porque ? `En espera · ${porque}` : 'En espera'}
     </Badge>
   )
 }

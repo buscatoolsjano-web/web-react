@@ -1,6 +1,6 @@
 import { supabase } from '@/services/supabase/client'
 
-export type DocumentoEnviable = 'cotizacion' | 'pedido' | 'entrega' | 'pedido_compra'
+export type DocumentoEnviable = 'cotizacion' | 'pedido' | 'entrega' | 'pedido_compra' | 'orden_mantenimiento'
 
 /**
  * Deja constancia en el documento de que se mandó por mail: a quién, con copia

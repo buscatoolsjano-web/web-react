@@ -59,6 +59,7 @@ const ACCIONES: Record<string, string> = {
   order_closed: 'Cierre',
   order_cancelled: 'Cancelación',
   quote_approved: 'Cotización aprobada',
+  quote_emailed: 'Presupuesto enviado por mail',
   quote_rejected: 'Cotización rechazada',
   consumption_confirmed: 'Consumo de repuestos',
   part_added: 'Repuesto agregado',
@@ -110,4 +111,13 @@ export function nombreDeEquipo(referencia: string, modelo: string | null): strin
  */
 export function indicadorDeCapacidad(v: number | null, sufijo = ''): string {
   return v === null ? 'N/D' : `${formatearNumero(v)}${sufijo}`
+}
+
+/** `2026-11-30` + 3 meses → `2027-02-28`: si el día no existe, el último del mes. */
+export function sumarMeses(fecha: string, meses: number): string {
+  const [a, m, d] = fecha.split('-').map(Number) as [number, number, number]
+  const destino = new Date(Date.UTC(a, m - 1 + meses, 1))
+  const ultimo = new Date(Date.UTC(destino.getUTCFullYear(), destino.getUTCMonth() + 1, 0)).getUTCDate()
+  destino.setUTCDate(Math.min(d, ultimo))
+  return destino.toISOString().slice(0, 10)
 }

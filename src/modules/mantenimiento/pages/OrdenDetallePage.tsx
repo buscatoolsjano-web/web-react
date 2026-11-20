@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -28,6 +28,11 @@ import { PanelCierre } from '../components/PanelCierre'
 import { PanelHistorial } from '../components/PanelHistorial'
 import { PanelAdjuntos } from '../components/PanelAdjuntos'
 import { ChipCotizacion, ChipEspera, ChipEstadoOrden, ChipEtapa } from '../components/ChipEstado'
+
+// El composer y el PDF pesan: se bajan recién al tocar «Enviar por mail».
+const ModalEnviarPresupuesto = lazy(() =>
+  import('../components/ModalEnviarPresupuesto').then((m) => ({ default: m.ModalEnviarPresupuesto })),
+)
 import {
   useAccionesOrden,
   useChecks,
@@ -78,6 +83,7 @@ export function OrdenDetallePage() {
 
   const [pestana, setPestana] = useState<Pestana>('trabajo')
   const [cancelando, setCancelando] = useState(false)
+  const [enviando, setEnviando] = useState(false)
   const [motivo, setMotivo] = useState('')
 
   const { data: orden, isPending, error } = useOrden(id)
@@ -195,7 +201,7 @@ export function OrdenDetallePage() {
           <>
             <ChipEstadoOrden estado={orden.estado} />
             <ChipEtapa estado={orden.etapa} />
-            <ChipEspera enEspera={orden.enEspera} />
+            <ChipEspera enEspera={orden.enEspera} motivo={orden.motivoPausa} />
             <ChipCotizacion estado={orden.estadoCotizacion} />
           </>
         }
@@ -236,7 +242,7 @@ export function OrdenDetallePage() {
               }
               onMover={(etapa) => acciones.mover.mutate(etapa)}
               onRequisitos={(cambios) => acciones.guardar.mutate(cambios)}
-              onEspera={(enEspera) => acciones.espera.mutate(enEspera)}
+              onEspera={(cambio) => acciones.espera.mutate(cambio)}
               onDiagnostico={(d) => cierre.diagnostico.mutate(d)}
               onReparacion={(d) => cierre.reparacion.mutate(d)}
             />
@@ -302,7 +308,14 @@ export function OrdenDetallePage() {
           onMoneda={(m) => cotizacion.moneda.mutate(m)}
           onAprobar={(porQuien) => cotizacion.aprobar.mutate(porQuien)}
           onRechazar={(motivoTexto) => cotizacion.rechazar.mutate(motivoTexto)}
+          onEnviar={permisos.editar ? () => setEnviando(true) : undefined}
         />
+      ) : null}
+
+      {enviando ? (
+        <Suspense fallback={null}>
+          <ModalEnviarPresupuesto orden={orden} lineas={lineas.data ?? []} onCerrar={() => setEnviando(false)} />
+        </Suspense>
       ) : null}
 
       {pestana === 'repuestos' ? (
@@ -365,12 +378,13 @@ export function OrdenDetallePage() {
           capacidad={capacidad.data ?? null}
           cargando={precheck.isPending && orden.estado === 'open'}
           puedeEditar={puedeEditar}
-          guardando={cierre.entrega.isPending || cierre.cerrar.isPending}
+          guardando={cierre.entrega.isPending || cierre.datos.isPending || cierre.cerrar.isPending}
           error={
             precheck.error?.message ?? cierre.entrega.error?.message ??
-            cierre.cerrar.error?.message ?? null
+            cierre.datos.error?.message ?? cierre.cerrar.error?.message ?? null
           }
           onEntrega={(fecha) => cierre.entrega.mutate(fecha)}
+          onDatos={(d) => cierre.datos.mutate(d)}
           onCerrar={() => cierre.cerrar.mutate()}
         />
       ) : null}

@@ -37,6 +37,7 @@ const ORDEN: OrdenListado = {
   estado: 'open',
   etapa: 'torque',
   enEspera: false,
+  motivoPausa: null,
   tipoServicio: 'corrective',
   motivoIngreso: null,
   aprietesIngreso: null,

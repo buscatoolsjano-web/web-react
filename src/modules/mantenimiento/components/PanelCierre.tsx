@@ -1,9 +1,16 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import { etiquetaDeCotizacion, etiquetaDeEtapa, etiquetaDeVeredicto } from '../lib/estados'
-import { formatearFecha } from '../lib/formato'
+import {
+  etiquetaDeCotizacion,
+  etiquetaDeEtapa,
+  etiquetaDeResultadoFinal,
+  etiquetaDeVeredicto,
+  RESULTADOS_FINALES,
+} from '../lib/estados'
+import { formatearFecha, sumarMeses } from '../lib/formato'
 import { Icon, type IconName } from '@/components/icons/Icon'
-import type { CapacidadTorque, OrdenDetalle, PrecheckCierre } from '../types'
+import type { DatosCierre } from '../services/cierre'
+import type { CapacidadTorque, OrdenDetalle, PrecheckCierre, ResultadoFinal } from '../types'
 import styles from './PanelCotizacion.module.css'
 
 export interface PanelCierreProps {
@@ -15,6 +22,7 @@ export interface PanelCierreProps {
   guardando: boolean
   error: string | null
   onEntrega: (fecha: string | null) => void
+  onDatos: (d: DatosCierre) => void
   onCerrar: () => void
 }
 
@@ -48,10 +56,20 @@ export function PanelCierre({
   guardando,
   error,
   onEntrega,
+  onDatos,
   onCerrar,
 }: PanelCierreProps) {
   const [confirmando, setConfirmando] = useState(false)
   const [entrega, setEntrega] = useState(orden.fechaEntrega ?? '')
+  const [resultado, setResultado] = useState<ResultadoFinal | ''>(orden.resultadoFinal ?? '')
+  const [eficiencia, setEficiencia] = useState(orden.eficienciaPct === null ? '' : String(orden.eficienciaPct))
+  const [preventivo, setPreventivo] = useState(orden.proximoPreventivo ?? '')
+  const [notas, setNotas] = useState(orden.notasCierre ?? '')
+  const numEficiencia = Number(eficiencia.replace(',', '.'))
+  const eficienciaInvalida =
+    eficiencia.trim() !== '' && (!Number.isFinite(numEficiencia) || numEficiencia < 0 || numEficiencia > 100)
+  // Los meses del próximo preventivo se cuentan desde la entrega, o desde hoy.
+  const base = orden.fechaEntrega ?? new Date().toISOString().slice(0, 10)
 
   if (cargando) return <p className={styles.nota}>Revisando qué falta para cerrar…</p>
 
@@ -73,6 +91,21 @@ export function PanelCierre({
           orden quedó congelado: diagnóstico, cotización y sus líneas, reparación, torque,
           mediciones, revisiones y repuestos. No se edita ni se reabre.
         </p>
+        <ul className={styles.tarjetas}>
+          <li className={styles.punto}>
+            <span className={styles.etiqueta}>Resultado</span>
+            <span className={styles.tarjetaDato}>{etiquetaDeResultadoFinal(orden.resultadoFinal) ?? '—'}</span>
+          </li>
+          <li className={styles.punto}>
+            <span className={styles.etiqueta}>Eficiencia general</span>
+            <span className={styles.tarjetaDato}>{orden.eficienciaPct === null ? '—' : `${orden.eficienciaPct} %`}</span>
+          </li>
+          <li className={styles.punto}>
+            <span className={styles.etiqueta}>Próximo preventivo</span>
+            <span className={styles.tarjetaDato}>{orden.proximoPreventivo ? formatearFecha(orden.proximoPreventivo) : '—'}</span>
+          </li>
+        </ul>
+        {orden.notasCierre ? <p className={styles.nota}>Observaciones: {orden.notasCierre}</p> : null}
       </div>
     )
   }
@@ -161,6 +194,97 @@ export function PanelCierre({
             Cerrar es entregar: sin fecha de entrega la orden no cierra, y no puede ser anterior
             al ingreso.
           </p>
+        </div>
+      ) : null}
+
+      {puedeEditar ? (
+        <div className={styles.formulario}>
+          <div className={styles.campo}>
+            <label className={styles.etiqueta} htmlFor="resultado-final">
+              Resultado final
+            </label>
+            <select
+              id="resultado-final"
+              className={styles.control}
+              value={resultado}
+              disabled={guardando}
+              onChange={(e) => setResultado(e.target.value as ResultadoFinal | '')}
+            >
+              <option value="">Elegí el resultado…</option>
+              {RESULTADOS_FINALES.map((r) => (
+                <option key={r.valor} value={r.valor}>
+                  {r.etiqueta}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.campo}>
+            <label className={styles.etiqueta} htmlFor="eficiencia">
+              % de eficiencia general
+            </label>
+            <input
+              id="eficiencia"
+              type="number"
+              min={0}
+              max={100}
+              step="0.1"
+              inputMode="decimal"
+              className={styles.control}
+              value={eficiencia}
+              disabled={guardando}
+              onChange={(e) => setEficiencia(e.target.value)}
+            />
+          </div>
+          <div className={styles.campo}>
+            <label className={styles.etiqueta} htmlFor="proximo-preventivo">
+              Próximo preventivo
+            </label>
+            <input
+              id="proximo-preventivo"
+              type="date"
+              className={styles.control}
+              value={preventivo}
+              disabled={guardando}
+              onChange={(e) => setPreventivo(e.target.value)}
+            />
+            <span className={styles.acciones}>
+              {[3, 6, 12].map((m) => (
+                <Button key={m} variant="ghost" size="sm" disabled={guardando} onClick={() => setPreventivo(sumarMeses(base, m))}>
+                  {m} meses
+                </Button>
+              ))}
+            </span>
+          </div>
+          <div className={`${styles.campo} ${styles.anchoCompleto}`}>
+            <label className={styles.etiqueta} htmlFor="observaciones-finales">
+              Observaciones finales
+            </label>
+            <textarea
+              id="observaciones-finales"
+              className={styles.control}
+              rows={2}
+              value={notas}
+              disabled={guardando}
+              onChange={(e) => setNotas(e.target.value)}
+            />
+          </div>
+          <div className={styles.acciones}>
+            <Button
+              variant="secondary"
+              disabled={guardando || eficienciaInvalida}
+              onClick={() =>
+                onDatos({
+                  resultado: resultado === '' ? null : resultado,
+                  eficienciaPct: eficiencia.trim() === '' ? null : Number(eficiencia.replace(',', '.')),
+                  proximoPreventivo: preventivo === '' ? null : preventivo,
+                  notas,
+                })
+              }
+            >
+              Guardar el resultado
+            </Button>
+            {eficienciaInvalida ? <span className={styles.error}>La eficiencia va de 0 a 100.</span> : null}
+          </div>
         </div>
       ) : null}
 

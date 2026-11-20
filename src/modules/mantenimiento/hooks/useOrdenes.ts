@@ -13,6 +13,7 @@ import {
   obtenerOrden,
   ponerEnEspera,
   tecnicosDe,
+  type CambioEspera,
   type CambiosOrden,
   type DatosOrden,
 } from '../services/ordenes'
@@ -147,7 +148,7 @@ export function useAccionesOrden(id: string) {
       onSuccess: invalidar,
     }),
     espera: useMutation({
-      mutationFn: (enEspera: boolean) => ponerEnEspera(companyId!, id, enEspera),
+      mutationFn: (cambio: CambioEspera) => ponerEnEspera(companyId!, id, cambio),
       onSuccess: invalidar,
     }),
     cancelar: useMutation({

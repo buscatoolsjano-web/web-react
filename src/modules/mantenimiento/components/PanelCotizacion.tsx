@@ -33,6 +33,8 @@ export interface PanelCotizacionProps {
   onMoneda: (moneda: string | null) => void
   onAprobar: (por: string) => void
   onRechazar: (motivo: string) => void
+  /** Mandarle el presupuesto al cliente por mail; sin esto no hay botón. */
+  onEnviar?: (() => void) | undefined
 }
 
 const VACIA = {
@@ -80,6 +82,7 @@ export function PanelCotizacion({
   onMoneda,
   onAprobar,
   onRechazar,
+  onEnviar,
 }: PanelCotizacionProps) {
   const id = useId()
   const isMobile = useIsMobile()
@@ -515,6 +518,11 @@ export function PanelCotizacion({
                 >
                   Rechazar
                 </Button>
+                {onEnviar ? (
+                  <Button variant="secondary" disabled={guardando || lineas.length === 0} onClick={onEnviar}>
+                    Enviar por mail
+                  </Button>
+                ) : null}
               </>
             ) : (
               <>

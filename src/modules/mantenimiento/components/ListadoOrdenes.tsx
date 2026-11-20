@@ -79,7 +79,7 @@ export function ListadoOrdenes({
               <span className={`${tabla.tarjetaTexto} ${tabla.estados}`}>
                 <ChipEstadoOrden estado={o.estado} />
                 <ChipEtapa estado={o.etapa} />
-                <ChipEspera enEspera={o.enEspera} />
+                <ChipEspera enEspera={o.enEspera} motivo={o.motivoPausa} />
               </span>
             </Link>
           </li>
@@ -155,7 +155,7 @@ export function ListadoOrdenes({
               <td>
                 <span className={tabla.estados}>
                   <ChipEstadoOrden estado={o.estado} />
-                  <ChipEspera enEspera={o.enEspera} />
+                  <ChipEspera enEspera={o.enEspera} motivo={o.motivoPausa} />
                 </span>
               </td>
             </tr>

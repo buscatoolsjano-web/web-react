@@ -2,7 +2,9 @@ import type {
   EstadoCotizacion,
   EstadoOrden,
   EtapaOrden,
+  MotivoPausa,
   ResultadoCheck,
+  ResultadoFinal,
   TipoLineaCotizacion,
   TipoServicio,
 } from '../types'
@@ -270,4 +272,31 @@ export const ESTADOS_SERVICIO = [
 
 export function etiquetaDeEstadoServicio(v: string): string {
   return ESTADOS_SERVICIO.find((e) => e.valor === v)?.etiqueta ?? v
+}
+
+/** Por qué se pausó una orden: los cinco motivos del taller. */
+export const MOTIVOS_PAUSA: { valor: MotivoPausa; etiqueta: string }[] = [
+  { valor: 'sin_repuesto', etiqueta: 'Sin repuesto' },
+  { valor: 'repuesto_con_falla', etiqueta: 'Repuesto con falla' },
+  { valor: 'urgencia', etiqueta: 'Entró una urgencia' },
+  { valor: 'espera_cliente', etiqueta: 'Esperando al cliente' },
+  { valor: 'otro', etiqueta: 'Otro' },
+]
+
+export function etiquetaDeMotivoPausa(v: string | null): string | null {
+  if (v === null) return null
+  return MOTIVOS_PAUSA.find((m) => m.valor === v)?.etiqueta ?? v
+}
+
+/** Cómo termina el servicio, que el cierre exige. */
+export const RESULTADOS_FINALES: { valor: ResultadoFinal; etiqueta: string }[] = [
+  { valor: 'aprobada', etiqueta: 'Aprobada' },
+  { valor: 'calibrada', etiqueta: 'Calibrada' },
+  { valor: 'reprobada', etiqueta: 'Reprobada' },
+  { valor: 'espera_repuesto', etiqueta: 'En espera de repuesto' },
+]
+
+export function etiquetaDeResultadoFinal(v: string | null): string | null {
+  if (v === null) return null
+  return RESULTADOS_FINALES.find((m) => m.valor === v)?.etiqueta ?? v
 }

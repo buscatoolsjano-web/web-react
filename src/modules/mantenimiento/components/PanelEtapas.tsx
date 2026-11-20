@@ -6,11 +6,14 @@ import {
   etapasAnteriores,
   etapasRequeridas,
   etiquetaDeEtapa,
+  etiquetaDeMotivoPausa,
+  MOTIVOS_PAUSA,
   situacionDeEtapa,
 } from '../lib/estados'
+import type { CambioEspera } from '../services/ordenes'
 import { Icon } from '@/components/icons/Icon'
 import { ChipSituacion } from './ChipEstado'
-import type { EtapaOrden, OrdenDetalle } from '../types'
+import type { EtapaOrden, MotivoPausa, OrdenDetalle } from '../types'
 import styles from './PanelEtapas.module.css'
 
 export interface PanelEtapasProps {
@@ -21,7 +24,7 @@ export interface PanelEtapasProps {
   error: string | null
   onMover: (etapa: EtapaOrden) => void
   onRequisitos: (cambios: { requiereReparacion?: boolean; requiereTorque?: boolean }) => void
-  onEspera: (enEspera: boolean) => void
+  onEspera: (cambio: CambioEspera) => void
   onDiagnostico: (d: { notas?: string | null; completadoEn?: string | null }) => void
   onReparacion: (d: { notas?: string | null; completadaEn?: string | null }) => void
 }
@@ -60,6 +63,9 @@ export function PanelEtapas({
   const [confirmandoVuelta, setConfirmandoVuelta] = useState(false)
   const [notasDiag, setNotasDiag] = useState(orden.notasDiagnostico ?? '')
   const [notasRep, setNotasRep] = useState(orden.notasReparacion ?? '')
+  const [pausando, setPausando] = useState(false)
+  const [motivo, setMotivo] = useState<MotivoPausa | ''>('')
+  const [nota, setNota] = useState('')
 
   // Si las notas cambian desde afuera se reflejan. Se ajusta DURANTE el render
   // y no en un efecto: llamar a setState dentro de un efecto provoca un render
@@ -223,15 +229,66 @@ export function PanelEtapas({
             </>
           ) : null}
 
-          <Button
-            variant="secondary"
-            disabled={guardando}
-            onClick={() => onEspera(!orden.enEspera)}
-          >
-            {orden.enEspera ? 'Reanudar' : 'Poner en espera'}
-          </Button>
+          {orden.enEspera ? (
+            <Button variant="secondary" disabled={guardando} onClick={() => onEspera({ enEspera: false })}>
+              Reanudar
+            </Button>
+          ) : !pausando ? (
+            <Button variant="secondary" disabled={guardando} onClick={() => setPausando(true)}>
+              Poner en espera
+            </Button>
+          ) : null}
         </div>
       )}
+
+      {pausando && !orden.enEspera && abierta && puedeEditar ? (
+        <div className={styles.panel}>
+          <label className={styles.nota} htmlFor="motivo-pausa">
+            ¿Por qué se pausa?
+          </label>
+          <select
+            id="motivo-pausa"
+            className={styles.select}
+            value={motivo}
+            onChange={(ev) => setMotivo(ev.target.value as MotivoPausa | '')}
+          >
+            <option value="">Elegí el motivo…</option>
+            {MOTIVOS_PAUSA.map((m) => (
+              <option key={m.valor} value={m.valor}>
+                {m.etiqueta}
+              </option>
+            ))}
+          </select>
+          <label className={styles.nota} htmlFor="nota-pausa">
+            Nota (opcional)
+          </label>
+          <textarea
+            id="nota-pausa"
+            className={styles.select}
+            rows={2}
+            value={nota}
+            placeholder="Qué repuesto falta, a quién se espera…"
+            onChange={(ev) => setNota(ev.target.value)}
+          />
+          <div className={styles.acciones}>
+            <Button
+              disabled={guardando || motivo === ''}
+              onClick={() => {
+                if (motivo === '') return
+                onEspera({ enEspera: true, motivo, nota })
+                setPausando(false)
+                setMotivo('')
+                setNota('')
+              }}
+            >
+              Pausar
+            </Button>
+            <Button variant="secondary" disabled={guardando} onClick={() => setPausando(false)}>
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {abierta && puedeEditar && orden.etapa === 'diagnosis' ? (
         <div className={styles.panel}>
@@ -312,8 +369,10 @@ export function PanelEtapas({
 
       {orden.enEspera ? (
         <p className={styles.nota}>
-          En espera desde {orden.enEsperaDesde?.slice(0, 10) ?? '—'}. La etapa no cambió: la
-          espera es un estado aparte.
+          En espera desde {orden.enEsperaDesde?.slice(0, 10) ?? '—'}
+          {orden.motivoPausa ? <> · <strong>{etiquetaDeMotivoPausa(orden.motivoPausa)}</strong></> : null}
+          {orden.notaPausa ? <> · {orden.notaPausa}</> : null}. La etapa no cambió: la espera es
+          un estado aparte.
         </p>
       ) : null}
 

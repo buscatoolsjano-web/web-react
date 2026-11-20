@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import {
   cerrarOrden,
+  guardarDatosCierre,
   guardarDiagnostico,
+  type DatosCierre,
   guardarEntrega,
   guardarReparacion,
   precheckCierre,
@@ -54,6 +56,10 @@ export function useAccionesCierre(ordenId: string) {
     }),
     entrega: useMutation({
       mutationFn: (fecha: string | null) => guardarEntrega(companyId!, ordenId, fecha),
+      onSuccess: invalidar,
+    }),
+    datos: useMutation({
+      mutationFn: (d: DatosCierre) => guardarDatosCierre(companyId!, ordenId, d),
       onSuccess: invalidar,
     }),
     cerrar: useMutation({
