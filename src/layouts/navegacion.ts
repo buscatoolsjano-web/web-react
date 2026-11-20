@@ -258,7 +258,7 @@ export function destinosPara(rol: string): string[] {
 /** ¿La ruta actual pertenece a esta entrada? (para desplegar el módulo activo) */
 /**
  * Los módulos con color propio en el menú (Ventas verde, Compras azul,
- * Mantenimiento grafito). El color va en la entrada siempre, no sólo cuando
+ * Mantenimiento naranja). El color va en la entrada siempre, no sólo cuando
  * se está adentro: así se distinguen de un vistazo.
  */
 const SECCIONES_CON_COLOR = new Set(['ventas', 'compras', 'mantenimiento'])

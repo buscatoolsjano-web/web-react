@@ -224,7 +224,7 @@ export function AppLayout() {
   usePresencia(session !== null)
 
   // Identidad por módulo (Fase 14): Ventas verde, Compras azul, Mantenimiento
-  // grafito. Va en el <html> para que los diálogos (portal en body) la hereden.
+  // naranja. Va en el <html> para que los diálogos (portal en body) la hereden.
   const modulo = moduloDeRuta(pathname)
   useEffect(() => {
     const raiz = document.documentElement

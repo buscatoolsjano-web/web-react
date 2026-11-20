@@ -794,9 +794,9 @@
 }
 
 /* 3e. Identidad por módulo (pisa el acento): Ventas verde, Compras azul,
-   Mantenimiento grafito. La marca (logo, header) sigue naranja; los estados
-   semánticos y el aviso STEL no cambian. En oscuro el grafito es claro:
-   un botón negro sobre fondo negro no se lee. */
+   Mantenimiento naranja (los mismos tonos que el acento «naranja»). La marca
+   (logo, header) sigue naranja; los estados semánticos y el aviso STEL no
+   cambian. En oscuro el naranja es claro con texto oscuro encima. */
 [data-theme='light'][data-modulo='ventas'] {
   --color-primary: #15803d;
   --color-primary-hover: #166534;
@@ -838,23 +838,23 @@
 }
 
 [data-theme='light'][data-modulo='mantenimiento'] {
-  --color-primary: #374151;
-  --color-primary-hover: #1f2937;
-  --color-primary-active: #111827;
-  --color-primary-soft: #f3f4f6;
-  --color-primary-text: #374151;
+  --color-primary: #c2410c;
+  --color-primary-hover: #9a3412;
+  --color-primary-active: #7c2d12;
+  --color-primary-soft: #fff4ec;
+  --color-primary-text: #b8430e;
   --color-on-primary: #ffffff;
-  --color-indicator: #4b5563;
+  --color-indicator: #c2410c;
 }
 
 [data-theme='dark'][data-modulo='mantenimiento'] {
-  --color-primary: #94a3b8;
-  --color-primary-hover: #cbd5e1;
-  --color-primary-active: #e2e8f0;
-  --color-primary-soft: #222c3b;
-  --color-primary-text: #cbd5e1;
-  --color-on-primary: #0f172a;
-  --color-indicator: #94a3b8;
+  --color-primary: #fb923c;
+  --color-primary-hover: #fdba74;
+  --color-primary-active: #fed7aa;
+  --color-primary-soft: #3a2210;
+  --color-primary-text: #fdba74;
+  --color-on-primary: #1f0d02;
+  --color-indicator: #fb923c;
 }
 
 /* 3f. Tamaño y tipografía. `rem` escala todo junto. En mobile «Compacto» no

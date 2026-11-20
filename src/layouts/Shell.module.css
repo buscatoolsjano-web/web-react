@@ -595,7 +595,7 @@
 }
 
 /* Color propio de cada módulo en el menú, esté uno adentro o no: Ventas
-   verde, Compras azul, Mantenimiento grafito (los mismos de tokens.css 3e).
+   verde, Compras azul, Mantenimiento naranja (los mismos de tokens.css 3e).
    Se redefinen los tokens de marca sólo dentro de la entrada, así el ítem
    activo de adentro también toma el color de su módulo. */
 [data-seccion='ventas'] {
@@ -613,10 +613,10 @@
 }
 
 [data-seccion='mantenimiento'] {
-  --seccion: #374151;
-  --color-primary-soft: #f3f4f6;
-  --color-primary-text: #374151;
-  --module-accent-border: #4b5563;
+  --seccion: #c2410c;
+  --color-primary-soft: #fff4ec;
+  --color-primary-text: #b8430e;
+  --module-accent-border: #ea580c;
 }
 
 :global([data-theme='dark']) [data-seccion='ventas'] {
@@ -634,10 +634,10 @@
 }
 
 :global([data-theme='dark']) [data-seccion='mantenimiento'] {
-  --seccion: #cbd5e1;
-  --color-primary-soft: #222c3b;
-  --color-primary-text: #cbd5e1;
-  --module-accent-border: #94a3b8;
+  --seccion: #fdba74;
+  --color-primary-soft: #3a2210;
+  --color-primary-text: #fdba74;
+  --module-accent-border: #fb923c;
 }
 
 /* El encabezado del módulo (ícono y nombre) va con su color siempre. */

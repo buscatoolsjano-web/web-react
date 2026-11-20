@@ -273,19 +273,22 @@ describe('apariencia (Fase 14 · E0)', () => {
     expect([...fallas]).toEqual([])
   })
 
-  it('módulos: Ventas verde, Compras azul, Mantenimiento grafito — en claro y en oscuro, y pisan el acento del usuario', () => {
+  it('módulos: Ventas verde, Compras azul, Mantenimiento naranja — en claro y en oscuro, y pisan el acento del usuario', () => {
     const tono = (hex: string) => {
       const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(1 + i, 3 + i), 16)) as [number, number, number]
       if (Math.max(r, g, b) - Math.min(r, g, b) < 40) return 'gris'
-      return g >= r && g >= b ? 'verde' : b >= r && b >= g ? 'azul' : 'otro'
+      if (g >= r && g >= b) return 'verde'
+      if (b >= r && b >= g) return 'azul'
+      // Naranja: rojo dominante, verde a mitad de camino, casi nada de azul.
+      return r > g && g > b && g > r * 0.3 ? 'naranja' : 'otro'
     }
     for (const [preset, theme] of [['claro-naranja', 'light'], ['violeta-claro', 'light'], ['grafito', 'dark'], ['oscuro-naranja', 'dark']] as const) {
       for (const acento of [undefined, 'rosa']) {
         const de = (modulo: string) => valoresDe({ theme, apariencia: preset, acento, modulo })('--color-primary')
-        expect([tono(de('ventas')), tono(de('compras')), tono(de('mantenimiento'))], `${preset}/${acento ?? 'tema'}`).toEqual(['verde', 'azul', 'gris'])
+        expect([tono(de('ventas')), tono(de('compras')), tono(de('mantenimiento'))], `${preset}/${acento ?? 'tema'}`).toEqual(['verde', 'azul', 'naranja'])
       }
     }
-    // En oscuro el grafito es claro con texto oscuro: nada de botón negro sobre fondo negro.
+    // En oscuro el naranja es claro con texto oscuro encima: nada de botón oscuro sobre fondo oscuro.
     const oscuro = valoresDe({ theme: 'dark', apariencia: 'grafito', acento: undefined, modulo: 'mantenimiento' })
     expect(luminancia(oscuro('--color-primary'))).toBeGreaterThan(luminancia(oscuro('--color-on-primary')))
   })
