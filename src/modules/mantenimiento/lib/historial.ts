@@ -57,6 +57,11 @@ export function importeDelServicio(s: ServicioHistorico): ImporteDelServicio {
   if (s.importeAtribuible === 'asset' && s.importe !== null) {
     return { propio: true, monto: s.importe, moneda: s.moneda, nota: null }
   }
+  // Las fichas del sitio viejo del taller no tenían importe: no es que sea
+  // compartido, es que no se registró.
+  if (s.importeAtribuible === 'unknown' && s.importe === null && s.importeDeLaCadena === null) {
+    return { propio: false, monto: null, moneda: null, nota: 'Sin importe registrado' }
+  }
   return {
     propio: false,
     monto: s.importeDeLaCadena,

@@ -118,3 +118,12 @@ describe('Los textos', () => {
     expect(etiquetaDeDocumento('otra_cosa')).toBe('otra_cosa')
   })
 })
+
+describe('fichas del sitio viejo del taller', () => {
+  it('sin importe registrado no se dice «compartido»', () => {
+    const i = importeDelServicio(
+      servicio({ origen: 'mant_web', importeAtribuible: 'unknown', importe: null, importeDeLaCadena: null, equiposEnElServicio: 1 }),
+    )
+    expect(i).toEqual({ propio: false, monto: null, moneda: null, nota: 'Sin importe registrado' })
+  })
+})

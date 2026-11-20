@@ -371,7 +371,7 @@ export function ActivoDetallePage() {
                 <TimelineServicios servicios={servicios.data ?? []} cargando={servicios.isPending} />
               )}
               <p className={styles.nota}>
-                Historial importado de STEL, de sólo lectura. No es trabajo en curso: un presupuesto
+                Historial importado de STEL y del sitio de mantenimiento, de sólo lectura. No es trabajo en curso: un presupuesto
                 que quedó pendiente allá no es un servicio pendiente hoy.
               </p>
             </>

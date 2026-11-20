@@ -74,6 +74,13 @@ function Evento({ servicio: s }: { servicio: ServicioHistorico }) {
         <p className={styles.sinTexto}>Sin descripción del trabajo en el documento.</p>
       )}
 
+      {/* La ficha técnica del sitio viejo: aprietes, estado de las partes y
+          las observaciones del técnico. STEL no trae nada de esto. */}
+      {s.origen === 'mant_web' && s.diagnostico ? (
+        <p className={styles.trabajo} style={{ whiteSpace: 'pre-line' }}>{s.diagnostico}</p>
+      ) : null}
+      {s.origen === 'mant_web' && s.cierre ? <p className={styles.trabajo}>Observaciones: {s.cierre}</p> : null}
+
       <dl className={styles.datos}>
         <div>
           <dt>Ingresó</dt>
