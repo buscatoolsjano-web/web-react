@@ -102,7 +102,7 @@ export function CapturaFotosIngreso({ fotos, onCambio, deshabilitado = false }: 
     const rechazadas = nuevas.length - validas.length
     if (rechazadas > 0) {
       setError(
-        `Se ignoraron ${rechazadas} archivo(s): sólo imágenes de hasta 20 MB o videos de hasta 50 MB.`,
+        `Se ignoraron ${rechazadas} archivo(s): sólo imágenes de hasta 20 MB o videos de hasta 1 GB.`,
       )
     } else {
       setError(null)

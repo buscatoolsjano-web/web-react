@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -37,7 +38,16 @@ const ORDENES = { singular: 'orden', plural: 'órdenes' }
  */
 const hoy = () => new Date().toISOString().slice(0, 10)
 
+const MENSAJE_YOUTUBE: Record<string, string> = {
+  conectado: 'YouTube quedó conectado: los videos de Mantenimiento se suben como privados a ese canal.',
+  cancelado: 'Se canceló la conexión con YouTube. No cambió nada.',
+  vencido: 'La conexión con YouTube tardó demasiado. Probá de nuevo.',
+  sin_canal: 'Esa cuenta de Google no tiene canal de YouTube. Creá el canal y volvé a conectarla.',
+}
+
 export function OrdenesPage() {
+  const [params] = useSearchParams()
+  const vueltaYoutube = params.get('youtube')
   const { filtros, aplicar, limpiar, hayFiltros } = useFiltrosOrdenes()
   const { data, isPending, isFetching, error, refetch } = useOrdenes(filtros)
   const { activa } = useEmpresa()
@@ -116,6 +126,13 @@ export function OrdenesPage() {
           </>
         }
       />
+
+      {/* La vuelta de «Conectar YouTube» (Edge Function youtube-video). */}
+      {vueltaYoutube ? (
+        <Alert tone={vueltaYoutube === 'conectado' ? 'success' : 'warning'} role="status">
+          <p>{MENSAJE_YOUTUBE[vueltaYoutube] ?? 'No se pudo conectar YouTube. Probá de nuevo.'}</p>
+        </Alert>
+      ) : null}
 
       <FiltrosOrdenes
         filtros={filtros}

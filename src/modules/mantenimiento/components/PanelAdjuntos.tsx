@@ -13,10 +13,21 @@ import {
   type EntidadMantenimiento,
   adjuntosDe,
   borrarAdjunto,
+  esVideo,
   formatearBytes,
   subirAdjunto,
   urlDeDescarga,
 } from '../services/adjuntos'
+import {
+  type VideoMantenimiento,
+  conectarYoutube,
+  estadoYoutube,
+  quitarVideo,
+  subirVideo,
+  urlDeYoutube,
+  videosDe,
+} from '../services/videos'
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import styles from './PanelAdjuntos.module.css'
 
@@ -60,13 +71,45 @@ export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: Panel
     staleTime: 30_000,
   })
 
+  const claveVideos = ['mantenimiento', activa?.companyId, 'videos', entidad, entidadId]
+  const videos = useQuery({
+    queryKey: claveVideos,
+    queryFn: () => videosDe(activa!.companyId, entidad, entidadId),
+    enabled: !!activa,
+    staleTime: 30_000,
+  })
+  const youtube = useQuery({
+    queryKey: ['mantenimiento', activa?.companyId, 'youtube'],
+    queryFn: () => estadoYoutube(activa!.companyId),
+    enabled: !!activa,
+    staleTime: 5 * 60_000,
+  })
+  const [progreso, setProgreso] = useState<number | null>(null)
+  const [aQuitar, setAQuitar] = useState<VideoMantenimiento | null>(null)
+
   const subir = useMutation({
     mutationFn: (archivo: File) =>
-      subirAdjunto(activa!.companyId, entidad, entidadId, archivo, clase),
+      esVideo(archivo)
+        ? subirVideo(activa!.companyId, entidad, entidadId, archivo, setProgreso)
+        : subirAdjunto(activa!.companyId, entidad, entidadId, archivo, clase),
     onSuccess: () => {
       setError(null)
       void queryClient.invalidateQueries({ queryKey: clave })
+      void queryClient.invalidateQueries({ queryKey: claveVideos })
     },
+    onError: (e: Error) => setError(e.message),
+    onSettled: () => setProgreso(null),
+  })
+
+  const quitar = useMutation({
+    mutationFn: (id: string) => quitarVideo(activa!.companyId, id),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: claveVideos }),
+    onError: (e: Error) => setError(e.message),
+    onSettled: () => setAQuitar(null),
+  })
+
+  const conectar = useMutation({
+    mutationFn: () => conectarYoutube(activa!.companyId),
     onError: (e: Error) => setError(e.message),
   })
 
@@ -100,10 +143,62 @@ export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: Panel
   }
 
   const filas = adjuntos.data ?? []
+  const listaVideos = videos.data ?? []
+  const esAdmin = activa?.rol === 'admin'
 
   return (
     <div className={styles.panel}>
-      {filas.length === 0 ? (
+      {listaVideos.length > 0 ? (
+        <ul className={styles.lista} aria-label="Videos en YouTube">
+          {listaVideos.map((v) => (
+            <li key={v.id} className={styles.item}>
+              <a className={styles.nombre} href={urlDeYoutube(v.youtubeId)} target="_blank" rel="noopener noreferrer">
+                <Icon name="video" size={16} aria-hidden="true" /> {v.titulo}
+              </a>
+              <span className={styles.meta}>
+                Video en YouTube (privado) · {formatearBytes(v.bytes)} · {formatearFecha(v.subidoEn)}
+              </span>
+              {puedeEditar ? (
+                <IconButton
+                  icon="trash"
+                  variant="danger"
+                  size="sm"
+                  className={styles.borrar}
+                  aria-label={`Quitar el video ${v.titulo}`}
+                  disabled={quitar.isPending}
+                  onClick={() => setAQuitar(v)}
+                />
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {youtube.data ? (
+        <p className={styles.nota}>
+          {youtube.data.conectado ? (
+            <>
+              Los videos van a YouTube como <strong>privados</strong>, al canal «{youtube.data.canal ?? '—'}», con el
+              nombre de {entidad === 'maintenance_order' ? 'la orden' : 'el equipo'}. Para verlos hay que entrar a
+              YouTube con esa cuenta.
+            </>
+          ) : (
+            <>
+              Los videos van a YouTube, y <strong>YouTube todavía no está conectado</strong>: hasta conectarlo no se
+              pueden subir videos.{' '}
+              {esAdmin ? (
+                <Button size="sm" variant="secondary" loading={conectar.isPending} onClick={() => conectar.mutate()}>
+                  Conectar YouTube
+                </Button>
+              ) : (
+                'Lo tiene que conectar un administrador.'
+              )}
+            </>
+          )}
+        </p>
+      ) : null}
+
+      {filas.length === 0 && listaVideos.length === 0 ? (
         <p className={styles.nota}>Todavía no hay archivos.</p>
       ) : (
         <ul className={styles.lista}>
@@ -155,9 +250,13 @@ export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: Panel
             }}
           />
           <Button variant="secondary" icon={<Icon name="upload" size={16} />} loading={subir.isPending} onClick={() => entrada.current?.click()}>
-            {subir.isPending ? 'Subiendo…' : 'Adjuntar archivo'}
+            {subir.isPending
+              ? progreso !== null
+                ? `Subiendo a YouTube… ${Math.round(progreso * 100)} %`
+                : 'Subiendo…'
+              : 'Adjuntar archivo'}
           </Button>
-          <span className={styles.ayuda}>Foto, video, PDF o planilla. Hasta 20 MB (videos, 50 MB).</span>
+          <span className={styles.ayuda}>Foto, PDF o planilla hasta 20 MB. Videos hasta 1 GB, a YouTube.</span>
         </div>
       ) : null}
 
@@ -181,6 +280,19 @@ export function PanelAdjuntos({ entidad, entidadId, clases, puedeEditar }: Panel
         onCancel={() => setABorrar(null)}
         onConfirm={(motivo) => {
           if (aBorrar) borrar.mutate({ id: aBorrar.id, ruta: aBorrar.ruta, motivo }, { onSettled: () => setABorrar(null) })
+        }}
+      />
+
+      <ConfirmDialog
+        open={aQuitar !== null}
+        title="Quitar el video"
+        description={`«${aQuitar?.titulo ?? ''}» se borra también de YouTube y no se puede recuperar.`}
+        confirmLabel={quitar.isPending ? 'Quitando…' : 'Quitar el video'}
+        tone="danger"
+        busy={quitar.isPending}
+        onCancel={() => setAQuitar(null)}
+        onConfirm={() => {
+          if (aQuitar) quitar.mutate(aQuitar.id)
         }}
       />
     </div>

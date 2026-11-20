@@ -7231,6 +7231,45 @@ export type Database = {
           },
         ]
       }
+      maintenance_videos: {
+        Row: {
+          bytes: number | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          mime_type: string | null
+          title: string
+          youtube_video_id: string
+        }
+        Insert: {
+          bytes?: number | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          mime_type?: string | null
+          title: string
+          youtube_video_id: string
+        }
+        Update: {
+          bytes?: number | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          mime_type?: string | null
+          title?: string
+          youtube_video_id?: string
+        }
+        Relationships: []
+      }
       warehouses: {
         Row: {
           code: string
@@ -8421,6 +8460,10 @@ export type Database = {
       }
     }
     Functions: {
+      youtube_estado: {
+        Args: { p_company: string }
+        Returns: Json
+      }
       abastecimiento_de_venta: {
         Args: { p_tipo: string; p_id: string }
         Returns: Json

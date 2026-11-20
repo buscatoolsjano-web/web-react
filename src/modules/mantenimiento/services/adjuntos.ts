@@ -72,10 +72,11 @@ export interface Adjunto {
 /** 20 MB para imágenes y documentos. */
 export const LIMITE_BYTES = 20 * 1024 * 1024
 /**
- * 50 MB para videos (Fase 228): es el tope del bucket. Un video grabado desde
- * el ingreso (2 min a ~2 Mbps) queda bastante por debajo.
+ * 1 GB para videos: ya no van al bucket sino a YouTube (privados), así que el
+ * tope de 50 MB del bucket no aplica. Un video grabado desde el ingreso (2 min
+ * a ~2 Mbps) anda por los 30 MB.
  */
-export const LIMITE_BYTES_VIDEO = 50 * 1024 * 1024
+export const LIMITE_BYTES_VIDEO = 1024 * 1024 * 1024
 
 export const esVideo = (archivo: Pick<File, 'type'>): boolean => archivo.type.startsWith('video/')
 export const limiteDe = (archivo: Pick<File, 'type'>): number =>
@@ -138,6 +139,11 @@ export async function subirAdjunto(
   archivo: File,
   clase = 'photo',
 ): Promise<void> {
+  // Los videos no van al bucket: van a YouTube, privados (ver services/videos).
+  if (esVideo(archivo)) {
+    const { subirVideo } = await import('./videos')
+    return subirVideo(companyId, entidad, entidadId, archivo)
+  }
   const limite = limiteDe(archivo)
   if (archivo.size > limite) {
     throw new Error(

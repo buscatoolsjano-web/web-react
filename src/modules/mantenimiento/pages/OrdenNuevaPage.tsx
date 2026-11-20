@@ -41,6 +41,13 @@ export function OrdenNuevaPage() {
     staleTime: 30_000,
   })
 
+  const youtube = useQuery({
+    queryKey: ['mantenimiento', companyId, 'youtube'],
+    queryFn: async () => (await import('../services/videos')).estadoYoutube(companyId!),
+    enabled: companyId !== null && permisos.crear,
+    staleTime: 5 * 60_000,
+  })
+
   if (!permisos.crear) {
     return (
       <div className={doc.listado}>
@@ -92,6 +99,15 @@ export function OrdenNuevaPage() {
       {/* La trazabilidad del circuito, como en el FEIN: la orden nace en
           diagnóstico y recorre cotización, reparación, torque y cierre. */}
       <StepperCircuito actual="diagnosis" />
+
+      {youtube.data && !youtube.data.conectado ? (
+        <Alert tone="warning" role="status">
+          <p>
+            Los videos que grabes acá van a YouTube, que todavía no está conectado: hasta conectarlo (desde la pestaña
+            «Archivos» de cualquier orden, un administrador) sólo se guardan las fotos.
+          </p>
+        </Alert>
+      ) : null}
 
       <FormularioOrden
         valores={valores}
