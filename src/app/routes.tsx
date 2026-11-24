@@ -264,6 +264,9 @@ const OrdenDetallePage = lazyConRecarga(() =>
 const LotesMantenimientoPage = lazyConRecarga(() =>
   import('@/modules/mantenimiento/pages/LotesPage').then((m) => ({ default: m.LotesPage })),
 )
+const ModelosMantenimientoPage = lazyConRecarga(() =>
+  import('@/modules/mantenimiento/pages/ModelosPage').then((m) => ({ default: m.ModelosPage })),
+)
 const LoteDetallePage = lazyConRecarga(() =>
   import('@/modules/mantenimiento/pages/LoteDetallePage').then((m) => ({ default: m.LoteDetallePage })),
 )
@@ -568,6 +571,7 @@ export const routes: RouteObject[] = [
       { path: 'mantenimiento/historico', element: privada(<HistoricoMantenimientoPage />) },
       { path: 'mantenimiento/lotes', element: privada(<LotesMantenimientoPage />) },
       { path: 'mantenimiento/lotes/:id', element: privada(<LoteDetallePage />) },
+      { path: 'mantenimiento/modelos', element: privada(<ModelosMantenimientoPage />) },
       { path: 'mantenimiento/puntos', element: privada(<PuntosPage />) },
 
       // Emails. El id de la ruta es el uuid de `email_threads`, no el id de

@@ -45,6 +45,8 @@ import { usePuntos } from '../hooks/useCheckPoints'
 import { useAccionesCotizacion, useLineasDeCotizacion } from '../hooks/useCotizacion'
 import { useAccionesRepuestos, useDepositos, useRepuestosDeOrden } from '../hooks/useRepuestos'
 import { useAccionesTorque, useCapacidad, useMediciones } from '../hooks/useTorque'
+import { listarModelos, modeloDe } from '../services/modelos'
+import { useQuery } from '@tanstack/react-query'
 import { useAccionesCierre, usePrecheckCierre } from '../hooks/useCierre'
 import { CLASES_ORDEN } from '../services/adjuntos'
 import styles from './Pagina.module.css'
@@ -100,6 +102,13 @@ export function OrdenDetallePage() {
   const edicionRepuestos = useAccionesRepuestos(id)
   const mediciones = useMediciones(id)
   const capacidad = useCapacidad(id)
+  // El catálogo de modelos, para el rango de torque del equipo (se pide al abrir Torque).
+  const modelos = useQuery({
+    queryKey: ['mantenimiento', activa?.companyId, 'modelos'],
+    queryFn: () => listarModelos(activa!.companyId),
+    enabled: !!activa && pestana === 'torque',
+    staleTime: 10 * 60_000,
+  })
   const torque = useAccionesTorque(id)
   const cierre = useAccionesCierre(id)
   // El precheck se pide sólo al abrir la pestaña de cierre: es una consulta
@@ -364,6 +373,7 @@ export function OrdenDetallePage() {
           orden={orden}
           mediciones={mediciones.data ?? []}
           capacidad={capacidad.data ?? null}
+          modelo={modeloDe(modelos.data ?? [], orden.activoModelo)}
           cargando={mediciones.isPending}
           puedeEditar={permisos.editar}
           guardando={

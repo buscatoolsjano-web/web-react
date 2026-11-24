@@ -7237,6 +7237,87 @@ export type Database = {
           },
         ]
       }
+      maintenance_accessories: {
+        Row: { code: string; company_id: string; created_at: string; id: string; name: string; part_number: string | null }
+        Insert: { code: string; company_id: string; created_at?: string; id?: string; name: string; part_number?: string | null }
+        Update: { code?: string; company_id?: string; created_at?: string; id?: string; name?: string; part_number?: string | null }
+        Relationships: []
+      }
+      maintenance_model_accessories: {
+        Row: { accessory_id: string; model_id: string }
+        Insert: { accessory_id: string; model_id: string }
+        Update: { accessory_id?: string; model_id?: string }
+        Relationships: [
+          { foreignKeyName: "maintenance_model_accessories_accessory_id_fkey"; columns: ["accessory_id"]; isOneToOne: false; referencedRelation: "maintenance_accessories"; referencedColumns: ["id"] },
+          { foreignKeyName: "maintenance_model_accessories_model_id_fkey"; columns: ["model_id"]; isOneToOne: false; referencedRelation: "maintenance_models"; referencedColumns: ["id"] },
+        ]
+      }
+      maintenance_models: {
+        Row: {
+          accuracy: string | null
+          accuracy_pct: number
+          active: boolean
+          battery: string | null
+          brand: string
+          code: string
+          company_id: string
+          created_at: string
+          description: string | null
+          factory_speed: string | null
+          family: string | null
+          id: string
+          part_number: string | null
+          programming: string | null
+          speed: string | null
+          torque_max: number
+          torque_min: number
+          typical_use: string | null
+          weight: string | null
+        }
+        Insert: {
+          accuracy?: string | null
+          accuracy_pct?: number
+          active?: boolean
+          battery?: string | null
+          brand?: string
+          code: string
+          company_id: string
+          created_at?: string
+          description?: string | null
+          factory_speed?: string | null
+          family?: string | null
+          id?: string
+          part_number?: string | null
+          programming?: string | null
+          speed?: string | null
+          torque_max: number
+          torque_min: number
+          typical_use?: string | null
+          weight?: string | null
+        }
+        Update: {
+          accuracy?: string | null
+          accuracy_pct?: number
+          active?: boolean
+          battery?: string | null
+          brand?: string
+          code?: string
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          factory_speed?: string | null
+          family?: string | null
+          id?: string
+          part_number?: string | null
+          programming?: string | null
+          speed?: string | null
+          torque_max?: number
+          torque_min?: number
+          typical_use?: string | null
+          weight?: string | null
+        }
+        Relationships: []
+      }
       maintenance_quote_batches: {
         Row: {
           approved_at: string | null

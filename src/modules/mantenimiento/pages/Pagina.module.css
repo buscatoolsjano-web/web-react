@@ -84,3 +84,21 @@
   flex-direction: column;
   gap: var(--space-1);
 }
+
+/* Modelos: la grilla de especificaciones. */
+.especificaciones {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-2) 0;
+}
+
+.especificaciones dt {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.especificaciones dd {
+  margin: 0;
+  font-size: var(--text-sm);
+}

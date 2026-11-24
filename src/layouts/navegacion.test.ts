@@ -49,6 +49,7 @@ const NAV_FASE_1: { to: string; roles?: readonly string[] }[] = [
   { to: '/mantenimiento/activos', roles: AC },
   { to: '/mantenimiento/ordenes', roles: AC },
   { to: '/mantenimiento/lotes', roles: AC },
+  { to: '/mantenimiento/modelos', roles: AC },
   { to: '/mantenimiento/historico', roles: AC },
   { to: '/emails', roles: ROLES_EMAILS },
   { to: '/whatsapp', roles: ROLES_WHATSAPP },

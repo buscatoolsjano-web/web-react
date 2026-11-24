@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { formatearNumero, indicadorDeCapacidad } from '../lib/formato'
+import { fueraDeRango, limitesPorPrecision } from '../lib/modelos'
 import { ChipVeredicto } from './ChipEstado'
 import type {
   CapacidadTorque,
@@ -26,6 +27,8 @@ export interface PanelTorqueProps {
   onBorrar: (id: string) => void
   onCompletar: (fecha: string | null) => void
   onRequerido: (requerido: boolean) => void
+  /** El modelo del equipo en el catálogo, si está: da el rango y la precisión. */
+  modelo?: { codigo: string; torqueMin: number; torqueMax: number; precisionPct: number } | null | undefined
 }
 
 const aNumero = (s: string): number | null => {
@@ -67,6 +70,7 @@ export function PanelTorque({
   onBorrar,
   onCompletar,
   onRequerido,
+  modelo = null,
 }: PanelTorqueProps) {
   const id = useId()
   const [lsl, setLsl] = useState(orden.torqueLsl === null ? '' : String(orden.torqueLsl))
@@ -74,6 +78,7 @@ export function PanelTorque({
     orden.torqueNominal === null ? '' : String(orden.torqueNominal),
   )
   const [usl, setUsl] = useState(orden.torqueUsl === null ? '' : String(orden.torqueUsl))
+  const nominalNumero = aNumero(nominal)
   const [nuevo, setNuevo] = useState('')
   const [errorLocal, setErrorLocal] = useState<string | null>(null)
 
@@ -165,6 +170,22 @@ export function PanelTorque({
         </p>
       ) : null}
 
+      {/* ── El modelo del equipo: qué puede dar la herramienta ─────────── */}
+      {modelo ? (
+        <p className={styles.nota}>
+          Modelo <strong>{modelo.codigo}</strong>: rango {formatearNumero(modelo.torqueMin)}–
+          {formatearNumero(modelo.torqueMax)} Nm, precisión ±{formatearNumero(modelo.precisionPct)} %.
+        </p>
+      ) : null}
+      {modelo && nominalNumero !== null && !Number.isNaN(nominalNumero) &&
+      fueraDeRango(nominalNumero, { min: modelo.torqueMin, max: modelo.torqueMax }) ? (
+        <p className={styles.aviso} role="note">
+          El nominal ({formatearNumero(nominalNumero)} Nm) está fuera de lo que da un {modelo.codigo} (
+          {formatearNumero(modelo.torqueMin)}–{formatearNumero(modelo.torqueMax)} Nm). Revisá el dato o el modelo
+          del equipo.
+        </p>
+      ) : null}
+
       {/* ── Límites ─────────────────────────────────────────────────────── */}
       <div className={styles.formulario}>
         <div className={styles.campo}>
@@ -218,6 +239,20 @@ export function PanelTorque({
             >
               Guardar límites
             </Button>
+            {modelo ? (
+              <Button
+                variant="ghost"
+                disabled={guardando || nominalNumero === null || Number.isNaN(nominalNumero) || nominalNumero <= 0}
+                onClick={() => {
+                  if (nominalNumero === null || Number.isNaN(nominalNumero)) return
+                  const l = limitesPorPrecision(nominalNumero, modelo.precisionPct)
+                  setLsl(String(l.lsl))
+                  setUsl(String(l.usl))
+                }}
+              >
+                LCI y LCS con ±{formatearNumero(modelo.precisionPct)} % del nominal
+              </Button>
+            ) : null}
           </div>
         ) : null}
         <p className={`${styles.nota} ${styles.anchoCompleto}`}>
