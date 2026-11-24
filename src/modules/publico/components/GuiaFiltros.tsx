@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Icon } from '@/components/icons/Icon'
 import { cx } from '@/utils/cx'
 import type { CategoriaPublica, FacetasPublicas } from '../services/catalogoPublico'
@@ -97,6 +97,11 @@ export interface GuiaFiltrosProps {
   rangos?: Record<string, { min: number | null; max: number | null }> | undefined
   /** Setea/limpia rangos; si viene, aparece el paso de capacidad en balanceadores. */
   onRangos?: ((cambios: Record<string, CambioRango>) => void) | undefined
+  /**
+   * Apoyarse sobre un tile (puntero, foco o toque): lo que haría elegirlo,
+   * para que quien lo use pida los datos antes del clic. Opcional.
+   */
+  onAnticipar?: ((clave: string, valor: string) => void) | undefined
 }
 
 interface Opcion {
@@ -112,6 +117,8 @@ interface Paso {
   elegido: string
   opciones: Opcion[]
   elegir: (valor: string) => void
+  /** Lo que se le avisa a `onAnticipar` al apoyarse sobre una opción de este paso. */
+  anticipar?: (valor: string) => void
   quitar: () => void
   /** Los tiles de este paso no muestran conteo (ej. capacidad por tramos). */
   sinConteo?: boolean
@@ -152,10 +159,13 @@ export function GuiaFiltros({
   onCategoria,
   rangos,
   onRangos,
+  onAnticipar,
 }: GuiaFiltrosProps) {
   // El grupo elegido vive en memoria (no va a la URL): es sólo el camino al
   // tipo. Si ya hay un tipo puesto, el grupo se deduce de él.
   const [grupoSel, setGrupoSel] = useState('')
+  // El anticipo con el puntero espera un instante (ver los tiles).
+  const timerAnticipo = useRef<number | undefined>(undefined)
   // Si el usuario pidió ver todos los rubros (tocó «Más rubros»).
   const [rubrosExpandidos, setRubrosExpandidos] = useState(false)
   const tipos = facetas?.tipos ?? []
@@ -198,6 +208,7 @@ export function GuiaFiltros({
       elegido: '',
       // «Más rubros» no navega: despliega los chicos en este mismo paso.
       elegir: (v) => (v === MAS_RUBROS ? setRubrosExpandidos(true) : onCategoria(v)),
+      anticipar: (v) => (v === MAS_RUBROS ? undefined : onAnticipar?.('categoria', v)),
       quitar: () => onCategoria(''),
       opciones,
     })
@@ -215,6 +226,10 @@ export function GuiaFiltros({
           // Si el grupo tiene un solo tipo, se aplica derecho; si no, se limpia
           // el tipo anterior para no mezclar grupos.
           onFiltrar('tipo', delGrupo.length === 1 ? (delGrupo[0]?.nombre ?? '') : '')
+        },
+        anticipar: (v) => {
+          const delGrupo = tipos.filter((t) => grupoDe(t.nombre) === v)
+          onAnticipar?.('tipo', delGrupo.length === 1 ? (delGrupo[0]?.nombre ?? '') : '')
         },
         quitar: () => {
           setGrupoSel('')
@@ -246,6 +261,7 @@ export function GuiaFiltros({
             setGrupoSel(grupoDe(v))
             onFiltrar('tipo', v)
           },
+          anticipar: (v) => onAnticipar?.('tipo', v),
           quitar: () => onFiltrar('tipo', ''),
           opciones: delGrupo.map((t) => ({
             valor: t.nombre,
@@ -396,6 +412,7 @@ export function GuiaFiltros({
         elegir: (v) => {
           onFiltrar(`a.${faceta.key}`, v)
         },
+        anticipar: (v) => onAnticipar?.(`a.${faceta.key}`, v),
         quitar: () => onFiltrar(`a.${faceta.key}`, ''),
         opciones: faceta.opciones.map((o) => ({
           valor: o.valor,
@@ -514,6 +531,18 @@ export function GuiaFiltros({
                 className={cx(styles.tile, o.medio === null && styles.tileTexto)}
                 disabled={cargando}
                 onClick={() => activo.elegir(o.valor)}
+                // Pedir los datos antes del clic. Con el puntero, recién si se
+                // queda 80 ms: cruzar la grilla camino a otro lado no dispara
+                // pedidos. El foco y el toque, al toque.
+                onPointerEnter={(e) => {
+                  if (e.pointerType !== 'mouse' || !activo.anticipar) return
+                  const anticipar = activo.anticipar
+                  window.clearTimeout(timerAnticipo.current)
+                  timerAnticipo.current = window.setTimeout(() => anticipar(o.valor), 80)
+                }}
+                onPointerLeave={() => window.clearTimeout(timerAnticipo.current)}
+                onPointerDown={() => activo.anticipar?.(o.valor)}
+                onFocus={() => activo.anticipar?.(o.valor)}
               >
                 {o.medio}
                 <span className={styles.etiqueta}>{o.etiqueta}</span>

@@ -62,6 +62,7 @@ vi.mock('../hooks/useExportarCatalogo', () => ({
   useExportarCatalogo: () => ({ exportar: vi.fn(), exportando: false, avance: null, error: null }),
   useTotalDelCatalogo: () => null,
 }))
+vi.mock('../hooks/useAnticiparFiltro', () => ({ useAnticiparFiltro: () => () => {} }))
 vi.mock('../hooks/useProductos', () => ({
   useProductos: () =>
     estado.error

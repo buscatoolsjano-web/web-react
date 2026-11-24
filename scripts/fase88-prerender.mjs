@@ -243,27 +243,23 @@ import { createServer } from 'vite'
     )
   }
 
-  // ── Traer TODO el catálogo, página por página (tope del server: 48) ─────────
+  // ── Traer TODO el catálogo, en tandas grandes ──────────────────────────────
+  // Antes se recorría con `catalogo_publico_listar` de a 48: 426 llamadas, cada
+  // una ordenando todo el catálogo para saltear las anteriores. Era ~1 minuto
+  // de base por deploy, saturaba la instancia (el ERP se ponía lento) y con
+  // carga la página 406 pasó el timeout y tiró el deploy.
+  // `catalogo_publico_exportar` trae lo mismo, en el mismo orden, de a 500.
+  const POR_TANDA = 500
   async function traerTodo() {
     const todos = []
     let pagina = 1
     for (;;) {
-      const { data, error } = await rpc('catalogo_publico_listar', {
-        p_categoria: null,
-        p_marca: null,
-        p_serie: null,
-        p_tipo: null,
-        p_texto: null,
-        p_modelo: null,
-        p_atributos: null,
-        p_pagina: pagina,
-        p_por_pagina: 48,
-      })
-      if (error) throw new Error(`catalogo_publico_listar p${pagina}: ${error.message}`)
+      const { data, error } = await rpc('catalogo_publico_exportar', { p_pagina: pagina, p_por_pagina: POR_TANDA })
+      if (error) throw new Error(`catalogo_publico_exportar p${pagina}: ${error.message}`)
       const filas = Array.isArray(data?.productos) ? data.productos : []
       todos.push(...filas)
       const total = Number(data?.total ?? 0)
-      if (filas.length < 48 || todos.length >= total) break
+      if (filas.length < POR_TANDA || todos.length >= total) break
       pagina += 1
     }
     return todos

@@ -31,6 +31,7 @@ import {
 } from '../hooks/useCatalogoFacetas'
 import { atributosParaGuia, categoriasParaGuia, facetasParaGuia, slugGuia } from '../lib/adaptarGuia'
 import { useDisponibilidad, useProductos } from '../hooks/useProductos'
+import { useAnticiparFiltro } from '../hooks/useAnticiparFiltro'
 import { columnaYdireccion, proximoOrden, useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
 import { useExportarCatalogo } from '../hooks/useExportarCatalogo'
 import { columnasPara } from '../lib/exportar'
@@ -107,6 +108,7 @@ export function CatalogoPage() {
   )
 
   const { data, isPending, isFetching, error, refetch } = useProductos(filtros, listaEfectiva?.id ?? null, !listasCargando)
+  const anticipar = useAnticiparFiltro(companyId, filtros, listaEfectiva?.id ?? null, esInterno, !listasCargando)
   const productos = useMemo(() => data?.productos ?? [], [data])
   const total = data?.total ?? 0
 
@@ -197,6 +199,25 @@ export function CatalogoPage() {
     () => categoriasParaGuia(todasLasCategorias.data ?? [], facetas, portadasPublicas.data ?? []),
     [todasLasCategorias.data, facetas, portadasPublicas.data],
   )
+  /*
+   * El rubro más grande —«Puntas y tubos»— es el que casi todos tocan primero.
+   * Con la primera pantalla del catálogo ya dibujada, y sin filtro puesto, se
+   * piden sus facetas y su primera página un rato después: el clic encuentra
+   * todo en caché. Un solo rubro, para no cargar la base de pedidos.
+   */
+  const rubroMasGrande = useMemo(() => {
+    const slug = [...categoriasGuia].sort((a, b) => b.productos - a.productos)[0]?.slug
+    return slug ? ((todasLasCategorias.data ?? []).find((c) => slugGuia(c) === slug)?.id ?? null) : null
+  }, [categoriasGuia, todasLasCategorias.data])
+  const enRaiz = filtros.categoria === null && filtros.q === ''
+  useEffect(() => {
+    if (!enRaiz || isPending || !rubroMasGrande) return
+    const id = window.setTimeout(
+      () => anticipar({ categoria: rubroMasGrande, subtipos: [], atributos: {}, rangos: {} }),
+      1_500,
+    )
+    return () => window.clearTimeout(id)
+  }, [enRaiz, isPending, rubroMasGrande, anticipar])
   // La guía habla en slug público (plural: «puntas-y-tubos»), que es con el que
   // matchean las fotos; el ERP filtra por id. Se traduce en los dos sentidos.
   const categoriaActual = (todasLasCategorias.data ?? []).find((c) => c.id === filtros.categoria)
@@ -209,6 +230,20 @@ export function CatalogoPage() {
     // Se limpian también los rangos (capacidad): si quedara puesto, en un rubro
     // sin min_kg/max_kg dejaría la lista en cero (ranges_match exige la clave).
     actualizar({ categoria: cat?.id ?? null, subtipos: [], atributos: {}, rangos: {} })
+  }
+  /**
+   * Lo que haría el clic, pedido antes (al apoyarse sobre el tile): mismo
+   * cambio que `guiaElegirCategoria` y `guiaFiltrar`, pero sólo precalienta.
+   */
+  const guiaAnticipar = (clave: string, valor: string) => {
+    if (clave === 'categoria') {
+      const cat = (todasLasCategorias.data ?? []).find((c) => slugGuia(c) === valor)
+      if (cat) anticipar({ categoria: cat.id, subtipos: [], atributos: {}, rangos: {} })
+    } else if (clave === 'tipo') {
+      anticipar({ subtipos: valor === '' ? [] : [valor] })
+    } else if (clave.startsWith('a.')) {
+      anticipar({ atributos: { ...filtros.atributos, [clave.slice(2)]: valor === '' ? [] : [valor] } })
+    }
   }
   /** Un filtro de la guía (tipo o atributo) → el estado multi-valor del ERP. */
   const guiaFiltrar = (clave: string, valor: string) => {
@@ -296,6 +331,7 @@ export function CatalogoPage() {
         cargando={facetasCargando}
         onFiltrar={guiaFiltrar}
         onCategoria={guiaElegirCategoria}
+        onAnticipar={guiaAnticipar}
         rangos={filtros.rangos}
         onRangos={(cambios) => actualizar({ rangos: aplicarCambiosDeRango(filtros.rangos, cambios) })}
       />
