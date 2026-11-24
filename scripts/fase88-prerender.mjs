@@ -114,7 +114,7 @@ import { createServer } from 'vite'
       const r = await supabase.rpc(nombre, args)
       const transitorio =
         r.error && /timeout|canceling statement|fetch failed|ECONN|network|socket/i.test(r.error.message || '')
-      if (!r.error || !transitorio || intento >= 4) return r
+      if (!r.error || !transitorio || intento >= 6) return r
       console.warn(`[prerender] ${nombre} intento ${intento} falló (${r.error.message}); reintento…`)
       await new Promise((res) => setTimeout(res, 2000 * intento))
     }
@@ -248,8 +248,9 @@ import { createServer } from 'vite'
   // una ordenando todo el catálogo para saltear las anteriores. Era ~1 minuto
   // de base por deploy, saturaba la instancia (el ERP se ponía lento) y con
   // carga la página 406 pasó el timeout y tiró el deploy.
-  // `catalogo_publico_exportar` trae lo mismo, en el mismo orden, de a 500.
-  const POR_TANDA = 500
+  // `catalogo_publico_exportar` trae lo mismo, en el mismo orden, de a 250
+  // (de a 500, con la caché fría, la primera tanda rozaba el timeout de 3 s).
+  const POR_TANDA = 250
   async function traerTodo() {
     const todos = []
     let pagina = 1
