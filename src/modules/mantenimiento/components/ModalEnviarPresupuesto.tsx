@@ -17,12 +17,20 @@ import { obtenerCliente } from '@/modules/clientes/services/clientes'
 import { datosDeEmpresa } from '@/modules/ventas/services/empresa'
 import type { EmpresaImpresion } from '@/modules/ventas/lib/impresion'
 import { VistaImpresion } from '@/modules/ventas/components/VistaImpresion'
-import { aHojaDePresupuesto, asuntoDePresupuesto, cuerpoDePresupuesto } from '../lib/hojaPresupuesto'
-import type { LineaCotizacion, OrdenDetalle } from '../types'
+import type { DocumentoImprimible as HojaVentas } from '@/modules/ventas/lib/impresion'
 
 export interface ModalEnviarPresupuestoProps {
-  orden: OrdenDetalle
-  lineas: readonly LineaCotizacion[]
+  /** La hoja que se vuelve PDF: la de una orden o la de un lote. */
+  hoja: HojaVentas
+  numero: string
+  clienteId: string
+  asunto: string
+  texto: string
+  /** Dónde queda la constancia del envío. */
+  tipo: 'orden_mantenimiento' | 'lote_mantenimiento'
+  documentoId: string
+  /** Lo que se refresca después de enviar (el historial de la orden o del lote). */
+  claveHistorial: readonly unknown[]
   onCerrar: () => void
 }
 
@@ -32,9 +40,19 @@ export interface ModalEnviarPresupuestoProps {
  * Lo que el sitio viejo del taller hacía con «Enviar por mail». Es el mismo
  * composer de Emails y la misma hoja que una cotización comercial; va a los
  * mails del cliente y se pueden cambiar antes de mandar. Al salir queda el
- * evento en el historial de la orden.
+ * evento en el historial de la orden o del lote.
  */
-export function ModalEnviarPresupuesto({ orden, lineas, onCerrar }: ModalEnviarPresupuestoProps) {
+export function ModalEnviarPresupuesto({
+  hoja,
+  numero,
+  clienteId,
+  asunto,
+  texto,
+  tipo,
+  documentoId,
+  claveHistorial,
+  onCerrar,
+}: ModalEnviarPresupuestoProps) {
   const { activa } = useEmpresa()
   const qc = useQueryClient()
   const cuentas = useCuentas()
@@ -51,8 +69,8 @@ export function ModalEnviarPresupuesto({ orden, lineas, onCerrar }: ModalEnviarP
     staleTime: 10 * 60_000,
   })
   const cliente = useQuery({
-    queryKey: ['clientes', activa?.companyId, 'detalle', orden.clienteId],
-    queryFn: () => obtenerCliente(activa!.companyId, orden.clienteId),
+    queryKey: ['clientes', activa?.companyId, 'detalle', clienteId],
+    queryFn: () => obtenerCliente(activa!.companyId, clienteId),
     enabled: !!activa,
     staleTime: 60_000,
   })
@@ -68,15 +86,15 @@ export function ModalEnviarPresupuesto({ orden, lineas, onCerrar }: ModalEnviarP
   useEffect(() => {
     if (!listo || armado.current || !nodo.current) return
     armado.current = true
-    const hoja = nodo.current
+    const elemento = nodo.current
     void (async () => {
       try {
         const { pdfDeHoja, base64DeBlob } = await import('@/modules/ventas/lib/pdfDeHoja')
-        const blob = await pdfDeHoja(hoja)
+        const blob = await pdfDeHoja(elemento)
         const adjunto: AdjuntoRedaccion = {
           clave: nuevaClave(),
           tipo: 'nuevo',
-          nombre: `Presupuesto-${orden.numero}.pdf`,
+          nombre: `Presupuesto-${numero}.pdf`,
           mime: 'application/pdf',
           tamano: blob.size,
           datos: await base64DeBlob(blob),
@@ -86,7 +104,7 @@ export function ModalEnviarPresupuesto({ orden, lineas, onCerrar }: ModalEnviarP
         setPdf({ adjunto: null, aviso: e instanceof Error ? e.message : 'No se pudo armar el PDF.' })
       }
     })()
-  }, [listo, orden.numero])
+  }, [listo, numero])
 
   const emails = useMemo(() => (cliente.data?.emails ?? []).filter((e) => e.includes('@')), [cliente.data])
 
@@ -104,12 +122,12 @@ export function ModalEnviarPresupuesto({ orden, lineas, onCerrar }: ModalEnviarP
       semilla: {
         para: emails.slice(0, 1),
         cc: emails.slice(1),
-        asunto: asuntoDePresupuesto(orden),
-        texto: cuerpoDePresupuesto(orden),
+        asunto,
+        texto,
         adjuntos: pdf.adjunto ? [pdf.adjunto] : [],
       },
     }
-  }, [cuenta, pdf, cliente.isPending, emails, orden])
+  }, [cuenta, pdf, cliente.isPending, emails, asunto, texto])
 
   return (
     <Dialog
@@ -124,7 +142,7 @@ export function ModalEnviarPresupuesto({ orden, lineas, onCerrar }: ModalEnviarP
       {cuenta && pdf === null ? (
         <div ref={nodo} aria-hidden="true" style={{ position: 'absolute', left: '-10000px', top: 0 }}>
           <VistaImpresion
-            doc={aHojaDePresupuesto(orden, lineas)}
+            doc={hoja}
             empresa={empresa}
             opciones={{ formato: 'valorado', preciosConImpuestos: false, papel: 'A4', conFotos: false }}
           />
@@ -154,7 +172,7 @@ export function ModalEnviarPresupuesto({ orden, lineas, onCerrar }: ModalEnviarP
       ) : enviado ? (
         <Alert tone="success" role="status" title="El mail salió">
           <p>
-            Quedó registrado en el historial de la orden. Va a aparecer en <Link to="/emails">la bandeja</Link> en
+            Quedó registrado en el historial. Va a aparecer en <Link to="/emails">la bandeja</Link> en
             cuanto Gmail lo sincronice.
           </p>
           <Button onClick={onCerrar}>Cerrar</Button>
@@ -180,8 +198,8 @@ export function ModalEnviarPresupuesto({ orden, lineas, onCerrar }: ModalEnviarP
               onEnviado={(_hilo, envio) => {
                 setEnviado(true)
                 void import('@/services/envioDocumento')
-                  .then((m) => m.registrarEnvioDocumento('orden_mantenimiento', orden.id, envio))
-                  .then(() => qc.invalidateQueries({ queryKey: ['mantenimiento', activa?.companyId, 'historial-orden', orden.id] }))
+                  .then((m) => m.registrarEnvioDocumento(tipo, documentoId, envio))
+                  .then(() => qc.invalidateQueries({ queryKey: [...claveHistorial] }))
               }}
             />
           ) : null}

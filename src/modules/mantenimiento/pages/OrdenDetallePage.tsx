@@ -19,6 +19,7 @@ import { Icon } from '@/components/icons/Icon'
 import { permisosDe } from '../lib/permisos'
 import { formatearFecha, formatearFechaHora } from '../lib/formato'
 import { etiquetaDeServicio } from '../lib/estados'
+import { aHojaDePresupuesto, asuntoDePresupuesto, cuerpoDePresupuesto } from '../lib/hojaPresupuesto'
 import { PanelEtapas } from '../components/PanelEtapas'
 import { PanelChecks } from '../components/PanelChecks'
 import { PanelCotizacion } from '../components/PanelCotizacion'
@@ -317,7 +318,17 @@ export function OrdenDetallePage() {
 
       {enviando ? (
         <Suspense fallback={null}>
-          <ModalEnviarPresupuesto orden={orden} lineas={lineas.data ?? []} onCerrar={() => setEnviando(false)} />
+          <ModalEnviarPresupuesto
+            hoja={aHojaDePresupuesto(orden, lineas.data ?? [])}
+            numero={orden.numero}
+            clienteId={orden.clienteId}
+            asunto={asuntoDePresupuesto(orden)}
+            texto={cuerpoDePresupuesto(orden)}
+            tipo="orden_mantenimiento"
+            documentoId={orden.id}
+            claveHistorial={['mantenimiento', activa?.companyId, 'historial-orden', orden.id]}
+            onCerrar={() => setEnviando(false)}
+          />
         </Suspense>
       ) : null}
 

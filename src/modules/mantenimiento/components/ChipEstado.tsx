@@ -4,6 +4,7 @@ import {
   etiquetaDeCotizacion,
   etiquetaDeEstado,
   etiquetaDeEtapa,
+  etiquetaDeLote,
   etiquetaDeMotivoPausa,
   etiquetaDeResultado,
   etiquetaDeSituacion,
@@ -132,4 +133,15 @@ export function ChipServicio({ estado }: { estado: EstadoServicio }) {
   if (estado === 'en_espera') return <Badge tone="warning" dot>En espera</Badge>
   if (estado === 'cotizacion_pendiente') return <Badge tone="info" dot>Cotiz. pendiente</Badge>
   return <Badge tone="info">En servicio</Badge>
+}
+
+const TONO_LOTE: Record<string, 'info' | 'success' | 'danger'> = { open: 'info', approved: 'success', rejected: 'danger' }
+
+/** El estado de un lote de cotización: abierto, aprobado o rechazado. */
+export function ChipLote({ estado }: { estado: string }) {
+  return (
+    <Badge tone={TONO_LOTE[estado] ?? 'neutral'} dot>
+      {etiquetaDeLote(estado)}
+    </Badge>
+  )
 }

@@ -75,3 +75,38 @@ describe('aHojaDePresupuesto', () => {
     expect(asuntoDePresupuesto(orden)).toBe('Presupuesto de servicio OS00012 · FEIN ASM18-8-PC')
   })
 })
+
+describe('aHojaDeLote', () => {
+  it('un capítulo por equipo con su total, y las líneas numeradas de corrido', async () => {
+    const { aHojaDeLote, asuntoDeLote } = await import('./hojaPresupuesto')
+    const lote = {
+      id: 'b1',
+      numero: 'LT00001',
+      clienteId: 'c1',
+      cliente: 'Whirlpool Argentina S.A.',
+      estado: 'open' as const,
+      moneda: 'USD',
+      equipos: 2,
+      total: 150,
+      creadoEn: '2026-11-24T10:00:00Z',
+      notas: null,
+      aprobadoEn: null,
+      aprobadoPor: null,
+      pedidoVenta: null,
+      ordenes: [
+        { id: 'o1', numero: 'OS1', activoReferencia: 'ACT1', modelo: 'ASM18-8', serie: '000460', estadoCotizacion: 'pending' as const, moneda: 'USD', total: 100, lineas: [linea(1, { total: 100, descripcion: 'Service' })] },
+        { id: 'o2', numero: 'OS2', activoReferencia: 'ACT2', modelo: null, serie: null, estadoCotizacion: 'pending' as const, moneda: 'USD', total: 50, lineas: [linea(1, { total: 30 }), linea(2, { total: 20, tipo: 'labour' })] },
+      ],
+    }
+    const h = aHojaDeLote(lote)
+    expect(h.lineas.map((l) => [l.esCapitulo, l.numero, l.nombre])).toEqual([
+      [true, null, 'OS1 · ASM18-8 · serie 000460'],
+      [false, 1, 'Service'],
+      [true, null, 'OS2'],
+      [false, 2, 'Repuesto'],
+      [false, 3, 'Mano de obra'],
+    ])
+    expect(h.total).toBe(150)
+    expect(asuntoDeLote(lote)).toBe('Presupuesto de servicio · lote LT00001 (2 equipos)')
+  })
+})

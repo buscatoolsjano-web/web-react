@@ -3336,6 +3336,7 @@ export type Database = {
           labour_hours: number | null
           next_preventive_date: string | null
           sales_order_id: string | null
+          batch_id: string | null
           number: string
           on_hold: boolean
           on_hold_since: string | null
@@ -3392,6 +3393,7 @@ export type Database = {
           labour_hours?: number | null
           next_preventive_date?: string | null
           sales_order_id?: string | null
+          batch_id?: string | null
           number: string
           on_hold?: boolean
           on_hold_since?: string | null
@@ -3448,6 +3450,7 @@ export type Database = {
           labour_hours?: number | null
           next_preventive_date?: string | null
           sales_order_id?: string | null
+          batch_id?: string | null
           number?: string
           on_hold?: boolean
           on_hold_since?: string | null
@@ -7234,6 +7237,54 @@ export type Database = {
           },
         ]
       }
+      maintenance_quote_batches: {
+        Row: {
+          approved_at: string | null
+          approved_by_name: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          currency_code: string | null
+          customer_id: string
+          id: string
+          notes: string | null
+          number: string
+          sales_order_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by_name?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string | null
+          customer_id: string
+          id?: string
+          notes?: string | null
+          number: string
+          sales_order_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by_name?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string | null
+          customer_id?: string
+          id?: string
+          notes?: string | null
+          number?: string
+          sales_order_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       maintenance_videos: {
         Row: {
           bytes: number | null
@@ -8463,6 +8514,30 @@ export type Database = {
       }
     }
     Functions: {
+      mant_lote_agregar: {
+        Args: { p_batch: string; p_orders: string[] }
+        Returns: undefined
+      }
+      mant_lote_aprobar: {
+        Args: { p_batch: string; p_por?: string | null }
+        Returns: Json
+      }
+      mant_lote_crear: {
+        Args: { p_company: string; p_customer: string; p_orders: string[] }
+        Returns: Json
+      }
+      mant_lote_crear_pedido: {
+        Args: { p_batch: string }
+        Returns: Json
+      }
+      mant_lote_quitar: {
+        Args: { p_batch: string; p_order: string }
+        Returns: undefined
+      }
+      mant_lote_rechazar: {
+        Args: { p_batch: string; p_motivo?: string | null }
+        Returns: Json
+      }
       mantenimiento_crear_pedido_venta: {
         Args: { p_order: string }
         Returns: Json

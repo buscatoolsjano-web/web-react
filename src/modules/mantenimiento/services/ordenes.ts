@@ -145,6 +145,7 @@ export async function obtenerOrden(
        diagnosed_by, repair_required, torque_required, repaired_at, torque_at,
        on_hold_since, on_hold_note, final_result, efficiency_pct, next_preventive_date,
        sales_order_id, pedido:sales_orders!sales_order_id ( number ),
+       batch_id, lote:maintenance_quote_batches!batch_id ( number, status ),
        closing_notes, closed_at, received_by, created_at, updated_at,
        quote_subtotal, quote_approved_at, quote_approved_by_name, quote_notes,
        repair_notes, labour_hours, torque_lsl, torque_nominal, torque_usl,
@@ -174,6 +175,8 @@ export async function obtenerOrden(
     next_preventive_date: string | null
     sales_order_id: string | null
     pedido: { number: string } | null
+    batch_id: string | null
+    lote: { number: string; status: string } | null
     closing_notes: string | null
     closed_at: string | null
     received_by: string | null
@@ -221,6 +224,7 @@ export async function obtenerOrden(
     eficienciaPct: f.efficiency_pct === null ? null : aNumero(f.efficiency_pct),
     proximoPreventivo: f.next_preventive_date,
     pedidoVenta: f.sales_order_id ? { id: f.sales_order_id, numero: f.pedido?.number ?? '—' } : null,
+    lote: f.batch_id ? { id: f.batch_id, numero: f.lote?.number ?? '—', estado: f.lote?.status ?? 'open' } : null,
     notasCierre: f.closing_notes,
     cerradaEn: f.closed_at,
     autor: f.autor?.full_name ?? null,

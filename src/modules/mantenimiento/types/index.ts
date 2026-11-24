@@ -253,6 +253,8 @@ export interface OrdenDetalle extends OrdenListado {
   proximoPreventivo: string | null
   /** El pedido de venta que se generó desde la cotización aprobada. */
   pedidoVenta: { id: string; numero: string } | null
+  /** El lote de cotización en el que está; mientras esté abierto, se resuelve desde ahí. */
+  lote: { id: string; numero: string; estado: string } | null
   notasCierre: string | null
   cerradaEn: string | null
   autor: string | null

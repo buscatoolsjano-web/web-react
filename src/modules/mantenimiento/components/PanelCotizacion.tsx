@@ -467,7 +467,15 @@ export function PanelCotizacion({
         </>
       ) : null}
 
-      {puedeEditar && puede.resolver ? (
+      {orden.lote && puede.resolver ? (
+        <p className={styles.nota}>
+          Esta orden está en el lote{' '}
+          <Link to={`/mantenimiento/lotes/${orden.lote.id}`}>
+            <strong>{orden.lote.numero}</strong>
+          </Link>
+          : la cotización se manda, se aprueba o se rechaza desde el lote, junto con las demás.
+        </p>
+      ) : puedeEditar && puede.resolver ? (
         <div className={styles.resolver}>
           <h3 className={styles.etiqueta}>Resolver la cotización</h3>
           <p className={styles.nota}>
@@ -581,6 +589,14 @@ export function PanelCotizacion({
               <strong>{orden.pedidoVenta.numero}</strong>
             </Link>
             . Se factura desde Ventas.
+          </p>
+        ) : orden.lote ? (
+          <p className={styles.nota}>
+            Se factura con el lote{' '}
+            <Link to={`/mantenimiento/lotes/${orden.lote.id}`}>
+              <strong>{orden.lote.numero}</strong>
+            </Link>
+            : el pedido de venta se genera desde ahí, uno para todo el lote.
           </p>
         ) : puedeEditar && onGenerarPedido ? (
           <div className={styles.acciones}>

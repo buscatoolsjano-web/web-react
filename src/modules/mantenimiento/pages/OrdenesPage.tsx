@@ -110,6 +110,9 @@ export function OrdenesPage() {
             <LinkButton to="/mantenimiento/activos" variant="ghost">
               Equipos
             </LinkButton>
+            <LinkButton to="/mantenimiento/lotes" variant="ghost">
+              Lotes
+            </LinkButton>
             <LinkButton to="/mantenimiento/puntos" variant="ghost">
               Puntos de revisión
             </LinkButton>

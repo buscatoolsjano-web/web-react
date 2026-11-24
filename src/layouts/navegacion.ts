@@ -153,6 +153,7 @@ export const NAVEGACION: GrupoNav[] = [
         hijos: [
           { to: '/mantenimiento/activos', label: 'Equipos', roles: ESCRIBEN_MANTENIMIENTO },
           { to: '/mantenimiento/ordenes', label: 'Órdenes de servicio', roles: ESCRIBEN_MANTENIMIENTO },
+          { to: '/mantenimiento/lotes', label: 'Lotes de cotización', roles: ESCRIBEN_MANTENIMIENTO },
           { to: '/mantenimiento/historico', label: 'Histórico', roles: ESCRIBEN_MANTENIMIENTO },
         ],
       },

@@ -300,3 +300,14 @@ export function etiquetaDeResultadoFinal(v: string | null): string | null {
   if (v === null) return null
   return RESULTADOS_FINALES.find((m) => m.valor === v)?.etiqueta ?? v
 }
+
+const ESTADOS_LOTE: Record<string, string> = {
+  open: 'Abierto',
+  approved: 'Aprobado',
+  rejected: 'Rechazado',
+}
+
+/** El estado de un lote de cotización, en castellano. */
+export function etiquetaDeLote(v: string): string {
+  return ESTADOS_LOTE[v] ?? v
+}
