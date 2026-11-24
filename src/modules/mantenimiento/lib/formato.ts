@@ -60,6 +60,7 @@ const ACCIONES: Record<string, string> = {
   order_cancelled: 'Cancelación',
   quote_approved: 'Cotización aprobada',
   quote_emailed: 'Presupuesto enviado por mail',
+  sales_order_created: 'Pedido de venta generado',
   quote_rejected: 'Cotización rechazada',
   consumption_confirmed: 'Consumo de repuestos',
   part_added: 'Repuesto agregado',

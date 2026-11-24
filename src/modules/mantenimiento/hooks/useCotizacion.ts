@@ -8,6 +8,7 @@ import {
   elegirMoneda,
   intercambiarPosicion,
   lineasDeCotizacion,
+  crearPedidoDeVenta,
   rechazarCotizacion,
 } from '../services/cotizacion'
 import type { DatosLinea, LineaCotizacion } from '../types'
@@ -74,6 +75,10 @@ export function useAccionesCotizacion(ordenId: string) {
     }),
     rechazar: useMutation({
       mutationFn: (motivo: string) => rechazarCotizacion(ordenId, motivo),
+      onSuccess: invalidarConHistorial,
+    }),
+    pedido: useMutation({
+      mutationFn: () => crearPedidoDeVenta(ordenId),
       onSuccess: invalidarConHistorial,
     }),
   }

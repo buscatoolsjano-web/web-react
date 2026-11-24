@@ -299,6 +299,7 @@ export function OrdenDetallePage() {
             cotizacion.moneda.error?.message ??
             cotizacion.aprobar.error?.message ??
             cotizacion.rechazar.error?.message ??
+            cotizacion.pedido.error?.message ??
             null
           }
           onCrear={(d) => cotizacion.crear.mutateAsync(d)}
@@ -309,6 +310,8 @@ export function OrdenDetallePage() {
           onAprobar={(porQuien) => cotizacion.aprobar.mutate(porQuien)}
           onRechazar={(motivoTexto) => cotizacion.rechazar.mutate(motivoTexto)}
           onEnviar={permisos.editar ? () => setEnviando(true) : undefined}
+          onGenerarPedido={permisos.editar ? () => cotizacion.pedido.mutate() : undefined}
+          generandoPedido={cotizacion.pedido.isPending}
         />
       ) : null}
 

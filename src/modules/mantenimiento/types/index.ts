@@ -251,6 +251,8 @@ export interface OrdenDetalle extends OrdenListado {
   resultadoFinal: ResultadoFinal | null
   eficienciaPct: number | null
   proximoPreventivo: string | null
+  /** El pedido de venta que se generó desde la cotización aprobada. */
+  pedidoVenta: { id: string; numero: string } | null
   notasCierre: string | null
   cerradaEn: string | null
   autor: string | null

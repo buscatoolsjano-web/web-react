@@ -189,6 +189,18 @@ export async function aprobarCotizacion(
   return { yaEstaba: (data as unknown as { ya_estaba: boolean }).ya_estaba }
 }
 
+/**
+ * El pedido de venta de la cotización aprobada, en borrador, para facturar el
+ * trabajo por el circuito de Ventas. Una orden genera un solo pedido: si ya
+ * lo tenía, devuelve ése.
+ */
+export async function crearPedidoDeVenta(ordenId: string): Promise<{ id: string; numero: string; yaEstaba: boolean }> {
+  const { data, error } = await supabase.rpc('mantenimiento_crear_pedido_venta', { p_order: ordenId })
+  if (error) throw new Error(traducir(error.message, error.code))
+  const r = data as unknown as { id: string; number: string; ya_estaba: boolean }
+  return { id: r.id, numero: r.number, yaEstaba: r.ya_estaba }
+}
+
 export async function rechazarCotizacion(
   ordenId: string,
   motivo: string,

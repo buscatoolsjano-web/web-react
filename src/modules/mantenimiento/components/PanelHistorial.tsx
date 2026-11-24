@@ -52,6 +52,12 @@ function detalle(e: EventoDeMantenimiento): string | null {
     return partes.length > 0 ? partes.join(' · ') : null
   }
 
+  // El pedido de venta generado: cuál.
+  if (e.accion === 'sales_order_created') {
+    const pedido = e.diff?.['pedido']
+    return typeof pedido === 'string' ? pedido : null
+  }
+
   // El presupuesto mandado por mail: a quién.
   if (e.accion === 'quote_emailed') {
     const para = e.diff?.['para']

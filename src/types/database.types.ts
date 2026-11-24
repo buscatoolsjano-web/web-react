@@ -3335,6 +3335,7 @@ export type Database = {
           id: string
           labour_hours: number | null
           next_preventive_date: string | null
+          sales_order_id: string | null
           number: string
           on_hold: boolean
           on_hold_since: string | null
@@ -3390,6 +3391,7 @@ export type Database = {
           id?: string
           labour_hours?: number | null
           next_preventive_date?: string | null
+          sales_order_id?: string | null
           number: string
           on_hold?: boolean
           on_hold_since?: string | null
@@ -3445,6 +3447,7 @@ export type Database = {
           id?: string
           labour_hours?: number | null
           next_preventive_date?: string | null
+          sales_order_id?: string | null
           number?: string
           on_hold?: boolean
           on_hold_since?: string | null
@@ -8460,6 +8463,10 @@ export type Database = {
       }
     }
     Functions: {
+      mantenimiento_crear_pedido_venta: {
+        Args: { p_order: string }
+        Returns: Json
+      }
       youtube_estado: {
         Args: { p_company: string }
         Returns: Json

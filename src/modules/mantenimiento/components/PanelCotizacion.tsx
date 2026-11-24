@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { useIsMobile } from '@/hooks/useMediaQuery'
@@ -35,6 +36,9 @@ export interface PanelCotizacionProps {
   onRechazar: (motivo: string) => void
   /** Mandarle el presupuesto al cliente por mail; sin esto no hay botón. */
   onEnviar?: (() => void) | undefined
+  /** Generar el pedido de venta de la cotización aprobada. */
+  onGenerarPedido?: (() => void) | undefined
+  generandoPedido?: boolean | undefined
 }
 
 const VACIA = {
@@ -83,6 +87,8 @@ export function PanelCotizacion({
   onAprobar,
   onRechazar,
   onEnviar,
+  onGenerarPedido,
+  generandoPedido = false,
 }: PanelCotizacionProps) {
   const id = useId()
   const isMobile = useIsMobile()
@@ -564,6 +570,29 @@ export function PanelCotizacion({
             ? ` La aprobó ${orden.quienAprobo}.`
             : ''}
         </p>
+      ) : null}
+
+      {/* La cotización aprobada pasa a Ventas: de ahí salen el remito y la factura. */}
+      {orden.estadoCotizacion === 'approved' ? (
+        orden.pedidoVenta ? (
+          <p className={styles.nota}>
+            Pedido de venta:{' '}
+            <Link to={`/ventas/pedidos/${orden.pedidoVenta.id}`}>
+              <strong>{orden.pedidoVenta.numero}</strong>
+            </Link>
+            . Se factura desde Ventas.
+          </p>
+        ) : puedeEditar && onGenerarPedido ? (
+          <div className={styles.acciones}>
+            <Button disabled={guardando || generandoPedido} loading={generandoPedido} onClick={onGenerarPedido}>
+              Generar pedido de venta
+            </Button>
+            <span className={styles.nota}>
+              Arma el pedido en borrador con estas líneas (IVA 21 %), para revisarlo, confirmarlo y facturarlo desde
+              Ventas.
+            </span>
+          </div>
+        ) : null
       ) : null}
     </div>
   )
