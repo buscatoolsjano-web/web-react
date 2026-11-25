@@ -1,0 +1,104 @@
+/* El visor de la hoja del catálogo: la página entera, ahí mismo, con zoom. */
+
+.fondo {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  background: var(--color-overlay);
+  padding: var(--space-3);
+}
+
+.caja {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.titulo {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.controles {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+
+.escala {
+  min-width: 3.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+}
+
+.lienzo {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #6f6f6f;
+  /* Los gestos los maneja el visor: sin esto el navegador hace su propio
+     zoom de la página o la desplaza. */
+  touch-action: none;
+  cursor: zoom-in;
+  user-select: none;
+}
+
+.acercado {
+  cursor: grab;
+}
+
+.acercado:active {
+  cursor: grabbing;
+}
+
+.imagen {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  background: #fff;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.ayuda {
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 767px) {
+  .fondo {
+    padding: 0;
+  }
+  .caja {
+    border-radius: 0;
+  }
+}

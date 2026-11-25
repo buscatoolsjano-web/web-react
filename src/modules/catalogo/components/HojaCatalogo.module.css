@@ -1,4 +1,4 @@
-/* La hoja del catálogo: se pide, no se descarga sola. */
+/* La hoja del catálogo: se carga al llegar con el scroll. */
 
 .wrap {
   display: flex;
@@ -38,6 +38,10 @@
 .marco {
   display: block;
   width: 100%;
+  padding: 0;
+  font: inherit;
+  /* Tocarla la amplía en el visor con zoom. */
+  cursor: zoom-in;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
