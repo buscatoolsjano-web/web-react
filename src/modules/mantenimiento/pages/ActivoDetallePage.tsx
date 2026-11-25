@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { ModalEtiquetasQr } from '../components/ModalEtiquetasQr'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ActionBar } from '@/components/document/ActionBar'
 import { DocSection, MetaList, Missing } from '@/components/document/DocSection'
@@ -64,6 +65,7 @@ export function ActivoDetallePage() {
   const [pestana, setPestana] = useState<Pestana>(params.get('tab') === 'servicios' ? 'servicios' : 'datos')
   const [editando, setEditando] = useState(false)
   const [confirmandoBaja, setConfirmandoBaja] = useState(false)
+  const [etiquetando, setEtiquetando] = useState(false)
 
   const { data: activo, isPending, error } = useActivo(id)
   const historial = useHistorialDeActivo(id)
@@ -202,6 +204,13 @@ export function ActivoDetallePage() {
             <>
               <Button
                 variant="secondary"
+                icon={<Icon name="printer" size={16} />}
+                onClick={() => setEtiquetando(true)}
+              >
+                Etiqueta QR
+              </Button>
+              <Button
+                variant="secondary"
                 icon={<Icon name="edit" size={16} />}
                 onClick={() => {
                   setPestana('datos')
@@ -229,6 +238,15 @@ export function ActivoDetallePage() {
               </Button>
             )
           }
+        />
+      ) : null}
+
+      {etiquetando ? (
+        <ModalEtiquetasQr
+          descripcion={activo.referencia}
+          clave={['equipo', activo.id]}
+          cargar={() => Promise.resolve([activo])}
+          onCerrar={() => setEtiquetando(false)}
         />
       ) : null}
 

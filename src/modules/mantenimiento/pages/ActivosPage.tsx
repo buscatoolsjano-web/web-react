@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -21,6 +22,7 @@ import { useActivoSeleccionado } from '../hooks/useActivoSeleccionado'
 import { useFiltrosActivos } from '../hooks/useFiltrosActivos'
 import { descargarCsv, equiposACsv } from '../lib/csv'
 import { exportarActivos } from '../services/activos'
+import { ModalEtiquetasQr } from '../components/ModalEtiquetasQr'
 import type { OrdenActivos } from '../types'
 
 const EQUIPOS = { singular: 'equipo', plural: 'equipos' }
@@ -45,6 +47,7 @@ export function ActivosPage() {
   const { seleccionado, seleccionar, cerrar } = useActivoSeleccionado()
   const { activa } = useEmpresa()
   const permisos = permisosDe(activa)
+  const [etiquetando, setEtiquetando] = useState(false)
 
   // Exporta **lo que muestran los filtros**, no la página visible ni la tabla
   // entera: es lo que alguien espera cuando filtró antes de apretar el botón.
@@ -101,10 +104,28 @@ export function ActivosPage() {
             >
               {exportar.isPending ? 'Exportando…' : 'Exportar a CSV'}
             </Button>
+            {/* Etiquetas de lo que muestran los filtros, igual que el CSV. */}
+            <Button
+              variant="secondary"
+              icon={<Icon name="printer" size={16} />}
+              disabled={total === 0}
+              onClick={() => setEtiquetando(true)}
+            >
+              Etiquetas QR
+            </Button>
             {nuevo}
           </>
         }
       />
+
+      {etiquetando && activa ? (
+        <ModalEtiquetasQr
+          descripcion={hayFiltros ? `${contar(total, EQUIPOS)} filtrados` : contar(total, EQUIPOS)}
+          clave={['filtrados', activa.companyId, filtros]}
+          cargar={() => exportarActivos(activa.companyId, filtros).then((r) => r.filas)}
+          onCerrar={() => setEtiquetando(false)}
+        />
+      ) : null}
 
       <KpisDelParque resumen={resumen.data} cargando={resumen.isPending} />
 
