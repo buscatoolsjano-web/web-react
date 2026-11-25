@@ -6,7 +6,7 @@
 
 .resumen {
   margin: 0;
-  font-size: var(--text-md, 1rem);
+  font-size: var(--text-base);
   color: var(--color-text-soft);
 }
 
@@ -118,7 +118,7 @@
   align-items: baseline;
   gap: var(--space-2);
   margin: var(--space-2) 0 0;
-  font-size: var(--text-md, 1rem);
+  font-size: var(--text-base);
   font-weight: var(--weight-semibold);
 }
 
@@ -191,7 +191,7 @@
 }
 
 .sku {
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: ui-monospace, monospace;
 }
 
 .viejo {
@@ -237,4 +237,19 @@
 
 .barraFila {
   padding: 0 var(--space-3) var(--space-3);
+}
+
+/* Los tonos, también acá (los mismos de features/pendientes): cada módulo de
+   CSS define las variables que usa. */
+.tEntregado {
+  --tono: var(--color-success);
+}
+.tStock {
+  --tono: #0d9488;
+}
+.tCamino {
+  --tono: var(--color-info);
+}
+.tFalta {
+  --tono: var(--color-warning);
 }

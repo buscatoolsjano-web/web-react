@@ -138,7 +138,7 @@ export function PendienteEntregarPage() {
             <button
               key={s.filtro}
               type="button"
-              className={`${propios.accion} ${styles[s.tono]}`}
+              className={`${propios.accion} ${styles[s.tono]} ${propios[s.tono]}`}
               aria-pressed={filtro === s.filtro}
               disabled={!datos.data}
               onClick={() => setFiltro((f) => (f === s.filtro ? 'todos' : s.filtro))}
@@ -175,7 +175,7 @@ export function PendienteEntregarPage() {
       {porSeccion
         .filter((s) => s.items.length > 0)
         .map((s) => (
-          <section key={s.filtro} className={`${propios.seccion} ${styles[s.tono]}`} aria-label={s.titulo}>
+          <section key={s.filtro} className={`${propios.seccion} ${styles[s.tono]} ${propios[s.tono]}`} aria-label={s.titulo}>
             <h2 className={propios.seccionTitulo}>
               {s.titulo} <span className={propios.seccionCuenta}>{fmt(s.items.length)}</span>
             </h2>
@@ -212,7 +212,7 @@ export function PendienteEntregarPage() {
                       </span>
                       <span className={propios.que}>
                         {acciones.map((a) => (
-                          <span key={a.texto} className={`${propios.pastilla} ${styles[a.tono]}`}>
+                          <span key={a.texto} className={`${propios.pastilla} ${styles[a.tono]} ${propios[a.tono] ?? ''}`}>
                             {a.texto}
                           </span>
                         ))}
