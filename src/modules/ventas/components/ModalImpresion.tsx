@@ -131,12 +131,12 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
   /*
    * `null` = ajustar a lo que haya; un número = el zoom que pidió la persona.
    *
-   * Arranca en 1 y no en `null`: al abrir se ve al 100 %, el tamaño real del
-   * papel. Antes abría en «Ajustar» —ocupar todo el ancho— y en una pantalla
-   * grande eso daba 154 %, que no se parece a nada: ni a la hoja ni a lo que
-   * sale impreso. El botón «Ajustar» sigue estando para quien lo quiera.
+   * Arranca en `null` (2026-11): al abrir se ve la PÁGINA entera, como en el
+   * diálogo de imprimir. Antes arrancaba en 1 (100 %), porque «Ajustar»
+   * llenaba el ancho y daba 154 %; pero al 100 % tampoco entraba la hoja y
+   * había que bajar para ver dónde caía el total. Para acercar, el zoom.
    */
-  const [zoom, setZoom] = useState<number | null>(1)
+  const [zoom, setZoom] = useState<number | null>(null)
   const [escala, setEscala] = useState(1)
   const marco = useRef<HTMLDivElement>(null)
   const hoja = useRef<HTMLDivElement>(null)
@@ -152,6 +152,7 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
   // Las medidas reales del papel: de ellas sale dónde corta cada página.
   const papelAncho = opciones.papel === 'carta' ? 216 : 210
   const papelAlto = opciones.papel === 'carta' ? 279 : 297
+  const esTicket = opciones.formato === 'ticket'
 
   const medir = useCallback(() => {
     const m = marco.current
@@ -162,20 +163,24 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
     if (anchoHoja === 0) return
     setMedida((p) => (p.ancho === anchoHoja && p.alto === altoHoja ? p : { ancho: anchoHoja, alto: altoHoja }))
     /*
-     * «Ajustar» = ocupar todo el ANCHO (Fase 27 · E6).
+     * «Ajustar» = la PÁGINA entera a la vista (2026-11).
      *
-     * Antes entraba una página completa: se medía el ancho y el alto y ganaba
-     * el alto, así que en una ventana normal la hoja quedaba al 45 % con dos
-     * franjas grises enormes a los costados y la letra ilegible. Es el mismo
-     * arreglo que en la vista previa del documento, y por el mismo pedido:
-     * grande aunque no entre el largo, que para eso está el scroll.
+     * Pedido: «esta vista previa tiene que ser igual que como se imprime de
+     * verdad». Llenando el ancho (Fase 27) la hoja se veía gigante y había
+     * que bajar para llegar al total; ahora entra una página completa, como
+     * en el diálogo de imprimir del navegador, y se ve de un vistazo dónde
+     * queda cada cosa en el papel. Con varias páginas, las siguientes se
+     * recorren con el scroll, cada una a la misma escala.
      *
-     * Los botones de zoom siguen: esto es sólo lo que se ve al abrir y lo que
-     * hace «Ajustar».
+     * Los botones de zoom siguen para acercar: esto es sólo lo que se ve al
+     * abrir y lo que hace «Ajustar».
      */
+    const altoPagina = anchoHoja * (papelAlto / papelAncho)
     const cabeEnAncho = (m.clientWidth - PADDING_PREVIA * 2) / anchoHoja
-    setEscala(zoom ?? Math.min(cabeEnAncho, ESCALA_MAXIMA))
-  }, [zoom])
+    // El ticket es un rollo: no tiene "página" que hacer entrar.
+    const cabeEnAlto = esTicket ? Infinity : (m.clientHeight - PADDING_PREVIA * 2) / altoPagina
+    setEscala(zoom ?? Math.min(cabeEnAncho, cabeEnAlto, ESCALA_MAXIMA))
+  }, [zoom, papelAlto, papelAncho, esTicket])
 
   useLayoutEffect(medir, [medir, opciones, imprimible.lineas.length])
 
