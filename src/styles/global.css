@@ -20,57 +20,38 @@
   border: 0;
 }
 
-/* ── Impresión de documentos de Ventas ──────────────────────────────────
-   Mientras el navegador imprime, la aplicación entera se oculta y queda sólo
-   la hoja del documento. Es lo que permite que la vista previa y el papel
-   salgan del MISMO componente, en vez de un HTML aparte escrito en un iframe
-   como hacía el sistema anterior.
+/* ── Impresión de documentos ───────────────────────────────────────────
+   Mientras el navegador imprime, `HojaImpresa` dibuja la hoja como hija
+   directa de `body`, y todo lo demás sale de la composición con `display:
+   none`. No `visibility: hidden`: lo invisible sigue ocupando lugar, y una
+   pantalla larga de fondo agregaba hojas al papel (2026-11).
 
-   Se usa `visibility` y no `display`: la hoja vive DENTRO del modal, así que
-   esconder a los ancestros con display la escondería a ella también. */
+   Si el modal de impresión está abierto sobre una pantalla que también tiene
+   hoja, gana la del modal. Fuera de la impresión, la hoja no existe. */
+@media screen {
+  [data-hoja-imprimir] {
+    display: none !important;
+  }
+}
+
 @media print {
-  body[data-imprimiendo] * {
-    visibility: hidden;
+  body:has(> [data-hoja-imprimir]) > :not([data-hoja-imprimir]),
+  body:has(> [data-hoja-imprimir='modal']) > [data-hoja-imprimir='pagina'] {
+    display: none !important;
   }
 
-  body[data-imprimiendo] [data-previa-impresion],
-  body[data-imprimiendo] [data-previa-impresion] * {
-    visibility: visible;
-  }
-
-  body[data-imprimiendo] [data-previa-impresion] {
-    position: absolute;
-    inset: 0 auto auto 0;
-    width: 100%;
-    max-height: none;
-    overflow: visible;
-    padding: 0;
-    margin: 0;
-    background: #fff;
-    /* En pantalla es un flex que centra la hoja; en papel tiene que ser flujo
-       normal. Como flex, la hoja queda con un ancho indefinido (el contenedor
-       se achica al contenido y el contenido pide el 100 % del contenedor) y
-       el navegador resuelve ese ciclo con un ancho absurdo. */
-    display: block;
-  }
-
-  body[data-imprimiendo] [data-no-imprimir],
-  body[data-imprimiendo] [data-no-imprimir] * {
-    visibility: hidden !important;
-  }
-
-  /* La vista previa ESCALA la hoja para que entre en la pantalla (Fase 19 ·
-     E6). En papel esa escala no va: se imprime a tamaño real. */
-  body[data-imprimiendo] [data-escalador] {
-    /* 100 %, no `auto`: el ancho del papel lo define @page y tiene que bajar
-       por la cadena hasta la hoja como una medida concreta. */
-    width: 100% !important;
+  html:has(> body > [data-hoja-imprimir]),
+  body:has(> [data-hoja-imprimir]) {
     height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
   }
 
-  body[data-imprimiendo] [data-en-escala] {
-    transform: none !important;
-    box-shadow: none !important;
+  [data-hoja-imprimir] {
+    display: block;
     width: 100%;
   }
 }

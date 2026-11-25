@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import type { EmpresaImpresion, OpcionesImpresion } from '../lib/impresion'
 import { datosDeEmpresa } from '../services/empresa'
+import { HojaImpresa } from './HojaImpresa'
 import styles from './PanelHoja.module.css'
 
 /**
@@ -148,6 +149,11 @@ export function PanelHoja({ etiqueta, aclaracion, ajustarAlAncho = false, opcion
 
   return (
     <section className={styles.panel} aria-label={etiqueta}>
+      {/* Ctrl+P desde la pantalla del documento: sale la misma hoja que en el
+          modal de impresión, a tamaño real, y no esta vista escalada. */}
+      <HojaImpresa prioridad="pagina" papel={opciones.papel} ticket={opciones.formato === 'ticket'}>
+        {() => children(opciones, empresa)}
+      </HojaImpresa>
       {/* Lo único que puede quedar arriba de la hoja es la aclaración, y sólo
           cuando hay algo que aclarar. Los controles viven en la barra de
           acciones (Fase 81): acá eran 40 px que le sacaban al documento.

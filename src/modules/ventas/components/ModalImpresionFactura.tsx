@@ -12,6 +12,7 @@ import type { FacturaDetalle } from '../services/facturas'
 import type { DocumentoImprimible, EmpresaImpresion } from '../lib/impresion'
 import { formatearFecha } from '../lib/formato'
 import { VistaImpresion } from './VistaImpresion'
+import { HojaImpresa } from './HojaImpresa'
 
 /**
  * La factura en la MISMA hoja que el resto de los documentos de Ventas.
@@ -89,16 +90,8 @@ export function ModalImpresionFactura({ factura, onCerrar }: { factura: FacturaD
     telefono: null, email: null, web: null, color: '#f37021',
   }
 
-  const imprimir = () => {
-    document.body.dataset['imprimiendo'] = 'si'
-    const limpiar = () => {
-      delete document.body.dataset['imprimiendo']
-      window.removeEventListener('afterprint', limpiar)
-    }
-    window.addEventListener('afterprint', limpiar)
-    window.print()
-    setTimeout(limpiar, 3000)
-  }
+  // La hoja que va al papel la dibuja `HojaImpresa`, sola, en el beforeprint.
+  const imprimir = () => window.print()
 
   const caja = useRef<HTMLDivElement>(null)
   const idTitulo = useId()
@@ -106,16 +99,24 @@ export function ModalImpresionFactura({ factura, onCerrar }: { factura: FacturaD
 
   return (
     <div className={styles.fondo}>
-      <style>{`@page { size: ${papel === 'carta' ? 'Letter' : 'A4'}; margin: 0; }`}</style>
+      <HojaImpresa prioridad="modal" papel={papel}>
+        {() => (
+          <VistaImpresion
+            doc={aHoja(factura)}
+            empresa={empresa}
+            opciones={{ formato: 'valorado', preciosConImpuestos: false, papel, conFotos: false }}
+          />
+        )}
+      </HojaImpresa>
       <div ref={caja} className={styles.caja} role="dialog" aria-modal="true" aria-labelledby={idTitulo} tabIndex={-1}>
-        <header className={styles.cabecera} data-no-imprimir>
+        <header className={styles.cabecera}>
           <h2 id={idTitulo} className={styles.titulo}>
             Vista previa <span className={styles.ref}>{factura.numero}</span>
           </h2>
           <IconButton icon="x" aria-label="Cerrar" onClick={onCerrar} />
         </header>
         <div className={styles.cuerpo}>
-          <aside className={styles.opciones} data-no-imprimir>
+          <aside className={styles.opciones}>
             <label className={styles.campo}>
               <span>Papel</span>
               <select className={styles.control} value={papel} onChange={(e) => setPapel(e.target.value as 'A4' | 'carta')}>
@@ -130,7 +131,7 @@ export function ModalImpresionFactura({ factura, onCerrar }: { factura: FacturaD
               Para guardar un PDF, elegí «Guardar como PDF» en el diálogo del navegador.
             </p>
           </aside>
-          <div className={styles.previa} data-previa-impresion>
+          <div className={styles.previa}>
             <VistaImpresion
               doc={aHoja(factura)}
               empresa={empresa}

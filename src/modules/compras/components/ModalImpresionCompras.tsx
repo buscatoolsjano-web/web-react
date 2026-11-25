@@ -11,6 +11,7 @@ import { OPCIONES_INICIALES, type DocumentoImprimible, type OpcionesImpresion } 
 import { datosDeEmpresa } from '@/modules/ventas/services/empresa'
 import type { EmpresaImpresion } from '@/modules/ventas/lib/impresion'
 import { VistaImpresion } from '@/modules/ventas/components/VistaImpresion'
+import { HojaImpresa } from '@/modules/ventas/components/HojaImpresa'
 import { aHojaDeVentas, opcionesDeHoja } from '../lib/hojaVentas'
 import styles from './ModalImpresionCompras.module.css'
 
@@ -48,18 +49,8 @@ export function ModalImpresionCompras({ doc, onCerrar }: ModalImpresionComprasPr
     telefono: null, email: null, web: null, color: '#f37021',
   }
 
-  const imprimir = () => {
-    document.body.dataset['imprimiendo'] = 'si'
-    const limpiar = () => {
-      delete document.body.dataset['imprimiendo']
-      window.removeEventListener('afterprint', limpiar)
-    }
-    window.addEventListener('afterprint', limpiar)
-    window.print()
-    // Safari en iOS no siempre dispara `afterprint`; el respaldo evita dejar
-    // la aplicación entera oculta.
-    setTimeout(limpiar, 3000)
-  }
+  // La hoja que va al papel la dibuja `HojaImpresa`, sola, en el beforeprint.
+  const imprimir = () => window.print()
 
   const caja = useRef<HTMLDivElement>(null)
   const idTitulo = useId()
@@ -72,9 +63,13 @@ export function ModalImpresionCompras({ doc, onCerrar }: ModalImpresionComprasPr
       {/* Igual que Ventas (Fase 239): papel elegido y margen CERO, para que el
           navegador no imprima su encabezado y pie con la URL; el margen lo
           pone la hoja. */}
-      <style>{`@page { size: ${opciones.papel === 'carta' ? 'Letter' : 'A4'}; margin: 0; }`}</style>
+      <HojaImpresa prioridad="modal" papel={opciones.papel}>
+        {() => (
+          <VistaImpresion doc={aHojaDeVentas(doc)} empresa={empresa} opciones={opcionesDeHoja(doc, opciones.papel)} />
+        )}
+      </HojaImpresa>
       <div ref={caja} className={styles.caja} role="dialog" aria-modal="true" aria-labelledby={idTitulo} tabIndex={-1}>
-        <header className={styles.cabecera} data-no-imprimir>
+        <header className={styles.cabecera}>
           <h2 id={idTitulo} className={styles.titulo}>
             Vista previa <span className={styles.ref}>{doc.numero}</span>
           </h2>
@@ -82,7 +77,7 @@ export function ModalImpresionCompras({ doc, onCerrar }: ModalImpresionComprasPr
         </header>
 
         <div className={styles.cuerpo}>
-          <aside className={styles.opciones} data-no-imprimir>
+          <aside className={styles.opciones}>
             <label className={styles.campo}>
               <span>Papel</span>
               <select
@@ -104,7 +99,7 @@ export function ModalImpresionCompras({ doc, onCerrar }: ModalImpresionComprasPr
             </p>
           </aside>
 
-          <div className={styles.previa} data-previa-impresion>
+          <div className={styles.previa}>
             <VistaImpresion doc={aHojaDeVentas(doc)} empresa={empresa} opciones={opcionesDeHoja(doc, opciones.papel)} />
           </div>
         </div>

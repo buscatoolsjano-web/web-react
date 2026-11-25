@@ -21,6 +21,7 @@ import { datosDeEmpresa } from '../services/empresa'
 import { useDatosDeProductos } from '../hooks/useDatosDeProductos'
 import type { DocumentoDetalle } from '../types'
 import { VistaImpresion } from './VistaImpresion'
+import { HojaImpresa } from './HojaImpresa'
 import { EditorPlantilla } from './EditorPlantilla'
 import { escribeVentas } from '../lib/permisos'
 import styles from './ModalImpresion.module.css'
@@ -202,18 +203,8 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
     setZoom(siguiente ?? 1)
   }
 
-  const imprimir = () => {
-    document.body.dataset['imprimiendo'] = 'si'
-    const limpiar = () => {
-      delete document.body.dataset['imprimiendo']
-      window.removeEventListener('afterprint', limpiar)
-    }
-    window.addEventListener('afterprint', limpiar)
-    window.print()
-    // Safari en iOS no siempre dispara `afterprint`; el respaldo evita dejar
-    // la aplicación entera oculta.
-    setTimeout(limpiar, 3000)
-  }
+  // La hoja que va al papel la dibuja `HojaImpresa`, sola, en el beforeprint.
+  const imprimir = () => window.print()
 
   return (
     <div className={styles.fondo}>
@@ -224,9 +215,11 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
           espacio para su encabezado y pie —fecha, título, la URL, «1/2»— y no
           hay CSS que los saque. Sin margen no tienen dónde ir. Los márgenes
           los pone la propia hoja con su padding de 12 mm. */}
-      <style>{`@page { size: ${opciones.formato === 'ticket' ? '80mm auto' : opciones.papel === 'carta' ? 'Letter' : 'A4'}; margin: 0; }`}</style>
+      <HojaImpresa prioridad="modal" papel={opciones.papel} ticket={opciones.formato === 'ticket'}>
+        {() => <VistaImpresion doc={imprimible} empresa={empresa} opciones={opciones} plantilla={config} />}
+      </HojaImpresa>
       <div ref={caja} className={styles.caja} role="dialog" aria-modal="true" aria-labelledby={idTitulo} tabIndex={-1}>
-        <header className={styles.cabecera} data-no-imprimir>
+        <header className={styles.cabecera}>
           <h2 id={idTitulo} className={styles.titulo}>
             Vista previa <span className={styles.ref}>{doc.numero}</span>
           </h2>
@@ -242,7 +235,7 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
         </header>
 
         <div className={styles.cuerpo}>
-          <aside className={styles.opciones} data-no-imprimir>
+          <aside className={styles.opciones}>
             {/* Las plantillas del admin (Fase 152). Elegir una gobierna la hoja;
                 «Sin plantilla» deja los formatos de fábrica. */}
             <label className={styles.campo}>
@@ -346,11 +339,10 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
             </p>
           </aside>
 
-          <div className={styles.previa} data-previa-impresion ref={marco}>
+          <div className={styles.previa} ref={marco}>
             {/* La caja toma el tamaño YA escalado: así no queda una hoja
                 chiquita flotando adentro de un contenedor enorme. */}
             <div
-              data-escalador
               className={styles.escalador}
               style={ancho > 0 ? { width: ancho * escala, height: alto * escala } : undefined}
             >
@@ -361,7 +353,6 @@ export function ModalImpresion({ doc, onCerrar }: ModalImpresionProps) {
               ))}
               <div
                 ref={hoja}
-                data-en-escala
                 className={styles.enEscala}
                 style={{ transform: `scale(${escala})` }}
               >
