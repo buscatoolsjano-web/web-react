@@ -1,0 +1,240 @@
+/*
+ * «Pendiente de entregar», rediseño: se lee por lo que hay que HACER.
+ * Los tonos (`--tono`) salen de features/pendientes (ámbar pedir, azul en
+ * camino, turquesa con stock), así que los colores son los mismos de siempre.
+ */
+
+.resumen {
+  margin: 0;
+  font-size: var(--text-md, 1rem);
+  color: var(--color-text-soft);
+}
+
+.resumen strong {
+  color: var(--color-text);
+}
+
+/* ── Las tres tarjetas de acción ─────────────────────────────────────────── */
+.acciones {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+@media (max-width: 760px) {
+  .acciones {
+    grid-template-columns: 1fr;
+  }
+}
+
+.accion {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'icono titulo'
+    'icono cifra'
+    'icono ayuda';
+  column-gap: var(--space-3);
+  row-gap: 2px;
+  align-items: center;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--tono) 7%, var(--color-surface));
+  text-align: left;
+  font: inherit;
+  color: var(--color-text);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.accion:hover {
+  border-color: var(--tono);
+}
+
+.accion[aria-pressed='true'] {
+  border-color: var(--tono);
+  box-shadow: 0 0 0 1px var(--tono) inset;
+}
+
+.accion:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.accion:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.accionIcono {
+  grid-area: icono;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tono) 18%, transparent);
+  color: var(--tono);
+}
+
+.accionTitulo {
+  grid-area: titulo;
+  font-weight: var(--weight-semibold);
+}
+
+.accionCifra {
+  grid-area: cifra;
+  font-size: var(--text-xl, 1.5rem);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--tono);
+  line-height: 1.2;
+}
+
+.accionCifra small {
+  margin-left: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular, 400);
+  color: var(--color-text-soft);
+}
+
+.accionAyuda {
+  grid-area: ayuda;
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+}
+
+/* ── Secciones ───────────────────────────────────────────────────────────── */
+.seccion {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.seccionTitulo {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-md, 1rem);
+  font-weight: var(--weight-semibold);
+}
+
+.seccionTitulo::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--tono);
+  align-self: center;
+}
+
+.seccionCuenta {
+  color: var(--color-text-soft);
+  font-weight: var(--weight-regular, 400);
+  font-size: var(--text-sm);
+}
+
+/* ── Fila ────────────────────────────────────────────────────────────────── */
+.fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3);
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.fila:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: -2px;
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 760px) {
+  .fila {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .que {
+    grid-column: 1 / -1;
+    justify-content: flex-start !important;
+  }
+}
+
+.producto {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nombre {
+  font-weight: var(--weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sku {
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+.viejo {
+  color: var(--color-danger-text, var(--color-danger));
+  font-weight: var(--weight-semibold);
+}
+
+.que {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+.pastilla {
+  padding: 3px var(--space-2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tono) 16%, transparent);
+  color: var(--tono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.cuanto {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cuantoValor {
+  font-size: var(--text-lg, 1.25rem);
+  font-weight: var(--weight-semibold);
+}
+
+.cuantoTexto {
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+}
+
+.barraFila {
+  padding: 0 var(--space-3) var(--space-3);
+}
