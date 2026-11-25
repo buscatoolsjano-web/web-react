@@ -5106,6 +5106,7 @@ export type Database = {
           atendida_por: string | null
           atendida_en: string | null
           nota_interna: string | null
+          quote_id: string | null
         }
         Insert: {
           id?: string
@@ -5122,12 +5123,14 @@ export type Database = {
           atendida_por?: string | null
           atendida_en?: string | null
           nota_interna?: string | null
+          quote_id?: string | null
         }
         Update: {
           estado?: string
           atendida_por?: string | null
           atendida_en?: string | null
           nota_interna?: string | null
+          quote_id?: string | null
         }
         Relationships: []
       }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '@/components/layout/PageHeader'
 import doc from '@/components/document/Document.module.css'
@@ -164,10 +165,21 @@ function TarjetaConsulta({
       ) : null}
 
       <div className={styles.acciones}>
+        {/* De la consulta a la cotización con un clic (2026-11): abre «Nueva
+            cotización» con el cliente, los productos y el mensaje cargados. */}
+        {c.cotizacion ? (
+          <Link to={`/ventas/cotizaciones/${c.cotizacion.id}`} className={styles.accion}>
+            <Icon name="external-link" size={16} /> Ver cotización {c.cotizacion.numero}
+          </Link>
+        ) : (
+          <Link to={`/ventas/cotizaciones/nueva?consulta=${c.id}`} className={styles.accion}>
+            <Icon name="plus" size={16} /> Crear cotización
+          </Link>
+        )}
         {c.estado !== 'contactada' ? (
           <button
             type="button"
-            className={styles.accion}
+            className={styles.accionGhost}
             disabled={cambiando}
             onClick={() => onMarcar('contactada')}
           >

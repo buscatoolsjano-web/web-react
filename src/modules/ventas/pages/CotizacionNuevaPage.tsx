@@ -66,6 +66,8 @@ import { CadenaDocumento } from '../components/CadenaDocumento'
 import { escribeVentas } from '../lib/permisos'
 import { tasaDe } from '../lib/tratamientos'
 import { crearCotizacion } from '../services/cotizaciones'
+import { vincularConsulta } from '../services/consultas'
+import { useConsultaEnBorrador } from '../hooks/useConsultaEnBorrador'
 import { guardarContactosDocumento } from '../services/contactosDocumento'
 import { guardarVendedoresDocumento } from '../services/vendedoresDocumento'
 import { productosPorId } from '../services/productosParaLinea'
@@ -142,13 +144,15 @@ export function CotizacionNuevaPage() {
    * de empezar otra cosa.
    */
   const [recuperada, setRecuperada] = useState(() =>
-    clienteDeLaUrl || parametros.get('desde') || parametros.get('copiar')
+    clienteDeLaUrl || parametros.get('desde') || parametros.get('copiar') || parametros.get('consulta')
       ? null
       : leerBorradorGuardado(activa?.companyId ?? null, 'cotizacion'),
   )
   const [b, setB] = useState<Borrador>(() => recuperada?.borrador ?? inicial)
   // «Duplicar como…» (Fase 233): las líneas de otro documento, si la URL las pide.
   const avisoCopia = useCopiaEnBorrador(activa?.companyId ?? null, 'cotizacion', b.cabecera.listaPrecioId, setB)
+  // Una consulta del sitio convertida en cotización (2026-11).
+  const desdeConsulta = useConsultaEnBorrador(activa?.companyId ?? null, b.cabecera.listaPrecioId, setB)
   // Fase 28 · E1: el catálogo completo, para elegir desde la hoja.
   const [catalogoAbierto, setCatalogoAbierto] = useState(false)
   // Fase 28 · E14: la agenda del cliente, sin abandonar el documento.
@@ -349,10 +353,20 @@ export function CotizacionNuevaPage() {
           b.cabecera.vendedoresExtra,
         )
       }
+      // La consulta del sitio queda vinculada a la cotización. Si falla, la
+      // cotización ya existe: no se pierde nada, la consulta queda sin enlace.
+      if (desdeConsulta.consulta) {
+        await vincularConsulta(desdeConsulta.consulta.id, r.id, desdeConsulta.consulta.estado).catch(() => undefined)
+      }
       return r
     },
     onSuccess: (r) => {
       borrarBorradorGuardado(activa?.companyId ?? null, 'cotizacion')
+      if (desdeConsulta.consulta) {
+        void queryClient.invalidateQueries({ queryKey: ['consultas', activa?.companyId] })
+        void queryClient.invalidateQueries({ queryKey: ['notificaciones', activa?.companyId] })
+        void queryClient.invalidateQueries({ queryKey: ['nav', activa?.companyId, 'sin-leer', 'consultas'] })
+      }
       void queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId] })
       // `replace`: volver atrás no tiene que traer de nuevo el formulario vacío.
       void navegar(`/ventas/cotizaciones/${r.id}`, { replace: true })
@@ -682,6 +696,16 @@ export function CotizacionNuevaPage() {
       {avisoCarrito ? (
         <Alert tone="warning" role="status" title="Productos que vinieron del catálogo">
           <p>{avisoCarrito}</p>
+        </Alert>
+      ) : null}
+
+      {desdeConsulta.aviso ? (
+        <Alert
+          tone={desdeConsulta.aviso.tono}
+          role={desdeConsulta.aviso.tono === 'danger' ? 'alert' : 'status'}
+          title="Cotización desde una consulta del sitio"
+        >
+          <p>{desdeConsulta.aviso.texto}</p>
         </Alert>
       ) : null}
 

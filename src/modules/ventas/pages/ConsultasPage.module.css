@@ -216,3 +216,8 @@
   text-align: center;
   color: var(--color-text-soft);
 }
+
+/* «Crear cotización» y «Ver cotización» son enlaces con cara de botón. */
+a.accion {
+  text-decoration: none;
+}
