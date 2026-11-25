@@ -539,6 +539,71 @@
     font-size: var(--text-xs);
   }
 
+  /*
+   * CADA DATO EN SU CAJA (2026-11). «Usar colores o cajas para separar bien
+   * cada dato y verlo mejor»: los números flotaban sueltos —sin borde en los
+   * campos y con el rótulo pegado— y costaba ver dónde terminaba uno y empezaba
+   * el otro. Ahora cantidad, precio, % dto. e impuesto son cajitas con su
+   * rótulo en mayúsculas chicas; el campo editable se ve como campo; y el
+   * subtotal, que es el resultado, va resaltado con el color del módulo.
+   */
+  .tabla td.cantidad,
+  .tabla td.precio,
+  .tabla td.dto,
+  .tabla td.impuestoCelda,
+  .tabla td.subtotal {
+    padding: var(--space-1) var(--space-2) var(--space-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-alt);
+  }
+  .tabla td.cantidad::before,
+  .tabla td.precio::before,
+  .tabla td.dto::before,
+  .tabla td.impuestoCelda::before,
+  .tabla td.subtotal::before {
+    font-size: 0.6875rem;
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+  .tabla td.cantidad :is(input, select),
+  .tabla td.precio :is(input, select),
+  .tabla td.dto :is(input, select),
+  .tabla td.impuestoCelda :is(input, select) {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+  .tabla td.cantidad :is(input, select):focus-visible,
+  .tabla td.precio :is(input, select):focus-visible,
+  .tabla td.dto :is(input, select):focus-visible,
+  .tabla td.impuestoCelda :is(input, select):focus-visible {
+    border-color: var(--color-primary);
+  }
+  .tabla td.subtotal {
+    justify-content: space-between;
+    border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
+    background: var(--color-primary-soft);
+    color: var(--color-primary-text);
+    font-size: var(--text-base);
+    font-variant-numeric: tabular-nums;
+  }
+  .tabla td.subtotal::before {
+    color: var(--color-primary-text);
+    text-align: right;
+  }
+  /* La referencia, como una etiqueta; el nombre, en su campo. */
+  .tabla td.celdaNombre :is(input, textarea) {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-alt);
+  }
+  .tabla tr {
+    border-left: 3px solid var(--color-primary);
+  }
+
   /* Una nota (capítulo) ocupa su propia tarjeta, a lo ancho. */
   .tabla tr.capitulo {
     display: block;
