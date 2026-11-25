@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ActionBar } from '@/components/document/ActionBar'
 import { DocSection } from '@/components/document/DocSection'
+import { DocumentTabs } from '@/components/document/DocumentTabs'
 import docUi from '@/components/document/Document.module.css'
 import { Alert } from '@/components/feedback/Alert'
 import { EmptyState } from '@/components/feedback/EmptyState'
@@ -104,6 +105,9 @@ export function PedidoNuevoPage() {
   const { activa } = useEmpresa()
   const navegar = useNavigate()
   const queryClient = useQueryClient()
+  // Las pestañas del alta: «Líneas» (la de trabajo) y «Más información».
+  const idPestanas = useId()
+  const [pestana, setPestana] = useState<'lineas' | 'masinfo'>('lineas')
 
   /**
    * El cliente puede venir puesto en la URL (Fase 17 · E4).
@@ -620,9 +624,21 @@ export function PedidoNuevoPage() {
             />
           </DocSection>
 
-          {/* La otra mitad de la cabecera (Fase 84). En el detalle vive en la
-          pestaña «Más información»; acá no hay pestañas —se está creando el
-          documento y hace falta todo— así que va abajo, en su sección. */}
+          {/* «Líneas» y «Más información» en pestañas, como en el detalle y
+          como en STEL: apiladas ocupaban media pantalla antes de llegar a
+          las líneas. La moneda vive en «Más información», así que si falta
+          se avisa desde las líneas. */}
+          <DocumentTabs
+            id={idPestanas}
+            items={[
+              { key: 'lineas' as const, label: 'Líneas', count: lineasVisibles.length },
+              { key: 'masinfo' as const, label: b.cabecera.moneda ? 'Más información' : 'Más información · falta la moneda' },
+            ]}
+            value={pestana}
+            onChange={setPestana}
+            label="Secciones del pedido"
+          >
+          <div className={editor.pestanaAlta} hidden={pestana !== 'masinfo'}>
           <DocSection title="Más información">
             <EditorMasInformacion
               valores={b.cabecera}
@@ -634,7 +650,21 @@ export function PedidoNuevoPage() {
               onCambiarMoneda={elegirMoneda}
             />
           </DocSection>
-
+          </div>
+          <div className={editor.pestanaAlta} hidden={pestana !== 'lineas'}>
+          {!b.cabecera.moneda ? (
+            <Alert
+              tone="warning"
+              role="status"
+              action={
+                <Button size="sm" variant="secondary" onClick={() => setPestana('masinfo')}>
+                  Elegir moneda
+                </Button>
+              }
+            >
+              <p>Falta la moneda del documento: se elige en «Más información».</p>
+            </Alert>
+          ) : null}
           <DocSection
             title="Líneas"
             actions={
@@ -691,6 +721,8 @@ export function PedidoNuevoPage() {
             {/* Al armar, sólo el Total: el pie queda chico (Fase 165). */}
             <TotalesDocumento doc={previo} lineas={lineasVisibles} soloTotal />
           </DocSection>
+          </div>
+          </DocumentTabs>
         </div>
 
         {verPrevia ? (

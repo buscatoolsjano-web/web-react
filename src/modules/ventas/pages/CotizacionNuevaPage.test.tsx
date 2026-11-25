@@ -328,6 +328,8 @@ describe('Nueva cotización · tarifa y precio sugerido', () => {
   it('sólo se ofrecen tarifas de la moneda del documento', async () => {
     montar()
     await completarMinimo()
+    // La tarifa está en la pestaña «Más información» (alta en pestañas, como STEL).
+    fireEvent.click(screen.getByRole('tab', { name: /Más información/ }))
     const tarifa = screen.getByLabelText(/Tarifa/)
     const opciones = within(tarifa).getAllByRole('option').map((o) => o.textContent)
     expect(opciones).toContain('Mayorista')

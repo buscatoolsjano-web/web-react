@@ -118,3 +118,10 @@
   max-width: 28rem;
   margin-bottom: var(--space-4);
 }
+
+/* Cada pestaña del alta (Líneas / Más información). `:not([hidden])` para
+   que el `display` no le gane al atributo `hidden` de la pestaña inactiva. */
+.pestanaAlta:not([hidden]) {
+  display: grid;
+  gap: var(--space-3);
+}
