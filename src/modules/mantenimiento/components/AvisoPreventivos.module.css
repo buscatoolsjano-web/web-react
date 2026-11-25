@@ -1,0 +1,38 @@
+.lista {
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+}
+
+.equipo {
+  font-weight: 600;
+}
+
+.cliente {
+  color: var(--text-soft);
+  font-size: var(--text-sm);
+}
+
+.cuando {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.vencido {
+  color: var(--color-danger-text);
+  font-weight: 600;
+}
+
+.mas {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+}

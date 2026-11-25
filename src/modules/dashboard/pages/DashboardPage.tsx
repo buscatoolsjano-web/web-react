@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/icons/Icon'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { etiquetaRol } from '@/modules/configuracion/lib/usuarios'
+import { AvisoPreventivos } from '@/modules/mantenimiento/components/AvisoPreventivos'
 import { AccesosRapidos } from '../components/AccesosRapidos'
 import { VistaOperativa } from '../components/VistaOperativa'
 import { VistaVentas } from '../components/VistaVentas'
@@ -98,6 +99,9 @@ export function DashboardPage() {
           <p>{inicio.error}</p>
         </Alert>
       ) : null}
+
+      {/* Los preventivos vencidos o por vencer (2026-11). Si no hay, no ocupa nada. */}
+      <AvisoPreventivos />
 
       {acomodando ? (
         <Alert tone="info" role="note">
