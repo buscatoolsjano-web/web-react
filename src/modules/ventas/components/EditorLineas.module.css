@@ -211,3 +211,111 @@
     min-height: 44px;
   }
 }
+
+/*
+ * El remito en edición, en TARJETA con la hoja al lado (2026-11), como las
+ * líneas de cotización y pedido: referencia y producto arriba, la descripción
+ * en su campo, y cantidad · pedida · pendiente después en cajas con el rótulo
+ * en mayúsculas chicas; la cantidad —lo que se carga— resaltada.
+ */
+@container editor (max-width: 56rem) {
+  .remScroll {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+  .remito {
+    min-width: 0;
+  }
+  .remito thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .remito,
+  .remito tbody,
+  .remito tr,
+  .remito td {
+    display: block;
+  }
+  .remito tbody {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .remito tbody tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    grid-template-areas:
+      'ref    ref    ref    quitar'
+      'nombre nombre nombre nombre'
+      'desc   desc   desc   desc'
+      'cant   pedida pend   pend';
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--color-primary);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .remito td {
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+  .remito td.num {
+    display: none;
+  }
+  .remRef {
+    grid-area: ref;
+    color: var(--text-soft);
+    font-size: var(--text-xs);
+  }
+  .remRef::before {
+    content: attr(data-label) ' ';
+  }
+  .remNombre {
+    grid-area: nombre;
+    font-weight: 600;
+  }
+  .remDesc {
+    grid-area: desc;
+  }
+  .remQuitar {
+    grid-area: quitar;
+    text-align: right;
+  }
+  .remCantidad {
+    grid-area: cant;
+  }
+  .remito td.remCaja {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-1) var(--space-2) var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-alt);
+    font-variant-numeric: tabular-nums;
+  }
+  .remito td.remCaja::before {
+    content: attr(data-label);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+  }
+  .remito td.remCantidad {
+    border-color: color-mix(in srgb, var(--color-primary) 40%, var(--border));
+    background: var(--color-primary-soft);
+  }
+  .remito td.remCantidad::before {
+    color: var(--color-primary-text);
+  }
+  .remito td.remCaja input {
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+}

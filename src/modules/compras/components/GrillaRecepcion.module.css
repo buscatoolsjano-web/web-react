@@ -319,3 +319,97 @@
   font-size: var(--text-xs);
   overflow-wrap: anywhere;
 }
+
+/*
+ * TARJETA CON LA HOJA AL LADO (2026-11), como en Ventas y en el pedido.
+ * Con la columna del editor angosta (contenedor `editor`, menos de 56rem),
+ * cada línea es una tarjeta: referencia y descripción arriba, y cada número
+ * en su caja con el rótulo en mayúsculas chicas. «A recibir» —lo que se
+ * carga— va resaltado con el color del módulo.
+ */
+@container editor (max-width: 56rem) {
+  .scroll {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+  .tabla {
+    min-width: 0;
+  }
+  .tabla thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .tabla,
+  .tabla tbody,
+  .tabla tr,
+  .tabla td {
+    display: block;
+  }
+  .tabla tbody {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .tabla tbody tr {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--color-primary);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .tabla td {
+    padding: 0;
+    border: 0;
+    min-width: 0;
+    text-align: left;
+  }
+  .tabla td.num {
+    display: none;
+  }
+  .rRef,
+  .rDesc {
+    grid-column: 1 / -1;
+  }
+  .tabla td.rRef {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+  .tabla td.rRef::before {
+    content: attr(data-label) ' ';
+  }
+  .tabla td.rDesc {
+    font-weight: 600;
+  }
+  .tabla td.rCaja {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-1) var(--space-2) var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-alt);
+    text-align: right;
+  }
+  .tabla td.rCaja::before {
+    content: attr(data-label);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-align: left;
+  }
+  .tabla td.rRecibir {
+    border-color: color-mix(in srgb, var(--color-primary) 40%, var(--border));
+    background: var(--color-primary-soft);
+  }
+  .tabla td.rRecibir::before {
+    color: var(--color-primary-text);
+  }
+}

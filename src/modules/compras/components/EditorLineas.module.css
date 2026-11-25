@@ -249,3 +249,164 @@
   background: var(--color-warning-soft);
   color: var(--color-warning-text);
 }
+
+/*
+ * TARJETA CON LA HOJA AL LADO (2026-11), igual que en Ventas.
+ *
+ * Con la hoja de impresión al costado la columna del editor queda angosta y
+ * la tabla (mínimo 60rem) se desplazaba de costado. Ahora, cuando el editor
+ * mide menos de 56rem, cada línea es una tarjeta: referencia arriba, el
+ * producto en su renglón, y cantidad · precio · % dto. · impuesto · neto cada
+ * uno en su cajita con el rótulo en mayúsculas chicas; el neto, resaltado.
+ * El contenedor `editor` lo define la columna del editor (EditorCotizacion).
+ */
+@container editor (max-width: 56rem) {
+  .scroll {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+  .tabla {
+    min-width: 0;
+    table-layout: auto;
+  }
+  .tabla thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .tabla,
+  .tabla tbody,
+  .tabla tr,
+  .tabla td {
+    display: block;
+  }
+  .tabla tbody {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .tabla tbody tr {
+    display: grid;
+    grid-template-columns:
+      calc(4ch + 2.25rem)
+      minmax(calc(9ch + 1rem), 1.2fr)
+      calc(3ch + 2.25rem)
+      minmax(calc(8ch + 2.75rem), 1fr)
+      minmax(calc(9ch + 0.5rem), 1fr);
+    grid-template-areas:
+      'ref    ref    ref    ref    acc'
+      'prod   prod   prod   prod   prod'
+      'cant   precio dto    imp    neto';
+    gap: var(--space-2);
+    align-items: start;
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--color-primary);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .tabla td {
+    padding: 0;
+    border: 0;
+    min-width: 0;
+    text-align: left;
+  }
+  .tabla td.num {
+    display: none;
+  }
+  .cRef {
+    grid-area: ref;
+  }
+  .cProd {
+    grid-area: prod;
+  }
+  .cCant {
+    grid-area: cant;
+  }
+  .cPrecio {
+    grid-area: precio;
+  }
+  .cDto {
+    grid-area: dto;
+  }
+  .cImp {
+    grid-area: imp;
+  }
+  .cNeto {
+    grid-area: neto;
+  }
+  .tabla td.acciones {
+    grid-area: acc;
+    text-align: right;
+  }
+  /* La referencia, chica, con su rótulo al lado. */
+  .tabla td.cRef {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+  .tabla td.cRef::before {
+    content: attr(data-label);
+    flex: none;
+  }
+  .tabla td.cProd .texto {
+    border-color: var(--border);
+    background: var(--surface-alt);
+    font-weight: 600;
+  }
+  /* Cada número en su caja, con el rótulo arriba. */
+  .tabla td.cCant,
+  .tabla td.cPrecio,
+  .tabla td.cDto,
+  .tabla td.cImp,
+  .tabla td.cNeto {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-1) var(--space-2) var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-alt);
+    white-space: normal;
+  }
+  .tabla td.cCant::before,
+  .tabla td.cPrecio::before,
+  .tabla td.cDto::before,
+  .tabla td.cImp::before,
+  .tabla td.cNeto::before {
+    content: attr(data-label);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .tabla td.cCant :is(.numero, .select),
+  .tabla td.cPrecio :is(.numero, .select),
+  .tabla td.cDto :is(.numero, .select),
+  .tabla td.cImp :is(.numero, .select) {
+    border-color: var(--border);
+    background: var(--surface);
+  }
+  /* El neto es el resultado: resaltado con el color del módulo. */
+  .tabla td.cNeto {
+    justify-content: space-between;
+    border-color: color-mix(in srgb, var(--color-primary) 40%, var(--border));
+    background: var(--color-primary-soft);
+    color: var(--color-primary-text);
+    font-weight: 600;
+    text-align: right;
+  }
+  .tabla td.cNeto::before {
+    color: var(--color-primary-text);
+  }
+  /* Un capítulo, una tarjeta simple a lo ancho. */
+  .tabla tbody tr.capitulo {
+    display: block;
+    background: var(--surface-alt);
+  }
+}

@@ -193,16 +193,16 @@ export function GrillaRecepcion({
               return (
                 <tr key={l.purchaseOrderLineId} className={l.pendiente === 0 ? styles.completa : undefined}>
                   <td className={styles.num}>{l.numeroLinea}</td>
-                  <td className={styles.mono}>{l.sku ?? '—'}</td>
-                  <td className={styles.descripcion}>
+                  <td className={[styles.mono, styles.rRef].join(' ')} data-label="Ref.">{l.sku ?? '—'}</td>
+                  <td className={[styles.descripcion, styles.rDesc].join(' ')}>
                     {l.descripcion ?? '—'}
                     {l.productId === null ? (
                       <span className={styles.sinStock}>sin producto de catálogo: no mueve stock</span>
                     ) : null}
                   </td>
-                  <td className={styles.derecha}>{formatearNumero(l.pedido)}</td>
-                  <td className={styles.derecha}>{formatearNumero(l.recibido)}</td>
-                  <td className={styles.derecha}>
+                  <td className={[styles.derecha, styles.rCaja].join(' ')} data-label="Pedido">{formatearNumero(l.pedido)}</td>
+                  <td className={[styles.derecha, styles.rCaja].join(' ')} data-label="Recibido">{formatearNumero(l.recibido)}</td>
+                  <td className={[styles.derecha, styles.rCaja].join(' ')} data-label="En borrador">
                     {l.enBorrador > 0 ? (
                       <span
                         className={styles.borrador}
@@ -214,10 +214,10 @@ export function GrillaRecepcion({
                       '—'
                     )}
                   </td>
-                  <td className={styles.derecha}>
+                  <td className={[styles.derecha, styles.rCaja].join(' ')} data-label="Pendiente">
                     <strong>{formatearNumero(l.pendiente)}</strong>
                   </td>
-                  <td className={styles.derecha}>
+                  <td className={[styles.derecha, styles.rCaja, styles.rRecibir].join(' ')} data-label="A recibir">
                     {l.pendiente === 0 ? (
                       <span className={styles.completo}>completa</span>
                     ) : (
@@ -236,7 +236,7 @@ export function GrillaRecepcion({
                       />
                     )}
                   </td>
-                  <td className={styles.derecha}>
+                  <td className={[styles.derecha, styles.rCaja].join(' ')} data-label="Stock actual">
                     {l.stockActual === null ? '—' : formatearNumero(l.stockActual)}
                   </td>
                 </tr>

@@ -130,7 +130,7 @@ export function EditorLineas({
                   </td>
                 ) : (
                   <>
-                    <td>
+                    <td className={styles.cRef} data-label="Ref.">
                       <input
                         className={styles.sku}
                         key={String(l.sku ?? '')}
@@ -142,7 +142,7 @@ export function EditorLineas({
                         onBlur={(e) => commit(l, 'sku', l.sku, e.target.value || null)}
                       />
                     </td>
-                    <td>
+                    <td className={styles.cProd}>
                       <input
                         className={styles.texto}
                         key={String(l.nombre ?? '')}
@@ -169,7 +169,7 @@ export function EditorLineas({
                         </span>
                       ) : null}
                     </td>
-                    <td className={styles.derecha}>
+                    <td className={`${styles.derecha} ${styles.cCant}`} data-label="Cant.">
                       <input
                         type="number"
                         step="any"
@@ -182,7 +182,7 @@ export function EditorLineas({
                         onBlur={(e) => commit(l, 'cantidad', l.cantidad, aNumero(e.target.value))}
                       />
                     </td>
-                    <td className={styles.derecha}>
+                    <td className={`${styles.derecha} ${styles.cPrecio}`} data-label="Precio de compra">
                       <input
                         type="number"
                         step="any"
@@ -205,7 +205,7 @@ export function EditorLineas({
                         </span>
                       ) : null}
                     </td>
-                    <td className={styles.derecha}>
+                    <td className={`${styles.derecha} ${styles.cDto}`} data-label="% Dto.">
                       <input
                         type="number"
                         step="any"
@@ -221,7 +221,7 @@ export function EditorLineas({
                         }
                       />
                     </td>
-                    <td>
+                    <td className={styles.cImp} data-label="Impuesto">
                       <select
                         className={styles.select}
                         value={l.tratamientoImpuesto}
@@ -261,7 +261,7 @@ export function EditorLineas({
                   </>
                 )}
 
-                <td className={styles.derecha}>
+                <td className={`${styles.derecha} ${styles.cNeto}`} data-label="Neto">
                   {l.tipoLinea === 'chapter' ? '' : formatearImporte(netoDeLinea(l), moneda)}
                 </td>
 

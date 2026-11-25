@@ -876,8 +876,8 @@ function Detalle() {
                 }
               >
                 {editando ? (
-                  <div className={lineasUi.scroll}>
-                    <table className={lineasUi.tabla}>
+                  <div className={`${lineasUi.scroll} ${lineasUi.remScroll}`}>
+                    <table className={`${lineasUi.tabla} ${lineasUi.remito}`}>
                       <caption className="sr-only">Líneas del remito, en edición</caption>
                       <thead>
                         <tr>
@@ -905,9 +905,9 @@ function Detalle() {
                           return (
                             <tr key={l.clave}>
                               <td className={lineasUi.num}>{i + 1}</td>
-                              <td>{l.sku ?? '—'}</td>
-                              <td>{l.nombre ?? '—'}</td>
-                              <td>
+                              <td className={lineasUi.remRef} data-label="Ref.">{l.sku ?? '—'}</td>
+                              <td className={lineasUi.remNombre}>{l.nombre ?? '—'}</td>
+                              <td className={lineasUi.remDesc} data-label="Descripción">
                                 <input
                                   className={lineasUi.texto}
                                   value={l.descripcion}
@@ -927,7 +927,7 @@ function Detalle() {
                                   }
                                 />
                               </td>
-                              <td>
+                              <td className={`${lineasUi.remCaja} ${lineasUi.remCantidad}`} data-label="Cantidad">
                                 <input
                                   type="number"
                                   className={lineasUi.numero}
@@ -945,15 +945,15 @@ function Detalle() {
                                   }
                                 />
                               </td>
-                              <td>{info ? formatearCantidad(info.pedida) : '—'}</td>
-                              <td>
+                              <td className={lineasUi.remCaja} data-label="Pedida">{info ? formatearCantidad(info.pedida) : '—'}</td>
+                              <td className={lineasUi.remCaja} data-label="Pendiente después">
                                 {info
                                   ? formatearCantidad(
                                       Math.max(0, info.pedida - info.otros - cantidad),
                                     )
                                   : '—'}
                               </td>
-                              <td>
+                              <td className={lineasUi.remQuitar}>
                                 <IconButton
                                   aria-label={`Quitar ${l.sku ?? 'la línea'}`}
                                   icon="trash"
