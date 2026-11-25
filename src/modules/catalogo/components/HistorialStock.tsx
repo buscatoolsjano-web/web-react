@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/Button'
 import { SkeletonRows } from '@/components/ui/Skeleton'
+import { useAlAparecer } from '../hooks/useAlAparecer'
 import { formatearFechaCorta, nombreDeMovimiento, saldosHaciaAtras } from '../lib/movimientos'
 import type { MovimientoDeStock, StockProducto } from '../types'
 import styles from './HistorialStock.module.css'
@@ -35,9 +36,11 @@ export function HistorialStock({
   cargando,
   onAbrir,
 }: HistorialStockProps) {
+  // Se despliega solo al llegar con el scroll; el botón queda por si acaso.
+  const plegado = useAlAparecer<HTMLDivElement>(!abierto, onAbrir)
   if (!abierto) {
     return (
-      <div className={styles.plegado}>
+      <div className={styles.plegado} ref={plegado}>
         <Button variant="secondary" size="sm" onClick={onAbrir}>
           Ver historial de stock
         </Button>

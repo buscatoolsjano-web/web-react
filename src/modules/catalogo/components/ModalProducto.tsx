@@ -107,6 +107,7 @@ export function ModalProducto({
   if (productoPrevio !== productoId) {
     setProductoPrevio(productoId)
     setVerHistorial(false)
+    setVerDocs(false)
     // Saltar a un relacionado mientras se editaba descarta la edición a medias:
     // lo que se estaba corrigiendo era de OTRO producto.
     setEdicion(null)

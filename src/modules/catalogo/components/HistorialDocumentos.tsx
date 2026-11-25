@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/Button'
 import { SkeletonRows } from '@/components/ui/Skeleton'
+import { useAlAparecer } from '../hooks/useAlAparecer'
 import { formatearFechaCorta } from '../lib/movimientos'
 import type { DocumentoHistorial, TipoDocHistorial } from '../services/historialDocumentos'
 import styles from './HistorialStock.module.css'
@@ -33,9 +34,11 @@ export function HistorialDocumentos({
   cargando: boolean
   onAbrir: () => void
 }) {
+  // Se despliega solo al llegar con el scroll; el botón queda por si acaso.
+  const plegado = useAlAparecer<HTMLDivElement>(!abierto, onAbrir)
   if (!abierto) {
     return (
-      <div className={styles.plegado}>
+      <div className={styles.plegado} ref={plegado}>
         <Button variant="secondary" size="sm" onClick={onAbrir}>
           Ver historial comercial
         </Button>
