@@ -6313,6 +6313,11 @@ export type Database = {
       }
       sales_quotes: {
         Row: {
+          follow_up_note: string | null
+          lost_at: string | null
+          lost_note: string | null
+          lost_reason: string | null
+          next_follow_up: string | null
           approved_at: string | null
           approved_by: string | null
           company_id: string
@@ -6351,6 +6356,11 @@ export type Database = {
           valid_until: string | null
         }
         Insert: {
+          follow_up_note?: string | null
+          lost_at?: string | null
+          lost_note?: string | null
+          lost_reason?: string | null
+          next_follow_up?: string | null
           approved_at?: string | null
           approved_by?: string | null
           company_id: string
@@ -6389,6 +6399,11 @@ export type Database = {
           valid_until?: string | null
         }
         Update: {
+          follow_up_note?: string | null
+          lost_at?: string | null
+          lost_note?: string | null
+          lost_reason?: string | null
+          next_follow_up?: string | null
           approved_at?: string | null
           approved_by?: string | null
           company_id?: string

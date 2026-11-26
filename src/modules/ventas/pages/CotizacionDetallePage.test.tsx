@@ -87,6 +87,14 @@ vi.mock('../services/contactosDocumento', () => ({
 }))
 
 vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
+// El seguimiento (2026-11): una cotización abierta, sin próximo contacto.
+vi.mock('../services/seguimiento', () => ({
+  leerSeguimiento: () =>
+    Promise.resolve({ estado: 'sent', motivoPerdida: null, notaPerdida: null, perdidaEn: null, proximoContacto: null, notaContacto: null }),
+  guardarProximoContacto: vi.fn(() => Promise.resolve()),
+  marcarPerdida: vi.fn(() => Promise.resolve()),
+  reabrirCotizacion: vi.fn(() => Promise.resolve()),
+}))
 // Los datos de la empresa para la hoja: no hay base en los tests.
 vi.mock('../services/empresa', () => ({
   datosDeEmpresa: () => Promise.resolve({ nombre: 'ZZ Buscatools', razonSocial: null, cuit: null, direccion: null, telefono: null, email: null, web: null, color: '#1f2937' }),
@@ -445,15 +453,14 @@ describe('Cotización · acciones', () => {
    * que ningún pedido respaldaba y que el primer movimiento de pedidos
    * corregía sin avisar.
    *
-   * «Marcar rechazada» tiene que quedarse: esa sí es una decisión de una
-   * persona, y no hay nada de dónde derivarla.
+   * «Marcar perdida» tiene que quedarse: esa sí es una decisión de una
+   * persona, y no hay nada de dónde derivarla. Desde 2026-11 vive en el
+   * seguimiento, con su motivo.
    */
-  it('no se marca aceptada a mano: la deriva el pedido', () => {
+  it('no se marca aceptada a mano: la deriva el pedido', async () => {
     montar()
     expect(screen.queryByRole('button', { name: 'Marcar aceptada' })).toBeNull()
-
-    fireEvent.click(screen.getByRole('button', { name: /Más/ }))
-    expect(screen.getByRole('button', { name: 'Marcar rechazada' })).toBeVisible()
+    expect(await screen.findByRole('button', { name: 'Marcar perdida…' })).toBeVisible()
   })
 
   it('con autoridad STEL la acción se ve deshabilitada y con el motivo, no escondida', () => {
@@ -577,12 +584,11 @@ describe('Cotización · acciones', () => {
     })
   })
 
-  it('«Marcar rechazada» vive en «Más», y la principal nunca', () => {
+  it('«Marcar perdida…» vive en el seguimiento, y la principal sigue siendo generar pedido', async () => {
     montar()
-    expect(screen.queryByRole('button', { name: 'Marcar rechazada' })).toBeNull()
-
-    fireEvent.click(screen.getByRole('button', { name: /Más/ }))
-    expect(screen.getByRole('button', { name: 'Marcar rechazada' })).toBeVisible()
+    const perdida = await screen.findByRole('button', { name: 'Marcar perdida…' })
+    expect(perdida.closest('section')).toHaveAccessibleName('Seguimiento')
+    expect(screen.getByRole('button', { name: 'Agendar contacto' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Generar pedido' })).toBeVisible()
   })
 

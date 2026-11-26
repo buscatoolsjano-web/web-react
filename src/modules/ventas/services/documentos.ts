@@ -269,12 +269,14 @@ export async function listarDocumentos(
     q = q.is(campo, true)
   }
 
-  // «Para reclamar»: abiertas y, o vencidas, o sin validez y viejas.
+  // «Para reclamar»: abiertas y, o con el próximo contacto vencido (2026-11), o
+  // —si no tienen uno agendado— vencidas o sin validez y viejas. Un contacto
+  // agendado para más adelante la saca de la lista hasta ese día.
   if (filtros.paraReclamar && tipo === 'cotizacion') {
     const campo: string = 'abierta'
     const hoy = new Date().toLocaleDateString('sv-SE')
     const limite = new Date(Date.now() - DIAS_PARA_RECLAMAR * 86_400_000).toLocaleDateString('sv-SE')
-    q = q.is(campo, true).or(`valid_until.lt.${hoy},and(valid_until.is.null,quote_date.lte.${limite})`)
+    q = q.is(campo, true).or(`next_follow_up.lte.${hoy},and(next_follow_up.is.null,valid_until.lt.${hoy}),and(next_follow_up.is.null,valid_until.is.null,quote_date.lte.${limite})`)
   }
 
   /*
@@ -746,7 +748,7 @@ export async function contarCotizacionesParaReclamar(companyId: string): Promise
     .select('id', { count: 'exact', head: true })
     .eq('company_id', companyId)
     .is(campo, true)
-    .or(`valid_until.lt.${hoy},and(valid_until.is.null,quote_date.lte.${limite})`)
+    .or(`next_follow_up.lte.${hoy},and(next_follow_up.is.null,valid_until.lt.${hoy}),and(next_follow_up.is.null,valid_until.is.null,quote_date.lte.${limite})`)
   if (error) throw new Error(`No se pudo contar las cotizaciones para reclamar: ${error.message}`)
   return count ?? 0
 }

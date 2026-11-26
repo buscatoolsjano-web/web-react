@@ -30,6 +30,7 @@ import docUi from '@/components/document/Document.module.css'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { useAccionesDocumento } from '../components/AccionesDocumento'
+import { PanelSeguimiento } from '../components/PanelSeguimiento'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
 import { AvisosHistoricos } from '../components/AvisosHistoricos'
 import { CadenaDocumento } from '../components/CadenaDocumento'
@@ -109,7 +110,6 @@ import {
 } from '../hooks/useDocumentos'
 import {
   FalloDeGuardado,
-  cambiarEstado,
   editabilidad,
   guardarCotizacion,
   ordenarLineas,
@@ -316,15 +316,6 @@ function Detalle() {
 
   const refrescar = () =>
     queryClient.invalidateQueries({ queryKey: ['ventas', activa?.companyId, 'cotizacion'] })
-
-  const transicion = useMutation({
-    mutationFn: ({ hasta }: { hasta: string }) => cambiarEstado(doc!.id, doc!.estado, hasta),
-    onSuccess: () => {
-      setUltimoError(null)
-      void refrescar()
-    },
-    onError: (e: Error) => setUltimoError(mensajeErrorVentas(e)),
-  })
 
   /**
    * Cotización → pedido.
@@ -936,20 +927,9 @@ function Detalle() {
             </>
           }
           more={
-            // Una cotización que ya tiene pedido no se rechaza: si el cliente
-            // se echó atrás, lo que se cancela es el pedido.
-            escribe && doc.estado === 'sent' && !yaTienePedido ? (
-              <MoreMenu>
-                <Button
-                  variant="secondary"
-                  onClick={() => transicion.mutate({ hasta: 'rejected' })}
-                >
-                  Marcar rechazada
-                </Button>
-                {enviarPorMail}
-                {acciones.mas}
-              </MoreMenu>
-            ) : acciones.hayMas || enviarPorMail ? (
+            // «Marcar rechazada» se mudó al seguimiento (2026-11), arriba de las
+            // líneas, como «Marcar perdida…» y con su motivo.
+            acciones.hayMas || enviarPorMail ? (
               <MoreMenu>
                 {enviarPorMail}
                 {acciones.mas}
@@ -973,6 +953,16 @@ function Detalle() {
           }
         />
       )}
+
+      {/* Seguimiento (2026-11): próximo contacto, o perdida con su motivo. */}
+      {!editando ? (
+        <PanelSeguimiento
+          quoteId={doc.id}
+          escribe={escribe}
+          yaTienePedido={yaTienePedido}
+          onCambio={() => void refrescar()}
+        />
+      ) : null}
 
       <DocumentTabs
         id={idPestanas}

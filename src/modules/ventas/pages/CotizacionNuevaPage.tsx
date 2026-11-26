@@ -68,6 +68,7 @@ import { tasaDe } from '../lib/tratamientos'
 import { crearCotizacion } from '../services/cotizaciones'
 import { vincularConsulta } from '../services/consultas'
 import { useConsultaEnBorrador } from '../hooks/useConsultaEnBorrador'
+import { DIAS_DE_VALIDEZ, sumarDias } from '../lib/seguimiento'
 import { guardarContactosDocumento } from '../services/contactosDocumento'
 import { guardarVendedoresDocumento } from '../services/vendedoresDocumento'
 import { productosPorId } from '../services/productosParaLinea'
@@ -132,7 +133,13 @@ export function CotizacionNuevaPage() {
   const [parametros] = useSearchParams()
   const clienteDeLaUrl = parametros.get('cliente')
   const inicial = useMemo(() => {
-    const vacio = borradorNuevo(hoyLocal(), FORMA_PAGO_HABITUAL)
+    // Nace con validez (2026-11): sin fecha no hay forma de saber qué
+    // cotización venció, y un precio viejo se puede reclamar para siempre.
+    const vacio = cambiarCampo(
+      borradorNuevo(hoyLocal(), FORMA_PAGO_HABITUAL),
+      'validaHasta',
+      sumarDias(hoyLocal(), DIAS_DE_VALIDEZ),
+    )
     return clienteDeLaUrl ? cambiarCliente(vacio, clienteDeLaUrl).borrador : vacio
     // Sólo al montar: cambiar de cliente después no vuelve a mirar la URL.
     // eslint-disable-next-line react-hooks/exhaustive-deps
