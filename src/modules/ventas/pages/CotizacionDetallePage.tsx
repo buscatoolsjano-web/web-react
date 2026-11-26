@@ -67,6 +67,7 @@ const ModalEnviarPorMail = lazy(() =>
 )
 import { useOpcionesDeHoja } from '../hooks/useOpcionesDeHoja'
 import {
+  alternarAlternativa,
   agregarLinea,
   aPayload,
   asignarProductoALinea,
@@ -1055,6 +1056,7 @@ function Detalle() {
                       moneda={borrador.cabecera.moneda}
                       editable
                       disponibilidad={disponibilidadLineas}
+                      onAlternar={(clave) => setBorrador((b) => (b ? alternarAlternativa(b, clave) : b))}
                       historicos={historicos}
                       onCambiar={cambiarLinea}
                       onEliminar={(clave) => setBorrador((b) => (b ? quitarLinea(b, clave) : b))}

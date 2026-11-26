@@ -47,6 +47,11 @@ export interface EdicionLineas {
   /** El último precio de este cliente por producto, para el aviso en naranja. */
   historicos?: Map<string, UltimoPrecio> | undefined
   /**
+   * Marcar o desmarcar la línea como ALTERNATIVA (2026-11, sólo cotización):
+   * otra opción para la línea de arriba, en chico, que no suma al total.
+   */
+  onAlternar?: ((lineaId: string) => void) | undefined
+  /**
    * Autocompletar el nombre con productos del catálogo (Fase 163).
    *
    * Cuando viene, el nombre de una línea LIBRE (sin producto) busca mientras se
@@ -246,6 +251,17 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null, disponibilid
                       <IconButton icon="arrow-down" aria-label="Bajar" size="sm" onClick={() => edicion.onMover(l.id, 1)} disabled={i === lineas.length - 1} />
                     </>
                   )}
+                  {edicion.onAlternar && l.tipoLinea !== 'chapter' ? (
+                    <button
+                      type="button"
+                      className={cx(styles.botonAlternativa, l.alternativa && styles.botonAlternativaActivo)}
+                      aria-pressed={Boolean(l.alternativa)}
+                      title={l.alternativa ? 'Volverla línea principal (suma al total)' : 'Marcarla como alternativa de la línea de arriba (no suma)'}
+                      onClick={() => edicion.onAlternar!(l.id)}
+                    >
+                      Alt.
+                    </button>
+                  ) : null}
                   <IconButton icon="trash" aria-label="Eliminar línea" size="sm" variant="danger" onClick={() => edicion.onEliminar(l.id)} />
                 </td>
               ) : null
@@ -287,7 +303,7 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null, disponibilid
               return (
                 <tr
                   key={l.id}
-                  className={cx(arrastrando === l.id && styles.arrastrando)}
+                  className={cx(arrastrando === l.id && styles.arrastrando, l.alternativa && styles.filaAlternativa)}
                   onDragOver={editando ? permitirSoltar : undefined}
                   onDrop={editando ? soltarEn(i) : undefined}
                 >
@@ -311,6 +327,9 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null, disponibilid
                     ) : null}
                   </td>
                   <td className={styles.celdaNombre} data-label="Producto">
+                    {l.alternativa ? (
+                      <span className={styles.etiquetaAlternativa}>Alternativa · no suma al total</span>
+                    ) : null}
                     {editando ? (
                       edicion.catalogo && l.productId === null ? (
                         // Línea libre + catálogo disponible: el nombre busca
@@ -485,7 +504,9 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null, disponibilid
                         )}
                       </td>
                       <td className={`${styles.derecha} ${styles.subtotal}`} data-label="Subtotal">
+                        {l.alternativa ? <span className={styles.noSuma}>(</span> : null}
                         {editando ? formatearImporte(netoDeLinea(l), moneda) : formatearImporte(subtotal(l), moneda)}
+                        {l.alternativa ? <span className={styles.noSuma}>)</span> : null}
                       </td>
                     </>
                   ) : null}

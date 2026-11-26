@@ -6228,6 +6228,7 @@ export type Database = {
       }
       sales_quote_lines: {
         Row: {
+          is_alternative: boolean
           delivery_time: string | null
           brand_snapshot: string | null
           company_id: string
@@ -6250,6 +6251,7 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          is_alternative?: boolean
           delivery_time?: string | null
           brand_snapshot?: string | null
           company_id: string
@@ -6272,6 +6274,7 @@ export type Database = {
           unit_price: number
         }
         Update: {
+          is_alternative?: boolean
           delivery_time?: string | null
           brand_snapshot?: string | null
           company_id?: string

@@ -95,6 +95,8 @@ export interface LineaBorrador {
    * líneas que se arman desde otros lados (carrito, copias) no lo traen.
    */
   plazo?: string | null
+  /** Alternativa a la línea principal de arriba (2026-11): no suma ni pasa al pedido. */
+  alternativa?: boolean
 }
 
 export interface Borrador {
@@ -122,6 +124,7 @@ function aLineaBorrador(l: LineaDocumento): LineaBorrador {
     tratamientoImpuesto: l.tratamientoImpuesto ?? 'vat_21',
     tasaImpuesto: l.tasaImpuesto ?? 0,
     plazo: l.plazo ?? null,
+    alternativa: l.alternativa ?? false,
   }
 }
 
@@ -437,7 +440,8 @@ const mismaLinea = (a: LineaBorrador, b: LineaBorrador) =>
   Number(a.precioUnitario) === Number(b.precioUnitario) &&
   Number(a.descuentoPct) === Number(b.descuentoPct) &&
   a.tratamientoImpuesto === b.tratamientoImpuesto &&
-  (a.plazo ?? '') === (b.plazo ?? '')
+  (a.plazo ?? '') === (b.plazo ?? '') &&
+  Boolean(a.alternativa) === Boolean(b.alternativa)
 
 /**
  * ¿Hay algo que guardar?
@@ -536,6 +540,8 @@ export function aPayload(actual: Borrador, original: Borrador): PayloadGuardado 
       // El plazo (2026-11). Las RPC del pedido lo ignoran; las de la
       // cotización lo guardan.
       delivery_time: l.plazo && l.plazo.trim() !== '' ? l.plazo.trim() : null,
+      // Alternativa (2026-11): sólo la cotización la guarda; el pedido la ignora.
+      is_alternative: Boolean(l.alternativa),
     })),
   }
 }
@@ -582,6 +588,8 @@ export function aPayloadCreacion(b: Borrador): PayloadGuardado {
       // El plazo (2026-11). Las RPC del pedido lo ignoran; las de la
       // cotización lo guardan.
       delivery_time: l.plazo && l.plazo.trim() !== '' ? l.plazo.trim() : null,
+      // Alternativa (2026-11): sólo la cotización la guarda; el pedido la ignora.
+      is_alternative: Boolean(l.alternativa),
     })),
   }
 }
@@ -637,5 +645,20 @@ export function comoLineasDocumento(b: Borrador): LineaDocumento[] {
     tasaImpuesto: Number(l.tasaImpuesto),
     ordenLineaId: null,
     plazo: l.plazo ?? null,
+    alternativa: Boolean(l.alternativa),
   }))
+}
+
+/**
+ * Marcar o desmarcar una línea como ALTERNATIVA (2026-11).
+ *
+ * Una alternativa es «otra opción» para la línea principal de arriba: se
+ * muestra en chico, no suma al total y no pasa al pedido. Si el cliente elige
+ * la alternativa, se la vuelve principal y a la otra se la marca alternativa.
+ */
+export function alternarAlternativa(b: Borrador, clave: string): Borrador {
+  return {
+    ...b,
+    lineas: b.lineas.map((l) => (l.clave === clave ? { ...l, alternativa: !l.alternativa } : l)),
+  }
 }

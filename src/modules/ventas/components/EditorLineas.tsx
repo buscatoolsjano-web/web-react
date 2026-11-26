@@ -42,6 +42,8 @@ export interface EditorLineasProps {
     | undefined
   /** La tarifa del documento, de donde sale el precio propuesto al elegir. */
   listaPrecioId?: string | null | undefined
+  /** Marcar la línea como alternativa (2026-11): sólo la cotización lo pasa. */
+  onAlternar?: ((lineaId: string) => void) | undefined
   /** Stock y lo que viene en camino, por producto (2026-11, plazo). */
   disponibilidad?: ReadonlyMap<string, DisponibilidadLinea> | undefined
 }
@@ -59,6 +61,7 @@ export function EditorLineas({
   onElegirProducto,
   listaPrecioId,
   disponibilidad,
+  onAlternar,
 }: EditorLineasProps) {
   return (
     <TablaLineas
@@ -74,6 +77,7 @@ export function EditorLineas({
               onMover,
               onReordenar,
               historicos,
+              onAlternar,
               catalogo: onElegirProducto
                 ? { listaPrecioId: listaPrecioId ?? null, onElegirProducto }
                 : undefined,

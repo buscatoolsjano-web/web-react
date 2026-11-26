@@ -20,11 +20,12 @@ export function netoDeLinea(l: LineaDocumento): number {
 
 /** Unidades del documento. Un capítulo es un título, no mercadería: no suma. */
 export function unidadesDe(lineas: readonly LineaDocumento[]): number {
-  return lineas.filter((l) => l.tipoLinea !== 'chapter').reduce((total, l) => total + l.cantidad, 0)
+  // Una alternativa (2026-11) es otra opción, no algo más que se lleva.
+  return lineas.filter((l) => l.tipoLinea !== 'chapter' && !l.alternativa).reduce((total, l) => total + l.cantidad, 0)
 }
 
 export function netoDeLineas(lineas: readonly LineaDocumento[]): number {
-  return lineas.reduce((s, l) => s + netoDeLinea(l), 0)
+  return lineas.reduce((s, l) => s + (l.alternativa ? 0 : netoDeLinea(l)), 0)
 }
 
 export interface TotalesPrevios {
@@ -50,6 +51,8 @@ export function totalesPrevios(
   let neto = 0
   let iva = 0
   for (const l of lineas) {
+    // Las alternativas no suman (2026-11), igual que en `app.totales_cotizacion`.
+    if (l.alternativa) continue
     const n = netoDeLinea(l)
     neto += n
     iva += n * factor * ((l.tasaImpuesto ?? 0) / 100)

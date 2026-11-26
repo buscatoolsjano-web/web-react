@@ -174,6 +174,8 @@ export interface LineaImpresa {
   partes: ParteDescripcion[]
   /** El plazo de entrega prometido (2026-11): sale debajo de la descripción. */
   plazo?: string | null
+  /** Alternativa a la línea de arriba (2026-11): va en chico y no suma. */
+  alternativa?: boolean
 }
 
 export interface DocumentoImprimible {
@@ -310,6 +312,7 @@ export function construirImprimible(
         foto: opciones.conFotos && l.productId ? (datos?.get(l.productId)?.foto ?? null) : null,
         partes: l.productId ? partesDeDescripcion(datos?.get(l.productId), definiciones) : [],
         plazo: l.plazo ?? null,
+        alternativa: l.alternativa ?? false,
       }
     }),
     subtotal: doc.subtotal,
@@ -377,7 +380,7 @@ export function imprimibleDelBorrador(
   const lineas: LineaImpresa[] = datos.lineas.map((l, i) => {
     const factor = opciones.preciosConImpuestos ? 1 + (l.tasaImpuesto ?? 0) / 100 : 1
     const sub = subtotalDeLinea(l, factor)
-    if (l.tipoLinea !== 'chapter' && sub !== null) subtotal += sub
+    if (l.tipoLinea !== 'chapter' && !l.alternativa && sub !== null) subtotal += sub
     return {
       id: l.id,
       esCapitulo: l.tipoLinea === 'chapter',
@@ -396,6 +399,7 @@ export function imprimibleDelBorrador(
       foto: opciones.conFotos && l.productId ? (productos?.get(l.productId)?.foto ?? null) : null,
       partes: l.productId ? partesDeDescripcion(productos?.get(l.productId), definiciones) : [],
       plazo: l.plazo ?? null,
+      alternativa: l.alternativa ?? false,
     }
   })
 

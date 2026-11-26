@@ -713,3 +713,105 @@
   cursor: pointer;
   text-decoration: underline;
 }
+
+/* ── Líneas alternativas (2026-11) ─────────────────────────────────────
+   Otra opción para la línea de arriba: más chica, corrida a la derecha y con
+   fondo suave, para que se note que no es una línea más del pedido. */
+.filaAlternativa > td {
+  font-size: var(--text-xs);
+  padding-top: 2px;
+  padding-bottom: 2px;
+  background: var(--surface-alt);
+  color: var(--text-soft);
+}
+
+.filaAlternativa > td.celdaNombre {
+  padding-left: var(--space-5);
+  border-left: 3px solid var(--color-warning);
+}
+
+.etiquetaAlternativa {
+  display: inline-block;
+  margin-bottom: 2px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.noSuma {
+  color: var(--text-muted);
+}
+
+.botonAlternativa {
+  min-width: 32px;
+  min-height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.botonAlternativa:hover {
+  border-color: var(--color-warning);
+}
+
+.botonAlternativaActivo {
+  border-color: var(--color-warning);
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}
+
+@container editor (max-width: 56rem) {
+  .tabla tbody tr.filaAlternativa {
+    margin-left: var(--space-5);
+    padding: 4px var(--space-2);
+    row-gap: 4px;
+    column-gap: var(--space-1);
+    border-left-color: var(--color-warning);
+    background: var(--surface-alt);
+    font-size: var(--text-xs);
+  }
+  /* Más compacta que una línea normal: cajas chicas, sin el resaltado del
+     subtotal (no suma) y sin los avisos de precio, que son de la principal. */
+  .tabla tbody tr.filaAlternativa td.celdaNombre {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .tabla tbody tr.filaAlternativa :is(td.cantidad, td.precio, td.dto, td.impuestoCelda, td.subtotal) {
+    padding: 2px var(--space-1) 3px;
+    font-size: var(--text-xs);
+  }
+  .tabla tbody tr.filaAlternativa :is(td.cantidad, td.precio, td.dto, td.impuestoCelda) :is(input, select) {
+    min-height: 28px;
+    font-size: var(--text-xs);
+  }
+  .tabla tbody tr.filaAlternativa td.subtotal {
+    border-color: var(--color-border);
+    background: var(--color-surface-alt);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+  .tabla tbody tr.filaAlternativa :is(.avisoHistorico, .avisoIgual) {
+    display: none;
+  }
+  .tabla tbody tr.filaAlternativa :is(td.cantidad, td.precio, td.dto, td.impuestoCelda, td.subtotal)::before {
+    font-size: 0.625rem;
+  }
+  .tabla tbody tr.filaAlternativa .plazoFila {
+    margin-top: 0;
+  }
+  .tabla tbody tr.filaAlternativa td.celdaNombre :is(input, textarea) {
+    min-height: 28px;
+    font-size: var(--text-xs);
+  }
+}

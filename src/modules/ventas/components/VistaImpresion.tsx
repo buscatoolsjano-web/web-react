@@ -181,7 +181,7 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
             </div>
           ) : (
             <div key={l.id} className={styles.tItem}>
-              <div className={styles.tItemName}>{l.nombre ?? l.sku}</div>
+              <div className={styles.tItemName}>{l.alternativa ? 'Alternativa: ' : ''}{l.nombre ?? l.sku}</div>
               {l.sku && l.nombre ? <div className={styles.tItemSku}>{l.sku}</div> : null}
               <div className={styles.tItemRow}>
                 <span>
@@ -525,7 +525,9 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
               </tr>
               )
             ) : (
-              <tr key={l.id}>
+              // Una alternativa (2026-11) va en chico, corrida y con su rótulo:
+              // es otra opción para la línea de arriba, no algo que se suma.
+              <tr key={l.id} className={l.alternativa ? styles.filaAlternativa : undefined}>
                 {/* Referencia arriba y foto abajo, en una sola celda. El hueco
                     de la foto existe en TODAS las filas: con imagen se usa, sin
                     imagen queda vacío, y así todas las filas miden lo mismo.
@@ -541,13 +543,14 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
                   ) : (
                     <div className={styles.sku}>{l.sku ?? '—'}</div>
                   )}
-                  {conFotos ? (
+                  {conFotos && !l.alternativa ? (
                     <div className={l.foto ? styles.marcoFoto : `${styles.marcoFoto} ${styles.marcoVacio}`}>
                       {l.foto ? <img src={l.foto} alt="" className={styles.foto} loading="lazy" /> : null}
                     </div>
                   ) : null}
                 </td>
                 <td>
+                  {l.alternativa ? <div className={styles.etiquetaAlt}>Alternativa · no incluida en el total</div> : null}
                   {edicion?.buscadorNombre?.(l.id, l.nombre) ?? (edicion?.onNombre ? (
                     <input
                       className={styles.nombreEditable}
@@ -619,7 +622,11 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
                 ) : null}
                 {ver.precios ? (
                   <td className={styles.num}>
-                    <b>{formatearImporte(l.subtotal, moneda)}</b>
+                    {l.alternativa ? (
+                      <span className={styles.subtotalAlt}>({formatearImporte(l.subtotal, moneda)})</span>
+                    ) : (
+                      <b>{formatearImporte(l.subtotal, moneda)}</b>
+                    )}
                   </td>
                 ) : null}
                 {ver.impuestos ? (

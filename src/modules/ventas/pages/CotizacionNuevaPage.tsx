@@ -43,6 +43,7 @@ import { defaultsDeCliente } from '../services/clientes'
 import { useAutoridadNumeracion } from '../hooks/useAutoridadNumeracion'
 import { DOC_TYPE_DE, mensajeErrorVentas, motivoBloqueo, motivoSerieStel } from '../lib/autoridad'
 import {
+  alternarAlternativa,
   aPayloadCreacion,
   agregarLinea,
   asignarProductoALinea,
@@ -841,6 +842,7 @@ export function CotizacionNuevaPage() {
               moneda={b.cabecera.moneda}
               editable
               disponibilidad={disponibilidadLineas}
+              onAlternar={(clave) => setB((x) => alternarAlternativa(x, clave))}
               historicos={historicos}
               onCambiar={cambiarLinea}
               onEliminar={(clave) => setB((x) => quitarLinea(x, clave))}

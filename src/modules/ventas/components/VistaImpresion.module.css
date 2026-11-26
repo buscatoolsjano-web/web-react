@@ -639,6 +639,40 @@
   letter-spacing: 1px;
 }
 
+/* ── Líneas alternativas (2026-11) ─────────────────────────────────────
+   Otra opción para la línea de arriba: más chica, corrida a la derecha, sin
+   foto y con su rótulo. Le gana al alto fijo de las filas (filasFoto/Desc):
+   una alternativa no tiene que ocupar el lugar de un producto más. */
+.tabla tbody tr.filaAlternativa td {
+  height: auto;
+  padding-top: 1mm;
+  padding-bottom: 1.2mm;
+  font-size: 7.5pt;
+  color: #444;
+  background: #fafafa;
+}
+
+.tabla tbody tr.filaAlternativa td:nth-child(2) {
+  padding-left: 6mm;
+  border-left: 0.6mm solid var(--naranja);
+}
+
+.tabla tbody tr.filaAlternativa .nombre {
+  font-weight: 600;
+}
+
+.etiquetaAlt {
+  font-size: 6.5pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--naranja);
+}
+
+.subtotalAlt {
+  color: var(--tinta-suave);
+}
+
 /* ── Impresión ────────────────────────────────────────────────────────── */
 @media print {
   .hoja {

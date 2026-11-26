@@ -163,6 +163,11 @@ export interface LineaDocumento {
   ordenLineaId: string | null
   /** Plazo de entrega de la línea (cotización y pedido, 2026-11). */
   plazo?: string | null
+  /**
+   * Alternativa a la línea principal de arriba (sólo cotización, 2026-11): se
+   * muestra en chico, no suma al total y no pasa al pedido.
+   */
+  alternativa?: boolean
 }
 
 /** El domicilio tal como estaba cuando se emitió el remito. */

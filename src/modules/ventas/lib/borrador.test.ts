@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { totalesPrevios } from './totales'
 import {
+  alternarAlternativa,
   aPayload,
   aPayloadCreacion,
   aPayloadCreacionPedido,
@@ -276,7 +278,7 @@ describe('payload', () => {
       id: null, line_no: 3, line_type: 'item', product_id: 'p9',
       sku_snapshot: 'NUEVO', name_snapshot: 'Nuevo', description_snapshot: 'desc',
       quantity: 3, unit_price: 70, discount_pct: 5,
-      tax_treatment: 'vat_105', tax_rate_snapshot: 10.5, delivery_time: null,
+      tax_treatment: 'vat_105', tax_rate_snapshot: 10.5, delivery_time: null, is_alternative: false,
     })
   })
 
@@ -518,5 +520,20 @@ describe('asignarProductoALinea', () => {
 
     expect(b.lineas[0]).toMatchObject({ productId: 'p1', sku: 'A' })
     expect(b.lineas[1]).toMatchObject({ productId: 'p2', sku: 'B', precioUnitario: 20 })
+  })
+})
+
+
+describe('líneas alternativas (2026-11)', () => {
+  it('una alternativa no suma al total y viaja marcada', () => {
+    const o = base()
+    const b = alternarAlternativa(o, o.lineas[1]!.clave)
+    const lineas = comoLineasDocumento(b)
+    const conAlt = totalesPrevios(lineas, 0, 0)
+    const sinLaSegunda = totalesPrevios(lineas.filter((_, i) => i !== 1), 0, 0)
+    expect(conAlt.total).toBe(sinLaSegunda.total)
+    expect(aPayload(b, o).lineas[1]).toMatchObject({ is_alternative: true })
+    expect(hayCambios(b, o)).toBe(true)
+    expect(alternarAlternativa(b, o.lineas[1]!.clave).lineas[1]!.alternativa).toBe(false)
   })
 })
