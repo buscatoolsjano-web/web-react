@@ -123,6 +123,10 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
   const [lineas, setLineas] = useState<LineaEmparejada[]>([])
   const [editando, setEditando] = useState<number | null>(null)
   const [cotis, setCotis] = useState<CandidataCotizacion[]>([])
+  // Mientras se buscan los productos (2026-11): antes las líneas decían «No se
+  // encontró en el catálogo» durante la búsqueda, y si fallaba no se enteraba nadie.
+  const [emparejando, setEmparejando] = useState(false)
+  const [errorEmparejar, setErrorEmparejar] = useState<string | null>(null)
   const [quoteId, setQuoteId] = useState<string | null>(null)
   /* Qué cotización candidata está abierta para mirarla. Una a la vez: dos
      listas de líneas al mismo tiempo se comparan peor que de a una. */
@@ -249,7 +253,16 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
     setClienteId(id)
     setPorQue(metodo)
     if (!oc || companyId === null) return
-    const ls = await emparejarLineas(companyId, id, oc.lineas)
+    setEmparejando(true)
+    setErrorEmparejar(null)
+    let ls: LineaEmparejada[]
+    try {
+      ls = await emparejarLineas(companyId, id, oc.lineas)
+    } catch (e) {
+      setErrorEmparejar(e instanceof Error ? e.message : 'No se pudieron buscar los productos.')
+      setEmparejando(false)
+      return
+    }
 
     /**
      * Lo macheado a mano MANDA sobre lo que propone el emparejador.
@@ -265,7 +278,8 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
     const finales = ls.map((l) => aMano.get(l.n) ?? l)
 
     setLineas(finales)
-    setCotis(await cotizacionesPara(companyId, id, finales))
+    setEmparejando(false)
+    setCotis(await cotizacionesPara(companyId, id, finales).catch(() => []))
     setQuoteId(null)
   }
 
@@ -756,12 +770,26 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
         {lineas.length > 0 ? (
           <section className={styles.bloque}>
             <h3 className={styles.titulo}>3 · Los productos</h3>
-            <p className={styles.leido}>
-              {resumen.total} línea{resumen.total === 1 ? '' : 's'} · {resumen.resueltas} resuelta
-              {resumen.resueltas === 1 ? '' : 's'}
-              {resumen.aConfirmar > 0 ? ` · ${resumen.aConfirmar} a confirmar` : ''}
-              {resumen.sinProducto > 0 ? ` · ${resumen.sinProducto} sin producto` : ''}
-            </p>
+            {emparejando ? (
+              <p className={styles.leido} role="status">
+                {resumen.total} línea{resumen.total === 1 ? '' : 's'} · buscando nuestros productos…
+              </p>
+            ) : (
+              <p className={styles.leido}>
+                {resumen.total} línea{resumen.total === 1 ? '' : 's'} · {resumen.resueltas} resuelta
+                {resumen.resueltas === 1 ? '' : 's'}
+                {resumen.aConfirmar > 0 ? ` · ${resumen.aConfirmar} a confirmar` : ''}
+                {resumen.sinProducto > 0 ? ` · ${resumen.sinProducto} sin producto` : ''}
+              </p>
+            )}
+            {errorEmparejar ? (
+              <p className={styles.leido} role="alert">
+                No se pudieron buscar los productos: {errorEmparejar}{' '}
+                <button type="button" onClick={() => clienteId && void elegirCliente(clienteId)}>
+                  Reintentar
+                </button>
+              </p>
+            ) : null}
             {/* Que se sepa que macheando se enseña. Es lo que convierte el
                 trabajo de hoy en que la próxima OC de este cliente salga sola,
                 y si no se dice, nadie lo supone. */}
@@ -861,8 +889,8 @@ export function ModalImportarOc({ archivoInicial, origen, onCerrar }: ModalImpor
                             /* El motivo viaja en el rótulo y en el `title`: el
                                icono solo no distingue «es nuestra referencia»
                                de «se parece al nombre», y no se revisan igual. */
-                            title={`${EXPLICACION_LINEA[l.metodo]}. Tocá para elegir otro.`}
-                            aria-label={`${EXPLICACION_LINEA[l.metodo]}. Elegir el producto para «${l.codigo ?? l.descripcion ?? `línea ${l.n}`}».`}
+                            title={`${emparejando && l.productId === null ? "Buscando en el catálogo…" : EXPLICACION_LINEA[l.metodo]}. Tocá para elegir otro.`}
+                            aria-label={`${emparejando && l.productId === null ? "Buscando en el catálogo…" : EXPLICACION_LINEA[l.metodo]}. Elegir el producto para «${l.codigo ?? l.descripcion ?? `línea ${l.n}`}».`}
                             onClick={() => setEditando(abierto ? null : l.n)}
                           >
                             {/* `search` y no `x` para el estado «sin»: la cruz
