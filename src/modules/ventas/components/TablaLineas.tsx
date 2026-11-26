@@ -1,4 +1,4 @@
-import { useId, useState, type DragEvent } from 'react'
+import { useState, type DragEvent } from 'react'
 import { Icon } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
 import { cx } from '@/utils/cx'
@@ -8,7 +8,8 @@ import { formatearCantidad, formatearImporte } from '../lib/formato'
 import { TRATAMIENTOS } from '../lib/tratamientos'
 import { netoDeLinea } from '../lib/totales'
 import { avisoDePrecio } from '../lib/ultimoPrecio'
-import { PLAZOS_HABITUALES, estadoDisponibilidad, type DisponibilidadLinea } from '../lib/plazo'
+import { estadoDisponibilidad, type DisponibilidadLinea } from '../lib/plazo'
+import { SelectorPlazo } from './SelectorPlazo'
 import type { LineaDocumento, TipoDocumento } from '../types'
 import { BuscadorProductoLinea } from './BuscadorProductoLinea'
 import type { PrecioPropuesto } from './ModalCatalogoProductos'
@@ -113,7 +114,6 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null, disponibilid
   const editando = edicion !== null
   // El plazo de entrega es de la cotización: es lo que se le promete al cliente.
   const conPlazo = tipo === 'cotizacion'
-  const idPlazos = useId()
   const historicos = edicion?.historicos ?? SIN_HISTORICO
   // Qué descripciones inline están ampliadas: por defecto van cortadas a pocas
   // líneas y se abren al tocarlas (Fase 186). Es sólo la vista en pantalla; la
@@ -377,7 +377,6 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null, disponibilid
                         linea={l}
                         disponibilidad={l.productId ? disponibilidad?.get(l.productId) : undefined}
                         hayDatos={disponibilidad !== undefined}
-                        idLista={idPlazos}
                         onCambiar={editando ? (v) => edicion.onCambiar(l.id, 'delivery_time', v) : null}
                       />
                     ) : null}
@@ -526,14 +525,6 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null, disponibilid
         </p>
       ) : null}
 
-      {/* Los plazos habituales, para elegir del campo de cada línea. */}
-      {conPlazo && editando ? (
-        <datalist id={idPlazos}>
-          {PLAZOS_HABITUALES.map((p) => (
-            <option key={p} value={p} />
-          ))}
-        </datalist>
-      ) : null}
     </>
   )
 }
@@ -549,13 +540,11 @@ function PlazoDeLinea({
   linea: l,
   disponibilidad,
   hayDatos,
-  idLista,
   onCambiar,
 }: {
   linea: LineaDocumento
   disponibilidad: DisponibilidadLinea | undefined
   hayDatos: boolean
-  idLista: string
   onCambiar: ((valor: string | null) => void) | null
 }) {
   if (l.tipoLinea === 'chapter') return null
@@ -575,14 +564,7 @@ function PlazoDeLinea({
   return (
     <span className={styles.plazoFila}>
       {estado ? <span className={styles.disponibilidad} data-tono={estado.tono}>{estado.texto}</span> : null}
-      <input
-        className={styles.plazoInput}
-        list={idLista}
-        value={plazo}
-        placeholder="Plazo de entrega"
-        aria-label="Plazo de entrega"
-        onChange={(e) => onCambiar(e.target.value || null)}
-      />
+      <SelectorPlazo valor={plazo} sugerido={estado?.sugerido ?? null} onCambiar={onCambiar} />
       {estado?.sugerido && plazo === '' ? (
         <button type="button" className={styles.plazoSugerido} onClick={() => onCambiar(estado.sugerido)}>
           Usar «{estado.sugerido}»
