@@ -3,6 +3,7 @@ import type { ProductoListado } from '@/modules/catalogo/types'
 import type { LineaDocumento } from '../types'
 import { TablaLineas, type CampoLinea } from './TablaLineas'
 import type { PrecioPropuesto } from './ModalCatalogoProductos'
+import type { DisponibilidadLinea } from '../lib/plazo'
 
 /**
  * El editor de líneas (Fase 155): ahora es la MISMA tabla que la lectura.
@@ -41,6 +42,8 @@ export interface EditorLineasProps {
     | undefined
   /** La tarifa del documento, de donde sale el precio propuesto al elegir. */
   listaPrecioId?: string | null | undefined
+  /** Stock y lo que viene en camino, por producto (2026-11, plazo). */
+  disponibilidad?: ReadonlyMap<string, DisponibilidadLinea> | undefined
 }
 
 export function EditorLineas({
@@ -55,12 +58,14 @@ export function EditorLineas({
   onReordenar,
   onElegirProducto,
   listaPrecioId,
+  disponibilidad,
 }: EditorLineasProps) {
   return (
     <TablaLineas
       lineas={lineas}
       moneda={moneda}
       tipo={documento === 'del pedido' ? 'pedido' : 'cotizacion'}
+      disponibilidad={disponibilidad}
       edicion={
         editable
           ? {

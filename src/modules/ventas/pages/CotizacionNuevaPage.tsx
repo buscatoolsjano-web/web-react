@@ -36,6 +36,7 @@ import {
   useVendedores,
   useFormasDePago,
   useAgregarFormaDePago,
+  useDisponibilidadLineas,
 } from '../hooks/useDocumentos'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { defaultsDeCliente } from '../services/clientes'
@@ -95,6 +96,7 @@ const CAMPO_BORRADOR: Record<CampoLinea, Parameters<typeof cambiarLineaBorrador>
   discount_pct: 'descuentoPct',
   tax_treatment: 'tratamientoImpuesto',
   tax_rate_snapshot: 'tasaImpuesto',
+  delivery_time: 'plazo',
 }
 
 /**
@@ -405,6 +407,10 @@ export function CotizacionNuevaPage() {
   }
 
   const lineasVisibles = comoLineasDocumento(b)
+  // Stock y lo que viene en camino de cada producto, para el plazo (2026-11).
+  const disponibilidadLineas = useDisponibilidadLineas(
+    lineasVisibles.flatMap((l) => (l.productId ? [l.productId] : [])),
+  ).data
 
   /*
    * El último precio de este cliente, una sola consulta para toda la pantalla
@@ -834,6 +840,7 @@ export function CotizacionNuevaPage() {
               lineas={lineasVisibles}
               moneda={b.cabecera.moneda}
               editable
+              disponibilidad={disponibilidadLineas}
               historicos={historicos}
               onCambiar={cambiarLinea}
               onEliminar={(clave) => setB((x) => quitarLinea(x, clave))}

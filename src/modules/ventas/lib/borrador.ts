@@ -89,6 +89,12 @@ export interface LineaBorrador {
   descuentoPct: number
   tratamientoImpuesto: string
   tasaImpuesto: number
+  /**
+   * El plazo de entrega que se le promete al cliente (2026-11): «Inmediato»,
+   * «30-45 días». Texto libre; sale impreso en la hoja. Opcional porque las
+   * líneas que se arman desde otros lados (carrito, copias) no lo traen.
+   */
+  plazo?: string | null
 }
 
 export interface Borrador {
@@ -115,6 +121,7 @@ function aLineaBorrador(l: LineaDocumento): LineaBorrador {
     descuentoPct: l.descuentoPct ?? 0,
     tratamientoImpuesto: l.tratamientoImpuesto ?? 'vat_21',
     tasaImpuesto: l.tasaImpuesto ?? 0,
+    plazo: l.plazo ?? null,
   }
 }
 
@@ -288,7 +295,7 @@ export function cambiarMoneda(
 
 export type CampoLinea = keyof Pick<
   LineaBorrador,
-  'sku' | 'nombre' | 'descripcion' | 'cantidad' | 'precioUnitario' | 'descuentoPct' | 'tratamientoImpuesto' | 'tasaImpuesto'
+  'sku' | 'nombre' | 'descripcion' | 'cantidad' | 'precioUnitario' | 'descuentoPct' | 'tratamientoImpuesto' | 'tasaImpuesto' | 'plazo'
 >
 
 export function cambiarLinea(b: Borrador, clave: string, campo: CampoLinea, valor: string | number | null): Borrador {
@@ -429,7 +436,8 @@ const mismaLinea = (a: LineaBorrador, b: LineaBorrador) =>
   Number(a.cantidad) === Number(b.cantidad) &&
   Number(a.precioUnitario) === Number(b.precioUnitario) &&
   Number(a.descuentoPct) === Number(b.descuentoPct) &&
-  a.tratamientoImpuesto === b.tratamientoImpuesto
+  a.tratamientoImpuesto === b.tratamientoImpuesto &&
+  (a.plazo ?? '') === (b.plazo ?? '')
 
 /**
  * ¿Hay algo que guardar?
@@ -525,6 +533,9 @@ export function aPayload(actual: Borrador, original: Borrador): PayloadGuardado 
       discount_pct: Number(l.descuentoPct),
       tax_treatment: l.tratamientoImpuesto,
       tax_rate_snapshot: Number(l.tasaImpuesto),
+      // El plazo (2026-11). Las RPC del pedido lo ignoran; las de la
+      // cotización lo guardan.
+      delivery_time: l.plazo && l.plazo.trim() !== '' ? l.plazo.trim() : null,
     })),
   }
 }
@@ -568,6 +579,9 @@ export function aPayloadCreacion(b: Borrador): PayloadGuardado {
       discount_pct: Number(l.descuentoPct),
       tax_treatment: l.tratamientoImpuesto,
       tax_rate_snapshot: Number(l.tasaImpuesto),
+      // El plazo (2026-11). Las RPC del pedido lo ignoran; las de la
+      // cotización lo guardan.
+      delivery_time: l.plazo && l.plazo.trim() !== '' ? l.plazo.trim() : null,
     })),
   }
 }
@@ -622,5 +636,6 @@ export function comoLineasDocumento(b: Borrador): LineaDocumento[] {
     tratamientoImpuesto: l.tratamientoImpuesto,
     tasaImpuesto: Number(l.tasaImpuesto),
     ordenLineaId: null,
+    plazo: l.plazo ?? null,
   }))
 }

@@ -145,6 +145,7 @@ const CAMPO_BORRADOR: Record<CampoLinea, Parameters<typeof cambiarLineaBorrador>
   discount_pct: 'descuentoPct',
   tax_treatment: 'tratamientoImpuesto',
   tax_rate_snapshot: 'tasaImpuesto',
+  delivery_time: 'plazo',
 }
 
 export function PedidoDetallePage() {

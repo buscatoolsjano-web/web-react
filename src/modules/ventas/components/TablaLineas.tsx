@@ -1,4 +1,4 @@
-import { useState, type DragEvent } from 'react'
+import { useId, useState, type DragEvent } from 'react'
 import { Icon } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
 import { cx } from '@/utils/cx'
@@ -8,6 +8,7 @@ import { formatearCantidad, formatearImporte } from '../lib/formato'
 import { TRATAMIENTOS } from '../lib/tratamientos'
 import { netoDeLinea } from '../lib/totales'
 import { avisoDePrecio } from '../lib/ultimoPrecio'
+import { PLAZOS_HABITUALES, estadoDisponibilidad, type DisponibilidadLinea } from '../lib/plazo'
 import type { LineaDocumento, TipoDocumento } from '../types'
 import { BuscadorProductoLinea } from './BuscadorProductoLinea'
 import type { PrecioPropuesto } from './ModalCatalogoProductos'
@@ -23,6 +24,7 @@ export type CampoLinea =
   | 'discount_pct'
   | 'tax_treatment'
   | 'tax_rate_snapshot'
+  | 'delivery_time'
 
 /**
  * Lo que convierte la MISMA tabla en editable (Fase 155).
@@ -65,6 +67,12 @@ export interface TablaLineasProps {
   tipo: TipoDocumento
   /** Si viene, la tabla se edita in situ sin cambiar su forma. */
   edicion?: EdicionLineas | null
+  /**
+   * Stock libre y lo que viene en camino, por producto (2026-11). Si viene, en
+   * la cotización cada línea dice si hay, si viene o si no hay, y lleva su
+   * plazo de entrega.
+   */
+  disponibilidad?: ReadonlyMap<string, DisponibilidadLinea> | undefined
 }
 
 /** Una sola instancia: un `new Map()` por render rompería las memos. */
@@ -96,8 +104,11 @@ function impuesto(l: LineaDocumento): string {
   return t?.etiqueta ?? '—'
 }
 
-export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLineasProps) {
+export function TablaLineas({ lineas, moneda, tipo, edicion = null, disponibilidad }: TablaLineasProps) {
   const editando = edicion !== null
+  // El plazo de entrega es de la cotización: es lo que se le promete al cliente.
+  const conPlazo = tipo === 'cotizacion'
+  const idPlazos = useId()
   const historicos = edicion?.historicos ?? SIN_HISTORICO
   // Qué descripciones inline están ampliadas: por defecto van cortadas a pocas
   // líneas y se abren al tocarlas (Fase 186). Es sólo la vista en pantalla; la
@@ -342,6 +353,15 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLinea
                         ) : null}
                       </>
                     )}
+                    {conPlazo ? (
+                      <PlazoDeLinea
+                        linea={l}
+                        disponibilidad={l.productId ? disponibilidad?.get(l.productId) : undefined}
+                        hayDatos={disponibilidad !== undefined}
+                        idLista={idPlazos}
+                        onCambiar={editando ? (v) => edicion.onCambiar(l.id, 'delivery_time', v) : null}
+                      />
+                    ) : null}
                   </td>
                   <td className={styles.colDescripcion} data-label="Descripción">
                     {/* Como el STEL (Fase 165): la descripción es una caja chica,
@@ -484,6 +504,69 @@ export function TablaLineas({ lineas, moneda, tipo, edicion = null }: TablaLinea
           inventar el dato.
         </p>
       ) : null}
+
+      {/* Los plazos habituales, para elegir del campo de cada línea. */}
+      {conPlazo && editando ? (
+        <datalist id={idPlazos}>
+          {PLAZOS_HABITUALES.map((p) => (
+            <option key={p} value={p} />
+          ))}
+        </datalist>
+      ) : null}
     </>
+  )
+}
+
+/**
+ * La disponibilidad y el plazo de una línea de cotización (2026-11).
+ *
+ * Arriba, un chip: «En stock», «Stock: 3 de 5», «En camino · llega 15/12/26» o
+ * «Sin stock». Abajo, el plazo que se le promete al cliente —el que sale en la
+ * hoja—, con el sugerido a un clic cuando hay de dónde sacarlo.
+ */
+function PlazoDeLinea({
+  linea: l,
+  disponibilidad,
+  hayDatos,
+  idLista,
+  onCambiar,
+}: {
+  linea: LineaDocumento
+  disponibilidad: DisponibilidadLinea | undefined
+  hayDatos: boolean
+  idLista: string
+  onCambiar: ((valor: string | null) => void) | null
+}) {
+  if (l.tipoLinea === 'chapter') return null
+  const estado = l.productId && hayDatos ? estadoDisponibilidad(l.cantidad, disponibilidad) : null
+  const plazo = l.plazo ?? ''
+
+  if (!onCambiar) {
+    if (!estado && !plazo) return null
+    return (
+      <span className={styles.plazoFila}>
+        {estado ? <span className={styles.disponibilidad} data-tono={estado.tono}>{estado.texto}</span> : null}
+        {plazo ? <span className={styles.plazoTexto}>Entrega: {plazo}</span> : null}
+      </span>
+    )
+  }
+
+  return (
+    <span className={styles.plazoFila}>
+      {estado ? <span className={styles.disponibilidad} data-tono={estado.tono}>{estado.texto}</span> : null}
+      <input
+        className={styles.plazoInput}
+        list={idLista}
+        value={plazo}
+        placeholder="Plazo de entrega"
+        aria-label="Plazo de entrega"
+        onChange={(e) => onCambiar(e.target.value || null)}
+      />
+      {estado?.sugerido && plazo === '' ? (
+        <button type="button" className={styles.plazoSugerido} onClick={() => onCambiar(estado.sugerido)}>
+          Usar «{estado.sugerido}»
+        </button>
+      ) : null}
+    </span>
   )
 }

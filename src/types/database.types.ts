@@ -5894,6 +5894,7 @@ export type Database = {
       }
       sales_order_lines: {
         Row: {
+          delivery_time: string | null
           company_id: string
           created_at: string
           customer_description: string | null
@@ -5918,6 +5919,7 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          delivery_time?: string | null
           company_id: string
           created_at?: string
           customer_description?: string | null
@@ -5942,6 +5944,7 @@ export type Database = {
           unit_price: number
         }
         Update: {
+          delivery_time?: string | null
           company_id?: string
           created_at?: string
           customer_description?: string | null
@@ -6225,6 +6228,7 @@ export type Database = {
       }
       sales_quote_lines: {
         Row: {
+          delivery_time: string | null
           brand_snapshot: string | null
           company_id: string
           created_at: string
@@ -6246,6 +6250,7 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          delivery_time?: string | null
           brand_snapshot?: string | null
           company_id: string
           created_at?: string
@@ -6267,6 +6272,7 @@ export type Database = {
           unit_price: number
         }
         Update: {
+          delivery_time?: string | null
           brand_snapshot?: string | null
           company_id?: string
           created_at?: string

@@ -125,6 +125,8 @@ vi.mock('../hooks/useAutoridadNumeracion', () => ({
   useAutoridadNumeracion: () => ({ stel: (t: string) => estado.stel[t] ?? false, cargando: false }),
 }))
 vi.mock('../hooks/useDocumentos', () => ({
+  // Plazo y stock (2026-11): sin datos de disponibilidad en estas pruebas.
+  useDisponibilidadLineas: () => ({ data: undefined }),
   useDocumento: () => ({ data: estado.doc, isPending: false, error: null }),
   // La cadena del documento (Fase 29 · E6). Por defecto sólo el propio: lo
   // que prueba cada test es su pantalla, no la barra del circuito.

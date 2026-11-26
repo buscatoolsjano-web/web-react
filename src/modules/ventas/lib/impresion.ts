@@ -172,6 +172,8 @@ export interface LineaImpresa {
    * reemplaza a la descripción libre cuando el producto tiene datos.
    */
   partes: ParteDescripcion[]
+  /** El plazo de entrega prometido (2026-11): sale debajo de la descripción. */
+  plazo?: string | null
 }
 
 export interface DocumentoImprimible {
@@ -307,6 +309,7 @@ export function construirImprimible(
         impuestoPct: l.tasaImpuesto,
         foto: opciones.conFotos && l.productId ? (datos?.get(l.productId)?.foto ?? null) : null,
         partes: l.productId ? partesDeDescripcion(datos?.get(l.productId), definiciones) : [],
+        plazo: l.plazo ?? null,
       }
     }),
     subtotal: doc.subtotal,
@@ -392,6 +395,7 @@ export function imprimibleDelBorrador(
       // del alta era la única que mentía sobre cómo iba a salir impreso.
       foto: opciones.conFotos && l.productId ? (productos?.get(l.productId)?.foto ?? null) : null,
       partes: l.productId ? partesDeDescripcion(productos?.get(l.productId), definiciones) : [],
+      plazo: l.plazo ?? null,
     }
   })
 

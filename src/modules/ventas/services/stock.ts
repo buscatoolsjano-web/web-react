@@ -54,3 +54,44 @@ export function faltante(cantidadPedida: number, d: DisponibilidadProducto | und
   if (!d) return 0
   return Math.max(0, cantidadPedida - d.libre)
 }
+
+export interface EnCaminoProducto {
+  cantidad: number
+  /** La llegada estimada más próxima, si algún pedido la tiene. */
+  llegada: string | null
+}
+
+/**
+ * Lo pedido a proveedores y todavía no recibido del todo, por producto
+ * (2026-11, plazo de entrega). Pedidos de compra confirmados con recepción
+ * pendiente o parcial. Es la cantidad pedida, no lo que falta recibir línea
+ * por línea: alcanza para decir «viene en camino» y cuándo.
+ */
+export async function enCaminoDeProductos(
+  companyId: string,
+  productIds: readonly string[],
+): Promise<Map<string, EnCaminoProducto>> {
+  const ids = [...new Set(productIds)]
+  if (ids.length === 0) return new Map()
+  const { data, error } = await supabase
+    .from('purchase_order_lines')
+    .select('product_id, quantity, purchase_orders!inner ( status, receipt_status, expected_date )')
+    .eq('company_id', companyId)
+    .in('product_id', ids)
+    .eq('purchase_orders.status', 'confirmed')
+    .in('purchase_orders.receipt_status', ['pending', 'partially_received'])
+  if (error) throw new Error(`No se pudo leer lo pedido a proveedores: ${error.message}`)
+
+  const mapa = new Map<string, EnCaminoProducto>()
+  type Fila = { product_id: string | null; quantity: number; purchase_orders: { expected_date: string | null } | null }
+  for (const f of (data ?? []) as unknown as Fila[]) {
+    if (!f.product_id) continue
+    const previo = mapa.get(f.product_id) ?? { cantidad: 0, llegada: null }
+    const llegada = f.purchase_orders?.expected_date ?? null
+    mapa.set(f.product_id, {
+      cantidad: previo.cantidad + Number(f.quantity),
+      llegada: llegada && (!previo.llegada || llegada < previo.llegada) ? llegada : previo.llegada,
+    })
+  }
+  return mapa
+}

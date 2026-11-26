@@ -107,6 +107,7 @@ import {
   useFormasDePago,
   useAgregarFormaDePago,
   useVendedores,
+  useDisponibilidadLineas,
 } from '../hooks/useDocumentos'
 import {
   FalloDeGuardado,
@@ -143,6 +144,7 @@ const CAMPO_BORRADOR = {
   discount_pct: 'descuentoPct',
   tax_treatment: 'tratamientoImpuesto',
   tax_rate_snapshot: 'tasaImpuesto',
+  delivery_time: 'plazo',
 } as const
 
 /**
@@ -468,6 +470,12 @@ function Detalle() {
     borrador?.cabecera.customerId || doc?.clienteId || null,
     borrador?.cabecera.moneda || doc?.moneda || null,
   )
+
+  // Stock y lo que viene en camino de cada producto, para el plazo (2026-11).
+  // Antes de los `return` tempranos: es un hook.
+  const disponibilidadLineas = useDisponibilidadLineas(
+    (borrador ? comoLineasDocumento(borrador) : lineas).flatMap((l) => (l.productId ? [l.productId] : [])),
+  ).data
 
   if (isPending) {
     return (
@@ -1046,6 +1054,7 @@ function Detalle() {
                       lineas={lineasVisibles}
                       moneda={borrador.cabecera.moneda}
                       editable
+                      disponibilidad={disponibilidadLineas}
                       historicos={historicos}
                       onCambiar={cambiarLinea}
                       onEliminar={(clave) => setBorrador((b) => (b ? quitarLinea(b, clave) : b))}
@@ -1069,7 +1078,12 @@ function Detalle() {
                     />
                   </>
                 ) : (
-                  <TablaLineas lineas={lineasVisibles} moneda={doc.moneda} tipo="cotizacion" />
+                  <TablaLineas
+                    lineas={lineasVisibles}
+                    moneda={doc.moneda}
+                    tipo="cotizacion"
+                    disponibilidad={disponibilidadLineas}
+                  />
                 )}
 
                 {/* Editando, sólo el Total y sin nota: el pie queda chico

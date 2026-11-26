@@ -276,7 +276,7 @@ describe('payload', () => {
       id: null, line_no: 3, line_type: 'item', product_id: 'p9',
       sku_snapshot: 'NUEVO', name_snapshot: 'Nuevo', description_snapshot: 'desc',
       quantity: 3, unit_price: 70, discount_pct: 5,
-      tax_treatment: 'vat_105', tax_rate_snapshot: 10.5,
+      tax_treatment: 'vat_105', tax_rate_snapshot: 10.5, delivery_time: null,
     })
   })
 

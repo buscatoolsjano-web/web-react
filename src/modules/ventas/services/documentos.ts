@@ -379,10 +379,10 @@ function columnasDetalle(tipo: TipoDocumento): string {
 const COLUMNAS_LINEA: Record<TipoDocumento, string> = {
   cotizacion: `id, line_no, line_type, product_id, sku_snapshot, name_snapshot,
     description_snapshot, quantity, unit_price, discount_pct, tax_treatment,
-    tax_rate_snapshot`,
+    tax_rate_snapshot, delivery_time`,
   pedido: `id, line_no, line_type, product_id, sku_snapshot, name_snapshot,
     description_snapshot, quantity_ordered, unit_price, discount_pct,
-    tax_treatment, tax_rate_snapshot`,
+    tax_treatment, tax_rate_snapshot, delivery_time`,
   // Fase 15 · E5: `delivery_lines` ya tiene `line_no` y descripción propia. El
   // orden dejó de ser el del `id`, que no era ningún orden. Los precios existen
   // desde Stage 3 y están en NULL en las 600 líneas históricas.
@@ -417,6 +417,7 @@ function aLinea(tipo: TipoDocumento, f: FilaLinea, indice: number): LineaDocumen
     tratamientoImpuesto: f.tax_treatment,
     tasaImpuesto: aNumero(f['tax_rate_snapshot']),
     ordenLineaId: (f['order_line_id'] as string | null) ?? null,
+    plazo: (f['delivery_time'] as string | null) ?? null,
   }
 }
 

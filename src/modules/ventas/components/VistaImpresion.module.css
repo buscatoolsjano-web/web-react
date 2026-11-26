@@ -933,3 +933,11 @@
     resize: none;
   }
 }
+
+/* El plazo de entrega de la línea (2026-11), debajo de la descripción. */
+.plazoLinea {
+  margin-top: 0.6mm;
+  font-size: 7.5pt;
+  font-weight: 700;
+  color: var(--tinta);
+}

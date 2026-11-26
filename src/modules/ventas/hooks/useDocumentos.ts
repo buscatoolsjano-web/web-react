@@ -20,7 +20,8 @@ import {
 } from '../services/documentos'
 import { documentosRelacionados, avanceDelRemito, evidenciaDeEntrega } from '../services/relacionados'
 import { cadenaDeDocumento } from '../services/cadena'
-import { disponibilidadDeProductos } from '../services/stock'
+import { disponibilidadDeProductos, enCaminoDeProductos } from '../services/stock'
+import type { DisponibilidadLinea } from '../lib/plazo'
 import { calcularPendientes, type ResultadoPendientes } from '../lib/pendientes'
 import type {
   DocumentoDetalle,
@@ -404,4 +405,38 @@ export function useAgregarFormaDePago() {
     },
     [companyId, cliente],
   )
+}
+
+/**
+ * Stock libre y lo que viene en camino, por producto (2026-11, plazo de
+ * entrega). Lo usa el editor de líneas de la cotización para decir, en cada
+ * línea, si hay, si viene o si no hay, y sugerir el plazo.
+ */
+export function useDisponibilidadLineas(productIds: readonly string[]) {
+  const { activa } = useEmpresa()
+  const companyId = activa?.companyId ?? null
+  const esInterno = activa?.esInterno ?? false
+  const ids = [...new Set(productIds)].sort()
+
+  return useQuery({
+    queryKey: ['ventas', companyId, 'disponibilidad-lineas', ids],
+    queryFn: async (): Promise<Map<string, DisponibilidadLinea>> => {
+      const [stock, camino] = await Promise.all([
+        disponibilidadDeProductos(companyId!, ids),
+        enCaminoDeProductos(companyId!, ids),
+      ])
+      return new Map(
+        ids.map((id) => [
+          id,
+          {
+            libre: stock.get(id)?.libre ?? 0,
+            enCamino: camino.get(id)?.cantidad ?? 0,
+            llegada: camino.get(id)?.llegada ?? null,
+          },
+        ]),
+      )
+    },
+    enabled: companyId !== null && esInterno && ids.length > 0,
+    staleTime: 60_000,
+  })
 }

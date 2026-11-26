@@ -581,6 +581,8 @@ export function VistaImpresion({ doc, empresa, opciones, plantilla = null, edici
                   {edicion?.onDescripcion && l.partes.length > 0 ? (
                     <DescripcionLinea linea={{ ...l, descripcion: null }} />
                   ) : null}
+                  {/* El plazo de entrega prometido (2026-11). */}
+                  {l.plazo ? <div className={styles.plazoLinea}>Entrega: {l.plazo}</div> : null}
                 </td>
                 <td className={styles.num}>
                   {edicion ? (

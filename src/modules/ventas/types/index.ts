@@ -161,6 +161,8 @@ export interface LineaDocumento {
   tasaImpuesto: number | null
   /** Sólo en líneas de entrega: a qué línea de pedido corresponde. */
   ordenLineaId: string | null
+  /** Plazo de entrega de la línea (cotización y pedido, 2026-11). */
+  plazo?: string | null
 }
 
 /** El domicilio tal como estaba cuando se emitió el remito. */

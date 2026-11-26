@@ -122,6 +122,8 @@ vi.mock('../hooks/useAutoridadNumeracion', () => ({
   useAutoridadNumeracion: () => ({ cargando: false, stel: (t: string) => estado.stel[t] === true }),
 }))
 vi.mock('../hooks/useDocumentos', () => ({
+  // Plazo y stock (2026-11): sin datos de disponibilidad en estas pruebas.
+  useDisponibilidadLineas: () => ({ data: undefined }),
   useTarifas: () => ({ data: estado.tarifas, isPending: false }),
   // Fase 68: el desplegable de forma de pago. Vacío alcanza, porque lo que se
   // prueba acá es la página; el selector tiene sus propias pruebas.
