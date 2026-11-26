@@ -11,6 +11,7 @@ import { FILTROS_MODAL } from '../hooks/useCatalogoParaDocumento'
 import { formatearImporte } from '../lib/formato'
 import { precioParaLineaNueva } from '../lib/ultimoPrecio'
 import type { PrecioPropuesto } from './ModalCatalogoProductos'
+import { filtrarAlInstante } from '../lib/filtroInstantaneo'
 import styles from './BuscadorProductoLinea.module.css'
 
 /**
@@ -71,23 +72,39 @@ export function BuscadorProductoLinea({
     if (r) setPos({ top: r.bottom, left: r.left, width: r.width })
   }
 
-  const q = useDebounce((valor ?? '').trim(), 250)
+  // 120 ms y no 250 (2026-11): el filtro al instante cubre la espera, así
+  // que se puede salir antes a buscar sin pedirle de más al servidor.
+  const q = useDebounce((valor ?? '').trim(), 120)
   const habilitado = companyId !== null && q.length >= 2 && abierto
 
   const { data } = useQuery({
     queryKey: ['ventas', companyId, 'buscar-linea', q, listaPrecioId, esInterno],
-    queryFn: () =>
-      consultarProductos(
+    queryFn: async () => ({
+      q,
+      ...(await consultarProductos(
         construirPlanDeConsulta({ ...FILTROS_MODAL, q, porPagina: MAXIMO }, companyId!),
         listaPrecioId,
         esInterno,
-      ),
+      )),
+    }),
     enabled: habilitado,
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   })
 
-  const productos = habilitado ? (data?.productos ?? []).slice(0, MAXIMO) : []
+  const texto = (valor ?? '').trim()
+  // ¿La lista que hay es de lo que está escrito ahora, o de una búsqueda anterior?
+  const desactualizada = data !== undefined && data.q !== texto
+  const deLaBusqueda = (data?.productos ?? []).slice(0, MAXIMO)
+  const productos =
+    texto.length >= 2 && abierto
+      ? desactualizada
+        ? filtrarAlInstante(deLaBusqueda, texto)
+        : habilitado
+          ? deLaBusqueda
+          : []
+      : []
+  const buscando = abierto && texto.length >= 2 && productos.length === 0 && (desactualizada || data === undefined)
   const hayLista = abierto && productos.length > 0
   // El índice resaltado, clamp al largo actual: si la lista se acortó, no se
   // sale. Se calcula en el render para no tocar estado dentro de un efecto.
@@ -161,6 +178,14 @@ export function BuscadorProductoLinea({
         onBlur={() => window.setTimeout(() => setAbierto(false), 120)}
         onKeyDown={alTeclear}
       />
+      {buscando && pos && !hayLista
+        ? createPortal(
+            <div className={styles.lista} style={{ top: pos.top, left: pos.left, minWidth: pos.width }} role="status">
+              <span className={styles.buscando}>Buscando…</span>
+            </div>,
+            document.body,
+          )
+        : null}
       {hayLista && pos
         ? createPortal(
             <ul

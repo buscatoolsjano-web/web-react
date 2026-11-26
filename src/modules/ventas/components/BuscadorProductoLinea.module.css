@@ -56,3 +56,11 @@
   color: var(--color-text-soft);
   white-space: nowrap;
 }
+
+/* Mientras viaja la búsqueda y no hay nada para mostrar (2026-11). */
+.buscando {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
