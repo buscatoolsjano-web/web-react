@@ -30,6 +30,7 @@ function fila(datos: DatosProveedor) {
     agent: vacioANulo(datos.agente),
     payment_terms: vacioANulo(datos.formaPago),
     default_currency: vacioANulo(datos.monedaPorDefecto),
+    lead_time_days: datos.diasEntrega.trim() === '' ? null : Number(datos.diasEntrega),
     notes: vacioANulo(datos.notas),
   }
 }

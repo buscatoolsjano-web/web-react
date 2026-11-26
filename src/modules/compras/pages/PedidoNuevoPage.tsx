@@ -18,6 +18,7 @@ import { abastecimientoDeVenta } from '@/modules/ventas/services/abastecimiento'
 import { pendienteDeCompra, sugeridoComprar } from '@/modules/ventas/lib/abastecimiento'
 import {
   pedidoVacio,
+  sumarDiasCompra,
   validarPedido,
   type DatosPedidoCompra,
   type ErrorDePedido,
@@ -222,6 +223,12 @@ export function PedidoNuevoPage() {
       proveedorId: p.id,
       formaPago: datos.formaPago.trim() === '' ? (p.formaPago ?? '') : datos.formaPago,
       moneda: datos.moneda === '' ? (p.moneda ?? '') : datos.moneda,
+      // La llegada estimada (2026-11): fecha del pedido + los días habituales
+      // del proveedor, sólo si todavía no se cargó una a mano.
+      fechaEstimada:
+        datos.fechaEstimada === '' && typeof p.diasEntrega === 'number' && datos.fecha !== ''
+          ? sumarDiasCompra(datos.fecha, p.diasEntrega)
+          : datos.fechaEstimada,
     })
   }
 

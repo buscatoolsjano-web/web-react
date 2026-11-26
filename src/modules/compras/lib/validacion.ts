@@ -39,6 +39,8 @@ export interface DatosProveedor {
   agente: string
   formaPago: string
   monedaPorDefecto: string
+  /** Días habituales entre el pedido y la llegada (2026-11). Vacío = sin dato. */
+  diasEntrega: string
   notas: string
 }
 
@@ -54,6 +56,7 @@ export const PROVEEDOR_VACIO: DatosProveedor = {
   agente: '',
   formaPago: '',
   monedaPorDefecto: '',
+  diasEntrega: '',
   notas: '',
 }
 
@@ -99,6 +102,12 @@ export function validarProveedor(
     errores.push({ campo: 'pais', mensaje: 'El país va con su código de dos letras: AR, ES, IT…' })
   }
 
+  if (datos.diasEntrega.trim() !== '') {
+    const n = Number(datos.diasEntrega)
+    if (!Number.isInteger(n) || n < 0 || n > 365) {
+      errores.push({ campo: 'diasEntrega', mensaje: 'Los días de entrega van de 0 a 365.' })
+    }
+  }
   return errores
 }
 
@@ -178,4 +187,11 @@ export function validarPedido(d: DatosPedidoCompra): ErrorDePedido[] {
   }
 
   return errores
+}
+
+/** Suma días a una fecha `YYYY-MM-DD`, sin zonas horarias (llegada estimada, 2026-11). */
+export function sumarDiasCompra(fecha: string, dias: number): string {
+  const d = new Date(`${fecha}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + dias)
+  return d.toISOString().slice(0, 10)
 }

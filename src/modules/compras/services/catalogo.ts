@@ -131,6 +131,8 @@ export interface ProveedorBuscado {
   nombreComercial: string | null
   formaPago: string | null
   moneda: string | null
+  /** Días habituales de entrega (2026-11): proponen la llegada estimada. */
+  diasEntrega?: number | null
 }
 
 /**
@@ -150,7 +152,7 @@ export async function buscarProveedores(
 ): Promise<ProveedorBuscado[]> {
   let q = supabase
     .from('suppliers')
-    .select('id, legacy_ref, legal_name, trade_name, payment_terms, default_currency')
+    .select('id, legacy_ref, legal_name, trade_name, payment_terms, default_currency, lead_time_days')
     .eq('company_id', companyId)
     .is('deleted_at', null)
     .eq('status', 'active')
@@ -177,6 +179,7 @@ export async function buscarProveedores(
     nombreComercial: p.trade_name,
     formaPago: p.payment_terms,
     moneda: p.default_currency,
+    diasEntrega: p.lead_time_days,
   }))
 }
 
@@ -187,7 +190,7 @@ export async function obtenerProveedorBreve(
 ): Promise<ProveedorBuscado | null> {
   const { data, error } = await supabase
     .from('suppliers')
-    .select('id, legacy_ref, legal_name, trade_name, payment_terms, default_currency')
+    .select('id, legacy_ref, legal_name, trade_name, payment_terms, default_currency, lead_time_days')
     .eq('company_id', companyId)
     .eq('id', id)
     .maybeSingle()
@@ -200,6 +203,7 @@ export async function obtenerProveedorBreve(
     nombreComercial: data.trade_name,
     formaPago: data.payment_terms,
     moneda: data.default_currency,
+    diasEntrega: data.lead_time_days,
   }
 }
 

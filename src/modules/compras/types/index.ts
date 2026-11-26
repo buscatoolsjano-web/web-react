@@ -79,6 +79,8 @@ export interface ProveedorDetalle {
   agente: string | null
   formaPago: string | null
   monedaPorDefecto: string | null
+  /** Días habituales entre el pedido y la llegada (2026-11). */
+  diasEntrega: number | null
   notas: string | null
   estado: string
   esHistorico: boolean

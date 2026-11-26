@@ -154,6 +154,24 @@ export function FormularioProveedor({
           </select>
         </div>
 
+        <div className={styles.campo}>
+          <label className={styles.etiqueta} htmlFor={`${id}-dias`}>
+            Días de entrega habituales
+          </label>
+          <input
+            id={`${id}-dias`}
+            className={styles.control}
+            type="number"
+            min={0}
+            max={365}
+            inputMode="numeric"
+            placeholder="Ej.: 45"
+            value={datos.diasEntrega}
+            onChange={(e) => cambiar('diasEntrega', e.target.value)}
+          />
+          <span className={styles.ayuda}>Proponen la llegada estimada de cada pedido nuevo.</span>
+        </div>
+
         {texto('actividad', 'Actividad')}
         {texto('agente', 'Agente')}
 

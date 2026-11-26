@@ -67,6 +67,10 @@ export interface EnCaminoProducto {
  * pendiente o parcial. Es la cantidad pedida, no lo que falta recibir línea
  * por línea: alcanza para decir «viene en camino» y cuándo.
  */
+function haceDias(n: number): string {
+  return new Date(Date.now() - n * 86_400_000).toLocaleDateString('sv-SE')
+}
+
 export async function enCaminoDeProductos(
   companyId: string,
   productIds: readonly string[],
@@ -75,11 +79,16 @@ export async function enCaminoDeProductos(
   if (ids.length === 0) return new Map()
   const { data, error } = await supabase
     .from('purchase_order_lines')
-    .select('product_id, quantity, purchase_orders!inner ( status, receipt_status, expected_date )')
+    .select('product_id, quantity, purchase_orders!inner ( status, receipt_status, expected_date, order_date )')
     .eq('company_id', companyId)
     .in('product_id', ids)
     .eq('purchase_orders.status', 'confirmed')
     .in('purchase_orders.receipt_status', ['pending', 'partially_received'])
+    // Sólo lo reciente (2026-11): Torquetools trae de STEL cientos de pedidos
+    // viejos «sin recibir» —desde 2019— que en realidad llegaron hace años.
+    // Cuenta lo pedido en los últimos 6 meses, o lo que tiene llegada cargada
+    // desde hace un mes en adelante.
+    .or(`order_date.gte.${haceDias(180)},expected_date.gte.${haceDias(30)}`, { referencedTable: 'purchase_orders' })
   if (error) throw new Error(`No se pudo leer lo pedido a proveedores: ${error.message}`)
 
   const mapa = new Map<string, EnCaminoProducto>()

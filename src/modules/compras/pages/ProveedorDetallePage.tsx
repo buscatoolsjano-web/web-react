@@ -61,6 +61,7 @@ function aFormulario(p: ProveedorDetalle): DatosProveedor {
     agente: p.agente ?? '',
     formaPago: p.formaPago ?? '',
     monedaPorDefecto: p.monedaPorDefecto ?? '',
+    diasEntrega: p.diasEntrega === null ? '' : String(p.diasEntrega),
     notas: p.notas ?? '',
   }
 }
@@ -259,6 +260,10 @@ export function ProveedorDetallePage() {
                   { label: 'País', value: proveedor.pais ? nombreDePais(proveedor.pais) : falta('sin país') },
                   { label: 'Forma de pago', value: proveedor.formaPago ?? falta('no definida') },
                   { label: 'Moneda por defecto', value: proveedor.monedaPorDefecto ?? falta('no definida') },
+                  {
+                    label: 'Días de entrega',
+                    value: proveedor.diasEntrega === null ? falta('sin dato') : `${proveedor.diasEntrega} días`,
+                  },
                   { label: 'Actividad', value: proveedor.actividad ?? falta('sin actividad') },
                   { label: 'Agente', value: proveedor.agente ?? falta('sin agente') },
                   { label: 'Estado', value: etiquetaDeEstado(proveedor.estado, proveedor.dadoDeBaja) },

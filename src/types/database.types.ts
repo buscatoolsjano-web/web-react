@@ -7086,6 +7086,7 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          lead_time_days: number | null
           activity: string | null
           address_text: string | null
           agent: string | null
@@ -7113,6 +7114,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          lead_time_days?: number | null
           activity?: string | null
           address_text?: string | null
           agent?: string | null
@@ -7140,6 +7142,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          lead_time_days?: number | null
           activity?: string | null
           address_text?: string | null
           agent?: string | null

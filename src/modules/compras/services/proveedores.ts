@@ -177,7 +177,7 @@ export async function paisesUsados(companyId: string): Promise<string[]> {
 
 const COLUMNAS_DETALLE = `
   id, legacy_ref, legal_name, trade_name, tax_id, email, phone, address_text,
-  country_code, activity, agent, payment_terms, default_currency, notes,
+  country_code, activity, agent, payment_terms, default_currency, lead_time_days, notes,
   status, imported_at, legacy_source, needs_review, review_reason, deleted_at,
   created_at
 `
@@ -188,6 +188,7 @@ interface FilaDetalle extends FilaListado {
   activity: string | null
   agent: string | null
   default_currency: string | null
+  lead_time_days: number | null
   notes: string | null
   legacy_source: string | null
   created_at: string
@@ -221,6 +222,7 @@ export async function obtenerProveedor(
     agente: f.agent,
     formaPago: f.payment_terms,
     monedaPorDefecto: f.default_currency,
+    diasEntrega: f.lead_time_days,
     notas: f.notes,
     estado: f.status,
     esHistorico: f.imported_at !== null,
