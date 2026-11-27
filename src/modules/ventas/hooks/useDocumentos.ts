@@ -37,14 +37,14 @@ import type {
  * mantiene la página anterior si es de la MISMA empresa: si no, las filas de
  * una quedaban en pantalla bajo el cartel de la otra.
  */
-export function useDocumentos(tipo: TipoDocumento, filtros: FiltrosVentas) {
+export function useDocumentos(tipo: TipoDocumento, filtros: FiltrosVentas, activo = true) {
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
 
   return useQuery<PaginaDeDocumentos>({
     queryKey: ['ventas', companyId, tipo, 'listado', filtros],
     queryFn: () => listarDocumentos(tipo, companyId!, filtros),
-    enabled: companyId !== null,
+    enabled: activo && companyId !== null,
     placeholderData: (previa, consultaPrevia) => {
       const empresaPrevia = consultaPrevia?.queryKey[1]
       return empresaPrevia === companyId ? previa : undefined

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Alert } from '@/components/feedback/Alert'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { enSegundoPlano, META_SEGUNDO_PLANO } from '@/lib/segundoPlano'
 import { permisosDe } from '../lib/permisos'
 import { formatearFecha } from '../lib/formato'
 import { preventivosDelPanel, type PreventivoDelPanel } from '../services/preventivos'
@@ -37,7 +38,9 @@ export function AvisoPreventivos() {
 
   const q = useQuery({
     queryKey: ['mantenimiento', companyId, 'preventivos-panel', hoy],
-    queryFn: () => preventivosDelPanel(companyId!, hoy),
+    // Un aviso, no lo que dibuja el panel: espera a que el panel pida lo suyo.
+    queryFn: ({ queryKey }) => enSegundoPlano(() => preventivosDelPanel(companyId!, hoy), queryKey),
+    meta: META_SEGUNDO_PLANO,
     enabled: companyId !== null && puede,
     staleTime: 5 * 60_000,
   })

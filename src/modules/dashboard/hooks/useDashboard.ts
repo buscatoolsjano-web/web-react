@@ -36,12 +36,12 @@ export function useAtencion() {
  * sólo contesta a admin y employee—, y reintentar tres veces un 403 sólo
  * demora el panel. El componente decide qué hacer con el error.
  */
-export function usePendientePorPersona() {
+export function usePendientePorPersona(activo = true) {
   const companyId = useEmpresa().activa?.companyId ?? null
   return useQuery({
     queryKey: ['dashboard', companyId, 'pendiente-por-persona'],
     queryFn: () => pendientePorPersona(companyId!),
-    enabled: companyId !== null,
+    enabled: activo && companyId !== null,
     staleTime: 5 * UN_MINUTO,
     refetchOnWindowFocus: false,
     retry: false,
@@ -60,7 +60,7 @@ const TIPOS: readonly TipoDocumento[] = ['cotizacion', 'pedido', 'entrega']
  *
  * El orden final —y el desempate del mismo día— se resuelve en `lib/documentos`.
  */
-export function useUltimosDocumentos(limite = 8) {
+export function useUltimosDocumentos(limite = 8, activo = true) {
   const companyId = useEmpresa().activa?.companyId ?? null
   const filtros = { ...FILTROS_VENTAS, porPagina: limite, orden: 'fecha' as const, direccion: 'desc' as const }
 
@@ -68,7 +68,7 @@ export function useUltimosDocumentos(limite = 8) {
     queries: TIPOS.map((tipo) => ({
       queryKey: ['ventas', companyId, tipo, 'listado', filtros],
       queryFn: () => listarDocumentos(tipo, companyId!, filtros),
-      enabled: companyId !== null,
+      enabled: activo && companyId !== null,
       staleTime: UN_MINUTO,
     })),
   })

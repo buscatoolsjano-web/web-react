@@ -14,6 +14,7 @@ import type { DocTypeVentas } from '@/modules/ventas/lib/autoridad'
 import { cotizacionesAbiertas, textoAutoridadStel } from '../lib/inicio'
 import { etiquetaDeTramo } from '../lib/panel'
 import { useAtencion, usePendientePorPersona, useUltimosDocumentos } from '../hooks/useDashboard'
+import { useFaseDos } from '../hooks/useFaseDos'
 import { documentosSinAutor, separarMiFila } from '../services/pendientePorPersona'
 import { AtencionHoy, type TarjetaAtencion } from './AtencionHoy'
 import { MiTrabajo } from './MiTrabajo'
@@ -98,12 +99,14 @@ export function VistaOperativa({ accesos, inicio }: VistaOperativaProps) {
   const actividad = useActividad(null)
   const pipeline = usePipeline(null)
   const atencion = useAtencion()
-  const cuentas = useCuentas()
-  const bandeja = useBandeja(EMAILS_SIN_RESPONDER)
-  const porPersona = usePendientePorPersona()
   const autoridad = useAutoridadNumeracion()
-  const ultimos = useUltimosDocumentos(8)
-  const porEntregar = useDocumentos('pedido', PEDIDOS_PENDIENTES)
+  // Lo de abajo, en una segunda tanda: ver `useFaseDos`.
+  const faseDos = useFaseDos(!actividad.isPending && !pipeline.isPending && !atencion.isPending)
+  const cuentas = useCuentas(faseDos)
+  const bandeja = useBandeja(EMAILS_SIN_RESPONDER, faseDos)
+  const porPersona = usePendientePorPersona(faseDos)
+  const ultimos = useUltimosDocumentos(8, faseDos)
+  const porEntregar = useDocumentos('pedido', PEDIDOS_PENDIENTES, faseDos)
 
   const verEmails = puedeUsarEmails(rol) && (cuentas.data?.length ?? 0) > 0
   const tiposStel = autoridad.cargando ? [] : TIPOS_STEL.filter((t) => autoridad.stel(t))

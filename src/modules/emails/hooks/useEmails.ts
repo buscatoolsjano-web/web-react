@@ -88,12 +88,13 @@ export function useFiltrosEmails() {
   return { filtros, aplicar, limpiar, hayFiltros: hayFiltrosActivos(filtros) }
 }
 
-export function useCuentas() {
+/** `activo: false` la deja esperando: el panel la pide después de lo principal. */
+export function useCuentas(activo = true) {
   const companyId = useCompany()
   return useQuery({
     queryKey: claves.cuentas(companyId),
     queryFn: () => listarCuentas(companyId!),
-    enabled: companyId !== null,
+    enabled: activo && companyId !== null,
     staleTime: 60_000,
   })
 }
@@ -118,12 +119,12 @@ export function useDesconectarCasilla() {
   })
 }
 
-export function useBandeja(filtros: FiltrosEmails) {
+export function useBandeja(filtros: FiltrosEmails, activo = true) {
   const companyId = useCompany()
   return useQuery<PaginaBandeja>({
     queryKey: [...claves.bandeja(companyId), filtros],
     queryFn: () => listarBandeja(companyId!, filtros),
-    enabled: companyId !== null,
+    enabled: activo && companyId !== null,
     placeholderData: (previa, consultaPrevia) =>
       consultaPrevia?.queryKey[1] === companyId ? previa : undefined,
     // Realtime mantiene la lista al día: no hace falta volver a pedirla sola.
