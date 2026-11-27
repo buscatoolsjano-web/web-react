@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabase/client'
 import type { ProductoListado } from '../types'
+import { AJUSTES_POR_DEFECTO, type AjustesDistribuidor } from '../lib/precioDistribuidor'
 
 /**
  * Catálogo compartido con distribuidores (2026-11-27) — Fase 2.
@@ -92,11 +93,11 @@ export async function fichaCompartida(companyId: string, productId: string): Pro
  * Un producto compartido con la forma del listado del catálogo, para que el
  * buscador de líneas de la cotización lo use sin saber de dónde vino.
  *
- * Si la moneda del catálogo no es la del documento, el precio no se propone:
- * un USD puesto en una cotización en pesos es peor que un precio vacío.
+ * `precio` es el que se propone en la línea: el de VENTA del distribuidor en la
+ * moneda del documento (ver lib/precioDistribuidor.ts), o `null` si no se
+ * puede calcular en esa moneda.
  */
-export function comoProductoListado(p: ItemCompartido, monedaCatalogo: string | null, monedaDocumento: string | null): ProductoListado {
-  const precio = monedaDocumento !== null && monedaCatalogo !== null && monedaCatalogo !== monedaDocumento ? null : p.precio
+export function comoProductoListado(p: ItemCompartido, precio: number | null): ProductoListado {
   return {
     enCatalogo: true,
     motivoFueraDelCatalogo: null,
@@ -185,5 +186,46 @@ export async function guardarCompartido(c: CambioCompartido): Promise<void> {
   if (error) {
     const codigo = Object.keys(MENSAJES).find((k) => error.message.includes(k))
     throw new Error(codigo ? MENSAJES[codigo] : 'No se pudo guardar el catálogo compartido.')
+  }
+}
+
+// ── Lo del distribuidor: su margen y su moneda (Fase 3) ──────────────────────
+
+export async function leerAjustesDistribuidor(companyId: string): Promise<AjustesDistribuidor> {
+  const { data, error } = await supabase
+    .from('precios_distribuidor')
+    .select('margen_pct, margenes_rubro, moneda_venta, tipo_cambio')
+    .eq('company_id', companyId)
+    .maybeSingle()
+  if (error) throw new Error(`No se pudieron leer tus precios de venta: ${error.message}`)
+  if (!data) return AJUSTES_POR_DEFECTO
+  const rubros: Record<string, number> = {}
+  for (const [k, v] of Object.entries((data.margenes_rubro ?? {}) as Record<string, unknown>)) {
+    const n = Number(v)
+    if (Number.isFinite(n)) rubros[k] = n
+  }
+  return {
+    margenPct: Number(data.margen_pct),
+    margenesRubro: rubros,
+    monedaVenta: data.moneda_venta,
+    tipoCambio: Number(data.tipo_cambio),
+  }
+}
+
+export async function guardarAjustesDistribuidor(companyId: string, a: AjustesDistribuidor): Promise<void> {
+  const { error } = await supabase.from('precios_distribuidor').upsert({
+    company_id: companyId,
+    margen_pct: a.margenPct,
+    margenes_rubro: a.margenesRubro,
+    moneda_venta: a.monedaVenta,
+    tipo_cambio: a.tipoCambio,
+    updated_at: new Date().toISOString(),
+  })
+  if (error) {
+    throw new Error(
+      /row-level security|permission/i.test(error.message)
+        ? 'Sólo un administrador de tu empresa puede cambiar los precios de venta.'
+        : 'No se pudieron guardar los precios de venta.',
+    )
   }
 }

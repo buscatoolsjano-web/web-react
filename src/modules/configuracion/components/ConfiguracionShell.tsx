@@ -38,6 +38,8 @@ export function ConfiguracionShell() {
         {[
           // Lo de un módulo que la empresa no tiene (ej. listas de precios) no se ofrece.
           ...seccionesVisibles(activa?.rol).filter((s) => rutaHabilitada(s.to, activa?.modulos)),
+          // Un distribuidor (módulos limitados) pone su margen y su moneda (Fase 3).
+          ...(activa?.modulos != null ? [{ to: '/configuracion/precios-venta', label: 'Precios de venta' }] : []),
           // Módulos por empresa: sólo administradores generales.
           ...(esGeneral
             ? [

@@ -4194,6 +4194,36 @@ export type Database = {
           },
         ]
       }
+      precios_distribuidor: {
+        Row: {
+          company_id: string
+          margen_pct: number
+          margenes_rubro: Json
+          moneda_venta: string | null
+          tipo_cambio: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          margen_pct?: number
+          margenes_rubro?: Json
+          moneda_venta?: string | null
+          tipo_cambio?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          margen_pct?: number
+          margenes_rubro?: Json
+          moneda_venta?: string | null
+          tipo_cambio?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       price_lists: {
         Row: {
           company_id: string

@@ -12,6 +12,8 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { fichaCompartida, listarCompartido, type FiltrosCompartido } from '../services/compartido'
 import { formatearPrecio } from '../lib/formato'
+import { monedaDeVenta, precioDeVenta, type AjustesDistribuidor } from '../lib/precioDistribuidor'
+import { useAjustesDistribuidor } from '../hooks/useAjustesDistribuidor'
 import styles from './CatalogoCompartido.module.css'
 
 const POR_PAGINA = 48
@@ -32,6 +34,8 @@ export function CatalogoCompartido() {
   const q = useDebounce(texto.trim(), 250)
   const [filtros, setFiltros] = useState<Omit<FiltrosCompartido, 'q' | 'porPagina'>>({ categoria: null, marca: null, pagina: 1 })
   const [abierto, setAbierto] = useState<string | null>(null)
+  // Su margen y su moneda (Fase 3): se ve su precio de VENTA, y el costo chico.
+  const ajustes = useAjustesDistribuidor(companyId)
 
   // Una búsqueda nueva vuelve a la página 1: se guarda con qué texto se paginó.
   const [qPaginada, setQPaginada] = useState(q)
@@ -74,12 +78,13 @@ export function CatalogoCompartido() {
   }
 
   const moneda = data.moneda
+  const monedaVenta = monedaDeVenta(moneda, ajustes)
 
   return (
     <div className={styles.pagina}>
       <PageHeader
         title="Catálogo"
-        subtitle={`${data.total.toLocaleString('es-AR')} productos de ${data.proveedor} · precios de distribuidor${moneda ? ` en ${moneda}` : ''}`}
+        subtitle={`${data.total.toLocaleString('es-AR')} productos de ${data.proveedor} · tus precios de venta${monedaVenta ? ` en ${monedaVenta}` : ''}`}
       />
 
       <div className={styles.filtros}>
@@ -132,7 +137,7 @@ export function CatalogoCompartido() {
                 <span className={styles.sku}>{p.sku}</span>
                 <span className={styles.nombre}>{p.nombre}</span>
                 {p.marca ? <span className={styles.marca}>{p.marca.nombre}</span> : null}
-                <span className={styles.precio}>{p.precio === null ? 'Consultar' : formatearPrecio(p.precio, moneda)}</span>
+                <Precios costo={p.precio} categoriaId={p.categoria?.id ?? null} moneda={moneda} ajustes={ajustes} />
               </button>
             </li>
           ))}
@@ -152,13 +157,23 @@ export function CatalogoCompartido() {
       ) : null}
 
       {abierto && companyId ? (
-        <FichaCompartida companyId={companyId} productId={abierto} onCerrar={() => setAbierto(null)} />
+        <FichaCompartida companyId={companyId} productId={abierto} ajustes={ajustes} onCerrar={() => setAbierto(null)} />
       ) : null}
     </div>
   )
 }
 
-function FichaCompartida({ companyId, productId, onCerrar }: { companyId: string; productId: string; onCerrar: () => void }) {
+function FichaCompartida({
+  companyId,
+  productId,
+  ajustes,
+  onCerrar,
+}: {
+  companyId: string
+  productId: string
+  ajustes: AjustesDistribuidor
+  onCerrar: () => void
+}) {
   const q = useQuery({
     queryKey: ['catalogo-compartido', companyId, 'ficha', productId],
     queryFn: () => fichaCompartida(companyId, productId),
@@ -180,7 +195,9 @@ function FichaCompartida({ companyId, productId, onCerrar }: { companyId: string
               ))}
             </div>
           ) : null}
-          <p className={styles.precioFicha}>{f.precio === null ? 'Precio a consultar' : formatearPrecio(f.precio, f.moneda)}</p>
+          <div className={styles.precioFicha}>
+            <Precios costo={f.precio} categoriaId={f.categoria?.id ?? null} moneda={f.moneda} ajustes={ajustes} />
+          </div>
           {f.descripcion ? <p>{f.descripcion}</p> : null}
           {f.atributos.length > 0 ? (
             <dl className={styles.atributos}>
@@ -199,5 +216,27 @@ function FichaCompartida({ companyId, productId, onCerrar }: { companyId: string
         </div>
       )}
     </Dialog>
+  )
+}
+
+/** Su precio de venta (grande) y su costo (chico, para saber de dónde sale). */
+function Precios({
+  costo,
+  categoriaId,
+  moneda,
+  ajustes,
+}: {
+  costo: number | null
+  categoriaId: string | null
+  moneda: string | null
+  ajustes: AjustesDistribuidor
+}) {
+  if (costo === null) return <span className={styles.precio}>Consultar</span>
+  const venta = precioDeVenta(costo, categoriaId, moneda, ajustes)
+  return (
+    <span className={styles.precios}>
+      <span className={styles.precio}>{formatearPrecio(venta, monedaDeVenta(moneda, ajustes))}</span>
+      <span className={styles.costo}>Tu costo {formatearPrecio(costo, moneda)}</span>
+    </span>
   )
 }
