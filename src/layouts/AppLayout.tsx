@@ -17,7 +17,10 @@ import { ROLES_CHAT } from '@/modules/chat/lib/permisos'
 import { Icon } from '@/components/icons/Icon'
 import { IconButton } from '@/components/ui/IconButton'
 import { BarraProgreso } from '@/components/feedback/BarraProgreso'
-import { aplicarTerminologia, filtrarPorEmpresa, navegacionPara } from './navegacion'
+import { aplicarTerminologia, filtrarPorEmpresa, filtrarPorModulos, navegacionPara } from './navegacion'
+import { rutaHabilitada } from '@/features/empresa/modulos'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { LinkButton } from '@/components/ui/LinkButton'
 import { PanelNav } from './PanelNav'
 import { BarraCompacta } from './BarraCompacta'
 import { MenuUsuario } from './MenuUsuario'
@@ -107,10 +110,17 @@ export function AppLayout() {
   const disparador = useRef<HTMLElement | null>(null)
   const panelCajon = useRef<HTMLDivElement>(null)
 
-  const grupos = filtrarPorEmpresa(
-    aplicarTerminologia(navegacionPara(empresa.activa?.rol ?? ''), empresa.activa?.companySlug),
-    empresa.activa?.catalogoPublico ?? false,
+  const modulos = empresa.activa?.modulos
+  const grupos = filtrarPorModulos(
+    filtrarPorEmpresa(
+      aplicarTerminologia(navegacionPara(empresa.activa?.rol ?? ''), empresa.activa?.companySlug),
+      empresa.activa?.catalogoPublico ?? false,
+    ),
+    modulos,
   )
+  // Un módulo que la empresa no tiene no se abre ni con el link directo
+  // (módulos por empresa, 2026-11-27). La base igual lo rechaza.
+  const rutaPermitida = rutaHabilitada(pathname, modulos)
   const conCajon = isMobile || isTablet
 
   // Cerrar el cajón al cruzar de breakpoint o al cambiar de ruta. Se ajusta
@@ -332,7 +342,16 @@ export function AppLayout() {
         <main className={styles.main} inert={abierto || undefined}>
           {session ? (
             <EstadoEmpresa cargando={empresa.cargando} error={empresa.error} sinEmpresa={!empresa.activa} onReintentar={empresa.reintentar} onSalir={() => void salirYVolverAlSitio()}>
-              <Outlet />
+              {rutaPermitida ? (
+                <Outlet />
+              ) : (
+                <EmptyState
+                  icon="eye-off"
+                  title="Esta sección no está habilitada"
+                  description="Tu empresa no tiene este módulo. Si lo necesitás, pedíselo a quien te dio acceso al sistema."
+                  action={<LinkButton to="/inicio" variant="secondary">Volver al inicio</LinkButton>}
+                />
+              )}
             </EstadoEmpresa>
           ) : (
             <Outlet />

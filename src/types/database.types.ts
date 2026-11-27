@@ -382,6 +382,7 @@ export type Database = {
           is_active: boolean
           legal_name: string | null
           logo_path: string | null
+          modulos: string[] | null
           name: string
           phone: string | null
           slug: string
@@ -400,6 +401,7 @@ export type Database = {
           is_active?: boolean
           legal_name?: string | null
           logo_path?: string | null
+          modulos?: string[] | null
           name: string
           phone?: string | null
           slug: string
@@ -418,6 +420,7 @@ export type Database = {
           is_active?: boolean
           legal_name?: string | null
           logo_path?: string | null
+          modulos?: string[] | null
           name?: string
           phone?: string | null
           slug?: string
@@ -9206,9 +9209,14 @@ export type Database = {
         }[]
       }
       config_crear_empresa: {
-        Args: { p_moneda: string; p_nombre: string }
+        Args: { p_moneda: string; p_modulos?: string[]; p_nombre: string }
         Returns: Json
       }
+      config_modulos_empresa: {
+        Args: { p_company: string; p_modulos: string[] | null }
+        Returns: string[]
+      }
+      config_soy_admin_general: { Args: never; Returns: boolean }
       config_categoria_crear: {
         Args: { p_company: string; p_datos: Json }
         Returns: {

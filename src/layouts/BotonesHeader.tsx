@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/features/auth/useAuth'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { tieneModulo } from '@/features/empresa/modulos'
 import { Icon } from '@/components/icons/Icon'
 import { misNotificaciones } from '@/features/notificaciones/servicio'
 import { enSegundoPlano, META_SEGUNDO_PLANO } from '@/lib/segundoPlano'
@@ -143,7 +144,10 @@ export function BotonesHeader() {
 
   // El del chat ya existía para el menú: se reusa en vez de contar de nuevo.
   const sinLeerChat = useNoLeidos().chat
-  const puedeChat = (ROLES_CHAT as readonly string[]).includes(rol)
+  const puedeChat =
+    (ROLES_CHAT as readonly string[]).includes(rol) && tieneModulo(activa?.modulos, 'chat')
+  // El asistente y Cata usan IA (cuestan por uso): sólo con el módulo.
+  const conAsistente = tieneModulo(activa?.modulos, 'asistente')
 
   return (
     <>
@@ -164,38 +168,40 @@ export function BotonesHeader() {
         <Link
           to="/chat"
           className={styles.boton}
-          aria-label={
-            sinLeerChat === 0 ? 'Chat interno' : `Chat interno: ${sinLeerChat} sin leer`
-          }
+          aria-label={sinLeerChat === 0 ? 'Chat interno' : `Chat interno: ${sinLeerChat} sin leer`}
         >
           <Icon name="message-circle" size={20} />
           <Globo cuantas={sinLeerChat} />
         </Link>
       ) : null}
 
-      <button
-        type="button"
-        className={styles.pildora}
-        aria-haspopup="dialog"
-        onClick={() => setAbierto('asistente')}
-      >
-        <Icon name="sparkles" size={16} />
-        <span className={styles.pildoraTexto}>Asistente Digital</span>
-      </button>
+      {conAsistente ? (
+        <>
+          <button
+            type="button"
+            className={styles.pildora}
+            aria-haspopup="dialog"
+            onClick={() => setAbierto('asistente')}
+          >
+            <Icon name="sparkles" size={16} />
+            <span className={styles.pildoraTexto}>Asistente Digital</span>
+          </button>
 
-      {/* Cata, que es una LLAMADA y no un chat: entra voz y sale voz, y sabe
+          {/* Cata, que es una LLAMADA y no un chat: entra voz y sale voz, y sabe
           sólo del catálogo. Botón propio y no un modo del asistente porque es
           otra cosa, y porque el límite de lo que sabe está en la puerta —ver
           `supabase/functions/cata/logica.ts`—, no en un parámetro. */}
-      <button
-        type="button"
-        className={`${styles.pildora} ${styles.pildoraCata}`}
-        aria-haspopup="dialog"
-        onClick={() => setAbierto('cata')}
-      >
-        <Icon name="phone" size={16} />
-        <span className={styles.pildoraTexto}>Cata</span>
-      </button>
+          <button
+            type="button"
+            className={`${styles.pildora} ${styles.pildoraCata}`}
+            aria-haspopup="dialog"
+            onClick={() => setAbierto('cata')}
+          >
+            <Icon name="phone" size={16} />
+            <span className={styles.pildoraTexto}>Cata</span>
+          </button>
+        </>
+      ) : null}
 
       {/* Sin `fallback` visible: el cajón tarda un pestañeo y un cartel de
           «cargando» que aparece y desaparece molesta más que la espera. */}

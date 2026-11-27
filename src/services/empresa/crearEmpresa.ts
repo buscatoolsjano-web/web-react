@@ -31,7 +31,7 @@ export class ErrorCrearEmpresa extends Error {
   }
 }
 
-const CODIGOS = ['sesion_invalida', 'sin_permiso', 'nombre_invalido', 'moneda_invalida'] as const
+const CODIGOS = ['sesion_invalida', 'sin_permiso', 'nombre_invalido', 'moneda_invalida', 'modulo_invalido'] as const
 
 function deError(e: { message: string }): ErrorCrearEmpresa {
   const codigo = CODIGOS.find((c) => e.message.includes(c))
@@ -40,8 +40,21 @@ function deError(e: { message: string }): ErrorCrearEmpresa {
   return new ErrorCrearEmpresa('desconocido')
 }
 
-export async function crearEmpresa(nombre: string, moneda: string): Promise<EmpresaCreada> {
-  const { data, error } = await supabase.rpc('config_crear_empresa', { p_nombre: nombre, p_moneda: moneda })
+/**
+ * `modulos`: `null` = empresa completa (todos los módulos, como hasta hoy); una
+ * lista = sólo esos además de lo básico (un distribuidor). Ver
+ * features/empresa/modulos.ts.
+ */
+export async function crearEmpresa(
+  nombre: string,
+  moneda: string,
+  modulos: readonly string[] | null = null,
+): Promise<EmpresaCreada> {
+  const { data, error } = await supabase.rpc('config_crear_empresa', {
+    p_nombre: nombre,
+    p_moneda: moneda,
+    ...(modulos !== null && { p_modulos: [...modulos] }),
+  })
   if (error) throw deError(error)
   const r = data as { company_id?: string; slug?: string; name?: string; moneda?: string } | null
   if (!r?.company_id) throw new ErrorCrearEmpresa('desconocido')
@@ -59,7 +72,9 @@ export function validarNombreEmpresa(nombre: string): string | null {
 export function mensajeErrorEmpresa(codigo: string): string {
   switch (codigo) {
     case 'sin_permiso':
-      return 'Sólo un administrador puede crear empresas.'
+      return 'Sólo un administrador general puede crear empresas.'
+    case 'modulo_invalido':
+      return 'Hay un módulo que no existe. Recargá la página e intentá de nuevo.'
     case 'nombre_invalido':
       return 'Ingresá un nombre válido (hasta 120 caracteres).'
     case 'moneda_invalida':

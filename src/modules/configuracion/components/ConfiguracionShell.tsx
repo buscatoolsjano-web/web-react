@@ -3,6 +3,8 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { SkeletonRows } from '@/components/ui/Skeleton'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { useAdminGeneral } from '@/features/empresa/useAdminGeneral'
+import { rutaHabilitada } from '@/features/empresa/modulos'
 import { cx } from '@/utils/cx'
 import { puedeVerConfiguracion, seccionesVisibles } from '../lib/permisos'
 import styles from './Configuracion.module.css'
@@ -17,6 +19,7 @@ import styles from './Configuracion.module.css'
 
 export function ConfiguracionShell() {
   const { activa, cargando } = useEmpresa()
+  const esGeneral = useAdminGeneral()
 
   if (cargando) return <SkeletonRows rows={4} columns={2} label="Cargando…" />
   if (!puedeVerConfiguracion(activa?.rol)) {
@@ -32,7 +35,12 @@ export function ConfiguracionShell() {
     <div className={styles.shell}>
       <nav className={styles.subnav} aria-label="Secciones de configuración">
         <p className={styles.subnavTitulo}>Configuración</p>
-        {seccionesVisibles(activa?.rol).map((s) => (
+        {[
+          // Lo de un módulo que la empresa no tiene (ej. listas de precios) no se ofrece.
+          ...seccionesVisibles(activa?.rol).filter((s) => rutaHabilitada(s.to, activa?.modulos)),
+          // Módulos por empresa: sólo administradores generales.
+          ...(esGeneral ? [{ to: '/configuracion/modulos', label: 'Módulos' }] : []),
+        ].map((s) => (
           <NavLink key={s.to} to={s.to} className={({ isActive }) => cx(styles.subnavItem, isActive && styles.subnavActivo)}>
             {s.label}
           </NavLink>

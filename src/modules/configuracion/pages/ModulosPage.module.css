@@ -1,0 +1,55 @@
+.cuerpo {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 44rem;
+}
+
+.todos,
+.modulo {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.todos input,
+.modulo input {
+  margin-top: 3px;
+}
+
+.todos {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.lista {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.lista:disabled {
+  opacity: 0.6;
+}
+
+.leyenda {
+  padding: 0 var(--space-1);
+  font-weight: 600;
+}
+
+.ayuda {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

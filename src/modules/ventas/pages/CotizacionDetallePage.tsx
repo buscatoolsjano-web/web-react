@@ -29,6 +29,7 @@ import { DocSection } from '@/components/document/DocSection'
 import docUi from '@/components/document/Document.module.css'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
+import { tieneModulo } from '@/features/empresa/modulos'
 import { useAccionesDocumento } from '../components/AccionesDocumento'
 import { PanelSeguimiento } from '../components/PanelSeguimiento'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
@@ -607,8 +608,9 @@ function Detalle() {
     ...(stelPedido ? (['sales_order'] as const) : []),
   ]
 
+  // Sin el módulo de pedidos (un distribuidor) la cotización termina acá.
   const botonGenerarPedido =
-    escribe && doc.estado !== 'rejected' ? (
+    escribe && doc.estado !== 'rejected' && tieneModulo(activa?.modulos, 'pedidos') ? (
       <Button
         variant="primary"
         icon={
@@ -635,7 +637,7 @@ function Detalle() {
    * Sólo para quien tiene Emails —admin y empleados—: al resto el botón le
    * abriría un cartel de «sin cuenta de correo».
    */
-  const enviarPorMail = puedeUsarEmails(activa?.rol) ? (
+  const enviarPorMail = puedeUsarEmails(activa?.rol) && tieneModulo(activa?.modulos, 'emails') ? (
     <Button
       variant="secondary"
       icon={<Icon name="mail" size={16} />}

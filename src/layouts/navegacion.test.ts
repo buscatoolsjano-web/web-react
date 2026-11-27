@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { aplicarTerminologia, destinosPara, entradaActiva, filtrarPorEmpresa, navegacionPara, NAVEGACION } from './navegacion'
+import { aplicarTerminologia, destinosPara, entradaActiva, filtrarPorEmpresa, filtrarPorModulos, navegacionPara, NAVEGACION } from './navegacion'
 import { ROLES_EMAILS } from '@/modules/emails/lib/permisos'
 import { ROLES_INFORMES } from '@/modules/informes/lib/permisos'
 import { ROLES_CONFIGURACION } from '@/modules/configuracion/lib/permisos'
@@ -136,5 +136,28 @@ describe('navegación agrupada', () => {
     expect(entradaActiva(ventas, '/ventas/pedidos/123')).toBe(true)
     expect(entradaActiva(ventas, '/ventas-historicas')).toBe(false)
     expect(entradaActiva(ventas, '/compras/pedidos')).toBe(false)
+  })
+})
+
+describe('filtrarPorModulos (módulos por empresa)', () => {
+  const destinos = (g: ReturnType<typeof navegacionPara>) =>
+    g.flatMap((x) => x.entradas.flatMap((e) => (e.destino ? [e.destino.to] : (e.hijos ?? []).map((h) => h.to))))
+
+  it('sin módulos definidos no saca nada', () => {
+    const todo = navegacionPara('admin')
+    expect(filtrarPorModulos(todo, null)).toEqual(todo)
+  })
+
+  it('un distribuidor ve lo básico, precios e informes; ni facturas, ni compras, ni mails', () => {
+    const d = destinos(filtrarPorModulos(navegacionPara('admin'), ['precios', 'informes']))
+    expect(d).toContain('/catalogo')
+    expect(d).toContain('/clientes')
+    expect(d).toContain('/ventas/cotizaciones')
+    expect(d).toContain('/precios')
+    expect(d).toContain('/informes')
+    expect(d).toContain('/configuracion')
+    for (const fuera of ['/ventas/facturas', '/ventas/pedidos', '/compras/proveedores', '/emails', '/whatsapp', '/mantenimiento/activos']) {
+      expect(d).not.toContain(fuera)
+    }
   })
 })

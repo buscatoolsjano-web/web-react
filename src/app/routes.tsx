@@ -334,6 +334,9 @@ const AuditoriaPage = lazyConRecarga(() =>
 const BorradosPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/BorradosPage').then((m) => ({ default: m.BorradosPage })),
 )
+const ModulosPage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/ModulosPage').then((m) => ({ default: m.ModulosPage })),
+)
 const PlantillasPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/PlantillasPage').then((m) => ({ default: m.PlantillasPage })),
 )
@@ -630,6 +633,8 @@ export const routes: RouteObject[] = [
           { path: 'auditoria', element: conSuspense(<AuditoriaPage />) },
           // Fase 40: qué se borró, quién y por qué. Admin y employee, sólo lectura.
           { path: 'borrados', element: conSuspense(<BorradosPage />) },
+          // Módulos por empresa (2026-11-27): sólo administradores generales.
+          { path: 'modulos', element: conSuspense(<ModulosPage />) },
           // Fase 167: plantillas y reglas de correo se mudaron a Emails. Las
           // URLs viejas redirigen, por si quedaron guardadas.
           { path: 'plantillas', element: <Navigate to="/emails/plantillas" replace /> },

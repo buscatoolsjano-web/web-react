@@ -13,6 +13,7 @@ import {
   validarNombreEmpresa,
   type Moneda,
 } from '@/services/empresa/crearEmpresa'
+import { PRESET_DISTRIBUIDOR } from './modulos'
 import styles from './ModalNuevaEmpresa.module.css'
 
 export interface ModalNuevaEmpresaProps {
@@ -30,6 +31,9 @@ export interface ModalNuevaEmpresaProps {
 export function ModalNuevaEmpresa({ onClose, onCreada }: ModalNuevaEmpresaProps) {
   const [nombre, setNombre] = useState('')
   const [moneda, setMoneda] = useState<Moneda>('ARS')
+  // Distribuidor (2026-11-27): una empresa propia con sólo las herramientas
+  // para cotizar; sus datos quedan separados de los nuestros por la base.
+  const [tipo, setTipo] = useState<'completa' | 'distribuidor'>('completa')
   const [errorNombre, setErrorNombre] = useState<string | null>(null)
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
@@ -48,7 +52,7 @@ export function ModalNuevaEmpresa({ onClose, onCreada }: ModalNuevaEmpresaProps)
     setErrorGeneral(null)
     setGuardando(true)
     try {
-      const r = await crearEmpresa(nombre.trim(), moneda)
+      const r = await crearEmpresa(nombre.trim(), moneda, tipo === 'distribuidor' ? PRESET_DISTRIBUIDOR : null)
       onCreada(r.companyId, r.name)
     } catch (err) {
       const codigo = err instanceof ErrorCrearEmpresa ? err.codigo : 'desconocido'
@@ -95,6 +99,19 @@ export function ModalNuevaEmpresa({ onClose, onCreada }: ModalNuevaEmpresaProps)
             autoComplete="off"
             placeholder="Nombre de la empresa"
           />
+        </Field>
+        <Field
+          label="Tipo"
+          help={
+            tipo === 'distribuidor'
+              ? 'Catálogo, clientes, cotizaciones, listas de precios e informes. Sin facturación, compras, mails ni WhatsApp. Los módulos se cambian después en Configuración → Módulos.'
+              : 'Todos los módulos, como Buscatools.'
+          }
+        >
+          <Select value={tipo} onChange={(e) => setTipo(e.target.value as 'completa' | 'distribuidor')}>
+            <option value="completa">Empresa completa</option>
+            <option value="distribuidor">Distribuidor</option>
+          </Select>
         </Field>
         <Field label="Moneda" help="La moneda de la lista de precios por defecto y de los documentos.">
           <Select value={moneda} onChange={(e) => setMoneda(e.target.value as Moneda)}>

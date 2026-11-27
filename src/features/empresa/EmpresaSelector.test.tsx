@@ -9,7 +9,9 @@ vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
 
 const cambiar = vi.fn()
 const recargar = vi.fn(() => Promise.resolve())
-const estado: { membresias: Membresia[] } = { membresias: [] }
+const estado: { membresias: Membresia[]; general: boolean } = { membresias: [], general: false }
+
+vi.mock('./useAdminGeneral', () => ({ useAdminGeneral: () => estado.general }))
 
 vi.mock('./useEmpresa', () => ({
   useEmpresa: () => ({
@@ -41,6 +43,7 @@ function m(companyId: string, companyName: string, rol: string): Membresia {
 
 beforeEach(() => {
   estado.membresias = []
+  estado.general = false
   vi.clearAllMocks()
 })
 
@@ -53,8 +56,9 @@ describe('EmpresaSelector', () => {
     expect(screen.queryByRole('button', { name: 'Agregar empresa' })).toBeNull()
   })
 
-  it('admin: abre el panel, elige otra empresa y entra al alta', () => {
+  it('admin general: abre el panel, elige otra empresa y entra al alta', () => {
     estado.membresias = [m('c0', 'Buscatools', 'admin'), m('c1', 'Torquetools', 'salesperson')]
+    estado.general = true
     render(<EmpresaSelector />)
 
     fireEvent.click(screen.getByRole('button', { name: /Empresa activa/ }))
@@ -66,11 +70,19 @@ describe('EmpresaSelector', () => {
     expect(screen.getByRole('dialog', { name: 'Nueva empresa' })).toBeInTheDocument()
   })
 
-  it('un admin con una sola empresa igual puede agregar', () => {
+  it('un admin general con una sola empresa igual puede agregar', () => {
     estado.membresias = [m('c0', 'Buscatools', 'admin')]
+    estado.general = true
     render(<EmpresaSelector />)
     fireEvent.click(screen.getByRole('button', { name: /Empresa activa/ }))
     expect(screen.getByRole('button', { name: 'Agregar empresa' })).toBeInTheDocument()
+  })
+
+  it('el admin de un distribuidor (no general) no puede agregar empresas', () => {
+    estado.membresias = [m('d0', 'Distribuidor', 'admin')]
+    render(<EmpresaSelector />)
+    expect(screen.queryByRole('button', { name: /Empresa activa/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Agregar empresa' })).toBeNull()
   })
 
   it('no-admin con dos empresas: desplegable para cambiar, pero sin «Agregar empresa»', () => {

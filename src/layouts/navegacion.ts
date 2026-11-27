@@ -4,6 +4,7 @@ import { ROLES_WHATSAPP } from '@/modules/whatsapp/lib/permisos'
 import { ROLES_CHAT } from '@/modules/chat/lib/permisos'
 import { ROLES_INFORMES } from '@/modules/informes/lib/permisos'
 import { ROLES_CONFIGURACION } from '@/modules/configuracion/lib/permisos'
+import { rutaHabilitada } from '@/features/empresa/modulos'
 
 /**
  * Navegación del shell (Fase 13 · E2): agrupada, pero con EXACTAMENTE los
@@ -218,6 +219,26 @@ const TERMINOS_POR_SLUG: Record<string, Record<string, string>> = {
 export function filtrarPorEmpresa(grupos: GrupoNav[], catalogoPublico: boolean): GrupoNav[] {
   if (catalogoPublico) return grupos
   return grupos.filter((g) => g.id !== 'web')
+}
+
+/**
+ * Saca lo que la empresa no tiene habilitado (módulos por empresa, 2026-11-27).
+ * Con `modulos` nulo no saca nada: es «todos». Un módulo que se queda sin
+ * hijos se va entero, y un grupo vacío también.
+ */
+export function filtrarPorModulos(grupos: GrupoNav[], modulos: readonly string[] | null | undefined): GrupoNav[] {
+  if (modulos == null) return grupos
+  return grupos
+    .map((g) => ({
+      ...g,
+      entradas: g.entradas.flatMap<EntradaNav>((e) => {
+        if (e.destino) return rutaHabilitada(e.destino.to, modulos) ? [e] : []
+        if (!e.hijos) return [e]
+        const hijos = e.hijos.filter((h) => rutaHabilitada(h.to, modulos))
+        return hijos.length ? [{ ...e, hijos }] : []
+      }),
+    }))
+    .filter((g) => g.entradas.length > 0)
 }
 
 /** Reemplaza las etiquetas del menú por las que usa la empresa activa. */

@@ -4,6 +4,7 @@ import { cx } from '@/utils/cx'
 import { etiquetaRol } from '@/modules/configuracion/lib/usuarios'
 import { useEmpresa } from './useEmpresa'
 import { ModalNuevaEmpresa } from './ModalNuevaEmpresa'
+import { useAdminGeneral } from './useAdminGeneral'
 import styles from './EmpresaSelector.module.css'
 
 /**
@@ -26,11 +27,11 @@ export function EmpresaSelector() {
   const disparador = useRef<HTMLButtonElement>(null)
   const idPanel = useId()
 
-  // Crear empresas es cosa de administradores. Alcanza con serlo en ALGUNA
-  // empresa: crear una nueva no es una acción de ninguna en particular. La base
-  // vuelve a exigirlo en `config_crear_empresa`, así que esto sólo decide si se
-  // ofrece el botón.
-  const puedeAgregar = membresias.some((m) => m.rol === 'admin')
+  // Crear empresas es cosa de administradores GENERALES (2026-11-27): el admin
+  // de un distribuidor administra su empresa pero no crea otras. La base vuelve
+  // a exigirlo en `config_crear_empresa`, así que esto sólo decide si se ofrece
+  // el botón.
+  const puedeAgregar = useAdminGeneral()
 
   useEffect(() => {
     if (!abierto) return
