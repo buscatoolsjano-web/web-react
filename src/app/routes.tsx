@@ -334,6 +334,9 @@ const AuditoriaPage = lazyConRecarga(() =>
 const BorradosPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/BorradosPage').then((m) => ({ default: m.BorradosPage })),
 )
+const DistribuidoresPage = lazyConRecarga(() =>
+  import('@/modules/configuracion/pages/DistribuidoresPage').then((m) => ({ default: m.DistribuidoresPage })),
+)
 const ModulosPage = lazyConRecarga(() =>
   import('@/modules/configuracion/pages/ModulosPage').then((m) => ({ default: m.ModulosPage })),
 )
@@ -635,6 +638,8 @@ export const routes: RouteObject[] = [
           { path: 'borrados', element: conSuspense(<BorradosPage />) },
           // Módulos por empresa (2026-11-27): sólo administradores generales.
           { path: 'modulos', element: conSuspense(<ModulosPage />) },
+          // Catálogo compartido con distribuidores (2026-11-27): sólo administradores generales.
+          { path: 'distribuidores', element: conSuspense(<DistribuidoresPage />) },
           // Fase 167: plantillas y reglas de correo se mudaron a Emails. Las
           // URLs viejas redirigen, por si quedaron guardadas.
           { path: 'plantillas', element: <Navigate to="/emails/plantillas" replace /> },

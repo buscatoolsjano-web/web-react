@@ -16,6 +16,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { GuiaFiltros } from '@/modules/publico/components/GuiaFiltros'
 import { aplicarCambiosDeRango } from '@/modules/publico/lib/rangosGuia'
 import { ListadoProductos } from '../components/ListadoProductos'
+import { CatalogoCompartido } from '../components/CatalogoCompartido'
 import { BarraCarrito } from '../components/BarraCarrito'
 import { ModalComparar } from '../components/ModalComparar'
 import { ModalEdicionMasiva } from '../components/ModalEdicionMasiva'
@@ -46,7 +47,17 @@ import styles from './CatalogoPage.module.css'
 
 const PRODUCTO = { singular: 'producto', plural: 'productos' } as const
 
+/**
+ * Qué catálogo se ve (2026-11-27). Una empresa con módulos limitados —un
+ * distribuidor— no tiene catálogo propio: ve el que le comparte su proveedor,
+ * sin costos y con su precio. Las demás (Buscatools, Torquetools…) el suyo.
+ */
 export function CatalogoPage() {
+  const { activa } = useEmpresa()
+  return activa?.modulos != null ? <CatalogoCompartido /> : <CatalogoPropio />
+}
+
+function CatalogoPropio() {
   const { activa } = useEmpresa()
   const { filtros, actualizar, limpiar } = useFiltrosCatalogo()
 

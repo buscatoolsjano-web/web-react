@@ -1,0 +1,125 @@
+.pagina {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.buscar {
+  flex: 1 1 18rem;
+}
+
+.grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grilla[aria-busy='true'] {
+  opacity: 0.6;
+}
+
+.tarjeta {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tarjeta:hover {
+  border-color: var(--color-primary);
+}
+
+.foto {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+.foto img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.sku {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.nombre {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.marca {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.precio {
+  margin-top: auto;
+  font-weight: 700;
+}
+
+.ficha {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.fotos {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+}
+
+.fotos img {
+  height: 12rem;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  object-fit: contain;
+}
+
+.precioFicha {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.atributos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.atributos dt {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.atributos dd {
+  margin: 0;
+}
+
+.larga {
+  white-space: pre-line;
+}

@@ -5,6 +5,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { useDebounce } from '@/hooks/useDebounce'
 import { consultarProductos } from '@/modules/catalogo/services/productos'
 import { construirPlanDeConsulta } from '@/modules/catalogo/lib/planDeConsulta'
+import { comoProductoListado, listarCompartido } from '@/modules/catalogo/services/compartido'
 import type { ProductoListado } from '@/modules/catalogo/types'
 import type { UltimoPrecio } from '@/modules/clientes/types'
 import { FILTROS_MODAL } from '../hooks/useCatalogoParaDocumento'
@@ -56,6 +57,8 @@ export function BuscadorProductoLinea({
   const { activa } = useEmpresa()
   const companyId = activa?.companyId ?? null
   const esInterno = activa?.esInterno ?? false
+  // Un distribuidor busca en el catálogo que le comparte su proveedor (2026-11-27).
+  const esDistribuidor = activa?.modulos != null
 
   const [abierto, setAbierto] = useState(false)
   const [activo, setActivo] = useState(0)
@@ -78,15 +81,21 @@ export function BuscadorProductoLinea({
   const habilitado = companyId !== null && q.length >= 2 && abierto
 
   const { data } = useQuery({
-    queryKey: ['ventas', companyId, 'buscar-linea', q, listaPrecioId, esInterno],
-    queryFn: async () => ({
-      q,
-      ...(await consultarProductos(
-        construirPlanDeConsulta({ ...FILTROS_MODAL, q, porPagina: MAXIMO }, companyId!),
-        listaPrecioId,
-        esInterno,
-      )),
-    }),
+    queryKey: ['ventas', companyId, 'buscar-linea', q, listaPrecioId, esInterno, esDistribuidor, moneda],
+    queryFn: async () => {
+      if (esDistribuidor) {
+        const r = await listarCompartido(companyId!, { q, categoria: null, marca: null, pagina: 1, porPagina: MAXIMO })
+        return { q, total: r.total, productos: r.productos.map((p) => comoProductoListado(p, r.moneda, moneda)) }
+      }
+      return {
+        q,
+        ...(await consultarProductos(
+          construirPlanDeConsulta({ ...FILTROS_MODAL, q, porPagina: MAXIMO }, companyId!),
+          listaPrecioId,
+          esInterno,
+        )),
+      }
+    },
     enabled: habilitado,
     placeholderData: keepPreviousData,
     staleTime: 30_000,

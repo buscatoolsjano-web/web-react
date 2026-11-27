@@ -158,6 +158,48 @@ export type Database = {
           },
         ]
       }
+      catalog_shares: {
+        Row: {
+          brand_ids: string[] | null
+          category_ids: string[] | null
+          created_at: string
+          created_by: string | null
+          descuento_pct: number
+          distributor_company_id: string
+          id: string
+          is_active: boolean
+          owner_company_id: string
+          price_list_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_ids?: string[] | null
+          category_ids?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          descuento_pct?: number
+          distributor_company_id: string
+          id?: string
+          is_active?: boolean
+          owner_company_id: string
+          price_list_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_ids?: string[] | null
+          category_ids?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          descuento_pct?: number
+          distributor_company_id?: string
+          id?: string
+          is_active?: boolean
+          owner_company_id?: string
+          price_list_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       capability_catalog: {
         Row: {
           description: string
@@ -8882,6 +8924,21 @@ export type Database = {
       // Fase 87: el catálogo público. Las únicas tres funciones que puede
       // ejecutar alguien sin sesión. Agregadas a mano, como todo lo nuevo:
       // el generador reescribe tipos de todo el proyecto.
+      catalogo_compartido_listar: {
+        Args: {
+          p_categoria?: string
+          p_company: string
+          p_marca?: string
+          p_pagina?: number
+          p_por_pagina?: number
+          p_query?: string
+        }
+        Returns: Json
+      }
+      catalogo_compartido_producto: {
+        Args: { p_company: string; p_product: string }
+        Returns: Json
+      }
       catalogo_publico_categorias: {
         Args: Record<string, never>
         Returns: Json
@@ -9207,6 +9264,18 @@ export type Database = {
           membership_id: string
           rol: string
         }[]
+      }
+      config_compartir_catalogo: {
+        Args: {
+          p_activo: boolean
+          p_categorias: string[] | null
+          p_descuento: number
+          p_distribuidor: string
+          p_marcas: string[] | null
+          p_owner: string
+          p_price_list: string | null
+        }
+        Returns: string
       }
       config_crear_empresa: {
         Args: { p_moneda: string; p_modulos?: string[]; p_nombre: string }

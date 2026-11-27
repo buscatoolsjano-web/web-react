@@ -1,0 +1,46 @@
+.cuerpo,
+.formulario {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 48rem;
+}
+
+.fila {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--space-3);
+}
+
+.check {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.check input {
+  margin-top: 3px;
+}
+
+.ayuda {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.rubros {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.listaRubros {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--space-2);
+  max-height: 20rem;
+  overflow-y: auto;
+}
