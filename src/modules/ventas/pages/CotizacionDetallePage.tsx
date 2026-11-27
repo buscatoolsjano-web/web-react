@@ -30,6 +30,7 @@ import docUi from '@/components/document/Document.module.css'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { tieneModulo } from '@/features/empresa/modulos'
+import { BotonPedirAlProveedor } from '../components/BotonPedirAlProveedor'
 import { useAccionesDocumento } from '../components/AccionesDocumento'
 import { PanelSeguimiento } from '../components/PanelSeguimiento'
 import { AvisoAutoridadStel } from '../components/AvisoAutoridadStel'
@@ -894,7 +895,14 @@ function Detalle() {
             la pantalla— así que el estado `draft` no existe más y el botón no
             tenía nada que marcar. La acción principal es generar el pedido.
           */
-          primary={botonGenerarPedido}
+          primary={
+            // Un distribuidor no genera pedidos propios: le pide a su proveedor (Fase 4).
+            activa?.modulos != null ? (
+              <BotonPedirAlProveedor quoteId={doc.id} aceptada={doc.estado === 'accepted'} />
+            ) : (
+              botonGenerarPedido
+            )
+          }
           secondary={
             <>
               {permiso.editable ? (

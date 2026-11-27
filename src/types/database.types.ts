@@ -164,6 +164,7 @@ export type Database = {
           category_ids: string[] | null
           created_at: string
           created_by: string | null
+          customer_id: string | null
           descuento_pct: number
           distributor_company_id: string
           id: string
@@ -177,6 +178,7 @@ export type Database = {
           category_ids?: string[] | null
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           descuento_pct?: number
           distributor_company_id: string
           id?: string
@@ -190,6 +192,7 @@ export type Database = {
           category_ids?: string[] | null
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           descuento_pct?: number
           distributor_company_id?: string
           id?: string
@@ -9781,6 +9784,14 @@ export type Database = {
           p_order: string
           p_serie?: string
         }
+        Returns: Json
+      }
+      distribuidor_pedido_de_cotizacion: {
+        Args: { p_quote: string }
+        Returns: Json
+      }
+      distribuidor_pedir_al_proveedor: {
+        Args: { p_quote: string }
         Returns: Json
       }
       documentos_comerciales: {
