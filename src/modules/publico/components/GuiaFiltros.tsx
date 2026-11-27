@@ -532,13 +532,15 @@ export function GuiaFiltros({
                 disabled={cargando}
                 onClick={() => activo.elegir(o.valor)}
                 // Pedir los datos antes del clic. Con el puntero, recién si se
-                // queda 80 ms: cruzar la grilla camino a otro lado no dispara
-                // pedidos. El foco y el toque, al toque.
+                // queda 250 ms: cruzar la grilla camino a otro lado no dispara
+                // pedidos (con 80 ms, pasar por tres rubros eran doce pedidos
+                // que ahogaban la base justo antes del clic, 2026-11-27). El
+                // foco y el toque, al toque.
                 onPointerEnter={(e) => {
                   if (e.pointerType !== 'mouse' || !activo.anticipar) return
                   const anticipar = activo.anticipar
                   window.clearTimeout(timerAnticipo.current)
-                  timerAnticipo.current = window.setTimeout(() => anticipar(o.valor), 80)
+                  timerAnticipo.current = window.setTimeout(() => anticipar(o.valor), 250)
                 }}
                 onPointerLeave={() => window.clearTimeout(timerAnticipo.current)}
                 onPointerDown={() => activo.anticipar?.(o.valor)}
