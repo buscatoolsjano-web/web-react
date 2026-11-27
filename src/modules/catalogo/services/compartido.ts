@@ -229,3 +229,56 @@ export async function guardarAjustesDistribuidor(companyId: string, a: AjustesDi
     )
   }
 }
+
+// ── El panel de distribuidores (Fase 5, sólo administradores generales) ──────
+
+export interface FilaPanelDistribuidor {
+  id: string
+  nombre: string
+  moneda: string
+  modulos: string[] | null
+  limiteUsuarios: number | null
+  limiteCotizacionesMes: number | null
+  compartido: { activo: boolean; descuento: number } | null
+  usuariosActivos: number
+  usuariosSuspendidos: number
+  cotizacionesMes: number
+  cotizaciones: number
+  aceptadas: number
+  pedidos: number
+  pedidosPendientes: number
+  montoPedidos: number
+  ultimaActividad: string | null
+}
+
+export async function panelDistribuidores(ownerId: string): Promise<FilaPanelDistribuidor[]> {
+  const { data, error } = await supabase.rpc('config_panel_distribuidores', { p_owner: ownerId })
+  if (error) throw new Error(`No se pudo leer el panel de distribuidores: ${error.message}`)
+  return ((data ?? []) as unknown as FilaPanelDistribuidor[]).map((f) => ({
+    ...f,
+    montoPedidos: Number(f.montoPedidos),
+    compartido: f.compartido ? { activo: f.compartido.activo, descuento: Number(f.compartido.descuento) } : null,
+  }))
+}
+
+export async function guardarLimites(companyId: string, usuarios: number | null, cotizacionesMes: number | null): Promise<void> {
+  const { error } = await supabase.rpc('config_limites_empresa', {
+    p_company: companyId,
+    p_usuarios: usuarios,
+    p_cotizaciones_mes: cotizacionesMes,
+  })
+  if (error) {
+    throw new Error(
+      error.message.includes('limite_invalido')
+        ? 'Los límites tienen que ser 1 o más (o vacío para no limitar).'
+        : 'No se pudieron guardar los límites.',
+    )
+  }
+}
+
+/** Suspende (o reactiva) a todos sus usuarios; devuelve cuántos cambió. */
+export async function suspenderDistribuidor(companyId: string, suspender: boolean): Promise<number> {
+  const { data, error } = await supabase.rpc('config_suspender_empresa', { p_company: companyId, p_suspender: suspender })
+  if (error) throw new Error(suspender ? 'No se pudo suspender el acceso.' : 'No se pudo reactivar el acceso.')
+  return Number(data ?? 0)
+}

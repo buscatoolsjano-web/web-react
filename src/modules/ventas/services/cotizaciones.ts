@@ -218,6 +218,8 @@ export const MOTIVOS_GUARDADO: Record<string, string> = {
   DOCUMENT_CURRENCY_REQUIRED: 'Elegí la moneda del documento antes de crear la cotización.',
   SIN_SERIE: 'La empresa no tiene una serie de numeración para cotizaciones.',
   external_numbering_authority: 'La numeración de cotizaciones todavía la administra STEL: no se puede crear desde el ERP.',
+  // Distribuidores (Fase 5): el tope de cotizaciones del mes que puso el proveedor.
+  limite_cotizaciones_mes: 'Llegaste al máximo de cotizaciones de este mes. Pedile a tu proveedor que te amplíe el límite.',
 }
 
 export class FalloDeGuardado extends Error {

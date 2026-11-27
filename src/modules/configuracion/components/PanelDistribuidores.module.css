@@ -1,0 +1,57 @@
+.panel {
+  margin-bottom: var(--space-5);
+}
+
+.tablaScroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.tabla th {
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.tabla tr:last-child td {
+  border-bottom: 0;
+}
+
+.chico {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.aviso {
+  display: block;
+  color: var(--color-warning, #b45309);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.acciones {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.limites {
+  display: grid;
+  gap: var(--space-3);
+}

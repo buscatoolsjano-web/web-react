@@ -426,6 +426,8 @@ export type Database = {
           id: string
           is_active: boolean
           legal_name: string | null
+          limite_cotizaciones_mes: number | null
+          limite_usuarios: number | null
           logo_path: string | null
           modulos: string[] | null
           name: string
@@ -445,6 +447,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           legal_name?: string | null
+          limite_cotizaciones_mes?: number | null
+          limite_usuarios?: number | null
           logo_path?: string | null
           modulos?: string[] | null
           name: string
@@ -464,6 +468,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           legal_name?: string | null
+          limite_cotizaciones_mes?: number | null
+          limite_usuarios?: number | null
           logo_path?: string | null
           modulos?: string[] | null
           name?: string
@@ -9314,9 +9320,21 @@ export type Database = {
         Args: { p_moneda: string; p_modulos?: string[]; p_nombre: string }
         Returns: Json
       }
+      config_limites_empresa: {
+        Args: { p_company: string; p_cotizaciones_mes: number | null; p_usuarios: number | null }
+        Returns: undefined
+      }
       config_modulos_empresa: {
         Args: { p_company: string; p_modulos: string[] | null }
         Returns: string[]
+      }
+      config_panel_distribuidores: {
+        Args: { p_owner: string }
+        Returns: Json
+      }
+      config_suspender_empresa: {
+        Args: { p_company: string; p_suspender: boolean }
+        Returns: number
       }
       config_soy_admin_general: { Args: never; Returns: boolean }
       config_categoria_crear: {

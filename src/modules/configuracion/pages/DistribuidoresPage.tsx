@@ -11,6 +11,7 @@ import { useEmpresa } from '@/features/empresa/useEmpresa'
 import { useAdminGeneral } from '@/features/empresa/useAdminGeneral'
 import { useCategorias } from '@/modules/catalogo/hooks/useCatalogoFacetas'
 import { guardarCompartido, listarCompartidosDe, type Compartido } from '@/modules/catalogo/services/compartido'
+import { PanelDistribuidores } from '../components/PanelDistribuidores'
 import styles from './DistribuidoresPage.module.css'
 
 /**
@@ -55,6 +56,14 @@ export function DistribuidoresPage() {
         title="Distribuidores"
         subtitle={`El catálogo de ${activa?.companyName ?? 'esta empresa'} que ve cada distribuidor, y a qué precio. Nunca ven costos ni stock.`}
       />
+      {/* Fase 5: cómo usa cada uno el sistema, y los controles. */}
+      {ownerId ? (
+        <PanelDistribuidores
+          ownerId={ownerId}
+          moneda={activa?.listasDePrecios.find((l) => l.esPorDefecto)?.moneda ?? null}
+          onConfigurar={setElegido}
+        />
+      ) : null}
       {compartidos.isPending ? (
         <SkeletonRows rows={3} columns={2} label="Cargando…" />
       ) : candidatas.length === 0 ? (
@@ -130,7 +139,10 @@ function FormularioCompartido({
         activo,
       })
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['config', ownerId, 'catalogos-compartidos'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['config', ownerId, 'catalogos-compartidos'] })
+      void qc.invalidateQueries({ queryKey: ['config', ownerId, 'panel-distribuidores'] })
+    },
   })
 
   return (
