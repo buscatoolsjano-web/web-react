@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 const facetas = vi.fn<(...a: unknown[]) => Promise<unknown>>()
 const productos = vi.fn<(...a: unknown[]) => Promise<unknown>>()
+// El CI no tiene variables de entorno: el cliente real no se puede crear.
+vi.mock('@/services/supabase/client', () => ({ supabase: {} }))
 vi.mock('../services/facetas', () => ({ obtenerFacetas: (...a: unknown[]) => facetas(...a) }))
 vi.mock('../services/productos', () => ({ consultarProductos: (...a: unknown[]) => productos(...a) }))
 
